@@ -3,9 +3,11 @@ import '../order-operations.css'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
+import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import {
+  formatOrderDate,
   getElapsedMinutes,
   getFinalActionLabel,
   getOrderUrgency,
@@ -16,7 +18,7 @@ import {
 const orderNumber = (id) => String(id).slice(-4)
 
 const finishedTime = (order) => {
-  if (!order.finishedAt) return order.date || ''
+  if (!order.finishedAt) return formatOrderDate(order.orderDate)
 
   return new Date(order.finishedAt).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -38,7 +40,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
     if (!normalizedSearch) return orders
 
     return orders.filter((order) =>
-      [order.client, order.type, order.size, order.date, order.productName, order.status]
+      [order.client, order.type, order.size, order.orderDate, order.productName, order.status, order.paymentStatus, order.paymentMethod]
         .join(' ')
         .toLowerCase()
         .includes(normalizedSearch),
@@ -72,7 +74,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
       <PageHeader
         eyebrow="Operação"
         title="Pedidos em preparo"
-        description="Acompanhe a fila da cozinha. O tempo e os atrasos são calculados automaticamente; você só finaliza quando o pedido sair da operação."
+        description="Acompanhe a fila da cozinha. O pagamento aparece como informação separada e não cria nenhuma etapa extra no preparo."
         actions={<Button icon="plus" onClick={onNewOrder}>Novo pedido</Button>}
       />
 
@@ -88,7 +90,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             <Icon name="search" size={18} />
             <input
               type="search"
-              placeholder="Buscar cliente, produto ou tipo de pedido"
+              placeholder="Buscar cliente, produto, pagamento ou tipo"
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
             />
@@ -120,11 +122,15 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                       <strong>{order.client}</strong>
                       <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un.</span>
                     </div>
-                    <StatusBadge status="Em preparo" />
+                    <div className="order-queue-badges">
+                      <StatusBadge status="Em preparo" />
+                      <PaymentBadge order={order} />
+                    </div>
                   </div>
 
                   <div className="order-queue-meta">
                     <span>{order.type}</span>
+                    <span>{formatOrderDate(order.orderDate)}</span>
                     <span>{currency(order.total)}</span>
                     <span className={`order-time urgency-${urgency}`}>
                       {urgencyLabel} · {elapsed < 1 ? 'agora' : `há ${elapsed} min`}
@@ -154,7 +160,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             <div className="empty-state compact-empty-state">
               <Icon name="orders" size={28} />
               <strong>{search ? 'Nenhum pedido ativo encontrado' : 'A fila está vazia'}</strong>
-              <span>{search ? 'Ajuste sua busca para localizar outros pedidos.' : 'Novos pedidos entram aqui automaticamente em preparo.'}</span>
+              <span>{search ? 'Ajuste sua busca para localizar outros pedidos.' : 'Novos pedidos de hoje entram aqui automaticamente em preparo.'}</span>
             </div>
           )}
         </div>
@@ -175,9 +181,12 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
               <div className="order-history-number">#{orderNumber(order.id)}</div>
               <div className="order-history-main">
                 <strong>{order.client}</strong>
-                <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un. · {order.type}</span>
+                <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un. · {order.type} · {formatOrderDate(order.orderDate)}</span>
               </div>
-              <StatusBadge status="Finalizado" />
+              <div className="order-history-badges">
+                <StatusBadge status="Finalizado" />
+                <PaymentBadge order={order} />
+              </div>
               <div className="order-history-value">
                 <strong>{currency(order.total)}</strong>
                 <span>{finishedTime(order)}</span>
@@ -197,7 +206,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
           {!finishedOrders.length && (
             <div className="empty-state compact-empty-state">
               <strong>Nenhum pedido finalizado</strong>
-              <span>Os pedidos sairão da fila de preparo e aparecerão aqui após a ação final.</span>
+              <span>Os pedidos sairão da fila de preparo e aparecerão aqui após a ação final ou quando forem lançados com uma data anterior.</span>
             </div>
           )}
         </div>
