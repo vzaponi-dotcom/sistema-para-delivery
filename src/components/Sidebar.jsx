@@ -6,6 +6,7 @@ const navigation = [
   { id: 'orders', label: 'Pedidos', icon: 'orders' },
   { id: 'clients', label: 'Clientes', icon: 'clients' },
   { id: 'products', label: 'Produtos', icon: 'products' },
+  { id: 'receivables', label: 'A Receber', icon: 'wallet' },
   { id: 'finance', label: 'Financeiro', icon: 'finance' },
 ]
 
