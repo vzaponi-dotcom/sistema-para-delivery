@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   formatOrderDate,
+  formatOrderTime,
   getElapsedMinutes,
   getFinalActionLabel,
+  getOrderTimingState,
   getOrderUrgency,
   isFinishedToday,
   isOrderFinished,
@@ -40,6 +42,19 @@ test('classifies urgency using operational thresholds', () => {
   assert.equal(getOrderUrgency({ createdAt: minutesAgo(8) }, now), 'normal')
   assert.equal(getOrderUrgency({ createdAt: minutesAgo(20) }, now), 'attention')
   assert.equal(getOrderUrgency({ createdAt: minutesAgo(30) }, now), 'delayed')
+})
+
+test('classifies live timing as on time, late, and very late', () => {
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(14) }, now), 'on-time')
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(15) }, now), 'late')
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(24) }, now), 'late')
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(25) }, now), 'very-late')
+})
+
+test('formats the automatic order creation time', () => {
+  const createdAt = new Date(2026, 8, 1, 11, 42, 0).toISOString()
+  assert.equal(formatOrderTime(createdAt), '11:42')
+  assert.equal(formatOrderTime('invalid'), '')
 })
 
 test('uses delivery-specific final action label', () => {
