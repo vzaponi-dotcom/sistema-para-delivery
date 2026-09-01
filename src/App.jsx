@@ -8,8 +8,21 @@ import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
+import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
-import { normalizeOrder } from './utils/orderWorkflow'
+import {
+  formatOrderDate,
+  isOrderFinished,
+  normalizeOrder,
+  normalizeOrderDate,
+  toLocalDateValue,
+} from './utils/orderWorkflow'
+import {
+  createOrderPaymentMovement,
+  getPendingAmount,
+  isOrderPaid,
+  normalizePayment,
+} from './utils/paymentWorkflow'
 
 const STORAGE_KEYS = {
   products: 'amor-e-sabor-products',
@@ -17,6 +30,15 @@ const STORAGE_KEYS = {
   orders: 'amor-e-sabor-orders',
   movements: 'amor-e-sabor-movements',
 }
+
+const PAYMENT_METHODS = [
+  'Pix',
+  'Dinheiro',
+  'Cartão de débito',
+  'Cartão de crédito',
+  'Transferência',
+  'Outro',
+]
 
 const initialProducts = [
   { id: 1, category: 'Marmita', size: 'P', name: 'Marmita Pequena', price: 32 },
@@ -36,7 +58,7 @@ const initialClients = [
 const initialOrders = [
   { id: 1, client: 'Maria Silva', type: 'Entrega', size: 'M', quantity: 2, total: 84, date: 'Hoje' },
   { id: 2, client: 'João Pereira', type: 'Retirada', size: 'P', quantity: 1, total: 32, date: 'Hoje' },
-  { id: 3, client: 'Ana Costa', type: 'Local', size: 'G', quantity: 1, total: 58, date: 'Ontem' },
+  { id: 3, client: 'Ana Costa', type: 'Local', size: 'G', quantity: 1, total: 58, date: 'Ontem', status: 'Finalizado' },
   { id: 4, client: 'Maria Silva', type: 'Entrega', size: 'M', quantity: 3, total: 126, date: 'Hoje' },
 ]
 
@@ -71,10 +93,17 @@ const formatPhone = (value) => {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
 }
 
+const normalizeStoredOrder = (order) => normalizePayment(normalizeOrder(order))
+
+const backdatedTimestamp = (orderDate) => {
+  const [year, month, day] = orderDate.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0).toISOString()
+}
+
 function App() {
   const [products, setProducts] = useState(() => readStorage(STORAGE_KEYS.products, initialProducts))
   const [clients, setClients] = useState(() => readStorage(STORAGE_KEYS.clients, initialClients))
-  const [orders, setOrders] = useState(() => readStorage(STORAGE_KEYS.orders, initialOrders).map((order) => normalizeOrder(order)))
+  const [orders, setOrders] = useState(() => readStorage(STORAGE_KEYS.orders, initialOrders).map(normalizeStoredOrder))
   const [movements, setMovements] = useState(() => readStorage(STORAGE_KEYS.movements, initialMovements))
   const [activeTab, setActiveTab] = useState('dashboard')
   const [form, setForm] = useState({
@@ -82,6 +111,7 @@ function App() {
     productId: readStorage(STORAGE_KEYS.products, initialProducts)[0]?.id ?? 1,
     type: 'Entrega',
     quantity: 1,
+    orderDate: toLocalDateValue(),
   })
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
   const [editingClientId, setEditingClientId] = useState(null)
@@ -97,6 +127,11 @@ function App() {
   const [toastMessage, setToastMessage] = useState('')
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [showMovementModal, setShowMovementModal] = useState(false)
+  const [paymentOrderId, setPaymentOrderId] = useState(null)
+  const [paymentMethod, setPaymentMethod] = useState('Pix')
+
+  const todayValue = toLocalDateValue()
+  const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
 
   useEffect(() => {
     if (!toastMessage) return
@@ -135,12 +170,19 @@ function App() {
   }
 
   const totals = useMemo(() => {
-    const revenue = orders.reduce((total, order) => total + Number(order.total), 0)
-    const totalOrders = orders.length
-    const averageTicket = totalOrders ? revenue / totalOrders : 0
-    const soldUnits = orders.reduce((total, order) => total + Number(order.quantity), 0)
-    return { revenue, totalOrders, averageTicket, soldUnits }
-  }, [orders])
+    const salesToday = orders
+      .filter((order) => order.orderDate === todayValue)
+      .reduce((total, order) => total + Number(order.total || 0), 0)
+    const receivedToday = orders
+      .filter((order) => isOrderPaid(order) && order.paidAt && toLocalDateValue(order.paidAt) === todayValue)
+      .reduce((total, order) => total + Number(order.paidAmount || order.total || 0), 0)
+    const receivables = orders
+      .filter((order) => !isOrderPaid(order))
+      .reduce((total, order) => total + getPendingAmount(order), 0)
+    const activeOrders = orders.filter((order) => !isOrderFinished(order)).length
+
+    return { salesToday, receivedToday, receivables, activeOrders }
+  }, [orders, todayValue])
 
   const financialTotals = useMemo(() => {
     const entries = movements
@@ -154,38 +196,52 @@ function App() {
 
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setToastMessage(message)
 
+  const openOrderModal = () => {
+    setForm((current) => ({ ...current, quantity: 1, orderDate: toLocalDateValue() }))
+    setShowOrderModal(true)
+  }
+
   const handleOrderSubmit = (event) => {
     event.preventDefault()
     const selectedClient = clients.find((client) => client.id === Number(form.clientId))
     if (!selectedClient || !selectedProduct) return
 
+    const now = new Date()
+    const today = toLocalDateValue(now)
+    const orderDate = normalizeOrderDate(form.orderDate, now)
+    const historical = orderDate < today
+    const operationalTimestamp = historical ? backdatedTimestamp(orderDate) : now.toISOString()
     const quantity = Number(form.quantity) || 1
     const total = selectedProduct.price * quantity
-    const createdAt = new Date().toISOString()
     const newOrder = {
       id: Date.now(),
       client: selectedClient.name,
       type: form.type,
-      status: 'Em preparo',
+      status: historical ? 'Finalizado' : 'Em preparo',
       productName: selectedProduct.name,
       size: selectedProduct.size,
       quantity,
       total,
-      date: 'Hoje',
-      createdAt,
-      finishedAt: null,
+      orderDate,
+      date: formatOrderDate(orderDate),
+      createdAt: operationalTimestamp,
+      finishedAt: historical ? operationalTimestamp : null,
+      paymentStatus: 'Pendente',
+      paymentMethod: null,
+      paidAt: null,
+      paidAmount: 0,
     }
 
     setOrders((current) => [newOrder, ...current])
-    setForm((current) => ({ ...current, quantity: 1 }))
+    setForm((current) => ({ ...current, quantity: 1, orderDate: toLocalDateValue() }))
     setShowOrderModal(false)
     setActiveTab('orders')
-    showSuccessMessage('Pedido entrou em preparo')
+    showSuccessMessage(historical ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo')
   }
 
   const handleNewOrder = () => {
     setActiveTab('orders')
-    setShowOrderModal(true)
+    openOrderModal()
   }
 
   const handleFinalizeOrder = (orderId) => {
@@ -201,6 +257,53 @@ function App() {
     )
 
     showSuccessMessage(order.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado')
+  }
+
+  const openPaymentModal = (orderId) => {
+    const order = orders.find((item) => item.id === orderId)
+    if (!order || isOrderPaid(order)) return
+    setPaymentOrderId(orderId)
+    setPaymentMethod('Pix')
+  }
+
+  const closePaymentModal = () => {
+    setPaymentOrderId(null)
+    setPaymentMethod('Pix')
+  }
+
+  const handleRegisterPayment = (event) => {
+    event.preventDefault()
+    if (!paymentOrder || isOrderPaid(paymentOrder)) return
+
+    const paidAt = new Date()
+    const paidAtIso = paidAt.toISOString()
+    const movementExists = movements.some(
+      (movement) => movement.source === 'order-payment' && movement.orderId === paymentOrder.id,
+    )
+
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === paymentOrder.id
+          ? {
+              ...order,
+              paymentStatus: 'Pago',
+              paymentMethod,
+              paidAt: paidAtIso,
+              paidAmount: Number(order.total) || 0,
+            }
+          : order,
+      ),
+    )
+
+    if (!movementExists) {
+      setMovements((current) => [
+        createOrderPaymentMovement(paymentOrder, paymentMethod, paidAt),
+        ...current,
+      ])
+    }
+
+    closePaymentModal()
+    showSuccessMessage(`Pagamento recebido via ${paymentMethod}`)
   }
 
   const handleAddClient = () => {
@@ -273,14 +376,28 @@ function App() {
     const normalizedSearch = orderSearch.trim().toLowerCase()
     return orders.filter((order) => {
       if (!normalizedSearch) return true
-      return [order.client, order.type, order.size, order.date, order.productName, order.status]
+      return [
+        order.client,
+        order.type,
+        order.size,
+        order.orderDate,
+        order.productName,
+        order.status,
+        order.paymentStatus,
+        order.paymentMethod,
+      ]
         .join(' ')
         .toLowerCase()
         .includes(normalizedSearch)
     })
   }, [orderSearch, orders])
 
-  const handleDeleteOrder = (orderId) => setOrders((current) => current.filter((order) => order.id !== orderId))
+  const handleDeleteOrder = (orderId) => {
+    setOrders((current) => current.filter((order) => order.id !== orderId))
+    setMovements((current) =>
+      current.filter((movement) => !(movement.source === 'order-payment' && movement.orderId === orderId)),
+    )
+  }
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = productSearch.trim().toLowerCase()
@@ -344,13 +461,15 @@ function App() {
     const value = Number(newMovement.value) || 0
     if (!description || value <= 0) return
 
+    const createdAt = new Date()
     const movement = {
       id: Date.now(),
       type: newMovement.type,
       category: newMovement.category,
       description,
       value,
-      date: 'Hoje',
+      date: formatOrderDate(toLocalDateValue(createdAt)),
+      createdAt: createdAt.toISOString(),
     }
 
     setMovements((current) => [movement, ...current])
@@ -390,7 +509,7 @@ function App() {
           search={orderSearch}
           onSearchChange={setOrderSearch}
           currency={currency}
-          onNewOrder={() => setShowOrderModal(true)}
+          onNewOrder={openOrderModal}
           onFinalizeOrder={handleFinalizeOrder}
           onDeleteOrder={handleDeleteOrder}
         />
@@ -419,6 +538,10 @@ function App() {
           onEdit={handleEditProduct}
           onDelete={handleDeleteProduct}
         />
+      )}
+
+      {activeTab === 'receivables' && (
+        <Receivables orders={orders} currency={currency} onRegisterPayment={openPaymentModal} />
       )}
 
       {activeTab === 'finance' && (
@@ -451,6 +574,17 @@ function App() {
               </label>
 
               <label className="form-field">
+                <span>Data do pedido</span>
+                <input
+                  type="date"
+                  value={form.orderDate}
+                  max={todayValue}
+                  onChange={(event) => setForm((current) => ({ ...current, orderDate: event.target.value }))}
+                />
+                <small className="form-hint">Hoje vem preenchido automaticamente. Datas anteriores entram direto no histórico.</small>
+              </label>
+
+              <label className="form-field">
                 <span>Quantidade</span>
                 <input type="number" min="1" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} />
               </label>
@@ -475,6 +609,30 @@ function App() {
             <div className="form-actions">
               <Button type="button" variant="secondary" onClick={() => setShowOrderModal(false)}>Cancelar</Button>
               <Button type="submit" icon="plus">Salvar pedido</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {paymentOrder && (
+        <Modal title="Registrar pagamento" onClose={closePaymentModal}>
+          <form className="form-stack" onSubmit={handleRegisterPayment}>
+            <div className="payment-summary-card">
+              <span>{paymentOrder.client} · Pedido #{String(paymentOrder.id).slice(-4)}</span>
+              <strong>{currency(paymentOrder.total)}</strong>
+              <small>O pagamento será lançado automaticamente como entrada no Financeiro.</small>
+            </div>
+
+            <label className="form-field">
+              <span>Forma de pagamento</span>
+              <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                {PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method}</option>)}
+              </select>
+            </label>
+
+            <div className="form-actions">
+              <Button type="button" variant="secondary" onClick={closePaymentModal}>Cancelar</Button>
+              <Button type="submit">Confirmar pagamento</Button>
             </div>
           </form>
         </Modal>
