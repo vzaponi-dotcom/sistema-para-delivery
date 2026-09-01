@@ -2,84 +2,99 @@ import { useId } from 'react'
 
 const BrandLogo = ({ variant = 'full', className = '' }) => {
   const uid = useId().replace(/:/g, '')
-  const redId = `red-${uid}`
-  const silverId = `silver-${uid}`
-  const ribbonId = `ribbon-${uid}`
+  const redId = `brand-red-${uid}`
+  const silverId = `brand-silver-${uid}`
+
+  const defs = (
+    <defs>
+      <linearGradient id={redId} x1="18%" y1="10%" x2="82%" y2="92%">
+        <stop offset="0%" stopColor="#ef233c" />
+        <stop offset="55%" stopColor="#c9182b" />
+        <stop offset="100%" stopColor="#9e1021" />
+      </linearGradient>
+      <linearGradient id={silverId} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="38%" stopColor="#e7e7e7" />
+        <stop offset="72%" stopColor="#a9aaad" />
+        <stop offset="100%" stopColor="#f8f8f8" />
+      </linearGradient>
+    </defs>
+  )
 
   const mark = (
-    <svg
-      viewBox="0 0 260 260"
-      className={className}
-      role="img"
-      aria-label="Logo Amor e Sabor"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <linearGradient id={redId} x1="0%" x2="100%" y1="0%" y2="100%">
-          <stop offset="0%" stopColor="#d81c2a" />
-          <stop offset="100%" stopColor="#a90d1e" />
-        </linearGradient>
-        <linearGradient id={silverId} x1="0%" x2="100%" y1="0%" y2="100%">
-          <stop offset="0%" stopColor="#f9f9f9" />
-          <stop offset="50%" stopColor="#dfe4ea" />
-          <stop offset="100%" stopColor="#a7afb9" />
-        </linearGradient>
-      </defs>
-
-      <circle cx="130" cy="130" r="124" fill={`url(#${redId})`} />
+    <g>
+      <circle cx="64" cy="64" r="60" fill={`url(#${redId})`} />
+      <circle cx="64" cy="64" r="55.5" fill="none" stroke="#fff" strokeWidth="3.5" opacity="0.96" />
 
       <path
-        d="M40 108c0-49 36-84 82-84 46 0 82 35 82 84 0 0 0 14 10 24 10 10 16 14 16 14H24s6-4 16-14c10-10 10-24 10-24Z"
-        fill="#f6f3f0"
+        d="M36 62V48c-8.2-1.9-14.2-9.2-14.2-18 0-10.1 8.1-18.2 18.2-18.2 3.2 0 6.2.8 8.8 2.3C52.3 7.4 59.3 3 67.3 3c9.4 0 17.4 6 20.4 14.4a20.2 20.2 0 0 1 8-1.7c11.2 0 20.3 9.1 20.3 20.3 0 10.4-7.8 19-17.9 20.2V62H36Z"
+        fill="#fff"
       />
-      <path d="M22 136h216c0 0 12 17 12 33v13H10v-13c0-16 12-33 12-33Z" fill="#f0efe9" />
+      <path d="M36 59h62v32H36z" fill="#fff" />
 
-      <g fill={`url(#${silverId})`}>
-        <rect x="65" y="110" width="18" height="76" rx="9" />
-        <ellipse cx="74" cy="106" rx="18" ry="13" />
+      <g fill={`url(#${silverId})`} stroke="#97989b" strokeWidth="0.65">
+        <ellipse cx="50.2" cy="57" rx="7.2" ry="11.2" />
+        <path d="M48.2 67.7h4v19h-4z" />
 
-        <rect x="96" y="110" width="18" height="76" rx="9" />
-        <ellipse cx="105" cy="106" rx="18" ry="13" />
+        <path d="M62.4 45.5h2v17.8h-2zM66.2 45.5h2v17.8h-2zM70 45.5h2v17.8h-2zM73.8 45.5h2v17.8h-2z" />
+        <path d="M64 60h10.2v7.5c0 2.7-2.2 4.8-4.8 4.8h-.6c-2.7 0-4.8-2.2-4.8-4.8V60Z" />
+        <path d="M67.4 70.8h3.8v16h-3.8z" />
 
-        <rect x="127" y="110" width="18" height="76" rx="9" />
-        <ellipse cx="136" cy="106" rx="18" ry="13" />
-
-        <path d="M163 103h18v92c0 11-9 20-20 20s-20-9-20-20v-8c0-7 6-13 13-13s13 6 13 13v8c0 2 2 4 4 4s4-2 4-4v-92Z" />
-        <path d="M191 103h18v92c0 11-9 20-20 20s-20-9-20-20v-8c0-7 6-13 13-13s13 6 13 13v8c0 2 2 4 4 4s4-2 4-4v-92Z" />
-        <path d="M219 103h18v92c0 11-9 20-20 20s-20-9-20-20v-8c0-7 6-13 13-13s13 6 13 13v8c0 2 2 4 4 4s4-2 4-4v-92Z" />
+        <path d="M84 45.5c5.7 4.5 8.7 11.9 7.8 19.8l-2 21.5h-5.1V45.5H84Z" />
       </g>
 
-      <path d="M48 178h164c-7 19-22 33-47 39H95c-25-6-40-20-47-39Z" fill="#e7eaee" opacity="0.9" />
-    </svg>
+      <path d="M27 91c11.7-3.1 24-4.6 37-4.6s25.3 1.5 37 4.6v9.2c-11.9-2.6-24.3-3.9-37-3.9s-25.1 1.3-37 3.9V91Z" fill={`url(#${redId})`} stroke="#fff" strokeWidth="2.2" />
+    </g>
   )
 
   if (variant === 'mark') {
-    return mark
+    return (
+      <svg
+        viewBox="0 0 128 128"
+        className={className}
+        role="img"
+        aria-label="Amor & Sabor"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {defs}
+        {mark}
+      </svg>
+    )
   }
 
   return (
     <svg
-      viewBox="0 0 820 260"
+      viewBox="0 0 520 128"
       className={className}
       role="img"
-      aria-label="Logo Amor e Sabor"
+      aria-label="Amor & Sabor — comida caseira"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <linearGradient id={ribbonId} x1="0%" x2="100%" y1="0%" y2="0%">
-          <stop offset="0%" stopColor="#e73d47" />
-          <stop offset="100%" stopColor="#b81025" />
-        </linearGradient>
-      </defs>
-
-      <g transform="translate(0 0)">
-        {mark}
-      </g>
-
-      <g transform="translate(285 34)">
-        <path d="M0 82h420c19 0 35 15 35 34v8c0 18-16 34-35 34H0c-19 0-35-16-35-34v-8c0-19 16-34 35-34Z" fill={`url(#${ribbonId})`} />
-        <text x="210" y="116" textAnchor="middle" fontSize="49" fontWeight="700" fill="#fffaf7" fontFamily="Georgia, 'Times New Roman', serif" letterSpacing="1.2">Amor &amp; Sabor</text>
-        <text x="210" y="151" textAnchor="middle" fontSize="20" fontWeight="600" fill="#ffeae1" fontFamily="Georgia, 'Times New Roman', serif" letterSpacing="2.2">comida caseira</text>
+      {defs}
+      {mark}
+      <g transform="translate(145 0)">
+        <text
+          x="0"
+          y="58"
+          fill="#25211f"
+          fontFamily="Georgia, 'Times New Roman', serif"
+          fontSize="43"
+          fontWeight="700"
+          letterSpacing="-1.2"
+        >
+          Amor <tspan fill="#c9182b">&amp;</tspan> Sabor
+        </text>
+        <rect x="1" y="73" width="54" height="3" rx="1.5" fill={`url(#${redId})`} />
+        <text
+          x="67"
+          y="82"
+          fill="#716863"
+          fontFamily="Georgia, 'Times New Roman', serif"
+          fontSize="21"
+          fontStyle="italic"
+        >
+          comida caseira
+        </text>
       </g>
     </svg>
   )
