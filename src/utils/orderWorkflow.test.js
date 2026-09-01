@@ -39,16 +39,17 @@ test('calculates elapsed preparation minutes', () => {
 })
 
 test('classifies urgency using operational thresholds', () => {
-  assert.equal(getOrderUrgency({ createdAt: minutesAgo(8) }, now), 'normal')
-  assert.equal(getOrderUrgency({ createdAt: minutesAgo(20) }, now), 'attention')
-  assert.equal(getOrderUrgency({ createdAt: minutesAgo(30) }, now), 'delayed')
+  assert.equal(getOrderUrgency({ createdAt: minutesAgo(30) }, now), 'normal')
+  assert.equal(getOrderUrgency({ createdAt: minutesAgo(31) }, now), 'attention')
+  assert.equal(getOrderUrgency({ createdAt: minutesAgo(40) }, now), 'attention')
+  assert.equal(getOrderUrgency({ createdAt: minutesAgo(41) }, now), 'delayed')
 })
 
-test('classifies live timing as on time, late, and very late', () => {
-  assert.equal(getOrderTimingState({ createdAt: minutesAgo(14) }, now), 'on-time')
-  assert.equal(getOrderTimingState({ createdAt: minutesAgo(15) }, now), 'late')
-  assert.equal(getOrderTimingState({ createdAt: minutesAgo(24) }, now), 'late')
-  assert.equal(getOrderTimingState({ createdAt: minutesAgo(25) }, now), 'very-late')
+test('classifies live timing after 30 and 40 minutes', () => {
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(30) }, now), 'on-time')
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(31) }, now), 'late')
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(40) }, now), 'late')
+  assert.equal(getOrderTimingState({ createdAt: minutesAgo(41) }, now), 'very-late')
 })
 
 test('formats the automatic order creation time', () => {
