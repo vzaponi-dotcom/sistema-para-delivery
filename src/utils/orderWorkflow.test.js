@@ -1,15 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  formatOrderDate,
   getElapsedMinutes,
   getFinalActionLabel,
   getOrderUrgency,
   isFinishedToday,
   isOrderFinished,
   normalizeOrder,
+  normalizeOrderDate,
+  toLocalDateValue,
 } from './orderWorkflow.js'
 
-const now = new Date('2026-09-01T15:00:00.000Z')
+const now = new Date(2026, 8, 1, 12, 0, 0)
 
 const minutesAgo = (minutes) => new Date(now.getTime() - minutes * 60_000).toISOString()
 
@@ -46,7 +49,26 @@ test('uses delivery-specific final action label', () => {
 })
 
 test('recognizes orders finished today', () => {
-  assert.equal(isFinishedToday({ finishedAt: '2026-09-01T10:00:00.000Z' }, now), true)
-  assert.equal(isFinishedToday({ finishedAt: '2026-08-31T23:59:59.000Z' }, now), false)
+  const todayAtTen = new Date(2026, 8, 1, 10, 0, 0).toISOString()
+  const yesterdayLate = new Date(2026, 7, 31, 23, 59, 59).toISOString()
+
+  assert.equal(isFinishedToday({ finishedAt: todayAtTen }, now), true)
+  assert.equal(isFinishedToday({ finishedAt: yesterdayLate }, now), false)
   assert.equal(isFinishedToday({ finishedAt: null }, now), false)
+})
+
+test('formats local dates for form values and display', () => {
+  assert.equal(toLocalDateValue(now), '2026-09-01')
+  assert.equal(formatOrderDate('2026-09-01'), '01/09/2026')
+})
+
+test('migrates legacy Hoje and Ontem labels to orderDate', () => {
+  assert.equal(normalizeOrder({ id: 3, date: 'Hoje' }, now).orderDate, '2026-09-01')
+  assert.equal(normalizeOrder({ id: 4, date: 'Ontem' }, now).orderDate, '2026-08-31')
+})
+
+test('preserves valid previous order dates and rejects future dates', () => {
+  assert.equal(normalizeOrderDate('2026-08-28', now), '2026-08-28')
+  assert.equal(normalizeOrderDate('2026-09-03', now), '2026-09-01')
+  assert.equal(normalizeOrderDate('', now), '2026-09-01')
 })
