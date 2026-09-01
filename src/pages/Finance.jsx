@@ -9,7 +9,7 @@ function Finance({ totals, movements, currency, onAddMovement }) {
       <PageHeader
         eyebrow="Financeiro"
         title="Fluxo de caixa"
-        description="Visualize entradas, saídas e saldo com os movimentos registrados."
+        description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber."
         actions={<Button icon="plus" onClick={onAddMovement}>Novo movimento</Button>}
       />
 
@@ -40,8 +40,12 @@ function Finance({ totals, movements, currency, onAddMovement }) {
                   <span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>
                     {movement.type === 'entrada' ? 'Entrada' : 'Saída'}
                   </span>
+                  {movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}
                 </div>
-                <span>{movement.category} · {movement.date}</span>
+                <span>
+                  {movement.category} · {movement.date}
+                  {movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}
+                </span>
               </div>
               <strong className={movement.type === 'entrada' ? 'movement-value positive' : 'movement-value negative'}>
                 {movement.type === 'entrada' ? '+' : '-'}{currency(movement.value)}
