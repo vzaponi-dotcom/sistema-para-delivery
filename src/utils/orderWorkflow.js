@@ -28,6 +28,12 @@ export const formatOrderDate = (value) => {
   return `${day}/${month}/${year}`
 }
 
+export const formatOrderTime = (value) => {
+  const parsed = parseDate(value)
+  if (!parsed) return ''
+  return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`
+}
+
 export const normalizeOrderDate = (value, now = new Date()) => {
   const today = toLocalDateValue(now)
   if (!isValidDateValue(value)) return today
@@ -90,11 +96,19 @@ export const getElapsedMinutes = (order, now = new Date()) => {
   return Math.max(0, Math.floor((reference.getTime() - createdAt.getTime()) / 60_000))
 }
 
-export const getOrderUrgency = (order, now = new Date()) => {
+export const getOrderTimingState = (order, now = new Date()) => {
   const elapsedMinutes = getElapsedMinutes(order, now)
 
-  if (elapsedMinutes >= 25) return 'delayed'
-  if (elapsedMinutes >= 15) return 'attention'
+  if (elapsedMinutes >= 25) return 'very-late'
+  if (elapsedMinutes >= 15) return 'late'
+  return 'on-time'
+}
+
+export const getOrderUrgency = (order, now = new Date()) => {
+  const timingState = getOrderTimingState(order, now)
+
+  if (timingState === 'very-late') return 'delayed'
+  if (timingState === 'late') return 'attention'
   return 'normal'
 }
 
