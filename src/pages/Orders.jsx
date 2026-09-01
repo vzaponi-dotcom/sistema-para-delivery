@@ -8,14 +8,22 @@ import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import {
   formatOrderDate,
+  formatOrderTime,
   getElapsedMinutes,
   getFinalActionLabel,
+  getOrderTimingState,
   getOrderUrgency,
   isFinishedToday,
   isOrderFinished,
 } from '../utils/orderWorkflow'
 
 const orderNumber = (id) => String(id).slice(-4)
+
+const timingLabels = {
+  'on-time': 'No prazo',
+  late: 'Atrasado',
+  'very-late': 'Muito atrasado',
+}
 
 const finishedTime = (order) => {
   if (!order.finishedAt) return formatOrderDate(order.orderDate)
@@ -65,7 +73,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
 
   const activeCount = orders.filter((order) => !isOrderFinished(order)).length
   const delayedCount = orders.filter(
-    (order) => !isOrderFinished(order) && getOrderUrgency(order, now) === 'delayed',
+    (order) => !isOrderFinished(order) && getOrderTimingState(order, now) !== 'on-time',
   ).length
   const finishedTodayCount = orders.filter((order) => isFinishedToday(order, now)).length
 
@@ -74,13 +82,13 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
       <PageHeader
         eyebrow="Operação"
         title="Pedidos em preparo"
-        description="Acompanhe a fila da cozinha. O pagamento aparece como informação separada e não cria nenhuma etapa extra no preparo."
+        description="Acompanhe a fila pela hora real de entrada. O indicador muda automaticamente conforme o tempo, sem exigir nenhuma atualização manual."
         actions={<Button icon="plus" onClick={onNewOrder}>Novo pedido</Button>}
       />
 
       <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
-        <StatCard label="Atrasados" value={delayedCount} helper="25 min ou mais" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
+        <StatCard label="Com atraso" value={delayedCount} helper="15 min ou mais" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
         <StatCard label="Finalizados hoje" value={finishedTodayCount} helper="Já saíram da operação" icon="dashboard" tone="success" />
       </section>
 
@@ -110,7 +118,9 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
           {activeOrders.map((order) => {
             const elapsed = getElapsedMinutes(order, now)
             const urgency = getOrderUrgency(order, now)
-            const urgencyLabel = urgency === 'delayed' ? 'Atrasado' : urgency === 'attention' ? 'Atenção' : 'Em preparo'
+            const timingState = getOrderTimingState(order, now)
+            const timingLabel = timingLabels[timingState]
+            const orderTime = formatOrderTime(order.createdAt)
 
             return (
               <article className={`order-queue-card urgency-${urgency}`} key={order.id}>
@@ -132,8 +142,15 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                     <span>{order.type}</span>
                     <span>{formatOrderDate(order.orderDate)}</span>
                     <span>{currency(order.total)}</span>
-                    <span className={`order-time urgency-${urgency}`}>
-                      {urgencyLabel} · {elapsed < 1 ? 'agora' : `há ${elapsed} min`}
+                    <span
+                      className={`order-live-timing timing-${timingState}`}
+                      title={`${timingLabel}. Pedido registrado às ${orderTime}.`}
+                    >
+                      <span className="order-timing-dot" aria-hidden="true" />
+                      <strong>{timingLabel}</strong>
+                      <span className="order-timing-details">
+                        {orderTime} · {elapsed < 1 ? 'agora' : `há ${elapsed} min`}
+                      </span>
                     </span>
                   </div>
                 </div>
