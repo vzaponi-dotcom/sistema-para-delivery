@@ -1,8 +1,10 @@
 import Button from '../components/Button'
 import PageHeader from '../components/PageHeader'
+import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import Icon from '../components/Icon'
+import { formatOrderDate } from '../utils/orderWorkflow'
 
 function Dashboard({ totals, orders, currency, onNewOrder }) {
   return (
@@ -10,15 +12,15 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
       <PageHeader
         eyebrow="Resumo do dia"
         title="Visão geral da operação"
-        description="Acompanhe os principais números do delivery e os pedidos mais recentes."
+        description="Veja o que vendeu, o que já entrou no caixa e o que ainda precisa ser recebido."
         actions={<Button icon="plus" onClick={onNewOrder}>Novo pedido</Button>}
       />
 
       <section className="stats-grid" aria-label="Indicadores principais">
-        <StatCard label="Faturamento" value={currency(totals.revenue)} helper="Total registrado" icon="wallet" tone="success" />
-        <StatCard label="Pedidos" value={totals.totalOrders} helper="No período" icon="receipt" />
-        <StatCard label="Ticket médio" value={currency(totals.averageTicket)} helper="Média por pedido" icon="ticket" />
-        <StatCard label="Itens vendidos" value={totals.soldUnits} helper="Unidades registradas" icon="package" tone="warning" />
+        <StatCard label="Vendas hoje" value={currency(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" />
+        <StatCard label="Recebido hoje" value={currency(totals.receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
+        <StatCard label="A receber" value={currency(totals.receivables)} helper="Pagamentos pendentes" icon="wallet" tone="warning" />
+        <StatCard label="Pedidos ativos" value={totals.activeOrders} helper="Na fila de preparo" icon="orders" />
       </section>
 
       <section className="surface-card dashboard-section">
@@ -38,10 +40,13 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
                 <strong>{order.client}</strong>
                 <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un. · {order.type}</span>
               </div>
-              <StatusBadge status={order.status} />
+              <div className="recent-order-statuses">
+                <StatusBadge status={order.status} />
+                <PaymentBadge order={order} />
+              </div>
               <div className="recent-order-value">
                 <strong>{currency(order.total)}</strong>
-                <span>{order.date}</span>
+                <span>{formatOrderDate(order.orderDate)}</span>
               </div>
             </article>
           ))}
