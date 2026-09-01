@@ -1,0 +1,77 @@
+.payment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.payment-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.payment-paid {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.payment-pending {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.payment-summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.payment-summary-card span,
+.payment-summary-card small {
+  color: var(--muted);
+}
+
+.payment-summary-card strong {
+  color: var(--text);
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.payment-summary-card small {
+  font-size: 0.78rem;
+}
+
+.form-hint {
+  color: var(--muted);
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.recent-order-statuses,
+.order-queue-badges,
+.order-history-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .recent-order-statuses,
+  .order-queue-badges,
+  .order-history-badges {
+    align-items: flex-start;
+  }
+}
