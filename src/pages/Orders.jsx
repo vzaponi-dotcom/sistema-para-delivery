@@ -88,7 +88,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
 
       <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
-        <StatCard label="Com atraso" value={delayedCount} helper="15 min ou mais" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
+        <StatCard label="Com atraso" value={delayedCount} helper="Mais de 30 min" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
         <StatCard label="Finalizados hoje" value={finishedTodayCount} helper="Já saíram da operação" icon="dashboard" tone="success" />
       </section>
 
@@ -121,53 +121,60 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             const timingState = getOrderTimingState(order, now)
             const timingLabel = timingLabels[timingState]
             const orderTime = formatOrderTime(order.createdAt)
+            const elapsedLabel = elapsed < 1 ? 'agora' : `há ${elapsed} min`
 
             return (
               <article className={`order-queue-card urgency-${urgency}`} key={order.id}>
-                <div className="order-queue-number">#{orderNumber(order.id)}</div>
-
-                <div className="order-queue-main">
-                  <div className="order-queue-title">
-                    <div>
-                      <strong>{order.client}</strong>
-                      <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un.</span>
-                    </div>
-                    <div className="order-queue-badges">
-                      <StatusBadge status="Em preparo" />
-                      <PaymentBadge order={order} />
-                    </div>
-                  </div>
-
-                  <div className="order-queue-meta">
-                    <span>{order.type}</span>
-                    <span>{formatOrderDate(order.orderDate)}</span>
-                    <span>{currency(order.total)}</span>
-                    <span
-                      className={`order-live-timing timing-${timingState}`}
-                      title={`${timingLabel}. Pedido registrado às ${orderTime}.`}
-                    >
-                      <span className="order-timing-dot" aria-hidden="true" />
-                      <strong>{timingLabel}</strong>
-                      <span className="order-timing-details">
-                        {orderTime} · {elapsed < 1 ? 'agora' : `há ${elapsed} min`}
-                      </span>
-                    </span>
-                  </div>
+                <div
+                  className={`order-timing-marker timing-${timingState}`}
+                  title={`${timingLabel}. Pedido registrado às ${orderTime}.`}
+                >
+                  <span className="order-timing-dot" aria-hidden="true" />
+                  <strong>{timingLabel}</strong>
                 </div>
 
-                <div className="order-queue-actions">
-                  <Button onClick={() => onFinalizeOrder(order.id)}>
-                    {getFinalActionLabel(order)}
-                  </Button>
-                  <button
-                    type="button"
-                    className="icon-button icon-button-danger"
-                    aria-label={`Excluir pedido de ${order.client}`}
-                    title="Excluir pedido"
-                    onClick={() => onDeleteOrder(order.id)}
-                  >
-                    <Icon name="trash" size={17} />
-                  </button>
+                <div className="order-queue-body">
+                  <div className="order-queue-number">#{orderNumber(order.id)}</div>
+
+                  <div className="order-queue-main">
+                    <div className="order-queue-title">
+                      <div>
+                        <strong>{order.client}</strong>
+                        <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un.</span>
+                      </div>
+                      <div className="order-queue-badges">
+                        <StatusBadge status="Em preparo" />
+                        <PaymentBadge order={order} />
+                      </div>
+                    </div>
+
+                    <div className="order-queue-meta">
+                      <span>{order.type}</span>
+                      <span>{formatOrderDate(order.orderDate)}</span>
+                      <span>{currency(order.total)}</span>
+                    </div>
+
+                    <div className={`order-time-line timing-${timingState}`}>
+                      <span>Pedido às <strong>{orderTime}</strong></span>
+                      <span aria-hidden="true">•</span>
+                      <span>{elapsedLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="order-queue-actions">
+                    <Button onClick={() => onFinalizeOrder(order.id)}>
+                      {getFinalActionLabel(order)}
+                    </Button>
+                    <button
+                      type="button"
+                      className="icon-button icon-button-danger"
+                      aria-label={`Excluir pedido de ${order.client}`}
+                      title="Excluir pedido"
+                      onClick={() => onDeleteOrder(order.id)}
+                    >
+                      <Icon name="trash" size={17} />
+                    </button>
+                  </div>
                 </div>
               </article>
             )
