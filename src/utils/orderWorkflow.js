@@ -99,8 +99,8 @@ export const getElapsedMinutes = (order, now = new Date()) => {
 export const getOrderTimingState = (order, now = new Date()) => {
   const elapsedMinutes = getElapsedMinutes(order, now)
 
-  if (elapsedMinutes >= 25) return 'very-late'
-  if (elapsedMinutes >= 15) return 'late'
+  if (elapsedMinutes > 40) return 'very-late'
+  if (elapsedMinutes > 30) return 'late'
   return 'on-time'
 }
 
