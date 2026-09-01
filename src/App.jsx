@@ -9,6 +9,7 @@ import Orders from './pages/Orders'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Finance from './pages/Finance'
+import { normalizeOrder } from './utils/orderWorkflow'
 
 const STORAGE_KEYS = {
   products: 'amor-e-sabor-products',
@@ -73,14 +74,13 @@ const formatPhone = (value) => {
 function App() {
   const [products, setProducts] = useState(() => readStorage(STORAGE_KEYS.products, initialProducts))
   const [clients, setClients] = useState(() => readStorage(STORAGE_KEYS.clients, initialClients))
-  const [orders, setOrders] = useState(() => readStorage(STORAGE_KEYS.orders, initialOrders))
+  const [orders, setOrders] = useState(() => readStorage(STORAGE_KEYS.orders, initialOrders).map((order) => normalizeOrder(order)))
   const [movements, setMovements] = useState(() => readStorage(STORAGE_KEYS.movements, initialMovements))
   const [activeTab, setActiveTab] = useState('dashboard')
   const [form, setForm] = useState({
     clientId: readStorage(STORAGE_KEYS.clients, initialClients)[0]?.id ?? 1,
     productId: readStorage(STORAGE_KEYS.products, initialProducts)[0]?.id ?? 1,
     type: 'Entrega',
-    status: 'Pendente',
     quantity: 1,
   })
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
@@ -161,28 +161,46 @@ function App() {
 
     const quantity = Number(form.quantity) || 1
     const total = selectedProduct.price * quantity
+    const createdAt = new Date().toISOString()
     const newOrder = {
       id: Date.now(),
       client: selectedClient.name,
       type: form.type,
-      status: form.status,
+      status: 'Em preparo',
       productName: selectedProduct.name,
       size: selectedProduct.size,
       quantity,
       total,
       date: 'Hoje',
+      createdAt,
+      finishedAt: null,
     }
 
     setOrders((current) => [newOrder, ...current])
-    setForm((current) => ({ ...current, quantity: 1, status: 'Pendente' }))
+    setForm((current) => ({ ...current, quantity: 1 }))
     setShowOrderModal(false)
     setActiveTab('orders')
-    showSuccessMessage('Pedido salvo com sucesso')
+    showSuccessMessage('Pedido entrou em preparo')
   }
 
   const handleNewOrder = () => {
     setActiveTab('orders')
     setShowOrderModal(true)
+  }
+
+  const handleFinalizeOrder = (orderId) => {
+    const order = orders.find((item) => item.id === orderId)
+    if (!order) return
+
+    setOrders((current) =>
+      current.map((item) =>
+        item.id === orderId
+          ? { ...item, status: 'Finalizado', finishedAt: new Date().toISOString() }
+          : item,
+      ),
+    )
+
+    showSuccessMessage(order.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado')
   }
 
   const handleAddClient = () => {
@@ -373,6 +391,7 @@ function App() {
           onSearchChange={setOrderSearch}
           currency={currency}
           onNewOrder={() => setShowOrderModal(true)}
+          onFinalizeOrder={handleFinalizeOrder}
           onDeleteOrder={handleDeleteOrder}
         />
       )}
@@ -428,16 +447,6 @@ function App() {
                   <option value="Entrega">Entrega</option>
                   <option value="Retirada">Retirada</option>
                   <option value="Local">Consumo no local</option>
-                </select>
-              </label>
-
-              <label className="form-field">
-                <span>Status</span>
-                <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
-                  <option value="Pendente">Pendente</option>
-                  <option value="Em preparo">Em preparo</option>
-                  <option value="Pronto">Pronto</option>
-                  <option value="Entregue">Entregue</option>
                 </select>
               </label>
 
