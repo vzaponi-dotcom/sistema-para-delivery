@@ -88,6 +88,11 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
               >
                 <Icon name={CATEGORY_ICON_NAMES[category]} size={19} />
                 <span>{category}</span>
+                {selected && (
+                  <span className="product-selection-check" aria-hidden="true">
+                    <Icon name="check" size={13} />
+                  </span>
+                )}
               </button>
             )
           })}
@@ -97,17 +102,25 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
       <fieldset className="product-form-section" disabled={disabled}>
         <legend>Apresentação</legend>
         <div className="product-presentation-options">
-          {PRESENTATION_OPTIONS.map((option) => (
-            <button
-              type="button"
-              key={option.value}
-              className={value.presentationType === option.value ? 'product-presentation-option selected' : 'product-presentation-option'}
-              aria-pressed={value.presentationType === option.value}
-              onClick={() => changePresentationType(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+          {PRESENTATION_OPTIONS.map((option) => {
+            const selected = value.presentationType === option.value
+            return (
+              <button
+                type="button"
+                key={option.value}
+                className={selected ? 'product-presentation-option selected' : 'product-presentation-option'}
+                aria-pressed={selected}
+                onClick={() => changePresentationType(option.value)}
+              >
+                <span>{option.label}</span>
+                {selected && (
+                  <span className="product-selection-check" aria-hidden="true">
+                    <Icon name="check" size={13} />
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </fieldset>
 
@@ -115,18 +128,26 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
         <div className="product-presentation-detail">
           <span className="product-detail-label">Tamanho</span>
           <div className="product-size-options" role="group" aria-label="Tamanho do produto">
-            {[...SIZE_PRESETS, 'Outro'].map((preset) => (
-              <button
-                type="button"
-                key={preset}
-                className={sizePreset === preset ? 'product-size-option selected' : 'product-size-option'}
-                aria-pressed={sizePreset === preset}
-                onClick={() => changeSizePreset(preset)}
-                disabled={disabled}
-              >
-                {preset}
-              </button>
-            ))}
+            {[...SIZE_PRESETS, 'Outro'].map((preset) => {
+              const selected = sizePreset === preset
+              return (
+                <button
+                  type="button"
+                  key={preset}
+                  className={selected ? 'product-size-option selected' : 'product-size-option'}
+                  aria-pressed={selected}
+                  onClick={() => changeSizePreset(preset)}
+                  disabled={disabled}
+                >
+                  <span>{preset}</span>
+                  {selected && (
+                    <span className="product-selection-check" aria-hidden="true">
+                      <Icon name="check" size={13} />
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
           {sizePreset === 'Outro' && (
             <label className="form-field product-custom-size">
@@ -160,18 +181,26 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
           <div className="form-field">
             <span>Unidade</span>
             <div className="product-unit-options" role="group" aria-label="Unidade de medida">
-              {(value.presentationType === 'volume' ? ['ml', 'L'] : ['g', 'kg']).map((unit) => (
-                <button
-                  type="button"
-                  key={unit}
-                  className={value.presentationUnit === unit ? 'product-unit-option selected' : 'product-unit-option'}
-                  aria-pressed={value.presentationUnit === unit}
-                  onClick={() => patch({ presentationUnit: unit })}
-                  disabled={disabled}
-                >
-                  {unit}
-                </button>
-              ))}
+              {(value.presentationType === 'volume' ? ['ml', 'L'] : ['g', 'kg']).map((unit) => {
+                const selected = value.presentationUnit === unit
+                return (
+                  <button
+                    type="button"
+                    key={unit}
+                    className={selected ? 'product-unit-option selected' : 'product-unit-option'}
+                    aria-pressed={selected}
+                    onClick={() => patch({ presentationUnit: unit })}
+                    disabled={disabled}
+                  >
+                    <span>{unit}</span>
+                    {selected && (
+                      <span className="product-selection-check" aria-hidden="true">
+                        <Icon name="check" size={13} />
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
