@@ -15,9 +15,22 @@ export const getAdjacentMobileSection = (activeTab, direction) => {
   return MOBILE_SECTION_IDS[nextIndex]
 }
 
-export const getSwipeDirection = ({ deltaX, deltaY, threshold = 56 }) => {
-  if (Math.abs(deltaX) < threshold) return null
-  if (Math.abs(deltaX) <= Math.abs(deltaY)) return null
+export const getSwipeDirection = ({
+  deltaX,
+  deltaY,
+  durationMs = Number.POSITIVE_INFINITY,
+  threshold = 44,
+  flickThreshold = 28,
+  maxFlickDuration = 220,
+}) => {
+  const horizontalDistance = Math.abs(deltaX)
+  const verticalDistance = Math.abs(deltaY)
+  if (horizontalDistance <= verticalDistance) return null
+
+  const crossedDistanceThreshold = horizontalDistance >= threshold
+  const isQuickFlick = horizontalDistance >= flickThreshold && durationMs <= maxFlickDuration
+  if (!crossedDistanceThreshold && !isQuickFlick) return null
+
   return deltaX < 0 ? 'next' : 'previous'
 }
 
