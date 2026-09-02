@@ -38,7 +38,7 @@ const finishedTime = (order) => {
   })
 }
 
-function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onDeleteOrder }) {
+function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onDeleteOrder, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange }) {
   const [now, setNow] = useState(() => new Date())
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
@@ -111,7 +111,26 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
 
   return (
     <>
-      <PageHeader eyebrow="Operação" title="Pedidos em preparo" description="Acompanhe a fila pela hora real de entrada. Todos os itens e observações ficam visíveis para a cozinha." actions={<Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>} />
+      <PageHeader
+        eyebrow="Operação"
+        title="Pedidos em preparo"
+        description="Acompanhe a fila pela hora real de entrada. Todos os itens e observações ficam visíveis para a cozinha."
+        actions={(
+          <div className="kitchen-header-actions">
+            <button
+              type="button"
+              className="button button-secondary kitchen-sound-toggle"
+              aria-pressed={soundEnabled}
+              title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'}
+              onClick={() => onSoundEnabledChange?.(!soundEnabled)}
+            >
+              <span aria-hidden="true">{soundEnabled ? '🔊' : '🔇'}</span>
+              <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
+            </button>
+            <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
+          </div>
+        )}
+      />
 
       <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
@@ -144,9 +163,10 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             const orderItems = getOrderItems(order)
             const itemsExpanded = expandedOrderIds.has(order.id)
             const itemsRegionId = `order-items-${order.id}`
+            const isNewArrival = newOrderIds.has(String(order.id))
 
             return (
-              <article className={`order-queue-card urgency-${urgency}`} key={order.id}>
+              <article className={`order-queue-card urgency-${urgency}${isNewArrival ? ' order-new-arrival' : ''}`} key={order.id}>
                 <div className={`order-timing-marker timing-${timingState}`} title={`${timingLabel}. Pedido registrado às ${orderTime}.`}>
                   <span className="order-timing-dot" aria-hidden="true" /><strong>{timingLabel}</strong>
                 </div>
