@@ -18,3 +18,8 @@ test('orders operation renders all items and exposes complete detail', () => {
   assert.match(detail, /Subtotal/)
   assert.match(detail, /Total/)
 })
+
+test('app order search uses the complete multi-item searchable text', () => {
+  const app = source('../App.jsx')
+  assert.match(app, /getOrderItemsSearchText\(order\)/)
+})
