@@ -2,17 +2,23 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const app = fs.readFileSync(new URL('./App.jsx', import.meta.url), 'utf8')
+const appShell = fs.readFileSync(new URL('./components/AppShell.jsx', import.meta.url), 'utf8')
 const dashboard = fs.readFileSync(new URL('./pages/Dashboard.jsx', import.meta.url), 'utf8')
+const providerUrl = new URL('./components/DashboardPeriodProvider.jsx', import.meta.url)
 
-test('dashboard period is owned by App and passed as a controlled value', () => {
-  assert.match(app, /const \[dashboardPeriod, setDashboardPeriod\] = useState\('30d'\)/)
-  assert.match(app, /<Dashboard[\s\S]*period=\{dashboardPeriod\}[\s\S]*onPeriodChange=\{setDashboardPeriod\}/)
+test('dashboard period is owned by the authenticated shell instead of the dashboard page', () => {
+  assert.equal(fs.existsSync(providerUrl), true)
+  assert.match(appShell, /import \{ DashboardPeriodProvider \} from ['"]\.\/DashboardPeriodProvider['"]/)
+  assert.match(appShell, /<DashboardPeriodProvider>[\s\S]*<div className="app-shell">[\s\S]*\{children\}[\s\S]*<\/DashboardPeriodProvider>/)
   assert.doesNotMatch(dashboard, /const \[period, setPeriod\] = useState/)
-  assert.match(dashboard, /function Dashboard\(\{[^}]*period[^}]*onPeriodChange/)
-  assert.match(dashboard, /DashboardPeriodSelector value=\{period\} onChange=\{onPeriodChange\}/)
+  assert.match(dashboard, /const \{ period, setPeriod \} = useDashboardPeriod\(\)/)
+  assert.match(dashboard, /DashboardPeriodSelector value=\{period\} onChange=\{setPeriod\}/)
 })
 
-test('ending the business session restores the default 30 day period', () => {
-  assert.match(app, /const clearBusinessData = \(\) => \{[\s\S]*setDashboardPeriod\('30d'\)/)
+test('a fresh authenticated shell starts the dashboard period at 30 days', () => {
+  assert.equal(fs.existsSync(providerUrl), true)
+  if (!fs.existsSync(providerUrl)) return
+  const provider = fs.readFileSync(providerUrl, 'utf8')
+  assert.match(provider, /const \[period, setPeriod\] = useState\('30d'\)/)
+  assert.match(provider, /export function useDashboardPeriod/)
 })
