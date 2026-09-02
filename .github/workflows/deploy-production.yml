@@ -1,9 +1,6 @@
 name: Deploy production
 
 on:
-  push:
-    branches:
-      - feature/ux-corrections-round-2
   workflow_dispatch:
 
 permissions:
