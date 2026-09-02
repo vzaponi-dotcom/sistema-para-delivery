@@ -1,7 +1,7 @@
 # Comandas por mesa e feedback visual de seleção
 
 Data: 2026-09-02
-Status: desenho aprovado em conversa; aguardando aprovação deste arquivo antes do plano de implementação
+Status: auto-revisado; aguardando aprovação deste arquivo antes do plano de implementação
 Branch: `feature/table-tabs-round`
 
 ## 1. Contexto
@@ -188,7 +188,7 @@ O fluxo principal desta versão é o pagamento consolidado em `A Receber`, que p
 
 Como proteção de consistência, qualquer outro fluxo servidor que resulte no último pedido pendente da comanda ficando pago deve também permitir que a comanda seja marcada como `closed`.
 
-Se todos os pedidos de uma comanda forem removidos, ela não deve permanecer aberta indefinidamente; o repositório deve encerrar uma comanda vazia quando a operação de remoção deixar zero pedidos relevantes associados.
+Se todos os pedidos de uma comanda forem removidos, ela não deve permanecer aberta indefinidamente; o repositório deve encerrar a comanda quando não restar nenhum pedido associado.
 
 ## 8. Checkout e backend
 
@@ -211,18 +211,13 @@ O frontend não envia um ID de comanda autoritativo. A associação é resolvida
 
 ### 8.3 Bootstrap/API
 
-Os pedidos devem expor um campo compatível com a UI:
+Os pedidos devem expor:
 
 - `tableTabId`
 
-Também deve ser possível carregar dados mínimos das comandas necessárias para a tela `A Receber`. A implementação pode:
+O bootstrap deve retornar também uma coleção explícita `tableTabs`, separada dos pedidos, para representar o ciclo de vida das comandas.
 
-1. retornar uma coleção `tableTabs` no bootstrap; ou
-2. retornar metadados suficientes junto aos pedidos.
-
-A preferência é por uma coleção `tableTabs` explícita, porque mantém status e ciclo de vida da comanda separados do pedido.
-
-Formato mínimo recomendado:
+Formato mínimo:
 
 ```js
 {
@@ -234,7 +229,7 @@ Formato mínimo recomendado:
 }
 ```
 
-Somente dados da empresa autenticada podem ser retornados.
+Somente comandas da empresa autenticada podem ser retornadas. A UI usa `tableTabs` para contexto e apresentação; a resolução autoritativa de associação de um novo pedido continua ocorrendo no Worker.
 
 ## 9. A Receber
 
@@ -298,7 +293,7 @@ O servidor deve:
 5. registrar pagamento para todos os pedidos pendentes;
 6. criar as movimentações financeiras correspondentes usando o modelo já existente por pedido;
 7. marcar a comanda como `closed`;
-8. executar as escritas como uma única operação atômica/batch sempre que suportado pelo padrão atual do repositório;
+8. executar as escritas como uma única operação atômica/batch dentro do padrão atual do repositório;
 9. retornar os pedidos atualizados, movimentos criados e a comanda atualizada.
 
 ### 9.4 Preservação do Financeiro
@@ -333,13 +328,13 @@ A interface de Novo Pedido continua exatamente como aprovada para Mesa:
 - adiciona os itens;
 - salva o pedido.
 
-A diferença é informativa: quando a mesa já possuir uma comanda ativa carregada no bootstrap, a UI pode mostrar uma mensagem discreta como:
+Quando a mesa já possuir uma comanda ativa presente em `tableTabs`, a UI deve mostrar uma mensagem discreta como:
 
 `Mesa 04 · comanda aberta · 2 pedidos`
 
-Isso é recomendado para dar contexto ao operador, mas não exige confirmação.
+Isso dá contexto ao operador sem adicionar confirmação extra.
 
-Se os dados de comanda não estiverem disponíveis por algum motivo, o checkout continua podendo funcionar porque a resolução autoritativa ocorre no Worker.
+Se `tableTabs` estiver temporariamente indisponível na UI, o checkout ainda pode funcionar porque a resolução autoritativa ocorre no Worker.
 
 ## 11. Feedback visual de seleção no produto
 
@@ -411,7 +406,7 @@ Se o arquivo ficar excessivamente grande durante a implementação, é aceitáve
 
 - rota de pagamento da comanda;
 - autenticação/origin/validação conforme padrões atuais;
-- bootstrap inclui comandas quando necessário.
+- bootstrap inclui `tableTabs`.
 
 ### `src/utils/receivables.js`
 
@@ -427,7 +422,7 @@ Se o arquivo ficar excessivamente grande durante a implementação, é aceitáve
 ### `src/App.jsx`
 
 - estado/modal de pagamento deve aceitar tanto pagamento individual legado quanto pagamento de comanda, ou ser extraído para um pequeno fluxo compartilhado se isso simplificar a responsabilidade;
-- atualização local de múltiplos pedidos e movimentos após pagamento de comanda.
+- atualização local de múltiplos pedidos, movimentos e `tableTabs` após pagamento de comanda.
 
 ### `src/components/ProductForm.jsx` e `src/product-form.css`
 
@@ -470,6 +465,12 @@ Cobertura mínima:
 - Nome/cliente cadastrado/Entrega/Retirada não recebem `table_tab_id`;
 - concorrência não produz duas comandas abertas;
 - idempotência do pedido continua funcionando.
+
+### Bootstrap/API
+
+- bootstrap retorna `tableTabs` somente da empresa autenticada;
+- pedidos expõem `tableTabId`;
+- UI consegue relacionar pedido e comanda sem usar o vínculo como autoridade de checkout.
 
 ### A Receber
 
