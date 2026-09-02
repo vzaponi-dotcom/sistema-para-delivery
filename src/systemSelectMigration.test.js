@@ -1,26 +1,28 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const srcDir = fileURLToPath(new URL('.', import.meta.url))
+const srcDir = dirname(fileURLToPath(import.meta.url))
 
-async function jsxFiles(dir) {
+const collectJsxFiles = async (dir) => {
   const entries = await readdir(dir, { withFileTypes: true })
-  const nested = await Promise.all(entries.map(async (entry) => {
-    const path = join(dir, entry.name)
-    if (entry.isDirectory()) return jsxFiles(path)
-    return entry.isFile() && entry.name.endsWith('.jsx') ? [path] : []
-  }))
-  return nested.flat()
+  const files = []
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name)
+    if (entry.isDirectory()) files.push(...await collectJsxFiles(fullPath))
+    else if (entry.isFile() && entry.name.endsWith('.jsx')) files.push(fullPath)
+  }
+  return files
 }
 
 test('all app-facing JSX uses SystemSelect instead of native select', async () => {
+  const files = await collectJsxFiles(srcDir)
   const offenders = []
-  for (const path of await jsxFiles(srcDir)) {
-    const source = await readFile(path, 'utf8')
-    if (/<select\b/.test(source)) offenders.push(path.slice(srcDir.length))
+  for (const file of files) {
+    const source = await readFile(file, 'utf8')
+    if (/<select\b/.test(source)) offenders.push(file.slice(srcDir.length + 1))
   }
   assert.deepEqual(offenders, [])
 })
@@ -35,9 +37,13 @@ test('App and Clients use the shared SystemSelect', async () => {
 test('App write selectors preserve blocked state and approved labels', async () => {
   const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
   const lines = app.split('\n')
-  for (const label of ['Forma de pagamento', 'Categoria do produto', 'Tipo da movimentação', 'Categoria da movimentação']) {
+  for (const label of ['Forma de pagamento', 'Tipo da movimentação', 'Categoria da movimentação']) {
     const selectorLine = lines.find((line) => line.includes('<SystemSelect') && line.includes(`label="${label}"`))
     assert.ok(selectorLine, `missing SystemSelect for ${label}`)
     assert.match(selectorLine, /disabled=\{writesBlocked\}/)
   }
+
+  const productForm = await readFile(join(srcDir, 'components/ProductForm.jsx'), 'utf8')
+  assert.match(productForm, /product-category-grid/)
+  assert.match(productForm, /disabled=\{disabled\}/)
 })
