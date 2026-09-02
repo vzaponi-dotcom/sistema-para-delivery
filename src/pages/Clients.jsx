@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import '../clients-phonebook.css'
+import BottomSheet from '../components/BottomSheet'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
@@ -11,8 +13,21 @@ const SORT_OPTIONS = [
 
 function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete }) {
   const [pendingId, setPendingId] = useState(null)
+  const [selectedClient, setSelectedClient] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingId !== null
+
+  const closeActionSheet = () => {
+    setSelectedClient(null)
+    setDeleteConfirm(false)
+  }
+
+  const openActionSheet = (client) => {
+    if (actionsDisabled) return
+    setSelectedClient(client)
+    setDeleteConfirm(false)
+  }
 
   const handleDelete = async (clientId) => {
     if (actionsDisabled) return
@@ -22,6 +37,20 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
     } finally {
       setPendingId(null)
     }
+  }
+
+  const handleEditSelected = () => {
+    if (!selectedClient || actionsDisabled) return
+    const client = selectedClient
+    closeActionSheet()
+    onEdit(client)
+  }
+
+  const handleConfirmedDelete = async () => {
+    if (!selectedClient || actionsDisabled) return
+    const clientId = selectedClient.id
+    await handleDelete(clientId)
+    closeActionSheet()
   }
 
   return (
@@ -51,24 +80,23 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
           </div>
         </div>
 
-        <div className="entity-list">
+        <div className="client-phonebook-list">
           {clients.map((client) => (
-            <article className="entity-row" key={client.id}>
-              <div className="entity-avatar">{client.name.charAt(0).toUpperCase()}</div>
-              <div className="entity-main">
+            <button
+              type="button"
+              className="client-phonebook-row"
+              key={client.id}
+              aria-label={`Abrir ações de ${client.name}`}
+              onClick={() => openActionSheet(client)}
+              disabled={actionsDisabled}
+            >
+              <span className="client-phonebook-main">
                 <strong>{client.name}</strong>
-                <span>{client.phone}</span>
-                <small>{client.address}</small>
-              </div>
-              <div className="entity-actions">
-                <button type="button" className="icon-button icon-button-neutral" aria-label={`Editar ${client.name}`} title="Editar cliente" onClick={() => onEdit(client)} disabled={actionsDisabled}>
-                  <Icon name="edit" size={17} />
-                </button>
-                <button type="button" className="icon-button icon-button-danger" aria-label={`Excluir ${client.name}`} title="Excluir cliente" onClick={() => handleDelete(client.id)} disabled={actionsDisabled}>
-                  <Icon name="trash" size={17} />
-                </button>
-              </div>
-            </article>
+                <span>{client.phone || 'Sem telefone'}</span>
+              </span>
+              <span className="client-phonebook-address">{client.address || 'Sem endereço'}</span>
+              <span className="client-phonebook-chevron" aria-hidden="true">›</span>
+            </button>
           ))}
         </div>
 
@@ -80,6 +108,34 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
           </div>
         )}
       </section>
+
+      <BottomSheet open={Boolean(selectedClient)} title="Ações do cliente" onClose={closeActionSheet}>
+        {selectedClient && (
+          <>
+            <div className="client-action-summary">
+              <strong>{selectedClient.name}</strong>
+              <span>{selectedClient.phone || 'Sem telefone'}</span>
+              <small>{selectedClient.address || 'Sem endereço'}</small>
+            </div>
+
+            {!deleteConfirm ? (
+              <div className="client-action-buttons">
+                <Button type="button" variant="secondary" icon="edit" onClick={handleEditSelected} disabled={actionsDisabled}>Editar cliente</Button>
+                <Button type="button" variant="danger" icon="trash" onClick={() => setDeleteConfirm(true)} disabled={actionsDisabled}>Excluir cliente</Button>
+              </div>
+            ) : (
+              <div className="client-delete-confirm">
+                <strong>Confirmar exclusão</strong>
+                <p>Tem certeza que deseja excluir {selectedClient.name}? Esta ação não pode ser desfeita.</p>
+                <div className="client-delete-confirm-actions">
+                  <Button type="button" variant="secondary" onClick={() => setDeleteConfirm(false)} disabled={actionsDisabled}>Cancelar</Button>
+                  <Button type="button" variant="danger" onClick={handleConfirmedDelete} disabled={actionsDisabled}>Excluir cliente</Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </BottomSheet>
     </>
   )
 }
