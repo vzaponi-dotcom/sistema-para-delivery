@@ -4,6 +4,7 @@ import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import Icon from '../components/Icon'
+import { getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate } from '../utils/orderWorkflow'
 
 function Dashboard({ totals, orders, currency, onNewOrder }) {
@@ -40,7 +41,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
               <div className="recent-order-avatar">{order.client.charAt(0).toUpperCase()}</div>
               <div className="recent-order-main">
                 <strong>{order.client}</strong>
-                <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un. · {order.type}</span>
+                <span>{getOrderItemsSummary(order)} · {order.type}</span>
               </div>
               <div className="recent-order-statuses">
                 <StatusBadge status={order.status} />
