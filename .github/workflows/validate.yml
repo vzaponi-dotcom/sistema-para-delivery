@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/mobile-ux-selection-round
   workflow_dispatch:
 
 jobs:
