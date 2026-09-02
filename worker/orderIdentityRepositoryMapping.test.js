@@ -60,7 +60,7 @@ test('order persistence stores identity type and derives server-side snapshots',
   assert.match(source, /customer_identity_type/)
   assert.match(source, /table_tab_id/)
   assert.match(source, /customerIdentity\.type === 'guest_name'/)
-  assert.match(source, /clientSnapshot = `Mesa \$\{customerIdentity\.value\}`/)
+  assert.match(source, /clientSnapshot = `Mesa \$\{tableTab\.tableIdentifier\}`/)
   assert.match(source, /productSnapshotSize\(item\.product\)/)
   assert.match(source, /Pagamento pedido #[^\n]*clientSnapshot/)
 })
