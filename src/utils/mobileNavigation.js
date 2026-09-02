@@ -26,5 +26,5 @@ export const shouldIgnoreNavigationSwipe = (target) => {
   const tagName = String(target.tagName || '').toLowerCase()
   if (['input', 'textarea', 'button', 'a', 'select'].includes(tagName)) return true
   if (typeof target.closest !== 'function') return false
-  return Boolean(target.closest('[role="dialog"], [role="listbox"], [data-horizontal-interaction]'))
+  return Boolean(target.closest('[role="dialog"], [role="listbox"], [data-horizontal-interaction], [data-navigation-swipe-block]'))
 }
