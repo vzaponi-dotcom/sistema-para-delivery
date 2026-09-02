@@ -1,3 +1,5 @@
+@import './ui-polish.css';
+
 .new-order-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(320px, .8fr);
