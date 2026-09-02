@@ -19,6 +19,10 @@
   overflow: hidden;
 }
 
+.receivable-table-tab-card {
+  box-shadow: 0 0 0 1px var(--primary-soft);
+}
+
 .receivable-client-header {
   display: flex;
   align-items: center;
@@ -26,7 +30,7 @@
   gap: 16px;
   padding: 15px 16px;
   border-bottom: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
 }
 
 .receivable-client-header > div:first-child {
@@ -144,6 +148,70 @@
   font-size: 0.8rem;
 }
 
+.receivable-table-tab-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--primary-soft);
+}
+
+.receivable-table-tab-action > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.receivable-table-tab-action strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.receivable-table-tab-action span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.table-tab-payment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.table-tab-payment-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.table-tab-payment-summary span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.table-tab-payment-summary strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.table-tab-payment-note {
+  margin: 14px 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--info-soft);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .receivables-toolbar-note {
   color: var(--muted);
   font-size: 0.76rem;
@@ -161,6 +229,16 @@
 
   .receivable-order-actions .button {
     flex: 1 1 0;
+  }
+
+  .receivable-table-tab-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .receivable-table-tab-action .button {
+    width: 100%;
+    min-height: 44px;
   }
 }
 
@@ -189,5 +267,9 @@
 
   .receivable-order-actions .button {
     width: 100%;
+  }
+
+  .table-tab-payment-summary {
+    grid-template-columns: 1fr;
   }
 }
