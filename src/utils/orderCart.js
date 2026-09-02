@@ -9,6 +9,17 @@ const centsToMoney = (value) => Number(value || 0) / 100
 export const normalizeItemNote = (value) => cleanSpaces(value).slice(0, 300)
 const mergeKey = (productId, note) => `${productId}::${normalizeItemNote(note).toLocaleLowerCase('pt-BR')}`
 
+export const getOrderItemDisplayName = (item = {}) => {
+  const name = cleanSpaces(item.name || 'Produto')
+  const size = cleanSpaces(item.size)
+  if (!size) return name
+
+  const normalizedName = name.toLocaleLowerCase('pt-BR')
+  const normalizedSize = size.toLocaleLowerCase('pt-BR')
+  if (normalizedName === normalizedSize || normalizedName.endsWith(` ${normalizedSize}`)) return name
+  return `${name} ${size}`
+}
+
 export const addCartItem = (items, product, note = '') => {
   const normalizedNote = normalizeItemNote(note)
   const key = mergeKey(product.id, normalizedNote)
@@ -136,7 +147,7 @@ export const getOrderItems = (order = {}) => {
 }
 
 export const getOrderItemsSummary = (order) => getOrderItems(order)
-  .map((item) => `${Math.max(1, Number(item.quantity) || 1)}× ${item.name}`)
+  .map((item) => `${Math.max(1, Number(item.quantity) || 1)}× ${getOrderItemDisplayName(item)}`)
   .join(' · ')
 
 export const getOrderItemsSearchText = (order) => getOrderItems(order)
