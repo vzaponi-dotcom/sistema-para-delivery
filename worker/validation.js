@@ -8,6 +8,7 @@ const PAYMENT_METHODS = new Set([
 ])
 
 const ORDER_TYPES = new Set(['Entrega', 'Retirada', 'Local'])
+const MOVEMENT_TYPES = new Set(['entrada', 'saida'])
 
 const validationError = (field, message) => Object.assign(new Error(message), {
   status: 400,
@@ -61,4 +62,9 @@ export const validatePositiveInteger = (value, field = 'quantity') => {
   const number = Number(value)
   if (!Number.isInteger(number) || number < 1) throw validationError(field, 'Informe um número inteiro maior ou igual a 1.')
   return number
+}
+
+export const validateMovementType = (value) => {
+  if (!MOVEMENT_TYPES.has(value)) throw validationError('type', 'Tipo de movimentação inválido.')
+  return value
 }

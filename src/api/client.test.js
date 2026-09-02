@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createClient, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, updateClient, updateProduct } from './client.js'
+import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, updateClient, updateOrderStatus, updateProduct } from './client.js'
 
 const withFetch = async (implementation, callback) => {
   const original = globalThis.fetch
@@ -72,5 +72,32 @@ test('auth and CRUD endpoint helpers use the expected routes and methods', async
     ['/api/products', 'POST'],
     ['/api/products/p1', 'PATCH'],
     ['/api/products/p1', 'DELETE'],
+  ])
+})
+
+test('order helper sends one stable idempotency key and finance helpers target order routes', async () => {
+  const calls = []
+  await withFetch(async (...args) => {
+    calls.push(args)
+    const path = args[0]
+    if (path === '/api/orders') return new Response(JSON.stringify({ order: { id: 'o1' } }), { status: 201, headers: { 'content-type': 'application/json' } })
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+  }, async () => {
+    await createOrder({ clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 2, orderDate: '2026-09-01' }, 'request-key')
+    await updateOrderStatus('o1', 'Finalizado')
+    await deleteOrder('o1')
+    await registerPayment('o1', 'Pix')
+    await createMovement({ type: 'saida', category: 'Insumos', description: 'Arroz', value: 20 })
+  })
+
+  const [orderPath, orderOptions] = calls[0]
+  assert.equal(orderPath, '/api/orders')
+  assert.equal(orderOptions.headers['idempotency-key'], 'request-key')
+  assert.equal(orderOptions.headers['content-type'], 'application/json')
+  assert.deepEqual(calls.slice(1).map(([path, options]) => [path, options.method]), [
+    ['/api/orders/o1/status', 'PATCH'],
+    ['/api/orders/o1', 'DELETE'],
+    ['/api/orders/o1/payment', 'POST'],
+    ['/api/movements', 'POST'],
   ])
 })

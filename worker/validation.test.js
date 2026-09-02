@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { centsToMoney, moneyToCents, optionalText, requireNonEmpty, validateIsoDate, validateOrderType, validatePaymentMethod, validatePositiveInteger } from './validation.js'
+import { centsToMoney, moneyToCents, optionalText, requireNonEmpty, validateIsoDate, validateMovementType, validateOrderType, validatePaymentMethod, validatePositiveInteger } from './validation.js'
 
 test('moneyToCents rounds BRL values to integer cents', () => {
   assert.equal(moneyToCents(32.1), 3210)
@@ -41,4 +41,10 @@ test('date and positive integer validators reject impossible values', () => {
   assert.equal(validatePositiveInteger('2'), 2)
   assert.throws(() => validatePositiveInteger(0))
   assert.throws(() => validatePositiveInteger(1.5))
+})
+
+test('movement type accepts only entrada and saida', () => {
+  assert.equal(validateMovementType('entrada'), 'entrada')
+  assert.equal(validateMovementType('saida'), 'saida')
+  assert.throws(() => validateMovementType('ajuste'))
 })

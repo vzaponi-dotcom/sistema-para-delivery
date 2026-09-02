@@ -1,8 +1,8 @@
 const apiRequest = async (path, options = {}) => {
   const response = await fetch(path, {
+    ...options,
     credentials: 'same-origin',
     headers: { 'content-type': 'application/json', ...(options.headers || {}) },
-    ...options,
   })
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
@@ -28,3 +28,12 @@ export const deleteClient = (id) => apiRequest(`/api/clients/${encodeURIComponen
 export const createProduct = (product) => apiRequest('/api/products', withJson('POST', product))
 export const updateProduct = (id, product) => apiRequest(`/api/products/${encodeURIComponent(id)}`, withJson('PATCH', product))
 export const deleteProduct = (id) => apiRequest(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
+
+export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiRequest('/api/orders', {
+  ...withJson('POST', order),
+  headers: { 'idempotency-key': idempotencyKey },
+})
+export const updateOrderStatus = (id, status = 'Finalizado') => apiRequest(`/api/orders/${encodeURIComponent(id)}/status`, withJson('PATCH', { status }))
+export const deleteOrder = (id) => apiRequest(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE' })
+export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
+export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
