@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { centsToMoney, moneyToCents, optionalText, requireNonEmpty, validateIsoDate, validateMovementType, validateOrderType, validatePaymentMethod, validatePositiveInteger } from './validation.js'
+import { centsToMoney, moneyToCents, optionalText, optionalTextMax, requireNonEmpty, validateIsoDate, validateMovementType, validateOrderType, validatePaymentMethod, validatePositiveInteger } from './validation.js'
 
 test('moneyToCents rounds BRL values to integer cents', () => {
   assert.equal(moneyToCents(32.1), 3210)
@@ -26,6 +26,11 @@ test('requireNonEmpty trims valid strings and optionalText normalizes optional v
   assert.equal(optionalText('  Centro  '), 'Centro')
   assert.equal(optionalText(null), '')
   assert.throws(() => requireNonEmpty('   ', 'name'))
+})
+
+test('optionalTextMax accepts exact limit and rejects one extra character', () => {
+  assert.equal(optionalTextMax(`  ${'x'.repeat(5)}  `, 5, 'note'), 'x'.repeat(5))
+  assert.throws(() => optionalTextMax('x'.repeat(6), 5, 'note'), (error) => error.code === 'VALIDATION_ERROR' && error.field === 'note')
 })
 
 test('payment method accepts exactly the existing UI methods', () => {
