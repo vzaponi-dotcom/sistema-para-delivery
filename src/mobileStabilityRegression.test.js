@@ -6,27 +6,29 @@ import { getSwipeDirection } from './utils/mobileNavigation.js'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('mobile shell prevents horizontal viewport drift while preserving vertical scroll', async () => {
+  const foundationCss = await read('./mobile-foundation.css')
   const mobileCss = await read('./mobile-navigation.css')
-  const rootCss = await read('./index.css')
 
-  assert.match(mobileCss, /\.app-main\s*\{[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
-  assert.match(mobileCss, /\.app-main\s*\{[^}]*overscroll-behavior-x:\s*none/s)
+  assert.match(foundationCss, /\.app-main\s*\{[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
+  assert.match(foundationCss, /\.app-main\s*\{[^}]*overscroll-behavior-x:\s*none/s)
   assert.match(mobileCss, /\.mobile-bottom-nav\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0/s)
   assert.match(mobileCss, /\.mobile-bottom-nav\s*\{[^}]*width:\s*100%/s)
-  assert.match(rootCss, /@media\s*\(max-width:\s*820px\)[\s\S]*overflow-x:\s*clip/)
+  assert.match(foundationCss, /@media\s*\(max-width:\s*820px\)[\s\S]*overflow-x:\s*clip/)
 })
 
-test('dashboard FAB is viewport anchored and its mobile offset wins the CSS cascade', async () => {
+test('dashboard FAB is viewport anchored and consumes shared mobile clearance tokens', async () => {
   const dashboard = await read('./pages/Dashboard.jsx')
   const dashboardCss = await read('./dashboard.css')
+  const foundationCss = await read('./mobile-foundation.css')
   const mobileCss = await read('./mobile-navigation.css')
 
   assert.match(dashboard, /createPortal/)
   assert.match(dashboard, /document\.body/)
-  assert.match(mobileCss, /--mobile-bottom-nav-height:\s*65px/)
+  assert.match(foundationCss, /--mobile-bottom-nav-height:\s*65px/)
+  assert.match(foundationCss, /--mobile-floating-gap:\s*16px/)
   assert.match(
     dashboardCss,
-    /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*16px\s*\+\s*env\(safe-area-inset-bottom\)\)/s,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-floating-gap\)\s*\+\s*var\(--mobile-safe-bottom\)\)/s,
   )
   assert.doesNotMatch(mobileCss, /\.dashboard-new-order-fab\s*\{[^}]*bottom:/s)
 })
