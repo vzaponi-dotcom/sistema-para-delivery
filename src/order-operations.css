@@ -270,6 +270,13 @@
   white-space: nowrap;
 }
 
+.order-queue-actions .order-final-action {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+}
+
 .status-finalizado {
   background: var(--success-soft);
   color: var(--success);
@@ -537,11 +544,21 @@
   .order-queue-actions {
     grid-column: auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr) auto;
+    gap: 6px;
   }
 
   .order-queue-actions .button {
     width: 100%;
+    min-width: 0;
+    padding-right: 9px;
+    padding-left: 9px;
+    font-size: .78rem;
+  }
+
+  .order-queue-actions .order-final-action {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .order-history-row {
