@@ -1,6 +1,7 @@
 import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
 import { validateCheckoutInput } from './orderCheckout.js'
+import { listOrders } from './orderReadRepository.js'
 import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
@@ -62,6 +63,7 @@ const authenticatedApi = async (request, env) => {
   if (clientMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const client = await updateClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]), clientInput(await readJson(request))); if (!client) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ client }) }
   if (clientMatch && request.method === 'DELETE') { assertSameOriginMutation(request); const deleted = await deleteClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1])); if (!deleted) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ deleted: true }) }
 
+  if (url.pathname === '/api/orders' && request.method === 'GET') return json({ orders: await listOrders(env.DB, session.businessId) })
   if (url.pathname === '/api/orders' && request.method === 'POST') {
     assertSameOriginMutation(request)
     const input = validateCheckoutInput(await readJson(request), request.headers.get('idempotency-key'))
