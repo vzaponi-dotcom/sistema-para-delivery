@@ -36,6 +36,12 @@ export const requireNonEmpty = (value, field = 'value') => {
 
 export const optionalText = (value) => typeof value === 'string' ? value.trim() : ''
 
+export const optionalTextMax = (value, maxLength, field = 'value') => {
+  const text = optionalText(value)
+  if (text.length > maxLength) throw validationError(field, `O campo ${field} aceita no máximo ${maxLength} caracteres.`)
+  return text
+}
+
 export const validateOrderType = (value) => {
   if (!ORDER_TYPES.has(value)) throw validationError('type', 'Tipo de pedido inválido.')
   return value
