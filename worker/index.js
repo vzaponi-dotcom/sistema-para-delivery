@@ -2,7 +2,7 @@ import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSessi
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, loadBootstrap, registerOrderPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
-import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, validatePaymentMethod } from './validation.js'
+import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -28,7 +28,15 @@ const login = async (request, env) => {
 const logout = async (request, env) => { assertSameOriginMutation(request); await revokeSession(request, env); return json({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
 const sessionStatus = async (request, env) => { const session = await getAuthenticatedSession(request, env); return session ? json({ authenticated: true, businessId: session.businessId }) : json({ authenticated: false }) }
 const clientInput = (body) => ({ name: requireNonEmpty(body.name, 'name'), phone: optionalText(body.phone), address: optionalText(body.address) })
-const productInput = (body) => ({ category: requireNonEmpty(body.category, 'category'), size: optionalText(body.size), name: requireNonEmpty(body.name, 'name'), priceCents: moneyToCents(body.price, 'price') })
+const productInput = (body) => {
+  const presentation = validateStructuredPresentation(body)
+  return {
+    category: validateProductCategory(body.category),
+    name: requireNonEmpty(body.name, 'name'),
+    priceCents: moneyToCents(body.price, 'price'),
+    ...presentation,
+  }
+}
 const movementInput = (body) => { const valueCents = moneyToCents(body.value, 'value'); if (valueCents <= 0) throw apiError(400, 'VALIDATION_ERROR', 'O valor deve ser maior que zero.'); return { type: validateMovementType(body.type), category: requireNonEmpty(body.category, 'category'), description: requireNonEmpty(body.description, 'description'), valueCents } }
 
 const authenticatedApi = async (request, env) => {
