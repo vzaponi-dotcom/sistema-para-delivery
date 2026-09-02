@@ -1,3 +1,4 @@
+import '../theme-controls.css'
 import BrandLogo from './BrandLogo'
 import Icon from './Icon'
 import { useTheme } from './themeContext.js'
@@ -9,6 +10,12 @@ const navigation = [
   { id: 'products', label: 'Produtos', icon: 'products' },
   { id: 'receivables', label: 'A Receber', icon: 'wallet' },
   { id: 'finance', label: 'Financeiro', icon: 'finance' },
+]
+
+const themeOptions = [
+  { value: 'light', label: 'Claro', icon: 'sun' },
+  { value: 'dark', label: 'Escuro', icon: 'moon' },
+  { value: 'system', label: 'Automático', icon: 'system' },
 ]
 
 function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
@@ -43,18 +50,24 @@ function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
         <span>Operação</span>
         <strong>Comida caseira, gestão simples.</strong>
 
-        <label className="theme-picker">
-          <span>Tema</span>
-          <select
-            aria-label="Tema do sistema"
-            value={themePreference}
-            onChange={(event) => setThemePreference(event.target.value)}
-          >
-            <option value="light">Claro</option>
-            <option value="dark">Escuro</option>
-            <option value="system">Automático</option>
-          </select>
-        </label>
+        <div className="theme-picker">
+          <span className="theme-picker-label">Tema</span>
+          <div className="theme-segmented-control" role="group" aria-label="Tema do sistema">
+            {themeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={themePreference === option.value ? 'theme-option active' : 'theme-option'}
+                aria-pressed={themePreference === option.value}
+                title={`Usar tema ${option.label.toLowerCase()}`}
+                onClick={() => setThemePreference(option.value)}
+              >
+                <Icon name={option.icon} size={16} />
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {onLogout && (
           <button className="sidebar-logout" type="button" onClick={onLogout} disabled={logoutDisabled}>
