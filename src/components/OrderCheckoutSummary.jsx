@@ -1,7 +1,18 @@
 import { useState } from 'react'
 import Button from './Button'
+import SystemSelect from './SystemSelect'
 
-const PAYMENT_METHODS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
+const ADJUSTMENT_OPTIONS = [
+  { value: 'none', label: 'Nenhum' },
+  { value: 'discount', label: 'Desconto' },
+  { value: 'surcharge', label: 'Acréscimo' },
+]
+const ADJUSTMENT_MODE_OPTIONS = [
+  { value: 'fixed', label: 'R$' },
+  { value: 'percentage', label: '%' },
+]
+const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
+  .map((method) => ({ value: method, label: method }))
 
 function OrderCheckoutSummary({
   draft,
@@ -43,32 +54,29 @@ function OrderCheckoutSummary({
       )}
 
       <div className="new-order-adjustment">
-        <label className="form-field">
+        <div className="form-field">
           <span>Ajuste do pedido</span>
-          <select
+          <SystemSelect
             value={adjustment.type}
-            onChange={(event) => onAdjustmentChange({ type: event.target.value })}
+            options={ADJUSTMENT_OPTIONS}
+            onChange={(type) => onAdjustmentChange({ type })}
             disabled={disabled}
-          >
-            <option value="none">Nenhum</option>
-            <option value="discount">Desconto</option>
-            <option value="surcharge">Acréscimo</option>
-          </select>
-        </label>
+            label="Ajuste do pedido"
+          />
+        </div>
 
         {adjustment.type !== 'none' && (
           <div className="form-grid two-columns">
-            <label className="form-field">
+            <div className="form-field">
               <span>Modo</span>
-              <select
+              <SystemSelect
                 value={adjustment.mode}
-                onChange={(event) => onAdjustmentChange({ mode: event.target.value })}
+                options={ADJUSTMENT_MODE_OPTIONS}
+                onChange={(mode) => onAdjustmentChange({ mode })}
                 disabled={disabled}
-              >
-                <option value="fixed">R$</option>
-                <option value="percentage">%</option>
-              </select>
-            </label>
+                label="Modo"
+              />
+            </div>
             <label className="form-field">
               <span>Valor</span>
               <input
@@ -113,12 +121,16 @@ function OrderCheckoutSummary({
 
       {showPayment && (
         <div className="new-order-payment-choice">
-          <label className="form-field">
+          <div className="form-field">
             <span>Forma de pagamento</span>
-            <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} disabled={disabled}>
-              {PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method}</option>)}
-            </select>
-          </label>
+            <SystemSelect
+              value={paymentMethod}
+              options={PAYMENT_METHOD_OPTIONS}
+              onChange={setPaymentMethod}
+              disabled={disabled}
+              label="Forma de pagamento"
+            />
+          </div>
           <div className="form-actions">
             <Button type="button" variant="secondary" onClick={() => setShowPayment(false)} disabled={disabled}>Voltar</Button>
             <Button type="button" onClick={() => onSavePaid(paymentMethod)} disabled={disabled || !canSubmit}>Confirmar recebimento</Button>
