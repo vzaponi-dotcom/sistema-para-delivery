@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
 import Button from '../components/Button'
+import ClientDuplicateModal from '../components/ClientDuplicateModal'
 import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
 import OrderProductCatalog from '../components/OrderProductCatalog'
@@ -30,6 +31,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
   const [adjustment, setAdjustment] = useState(emptyAdjustment)
   const [quickClient, setQuickClient] = useState({ open: false, name: '', phone: '' })
   const [quickClientError, setQuickClientError] = useState('')
+  const [duplicateClient, setDuplicateClient] = useState(null)
   const [checkoutError, setCheckoutError] = useState('')
 
   const filteredClients = useMemo(() => {
@@ -78,6 +80,18 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
     if (!event.currentTarget.contains(event.relatedTarget)) setClientPickerOpen(false)
   }
 
+  const finishQuickClient = (client) => {
+    selectClient(client)
+    setQuickClient({ open: false, name: '', phone: '' })
+    setQuickClientError('')
+  }
+
+  const createQuickClient = async () => {
+    const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
+    if (!client) return
+    finishQuickClient(client)
+  }
+
   const handleQuickClientSubmit = async (event) => {
     event.preventDefault()
     if (disabled || !quickClient.name.trim()) return
@@ -88,19 +102,28 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
       setQuickClientError(`Telefone já cadastrado para ${duplicate.phone.name}. Selecione esse cliente na busca acima.`)
       return
     }
-    if (duplicate.name && !window.confirm(`Já existe um cliente chamado ${duplicate.name.name}. Deseja cadastrar mesmo assim?`)) return
+    if (duplicate.name) {
+      setDuplicateClient(duplicate.name)
+      return
+    }
 
-    const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
-    if (!client) return
-    setClientId(client.id)
-    setClientSearch(client.name)
-    setClientPickerOpen(false)
-    setQuickClient({ open: false, name: '', phone: '' })
-    setQuickClientError('')
+    await createQuickClient()
+  }
+
+  const handleUseExistingDuplicate = () => {
+    if (!duplicateClient) return
+    finishQuickClient(duplicateClient)
+    setDuplicateClient(null)
+  }
+
+  const handleConfirmDuplicate = async () => {
+    setDuplicateClient(null)
+    await createQuickClient()
   }
 
   const toggleQuickClient = () => {
     setQuickClientError('')
+    setDuplicateClient(null)
     setQuickClient((current) => ({ ...current, open: !current.open }))
   }
 
@@ -268,6 +291,19 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
           />
         </div>
       </div>
+
+      {duplicateClient && (
+        <ClientDuplicateModal
+          client={duplicateClient}
+          onCancel={() => setDuplicateClient(null)}
+          onUseExisting={handleUseExistingDuplicate}
+          onConfirm={handleConfirmDuplicate}
+          disabled={disabled}
+          cancelLabel="Cancelar"
+          useExistingLabel="Usar cliente existente"
+          confirmLabel="Cadastrar mesmo assim"
+        />
+      )}
     </>
   )
 }
