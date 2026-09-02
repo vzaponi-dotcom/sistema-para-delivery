@@ -92,10 +92,10 @@ class CheckoutDb {
 
   async _run(sql, values) {
     if (sql.includes('INSERT INTO orders')) {
-      const [id, businessId, clientId, clientName, type, orderDate, status, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
+      const [id, businessId, clientId, clientName, customerIdentityType, type, orderDate, status, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
       if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
       this.orders.set(id, {
-        id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, type,
+        id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType, type,
         order_date: orderDate, status, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
         adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue,
         adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total,
