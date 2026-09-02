@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/client-duplicate-modal-ux
   workflow_dispatch:
 
 jobs:
