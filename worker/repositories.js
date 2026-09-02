@@ -34,6 +34,24 @@ export const mapTableTabRow = (row) => ({
   closedAt: row.closed_at ?? null,
 })
 
+export const normalizeTableIdentifier = (value) => String(value ?? '').trim().toUpperCase()
+
+export const getOrCreateOpenTableTab = async (db, businessId, rawIdentifier, now = new Date()) => {
+  const tableIdentifier = normalizeTableIdentifier(rawIdentifier)
+  const selectOpen = () => db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? AND table_identifier = ? AND status = 'open' LIMIT 1`).bind(businessId, tableIdentifier).first()
+
+  let row = await selectOpen()
+  if (row) return mapTableTabRow(row)
+
+  const id = crypto.randomUUID()
+  const timestamp = now.toISOString()
+  await db.prepare(`INSERT OR IGNORE INTO table_tabs (id, business_id, table_identifier, status, opened_at, closed_at, created_at, updated_at) VALUES (?, ?, ?, 'open', ?, NULL, ?, ?)`).bind(id, businessId, tableIdentifier, timestamp, timestamp, timestamp).run()
+
+  row = await selectOpen()
+  if (!row) throw repositoryError(500, 'TABLE_TAB_CREATE_FAILED', 'Não foi possível abrir a comanda da mesa.')
+  return mapTableTabRow(row)
+}
+
 export const mapOrderItemRow = (row) => ({
   id: row.id,
   productId: row.product_id ?? null,
@@ -104,6 +122,7 @@ export const loadBootstrap = async (db, businessId) => {
   const productsResult = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
   const itemsResult = await db.prepare(`${itemSelect} WHERE business_id = ? ORDER BY created_at ASC`).bind(businessId).all()
+  const tableTabsResult = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
   const movementsResult = await db.prepare(`SELECT id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at FROM movements WHERE business_id = ? ORDER BY created_at DESC`).bind(businessId).all()
   const itemsByOrder = new Map()
   for (const itemRow of rows(itemsResult)) {
@@ -116,6 +135,7 @@ export const loadBootstrap = async (db, businessId) => {
     clients: rows(clientsResult).map(mapClientRow),
     products: rows(productsResult).map(mapProductRow),
     orders: rows(ordersResult).map((orderRow) => mapOrderRow(orderRow, itemsByOrder.get(orderRow.id) ?? [])),
+    tableTabs: rows(tableTabsResult).map(mapTableTabRow),
     movements: rows(movementsResult).map(mapMovementRow),
   }
 }
@@ -274,6 +294,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
   let clientId = null
   let clientSnapshot = ''
+  let tableTabId = null
   if (customerIdentity.type === 'registered_client') {
     const client = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
     if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
@@ -282,7 +303,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   } else if (customerIdentity.type === 'guest_name') {
     clientSnapshot = customerIdentity.value
   } else if (customerIdentity.type === 'table') {
-    clientSnapshot = `Mesa ${customerIdentity.value}`
+    const tableTab = await getOrCreateOpenTableTab(db, businessId, customerIdentity.value, now)
+    clientSnapshot = `Mesa ${tableTab.tableIdentifier}`
+    tableTabId = tableTab.id
   } else {
     throw repositoryError(400, 'INVALID_CUSTOMER_IDENTITY', 'Identificação do pedido inválida.')
   }
@@ -306,12 +329,13 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
   const orderId = crypto.randomUUID()
 
-  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, customer_identity_type, type, order_date, status, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     orderId,
     businessId,
     clientId,
     clientSnapshot,
     customerIdentity.type,
+    tableTabId,
     input.type,
     input.orderDate,
     status,
