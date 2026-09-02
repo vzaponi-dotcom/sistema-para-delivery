@@ -13,6 +13,7 @@ class CheckoutDb {
     this.items = new Map()
     this.payments = new Map()
     this.movements = new Map()
+    this.tableTabs = []
     this.failNextBatch = false
   }
 
@@ -24,6 +25,10 @@ class CheckoutDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM table_tabs')) {
+              const [businessId, tableIdentifier] = values
+              return db.tableTabs.find((row) => row.business_id === businessId && row.table_identifier === tableIdentifier && row.status === 'open') ?? null
+            }
             if (sql.includes('idempotency_key') && !sql.includes('INSERT')) {
               const [businessId, key] = values
               return [...db.orders.values()].find((row) => row.business_id === businessId && row.idempotency_key === key) ?? null
@@ -74,6 +79,7 @@ class CheckoutDb {
     const snapshots = {
       orders: new Map(this.orders), items: new Map(this.items),
       payments: new Map(this.payments), movements: new Map(this.movements),
+      tableTabs: this.tableTabs.map((row) => ({ ...row })),
     }
     try {
       if (this.failNextBatch) {
@@ -86,17 +92,44 @@ class CheckoutDb {
       this.items = snapshots.items
       this.payments = snapshots.payments
       this.movements = snapshots.movements
+      this.tableTabs = snapshots.tableTabs
       throw error
     }
   }
 
   async _run(sql, values) {
-    if (sql.includes('INSERT INTO orders')) {
-      const [id, businessId, clientId, clientName, customerIdentityType, type, orderDate, status, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
+    if (sql.includes('INSERT OR IGNORE INTO table_tabs')) {
+      const [id, businessId, tableIdentifier, openedAt, createdAt, updatedAt] = values
+      const existing = this.tableTabs.find((row) => row.business_id === businessId && row.table_identifier === tableIdentifier && row.status === 'open')
+      if (!existing) {
+        this.tableTabs.push({
+          id, business_id: businessId, table_identifier: tableIdentifier, status: 'open', opened_at: openedAt,
+          closed_at: null, created_at: createdAt, updated_at: updatedAt,
+        })
+      }
+    } else if (sql.includes('INSERT INTO orders')) {
+      const hasTableTab = values.length === 20
+      const [id, businessId, clientId, clientName, customerIdentityType] = values
+      const tableTabId = hasTableTab ? values[5] : null
+      const offset = hasTableTab ? 1 : 0
+      const type = values[5 + offset]
+      const orderDate = values[6 + offset]
+      const status = values[7 + offset]
+      const subtotal = values[8 + offset]
+      const deliveryFee = values[9 + offset]
+      const adjustmentType = values[10 + offset]
+      const adjustmentMode = values[11 + offset]
+      const adjustmentValue = values[12 + offset]
+      const adjustmentAmount = values[13 + offset]
+      const adjustmentReason = values[14 + offset]
+      const total = values[15 + offset]
+      const createdAt = values[16 + offset]
+      const finishedAt = values[17 + offset]
+      const idempotencyKey = values[18 + offset]
       if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
       this.orders.set(id, {
-        id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType, type,
-        order_date: orderDate, status, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
+        id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType,
+        table_tab_id: tableTabId, type, order_date: orderDate, status, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
         adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue,
         adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total,
         created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey,
@@ -135,6 +168,17 @@ const baseInput = (overrides = {}) => ({
   ...overrides,
 })
 
+const tableInput = (value, idempotencyKey) => baseInput({
+  clientId: null,
+  customerIdentity: { type: 'table', value },
+  type: 'Local',
+  idempotencyKey,
+  items: [{ productId: 'p1', quantity: 1, note: '' }],
+  deliveryFeeCents: 0,
+  adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
+  paymentMethod: null,
+})
+
 test('order/item mapping exposes delivery fee, note and friendly percentage', () => {
   const item = mapOrderItemRow({ id: 'i1', product_id: 'p1', name_snapshot: 'Marmita G', category_snapshot: 'Marmita', size_snapshot: 'G', quantity: 1, catalog_price_cents: 3200, unit_price_cents: 3200, price_reason: '', note: 'sem cebola' })
   const order = mapOrderRow({
@@ -158,6 +202,20 @@ test('createOrder uses server product prices for several items, fee and adjustme
   assert.equal(order.adjustment.amount, 7.2)
   assert.equal(order.total, 72.8)
   assert.equal(order.paymentStatus, 'Pendente')
+})
+
+test('table orders reuse one open canonical tab and preserve leading-zero table identity', async () => {
+  const db = new CheckoutDb()
+  const now = new Date('2026-09-02T18:00:00.000Z')
+  const first = await createOrder(db, 'amor-e-sabor', tableInput('a-01', 'tab-a-1'), now)
+  const second = await createOrder(db, 'amor-e-sabor', tableInput('A-01', 'tab-a-2'), new Date('2026-09-02T18:01:00.000Z'))
+  assert.equal(first.tableTabId, second.tableTabId)
+  assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 1)
+  assert.equal(db.tableTabs[0].table_identifier, 'A-01')
+
+  const order04 = await createOrder(db, 'amor-e-sabor', tableInput('04', 'tab-04'), new Date('2026-09-02T18:02:00.000Z'))
+  const order4 = await createOrder(db, 'amor-e-sabor', tableInput('4', 'tab-4'), new Date('2026-09-02T18:03:00.000Z'))
+  assert.notEqual(order04.tableTabId, order4.tableTabId)
 })
 
 test('paid retry creates one order, payment and movement and stays Em preparo', async () => {
