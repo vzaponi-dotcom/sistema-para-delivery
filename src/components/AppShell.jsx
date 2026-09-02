@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DashboardPeriodProvider } from './DashboardPeriodProvider'
 import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
@@ -12,13 +12,16 @@ import {
 function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, children }) {
   const touchStart = useRef(null)
   const previousTab = useRef(activeTab)
-  const previousIndex = MOBILE_SECTION_IDS.indexOf(previousTab.current)
-  const activeIndex = MOBILE_SECTION_IDS.indexOf(activeTab)
-  const pageDirection = previousTab.current !== activeTab && previousIndex >= 0 && activeIndex >= 0
-    ? (activeIndex > previousIndex ? 'forward' : 'backward')
-    : 'none'
+  const [pageDirection, setPageDirection] = useState('none')
 
   useEffect(() => {
+    const previousIndex = MOBILE_SECTION_IDS.indexOf(previousTab.current)
+    const activeIndex = MOBILE_SECTION_IDS.indexOf(activeTab)
+    const nextDirection = previousTab.current !== activeTab && previousIndex >= 0 && activeIndex >= 0
+      ? (activeIndex > previousIndex ? 'forward' : 'backward')
+      : 'none'
+
+    setPageDirection(nextDirection)
     previousTab.current = activeTab
   }, [activeTab])
 
