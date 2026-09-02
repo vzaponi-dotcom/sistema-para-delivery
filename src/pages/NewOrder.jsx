@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import '../new-order.css'
 import Button from '../components/Button'
 import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
