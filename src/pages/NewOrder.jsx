@@ -5,13 +5,15 @@ import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
 import OrderProductCatalog from '../components/OrderProductCatalog'
 import PageHeader from '../components/PageHeader'
 import { addCartItem, buildOrderPayload, calculateOrderPreview, removeCartItem, updateCartItem } from '../utils/orderCart.js'
+import { formatPhone } from '../utils/formFormatting.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
 const emptyAdjustment = { type: 'none', mode: 'fixed', value: '0', reason: '' }
 
 function NewOrder({ clients, products, currency, disabled, onCancel, onCreateClient, onSubmit }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
-  const [clientSearch, setClientSearch] = useState('')
+  const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
+  const [clientPickerOpen, setClientPickerOpen] = useState(false)
   const [type, setType] = useState('Entrega')
   const [orderDate, setOrderDate] = useState(toLocalDateValue())
   const [items, setItems] = useState([])
@@ -22,9 +24,9 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
 
   const filteredClients = useMemo(() => {
     const normalized = clientSearch.trim().toLowerCase()
-    if (!normalized) return clients
-    return clients.filter((client) => [client.name, client.phone].join(' ').toLowerCase().includes(normalized))
-  }, [clientSearch, clients])
+    if (!normalized || clients.some((client) => client.id === clientId && client.name === clientSearch)) return clients
+    return clients.filter((client) => client.name.toLowerCase().includes(normalized))
+  }, [clientId, clientSearch, clients])
 
   const draft = {
     clientId,
@@ -50,13 +52,30 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
     })
   }
 
+  const handleClientSearchChange = (value) => {
+    setClientSearch(value)
+    setClientId('')
+    setClientPickerOpen(true)
+  }
+
+  const selectClient = (client) => {
+    setClientId(client.id)
+    setClientSearch(client.name)
+    setClientPickerOpen(false)
+  }
+
+  const handleClientPickerBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) setClientPickerOpen(false)
+  }
+
   const handleQuickClientSubmit = async (event) => {
     event.preventDefault()
     if (disabled || !quickClient.name.trim()) return
     const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
     if (!client) return
     setClientId(client.id)
-    setClientSearch('')
+    setClientSearch(client.name)
+    setClientPickerOpen(false)
     setQuickClient({ open: false, name: '', phone: '' })
   }
 
@@ -88,26 +107,45 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
               </div>
             </div>
 
-            <div className="form-grid two-columns">
-              <label className="form-field">
-                <span>Buscar cliente</span>
+            <div
+              className="form-field new-order-client-picker"
+              onBlur={handleClientPickerBlur}
+            >
+              <span>Cliente</span>
+              <div className="new-order-client-combobox">
                 <input
                   type="search"
-                  placeholder="Nome ou telefone"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={clientPickerOpen}
+                  aria-controls="new-order-client-options"
+                  placeholder="Digite o nome do cliente"
                   value={clientSearch}
-                  onChange={(event) => setClientSearch(event.target.value)}
+                  onFocus={() => setClientPickerOpen(true)}
+                  onChange={(event) => handleClientSearchChange(event.target.value)}
+                  disabled={disabled || !clients.length}
+                  autoComplete="off"
                 />
-              </label>
-              <label className="form-field">
-                <span>Cliente</span>
-                <select value={clientId} onChange={(event) => setClientId(event.target.value)} disabled={disabled || !clients.length}>
-                  {!clients.length && <option value="">Cadastre um cliente</option>}
-                  {filteredClients.map((client) => <option key={client.id} value={client.id}>{client.name}{client.phone ? ` · ${client.phone}` : ''}</option>)}
-                  {clientId && !filteredClients.some((client) => client.id === clientId) && clients.find((client) => client.id === clientId) && (
-                    <option value={clientId}>{clients.find((client) => client.id === clientId).name}</option>
-                  )}
-                </select>
-              </label>
+                {clientPickerOpen && !disabled && (
+                  <div id="new-order-client-options" className="new-order-client-options" role="listbox">
+                    {filteredClients.map((client) => (
+                      <button
+                        key={client.id}
+                        type="button"
+                        role="option"
+                        aria-selected={client.id === clientId}
+                        className={client.id === clientId ? 'selected' : ''}
+                        onClick={() => selectClient(client)}
+                      >
+                        {client.name}
+                      </button>
+                    ))}
+                    {!filteredClients.length && (
+                      <span className="new-order-client-empty">Nenhum cliente encontrado</span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
@@ -136,7 +174,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
                   <input
                     type="tel"
                     value={quickClient.phone}
-                    onChange={(event) => setQuickClient((current) => ({ ...current, phone: event.target.value }))}
+                    onChange={(event) => setQuickClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))}
                     placeholder="(11) 99999-9999"
                     autoComplete="off"
                   />
