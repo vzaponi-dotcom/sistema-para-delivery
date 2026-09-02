@@ -23,6 +23,61 @@
   padding: 22px;
 }
 
+.new-order-client-picker {
+  position: relative;
+}
+
+.new-order-client-combobox {
+  position: relative;
+}
+
+.new-order-client-options {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 30;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border-color, #e4dbd5);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(34, 24, 20, .14);
+}
+
+.new-order-client-options button {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text, #2b2421);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.new-order-client-options button:hover,
+.new-order-client-options button:focus-visible,
+.new-order-client-options button.selected {
+  background: var(--surface-soft, #f8f3ef);
+  outline: none;
+}
+
+.new-order-client-options button.selected {
+  color: var(--color-primary, #7a351f);
+}
+
+.new-order-client-empty {
+  display: block;
+  padding: 11px;
+  color: var(--text-muted, #756a64);
+  font-size: .84rem;
+}
+
 .new-order-operation-fields {
   margin-top: 18px;
 }
@@ -90,6 +145,15 @@
   background: #fff;
 }
 
+.new-order-product {
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.new-order-product.recently-added {
+  border-color: #b9dec9;
+  background: #f6fcf8;
+}
+
 .new-order-product,
 .new-order-product-action,
 .new-order-cart-line-heading,
@@ -115,6 +179,26 @@
 
 .new-order-product-action {
   flex-shrink: 0;
+  gap: 10px;
+}
+
+.new-order-add-button {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--primary, #b7192b);
+  color: #fff;
+  font-size: .8rem;
+  box-shadow: none;
+}
+
+.new-order-add-button:hover {
+  background: var(--primary-hover, #991522);
+  color: #fff;
+}
+
+.new-order-product.recently-added .new-order-add-button {
+  background: var(--success, #247a52);
 }
 
 .new-order-cart-line {
@@ -236,15 +320,27 @@
     grid-template-columns: 1fr;
   }
 
-  .new-order-product,
-  .new-order-product-action,
   .new-order-cart-line-heading,
   .new-order-quantity-row {
     align-items: flex-start;
     flex-direction: column;
   }
 
+  .new-order-product {
+    align-items: center;
+    flex-direction: row;
+  }
+
   .new-order-product-action {
-    width: 100%;
+    width: auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .new-order-add-button {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: .76rem;
   }
 }
