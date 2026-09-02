@@ -140,3 +140,69 @@ export const loadBootstrap = async (db, businessId) => {
     movements: rows(movementsResult).map(mapMovementRow),
   }
 }
+
+const findClientRow = (db, businessId, id) => db.prepare(
+  `SELECT id, name, phone, address
+   FROM clients
+   WHERE id = ? AND business_id = ?
+   LIMIT 1`,
+).bind(id, businessId).first()
+
+const findProductRow = (db, businessId, id) => db.prepare(
+  `SELECT id, category, size, name, price_cents
+   FROM products
+   WHERE id = ? AND business_id = ? AND active = 1
+   LIMIT 1`,
+).bind(id, businessId).first()
+
+export const createClient = async (db, businessId, input, now = new Date()) => {
+  const id = crypto.randomUUID()
+  const timestamp = now.toISOString()
+  await db.prepare(
+    `INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(id, businessId, input.name, input.phone, input.address, timestamp, timestamp).run()
+  return { id, name: input.name, phone: input.phone, address: input.address }
+}
+
+export const updateClient = async (db, businessId, id, input, now = new Date()) => {
+  if (!(await findClientRow(db, businessId, id))) return null
+  await db.prepare(
+    `UPDATE clients SET name = ?, phone = ?, address = ?, updated_at = ?
+     WHERE id = ? AND business_id = ?`,
+  ).bind(input.name, input.phone, input.address, now.toISOString(), id, businessId).run()
+  return { id, name: input.name, phone: input.phone, address: input.address }
+}
+
+export const deleteClient = async (db, businessId, id) => {
+  if (!(await findClientRow(db, businessId, id))) return false
+  await db.prepare('DELETE FROM clients WHERE id = ? AND business_id = ?').bind(id, businessId).run()
+  return true
+}
+
+export const createProduct = async (db, businessId, input, now = new Date()) => {
+  const id = crypto.randomUUID()
+  const timestamp = now.toISOString()
+  await db.prepare(
+    `INSERT INTO products (id, business_id, category, size, name, price_cents, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+  ).bind(id, businessId, input.category, input.size, input.name, input.priceCents, timestamp, timestamp).run()
+  return { id, category: input.category, size: input.size, name: input.name, price: centsToMoney(input.priceCents) }
+}
+
+export const updateProduct = async (db, businessId, id, input, now = new Date()) => {
+  if (!(await findProductRow(db, businessId, id))) return null
+  await db.prepare(
+    `UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ?
+     WHERE id = ? AND business_id = ? AND active = 1`,
+  ).bind(input.category, input.size, input.name, input.priceCents, now.toISOString(), id, businessId).run()
+  return { id, category: input.category, size: input.size, name: input.name, price: centsToMoney(input.priceCents) }
+}
+
+export const deleteProduct = async (db, businessId, id, now = new Date()) => {
+  if (!(await findProductRow(db, businessId, id))) return false
+  await db.prepare(
+    `UPDATE products SET active = 0, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`,
+  ).bind(now.toISOString(), id, businessId).run()
+  return true
+}

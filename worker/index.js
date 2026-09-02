@@ -1,7 +1,7 @@
 import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
-import { loadBootstrap } from './repositories.js'
-import { requireNonEmpty } from './validation.js'
+import { createClient, createProduct, deleteClient, deleteProduct, loadBootstrap, updateClient, updateProduct } from './repositories.js'
+import { moneyToCents, optionalText, requireNonEmpty } from './validation.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -53,6 +53,19 @@ const sessionStatus = async (request, env) => {
   return json({ authenticated: true, businessId: session.businessId })
 }
 
+const clientInput = (body) => ({
+  name: requireNonEmpty(body.name, 'name'),
+  phone: optionalText(body.phone),
+  address: optionalText(body.address),
+})
+
+const productInput = (body) => ({
+  category: requireNonEmpty(body.category, 'category'),
+  size: optionalText(body.size),
+  name: requireNonEmpty(body.name, 'name'),
+  priceCents: moneyToCents(body.price, 'price'),
+})
+
 const authenticatedApi = async (request, env) => {
   const session = await getAuthenticatedSession(request, env)
   if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
@@ -60,6 +73,46 @@ const authenticatedApi = async (request, env) => {
   const url = new URL(request.url)
   if (url.pathname === '/api/bootstrap' && request.method === 'GET') {
     return json(await loadBootstrap(env.DB, session.businessId))
+  }
+
+  if (url.pathname === '/api/clients' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const client = await createClient(env.DB, session.businessId, clientInput(await readJson(request)))
+    return json({ client }, { status: 201 })
+  }
+
+  const clientMatch = url.pathname.match(/^\/api\/clients\/([^/]+)$/)
+  if (clientMatch && request.method === 'PATCH') {
+    assertSameOriginMutation(request)
+    const client = await updateClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]), clientInput(await readJson(request)))
+    if (!client) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+    return json({ client })
+  }
+  if (clientMatch && request.method === 'DELETE') {
+    assertSameOriginMutation(request)
+    const deleted = await deleteClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]))
+    if (!deleted) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+    return json({ deleted: true })
+  }
+
+  if (url.pathname === '/api/products' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const product = await createProduct(env.DB, session.businessId, productInput(await readJson(request)))
+    return json({ product }, { status: 201 })
+  }
+
+  const productMatch = url.pathname.match(/^\/api\/products\/([^/]+)$/)
+  if (productMatch && request.method === 'PATCH') {
+    assertSameOriginMutation(request)
+    const product = await updateProduct(env.DB, session.businessId, decodeURIComponent(productMatch[1]), productInput(await readJson(request)))
+    if (!product) throw apiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.')
+    return json({ product })
+  }
+  if (productMatch && request.method === 'DELETE') {
+    assertSameOriginMutation(request)
+    const deleted = await deleteProduct(env.DB, session.businessId, decodeURIComponent(productMatch[1]))
+    if (!deleted) throw apiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.')
+    return json({ deleted: true })
   }
 
   throw apiError(404, 'NOT_FOUND', 'Rota de API não encontrada.')
