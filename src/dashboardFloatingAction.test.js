@@ -9,7 +9,8 @@ test('dashboard moves new order into one floating action on desktop and mobile',
   const css = source('./dashboard.css')
 
   assert.doesNotMatch(page, /<Button[^>]*icon=["']plus["'][^>]*>Novo pedido<\/Button>/)
-  assert.match(page, /className=["']dashboard-new-order-fab["']/)
+  assert.match(page, /className=["'][^"']*dashboard-new-order-fab[^"']*["']/)
+  assert.match(page, /className=["'][^"']*button-primary[^"']*["']/)
   assert.match(page, /aria-label=["']Novo pedido["']/)
   assert.match(page, /title=["']Novo pedido["']/)
   assert.match(page, /onClick=\{onNewOrder\}/)
