@@ -50,11 +50,11 @@ test('modal and bottom sheet render at document body so scrolling and page trans
 })
 
 test('mobile payment modal stays centered and selectable options scroll inside their own viewport layer', async () => {
-  const appCss = await read('./App.css')
+  const mobileCss = await read('./mobile-navigation.css')
   const sheetCss = await read('./bottom-sheet.css')
 
-  assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.modal-backdrop\s*\{[^}]*place-items:\s*center/s)
-  assert.match(appCss, /\.modal-card\s*\{[^}]*max-height:\s*(?:min\()?\s*\d+dvh/s)
+  assert.match(mobileCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.modal-backdrop\s*\{[^}]*place-items:\s*center/s)
+  assert.match(mobileCss, /\.modal-card\s*\{[^}]*max-height:\s*min\([^)]*dvh/s)
   assert.match(sheetCss, /\.bottom-sheet\s*\{[^}]*max-height:\s*min\([^)]*dvh/s)
   assert.match(sheetCss, /\.bottom-sheet-body\s*\{[^}]*overflow-y:\s*auto/s)
   assert.match(sheetCss, /\.bottom-sheet-body\s*\{[^}]*overscroll-behavior:\s*contain/s)
