@@ -2,20 +2,26 @@ import { useMemo, useState } from 'react'
 import '../receivables.css'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
+import Modal from '../components/Modal'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
+import SystemSelect from '../components/SystemSelect'
 import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate, toLocalDateValue } from '../utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from '../utils/paymentWorkflow'
 import { groupPendingOrders } from '../utils/receivables.js'
 
 const orderNumber = (id) => String(id).slice(-4)
+const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
+  .map((value) => ({ value, label: value }))
 
-function Receivables({ orders, currency, onRegisterPayment }) {
+function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRegisterTableTabPayment }) {
   const [search, setSearch] = useState('')
   const [detailOrder, setDetailOrder] = useState(null)
+  const [tableTabPaymentGroup, setTableTabPaymentGroup] = useState(null)
+  const [tableTabPaymentMethod, setTableTabPaymentMethod] = useState('Pix')
   const today = toLocalDateValue()
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
@@ -35,7 +41,14 @@ function Receivables({ orders, currency, onRegisterPayment }) {
     [normalizedSearch, orders],
   )
 
-  const groups = useMemo(() => groupPendingOrders(pendingOrders), [pendingOrders])
+  const groups = useMemo(() => {
+    const tabsById = new Map(tableTabs.map((tab) => [tab.id, tab]))
+    return groupPendingOrders(pendingOrders).map((group) => {
+      if (group.kind !== 'table_tab') return group
+      const tab = tabsById.get(group.tableTabId)
+      return tab?.tableIdentifier ? { ...group, label: `Mesa ${tab.tableIdentifier}` } : group
+    })
+  }, [pendingOrders, tableTabs])
 
   const totalPending = orders
     .filter((order) => !isOrderPaid(order))
@@ -44,6 +57,22 @@ function Receivables({ orders, currency, onRegisterPayment }) {
   const receivedToday = orders
     .filter((order) => isOrderPaid(order) && order.paidAt && toLocalDateValue(order.paidAt) === today)
     .reduce((sum, order) => sum + Number(order.paidAmount || order.total || 0), 0)
+
+  const openTableTabPayment = (group) => {
+    setTableTabPaymentMethod('Pix')
+    setTableTabPaymentGroup(group)
+  }
+
+  const closeTableTabPayment = () => {
+    setTableTabPaymentGroup(null)
+    setTableTabPaymentMethod('Pix')
+  }
+
+  const confirmTableTabPayment = async () => {
+    if (!tableTabPaymentGroup || writeDisabled || !onRegisterTableTabPayment) return
+    const success = await onRegisterTableTabPayment(tableTabPaymentGroup.tableTabId, tableTabPaymentMethod)
+    if (success) closeTableTabPayment()
+  }
 
   return (
     <>
@@ -83,13 +112,13 @@ function Receivables({ orders, currency, onRegisterPayment }) {
 
         <div className="receivables-groups">
           {groups.map((group) => (
-            <article className="receivable-client-card" key={group.key}>
+            <article className={`receivable-client-card${group.kind === 'table_tab' ? ' receivable-table-tab-card' : ''}`} key={group.key}>
               <header className="receivable-client-header">
                 <div>
                   <div className="receivable-client-avatar">{group.label.charAt(0).toUpperCase()}</div>
                   <div className="receivable-client-copy">
                     <strong>{group.label}</strong>
-                    <span>{group.orders.length} pedido(s) pendente(s)</span>
+                    <span>{group.orders.length} pedido(s) pendente(s){group.kind === 'table_tab' ? ' nesta comanda' : ''}</span>
                   </div>
                 </div>
                 <div className="receivable-client-total">
@@ -109,11 +138,25 @@ function Receivables({ orders, currency, onRegisterPayment }) {
                     <strong className="receivable-order-amount">{currency(getPendingAmount(order))}</strong>
                     <div className="receivable-order-actions">
                       <Button type="button" variant="secondary" onClick={() => setDetailOrder(order)}>Ver detalhes</Button>
-                      <Button onClick={() => onRegisterPayment(order.id)} disabled={writeDisabled}>Registrar pagamento</Button>
+                      {group.kind !== 'table_tab' && (
+                        <Button onClick={() => onRegisterPayment(order.id)} disabled={writeDisabled}>Registrar pagamento</Button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
+
+              {group.kind === 'table_tab' && (
+                <div className="receivable-table-tab-action">
+                  <div>
+                    <strong>Cobrança única da comanda</strong>
+                    <span>Quite todos os pedidos pendentes desta mesa de uma vez.</span>
+                  </div>
+                  <Button type="button" onClick={() => openTableTabPayment(group)} disabled={writeDisabled || !onRegisterTableTabPayment}>
+                    Registrar pagamento da comanda
+                  </Button>
+                </div>
+              )}
             </article>
           ))}
 
@@ -128,6 +171,45 @@ function Receivables({ orders, currency, onRegisterPayment }) {
       </section>
 
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
+
+      {tableTabPaymentGroup && (
+        <Modal
+          title="Registrar pagamento da comanda"
+          onClose={closeTableTabPayment}
+          footer={(
+            <>
+              <Button type="button" variant="secondary" onClick={closeTableTabPayment}>Cancelar</Button>
+              <Button type="button" onClick={confirmTableTabPayment} disabled={writeDisabled || !onRegisterTableTabPayment}>Confirmar pagamento</Button>
+            </>
+          )}
+        >
+          <div className="table-tab-payment-summary">
+            <div>
+              <span>Comanda</span>
+              <strong>{tableTabPaymentGroup.label}</strong>
+            </div>
+            <div>
+              <span>Pedidos pendentes</span>
+              <strong>{tableTabPaymentGroup.orders.length}</strong>
+            </div>
+            <div>
+              <span>Total</span>
+              <strong>{currency(tableTabPaymentGroup.total)}</strong>
+            </div>
+          </div>
+          <p className="table-tab-payment-note">Todos os pedidos pendentes desta comanda serão quitados juntos.</p>
+          <label className="form-field">
+            <span>Forma de pagamento</span>
+            <SystemSelect
+              label="Forma de pagamento da comanda"
+              value={tableTabPaymentMethod}
+              options={PAYMENT_METHOD_OPTIONS}
+              onChange={setTableTabPaymentMethod}
+              disabled={writeDisabled}
+            />
+          </label>
+        </Modal>
+      )}
     </>
   )
 }
