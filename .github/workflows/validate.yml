@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/multi-item-orders
   workflow_dispatch:
 
 jobs:
