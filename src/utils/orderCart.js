@@ -1,3 +1,5 @@
+import { formatProductPresentation } from '../../shared/productCatalog.js'
+
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 const toNonNegativeNumber = (value) => {
   const number = Number(value)
@@ -44,12 +46,13 @@ export const addCartItem = (items, product, note = '') => {
       : item)
   }
 
+  const presentation = formatProductPresentation(product)
   return [...items, {
     lineId: crypto.randomUUID(),
     productId: product.id,
     name: product.name,
     category: product.category || '',
-    size: product.size || '',
+    size: presentation === 'Unidade' ? 'Un' : presentation,
     unitPrice: toNonNegativeNumber(product.price),
     quantity: 1,
     note: normalizedNote,
