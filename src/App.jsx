@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import './central-data.css'
+import './new-order.css'
 import AppShell from './components/AppShell'
 import Button from './components/Button'
 import ConnectionBanner from './components/ConnectionBanner'
@@ -9,11 +10,12 @@ import LoginScreen from './components/LoginScreen'
 import Modal from './components/Modal'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
+import NewOrder from './pages/NewOrder'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
-import { isOrderFinished, normalizeOrderDate, toLocalDateValue } from './utils/orderWorkflow'
+import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
   createClient as createClientApi,
@@ -56,7 +58,7 @@ function App() {
   const [orders, setOrders] = useState([])
   const [movements, setMovements] = useState([])
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [form, setForm] = useState({ clientId: '', productId: '', type: 'Entrega', quantity: 1, orderDate: toLocalDateValue() })
+  const [checkoutKey, setCheckoutKey] = useState(null)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
   const [editingClientId, setEditingClientId] = useState(null)
   const [showClientForm, setShowClientForm] = useState(false)
@@ -69,7 +71,6 @@ function App() {
   const [newProduct, setNewProduct] = useState({ category: 'Marmita', size: 'P', name: '', price: '32' })
   const [newMovement, setNewMovement] = useState({ type: 'entrada', category: 'Vendas', description: '', value: '0' })
   const [toastMessage, setToastMessage] = useState('')
-  const [showOrderModal, setShowOrderModal] = useState(false)
   const [showMovementModal, setShowMovementModal] = useState(false)
   const [paymentOrderId, setPaymentOrderId] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
@@ -83,26 +84,18 @@ function App() {
     setClients([])
     setOrders([])
     setMovements([])
-    setForm((current) => ({ ...current, clientId: '', productId: '', quantity: 1, orderDate: toLocalDateValue() }))
+    setCheckoutKey(null)
     setPaymentOrderId(null)
-    setShowOrderModal(false)
     setShowMovementModal(false)
     setShowClientForm(false)
     setShowProductForm(false)
   }
 
   const applyBootstrap = (data) => {
-    const nextClients = Array.isArray(data?.clients) ? data.clients : []
-    const nextProducts = Array.isArray(data?.products) ? data.products : []
-    setClients(nextClients)
-    setProducts(nextProducts)
+    setClients(Array.isArray(data?.clients) ? data.clients : [])
+    setProducts(Array.isArray(data?.products) ? data.products : [])
     setOrders(Array.isArray(data?.orders) ? data.orders : [])
     setMovements(Array.isArray(data?.movements) ? data.movements : [])
-    setForm((current) => ({
-      ...current,
-      clientId: nextClients.some((client) => client.id === current.clientId) ? current.clientId : (nextClients[0]?.id ?? ''),
-      productId: nextProducts.some((product) => product.id === current.productId) ? current.productId : (nextProducts[0]?.id ?? ''),
-    }))
     setBootstrapState('ready')
   }
 
@@ -191,8 +184,6 @@ function App() {
     return { entries, exits, balance: entries - exits }
   }, [movements])
 
-  const selectedProduct = products.find((product) => product.id === form.productId) ?? products[0] ?? { name: 'Produto', size: '', price: 0 }
-
   const filteredClients = useMemo(() => {
     const normalizedSearch = clientSearch.trim().toLowerCase()
     const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch))
@@ -252,32 +243,45 @@ function App() {
     }
   }
 
-  const openOrderModal = () => {
-    if (writesBlocked) return
-    setForm((current) => ({ ...current, quantity: 1, orderDate: toLocalDateValue() }))
-    setShowOrderModal(true)
-  }
-
   const handleNewOrder = () => {
     if (writesBlocked) return
-    setActiveTab('orders')
-    openOrderModal()
+    setCheckoutKey(crypto.randomUUID())
+    setActiveTab('new-order')
   }
 
-  const handleOrderSubmit = async (event) => {
-    event.preventDefault()
-    if (writesBlocked || !form.clientId || !form.productId) return
+  const handleOrderCheckout = async (payload) => {
+    if (writesBlocked) return false
+    const key = checkoutKey || crypto.randomUUID()
+    if (!checkoutKey) setCheckoutKey(key)
     setRequestKey('order:create')
     try {
-      const orderDate = normalizeOrderDate(form.orderDate, new Date())
-      const { order } = await createOrderApi({ clientId: form.clientId, productId: form.productId, type: form.type, quantity: Number(form.quantity) || 1, orderDate })
-      setOrders((current) => [order, ...current])
-      setForm((current) => ({ ...current, quantity: 1, orderDate: toLocalDateValue() }))
-      setShowOrderModal(false)
+      const { order } = await createOrderApi(payload, key)
+      setOrders((current) => current.some((item) => item.id === order.id)
+        ? current.map((item) => item.id === order.id ? order : item)
+        : [order, ...current])
+      if (order.paymentStatus === 'Pago') await refreshBootstrap()
+      setCheckoutKey(null)
       setActiveTab('orders')
-      showSuccessMessage(order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo')
+      showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo'))
+      return true
     } catch (error) {
       showApiError(error)
+      return false
+    } finally {
+      setRequestKey(null)
+    }
+  }
+
+  const handleQuickCreateClient = async ({ name, phone }) => {
+    if (writesBlocked || !name.trim()) return null
+    setRequestKey('client:create:quick')
+    try {
+      const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' })
+      setClients((current) => [client, ...current])
+      return client
+    } catch (error) {
+      showApiError(error)
+      return null
     } finally {
       setRequestKey(null)
     }
@@ -365,7 +369,6 @@ function App() {
     try {
       const { client } = await createClientApi(clientPayload())
       setClients((current) => [client, ...current])
-      setForm((current) => ({ ...current, clientId: client.id }))
       setNewClient({ name: '', phone: '', address: '' })
       setShowClientForm(false)
       showSuccessMessage('Cliente adicionado com sucesso')
@@ -401,7 +404,6 @@ function App() {
       await deleteClientApi(clientId)
       const remaining = clients.filter((client) => client.id !== clientId)
       setClients(remaining)
-      if (form.clientId === clientId) setForm((current) => ({ ...current, clientId: remaining[0]?.id ?? '' }))
       if (editingClientId === clientId) {
         setEditingClientId(null)
         setNewClient({ name: '', phone: '', address: '' })
@@ -449,7 +451,6 @@ function App() {
       } else {
         const { product } = await createProductApi(productPayload())
         setProducts((current) => [product, ...current])
-        setForm((current) => ({ ...current, productId: product.id }))
         showSuccessMessage('Produto adicionado com sucesso')
       }
       setNewProduct({ category: 'Marmita', size: 'P', name: '', price: '32' })
@@ -468,7 +469,6 @@ function App() {
       await deleteProductApi(productId)
       const remaining = products.filter((product) => product.id !== productId)
       setProducts(remaining)
-      if (form.productId === productId) setForm((current) => ({ ...current, productId: remaining[0]?.id ?? '' }))
       if (editingProductId === productId) {
         setEditingProductId(null)
         setNewProduct({ category: 'Marmita', size: 'P', name: '', price: '32' })
@@ -552,27 +552,22 @@ function App() {
         {toastMessage && <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>}
 
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={openOrderModal} onFinalizeOrder={handleFinalizeOrder} onDeleteOrder={handleDeleteOrder} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onDeleteOrder={handleDeleteOrder} />}
+        {activeTab === 'new-order' && (
+          <NewOrder
+            clients={clients}
+            products={products}
+            currency={currency}
+            disabled={writesBlocked}
+            onCancel={() => { setCheckoutKey(null); setActiveTab('orders') }}
+            onCreateClient={handleQuickCreateClient}
+            onSubmit={handleOrderCheckout}
+          />
+        )}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={filteredProducts} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} currency={currency} onRegisterPayment={openPaymentModal} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} />}
-
-        {showOrderModal && (
-          <Modal title="Novo pedido" onClose={() => setShowOrderModal(false)}>
-            <form className="form-stack" onSubmit={handleOrderSubmit}>
-              <div className="form-grid two-columns">
-                <label className="form-field"><span>Cliente</span><select value={form.clientId} onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
-                <label className="form-field"><span>Tipo</span><select value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option><option value="Local">Consumo no local</option></select></label>
-                <label className="form-field"><span>Data do pedido</span><input type="date" value={form.orderDate} max={todayValue} onChange={(event) => setForm((current) => ({ ...current, orderDate: event.target.value }))} /><small className="form-hint">Hoje vem preenchido automaticamente. Datas anteriores entram direto no histórico.</small></label>
-                <label className="form-field"><span>Quantidade</span><input type="number" min="1" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} /></label>
-              </div>
-              <label className="form-field"><span>Produto</span><select value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.category} · {product.name} {product.size ? `(${product.size})` : ''} · {currency(product.price)}</option>)}</select></label>
-              <div className="order-total-panel"><div><span>Valor unitário</span><strong>{currency(selectedProduct.price)}</strong></div><div className="order-total-highlight"><span>Total do pedido</span><strong>{currency(selectedProduct.price * Number(form.quantity || 1))}</strong></div></div>
-              <div className="form-actions"><Button type="button" variant="secondary" onClick={() => setShowOrderModal(false)}>Cancelar</Button><Button type="submit" icon="plus" disabled={writesBlocked || !form.clientId || !form.productId}>Salvar pedido</Button></div>
-            </form>
-          </Modal>
-        )}
 
         {paymentOrder && (
           <Modal title="Registrar pagamento" onClose={closePaymentModal}>
