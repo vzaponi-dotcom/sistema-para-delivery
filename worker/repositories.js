@@ -410,8 +410,74 @@ export const deleteOrder = async (db, businessId, id) => {
   return true
 }
 
+export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = new Date()) => {
+  if (!tableTabId) return null
+  const pending = await db.prepare(`SELECT COUNT(*) AS count
+    FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL`).bind(businessId, tableTabId).first()
+  if (Number(pending?.count || 0) > 0) return null
+
+  const timestamp = now.toISOString()
+  await db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = COALESCE(closed_at, ?), updated_at = ?
+    WHERE id = ? AND business_id = ? AND status = 'open'`).bind(timestamp, timestamp, tableTabId, businessId).run()
+  const row = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs
+    WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
+  return row ? mapTableTabRow(row) : null
+}
+
+export const registerTableTabPayment = async (db, businessId, tableTabId, method, now = new Date()) => {
+  const tabRow = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
+    FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
+  if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
+  if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
+
+  const pendingResult = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents
+    FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL
+    ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
+  const pending = rows(pendingResult)
+  const paidAt = now.toISOString()
+  const movementDate = businessDate(now)
+  const statements = []
+  const movementRows = []
+
+  for (const orderRow of pending) {
+    const paymentId = crypto.randomUUID()
+    const movementId = crypto.randomUUID()
+    const description = `Pagamento pedido #${String(orderRow.id).slice(-4)} · ${orderRow.client_name_snapshot}`
+    statements.push(
+      db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderRow.id, orderRow.total_cents, method, paidAt, paidAt),
+      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderRow.id, paymentId, movementDate, paidAt),
+    )
+    movementRows.push({
+      id: movementId,
+      type: 'entrada',
+      category: 'Vendas',
+      description,
+      value_cents: orderRow.total_cents,
+      source: 'order-payment',
+      order_id: orderRow.id,
+      payment_id: paymentId,
+      movement_date: movementDate,
+      created_at: paidAt,
+    })
+  }
+
+  statements.push(
+    db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
+      WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId),
+  )
+  await db.batch(statements)
+
+  return {
+    tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: paidAt }),
+    orders: await Promise.all(pending.map((order) => loadOrderById(db, businessId, order.id))),
+    movements: movementRows.map(mapMovementRow),
+  }
+}
+
 export const registerOrderPayment = async (db, businessId, orderId, method, now = new Date()) => {
-  const orderRow = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
+  const orderRow = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
   if (!orderRow) throw repositoryError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
   if (orderRow.payment_id) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
 
@@ -434,6 +500,7 @@ export const registerOrderPayment = async (db, businessId, orderId, method, now 
 
   const payment = { id: paymentId, orderId, amount: centsToMoney(orderRow.total_cents), method, paidAt }
   const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: paidAt })
+  await closeTableTabIfSettled(db, businessId, orderRow.table_tab_id, now)
   return { payment, movement, order: await loadOrderById(db, businessId, orderId) }
 }
 
