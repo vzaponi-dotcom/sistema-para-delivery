@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/ux-corrections-round-2
   workflow_dispatch:
 
 jobs:
