@@ -1,0 +1,80 @@
+.duplicate-client-content {
+  display: grid;
+  gap: 16px;
+}
+
+.duplicate-client-copy,
+.duplicate-client-hint {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.duplicate-client-copy {
+  font-size: 0.94rem;
+}
+
+.duplicate-client-hint {
+  font-size: 0.8rem;
+}
+
+.duplicate-client-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.duplicate-client-avatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
+.duplicate-client-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.duplicate-client-details strong {
+  color: var(--text);
+  font-size: 0.98rem;
+}
+
+.duplicate-client-details span,
+.duplicate-client-details small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.duplicate-client-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .duplicate-client-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .duplicate-client-actions .button {
+    width: 100%;
+  }
+}
