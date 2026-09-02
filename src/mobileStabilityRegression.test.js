@@ -16,13 +16,19 @@ test('mobile shell prevents horizontal viewport drift while preserving vertical 
   assert.match(rootCss, /@media\s*\(max-width:\s*820px\)[\s\S]*overflow-x:\s*clip/)
 })
 
-test('dashboard FAB is viewport anchored outside the animated page and clears the mobile nav', async () => {
+test('dashboard FAB is viewport anchored and its mobile offset wins the CSS cascade', async () => {
   const dashboard = await read('./pages/Dashboard.jsx')
+  const dashboardCss = await read('./dashboard.css')
   const mobileCss = await read('./mobile-navigation.css')
 
   assert.match(dashboard, /createPortal/)
   assert.match(dashboard, /document\.body/)
-  assert.match(mobileCss, /\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\((?:10[8-9]|11\d|1[2-9]\d)px\s*\+\s*env\(safe-area-inset-bottom\)\)/s)
+  assert.match(mobileCss, /--mobile-bottom-nav-height:\s*65px/)
+  assert.match(
+    dashboardCss,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*16px\s*\+\s*env\(safe-area-inset-bottom\)\)/s,
+  )
+  assert.doesNotMatch(mobileCss, /\.dashboard-new-order-fab\s*\{[^}]*bottom:/s)
 })
 
 test('quick deliberate flicks navigate while short or vertical gestures do not', () => {
