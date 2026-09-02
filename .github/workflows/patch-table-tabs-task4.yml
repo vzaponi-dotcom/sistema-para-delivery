@@ -1,0 +1,28 @@
+name: Patch table tabs task 4
+
+on:
+  push:
+    branches:
+      - feature/table-tabs-round
+    paths:
+      - .github/workflows/patch-table-tabs-task4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/table-tabs-round
+      - name: Apply exact empty-tab closure patch
+        run: python .github/patch-table-tabs-task4.py
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/repositories.js
+          git commit -m "fix: close empty table tabs"
+          git push origin HEAD:feature/table-tabs-round
