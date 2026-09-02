@@ -52,3 +52,8 @@ test('summary and search use every item and tolerate legacy fields', () => {
   assert.match(getOrderItemsSearchText(order).toLowerCase(), /coca-cola/)
   assert.equal(getOrderItems({ productName: 'Pudim', quantity: 1, size: '' })[0].name, 'Pudim')
 })
+
+test('multi-item search finds any product and legacy order stays readable', () => {
+  assert.match(getOrderItemsSearchText({ items: [{ name: 'Marmita G' }, { name: 'Pudim' }] }).toLowerCase(), /pudim/)
+  assert.equal(getOrderItems({ productName: 'Marmita P', size: 'P', quantity: 2 })[0].quantity, 2)
+})
