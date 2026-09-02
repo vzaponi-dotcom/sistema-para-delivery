@@ -52,12 +52,12 @@
 
 - Create `src/utils/orderCart.js` — cart grouping, quantity/note mutation, preview totals, payload creation, item summary and searchable text.
 - Create `src/utils/orderCart.test.js` — cart and presentation helper tests.
-- Modify `src/api/client.js` — keep explicit checkout idempotency key and send the new payload unchanged.
+- Modify `src/api/client.js` — continue accepting an explicit checkout idempotency key and send the new payload unchanged.
 - Modify `src/api/client.test.js` — exact multi-item payload/idempotency test.
 
 ### Frontend UI
 
-- Create `src/pages/NewOrder.jsx` — dedicated sale-draft screen and orchestration of its focused components.
+- Create `src/pages/NewOrder.jsx` — dedicated sale-draft screen and orchestration of focused components.
 - Create `src/components/OrderProductCatalog.jsx` — product search/category selection and add-to-cart actions.
 - Create `src/components/OrderCart.jsx` — quantities, note editing, consolidation and item removal.
 - Create `src/components/OrderCheckoutSummary.jsx` — delivery fee, adjustment preview and the two save paths.
@@ -82,24 +82,20 @@
 - Create: `src/utils/orderCart.test.js`
 
 **Interfaces:**
-- Consumes: product objects shaped `{ id, name, category, size, price }` and order objects already returned by bootstrap.
+- Consumes: products shaped `{ id, name, category, size, price }` and normalized/legacy orders.
 - Produces: `normalizeItemNote(note)`, `addCartItem(items, product, note)`, `updateCartItem(items, lineId, patch)`, `removeCartItem(items, lineId)`, `calculateOrderPreview(draft)`, `buildOrderPayload(draft, paymentMethod)`, `getOrderItems(order)`, `getOrderItemsSummary(order)`, `getOrderItemsSearchText(order)`.
 
 - [ ] **Step 1: Write failing cart grouping and mutation tests**
 
-Create `src/utils/orderCart.test.js` with focused cases:
+Create `src/utils/orderCart.test.js`:
 
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  addCartItem,
-  buildOrderPayload,
-  calculateOrderPreview,
-  getOrderItemsSearchText,
-  getOrderItemsSummary,
-  removeCartItem,
-  updateCartItem,
+  addCartItem, buildOrderPayload, calculateOrderPreview,
+  getOrderItems, getOrderItemsSearchText, getOrderItemsSummary,
+  removeCartItem, updateCartItem,
 } from './orderCart.js'
 
 const marmita = { id: 'p1', name: 'Marmita G', category: 'Marmita', size: 'G', price: 32 }
@@ -113,11 +109,10 @@ test('same product and normalized note merge quantity', () => {
   assert.equal(items[0].note, 'sem cebola')
 })
 
-test('different notes stay in separate lines and editing can consolidate', () => {
+test('different notes stay separate and editing can consolidate them', () => {
   let items = addCartItem([], marmita, 'sem cebola')
   items = addCartItem(items, marmita, 'sem salada')
-  const secondId = items[1].lineId
-  items = updateCartItem(items, secondId, { note: '  SEM CEBOLA ' })
+  items = updateCartItem(items, items[1].lineId, { note: '  SEM CEBOLA ' })
   assert.equal(items.length, 1)
   assert.equal(items[0].quantity, 2)
 })
@@ -132,17 +127,15 @@ test('quantity never drops below one and remove deletes the line', () => {
 
 - [ ] **Step 2: Run the cart tests and verify red**
 
-Run:
-
 ```bash
 node --test src/utils/orderCart.test.js
 ```
 
 Expected: FAIL because `src/utils/orderCart.js` does not exist.
 
-- [ ] **Step 3: Implement grouping, preview, payload and presentation helpers**
+- [ ] **Step 3: Implement grouping and mutation helpers**
 
-Create `src/utils/orderCart.js` around this exact public contract:
+Create `src/utils/orderCart.js` with this public behavior:
 
 ```js
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
@@ -164,39 +157,36 @@ export const addCartItem = (items, product, note = '') => {
 export const removeCartItem = (items, lineId) => items.filter((item) => item.lineId !== lineId)
 ```
 
-Implement `updateCartItem` so quantity is clamped to at least 1 and a note edit reconsolidates equivalent lines. Implement `calculateOrderPreview` with product subtotal, delivery fee only for `Entrega`, fixed/percentage adjustment over products only, discount capped at product subtotal, then total. Implement `buildOrderPayload` so it sends only `productId`, `quantity`, `note`, order metadata, delivery fee, adjustment and optional `paymentMethod`; do not send prices. Implement `getOrderItems` with legacy fallback from top-level `productName/size/quantity`, plus compact summary and search text helpers.
+Implement `updateCartItem` so quantity is clamped to at least 1 and note editing re-runs consolidation by the same merge key.
 
-- [ ] **Step 4: Add calculation/payload/presentation assertions and verify green**
+- [ ] **Step 4: Add failing calculation/payload/presentation tests, then implement them**
 
-Append these tests:
+Append:
 
 ```js
 test('percentage discount excludes delivery fee and payload contains no price', () => {
-  const items = [
-    ...addCartItem([], marmita, ''),
-    ...addCartItem([], coca, ''),
-  ]
+  const items = [...addCartItem([], marmita, ''), ...addCartItem([], coca, '')]
   const draft = {
     clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items,
-    deliveryFee: 8, adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: ' fidelidade ' },
+    deliveryFee: 8,
+    adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: ' fidelidade ' },
   }
-  assert.deepEqual(calculateOrderPreview(draft), {
-    subtotal: 40, deliveryFee: 8, adjustmentAmount: 4, total: 44,
-  })
+  assert.deepEqual(calculateOrderPreview(draft), { subtotal: 40, deliveryFee: 8, adjustmentAmount: 4, total: 44 })
   const payload = buildOrderPayload(draft, 'Pix')
   assert.equal(payload.items[0].unitPrice, undefined)
   assert.equal(payload.paymentMethod, 'Pix')
   assert.equal(payload.adjustment.reason, 'fidelidade')
 })
 
-test('summary and search use every item with legacy fallback', () => {
+test('summary and search use every item and tolerate legacy fields', () => {
   const order = { items: [{ name: 'Marmita G', quantity: 2 }, { name: 'Coca-Cola', quantity: 1 }] }
-  assert.match(getOrderItemsSummary(order), /Marmita G/)
   assert.match(getOrderItemsSummary(order), /Coca-Cola/)
   assert.match(getOrderItemsSearchText(order).toLowerCase(), /coca-cola/)
-  assert.match(getOrderItemsSummary({ productName: 'Pudim', quantity: 1, size: '' }), /Pudim/)
+  assert.equal(getOrderItems({ productName: 'Pudim', quantity: 1, size: '' })[0].name, 'Pudim')
 })
 ```
+
+Implement `calculateOrderPreview` with percentage over product subtotal only, fee zero for non-`Entrega`, and discount capped at subtotal. Implement `buildOrderPayload` with only `productId`, `quantity`, `note`, order metadata, fee, adjustment, and optional `paymentMethod`. Implement the three presentation helpers with legacy fallback.
 
 Run:
 
@@ -224,10 +214,10 @@ git commit -m "feat: add multi-item order cart domain"
 - Modify: `worker/validation.test.js`
 
 **Interfaces:**
-- Consumes: raw request body plus `idempotency-key`; product-priced item rows shaped `{ quantity, priceCents }`.
+- Consumes: raw request body plus `idempotency-key`; product-priced item rows `{ quantity, priceCents }`.
 - Produces: `validateCheckoutInput(body, idempotencyKey)` and `calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)`.
 
-- [ ] **Step 1: Write failing validation/calculation tests**
+- [ ] **Step 1: Write failing checkout validation/calculation tests**
 
 Create `worker/orderCheckout.test.js`:
 
@@ -236,7 +226,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { calculateCheckoutTotals, validateCheckoutInput } from './orderCheckout.js'
 
-test('checkout normalizes notes, fixed money and percentage basis points', () => {
+test('checkout converts fee and percentage to storage units', () => {
   const input = validateCheckoutInput({
     clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01',
     items: [{ productId: 'p1', quantity: 2, note: ' sem   cebola ' }],
@@ -247,26 +237,25 @@ test('checkout normalizes notes, fixed money and percentage basis points', () =>
   assert.equal(input.items[0].note, 'sem cebola')
   assert.equal(input.deliveryFeeCents, 800)
   assert.equal(input.adjustment.storedValue, 750)
-  assert.equal(input.paymentMethod, 'Pix')
+  assert.equal(input.adjustment.reason, 'fidelidade')
 })
 
-test('checkout rejects empty cart, long note, invalid percentage and non-delivery fee', () => {
+test('checkout rejects empty cart, long note, bad percentage and fee outside Entrega', () => {
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [] }, 'k'))
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1, note: 'x'.repeat(301) }] }, 'k'))
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], adjustment: { type: 'discount', mode: 'percentage', value: 100.01 } }, 'k'))
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Retirada', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], deliveryFee: 5 }, 'k'))
 })
 
-test('server percentage applies to products only and discount cannot consume fee', () => {
+test('discount percentage applies to products only and cannot consume fee', () => {
   assert.deepEqual(calculateCheckoutTotals(
-    [{ quantity: 2, priceCents: 3200 }, { quantity: 1, priceCents: 800 }],
-    800,
+    [{ quantity: 2, priceCents: 3200 }, { quantity: 1, priceCents: 800 }], 800,
     { type: 'discount', mode: 'percentage', storedValue: 1000 },
   ), { subtotalCents: 7200, adjustmentAmountCents: 720, totalCents: 7280 })
 })
 ```
 
-- [ ] **Step 2: Run checkout tests and verify red**
+- [ ] **Step 2: Run the tests and verify red**
 
 ```bash
 node --test worker/orderCheckout.test.js
@@ -274,9 +263,9 @@ node --test worker/orderCheckout.test.js
 
 Expected: FAIL because the module does not exist.
 
-- [ ] **Step 3: Implement exact input/storage normalization**
+- [ ] **Step 3: Add bounded text and exact percentage validation**
 
-Create `worker/orderCheckout.js` and reuse current validators from `worker/validation.js`. Add a bounded-text helper to `validation.js`:
+In `worker/validation.js`, export:
 
 ```js
 export const optionalTextMax = (value, maxLength, field = 'value') => {
@@ -286,12 +275,11 @@ export const optionalTextMax = (value, maxLength, field = 'value') => {
 }
 ```
 
-In `orderCheckout.js`, represent fixed adjustment `storedValue` in cents and percentage in basis points:
+Add direct tests in `worker/validation.test.js` for exactly `maxLength` accepted and `maxLength + 1` rejected.
+
+In `worker/orderCheckout.js`, convert percentages to basis points only when they have at most two decimals:
 
 ```js
-const ADJUSTMENT_TYPES = new Set(['none', 'discount', 'surcharge'])
-const ADJUSTMENT_MODES = new Set(['fixed', 'percentage'])
-
 const percentageToBasisPoints = (value) => {
   const number = Number(value ?? 0)
   const scaled = Math.round((number + Number.EPSILON) * 100)
@@ -302,9 +290,11 @@ const percentageToBasisPoints = (value) => {
 }
 ```
 
-`validateCheckoutInput` must require the idempotency key, validate every product id/quantity/note, merge duplicate payload lines by `productId + normalized lowercase note`, force absent delivery fee to zero, reject nonzero delivery fee for non-`Entrega`, validate optional payment method, and cap adjustment reason at 200 characters.
+`validateCheckoutInput` must require the idempotency key, client id, valid type/date, at least one item, active-shape product ids, integer quantities, notes <= 300, reason <= 200, valid optional payment method, and must merge duplicate payload lines by product + normalized lowercase note. Fixed adjustment `storedValue` is `moneyToCents(value)`; percentage `storedValue` is basis points.
 
-`calculateCheckoutTotals` must use integer cents only:
+- [ ] **Step 4: Implement integer-cent totals and run focused suites**
+
+Use:
 
 ```js
 const subtotalCents = pricedItems.reduce((sum, item) => sum + item.quantity * item.priceCents, 0)
@@ -313,11 +303,11 @@ const rawAdjustment = adjustment.type === 'none' ? 0
     ? adjustment.storedValue
     : Math.round(subtotalCents * adjustment.storedValue / 10000)
 const adjustmentAmountCents = adjustment.type === 'discount' ? Math.min(rawAdjustment, subtotalCents) : rawAdjustment
-const adjusted = adjustment.type === 'discount' ? subtotalCents - adjustmentAmountCents : subtotalCents + adjustmentAmountCents
-return { subtotalCents, adjustmentAmountCents, totalCents: adjusted + deliveryFeeCents }
+const adjustedItems = adjustment.type === 'discount' ? subtotalCents - adjustmentAmountCents : subtotalCents + adjustmentAmountCents
+return { subtotalCents, adjustmentAmountCents, totalCents: adjustedItems + deliveryFeeCents }
 ```
 
-- [ ] **Step 4: Run focused and existing validation tests**
+Run:
 
 ```bash
 node --test worker/orderCheckout.test.js worker/validation.test.js
@@ -343,15 +333,15 @@ git commit -m "feat: validate multi-item order checkout"
 - Modify: `worker/orderRepositories.test.js`
 
 **Interfaces:**
-- Consumes: normalized checkout from `validateCheckoutInput`.
-- Produces: existing `createOrder(db, businessId, input, now)` now accepts `items[]`, `deliveryFeeCents`, normalized `adjustment`, optional `paymentMethod`, and returns the complete normalized order.
+- Consumes: normalized checkout from Task 2.
+- Produces: existing `createOrder(db, businessId, input, now)` accepting `items[]`, `deliveryFeeCents`, normalized `adjustment`, optional `paymentMethod`, and returning the complete normalized order.
 
-- [ ] **Step 1: Write failing mapper and repository checkout tests**
+- [ ] **Step 1: Write failing mapper tests for fee/note/friendly adjustment units**
 
 Extend `worker/repositories.test.js`:
 
 ```js
-test('order/item mapping exposes delivery fee, note and friendly adjustment value', () => {
+test('order/item mapping exposes delivery fee, note and friendly percentage', () => {
   const item = mapOrderItemRow({ id: 'i1', product_id: 'p1', name_snapshot: 'Marmita G', category_snapshot: 'Marmita', size_snapshot: 'G', quantity: 1, catalog_price_cents: 3200, unit_price_cents: 3200, price_reason: '', note: 'sem cebola' })
   const order = mapOrderRow({
     id: 'o1', client_name_snapshot: 'Maria', type: 'Entrega', status: 'Em preparo', order_date: '2026-09-01',
@@ -365,10 +355,12 @@ test('order/item mapping exposes delivery fee, note and friendly adjustment valu
 })
 ```
 
-Extend `worker/orderRepositories.test.js` with a second product and tests equivalent to:
+- [ ] **Step 2: Write failing repository tests for multi-item pending/paid checkout and retry**
+
+Add a second product to `OrderDb`, update its SQL fake for new insert columns, then add:
 
 ```js
-test('createOrder writes multiple priced snapshots, fee and adjustment from server prices', async () => {
+test('createOrder uses server product prices for several items, fee and adjustment', async () => {
   const db = new OrderDb()
   db.products.set('p2', { id: 'p2', business_id: 'amor-e-sabor', category: 'Bebida', size: 'Lata', name: 'Coca', price_cents: 800, active: 1 })
   const order = await createOrder(db, 'amor-e-sabor', {
@@ -385,7 +377,7 @@ test('createOrder writes multiple priced snapshots, fee and adjustment from serv
   assert.equal(order.paymentStatus, 'Pendente')
 })
 
-test('paid checkout batches order items payment and one movement and retry duplicates nothing', async () => {
+test('paid retry creates one order, payment and movement and stays Em preparo', async () => {
   const db = new OrderDb()
   const payload = {
     clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', idempotencyKey: 'paid-1',
@@ -403,15 +395,17 @@ test('paid checkout batches order items payment and one movement and retry dupli
 })
 ```
 
-- [ ] **Step 2: Run repository tests and verify red**
+Add one forced batch-failure test and assert all four maps remain empty to prove rollback behavior.
+
+Run:
 
 ```bash
 node --test worker/repositories.test.js worker/orderRepositories.test.js
 ```
 
-Expected: FAIL because fee/note mapping and multi-item creation are not implemented.
+Expected: FAIL on new fields/multi-item behavior.
 
-- [ ] **Step 3: Add migration and refactor repository writes**
+- [ ] **Step 3: Add the incremental migration**
 
 Create `migrations/0003_order_checkout.sql`:
 
@@ -420,33 +414,35 @@ ALTER TABLE orders ADD COLUMN delivery_fee_cents INTEGER NOT NULL DEFAULT 0 CHEC
 ALTER TABLE order_items ADD COLUMN note TEXT NOT NULL DEFAULT '';
 ```
 
-Update all order/item SELECTs to include `o.delivery_fee_cents` and `order_items.note`. Update mappers:
-
-```js
-export const mapOrderItemRow = (row) => ({
-  id: row.id, productId: row.product_id ?? null, name: row.name_snapshot,
-  category: row.category_snapshot || '', size: row.size_snapshot || '', quantity: Number(row.quantity) || 1,
-  catalogPrice: centsToMoney(row.catalog_price_cents), unitPrice: centsToMoney(row.unit_price_cents),
-  priceReason: row.price_reason || '', note: row.note || '',
-})
-```
-
-Map `deliveryFee` with `centsToMoney`. Map friendly `adjustment.value` with `centsToMoney(row.adjustment_value)` for `fixed`, and `Number(row.adjustment_value || 0) / 100` for `percentage`.
-
-Refactor `createOrder` to load each active product in the session business, build priced items exclusively from `price_cents`, call `calculateCheckoutTotals`, then build one `db.batch([...])` containing: one order insert; one insert per item; and, when `paymentMethod` exists, exactly one payment insert and one automatic `movements` insert. Keep the current pre-check and unique-conflict recovery by `idempotency_key`. `unit_price_cents` equals catalog price and `price_reason` stays empty.
-
-If any statement fails, D1 batch/fake batch rollback must leave no order/payment/movement partial state.
-
-- [ ] **Step 4: Apply the migration locally and run repository suites**
+Apply locally:
 
 ```bash
 npm run d1:migrate:local
+```
+
+Expected: `0003_order_checkout.sql` applies without recreating existing tables.
+
+- [ ] **Step 4: Refactor mapping and atomic `createOrder`**
+
+Update every order SELECT with `o.delivery_fee_cents`, every item SELECT with `note`, and map old missing values to zero/empty string. Friendly adjustment value mapping is:
+
+```js
+const adjustmentValue = row.adjustment_mode === 'percentage'
+  ? Number(row.adjustment_value || 0) / 100
+  : centsToMoney(row.adjustment_value)
+```
+
+For `createOrder`, load the client inside `businessId`, load each active product inside `businessId`, build priced items from D1 `price_cents`, call `calculateCheckoutTotals`, then create one `db.batch` containing one order statement + all item statements + optional payment + optional one automatic finance movement. For new item rows, `catalog_price_cents === unit_price_cents`, `price_reason = ''`, and persist `note`.
+
+Keep the existing pre-check/collision recovery by `idempotency_key`; a retry returns `loadOrderById` including existing payment state instead of inserting anything.
+
+- [ ] **Step 5: Run repository suites and commit**
+
+```bash
 node --test worker/repositories.test.js worker/orderRepositories.test.js
 ```
 
-Expected: migration applies successfully and tests PASS.
-
-- [ ] **Step 5: Commit persistence changes**
+Expected: PASS.
 
 ```bash
 git add migrations/0003_order_checkout.sql worker/repositories.js worker/repositories.test.js worker/orderRepositories.test.js
@@ -455,22 +451,24 @@ git commit -m "feat: persist atomic multi-item checkout"
 
 ---
 
-### Task 4: Evolve the order API contract without weakening route guards
+### Task 4: Evolve the Worker route and frontend API contract
 
 **Files:**
 - Modify: `worker/index.js`
 - Modify: `worker/orderRoutes.test.js`
+- Modify: `src/api/client.js`
+- Modify: `src/api/client.test.js`
 
 **Interfaces:**
-- Consumes: `validateCheckoutInput(body, request.headers.get('idempotency-key'))`.
-- Produces: `POST /api/orders` returns `{ order }`, status 201, for pending or paid checkout; all existing auth/same-origin protections remain.
+- Consumes: `validateCheckoutInput` and `createOrder` from prior tasks.
+- Produces: `POST /api/orders` with cart payload and explicit stable `idempotency-key`; response remains `{ order }` with HTTP 201.
 
-- [ ] **Step 1: Add failing route validation tests**
+- [ ] **Step 1: Write failing route tests for the new cart contract**
 
-Update the create-order route test to send cart payloads and add invalid cases:
+In `worker/orderRoutes.test.js`, use:
 
 ```js
-test('order checkout route rejects invalid cart fields before repository writes', async () => {
+test('order checkout rejects malformed cart fields before DB writes', async () => {
   const { env, cookie } = await loggedIn()
   const base = { clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1, note: '' }] }
 
@@ -484,28 +482,14 @@ test('order checkout route rejects invalid cart fields before repository writes'
     body: JSON.stringify({ ...base, items: [{ productId: 'p1', quantity: 1, note: 'x'.repeat(301) }] }),
   }), env)
   assert.equal(longNote.status, 400)
-
-  const invalidFee = await handleRequest(new Request('https://delivery.example/api/orders', {
-    method: 'POST', headers: { ...headers(cookie), 'idempotency-key': 'k2' },
-    body: JSON.stringify({ ...base, type: 'Retirada', deliveryFee: 5 }),
-  }), env)
-  assert.equal(invalidFee.status, 400)
 })
 ```
 
-Also assert invalid `paymentMethod: 'Cheque'` and percentage `100.01` return `VALIDATION_ERROR`.
+Also assert nonzero fee on `Retirada`, percentage `100.01`, and `paymentMethod: 'Cheque'` return `VALIDATION_ERROR`.
 
-- [ ] **Step 2: Run route tests and verify red**
+- [ ] **Step 2: Route order creation through checkout validation**
 
-```bash
-node --test worker/orderRoutes.test.js
-```
-
-Expected: at least the new cart-validation expectations fail.
-
-- [ ] **Step 3: Route order creation through checkout validation**
-
-Replace the old single-product `orderInput` usage with:
+Replace the old single-product parser in `worker/index.js`:
 
 ```js
 import { validateCheckoutInput } from './orderCheckout.js'
@@ -518,9 +502,9 @@ if (url.pathname === '/api/orders' && request.method === 'POST') {
 }
 ```
 
-Remove the old `productId`/single `quantity` order-input parser but keep payment/status/delete routes unchanged.
+Keep auth, same-origin mutation, status, delete, later-payment and finance routes unchanged.
 
-- [ ] **Step 4: Run Worker route/auth/repository tests**
+Run:
 
 ```bash
 node --test worker/orderRoutes.test.js worker/index.test.js worker/orderCheckout.test.js worker/orderRepositories.test.js
@@ -528,29 +512,9 @@ node --test worker/orderRoutes.test.js worker/index.test.js worker/orderCheckout
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit API contract**
+- [ ] **Step 3: Characterize exact frontend cart payload and key**
 
-```bash
-git add worker/index.js worker/orderRoutes.test.js
-git commit -m "feat: accept cart checkout on orders API"
-```
-
----
-
-### Task 5: Make the frontend API and App preserve one logical checkout retry
-
-**Files:**
-- Modify: `src/api/client.js`
-- Modify: `src/api/client.test.js`
-- Modify: `src/App.jsx`
-
-**Interfaces:**
-- Consumes: `buildOrderPayload` output and a stable checkout key.
-- Produces: `createOrder(payload, idempotencyKey)`; App callbacks `onSubmitOrder(payload)` and `onQuickCreateClient({ name, phone })` for `NewOrder`.
-
-- [ ] **Step 1: Strengthen the API client test around exact cart payload and key**
-
-Replace the old one-product create-order payload in `src/api/client.test.js` with:
+Update `src/api/client.test.js`:
 
 ```js
 await createOrder({
@@ -567,17 +531,47 @@ assert.equal(orderOptions.headers['idempotency-key'], 'checkout-key')
 assert.deepEqual(JSON.parse(orderOptions.body).items, [{ productId: 'p1', quantity: 2, note: 'sem cebola' }])
 ```
 
-- [ ] **Step 2: Run API client test**
+- [ ] **Step 4: Run frontend API test and make only contract-preserving changes if needed**
 
 ```bash
 node --test src/api/client.test.js
 ```
 
-Expected: PASS with the current generic helper; this is a characterization gate confirming the client can already carry the new shape unchanged.
+Expected: PASS because the current helper already serializes arbitrary order payloads and accepts an explicit key. If code changes are required, keep the signature exactly:
 
-- [ ] **Step 3: Replace old order-modal controller state with stable checkout state**
+```js
+export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiRequest('/api/orders', {
+  ...withJson('POST', order),
+  headers: { 'idempotency-key': idempotencyKey },
+})
+```
 
-In `src/App.jsx`, remove `form`, `showOrderModal`, `selectedProduct`, `openOrderModal`, and `handleOrderSubmit`. Add:
+- [ ] **Step 5: Commit route/API contract**
+
+```bash
+git add worker/index.js worker/orderRoutes.test.js src/api/client.js src/api/client.test.js
+git commit -m "feat: expose multi-item checkout API"
+```
+
+---
+
+### Task 5: Build and integrate the dedicated New Order screen
+
+**Files:**
+- Create: `src/pages/NewOrder.jsx`
+- Create: `src/components/OrderProductCatalog.jsx`
+- Create: `src/components/OrderCart.jsx`
+- Create: `src/components/OrderCheckoutSummary.jsx`
+- Create: `src/new-order.css`
+- Modify: `src/App.jsx`
+
+**Interfaces:**
+- Consumes: Task 1 cart helpers and Task 4 `createOrder` API.
+- Produces: complete pending or paid checkout while preserving draft + stable key on failure.
+
+- [ ] **Step 1: Replace old single-order modal state with stable checkout orchestration in App**
+
+Remove `form`, `showOrderModal`, `selectedProduct`, `openOrderModal`, and `handleOrderSubmit`. Add:
 
 ```js
 const [checkoutKey, setCheckoutKey] = useState(null)
@@ -595,7 +589,9 @@ const handleOrderCheckout = async (payload) => {
   setRequestKey('order:create')
   try {
     const { order } = await createOrderApi(payload, key)
-    setOrders((current) => current.some((item) => item.id === order.id) ? current.map((item) => item.id === order.id ? order : item) : [order, ...current])
+    setOrders((current) => current.some((item) => item.id === order.id)
+      ? current.map((item) => item.id === order.id ? order : item)
+      : [order, ...current])
     if (order.paymentStatus === 'Pago') await refreshBootstrap()
     setCheckoutKey(null)
     setActiveTab('orders')
@@ -610,9 +606,9 @@ const handleOrderCheckout = async (payload) => {
 }
 ```
 
-Do not reset `checkoutKey` in the catch path. A server/network failure leaves the draft page mounted and reuses the same key.
+The catch path must not clear `checkoutKey`.
 
-Add quick client creation that does not use address in the sale:
+Add:
 
 ```js
 const handleQuickCreateClient = async ({ name, phone }) => {
@@ -631,62 +627,9 @@ const handleQuickCreateClient = async ({ name, phone }) => {
 }
 ```
 
-- [ ] **Step 4: Wire a temporary `new-order` render seam and remove old modal JSX**
+- [ ] **Step 2: Create NewOrder page with client/type/date/draft state**
 
-Import `NewOrder` in preparation for Task 6 and render it only for that state:
-
-```jsx
-{activeTab === 'new-order' && (
-  <NewOrder
-    clients={clients}
-    products={products}
-    currency={currency}
-    disabled={writesBlocked}
-    onCancel={() => { setCheckoutKey(null); setActiveTab('orders') }}
-    onCreateClient={handleQuickCreateClient}
-    onSubmit={handleOrderCheckout}
-  />
-)}
-```
-
-Update both Dashboard and Orders `onNewOrder` props to `handleNewOrder`. `NewOrder.jsx` will be created in Task 6 in the same implementation sequence before this commit is considered green.
-
-Run after Task 6 files exist:
-
-```bash
-node --test src/api/client.test.js
-npm run lint
-npm run build
-```
-
-- [ ] **Step 5: Commit App/API integration together with Task 6 UI files**
-
-Do not commit a broken import. Task 5 and Task 6 share one integration commit boundary after Task 6 reaches green:
-
-```bash
-git add src/api/client.js src/api/client.test.js src/App.jsx src/pages/NewOrder.jsx src/components/OrderProductCatalog.jsx src/components/OrderCart.jsx src/components/OrderCheckoutSummary.jsx src/new-order.css
-git commit -m "feat: add dedicated multi-item new order flow"
-```
-
----
-
-### Task 6: Build the dedicated New Order screen
-
-**Files:**
-- Create: `src/pages/NewOrder.jsx`
-- Create: `src/components/OrderProductCatalog.jsx`
-- Create: `src/components/OrderCart.jsx`
-- Create: `src/components/OrderCheckoutSummary.jsx`
-- Create: `src/new-order.css`
-- Modify: `src/App.jsx` as described in Task 5
-
-**Interfaces:**
-- Consumes: cart helpers from Task 1; `clients`, `products`, `currency`, `disabled`, `onCancel`, `onCreateClient`, `onSubmit`.
-- Produces: a complete draft payload to App only after user chooses pending or paid checkout.
-
-- [ ] **Step 1: Create the page state and quick-client flow**
-
-`NewOrder.jsx` owns only draft UI state:
+`src/pages/NewOrder.jsx` starts with:
 
 ```jsx
 const emptyAdjustment = { type: 'none', mode: 'fixed', value: 0, reason: '' }
@@ -705,13 +648,13 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
   const preview = calculateOrderPreview(draft)
 ```
 
-Quick-create calls `onCreateClient`; only clear its mini-form when a client object is returned. Never clear `items` on client-create failure.
+When type changes away from `Entrega`, immediately call `setDeliveryFee(0)`. Quick-create calls `onCreateClient`; if it returns a client, call `setClientId(client.id)` and close/reset only the mini-form. If it returns null, keep the cart and mini-form intact.
 
-- [ ] **Step 2: Build search + categories product catalog**
+- [ ] **Step 3: Create searchable categorized catalog and editable cart components**
 
-`OrderProductCatalog.jsx` owns `search` and selected category. Derive categories from current products, prepend `Todos`, and filter by both values:
+`OrderProductCatalog.jsx` derives:
 
-```jsx
+```js
 const categories = ['Todos', ...new Set(products.map((product) => product.category).filter(Boolean))]
 const normalized = search.trim().toLowerCase()
 const visible = products.filter((product) =>
@@ -720,11 +663,9 @@ const visible = products.filter((product) =>
 )
 ```
 
-Each product button displays name, optional size/category and `currency(product.price)` and calls `onAdd(product)`.
+Each product click calls `onAdd(product)`.
 
-- [ ] **Step 3: Build cart editor with per-line note and consolidation**
-
-`OrderCart.jsx` receives `items` and callback functions. For each line render readonly unit price, line total, `-`/`+`, remove, and:
+`OrderCart.jsx` renders every line with readonly price, line total, `-`, `+`, remove, and:
 
 ```jsx
 <textarea
@@ -735,35 +676,53 @@ Each product button displays name, optional size/category and `currency(product.
 />
 ```
 
-Use the Task 1 `updateCartItem` helper in `NewOrder` so changing the note can merge equivalent lines.
+NewOrder must call `addCartItem` and `updateCartItem` from Task 1, so a note edit can consolidate equivalent lines.
 
-- [ ] **Step 4: Build checkout summary and two completion paths**
+- [ ] **Step 4: Create checkout summary and wire both save paths**
 
-`OrderCheckoutSummary.jsx` renders product subtotal, conditional delivery fee, adjustment controls, total, and two actions. Percentage input must use `min="0"`, `max="100"`, `step="0.01"`; adjustment reason uses `maxLength={200}`.
+`OrderCheckoutSummary.jsx` renders product subtotal, conditional fee, adjustment type/mode/value/reason and total. Percentage field uses `min="0" max="100" step="0.01"`; reason uses `maxLength={200}`.
 
 `Salvar pedido` calls:
 
 ```js
-onSubmit(buildOrderPayload(draft))
+await onSubmit(buildOrderPayload(draft))
 ```
 
-`Salvar e receber` first reveals one select populated with the existing methods:
+`Salvar e receber` reveals a select using exactly:
 
 ```js
 const PAYMENT_METHODS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
 ```
 
-then confirms with:
+and confirms with:
 
 ```js
-onSubmit(buildOrderPayload(draft, paymentMethod))
+await onSubmit(buildOrderPayload(draft, paymentMethod))
 ```
 
-Disable both paths when there is no client, cart is empty, offline/pending, or date is missing. If `onSubmit` resolves `false`, keep every draft field untouched and show `Não foi possível salvar. Revise os dados e tente novamente.` inside the page.
+If `onSubmit` returns false, preserve every state field and show a local error. Disable saves for missing client, empty cart, missing date, offline/pending state.
 
-- [ ] **Step 5: Add responsive CSS and validate the integrated screen**
+- [ ] **Step 5: Wire App render, add responsive CSS, validate and commit**
 
-In `src/new-order.css`, use a two-column layout on wide screens and stacked content below 900px:
+In `App.jsx`, both Dashboard and Orders `onNewOrder` point to `handleNewOrder`. Render:
+
+```jsx
+{activeTab === 'new-order' && (
+  <NewOrder
+    clients={clients}
+    products={products}
+    currency={currency}
+    disabled={writesBlocked}
+    onCancel={() => { setCheckoutKey(null); setActiveTab('orders') }}
+    onCreateClient={handleQuickCreateClient}
+    onSubmit={handleOrderCheckout}
+  />
+)}
+```
+
+Delete the old `showOrderModal` JSX entirely.
+
+`src/new-order.css` must include:
 
 ```css
 .new-order-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, .8fr); gap: 24px; align-items: start; }
@@ -774,7 +733,7 @@ In `src/new-order.css`, use a two-column layout on wide screens and stacked cont
 }
 ```
 
-Import the stylesheet from `NewOrder.jsx`, complete the Task 5 App wiring, then run:
+Run:
 
 ```bash
 npm test
@@ -782,11 +741,18 @@ npm run lint
 npm run build
 ```
 
-Expected: all commands PASS. Commit using Task 5 Step 5.
+Expected: PASS.
+
+Commit:
+
+```bash
+git add src/pages/NewOrder.jsx src/components/OrderProductCatalog.jsx src/components/OrderCart.jsx src/components/OrderCheckoutSummary.jsx src/new-order.css src/App.jsx
+git commit -m "feat: add dedicated multi-item new order flow"
+```
 
 ---
 
-### Task 7: Render multi-item orders everywhere the operation needs them
+### Task 6: Render complete multi-item orders throughout operation
 
 **Files:**
 - Create: `src/components/OrderDetail.jsx`
@@ -794,19 +760,19 @@ Expected: all commands PASS. Commit using Task 5 Step 5.
 - Modify: `src/order-operations.css`
 - Modify: `src/pages/Dashboard.jsx`
 - Modify: `src/pages/Receivables.jsx`
-- Modify: `src/App.jsx` search helper usage
+- Modify: `src/App.jsx`
 - Test: `src/utils/orderCart.test.js`
 
 **Interfaces:**
-- Consumes: `getOrderItems`, `getOrderItemsSummary`, `getOrderItemsSearchText` from Task 1 and normalized order fields from backend.
-- Produces: complete active kitchen cards and read-only detail view.
+- Consumes: `getOrderItems`, `getOrderItemsSummary`, `getOrderItemsSearchText` from Task 1.
+- Produces: all active items/notes visible, compact finished summaries, complete detail, item-aware search.
 
-- [ ] **Step 1: Add presentation regression tests for legacy/new orders**
+- [ ] **Step 1: Add presentation regression test**
 
-Extend `src/utils/orderCart.test.js`:
+Append:
 
 ```js
-test('multi-item search text finds any product and legacy order remains readable', () => {
+test('multi-item search finds any product and legacy order stays readable', () => {
   assert.match(getOrderItemsSearchText({ items: [{ name: 'Marmita G' }, { name: 'Pudim' }] }).toLowerCase(), /pudim/)
   assert.equal(getOrderItems({ productName: 'Marmita P', size: 'P', quantity: 2 })[0].quantity, 2)
 })
@@ -818,11 +784,11 @@ Run:
 node --test src/utils/orderCart.test.js
 ```
 
-Expected: PASS before UI work; this is the shared presentation contract.
+Expected: PASS; this locks the shared presentation contract before UI edits.
 
-- [ ] **Step 2: Render every active kitchen item and note**
+- [ ] **Step 2: Render every active item and note in Orders**
 
-In `Orders.jsx`, replace the single product span inside active cards with:
+Replace the active-card single-product line with:
 
 ```jsx
 <div className="order-items-list">
@@ -835,11 +801,11 @@ In `Orders.jsx`, replace the single product span inside active cards with:
 </div>
 ```
 
-Do not truncate active items. Keep timing/status/payment/total actions unchanged.
+Do not truncate active items. Preserve timing/status/payment/total/finalize/delete behavior.
 
-- [ ] **Step 3: Add complete read-only detail for active and finished orders**
+- [ ] **Step 3: Create one complete read-only detail component for active/history**
 
-Create `OrderDetail.jsx` that uses the existing `Modal` and renders client/type/date/status/payment, all item lines, subtotal, delivery fee when > 0, adjustment when non-none, reason when present, and total.
+`OrderDetail.jsx` uses existing `Modal` and renders: client, type, date/time, status, payment status/method, every item/note, subtotal, delivery fee only when > 0, adjustment label/value/reason only when non-none, and total.
 
 In `Orders.jsx`:
 
@@ -847,19 +813,19 @@ In `Orders.jsx`:
 const [detailOrder, setDetailOrder] = useState(null)
 ```
 
-Add a `Ver detalhes` action to active cards and make finished rows open the same detail. Render:
+Add `Ver detalhes` to active cards, make finished rows open detail, and render:
 
 ```jsx
 {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
 ```
 
-Finished rows use `getOrderItemsSummary(order)` instead of `productName`.
+Finished rows use `getOrderItemsSummary(order)`.
 
-- [ ] **Step 4: Update Dashboard, Receivables and global order search**
+- [ ] **Step 4: Make Dashboard, A Receber and order search item-aware**
 
-In `Dashboard.jsx` and `Receivables.jsx`, replace single-product descriptions with `getOrderItemsSummary(order)`.
+Replace single-product descriptions in `Dashboard.jsx` and `Receivables.jsx` with `getOrderItemsSummary(order)`.
 
-In `Receivables` filtering include `getOrderItemsSearchText(order)`. In App's order filtering use the shared helper:
+Receivables filtering includes `getOrderItemsSearchText(order)`. App order filtering becomes:
 
 ```js
 return [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod]
@@ -868,9 +834,11 @@ return [order.client, order.type, order.orderDate, getOrderItemsSearchText(order
   .includes(normalizedSearch)
 ```
 
-- [ ] **Step 5: Style and validate operational screens, then commit**
+- [ ] **Step 5: Style, validate and commit operational views**
 
-Add focused CSS for `.order-items-list`, `.order-item-line` and detail summary rows without changing existing urgency colors/layout rules. Run:
+Add focused `.order-items-list`, `.order-item-line`, detail-grid and clickable-history styles without changing urgency semantics.
+
+Run:
 
 ```bash
 npm test
@@ -889,25 +857,25 @@ git commit -m "feat: show complete multi-item orders in operation"
 
 ---
 
-### Task 8: Full compatibility, documentation and pre-production verification
+### Task 7: Document and verify the complete phase before production
 
 **Files:**
 - Modify: `README.md`
-- Review: all files changed by Tasks 1-7
+- Review: all files changed by Tasks 1-6
 
 **Interfaces:**
-- Consumes: complete feature implementation.
-- Produces: a validated master branch ready for the existing manual production workflow, without publishing yet.
+- Consumes: complete implementation.
+- Produces: validated code ready for the existing manual production workflow, without publishing yet.
 
-- [ ] **Step 1: Run the complete automated suite**
+- [ ] **Step 1: Run full automated tests**
 
 ```bash
 npm test
 ```
 
-Expected: all current and newly added Node tests PASS, including auth, validation, repository, API client, cart and order workflow tests.
+Expected: all old and new Node tests PASS, including cart, checkout, validation, repository, routes, auth, API client, payment and order workflow suites.
 
-- [ ] **Step 2: Run static/build/Worker validation**
+- [ ] **Step 2: Run lint, build and Worker dry-run**
 
 ```bash
 npm run lint
@@ -915,26 +883,26 @@ npm run build
 npx --yes wrangler@4.128.0 deploy --dry-run
 ```
 
-Expected: lint reports zero errors, Vite builds successfully, and Wrangler dry-run validates Worker bindings/assets without publishing.
+Expected: zero lint errors, successful Vite build, successful Wrangler validation without publishing.
 
-- [ ] **Step 3: Reapply local migrations from the current local database state**
+- [ ] **Step 3: Confirm local migration state**
 
 ```bash
 npm run d1:migrate:local
 ```
 
-Expected: `0003_order_checkout.sql` is applied once or reported as already applied; existing local rows remain intact.
+Expected: `0003_order_checkout.sql` applies once or reports already applied; existing local rows remain intact.
 
-- [ ] **Step 4: Update README acceptance instructions**
+- [ ] **Step 4: Update README acceptance sequence**
 
-Document the new operational flow exactly:
+Add this exact manual acceptance checklist:
 
 ```text
 1. Abra Novo pedido.
 2. Selecione ou crie cliente apenas com nome/telefone.
 3. Adicione vários produtos; itens iguais com a mesma observação agrupam.
-4. Confirme observações diferentes em linhas separadas.
-5. Para Entrega, deixe a taxa em R$ 0,00 ou informe a taxa manual.
+4. Adicione o mesmo produto com outra observação e confirme linha separada.
+5. Para Entrega, deixe taxa em R$ 0,00 ou informe a taxa manual.
 6. Aplique desconto/acréscimo em R$ ou %, se necessário.
 7. Teste Salvar pedido e Salvar e receber.
 8. Confirme que pedido pago continua Em preparo.
@@ -942,22 +910,23 @@ Document the new operational flow exactly:
 10. Confirme uma única pendência ou uma única entrada financeira por venda.
 ```
 
-Also state that the production workflow applies migrations before deploy and that remote migration/deploy are manual release steps.
+State that remote migration/deploy remain manual release steps through the existing production workflow.
 
-- [ ] **Step 5: Commit docs and stop before production publication**
+- [ ] **Step 5: Commit docs and stop before publication**
 
 ```bash
 git add README.md
 git commit -m "docs: document multi-item order checkout"
 ```
 
-Then inspect `git status` and the latest commits. Report the exact validation results and the migration file ready for production. Do **not** run `npm run d1:migrate:remote`, `wrangler deploy`, or dispatch the production workflow until the user explicitly approves publication.
+Inspect `git status` and latest commits. Report exact validation results and that `0003_order_checkout.sql` is ready. Do **not** run `npm run d1:migrate:remote`, `wrangler deploy`, or dispatch the production workflow until explicit user approval.
 
 ---
 
 ## Plan self-review checklist
 
-- Spec coverage: cart grouping, note limits, server-authoritative prices, optional fee, fixed/percentage adjustment, quick client, pending/paid checkout, atomic write, retry idempotency, kitchen display, detail/history, Dashboard/A Receber search/summary, compatibility and pre-production validation are each assigned to a task.
-- Placeholder scan: implementation steps specify concrete files, exported interfaces, commands, payload shapes and critical code paths; there are no `TBD`, `TODO`, or unspecified error-handling steps.
-- Type consistency: frontend payload uses user-facing BRL/percentage numbers; `validateCheckoutInput` converts fee/fixed values to cents and percentage to basis points; repository receives normalized cents/basis points and returns user-facing money/percentage through existing mappers.
-- Release safety: remote migration and production deployment are intentionally outside automatic plan execution until explicit user approval.
+- **Spec coverage:** cart grouping, note limits, server-authoritative prices, optional delivery fee, fixed/percentage adjustment, quick client, pending/paid checkout, atomic write, retry idempotency, kitchen display, detail/history, Dashboard/A Receber search/summary, compatibility and pre-production validation each map to an explicit task.
+- **Placeholder scan:** no `TBD`, `TODO`, generic “add error handling”, or unnamed tests remain; commands, interfaces, field units and critical code paths are explicit.
+- **Type consistency:** frontend payload uses BRL/percentage numbers; `validateCheckoutInput` converts fee/fixed values to cents and percentage to basis points; repository receives normalized storage units and mappers return user-facing money/percentage.
+- **Task boundaries:** every task reaches a green test/build state and an independent commit/review gate before the next task begins.
+- **Release safety:** remote migration and production deployment are intentionally excluded from automatic execution until explicit approval.
