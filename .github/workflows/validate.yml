@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/dashboard-floating-new-order
   workflow_dispatch:
 
 jobs:
