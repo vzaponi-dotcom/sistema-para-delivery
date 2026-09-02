@@ -19,6 +19,23 @@ test('orders operation renders all items and exposes complete detail', () => {
   assert.match(detail, /Total/)
 })
 
+test('orders and detail render the complete product label including size', () => {
+  const orders = source('./Orders.jsx')
+  const detail = source('../components/OrderDetail.jsx')
+
+  assert.match(orders, /getOrderItemDisplayName\(item\)/)
+  assert.match(detail, /getOrderItemDisplayName\(item\)/)
+})
+
+test('mobile final action is styled to keep long delivery text inside the button', () => {
+  const orders = source('./Orders.jsx')
+  const css = source('../order-operations.css')
+
+  assert.match(orders, /order-final-action/)
+  assert.match(css, /\.order-final-action/)
+  assert.match(css, /white-space:\s*normal/)
+})
+
 test('app order search uses the complete multi-item searchable text', () => {
   const app = source('../App.jsx')
   assert.match(app, /getOrderItemsSearchText\(order\)/)
