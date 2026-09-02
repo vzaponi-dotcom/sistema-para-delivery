@@ -1,9 +1,12 @@
 import { getPendingAmount, isOrderPaid } from './paymentWorkflow.js'
 
-const groupKey = (order) => {
-  if (order?.customerIdentityType === 'registered_client' && order?.clientId) return `client:${order.clientId}`
-  return `order:${order?.id}`
-}
+const isRegisteredClientOrder = (order) => Boolean(
+  order?.clientId && (!order?.customerIdentityType || order.customerIdentityType === 'registered_client'),
+)
+
+const groupKey = (order) => isRegisteredClientOrder(order)
+  ? `client:${order.clientId}`
+  : `order:${order?.id}`
 
 export const groupPendingOrders = (orders = []) => {
   const grouped = new Map()
