@@ -12,10 +12,10 @@ test('mobile app shell marks page direction for animated section changes', () =>
   assert.match(shell, /previousTab/)
 })
 
-test('mobile page transition is short and disabled for reduced motion', () => {
+test('mobile page transition is smooth and disabled for reduced motion', () => {
   const css = read('src/mobile-navigation.css')
   assert.match(css, /@keyframes mobile-page/)
-  assert.match(css, /200ms|\.2s/)
+  assert.match(css, /animation:\s*mobile-page-(?:forward|backward)\s+300ms\s+cubic-bezier/)
   assert.match(css, /prefers-reduced-motion:\s*reduce/)
 })
 
