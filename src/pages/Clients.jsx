@@ -2,6 +2,12 @@ import { useState } from 'react'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
+import SystemSelect from '../components/SystemSelect'
+
+const SORT_OPTIONS = [
+  { value: 'name-asc', label: 'Nome A–Z' },
+  { value: 'name-desc', label: 'Nome Z–A' },
+]
 
 function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete }) {
   const [pendingId, setPendingId] = useState(null)
@@ -39,13 +45,10 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
             />
           </label>
 
-          <label className="sort-control">
+          <div className="sort-control">
             <span>Ordenar</span>
-            <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
-              <option value="name-asc">Nome A–Z</option>
-              <option value="name-desc">Nome Z–A</option>
-            </select>
-          </label>
+            <SystemSelect value={sort} options={SORT_OPTIONS} onChange={onSortChange} label="Ordenar clientes" />
+          </div>
         </div>
 
         <div className="entity-list">
