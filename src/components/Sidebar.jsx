@@ -1,5 +1,6 @@
 import BrandLogo from './BrandLogo'
 import Icon from './Icon'
+import { useTheme } from './ThemeProvider'
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -11,6 +12,8 @@ const navigation = [
 ]
 
 function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
+  const { themePreference, setThemePreference } = useTheme()
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -39,6 +42,20 @@ function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
       <div className="sidebar-footer">
         <span>Operação</span>
         <strong>Comida caseira, gestão simples.</strong>
+
+        <label className="theme-picker">
+          <span>Tema</span>
+          <select
+            aria-label="Tema do sistema"
+            value={themePreference}
+            onChange={(event) => setThemePreference(event.target.value)}
+          >
+            <option value="light">Claro</option>
+            <option value="dark">Escuro</option>
+            <option value="system">Automático</option>
+          </select>
+        </label>
+
         {onLogout && (
           <button className="sidebar-logout" type="button" onClick={onLogout} disabled={logoutDisabled}>
             Sair do sistema
