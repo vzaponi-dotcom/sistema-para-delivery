@@ -22,6 +22,10 @@ test('mobile page transition is smooth and disabled for reduced motion', () => {
 test('dashboard new-order fab sits above the fixed mobile navigation', () => {
   const mobileCss = read('src/mobile-navigation.css')
   const dashboardCss = read('src/dashboard.css')
-  assert.match(mobileCss, /\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\((?:9\d|1\d\d)px \+ env\(safe-area-inset-bottom\)\)/s)
+  assert.match(mobileCss, /--mobile-bottom-nav-height:\s*65px/)
+  assert.match(
+    dashboardCss,
+    /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*16px\s*\+\s*env\(safe-area-inset-bottom\)\)/s,
+  )
   assert.match(dashboardCss, /\.dashboard-new-order-fab\s*\{[^}]*z-index:\s*(?:6[1-9]|[7-9]\d|\d{3,})/s)
 })
