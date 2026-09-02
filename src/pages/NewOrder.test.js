@@ -22,14 +22,39 @@ test('quick client phone reuses the normal phone mask', () => {
   assert.match(page, /phone: formatPhone\(event\.target\.value\)/)
 })
 
-test('product catalog uses a compact high-contrast add action with immediate feedback', () => {
+test('product catalog keeps added state tied to the cart with readable white text', () => {
+  const page = source('./NewOrder.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
   const css = source('../new-order.css')
 
-  assert.match(catalog, /new-order-add-button/)
-  assert.match(catalog, /Adicionado/)
-  assert.match(catalog, /aria-live="polite"/)
-  assert.match(css, /\.new-order-add-button/)
+  assert.match(page, /items=\{items\}/)
+  assert.match(catalog, /items\.some/)
+  assert.match(catalog, /✓ Adicionado/)
+  assert.doesNotMatch(catalog, /setTimeout/)
+  assert.doesNotMatch(catalog, /useEffect/)
+  assert.match(css, /\.new-order-add-button span\s*\{[^}]*color:\s*#fff/s)
+})
+
+test('item note typing preserves spaces and commits normalization on blur', () => {
+  const page = source('./NewOrder.jsx')
+  const cart = source('../components/OrderCart.jsx')
+
+  assert.match(page, /editCartItemNote/)
+  assert.match(page, /commitCartItemNote/)
+  assert.match(cart, /onNoteChange/)
+  assert.match(cart, /onNoteCommit/)
+  assert.match(cart, /onChange=\{\(event\) => onNoteChange/)
+  assert.match(cart, /onBlur=\{\(\) => onNoteCommit/)
+})
+
+test('cart item layout is horizontal and compact with quantity on the left', () => {
+  const cart = source('../components/OrderCart.jsx')
+  const css = source('../new-order.css')
+
+  assert.match(cart, /new-order-cart-quantity/)
+  assert.match(cart, /new-order-cart-content/)
+  assert.match(cart, /new-order-cart-aside/)
+  assert.match(css, /\.new-order-cart-line\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto/s)
 })
 
 test('product form uses a BRL formatted text input', () => {
