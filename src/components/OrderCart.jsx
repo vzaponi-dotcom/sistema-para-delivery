@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Button from './Button'
 
 function OrderCart({
@@ -9,6 +10,11 @@ function OrderCart({
   onNoteCommit,
   onRemove,
 }) {
+  const [expandedNote, setExpandedNote] = useState(null)
+
+  const openNote = (lineId) => setExpandedNote(lineId)
+  const closeNote = (lineId) => setExpandedNote((current) => (current === lineId ? null : current))
+
   return (
     <section className="surface-card new-order-cart">
       <div className="section-heading">
@@ -37,19 +43,39 @@ function OrderCart({
                 <span>{[item.category, item.size].filter(Boolean).join(' · ')}</span>
               </div>
 
-              <label className="form-field compact-field new-order-note-field">
-                <span>Observação deste item</span>
-                <textarea
-                  rows="1"
-                  maxLength={300}
-                  value={item.note}
-                  placeholder="Ex: sem cebola"
-                  onChange={(event) => onNoteChange(item.lineId, event.target.value)}
-                  onBlur={() => onNoteCommit(item.lineId)}
+              {expandedNote === item.lineId ? (
+                <label className="form-field compact-field new-order-note-field">
+                  <span>Observação deste item</span>
+                  <textarea
+                    rows="1"
+                    maxLength={300}
+                    value={item.note}
+                    placeholder="Ex: sem cebola"
+                    onChange={(event) => onNoteChange(item.lineId, event.target.value)}
+                    onBlur={() => {
+                      onNoteCommit(item.lineId)
+                      closeNote(item.lineId)
+                    }}
+                    disabled={disabled}
+                    autoFocus
+                  />
+                  <small className="form-hint">{item.note.length}/300 caracteres</small>
+                </label>
+              ) : item.note ? (
+                <div className="new-order-note-summary">
+                  <span title={item.note}>📝 {item.note}</span>
+                  <button type="button" onClick={() => openNote(item.lineId)} disabled={disabled}>Editar observação</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="new-order-note-toggle"
+                  onClick={() => openNote(item.lineId)}
                   disabled={disabled}
-                />
-                <small className="form-hint">{item.note.length}/300 caracteres</small>
-              </label>
+                >
+                  + Adicionar observação
+                </button>
+              )}
             </div>
 
             <div className="new-order-cart-aside">
