@@ -1,0 +1,57 @@
+name: Patch table tabs task 1
+
+on:
+  push:
+    branches:
+      - feature/table-tabs-round
+    paths:
+      - .github/workflows/patch-table-tabs-task1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/table-tabs-round
+      - name: Apply exact repository mapping patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('worker/repositories.js')
+          source = path.read_text()
+
+          replacements = [
+            (
+              "export const mapOrderItemRow = (row) => ({",
+              "export const mapTableTabRow = (row) => ({\n  id: row.id,\n  tableIdentifier: row.table_identifier,\n  status: row.status,\n  openedAt: row.opened_at,\n  closedAt: row.closed_at ?? null,\n})\n\nexport const mapOrderItemRow = (row) => ({",
+            ),
+            (
+              "    customerIdentityType: row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name'),\n    type: row.type,",
+              "    customerIdentityType: row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name'),\n    tableTabId: row.table_tab_id ?? null,\n    type: row.type,",
+            ),
+            (
+              "const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.type,",
+              "const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type,",
+            ),
+          ]
+
+          for old, new in replacements:
+            count = source.count(old)
+            if count != 1:
+              raise SystemExit(f'Expected exactly one match, found {count}: {old[:80]}')
+            source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/repositories.js
+          git commit -m "feat: map table tabs in repository"
+          git push origin HEAD:feature/table-tabs-round
