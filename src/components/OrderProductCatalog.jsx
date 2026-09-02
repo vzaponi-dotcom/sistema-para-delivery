@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Button from './Button'
 
-function OrderProductCatalog({ products, currency, disabled = false, onAdd }) {
+function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('Todos')
-  const [addedProductId, setAddedProductId] = useState(null)
 
   const categories = useMemo(
     () => ['Todos', ...new Set(products.map((product) => product.category).filter(Boolean))],
@@ -18,17 +17,6 @@ function OrderProductCatalog({ products, currency, disabled = false, onAdd }) {
       (!normalized || [product.name, product.category, product.size].join(' ').toLowerCase().includes(normalized))
     ))
   }, [category, products, search])
-
-  useEffect(() => {
-    if (!addedProductId) return undefined
-    const timer = window.setTimeout(() => setAddedProductId(null), 1200)
-    return () => window.clearTimeout(timer)
-  }, [addedProductId])
-
-  const addProduct = (product) => {
-    onAdd(product)
-    setAddedProductId(product.id)
-  }
 
   return (
     <section className="surface-card new-order-catalog">
@@ -65,9 +53,9 @@ function OrderProductCatalog({ products, currency, disabled = false, onAdd }) {
 
       <div className="new-order-products">
         {visibleProducts.map((product) => {
-          const recentlyAdded = addedProductId === product.id
+          const isAdded = items.some((item) => item.productId === product.id)
           return (
-            <article className={recentlyAdded ? 'new-order-product recently-added' : 'new-order-product'} key={product.id}>
+            <article className={isAdded ? 'new-order-product recently-added' : 'new-order-product'} key={product.id}>
               <div>
                 <strong>{product.name}</strong>
                 <span>{[product.category, product.size].filter(Boolean).join(' · ')}</span>
@@ -77,11 +65,11 @@ function OrderProductCatalog({ products, currency, disabled = false, onAdd }) {
                 <Button
                   type="button"
                   className="new-order-add-button"
-                  onClick={() => addProduct(product)}
+                  onClick={() => onAdd(product)}
                   disabled={disabled}
                   aria-live="polite"
                 >
-                  {recentlyAdded ? '✓ Adicionado' : 'Adicionar'}
+                  {isAdded ? '✓ Adicionado' : 'Adicionar'}
                 </Button>
               </div>
             </article>
