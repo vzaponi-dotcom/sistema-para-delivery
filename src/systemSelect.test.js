@@ -20,7 +20,8 @@ test('SystemSelect exposes accessible combobox and listbox behavior', async () =
 test('SystemSelect renders one presentation for the current viewport and reuses BottomSheet on mobile', async () => {
   const source = await read('./components/SystemSelect.jsx')
   assert.match(source, /BottomSheet/)
-  assert.match(source, /matchMedia\('\(max-width: 820px\)'\)/)
+  assert.match(source, /const mobileQuery = '\(max-width: 820px\)'/)
+  assert.match(source, /matchMedia\(mobileQuery\)/)
   assert.match(source, /mobile \?/)
   assert.match(source, /system-select-dropdown/)
 })
