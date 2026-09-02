@@ -6,6 +6,7 @@ import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
 import OrderProductCatalog from '../components/OrderProductCatalog'
 import PageHeader from '../components/PageHeader'
+import SystemSelect from '../components/SystemSelect'
 import {
   addCartItem,
   buildOrderPayload,
@@ -19,6 +20,11 @@ import { formatPhone } from '../utils/formFormatting.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
 const emptyAdjustment = { type: 'none', mode: 'fixed', value: '0', reason: '' }
+const ORDER_TYPE_OPTIONS = [
+  { value: 'Entrega', label: 'Entrega' },
+  { value: 'Retirada', label: 'Retirada' },
+  { value: 'Local', label: 'Consumo no local' },
+]
 
 function NewOrder({ clients, products, currency, disabled, onCancel, onCreateClient, onSubmit }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
@@ -238,14 +244,10 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
             )}
 
             <div className="form-grid two-columns new-order-operation-fields">
-              <label className="form-field">
+              <div className="form-field">
                 <span>Tipo do pedido</span>
-                <select value={type} onChange={(event) => changeType(event.target.value)} disabled={disabled}>
-                  <option value="Entrega">Entrega</option>
-                  <option value="Retirada">Retirada</option>
-                  <option value="Local">Consumo no local</option>
-                </select>
-              </label>
+                <SystemSelect value={type} options={ORDER_TYPE_OPTIONS} onChange={changeType} disabled={disabled} label="Tipo do pedido" />
+              </div>
               <label className="form-field">
                 <span>Data do pedido</span>
                 <input
@@ -273,7 +275,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
             items={items}
             currency={currency}
             disabled={disabled}
-            onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))}
+            onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))
             onNoteChange={(lineId, note) => setItems((current) => editCartItemNote(current, lineId, note))}
             onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
             onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
