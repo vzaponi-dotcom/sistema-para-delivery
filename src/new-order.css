@@ -294,6 +294,52 @@
   font-size: .74rem;
 }
 
+.new-order-note-toggle {
+  justify-self: start;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary, #7a351f);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.new-order-note-summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-order-note-summary > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted, #756a64);
+  font-size: .78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-order-note-summary button {
+  flex-shrink: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary, #7a351f);
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.new-order-note-toggle:disabled,
+.new-order-note-summary button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
 .new-order-checkout {
   display: grid;
   gap: 16px;
