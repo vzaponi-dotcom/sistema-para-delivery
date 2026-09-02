@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/client-duplicate-detection
   workflow_dispatch:
 
 jobs:
