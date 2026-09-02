@@ -15,6 +15,7 @@ import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
+import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatBRLCurrencyInput, formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
@@ -205,6 +206,16 @@ function App() {
 
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setToastMessage(message)
 
+  const validateClientIdentity = (draft, excludeId = null) => {
+    const duplicate = findClientDuplicates(clients, draft, excludeId)
+    if (duplicate.phone) {
+      setToastMessage(`Telefone já cadastrado para ${duplicate.phone.name}.`)
+      return false
+    }
+    if (duplicate.name && !window.confirm(`Já existe um cliente chamado ${duplicate.name.name}. Deseja cadastrar mesmo assim?`)) return false
+    return true
+  }
+
   const handleLogin = async (pin) => {
     if (!isOnline || requestKey) return
     setRequestKey('auth:login')
@@ -359,10 +370,10 @@ function App() {
     setNewClient({ name: client.name, phone: client.phone, address: client.address })
   }
 
-  const clientPayload = () => ({ name: newClient.name.trim(), phone: newClient.phone || '(00) 00000-0000', address: newClient.address || 'Sem endereço' })
+  const clientPayload = () => ({ name: newClient.name.trim(), phone: newClient.phone || '', address: newClient.address || 'Sem endereço' })
 
   const handleAddClient = async () => {
-    if (writesBlocked || !newClient.name.trim()) return
+    if (writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient)) return
     setRequestKey('client:create')
     try {
       const { client } = await createClientApi(clientPayload())
@@ -378,7 +389,7 @@ function App() {
   }
 
   const handleSaveClient = async () => {
-    if (writesBlocked || !editingClientId || !newClient.name.trim()) return
+    if (writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId)) return
     const id = editingClientId
     setRequestKey(`client:update:${id}`)
     try {
