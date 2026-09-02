@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { mapOrderRow } from './repositories.js'
+import { mapOrderRow, mapTableTabRow } from './repositories.js'
 
 const source = readFileSync(new URL('./repositories.js', import.meta.url), 'utf8')
 const baseRow = {
@@ -9,6 +9,7 @@ const baseRow = {
   client_id: null,
   client_name_snapshot: 'Mesa A-2',
   customer_identity_type: 'table',
+  table_tab_id: 'tab-1',
   type: 'Local',
   status: 'Em preparo',
   subtotal_cents: 1000,
@@ -25,20 +26,39 @@ const baseRow = {
   payment_id: null,
 }
 
-test('order row exposes explicit customer identity type without losing snapshot fields', () => {
+test('order row exposes explicit customer identity and table tab without losing snapshot fields', () => {
   const order = mapOrderRow(baseRow, [])
   assert.equal(order.clientId, null)
   assert.equal(order.client, 'Mesa A-2')
   assert.equal(order.customerIdentityType, 'table')
+  assert.equal(order.tableTabId, 'tab-1')
 })
 
-test('legacy order row derives identity type from client id when column is absent', () => {
-  assert.equal(mapOrderRow({ ...baseRow, client_id: 'c1', customer_identity_type: undefined }, []).customerIdentityType, 'registered_client')
-  assert.equal(mapOrderRow({ ...baseRow, client_id: null, customer_identity_type: undefined }, []).customerIdentityType, 'guest_name')
+test('table tab row maps the persistent session fields for the UI', () => {
+  assert.deepEqual(mapTableTabRow({
+    id: 'tab-1',
+    table_identifier: '04',
+    status: 'open',
+    opened_at: '2026-09-02T18:00:00.000Z',
+    closed_at: null,
+  }), {
+    id: 'tab-1',
+    tableIdentifier: '04',
+    status: 'open',
+    openedAt: '2026-09-02T18:00:00.000Z',
+    closedAt: null,
+  })
+})
+
+test('legacy order row derives identity type and keeps table tab optional', () => {
+  assert.equal(mapOrderRow({ ...baseRow, client_id: 'c1', customer_identity_type: undefined, table_tab_id: undefined }, []).customerIdentityType, 'registered_client')
+  assert.equal(mapOrderRow({ ...baseRow, client_id: null, customer_identity_type: undefined, table_tab_id: undefined }, []).customerIdentityType, 'guest_name')
+  assert.equal(mapOrderRow({ ...baseRow, table_tab_id: undefined }, []).tableTabId, null)
 })
 
 test('order persistence stores identity type and derives server-side snapshots', () => {
   assert.match(source, /customer_identity_type/)
+  assert.match(source, /table_tab_id/)
   assert.match(source, /customerIdentity\.type === 'guest_name'/)
   assert.match(source, /clientSnapshot = `Mesa \$\{customerIdentity\.value\}`/)
   assert.match(source, /productSnapshotSize\(item\.product\)/)
