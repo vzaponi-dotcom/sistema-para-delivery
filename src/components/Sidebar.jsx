@@ -10,7 +10,7 @@ const navigation = [
   { id: 'finance', label: 'Financeiro', icon: 'finance' },
 ]
 
-function Sidebar({ activeTab, onNavigate }) {
+function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -39,6 +39,11 @@ function Sidebar({ activeTab, onNavigate }) {
       <div className="sidebar-footer">
         <span>Operação</span>
         <strong>Comida caseira, gestão simples.</strong>
+        {onLogout && (
+          <button className="sidebar-logout" type="button" onClick={onLogout} disabled={logoutDisabled}>
+            Sair do sistema
+          </button>
+        )}
       </div>
     </aside>
   )
