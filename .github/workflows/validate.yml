@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - feature/dashboard-analytics-redesign
   workflow_dispatch:
 
 jobs:
