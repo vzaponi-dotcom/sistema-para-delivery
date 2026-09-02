@@ -4,7 +4,15 @@ import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
 import OrderProductCatalog from '../components/OrderProductCatalog'
 import PageHeader from '../components/PageHeader'
-import { addCartItem, buildOrderPayload, calculateOrderPreview, removeCartItem, updateCartItem } from '../utils/orderCart.js'
+import {
+  addCartItem,
+  buildOrderPayload,
+  calculateOrderPreview,
+  commitCartItemNote,
+  editCartItemNote,
+  removeCartItem,
+  updateCartItem,
+} from '../utils/orderCart.js'
 import { formatPhone } from '../utils/formFormatting.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
@@ -207,6 +215,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
 
           <OrderProductCatalog
             products={products}
+            items={items}
             currency={currency}
             disabled={disabled}
             onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
@@ -219,6 +228,8 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
             currency={currency}
             disabled={disabled}
             onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))}
+            onNoteChange={(lineId, note) => setItems((current) => editCartItemNote(current, lineId, note))}
+            onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
             onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
           />
           <OrderCheckoutSummary
