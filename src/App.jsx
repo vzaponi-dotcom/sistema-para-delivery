@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import './central-data.css'
 import './new-order.css'
+import './client-duplicate.css'
 import AppShell from './components/AppShell'
 import Button from './components/Button'
+import ClientDuplicateModal from './components/ClientDuplicateModal'
 import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
@@ -59,6 +61,7 @@ function App() {
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
   const [editingClientId, setEditingClientId] = useState(null)
   const [showClientForm, setShowClientForm] = useState(false)
+  const [duplicateClientDialog, setDuplicateClientDialog] = useState(null)
   const [clientSearch, setClientSearch] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [productSearch, setProductSearch] = useState('')
@@ -85,6 +88,7 @@ function App() {
     setPaymentOrderId(null)
     setShowMovementModal(false)
     setShowClientForm(false)
+    setDuplicateClientDialog(null)
     setShowProductForm(false)
   }
 
@@ -206,13 +210,16 @@ function App() {
 
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setToastMessage(message)
 
-  const validateClientIdentity = (draft, excludeId = null) => {
+  const validateClientIdentity = (draft, excludeId = null, action = 'create') => {
     const duplicate = findClientDuplicates(clients, draft, excludeId)
     if (duplicate.phone) {
       setToastMessage(`Telefone já cadastrado para ${duplicate.phone.name}.`)
       return false
     }
-    if (duplicate.name && !window.confirm(`Já existe um cliente chamado ${duplicate.name.name}. Deseja cadastrar mesmo assim?`)) return false
+    if (duplicate.name) {
+      setDuplicateClientDialog({ client: duplicate.name, action })
+      return false
+    }
     return true
   }
 
@@ -356,8 +363,15 @@ function App() {
     }
   }
 
+  const resetClientForm = () => {
+    setEditingClientId(null)
+    setNewClient({ name: '', phone: '', address: '' })
+    setShowClientForm(false)
+  }
+
   const openNewClient = () => {
     if (writesBlocked) return
+    setDuplicateClientDialog(null)
     setEditingClientId(null)
     setNewClient({ name: '', phone: '', address: '' })
     setShowClientForm(true)
@@ -365,6 +379,7 @@ function App() {
 
   const handleEditClient = (client) => {
     if (writesBlocked) return
+    setDuplicateClientDialog(null)
     setEditingClientId(client.id)
     setShowClientForm(true)
     setNewClient({ name: client.name, phone: client.phone, address: client.address })
@@ -372,14 +387,13 @@ function App() {
 
   const clientPayload = () => ({ name: newClient.name.trim(), phone: newClient.phone || '', address: newClient.address || 'Sem endereço' })
 
-  const handleAddClient = async () => {
-    if (writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient)) return
+  const persistNewClient = async () => {
+    if (writesBlocked || !newClient.name.trim()) return
     setRequestKey('client:create')
     try {
       const { client } = await createClientApi(clientPayload())
       setClients((current) => [client, ...current])
-      setNewClient({ name: '', phone: '', address: '' })
-      setShowClientForm(false)
+      resetClientForm()
       showSuccessMessage('Cliente adicionado com sucesso')
     } catch (error) {
       showApiError(error)
@@ -388,22 +402,44 @@ function App() {
     }
   }
 
-  const handleSaveClient = async () => {
-    if (writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId)) return
+  const persistClientUpdate = async () => {
+    if (writesBlocked || !editingClientId || !newClient.name.trim()) return
     const id = editingClientId
     setRequestKey(`client:update:${id}`)
     try {
       const { client } = await updateClientApi(id, clientPayload())
       setClients((current) => current.map((item) => item.id === id ? client : item))
-      setEditingClientId(null)
-      setNewClient({ name: '', phone: '', address: '' })
-      setShowClientForm(false)
+      resetClientForm()
       showSuccessMessage('Cliente atualizado com sucesso')
     } catch (error) {
       showApiError(error)
     } finally {
       setRequestKey(null)
     }
+  }
+
+  const handleAddClient = async () => {
+    if (writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient, null, 'create')) return
+    await persistNewClient()
+  }
+
+  const handleSaveClient = async () => {
+    if (writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId, 'update')) return
+    await persistClientUpdate()
+  }
+
+  const handleUseExistingClient = () => {
+    const existing = duplicateClientDialog?.client
+    setDuplicateClientDialog(null)
+    if (existing?.name) setClientSearch(existing.name)
+    resetClientForm()
+  }
+
+  const handleConfirmDuplicateClient = async () => {
+    const action = duplicateClientDialog?.action
+    setDuplicateClientDialog(null)
+    if (action === 'update') await persistClientUpdate()
+    else if (action === 'create') await persistNewClient()
   }
 
   const handleDeleteClient = async (clientId) => {
@@ -413,11 +449,7 @@ function App() {
       await deleteClientApi(clientId)
       const remaining = clients.filter((client) => client.id !== clientId)
       setClients(remaining)
-      if (editingClientId === clientId) {
-        setEditingClientId(null)
-        setNewClient({ name: '', phone: '', address: '' })
-        setShowClientForm(false)
-      }
+      if (editingClientId === clientId) resetClientForm()
     } catch (error) {
       showApiError(error)
     } finally {
@@ -426,9 +458,8 @@ function App() {
   }
 
   const handleCancelClientEdit = () => {
-    setEditingClientId(null)
-    setNewClient({ name: '', phone: '', address: '' })
-    setShowClientForm(false)
+    setDuplicateClientDialog(null)
+    resetClientForm()
   }
 
   const openNewProduct = () => {
@@ -597,6 +628,19 @@ function App() {
               <div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div>
             </div>
           </Modal>
+        )}
+
+        {duplicateClientDialog && (
+          <ClientDuplicateModal
+            client={duplicateClientDialog.client}
+            onCancel={() => setDuplicateClientDialog(null)}
+            onUseExisting={handleUseExistingClient}
+            onConfirm={handleConfirmDuplicateClient}
+            disabled={writesBlocked}
+            cancelLabel="Cancelar"
+            useExistingLabel="Usar cliente existente"
+            confirmLabel="Cadastrar mesmo assim"
+          />
         )}
 
         {showProductForm && (
