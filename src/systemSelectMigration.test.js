@@ -31,3 +31,10 @@ test('App and Clients use the shared SystemSelect', async () => {
   assert.match(app, /import SystemSelect/)
   assert.match(clients, /import SystemSelect/)
 })
+
+test('App write selectors preserve blocked state and approved labels', async () => {
+  const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
+  for (const label of ['Forma de pagamento', 'Categoria do produto', 'Tipo da movimentação', 'Categoria da movimentação']) {
+    assert.match(app, new RegExp(`SystemSelect[^>\\n]*disabled=\\{writesBlocked\\}[^>\\n]*label="${label}"`))
+  }
+})
