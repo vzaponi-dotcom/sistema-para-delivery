@@ -1,9 +1,6 @@
 name: Deploy production
 
 on:
-  push:
-    branches:
-      - feature/dashboard-analytics-redesign
   workflow_dispatch:
 
 permissions:
