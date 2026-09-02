@@ -1,0 +1,36 @@
+name: Task 4 product UI wiring
+
+on:
+  push:
+    branches:
+      - feature/catalog-local-orders-round
+    paths:
+      - scripts/wire-product-ui.mjs
+      - .github/workflows/task4-wire-product-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/catalog-local-orders-round
+
+      - name: Apply asserted App wiring patch
+        run: node scripts/wire-product-ui.mjs
+
+      - name: Commit App wiring
+        run: |
+          if git diff --quiet -- src/App.jsx; then
+            echo "No App.jsx changes produced"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx
+          git commit -m "feat: wire structured product form"
+          git push origin HEAD:feature/catalog-local-orders-round
