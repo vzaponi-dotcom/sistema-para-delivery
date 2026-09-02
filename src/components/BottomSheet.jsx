@@ -3,7 +3,12 @@ import { createPortal } from 'react-dom'
 import '../bottom-sheet.css'
 import Icon from './Icon'
 
-const focusable = 'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const dialogSelector = '[role="dialog"][aria-modal="true"]'
+const isTopmostDialog = (element) => {
+  const dialogs = Array.from(document.querySelectorAll(dialogSelector))
+  return dialogs.at(-1) === element
+}
 
 function BottomSheet({ open, title, onClose, children }) {
   const sheetRef = useRef(null)
@@ -13,10 +18,15 @@ function BottomSheet({ open, title, onClose, children }) {
     if (!open) return undefined
 
     previousFocus.current = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     const controls = () => Array.from(sheetRef.current?.querySelectorAll(focusable) || [])
     controls()[0]?.focus()
 
     const handleKeyDown = (event) => {
+      if (!isTopmostDialog(sheetRef.current)) return
+
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
@@ -40,6 +50,7 @@ function BottomSheet({ open, title, onClose, children }) {
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
       previousFocus.current?.focus?.()
     }
   }, [open, onClose])

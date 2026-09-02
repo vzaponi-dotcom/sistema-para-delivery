@@ -169,19 +169,6 @@
   }
 }
 
-@media (max-width: 640px) {
-  .modal-backdrop {
-    place-items: center;
-    padding: 12px;
-  }
-
-  .modal-card {
-    width: min(100%, 560px);
-    max-height: min(88dvh, 720px);
-    border-radius: 18px;
-  }
-}
-
 @media (max-width: 820px) and (prefers-reduced-motion: reduce) {
   .page-transition[data-direction='forward'],
   .page-transition[data-direction='backward'] {

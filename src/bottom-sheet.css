@@ -1,17 +1,18 @@
 .bottom-sheet-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--layer-overlay-raised);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 24px;
   background: rgba(0, 0, 0, 0.48);
+  overscroll-behavior: contain;
 }
 
 .bottom-sheet {
   width: min(520px, 100%);
-  max-height: min(78dvh, 620px);
+  max-height: var(--mobile-overlay-max-height, min(88dvh, 720px));
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -52,7 +53,7 @@
 
   .bottom-sheet {
     width: 100%;
-    max-height: min(78dvh, 620px);
+    max-height: var(--mobile-overlay-max-height);
     padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
     border-radius: 22px 22px 0 0;
   }

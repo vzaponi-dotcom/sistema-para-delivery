@@ -1,3 +1,10 @@
+:root {
+  --layer-mobile-nav: 60;
+  --layer-overlay: 100;
+  --layer-overlay-raised: 110;
+  --layer-toast: 120;
+}
+
 @media (max-width: 820px) {
   :root {
     --mobile-bottom-nav-height: 65px;
@@ -8,9 +15,6 @@
     --mobile-overlay-inset: 12px;
     --mobile-overlay-max-height: min(88dvh, 720px);
     --mobile-content-bottom-space: calc(var(--mobile-bottom-nav-height) + 37px + var(--mobile-safe-bottom));
-    --layer-mobile-nav: 60;
-    --layer-overlay: 100;
-    --layer-toast: 120;
   }
 
   html,
@@ -30,5 +34,27 @@
   .app-shell .app-content {
     padding-bottom: var(--mobile-content-bottom-space);
     scroll-padding-bottom: var(--mobile-content-bottom-space);
+  }
+}
+
+@media (max-width: 640px) {
+  body > .modal-backdrop {
+    z-index: var(--layer-overlay);
+    place-items: center;
+    padding: var(--mobile-overlay-inset);
+    overscroll-behavior: contain;
+  }
+
+  body > .modal-backdrop > .modal-card {
+    width: min(100%, 560px);
+    max-height: var(--mobile-overlay-max-height);
+    border-radius: 18px;
+  }
+
+  body > .modal-backdrop .modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
