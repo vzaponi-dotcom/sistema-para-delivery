@@ -50,12 +50,12 @@ class OrderDb {
 
   async _run(sql, values) {
     if (sql.includes('INSERT INTO orders')) {
-      const [id, businessId, clientId, clientName, type, orderDate, status, subtotal, total, createdAt, finishedAt, idempotencyKey] = values
+      const [id, businessId, clientId, clientName, type, orderDate, status, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
       if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
-      this.orders.set(id, { id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, type, order_date: orderDate, status, subtotal_cents: subtotal, adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0, adjustment_amount_cents: 0, adjustment_reason: '', total_cents: total, created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey })
+      this.orders.set(id, { id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, type, order_date: orderDate, status, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee, adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue, adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total, created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey })
     } else if (sql.includes('INSERT INTO order_items')) {
-      const [id, businessId, orderId, productId, name, category, size, quantity, catalogPrice, unitPrice, createdAt] = values
-      this.items.set(id, { id, business_id: businessId, order_id: orderId, product_id: productId, name_snapshot: name, category_snapshot: category, size_snapshot: size, quantity, catalog_price_cents: catalogPrice, unit_price_cents: unitPrice, price_reason: '', created_at: createdAt })
+      const [id, businessId, orderId, productId, name, category, size, quantity, catalogPrice, unitPrice, priceReason, note, createdAt] = values
+      this.items.set(id, { id, business_id: businessId, order_id: orderId, product_id: productId, name_snapshot: name, category_snapshot: category, size_snapshot: size, quantity, catalog_price_cents: catalogPrice, unit_price_cents: unitPrice, price_reason: priceReason, note, created_at: createdAt })
     } else if (sql.includes('UPDATE orders SET status')) {
       const [finishedAt, id, businessId] = values; const row = this.orders.get(id); if (row?.business_id === businessId) Object.assign(row, { status: 'Finalizado', finished_at: row.finished_at || finishedAt })
     } else if (sql.includes('DELETE FROM movements')) {
