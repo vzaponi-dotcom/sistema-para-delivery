@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import '../dashboard.css'
-import Button from '../components/Button'
 import DashboardBarChart from '../components/DashboardBarChart'
 import DashboardLineChart from '../components/DashboardLineChart'
 import DashboardPaymentMix from '../components/DashboardPaymentMix'
@@ -53,18 +52,15 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
         title="Visão geral da operação"
         description="Acompanhe a operação de hoje e a evolução recente do negócio."
         actions={(
-          <>
-            <button
-              type="button"
-              className="icon-button icon-button-neutral dashboard-privacy-toggle"
-              aria-label={privacyLabel}
-              title={privacyLabel}
-              onClick={() => setValuesVisible((current) => !current)}
-            >
-              <Icon name={valuesVisible ? 'eye' : 'eye-off'} size={20} />
-            </button>
-            <Button icon="plus" onClick={onNewOrder} disabled={writeDisabled}>Novo pedido</Button>
-          </>
+          <button
+            type="button"
+            className="icon-button icon-button-neutral dashboard-privacy-toggle"
+            aria-label={privacyLabel}
+            title={privacyLabel}
+            onClick={() => setValuesVisible((current) => !current)}
+          >
+            <Icon name={valuesVisible ? 'eye' : 'eye-off'} size={20} />
+          </button>
         )}
       />
 
@@ -163,6 +159,17 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
           )}
         </div>
       </section>
+
+      <button
+        type="button"
+        className="dashboard-new-order-fab"
+        aria-label="Novo pedido"
+        title="Novo pedido"
+        onClick={onNewOrder}
+        disabled={writeDisabled}
+      >
+        <Icon name="plus" size={24} />
+      </button>
     </>
   )
 }
