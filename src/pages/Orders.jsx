@@ -9,6 +9,7 @@ import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems, getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import {
+  formatElapsedDuration,
   formatOrderDate,
   formatOrderTime,
   getElapsedMinutes,
@@ -40,6 +41,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
   const [now, setNow] = useState(() => new Date())
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
+  const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set())
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
 
@@ -56,6 +58,15 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
     } finally {
       setPendingAction(null)
     }
+  }
+
+  const toggleOrderItems = (orderId) => {
+    setExpandedOrderIds((current) => {
+      const next = new Set(current)
+      if (next.has(orderId)) next.delete(orderId)
+      else next.add(orderId)
+      return next
+    })
   }
 
   const normalizedSearch = search.trim().toLowerCase()
@@ -145,7 +156,10 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             const timingState = getOrderTimingState(order, now)
             const timingLabel = timingLabels[timingState]
             const orderTime = formatOrderTime(order.createdAt)
-            const elapsedLabel = elapsed < 1 ? 'agora' : `há ${elapsed} min`
+            const elapsedLabel = formatElapsedDuration(elapsed)
+            const orderItems = getOrderItems(order)
+            const itemsExpanded = expandedOrderIds.has(order.id)
+            const itemsRegionId = `order-items-${order.id}`
 
             return (
               <article className={`order-queue-card urgency-${urgency}`} key={order.id}>
@@ -172,14 +186,27 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                       </div>
                     </div>
 
-                    <div className="order-items-list">
-                      {getOrderItems(order).map((item) => (
-                        <div className="order-item-line" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
-                          <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
-                          {item.note && <span>↳ {item.note}</span>}
-                        </div>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      className="order-items-toggle"
+                      aria-expanded={itemsExpanded}
+                      aria-controls={itemsRegionId}
+                      onClick={() => toggleOrderItems(order.id)}
+                    >
+                      <Icon name={itemsExpanded ? 'arrow-up' : 'arrow-down'} size={15} />
+                      {itemsExpanded ? `Ocultar itens (${orderItems.length})` : `Ver itens (${orderItems.length})`}
+                    </button>
+
+                    {itemsExpanded && (
+                      <div className="order-items-list" id={itemsRegionId}>
+                        {orderItems.map((item) => (
+                          <div className="order-item-line" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
+                            <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
+                            {item.note && <span>↳ {item.note}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="order-queue-meta">
                       <span>{formatOrderDate(order.orderDate)}</span>
@@ -189,7 +216,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                     <div className={`order-time-line timing-${timingState}`}>
                       <span>Pedido às <strong>{orderTime}</strong></span>
                       <span aria-hidden="true">•</span>
-                      <span>{elapsedLabel}</span>
+                      <span>{elapsedLabel === 'agora' ? elapsedLabel : `há ${elapsedLabel}`}</span>
                     </div>
                   </div>
 
@@ -206,7 +233,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                       onClick={() => runAction(`delete:${order.id}`, () => onDeleteOrder(order.id))}
                       disabled={actionsDisabled}
                     >
-                      <Icon name="trash" size={17} />
+                      <Icon name="trash" size={16} />
                     </button>
                   </div>
                 </div>
