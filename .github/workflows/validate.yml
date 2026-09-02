@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/operations-ux-round
   workflow_dispatch:
 
 jobs:
