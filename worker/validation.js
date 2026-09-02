@@ -1,3 +1,5 @@
+import { PRODUCT_CATEGORIES, validateProductPresentation } from '../shared/productCatalog.js'
+
 const PAYMENT_METHODS = new Set([
   'Pix',
   'Dinheiro',
@@ -73,4 +75,19 @@ export const validatePositiveInteger = (value, field = 'quantity') => {
 export const validateMovementType = (value) => {
   if (!MOVEMENT_TYPES.has(value)) throw validationError('type', 'Tipo de movimentação inválido.')
   return value
+}
+
+export const validateProductCategory = (value) => {
+  if (!PRODUCT_CATEGORIES.includes(value)) throw validationError('category', 'Categoria de produto inválida.')
+  return value
+}
+
+export const validateStructuredPresentation = (body = {}) => {
+  const result = validateProductPresentation({
+    presentationType: body.presentationType,
+    presentationValue: body.presentationValue,
+    presentationUnit: body.presentationUnit,
+  })
+  if (!result.ok) throw validationError(result.field, result.message)
+  return result.value
 }
