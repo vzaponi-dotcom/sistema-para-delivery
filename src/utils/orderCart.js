@@ -9,6 +9,19 @@ const centsToMoney = (value) => Number(value || 0) / 100
 export const normalizeItemNote = (value) => cleanSpaces(value).slice(0, 300)
 const mergeKey = (productId, note) => `${productId}::${normalizeItemNote(note).toLocaleLowerCase('pt-BR')}`
 
+const mergeCartLine = (items, lineId, updated) => {
+  const withoutCurrent = items.filter((item) => item.lineId !== lineId)
+  const equivalent = withoutCurrent.find((item) => mergeKey(item.productId, item.note) === mergeKey(updated.productId, updated.note))
+
+  if (!equivalent) {
+    return items.map((item) => item.lineId === lineId ? updated : item)
+  }
+
+  return withoutCurrent.map((item) => item.lineId === equivalent.lineId
+    ? { ...item, quantity: Math.max(1, Number(item.quantity) || 1) + updated.quantity }
+    : item)
+}
+
 export const getOrderItemDisplayName = (item = {}) => {
   const name = cleanSpaces(item.name || 'Produto')
   const size = cleanSpaces(item.size)
@@ -53,19 +66,24 @@ export const updateCartItem = (items, lineId, patch = {}) => {
     quantity: patch.quantity === undefined
       ? Math.max(1, Number(current.quantity) || 1)
       : Math.max(1, Math.trunc(Number(patch.quantity) || 1)),
-    note: patch.note === undefined ? normalizeItemNote(current.note) : normalizeItemNote(patch.note),
+    note: patch.note === undefined ? current.note : normalizeItemNote(patch.note),
   }
 
-  const withoutCurrent = items.filter((item) => item.lineId !== lineId)
-  const equivalent = withoutCurrent.find((item) => mergeKey(item.productId, item.note) === mergeKey(updated.productId, updated.note))
+  return mergeCartLine(items, lineId, updated)
+}
 
-  if (!equivalent) {
-    return items.map((item) => item.lineId === lineId ? updated : item)
-  }
+export const editCartItemNote = (items, lineId, note) => items.map((item) => item.lineId === lineId
+  ? { ...item, note: String(note ?? '').slice(0, 300) }
+  : item)
 
-  return withoutCurrent.map((item) => item.lineId === equivalent.lineId
-    ? { ...item, quantity: Math.max(1, Number(item.quantity) || 1) + updated.quantity }
-    : item)
+export const commitCartItemNote = (items, lineId) => {
+  const current = items.find((item) => item.lineId === lineId)
+  if (!current) return items
+
+  return mergeCartLine(items, lineId, {
+    ...current,
+    note: normalizeItemNote(current.note),
+  })
 }
 
 export const removeCartItem = (items, lineId) => items.filter((item) => item.lineId !== lineId)
