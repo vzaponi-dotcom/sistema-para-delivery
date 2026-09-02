@@ -15,6 +15,7 @@ const checkoutError = (field, message) => Object.assign(new Error(message), {
 })
 
 const normalizeSpaces = (value) => value.replace(/\s+/g, ' ')
+const itemMergeKey = (item) => `${item.productId}::${item.note.toLocaleLowerCase('pt-BR')}`
 
 const percentageToBasisPoints = (value) => {
   const raw = typeof value === 'number' ? String(value) : String(value ?? '').trim()
@@ -59,11 +60,19 @@ export const validateCheckoutInput = (body = {}, idempotencyKey) => {
     throw checkoutError('items', 'Adicione pelo menos um item ao pedido.')
   }
 
-  const items = body.items.map((item, index) => ({
+  const validatedItems = body.items.map((item, index) => ({
     productId: requireNonEmpty(item?.productId, `items.${index}.productId`),
     quantity: validatePositiveInteger(item?.quantity, `items.${index}.quantity`),
     note: normalizeSpaces(optionalTextMax(item?.note, 300, `items.${index}.note`)),
   }))
+  const mergedItems = new Map()
+  for (const item of validatedItems) {
+    const key = itemMergeKey(item)
+    const existing = mergedItems.get(key)
+    if (existing) existing.quantity += item.quantity
+    else mergedItems.set(key, { ...item })
+  }
+  const items = [...mergedItems.values()]
 
   const deliveryFeeCents = moneyToCents(body.deliveryFee ?? 0, 'deliveryFee')
   if (type !== 'Entrega' && deliveryFeeCents !== 0) {
