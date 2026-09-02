@@ -34,7 +34,10 @@ test('App and Clients use the shared SystemSelect', async () => {
 
 test('App write selectors preserve blocked state and approved labels', async () => {
   const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
+  const lines = app.split('\n')
   for (const label of ['Forma de pagamento', 'Categoria do produto', 'Tipo da movimentação', 'Categoria da movimentação']) {
-    assert.match(app, new RegExp(`SystemSelect[^>\\n]*disabled=\\{writesBlocked\\}[^>\\n]*label="${label}"`))
+    const selectorLine = lines.find((line) => line.includes('<SystemSelect') && line.includes(`label="${label}"`))
+    assert.ok(selectorLine, `missing SystemSelect for ${label}`)
+    assert.match(selectorLine, /disabled=\{writesBlocked\}/)
   }
 })
