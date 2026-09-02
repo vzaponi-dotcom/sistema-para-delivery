@@ -2,6 +2,9 @@ name: Deploy production
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/multi-item-orders
 
 permissions:
   contents: read
