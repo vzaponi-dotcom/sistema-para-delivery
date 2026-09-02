@@ -14,6 +14,7 @@ function Receivables({ orders, currency, onRegisterPayment }) {
   const [search, setSearch] = useState('')
   const today = toLocalDateValue()
   const normalizedSearch = search.trim().toLowerCase()
+  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
 
   const pendingOrders = useMemo(
     () =>
@@ -120,7 +121,7 @@ function Receivables({ orders, currency, onRegisterPayment }) {
                       <PaymentBadge order={order} />
                     </div>
                     <strong className="receivable-order-amount">{currency(getPendingAmount(order))}</strong>
-                    <Button onClick={() => onRegisterPayment(order.id)}>Registrar pagamento</Button>
+                    <Button onClick={() => onRegisterPayment(order.id)} disabled={writeDisabled}>Registrar pagamento</Button>
                   </div>
                 ))}
               </div>

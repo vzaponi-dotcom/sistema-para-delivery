@@ -1,15 +1,30 @@
+import { useState } from 'react'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 
 function Products({ products, search, currency, onSearchChange, onAdd, onEdit, onDelete }) {
+  const [pendingId, setPendingId] = useState(null)
+  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+  const actionsDisabled = writeDisabled || pendingId !== null
+
+  const handleDelete = async (productId) => {
+    if (actionsDisabled) return
+    setPendingId(productId)
+    try {
+      await onDelete(productId)
+    } finally {
+      setPendingId(null)
+    }
+  }
+
   return (
     <>
       <PageHeader
         eyebrow="Cardápio"
         title="Produtos e preços"
         description="Mantenha seu cardápio organizado e os valores sempre atualizados."
-        actions={<Button icon="plus" onClick={onAdd}>Adicionar produto</Button>}
+        actions={<Button icon="plus" onClick={onAdd} disabled={actionsDisabled}>Adicionar produto</Button>}
       />
 
       <section className="surface-card">
@@ -40,10 +55,10 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
                 <strong>{currency(product.price)}</strong>
               </div>
               <div className="entity-actions">
-                <button type="button" className="icon-button icon-button-neutral" aria-label={`Editar ${product.name}`} title="Editar produto" onClick={() => onEdit(product)}>
+                <button type="button" className="icon-button icon-button-neutral" aria-label={`Editar ${product.name}`} title="Editar produto" onClick={() => onEdit(product)} disabled={actionsDisabled}>
                   <Icon name="edit" size={17} />
                 </button>
-                <button type="button" className="icon-button icon-button-danger" aria-label={`Excluir ${product.name}`} title="Excluir produto" onClick={() => onDelete(product.id)}>
+                <button type="button" className="icon-button icon-button-danger" aria-label={`Excluir ${product.name}`} title="Excluir produto" onClick={() => handleDelete(product.id)} disabled={actionsDisabled}>
                   <Icon name="trash" size={17} />
                 </button>
               </div>

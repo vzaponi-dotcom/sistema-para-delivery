@@ -1,15 +1,30 @@
+import { useState } from 'react'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 
 function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete }) {
+  const [pendingId, setPendingId] = useState(null)
+  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+  const actionsDisabled = writeDisabled || pendingId !== null
+
+  const handleDelete = async (clientId) => {
+    if (actionsDisabled) return
+    setPendingId(clientId)
+    try {
+      await onDelete(clientId)
+    } finally {
+      setPendingId(null)
+    }
+  }
+
   return (
     <>
       <PageHeader
         eyebrow="Relacionamento"
         title="Clientes"
         description="Organize seus contatos e encontre rapidamente quem já compra com você."
-        actions={<Button icon="plus" onClick={onAdd}>Novo cliente</Button>}
+        actions={<Button icon="plus" onClick={onAdd} disabled={actionsDisabled}>Novo cliente</Button>}
       />
 
       <section className="surface-card">
@@ -43,10 +58,10 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
                 <small>{client.address}</small>
               </div>
               <div className="entity-actions">
-                <button type="button" className="icon-button icon-button-neutral" aria-label={`Editar ${client.name}`} title="Editar cliente" onClick={() => onEdit(client)}>
+                <button type="button" className="icon-button icon-button-neutral" aria-label={`Editar ${client.name}`} title="Editar cliente" onClick={() => onEdit(client)} disabled={actionsDisabled}>
                   <Icon name="edit" size={17} />
                 </button>
-                <button type="button" className="icon-button icon-button-danger" aria-label={`Excluir ${client.name}`} title="Excluir cliente" onClick={() => onDelete(client.id)}>
+                <button type="button" className="icon-button icon-button-danger" aria-label={`Excluir ${client.name}`} title="Excluir cliente" onClick={() => handleDelete(client.id)} disabled={actionsDisabled}>
                   <Icon name="trash" size={17} />
                 </button>
               </div>

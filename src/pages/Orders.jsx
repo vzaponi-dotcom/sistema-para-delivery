@@ -36,11 +36,24 @@ const finishedTime = (order) => {
 
 function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onDeleteOrder }) {
   const [now, setNow] = useState(() => new Date())
+  const [pendingAction, setPendingAction] = useState(null)
+  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+  const actionsDisabled = writeDisabled || pendingAction !== null
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000)
     return () => window.clearInterval(timer)
   }, [])
+
+  const runAction = async (key, action) => {
+    if (actionsDisabled) return
+    setPendingAction(key)
+    try {
+      await action()
+    } finally {
+      setPendingAction(null)
+    }
+  }
 
   const normalizedSearch = search.trim().toLowerCase()
 
@@ -83,7 +96,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
         eyebrow="Operação"
         title="Pedidos em preparo"
         description="Acompanhe a fila pela hora real de entrada. O indicador muda automaticamente conforme o tempo, sem exigir nenhuma atualização manual."
-        actions={<Button icon="plus" onClick={onNewOrder}>Novo pedido</Button>}
+        actions={<Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>}
       />
 
       <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
@@ -162,7 +175,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                   </div>
 
                   <div className="order-queue-actions">
-                    <Button onClick={() => onFinalizeOrder(order.id)}>
+                    <Button disabled={actionsDisabled} onClick={() => runAction(`finish:${order.id}`, () => onFinalizeOrder(order.id))}>
                       {getFinalActionLabel(order)}
                     </Button>
                     <button
@@ -170,7 +183,8 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                       className="icon-button icon-button-danger"
                       aria-label={`Excluir pedido de ${order.client}`}
                       title="Excluir pedido"
-                      onClick={() => onDeleteOrder(order.id)}
+                      onClick={() => runAction(`delete:${order.id}`, () => onDeleteOrder(order.id))}
+                      disabled={actionsDisabled}
                     >
                       <Icon name="trash" size={17} />
                     </button>
@@ -220,7 +234,8 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                 className="icon-button icon-button-danger"
                 aria-label={`Excluir pedido finalizado de ${order.client}`}
                 title="Excluir pedido"
-                onClick={() => onDeleteOrder(order.id)}
+                onClick={() => runAction(`delete:${order.id}`, () => onDeleteOrder(order.id))}
+                disabled={actionsDisabled}
               >
                 <Icon name="trash" size={16} />
               </button>

@@ -4,13 +4,15 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 
 function Finance({ totals, movements, currency, onAddMovement }) {
+  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+
   return (
     <>
       <PageHeader
         eyebrow="Financeiro"
         title="Fluxo de caixa"
         description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber."
-        actions={<Button icon="plus" onClick={onAddMovement}>Novo movimento</Button>}
+        actions={<Button icon="plus" onClick={onAddMovement} disabled={writeDisabled}>Novo movimento</Button>}
       />
 
       <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">

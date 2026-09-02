@@ -7,13 +7,15 @@ import Icon from '../components/Icon'
 import { formatOrderDate } from '../utils/orderWorkflow'
 
 function Dashboard({ totals, orders, currency, onNewOrder }) {
+  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+
   return (
     <>
       <PageHeader
         eyebrow="Resumo do dia"
         title="Visão geral da operação"
         description="Veja o que vendeu, o que já entrou no caixa e o que ainda precisa ser recebido."
-        actions={<Button icon="plus" onClick={onNewOrder}>Novo pedido</Button>}
+        actions={<Button icon="plus" onClick={onNewOrder} disabled={writeDisabled}>Novo pedido</Button>}
       />
 
       <section className="stats-grid" aria-label="Indicadores principais">
