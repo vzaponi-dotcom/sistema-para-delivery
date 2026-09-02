@@ -37,7 +37,7 @@
 }
 
 .dashboard-period-option {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border: 0;
   border-radius: 10px;
@@ -50,6 +50,12 @@
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-sm);
+}
+
+.dashboard-period-option:focus-visible,
+.dashboard-privacy-toggle:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  outline-offset: 2px;
 }
 
 .dashboard-period-stats {
@@ -87,6 +93,10 @@
 .dashboard-chart-axis {
   fill: var(--muted);
   font-size: 11px;
+}
+
+.dashboard-chart-x-label {
+  pointer-events: none;
 }
 
 .dashboard-line-chart {
@@ -193,4 +203,61 @@
 
 .dashboard-recent-section {
   margin-top: 0;
+}
+
+@media (max-width: 820px) {
+  .dashboard-performance-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-period-selector {
+    width: 100%;
+  }
+
+  .dashboard-period-option {
+    flex: 1;
+  }
+
+  .dashboard-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-performance-section {
+    margin-top: 24px;
+  }
+
+  .dashboard-period-selector {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-period-option {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 0.78rem;
+  }
+
+  .dashboard-chart-card .section-heading {
+    gap: 8px;
+  }
+
+  .dashboard-chart-axis {
+    font-size: 10px;
+  }
+
+  .dashboard-horizontal-bar-copy,
+  .dashboard-payment-legend-row {
+    align-items: flex-start;
+  }
+
+  .dashboard-payment-legend-row {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-payment-legend-row strong {
+    margin-left: 20px;
+  }
 }
