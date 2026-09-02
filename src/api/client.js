@@ -36,4 +36,5 @@ export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiR
 export const updateOrderStatus = (id, status = 'Finalizado') => apiRequest(`/api/orders/${encodeURIComponent(id)}/status`, withJson('PATCH', { status }))
 export const deleteOrder = (id) => apiRequest(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE' })
 export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
+export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))

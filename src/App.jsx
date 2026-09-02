@@ -39,6 +39,7 @@ import {
   login as loginApi,
   logout as logoutApi,
   registerPayment as registerPaymentApi,
+  registerTableTabPayment as registerTableTabPaymentApi,
   updateClient as updateClientApi,
   updateOrderStatus as updateOrderStatusApi,
   updateProduct as updateProductApi,
@@ -73,6 +74,7 @@ function App() {
   const [products, setProducts] = useState([])
   const [clients, setClients] = useState([])
   const [orders, setOrders] = useState([])
+  const [tableTabs, setTableTabs] = useState([])
   const [movements, setMovements] = useState([])
   const [activeTab, setActiveTab] = useState('dashboard')
   const [checkoutKey, setCheckoutKey] = useState(null)
@@ -101,6 +103,7 @@ function App() {
     setProducts([])
     setClients([])
     setOrders([])
+    setTableTabs([])
     setMovements([])
     setCheckoutKey(null)
     setPaymentOrderId(null)
@@ -114,6 +117,7 @@ function App() {
     setClients(Array.isArray(data?.clients) ? data.clients : [])
     setProducts(Array.isArray(data?.products) ? data.products : [])
     setOrders(Array.isArray(data?.orders) ? data.orders : [])
+    setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
     setMovements(Array.isArray(data?.movements) ? data.movements : [])
     setBootstrapState('ready')
   }
@@ -375,6 +379,27 @@ function App() {
     }
   }
 
+  const handleRegisterTableTabPayment = async (tableTabId, method) => {
+    if (writesBlocked) return false
+    setRequestKey(`table-tab:payment:${tableTabId}`)
+    try {
+      const result = await registerTableTabPaymentApi(tableTabId, method)
+      setOrders((current) => current.map((item) => result.orders.find((order) => order.id === item.id) ?? item))
+      setMovements((current) => {
+        const ids = new Set(current.map((item) => item.id))
+        return [...result.movements.filter((item) => !ids.has(item.id)), ...current]
+      })
+      setTableTabs((current) => current.map((tab) => tab.id === result.tableTab.id ? result.tableTab : tab))
+      showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`)
+      return true
+    } catch (error) {
+      showApiError(error)
+      return false
+    } finally {
+      setRequestKey(null)
+    }
+  }
+
   const resetClientForm = () => {
     setEditingClientId(null)
     setNewClient({ name: '', phone: '', address: '' })
@@ -624,6 +649,7 @@ function App() {
           <NewOrder
             clients={clients}
             products={products}
+            tableTabs={tableTabs}
             currency={currency}
             disabled={writesBlocked}
             onCancel={() => { setCheckoutKey(null); setActiveTab('orders') }}
@@ -633,7 +659,7 @@ function App() {
         )}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
-        {activeTab === 'receivables' && <Receivables orders={orders} currency={currency} onRegisterPayment={openPaymentModal} />}
+        {activeTab === 'receivables' && <Receivables orders={orders} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} />}
 
         {paymentOrder && (
