@@ -1,6 +1,9 @@
 name: Deploy production
 
 on:
+  push:
+    branches:
+      - deploy/operations-ux-round-20260902
   workflow_dispatch:
 
 permissions:
