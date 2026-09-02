@@ -75,7 +75,7 @@ test('auth and CRUD endpoint helpers use the expected routes and methods', async
   ])
 })
 
-test('order helper sends one stable idempotency key and finance helpers target order routes', async () => {
+test('order helper sends the cart unchanged with one stable idempotency key', async () => {
   const calls = []
   await withFetch(async (...args) => {
     calls.push(args)
@@ -83,7 +83,13 @@ test('order helper sends one stable idempotency key and finance helpers target o
     if (path === '/api/orders') return new Response(JSON.stringify({ order: { id: 'o1' } }), { status: 201, headers: { 'content-type': 'application/json' } })
     return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
   }, async () => {
-    await createOrder({ clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 2, orderDate: '2026-09-01' }, 'request-key')
+    await createOrder({
+      clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01',
+      items: [{ productId: 'p1', quantity: 2, note: 'sem cebola' }],
+      deliveryFee: 8,
+      adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: '' },
+      paymentMethod: 'Pix',
+    }, 'checkout-key')
     await updateOrderStatus('o1', 'Finalizado')
     await deleteOrder('o1')
     await registerPayment('o1', 'Pix')
@@ -92,8 +98,10 @@ test('order helper sends one stable idempotency key and finance helpers target o
 
   const [orderPath, orderOptions] = calls[0]
   assert.equal(orderPath, '/api/orders')
-  assert.equal(orderOptions.headers['idempotency-key'], 'request-key')
+  assert.equal(orderOptions.headers['idempotency-key'], 'checkout-key')
   assert.equal(orderOptions.headers['content-type'], 'application/json')
+  assert.deepEqual(JSON.parse(orderOptions.body).items, [{ productId: 'p1', quantity: 2, note: 'sem cebola' }])
+  assert.equal(JSON.parse(orderOptions.body).paymentMethod, 'Pix')
   assert.deepEqual(calls.slice(1).map(([path, options]) => [path, options.method]), [
     ['/api/orders/o1/status', 'PATCH'],
     ['/api/orders/o1', 'DELETE'],
