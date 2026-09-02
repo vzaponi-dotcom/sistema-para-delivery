@@ -2,6 +2,11 @@ name: Deploy production
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/deploy-production.yml
 
 permissions:
   contents: read
