@@ -46,19 +46,6 @@ function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
         ))}
       </nav>
 
-      {onLogout && (
-        <button
-          className="sidebar-mobile-logout"
-          type="button"
-          aria-label="Sair do sistema"
-          title="Sair do sistema"
-          onClick={onLogout}
-          disabled={logoutDisabled}
-        >
-          Sair
-        </button>
-      )}
-
       <div className="sidebar-footer">
         <span>Operação</span>
         <strong>Comida caseira, gestão simples.</strong>
