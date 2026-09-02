@@ -34,6 +34,16 @@ export const formatOrderTime = (value) => {
   return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`
 }
 
+export const formatElapsedDuration = (elapsedMinutes) => {
+  const minutes = Math.max(0, Math.floor(Number(elapsedMinutes) || 0))
+  if (minutes < 1) return 'agora'
+  if (minutes < 60) return `${minutes} min`
+
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  return `${hours}h ${pad(remainder)} min`
+}
+
 export const normalizeOrderDate = (value, now = new Date()) => {
   const today = toLocalDateValue(now)
   if (!isValidDateValue(value)) return today
