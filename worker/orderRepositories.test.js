@@ -10,6 +10,7 @@ class OrderDb {
     this.items = new Map()
     this.payments = new Map()
     this.movements = new Map()
+    this.tableTabs = new Map()
     this.batchCalls = []
   }
 
@@ -20,6 +21,16 @@ class OrderDb {
         return {
           sql, values,
           async first() {
+            if (sql.includes('COUNT(*) AS count')) {
+              const [businessId, tableTabId] = values
+              const count = [...db.orders.values()].filter((order) => order.business_id === businessId && order.table_tab_id === tableTabId && ![...db.payments.values()].some((payment) => payment.business_id === businessId && payment.order_id === order.id)).length
+              return { count }
+            }
+            if (sql.includes('FROM table_tabs')) {
+              const [id, businessId] = values
+              const row = db.tableTabs.get(id)
+              return row?.business_id === businessId ? row : null
+            }
             if (sql.includes('FROM clients')) { const [id, businessId] = values; const row = db.clients.get(id); return row?.business_id === businessId ? row : null }
             if (sql.includes('FROM products')) { const [id, businessId] = values; const row = db.products.get(id); return row?.business_id === businessId && row.active === 1 ? row : null }
             if (sql.includes('idempotency_key')) { const [businessId, key] = values; return [...db.orders.values()].find((row) => row.business_id === businessId && row.idempotency_key === key) ?? null }
@@ -44,8 +55,8 @@ class OrderDb {
 
   async batch(statements) {
     this.batchCalls.push(statements)
-    const snapshots = { orders: new Map(this.orders), items: new Map(this.items), payments: new Map(this.payments), movements: new Map(this.movements) }
-    try { return await Promise.all(statements.map((statement) => statement.run())) } catch (error) { this.orders = snapshots.orders; this.items = snapshots.items; this.payments = snapshots.payments; this.movements = snapshots.movements; throw error }
+    const snapshots = { orders: new Map(this.orders), items: new Map(this.items), payments: new Map(this.payments), movements: new Map(this.movements), tableTabs: new Map([...this.tableTabs].map(([id, tab]) => [id, { ...tab }])) }
+    try { return await Promise.all(statements.map((statement) => statement.run())) } catch (error) { this.orders = snapshots.orders; this.items = snapshots.items; this.payments = snapshots.payments; this.movements = snapshots.movements; this.tableTabs = snapshots.tableTabs; throw error }
   }
 
   async _run(sql, values) {
@@ -66,6 +77,10 @@ class OrderDb {
       const [id, businessId, orderId, amount, method, paidAt, createdAt] = values; if ([...this.payments.values()].some((row) => row.order_id === orderId)) throw new Error('UNIQUE constraint failed'); this.payments.set(id, { id, business_id: businessId, order_id: orderId, amount_cents: amount, method, paid_at: paidAt, created_at: createdAt })
     } else if (sql.includes('INSERT INTO movements')) {
       const [id, businessId, type, category, description, value, source, orderId, paymentId, movementDate, createdAt] = values; this.movements.set(id, { id, business_id: businessId, type, category, description, value_cents: value, source, order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: createdAt })
+    } else if (sql.includes('UPDATE table_tabs SET status')) {
+      const [closedAt, updatedAt, id, businessId] = values
+      const tab = this.tableTabs.get(id)
+      if (tab?.business_id === businessId && tab.status === 'open') Object.assign(tab, { status: 'closed', closed_at: tab.closed_at || closedAt, updated_at: updatedAt })
     }
     return { success: true }
   }
@@ -88,6 +103,25 @@ test('payment uses official total and duplicate payment creates no second moveme
   const result = await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix', new Date('2026-09-01T20:05:00.000Z'))
   assert.equal(result.payment.amount, 64); assert.equal(result.movement.value, 64); assert.equal(result.order.paymentStatus, 'Pago'); assert.equal(db.movements.size, 1)
   await assert.rejects(() => registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix'), (error) => error.status === 409 && error.code === 'ORDER_ALREADY_PAID'); assert.equal(db.movements.size, 1)
+})
+
+test('deleting the only order closes its open table tab', async () => {
+  const db = new OrderDb()
+  db.tableTabs.set('tab-1', { id: 'tab-1', business_id: 'amor-e-sabor', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null })
+  db.orders.set('o1', { id: 'o1', business_id: 'amor-e-sabor', table_tab_id: 'tab-1' })
+
+  assert.equal(await deleteOrder(db, 'amor-e-sabor', 'o1'), true)
+  assert.equal(db.tableTabs.get('tab-1').status, 'closed')
+})
+
+test('deleting one of two table orders keeps the tab open', async () => {
+  const db = new OrderDb()
+  db.tableTabs.set('tab-1', { id: 'tab-1', business_id: 'amor-e-sabor', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null })
+  db.orders.set('o1', { id: 'o1', business_id: 'amor-e-sabor', table_tab_id: 'tab-1' })
+  db.orders.set('o2', { id: 'o2', business_id: 'amor-e-sabor', table_tab_id: 'tab-1' })
+
+  assert.equal(await deleteOrder(db, 'amor-e-sabor', 'o1'), true)
+  assert.equal(db.tableTabs.get('tab-1').status, 'open')
 })
 
 test('finalization is idempotent and delete removes automatic movement', async () => {
