@@ -1,6 +1,7 @@
 const encoder = new TextEncoder()
 const PIN_ALGORITHM = 'pbkdf2-sha256'
-const PIN_ITERATIONS = 210000
+// Cloudflare Workers Web Crypto rejects PBKDF2 iteration counts above 100,000.
+const PIN_ITERATIONS = 100000
 const PIN_SALT_BYTES = 16
 const PIN_KEY_BYTES = 32
 const SESSION_COOKIE_NAME = 'amor_session'
