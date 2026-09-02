@@ -24,7 +24,7 @@
 - Problemas repetidos em duas ou mais telas devem ser corrigidos na base compartilhada ou componente comum.
 - Desktop não pode sofrer regressões funcionais ou visuais relevantes.
 - Todo bug real identificado durante a execução recebe teste de regressão antes da correção ou no mesmo ciclo TDD.
-- Cada tarefa deve terminar com testes, lint/build relevantes e commit independente antes da revisão.
+- Cada tarefa termina com testes relevantes e `npm test`, `npm run lint` e `npm run build` verdes antes da revisão.
 
 ---
 
@@ -32,42 +32,53 @@
 
 ### Fundação compartilhada
 
-- **Create:** `src/mobile-foundation.css` — único dono de tokens e regras estruturais mobile compartilhadas: viewport, safe area, conteúdo, touch targets genéricos, overlays e scroll padding.
-- **Modify:** `src/App.jsx` — importar a fundação compartilhada e manter formulários globais semanticamente adequados ao mobile.
-- **Modify:** `src/index.css` — manter apenas tokens globais de tema/base e remover regra mobile duplicada de overflow depois da migração.
-- **Modify:** `src/App.css` — remover regras estruturais mobile duplicadas de modal/form/viewport e manter estilos de componentes/layout gerais.
-- **Modify:** `src/mobile-navigation.css` — manter apenas regras específicas da navegação e animação mobile; consumir tokens da fundação.
+- **Create:** `src/mobile-foundation.css` — único dono de tokens e regras estruturais mobile compartilhadas: viewport, safe area, conteúdo, overlays e scroll padding.
+- **Create:** `src/mobileFoundation.test.js` — regressões dos tokens e propriedade das regras estruturais.
+- **Modify:** `src/App.jsx` — importar a fundação e melhorar semântica de inputs globais.
+- **Modify:** `src/index.css` — manter apenas base global e remover overflow mobile duplicado depois da migração.
+- **Modify:** `src/App.css` — manter estilos visuais gerais; remover regras estruturais mobile que forem transferidas para a fundação.
+- **Modify:** `src/mobile-navigation.css` — manter navegação/animação específicas e consumir tokens compartilhados.
 - **Modify:** `src/dashboard.css` — consumir tokens compartilhados para o FAB.
-- **Test:** `src/mobileFoundation.test.js` — regressões de tokens, overflow, safe area, touch targets e ausência de duplicação estrutural.
-- **Modify/Test:** `src/mobileStabilityRegression.test.js`, `src/mobilePageMotion.test.js` — alinhar testes existentes ao novo dono das regras.
+- **Modify/Test:** `src/mobileStabilityRegression.test.js`, `src/mobilePageMotion.test.js` — apontar para o novo dono das regras sem reduzir cobertura.
 
 ### Overlays e selects
 
-- **Modify:** `src/components/Modal.jsx` — foco inicial/restauração, Escape, bloqueio de scroll de fundo e semântica consistente.
-- **Modify:** `src/components/BottomSheet.jsx` — reutilizar comportamento compartilhado de overlay e manter focus trap.
-- **Modify:** `src/components/SystemSelect.jsx` — preservar BottomSheet no mobile e foco do trigger após fechamento.
-- **Modify:** `src/bottom-sheet.css`, `src/system-select.css` — altura por `dvh`, scroll interno, overscroll containment e touch targets.
-- **Create:** `src/mobileOverlayRegression.test.js` — regressões de portal, foco, body scroll lock, altura dinâmica e scroll interno.
+- **Create:** `src/mobileOverlayRegression.test.js` — portal, foco, Escape, scroll lock, `dvh` e scroll interno.
+- **Modify:** `src/components/Modal.jsx`
+- **Modify:** `src/components/BottomSheet.jsx`
+- **Modify:** `src/components/SystemSelect.jsx`
+- **Modify:** `src/bottom-sheet.css`
+- **Modify:** `src/system-select.css`
+- **Modify/Test:** `src/bottomSheet.test.js`, `src/systemSelect.test.js`
 
-### Fluxos e páginas
+### Fluxos críticos
 
-- **Modify:** `src/pages/NewOrder.jsx`, `src/new-order.css`, `src/components/OrderCart.jsx`, `src/components/OrderCheckoutSummary.jsx`, `src/components/OrderProductCatalog.jsx`.
-- **Create:** `src/pages/NewOrderMobile.test.js`.
-- **Modify:** `src/pages/Orders.jsx`, `src/order-operations.css`, `src/order-operations-compact.css`, `src/components/OrderDetail.jsx`.
-- **Create:** `src/pages/OrdersMobile.test.js`.
-- **Modify:** `src/pages/Receivables.jsx`, `src/receivables.css`.
-- **Create:** `src/pages/ReceivablesMobile.test.js`.
-- **Modify:** `src/pages/Dashboard.jsx`, `src/dashboard.css`, componentes de gráficos somente se a auditoria mostrar necessidade de composição.
-- **Create:** `src/pages/DashboardMobile.test.js`.
-- **Modify:** `src/pages/Clients.jsx`, `src/clients-phonebook.css`, `src/pages/Products.jsx`, `src/product-form.css`.
-- **Create:** `src/pages/ClientsProductsMobile.test.js`.
-- **Modify:** `src/pages/Finance.jsx`, `src/components/MobileNavigation.jsx`, `src/mobile-navigation.css`, formulários globais em `src/App.jsx`/`src/App.css`.
-- **Create:** `src/pages/FinanceMoreMobile.test.js`.
+- **Modify:** `src/pages/NewOrder.jsx`, `src/new-order.css`, `src/components/OrderProductCatalog.jsx`, `src/components/OrderCart.jsx`, `src/components/OrderCheckoutSummary.jsx`
+- **Create/Test:** `src/pages/NewOrderMobile.test.js`
+- **Modify/Test:** `src/pages/NewOrder.test.js`
+- **Modify:** `src/pages/Orders.jsx`, `src/order-operations.css`, `src/order-operations-compact.css`, `src/components/OrderDetail.jsx`
+- **Create/Test:** `src/pages/OrdersMobile.test.js`
+- **Modify/Test:** `src/pages/OrdersMultiItem.test.js`
+- **Modify:** `src/pages/Receivables.jsx`, `src/receivables.css`, formulários de pagamento em `src/App.jsx`
+- **Create/Test:** `src/pages/ReceivablesMobile.test.js`
+- **Modify/Test:** `src/pages/ReceivablesDetails.test.js`
 
-### Validação final
+### Demais telas
 
-- **Create:** `docs/superpowers/qa/2026-09-02-mobile-ux-audit-checklist.md` — matriz manual por viewport, tela, teclado, tema e estados.
-- **Modify:** testes de regressão existentes somente quando a nova arquitetura mover a responsabilidade sem reduzir cobertura.
+- **Modify:** `src/pages/Dashboard.jsx`, `src/dashboard.css`; componentes de gráfico somente se a composição em 320 px exigir mudança.
+- **Create/Test:** `src/pages/DashboardMobile.test.js`
+- **Modify/Test:** `src/pages/DashboardAnalytics.test.js`
+- **Modify:** `src/pages/Clients.jsx`, `src/clients-phonebook.css`, `src/pages/Products.jsx`, `src/product-form.css`
+- **Create/Test:** `src/pages/ClientsProductsMobile.test.js`
+- **Modify/Test:** `src/clientsPhonebook.test.js`, `src/productCatalogUi.test.js`
+- **Modify:** `src/pages/Finance.jsx`, `src/components/MobileNavigation.jsx`, `src/mobile-navigation.css`, formulários globais em `src/App.jsx`/`src/App.css`
+- **Create/Test:** `src/pages/FinanceMoreMobile.test.js`
+- **Modify/Test:** `src/mobileNavigation.test.js`
+
+### Consistência e QA
+
+- **Create:** `src/mobileConsistencyRegression.test.js`
+- **Create:** `docs/superpowers/qa/2026-09-02-mobile-ux-audit-checklist.md`
 
 ---
 
@@ -85,8 +96,8 @@
 - Modify: `src/mobilePageMotion.test.js`
 
 **Interfaces:**
-- Consumes: classes atuais `.app-shell`, `.app-main`, `.app-content`, `.mobile-bottom-nav`, `.modal-backdrop`, `.modal-card`, `.dashboard-new-order-fab`.
-- Produces: CSS custom properties `--mobile-bottom-nav-height`, `--mobile-safe-bottom`, `--mobile-content-bottom-space`, `--mobile-floating-gap`, `--mobile-page-inline`, `--mobile-touch-target`, `--mobile-overlay-inset`, `--mobile-overlay-max-height`, `--layer-mobile-nav`, `--layer-overlay`, `--layer-toast`.
+- Consumes: `.app-shell`, `.app-main`, `.app-content`, `.mobile-bottom-nav`, `.modal-backdrop`, `.modal-card`, `.dashboard-new-order-fab`.
+- Produces: `--mobile-bottom-nav-height`, `--mobile-safe-bottom`, `--mobile-content-bottom-space`, `--mobile-floating-gap`, `--mobile-page-inline`, `--mobile-touch-target`, `--mobile-overlay-inset`, `--mobile-overlay-max-height`, `--layer-mobile-nav`, `--layer-overlay`, `--layer-toast`.
 
 - [ ] **Step 1: escrever o teste RED da fundação compartilhada**
 
@@ -109,18 +120,16 @@ test('mobile foundation owns shared viewport safe-area and layer tokens', async 
   assert.match(css, /html,\s*body,\s*#root\s*\{[^}]*overflow-x:\s*clip/s)
 })
 
-test('shared structural rules are not duplicated in navigation or dashboard css', async () => {
-  const mobileNav = await read('./mobile-navigation.css')
+test('shared structural rules are not duplicated in navigation css', async () => {
+  const navigation = await read('./mobile-navigation.css')
   const dashboard = await read('./dashboard.css')
-  assert.doesNotMatch(mobileNav, /--mobile-bottom-nav-height:\s*65px/)
+  assert.doesNotMatch(navigation, /--mobile-bottom-nav-height:\s*65px/)
   assert.match(dashboard, /var\(--mobile-bottom-nav-height\)/)
   assert.match(dashboard, /var\(--mobile-floating-gap\)/)
 })
 ```
 
-- [ ] **Step 2: executar o teste e confirmar RED**
-
-Run:
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/mobileFoundation.test.js
@@ -128,9 +137,9 @@ node --test src/mobileFoundation.test.js
 
 Expected: FAIL porque `src/mobile-foundation.css` ainda não existe.
 
-- [ ] **Step 3: criar a fundação mínima e importar no app**
+- [ ] **Step 3: criar a fundação mínima**
 
-Criar `src/mobile-foundation.css` com a propriedade estrutural centralizada:
+Criar `src/mobile-foundation.css`:
 
 ```css
 @media (max-width: 820px) {
@@ -169,11 +178,11 @@ Criar `src/mobile-foundation.css` com a propriedade estrutural centralizada:
 }
 ```
 
-Importar `./mobile-foundation.css` em `src/App.jsx` junto dos CSS globais do app. Remover de `src/index.css` e `src/mobile-navigation.css` as regras estruturais que passam a ter dono único na fundação.
+Importar `./mobile-foundation.css` em `src/App.jsx` junto aos estilos globais da aplicação.
 
-- [ ] **Step 4: migrar consumidores para tokens e eliminar conflitos de cascata**
+- [ ] **Step 4: migrar consumidores e remover duplicação**
 
-Em `src/mobile-navigation.css` usar:
+Em `src/mobile-navigation.css`:
 
 ```css
 .mobile-bottom-nav {
@@ -181,7 +190,7 @@ Em `src/mobile-navigation.css` usar:
 }
 ```
 
-Em `src/dashboard.css` usar:
+Em `src/dashboard.css`:
 
 ```css
 @media (max-width: 820px) {
@@ -191,33 +200,24 @@ Em `src/dashboard.css` usar:
 }
 ```
 
-Remover de `src/App.css` e `src/mobile-navigation.css` as versões mobile conflitantes de `.modal-backdrop`, `.modal-card`, `.app-main` e `.app-content` que tenham responsabilidade estrutural compartilhada; o estilo visual não estrutural permanece no arquivo original.
+Remover de `src/index.css`, `src/App.css` e `src/mobile-navigation.css` somente as versões estruturais que agora têm dono em `mobile-foundation.css`; não remover estilos visuais de desktop.
 
-- [ ] **Step 5: atualizar regressões existentes sem reduzir cobertura**
+- [ ] **Step 5: atualizar testes existentes para o novo dono**
 
-Atualizar `src/mobileStabilityRegression.test.js` e `src/mobilePageMotion.test.js` para ler `mobile-foundation.css` quando verificarem tokens, viewport ou modal compartilhado; manter `mobile-navigation.css` para swipe/animação e `dashboard.css` para o FAB.
+Em `src/mobileStabilityRegression.test.js` e `src/mobilePageMotion.test.js`, ler `mobile-foundation.css` para tokens/viewport e continuar lendo `mobile-navigation.css` para navegação/animação e `dashboard.css` para FAB.
 
-- [ ] **Step 6: executar testes da fundação e regressões mobile**
-
-Run:
+- [ ] **Step 6: executar GREEN focado e suíte completa**
 
 ```bash
 node --test src/mobileFoundation.test.js src/mobileStabilityRegression.test.js src/mobilePageMotion.test.js
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: executar suíte completa, lint e build**
-
-```bash
 npm test
 npm run lint
 npm run build
 ```
 
-Expected: todos verdes.
+Expected: 0 falhas.
 
-- [ ] **Step 8: commit**
+- [ ] **Step 7: commit**
 
 ```bash
 git add src/mobile-foundation.css src/mobileFoundation.test.js src/App.jsx src/index.css src/App.css src/mobile-navigation.css src/dashboard.css src/mobileStabilityRegression.test.js src/mobilePageMotion.test.js
@@ -240,12 +240,12 @@ git commit -m "refactor: centralize mobile layout foundation"
 - Modify: `src/systemSelect.test.js`
 
 **Interfaces:**
-- Consumes: `Modal({ title, onClose, children, footer })`, `BottomSheet({ open, title, onClose, children })`, `SystemSelect({ value, options, onChange, disabled, label, id, placeholder })`.
-- Produces: overlays portalizados com Escape, foco inicial/restaurado, fundo sem scroll enquanto abertos e conteúdo rolável dentro de `dvh`.
+- Consumes: APIs públicas atuais de `Modal`, `BottomSheet` e `SystemSelect`.
+- Produces: overlays portalizados com Escape, foco restaurado, fundo travado e conteúdo rolável dentro de `dvh`; `SystemSelect` continua usando BottomSheet em `max-width: 820px`.
 
 - [ ] **Step 1: escrever regressões RED de overlay**
 
-Criar `src/mobileOverlayRegression.test.js` verificando explicitamente:
+Criar `src/mobileOverlayRegression.test.js`:
 
 ```js
 import test from 'node:test'
@@ -280,45 +280,29 @@ test('mobile overlays use dynamic viewport and internal scrolling', async () => 
 node --test src/mobileOverlayRegression.test.js
 ```
 
-Expected: FAIL nas novas expectativas de scroll lock/foco/modal foundation.
+Expected: FAIL nas novas expectativas.
 
-- [ ] **Step 3: implementar lifecycle de Modal**
+- [ ] **Step 3: implementar lifecycle acessível em Modal**
 
-Em `src/components/Modal.jsx`, usar `useEffect` e `useRef` para registrar foco anterior, focar o botão de fechar, ouvir Escape, travar `document.body.style.overflow = 'hidden'` e restaurar os valores no cleanup. Não alterar a API pública do componente.
+Adicionar `useEffect`/`useRef`, registrar foco anterior, focar o primeiro controle do diálogo, fechar por Escape, fazer trap de Tab entre primeiro/último controle e travar/restaurar `document.body.style.overflow`. Manter `createPortal(..., document.body)` e a API atual.
 
-Estrutura esperada:
+Estrutura de cleanup obrigatória:
 
 ```jsx
-const cardRef = useRef(null)
-const previousFocus = useRef(null)
-
-useEffect(() => {
-  previousFocus.current = document.activeElement
-  const previousOverflow = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
-  cardRef.current?.querySelector('button, input, textarea, [tabindex]:not([tabindex="-1"])')?.focus()
-
-  const handleKeyDown = (event) => {
-    if (event.key === 'Escape') onClose()
-  }
-  document.addEventListener('keydown', handleKeyDown)
-  return () => {
-    document.removeEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = previousOverflow
-    previousFocus.current?.focus?.()
-  }
-}, [onClose])
+return () => {
+  document.removeEventListener('keydown', handleKeyDown)
+  document.body.style.overflow = previousOverflow
+  previousFocus.current?.focus?.()
+}
 ```
 
-Adicionar `ref={cardRef}` em `.modal-card`.
+- [ ] **Step 4: alinhar BottomSheet sem duplicar efeitos concorrentes**
 
-- [ ] **Step 4: alinhar BottomSheet ao mesmo contrato sem quebrar focus trap**
-
-Manter o trap existente e adicionar preservação/restauração do `document.body.style.overflow` dentro do mesmo `useEffect`, evitando um segundo efeito concorrente.
+No efeito existente de `BottomSheet`, adicionar preservação/restauração do overflow do body e manter o focus trap atual. Um único efeito deve cuidar de Escape, Tab, scroll lock e foco.
 
 - [ ] **Step 5: centralizar sizing mobile de modal**
 
-Adicionar em `src/mobile-foundation.css`:
+Adicionar à fundação:
 
 ```css
 @media (max-width: 640px) {
@@ -343,13 +327,13 @@ Adicionar em `src/mobile-foundation.css`:
 }
 ```
 
-Remover a versão conflitante mobile de modal de `App.css`.
+Remover a regra mobile conflitante de `.modal-backdrop/.modal-card` de `App.css` e `mobile-navigation.css`.
 
-- [ ] **Step 6: garantir options confortáveis no SystemSelect mobile**
+- [ ] **Step 6: padronizar opções mobile**
 
-Em `src/system-select.css` e `src/bottom-sheet.css`, garantir `min-height: var(--mobile-touch-target)` nas opções e `overflow-y: auto` no corpo. Não alterar o comportamento desktop do dropdown.
+Em `src/system-select.css` e `src/bottom-sheet.css`, opções acionáveis devem usar `min-height: var(--mobile-touch-target)` e a lista longa deve rolar dentro do `.bottom-sheet-body`, nunca no documento por trás.
 
-- [ ] **Step 7: executar testes focados e suíte completa**
+- [ ] **Step 7: executar GREEN e regressões**
 
 ```bash
 node --test src/mobileOverlayRegression.test.js src/bottomSheet.test.js src/systemSelect.test.js src/mobileStabilityRegression.test.js
@@ -358,7 +342,7 @@ npm run lint
 npm run build
 ```
 
-Expected: PASS.
+Expected: 0 falhas.
 
 - [ ] **Step 8: commit**
 
@@ -381,12 +365,12 @@ git commit -m "fix: harden mobile overlays and selects"
 - Modify: `src/pages/NewOrder.test.js`
 
 **Interfaces:**
-- Consumes: `SystemSelect`, `OrderProductCatalog`, `OrderCart`, `OrderCheckoutSummary`, `buildOrderPayload` e callbacks atuais de `NewOrder`.
-- Produces: fluxo de pedido em uma coluna no mobile, catálogo/carrinho sem overflow, ações finais de largura útil e campos compatíveis com teclado.
+- Consumes: `SystemSelect`, `OrderProductCatalog`, `OrderCart`, `OrderCheckoutSummary`, callbacks atuais e regras atuais de `orderCart`.
+- Produces: fluxo em uma coluna nas telas estreitas, catálogo/carrinho sem overflow, controles de toque confortáveis, teclado adequado e ações finais com texto completo.
 
-- [ ] **Step 1: escrever teste RED de composição mobile do pedido**
+- [ ] **Step 1: escrever teste RED de composição mobile**
 
-Criar `src/pages/NewOrderMobile.test.js` verificando que `new-order.css` possui regras entre 320–480 px para uma coluna, quebra de toolbar, touch targets e ações finais:
+Criar `src/pages/NewOrderMobile.test.js`:
 
 ```js
 import test from 'node:test'
@@ -395,54 +379,37 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('new order becomes one-column touch-first flow on narrow screens', async () => {
+test('new order becomes a one-column touch-first flow on narrow screens', async () => {
   const css = await read('../new-order.css')
   assert.match(css, /@media\s*\(max-width:\s*640px\)/)
-  assert.match(css, /\.new-order-layout\s*\{[^}]*grid-template-columns:\s*1fr/s)
-  assert.match(css, /\.order-product-card[\s\S]*min-width:\s*0/)
-  assert.match(css, /\.order-checkout-actions[\s\S]*\.button[\s\S]*width:\s*100%/)
+  assert.match(css, /grid-template-columns:\s*1fr/)
+  assert.match(css, /min-width:\s*0/)
+  assert.match(css, /min-height:\s*(?:44|48)px/)
+})
+
+test('new order inputs expose mobile-friendly keyboard hints', async () => {
+  const page = await read('./NewOrder.jsx')
+  assert.match(page, /inputMode="tel"/)
+  assert.match(page, /inputMode="decimal"/)
 })
 ```
 
-Adequar os nomes de classes ao markup real existente; não criar uma segunda estrutura paralela só para satisfazer o teste.
-
-- [ ] **Step 2: confirmar RED**
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/pages/NewOrderMobile.test.js
 ```
 
-Expected: pelo menos uma expectativa mobile falha.
+- [ ] **Step 3: ajustar inputs sem mudar regra de negócio**
 
-- [ ] **Step 3: ajustar campos sem mudar regras de negócio**
+Adicionar `inputMode="tel"` em telefone e `inputMode="decimal"` em campos numéricos/monetários já existentes; preservar validação, payload, cálculo e opções de pedido.
 
-No JSX de `NewOrder`, aplicar `inputMode`/tipos adequados aos campos já existentes:
+- [ ] **Step 4: tornar layout e checkout resilientes**
 
-```jsx
-<input type="tel" inputMode="tel" ... />
-<input type="text" autoComplete="name" ... />
-<input type="number" inputMode="decimal" ... />
-```
-
-Não mudar validação de identidade, cálculo, taxa ou pagamento.
-
-- [ ] **Step 4: compactar layout e catálogo em 320–480 px**
-
-Em `src/new-order.css`, garantir:
+Em `src/new-order.css`, em 640 px e abaixo, usar uma coluna, `min-width: 0` nos blocos internos, gap compacto e ações finais com largura total:
 
 ```css
 @media (max-width: 640px) {
-  .new-order-layout {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
-  .order-product-card,
-  .order-cart-item,
-  .order-checkout-summary {
-    min-width: 0;
-  }
-
   .order-checkout-actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -457,24 +424,20 @@ Em `src/new-order.css`, garantir:
 }
 ```
 
-Preservar labels completos de delivery/local e permitir `overflow-wrap: anywhere` apenas em textos longos, não em valores monetários.
+Aplicar aos seletores reais do arquivo; não criar markup mobile duplicado.
 
-- [ ] **Step 5: revisar carrinho e observações por item**
+- [ ] **Step 5: revisar catálogo/carrinho/observação**
 
-No `OrderCart` e CSS associado, manter quantidade e ação principal alinhadas, mas fazer observação expandida ocupar largura completa no mobile. Botões `+`, `−`, remover e observação devem manter área de toque de pelo menos 44 px quando forem ações isoladas.
+`OrderProductCatalog` e `OrderCart` devem manter nome do produto e observação com `min-width: 0` e quebra controlada. Controles isolados de quantidade/remoção/observação devem atingir pelo menos 44 px de área clicável no mobile. Observação expandida deve ocupar a largura disponível.
 
-- [ ] **Step 6: executar testes do fluxo de pedido**
+- [ ] **Step 6: executar testes**
 
 ```bash
-node --test src/pages/NewOrderMobile.test.js src/pages/NewOrder.test.js src/newOrderUxRegression.test.js
+node --test src/pages/NewOrderMobile.test.js src/pages/NewOrder.test.js
 npm test
 npm run lint
 npm run build
 ```
-
-Se `src/newOrderUxRegression.test.js` não existir no repositório, executar apenas os dois arquivos existentes e a suíte completa; não criar um arquivo redundante.
-
-Expected: PASS.
 
 - [ ] **Step 7: commit**
 
@@ -485,7 +448,7 @@ git commit -m "fix: optimize new order flow for mobile"
 
 ---
 
-### Task 4: Melhorar leitura e ações de Pedidos/Cozinha no mobile
+### Task 4: Melhorar leitura e ações de Pedidos/Cozinha
 
 **Files:**
 - Create: `src/pages/OrdersMobile.test.js`
@@ -496,12 +459,12 @@ git commit -m "fix: optimize new order flow for mobile"
 - Modify: `src/pages/OrdersMultiItem.test.js`
 
 **Interfaces:**
-- Consumes: atualização automática atual, `newOrderIds`, toggle de som, funções de status/urgência e `OrderDetail`.
-- Produces: cards densos, ações alinhadas e detalhes expansíveis sem overflow ou reflow desnecessário.
+- Consumes: polling atual, `newOrderIds`, toggle de som, status/urgência e `OrderDetail`.
+- Produces: cards densos e legíveis, ações que quebram de forma segura e detalhes sem overflow.
 
-- [ ] **Step 1: escrever teste RED de card operacional mobile**
+- [ ] **Step 1: escrever teste RED**
 
-Criar `src/pages/OrdersMobile.test.js` com verificações de `min-width: 0`, quebra de ação e textos longos:
+Criar `src/pages/OrdersMobile.test.js`:
 
 ```js
 import test from 'node:test'
@@ -510,51 +473,52 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('active order cards keep actions usable and text contained at 320px', async () => {
+test('order operation css contains narrow-screen action and text containment rules', async () => {
   const compact = await read('../order-operations-compact.css')
   assert.match(compact, /@media\s*\(max-width:\s*640px\)/)
-  assert.match(compact, /\.active-order-card[\s\S]*min-width:\s*0/)
-  assert.match(compact, /\.active-order-actions[\s\S]*(grid-template-columns|flex-wrap)/)
+  assert.match(compact, /min-width:\s*0/)
+  assert.match(compact, /(flex-wrap:\s*wrap|grid-template-columns:)/)
   assert.match(compact, /overflow-wrap:\s*anywhere/)
 })
 ```
 
-Usar os seletores reais do arquivo ao implementar.
-
-- [ ] **Step 2: confirmar RED**
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/pages/OrdersMobile.test.js
 ```
 
-- [ ] **Step 3: compactar cabeçalho/status/tempo sem esconder informação**
+- [ ] **Step 3: compactar cabeçalho/status/tempo**
 
-No CSS operacional, garantir que nome/mesa, status e tempo possam quebrar em duas linhas quando necessário, mantendo valores de tempo e badges legíveis. Não reduzir fonte de informação crítica abaixo do tamanho atual sem necessidade.
+Em telas estreitas, nome/mesa/local pode quebrar; badges e tempo permanecem legíveis. Não esconder status nem tempo de urgência. Reduzir apenas espaços/paddings excessivos.
 
-- [ ] **Step 4: tornar linha de ações resiliente**
+- [ ] **Step 4: tornar ações resilientes**
 
-Em telas estreitas, usar grid/flex wrap para as ações existentes, com `min-height: 44px`. A ação final (`Finalizar`, `Saiu para entrega`, equivalente atual) deve ter espaço para texto completo e não usar `white-space: nowrap` quando isso provocar overflow.
+A linha de ações deve usar grid ou `flex-wrap` e todos os botões operacionais relevantes devem manter ao menos 44 px. Textos como ação final de entrega podem quebrar em duas linhas sem aumentar a largura do card.
 
-- [ ] **Step 5: revisar expansão de detalhes**
+- [ ] **Step 5: revisar OrderDetail compartilhado**
 
-No `OrderDetail`, listas de itens e observações devem ter `min-width: 0`, valores à direita com `white-space: nowrap`, e nomes/observações com `overflow-wrap: anywhere`.
+Itens e observações recebem `min-width: 0` e quebra; valores monetários permanecem sem quebra. Essa correção será reutilizada em A Receber.
 
-- [ ] **Step 6: garantir que refresh não mova scroll por efeito visual**
+- [ ] **Step 6: preservar estabilidade do refresh**
 
-Não inserir `scrollIntoView` nem remontar a lista inteira no polling. Preservar o mecanismo atual de `newOrderIds` e animação pontual; qualquer alteração de markup deve manter keys estáveis por pedido.
+Não adicionar `scrollIntoView` durante polling e manter `key` estável por pedido. A marcação de `newOrderIds` continua pontual, sem remontar a lista inteira.
 
-- [ ] **Step 7: testes e commit**
+- [ ] **Step 7: executar testes**
 
 ```bash
-node --test src/pages/OrdersMobile.test.js src/pages/OrdersMultiItem.test.js src/ordersElapsedRefresh.test.js src/ordersRealtime.test.js
+node --test src/pages/OrdersMobile.test.js src/pages/OrdersMultiItem.test.js
 npm test
 npm run lint
 npm run build
+```
+
+- [ ] **Step 8: commit**
+
+```bash
 git add src/pages/OrdersMobile.test.js src/pages/Orders.jsx src/order-operations.css src/order-operations-compact.css src/components/OrderDetail.jsx src/pages/OrdersMultiItem.test.js
 git commit -m "fix: improve mobile kitchen order ergonomics"
 ```
-
-Se um dos arquivos de teste focado listado tiver nome diferente, localizar o teste existente equivalente antes da execução; não criar duplicata apenas pelo nome.
 
 ---
 
@@ -570,11 +534,11 @@ Se um dos arquivos de teste focado listado tiver nome diferente, localizar o tes
 
 **Interfaces:**
 - Consumes: `Modal`, `SystemSelect`, `OrderDetail`, `onRegisterPayment`, `onRegisterTableTabPayment`.
-- Produces: grupos/linhas de recebíveis legíveis em 320 px e todos os pagamentos executáveis sem scroll do documento por trás.
+- Produces: grupos/linhas de recebíveis legíveis em 320 px e pagamentos executáveis sem depender do scroll da página por trás.
 
-- [ ] **Step 1: escrever regressão RED**
+- [ ] **Step 1: escrever teste RED**
 
-Criar teste que exija composição móvel dos grupos e forma de pagamento via `SystemSelect`, além de ações de largura total no modal:
+Criar `src/pages/ReceivablesMobile.test.js`:
 
 ```js
 import test from 'node:test'
@@ -593,31 +557,36 @@ test('receivables cards and payment actions fit narrow mobile viewports', async 
 })
 ```
 
-- [ ] **Step 2: confirmar RED**
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/pages/ReceivablesMobile.test.js
 ```
 
-- [ ] **Step 3: ajustar cartões/grupos e valores**
+- [ ] **Step 3: ajustar grupos, valores e ações**
 
-Em `receivables.css`, em 640 px e abaixo, permitir que identificação e status ocupem a primeira linha, valor permaneça sem quebra, e ações desçam para uma linha própria. Nenhuma ação deve ficar comprimida abaixo de 44 px.
+Em 640 px e abaixo, identificação/status ficam no bloco principal, valor não quebra e ações podem ocupar linha própria. Nenhuma ação de cobrança deve ficar comprimida abaixo de 44 px.
 
-- [ ] **Step 4: manter modais de pagamento dentro da viewport**
+- [ ] **Step 4: usar apenas os overlays compartilhados**
 
-Aproveitar a fundação da Task 2. No formulário de pagamento em `App.jsx` e no pagamento consolidado em `Receivables.jsx`, manter `.form-actions` em coluna no mobile e usar `SystemSelect` para método de pagamento. Não criar dropdown custom adicional.
+Pagamento individual em `App.jsx` e pagamento consolidado em `Receivables.jsx` continuam em `Modal` + `SystemSelect`. Não criar dropdown ou modal específico alternativo para mobile.
 
-- [ ] **Step 5: preservar detalhe completo sem duplicar lógica**
+- [ ] **Step 5: preservar detalhe completo**
 
-Continuar reutilizando `OrderDetail`; qualquer ajuste para itens longos deve ser feito no componente compartilhado da Task 4.
+Continuar reutilizando `OrderDetail`; qualquer correção de item longo deve permanecer no componente compartilhado da Task 4.
 
-- [ ] **Step 6: testes e commit**
+- [ ] **Step 6: executar testes**
 
 ```bash
-node --test src/pages/ReceivablesMobile.test.js src/pages/ReceivablesDetails.test.js src/tableTabUi.test.js
+node --test src/pages/ReceivablesMobile.test.js src/pages/ReceivablesDetails.test.js
 npm test
 npm run lint
 npm run build
+```
+
+- [ ] **Step 7: commit**
+
+```bash
 git add src/pages/ReceivablesMobile.test.js src/pages/Receivables.jsx src/receivables.css src/App.jsx src/App.css src/pages/ReceivablesDetails.test.js
 git commit -m "fix: stabilize receivables payments on mobile"
 ```
@@ -630,16 +599,16 @@ git commit -m "fix: stabilize receivables payments on mobile"
 - Create: `src/pages/DashboardMobile.test.js`
 - Modify: `src/pages/Dashboard.jsx`
 - Modify: `src/dashboard.css`
-- Modify: `src/components/DashboardBarChart.jsx`
-- Modify: `src/components/DashboardLineChart.jsx`
-- Modify: `src/components/DashboardPaymentMix.jsx`
+- Modify conditionally only if required by 320 px layout: `src/components/DashboardBarChart.jsx`, `src/components/DashboardLineChart.jsx`, `src/components/DashboardPaymentMix.jsx`
 - Modify: `src/pages/DashboardAnalytics.test.js`
 
 **Interfaces:**
-- Consumes: tokens da fundação, FAB portalizado, seletor de período e gráficos SVG/CSS atuais.
-- Produces: dashboard sem overflow, métricas compactas e FAB sempre acima do menu.
+- Consumes: tokens da fundação, FAB portalizado, seletor de período e gráficos atuais.
+- Produces: métricas/gráficos sem overflow e FAB sempre acima da navegação.
 
-- [ ] **Step 1: escrever teste RED de dashboard estreito**
+- [ ] **Step 1: escrever teste RED**
+
+Criar `src/pages/DashboardMobile.test.js`:
 
 ```js
 import test from 'node:test'
@@ -648,7 +617,7 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('dashboard analytics stack and labels stay inside narrow cards', async () => {
+test('dashboard analytics stack and stay inside narrow cards', async () => {
   const css = await read('../dashboard.css')
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-analytics-grid\s*\{[^}]*grid-template-columns:\s*1fr/s)
   assert.match(css, /\.dashboard-chart-card\s*\{[^}]*min-width:\s*0[^}]*overflow:\s*hidden/s)
@@ -664,32 +633,40 @@ node --test src/pages/DashboardMobile.test.js
 
 - [ ] **Step 3: compactar métricas e seletor de período**
 
-Em 640 px e abaixo, reduzir apenas padding/gaps excessivos; manter touch target de 44 px no seletor e controle de privacidade. Não esconder período, labels ou valores.
+Em 640 px e abaixo, reduzir padding/gaps excessivos sem reduzir touch target de 44 px no seletor e no controle de privacidade.
 
-- [ ] **Step 4: revisar SVGs para labels sem overflow**
+- [ ] **Step 4: validar gráficos em 320 px**
 
-Se labels de eixo excederem a largura em 320 px, reduzir número de labels exibidas por cálculo do componente, preservando todos os pontos/barras. Exemplo de regra: mostrar rótulo em índices alternados quando a série tiver mais de 7 pontos e largura for estreita; não remover dados do gráfico.
+Se labels de eixo se chocarem, alterar somente a apresentação dos rótulos, preservando todos os dados do gráfico. Quando houver mais de 7 pontos em largura estreita, o componente pode exibir labels alternadas, sem remover pontos/barras.
 
-- [ ] **Step 5: verificar FAB com os tokens compartilhados**
+- [ ] **Step 5: garantir FAB por token**
 
-Manter portal em `document.body` e posição:
+A regra final continua:
 
 ```css
 bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-floating-gap) + var(--mobile-safe-bottom));
 ```
 
-- [ ] **Step 6: testes e commit**
+O FAB continua portalizado em `document.body`.
+
+- [ ] **Step 6: executar testes**
 
 ```bash
 node --test src/pages/DashboardMobile.test.js src/pages/DashboardAnalytics.test.js src/mobileStabilityRegression.test.js
 npm test
 npm run lint
 npm run build
-git add src/pages/DashboardMobile.test.js src/pages/Dashboard.jsx src/dashboard.css src/components/DashboardBarChart.jsx src/components/DashboardLineChart.jsx src/components/DashboardPaymentMix.jsx src/pages/DashboardAnalytics.test.js
-git commit -m "fix: refine dashboard for narrow mobile screens"
 ```
 
-Se os gráficos não precisarem de mudança JSX após a verificação em 320 px, não editar os três componentes de gráfico; limitar o commit ao CSS/testes necessários.
+- [ ] **Step 7: commit**
+
+Adicionar somente os componentes de gráfico que realmente precisarem de alteração:
+
+```bash
+git add src/pages/DashboardMobile.test.js src/pages/Dashboard.jsx src/dashboard.css src/pages/DashboardAnalytics.test.js
+git add src/components/DashboardBarChart.jsx src/components/DashboardLineChart.jsx src/components/DashboardPaymentMix.jsx 2>/dev/null || true
+git commit -m "fix: refine dashboard for narrow mobile screens"
+```
 
 ---
 
@@ -701,15 +678,18 @@ Se os gráficos não precisarem de mudança JSX após a verificação em 320 px,
 - Modify: `src/clients-phonebook.css`
 - Modify: `src/pages/Products.jsx`
 - Modify: `src/product-form.css`
+- Modify: `src/App.jsx`
 - Modify: `src/App.css`
 - Modify: `src/clientsPhonebook.test.js`
 - Modify: `src/productCatalogUi.test.js`
 
 **Interfaces:**
-- Consumes: `BottomSheet`, `SystemSelect`, modais globais de cliente/produto e catálogo de categorias aprovado.
-- Produces: listas compactas com linhas tocáveis, filtros empilháveis e formulários sem zoom/corte.
+- Consumes: `BottomSheet`, `SystemSelect`, modais globais de cliente/produto e catálogo aprovado.
+- Produces: agenda compacta, filtros responsivos, lista de produtos legível e formulários sem zoom/corte.
 
-- [ ] **Step 1: escrever teste RED conjunto**
+- [ ] **Step 1: escrever teste RED**
+
+Criar `src/pages/ClientsProductsMobile.test.js`:
 
 ```js
 import test from 'node:test'
@@ -718,45 +698,50 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('client rows and product controls remain touchable at 320px', async () => {
+test('client rows and product form remain touchable at 320px', async () => {
   const clients = await read('../clients-phonebook.css')
   const productForm = await read('../product-form.css')
-  assert.match(clients, /min-height:\s*44px/)
+  assert.match(clients, /min-height:\s*(?:44|48)px/)
   assert.match(clients, /@media\s*\(max-width:\s*640px\)/)
   assert.match(productForm, /@media\s*\(max-width:\s*640px\)/)
   assert.match(productForm, /grid-template-columns:\s*1fr/)
 })
 ```
 
-- [ ] **Step 2: confirmar RED**
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/pages/ClientsProductsMobile.test.js
 ```
 
-- [ ] **Step 3: Clientes — manter agenda compacta sem ações minúsculas**
+- [ ] **Step 3: Clientes**
 
-A linha inteira continua acionável. Garantir altura mínima confortável e `min-width: 0` no conteúdo; telefone deve permanecer em uma linha quando couber, endereço pode quebrar. O BottomSheet continua sendo o único lugar para editar/excluir no mobile.
+A linha inteira continua acionável. Garantir altura mínima confortável, `min-width: 0` no conteúdo e quebra de endereço. O BottomSheet continua sendo o local das ações editar/excluir no mobile.
 
-- [ ] **Step 4: Produtos — empilhar filtro e busca quando necessário**
+- [ ] **Step 4: Produtos**
 
-Em 640 px e abaixo, busca/filtro devem ocupar a largura disponível; cards/lista devem manter nome, apresentação e preço legíveis. Ações editar/excluir não devem criar coluna estreita que force nome a poucos caracteres; se necessário, mover ações para segunda linha no mobile.
+Em 640 px e abaixo, busca/filtro ocupam largura útil. Nome, apresentação e preço permanecem legíveis. Se a coluna de ações comprimir o nome em 320 px, mover ações para linha própria em vez de reduzir o texto crítico.
 
-- [ ] **Step 5: formulário de produto — uma coluna real em 320 px**
+- [ ] **Step 5: formulário de produto**
 
-Em `product-form.css`, categoria, apresentação, tamanho/volume/peso, preço e preview devem empilhar. Inputs monetários devem permanecer com `font-size: 16px` no mobile e `inputMode="decimal"` quando aplicável no JSX já existente.
+Categoria, apresentação, tamanho/volume/peso, preço e preview devem empilhar em uma coluna. Inputs de texto/valor no mobile permanecem com `font-size: 16px`; campos decimais usam `inputMode="decimal"` no JSX apropriado.
 
-- [ ] **Step 6: formulário global de cliente — teclado adequado**
+- [ ] **Step 6: formulário global de cliente**
 
-Em `App.jsx`, manter telefone como `type="tel" inputMode="tel"`, nome com `autoComplete="name"` e endereço com `autoComplete="street-address"` quando semanticamente adequado. Não alterar regras de duplicidade.
+Em `App.jsx`, telefone usa `type="tel" inputMode="tel"`, nome pode usar `autoComplete="name"` e endereço `autoComplete="street-address"`. Não alterar regras de duplicidade.
 
-- [ ] **Step 7: testes e commit**
+- [ ] **Step 7: executar testes**
 
 ```bash
-node --test src/pages/ClientsProductsMobile.test.js src/clientsPhonebook.test.js src/productCatalogUi.test.js src/productForm.test.js
+node --test src/pages/ClientsProductsMobile.test.js src/clientsPhonebook.test.js src/productCatalogUi.test.js
 npm test
 npm run lint
 npm run build
+```
+
+- [ ] **Step 8: commit**
+
+```bash
 git add src/pages/ClientsProductsMobile.test.js src/pages/Clients.jsx src/clients-phonebook.css src/pages/Products.jsx src/product-form.css src/App.jsx src/App.css src/clientsPhonebook.test.js src/productCatalogUi.test.js
 git commit -m "fix: improve clients and products mobile usability"
 ```
@@ -781,6 +766,8 @@ git commit -m "fix: improve clients and products mobile usability"
 
 - [ ] **Step 1: escrever teste RED**
 
+Criar `src/pages/FinanceMoreMobile.test.js`:
+
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -792,12 +779,12 @@ test('finance rows and more menu remain usable on narrow screens', async () => {
   const appCss = await read('../App.css')
   const navCss = await read('../mobile-navigation.css')
   assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-row/)
-  assert.match(navCss, /\.mobile-more-action[\s\S]*min-height:\s*(?:44|48)px/)
-  assert.match(navCss, /\.mobile-more-logout[\s\S]*min-height:\s*(?:44|48)px/)
+  assert.match(navCss, /\.mobile-more-action[\s\S]*min-height:\s*48px/)
+  assert.match(navCss, /\.mobile-more-logout[\s\S]*min-height:\s*48px/)
 })
 ```
 
-- [ ] **Step 2: confirmar RED**
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/pages/FinanceMoreMobile.test.js
@@ -805,29 +792,28 @@ node --test src/pages/FinanceMoreMobile.test.js
 
 - [ ] **Step 3: ajustar linhas financeiras**
 
-Em 320 px, descrição/categoria ficam no bloco principal e valor passa para linha própria quando necessário. Valores monetários não quebram no meio; descrição pode usar `overflow-wrap: anywhere`.
+Em 320 px, descrição/categoria ficam no bloco principal e valor pode ir para linha própria. Valores monetários não quebram no meio; descrição pode usar `overflow-wrap: anywhere`.
 
-- [ ] **Step 4: melhorar modal de movimento sem alterar API**
+- [ ] **Step 4: melhorar modal de movimento**
 
-No `App.jsx`, campo monetário deve usar teclado decimal:
-
-```jsx
-<input type="number" inputMode="decimal" min="0" step="0.01" ... />
-```
-
-Tipo e categoria continuam em `SystemSelect`; em mobile, o grid de duas colunas deve empilhar pela fundação/App.css.
+Campo de valor em `App.jsx` recebe `inputMode="decimal"`. Tipo e categoria continuam em `SystemSelect`; o grid de duas colunas empilha no mobile.
 
 - [ ] **Step 5: menu Mais**
 
-Manter A Receber, Financeiro, tema e logout no BottomSheet. As ações devem ter 48 px, texto completo, safe area e nenhum hover necessário para comunicar estado ativo. Não adicionar mais destinos nesta rodada.
+Manter A Receber, Financeiro, tema e logout no BottomSheet. Ações com 48 px, texto completo e safe area. Estado ativo precisa ser visível sem depender de hover.
 
-- [ ] **Step 6: testes e commit**
+- [ ] **Step 6: executar testes**
 
 ```bash
 node --test src/pages/FinanceMoreMobile.test.js src/mobileNavigation.test.js src/bottomSheet.test.js
 npm test
 npm run lint
 npm run build
+```
+
+- [ ] **Step 7: commit**
+
+```bash
 git add src/pages/FinanceMoreMobile.test.js src/pages/Finance.jsx src/App.jsx src/App.css src/components/MobileNavigation.jsx src/mobile-navigation.css src/bottom-sheet.css src/mobileNavigation.test.js
 git commit -m "fix: polish finance and more menu on mobile"
 ```
@@ -840,14 +826,15 @@ git commit -m "fix: polish finance and more menu on mobile"
 - Create: `src/mobileConsistencyRegression.test.js`
 - Modify: `src/App.css`
 - Modify: `src/mobile-foundation.css`
-- Modify: `src/theme.css`
-- Modify: CSS de página somente quando um estado específico ainda divergir.
+- Modify only if required by actual theme discrepancy: `src/theme.css`
 
 **Interfaces:**
-- Consumes: `.button`, `.surface-card`, `.empty-state`, `.system-state-screen`, `.toast-success`, variáveis de tema.
-- Produces: comportamento consistente de loading, erro, vazio, toque e reduced motion em todas as telas.
+- Consumes: `.button`, `.surface-card`, `.empty-state`, `.system-state-screen`, `.toast-success` e variáveis de tema.
+- Produces: feedback de toque consistente, toast fora da navegação, loading/erro/vazio legíveis e reduced motion preservado.
 
-- [ ] **Step 1: escrever teste RED de consistência**
+- [ ] **Step 1: escrever teste RED**
+
+Criar `src/mobileConsistencyRegression.test.js`:
 
 ```js
 import test from 'node:test'
@@ -856,28 +843,27 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('mobile interaction states do not depend on hover and respect reduced motion', async () => {
+test('touch feedback does not depend on hover', async () => {
   const app = await read('./App.css')
-  const foundation = await read('./mobile-foundation.css')
   assert.match(app, /@media\s*\(hover:\s*none\)/)
-  assert.match(foundation, /prefers-reduced-motion:\s*reduce/)
+  assert.match(app, /\.button:active/)
 })
 
-test('mobile toast stays clear of fixed navigation', async () => {
+test('mobile toast stays clear of bottom navigation', async () => {
   const foundation = await read('./mobile-foundation.css')
   assert.match(foundation, /\.toast-success[\s\S]*var\(--mobile-bottom-nav-height\)/)
 })
 ```
 
-- [ ] **Step 2: confirmar RED**
+- [ ] **Step 2: executar RED**
 
 ```bash
 node --test src/mobileConsistencyRegression.test.js
 ```
 
-- [ ] **Step 3: adicionar feedback de toque sem transformar hover em requisito**
+- [ ] **Step 3: adicionar feedback de toque**
 
-Adicionar regras `@media (hover: none)` para remover transform de hover persistente e usar `:active` de forma discreta:
+Em `App.css`:
 
 ```css
 @media (hover: none) {
@@ -891,11 +877,11 @@ Adicionar regras `@media (hover: none)` para remover transform de hover persiste
 }
 ```
 
-Aplicar o mesmo princípio a FAB e controles que atualmente usam apenas hover.
+Aplicar o mesmo princípio a controles que hoje usam transform somente em hover, sem remover estados de foco.
 
-- [ ] **Step 4: manter toast acima da navegação mobile**
+- [ ] **Step 4: posicionar toast por token**
 
-Mover regra estrutural mobile do toast para a fundação:
+Em `mobile-foundation.css`:
 
 ```css
 @media (max-width: 820px) {
@@ -906,38 +892,46 @@ Mover regra estrutural mobile do toast para a fundação:
 }
 ```
 
-- [ ] **Step 5: reduced motion**
+- [ ] **Step 5: validar claro/escuro, loading, erro e vazio**
 
-Manter o bloco global existente e garantir que a fundação não introduza animação que o contorne. Se houver animação específica nova, incluir seletor dentro do bloco de `prefers-reduced-motion`.
+Usar os componentes/estilos existentes. Só alterar `theme.css` se contraste ou legibilidade realmente falhar na auditoria. Não criar temas mobile separados.
 
-- [ ] **Step 6: testes e commit**
+- [ ] **Step 6: preservar reduced motion**
+
+O bloco existente de `prefers-reduced-motion` deve continuar cobrindo transições/animações. Qualquer animação adicionada na rodada deve estar coberta por ele.
+
+- [ ] **Step 7: executar testes**
 
 ```bash
 node --test src/mobileConsistencyRegression.test.js src/mobilePageMotion.test.js src/mobileStabilityRegression.test.js
 npm test
 npm run lint
 npm run build
-git add src/mobileConsistencyRegression.test.js src/App.css src/mobile-foundation.css src/theme.css
+```
+
+- [ ] **Step 8: commit**
+
+```bash
+git add src/mobileConsistencyRegression.test.js src/App.css src/mobile-foundation.css
+git add src/theme.css 2>/dev/null || true
 git commit -m "fix: unify mobile interaction and state feedback"
 ```
 
-Não editar `theme.css` se a verificação claro/escuro não revelar divergência; o arquivo só entra no commit quando necessário.
-
 ---
 
-### Task 10: Criar matriz de QA mobile e executar auditoria manual completa
+### Task 10: Executar QA manual em 320, 360, 390/393 e 480 px
 
 **Files:**
 - Create: `docs/superpowers/qa/2026-09-02-mobile-ux-audit-checklist.md`
-- Modify: arquivos de tela/CSS/teste apenas para bugs concretos encontrados na matriz, cada correção com regressão específica.
+- Modify: arquivos de tela/CSS/testes somente para bugs concretos encontrados nesta matriz.
 
 **Interfaces:**
-- Consumes: aplicação final das Tasks 1–9.
-- Produces: evidência reproduzível de revisão em 320, 360, 390/393 e 480 px e lista fechada de P0/P1/P2.
+- Consumes: resultado das Tasks 1–9.
+- Produces: evidência de revisão e lista zerada de P0/P1.
 
-- [ ] **Step 1: criar checklist manual com matriz explícita**
+- [ ] **Step 1: criar matriz de QA**
 
-Criar documento com esta tabela-base para cada largura:
+Criar:
 
 ```markdown
 | Tela/fluxo | 320 | 360 | 390/393 | 480 | Claro | Escuro | Teclado | Resultado |
@@ -952,39 +946,39 @@ Criar documento com esta tabela-base para cada largura:
 | Mais | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | n/a | Pendente |
 ```
 
-Abaixo da tabela, incluir para cada tela: primeiro carregamento, scroll longo, textos longos, lista vazia, lista longa, loading, erro, overlay, ação primária e safe area.
+Para cada tela registrar também: primeiro carregamento, scroll longo, texto longo, lista vazia, lista longa, loading, erro, overlay, ação principal e safe area.
 
-- [ ] **Step 2: executar auditoria em 320 px**
+- [ ] **Step 2: revisar 320 px**
 
-Verificar todas as telas e registrar cada achado como `P0`, `P1` ou `P2`, com reprodução objetiva. Não corrigir vários achados não relacionados no mesmo commit.
+Executar todos os fluxos da matriz e registrar cada achado como P0, P1 ou P2 com reprodução objetiva.
 
-- [ ] **Step 3: executar auditoria em 360 px**
+- [ ] **Step 3: revisar 360 px com teclado**
 
-Repetir a matriz, incluindo abertura do teclado nos campos de topo/meio/final de Novo Pedido, Cliente, Produto, Pagamento e Movimento.
+Abrir teclado em campos do topo, meio e fim de Novo Pedido, Cliente, Produto, Pagamento e Movimento. Confirmar que a ação necessária continua alcançável por scroll natural/interno.
 
-- [ ] **Step 4: executar auditoria em 390/393 px**
+- [ ] **Step 4: revisar 390/393 px com safe area**
 
-Repetir a matriz em viewport representativa de iPhone moderno e validar safe area inferior.
+Validar menu inferior, FAB, modais, BottomSheets e toast em viewport representativa de iPhone moderno.
 
-- [ ] **Step 5: executar auditoria em 480 px**
+- [ ] **Step 5: revisar 480 px**
 
-Confirmar que os breakpoints não deixam a interface excessivamente estreita nem com controles indevidamente empilhados.
+Confirmar que breakpoints não deixam controles desnecessariamente empilhados ou espaços exagerados.
 
-- [ ] **Step 6: corrigir cada P0/P1 encontrado com TDD**
+- [ ] **Step 6: corrigir P0/P1 um por vez com TDD**
 
-Para cada bug: escrever ou ampliar um teste que falhe, executar RED, aplicar correção mínima, executar GREEN e commit. O formato de commit deve indicar a área, por exemplo:
+Para cada bug: adicionar expectativa ao teste de regressão da área, executar RED, aplicar correção mínima, executar GREEN e commit independente. Exemplo:
 
 ```bash
 git commit -m "fix: keep product actions visible at 320px"
 ```
 
-P2 só entra depois de todos os P0/P1 da matriz estarem fechados.
+Somente depois de todos os P0/P1 fechados realizar refinamentos P2.
 
 - [ ] **Step 7: fechar checklist**
 
-Trocar cada `☐` por `✅` após teste efetivo e registrar `Sem P0/P1 aberto` na coluna Resultado quando aplicável. Não marcar como concluído por inspeção de código apenas.
+Trocar `☐` por `✅` apenas após teste efetivo. Resultado de cada tela deve terminar como `Sem P0/P1 aberto`.
 
-- [ ] **Step 8: commit da evidência de QA**
+- [ ] **Step 8: commit da evidência**
 
 ```bash
 git add docs/superpowers/qa/2026-09-02-mobile-ux-audit-checklist.md
@@ -996,15 +990,15 @@ git commit -m "docs: record mobile UX audit results"
 ### Task 11: Verificação final e prontidão para produção
 
 **Files:**
-- No code file required unless verification uncovers a regression.
 - Read: `docs/superpowers/specs/2026-09-02-mobile-ux-audit-design.md`
 - Read: `docs/superpowers/qa/2026-09-02-mobile-ux-audit-checklist.md`
+- No code file is modified unless verification reveals a regression.
 
 **Interfaces:**
 - Consumes: todos os commits anteriores.
-- Produces: branch/master com suíte verde e evidência de que os critérios de aceite da spec foram cobertos.
+- Produces: rodada validada, sem falhas conhecidas, pronta para aprovação antes de deploy.
 
-- [ ] **Step 1: executar suíte completa**
+- [ ] **Step 1: suíte completa**
 
 ```bash
 npm test
@@ -1012,47 +1006,75 @@ npm test
 
 Expected: 0 falhas.
 
-- [ ] **Step 2: executar lint**
+- [ ] **Step 2: lint**
 
 ```bash
 npm run lint
 ```
 
-Expected: 0 erros e 0 warnings tratados como erro pelo projeto.
+Expected: sucesso.
 
-- [ ] **Step 3: executar build**
+- [ ] **Step 3: build**
 
 ```bash
 npm run build
 ```
 
-Expected: build Vite concluído com sucesso.
+Expected: build Vite concluído.
 
-- [ ] **Step 4: validar bundle do Worker**
+- [ ] **Step 4: Worker dry-run**
 
 ```bash
 npx --yes wrangler@4.128.0 deploy --dry-run
 ```
 
-Expected: dry-run concluído e binding D1 reconhecido.
+Expected: bundle válido e binding D1 reconhecido.
 
-- [ ] **Step 5: revisar cobertura da spec contra o checklist**
+- [ ] **Step 5: cobertura da spec**
 
-Confirmar explicitamente: 320–480 px, sem scroll horizontal, menu/FAB/safe area, teclado, Modal, BottomSheet, SystemSelect, Novo Pedido, Pedidos, A Receber, Dashboard, Clientes, Produtos, Financeiro, Mais, claro/escuro, loading/erro/vazio e reduced motion.
+Confirmar no checklist: 320–480 px, ausência de scroll horizontal, menu/FAB/safe area, teclado, Modal, BottomSheet, SystemSelect, Novo Pedido, Pedidos, A Receber, Dashboard, Clientes, Produtos, Financeiro, Mais, temas claro/escuro, loading/erro/vazio e reduced motion.
 
-- [ ] **Step 6: verificar diff de escopo**
+- [ ] **Step 6: verificar escopo do diff**
 
 ```bash
 git status --short
 git diff --stat <commit-base-da-rodada>...HEAD
 ```
 
-Expected: nenhum arquivo de banco, migration ou regra de negócio alterado sem justificativa direta de UX.
+Antes de executar este comando, substituir `<commit-base-da-rodada>` pelo SHA real do `master` registrado imediatamente antes da Task 1. O resultado não deve conter migration, schema D1 ou regra de negócio sem justificativa direta de UX.
 
 - [ ] **Step 7: corrigir qualquer falha antes de declarar conclusão**
 
-Se uma verificação falhar, voltar ao ciclo RED/GREEN da tarefa responsável; não publicar nem declarar a rodada concluída com falha conhecida.
+Falha em teste, lint, build, Worker ou P0/P1 reabre a tarefa responsável e exige novo ciclo RED/GREEN.
 
-- [ ] **Step 8: preparar deploy somente após aprovação do resultado**
+- [ ] **Step 8: deploy somente após aprovação**
 
-Não alterar o workflow de produção como parte do plano de UX. O deploy segue o processo manual existente e só deve ser disparado quando o usuário aprovar a rodada validada.
+Não alterar o workflow de produção como parte desta rodada. O deploy continua pelo processo manual existente e só deve ser disparado depois que o usuário aprovar o resultado validado.
+
+---
+
+## Spec Coverage Matrix
+
+| Requisito da spec | Tarefa |
+| --- | --- |
+| 320–480 px e referências 320/360/390–393/480 | Tasks 1, 10 |
+| Tokens compartilhados e redução de números duplicados | Task 1 |
+| Sem scroll horizontal / viewport estável | Task 1 |
+| Menu inferior e safe area | Tasks 1, 8, 10 |
+| FAB acima do menu | Tasks 1, 6 |
+| Touch targets 44–48 px | Tasks 1, 2, 3, 4, 5, 7, 8 |
+| Formulários e teclado | Tasks 2, 3, 5, 7, 8, 10 |
+| Modal, BottomSheet, SystemSelect | Task 2 |
+| Swipe e reduced motion | Tasks 1, 9 |
+| Novo Pedido | Task 3 |
+| Pedidos/Cozinha | Task 4 |
+| A Receber | Task 5 |
+| Dashboard | Task 6 |
+| Clientes | Task 7 |
+| Produtos | Task 7 |
+| Financeiro | Task 8 |
+| Mais/navegação secundária | Task 8 |
+| Loading, erro, vazio, tema e feedback de toque | Task 9 |
+| Priorização P0/P1/P2 e validação manual | Task 10 |
+| Testes, lint, build e Worker | Tasks 1–11, com verificação final na Task 11 |
+| Sem mudanças de banco/regras fora do escopo | Task 11 |
