@@ -126,6 +126,8 @@ Period definitions:
 
 The ranges are inclusive of today.
 
+The selected analytics period is always applied using `order.orderDate`. This includes the payment-method analysis: it examines paid orders whose order date falls inside the selected period. `paidAt` does not determine whether an order belongs to an analytics period in this Dashboard version.
+
 For day-series charts, every date in the selected range must be present. Days with no sales or orders must appear with zero rather than being omitted.
 
 ## Metric definitions
@@ -178,7 +180,9 @@ The visual may use bars because the purpose is discrete daily volume comparison.
 
 ### Top 5 produtos mais vendidos
 
-Aggregate all order items from orders in the selected period by product identity/display label and sum item quantities.
+Aggregate all order items from orders in the selected period and sum item quantities.
+
+Use a stable product identifier when the order item provides one. For legacy rows without a stable identifier, use the existing compatible display label as the grouping fallback.
 
 Rank descending by total units sold and show at most five products.
 
@@ -188,11 +192,13 @@ If fewer than five products were sold, show only those available.
 
 ### Formas de pagamento
 
-Consider only paid orders in the selected period.
+Start from orders whose `orderDate` belongs to the selected period, then consider only those that are paid.
 
 Group by `paymentMethod` and sum the confirmed paid amount (`paidAmount`, falling back to the order total only where the current compatibility rules require it).
 
 Pending orders do not belong to a payment-method category.
+
+This chart analyzes the payment-method composition of sales/orders from the selected order-date period. It is not a cash-receipt-by-`paidAt` report; `Recebido hoje` remains the operational cash-receipt indicator.
 
 The visualization communicates part-to-whole composition. It may use a compact proportional/bar or donut-like SVG treatment, provided it remains readable on mobile and accessible without hover.
 
@@ -202,11 +208,11 @@ The Dashboard has one global eye control, similar to banking apps.
 
 ### Default behavior
 
-Every time the Dashboard is opened from a fresh page load/reload, monetary values are visible.
+Whenever a newly mounted Dashboard is opened, monetary values start visible. This includes a fresh page load/reload and any app navigation that unmounts and later reopens the Dashboard.
 
 The visibility preference is not written to local storage, session storage, cookies, the backend, or any other persistence layer.
 
-It is only local React state for the current rendered application session.
+It is only local React state for the currently mounted Dashboard.
 
 ### Visible mode
 
@@ -279,7 +285,7 @@ Pure helpers keep the calculations testable independently from React rendering.
 3. No new network request is triggered by the Dashboard period selector.
 4. Dashboard local state stores:
    - selected analytics period, initialized to `30d`;
-   - monetary visibility, initialized to `true`.
+   - monetary visibility, initialized to `true` each time the Dashboard mounts.
 5. Pure analytics helpers derive period metrics and chart series from `orders`.
 6. Presentation components receive already-derived data and render it.
 
@@ -292,7 +298,8 @@ The Dashboard must remain useful with no data.
 Rules:
 
 - zero orders in a period => sales `R$ 0,00`, orders `0`, average ticket `R$ 0,00`;
-- daily charts render the selected dates with zero values or a concise empty-state presentation while preserving correct zero semantics;
+- daily chart data always contains every selected date, with zero for missing days;
+- if an entire daily series is zero, the UI may additionally show a concise friendly message, but it must preserve the zero-filled series semantics rather than dropping dates from the analytics data;
 - Top 5 displays a friendly no-sales message if there are no product items in the period;
 - payment mix displays a friendly no-payments message if there are no paid orders in the period;
 - malformed optional legacy fields must use the same compatibility fallbacks already used elsewhere in the app;
@@ -338,6 +345,7 @@ Cover at minimum:
 - `7 dias` includes today plus six previous local dates;
 - `30 dias` includes today plus twenty-nine previous local dates;
 - period filtering is inclusive at both ends;
+- payment-method period membership is based on `orderDate`, not `paidAt`;
 - sales count unpaid and paid orders alike;
 - average ticket uses sales divided by order count;
 - average ticket is zero with no orders;
@@ -357,12 +365,12 @@ Cover at minimum:
 - analytics defaults to `30 dias`;
 - selecting Hoje/7 dias/30 dias changes the derived analytics content;
 - all four approved visualizations are present;
-- global eye control starts visible;
+- global eye control starts visible on each Dashboard mount;
 - global eye control hides monetary KPI values and recent-order monetary values;
 - non-monetary counts remain visible when privacy is enabled;
 - monetary chart labels/details are hidden while chart geometry remains rendered;
-- reload/default initialization does not read a persisted privacy preference;
-- empty datasets render friendly states.
+- privacy initialization does not read a persisted preference;
+- empty datasets render friendly states without dropping zero-filled dates from analytics data.
 
 ### Full validation
 
@@ -393,12 +401,12 @@ The redesign is complete when:
 
 1. The Dashboard still provides the current-day operational summary and `Novo pedido` action.
 2. The analytics area defaults to 30 days and supports Hoje, 7 dias, and 30 dias.
-3. The selected analytics period simultaneously controls sales, order count, average ticket, sales/day, orders/day, Top 5 products, and payment methods.
+3. The selected analytics period simultaneously controls sales, order count, average ticket, sales/day, orders/day, Top 5 products, and payment methods using `orderDate` membership.
 4. Sales metrics count orders by order date regardless of whether payment is pending.
-5. Payment-method analysis includes paid orders only and groups confirmed monetary amounts.
+5. Payment-method analysis includes paid orders only, groups confirmed monetary amounts, and does not use `paidAt` to decide period membership.
 6. Daily charts include zero-value dates instead of skipping them.
 7. One global eye control hides every explicit monetary value on the Dashboard while preserving non-monetary operational information and chart geometry.
-8. Monetary visibility always starts visible on a fresh load and is never persisted.
+8. Monetary visibility starts visible every time the Dashboard mounts and is never persisted.
 9. The Dashboard remains readable and usable on mobile and in both light and dark themes.
 10. No backend, D1, or API change is introduced unless a discovered data gap forces a new design review.
 11. The approved analytics and privacy behavior are covered by automated tests and the full application validation passes before integration.
