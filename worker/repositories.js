@@ -1,4 +1,5 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
+import { formatProductPresentation } from '../shared/productCatalog.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { centsToMoney } from './validation.js'
 
@@ -50,6 +51,7 @@ export const mapOrderRow = (row, items = []) => {
     id: row.id,
     clientId: row.client_id ?? null,
     client: row.client_name_snapshot,
+    customerIdentityType: row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name'),
     type: row.type,
     status: row.status,
     productName: firstItem?.name ?? '',
@@ -80,8 +82,12 @@ export const mapOrderRow = (row, items = []) => {
 export const mapMovementRow = (row) => ({ id: row.id, type: row.type, category: row.category, description: row.description, value: centsToMoney(row.value_cents), source: row.source || 'manual', orderId: row.order_id ?? null, paymentId: row.payment_id ?? null, movementDate: row.movement_date, date: row.movement_date, createdAt: row.created_at })
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
+const productSnapshotSize = (row) => {
+  const presentation = formatProductPresentation(mapProductRow(row))
+  return presentation === 'Unidade' ? 'Un' : presentation
+}
 
 export const loadBootstrap = async (db, businessId) => {
   const business = await db.prepare('SELECT id, name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
@@ -242,6 +248,7 @@ const loadOrderById = async (db, businessId, id) => {
 
 const legacyCheckoutInput = (input) => ({
   ...input,
+  customerIdentity: input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId },
   items: [{ productId: input.productId, quantity: input.quantity, note: '' }],
   deliveryFeeCents: 0,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
@@ -255,8 +262,21 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const existing = await db.prepare('SELECT id FROM orders WHERE business_id = ? AND idempotency_key = ? LIMIT 1').bind(businessId, idempotencyKey).first()
   if (existing?.id) return loadOrderById(db, businessId, existing.id)
 
-  const client = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(input.clientId, businessId).first()
-  if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+  const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
+  let clientId = null
+  let clientSnapshot = ''
+  if (customerIdentity.type === 'registered_client') {
+    const client = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
+    if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+    clientId = client.id
+    clientSnapshot = client.name
+  } else if (customerIdentity.type === 'guest_name') {
+    clientSnapshot = customerIdentity.value
+  } else if (customerIdentity.type === 'table') {
+    clientSnapshot = `Mesa ${customerIdentity.value}`
+  } else {
+    throw repositoryError(400, 'INVALID_CUSTOMER_IDENTITY', 'Identificação do pedido inválida.')
+  }
 
   const pricedItems = []
   for (const item of input.items) {
@@ -277,11 +297,12 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
   const orderId = crypto.randomUUID()
 
-  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, type, order_date, status, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, customer_identity_type, type, order_date, status, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     orderId,
     businessId,
-    client.id,
-    client.name,
+    clientId,
+    clientSnapshot,
+    customerIdentity.type,
     input.type,
     input.orderDate,
     status,
@@ -307,7 +328,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       item.product.id,
       item.product.name,
       item.product.category || '',
-      item.product.size || '',
+      productSnapshotSize(item.product),
       item.quantity,
       item.product.price_cents,
       item.product.price_cents,
@@ -322,7 +343,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     const movementId = crypto.randomUUID()
     const paidAt = now.toISOString()
     const movementDate = businessDate(now)
-    const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${client.name}`
+    const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${clientSnapshot}`
     statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, totals.totalCents, input.paymentMethod, paidAt, paidAt))
     statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt))
   }
