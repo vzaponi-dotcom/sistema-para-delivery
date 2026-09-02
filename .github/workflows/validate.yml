@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - feature/dark-mode
   workflow_dispatch:
 
 jobs:
