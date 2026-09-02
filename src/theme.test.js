@@ -3,6 +3,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+const optionalSource = (relativePath) => {
+  try {
+    return source(relativePath)
+  } catch {
+    return ''
+  }
+}
 
 const loadThemeModule = async () => {
   try {
@@ -63,17 +70,18 @@ test('theme is initialized before the React app renders', () => {
   const renderIndex = main.indexOf('createRoot(')
 
   assert.match(main, /from ['"]\.\/utils\/theme\.js['"]/)
+  assert.match(main, /ThemeProvider/)
   assert.ok(initializeIndex >= 0, 'main should initialize the stored theme')
   assert.ok(renderIndex > initializeIndex, 'theme should initialize before React renders')
 })
 
-test('app exposes persistent Claro Escuro and Automático controls', () => {
-  const app = source('./App.jsx')
+test('global provider exposes persistent Claro Escuro and Automático controls', () => {
+  const provider = optionalSource('./components/ThemeProvider.jsx')
   const sidebar = source('./components/Sidebar.jsx')
 
-  assert.match(app, /themePreference/)
-  assert.match(app, /saveThemePreference/)
-  assert.match(app, /matchMedia\(['"]\(prefers-color-scheme: dark\)['"]\)/)
+  assert.match(provider, /themePreference/)
+  assert.match(provider, /saveThemePreference/)
+  assert.match(provider, /matchMedia\(['"]\(prefers-color-scheme: dark\)['"]\)/)
   assert.match(sidebar, /Claro/)
   assert.match(sidebar, /Escuro/)
   assert.match(sidebar, /Automático/)
