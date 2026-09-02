@@ -29,7 +29,8 @@ test('worker and browser client expose an orders-only GET refresh path', () => {
 test('App polls orders every two seconds only through the orders refresh path and refreshes on focus', () => {
   const app = read('src/App.jsx')
   assert.match(app, /getOrders as getOrdersApi/)
-  assert.match(app, /setInterval\([^)]*2_000|setInterval\([^)]*2000/s)
+  assert.match(app, /const timer = window\.setInterval/)
+  assert.match(app, /},\s*2_000\)/)
   assert.match(app, /activeTab !== ['"]orders['"]/)
   assert.match(app, /visibilitychange/)
   assert.match(app, /window\.addEventListener\(['"]focus['"]/)
@@ -40,6 +41,7 @@ test('kitchen UI supports one-time visual alerts and a persisted sound toggle', 
   const orders = read('src/pages/Orders.jsx')
   const css = read('src/order-operations.css')
   assert.match(app, /kitchen-sound-enabled/)
+  assert.match(app, /alertedOrderIdsRef/)
   assert.match(app, /newOrderIds/)
   assert.match(orders, /soundEnabled/)
   assert.match(orders, /onSoundEnabledChange/)
