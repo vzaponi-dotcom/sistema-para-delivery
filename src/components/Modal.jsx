@@ -2,7 +2,7 @@ import Icon from './Icon'
 
 function Modal({ title, onClose, children, footer }) {
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop" data-navigation-swipe-block="true" onMouseDown={onClose}>
       <div
         className="modal-card"
         role="dialog"
