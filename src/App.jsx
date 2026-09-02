@@ -10,6 +10,7 @@ import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
 import Modal from './components/Modal'
+import SystemSelect from './components/SystemSelect'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
 import NewOrder from './pages/NewOrder'
@@ -40,7 +41,16 @@ import {
   updateProduct as updateProductApi,
 } from './api/client'
 
-const PAYMENT_METHODS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
+const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
+  .map((value) => ({ value, label: value }))
+const PRODUCT_CATEGORY_OPTIONS = ['Marmita', 'Bebida', 'Doce', 'Adicional']
+  .map((value) => ({ value, label: value }))
+const MOVEMENT_TYPE_OPTIONS = [
+  { value: 'entrada', label: 'Entrada' },
+  { value: 'saida', label: 'Saída' },
+]
+const MOVEMENT_CATEGORY_OPTIONS = ['Vendas', 'Delivery', 'Insumos', 'Despesas', 'Outros']
+  .map((value) => ({ value, label: value }))
 
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
@@ -613,7 +623,7 @@ function App() {
           <Modal title="Registrar pagamento" onClose={closePaymentModal}>
             <form className="form-stack" onSubmit={handleRegisterPayment}>
               <div className="payment-summary-card"><span>{paymentOrder.client} · Pedido #{String(paymentOrder.id).slice(-4)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div>
-              <label className="form-field"><span>Forma de pagamento</span><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>{PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
+              <div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} label="Forma de pagamento" /></div>
               <div className="form-actions"><Button type="button" variant="secondary" onClick={closePaymentModal}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div>
             </form>
           </Modal>
@@ -647,7 +657,7 @@ function App() {
           <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}>
             <div className="form-stack">
               <label className="form-field"><span>Nome do produto</span><input type="text" placeholder="Ex: Marmita executiva" value={newProduct.name} onChange={(event) => setNewProduct((current) => ({ ...current, name: event.target.value }))} /></label>
-              <div className="form-grid two-columns"><label className="form-field"><span>Categoria</span><select value={newProduct.category} onChange={(event) => setNewProduct((current) => ({ ...current, category: event.target.value }))}><option value="Marmita">Marmita</option><option value="Bebida">Bebida</option><option value="Doce">Doce</option><option value="Adicional">Adicional</option></select></label><label className="form-field"><span>Tamanho / unidade</span><input type="text" placeholder="Ex: M, 600ml, Un" value={newProduct.size} onChange={(event) => setNewProduct((current) => ({ ...current, size: event.target.value }))} /></label></div>
+              <div className="form-grid two-columns"><div className="form-field"><span>Categoria</span><SystemSelect value={newProduct.category} options={PRODUCT_CATEGORY_OPTIONS} onChange={(category) => setNewProduct((current) => ({ ...current, category }))} label="Categoria do produto" /></div><label className="form-field"><span>Tamanho / unidade</span><input type="text" placeholder="Ex: M, 600ml, Un" value={newProduct.size} onChange={(event) => setNewProduct((current) => ({ ...current, size: event.target.value }))} /></label></div>
               <label className="form-field"><span>Preço</span><input type="text" inputMode="decimal" placeholder="R$ 0,00" value={newProduct.price} onChange={(event) => setNewProduct((current) => ({ ...current, price: formatBRLCurrencyInput(event.target.value) }))} /></label>
               <div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelProductEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newProduct.name.trim()} onClick={handleAddProduct}>{editingProductId !== null ? 'Salvar alterações' : 'Adicionar produto'}</Button></div>
             </div>
@@ -657,7 +667,7 @@ function App() {
         {showMovementModal && (
           <Modal title="Registrar movimento" onClose={() => setShowMovementModal(false)}>
             <form className="form-stack" onSubmit={handleAddMovement}>
-              <div className="form-grid two-columns"><label className="form-field"><span>Tipo</span><select value={newMovement.type} onChange={(event) => setNewMovement((current) => ({ ...current, type: event.target.value }))}><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label><label className="form-field"><span>Categoria</span><select value={newMovement.category} onChange={(event) => setNewMovement((current) => ({ ...current, category: event.target.value }))}><option value="Vendas">Vendas</option><option value="Delivery">Delivery</option><option value="Insumos">Insumos</option><option value="Despesas">Despesas</option><option value="Outros">Outros</option></select></label></div>
+              <div className="form-grid two-columns"><div className="form-field"><span>Tipo</span><SystemSelect value={newMovement.type} options={MOVEMENT_TYPE_OPTIONS} onChange={(type) => setNewMovement((current) => ({ ...current, type }))} label="Tipo do movimento" /></div><div className="form-field"><span>Categoria</span><SystemSelect value={newMovement.category} options={MOVEMENT_CATEGORY_OPTIONS} onChange={(category) => setNewMovement((current) => ({ ...current, category }))} label="Categoria do movimento" /></div></div>
               <label className="form-field"><span>Descrição</span><input type="text" placeholder="Ex: Compra de arroz" value={newMovement.description} onChange={(event) => setNewMovement((current) => ({ ...current, description: event.target.value }))} /></label>
               <label className="form-field"><span>Valor</span><input type="number" min="0" step="0.01" value={newMovement.value} onChange={(event) => setNewMovement((current) => ({ ...current, value: event.target.value }))} /></label>
               <div className="form-actions"><Button type="button" variant="secondary" onClick={() => setShowMovementModal(false)}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Salvar movimento</Button></div>
