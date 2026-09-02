@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { DashboardPeriodProvider } from './DashboardPeriodProvider'
 import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
 import {
@@ -45,23 +46,25 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
   }
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        activeTab={activeTab}
-        onNavigate={onNavigate}
-        onLogout={onLogout}
-        logoutDisabled={logoutDisabled}
-      />
-      <main className="app-main" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        <div className="app-content">{children}</div>
-      </main>
-      <MobileNavigation
-        activeTab={activeTab}
-        onNavigate={onNavigate}
-        onLogout={onLogout}
-        logoutDisabled={logoutDisabled}
-      />
-    </div>
+    <DashboardPeriodProvider>
+      <div className="app-shell">
+        <Sidebar
+          activeTab={activeTab}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          logoutDisabled={logoutDisabled}
+        />
+        <main className="app-main" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+          <div className="app-content">{children}</div>
+        </main>
+        <MobileNavigation
+          activeTab={activeTab}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          logoutDisabled={logoutDisabled}
+        />
+      </div>
+    </DashboardPeriodProvider>
   )
 }
 
