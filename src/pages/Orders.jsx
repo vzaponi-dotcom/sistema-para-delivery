@@ -7,7 +7,7 @@ import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
-import { getOrderItems, getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
+import { getOrderItemDisplayName, getOrderItems, getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import {
   formatOrderDate,
   formatOrderTime,
@@ -175,7 +175,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                     <div className="order-items-list">
                       {getOrderItems(order).map((item) => (
                         <div className="order-item-line" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
-                          <strong>{item.quantity}x {item.name}</strong>
+                          <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
                           {item.note && <span>↳ {item.note}</span>}
                         </div>
                       ))}
@@ -195,7 +195,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
 
                   <div className="order-queue-actions">
                     <Button type="button" variant="secondary" onClick={() => setDetailOrder(order)} disabled={actionsDisabled}>Ver detalhes</Button>
-                    <Button disabled={actionsDisabled} onClick={() => runAction(`finish:${order.id}`, () => onFinalizeOrder(order.id))}>
+                    <Button className="order-final-action" disabled={actionsDisabled} onClick={() => runAction(`finish:${order.id}`, () => onFinalizeOrder(order.id))}>
                       {getFinalActionLabel(order)}
                     </Button>
                     <button
