@@ -1,7 +1,7 @@
 import Modal from './Modal'
 import PaymentBadge from './PaymentBadge'
 import StatusBadge from './StatusBadge'
-import { getOrderItems } from '../utils/orderCart.js'
+import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../utils/orderWorkflow.js'
 
 const adjustmentLabel = (adjustment, currency) => {
@@ -50,7 +50,7 @@ function OrderDetail({ order, currency, onClose }) {
             {items.map((item) => (
               <div className="order-detail-item" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
                 <div>
-                  <strong>{item.quantity}x {item.name}</strong>
+                  <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
                   {item.note && <span>↳ {item.note}</span>}
                 </div>
                 <strong>{currency(Number(item.unitPrice ?? item.catalogPrice ?? 0) * Number(item.quantity || 1))}</strong>
