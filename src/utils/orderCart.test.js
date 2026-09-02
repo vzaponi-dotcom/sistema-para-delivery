@@ -1,10 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
+import * as orderCart from './orderCart.js'
+
+const {
   addCartItem, buildOrderPayload, calculateOrderPreview,
   getOrderItems, getOrderItemsSearchText, getOrderItemsSummary,
   removeCartItem, updateCartItem,
-} from './orderCart.js'
+} = orderCart
 
 const marmita = { id: 'p1', name: 'Marmita G', category: 'Marmita', size: 'G', price: 32 }
 const coca = { id: 'p2', name: 'Coca-Cola', category: 'Bebida', size: 'Lata', price: 8 }
@@ -56,4 +58,11 @@ test('summary and search use every item and tolerate legacy fields', () => {
 test('multi-item search finds any product and legacy order stays readable', () => {
   assert.match(getOrderItemsSearchText({ items: [{ name: 'Marmita G' }, { name: 'Pudim' }] }).toLowerCase(), /pudim/)
   assert.equal(getOrderItems({ productName: 'Marmita P', size: 'P', quantity: 2 })[0].quantity, 2)
+})
+
+test('display name appends size only when product name does not already contain it', () => {
+  assert.equal(typeof orderCart.getOrderItemDisplayName, 'function')
+  assert.equal(orderCart.getOrderItemDisplayName({ name: 'Marmita', size: 'P' }), 'Marmita P')
+  assert.equal(orderCart.getOrderItemDisplayName({ name: 'Marmita P', size: 'P' }), 'Marmita P')
+  assert.equal(orderCart.getOrderItemDisplayName({ name: 'Coca-Cola', size: 'Lata' }), 'Coca-Cola Lata')
 })
