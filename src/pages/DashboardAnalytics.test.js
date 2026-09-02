@@ -6,8 +6,10 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 
 test('dashboard defaults analytics to 30 days and keeps the existing operational summary', () => {
   const page = source('./Dashboard.jsx')
+  const provider = source('../components/DashboardPeriodProvider.jsx')
 
-  assert.match(page, /useState\(['"]30d['"]\)/)
+  assert.match(provider, /useState\(['"]30d['"]\)/)
+  assert.match(page, /useDashboardPeriod/)
   assert.match(page, /Vendas hoje/)
   assert.match(page, /Recebido hoje/)
   assert.match(page, /A receber/)
