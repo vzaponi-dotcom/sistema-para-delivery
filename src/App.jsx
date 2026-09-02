@@ -3,6 +3,7 @@ import './App.css'
 import './central-data.css'
 import './new-order.css'
 import './client-duplicate.css'
+import './product-form.css'
 import AppShell from './components/AppShell'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
@@ -10,6 +11,7 @@ import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
 import Modal from './components/Modal'
+import ProductForm from './components/ProductForm'
 import SystemSelect from './components/SystemSelect'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
@@ -19,7 +21,8 @@ import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
-import { formatBRLCurrencyInput, formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
+import { categoryForUi } from '../shared/productCatalog.js'
+import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
@@ -43,8 +46,6 @@ import {
 
 const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
   .map((value) => ({ value, label: value }))
-const PRODUCT_CATEGORY_OPTIONS = ['Marmita', 'Bebida', 'Doce', 'Adicional']
-  .map((value) => ({ value, label: value }))
 const MOVEMENT_TYPE_OPTIONS = [
   { value: 'entrada', label: 'Entrada' },
   { value: 'saida', label: 'Saída' },
@@ -54,7 +55,14 @@ const MOVEMENT_CATEGORY_OPTIONS = ['Vendas', 'Delivery', 'Insumos', 'Despesas', 
 
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
-const emptyProduct = () => ({ category: 'Marmita', size: 'P', name: '', price: formatBRLCurrencyValue(32) })
+const emptyProduct = () => ({
+  category: 'Refeições',
+  presentationType: 'size',
+  presentationValue: 'P',
+  presentationUnit: '',
+  name: '',
+  price: formatBRLCurrencyValue(32),
+})
 
 function App() {
   const [authState, setAuthState] = useState('checking')
@@ -211,12 +219,6 @@ function App() {
         .includes(normalizedSearch)
     })
   }, [orderSearch, orders])
-
-  const filteredProducts = useMemo(() => {
-    const normalizedSearch = productSearch.trim().toLowerCase()
-    if (!normalizedSearch) return products
-    return products.filter((product) => [product.name, product.category, product.size, String(product.price)].join(' ').toLowerCase().includes(normalizedSearch))
-  }, [productSearch, products])
 
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setToastMessage(message)
 
@@ -483,10 +485,25 @@ function App() {
     if (writesBlocked) return
     setEditingProductId(product.id)
     setShowProductForm(true)
-    setNewProduct({ category: product.category, size: product.size, name: product.name, price: formatBRLCurrencyValue(product.price) })
+    const legacySized = Boolean(product.size && !['Un', 'Unidade'].includes(product.size))
+    setNewProduct({
+      category: categoryForUi(product.category),
+      presentationType: product.presentationType || (legacySized ? 'size' : 'unit'),
+      presentationValue: product.presentationValue ?? (legacySized ? product.size : ''),
+      presentationUnit: product.presentationUnit || '',
+      name: product.name,
+      price: formatBRLCurrencyValue(product.price),
+    })
   }
 
-  const productPayload = () => ({ category: newProduct.category, size: newProduct.size || 'Un', name: newProduct.name.trim(), price: parseBRLCurrencyInput(newProduct.price) })
+  const productPayload = () => ({
+    category: newProduct.category,
+    presentationType: newProduct.presentationType,
+    presentationValue: newProduct.presentationValue,
+    presentationUnit: newProduct.presentationUnit,
+    name: newProduct.name.trim(),
+    price: parseBRLCurrencyInput(newProduct.price),
+  })
 
   const handleAddProduct = async () => {
     if (writesBlocked || !newProduct.name.trim()) return
@@ -615,7 +632,7 @@ function App() {
           />
         )}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
-        {activeTab === 'products' && <Products products={filteredProducts} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
+        {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} currency={currency} onRegisterPayment={openPaymentModal} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} />}
 
@@ -655,12 +672,14 @@ function App() {
 
         {showProductForm && (
           <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}>
-            <div className="form-stack">
-              <label className="form-field"><span>Nome do produto</span><input type="text" placeholder="Ex: Marmita executiva" value={newProduct.name} onChange={(event) => setNewProduct((current) => ({ ...current, name: event.target.value }))} /></label>
-              <div className="form-grid two-columns"><div className="form-field"><span>Categoria</span><SystemSelect value={newProduct.category} options={PRODUCT_CATEGORY_OPTIONS} onChange={(category) => setNewProduct((current) => ({ ...current, category }))} disabled={writesBlocked} label="Categoria do produto" /></div><label className="form-field"><span>Tamanho / unidade</span><input type="text" placeholder="Ex: M, 600ml, Un" value={newProduct.size} onChange={(event) => setNewProduct((current) => ({ ...current, size: event.target.value }))} /></label></div>
-              <label className="form-field"><span>Preço</span><input type="text" inputMode="decimal" placeholder="R$ 0,00" value={newProduct.price} onChange={(event) => setNewProduct((current) => ({ ...current, price: formatBRLCurrencyInput(event.target.value) }))} /></label>
-              <div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelProductEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newProduct.name.trim()} onClick={handleAddProduct}>{editingProductId !== null ? 'Salvar alterações' : 'Adicionar produto'}</Button></div>
-            </div>
+            <ProductForm
+              value={newProduct}
+              onChange={setNewProduct}
+              onSubmit={handleAddProduct}
+              onCancel={handleCancelProductEdit}
+              disabled={writesBlocked}
+              editing={editingProductId !== null}
+            />
           </Modal>
         )}
 
