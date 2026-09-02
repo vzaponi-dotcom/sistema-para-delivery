@@ -1,5 +1,4 @@
 import '../theme-controls.css'
-import BrandLogo from './BrandLogo'
 import Icon from './Icon'
 import { useTheme } from './themeContext.js'
 
@@ -24,7 +23,7 @@ function Sidebar({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-logo"><BrandLogo variant="mark" /></div>
+        <div className="sidebar-logo" aria-hidden="true"><Icon name="meal" size={24} /></div>
         <div>
           <strong>Amor &amp; Sabor</strong>
           <span>Gestão do delivery</span>
