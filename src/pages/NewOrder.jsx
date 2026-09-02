@@ -86,10 +86,15 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
     if (!event.currentTarget.contains(event.relatedTarget)) setClientPickerOpen(false)
   }
 
-  const finishQuickClient = (client) => {
-    selectClient(client)
+  const closeQuickClient = () => {
     setQuickClient({ open: false, name: '', phone: '' })
     setQuickClientError('')
+    setDuplicateClient(null)
+  }
+
+  const finishQuickClient = (client) => {
+    selectClient(client)
+    closeQuickClient()
   }
 
   const createQuickClient = async () => {
@@ -119,7 +124,6 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
   const handleUseExistingDuplicate = () => {
     if (!duplicateClient) return
     finishQuickClient(duplicateClient)
-    setDuplicateClient(null)
   }
 
   const handleConfirmDuplicate = async () => {
@@ -128,9 +132,13 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
   }
 
   const toggleQuickClient = () => {
+    if (quickClient.open) {
+      closeQuickClient()
+      return
+    }
     setQuickClientError('')
     setDuplicateClient(null)
-    setQuickClient((current) => ({ ...current, open: !current.open }))
+    setQuickClient((current) => ({ ...current, open: true }))
   }
 
   const updateQuickClient = (patch) => {
@@ -239,7 +247,10 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
                     autoComplete="off"
                   />
                 </label>
-                <Button type="submit" disabled={disabled || !quickClient.name.trim()}>Adicionar cliente</Button>
+                <div className="form-actions">
+                  <Button type="button" variant="secondary" onClick={closeQuickClient} disabled={disabled}>Cancelar</Button>
+                  <Button type="submit" disabled={disabled || !quickClient.name.trim()}>Adicionar cliente</Button>
+                </div>
               </form>
             )}
 
