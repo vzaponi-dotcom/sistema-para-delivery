@@ -1,0 +1,100 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Worker bundle
+        run: npx --yes wrangler@4.128.0 deploy --dry-run
+
+      - name: Check Cloudflare credentials
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare credentials are not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
+      - name: Show pending D1 migrations
+        run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery --remote
+
+      - name: Apply D1 migrations
+        run: npm run d1:migrate:remote
+
+      - name: Configure production PIN when provided
+        shell: bash
+        env:
+          AMOR_PIN: ${{ secrets.AMOR_PIN }}
+        run: |
+          if [ -z "$AMOR_PIN" ]; then
+            echo "AMOR_PIN is not configured; keeping the current production PIN verifier."
+            exit 0
+          fi
+
+          VERIFIER="$(PIN="$AMOR_PIN" node scripts/generate-pin-hash.mjs)"
+          echo "::add-mask::$VERIFIER"
+
+          VERIFIER="$VERIFIER" node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+
+          const verifier = process.env.VERIFIER
+          if (!verifier) throw new Error('PIN verifier was not generated.')
+
+          const escapedVerifier = verifier.replaceAll("'", "''")
+          const sql = `INSERT INTO auth_credentials (business_id, pin_hash, created_at, updated_at)
+          VALUES ('amor-e-sabor', '${escapedVerifier}', datetime('now'), datetime('now'))
+          ON CONFLICT(business_id) DO UPDATE SET
+            pin_hash = excluded.pin_hash,
+            updated_at = datetime('now');\n`
+
+          fs.writeFileSync('/tmp/amor-pin.sql', sql, { mode: 0o600 })
+          NODE
+
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes --file /tmp/amor-pin.sql
+          rm -f /tmp/amor-pin.sql
+          unset VERIFIER
+
+      - name: Verify production PIN row
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --command "SELECT business_id, length(pin_hash) AS verifier_length FROM auth_credentials WHERE business_id = 'amor-e-sabor';"
+
+      - name: Deploy
+        run: npm run deploy
