@@ -15,7 +15,7 @@
   place-items: center;
   padding: 0;
   border-radius: 50%;
-  z-index: 30;
+  z-index: 70;
   transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
@@ -254,7 +254,6 @@
 @media (max-width: 640px) {
   .dashboard-new-order-fab {
     right: 18px;
-    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   }
 
   .dashboard-performance-section {
