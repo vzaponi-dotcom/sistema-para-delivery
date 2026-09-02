@@ -98,3 +98,35 @@ jobs:
 
       - name: Deploy
         run: npm run deploy
+
+      - name: Verify production login with configured PIN
+        env:
+          AMOR_PIN: ${{ secrets.AMOR_PIN }}
+          PRODUCTION_URL: https://sistema-para-delivery.vzaponi.workers.dev
+        run: |
+          if [ -z "$AMOR_PIN" ]; then
+            echo "AMOR_PIN is not configured; skipping production login verification."
+            exit 0
+          fi
+
+          node --input-type=module <<'NODE'
+          const baseUrl = process.env.PRODUCTION_URL
+          const pin = process.env.AMOR_PIN
+          const response = await fetch(`${baseUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              origin: baseUrl,
+            },
+            body: JSON.stringify({ pin }),
+          })
+
+          let payload = null
+          try {
+            payload = await response.json()
+          } catch {}
+
+          const code = payload?.error?.code ? ` (${payload.error.code})` : ''
+          console.log(`Production login HTTP ${response.status}${code}`)
+          if (!response.ok) process.exit(1)
+          NODE
