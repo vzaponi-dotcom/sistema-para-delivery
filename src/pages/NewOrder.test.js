@@ -7,41 +7,55 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 test('new order uses one searchable client picker without phone in the selected label', () => {
   const page = source('./NewOrder.jsx')
 
-  assert.match(page, /ClientPicker/)
-  assert.match(page, /client\.name/)
-  assert.doesNotMatch(page, /selectedClient.*phone/)
+  assert.match(page, /new-order-client-picker/)
+  assert.match(page, /role="combobox"/)
+  assert.match(page, /role="listbox"/)
+  assert.doesNotMatch(page, />Buscar cliente</)
+  assert.doesNotMatch(page, /\[client\.name, client\.phone\]/)
+  assert.doesNotMatch(page, /client\.name\}\{client\.phone/)
 })
 
 test('quick client phone reuses the normal phone mask', () => {
   const page = source('./NewOrder.jsx')
 
   assert.match(page, /formatPhone/)
-  assert.match(page, /quickClient\.phone/)
+  assert.match(page, /phone: formatPhone\(event\.target\.value\)/)
 })
 
 test('product catalog keeps added state tied to the cart with readable white text', () => {
+  const page = source('./NewOrder.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
   const css = source('../new-order.css')
 
-  assert.match(catalog, /addedProductIds/)
-  assert.match(catalog, /Adicionado/)
-  assert.match(css, /\.new-order-product-card\.is-added[\s\S]*color:\s*#fff/)
+  assert.match(page, /items=\{items\}/)
+  assert.match(catalog, /items\.some/)
+  assert.match(catalog, /✓ Adicionado/)
+  assert.doesNotMatch(catalog, /setTimeout/)
+  assert.doesNotMatch(catalog, /useEffect/)
+  assert.match(css, /\.new-order-add-button span\s*\{[^}]*color:\s*#fff/s)
 })
 
 test('item note typing preserves spaces and commits normalization on blur', () => {
+  const page = source('./NewOrder.jsx')
   const cart = source('../components/OrderCart.jsx')
 
-  assert.match(cart, /updateItemNoteDraft/)
-  assert.match(cart, /commitItemNote/)
-  assert.match(cart, /onBlur/)
+  assert.match(page, /editCartItemNote/)
+  assert.match(page, /commitCartItemNote/)
+  assert.match(cart, /onNoteChange/)
+  assert.match(cart, /onNoteCommit/)
+  assert.match(cart, /onChange=\{\(event\) => onNoteChange/)
+  assert.match(cart, /onBlur=\{\(\) => \{[^}]*onNoteCommit\(item\.lineId\)/s)
 })
 
 test('item observation stays collapsed until requested and collapses to a summary after editing', () => {
   const cart = source('../components/OrderCart.jsx')
 
-  assert.match(cart, /showNote/)
+  assert.match(cart, /useState/)
   assert.match(cart, /Adicionar observação/)
   assert.match(cart, /Editar observação/)
+  assert.match(cart, /new-order-note-summary/)
+  assert.match(cart, /expandedNote/)
+  assert.match(cart, /onBlur=\{\(\) => \{[^}]*onNoteCommit\(item\.lineId\)[^}]*closeNote/s)
 })
 
 test('cart item layout is horizontal and compact with quantity on the left', () => {
@@ -75,6 +89,8 @@ test('new order still exposes catalog, cart and both checkout actions', () => {
   assert.match(catalog, /Buscar produto/)
   assert.match(catalog, /Categorias de produtos/)
   assert.match(cart, /Carrinho/)
-  assert.match(checkout, /Salvar como pendente/)
-  assert.match(checkout, /Finalizar e receber/)
+  assert.match(cart, /Observação deste item/)
+  assert.match(checkout, /Salvar pedido/)
+  assert.match(checkout, /Salvar e receber/)
+  assert.match(checkout, /Forma de pagamento/)
 })
