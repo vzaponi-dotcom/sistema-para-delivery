@@ -1,3 +1,4 @@
+import { validateCustomerIdentity } from '../shared/orderCustomerIdentity.js'
 import {
   moneyToCents,
   optionalTextMax,
@@ -51,8 +52,11 @@ const validateAdjustment = (value = {}) => {
 }
 
 export const validateCheckoutInput = (body = {}, idempotencyKey) => {
-  const clientId = requireNonEmpty(body.clientId, 'clientId')
   const type = validateOrderType(body.type)
+  const rawIdentity = body.customerIdentity ?? { type: 'registered_client', clientId: body.clientId }
+  const identityResult = validateCustomerIdentity(type, rawIdentity)
+  if (!identityResult.ok) throw checkoutError(identityResult.field, identityResult.message)
+  const customerIdentity = identityResult.value
   const orderDate = validateIsoDate(body.orderDate, 'orderDate')
   const stableKey = requireNonEmpty(idempotencyKey, 'idempotency-key')
 
@@ -85,7 +89,7 @@ export const validateCheckoutInput = (body = {}, idempotencyKey) => {
     : validatePaymentMethod(body.paymentMethod)
 
   return {
-    clientId,
+    customerIdentity,
     type,
     orderDate,
     items,
