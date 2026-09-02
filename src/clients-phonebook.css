@@ -1,0 +1,150 @@
+.client-phonebook-list {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.client-phonebook-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.8fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  transition: background 140ms ease;
+}
+
+.client-phonebook-row:last-child {
+  border-bottom: 0;
+}
+
+.client-phonebook-row:hover:not(:disabled),
+.client-phonebook-row:focus-visible {
+  background: var(--surface-soft);
+}
+
+.client-phonebook-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.client-phonebook-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.client-phonebook-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.client-phonebook-main strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-phonebook-main span,
+.client-phonebook-address {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-phonebook-address {
+  text-align: right;
+}
+
+.client-phonebook-chevron {
+  color: var(--muted);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.client-action-summary {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-soft);
+}
+
+.client-action-summary strong {
+  color: var(--text);
+}
+
+.client-action-summary span,
+.client-action-summary small,
+.client-delete-confirm p {
+  color: var(--muted);
+}
+
+.client-action-summary small {
+  overflow-wrap: anywhere;
+}
+
+.client-action-buttons,
+.client-delete-confirm-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.client-action-buttons .button,
+.client-delete-confirm-actions .button {
+  width: 100%;
+}
+
+.client-delete-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border));
+  border-radius: 13px;
+  background: var(--danger-soft);
+}
+
+.client-delete-confirm strong {
+  color: var(--danger);
+}
+
+.client-delete-confirm p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .client-phonebook-row {
+    min-height: 58px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 9px 11px;
+  }
+
+  .client-phonebook-address {
+    grid-column: 1;
+    text-align: left;
+    font-size: 0.72rem;
+  }
+
+  .client-phonebook-chevron {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
