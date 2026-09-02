@@ -1,5 +1,6 @@
 import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
+import { loadBootstrap } from './repositories.js'
 import { requireNonEmpty } from './validation.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
@@ -55,6 +56,12 @@ const sessionStatus = async (request, env) => {
 const authenticatedApi = async (request, env) => {
   const session = await getAuthenticatedSession(request, env)
   if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
+
+  const url = new URL(request.url)
+  if (url.pathname === '/api/bootstrap' && request.method === 'GET') {
+    return json(await loadBootstrap(env.DB, session.businessId))
+  }
+
   throw apiError(404, 'NOT_FOUND', 'Rota de API não encontrada.')
 }
 

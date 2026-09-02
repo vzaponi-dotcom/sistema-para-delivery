@@ -23,6 +23,9 @@ class FakeDb {
             }
             return null
           },
+          async all() {
+            return { results: [] }
+          },
           async run() {
             if (sql.includes('INSERT INTO sessions')) {
               const [id, businessId, tokenHash, createdAt, expiresAt, lastSeenAt] = values
@@ -128,4 +131,22 @@ test('mutations reject a missing or cross-origin Origin header', async () => {
   }), env)
   assert.equal(response.status, 403)
   assert.equal((await response.json()).error.code, 'ORIGIN_NOT_ALLOWED')
+})
+
+test('authenticated bootstrap returns the shared clean business dataset', async () => {
+  const env = await makeEnv()
+  const loginResponse = await login(env)
+  const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
+  const response = await handleRequest(new Request('https://delivery.example/api/bootstrap', {
+    headers: { cookie: cookiePair },
+  }), env)
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), {
+    business: { id: 'amor-e-sabor', name: 'Amor & Sabor' },
+    clients: [],
+    products: [],
+    orders: [],
+    movements: [],
+  })
 })
