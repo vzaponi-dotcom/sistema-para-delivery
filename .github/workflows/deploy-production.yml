@@ -1,9 +1,6 @@
 name: Deploy production
 
 on:
-  push:
-    branches:
-      - feature/client-duplicate-modal-ux
   workflow_dispatch:
 
 permissions:
