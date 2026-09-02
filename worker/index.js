@@ -6,6 +6,12 @@ import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, vali
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
+const LEGACY_PRODUCT_CATEGORIES = {
+  Marmita: 'Refeições',
+  Bebida: 'Bebidas',
+  Doce: 'Sobremesas',
+  Adicional: 'Adicionais',
+}
 
 const assertLoginAllowed = async (env) => {
   if (!env.LOGIN_RATE_LIMITER?.limit) throw apiError(503, 'RATE_LIMIT_UNAVAILABLE', 'Proteção de acesso indisponível. Tente novamente.')
@@ -29,9 +35,15 @@ const logout = async (request, env) => { assertSameOriginMutation(request); awai
 const sessionStatus = async (request, env) => { const session = await getAuthenticatedSession(request, env); return session ? json({ authenticated: true, businessId: session.businessId }) : json({ authenticated: false }) }
 const clientInput = (body) => ({ name: requireNonEmpty(body.name, 'name'), phone: optionalText(body.phone), address: optionalText(body.address) })
 const productInput = (body) => {
-  const presentation = validateStructuredPresentation(body)
+  const category = validateProductCategory(LEGACY_PRODUCT_CATEGORIES[body.category] || body.category)
+  const legacySize = optionalText(body.size)
+  const presentation = body.presentationType
+    ? validateStructuredPresentation(body)
+    : validateStructuredPresentation(legacySize && !['Un', 'Unidade'].includes(legacySize)
+      ? { presentationType: 'size', presentationValue: legacySize, presentationUnit: '' }
+      : { presentationType: 'unit', presentationValue: '', presentationUnit: '' })
   return {
-    category: validateProductCategory(body.category),
+    category,
     name: requireNonEmpty(body.name, 'name'),
     priceCents: moneyToCents(body.price, 'price'),
     ...presentation,
