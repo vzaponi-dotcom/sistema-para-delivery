@@ -1,0 +1,111 @@
+from pathlib import Path
+
+path = Path('worker/repositories.js')
+source = path.read_text()
+marker = "export const registerOrderPayment = async (db, businessId, orderId, method, now = new Date()) => {"
+if source.count(marker) != 1:
+    raise SystemExit('registerOrderPayment marker mismatch')
+
+block = r'''export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = new Date()) => {
+  if (!tableTabId) return null
+  const pending = await db.prepare(`SELECT COUNT(*) AS count
+    FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL`).bind(businessId, tableTabId).first()
+  if (Number(pending?.count || 0) > 0) return null
+
+  const timestamp = now.toISOString()
+  await db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = COALESCE(closed_at, ?), updated_at = ?
+    WHERE id = ? AND business_id = ? AND status = 'open'`).bind(timestamp, timestamp, tableTabId, businessId).run()
+  const row = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs
+    WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
+  return row ? mapTableTabRow(row) : null
+}
+
+export const registerTableTabPayment = async (db, businessId, tableTabId, method, now = new Date()) => {
+  const tabRow = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
+    FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
+  if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
+  if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
+
+  const pendingResult = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents
+    FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL
+    ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
+  const pending = rows(pendingResult)
+  const paidAt = now.toISOString()
+  const movementDate = businessDate(now)
+  const statements = []
+  const movementRows = []
+
+  for (const orderRow of pending) {
+    const paymentId = crypto.randomUUID()
+    const movementId = crypto.randomUUID()
+    const description = `Pagamento pedido #${String(orderRow.id).slice(-4)} · ${orderRow.client_name_snapshot}`
+    statements.push(
+      db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderRow.id, orderRow.total_cents, method, paidAt, paidAt),
+      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderRow.id, paymentId, movementDate, paidAt),
+    )
+    movementRows.push({
+      id: movementId,
+      type: 'entrada',
+      category: 'Vendas',
+      description,
+      value_cents: orderRow.total_cents,
+      source: 'order-payment',
+      order_id: orderRow.id,
+      payment_id: paymentId,
+      movement_date: movementDate,
+      created_at: paidAt,
+    })
+  }
+
+  statements.push(
+    db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
+      WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId),
+  )
+  await db.batch(statements)
+
+  return {
+    tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: paidAt }),
+    orders: await Promise.all(pending.map((order) => loadOrderById(db, businessId, order.id))),
+    movements: movementRows.map(mapMovementRow),
+  }
+}
+
+'''
+source = source.replace(marker, block + marker, 1)
+
+old = "const orderRow = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()"
+new = "const orderRow = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()"
+if source.count(old) != 1:
+    raise SystemExit('single payment select mismatch')
+source = source.replace(old, new, 1)
+
+old = "  const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: paidAt })\n  return { payment, movement, order: await loadOrderById(db, businessId, orderId) }"
+new = "  const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: paidAt })\n  await closeTableTabIfSettled(db, businessId, orderRow.table_tab_id, now)\n  return { payment, movement, order: await loadOrderById(db, businessId, orderId) }"
+if source.count(old) != 1:
+    raise SystemExit('single payment return mismatch')
+source = source.replace(old, new, 1)
+path.write_text(source)
+
+path = Path('worker/index.js')
+source = path.read_text()
+old = "import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, loadBootstrap, registerOrderPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'"
+new = "import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'"
+if source.count(old) != 1:
+    raise SystemExit('index import mismatch')
+source = source.replace(old, new, 1)
+
+marker = "  const orderMatch = url.pathname.match(/^\\/api\\/orders\\/([^/]+)$/)"
+block = r'''  const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
+  if (tableTabPaymentMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const { method } = await readJson(request)
+    const result = await registerTableTabPayment(env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method))
+    return json(result, { status: 201 })
+  }
+'''
+if source.count(marker) != 1:
+    raise SystemExit('index orderMatch marker mismatch')
+source = source.replace(marker, block + marker, 1)
+path.write_text(source)
