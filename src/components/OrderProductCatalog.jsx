@@ -1,4 +1,9 @@
 import { useMemo, useState } from 'react'
+import {
+  PRODUCT_CATEGORIES,
+  categoryForUi,
+  formatProductPresentation,
+} from '../../shared/productCatalog.js'
 import Button from './Button'
 
 function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd }) {
@@ -6,16 +11,20 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
   const [category, setCategory] = useState('Todos')
 
   const categories = useMemo(
-    () => ['Todos', ...new Set(products.map((product) => product.category).filter(Boolean))],
+    () => ['Todos', ...PRODUCT_CATEGORIES.filter((item) => products.some((product) => categoryForUi(product.category) === item))],
     [products],
   )
 
   const visibleProducts = useMemo(() => {
-    const normalized = search.trim().toLowerCase()
-    return products.filter((product) => (
-      (category === 'Todos' || product.category === category) &&
-      (!normalized || [product.name, product.category, product.size].join(' ').toLowerCase().includes(normalized))
-    ))
+    const normalized = search.trim().toLocaleLowerCase('pt-BR')
+    return products.filter((product) => {
+      const uiCategory = categoryForUi(product.category)
+      const presentation = formatProductPresentation(product)
+      return (
+        (category === 'Todos' || uiCategory === category) &&
+        (!normalized || [product.name, uiCategory, presentation].join(' ').toLocaleLowerCase('pt-BR').includes(normalized))
+      )
+    })
   }, [category, products, search])
 
   return (
@@ -32,7 +41,7 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
         <span>Buscar produto</span>
         <input
           type="search"
-          placeholder="Nome, categoria ou tamanho"
+          placeholder="Nome, categoria ou apresentação"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -45,6 +54,7 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
             type="button"
             className={category === item ? 'new-order-category active' : 'new-order-category'}
             onClick={() => setCategory(item)}
+            aria-pressed={category === item}
           >
             {item}
           </button>
@@ -54,11 +64,13 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
       <div className="new-order-products">
         {visibleProducts.map((product) => {
           const isAdded = items.some((item) => item.productId === product.id)
+          const uiCategory = categoryForUi(product.category)
+          const presentation = formatProductPresentation(product)
           return (
             <article className={isAdded ? 'new-order-product recently-added' : 'new-order-product'} key={product.id}>
               <div>
                 <strong>{product.name}</strong>
-                <span>{[product.category, product.size].filter(Boolean).join(' · ')}</span>
+                <span>{[uiCategory, presentation].filter(Boolean).join(' · ')}</span>
               </div>
               <div className="new-order-product-action">
                 <strong>{currency(product.price)}</strong>
