@@ -43,6 +43,7 @@ function OrderCheckoutSummary({
           <span>Taxa de entrega</span>
           <input
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={draft.deliveryFee}
@@ -81,6 +82,7 @@ function OrderCheckoutSummary({
               <span>Valor</span>
               <input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 max={adjustment.mode === 'percentage' ? '100' : undefined}
                 step="0.01"
