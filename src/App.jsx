@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './central-data.css'
 import './new-order.css'
@@ -24,6 +24,7 @@ import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
+import { activeOrderIdSet, getNewActiveOrderIds } from './utils/orderRealtime.js'
 import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
@@ -35,6 +36,7 @@ import {
   deleteOrder as deleteOrderApi,
   deleteProduct as deleteProductApi,
   getBootstrap as getBootstrapApi,
+  getOrders as getOrdersApi,
   getSession as getSessionApi,
   login as loginApi,
   logout as logoutApi,
@@ -53,8 +55,18 @@ const MOVEMENT_TYPE_OPTIONS = [
 ]
 const MOVEMENT_CATEGORY_OPTIONS = ['Vendas', 'Delivery', 'Insumos', 'Despesas', 'Outros']
   .map((value) => ({ value, label: value }))
+const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
+const readKitchenSoundPreference = () => {
+  if (typeof window === 'undefined') return true
+  try {
+    return window.localStorage.getItem(KITCHEN_SOUND_STORAGE_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
 
 const emptyProduct = () => ({
   category: 'Refeições',
@@ -94,6 +106,12 @@ function App() {
   const [showMovementModal, setShowMovementModal] = useState(false)
   const [paymentOrderId, setPaymentOrderId] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
+  const [newOrderIds, setNewOrderIds] = useState(() => new Set())
+  const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
+  const knownActiveOrderIdsRef = useRef(new Set())
+  const alertedOrderIdsRef = useRef(new Set())
+  const kitchenAudioContextRef = useRef(null)
+  const newOrderHighlightTimerRef = useRef(null)
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
@@ -105,6 +123,9 @@ function App() {
     setOrders([])
     setTableTabs([])
     setMovements([])
+    setNewOrderIds(new Set())
+    knownActiveOrderIdsRef.current = new Set()
+    alertedOrderIdsRef.current = new Set()
     setCheckoutKey(null)
     setPaymentOrderId(null)
     setShowMovementModal(false)
@@ -151,6 +172,50 @@ function App() {
     }
   }
 
+  const playKitchenNewOrderSound = async () => {
+    if (typeof window === 'undefined') return
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) return
+
+    try {
+      if (!kitchenAudioContextRef.current) kitchenAudioContextRef.current = new AudioContextClass()
+      const context = kitchenAudioContextRef.current
+      if (context.state === 'suspended') await context.resume()
+      if (context.state !== 'running') return
+
+      const playTone = (frequency, delay) => {
+        const oscillator = context.createOscillator()
+        const gain = context.createGain()
+        const startsAt = context.currentTime + delay
+        oscillator.type = 'sine'
+        oscillator.frequency.setValueAtTime(frequency, startsAt)
+        gain.gain.setValueAtTime(0.0001, startsAt)
+        gain.gain.exponentialRampToValueAtTime(0.14, startsAt + 0.015)
+        gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + 0.18)
+        oscillator.connect(gain)
+        gain.connect(context.destination)
+        oscillator.start(startsAt)
+        oscillator.stop(startsAt + 0.2)
+      }
+
+      playTone(784, 0)
+      playTone(988, 0.16)
+    } catch {
+      // Browsers may block audio until the first user interaction.
+    }
+  }
+
+  const handleKitchenSoundEnabledChange = (enabled) => {
+    const nextEnabled = Boolean(enabled)
+    setKitchenSoundEnabled(nextEnabled)
+    try {
+      window.localStorage.setItem(KITCHEN_SOUND_STORAGE_KEY, String(nextEnabled))
+    } catch {
+      // Preference persistence is optional when storage is unavailable.
+    }
+    if (nextEnabled) void playKitchenNewOrderSound()
+  }
+
   useEffect(() => {
     let cancelled = false
     const initialize = async () => {
@@ -185,6 +250,90 @@ function App() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
+  }, [])
+
+  useEffect(() => {
+    if (!kitchenSoundEnabled) return undefined
+
+    const unlockAudio = () => {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext
+      if (!AudioContextClass) return
+      try {
+        if (!kitchenAudioContextRef.current) kitchenAudioContextRef.current = new AudioContextClass()
+        if (kitchenAudioContextRef.current.state === 'suspended') void kitchenAudioContextRef.current.resume()
+      } catch {
+        // The next user interaction can try again.
+      }
+    }
+
+    window.addEventListener('pointerdown', unlockAudio, { passive: true })
+    window.addEventListener('keydown', unlockAudio)
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio)
+      window.removeEventListener('keydown', unlockAudio)
+    }
+  }, [kitchenSoundEnabled])
+
+  useEffect(() => {
+    if (activeTab !== 'orders' || !isOnline || authState !== 'authenticated' || bootstrapState !== 'ready') return undefined
+
+    let cancelled = false
+    let syncing = false
+    knownActiveOrderIdsRef.current = activeOrderIdSet(orders)
+
+    const refreshOrders = async () => {
+      if (syncing || cancelled) return
+      syncing = true
+      try {
+        const data = await getOrdersApi()
+        if (cancelled || !Array.isArray(data?.orders)) return
+
+        const latestOrders = data.orders
+        const detectedIds = getNewActiveOrderIds(knownActiveOrderIdsRef.current, latestOrders)
+          .filter((id) => !alertedOrderIdsRef.current.has(id))
+        knownActiveOrderIdsRef.current = activeOrderIdSet(latestOrders)
+        setOrders(latestOrders)
+
+        if (detectedIds.length) {
+          detectedIds.forEach((id) => alertedOrderIdsRef.current.add(id))
+          setNewOrderIds((current) => new Set([...current, ...detectedIds]))
+          if (kitchenSoundEnabled) void playKitchenNewOrderSound()
+
+          if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current)
+          newOrderHighlightTimerRef.current = window.setTimeout(() => {
+            setNewOrderIds(new Set())
+            newOrderHighlightTimerRef.current = null
+          }, 2600)
+        }
+      } catch (error) {
+        if (!cancelled && error?.status === 401) expireSession()
+      } finally {
+        syncing = false
+      }
+    }
+
+    void refreshOrders()
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshOrders()
+    }, 2_000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshOrders()
+    }
+    const handleFocus = () => void refreshOrders()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [activeTab, authState, bootstrapState, isOnline, kitchenSoundEnabled])
+
+  useEffect(() => () => {
+    if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current)
+    if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close()
   }, [])
 
   useEffect(() => {
@@ -644,7 +793,7 @@ function App() {
         {toastMessage && <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>}
 
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onDeleteOrder={handleDeleteOrder} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onDeleteOrder={handleDeleteOrder} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
         {activeTab === 'new-order' && (
           <NewOrder
             clients={clients}
