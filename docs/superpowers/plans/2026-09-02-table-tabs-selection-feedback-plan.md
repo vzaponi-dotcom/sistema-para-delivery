@@ -4,7 +4,7 @@
 
 **Goal:** Criar uma comanda persistente por mesa, cobrar todos os pedidos pendentes dessa comanda em uma única ação e tornar inequívoco o estado visual selecionado no formulário de produtos.
 
-**Architecture:** Adicionar uma entidade `table_tabs` no D1 e um vínculo opcional `orders.table_tab_id`; o Worker resolve ou cria a comanda autoritativamente a partir do identificador da mesa, e o bootstrap expõe `tableTabs` junto dos pedidos. `A Receber` passa a agrupar pedidos de mesa pelo `tableTabId` e usa um endpoint dedicado para pagamento consolidado, preservando um pagamento e uma movimentação por pedido. O hotfix visual reutiliza o estado lógico e `aria-pressed` já existentes no `ProductForm`, acrescentando contraste forte e check visível sem alterar regras do catálogo.
+**Architecture:** Adicionar `table_tabs` no D1 e `orders.table_tab_id`; o Worker resolve ou cria a comanda autoritativamente a partir da empresa autenticada e do identificador canônico da mesa. O bootstrap expõe `tableTabs`; `A Receber` agrupa por `tableTabId` e chama um endpoint dedicado de pagamento consolidado, mantendo pagamentos e movimentos individuais por pedido. O ajuste visual reutiliza `.selected`, `aria-pressed` e o ícone `check` já existente.
 
 **Tech Stack:** React, JavaScript ES modules, Node test runner (`node --test`), Cloudflare Workers, D1/SQLite, Wrangler 4.128.0, Vite, oxlint.
 
@@ -13,20 +13,20 @@
 ## Global Constraints
 
 - Uma mesa pode ter no máximo uma comanda `open` por empresa.
-- O frontend nunca envia um `tableTabId` autoritativo no checkout; o Worker resolve a comanda usando empresa autenticada + identificador canônico da mesa.
-- Canonização de mesa: `trim()`, letras em maiúsculas, preservar zeros à esquerda; `04` e `4` são mesas distintas.
+- O frontend nunca envia `tableTabId` autoritativo no checkout.
+- Identificador canônico: `trim().toUpperCase()`; preservar zeros à esquerda, portanto `04 !== 4`.
 - Pedidos históricos de mesa sem `table_tab_id` continuam independentes; não fazer backfill por texto.
 - Entrega, Retirada, Nome e Cliente cadastrado preservam o comportamento atual.
-- O pagamento da comanda quita todos os pedidos ainda pendentes em uma única ação de UI, mas mantém um registro de `payments` e uma movimentação `order-payment` por pedido.
-- Pedidos já pagos não recebem pagamento duplicado; comanda fechada não pode gerar nova cobrança.
-- Remover o último pedido de uma comanda deve encerrar a comanda vazia.
-- Não implementar pagamento parcial, divisão de conta, transferência de mesa, merge/split de comandas, mapa de mesas ou duas comandas simultâneas para a mesma mesa.
-- Categoria, Apresentação, Tamanho e Unidade no `ProductForm` devem manter `aria-pressed` e ganhar fundo, borda e check claramente visíveis em desktop/mobile e temas claro/escuro.
-- Nenhuma nova dependência é necessária.
+- O pagamento da comanda quita todos os pedidos ainda pendentes em uma ação de UI, mantendo um `payment` e um movimento `order-payment` por pedido.
+- Pedidos já pagos não recebem segundo pagamento; comanda fechada não gera nova cobrança.
+- Remover o último pedido deve encerrar a comanda vazia.
+- Fora de escopo: pagamento parcial, divisão de conta, transferência de mesa, juntar/separar comandas, mapa de mesas e duas comandas simultâneas na mesma mesa.
+- Categoria, Apresentação, Tamanho e Unidade mantêm `aria-pressed` e ganham fundo preenchido, borda/contorno e check visível.
+- Nenhuma nova dependência.
 
 ---
 
-### Task 1: Migration e modelo mínimo de comanda
+### Task 1: Schema e mappers de comanda
 
 **Files:**
 - Create: `migrations/0007_table_tabs.sql`
@@ -35,11 +35,10 @@
 - Modify: `worker/orderIdentityRepositoryMapping.test.js`
 
 **Interfaces:**
-- Produces: `mapTableTabRow(row) -> { id, tableIdentifier, status, openedAt, closedAt }`
-- Produces: `order.tableTabId: string | null` em `mapOrderRow`.
-- Produces: tabela `table_tabs` e coluna `orders.table_tab_id`.
+- Produces: `mapTableTabRow(row) -> { id, tableIdentifier, status, openedAt, closedAt }`.
+- Produces: `order.tableTabId: string | null`.
 
-- [ ] **Step 1: Write the failing migration and mapper tests**
+- [ ] **Step 1: Write RED tests**
 
 Crie `worker/tableTabsMigration.test.js`:
 
@@ -50,53 +49,39 @@ import fs from 'node:fs'
 
 const sql = fs.readFileSync(new URL('../migrations/0007_table_tabs.sql', import.meta.url), 'utf8')
 
-test('table tabs migration is additive and enforces one open tab per table', () => {
+test('table tabs migration is additive and allows only one open tab per table', () => {
   assert.match(sql, /CREATE TABLE table_tabs/i)
   assert.match(sql, /table_identifier TEXT NOT NULL/i)
-  assert.match(sql, /status TEXT NOT NULL/i)
   assert.match(sql, /ALTER TABLE orders ADD COLUMN table_tab_id TEXT/i)
   assert.match(sql, /CREATE UNIQUE INDEX[\s\S]*business_id[\s\S]*table_identifier[\s\S]*WHERE status = 'open'/i)
   assert.doesNotMatch(sql, /UPDATE orders[\s\S]*client_name_snapshot/i)
 })
 ```
 
-Amplie `worker/orderIdentityRepositoryMapping.test.js` para exigir:
+Em `worker/orderIdentityRepositoryMapping.test.js`, importe `mapTableTabRow`, passe `table_tab_id: 'tab-1'` para `mapOrderRow` e exija:
 
 ```js
 assert.equal(mapped.tableTabId, 'tab-1')
-```
-
-usando uma row com `table_tab_id: 'tab-1'`, e acrescente um teste de `mapTableTabRow`:
-
-```js
 assert.deepEqual(mapTableTabRow({
-  id: 'tab-1',
-  table_identifier: '04',
-  status: 'open',
-  opened_at: '2026-09-02T18:00:00.000Z',
-  closed_at: null,
+  id: 'tab-1', table_identifier: '04', status: 'open',
+  opened_at: '2026-09-02T18:00:00.000Z', closed_at: null,
 }), {
-  id: 'tab-1',
-  tableIdentifier: '04',
-  status: 'open',
-  openedAt: '2026-09-02T18:00:00.000Z',
-  closedAt: null,
+  id: 'tab-1', tableIdentifier: '04', status: 'open',
+  openedAt: '2026-09-02T18:00:00.000Z', closedAt: null,
 })
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test worker/tableTabsMigration.test.js worker/orderIdentityRepositoryMapping.test.js
 ```
 
-Expected: FAIL porque `0007_table_tabs.sql`, `mapTableTabRow` e `tableTabId` ainda não existem.
+Expected: FAIL por migration/mapper/campo inexistentes.
 
-- [ ] **Step 3: Add the additive D1 migration**
+- [ ] **Step 3: Add migration**
 
-Crie `migrations/0007_table_tabs.sql` com:
+`migrations/0007_table_tabs.sql`:
 
 ```sql
 CREATE TABLE table_tabs (
@@ -121,9 +106,9 @@ ALTER TABLE orders ADD COLUMN table_tab_id TEXT REFERENCES table_tabs(id) ON DEL
 CREATE INDEX idx_orders_table_tab_id ON orders (business_id, table_tab_id);
 ```
 
-- [ ] **Step 4: Map the new fields in `worker/repositories.js`**
+- [ ] **Step 4: Map rows**
 
-Adicione:
+Em `worker/repositories.js`:
 
 ```js
 export const mapTableTabRow = (row) => ({
@@ -135,34 +120,23 @@ export const mapTableTabRow = (row) => ({
 })
 ```
 
-Em `mapOrderRow`, adicione:
+Adicione `o.table_tab_id` ao `orderSelect` e em `mapOrderRow`:
 
 ```js
 tableTabId: row.table_tab_id ?? null,
 ```
 
-E inclua `o.table_tab_id` em `orderSelect`.
-
-- [ ] **Step 5: Run tests and commit**
-
-Run:
+- [ ] **Step 5: Verify GREEN and commit**
 
 ```bash
 node --test worker/tableTabsMigration.test.js worker/orderIdentityRepositoryMapping.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add migrations/0007_table_tabs.sql worker/repositories.js worker/tableTabsMigration.test.js worker/orderIdentityRepositoryMapping.test.js
 git commit -m "feat: add persistent table tabs"
 ```
 
 ---
 
-### Task 2: Bootstrap explícito de comandas e resolução segura no checkout
+### Task 2: Resolver/reutilizar comanda no checkout e expor no bootstrap
 
 **Files:**
 - Modify: `worker/repositories.js`
@@ -170,17 +144,13 @@ git commit -m "feat: add persistent table tabs"
 - Modify: `worker/repositories.test.js`
 
 **Interfaces:**
-- Consumes: `mapTableTabRow`, `orders.table_tab_id`, `table_tabs`.
 - Produces: `normalizeTableIdentifier(value) -> string`.
-- Produces: `getOrCreateOpenTableTab(db, businessId, tableIdentifier, now) -> mapped table tab`.
-- Produces: `loadBootstrap(...).tableTabs` com todas as comandas da empresa necessárias à UI.
-- Produces: pedidos de mesa novos com `tableTabId` persistido.
+- Produces: `getOrCreateOpenTableTab(db, businessId, tableIdentifier, now) -> table tab`.
+- Produces: `loadBootstrap(...).tableTabs`.
 
-- [ ] **Step 1: Write RED tests for canonical reuse and bootstrap**
+- [ ] **Step 1: Write RED repository tests**
 
-Em `worker/multiItemCheckoutRepository.test.js`, adicione cenários que criem dois pedidos locais de mesa com `value: 'a-01'` e `value: 'A-01'` e verifiquem que ambos recebem o mesmo `tableTabId`.
-
-A asserção central deve ser:
+Em `worker/multiItemCheckoutRepository.test.js`, crie dois pedidos `Local/table` usando `a-01` e `A-01` e exija:
 
 ```js
 assert.equal(first.tableTabId, second.tableTabId)
@@ -188,31 +158,30 @@ assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 1)
 assert.equal(db.tableTabs[0].table_identifier, 'A-01')
 ```
 
-Adicione também um caso para garantir que `'04'` e `'4'` resultam em comandas diferentes.
+Adicione caso independente para `'04'` e `'4'`:
 
-Em `worker/repositories.test.js`, estenda o bootstrap esperado:
+```js
+assert.notEqual(order04.tableTabId, order4.tableTabId)
+```
+
+Em `worker/repositories.test.js`, faça o bootstrap fake retornar uma row de `table_tabs` e exija:
 
 ```js
 assert.deepEqual(result.tableTabs, [{
-  id: 'tab-1',
-  tableIdentifier: '04',
-  status: 'open',
-  openedAt: '2026-09-02T18:00:00.000Z',
-  closedAt: null,
+  id: 'tab-1', tableIdentifier: '04', status: 'open',
+  openedAt: '2026-09-02T18:00:00.000Z', closedAt: null,
 }])
 ```
 
-- [ ] **Step 2: Run the focused repository tests and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test worker/multiItemCheckoutRepository.test.js worker/repositories.test.js
 ```
 
-Expected: FAIL porque checkout ainda não cria/reutiliza `table_tabs` e bootstrap não retorna `tableTabs`.
+Expected: FAIL porque não há criação/reuso nem bootstrap de comandas.
 
-- [ ] **Step 3: Implement identifier normalization and get-or-create**
+- [ ] **Step 3: Implement canonical get-or-create**
 
 Em `worker/repositories.js`:
 
@@ -221,9 +190,11 @@ export const normalizeTableIdentifier = (value) => String(value ?? '').trim().to
 
 export const getOrCreateOpenTableTab = async (db, businessId, rawIdentifier, now = new Date()) => {
   const tableIdentifier = normalizeTableIdentifier(rawIdentifier)
-  let row = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
+  const selectOpen = () => db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
     FROM table_tabs WHERE business_id = ? AND table_identifier = ? AND status = 'open' LIMIT 1`)
     .bind(businessId, tableIdentifier).first()
+
+  let row = await selectOpen()
   if (row) return mapTableTabRow(row)
 
   const id = crypto.randomUUID()
@@ -233,17 +204,21 @@ export const getOrCreateOpenTableTab = async (db, businessId, rawIdentifier, now
     VALUES (?, ?, ?, 'open', ?, NULL, ?, ?)`)
     .bind(id, businessId, tableIdentifier, timestamp, timestamp, timestamp).run()
 
-  row = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
-    FROM table_tabs WHERE business_id = ? AND table_identifier = ? AND status = 'open' LIMIT 1`)
-    .bind(businessId, tableIdentifier).first()
+  row = await selectOpen()
   if (!row) throw repositoryError(500, 'TABLE_TAB_CREATE_FAILED', 'Não foi possível abrir a comanda da mesa.')
   return mapTableTabRow(row)
 }
 ```
 
-- [ ] **Step 4: Wire table-tab resolution into `createOrder`**
+- [ ] **Step 4: Attach new table orders**
 
-No ramo `customerIdentity.type === 'table'`:
+Em `createOrder`, inicialize:
+
+```js
+let tableTabId = null
+```
+
+No ramo `table`:
 
 ```js
 const tableTab = await getOrCreateOpenTableTab(db, businessId, customerIdentity.value, now)
@@ -251,49 +226,34 @@ clientSnapshot = `Mesa ${tableTab.tableIdentifier}`
 tableTabId = tableTab.id
 ```
 
-Inicialize antes dos ramos:
+Inclua `table_tab_id` no `INSERT INTO orders` e `tableTabId` no `.bind(...)`. Os demais tipos gravam `NULL`.
 
-```js
-let tableTabId = null
-```
+- [ ] **Step 5: Add explicit bootstrap collection**
 
-Inclua `table_tab_id` no `INSERT INTO orders` e o valor `tableTabId` no `.bind(...)` correspondente. Pedidos não-table devem persistir `NULL`.
-
-- [ ] **Step 5: Add explicit `tableTabs` bootstrap collection**
-
-Em `loadBootstrap` carregue:
+Em `loadBootstrap`:
 
 ```js
 const tableTabsResult = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
   FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
 ```
 
-E retorne:
+Retorne:
 
 ```js
 tableTabs: rows(tableTabsResult).map(mapTableTabRow),
 ```
 
-- [ ] **Step 6: Run tests and commit**
-
-Run:
+- [ ] **Step 6: Verify GREEN and commit**
 
 ```bash
 node --test worker/multiItemCheckoutRepository.test.js worker/repositories.test.js worker/orderCustomerIdentityCheckout.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add worker/repositories.js worker/multiItemCheckoutRepository.test.js worker/repositories.test.js
 git commit -m "feat: attach table orders to active tabs"
 ```
 
 ---
 
-### Task 3: Pagamento consolidado e encerramento de comanda
+### Task 3: Pagamento consolidado de comanda
 
 **Files:**
 - Modify: `worker/repositories.js`
@@ -304,104 +264,83 @@ git commit -m "feat: attach table orders to active tabs"
 **Interfaces:**
 - Produces: `registerTableTabPayment(db, businessId, tableTabId, method, now) -> { tableTab, orders, movements }`.
 - Produces: `closeTableTabIfSettled(db, businessId, tableTabId, now) -> table tab | null`.
-- Produces: `POST /api/table-tabs/:id/payment` com body `{ method }`.
+- Produces: `POST /api/table-tabs/:id/payment` body `{ method }`.
 
-- [ ] **Step 1: Write RED repository tests for full-tab payment**
+- [ ] **Step 1: Write RED payment tests**
 
-Crie `worker/tableTabPayment.test.js` com FakeDb equivalente ao padrão de `multiItemCheckoutRepository.test.js`, contendo uma comanda aberta com três pedidos, um deles já pago.
-
-O teste principal deve verificar:
+Crie `worker/tableTabPayment.test.js` no padrão dos FakeDb atuais. Cenário principal: comanda aberta com 3 pedidos, 1 já pago. Após:
 
 ```js
 const result = await registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', now)
+```
+
+exija:
+
+```js
 assert.equal(result.orders.length, 2)
 assert.equal(result.movements.length, 2)
 assert.equal(result.tableTab.status, 'closed')
-assert.equal(db.payments.length, 3) // 1 anterior + 2 novos
+assert.equal(db.payments.length, 3)
 assert.equal(db.movements.filter((item) => item.source === 'order-payment').length, 3)
 ```
 
-Adicione também:
+Escopo e retentativa:
 
 ```js
 await assert.rejects(
   () => registerTableTabPayment(db, 'other-business', 'tab-1', 'Pix', now),
   (error) => error.code === 'TABLE_TAB_NOT_FOUND',
 )
-```
-
-E retentativa em comanda fechada:
-
-```js
 await assert.rejects(
   () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-closed', 'Pix', now),
   (error) => error.code === 'TABLE_TAB_ALREADY_CLOSED',
 )
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test worker/tableTabPayment.test.js
 ```
 
-Expected: FAIL porque `registerTableTabPayment` não existe.
+- [ ] **Step 3: Implement atomic multi-order payment**
 
-- [ ] **Step 3: Implement one atomic repository operation**
-
-Em `worker/repositories.js`, implemente `registerTableTabPayment` seguindo este contrato:
+Em `registerTableTabPayment`:
 
 ```js
-export const registerTableTabPayment = async (db, businessId, tableTabId, method, now = new Date()) => {
-  const tabRow = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
-    FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
-  if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
-  if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
+const tabRow = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
+  FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
+if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
+if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
 
-  const pendingResult = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents
-    FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
-    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL
-    ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
-  const pending = rows(pendingResult)
-  if (!pending.length) {
-    const timestamp = now.toISOString()
-    await db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
-      WHERE id = ? AND business_id = ? AND status = 'open'`).bind(timestamp, timestamp, tableTabId, businessId).run()
-    return { tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: timestamp }), orders: [], movements: [] }
-  }
+const pendingResult = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents
+  FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+  WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL
+  ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
+```
 
-  const paidAt = now.toISOString()
-  const movementDate = businessDate(now)
-  const statements = []
-  const movementRows = []
-  for (const order of pending) {
-    const paymentId = crypto.randomUUID()
-    const movementId = crypto.randomUUID()
-    const description = `Pagamento pedido #${String(order.id).slice(-4)} · ${order.client_name_snapshot}`
-    statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, order.id, order.total_cents, method, paidAt, paidAt))
-    statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at)
-      VALUES (?, ?, 'entrada', 'Vendas', ?, ?, 'order-payment', ?, ?, ?, ?)`)
-      .bind(movementId, businessId, description, order.total_cents, order.id, paymentId, movementDate, paidAt))
-    movementRows.push({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: order.total_cents, source: 'order-payment', order_id: order.id, payment_id: paymentId, movement_date: movementDate, created_at: paidAt })
-  }
-  statements.push(db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
-    WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId))
-  await db.batch(statements)
+Para cada row pendente, monte dois statements (payment + movement) com os mesmos campos de `registerOrderPayment`; acrescente ao mesmo `db.batch` o fechamento:
 
-  return {
-    tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: paidAt }),
-    orders: await Promise.all(pending.map((order) => loadOrderById(db, businessId, order.id))),
-    movements: movementRows.map(mapMovementRow),
-  }
+```js
+db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
+  WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId)
+```
+
+Após o batch, retorne:
+
+```js
+return {
+  tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: paidAt }),
+  orders: await Promise.all(pending.map((order) => loadOrderById(db, businessId, order.id))),
+  movements: movementRows.map(mapMovementRow),
 }
 ```
 
-- [ ] **Step 4: Close tabs after legacy single-order payment**
+Se `pending.length === 0`, feche a comanda sem criar pagamentos/movimentos e retorne arrays vazios.
 
-Adicione:
+- [ ] **Step 4: Close tab after legacy single-order payment**
+
+Implemente:
 
 ```js
 export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = new Date()) => {
@@ -419,15 +358,15 @@ export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = n
 }
 ```
 
-Faça `registerOrderPayment` carregar também `o.table_tab_id` e, após o batch, chame:
+Faça `registerOrderPayment` selecionar `o.table_tab_id` e chamar:
 
 ```js
 await closeTableTabIfSettled(db, businessId, orderRow.table_tab_id, now)
 ```
 
-- [ ] **Step 5: Add authenticated route**
+- [ ] **Step 5: Add route**
 
-Em `worker/index.js`, importe `registerTableTabPayment` e adicione antes do fallback 404:
+Em `worker/index.js`, importe `registerTableTabPayment` e adicione:
 
 ```js
 const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
@@ -435,37 +374,25 @@ if (tableTabPaymentMatch && request.method === 'POST') {
   assertSameOriginMutation(request)
   const { method } = await readJson(request)
   const result = await registerTableTabPayment(
-    env.DB,
-    session.businessId,
-    decodeURIComponent(tableTabPaymentMatch[1]),
-    validatePaymentMethod(method),
+    env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method),
   )
   return json(result, { status: 201 })
 }
 ```
 
-- [ ] **Step 6: Add route tests and run GREEN**
+- [ ] **Step 6: Route GREEN and commit**
 
-Em `worker/index.test.js`, adicione um caso autenticado para `POST /api/table-tabs/tab-1/payment`, validando `Origin`, `method` e escopo de empresa, além de 404 para comanda de outra empresa.
-
-Run:
+Adicione em `worker/index.test.js` o POST autenticado, validação de `Origin`, método e escopo.
 
 ```bash
 node --test worker/tableTabPayment.test.js worker/index.test.js worker/orderRepositories.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add worker/repositories.js worker/index.js worker/tableTabPayment.test.js worker/index.test.js
 git commit -m "feat: pay and close table tabs"
 ```
 
 ---
 
-### Task 4: Encerrar comanda vazia ao remover o último pedido
+### Task 4: Fechar comanda vazia ao excluir o último pedido
 
 **Files:**
 - Modify: `worker/repositories.js`
@@ -473,68 +400,54 @@ git commit -m "feat: pay and close table tabs"
 
 **Interfaces:**
 - Consumes: `closeTableTabIfSettled`.
-- Produces: `deleteOrder` encerra a comanda se a exclusão deixar zero pedidos pendentes associados.
 
-- [ ] **Step 1: Write RED delete test**
+- [ ] **Step 1: Write RED delete tests**
 
-Em `worker/orderRepositories.test.js`, crie cenário com uma comanda aberta contendo um único pedido e verifique após `deleteOrder`:
+Comanda com um pedido:
 
 ```js
-assert.equal(deleted, true)
+assert.equal(await deleteOrder(db, 'amor-e-sabor', 'o1'), true)
 assert.equal(db.tableTabs.find((tab) => tab.id === 'tab-1').status, 'closed')
 ```
 
-E um segundo cenário com dois pedidos:
+Comanda com dois pedidos, removendo só um:
 
 ```js
 assert.equal(db.tableTabs.find((tab) => tab.id === 'tab-1').status, 'open')
 ```
 
-- [ ] **Step 2: Run and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test worker/orderRepositories.test.js
 ```
 
-Expected: FAIL porque `deleteOrder` não considera `table_tab_id`.
+- [ ] **Step 3: Preserve tab id on delete and close if settled**
 
-- [ ] **Step 3: Preserve table-tab id and close only when settled**
-
-Troque a leitura inicial de `deleteOrder` por:
+Use:
 
 ```js
 const existing = await db.prepare('SELECT id, table_tab_id FROM orders WHERE id = ? AND business_id = ? LIMIT 1')
   .bind(id, businessId).first()
 ```
 
-Após o batch de exclusão:
+Depois do batch de exclusão:
 
 ```js
 await closeTableTabIfSettled(db, businessId, existing.table_tab_id)
 ```
 
-- [ ] **Step 4: Run GREEN and commit**
-
-Run:
+- [ ] **Step 4: Verify GREEN and commit**
 
 ```bash
 node --test worker/orderRepositories.test.js worker/tableTabPayment.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add worker/repositories.js worker/orderRepositories.test.js
 git commit -m "fix: close empty table tabs"
 ```
 
 ---
 
-### Task 5: Cliente API e estado `tableTabs` no App
+### Task 5: API frontend e estado `tableTabs` no App
 
 **Files:**
 - Modify: `src/api/client.js`
@@ -543,29 +456,27 @@ git commit -m "fix: close empty table tabs"
 - Create: `src/tableTabsAppWiring.test.js`
 
 **Interfaces:**
-- Produces: `registerTableTabPayment(id, method)` em `src/api/client.js`.
-- Produces: estado React `tableTabs` vindo de `bootstrap.tableTabs`.
-- Produces: `NewOrder` recebe `tableTabs`; `Receivables` recebe `tableTabs` e callback `onRegisterTableTabPayment`.
+- Produces: `registerTableTabPayment(id, method)`.
+- Produces: estado React `tableTabs` e props para `NewOrder`/`Receivables`.
 
-- [ ] **Step 1: Write RED API and wiring tests**
+- [ ] **Step 1: Write RED API test**
 
-Em `src/api/client.test.js`, importe `registerTableTabPayment` e acrescente:
+Importe `registerTableTabPayment` em `src/api/client.test.js`. Dentro do `withFetch`, execute:
 
 ```js
 await registerTableTabPayment('tab 1', 'Pix')
-assert.deepEqual(calls.at(-1).slice(0, 2), [
-  '/api/table-tabs/tab%201/payment',
-  expectPostEquivalent,
-])
 ```
 
-Use o padrão atual do arquivo para validar `method === 'POST'` e body:
+Depois:
 
 ```js
-assert.deepEqual(JSON.parse(calls.at(-1)[1].body), { method: 'Pix' })
+const [path, options] = calls.at(-1)
+assert.equal(path, '/api/table-tabs/tab%201/payment')
+assert.equal(options.method, 'POST')
+assert.deepEqual(JSON.parse(options.body), { method: 'Pix' })
 ```
 
-Crie `src/tableTabsAppWiring.test.js` com leitura estática do `App.jsx` e verifique:
+Crie `src/tableTabsAppWiring.test.js` lendo `App.jsx`:
 
 ```js
 assert.match(source, /const \[tableTabs, setTableTabs\] = useState\(\[\]\)/)
@@ -575,19 +486,15 @@ assert.match(source, /<Receivables[\s\S]*tableTabs=\{tableTabs\}/)
 assert.match(source, /onRegisterTableTabPayment=/)
 ```
 
-- [ ] **Step 2: Run and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test src/api/client.test.js src/tableTabsAppWiring.test.js
 ```
 
-Expected: FAIL porque helper/estado/props ainda não existem.
-
 - [ ] **Step 3: Add API helper**
 
-Em `src/api/client.js`:
+`src/api/client.js`:
 
 ```js
 export const registerTableTabPayment = (id, method) => apiRequest(
@@ -596,7 +503,7 @@ export const registerTableTabPayment = (id, method) => apiRequest(
 )
 ```
 
-- [ ] **Step 4: Add `tableTabs` state and bootstrap wiring**
+- [ ] **Step 4: Wire bootstrap state**
 
 Em `App.jsx`:
 
@@ -604,13 +511,13 @@ Em `App.jsx`:
 const [tableTabs, setTableTabs] = useState([])
 ```
 
-Em `clearBusinessData`:
+`clearBusinessData`:
 
 ```js
 setTableTabs([])
 ```
 
-Em `applyBootstrap`:
+`applyBootstrap`:
 
 ```js
 setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
@@ -618,7 +525,7 @@ setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
 
 Passe `tableTabs={tableTabs}` para `NewOrder` e `Receivables`.
 
-- [ ] **Step 5: Add App handler for consolidated payment**
+- [ ] **Step 5: Add consolidated payment handler**
 
 Importe o helper como `registerTableTabPaymentApi` e implemente:
 
@@ -630,8 +537,8 @@ const handleRegisterTableTabPayment = async (tableTabId, method) => {
     const result = await registerTableTabPaymentApi(tableTabId, method)
     setOrders((current) => current.map((item) => result.orders.find((order) => order.id === item.id) ?? item))
     setMovements((current) => {
-      const existingIds = new Set(current.map((item) => item.id))
-      return [...result.movements.filter((item) => !existingIds.has(item.id)), ...current]
+      const ids = new Set(current.map((item) => item.id))
+      return [...result.movements.filter((item) => !ids.has(item.id)), ...current]
     })
     setTableTabs((current) => current.map((tab) => tab.id === result.tableTab.id ? result.tableTab : tab))
     showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`)
@@ -645,38 +552,19 @@ const handleRegisterTableTabPayment = async (tableTabId, method) => {
 }
 ```
 
-Passe:
+Passe `onRegisterTableTabPayment={handleRegisterTableTabPayment}` para `Receivables`.
 
-```jsx
-<Receivables
-  orders={orders}
-  tableTabs={tableTabs}
-  currency={currency}
-  onRegisterPayment={openPaymentModal}
-  onRegisterTableTabPayment={handleRegisterTableTabPayment}
-/>
-```
-
-- [ ] **Step 6: Run GREEN and commit**
-
-Run:
+- [ ] **Step 6: Verify GREEN and commit**
 
 ```bash
 node --test src/api/client.test.js src/tableTabsAppWiring.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add src/api/client.js src/api/client.test.js src/App.jsx src/tableTabsAppWiring.test.js
 git commit -m "feat: wire table tabs into app state"
 ```
 
 ---
 
-### Task 6: Agrupamento e cobrança de comanda em A Receber
+### Task 6: Agrupar e cobrar comanda em A Receber
 
 **Files:**
 - Modify: `src/utils/receivables.js`
@@ -686,13 +574,11 @@ git commit -m "feat: wire table tabs into app state"
 - Create: `src/tableTabReceivablesUi.test.js`
 
 **Interfaces:**
-- Consumes: `order.tableTabId`, `tableTabs`, `onRegisterTableTabPayment(tableTabId, method)`.
-- Produces: grupos de mesa com `kind: 'table_tab'`, `tableTabId` e label `Mesa XX`.
-- Produces: modal de pagamento no nível da comanda.
+- Produces: grupo `{ kind: 'table_tab', tableTabId, orders, total, label }`.
 
-- [ ] **Step 1: Replace the old table-isolated expectation with RED tab grouping tests**
+- [ ] **Step 1: Write RED grouping test**
 
-Em `src/utils/receivables.test.js`, mantenha guest names independentes e substitua a parte de mesa por:
+Em `src/utils/receivables.test.js`:
 
 ```js
 test('table orders group only when they share the same table tab id', () => {
@@ -709,21 +595,17 @@ test('table orders group only when they share the same table tab id', () => {
 })
 ```
 
-Mantenha teste separado garantindo que dois `guest_name` iguais geram dois grupos.
+Mantenha teste de nomes avulsos repetidos como grupos independentes.
 
-- [ ] **Step 2: Run and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test src/utils/receivables.test.js
 ```
 
-Expected: FAIL porque `groupPendingOrders` ainda usa `order:${id}` para toda mesa.
+- [ ] **Step 3: Implement group semantics**
 
-- [ ] **Step 3: Implement group key and metadata**
-
-Em `src/utils/receivables.js`:
+`src/utils/receivables.js`:
 
 ```js
 const isTableTabOrder = (order) => order?.customerIdentityType === 'table' && Boolean(order?.tableTabId)
@@ -742,9 +624,9 @@ kind: isTableTabOrder(order) ? 'table_tab' : isRegisteredClientOrder(order) ? 'r
 tableTabId: isTableTabOrder(order) ? order.tableTabId : null,
 ```
 
-- [ ] **Step 4: Write RED UI test for one tab-level payment action**
+- [ ] **Step 4: Write RED UI contract**
 
-Crie `src/tableTabReceivablesUi.test.js` lendo `Receivables.jsx` e verifique:
+Crie `src/tableTabReceivablesUi.test.js`:
 
 ```js
 assert.match(source, /Registrar pagamento da comanda/)
@@ -753,73 +635,57 @@ assert.match(source, /onRegisterTableTabPayment/)
 assert.match(source, /todos os pedidos pendentes/i)
 ```
 
-E certifique que no ramo de `table_tab` não há botão individual por pedido.
+- [ ] **Step 5: Implement one tab-level payment action**
 
-- [ ] **Step 5: Implement the tab-level payment modal**
+Assinatura:
 
-Em `Receivables.jsx`, adicione estado:
+```js
+function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRegisterTableTabPayment })
+```
+
+Estados:
 
 ```js
 const [tableTabPaymentGroup, setTableTabPaymentGroup] = useState(null)
 const [tableTabPaymentMethod, setTableTabPaymentMethod] = useState('Pix')
 ```
 
-Aceite props:
-
-```js
-function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRegisterTableTabPayment })
-```
-
-No card de cada grupo:
+No grupo de comanda:
 
 ```jsx
 {group.kind === 'table_tab' && (
-  <Button
-    onClick={() => setTableTabPaymentGroup(group)}
-    disabled={writeDisabled}
-  >
+  <Button onClick={() => setTableTabPaymentGroup(group)} disabled={writeDisabled}>
     Registrar pagamento da comanda
   </Button>
 )}
 ```
 
-Nos pedidos internos, mostre `Ver detalhes` sempre, mas renderize `Registrar pagamento` individual somente quando:
+Nos pedidos internos, mantenha `Ver detalhes`; botão individual só se:
 
-```js
-group.kind !== 'table_tab'
+```jsx
+{group.kind !== 'table_tab' && (
+  <Button onClick={() => onRegisterPayment(order.id)} disabled={writeDisabled}>Registrar pagamento</Button>
+)}
 ```
 
-O modal deve mostrar label, quantidade e total, `SystemSelect` com as mesmas opções de forma de pagamento do App ou uma constante compartilhada extraída para `src/utils/paymentMethods.js` se necessário para evitar duplicação.
-
-Ao confirmar:
+No modal de comanda, exiba `group.label`, `group.orders.length`, `currency(group.total)`, `SystemSelect` com as opções de pagamento existentes e o texto “Todos os pedidos pendentes desta comanda serão quitados juntos.” Ao confirmar:
 
 ```js
 const success = await onRegisterTableTabPayment(tableTabPaymentGroup.tableTabId, tableTabPaymentMethod)
 if (success) setTableTabPaymentGroup(null)
 ```
 
-- [ ] **Step 6: Add responsive styling and run GREEN**
-
-Em `src/receivables.css`, mantenha a lista interna legível e o botão de cobrança da comanda no header/footer do card, não repetido por pedido.
-
-Run:
+- [ ] **Step 6: Responsive CSS, GREEN and commit**
 
 ```bash
 node --test src/utils/receivables.test.js src/tableTabReceivablesUi.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add src/utils/receivables.js src/utils/receivables.test.js src/pages/Receivables.jsx src/receivables.css src/tableTabReceivablesUi.test.js
 git commit -m "feat: collect table tabs in receivables"
 ```
 
 ---
 
-### Task 7: Contexto de comanda aberta no Novo Pedido
+### Task 7: Mostrar contexto de comanda aberta no Novo Pedido
 
 **Files:**
 - Modify: `src/pages/NewOrder.jsx`
@@ -827,13 +693,12 @@ git commit -m "feat: collect table tabs in receivables"
 - Create: `src/tableTabNewOrderUi.test.js`
 
 **Interfaces:**
-- Consumes: `tableTabs` bootstrap collection.
-- Produces: mensagem informativa `Mesa XX · comanda aberta` quando a mesa digitada já possui uma comanda `open`.
-- Não produz nem envia `tableTabId` no payload.
+- Consumes: `tableTabs`.
+- Não envia `tableTabId` no payload.
 
 - [ ] **Step 1: Write RED UI contract**
 
-Crie `src/tableTabNewOrderUi.test.js`:
+`src/tableTabNewOrderUi.test.js`:
 
 ```js
 import test from 'node:test'
@@ -842,26 +707,22 @@ import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('./pages/NewOrder.jsx', import.meta.url), 'utf8')
 
-test('new order shows active table tab context without sending a tab id', () => {
+test('new order shows active table tab context without sending tab id', () => {
   assert.match(source, /tableTabs/)
   assert.match(source, /comanda aberta/)
   assert.doesNotMatch(source, /customerIdentity:[\s\S]*tableTabId/)
 })
 ```
 
-- [ ] **Step 2: Run and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test src/tableTabNewOrderUi.test.js
 ```
 
-Expected: FAIL porque `NewOrder` ainda não recebe `tableTabs`.
+- [ ] **Step 3: Resolve active tab for feedback only**
 
-- [ ] **Step 3: Resolve current open tab client-side only for feedback**
-
-Altere assinatura:
+Assinatura:
 
 ```js
 function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCancel, onCreateClient, onSubmit })
@@ -874,12 +735,9 @@ const normalizedLocalTable = localIdentityType === 'table' ? localIdentityValue.
 const openTableTab = normalizedLocalTable
   ? tableTabs.find((tab) => tab.status === 'open' && tab.tableIdentifier === normalizedLocalTable) ?? null
   : null
-const openTableTabOrderCount = openTableTab
-  ? 0 // não usar este valor; receber contagem abaixo via prop derivada ou remover contagem da copy
-  : 0
 ```
 
-Para manter YAGNI e não cruzar `orders` na página, use copy sem contagem nesta rodada:
+Renderize perto do campo Mesa:
 
 ```jsx
 {openTableTab && (
@@ -889,30 +747,21 @@ Para manter YAGNI e não cruzar `orders` na página, use copy sem contagem nesta
 )}
 ```
 
-Importante: não adicionar `tableTabId` em `draft`, `buildOrderPayload` ou `customerIdentity`.
+Não adicionar `tableTabId` ao `draft`, `customerIdentity` ou `buildOrderPayload`.
 
-- [ ] **Step 4: Style and run GREEN**
+- [ ] **Step 4: Style, GREEN and commit**
 
-Em `src/new-order.css`, use superfície informativa discreta com tokens de tema e sem competir com erros.
-
-Run:
+Use `var(--info-soft)`, `var(--info)`, `var(--border)` em `src/new-order.css`.
 
 ```bash
 node --test src/tableTabNewOrderUi.test.js src/newOrderLocalIdentityUi.test.js src/orderPayloadIdentity.test.js
-```
-
-Expected: PASS.
-
-Commit:
-
-```bash
 git add src/pages/NewOrder.jsx src/new-order.css src/tableTabNewOrderUi.test.js
 git commit -m "feat: show active table tab context"
 ```
 
 ---
 
-### Task 8: Feedback visual forte de seleção no ProductForm
+### Task 8: Feedback visual inequívoco no ProductForm
 
 **Files:**
 - Modify: `src/components/ProductForm.jsx`
@@ -920,12 +769,11 @@ git commit -m "feat: show active table tab context"
 - Create: `src/productSelectionFeedback.test.js`
 
 **Interfaces:**
-- Consumes: classes `.selected` e `aria-pressed` existentes.
-- Produces: check visual em Categoria, Apresentação, Tamanho e Unidade sem alterar os valores enviados.
+- Consumes: `.selected`, `aria-pressed`, `Icon name="check"` já existente.
 
-- [ ] **Step 1: Write RED visual contract test**
+- [ ] **Step 1: Write RED visual contract**
 
-Crie `src/productSelectionFeedback.test.js`:
+`src/productSelectionFeedback.test.js`:
 
 ```js
 import test from 'node:test'
@@ -935,9 +783,9 @@ import fs from 'node:fs'
 const form = fs.readFileSync(new URL('./components/ProductForm.jsx', import.meta.url), 'utf8')
 const css = fs.readFileSync(new URL('./product-form.css', import.meta.url), 'utf8')
 
-test('selected product controls have non-color feedback and strong visual contrast', () => {
+test('selected product controls use check plus strong filled state', () => {
   assert.match(form, /product-selection-check/)
-  assert.match(form, /aria-hidden="true"/)
+  assert.match(form, /name="check"/)
   assert.match(css, /\.product-selection-check/)
   assert.match(css, /\.product-category-option\.selected[\s\S]*box-shadow/)
   assert.match(css, /\.product-presentation-option\.selected[\s\S]*box-shadow/)
@@ -946,19 +794,15 @@ test('selected product controls have non-color feedback and strong visual contra
 })
 ```
 
-- [ ] **Step 2: Run and verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 node --test src/productSelectionFeedback.test.js
 ```
 
-Expected: FAIL porque não existe check e o estado visual ainda depende basicamente de cor/borda.
+- [ ] **Step 3: Add check to all four selected groups**
 
-- [ ] **Step 3: Add a reusable check indicator inside selected buttons**
-
-No `ProductForm`, em cada um dos quatro grupos, adicione ao conteúdo do botão:
+Em cada `.map`, calcule `selected` e preserve o `aria-pressed`. Dentro do botão:
 
 ```jsx
 {selected && (
@@ -968,13 +812,11 @@ No `ProductForm`, em cada um dos quatro grupos, adicione ao conteúdo do botão:
 )}
 ```
 
-Para os grupos que hoje usam expressão inline, crie `const selected = ...` dentro do `.map(...)` antes do `return`, preservando exatamente os `onClick`, valores e `aria-pressed` atuais.
+`Icon.jsx` já contém `check`; não modificá-lo.
 
-Se `Icon` ainda não possuir `check`, adicione somente esse glyph em `src/components/Icon.jsx` e cubra no teste existente de ícones.
+- [ ] **Step 4: Strengthen selected state using existing theme tokens**
 
-- [ ] **Step 4: Strengthen selected styles**
-
-Em `src/product-form.css`, deixe os botões `position: relative` e adicione um estado selecionado com preenchimento forte, borda e contorno. Use somente tokens existentes do tema; exemplo de estrutura:
+`src/product-form.css`:
 
 ```css
 .product-category-option,
@@ -989,10 +831,10 @@ Em `src/product-form.css`, deixe os botões `position: relative` e adicione um e
 .product-size-option.selected,
 .product-unit-option.selected {
   border-width: 2px;
-  border-color: var(--brand-primary);
-  background: var(--brand-primary);
-  color: var(--text-on-brand);
-  box-shadow: 0 0 0 2px var(--brand-soft);
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--primary-soft);
   font-weight: 700;
 }
 
@@ -1002,50 +844,38 @@ Em `src/product-form.css`, deixe os botões `position: relative` e adicione um e
   justify-content: center;
   width: 20px;
   height: 20px;
+  flex: 0 0 20px;
   margin-left: auto;
   border-radius: 999px;
-  background: currentColor;
-}
-
-.product-selection-check svg {
-  color: var(--surface-primary);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  color: #fff;
 }
 ```
 
-Antes de usar `--text-on-brand` ou `--surface-primary`, confirme em `src/App.css`/tokens existentes; se algum não existir, reutilize um token já definido em vez de criar cor hard-coded.
+Para apresentação/tamanho/unidade, ajuste o layout do botão para `display:flex; align-items:center; justify-content:center; gap:8px;`; o check continua visível sem depender só de cor. Verifique em `@media (max-width: 820px)` que `min-height:48px` continua preservado.
 
-- [ ] **Step 5: Run GREEN and commit**
-
-Run:
+- [ ] **Step 5: GREEN, lint and commit**
 
 ```bash
 node --test src/productSelectionFeedback.test.js src/productCatalogUi.test.js
 npm run lint
-```
-
-Expected: PASS, 0 lint errors.
-
-Commit:
-
-```bash
-git add src/components/ProductForm.jsx src/components/Icon.jsx src/product-form.css src/productSelectionFeedback.test.js
+git add src/components/ProductForm.jsx src/product-form.css src/productSelectionFeedback.test.js
 git commit -m "fix: make product selections unmistakable"
 ```
 
 ---
 
-### Task 9: Regressão integrada, migrations e entrega
+### Task 9: Regressão integrada, migration e entrega
 
 **Files:**
-- Modify: `src/catalogLocalOrdersIntegration.test.js` somente se o contrato integrado precisar incluir `tableTabId/tableTabs`.
-- No production code should be added in this task unless a regression discovered by the checks requires a focused fix with its own failing test.
+- Modify: `src/catalogLocalOrdersIntegration.test.js` somente para o guard integrado.
 
 **Interfaces:**
-- Verifica todos os contratos produzidos nas Tasks 1–8.
+- Verifica os contratos das Tasks 1–8.
 
-- [ ] **Step 1: Add one integrated guard for the full table-tab flow**
+- [ ] **Step 1: Add integrated guard**
 
-Em `src/catalogLocalOrdersIntegration.test.js`, acrescente verificações estáticas que garantam simultaneamente:
+No teste integrado, leia `worker/repositories.js`, `src/pages/Receivables.jsx`, `src/App.jsx` e `src/pages/NewOrder.jsx` e exija:
 
 ```js
 assert.match(repositories, /table_tab_id/)
@@ -1055,81 +885,75 @@ assert.match(app, /tableTabs/)
 assert.match(newOrder, /comanda aberta/)
 ```
 
-- [ ] **Step 2: Run the complete test suite**
-
-Run:
+- [ ] **Step 2: Full tests**
 
 ```bash
 npm test
 ```
 
-Expected: todos os testes PASS.
+Expected: todos PASS.
 
-- [ ] **Step 3: Run lint and production build**
-
-Run:
+- [ ] **Step 3: Lint and build**
 
 ```bash
 npm run lint
 npm run build
 ```
 
-Expected: 0 lint errors; Vite build succeeds.
+Expected: 0 erros; build Vite concluído.
 
-- [ ] **Step 4: Validate Worker bundle**
-
-Run:
+- [ ] **Step 4: Worker dry-run**
 
 ```bash
 npx --yes wrangler@4.128.0 deploy --dry-run
 ```
 
-Expected: Worker bundle succeeds and binds `amor-e-sabor-delivery`.
+Expected: bundle válido com binding D1 `amor-e-sabor-delivery`.
 
-- [ ] **Step 5: Validate migrations locally from a clean D1 state**
+- [ ] **Step 5: Validate D1 migrations locally**
 
-Run the repository's existing local migration command/path used by CI, then confirm `0007_table_tabs.sql` applies after `0006_order_customer_identity.sql` without destructive changes.
+Use o mesmo mecanismo de migrations já usado pelo projeto/CI para aplicar `0001`–`0007` em D1 local limpo. Em seguida rode:
 
-Expected: all migrations apply successfully and the partial unique index is created.
-
-- [ ] **Step 6: Manual acceptance pass**
-
-Execute no app local/preview:
-
-```text
-1. Novo Pedido > Consumo no local > Mesa > 04 cria o primeiro pedido.
-2. Novo pedido para Mesa 04 mostra “comanda aberta” e entra na mesma comanda.
-3. A Receber mostra uma única Mesa 04 com 2 pedidos e total somado.
-4. Não existe botão individual de pagamento dentro dessa comanda.
-5. “Registrar pagamento da comanda” com Pix quita os 2 pedidos e remove o saldo de A Receber.
-6. Novo pedido para Mesa 04 depois do pagamento cria uma nova comanda.
-7. Pedido legado de Mesa 04 sem tableTabId permanece isolado.
-8. Nome avulso repetido continua isolado.
-9. Cliente cadastrado continua agrupado por clientId.
-10. Excluir o único pedido de uma comanda fecha a comanda vazia.
-11. Categoria, Apresentação, Tamanho e Unidade mostram fundo forte + borda + check quando selecionados em desktop e mobile.
+```sql
+SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'table_tabs';
+SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_table_tabs_one_open_per_table';
+PRAGMA table_info(orders);
 ```
 
-- [ ] **Step 7: Commit any final test-only guard**
+Expected: `table_tabs` existe, índice parcial existe e `orders` contém `table_tab_id`.
+
+- [ ] **Step 6: Manual acceptance**
+
+```text
+1. Mesa 04 sem comanda cria pedido e abre comanda.
+2. Segundo pedido Mesa 04 mostra “comanda aberta” e reutiliza a mesma comanda.
+3. A Receber mostra uma única Mesa 04 com 2 pedidos e total somado.
+4. Comanda não oferece pagamento individual por pedido.
+5. Pagamento da comanda com Pix quita todos os pedidos pendentes.
+6. Novo pedido Mesa 04 após quitação cria nova comanda.
+7. Mesa legada sem tableTabId fica isolada.
+8. Nome repetido fica isolado.
+9. Cliente cadastrado continua agrupado por clientId.
+10. Excluir o último pedido fecha a comanda vazia.
+11. Categoria/Apresentação/Tamanho/Unidade mostram fundo preenchido + contorno + check em desktop e mobile.
+```
+
+- [ ] **Step 7: Commit integrated guard**
 
 ```bash
 git add src/catalogLocalOrdersIntegration.test.js
 git commit -m "test: guard table tab integration"
 ```
 
-- [ ] **Step 8: Final branch review before integration**
-
-Run:
+- [ ] **Step 8: Final branch review**
 
 ```bash
 git diff master...HEAD --stat
 git diff master...HEAD -- . ':!docs/superpowers/specs/*' ':!docs/superpowers/plans/*'
 ```
 
-Expected: changes limited to migration, Worker checkout/payment/bootstrap, App/API wiring, Receivables/NewOrder, selection feedback and their tests.
+Expected: somente migration, checkout/repositórios/rotas, bootstrap/API/App, Receivables/NewOrder, feedback visual e testes relacionados.
 
-- [ ] **Step 9: Integration and production deployment only after approval/checkpoint**
+- [ ] **Step 9: Integrate and deploy after final checkpoint**
 
-After final verification, fast-forward/merge the feature branch into `master` using the project workflow. Then run `.github/workflows/deploy-production.yml`, which must execute tests, lint, build, Worker dry-run, show/apply D1 migration `0007_table_tabs.sql`, verify the auth row and deploy the Worker.
-
-Expected: production workflow succeeds before declaring the round complete.
+Após a verificação verde, integrar a feature em `master` conforme o workflow do projeto e executar `.github/workflows/deploy-production.yml`. O workflow deve passar testes/lint/build/dry-run, listar/aplicar `0007_table_tabs.sql`, verificar credencial e publicar o Worker antes de declarar a rodada concluída.
