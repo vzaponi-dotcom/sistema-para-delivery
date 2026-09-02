@@ -22,7 +22,9 @@ test('bottom bar is fixed safe-area aware and five columns wide', async () => {
   assert.match(css, /position:\s*fixed/)
   assert.match(css, /safe-area-inset-bottom/)
   assert.match(css, /repeat\(5/)
-  assert.match(css, /min-height:\s*44px/)
+  const touchTarget = css.match(/\.mobile-nav-item\s*\{[^}]*min-height:\s*(\d+)px/s)
+  assert.ok(touchTarget)
+  assert.ok(Number(touchTarget[1]) >= 44)
 })
 
 test('old mobile logout and horizontal sidebar scroll are removed', async () => {
