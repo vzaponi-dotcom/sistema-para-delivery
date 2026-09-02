@@ -33,7 +33,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
   const todayValue = toLocalDateValue()
 
   const analytics = useMemo(() => {
-    const now = new Date()
+    const now = new Date(`${todayValue}T12:00:00`)
     return {
       metrics: calculatePeriodMetrics(orders, period, now),
       daily: buildDailySeries(orders, period, now),
