@@ -275,7 +275,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
             items={items}
             currency={currency}
             disabled={disabled}
-            onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))
+            onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))}
             onNoteChange={(lineId, note) => setItems((current) => editCartItemNote(current, lineId, note))}
             onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
             onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
