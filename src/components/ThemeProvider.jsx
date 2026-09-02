@@ -1,10 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { applyThemePreference, readThemePreference, saveThemePreference } from '../utils/theme.js'
-
-const ThemeContext = createContext({
-  themePreference: 'system',
-  setThemePreference: () => {},
-})
+import { ThemeContext } from './themeContext.js'
 
 export function ThemeProvider({ children }) {
   const [themePreference, setThemePreferenceState] = useState(() => readThemePreference())
@@ -37,5 +33,3 @@ export function ThemeProvider({ children }) {
     </ThemeContext.Provider>
   )
 }
-
-export const useTheme = () => useContext(ThemeContext)

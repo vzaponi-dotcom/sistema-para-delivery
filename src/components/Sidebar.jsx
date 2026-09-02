@@ -1,6 +1,6 @@
 import BrandLogo from './BrandLogo'
 import Icon from './Icon'
-import { useTheme } from './ThemeProvider'
+import { useTheme } from './themeContext.js'
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
