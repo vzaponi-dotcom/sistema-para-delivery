@@ -4,9 +4,13 @@ const isRegisteredClientOrder = (order) => Boolean(
   order?.clientId && (!order?.customerIdentityType || order.customerIdentityType === 'registered_client'),
 )
 
-const groupKey = (order) => isRegisteredClientOrder(order)
-  ? `client:${order.clientId}`
-  : `order:${order?.id}`
+const isTableTabOrder = (order) => order?.customerIdentityType === 'table' && Boolean(order?.tableTabId)
+
+const groupKey = (order) => {
+  if (isRegisteredClientOrder(order)) return `client:${order.clientId}`
+  if (isTableTabOrder(order)) return `table-tab:${order.tableTabId}`
+  return `order:${order?.id}`
+}
 
 export const groupPendingOrders = (orders = []) => {
   const grouped = new Map()
@@ -15,6 +19,8 @@ export const groupPendingOrders = (orders = []) => {
     const key = groupKey(order)
     const current = grouped.get(key) ?? {
       key,
+      kind: isTableTabOrder(order) ? 'table_tab' : isRegisteredClientOrder(order) ? 'registered_client' : 'order',
+      tableTabId: isTableTabOrder(order) ? order.tableTabId : null,
       label: order.client || 'Pedido sem identificação',
       identityType: order.customerIdentityType || (order.clientId ? 'registered_client' : 'guest_name'),
       orders: [],
