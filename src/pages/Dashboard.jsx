@@ -9,6 +9,7 @@ import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import Icon from '../components/Icon'
+import { useDashboardPeriod } from '../components/dashboardPeriodContext.js'
 import {
   buildDailySeries,
   calculatePeriodMetrics,
@@ -26,7 +27,7 @@ const PERIOD_HELPERS = {
 }
 
 function Dashboard({ totals, orders, currency, onNewOrder }) {
-  const [period, setPeriod] = useState('30d')
+  const { period, setPeriod } = useDashboardPeriod()
   const [valuesVisible, setValuesVisible] = useState(true)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const todayValue = toLocalDateValue()
