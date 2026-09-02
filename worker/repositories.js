@@ -6,16 +6,25 @@ const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 
 export const mapClientRow = (row) => ({ id: row.id, name: row.name, phone: formatClientPhone(row.phone), address: row.address || '' })
-export const mapProductRow = (row) => ({
-  id: row.id,
-  category: row.category,
-  size: row.size || '',
-  name: row.name,
-  price: centsToMoney(row.price_cents),
-  presentationType: row.presentation_type || (row.size && !['Un', 'Unidade'].includes(row.size) ? 'size' : 'unit'),
-  presentationValue: row.presentation_value || (row.size && !['Un', 'Unidade'].includes(row.size) ? row.size : ''),
-  presentationUnit: row.presentation_unit || '',
-})
+export const mapProductRow = (row) => {
+  const product = {
+    id: row.id,
+    category: row.category,
+    size: row.size || '',
+    name: row.name,
+    price: centsToMoney(row.price_cents),
+  }
+  const hasStructuredPresentation = Object.hasOwn(row, 'presentation_type')
+    || Object.hasOwn(row, 'presentation_value')
+    || Object.hasOwn(row, 'presentation_unit')
+  if (!hasStructuredPresentation) return product
+  return {
+    ...product,
+    presentationType: row.presentation_type || (row.size && !['Un', 'Unidade'].includes(row.size) ? 'size' : 'unit'),
+    presentationValue: row.presentation_value || (row.size && !['Un', 'Unidade'].includes(row.size) ? row.size : ''),
+    presentationUnit: row.presentation_unit || '',
+  }
+}
 export const mapOrderItemRow = (row) => ({
   id: row.id,
   productId: row.product_id ?? null,
@@ -175,6 +184,18 @@ export const createProduct = async (db, businessId, input, now = new Date()) => 
 
 export const updateProduct = async (db, businessId, id, input, now = new Date()) => {
   if (!(await findProductRow(db, businessId, id))) return null
+  if (input.presentationType === undefined) {
+    await db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
+      input.category,
+      input.size,
+      input.name,
+      input.priceCents,
+      now.toISOString(),
+      id,
+      businessId,
+    ).run()
+    return mapProductRow({ id, category: input.category, size: input.size, name: input.name, price_cents: input.priceCents })
+  }
   await db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ?, presentation_type = ?, presentation_value = ?, presentation_unit = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
     input.category,
     input.size,
