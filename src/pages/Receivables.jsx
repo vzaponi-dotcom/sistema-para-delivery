@@ -5,6 +5,7 @@ import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
+import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate, toLocalDateValue } from '../utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from '../utils/paymentWorkflow'
 
@@ -22,7 +23,7 @@ function Receivables({ orders, currency, onRegisterPayment }) {
         .filter((order) => !isOrderPaid(order))
         .filter((order) => {
           if (!normalizedSearch) return true
-          return [order.client, order.productName, order.type, order.orderDate, String(order.id)]
+          return [order.client, getOrderItemsSearchText(order), order.type, order.orderDate, String(order.id)]
             .join(' ')
             .toLowerCase()
             .includes(normalizedSearch)
@@ -117,7 +118,7 @@ function Receivables({ orders, currency, onRegisterPayment }) {
                   <div className="receivable-order-row" key={order.id}>
                     <div className="receivable-order-main">
                       <strong>Pedido #{orderNumber(order.id)} · {formatOrderDate(order.orderDate)}</strong>
-                      <span>{order.productName || `Marmita ${order.size}`} · {order.quantity} un. · {order.type}</span>
+                      <span>{getOrderItemsSummary(order)} · {order.type}</span>
                       <PaymentBadge order={order} />
                     </div>
                     <strong className="receivable-order-amount">{currency(getPendingAmount(order))}</strong>
