@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import '../receivables.css'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
+import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
@@ -13,6 +14,7 @@ const orderNumber = (id) => String(id).slice(-4)
 
 function Receivables({ orders, currency, onRegisterPayment }) {
   const [search, setSearch] = useState('')
+  const [detailOrder, setDetailOrder] = useState(null)
   const today = toLocalDateValue()
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
@@ -122,7 +124,10 @@ function Receivables({ orders, currency, onRegisterPayment }) {
                       <PaymentBadge order={order} />
                     </div>
                     <strong className="receivable-order-amount">{currency(getPendingAmount(order))}</strong>
-                    <Button onClick={() => onRegisterPayment(order.id)} disabled={writeDisabled}>Registrar pagamento</Button>
+                    <div className="receivable-order-actions">
+                      <Button type="button" variant="secondary" onClick={() => setDetailOrder(order)}>Ver detalhes</Button>
+                      <Button onClick={() => onRegisterPayment(order.id)} disabled={writeDisabled}>Registrar pagamento</Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -138,6 +143,8 @@ function Receivables({ orders, currency, onRegisterPayment }) {
           )}
         </div>
       </section>
+
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
     </>
   )
 }
