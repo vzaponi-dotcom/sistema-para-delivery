@@ -15,6 +15,7 @@ import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
+import { getOrderItemsSearchText } from './utils/orderCart'
 import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
@@ -194,8 +195,10 @@ function App() {
     const normalizedSearch = orderSearch.trim().toLowerCase()
     return orders.filter((order) => {
       if (!normalizedSearch) return true
-      const itemNames = Array.isArray(order.items) ? order.items.map((item) => item.name).join(' ') : ''
-      return [order.client, order.type, order.size, order.orderDate, order.productName, itemNames, order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)
+      return [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod]
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedSearch)
     })
   }, [orderSearch, orders])
 
