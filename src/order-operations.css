@@ -10,6 +10,19 @@
   margin-top: 22px;
 }
 
+.kitchen-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kitchen-sound-toggle {
+  gap: 7px;
+  white-space: nowrap;
+}
+
 .order-queue-heading {
   margin-top: 4px;
 }
@@ -34,6 +47,30 @@
   border-radius: 16px;
   background: var(--surface-soft);
   transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.order-new-arrival {
+  animation: order-new-arrival 560ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes order-new-arrival {
+  0% {
+    opacity: 0.35;
+    transform: translateY(-10px) scale(0.985);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 24%, transparent);
+  }
+
+  58% {
+    opacity: 1;
+    transform: translateY(0) scale(1.006);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: none;
+  }
 }
 
 .order-queue-card:hover {
@@ -512,6 +549,15 @@
 }
 
 @media (max-width: 640px) {
+  .kitchen-header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .kitchen-header-actions .button {
+    flex: 1;
+  }
+
   .order-queue-card {
     padding: 14px;
   }
@@ -612,6 +658,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .order-new-arrival {
+    animation: none;
+  }
+
   .timing-late .order-timing-dot::after,
   .timing-very-late .order-timing-dot::after {
     animation: none;
