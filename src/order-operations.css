@@ -180,6 +180,33 @@
   white-space: nowrap;
 }
 
+.order-items-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.order-item-line {
+  display: grid;
+  gap: 2px;
+}
+
+.order-item-line strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.order-item-line span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .order-queue-meta {
   display: flex;
   align-items: center;
@@ -234,6 +261,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 260px;
 }
 
 .order-queue-actions .button {
@@ -294,6 +324,156 @@
   font-size: 0.7rem;
 }
 
+.order-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.order-history-actions .button {
+  white-space: nowrap;
+}
+
+.order-detail {
+  display: grid;
+  gap: 20px;
+}
+
+.order-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.order-detail-heading > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.order-detail-heading span,
+.order-detail-meta span,
+.order-detail-totals span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.order-detail-heading > div:first-child strong {
+  font-size: 1.05rem;
+}
+
+.order-detail-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.order-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.order-detail-meta > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.order-detail-meta strong {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-section {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-section-heading {
+  margin-bottom: 0;
+}
+
+.compact-section-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.order-detail-items {
+  display: grid;
+  gap: 8px;
+}
+
+.order-detail-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.order-detail-item > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.order-detail-item > div span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-item > strong {
+  flex: 0 0 auto;
+  font-size: 0.86rem;
+}
+
+.order-detail-totals {
+  display: grid;
+  gap: 9px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.order-detail-totals > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.order-detail-totals strong {
+  font-size: 0.88rem;
+  text-align: right;
+}
+
+.order-detail-reason strong {
+  max-width: 70%;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-total-final {
+  margin-top: 4px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+}
+
+.order-detail-total-final span,
+.order-detail-total-final strong {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
 .compact-empty-state {
   min-height: 150px;
 }
@@ -306,14 +486,16 @@
   .order-queue-actions {
     grid-column: 2;
     justify-content: flex-start;
+    max-width: none;
   }
 
   .order-history-row {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
   }
 
-  .order-history-row > .icon-button {
-    grid-column: 4;
+  .order-history-actions {
+    grid-column: 2 / -1;
+    justify-content: flex-end;
   }
 
   .order-history-value {
@@ -355,7 +537,7 @@
   .order-queue-actions {
     grid-column: auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   }
 
   .order-queue-actions .button {
@@ -376,9 +558,8 @@
     grid-column: 1;
   }
 
-  .order-history-row .status-badge {
+  .order-history-badges {
     grid-column: 1;
-    justify-self: start;
   }
 
   .order-history-value {
@@ -386,10 +567,30 @@
     grid-row: 1 / span 3;
   }
 
-  .order-history-row > .icon-button {
-    grid-column: 2;
-    grid-row: 3;
-    justify-self: end;
+  .order-history-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .order-history-actions .button {
+    flex: 1;
+  }
+
+  .order-detail-heading,
+  .order-detail-item {
+    flex-direction: column;
+  }
+
+  .order-detail-badges {
+    justify-content: flex-start;
+  }
+
+  .order-detail-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .order-detail-item > strong {
+    align-self: flex-end;
   }
 }
 
