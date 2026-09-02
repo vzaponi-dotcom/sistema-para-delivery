@@ -39,3 +39,16 @@ test('sidebar theme picker is a visual three-option segmented control with icons
   assert.match(sidebar, /icon:\s*'system'/)
   assert.match(sidebar, /<Icon name=\{option\.icon\}/)
 })
+
+test('sidebar theme options fit narrow desktop width and mobile logout stays visible', async () => {
+  const themeCss = await read('./theme-controls.css')
+  const appCss = await read('./App.css')
+  const sidebar = await read('./components/Sidebar.jsx')
+
+  assert.match(themeCss, /\.theme-option\s*\{[^}]*flex-direction:\s*column/s)
+  assert.match(sidebar, /sidebar-mobile-logout/)
+  assert.match(sidebar, /aria-label="Sair do sistema"/)
+  assert.match(appCss, /\.sidebar-mobile-logout\s*\{[^}]*display:\s*none/s)
+  assert.match(appCss, /@media\s*\(max-width:\s*820px\)[\s\S]*\.sidebar-mobile-logout\s*\{[^}]*display:\s*inline-flex/s)
+  assert.match(appCss, /@media\s*\(max-width:\s*820px\)[\s\S]*\.sidebar-nav\s*\{[^}]*overflow-x:\s*auto/s)
+})
