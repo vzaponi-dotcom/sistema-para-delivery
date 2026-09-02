@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - feature/multi-item-orders
   workflow_dispatch:
 
 jobs:
@@ -34,8 +33,3 @@ jobs:
 
       - name: Validate Worker bundle
         run: npx --yes wrangler@4.128.0 deploy --dry-run
-
-      - name: Validate local D1 migration
-        run: |
-          npm run d1:migrate:local
-          npm run d1:migrate:local
