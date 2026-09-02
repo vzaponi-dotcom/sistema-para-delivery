@@ -47,8 +47,20 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
   const actionsDisabled = writeDisabled || pendingAction !== null
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000)
-    return () => window.clearInterval(timer)
+    const refreshNow = () => setNow(new Date())
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshNow()
+    }
+
+    const timer = window.setInterval(refreshNow, 60_000)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', refreshNow)
+
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', refreshNow)
+    }
   }, [])
 
   const runAction = async (key, action) => {
