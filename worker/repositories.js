@@ -1,9 +1,11 @@
+import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { centsToMoney } from './validation.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
+const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 
-export const mapClientRow = (row) => ({ id: row.id, name: row.name, phone: row.phone || '', address: row.address || '' })
+export const mapClientRow = (row) => ({ id: row.id, name: row.name, phone: formatClientPhone(row.phone), address: row.address || '' })
 export const mapProductRow = (row) => ({ id: row.id, category: row.category, size: row.size || '', name: row.name, price: centsToMoney(row.price_cents) })
 export const mapOrderItemRow = (row) => ({
   id: row.id,
@@ -85,19 +87,46 @@ export const loadBootstrap = async (db, businessId) => {
 }
 
 const findClientRow = (db, businessId, id) => db.prepare(`SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1`).bind(id, businessId).first()
+const findClientByPhone = (db, businessId, phone, excludeId = null) => excludeId
+  ? db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? AND phone = ? AND id <> ? LIMIT 1`).bind(businessId, phone, excludeId).first()
+  : db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? AND phone = ? LIMIT 1`).bind(businessId, phone).first()
 const findProductRow = (db, businessId, id) => db.prepare(`SELECT id, category, size, name, price_cents FROM products WHERE id = ? AND business_id = ? AND active = 1 LIMIT 1`).bind(id, businessId).first()
+const duplicatePhoneError = (client) => repositoryError(409, 'CLIENT_PHONE_EXISTS', `Telefone já cadastrado para ${client?.name || 'outro cliente'}.`)
+const isPhoneTriggerCollision = (error) => String(error?.message || error).includes('CLIENT_PHONE_DUPLICATE')
 
 export const createClient = async (db, businessId, input, now = new Date()) => {
   const id = crypto.randomUUID()
   const timestamp = now.toISOString()
-  await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, input.phone, input.address, timestamp, timestamp).run()
-  return { id, name: input.name, phone: input.phone, address: input.address }
+  const phone = normalizeClientPhone(input.phone)
+  if (phone) {
+    const duplicate = await findClientByPhone(db, businessId, phone)
+    if (duplicate) throw duplicatePhoneError(duplicate)
+  }
+
+  try {
+    await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp).run()
+  } catch (error) {
+    if (!isPhoneTriggerCollision(error)) throw error
+    throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone) : null)
+  }
+  return mapClientRow({ id, name: input.name, phone, address: input.address })
 }
 
 export const updateClient = async (db, businessId, id, input, now = new Date()) => {
   if (!(await findClientRow(db, businessId, id))) return null
-  await db.prepare(`UPDATE clients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE id = ? AND business_id = ?`).bind(input.name, input.phone, input.address, now.toISOString(), id, businessId).run()
-  return { id, name: input.name, phone: input.phone, address: input.address }
+  const phone = normalizeClientPhone(input.phone)
+  if (phone) {
+    const duplicate = await findClientByPhone(db, businessId, phone, id)
+    if (duplicate) throw duplicatePhoneError(duplicate)
+  }
+
+  try {
+    await db.prepare(`UPDATE clients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE id = ? AND business_id = ?`).bind(input.name, phone, input.address, now.toISOString(), id, businessId).run()
+  } catch (error) {
+    if (!isPhoneTriggerCollision(error)) throw error
+    throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone, id) : null)
+  }
+  return mapClientRow({ id, name: input.name, phone, address: input.address })
 }
 
 export const deleteClient = async (db, businessId, id) => {
@@ -125,7 +154,6 @@ export const deleteProduct = async (db, businessId, id, now = new Date()) => {
   return true
 }
 
-const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 const businessDate = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
