@@ -1,9 +1,6 @@
 name: Deploy production
 
 on:
-  push:
-    branches:
-      - deploy/sidebar-responsive-controls
   workflow_dispatch:
 
 permissions:
