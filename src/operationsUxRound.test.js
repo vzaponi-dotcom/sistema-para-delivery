@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import * as orderWorkflow from './utils/orderWorkflow.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
+const readOptional = (path) => read(path).catch(() => '')
 
 test('elapsed duration switches to hours and minutes from one hour onward', () => {
   assert.equal(typeof orderWorkflow.formatElapsedDuration, 'function')
@@ -23,7 +24,7 @@ test('active order cards keep item details collapsed behind an accessible toggle
 })
 
 test('active order actions use one compact aligned action row', async () => {
-  const source = await read('./order-operations.css')
+  const source = await readOptional('./order-operations-compact.css')
   assert.match(source, /flex-wrap:\s*nowrap/)
   assert.match(source, /min-height:\s*38px/)
 })
