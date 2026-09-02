@@ -32,7 +32,7 @@ const LOCAL_IDENTITY_OPTIONS = [
   { value: 'registered_client', label: 'Cliente cadastrado' },
 ]
 
-function NewOrder({ clients, products, currency, disabled, onCancel, onCreateClient, onSubmit }) {
+function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCancel, onCreateClient, onSubmit }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
@@ -60,6 +60,10 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
         : { type: localIdentityType, value: localIdentityValue })
     : { type: 'registered_client', clientId }
   const identityValidation = validateCustomerIdentity(type, customerIdentity)
+  const normalizedLocalTable = localIdentityType === 'table' ? localIdentityValue.trim().toUpperCase() : ''
+  const openTableTab = normalizedLocalTable
+    ? tableTabs.find((tab) => tab.status === 'open' && tab.tableIdentifier === normalizedLocalTable) ?? null
+    : null
 
   const draft = {
     clientId,
@@ -267,6 +271,11 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
                       autoComplete="off"
                     />
                     <small>Use letras, números ou hífen.</small>
+                    {openTableTab && (
+                      <div className="new-order-table-tab-hint" role="status">
+                        Mesa {openTableTab.tableIdentifier} · comanda aberta. Este pedido será adicionado automaticamente.
+                      </div>
+                    )}
                   </label>
                 )}
               </div>
