@@ -23,7 +23,7 @@ test('client action sheet offers edit and confirmed delete actions', () => {
 })
 
 test('client phonebook styling keeps rows compact', () => {
-  const css = read('src/App.css')
+  const css = read('src/clients-phonebook.css')
   assert.match(css, /\.client-phonebook-row/)
   assert.match(css, /\.client-phonebook-main/)
 })
