@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import '../bottom-sheet.css'
 import Icon from './Icon'
 
@@ -45,7 +46,7 @@ function BottomSheet({ open, title, onClose, children }) {
 
   if (!open) return null
 
-  return (
+  const content = (
     <div className="bottom-sheet-backdrop" data-navigation-swipe-block="true" onMouseDown={onClose}>
       <section
         ref={sheetRef}
@@ -66,6 +67,8 @@ function BottomSheet({ open, title, onClose, children }) {
       </section>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content
 }
 
 export default BottomSheet
