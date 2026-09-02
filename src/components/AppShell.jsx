@@ -1,3 +1,4 @@
+import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
 
 function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, children }) {
@@ -12,6 +13,12 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
       <main className="app-main">
         <div className="app-content">{children}</div>
       </main>
+      <MobileNavigation
+        activeTab={activeTab}
+        onNavigate={onNavigate}
+        onLogout={onLogout}
+        logoutDisabled={logoutDisabled}
+      />
     </div>
   )
 }
