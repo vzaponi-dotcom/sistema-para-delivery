@@ -51,7 +51,7 @@ test('hashPin uses the Cloudflare Workers PBKDF2 iteration ceiling', async () =>
 
 test('hashPin and verifyPin enforce an exact 16-byte salt', async () => {
   await assert.rejects(() => hashPin('4827', new Uint8Array(15)))
-  const malformed = 'pbkdf2-sha256$210000$AQ==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+  const malformed = 'pbkdf2-sha256$100000$AQ==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
   assert.equal(await verifyPin('4827', malformed), false)
 })
 
