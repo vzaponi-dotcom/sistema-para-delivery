@@ -350,6 +350,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
                       <span>Telefone</span>
                       <input
                         type="tel"
+                        inputMode="tel"
                         value={quickClient.phone}
                         onChange={(event) => updateQuickClient({ phone: formatPhone(event.target.value) })}
                         placeholder="(11) 99999-9999"
