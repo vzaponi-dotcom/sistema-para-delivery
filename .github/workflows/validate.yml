@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - fix/sidebar-responsive-controls
   workflow_dispatch:
 
 jobs:
