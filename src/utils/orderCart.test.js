@@ -4,6 +4,7 @@ import * as orderCart from './orderCart.js'
 
 const {
   addCartItem, buildOrderPayload, calculateOrderPreview,
+  commitCartItemNote, editCartItemNote,
   getOrderItems, getOrderItemsSearchText, getOrderItemsSummary,
   removeCartItem, updateCartItem,
 } = orderCart
@@ -19,12 +20,32 @@ test('same product and normalized note merge quantity', () => {
   assert.equal(items[0].note, 'sem cebola')
 })
 
-test('different notes stay separate and editing can consolidate them', () => {
+test('note editing preserves spaces while typing and normalizes only on commit', () => {
+  let items = addCartItem([], marmita, '')
+  const lineId = items[0].lineId
+
+  items = editCartItemNote(items, lineId, 'sem ')
+  assert.equal(items[0].note, 'sem ')
+
+  items = editCartItemNote(items, lineId, 'sem cebola')
+  assert.equal(items[0].note, 'sem cebola')
+
+  items = commitCartItemNote(items, lineId)
+  assert.equal(items[0].note, 'sem cebola')
+})
+
+test('committing an equivalent normalized note consolidates cart lines', () => {
   let items = addCartItem([], marmita, 'sem cebola')
   items = addCartItem(items, marmita, 'sem salada')
-  items = updateCartItem(items, items[1].lineId, { note: '  SEM CEBOLA ' })
+  const secondLineId = items[1].lineId
+
+  items = editCartItemNote(items, secondLineId, '  SEM CEBOLA  ')
+  assert.equal(items.length, 2)
+  items = commitCartItemNote(items, secondLineId)
+
   assert.equal(items.length, 1)
   assert.equal(items[0].quantity, 2)
+  assert.equal(items[0].note, 'sem cebola')
 })
 
 test('quantity never drops below one and remove deletes the line', () => {
