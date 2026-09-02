@@ -162,7 +162,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
 
       <button
         type="button"
-        className="dashboard-new-order-fab"
+        className="button button-primary dashboard-new-order-fab"
         aria-label="Novo pedido"
         title="Novo pedido"
         onClick={onNewOrder}
