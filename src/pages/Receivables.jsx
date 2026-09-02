@@ -9,6 +9,7 @@ import StatCard from '../components/StatCard'
 import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate, toLocalDateValue } from '../utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from '../utils/paymentWorkflow'
+import { groupPendingOrders } from '../utils/receivables.js'
 
 const orderNumber = (id) => String(id).slice(-4)
 
@@ -34,29 +35,12 @@ function Receivables({ orders, currency, onRegisterPayment }) {
     [normalizedSearch, orders],
   )
 
-  const groups = useMemo(() => {
-    const grouped = new Map()
-
-    pendingOrders.forEach((order) => {
-      const current = grouped.get(order.client) || []
-      current.push(order)
-      grouped.set(order.client, current)
-    })
-
-    return [...grouped.entries()]
-      .map(([client, clientOrders]) => ({
-        client,
-        orders: clientOrders,
-        total: clientOrders.reduce((sum, order) => sum + getPendingAmount(order), 0),
-      }))
-      .sort((a, b) => b.total - a.total)
-  }, [pendingOrders])
+  const groups = useMemo(() => groupPendingOrders(pendingOrders), [pendingOrders])
 
   const totalPending = orders
     .filter((order) => !isOrderPaid(order))
     .reduce((sum, order) => sum + getPendingAmount(order), 0)
   const pendingCount = orders.filter((order) => !isOrderPaid(order)).length
-  const debtorCount = new Set(orders.filter((order) => !isOrderPaid(order)).map((order) => order.client)).size
   const receivedToday = orders
     .filter((order) => isOrderPaid(order) && order.paidAt && toLocalDateValue(order.paidAt) === today)
     .reduce((sum, order) => sum + Number(order.paidAmount || order.total || 0), 0)
@@ -66,13 +50,12 @@ function Receivables({ orders, currency, onRegisterPayment }) {
       <PageHeader
         eyebrow="Financeiro"
         title="A receber"
-        description="Acompanhe quem ainda não pagou e registre os recebimentos sem misturar pagamento com o andamento da cozinha."
+        description="Acompanhe os pedidos ainda não pagos e registre os recebimentos sem misturar pagamento com o andamento da cozinha."
       />
 
       <section className="stats-grid receivables-stats" aria-label="Resumo de recebimentos">
         <StatCard label="A receber" value={currency(totalPending)} helper="Saldo pendente" icon="wallet" tone="warning" />
         <StatCard label="Pedidos pendentes" value={pendingCount} helper="Ainda não pagos" icon="receipt" />
-        <StatCard label="Clientes devendo" value={debtorCount} helper="Com saldo aberto" icon="clients" />
         <StatCard label="Recebido hoje" value={currency(receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
       </section>
 
@@ -82,7 +65,7 @@ function Receivables({ orders, currency, onRegisterPayment }) {
             <Icon name="search" size={18} />
             <input
               type="search"
-              placeholder="Buscar cliente, pedido ou produto"
+              placeholder="Buscar identificação, pedido ou produto"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -93,19 +76,19 @@ function Receivables({ orders, currency, onRegisterPayment }) {
         <div className="section-heading">
           <div>
             <span className="section-kicker">Cobrança</span>
-            <h2>Pendências por cliente</h2>
+            <h2>Pendências por identificação</h2>
           </div>
-          <span className="toolbar-count">{groups.length} cliente(s)</span>
+          <span className="toolbar-count">{groups.length} grupo(s)</span>
         </div>
 
         <div className="receivables-groups">
           {groups.map((group) => (
-            <article className="receivable-client-card" key={group.client}>
+            <article className="receivable-client-card" key={group.key}>
               <header className="receivable-client-header">
                 <div>
-                  <div className="receivable-client-avatar">{group.client.charAt(0).toUpperCase()}</div>
+                  <div className="receivable-client-avatar">{group.label.charAt(0).toUpperCase()}</div>
                   <div className="receivable-client-copy">
-                    <strong>{group.client}</strong>
+                    <strong>{group.label}</strong>
                     <span>{group.orders.length} pedido(s) pendente(s)</span>
                   </div>
                 </div>
@@ -138,7 +121,7 @@ function Receivables({ orders, currency, onRegisterPayment }) {
             <div className="empty-state">
               <Icon name="wallet" size={28} />
               <strong>{search ? 'Nenhuma pendência encontrada' : 'Tudo recebido por aqui'}</strong>
-              <span>{search ? 'Ajuste a busca para localizar outros clientes.' : 'Quando houver um pedido pendente, ele aparecerá automaticamente nesta tela.'}</span>
+              <span>{search ? 'Ajuste a busca para localizar outros pedidos.' : 'Quando houver um pedido pendente, ele aparecerá automaticamente nesta tela.'}</span>
             </div>
           )}
         </div>
