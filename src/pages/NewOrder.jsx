@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { findClientDuplicates } from '../../shared/clientIdentity.js'
 import Button from '../components/Button'
 import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
@@ -28,6 +29,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
   const [deliveryFee, setDeliveryFee] = useState('0')
   const [adjustment, setAdjustment] = useState(emptyAdjustment)
   const [quickClient, setQuickClient] = useState({ open: false, name: '', phone: '' })
+  const [quickClientError, setQuickClientError] = useState('')
   const [checkoutError, setCheckoutError] = useState('')
 
   const filteredClients = useMemo(() => {
@@ -79,12 +81,32 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
   const handleQuickClientSubmit = async (event) => {
     event.preventDefault()
     if (disabled || !quickClient.name.trim()) return
+    setQuickClientError('')
+
+    const duplicate = findClientDuplicates(clients, quickClient)
+    if (duplicate.phone) {
+      setQuickClientError(`Telefone já cadastrado para ${duplicate.phone.name}. Selecione esse cliente na busca acima.`)
+      return
+    }
+    if (duplicate.name && !window.confirm(`Já existe um cliente chamado ${duplicate.name.name}. Deseja cadastrar mesmo assim?`)) return
+
     const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
     if (!client) return
     setClientId(client.id)
     setClientSearch(client.name)
     setClientPickerOpen(false)
     setQuickClient({ open: false, name: '', phone: '' })
+    setQuickClientError('')
+  }
+
+  const toggleQuickClient = () => {
+    setQuickClientError('')
+    setQuickClient((current) => ({ ...current, open: !current.open }))
+  }
+
+  const updateQuickClient = (patch) => {
+    setQuickClientError('')
+    setQuickClient((current) => ({ ...current, ...patch }))
   }
 
   const save = async (paymentMethod) => {
@@ -159,7 +181,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
             <button
               type="button"
               className="new-order-quick-client-toggle"
-              onClick={() => setQuickClient((current) => ({ ...current, open: !current.open }))}
+              onClick={toggleQuickClient}
               disabled={disabled}
             >
               + Novo cliente
@@ -167,12 +189,13 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
 
             {quickClient.open && (
               <form className="new-order-quick-client" onSubmit={handleQuickClientSubmit}>
+                {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
                 <label className="form-field">
                   <span>Nome</span>
                   <input
                     type="text"
                     value={quickClient.name}
-                    onChange={(event) => setQuickClient((current) => ({ ...current, name: event.target.value }))}
+                    onChange={(event) => updateQuickClient({ name: event.target.value })}
                     placeholder="Nome do cliente"
                     autoComplete="off"
                   />
@@ -182,7 +205,7 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
                   <input
                     type="tel"
                     value={quickClient.phone}
-                    onChange={(event) => setQuickClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))}
+                    onChange={(event) => updateQuickClient({ phone: formatPhone(event.target.value) })}
                     placeholder="(11) 99999-9999"
                     autoComplete="off"
                   />
