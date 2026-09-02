@@ -40,14 +40,17 @@ test('sidebar theme picker is a visual three-option segmented control with icons
   assert.match(sidebar, /<Icon name=\{option\.icon\}/)
 })
 
-test('sidebar theme options fit narrow desktop width and mobile logout stays visible', async () => {
+test('desktop theme remains compact while mobile navigation owns logout and avoids horizontal menu scrolling', async () => {
   const themeCss = await read('./theme-controls.css')
   const sidebar = await read('./components/Sidebar.jsx')
+  const mobileNavigation = await read('./components/MobileNavigation.jsx')
+  const mobileCss = await read('./mobile-navigation.css')
 
   assert.match(themeCss, /\.theme-option\s*\{[^}]*flex-direction:\s*column/s)
-  assert.match(sidebar, /sidebar-mobile-logout/)
-  assert.match(sidebar, /aria-label="Sair do sistema"/)
-  assert.match(themeCss, /\.sidebar-mobile-logout\s*\{[^}]*display:\s*none/s)
-  assert.match(themeCss, /@media\s*\(max-width:\s*820px\)[\s\S]*\.sidebar-mobile-logout\s*\{[^}]*display:\s*inline-flex/s)
-  assert.match(themeCss, /@media\s*\(max-width:\s*820px\)[\s\S]*\.sidebar-nav\s*\{[^}]*overflow-x:\s*auto/s)
+  assert.doesNotMatch(sidebar, /sidebar-mobile-logout/)
+  assert.doesNotMatch(themeCss, /overflow-x:\s*auto/)
+  assert.match(mobileNavigation, /Sair do sistema/)
+  assert.match(mobileNavigation, /BottomSheet/)
+  assert.match(mobileCss, /\.app-shell\s*>\s*\.sidebar\s*\{[^}]*display:\s*none/s)
+  assert.match(mobileCss, /\.mobile-bottom-nav[\s\S]*position:\s*fixed/s)
 })
