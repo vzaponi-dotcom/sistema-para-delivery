@@ -4,7 +4,7 @@
 
 **Goal:** Implementar a rodada aprovada de persistência do período do Dashboard, cancelamento do cadastro rápido, catálogo de produtos estruturado, identificação flexível para consumo no local e simplificação de A receber sem regressões nos fluxos existentes.
 
-**Architecture:** Manter `App` como coordenador de sessão e operações remotas, mas extrair regras reutilizáveis de catálogo e identidade de pedido para módulos puros em `shared/`, consumidos por frontend e Worker. As mudanças de schema serão aditivas em duas migrations D1 separadas; o Worker continua sendo a fonte de verdade para preços, snapshots e validação final de checkout. Componentes novos (`ProductForm`) e helpers de agrupamento evitam aumentar ainda mais `App.jsx` e mantêm cada regra testável de forma isolada.
+**Architecture:** `App` continua coordenando sessão e operações remotas, enquanto regras reutilizáveis de catálogo e identidade de pedido passam para módulos puros em `shared/`, consumidos por frontend e Worker. O schema evolui por duas migrations D1 aditivas e separadas; o Worker continua sendo a fonte de verdade para preço, identidade oficial do pedido e snapshots. A UI complexa de produto fica em `ProductForm`, e o agrupamento de A receber fica em helper puro para impedir que nome/mesa avulsos virem “clientes”.
 
 **Tech Stack:** React 19, Vite 8, JavaScript ESM, Node `node:test`, oxlint, Cloudflare Workers, D1/SQLite, Wrangler 4.128.0.
 
@@ -14,9 +14,9 @@
 
 - Nenhuma exclusão de produto, cliente, pedido, item, pagamento ou movimento existente durante as migrações.
 - Migrações D1 devem ser aditivas e executadas apenas pelo mecanismo normal de migrations.
-- Frontend e Worker devem tolerar registros legados durante a transição.
+- Frontend e Worker devem tolerar dados legados durante a transição.
 - Snapshots históricos continuam sendo fonte de exibição para pedidos antigos.
-- Preço oficial de produto continua em centavos no servidor; apresentação nunca participa de cálculo de preço.
+- Preço oficial de produto continua em centavos no servidor; apresentação nunca participa do cálculo de preço.
 - Produtos continuam usando soft delete.
 - Pedidos locais por Nome/Mesa nunca criam registros em `clients`.
 - Entrega e Retirada continuam exigindo cliente cadastrado.
@@ -32,31 +32,47 @@
 
 ## File Structure
 
-**Novos módulos de domínio**
-- `shared/productCatalog.js` — categorias fixas, fallback de categoria legada, sugestão de apresentação, normalização/validação e formatação de apresentação.
+**Create**
+- `shared/productCatalog.js` — categorias, fallback legado, sugestão, validação e formatação da apresentação.
 - `shared/productCatalog.test.js` — contrato puro do catálogo.
-- `shared/orderCustomerIdentity.js` — tipos de identidade, regex/limites e normalização comum frontend/Worker.
+- `shared/orderCustomerIdentity.js` — tipos de identidade, regex e validação compartilhada.
 - `shared/orderCustomerIdentity.test.js` — contrato puro de identidade.
-- `src/components/ProductForm.jsx` — formulário visual de criação/edição de produto.
-- `src/product-form.css` — layout responsivo e estados visuais do formulário.
-- `src/utils/receivables.js` — agrupamento de pendências sem misturar identidades avulsas.
-- `src/utils/receivables.test.js` — regras de agrupamento.
-- `migrations/0005_product_presentation.sql` — campos estruturados e migração segura do catálogo legado.
-- `migrations/0006_order_customer_identity.sql` — discriminador de identidade dos pedidos.
+- `src/components/ProductForm.jsx` — formulário de criação/edição de produto.
+- `src/product-form.css` — layout e estados do formulário.
+- `src/utils/receivables.js` — agrupamento correto das pendências.
+- `src/utils/receivables.test.js` — agrupamento por cliente real versus pedido avulso.
+- `migrations/0005_product_presentation.sql` — apresentação estruturada.
+- `migrations/0006_order_customer_identity.sql` — identidade do pedido.
+- `worker/productPresentationMigration.test.js`
+- `worker/orderCustomerIdentityMigration.test.js`
+- `src/dashboardPeriodPersistence.test.js`
+- `src/quickClientCancel.test.js`
+- `src/productCatalogUi.test.js`
+- `src/localOrderIdentityUi.test.js`
+- `src/catalogLocalOrdersIntegration.test.js`
 
-**Arquivos principais modificados**
-- `src/App.jsx` — período de Dashboard em nível de sessão, payload/estado de produto e wiring dos componentes.
-- `src/pages/Dashboard.jsx` — período controlado por props.
-- `src/pages/NewOrder.jsx` — tipo antes da identidade, Nome/Mesa/Cliente e Cancelar no cadastro rápido.
-- `src/pages/Products.jsx` — filtro de categoria e listagem com metadados estruturados.
-- `src/pages/Receivables.jsx` — três cards, linguagem neutra e agrupamento por identidade.
-- `src/components/Icon.jsx` — ícones semânticos das categorias.
-- `src/components/OrderProductCatalog.jsx` — apresentação consistente no catálogo de venda, se hoje renderizar `size` diretamente.
-- `src/utils/orderCart.js` — payload explícito `customerIdentity` e snapshot textual de apresentação no carrinho.
-- `worker/validation.js` — validação de categoria/apresentação quando necessário para a rota de produto.
-- `worker/index.js` — `productInput` estruturado.
-- `worker/orderCheckout.js` — validação da identidade no checkout.
-- `worker/repositories.js` — mapeamento/persistência dos novos campos e snapshot oficial.
+**Modify**
+- `src/App.jsx`
+- `src/pages/Dashboard.jsx`
+- `src/pages/NewOrder.jsx`
+- `src/pages/Products.jsx`
+- `src/pages/Receivables.jsx`
+- `src/components/Icon.jsx`
+- `src/components/OrderProductCatalog.jsx`
+- `src/utils/orderCart.js`
+- `src/orderCart.test.js`
+- `src/new-order.css`
+- `src/receivables.css`
+- `worker/validation.js`
+- `worker/index.js`
+- `worker/index.test.js`
+- `worker/orderCheckout.js`
+- `worker/orderCheckout.test.js`
+- `worker/repositories.js`
+- `worker/repositories.test.js`
+- `worker/orderRepositories.test.js`
+- `worker/orderRoutes.test.js`
+- `worker/multiItemCheckoutRepository.test.js`
 
 ---
 
@@ -71,12 +87,11 @@
 
 **Interfaces:**
 - Produces: `Dashboard({ period, onPeriodChange, totals, orders, currency, onNewOrder })`.
-- Produces: `closeQuickClient()` em `NewOrder`, que limpa apenas estado do formulário rápido e duplicidade.
+- Produces: `closeQuickClient()` que limpa apenas o cadastro rápido.
 
-- [ ] **Step 1: Write failing source-contract tests for session-owned Dashboard period**
+- [ ] **Step 1: Write failing Dashboard ownership test**
 
 ```js
-// src/dashboardPeriodPersistence.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -84,31 +99,37 @@ import fs from 'node:fs'
 const app = fs.readFileSync(new URL('./App.jsx', import.meta.url), 'utf8')
 const dashboard = fs.readFileSync(new URL('./pages/Dashboard.jsx', import.meta.url), 'utf8')
 
-test('dashboard period is owned by App and passed as a controlled value', () => {
-  assert.match(app, /useState\('30d'\)/)
-  assert.match(app, /<Dashboard[\s\S]*period=\{dashboardPeriod\}[\s\S]*onPeriodChange=\{setDashboardPeriod\}/)
+test('dashboard period lives in App and is controlled', () => {
+  assert.match(app, /const \[dashboardPeriod, setDashboardPeriod\] = useState\('30d'\)/)
+  assert.match(app, /period=\{dashboardPeriod\}/)
+  assert.match(app, /onPeriodChange=\{setDashboardPeriod\}/)
   assert.doesNotMatch(dashboard, /const \[period, setPeriod\] = useState/)
   assert.match(dashboard, /DashboardPeriodSelector value=\{period\} onChange=\{onPeriodChange\}/)
 })
-
-test('ending the session restores the default 30 day period', () => {
-  assert.match(app, /setDashboardPeriod\('30d'\)/)
-})
 ```
 
-- [ ] **Step 2: Run the Dashboard test and verify RED**
+- [ ] **Step 2: Run RED**
 
 Run: `node --test src/dashboardPeriodPersistence.test.js`  
-Expected: FAIL because `Dashboard` still owns `period` locally.
+Expected: FAIL porque `Dashboard` ainda possui `period` local.
 
-- [ ] **Step 3: Make Dashboard controlled and reset only with session/business clearing**
+- [ ] **Step 3: Lift period state into App**
 
 ```jsx
 // src/App.jsx
 const [dashboardPeriod, setDashboardPeriod] = useState('30d')
 
 const clearBusinessData = () => {
-  // existing clears...
+  setProducts([])
+  setClients([])
+  setOrders([])
+  setMovements([])
+  setCheckoutKey(null)
+  setPaymentOrderId(null)
+  setShowMovementModal(false)
+  setShowClientForm(false)
+  setDuplicateClientDialog(null)
+  setShowProductForm(false)
   setDashboardPeriod('30d')
 }
 
@@ -126,22 +147,22 @@ const clearBusinessData = () => {
 // src/pages/Dashboard.jsx
 function Dashboard({ period, onPeriodChange, totals, orders, currency, onNewOrder }) {
   const [valuesVisible, setValuesVisible] = useState(true)
-  // keep analytics using `period`
   return <DashboardPeriodSelector value={period} onChange={onPeriodChange} />
 }
 ```
 
-- [ ] **Step 4: Write failing quick-client cancel contract**
+Preserve the existing analytics calls and replace only their former local `period` state with the controlled prop.
+
+- [ ] **Step 4: Write failing quick-client cancel test**
 
 ```js
-// src/quickClientCancel.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('./pages/NewOrder.jsx', import.meta.url), 'utf8')
 
-test('quick client form exposes an explicit cancel action that clears its own state', () => {
+test('quick client has explicit cancel that clears only quick-client state', () => {
   assert.match(source, /const closeQuickClient = \(\) =>/)
   assert.match(source, /setQuickClient\(\{ open: false, name: '', phone: '' \}\)/)
   assert.match(source, /setQuickClientError\(''\)/)
@@ -150,12 +171,12 @@ test('quick client form exposes an explicit cancel action that clears its own st
 })
 ```
 
-- [ ] **Step 5: Run quick-client test and verify RED**
+- [ ] **Step 5: Run RED**
 
 Run: `node --test src/quickClientCancel.test.js`  
-Expected: FAIL because the explicit cancel button/function does not exist.
+Expected: FAIL porque não existe ação explícita de cancelar.
 
-- [ ] **Step 6: Implement minimal quick-client cancel behavior without touching checkout state**
+- [ ] **Step 6: Implement quick-client cancel**
 
 ```jsx
 const closeQuickClient = () => {
@@ -170,9 +191,9 @@ const closeQuickClient = () => {
 </div>
 ```
 
-Do not call setters for `items`, `type`, `orderDate`, `deliveryFee` or `adjustment` from `closeQuickClient`.
+`closeQuickClient` must not call `setItems`, `setType`, `setOrderDate`, `setDeliveryFee` or `setAdjustment`.
 
-- [ ] **Step 7: Run focused and existing Dashboard/NewOrder tests**
+- [ ] **Step 7: Run focused regression**
 
 Run: `node --test src/dashboardPeriodPersistence.test.js src/quickClientCancel.test.js src/dashboardControls.test.js src/mobileUxIntegration.test.js`  
 Expected: PASS.
@@ -195,68 +216,63 @@ git commit -m "fix: preserve dashboard period and quick client flow"
 - Create: `worker/productPresentationMigration.test.js`
 
 **Interfaces:**
-- Produces: `PRODUCT_CATEGORIES`, `PRODUCT_CATEGORY_OPTIONS`, `PRESENTATION_TYPES`.
-- Produces: `categoryForUi(category)`, `suggestPresentationType(category)`, `validateProductPresentation(input)`, `formatProductPresentation(product)`, `deriveLegacySize(presentation)`.
-- `validateProductPresentation` returns `{ ok: true, value }` or `{ ok: false, field, message }`; `value` contains `presentationType`, `presentationValue`, `presentationUnit`, `size`.
+- Produces: `PRODUCT_CATEGORIES`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORY_OPTIONS`, `suggestPresentationType(category)`, `categoryForUi(category)`, `validateProductPresentation(input)`, `deriveLegacySize(value)`, `formatProductPresentation(product)`.
+- `validateProductPresentation` returns `{ ok: true, value }` or `{ ok: false, field, message }`.
 
 - [ ] **Step 1: Write failing pure catalog tests**
 
 ```js
-// shared/productCatalog.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   categoryForUi,
-  deriveLegacySize,
   formatProductPresentation,
   suggestPresentationType,
   validateProductPresentation,
 } from './productCatalog.js'
 
-test('legacy categories fall back safely and approved categories keep their value', () => {
+test('categories use approved fallback and default presentation', () => {
   assert.equal(categoryForUi('Bebidas'), 'Bebidas')
   assert.equal(categoryForUi('Categoria antiga'), 'Outros')
   assert.equal(suggestPresentationType('Bebidas'), 'volume')
   assert.equal(suggestPresentationType('Refeições'), 'size')
 })
 
-test('volume and weight normalize decimal comma to canonical decimal point', () => {
-  assert.deepEqual(validateProductPresentation({ presentationType: 'volume', presentationValue: '1,5', presentationUnit: 'L' }), {
+test('volume and weight normalize comma and format pt-BR', () => {
+  assert.deepEqual(validateProductPresentation({
+    presentationType: 'volume', presentationValue: '1,5', presentationUnit: 'L',
+  }), {
     ok: true,
     value: { presentationType: 'volume', presentationValue: '1.5', presentationUnit: 'L', size: '1,5 L' },
   })
   assert.equal(formatProductPresentation({ presentationType: 'weight', presentationValue: '0.5', presentationUnit: 'kg' }), '0,5 kg')
 })
 
-test('size other enforces a non-empty maximum 24 character value', () => {
-  assert.equal(validateProductPresentation({ presentationType: 'size', presentationValue: 'Família', presentationUnit: '' }).ok, true)
-  assert.equal(validateProductPresentation({ presentationType: 'size', presentationValue: 'x'.repeat(25), presentationUnit: '' }).ok, false)
-})
-
-test('unit derives legacy Un and invalid zero volume fails', () => {
-  const unit = validateProductPresentation({ presentationType: 'unit', presentationValue: '', presentationUnit: '' })
-  assert.equal(unit.value.size, 'Un')
-  assert.equal(deriveLegacySize(unit.value), 'Un')
+test('invalid presentation values are rejected', () => {
   assert.equal(validateProductPresentation({ presentationType: 'volume', presentationValue: '0', presentationUnit: 'ml' }).ok, false)
+  assert.equal(validateProductPresentation({ presentationType: 'size', presentationValue: 'x'.repeat(25), presentationUnit: '' }).ok, false)
 })
 ```
 
-- [ ] **Step 2: Run catalog tests and verify RED**
+- [ ] **Step 2: Run RED**
 
 Run: `node --test shared/productCatalog.test.js`  
-Expected: FAIL with module not found.
+Expected: FAIL com módulo ausente.
 
-- [ ] **Step 3: Implement the shared catalog contract**
+- [ ] **Step 3: Implement shared catalog helpers**
 
 ```js
-// shared/productCatalog.js
 export const PRODUCT_CATEGORIES = [
   'Refeições', 'Lanches', 'Combos', 'Porções', 'Bebidas',
   'Sobremesas', 'Adicionais', 'Molhos', 'Outros',
 ]
 
+export const CATEGORY_ICON_NAMES = {
+  Refeições: 'meal', Lanches: 'snack', Combos: 'combo', Porções: 'portion',
+  Bebidas: 'drink', Sobremesas: 'dessert', Adicionais: 'plus', Molhos: 'sauce', Outros: 'package',
+}
+
 export const PRODUCT_CATEGORY_OPTIONS = PRODUCT_CATEGORIES.map((value) => ({ value, label: value }))
-export const PRESENTATION_TYPES = ['unit', 'size', 'volume', 'weight']
 const CATEGORY_SET = new Set(PRODUCT_CATEGORIES)
 const DEFAULT_PRESENTATION = {
   Refeições: 'size', Lanches: 'size', Combos: 'unit', Porções: 'size',
@@ -275,22 +291,19 @@ export const deriveLegacySize = ({ presentationType, presentationValue, presenta
 }
 
 export const validateProductPresentation = (input = {}) => {
-  const presentationType = PRESENTATION_TYPES.includes(input.presentationType) ? input.presentationType : ''
-  if (!presentationType) return { ok: false, field: 'presentationType', message: 'Selecione uma apresentação válida.' }
-  if (presentationType === 'unit') return { ok: true, value: { presentationType, presentationValue: '', presentationUnit: '', size: 'Un' } }
-
-  if (presentationType === 'size') {
+  const type = input.presentationType
+  if (!['unit', 'size', 'volume', 'weight'].includes(type)) return { ok: false, field: 'presentationType', message: 'Selecione uma apresentação válida.' }
+  if (type === 'unit') return { ok: true, value: { presentationType: 'unit', presentationValue: '', presentationUnit: '', size: 'Un' } }
+  if (type === 'size') {
     const presentationValue = String(input.presentationValue ?? '').trim()
     if (!presentationValue || presentationValue.length > 24) return { ok: false, field: 'presentationValue', message: 'Informe um tamanho com até 24 caracteres.' }
-    const value = { presentationType, presentationValue, presentationUnit: '', size: presentationValue }
-    return { ok: true, value }
+    return { ok: true, value: { presentationType: 'size', presentationValue, presentationUnit: '', size: presentationValue } }
   }
-
   const normalized = String(input.presentationValue ?? '').trim().replace(',', '.')
   if (!/^\d+(?:\.\d+)?$/.test(normalized) || Number(normalized) <= 0) return { ok: false, field: 'presentationValue', message: 'Informe um valor maior que zero.' }
-  const allowedUnits = presentationType === 'volume' ? ['ml', 'L'] : ['g', 'kg']
-  if (!allowedUnits.includes(input.presentationUnit)) return { ok: false, field: 'presentationUnit', message: 'Selecione uma unidade válida.' }
-  const value = { presentationType, presentationValue: String(Number(normalized)), presentationUnit: input.presentationUnit }
+  const allowed = type === 'volume' ? ['ml', 'L'] : ['g', 'kg']
+  if (!allowed.includes(input.presentationUnit)) return { ok: false, field: 'presentationUnit', message: 'Selecione uma unidade válida.' }
+  const value = { presentationType: type, presentationValue: String(Number(normalized)), presentationUnit: input.presentationUnit }
   return { ok: true, value: { ...value, size: deriveLegacySize(value) } }
 }
 
@@ -304,10 +317,9 @@ export const formatProductPresentation = (product = {}) => {
 }
 ```
 
-- [ ] **Step 4: Write the migration and a static safety test**
+- [ ] **Step 4: Add additive migration**
 
 ```sql
--- migrations/0005_product_presentation.sql
 ALTER TABLE products ADD COLUMN presentation_type TEXT NOT NULL DEFAULT 'unit';
 ALTER TABLE products ADD COLUMN presentation_value TEXT NOT NULL DEFAULT '';
 ALTER TABLE products ADD COLUMN presentation_unit TEXT NOT NULL DEFAULT '';
@@ -332,8 +344,9 @@ SET presentation_type = CASE
     presentation_unit = '';
 ```
 
+- [ ] **Step 5: Add migration safety test**
+
 ```js
-// worker/productPresentationMigration.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -349,12 +362,10 @@ test('product presentation migration is additive and preserves unknown categorie
 })
 ```
 
-- [ ] **Step 5: Run focused tests**
+- [ ] **Step 6: Run GREEN and commit**
 
 Run: `node --test shared/productCatalog.test.js worker/productPresentationMigration.test.js`  
 Expected: PASS.
-
-- [ ] **Step 6: Commit**
 
 ```bash
 git add shared/productCatalog.js shared/productCatalog.test.js migrations/0005_product_presentation.sql worker/productPresentationMigration.test.js
@@ -368,18 +379,17 @@ git commit -m "feat: define structured product presentations"
 **Files:**
 - Modify: `worker/validation.js`
 - Modify: `worker/index.js`
+- Modify: `worker/index.test.js`
 - Modify: `worker/repositories.js`
 - Modify: `worker/repositories.test.js`
-- Modify: `worker/index.test.js`
 
 **Interfaces:**
-- Consumes: `PRODUCT_CATEGORIES` and `validateProductPresentation()` from `shared/productCatalog.js`.
-- Produces API product shape `{ id, category, size, name, price, presentationType, presentationValue, presentationUnit }`.
+- Consumes: Task 2 catalog helpers.
+- Produces product API shape `{ id, category, size, name, price, presentationType, presentationValue, presentationUnit }`.
 
-- [ ] **Step 1: Add failing repository mapping/write tests**
+- [ ] **Step 1: Add failing product mapping test**
 
 ```js
-// add to worker/repositories.test.js
 import { mapProductRow } from './repositories.js'
 
 test('product row exposes structured presentation and legacy size', () => {
@@ -393,14 +403,12 @@ test('product row exposes structured presentation and legacy size', () => {
 })
 ```
 
-Also extend existing create/update product DB expectations so INSERT/UPDATE include `presentation_type`, `presentation_value`, `presentation_unit`, while `size` remains populated from the normalized presentation.
-
-- [ ] **Step 2: Run repository tests and verify RED**
+- [ ] **Step 2: Run RED**
 
 Run: `node --test worker/repositories.test.js`  
-Expected: FAIL because product queries/mappers do not know the structured fields.
+Expected: FAIL porque o mapper não expõe os novos campos.
 
-- [ ] **Step 3: Add product input validation at the route boundary**
+- [ ] **Step 3: Add route validation helpers**
 
 ```js
 // worker/validation.js
@@ -435,7 +443,11 @@ const productInput = (body) => {
 }
 ```
 
-- [ ] **Step 4: Update repository SELECT/INSERT/UPDATE mapping**
+Import `validateProductCategory` and `validateStructuredPresentation` from `worker/validation.js` in `worker/index.js`.
+
+- [ ] **Step 4: Update product repository SQL and mapping**
+
+Every product SELECT must include `presentation_type`, `presentation_value`, `presentation_unit`.
 
 ```js
 export const mapProductRow = (row) => ({
@@ -444,44 +456,62 @@ export const mapProductRow = (row) => ({
   size: row.size || '',
   name: row.name,
   price: centsToMoney(row.price_cents),
-  presentationType: row.presentation_type || (row.size ? 'size' : 'unit'),
+  presentationType: row.presentation_type || (row.size && !['Un', 'Unidade'].includes(row.size) ? 'size' : 'unit'),
   presentationValue: row.presentation_value || (row.size && !['Un', 'Unidade'].includes(row.size) ? row.size : ''),
   presentationUnit: row.presentation_unit || '',
 })
 ```
 
-Update every product SELECT to include the three new columns. Create/update statements must write `input.presentationType`, `input.presentationValue`, `input.presentationUnit`, and `input.size` in one operation.
-
-- [ ] **Step 5: Add route-level rejection test for malformed presentation**
+Create must bind in this order:
 
 ```js
-// add to worker/index.test.js using the existing authenticated request helpers
-test('product route rejects invalid volume before repository write', async () => {
-  const response = await requestAuthenticated('/api/products', {
+[id, businessId, input.category, input.size, input.presentationType, input.presentationValue, input.presentationUnit, input.name, input.priceCents, timestamp, timestamp]
+```
+
+Update must bind:
+
+```js
+[input.category, input.size, input.presentationType, input.presentationValue, input.presentationUnit, input.name, input.priceCents, now.toISOString(), id, businessId]
+```
+
+Adjust `worker/index.test.js` `FakeDb` INSERT/UPDATE destructuring to the same order and store the three structured fields.
+
+- [ ] **Step 5: Add route-level invalid volume test using the existing harness**
+
+```js
+test('authenticated product CRUD rejects invalid structured volume', async () => {
+  const env = await makeEnv()
+  const loginResponse = await login(env)
+  const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
+  const headers = mutationHeaders({ cookie: cookiePair })
+  const response = await handleRequest(new Request('https://delivery.example/api/products', {
     method: 'POST',
-    body: { name: 'Suco', category: 'Bebidas', price: 8, presentationType: 'volume', presentationValue: '0', presentationUnit: 'ml' },
-  })
+    headers,
+    body: JSON.stringify({
+      category: 'Bebidas', name: 'Suco', price: 8,
+      presentationType: 'volume', presentationValue: '0', presentationUnit: 'ml',
+    }),
+  }), env)
   assert.equal(response.status, 400)
+  assert.equal((await response.json()).error.code, 'VALIDATION_ERROR')
 })
 ```
 
-Use the existing helper names in `worker/index.test.js`; do not introduce a second request harness.
+Update the existing product CRUD happy path to `category: 'Bebidas'` and structured presentation fields.
 
-- [ ] **Step 6: Run worker tests**
+- [ ] **Step 6: Run GREEN and commit**
 
 Run: `node --test worker/repositories.test.js worker/index.test.js shared/productCatalog.test.js`  
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
-
 ```bash
-git add worker/validation.js worker/index.js worker/repositories.js worker/repositories.test.js worker/index.test.js
+git add worker/validation.js worker/index.js worker/index.test.js worker/repositories.js worker/repositories.test.js
 git commit -m "feat: persist structured product presentation"
 ```
 
 ---
 
-### Task 4: Reformular formulário, listagem e filtro de Produtos
+### Task 4: Reformular formulário, listagem e catálogo de Produtos
 
 **Files:**
 - Create: `src/components/ProductForm.jsx`
@@ -492,17 +522,14 @@ git commit -m "feat: persist structured product presentation"
 - Modify: `src/components/Icon.jsx`
 - Modify: `src/components/OrderProductCatalog.jsx`
 - Modify: `src/utils/orderCart.js`
-- Modify: `src/App.css`
 
 **Interfaces:**
-- Consumes: shared catalog helpers from Task 2.
+- Consumes: Task 2 catalog helpers.
 - Produces: `ProductForm({ value, onChange, onSubmit, onCancel, disabled, editing })`.
-- App sends `{ category, name, price, presentationType, presentationValue, presentationUnit }` to product API helpers.
 
-- [ ] **Step 1: Write failing UI contract test**
+- [ ] **Step 1: Write failing UI contract**
 
 ```js
-// src/productCatalogUi.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -510,53 +537,60 @@ import fs from 'node:fs'
 const form = fs.readFileSync(new URL('./components/ProductForm.jsx', import.meta.url), 'utf8')
 const products = fs.readFileSync(new URL('./pages/Products.jsx', import.meta.url), 'utf8')
 
-test('product form exposes category grid, presentation controls, preview and cancel', () => {
+test('product form contains category, presentation, preview and cancel', () => {
   assert.match(form, /PRODUCT_CATEGORIES/)
   assert.match(form, /presentationType/)
   assert.match(form, /formatProductPresentation/)
-  assert.match(form, /Salvar produto|Salvar alterações/)
-  assert.match(form, />Cancelar</)
+  assert.match(form, /Cancelar/)
 })
 
-test('product list has a category filter and semantic category icon', () => {
-  assert.match(products, /Todos/)
+test('products screen combines category filter and presentation display', () => {
   assert.match(products, /categoryFilter/)
+  assert.match(products, /Todos/)
   assert.match(products, /categoryForUi/)
   assert.match(products, /formatProductPresentation/)
 })
 ```
 
-- [ ] **Step 2: Run UI test and verify RED**
+- [ ] **Step 2: Run RED**
 
 Run: `node --test src/productCatalogUi.test.js`  
-Expected: FAIL because `ProductForm.jsx` does not exist.
+Expected: FAIL porque `ProductForm.jsx` não existe.
 
-- [ ] **Step 3: Implement controlled ProductForm with local validation feedback**
+- [ ] **Step 3: Implement controlled ProductForm**
 
-Core state transitions must follow this pattern:
+Use this initial transition when category changes:
 
 ```jsx
-const setCategory = (category) => onChange({
-  ...value,
-  category,
-  presentationType: suggestPresentationType(category),
-  presentationValue: suggestPresentationType(category) === 'size' ? 'P' : '',
-  presentationUnit: suggestPresentationType(category) === 'volume' ? 'ml' : '',
-})
-
-const validation = validateProductPresentation(value)
-const preview = validation.ok
-  ? `${value.name || 'Produto'} · ${categoryForUi(value.category)} · ${formatProductPresentation(validation.value)}`
-  : `${value.name || 'Produto'} · ${categoryForUi(value.category)}`
+const changeCategory = (category) => {
+  const presentationType = suggestPresentationType(category)
+  onChange({
+    ...value,
+    category,
+    presentationType,
+    presentationValue: presentationType === 'size' ? 'P' : '',
+    presentationUnit: presentationType === 'volume' ? 'ml' : '',
+  })
+}
 ```
 
-Category options must render text plus `Icon`, with `aria-pressed` or radio semantics. Presentation options are `Unidade`, `Tamanho`, `Volume`, `Peso`. Tamanho exposes `P/M/G/Outro`; custom text is capped at 24 characters. Volume/Peso show a decimal input plus the correct unit selector.
+The component must render:
+- name + price;
+- category grid from `PRODUCT_CATEGORIES` with `Icon` and accessible selected state;
+- presentation buttons `Unidade`, `Tamanho`, `Volume`, `Peso`;
+- P/M/G/Outro for `size`;
+- custom text maxLength 24 when Outro is active;
+- positive decimal value + `ml/L` for volume;
+- positive decimal value + `g/kg` for weight;
+- inline error from `validateProductPresentation(value)`;
+- preview from `formatProductPresentation`;
+- `Cancelar` plus `Salvar produto` or `Salvar alterações`.
 
-- [ ] **Step 4: Extend local icons without a dependency**
+- [ ] **Step 4: Extend Icon locally**
 
-Add semantic icon names to `src/components/Icon.jsx`: `meal`, `snack`, `combo`, `portion`, `drink`, `dessert`, `sauce`, reusing existing `plus` for Adicionais and `package` for Outros. Keep the existing SVG API (`name`, `size`) unchanged.
+Add icon cases `meal`, `snack`, `combo`, `portion`, `drink`, `dessert`, `sauce`. Reuse `plus` for Adicionais and `package` for Outros. Preserve the existing `Icon({ name, size })` API.
 
-- [ ] **Step 5: Replace the product modal body in App and send structured payload**
+- [ ] **Step 5: Wire App product state and payload**
 
 ```js
 const emptyProduct = () => ({
@@ -578,40 +612,42 @@ const productPayload = () => ({
 })
 ```
 
-When editing a legacy unknown category, initialize `category` with `categoryForUi(product.category)`, so saving unchanged converts it explicitly to `Outros` as defined by the spec.
+For edit, initialize `category` with `categoryForUi(product.category)` and copy the structured presentation fields returned by the API. Replace the old product form body in the modal with `ProductForm`.
 
-- [ ] **Step 6: Add category filter in Products and combine it with search**
+- [ ] **Step 6: Add category filter to Products**
 
-`Products` owns `categoryFilter` initialized to `'Todos'`. Filter rules:
+`Products` owns `const [categoryFilter, setCategoryFilter] = useState('Todos')` and computes:
 
 ```js
+const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR')
 const visibleProducts = products.filter((product) => {
-  const matchesCategory = categoryFilter === 'Todos' || categoryForUi(product.category) === categoryFilter
-  const haystack = [
-    product.name,
-    categoryForUi(product.category),
-    formatProductPresentation(product),
-    String(product.price),
-  ].join(' ').toLocaleLowerCase('pt-BR')
-  return matchesCategory && (!normalizedSearch || haystack.includes(normalizedSearch))
+  const uiCategory = categoryForUi(product.category)
+  const categoryMatch = categoryFilter === 'Todos' || uiCategory === categoryFilter
+  const searchText = [product.name, uiCategory, formatProductPresentation(product), String(product.price)]
+    .join(' ')
+    .toLocaleLowerCase('pt-BR')
+  return categoryMatch && (!normalizedSearch || searchText.includes(normalizedSearch))
 })
 ```
 
-Use `SystemSelect` for the filter so desktop/mobile behavior follows the existing anchored-dropdown/bottom-sheet pattern.
+Use `SystemSelect` with `Todos` + `PRODUCT_CATEGORY_OPTIONS`; render category icon, category, name, formatted presentation and price.
 
-- [ ] **Step 7: Make cart/catalog display consume the same presentation formatter**
+Pass raw `products` from `App` to `Products`; remove the old App-level product filtering so category/search filtering has one source of truth inside the page.
 
-In `addCartItem`, snapshot the friendly presentation into compatibility `size`:
+- [ ] **Step 7: Make NewOrder catalog use the same formatter**
+
+Import `formatProductPresentation` in `src/components/OrderProductCatalog.jsx` and `src/utils/orderCart.js`.
 
 ```js
-size: formatProductPresentation(product) === 'Unidade' ? 'Un' : formatProductPresentation(product),
+const presentation = formatProductPresentation(product)
+size: presentation === 'Unidade' ? 'Un' : presentation,
 ```
 
-Where `OrderProductCatalog` renders `product.size`, replace direct formatting with `formatProductPresentation(product)`.
+The cart still stores a compatibility `size` string; server snapshot remains authoritative at checkout.
 
-- [ ] **Step 8: Add responsive CSS and run focused tests**
+- [ ] **Step 8: Add responsive CSS and run GREEN**
 
-`src/product-form.css` must include: category grid, two-column mobile grid, pressed/selected state, presentation segmented control, inline validation, preview surface, and touch targets >= existing system controls. Import it once from `App.jsx` or the component according to the existing CSS convention.
+`src/product-form.css` must define concrete classes for category grid, selected category, presentation segmented row, detail controls, inline error, preview and actions. At `max-width: 820px`, category grid uses two columns and controls keep the existing touch-target sizing.
 
 Run: `node --test src/productCatalogUi.test.js shared/productCatalog.test.js src/systemSelectMigration.test.js`  
 Expected: PASS.
@@ -619,13 +655,13 @@ Expected: PASS.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/components/ProductForm.jsx src/product-form.css src/productCatalogUi.test.js src/App.jsx src/pages/Products.jsx src/components/Icon.jsx src/components/OrderProductCatalog.jsx src/utils/orderCart.js src/App.css
+git add src/components/ProductForm.jsx src/product-form.css src/productCatalogUi.test.js src/App.jsx src/pages/Products.jsx src/components/Icon.jsx src/components/OrderProductCatalog.jsx src/utils/orderCart.js
 git commit -m "feat: redesign product catalog management"
 ```
 
 ---
 
-### Task 5: Definir identidade de cliente do pedido e migration D1
+### Task 5: Definir identidade do pedido e migration D1
 
 **Files:**
 - Create: `shared/orderCustomerIdentity.js`
@@ -635,23 +671,21 @@ git commit -m "feat: redesign product catalog management"
 
 **Interfaces:**
 - Produces: `CUSTOMER_IDENTITY_TYPES`, `TABLE_ID_PATTERN`, `validateCustomerIdentity(orderType, identity)`.
-- `validateCustomerIdentity` returns `{ ok: true, value }` or `{ ok: false, field, message }`.
 
-- [ ] **Step 1: Write failing shared identity tests**
+- [ ] **Step 1: Write failing identity tests**
 
 ```js
-// shared/orderCustomerIdentity.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { validateCustomerIdentity } from './orderCustomerIdentity.js'
 
-test('delivery and pickup require a registered client', () => {
+test('delivery and pickup require registered client', () => {
   assert.equal(validateCustomerIdentity('Entrega', { type: 'guest_name', value: 'Ana' }).ok, false)
   assert.equal(validateCustomerIdentity('Retirada', { type: 'table', value: '04' }).ok, false)
   assert.equal(validateCustomerIdentity('Entrega', { type: 'registered_client', clientId: 'c1' }).ok, true)
 })
 
-test('local accepts registered client, guest name and safe table identifiers', () => {
+test('local accepts valid name and table and rejects invalid limits', () => {
   assert.deepEqual(validateCustomerIdentity('Local', { type: 'guest_name', value: '  João  ' }).value, { type: 'guest_name', value: 'João' })
   assert.equal(validateCustomerIdentity('Local', { type: 'table', value: 'A-2' }).ok, true)
   assert.equal(validateCustomerIdentity('Local', { type: 'table', value: 'Mesa 2' }).ok, false)
@@ -659,15 +693,14 @@ test('local accepts registered client, guest name and safe table identifiers', (
 })
 ```
 
-- [ ] **Step 2: Run and verify RED**
+- [ ] **Step 2: Run RED**
 
 Run: `node --test shared/orderCustomerIdentity.test.js`  
-Expected: FAIL with module not found.
+Expected: FAIL com módulo ausente.
 
-- [ ] **Step 3: Implement one shared validation source for frontend and Worker**
+- [ ] **Step 3: Implement shared validator**
 
 ```js
-// shared/orderCustomerIdentity.js
 export const CUSTOMER_IDENTITY_TYPES = ['registered_client', 'guest_name', 'table']
 export const TABLE_ID_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/
 
@@ -682,39 +715,39 @@ export const validateCustomerIdentity = (orderType, identity = {}) => {
       : { ok: false, field: 'customerIdentity.clientId', message: 'Selecione um cliente.' }
   }
   const value = String(identity.value ?? '').trim()
-  if (type === 'guest_name') return value && value.length <= 80
-    ? { ok: true, value: { type, value } }
-    : { ok: false, field: 'customerIdentity.value', message: 'Informe um nome com até 80 caracteres.' }
-  return value.length <= 12 && TABLE_ID_PATTERN.test(value)
+  if (type === 'guest_name') {
+    return value && value.length <= 80
+      ? { ok: true, value: { type, value } }
+      : { ok: false, field: 'customerIdentity.value', message: 'Informe um nome com até 80 caracteres.' }
+  }
+  return value.length >= 1 && value.length <= 12 && TABLE_ID_PATTERN.test(value)
     ? { ok: true, value: { type, value } }
     : { ok: false, field: 'customerIdentity.value', message: 'Informe uma mesa com até 12 caracteres alfanuméricos.' }
 }
 ```
 
-- [ ] **Step 4: Add additive order identity migration and safety test**
+- [ ] **Step 4: Add migration and safety test**
 
 ```sql
--- migrations/0006_order_customer_identity.sql
 ALTER TABLE orders ADD COLUMN customer_identity_type TEXT NOT NULL DEFAULT 'registered_client';
 UPDATE orders SET customer_identity_type = 'guest_name' WHERE client_id IS NULL;
 ```
 
 ```js
-// worker/orderCustomerIdentityMigration.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const sql = fs.readFileSync(new URL('../migrations/0006_order_customer_identity.sql', import.meta.url), 'utf8')
 
-test('order identity migration preserves rows and classifies null-client legacy orders', () => {
+test('order identity migration is additive', () => {
   assert.match(sql, /ADD COLUMN customer_identity_type/)
   assert.match(sql, /WHERE client_id IS NULL/)
   assert.doesNotMatch(sql, /DELETE FROM orders|DROP TABLE orders/i)
 })
 ```
 
-- [ ] **Step 5: Run focused tests and commit**
+- [ ] **Step 5: Run GREEN and commit**
 
 Run: `node --test shared/orderCustomerIdentity.test.js worker/orderCustomerIdentityMigration.test.js`  
 Expected: PASS.
@@ -726,142 +759,170 @@ git commit -m "feat: define local order customer identity"
 
 ---
 
-### Task 6: Validar e persistir Nome/Mesa/Cliente no checkout do Worker
+### Task 6: Validar e persistir identidade no checkout do Worker
 
 **Files:**
 - Modify: `worker/orderCheckout.js`
 - Modify: `worker/orderCheckout.test.js`
 - Modify: `worker/repositories.js`
 - Modify: `worker/orderRepositories.test.js`
+- Modify: `worker/orderRoutes.test.js`
 - Modify: `worker/multiItemCheckoutRepository.test.js`
 
 **Interfaces:**
-- Consumes: `validateCustomerIdentity(orderType, customerIdentity)` from Task 5.
-- `validateCheckoutInput()` produces `customerIdentity` instead of top-level `clientId` as the authoritative checkout identity.
-- `mapOrderRow()` produces `customerIdentityType` while keeping `client` and `clientId` compatibility fields.
+- Consumes: Task 5 `validateCustomerIdentity`.
+- Produces: checkout validated input with `customerIdentity`.
+- Produces: order API field `customerIdentityType` while preserving `client` and `clientId`.
 
-- [ ] **Step 1: Add failing checkout validation tests**
+- [ ] **Step 1: Add failing checkout identity tests**
 
 ```js
-// add to worker/orderCheckout.test.js
-test('local checkout accepts guest name and table while delivery rejects them', () => {
-  const guest = validateCheckoutInput(validBody({
+test('local checkout accepts guest identity while delivery rejects it', () => {
+  const guest = validateCheckoutInput({
+    ...validCheckoutBody,
     type: 'Local',
     customerIdentity: { type: 'guest_name', value: 'João' },
-  }), 'key-guest')
+  }, 'guest-key')
   assert.deepEqual(guest.customerIdentity, { type: 'guest_name', value: 'João' })
 
-  assert.throws(() => validateCheckoutInput(validBody({
+  assert.throws(() => validateCheckoutInput({
+    ...validCheckoutBody,
     type: 'Entrega',
     customerIdentity: { type: 'table', value: '04' },
-  }), 'key-delivery'))
+  }, 'delivery-key'))
+})
+
+test('legacy clientId payload remains temporarily compatible as registered client', () => {
+  const input = validateCheckoutInput({ ...validCheckoutBody, clientId: 'c1', customerIdentity: undefined }, 'legacy-key')
+  assert.deepEqual(input.customerIdentity, { type: 'registered_client', clientId: 'c1' })
 })
 ```
 
-Update the local `validBody` fixture to use `customerIdentity: { type: 'registered_client', clientId: 'client-1' }` instead of relying only on `clientId`.
+Use the fixture name already present in `worker/orderCheckout.test.js`; if it is a function rather than an object, call it and apply the same fields.
 
-- [ ] **Step 2: Run checkout tests and verify RED**
+- [ ] **Step 2: Run RED**
 
 Run: `node --test worker/orderCheckout.test.js`  
-Expected: FAIL because checkout still requires top-level `clientId`.
+Expected: FAIL porque checkout exige top-level `clientId`.
 
-- [ ] **Step 3: Validate identity before item/database work**
+- [ ] **Step 3: Validate explicit identity with backward-compatible fallback**
 
 ```js
-// worker/orderCheckout.js
 const type = validateOrderType(body.type)
-const identityResult = validateCustomerIdentity(type, body.customerIdentity)
+const rawIdentity = body.customerIdentity ?? { type: 'registered_client', clientId: body.clientId }
+const identityResult = validateCustomerIdentity(type, rawIdentity)
 if (!identityResult.ok) throw checkoutError(identityResult.field, identityResult.message)
 const customerIdentity = identityResult.value
 ```
 
-Return `customerIdentity` from `validateCheckoutInput` and remove the unconditional `requireNonEmpty(body.clientId)` path. Keep compatibility only in `legacyCheckoutInput` inside repositories for older internal tests/callers.
+Return `customerIdentity` and stop returning top-level `clientId` as the authoritative field. This fallback protects an already-open pre-deploy frontend while new assets move to the explicit contract.
 
-- [ ] **Step 4: Add failing repository tests for snapshots and null client_id**
+- [ ] **Step 4: Normalize repository callers and resolve identity server-side**
 
-Test three cases in `worker/orderRepositories.test.js`:
+At the start of `createOrder`:
 
 ```js
-assert.equal(localGuest.clientId, null)
-assert.equal(localGuest.client, 'João')
-assert.equal(localGuest.customerIdentityType, 'guest_name')
-
-assert.equal(localTable.client, 'Mesa A-2')
-assert.equal(localTable.customerIdentityType, 'table')
-
-assert.equal(registered.clientId, 'client-1')
-assert.equal(registered.customerIdentityType, 'registered_client')
+const input = Array.isArray(rawInput.items) && rawInput.items.length ? rawInput : legacyCheckoutInput(rawInput)
+const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
 ```
 
-Also assert that two calls with the same idempotency key still return one order for a local guest checkout.
-
-- [ ] **Step 5: Resolve identity server-side and write the discriminador**
-
-Inside `createOrder`:
+Resolve snapshot:
 
 ```js
-let client = null
 let clientId = null
 let clientSnapshot = ''
-const identity = input.customerIdentity
 
-if (identity.type === 'registered_client') {
-  client = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1')
-    .bind(identity.clientId, businessId).first()
+if (customerIdentity.type === 'registered_client') {
+  const client = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1')
+    .bind(customerIdentity.clientId, businessId).first()
   if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
   clientId = client.id
   clientSnapshot = client.name
-} else if (identity.type === 'guest_name') {
-  clientSnapshot = identity.value
+} else if (customerIdentity.type === 'guest_name') {
+  clientSnapshot = customerIdentity.value
 } else {
-  clientSnapshot = `Mesa ${identity.value}`
+  clientSnapshot = `Mesa ${customerIdentity.value}`
 }
 ```
 
-Insert `customer_identity_type` in `orders`. Payment movement descriptions must use `clientSnapshot`, not `client.name`, so guest/table paid orders work. Extend `orderSelect` and `mapOrderRow`:
+Insert `clientId`, `clientSnapshot` and `customerIdentity.type` into `orders`. Use `clientSnapshot` in automatic payment movement description.
+
+- [ ] **Step 5: Extend selects/mapping and product snapshot**
+
+Add `o.customer_identity_type` to `orderSelect` and return:
 
 ```js
 customerIdentityType: row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name'),
 ```
 
-- [ ] **Step 6: Snapshot structured product presentation in order_items**
+When selecting products for checkout, include structured presentation columns, map the product, and compute:
 
-When pricing each item, SELECT structured presentation fields. Compute the friendly compatibility string with `formatProductPresentation(mapProductRow(product))` and persist that into `size_snapshot`; do not trust cart/frontend presentation data.
+```js
+const presentationSnapshot = formatProductPresentation(mapProductRow(product))
+```
 
-- [ ] **Step 7: Run Worker checkout/repository regression**
+Persist `presentationSnapshot === 'Unidade' ? 'Un' : presentationSnapshot` into `size_snapshot`. Do not accept a snapshot from the frontend.
 
-Run: `node --test worker/orderCheckout.test.js worker/orderRepositories.test.js worker/multiItemCheckoutRepository.test.js worker/repositories.test.js`  
+- [ ] **Step 6: Update existing checkout route fixtures**
+
+In `worker/orderRoutes.test.js`, `worker/orderRepositories.test.js` and `worker/multiItemCheckoutRepository.test.js`, change normal modern checkout fixtures from `clientId: '...'` to:
+
+```js
+customerIdentity: { type: 'registered_client', clientId: '...' }
+```
+
+Keep one explicit legacy `clientId` test in `worker/orderCheckout.test.js` from Step 1 to lock transitional compatibility.
+
+- [ ] **Step 7: Add guest/table repository assertions**
+
+```js
+assert.equal(localGuest.clientId, null)
+assert.equal(localGuest.client, 'João')
+assert.equal(localGuest.customerIdentityType, 'guest_name')
+assert.equal(localTable.client, 'Mesa A-2')
+assert.equal(localTable.customerIdentityType, 'table')
+assert.equal(registered.customerIdentityType, 'registered_client')
+```
+
+Add an idempotency case where the same local guest checkout key is submitted twice and only one order is created.
+
+- [ ] **Step 8: Run GREEN and commit**
+
+Run: `node --test worker/orderCheckout.test.js worker/orderRoutes.test.js worker/orderRepositories.test.js worker/multiItemCheckoutRepository.test.js worker/repositories.test.js`  
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
-
 ```bash
-git add worker/orderCheckout.js worker/orderCheckout.test.js worker/repositories.js worker/orderRepositories.test.js worker/multiItemCheckoutRepository.test.js
+git add worker/orderCheckout.js worker/orderCheckout.test.js worker/repositories.js worker/orderRepositories.test.js worker/orderRoutes.test.js worker/multiItemCheckoutRepository.test.js
 git commit -m "feat: support local order identities in checkout"
 ```
 
 ---
 
-### Task 7: Implementar UX de identificação no Consumo no local
+### Task 7: Implementar UX de Consumo no local e corrigir A receber
 
 **Files:**
 - Modify: `src/pages/NewOrder.jsx`
 - Modify: `src/utils/orderCart.js`
 - Modify: `src/orderCart.test.js`
-- Create: `src/localOrderIdentityUi.test.js`
 - Modify: `src/new-order.css`
+- Create: `src/localOrderIdentityUi.test.js`
+- Create: `src/utils/receivables.js`
+- Create: `src/utils/receivables.test.js`
+- Modify: `src/pages/Receivables.jsx`
+- Modify: `src/receivables.css`
 
 **Interfaces:**
-- Consumes: `validateCustomerIdentity()` from Task 5.
-- `buildOrderPayload(draft, paymentMethod)` sends `customerIdentity` exactly as specified.
+- Consumes: Task 5 `validateCustomerIdentity`.
+- Produces: `buildOrderPayload()` with explicit `customerIdentity`.
+- Produces: `groupPendingOrders(orders)` returning `{ key, label, orders, total }[]`.
 
-- [ ] **Step 1: Add failing payload tests**
+- [ ] **Step 1: Add failing payload test**
 
 ```js
-// add to src/orderCart.test.js
-test('order payload sends explicit local customer identity', () => {
+test('order payload sends explicit local identity', () => {
   const payload = buildOrderPayload({
-    type: 'Local', orderDate: '2026-09-02',
+    type: 'Local',
+    orderDate: '2026-09-02',
     customerIdentity: { type: 'table', value: 'A-2' },
     items: [{ productId: 'p1', quantity: 1, note: '' }],
     deliveryFee: 0,
@@ -872,47 +933,49 @@ test('order payload sends explicit local customer identity', () => {
 })
 ```
 
-- [ ] **Step 2: Run payload test and verify RED**
+- [ ] **Step 2: Run RED and update payload**
 
 Run: `node --test src/orderCart.test.js`  
-Expected: FAIL because payload still sends `clientId`.
-
-- [ ] **Step 3: Update payload builder**
+Expected: FAIL.
 
 ```js
 const payload = {
   customerIdentity: draft.customerIdentity,
   type: draft.type,
   orderDate: draft.orderDate,
-  // existing items, deliveryFee, adjustment
+  items: (Array.isArray(draft.items) ? draft.items : []).map((item) => ({
+    productId: item.productId,
+    quantity: Math.max(1, Math.trunc(Number(item.quantity) || 1)),
+    note: normalizeItemNote(item.note),
+  })),
+  deliveryFee: draft.type === 'Entrega' ? toNonNegativeNumber(draft.deliveryFee) : 0,
+  adjustment: {
+    type: ['discount', 'surcharge'].includes(adjustment.type) ? adjustment.type : 'none',
+    mode: adjustment.mode === 'percentage' ? 'percentage' : 'fixed',
+    value: toNonNegativeNumber(adjustment.value),
+    reason: cleanSpaces(adjustment.reason).slice(0, 200),
+  },
 }
 ```
 
-Keep all existing normalization of items, notes, fee and adjustment unchanged.
-
-- [ ] **Step 4: Write failing NewOrder source contract**
+- [ ] **Step 3: Write failing NewOrder source contract**
 
 ```js
-// src/localOrderIdentityUi.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('./pages/NewOrder.jsx', import.meta.url), 'utf8')
 
-test('local orders expose Nome Mesa and Cliente cadastrado after order type', () => {
+test('local order exposes Nome Mesa and Cliente cadastrado modes', () => {
   assert.match(source, /guest_name/)
   assert.match(source, /table/)
   assert.match(source, /registered_client/)
-  assert.match(source, /Nome/)
-  assert.match(source, /Mesa/)
   assert.match(source, /Cliente cadastrado/)
 })
 ```
 
-- [ ] **Step 5: Implement type-first identity state**
-
-Use separate local fields:
+- [ ] **Step 4: Implement type-first identity state**
 
 ```js
 const [customerIdentityType, setCustomerIdentityType] = useState('registered_client')
@@ -931,49 +994,18 @@ const identityValidation = validateCustomerIdentity(type, customerIdentity)
 const canSubmit = Boolean(identityValidation.ok && orderDate && items.length)
 ```
 
-`changeType('Local')` sets mode default `guest_name`. `changeType('Entrega'|'Retirada')` sets mode `registered_client`. Changing identity mode clears only `guestName`, `tableId` or client selection belonging to the mode being left; it must not mutate cart or finance state.
+`changeType('Local')` sets `customerIdentityType` to `guest_name`; `changeType('Entrega')` and `changeType('Retirada')` set it to `registered_client`. Switching identity mode clears only fields belonging to the mode being left. Cart, order date, fee and adjustment remain unchanged.
 
-- [ ] **Step 6: Reorder the form and render accessible identity controls**
+Render `Tipo do pedido` before identity. For Local render `Nome | Mesa | Cliente cadastrado`. Name uses maxLength 80; Mesa uses maxLength 12; registered client reuses the existing picker and quick-client flow. Hide quick-client controls in guest/table mode.
 
-Render `Tipo do pedido` before identity. For Local, show a three-way pressed/radio control. `guest_name` renders text input maxLength 80; `table` renders text input maxLength 12 and helpful example; `registered_client` renders the existing client combobox and `+ Novo cliente` flow.
-
-Do not render quick-client creation for guest/table modes.
-
-- [ ] **Step 7: Run focused frontend tests**
-
-Run: `node --test src/orderCart.test.js src/localOrderIdentityUi.test.js src/quickClientCancel.test.js shared/orderCustomerIdentity.test.js`  
-Expected: PASS.
-
-- [ ] **Step 8: Commit**
-
-```bash
-git add src/pages/NewOrder.jsx src/utils/orderCart.js src/orderCart.test.js src/localOrderIdentityUi.test.js src/new-order.css
-git commit -m "feat: identify local orders by name or table"
-```
-
----
-
-### Task 8: Corrigir agrupamento e simplificar A receber
-
-**Files:**
-- Create: `src/utils/receivables.js`
-- Create: `src/utils/receivables.test.js`
-- Modify: `src/pages/Receivables.jsx`
-- Modify: `src/receivables.css`
-
-**Interfaces:**
-- Produces: `groupPendingOrders(orders)` returning `[{ key, label, orders, total }]`.
-- Registered clients group by `clientId`; guest/table orders group by order id.
-
-- [ ] **Step 1: Write failing pure grouping tests**
+- [ ] **Step 5: Write failing receivables grouping test**
 
 ```js
-// src/utils/receivables.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { groupPendingOrders } from './receivables.js'
 
-test('registered client debts group together but guest and table debts stay independent', () => {
+test('real client groups while identical guest names remain independent', () => {
   const groups = groupPendingOrders([
     { id: 'o1', clientId: 'c1', client: 'Ana', customerIdentityType: 'registered_client', total: 10, paymentStatus: 'Pendente' },
     { id: 'o2', clientId: 'c1', client: 'Ana', customerIdentityType: 'registered_client', total: 20, paymentStatus: 'Pendente' },
@@ -985,21 +1017,15 @@ test('registered client debts group together but guest and table debts stay inde
 })
 ```
 
-- [ ] **Step 2: Run and verify RED**
-
-Run: `node --test src/utils/receivables.test.js`  
-Expected: FAIL with module not found.
-
-- [ ] **Step 3: Implement grouping helper**
+- [ ] **Step 6: Implement grouping helper**
 
 ```js
-// src/utils/receivables.js
 import { getPendingAmount, isOrderPaid } from './paymentWorkflow.js'
 
 export const groupPendingOrders = (orders = []) => {
   const grouped = new Map()
   orders.filter((order) => !isOrderPaid(order)).forEach((order) => {
-    const registered = order.customerIdentityType === 'registered_client' && order.clientId
+    const registered = (order.customerIdentityType === 'registered_client' || !order.customerIdentityType) && order.clientId
     const key = registered ? `client:${order.clientId}` : `order:${order.id}`
     const current = grouped.get(key) || { key, label: order.client, orders: [], total: 0 }
     current.orders.push(order)
@@ -1010,53 +1036,44 @@ export const groupPendingOrders = (orders = []) => {
 }
 ```
 
-For legacy rows missing `customerIdentityType`, treat a non-null `clientId` as registered. If `clientId` is unexpectedly absent on a legacy row, group by order id rather than snapshot text.
+- [ ] **Step 7: Simplify Receivables UI**
 
-- [ ] **Step 4: Refactor Receivables to use the helper and three cards**
+Filter pending orders by search first, then call `groupPendingOrders(filteredPendingOrders)`. Remove `debtorCount` and `Clientes devendo`.
 
-Remove `debtorCount` and the `Clientes devendo` StatCard. Keep:
+Keep exactly:
 
 ```jsx
-<StatCard label="A receber" ... />
-<StatCard label="Pedidos pendentes" ... />
-<StatCard label="Recebido hoje" ... />
+<StatCard label="A receber" value={currency(totalPending)} helper="Saldo pendente" icon="wallet" tone="warning" />
+<StatCard label="Pedidos pendentes" value={pendingCount} helper="Ainda não pagos" icon="receipt" />
+<StatCard label="Recebido hoje" value={currency(receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
 ```
 
-Rename heading to `Pendências em aberto`, toolbar count to `{groups.length} pendência(s)/grupo(s)` with natural copy, and search placeholder to `Buscar identificação, pedido ou produto`.
+Rename section heading to `Pendências em aberto` and search placeholder to `Buscar identificação, pedido ou produto`. Do not group by `order.client` string in `Receivables.jsx`.
 
-- [ ] **Step 5: Make filtering happen before grouping without changing independence rules**
+- [ ] **Step 8: Run GREEN and commit**
 
-Keep the existing search over `order.client`, products, type, date and id, then pass the filtered pending orders to `groupPendingOrders`. Do not group by `order.client` string directly anywhere in `Receivables.jsx`.
-
-- [ ] **Step 6: Adjust the three-card grid and run tests**
-
-Update `receivables.css` only if the existing grid does not naturally produce three balanced columns on desktop; retain mobile stacking behavior.
-
-Run: `node --test src/utils/receivables.test.js` and `node --test`  
-Expected: focused test PASS; full suite PASS.
-
-- [ ] **Step 7: Commit**
+Run: `node --test src/orderCart.test.js src/localOrderIdentityUi.test.js src/quickClientCancel.test.js shared/orderCustomerIdentity.test.js src/utils/receivables.test.js`  
+Expected: PASS.
 
 ```bash
-git add src/utils/receivables.js src/utils/receivables.test.js src/pages/Receivables.jsx src/receivables.css
-git commit -m "refactor: clarify receivables by order identity"
+git add src/pages/NewOrder.jsx src/utils/orderCart.js src/orderCart.test.js src/new-order.css src/localOrderIdentityUi.test.js src/utils/receivables.js src/utils/receivables.test.js src/pages/Receivables.jsx src/receivables.css
+git commit -m "feat: support local service identities and clearer receivables"
 ```
 
 ---
 
-### Task 9: Integrated regression guard and production-readiness verification
+### Task 8: Integração, regressão e prontidão de produção
 
 **Files:**
 - Create: `src/catalogLocalOrdersIntegration.test.js`
-- Modify only if failures reveal a real regression: files touched in Tasks 1–8.
+- Modify only when a failing verification identifies a concrete defect in files from Tasks 1–7.
 
 **Interfaces:**
-- No new runtime interface; this task locks the approved cross-feature behavior before merge/deploy.
+- No new runtime interface.
 
-- [ ] **Step 1: Add a compact source-level integration guard**
+- [ ] **Step 1: Add integrated source guard**
 
 ```js
-// src/catalogLocalOrdersIntegration.test.js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -1076,10 +1093,10 @@ test('approved round stays wired across app surfaces', () => {
 })
 ```
 
-- [ ] **Step 2: Run the entire test suite**
+- [ ] **Step 2: Run full tests**
 
 Run: `npm test`  
-Expected: all tests PASS, zero failed/cancelled.
+Expected: all tests PASS; zero failures.
 
 - [ ] **Step 3: Run lint**
 
@@ -1089,30 +1106,37 @@ Expected: `0 warnings and 0 errors`.
 - [ ] **Step 4: Run production build**
 
 Run: `npm run build`  
-Expected: Vite build completes successfully.
+Expected: Vite build succeeds.
 
-- [ ] **Step 5: Validate Worker bundle and D1 migration discovery**
+- [ ] **Step 5: Validate Worker bundle**
 
 Run: `npx --yes wrangler@4.128.0 deploy --dry-run`  
-Expected: dry-run exits successfully and shows `env.DB (amor-e-sabor-delivery)`.
+Expected: success and binding `env.DB (amor-e-sabor-delivery)`.
 
-Run locally against the development D1 first: `npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --local`  
-Expected: migrations `0005_product_presentation.sql` and `0006_order_customer_identity.sql` apply without destructive errors. Do not apply remote migrations from a feature branch.
+- [ ] **Step 6: Validate migrations locally**
 
-- [ ] **Step 6: Commit the integration guard**
+Run: `npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --local`  
+Expected: migrations `0005_product_presentation.sql` and `0006_order_customer_identity.sql` apply without destructive errors. Do not apply remote migrations from the feature branch.
+
+- [ ] **Step 7: Commit integration guard**
 
 ```bash
 git add src/catalogLocalOrdersIntegration.test.js
 git commit -m "test: guard catalog and local order round"
 ```
 
-- [ ] **Step 7: Review the final branch diff against the spec**
+- [ ] **Step 8: Review final branch diff**
 
-Run: `git diff master...HEAD --stat` and `git diff master...HEAD -- migrations shared src worker`  
-Expected: only files required by this plan/spec; no unrelated refactors, dependency additions or workflow changes.
+Run: `git diff master...HEAD --stat`  
+Expected: only spec, plan, migrations and implementation/test files required by this round.
 
-- [ ] **Step 8: Push and require green feature-branch CI before integration**
+Run: `git diff master...HEAD -- migrations shared src worker`  
+Expected: no unrelated refactor, dependency addition or workflow semantic change.
 
-Push `feature/catalog-local-orders-round`. Verify `Validate application` succeeds for the final SHA before fast-forward/merge to `master`.
+- [ ] **Step 9: Require green feature-branch CI**
 
-After `master` CI is green, use the existing manual `Deploy production` workflow. That workflow must show pending D1 migrations, apply them, verify the auth row, deploy the Worker, and then perform whatever production-login verification is available from configured secrets. Do not claim production completion until the Deploy step and the overall job both conclude `success`.
+Push `feature/catalog-local-orders-round` and verify the final SHA in `Validate application`: Test, Lint, Build and Worker dry-run must all conclude `success`.
+
+- [ ] **Step 10: Integrate and deploy only after verification**
+
+Fast-forward/merge the verified feature branch into `master`, wait for `master` validation to conclude `success`, then run the existing manual `Deploy production` workflow. Confirm in the deploy job that D1 migrations are listed/applied before Worker deployment. Do not claim production completion until the `Deploy` step and overall job both conclude `success`.
