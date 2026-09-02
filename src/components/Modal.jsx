@@ -1,7 +1,8 @@
+import { createPortal } from 'react-dom'
 import Icon from './Icon'
 
 function Modal({ title, onClose, children, footer }) {
-  return (
+  const content = (
     <div className="modal-backdrop" data-navigation-swipe-block="true" onMouseDown={onClose}>
       <div
         className="modal-card"
@@ -21,6 +22,8 @@ function Modal({ title, onClose, children, footer }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content
 }
 
 export default Modal
