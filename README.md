@@ -36,7 +36,7 @@ npm run dev
 
 ## Banco D1 local
 
-Aplique a migration local:
+Aplique as migrations locais:
 
 ```bash
 npm run d1:migrate:local
@@ -99,15 +99,25 @@ npx --yes wrangler@4.128.0 deploy --dry-run
 
 O workflow do GitHub Actions executa esse mesmo conjunto de validações sem publicar nada.
 
+## Nova venda com vários itens
+
+O fluxo de `Novo pedido` permite montar a venda inteira antes de salvar: vários produtos, quantidade, observação por item, taxa de entrega opcional, desconto/acréscimo e fechamento pendente ou já recebido.
+
+Os preços oficiais e o total final são recalculados pelo Worker usando o catálogo salvo no D1. O navegador não é a autoridade de preço. Itens do mesmo produto com a mesma observação normalizada são agrupados; observações diferentes permanecem em linhas separadas.
+
+`Salvar pedido` cria a venda com pagamento pendente. `Salvar e receber` registra a venda e um único pagamento integral no mesmo checkout. O pagamento não finaliza o andamento operacional: um pedido pago do dia continua `Em preparo` até a ação de finalização.
+
 ## Deploy de produção
 
-### 1. Aplicar a migration remota
+A migration remota e o deploy continuam sendo **passos manuais de release**. Validar a branch não altera o D1 remoto nem publica o Worker.
+
+### 1. Aplicar as migrations remotas pendentes
 
 ```bash
 npm run d1:migrate:remote
 ```
 
-A migration cria o schema e o registro da empresa Amor & Sabor. Ela não importa dados antigos de teste do navegador.
+As migrations evoluem o schema central sem importar dados antigos de teste do navegador. A migration do checkout multi-itens adiciona taxa de entrega ao pedido e observação por item.
 
 ### 2. Gerar o verificador do PIN de produção
 
@@ -147,19 +157,22 @@ WHERE business_id = 'amor-e-sabor';
 npm run deploy
 ```
 
-## Checklist de aceitação em produção
+## Checklist de aceitação do checkout multi-itens
 
-Após o deploy, validar no computador e no celular:
+Após aplicar a migration remota e publicar a versão aprovada:
 
-1. Ambos pedem o PIN antes de mostrar os dados.
-2. Um cliente criado no computador aparece no celular após atualizar os dados.
-3. Um produto criado no celular aparece no computador.
-4. Um pedido do dia entra como `Em preparo` nos dois dispositivos.
-5. Ao finalizar, o estado atualizado aparece no outro dispositivo após recarregar.
-6. Ao registrar pagamento, `A Receber` diminui e o Financeiro recebe uma única entrada automática.
-7. Offline, ações de gravação ficam bloqueadas e o aviso de conexão aparece.
-8. Após reconectar, os dados carregam normalmente sem duplicar pedido ou pagamento.
-9. Após `Sair`, rotas protegidas exigem autenticação novamente.
+1. Abra Novo pedido.
+2. Selecione ou crie cliente apenas com nome/telefone.
+3. Adicione vários produtos; itens iguais com a mesma observação agrupam.
+4. Adicione o mesmo produto com outra observação e confirme linha separada.
+5. Para Entrega, deixe taxa em R$ 0,00 ou informe a taxa manual.
+6. Aplique desconto/acréscimo em R$ ou %, se necessário.
+7. Teste Salvar pedido e Salvar e receber.
+8. Confirme que pedido pago continua Em preparo.
+9. Confirme todos os itens/observações na fila e no detalhe.
+10. Confirme uma única pendência ou uma única entrada financeira por venda.
+
+Também mantenha os checks operacionais existentes de autenticação, sincronização entre dispositivos, bloqueio de gravações offline e logout.
 
 ## Scripts
 
