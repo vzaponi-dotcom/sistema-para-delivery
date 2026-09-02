@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/catalog-local-orders-round
   workflow_dispatch:
 
 jobs:
