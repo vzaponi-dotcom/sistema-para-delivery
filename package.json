@@ -5,10 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:worker": "npx --yes wrangler@4.128.0 dev",
     "build": "vite build",
     "lint": "oxlint",
     "test": "node --test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "d1:migrate:local": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --local",
+    "d1:migrate:remote": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --remote",
+    "deploy": "npm run build && npx --yes wrangler@4.128.0 deploy"
   },
   "dependencies": {
     "react": "^19.2.8",
