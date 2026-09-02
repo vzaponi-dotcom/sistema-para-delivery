@@ -1,27 +1,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
-import NewOrder from './NewOrder.jsx'
+import { readFileSync } from 'node:fs'
 
-const currency = (value) => `R$ ${Number(value || 0).toFixed(2)}`
+const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
-test('new order screen exposes client, catalog, cart and both checkout actions', () => {
-  const html = renderToStaticMarkup(React.createElement(NewOrder, {
-    clients: [{ id: 'c1', name: 'Maria', phone: '(11) 99999-9999' }],
-    products: [{ id: 'p1', name: 'Marmita G', category: 'Marmita', size: 'G', price: 32 }],
-    currency,
-    disabled: false,
-    onCancel: () => {},
-    onCreateClient: async () => null,
-    onSubmit: async () => false,
-  }))
+test('new order source exposes client, catalog, cart and both checkout actions', () => {
+  const page = source('./NewOrder.jsx')
+  const catalog = source('../components/OrderProductCatalog.jsx')
+  const cart = source('../components/OrderCart.jsx')
+  const checkout = source('../components/OrderCheckoutSummary.jsx')
 
-  assert.match(html, /Nova venda/)
-  assert.match(html, /Maria/)
-  assert.match(html, /Buscar produto/)
-  assert.match(html, /Marmita/)
-  assert.match(html, /Carrinho/)
-  assert.match(html, /Salvar pedido/)
-  assert.match(html, /Salvar e receber/)
+  assert.match(page, /Nova venda/)
+  assert.match(page, /Buscar cliente/)
+  assert.match(page, /\+ Novo cliente/)
+  assert.match(catalog, /Buscar produto/)
+  assert.match(catalog, /Categorias de produtos/)
+  assert.match(cart, /Carrinho/)
+  assert.match(cart, /Observação deste item/)
+  assert.match(checkout, /Salvar pedido/)
+  assert.match(checkout, /Salvar e receber/)
+  assert.match(checkout, /Forma de pagamento/)
 })
