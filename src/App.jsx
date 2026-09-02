@@ -110,6 +110,7 @@ function App() {
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const knownActiveOrderIdsRef = useRef(new Set())
   const alertedOrderIdsRef = useRef(new Set())
+  const currentOrdersRef = useRef([])
   const kitchenAudioContextRef = useRef(null)
   const newOrderHighlightTimerRef = useRef(null)
 
@@ -126,6 +127,7 @@ function App() {
     setNewOrderIds(new Set())
     knownActiveOrderIdsRef.current = new Set()
     alertedOrderIdsRef.current = new Set()
+    currentOrdersRef.current = []
     setCheckoutKey(null)
     setPaymentOrderId(null)
     setShowMovementModal(false)
@@ -253,6 +255,10 @@ function App() {
   }, [])
 
   useEffect(() => {
+    currentOrdersRef.current = orders
+  }, [orders])
+
+  useEffect(() => {
     if (!kitchenSoundEnabled) return undefined
 
     const unlockAudio = () => {
@@ -279,7 +285,7 @@ function App() {
 
     let cancelled = false
     let syncing = false
-    knownActiveOrderIdsRef.current = activeOrderIdSet(orders)
+    knownActiveOrderIdsRef.current = activeOrderIdSet(currentOrdersRef.current)
 
     const refreshOrders = async () => {
       if (syncing || cancelled) return
