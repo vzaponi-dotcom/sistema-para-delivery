@@ -47,6 +47,17 @@ test('item note typing preserves spaces and commits normalization on blur', () =
   assert.match(cart, /onBlur=\{\(\) => onNoteCommit/)
 })
 
+test('item observation stays collapsed until requested and collapses to a summary after editing', () => {
+  const cart = source('../components/OrderCart.jsx')
+
+  assert.match(cart, /useState/)
+  assert.match(cart, /Adicionar observação/)
+  assert.match(cart, /Editar observação/)
+  assert.match(cart, /new-order-note-summary/)
+  assert.match(cart, /expandedNote/)
+  assert.match(cart, /onBlur=\{\(\) => \{[^}]*onNoteCommit\(item\.lineId\)[^}]*closeNote/s)
+})
+
 test('cart item layout is horizontal and compact with quantity on the left', () => {
   const cart = source('../components/OrderCart.jsx')
   const css = source('../new-order.css')
