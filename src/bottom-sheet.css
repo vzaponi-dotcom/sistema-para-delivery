@@ -1,0 +1,39 @@
+.bottom-sheet-backdrop {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .bottom-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.48);
+  }
+
+  .bottom-sheet {
+    width: 100%;
+    max-height: min(78vh, 620px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .bottom-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .bottom-sheet-header button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
