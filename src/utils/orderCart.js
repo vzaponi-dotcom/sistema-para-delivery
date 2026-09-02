@@ -125,7 +125,7 @@ export const calculateOrderPreview = (draft = {}) => {
 export const buildOrderPayload = (draft = {}, paymentMethod) => {
   const adjustment = draft.adjustment || {}
   const payload = {
-    clientId: draft.clientId,
+    customerIdentity: draft.customerIdentity,
     type: draft.type,
     orderDate: draft.orderDate,
     items: (Array.isArray(draft.items) ? draft.items : []).map((item) => ({
