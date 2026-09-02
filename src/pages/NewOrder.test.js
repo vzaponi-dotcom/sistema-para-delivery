@@ -44,7 +44,7 @@ test('item note typing preserves spaces and commits normalization on blur', () =
   assert.match(cart, /onNoteChange/)
   assert.match(cart, /onNoteCommit/)
   assert.match(cart, /onChange=\{\(event\) => onNoteChange/)
-  assert.match(cart, /onBlur=\{\(\) => onNoteCommit/)
+  assert.match(cart, /onBlur=\{\(\) => \{[^}]*onNoteCommit\(item\.lineId\)/s)
 })
 
 test('item observation stays collapsed until requested and collapses to a summary after editing', () => {
