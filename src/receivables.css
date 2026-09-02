@@ -170,9 +170,28 @@
   font-size: 0.86rem;
 }
 
-.receivable-table-tab-action span {
+.receivable-table-tab-action > div span {
   color: var(--muted);
   font-size: 0.76rem;
+}
+
+.table-tab-payment-action-button {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.table-tab-payment-action-button span {
+  color: inherit;
+}
+
+.table-tab-payment-action-button:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.table-tab-payment-action-button:focus-visible {
+  outline: 3px solid rgba(180, 35, 24, 0.24);
+  outline-offset: 2px;
 }
 
 .table-tab-payment-summary {
