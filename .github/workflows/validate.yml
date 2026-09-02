@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/table-tabs-round
   workflow_dispatch:
 
 jobs:
