@@ -155,6 +155,8 @@ Assim:
 
 Editar a observação de uma linha pode fazer com que ela se torne equivalente a outra linha. Nesse caso, as duas linhas devem ser consolidadas, somando as quantidades.
 
+A observação é opcional, recebe `trim()` antes da persistência e tem limite de **300 caracteres** por linha.
+
 ## Fechamento financeiro
 
 A área de fechamento mostra sempre os valores calculados:
@@ -186,6 +188,8 @@ O ajuste geral possui:
 
 O preço individual dos produtos não pode ser alterado nessa tela.
 
+O motivo do ajuste é texto opcional, recebe `trim()` e tem limite de **200 caracteres**.
+
 ### Base de cálculo
 
 O percentual de desconto/acréscimo incide **somente sobre o subtotal dos produtos**, não sobre a taxa de entrega.
@@ -208,6 +212,8 @@ total = adjustedItemsSubtotal + deliveryFee
 ```
 
 O desconto é limitado ao subtotal dos produtos. Portanto, nunca torna `adjustedItemsSubtotal` negativo e nunca consome a taxa de entrega.
+
+Percentuais aceitos ficam entre **0,00% e 100,00%**, inclusive, com no máximo duas casas decimais. Para persistir no campo inteiro `adjustment_value`, percentual usa **basis points**: `10000 = 100,00%` e `750 = 7,50%`. Valor fixo usa centavos no mesmo campo. `adjustment_amount_cents` guarda sempre o valor monetário efetivamente aplicado.
 
 Exemplo aprovado:
 
@@ -286,18 +292,21 @@ Payload conceitual:
 
 A API não aceita preço unitário vindo do cliente como fonte de verdade. Para cada `productId`, o Worker deve buscar o produto ativo no D1 e usar seu `price_cents` atual.
 
-O Worker também deve validar:
+O Worker deve validar:
 
 - cliente existente no mesmo `business_id`
 - pelo menos um item
 - todos os produtos existentes, ativos e pertencentes ao mesmo negócio
 - quantidade inteira >= 1
-- observação como texto opcional dentro de limite razoável
+- observação opcional de até 300 caracteres após `trim()`
 - tipo de pedido válido
 - data válida e não futura, conforme regra atual
-- taxa >= 0 e taxa = 0 para `Retirada`/`Local`
-- ajuste válido
-- percentual dentro de faixa válida
+- taxa monetária >= 0 e taxa efetiva = 0 para `Retirada`/`Local`
+- ajuste `none`, `discount` ou `surcharge`
+- modo `fixed` ou `percentage`
+- valor fixo monetário >= 0
+- percentual entre 0,00 e 100,00 com até duas casas decimais
+- motivo opcional de até 200 caracteres após `trim()`
 - forma de pagamento válida quando informada
 
 A resposta deve retornar o pedido já normalizado com `items`, valores finais e estado de pagamento.
@@ -400,6 +409,8 @@ Formato conceitual:
   paidAmount
 }
 ```
+
+No JSON do frontend, `adjustment.value` é sempre exposto na unidade amigável ao usuário: reais quando `fixed` e percentual decimal quando `percentage`. A conversão para centavos/basis points é detalhe de persistência do servidor.
 
 `productName`, `size` e `quantity` no topo do pedido podem continuar temporariamente como campos derivados do primeiro item para compatibilidade durante a transição, mas novas telas não devem tratá-los como fonte oficial do conteúdo da venda.
 
@@ -590,6 +601,7 @@ Cobertura mínima:
 - acréscimo fixo
 - desconto percentual sobre produtos, sem incluir taxa
 - acréscimo percentual sobre produtos, sem incluir taxa
+- percentual decimal com duas casas
 - desconto limitado ao subtotal dos produtos
 - motivo opcional
 - servidor ignora qualquer tentativa do cliente de definir preço unitário
@@ -599,6 +611,8 @@ Cobertura mínima:
 - cria pedido com vários itens
 - persiste observação por item
 - usa snapshot do preço atual de cada produto
+- rejeita observação acima de 300 caracteres
+- rejeita percentual fora de 0,00% a 100,00%
 - rejeita produto inexistente/inativo
 - rejeita cliente de outro negócio/inexistente
 - `Salvar pedido` cria pendência sem pagamento
