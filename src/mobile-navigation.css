@@ -3,6 +3,10 @@
 }
 
 @media (max-width: 820px) {
+  :root {
+    --mobile-bottom-nav-height: 65px;
+  }
+
   .app-shell > .sidebar {
     display: none;
   }
@@ -176,10 +180,6 @@
       opacity: 1;
       transform: translateX(0);
     }
-  }
-
-  .dashboard-new-order-fab {
-    bottom: calc(112px + env(safe-area-inset-bottom));
   }
 }
 
