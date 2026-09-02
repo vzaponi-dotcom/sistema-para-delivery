@@ -181,6 +181,7 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
     clients: [],
     products: [],
     orders: [],
+    tableTabs: [],
     movements: [],
   })
 })
