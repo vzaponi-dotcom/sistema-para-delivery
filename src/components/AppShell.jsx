@@ -34,7 +34,11 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
     }
     const touch = event.touches[0]
     if (!touch) return
-    touchStart.current = { x: touch.clientX, y: touch.clientY }
+    touchStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      startedAt: event.timeStamp,
+    }
   }
 
   const handleTouchEnd = (event) => {
@@ -51,6 +55,7 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
     const direction = getSwipeDirection({
       deltaX: touch.clientX - touchStart.current.x,
       deltaY: touch.clientY - touchStart.current.y,
+      durationMs: Math.max(0, event.timeStamp - touchStart.current.startedAt),
     })
     touchStart.current = null
     if (!direction) return
