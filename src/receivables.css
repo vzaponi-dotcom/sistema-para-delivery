@@ -131,6 +131,13 @@
   font-size: 0.92rem;
 }
 
+.receivable-order-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .receivable-order-row .button {
   min-height: 38px;
   padding: 0 13px;
@@ -147,9 +154,13 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .receivable-order-row .button {
+  .receivable-order-actions {
     grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .receivable-order-actions .button {
+    flex: 1 1 0;
   }
 }
 
@@ -170,5 +181,13 @@
 
   .receivable-order-amount {
     text-align: left;
+  }
+
+  .receivable-order-actions {
+    flex-direction: column;
+  }
+
+  .receivable-order-actions .button {
+    width: 100%;
   }
 }
