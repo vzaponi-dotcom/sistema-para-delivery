@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import '../dashboard.css'
 import DashboardBarChart from '../components/DashboardBarChart'
 import DashboardLineChart from '../components/DashboardLineChart'
@@ -45,6 +46,18 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
   const displayMoney = (value) => valuesVisible ? currency(value) : MONEY_MASK
   const privacyLabel = valuesVisible ? 'Ocultar valores' : 'Mostrar valores'
   const { metrics, daily, topProducts, paymentMix } = analytics
+  const newOrderFab = (
+    <button
+      type="button"
+      className="button button-primary dashboard-new-order-fab"
+      aria-label="Novo pedido"
+      title="Novo pedido"
+      onClick={onNewOrder}
+      disabled={writeDisabled}
+    >
+      <Icon name="plus" size={24} />
+    </button>
+  )
 
   return (
     <>
@@ -161,16 +174,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
         </div>
       </section>
 
-      <button
-        type="button"
-        className="button button-primary dashboard-new-order-fab"
-        aria-label="Novo pedido"
-        title="Novo pedido"
-        onClick={onNewOrder}
-        disabled={writeDisabled}
-      >
-        <Icon name="plus" size={24} />
-      </button>
+      {typeof document !== 'undefined' ? createPortal(newOrderFab, document.body) : newOrderFab}
     </>
   )
 }
