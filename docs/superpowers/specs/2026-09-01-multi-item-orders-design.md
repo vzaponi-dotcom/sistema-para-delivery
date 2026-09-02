@@ -1,34 +1,362 @@
-# Design: pedidos com múltiplos itens e ajustes de preço
+# Design: nova venda com carrinho de múltiplos itens
 
 Data: 2026-09-01
 
 ## Objetivo
 
-Evoluir o cadastro de pedidos de um modelo de produto único para um pedido composto por vários itens, preservando a operação atual, o histórico, a cobrança e o financeiro.
+Transformar o fluxo atual de criação de pedido, hoje limitado a um produto por vez, em uma tela dedicada de **Nova venda** com carrinho de múltiplos itens.
 
-O novo fluxo deve permitir que um único pedido contenha, por exemplo, marmita, refrigerante e doce. Cada item deve partir do preço cadastrado no produto, mas o atendente poderá ajustar o preço unitário daquele item quando necessário. O pedido também poderá receber desconto ou acréscimo geral, em valor fixo ou percentual, com motivo opcional.
+O atendente deve conseguir selecionar ou criar rapidamente o cliente, adicionar todos os produtos da venda, informar quantidades e observações por item, aplicar taxa de entrega opcional, desconto ou acréscimo no pedido e então escolher entre:
+
+- **Salvar pedido**: cria o pedido como `Em preparo` e pagamento `Pendente`.
+- **Salvar e receber**: cria o pedido como `Em preparo` e registra imediatamente o pagamento com uma única forma de pagamento.
+
+Pagamento e andamento operacional continuam independentes. Um pedido pago permanece `Em preparo` até ser finalizado na operação.
+
+## Contexto atual
+
+O banco já separa `orders` e `order_items`, e o bootstrap já carrega uma lista `items` por pedido. Porém, a API e a interface de criação ainda recebem somente `productId` + `quantity`, criando apenas uma linha por pedido.
+
+A evolução deve aproveitar a estrutura existente e ser incremental, sem apagar ou recriar o D1 e sem regravar pedidos antigos em massa.
 
 ## Decisões aprovadas
 
-- `items` passa a ser a fonte oficial dos produtos de um pedido.
-- Pedidos antigos com `productName` e `quantity` serão migrados automaticamente em memória para um array `items` com uma linha.
-- O seletor de produto no novo pedido exibirá apenas o nome do produto.
-- O preço unitário será preenchido automaticamente pelo preço cadastrado em Produtos.
-- O preço unitário de um item poderá ser alterado no pedido.
-- O preço original do catálogo continuará salvo no item para manter rastreabilidade histórica.
-- O motivo da alteração de preço será opcional.
-- O pedido poderá ter desconto ou acréscimo geral.
-- O ajuste geral poderá ser em reais ou percentual; reais será o padrão.
-- O motivo do ajuste geral será opcional.
-- Ao adicionar novamente o mesmo produto pelo preço padrão, a quantidade da linha existente será somada automaticamente.
-- Quando o mesmo produto tiver preço unitário diferente, ele permanecerá em uma linha separada.
-- O desconto nunca poderá reduzir o total abaixo de zero.
-- Pagamento continuará sendo feito sobre o total final do pedido inteiro.
-- Nesta primeira versão, pedidos salvos não serão editáveis. Correção posterior de pedido fica fora do escopo.
+- A criação passa a usar uma **tela dedicada**, não o modal atual.
+- A tela de Pedidos continua focada na operação/cozinha.
+- Um pedido pode conter vários produtos e continua sendo uma única venda e uma única unidade operacional.
+- O catálogo da nova venda terá **categorias + busca**.
+- O cliente pode ser selecionado por nome/telefone.
+- Um cliente novo pode ser criado dentro da venda usando somente os campos **nome e telefone**, sem sair da tela.
+- O endereço do cliente não participa do fluxo da venda. O endereço efetivo da entrega continua vindo da conversa no WhatsApp e não será copiado para o pedido nesta fase.
+- Cada item pode ter **observação própria**.
+- O mesmo produto com a mesma observação é agrupado em uma única linha e tem a quantidade somada.
+- O mesmo produto com observação diferente permanece em linha separada.
+- O preço unitário do item sempre vem do cadastro de Produtos e **não é editável na venda**.
+- Ajustes de preço acontecem somente no nível do pedido.
+- O pedido pode ter **desconto ou acréscimo**, em valor fixo ou percentual.
+- O motivo do desconto/acréscimo é opcional.
+- A **taxa de entrega é um campo próprio**, separado de desconto/acréscimo.
+- A taxa é opcional e começa em zero.
+- A taxa só se aplica a pedidos do tipo `Entrega`; `Retirada` e `Local` sempre persistem taxa zero.
+- O cálculo automático da taxa por bairro/região fica para uma fase futura.
+- Pagamento dividido fica fora desta fase. Cada pedido admite uma única forma de pagamento.
+- `Salvar e receber` não finaliza a produção: o pedido fica `Em preparo + Pago`.
+- Pedidos ativos mostram todos os itens e observações na fila da cozinha, sem esconder linhas atrás de um resumo `+N itens`.
+- O histórico pode ser compacto, mas deve permitir abrir o detalhe completo da venda.
+- Os status operacionais permanecem, nesta fase, em `Em preparo` e `Finalizado`.
 
-## Modelo de dados
+## Abordagem escolhida
 
-Um pedido novo terá a seguinte estrutura conceitual:
+Foi escolhida a abordagem de **tela própria de Nova venda**.
+
+Ela oferece espaço suficiente para catálogo, carrinho e fechamento no computador, sem transformar a tela de Pedidos em um PDV e sem sobrecarregar o modal atual.
+
+No computador, a tela pode usar duas áreas principais:
+
+```text
+┌──────────────────────────────┬─────────────────────────┐
+│ Cliente / tipo               │ Carrinho                │
+│ Busca + categorias           │ Itens                   │
+│ Catálogo de produtos         │ Fechamento / total      │
+│                              │ Ações de salvar         │
+└──────────────────────────────┴─────────────────────────┘
+```
+
+No celular, as mesmas áreas ficam empilhadas verticalmente:
+
+```text
+Cliente
+Tipo
+Busca / categorias
+Produtos
+Carrinho
+Fechamento
+Ações
+```
+
+A tela deve ser responsiva e utilizável tanto no computador quanto no celular.
+
+## Fluxo da Nova venda
+
+### 1. Cliente
+
+No topo, o atendente pesquisa cliente por nome ou telefone e seleciona um registro existente.
+
+A ação `+ Novo cliente` abre um formulário rápido dentro do fluxo com:
+
+- nome
+- telefone
+
+O nome segue obrigatório como já ocorre no cadastro atual. A criação rápida não introduz endereço obrigatório nem tira o usuário da venda. Depois de salvar, o novo cliente já fica selecionado no pedido em andamento.
+
+### 2. Tipo do pedido
+
+Opções:
+
+- `Entrega`
+- `Retirada`
+- `Local`
+
+Ao selecionar `Entrega`, a interface mostra `Taxa de entrega`, inicialmente `R$ 0,00`.
+
+Ao selecionar `Retirada` ou `Local`, o campo de taxa é ocultado e o valor efetivo enviado/persistido deve ser zero.
+
+O comportamento atual de `orderDate` deve ser preservado. Se a interface atual permite registrar pedido em data anterior, essa capacidade continua disponível como campo secundário, mantendo as regras existentes para pedidos históricos.
+
+### 3. Catálogo
+
+A área de produtos possui:
+
+- campo `Buscar produto`
+- navegação por categorias existentes no cadastro
+- lista/cartões de produtos da categoria ou busca atual
+
+Cada produto apresenta pelo menos nome e preço cadastrado. Tocar/clicar adiciona o produto ao carrinho com quantidade inicial 1.
+
+### 4. Carrinho
+
+Cada linha contém:
+
+- produto
+- preço unitário de catálogo, somente leitura
+- quantidade com controles `-` e `+`
+- total da linha
+- observação opcional daquele item
+- remover item
+
+Exemplo:
+
+```text
+Marmita G                         R$ 32,00
+[-] 2 [+]                         R$ 64,00
+Observação: sem cebola
+
+Marmita G                         R$ 32,00
+[-] 1 [+]                         R$ 32,00
+Observação: sem salada
+```
+
+O pedido não pode ser salvo com carrinho vazio.
+
+### Regra de agrupamento
+
+Para decidir se uma nova adição soma uma linha existente, o sistema compara:
+
+- mesmo `productId`
+- mesma observação normalizada
+
+A observação normalizada deve remover espaços externos, reduzir sequências internas de espaços e comparar sem diferença entre maiúsculas/minúsculas. O texto exibido pode preservar a grafia digitada na linha original.
+
+Assim:
+
+- `sem cebola` + `Sem cebola` => mesma linha
+- `sem cebola` + `sem salada` => linhas diferentes
+- observação vazia + observação vazia => mesma linha
+
+Editar a observação de uma linha pode fazer com que ela se torne equivalente a outra linha. Nesse caso, as duas linhas devem ser consolidadas, somando as quantidades.
+
+## Fechamento financeiro
+
+A área de fechamento mostra sempre os valores calculados:
+
+```text
+Produtos                         R$ 82,00
+Taxa de entrega                   R$ 8,00
+Desconto                          R$ 5,00
+────────────────────────────────────────
+TOTAL                            R$ 85,00
+```
+
+### Taxa de entrega
+
+- somente para `Entrega`
+- opcional
+- valor mínimo zero
+- não é representada como acréscimo geral
+- fica persistida separadamente para futura automação por bairro/região
+
+### Desconto/acréscimo
+
+O ajuste geral possui:
+
+- tipo: `Nenhum`, `Desconto`, `Acréscimo`
+- modo: `R$` ou `%`
+- valor
+- motivo opcional
+
+O preço individual dos produtos não pode ser alterado nessa tela.
+
+### Base de cálculo
+
+O percentual de desconto/acréscimo incide **somente sobre o subtotal dos produtos**, não sobre a taxa de entrega.
+
+Isso preserva a taxa como componente separado da venda.
+
+Fórmulas:
+
+```text
+itemsSubtotal = soma(quantity × catalogPrice)
+
+fixedAdjustment = valor informado
+percentageAdjustment = itemsSubtotal × percentual / 100
+
+adjustedItemsSubtotal = itemsSubtotal - desconto
+ou
+adjustedItemsSubtotal = itemsSubtotal + acréscimo
+
+total = adjustedItemsSubtotal + deliveryFee
+```
+
+O desconto é limitado ao subtotal dos produtos. Portanto, nunca torna `adjustedItemsSubtotal` negativo e nunca consome a taxa de entrega.
+
+Exemplo aprovado:
+
+```text
+Produtos            R$ 96,00
+Entrega               R$ 8,00
+Desconto 10%          R$ 9,60
+Total                 R$ 94,40
+```
+
+Todos os valores persistidos são calculados pelo servidor. O frontend pode mostrar a prévia, mas não é a fonte de verdade de preço ou total.
+
+## Ações de conclusão
+
+### Salvar pedido
+
+Cria a venda com:
+
+- status operacional `Em preparo` para pedido de hoje
+- pagamento `Pendente`
+- todos os itens e observações
+- taxa e ajuste financeiro
+
+Pedidos históricos mantêm a semântica atual de status/data já existente no sistema.
+
+### Salvar e receber
+
+Antes de confirmar, a interface solicita uma única forma de pagamento dentre as formas já suportadas.
+
+A operação cria:
+
+- pedido
+- itens
+- pagamento
+- movimento financeiro automático de entrada
+
+O pedido permanece `Em preparo` quando for operacionalmente ativo, mesmo estando `Pago`.
+
+Pedido e recebimento devem ser tratados como uma única operação lógica de checkout. Não deve existir sucesso visual de pagamento se a gravação completa não tiver sido concluída.
+
+## Contrato de API
+
+A rota existente `POST /api/orders` deve evoluir para aceitar um carrinho, mantendo a chave de idempotência no cabeçalho.
+
+Payload conceitual:
+
+```json
+{
+  "clientId": "...",
+  "type": "Entrega",
+  "orderDate": "2026-09-01",
+  "items": [
+    {
+      "productId": "...",
+      "quantity": 2,
+      "note": "sem cebola"
+    },
+    {
+      "productId": "...",
+      "quantity": 1,
+      "note": "sem salada"
+    }
+  ],
+  "deliveryFee": 8,
+  "adjustment": {
+    "type": "discount",
+    "mode": "percentage",
+    "value": 10,
+    "reason": ""
+  },
+  "paymentMethod": "Pix"
+}
+```
+
+`paymentMethod` é omitido em `Salvar pedido` e enviado em `Salvar e receber`.
+
+A API não aceita preço unitário vindo do cliente como fonte de verdade. Para cada `productId`, o Worker deve buscar o produto ativo no D1 e usar seu `price_cents` atual.
+
+O Worker também deve validar:
+
+- cliente existente no mesmo `business_id`
+- pelo menos um item
+- todos os produtos existentes, ativos e pertencentes ao mesmo negócio
+- quantidade inteira >= 1
+- observação como texto opcional dentro de limite razoável
+- tipo de pedido válido
+- data válida e não futura, conforme regra atual
+- taxa >= 0 e taxa = 0 para `Retirada`/`Local`
+- ajuste válido
+- percentual dentro de faixa válida
+- forma de pagamento válida quando informada
+
+A resposta deve retornar o pedido já normalizado com `items`, valores finais e estado de pagamento.
+
+## Idempotência e atomicidade
+
+A proteção atual por `idempotency-key` continua obrigatória para criação.
+
+A mesma chave representa o checkout inteiro. Repetir a mesma requisição por clique duplo, timeout ou reconexão não pode criar uma segunda venda nem um segundo pagamento.
+
+Para `Salvar e receber`, a camada de repositório deve montar uma gravação atômica usando a capacidade transacional disponível no D1, incluindo:
+
+- `orders`
+- todas as linhas de `order_items`
+- `payments`
+- `movements`
+
+Se a chave já existir, a API deve carregar e retornar a venda existente em vez de inserir outra. Em uma repetição de checkout pago, o resultado existente deve refletir o pagamento já associado ao pedido.
+
+O frontend gera uma chave por tentativa lógica de venda e deve reutilizá-la enquanto estiver repetindo o mesmo checkout após falha de rede. Uma nova chave só é criada ao iniciar uma nova venda.
+
+## Persistência e migration
+
+A evolução é incremental sobre o D1 existente.
+
+Criar uma nova migration, conceitualmente `0003_order_checkout.sql`, adicionando:
+
+### Em `orders`
+
+```text
+delivery_fee_cents INTEGER NOT NULL DEFAULT 0
+```
+
+### Em `order_items`
+
+```text
+note TEXT NOT NULL DEFAULT ''
+```
+
+Os campos atuais de ajuste geral (`adjustment_type`, `adjustment_mode`, `adjustment_value`, `adjustment_amount_cents`, `adjustment_reason`) são reutilizados.
+
+Os campos atuais de preço do item também permanecem por compatibilidade e histórico:
+
+- `catalog_price_cents`
+- `unit_price_cents`
+- `price_reason`
+
+Nesta fase, para novas vendas, `unit_price_cents` deve ser igual a `catalog_price_cents` e `price_reason` deve permanecer vazio, pois edição de preço individual não faz parte do fluxo aprovado.
+
+Pedidos antigos recebem naturalmente:
+
+- taxa zero pelo `DEFAULT`
+- observação vazia pelo `DEFAULT`
+
+Não haverá recriação do banco nem atualização em massa de pedidos antigos.
+
+## Modelo retornado ao frontend
+
+Formato conceitual:
 
 ```js
 {
@@ -36,14 +364,14 @@ Um pedido novo terá a seguinte estrutura conceitual:
   clientId,
   client,
   type,
+  status,
   orderDate,
   createdAt,
   finishedAt,
-  status,
 
   items: [
     {
-      lineId,
+      id,
       productId,
       name,
       category,
@@ -51,20 +379,19 @@ Um pedido novo terá a seguinte estrutura conceitual:
       quantity,
       catalogPrice,
       unitPrice,
-      priceReason
+      note
     }
   ],
 
   subtotal,
-
+  deliveryFee,
   adjustment: {
-    type: 'none' | 'discount' | 'surcharge',
-    mode: 'fixed' | 'percentage',
+    type,
+    mode,
     value,
     amount,
     reason
   },
-
   total,
 
   paymentStatus,
@@ -74,319 +401,283 @@ Um pedido novo terá a seguinte estrutura conceitual:
 }
 ```
 
-### Por que salvar `catalogPrice` e `unitPrice`
+`productName`, `size` e `quantity` no topo do pedido podem continuar temporariamente como campos derivados do primeiro item para compatibilidade durante a transição, mas novas telas não devem tratá-los como fonte oficial do conteúdo da venda.
 
-`catalogPrice` registra o preço do produto no momento da venda. `unitPrice` registra o valor efetivamente cobrado naquele item.
+## Fila da cozinha
 
-Isso evita que uma alteração futura no cadastro de Produtos modifique o significado de um pedido antigo e permite visualizar quando houve preço personalizado.
+A fila continua usando o pedido como unidade operacional.
 
-## Regras de cálculo
+Um pedido com cinco linhas é um único cartão, um único relógio e um único status.
 
-### Total por item
+O cartão ativo mostra:
 
-```text
-lineTotal = quantity × unitPrice
-```
+- número do pedido
+- cliente
+- tipo
+- estado do pagamento
+- indicador de tempo
+- **todos os itens**
+- observação abaixo do item correspondente
+- total final
+- ação de finalizar
 
-### Subtotal
-
-```text
-subtotal = soma de todos os lineTotal
-```
-
-### Ajuste geral em reais
-
-Desconto:
+Exemplo:
 
 ```text
-adjustmentAmount = min(valor informado, subtotal)
-total = subtotal - adjustmentAmount
+#4821 · Maria
+Entrega · Pago no Pix · há 12 min
+
+2x Marmita G
+↳ sem cebola
+
+1x Marmita G
+↳ sem salada
+
+2x Coca-Cola
+
+Total R$ 94,40
 ```
 
-Acréscimo:
+Não truncar itens ativos com `+N itens`. Para a cozinha, o conteúdo completo precisa estar visível no cartão.
+
+O indicador atual `No prazo / Atrasado / Muito atrasado` e as regras de tempo permanecem.
+
+## Detalhe do pedido
+
+Deve existir uma visualização completa, somente leitura nesta fase, acessível a partir do pedido e também útil para o histórico.
+
+Mostrar:
+
+- cliente
+- tipo
+- data/hora
+- status operacional
+- status e forma de pagamento
+- todos os itens e observações
+- subtotal
+- taxa de entrega
+- desconto/acréscimo e motivo, quando houver
+- total final
+
+Essa estrutura prepara uma futura impressão de comanda sem colocar impressão no escopo atual.
+
+## Histórico
+
+Pedidos finalizados permanecem uma linha/venda por pedido.
+
+A lista pode usar resumo compacto, por exemplo:
 
 ```text
-adjustmentAmount = valor informado
-total = subtotal + adjustmentAmount
+Maria · 5 itens · Entrega                 R$ 94,40
 ```
 
-### Ajuste geral em percentual
+Ao abrir o detalhe, todos os itens e observações ficam disponíveis.
 
-```text
-adjustmentAmount = subtotal × percentual / 100
-```
+## Dashboard, A Receber e Financeiro
 
-Para desconto, o resultado final nunca poderá ser negativo.
+### Dashboard
 
-Valores persistidos de `subtotal`, `adjustment.amount` e `total` devem ser calculados pelo sistema, não aceitos diretamente como fonte de verdade do formulário.
+KPIs continuam usando `order.total`.
 
-## Regras para adicionar itens
+Listas de pedidos recentes devem gerar descrição a partir de `items`, não depender apenas de `productName`.
 
-Ao escolher um produto:
+### A Receber
 
-1. O seletor mostra apenas `product.name`.
-2. O sistema preenche `unitPrice` com `product.price`.
-3. A quantidade inicial é 1.
-4. Ao adicionar, o item entra no resumo do pedido.
+A cobrança permanece no nível do pedido.
 
-Se o mesmo produto for adicionado novamente com o mesmo preço unitário do catálogo e sem ajuste específico, o sistema incrementa a quantidade da linha existente.
+Um carrinho com vários produtos cria uma única pendência no valor final da venda.
 
-Se uma linha do mesmo produto tiver preço personalizado, ela não deve ser mesclada com uma linha de preço diferente.
+A busca deve considerar os nomes de todos os itens.
 
-## UX do modal Novo pedido
+### Financeiro
 
-O modal mantém no topo:
+Um pagamento cria uma única entrada automática com o total final do pedido.
 
-- Cliente
-- Tipo
-- Data do pedido
-
-A área de produto passa a ser um pequeno compositor de item, com:
-
-- Produto
-- Quantidade
-- Preço unitário preenchido automaticamente
-- Botão `Adicionar item`
-
-O select de Produto mostra apenas o nome.
-
-### Lista de itens do pedido
-
-Depois de adicionados, os itens aparecem em linhas próprias, por exemplo:
-
-```text
-Marmita Pequena
-Qtd. 2    Preço unit. R$ 32,00    Total R$ 64,00
-[Alterar preço]                               [Remover]
-
-Refrigerante
-Qtd. 1    Preço unit. R$ 8,00     Total R$ 8,00
-[Alterar preço]                               [Remover]
-```
-
-A quantidade de uma linha pode ser ajustada sem recriar o item.
-
-`Alterar preço` libera o preço unitário daquela linha. Quando houver diferença entre `catalogPrice` e `unitPrice`, o formulário pode exibir o campo opcional `Motivo do ajuste`.
-
-O pedido só pode ser salvo com pelo menos um item.
-
-Remover o último item não fecha o modal; o estado volta a pedir a adição de um produto.
-
-## Ajuste geral do pedido
-
-Depois da lista de itens, o formulário mostra um resumo financeiro:
-
-```text
-Subtotal                         R$ 84,00
-
-Ajuste geral
-[ Desconto ▼ ] [ R$ ▼ ] [ 10,00 ]
-Motivo (opcional): Cliente fidelidade
-
-Desconto                         - R$ 10,00
-────────────────────────────────────────
-TOTAL                             R$ 74,00
-```
-
-O tipo de ajuste terá as opções:
-
-- Nenhum
-- Desconto
-- Acréscimo
-
-O modo terá:
-
-- R$
-- %
-
-R$ será o padrão ao selecionar desconto ou acréscimo.
-
-## Migração e compatibilidade
-
-Pedidos existentes não serão regravados em massa.
-
-Na normalização do pedido, quando `items` não existir ou estiver vazio e os campos antigos estiverem presentes, o sistema criará em memória uma linha equivalente, preservando os dados existentes.
-
-Exemplo conceitual:
-
-```js
-items: [{
-  lineId: `legacy-${order.id}`,
-  productId: order.productId,
-  name: order.productName || `Marmita ${order.size}`,
-  category: order.category,
-  size: order.size,
-  quantity: Number(order.quantity) || 1,
-  catalogPrice: legacyUnitPrice,
-  unitPrice: legacyUnitPrice,
-  priceReason: ''
-}]
-```
-
-Para pedidos antigos, o sistema deverá inferir `legacyUnitPrice` a partir do total e quantidade quando não houver preço unitário explícito.
-
-O `total` histórico existente deve ser preservado como referência final durante a migração. A migração não pode recalcular um pedido antigo para um valor diferente do que já estava salvo.
-
-## Operação: fila de Pedidos
-
-A fila continua usando o pedido como unidade operacional. Um pedido com cinco itens continua sendo um único card e um único relógio de preparo.
-
-O card exibe até três linhas de itens de forma compacta:
-
-```text
-2× Marmita Pequena
-1× Refrigerante
-1× Pudim
-```
-
-Se houver mais itens, mostrar um resumo como `+2 itens`.
-
-O total mostrado é o total final do pedido, já com preços personalizados e ajuste geral.
-
-O indicador de tempo, status operacional, tipo de entrega e regras de atraso permanecem independentes do número de itens.
-
-## Dashboard
-
-Pedidos recentes deixam de usar `productName` como fonte principal e passam a gerar um resumo com base em `items`.
-
-Para manter a lista compacta, o Dashboard poderá mostrar a primeira linha e uma contagem dos demais itens, por exemplo:
-
-```text
-2× Marmita Pequena · +2 itens · Entrega
-```
-
-KPIs de vendas, recebido e a receber continuam usando `order.total`.
-
-## Histórico de pedidos
-
-O histórico passa a apresentar um resumo dos itens e o total final.
-
-Quando houver ajuste geral, mostrar uma indicação discreta, por exemplo:
-
-- `Desconto R$ 10,00`
-- `Acréscimo 5%`
-
-Nesta versão, a visualização é somente leitura. Não haverá edição do pedido finalizado ou ativo depois de salvo.
-
-## A Receber
-
-A cobrança continua no nível do pedido, não dos itens.
-
-Um pedido com vários produtos gera uma única pendência no valor de `order.total`.
-
-A busca deve considerar os nomes de todos os itens do pedido.
-
-A descrição do pedido na tela deixa de depender de `productName` e usa um resumo de `items`.
-
-## Pagamento e Financeiro
-
-O fluxo de pagamento não muda conceitualmente:
-
-```text
-Pedido pendente
-→ Registrar pagamento
-→ Pedido pago
-→ Entrada automática no Financeiro
-```
-
-A movimentação financeira automática continua usando `order.total`, que já será o valor final após ajustes.
-
-Não serão criadas movimentações separadas por item.
-
-A descrição da movimentação pode continuar no nível do pedido, sem enumerar todos os produtos, para manter o Financeiro legível.
+Não criar movimentos separados por item, taxa ou desconto.
 
 ## Busca
 
-A pesquisa em Pedidos, Dashboard quando aplicável e A Receber deve passar a considerar todos os nomes dentro de `order.items`.
+A pesquisa em Pedidos deve localizar a venda por:
 
-Helpers compartilhados devem gerar uma string de busca ou resumo para evitar lógica duplicada entre telas.
+- cliente
+- qualquer produto dentro de `items`
+- tipo
+- status
+- situação/forma de pagamento
 
-## Componentização recomendada
+Helpers compartilhados devem gerar resumo e texto pesquisável de itens para evitar lógica duplicada entre telas.
 
-A regra de domínio de itens e totais deve ficar fora de `App.jsx`.
+## Componentização
 
-Criar um módulo dedicado, por exemplo:
+Evitar concentrar o novo fluxo dentro de `App.jsx`.
+
+Estrutura sugerida:
 
 ```text
-src/utils/orderItems.js
+src/pages/NewOrder.jsx
+src/components/OrderProductCatalog.jsx
+src/components/OrderCart.jsx
+src/components/OrderCheckoutSummary.jsx
+src/components/OrderDetail.jsx
+src/utils/orderCart.js
 ```
 
-Responsabilidades sugeridas:
+Responsabilidades de `orderCart.js`:
 
-- normalizar itens antigos e novos
-- adicionar/mesclar item
+- normalizar observação
+- adicionar/agrupar item
 - alterar quantidade
-- alterar preço
-- calcular subtotal
-- calcular ajuste geral
-- calcular total
-- gerar resumo curto de itens
-- gerar texto pesquisável dos itens
+- editar observação e consolidar linhas equivalentes
+- remover item
+- calcular prévia de subtotal
+- calcular prévia de ajuste
+- calcular prévia de total
+- gerar resumo de itens
+- gerar texto pesquisável
 
-A interface do modal pode ser extraída para um componente focado, por exemplo:
+A regra definitiva de preço e total permanece também no Worker/repositório, independentemente da prévia do frontend.
 
-```text
-src/components/OrderItemsEditor.jsx
-```
+## Estado do rascunho e erros
 
-Isso evita que `App.jsx` concentre regras de cálculo e manipulação de linhas.
+O carrinho só é limpo após confirmação de sucesso do servidor.
 
-## Validação e erros
+Em falha de rede, validação ou servidor:
 
-O sistema não deve permitir:
+- manter cliente selecionado
+- manter itens e observações
+- manter taxa e ajuste
+- manter a mesma chave de idempotência para repetir o mesmo checkout
+- mostrar erro claro
 
-- salvar pedido sem itens
-- quantidade menor que 1
-- preço unitário negativo
-- ajuste geral negativo
-- percentual negativo
-- desconto que produza total negativo
+Ações de gravação continuam bloqueadas quando o navegador está offline, seguindo a política atual do sistema.
 
-Campos de motivo são opcionais e não bloqueiam o salvamento.
+Na criação rápida de cliente, uma falha não deve apagar o carrinho já montado.
 
-Se um produto cadastrado for excluído depois de um pedido ter sido salvo, o pedido continua íntegro porque cada item armazena nome e preços próprios.
+## Compatibilidade
+
+- O bootstrap continua carregando pedidos antigos e novos.
+- Pedidos antigos funcionam com `deliveryFee = 0` e `note = ''`.
+- Nenhum dado existente é apagado.
+- A exclusão lógica de produto não altera pedidos antigos porque os itens usam snapshots de nome/categoria/tamanho/preço.
+- Pagamentos existentes continuam no modelo atual de um pagamento por pedido.
+- O fluxo antigo de um item deixa de ser a interface principal, mas a estrutura de leitura continua tolerando campos legados durante a transição.
 
 ## Testes
 
-A implementação deverá seguir TDD para as regras de domínio.
+A implementação deve seguir TDD para regras de domínio e repositório.
 
-Cobertura mínima esperada:
+Cobertura mínima:
 
-- migração de pedido antigo para `items`
-- preservação do total de pedido antigo
-- adição do primeiro item
-- adição repetida do mesmo produto soma quantidade
-- produto igual com preço diferente cria linha separada
-- alteração de quantidade
-- alteração de preço unitário
-- preservação de `catalogPrice`
-- subtotal com vários itens
+### Carrinho
+
+- adicionar primeiro item
+- adicionar mesmo produto com mesma observação soma quantidade
+- comparação de observação ignora caixa e espaços irrelevantes
+- mesmo produto com observação diferente cria linha separada
+- editar observação pode consolidar duas linhas
+- aumentar/diminuir quantidade
+- impedir quantidade menor que 1
+- remover item
+- impedir checkout vazio
+
+### Cálculos
+
+- subtotal com múltiplos itens
+- taxa zero
+- taxa de entrega preenchida
+- `Retirada` e `Local` forçam taxa zero
 - desconto fixo
 - acréscimo fixo
-- desconto percentual
-- acréscimo percentual
-- desconto limitado para não gerar total negativo
-- motivo opcional de ajuste por item
-- motivo opcional de ajuste geral
-- resumo compacto de itens
-- busca por qualquer item do pedido
-- pagamento continua usando o total final
+- desconto percentual sobre produtos, sem incluir taxa
+- acréscimo percentual sobre produtos, sem incluir taxa
+- desconto limitado ao subtotal dos produtos
+- motivo opcional
+- servidor ignora qualquer tentativa do cliente de definir preço unitário
 
-Depois da integração, o workflow deve passar em:
+### API/repositório
 
-- `npm test`
-- `npm run lint`
-- `npm run build`
+- cria pedido com vários itens
+- persiste observação por item
+- usa snapshot do preço atual de cada produto
+- rejeita produto inexistente/inativo
+- rejeita cliente de outro negócio/inexistente
+- `Salvar pedido` cria pendência sem pagamento
+- `Salvar e receber` cria pedido + itens + pagamento + movimento
+- pedido pago continua `Em preparo`
+- idempotência impede pedido duplicado
+- idempotência impede pagamento/movimento duplicado
+- falha no checkout pago não deixa estado parcial
+- pedidos antigos continuam carregando
 
-## Fora do escopo desta versão
+### Interface
 
-- editar pedido depois de salvo
-- cancelamento parcial de item de um pedido já salvo
-- estorno de pagamento causado por edição do pedido
-- pagamento parcial por item
-- dividir a conta entre produtos
-- controle de estoque
-- adicionais ou modificadores de produto estruturados
-- composição de combos
+- criação rápida de cliente preserva o carrinho
+- categorias e busca filtram catálogo
+- todos os itens aparecem no cartão ativo
+- observações aparecem associadas ao item correto
+- histórico abre detalhe completo
+- busca encontra pedido por qualquer item
+- falha de salvamento preserva o rascunho
 
-Essas evoluções podem ser adicionadas posteriormente sobre o modelo `items` sem alterar a decisão principal deste design.
+## Validação antes de produção
+
+Antes de deploy:
+
+```text
+npm test
+npm run lint
+npm run build
+wrangler deploy --dry-run
+```
+
+O deploy segue o workflow de produção já existente, aplicando a nova migration antes da publicação.
+
+Após deploy, realizar teste manual com uma venda fictícia de múltiplos itens:
+
+1. criar/selecionar cliente
+2. adicionar itens iguais com mesma observação e confirmar agrupamento
+3. adicionar o mesmo produto com outra observação e confirmar linha separada
+4. usar taxa de entrega opcional
+5. aplicar desconto/acréscimo
+6. salvar um pedido pendente
+7. salvar outro pedido já recebido
+8. confirmar que ambos aparecem corretamente no computador e no celular
+9. confirmar que pagamento recebido gera uma única entrada financeira
+10. finalizar e conferir o histórico/detalhe
+
+## Fora do escopo desta fase
+
+- pagamento dividido
+- pagamento parcial
+- edição de preço unitário no pedido
+- edição de pedido depois de salvo
+- cancelamento parcial de item
+- estorno ligado a edição de pedido
+- cálculo automático de taxa por bairro/região
+- uso do endereço no pedido
+- novos status como `Pronto` ou `Saiu para entrega`
+- impressão de comanda
+- estoque
+- adicionais/modificadores estruturados
+- combos
+
+Esses itens podem ser evoluídos depois que o novo fluxo de venda estiver estável.
+
+## Critérios de aceitação
+
+A fase é considerada concluída quando:
+
+- uma venda pode conter vários itens e quantidades em um único pedido
+- observações individuais são persistidas e exibidas corretamente
+- agrupamento respeita produto + observação
+- preços vêm exclusivamente do cadastro e totais são recalculados no servidor
+- taxa de entrega é opcional e separada do ajuste geral
+- desconto/acréscimo funciona em R$ e % com motivo opcional
+- cliente pode ser criado rapidamente com nome e telefone durante a venda
+- `Salvar pedido` gera pendência
+- `Salvar e receber` registra uma única forma de pagamento sem finalizar a produção
+- repetição da mesma tentativa não duplica venda nem recebimento
+- a cozinha mostra todos os itens e observações do pedido ativo
+- o histórico permite consultar o detalhe completo
+- pedidos e dados já existentes continuam íntegros após a migration
+- testes, lint, build, dry-run, migration e deploy passam antes da liberação
