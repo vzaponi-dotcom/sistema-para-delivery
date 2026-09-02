@@ -152,7 +152,12 @@ function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRe
                     <strong>Cobrança única da comanda</strong>
                     <span>Quite todos os pedidos pendentes desta mesa de uma vez.</span>
                   </div>
-                  <Button type="button" onClick={() => openTableTabPayment(group)} disabled={writeDisabled || !onRegisterTableTabPayment}>
+                  <Button
+                    type="button"
+                    className="table-tab-payment-action-button"
+                    onClick={() => openTableTabPayment(group)}
+                    disabled={writeDisabled || !onRegisterTableTabPayment}
+                  >
                     Registrar pagamento da comanda
                   </Button>
                 </div>
