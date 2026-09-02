@@ -18,7 +18,9 @@ O D1 é a fonte oficial de clientes, produtos, pedidos, pagamentos e movimentaç
 
 - Node.js 22
 - npm
-- Conta Cloudflare autenticada no Wrangler para operações locais/remotas de D1 e deploy
+- Conta Cloudflare autenticada para operações locais/remotas de D1 e deploy
+
+O projeto fixa o Wrangler em `4.128.0` nos comandos via `npx --yes`, evitando depender de uma versão global ou de `latest`.
 
 ## Instalação
 
@@ -43,7 +45,7 @@ npm run d1:migrate:local
 Para inspecionar as tabelas:
 
 ```bash
-npx wrangler d1 execute amor-e-sabor-delivery --local --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --local --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
 ```
 
 ## Configurar um PIN local
@@ -92,7 +94,7 @@ Antes de qualquer deploy:
 npm test
 npm run lint
 npm run build
-npx wrangler deploy --dry-run
+npx --yes wrangler@4.128.0 deploy --dry-run
 ```
 
 O workflow do GitHub Actions executa esse mesmo conjunto de validações sem publicar nada.
