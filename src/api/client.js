@@ -20,6 +20,7 @@ export const getSession = () => apiRequest('/api/auth/session')
 export const login = (pin) => apiRequest('/api/auth/login', withJson('POST', { pin }))
 export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' })
 export const getBootstrap = () => apiRequest('/api/bootstrap')
+export const getOrders = () => apiRequest('/api/orders')
 
 export const createClient = (client) => apiRequest('/api/clients', withJson('POST', client))
 export const updateClient = (id, client) => apiRequest(`/api/clients/${encodeURIComponent(id)}`, withJson('PATCH', client))
