@@ -1,9 +1,6 @@
 name: Deploy production
 
 on:
-  push:
-    branches:
-      - feature/receivables-order-details
   workflow_dispatch:
 
 permissions:
