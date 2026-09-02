@@ -1,0 +1,67 @@
+.theme-picker {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.theme-picker-label {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.67rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.theme-segmented-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.theme-option {
+  min-width: 0;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.68rem;
+  font-weight: 750;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.theme-option:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.theme-option.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(183, 25, 43, 0.22);
+}
+
+.theme-option:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.theme-option svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .theme-option {
+    min-height: 42px;
+    font-size: 0.72rem;
+  }
+}
