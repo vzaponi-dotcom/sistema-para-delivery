@@ -1,7 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { mapOrderRow } from './repositories.js'
 
+const source = readFileSync(new URL('./repositories.js', import.meta.url), 'utf8')
 const baseRow = {
   id: 'o1',
   client_id: null,
@@ -33,4 +35,12 @@ test('order row exposes explicit customer identity type without losing snapshot 
 test('legacy order row derives identity type from client id when column is absent', () => {
   assert.equal(mapOrderRow({ ...baseRow, client_id: 'c1', customer_identity_type: undefined }, []).customerIdentityType, 'registered_client')
   assert.equal(mapOrderRow({ ...baseRow, client_id: null, customer_identity_type: undefined }, []).customerIdentityType, 'guest_name')
+})
+
+test('order persistence stores identity type and derives server-side snapshots', () => {
+  assert.match(source, /customer_identity_type/)
+  assert.match(source, /customerIdentity\.type === 'guest_name'/)
+  assert.match(source, /clientSnapshot = `Mesa \$\{customerIdentity\.value\}`/)
+  assert.match(source, /productSnapshotSize\(item\.product\)/)
+  assert.match(source, /Pagamento pedido #[^\n]*clientSnapshot/)
 })
