@@ -1,16 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { formatElapsedDuration } from './utils/orderWorkflow.js'
+import * as orderWorkflow from './utils/orderWorkflow.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('elapsed duration switches to hours and minutes from one hour onward', () => {
-  assert.equal(formatElapsedDuration(0), 'agora')
-  assert.equal(formatElapsedDuration(45), '45 min')
-  assert.equal(formatElapsedDuration(60), '1h 00 min')
-  assert.equal(formatElapsedDuration(65), '1h 05 min')
-  assert.equal(formatElapsedDuration(347), '5h 47 min')
+  assert.equal(typeof orderWorkflow.formatElapsedDuration, 'function')
+  assert.equal(orderWorkflow.formatElapsedDuration(0), 'agora')
+  assert.equal(orderWorkflow.formatElapsedDuration(45), '45 min')
+  assert.equal(orderWorkflow.formatElapsedDuration(60), '1h 00 min')
+  assert.equal(orderWorkflow.formatElapsedDuration(65), '1h 05 min')
+  assert.equal(orderWorkflow.formatElapsedDuration(347), '5h 47 min')
 })
 
 test('active order cards keep item details collapsed behind an accessible toggle', async () => {
