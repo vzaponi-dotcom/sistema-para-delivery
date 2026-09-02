@@ -6,7 +6,16 @@ const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 
 export const mapClientRow = (row) => ({ id: row.id, name: row.name, phone: formatClientPhone(row.phone), address: row.address || '' })
-export const mapProductRow = (row) => ({ id: row.id, category: row.category, size: row.size || '', name: row.name, price: centsToMoney(row.price_cents) })
+export const mapProductRow = (row) => ({
+  id: row.id,
+  category: row.category,
+  size: row.size || '',
+  name: row.name,
+  price: centsToMoney(row.price_cents),
+  presentationType: row.presentation_type || (row.size && !['Un', 'Unidade'].includes(row.size) ? 'size' : 'unit'),
+  presentationValue: row.presentation_value || (row.size && !['Un', 'Unidade'].includes(row.size) ? row.size : ''),
+  presentationUnit: row.presentation_unit || '',
+})
 export const mapOrderItemRow = (row) => ({
   id: row.id,
   productId: row.product_id ?? null,
@@ -61,13 +70,14 @@ export const mapOrderRow = (row, items = []) => {
 
 export const mapMovementRow = (row) => ({ id: row.id, type: row.type, category: row.category, description: row.description, value: centsToMoney(row.value_cents), source: row.source || 'manual', orderId: row.order_id ?? null, paymentId: row.payment_id ?? null, movementDate: row.movement_date, date: row.movement_date, createdAt: row.created_at })
 
+const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
 const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 
 export const loadBootstrap = async (db, businessId) => {
   const business = await db.prepare('SELECT id, name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
   const clientsResult = await db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
-  const productsResult = await db.prepare(`SELECT id, category, size, name, price_cents FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
+  const productsResult = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
   const itemsResult = await db.prepare(`${itemSelect} WHERE business_id = ? ORDER BY created_at ASC`).bind(businessId).all()
   const movementsResult = await db.prepare(`SELECT id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at FROM movements WHERE business_id = ? ORDER BY created_at DESC`).bind(businessId).all()
@@ -90,7 +100,7 @@ const findClientRow = (db, businessId, id) => db.prepare(`SELECT id, name, phone
 const findClientByPhone = (db, businessId, phone, excludeId = null) => excludeId
   ? db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? AND phone = ? AND id <> ? LIMIT 1`).bind(businessId, phone, excludeId).first()
   : db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? AND phone = ? LIMIT 1`).bind(businessId, phone).first()
-const findProductRow = (db, businessId, id) => db.prepare(`SELECT id, category, size, name, price_cents FROM products WHERE id = ? AND business_id = ? AND active = 1 LIMIT 1`).bind(id, businessId).first()
+const findProductRow = (db, businessId, id) => db.prepare(`SELECT ${productSelectFields} FROM products WHERE id = ? AND business_id = ? AND active = 1 LIMIT 1`).bind(id, businessId).first()
 const duplicatePhoneError = (client) => repositoryError(409, 'CLIENT_PHONE_EXISTS', `Telefone já cadastrado para ${client?.name || 'outro cliente'}.`)
 const isPhoneTriggerCollision = (error) => String(error?.message || error).includes('CLIENT_PHONE_DUPLICATE')
 
@@ -138,14 +148,55 @@ export const deleteClient = async (db, businessId, id) => {
 export const createProduct = async (db, businessId, input, now = new Date()) => {
   const id = crypto.randomUUID()
   const timestamp = now.toISOString()
-  await db.prepare(`INSERT INTO products (id, business_id, category, size, name, price_cents, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`).bind(id, businessId, input.category, input.size, input.name, input.priceCents, timestamp, timestamp).run()
-  return { id, category: input.category, size: input.size, name: input.name, price: centsToMoney(input.priceCents) }
+  await db.prepare(`INSERT INTO products (id, business_id, category, size, name, price_cents, active, created_at, updated_at, presentation_type, presentation_value, presentation_unit) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`).bind(
+    id,
+    businessId,
+    input.category,
+    input.size,
+    input.name,
+    input.priceCents,
+    timestamp,
+    timestamp,
+    input.presentationType,
+    input.presentationValue,
+    input.presentationUnit,
+  ).run()
+  return mapProductRow({
+    id,
+    category: input.category,
+    size: input.size,
+    name: input.name,
+    price_cents: input.priceCents,
+    presentation_type: input.presentationType,
+    presentation_value: input.presentationValue,
+    presentation_unit: input.presentationUnit,
+  })
 }
 
 export const updateProduct = async (db, businessId, id, input, now = new Date()) => {
   if (!(await findProductRow(db, businessId, id))) return null
-  await db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(input.category, input.size, input.name, input.priceCents, now.toISOString(), id, businessId).run()
-  return { id, category: input.category, size: input.size, name: input.name, price: centsToMoney(input.priceCents) }
+  await db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ?, presentation_type = ?, presentation_value = ?, presentation_unit = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
+    input.category,
+    input.size,
+    input.name,
+    input.priceCents,
+    now.toISOString(),
+    input.presentationType,
+    input.presentationValue,
+    input.presentationUnit,
+    id,
+    businessId,
+  ).run()
+  return mapProductRow({
+    id,
+    category: input.category,
+    size: input.size,
+    name: input.name,
+    price_cents: input.priceCents,
+    presentation_type: input.presentationType,
+    presentation_value: input.presentationValue,
+    presentation_unit: input.presentationUnit,
+  })
 }
 
 export const deleteProduct = async (db, businessId, id, now = new Date()) => {
@@ -188,7 +239,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
 
   const pricedItems = []
   for (const item of input.items) {
-    const product = await db.prepare(`SELECT id, category, size, name, price_cents FROM products WHERE id = ? AND business_id = ? AND active = 1 LIMIT 1`).bind(item.productId, businessId).first()
+    const product = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE id = ? AND business_id = ? AND active = 1 LIMIT 1`).bind(item.productId, businessId).first()
     if (!product) throw repositoryError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.')
     pricedItems.push({ ...item, product, priceCents: product.price_cents })
   }
