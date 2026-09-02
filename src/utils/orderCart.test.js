@@ -31,3 +31,24 @@ test('quantity never drops below one and remove deletes the line', () => {
   assert.equal(items[0].quantity, 1)
   assert.deepEqual(removeCartItem(items, items[0].lineId), [])
 })
+
+test('percentage discount excludes delivery fee and payload contains no price', () => {
+  const items = [...addCartItem([], marmita, ''), ...addCartItem([], coca, '')]
+  const draft = {
+    clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items,
+    deliveryFee: 8,
+    adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: ' fidelidade ' },
+  }
+  assert.deepEqual(calculateOrderPreview(draft), { subtotal: 40, deliveryFee: 8, adjustmentAmount: 4, total: 44 })
+  const payload = buildOrderPayload(draft, 'Pix')
+  assert.equal(payload.items[0].unitPrice, undefined)
+  assert.equal(payload.paymentMethod, 'Pix')
+  assert.equal(payload.adjustment.reason, 'fidelidade')
+})
+
+test('summary and search use every item and tolerate legacy fields', () => {
+  const order = { items: [{ name: 'Marmita G', quantity: 2 }, { name: 'Coca-Cola', quantity: 1 }] }
+  assert.match(getOrderItemsSummary(order), /Coca-Cola/)
+  assert.match(getOrderItemsSearchText(order).toLowerCase(), /coca-cola/)
+  assert.equal(getOrderItems({ productName: 'Pudim', quantity: 1, size: '' })[0].name, 'Pudim')
+})
