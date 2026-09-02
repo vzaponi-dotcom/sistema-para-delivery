@@ -32,11 +32,12 @@ test('swipe direction requires dominant horizontal travel above threshold', () =
   assert.equal(getSwipeDirection({ deltaX: -80, deltaY: 90, threshold: 56 }), null)
 })
 
-test('navigation swipe ignores interactive and explicitly horizontal targets', () => {
-  const makeTarget = ({ tagName = 'DIV', role = null, horizontal = false } = {}) => ({
+test('navigation swipe ignores controls horizontal areas dialogs listboxes and overlay opt-outs', () => {
+  const makeTarget = ({ tagName = 'DIV', role = null, horizontal = false, overlay = false } = {}) => ({
     tagName,
     closest: (selector) => {
       if (horizontal && selector.includes('[data-horizontal-interaction]')) return {}
+      if (overlay && selector.includes('[data-navigation-swipe-block]')) return {}
       if (role === 'dialog' && selector.includes('[role="dialog"]')) return {}
       if (role === 'listbox' && selector.includes('[role="listbox"]')) return {}
       return null
@@ -46,6 +47,8 @@ test('navigation swipe ignores interactive and explicitly horizontal targets', (
   assert.equal(shouldIgnoreNavigationSwipe(makeTarget({ tagName: 'INPUT' })), true)
   assert.equal(shouldIgnoreNavigationSwipe(makeTarget({ tagName: 'BUTTON' })), true)
   assert.equal(shouldIgnoreNavigationSwipe(makeTarget({ role: 'dialog' })), true)
+  assert.equal(shouldIgnoreNavigationSwipe(makeTarget({ role: 'listbox' })), true)
   assert.equal(shouldIgnoreNavigationSwipe(makeTarget({ horizontal: true })), true)
+  assert.equal(shouldIgnoreNavigationSwipe(makeTarget({ overlay: true })), true)
   assert.equal(shouldIgnoreNavigationSwipe(makeTarget()), false)
 })
