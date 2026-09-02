@@ -26,6 +26,14 @@ export const mapProductRow = (row) => {
     presentationUnit: row.presentation_unit || '',
   }
 }
+export const mapTableTabRow = (row) => ({
+  id: row.id,
+  tableIdentifier: row.table_identifier,
+  status: row.status,
+  openedAt: row.opened_at,
+  closedAt: row.closed_at ?? null,
+})
+
 export const mapOrderItemRow = (row) => ({
   id: row.id,
   productId: row.product_id ?? null,
@@ -52,6 +60,7 @@ export const mapOrderRow = (row, items = []) => {
     clientId: row.client_id ?? null,
     client: row.client_name_snapshot,
     customerIdentityType: row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name'),
+    tableTabId: row.table_tab_id ?? null,
     type: row.type,
     status: row.status,
     productName: firstItem?.name ?? '',
@@ -82,7 +91,7 @@ export const mapOrderRow = (row, items = []) => {
 export const mapMovementRow = (row) => ({ id: row.id, type: row.type, category: row.category, description: row.description, value: centsToMoney(row.value_cents), source: row.source || 'manual', orderId: row.order_id ?? null, paymentId: row.payment_id ?? null, movementDate: row.movement_date, date: row.movement_date, createdAt: row.created_at })
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
