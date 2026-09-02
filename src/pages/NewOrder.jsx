@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
+import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
 import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
 import OrderCart from '../components/OrderCart'
@@ -25,12 +26,19 @@ const ORDER_TYPE_OPTIONS = [
   { value: 'Retirada', label: 'Retirada' },
   { value: 'Local', label: 'Consumo no local' },
 ]
+const LOCAL_IDENTITY_OPTIONS = [
+  { value: 'guest_name', label: 'Nome' },
+  { value: 'table', label: 'Mesa' },
+  { value: 'registered_client', label: 'Cliente cadastrado' },
+]
 
 function NewOrder({ clients, products, currency, disabled, onCancel, onCreateClient, onSubmit }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
   const [type, setType] = useState('Entrega')
+  const [localIdentityType, setLocalIdentityType] = useState('guest_name')
+  const [localIdentityValue, setLocalIdentityValue] = useState('')
   const [orderDate, setOrderDate] = useState(toLocalDateValue())
   const [items, setItems] = useState([])
   const [deliveryFee, setDeliveryFee] = useState('0')
@@ -46,8 +54,16 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
     return clients.filter((client) => client.name.toLowerCase().includes(normalized))
   }, [clientId, clientSearch, clients])
 
+  const customerIdentity = type === 'Local'
+    ? (localIdentityType === 'registered_client'
+        ? { type: 'registered_client', clientId }
+        : { type: localIdentityType, value: localIdentityValue })
+    : { type: 'registered_client', clientId }
+  const identityValidation = validateCustomerIdentity(type, customerIdentity)
+
   const draft = {
     clientId,
+    customerIdentity,
     type,
     orderDate,
     items,
@@ -55,11 +71,31 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
     adjustment,
   }
   const preview = calculateOrderPreview(draft)
-  const canSubmit = Boolean(clientId && orderDate && items.length)
+  const canSubmit = Boolean(identityValidation.ok && orderDate && items.length)
+  const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
+
+  const closeQuickClient = () => {
+    setQuickClient({ open: false, name: '', phone: '' })
+    setQuickClientError('')
+    setDuplicateClient(null)
+  }
 
   const changeType = (nextType) => {
     setType(nextType)
+    setCheckoutError('')
+    closeQuickClient()
     if (nextType !== 'Entrega') setDeliveryFee('0')
+    if (nextType === 'Local') {
+      setLocalIdentityType('guest_name')
+      setLocalIdentityValue('')
+    }
+  }
+
+  const changeLocalIdentityType = (nextType) => {
+    setLocalIdentityType(nextType)
+    setLocalIdentityValue('')
+    setCheckoutError('')
+    closeQuickClient()
   }
 
   const handleAdjustmentChange = (patch) => {
@@ -84,12 +120,6 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
 
   const handleClientPickerBlur = (event) => {
     if (!event.currentTarget.contains(event.relatedTarget)) setClientPickerOpen(false)
-  }
-
-  const closeQuickClient = () => {
-    setQuickClient({ open: false, name: '', phone: '' })
-    setQuickClientError('')
-    setDuplicateClient(null)
   }
 
   const finishQuickClient = (client) => {
@@ -174,86 +204,6 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
               </div>
             </div>
 
-            <div
-              className="form-field new-order-client-picker"
-              onBlur={handleClientPickerBlur}
-            >
-              <span>Cliente</span>
-              <div className="new-order-client-combobox">
-                <input
-                  type="search"
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-expanded={clientPickerOpen}
-                  aria-controls="new-order-client-options"
-                  placeholder="Digite o nome do cliente"
-                  value={clientSearch}
-                  onFocus={() => setClientPickerOpen(true)}
-                  onChange={(event) => handleClientSearchChange(event.target.value)}
-                  disabled={disabled || !clients.length}
-                  autoComplete="off"
-                />
-                {clientPickerOpen && !disabled && (
-                  <div id="new-order-client-options" className="new-order-client-options" role="listbox">
-                    {filteredClients.map((client) => (
-                      <button
-                        key={client.id}
-                        type="button"
-                        role="option"
-                        aria-selected={client.id === clientId}
-                        className={client.id === clientId ? 'selected' : ''}
-                        onClick={() => selectClient(client)}
-                      >
-                        {client.name}
-                      </button>
-                    ))}
-                    {!filteredClients.length && (
-                      <span className="new-order-client-empty">Nenhum cliente encontrado</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="new-order-quick-client-toggle"
-              onClick={toggleQuickClient}
-              disabled={disabled}
-            >
-              + Novo cliente
-            </button>
-
-            {quickClient.open && (
-              <form className="new-order-quick-client" onSubmit={handleQuickClientSubmit}>
-                {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
-                <label className="form-field">
-                  <span>Nome</span>
-                  <input
-                    type="text"
-                    value={quickClient.name}
-                    onChange={(event) => updateQuickClient({ name: event.target.value })}
-                    placeholder="Nome do cliente"
-                    autoComplete="off"
-                  />
-                </label>
-                <label className="form-field">
-                  <span>Telefone</span>
-                  <input
-                    type="tel"
-                    value={quickClient.phone}
-                    onChange={(event) => updateQuickClient({ phone: formatPhone(event.target.value) })}
-                    placeholder="(11) 99999-9999"
-                    autoComplete="off"
-                  />
-                </label>
-                <div className="form-actions">
-                  <Button type="button" variant="secondary" onClick={closeQuickClient} disabled={disabled}>Cancelar</Button>
-                  <Button type="submit" disabled={disabled || !quickClient.name.trim()}>Adicionar cliente</Button>
-                </div>
-              </form>
-            )}
-
             <div className="form-grid two-columns new-order-operation-fields">
               <div className="form-field">
                 <span>Tipo do pedido</span>
@@ -270,6 +220,141 @@ function NewOrder({ clients, products, currency, disabled, onCancel, onCreateCli
                 />
               </label>
             </div>
+
+            {type === 'Local' && (
+              <div className="new-order-local-identity">
+                <span className="product-detail-label">Identificar por</span>
+                <div className="new-order-local-identity-options" role="group" aria-label="Identificação do consumo no local">
+                  {LOCAL_IDENTITY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={localIdentityType === option.value ? 'new-order-local-identity-option selected' : 'new-order-local-identity-option'}
+                      aria-pressed={localIdentityType === option.value}
+                      onClick={() => changeLocalIdentityType(option.value)}
+                      disabled={disabled}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                {localIdentityType === 'guest_name' && (
+                  <label className="form-field">
+                    <span>Nome</span>
+                    <input
+                      type="text"
+                      maxLength={80}
+                      placeholder="Ex: João"
+                      value={localIdentityValue}
+                      onChange={(event) => setLocalIdentityValue(event.target.value)}
+                      disabled={disabled}
+                      autoComplete="off"
+                    />
+                  </label>
+                )}
+
+                {localIdentityType === 'table' && (
+                  <label className="form-field">
+                    <span>Mesa</span>
+                    <input
+                      type="text"
+                      maxLength={12}
+                      placeholder="Ex: 04 ou A-2"
+                      value={localIdentityValue}
+                      onChange={(event) => setLocalIdentityValue(event.target.value)}
+                      disabled={disabled}
+                      autoComplete="off"
+                    />
+                    <small>Use letras, números ou hífen.</small>
+                  </label>
+                )}
+              </div>
+            )}
+
+            {usesRegisteredClient && (
+              <>
+                <div
+                  className="form-field new-order-client-picker"
+                  onBlur={handleClientPickerBlur}
+                >
+                  <span>Cliente</span>
+                  <div className="new-order-client-combobox">
+                    <input
+                      type="search"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={clientPickerOpen}
+                      aria-controls="new-order-client-options"
+                      placeholder="Digite o nome do cliente"
+                      value={clientSearch}
+                      onFocus={() => setClientPickerOpen(true)}
+                      onChange={(event) => handleClientSearchChange(event.target.value)}
+                      disabled={disabled || !clients.length}
+                      autoComplete="off"
+                    />
+                    {clientPickerOpen && !disabled && (
+                      <div id="new-order-client-options" className="new-order-client-options" role="listbox">
+                        {filteredClients.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            role="option"
+                            aria-selected={client.id === clientId}
+                            className={client.id === clientId ? 'selected' : ''}
+                            onClick={() => selectClient(client)}
+                          >
+                            {client.name}
+                          </button>
+                        ))}
+                        {!filteredClients.length && (
+                          <span className="new-order-client-empty">Nenhum cliente encontrado</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="new-order-quick-client-toggle"
+                  onClick={toggleQuickClient}
+                  disabled={disabled}
+                >
+                  + Novo cliente
+                </button>
+
+                {quickClient.open && (
+                  <form className="new-order-quick-client" onSubmit={handleQuickClientSubmit}>
+                    {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
+                    <label className="form-field">
+                      <span>Nome</span>
+                      <input
+                        type="text"
+                        value={quickClient.name}
+                        onChange={(event) => updateQuickClient({ name: event.target.value })}
+                        placeholder="Nome do cliente"
+                        autoComplete="off"
+                      />
+                    </label>
+                    <label className="form-field">
+                      <span>Telefone</span>
+                      <input
+                        type="tel"
+                        value={quickClient.phone}
+                        onChange={(event) => updateQuickClient({ phone: formatPhone(event.target.value) })}
+                        placeholder="(11) 99999-9999"
+                        autoComplete="off"
+                      />
+                    </label>
+                    <div className="form-actions">
+                      <Button type="button" variant="secondary" onClick={closeQuickClient} disabled={disabled}>Cancelar</Button>
+                      <Button type="submit" disabled={disabled || !quickClient.name.trim()}>Adicionar cliente</Button>
+                    </div>
+                  </form>
+                )}
+              </>
+            )}
           </section>
 
           <OrderProductCatalog
