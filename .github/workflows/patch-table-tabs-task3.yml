@@ -139,3 +139,5 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
           git add worker/repositories.js worker/index.js
           git commit -m "feat: pay and close table tabs"
           git push origin HEAD:feature/table-tabs-round
+
+# retrigger: 2
