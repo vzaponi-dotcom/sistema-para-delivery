@@ -17,6 +17,20 @@ test('checkout converts fee and percentage to storage units', () => {
   assert.equal(input.paymentMethod, 'Pix')
 })
 
+test('checkout merges duplicate product and equivalent normalized note', () => {
+  const input = validateCheckoutInput({
+    clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01',
+    items: [
+      { productId: 'p1', quantity: 1, note: ' sem   cebola ' },
+      { productId: 'p1', quantity: 2, note: 'SEM CEBOLA' },
+      { productId: 'p1', quantity: 1, note: 'sem salada' },
+    ],
+  }, 'checkout-merge')
+  assert.equal(input.items.length, 2)
+  assert.equal(input.items[0].quantity, 3)
+  assert.equal(input.items[0].note, 'sem cebola')
+})
+
 test('checkout rejects empty cart, long note, bad percentage and fee outside Entrega', () => {
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [] }, 'k'))
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1, note: 'x'.repeat(301) }] }, 'k'))
