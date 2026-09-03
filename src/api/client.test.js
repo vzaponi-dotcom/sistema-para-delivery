@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './client.js'
+import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './client.js'
 
 const withFetch = async (implementation, callback) => {
   const original = globalThis.fetch
@@ -91,7 +91,6 @@ test('order helper sends the cart unchanged with one stable idempotency key', as
       paymentMethod: 'Pix',
     }, 'checkout-key')
     await updateOrderStatus('o1', 'Finalizado')
-    await deleteOrder('o1')
     await registerPayment('o1', 'Pix')
     await createMovement({ type: 'saida', category: 'Insumos', description: 'Arroz', value: 20 })
   })
@@ -104,7 +103,6 @@ test('order helper sends the cart unchanged with one stable idempotency key', as
   assert.equal(JSON.parse(orderOptions.body).paymentMethod, 'Pix')
   assert.deepEqual(calls.slice(1).map(([path, options]) => [path, options.method]), [
     ['/api/orders/o1/status', 'PATCH'],
-    ['/api/orders/o1', 'DELETE'],
     ['/api/orders/o1/payment', 'POST'],
     ['/api/movements', 'POST'],
   ])
