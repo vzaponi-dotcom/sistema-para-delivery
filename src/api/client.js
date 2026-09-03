@@ -35,7 +35,8 @@ export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiR
   headers: { 'idempotency-key': idempotencyKey },
 })
 export const updateOrderStatus = (id, status = 'Finalizado') => apiRequest(`/api/orders/${encodeURIComponent(id)}/status`, withJson('PATCH', { status }))
-export const deleteOrder = (id) => apiRequest(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE' })
+export const cancelOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/cancel`, withJson('POST', payload))
+export const refundOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/refund`, withJson('POST', payload))
 export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
