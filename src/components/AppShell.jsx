@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import OrderHistory from '../pages/OrderHistory.jsx'
 import { DashboardPeriodProvider } from './DashboardPeriodProvider'
 import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
@@ -20,29 +21,32 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
     const nextDirection = previousTab.current !== activeTab && previousIndex >= 0 && activeIndex >= 0
       ? (activeIndex > previousIndex ? 'forward' : 'backward')
       : 'none'
-
     setPageDirection(nextDirection)
     previousTab.current = activeTab
   }, [activeTab])
 
+  useEffect(() => {
+    const handleNavigate = (event) => {
+      if (typeof event?.detail === 'string') onNavigate(event.detail)
+    }
+    window.addEventListener('app:navigate', handleNavigate)
+    return () => window.removeEventListener('app:navigate', handleNavigate)
+  }, [onNavigate])
+
   const isMobileViewport = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 820px)').matches
 
   const handleTouchStart = (event) => {
-    if (!isMobileViewport() || activeTab === 'new-order' || shouldIgnoreNavigationSwipe(event.target)) {
+    if (!isMobileViewport() || activeTab === 'new-order' || activeTab === 'history' || shouldIgnoreNavigationSwipe(event.target)) {
       touchStart.current = null
       return
     }
     const touch = event.touches[0]
     if (!touch) return
-    touchStart.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      startedAt: event.timeStamp,
-    }
+    touchStart.current = { x: touch.clientX, y: touch.clientY, startedAt: event.timeStamp }
   }
 
   const handleTouchEnd = (event) => {
-    if (!touchStart.current || !isMobileViewport() || activeTab === 'new-order') {
+    if (!touchStart.current || !isMobileViewport() || activeTab === 'new-order' || activeTab === 'history') {
       touchStart.current = null
       return
     }
@@ -51,7 +55,6 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
       touchStart.current = null
       return
     }
-
     const direction = getSwipeDirection({
       deltaX: touch.clientX - touchStart.current.x,
       deltaY: touch.clientY - touchStart.current.y,
@@ -59,7 +62,6 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
     })
     touchStart.current = null
     if (!direction) return
-
     const destination = getAdjacentMobileSection(activeTab, direction)
     if (destination !== activeTab) onNavigate(destination)
   }
@@ -67,21 +69,13 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
   return (
     <DashboardPeriodProvider>
       <div className="app-shell">
-        <Sidebar
-          activeTab={activeTab}
-          onNavigate={onNavigate}
-          onLogout={onLogout}
-          logoutDisabled={logoutDisabled}
-        />
+        <Sidebar activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
         <main className="app-main" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-          <div key={activeTab} className="app-content page-transition" data-direction={pageDirection}>{children}</div>
+          <div key={activeTab} className="app-content page-transition" data-direction={pageDirection}>
+            {activeTab === 'history' ? <OrderHistory /> : children}
+          </div>
         </main>
-        <MobileNavigation
-          activeTab={activeTab}
-          onNavigate={onNavigate}
-          onLogout={onLogout}
-          logoutDisabled={logoutDisabled}
-        />
+        <MobileNavigation activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
       </div>
     </DashboardPeriodProvider>
   )
