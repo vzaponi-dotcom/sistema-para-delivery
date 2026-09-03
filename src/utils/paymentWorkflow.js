@@ -30,6 +30,16 @@ export const getPendingAmount = (order) => {
   return Math.max(0, Number(order?.total) || 0)
 }
 
+export const calculateReceivedToday = (movements = [], dateValue = toLocalDateValue()) => (Array.isArray(movements) ? movements : [])
+  .reduce((total, movement) => {
+    const createdAt = parseDate(movement?.createdAt)
+    if (!createdAt || toLocalDateValue(createdAt) !== dateValue) return total
+    const value = Math.max(0, Number(movement?.value) || 0)
+    if (movement?.type === 'entrada' && movement?.source === 'order-payment') return total + value
+    if (movement?.type === 'saida' && movement?.source === 'order-refund') return total - value
+    return total
+  }, 0)
+
 export const createOrderPaymentMovement = (order, paymentMethod, paidAt = new Date(), id = Date.now()) => {
   const paymentDate = new Date(paidAt)
   const safePaidAt = Number.isNaN(paymentDate.getTime()) ? new Date() : paymentDate
