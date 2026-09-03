@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { groupPendingOrders } from './receivables.js'
+import { getPendingReceivableOrders, groupPendingOrders } from './receivables.js'
 
 const order = (id, overrides = {}) => ({
   id,
@@ -9,6 +9,7 @@ const order = (id, overrides = {}) => ({
   customerIdentityType: 'registered_client',
   total: 20,
   paymentStatus: 'Pendente',
+  status: 'Em preparo',
   ...overrides,
 })
 
@@ -45,4 +46,15 @@ test('table orders group only when they share the same table tab id', () => {
   assert.equal(tab.kind, 'table_tab')
   assert.equal(tab.orders.length, 2)
   assert.equal(tab.total, 50)
+})
+
+test('cancelled unpaid orders are not receivables', () => {
+  const pending = getPendingReceivableOrders([
+    order('valid', { total: 35 }),
+    order('cancelled', { total: 70, status: 'Cancelado' }),
+    order('paid', { total: 50, paymentStatus: 'Pago' }),
+  ])
+
+  assert.deepEqual(pending.map((item) => item.id), ['valid'])
+  assert.equal(groupPendingOrders([order('cancelled', { total: 70, status: 'Cancelado' })]).length, 0)
 })
