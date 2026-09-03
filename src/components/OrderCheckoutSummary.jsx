@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Button from './Button'
 import SystemSelect from './SystemSelect'
+import { formatBRLCurrencyInput } from '../utils/formFormatting.js'
 
 const ADJUSTMENT_OPTIONS = [
   { value: 'none', label: 'Nenhum' },
@@ -42,15 +43,14 @@ function OrderCheckoutSummary({
         <label className="form-field">
           <span>Taxa de entrega</span>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            min="0"
-            step="0.01"
+            placeholder="R$ 0,00"
             value={draft.deliveryFee}
-            onChange={(event) => onDeliveryFeeChange(event.target.value)}
+            onChange={(event) => onDeliveryFeeChange(formatBRLCurrencyInput(event.target.value))}
             disabled={disabled}
           />
-          <small className="form-hint">Deixe 0 quando não houver taxa.</small>
+          <small className="form-hint">Deixe R$ 0,00 quando não houver taxa.</small>
         </label>
       )}
 
@@ -80,16 +80,27 @@ function OrderCheckoutSummary({
             </div>
             <label className="form-field">
               <span>Valor</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                max={adjustment.mode === 'percentage' ? '100' : undefined}
-                step="0.01"
-                value={adjustment.value}
-                onChange={(event) => onAdjustmentChange({ value: event.target.value })}
-                disabled={disabled}
-              />
+              {adjustment.mode === 'fixed' ? (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="R$ 0,00"
+                  value={adjustment.value}
+                  onChange={(event) => onAdjustmentChange({ value: formatBRLCurrencyInput(event.target.value) })}
+                  disabled={disabled}
+                />
+              ) : (
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={adjustment.value}
+                  onChange={(event) => onAdjustmentChange({ value: event.target.value })}
+                  disabled={disabled}
+                />
+              )}
             </label>
           </div>
         )}
