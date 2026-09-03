@@ -1,4 +1,5 @@
 import { getOrderItemDisplayName, getOrderItems } from './orderCart.js'
+import { isOrderCancelled } from './orderLifecycle.js'
 import { toLocalDateValue } from './orderWorkflow.js'
 import { isOrderPaid } from './paymentWorkflow.js'
 
@@ -27,7 +28,9 @@ export const getDashboardDateRange = (period = '30d', now = new Date()) => {
 
 export const filterOrdersByPeriod = (orders, period = '30d', now = new Date()) => {
   const dates = new Set(getDashboardDateRange(period, now))
-  return (Array.isArray(orders) ? orders : []).filter((order) => dates.has(order?.orderDate))
+  return (Array.isArray(orders) ? orders : [])
+    .filter((order) => !isOrderCancelled(order))
+    .filter((order) => dates.has(order?.orderDate))
 }
 
 export const calculatePeriodMetrics = (orders, period = '30d', now = new Date()) => {
