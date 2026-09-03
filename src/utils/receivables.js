@@ -1,3 +1,4 @@
+import { isOrderCancelled } from './orderLifecycle.js'
 import { getPendingAmount, isOrderPaid } from './paymentWorkflow.js'
 
 const isRegisteredClientOrder = (order) => Boolean(
@@ -12,10 +13,13 @@ const groupKey = (order) => {
   return `order:${order?.id}`
 }
 
+export const getPendingReceivableOrders = (orders = []) => (Array.isArray(orders) ? orders : [])
+  .filter((order) => !isOrderCancelled(order) && !isOrderPaid(order))
+
 export const groupPendingOrders = (orders = []) => {
   const grouped = new Map()
 
-  for (const order of orders.filter((item) => !isOrderPaid(item))) {
+  for (const order of getPendingReceivableOrders(orders)) {
     const key = groupKey(order)
     const current = grouped.get(key) ?? {
       key,
