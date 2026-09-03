@@ -123,17 +123,22 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
     businessId,
   )
 
+  let refund = null
   if (existing.payment_id && input.refundNow) {
     const refundMethod = normalizeRefundMethod(input.refundMethod)
     if (existing.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
-    const refund = createRefundStatement(db, businessId, existing, refundMethod, now)
+    refund = createRefundStatement(db, businessId, existing, refundMethod, now)
     await db.batch([update, refund.statement])
   } else {
     await update.run()
   }
 
-  await closeTableTabIfSettled(db, businessId, existing.table_tab_id, now)
-  return mapContext(await readContext(db, businessId, orderId))
+  const tableTab = await closeTableTabIfSettled(db, businessId, existing.table_tab_id, now)
+  return {
+    order: mapContext(await readContext(db, businessId, orderId)),
+    movement: refund?.movement ?? null,
+    tableTab,
+  }
 }
 
 export const registerOrderRefund = async (db, businessId, orderId, input = {}, now = new Date()) => {
