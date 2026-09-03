@@ -104,6 +104,7 @@ function App() {
   const [newProduct, setNewProduct] = useState(emptyProduct)
   const [newMovement, setNewMovement] = useState({ type: 'entrada', category: 'Vendas', description: '', value: '0' })
   const [toastMessage, setToastMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [showMovementModal, setShowMovementModal] = useState(false)
   const [paymentOrderId, setPaymentOrderId] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
@@ -349,6 +350,12 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [toastMessage])
 
+  useEffect(() => {
+    if (!successMessage) return
+    const timer = window.setTimeout(() => setSuccessMessage(''), 1800)
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
   const totals = useMemo(() => {
     const salesToday = orders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0)
     const receivedToday = orders.filter((order) => isOrderPaid(order) && order.paidAt && toLocalDateValue(order.paidAt) === todayValue).reduce((total, order) => total + Number(order.paidAmount || order.total || 0), 0)
@@ -380,7 +387,7 @@ function App() {
     })
   }, [orderSearch, orders])
 
-  const showSuccessMessage = (message = 'Ação salva com sucesso') => setToastMessage(message)
+  const showSuccessMessage = (message = 'Ação salva com sucesso') => setSuccessMessage(message)
 
   const validateClientIdentity = (draft, excludeId = null, action = 'create') => {
     const duplicate = findClientDuplicates(clients, draft, excludeId)
@@ -801,6 +808,26 @@ function App() {
           ? <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>
           : createPortal(
             <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>,
+            document.body,
+          )
+      )}
+      {successMessage && (
+        typeof document === 'undefined'
+          ? (
+            <div className="success-confirmation-overlay" role="status" aria-live="polite">
+              <div className="success-confirmation-card">
+                <span className="success-confirmation-icon"><Icon name="check" size={30} /></span>
+                <strong>{successMessage}</strong>
+              </div>
+            </div>
+          )
+          : createPortal(
+            <div className="success-confirmation-overlay" role="status" aria-live="polite">
+              <div className="success-confirmation-card">
+                <span className="success-confirmation-icon"><Icon name="check" size={30} /></span>
+                <strong>{successMessage}</strong>
+              </div>
+            </div>,
             document.body,
           )
       )}
