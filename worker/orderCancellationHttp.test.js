@@ -94,21 +94,27 @@ test('authenticated cancel endpoint supports deferred refund', async () => {
   const body = await response.json()
   assert.equal(body.order.status, 'Cancelado')
   assert.equal(body.order.refundState, 'pending')
+  assert.ok(body.order.cancelledAt)
+  assert.equal(body.order.cancelReason, 'client_changed_mind')
+  assert.equal(body.movement, null)
 })
 
-test('authenticated cancel endpoint supports immediate refund and deferred refund endpoint', async () => {
+test('authenticated cancel endpoint returns immediate refund effect and deferred refund endpoint', async () => {
   const immediateEnv = await makeEnv()
   const immediateCookie = await loginCookie(immediateEnv)
   const immediate = await handleRequest(new Request('https://delivery.example/api/orders/o1/cancel', {
     method: 'POST', headers: mutationHeaders(immediateCookie), body: JSON.stringify({ reason: 'entry_error', refundNow: true, refundMethod: 'Pix' }),
   }), immediateEnv)
   assert.equal(immediate.status, 200)
-  assert.equal((await immediate.json()).order.refundState, 'refunded')
-  assert.equal(immediateEnv.DB.refund.source, 'order-refund')
+  const immediateBody = await immediate.json()
+  assert.equal(immediateBody.order.refundState, 'refunded')
+  assert.equal(immediateBody.movement.source, 'order-refund')
+  assert.equal(immediateBody.movement.orderId, 'o1')
 
   const deferredEnv = await makeEnv()
   const deferredCookie = await loginCookie(deferredEnv)
   deferredEnv.DB.order.status = 'Cancelado'
+  deferredEnv.DB.order.cancelled_at = '2026-09-03T13:00:00.000Z'
   deferredEnv.DB.order.cancel_reason = 'duplicate_order'
   const refund = await handleRequest(new Request('https://delivery.example/api/orders/o1/refund', {
     method: 'POST', headers: mutationHeaders(deferredCookie), body: JSON.stringify({ refundMethod: 'Dinheiro' }),
@@ -116,6 +122,7 @@ test('authenticated cancel endpoint supports immediate refund and deferred refun
   assert.equal(refund.status, 201)
   const refundBody = await refund.json()
   assert.equal(refundBody.order.refundState, 'refunded')
+  assert.equal(refundBody.order.cancelledAt, '2026-09-03T13:00:00.000Z')
   assert.equal(refundBody.movement.source, 'order-refund')
 })
 
