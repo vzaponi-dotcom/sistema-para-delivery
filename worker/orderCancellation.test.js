@@ -87,24 +87,28 @@ test('cancellation validates reason and other note', async () => {
 
 test('unpaid cancellation preserves history without refund movement', async () => {
   const db = new CancellationDb({ id: 'o1', status: 'Em preparo', client_name_snapshot: 'Maria' })
-  const order = await cancelOrder(db, 'biz', 'o1', { reason: 'client_changed_mind', refundNow: false }, new Date('2026-09-03T13:00:00.000Z'))
-  assert.equal(order.status, 'Cancelado')
-  assert.equal(order.cancelReason, 'client_changed_mind')
-  assert.equal(order.refundState, 'none')
+  const result = await cancelOrder(db, 'biz', 'o1', { reason: 'client_changed_mind', refundNow: false }, new Date('2026-09-03T13:00:00.000Z'))
+  assert.equal(result.order.status, 'Cancelado')
+  assert.equal(result.order.cancelReason, 'client_changed_mind')
+  assert.equal(result.order.refundState, 'none')
+  assert.equal(result.movement, null)
   assert.equal(db.movements.length, 0)
 })
 
 test('paid cancellation can defer the full refund', async () => {
   const db = new CancellationDb(paidOrder())
-  const order = await cancelOrder(db, 'biz', 'o1', { reason: 'duplicate_order', refundNow: false }, new Date('2026-09-03T13:00:00.000Z'))
-  assert.equal(order.refundState, 'pending')
+  const result = await cancelOrder(db, 'biz', 'o1', { reason: 'duplicate_order', refundNow: false }, new Date('2026-09-03T13:00:00.000Z'))
+  assert.equal(result.order.refundState, 'pending')
+  assert.equal(result.movement, null)
   assert.equal(db.movements.length, 0)
 })
 
 test('paid cancellation can create one immediate integral refund', async () => {
   const db = new CancellationDb(paidOrder())
-  const order = await cancelOrder(db, 'biz', 'o1', { reason: 'entry_error', refundNow: true, refundMethod: 'Pix' }, new Date('2026-09-03T13:00:00.000Z'))
-  assert.equal(order.refundState, 'refunded')
+  const result = await cancelOrder(db, 'biz', 'o1', { reason: 'entry_error', refundNow: true, refundMethod: 'Pix' }, new Date('2026-09-03T13:00:00.000Z'))
+  assert.equal(result.order.refundState, 'refunded')
+  assert.equal(result.movement.source, 'order-refund')
+  assert.equal(result.movement.orderId, 'o1')
   assert.equal(db.refund.value_cents, 8000)
   assert.equal(db.refund.payment_id, 'pay1')
   assert.equal(db.refund.source, 'order-refund')
