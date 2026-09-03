@@ -25,6 +25,7 @@ import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
+import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
@@ -61,6 +62,9 @@ const MOVEMENT_TYPE_OPTIONS = [
 const MOVEMENT_CATEGORY_OPTIONS = ['Vendas', 'Delivery', 'Insumos', 'Despesas', 'Outros']
   .map((value) => ({ value, label: value }))
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
+const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tableTabs', 'movements']
+const GLOBAL_SYNC_INTERVAL_MS = 5_000
+const ORDER_SYNC_INTERVAL_MS = 2_000
 
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
@@ -119,12 +123,22 @@ function App() {
   const currentOrdersRef = useRef([])
   const kitchenAudioContextRef = useRef(null)
   const newOrderHighlightTimerRef = useRef(null)
+  const syncGuardRef = useRef(createCollectionSyncGuard(DATA_COLLECTIONS))
+  const bootstrapSyncInFlightRef = useRef(false)
+  const ordersSyncInFlightRef = useRef(false)
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
   const writesBlocked = !isOnline || requestKey !== null
 
+  const resetSyncState = () => {
+    syncGuardRef.current = createCollectionSyncGuard(DATA_COLLECTIONS)
+    bootstrapSyncInFlightRef.current = false
+    ordersSyncInFlightRef.current = false
+  }
+
   const clearBusinessData = () => {
+    resetSyncState()
     setProducts([])
     setClients([])
     setOrders([])
@@ -142,13 +156,31 @@ function App() {
     setShowProductForm(false)
   }
 
-  const applyBootstrap = (data) => {
-    setClients(Array.isArray(data?.clients) ? data.clients : [])
-    setProducts(Array.isArray(data?.products) ? data.products : [])
-    setOrders(Array.isArray(data?.orders) ? data.orders : [])
-    setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
-    setMovements(Array.isArray(data?.movements) ? data.movements : [])
-    setBootstrapState('ready')
+  const applyBootstrapCollections = (data, token) => {
+    const guard = syncGuardRef.current
+    if (guard.canApply(token, 'clients')) setClients(Array.isArray(data?.clients) ? data.clients : [])
+    if (guard.canApply(token, 'products')) setProducts(Array.isArray(data?.products) ? data.products : [])
+    if (guard.canApply(token, 'orders')) setOrders(Array.isArray(data?.orders) ? data.orders : [])
+    if (guard.canApply(token, 'tableTabs')) setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
+    if (guard.canApply(token, 'movements')) setMovements(Array.isArray(data?.movements) ? data.movements : [])
+  }
+
+  const applyOfficialEffects = ({ order, orders: nextOrders, movement, movements: nextMovements, tableTab, client, product }) => {
+    const changed = []
+    if (order || (Array.isArray(nextOrders) && nextOrders.length)) changed.push('orders')
+    if (movement || (Array.isArray(nextMovements) && nextMovements.length)) changed.push('movements')
+    if (tableTab) changed.push('tableTabs')
+    if (client) changed.push('clients')
+    if (product) changed.push('products')
+    syncGuardRef.current.markMutation(changed)
+
+    if (order) setOrders((current) => upsertById(current, order))
+    if (Array.isArray(nextOrders) && nextOrders.length) setOrders((current) => upsertManyById(current, nextOrders))
+    if (movement) setMovements((current) => upsertById(current, movement))
+    if (Array.isArray(nextMovements) && nextMovements.length) setMovements((current) => upsertManyById(current, nextMovements))
+    if (tableTab) setTableTabs((current) => upsertById(current, tableTab))
+    if (client) setClients((current) => upsertById(current, client))
+    if (product) setProducts((current) => upsertById(current, product))
   }
 
   const expireSession = () => {
@@ -167,18 +199,26 @@ function App() {
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
 
-  const refreshBootstrap = async () => {
-    setBootstrapState('loading')
+  const refreshBootstrap = async ({ background = false } = {}) => {
+    if (bootstrapSyncInFlightRef.current) return false
+    bootstrapSyncInFlightRef.current = true
+    const token = syncGuardRef.current.beginRead(DATA_COLLECTIONS)
+    if (!background) setBootstrapState('loading')
     try {
       const data = await getBootstrapApi()
-      applyBootstrap(data)
+      applyBootstrapCollections(data, token)
+      if (!background) setBootstrapState('ready')
       return true
     } catch (error) {
       if (error?.status === 401) expireSession()
-      else setBootstrapState('error')
+      else if (!background) setBootstrapState('error')
       return false
+    } finally {
+      bootstrapSyncInFlightRef.current = false
     }
   }
+
+  const refreshBootstrapSilently = () => refreshBootstrap({ background: true })
 
   const playKitchenNewOrderSound = async () => {
     if (typeof window === 'undefined') return
@@ -235,9 +275,7 @@ function App() {
           return
         }
         setAuthState('authenticated')
-        setBootstrapState('loading')
-        const data = await getBootstrapApi()
-        if (!cancelled) applyBootstrap(data)
+        if (!cancelled) await refreshBootstrap()
       } catch {
         if (!cancelled) {
           setAuthState('anonymous')
@@ -245,7 +283,7 @@ function App() {
         }
       }
     }
-    initialize()
+    void initialize()
     return () => { cancelled = true }
   }, [])
 
@@ -287,18 +325,45 @@ function App() {
   }, [kitchenSoundEnabled])
 
   useEffect(() => {
+    if (!isOnline || authState !== 'authenticated' || bootstrapState !== 'ready') return undefined
+
+    let cancelled = false
+    const sync = () => {
+      if (!cancelled) void refreshBootstrapSilently()
+    }
+
+    sync()
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshBootstrapSilently()
+    }, GLOBAL_SYNC_INTERVAL_MS)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshBootstrapSilently()
+    }
+    const handleFocus = () => void refreshBootstrapSilently()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [authState, bootstrapState, isOnline])
+
+  useEffect(() => {
     if (activeTab !== 'orders' || !isOnline || authState !== 'authenticated' || bootstrapState !== 'ready') return undefined
 
     let cancelled = false
-    let syncing = false
     knownActiveOrderIdsRef.current = activeOrderIdSet(currentOrdersRef.current)
 
     const refreshOrders = async () => {
-      if (syncing || cancelled) return
-      syncing = true
+      if (ordersSyncInFlightRef.current || cancelled) return
+      ordersSyncInFlightRef.current = true
+      const token = syncGuardRef.current.beginRead(['orders'])
       try {
         const data = await getOrdersApi()
-        if (cancelled || !Array.isArray(data?.orders)) return
+        if (cancelled || !Array.isArray(data?.orders) || !syncGuardRef.current.canApply(token, 'orders')) return
 
         const latestOrders = data.orders
         const detectedIds = getNewActiveOrderIds(knownActiveOrderIdsRef.current, latestOrders)
@@ -320,14 +385,14 @@ function App() {
       } catch (error) {
         if (!cancelled && error?.status === 401) expireSession()
       } finally {
-        syncing = false
+        ordersSyncInFlightRef.current = false
       }
     }
 
     void refreshOrders()
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshOrders()
-    }, 2_000)
+    }, ORDER_SYNC_INTERVAL_MS)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') void refreshOrders()
     }
@@ -415,10 +480,9 @@ function App() {
     setLoginError('')
     try {
       await loginApi(pin)
+      resetSyncState()
       setAuthState('authenticated')
-      setBootstrapState('loading')
-      const data = await getBootstrapApi()
-      applyBootstrap(data)
+      await refreshBootstrap()
     } catch (error) {
       clearBusinessData()
       setAuthState('anonymous')
@@ -457,11 +521,8 @@ function App() {
     if (!checkoutKey) setCheckoutKey(key)
     setRequestKey('order:create')
     try {
-      const { order } = await createOrderApi(payload, key)
-      setOrders((current) => current.some((item) => item.id === order.id)
-        ? current.map((item) => item.id === order.id ? order : item)
-        : [order, ...current])
-      if (order.paymentStatus === 'Pago') await refreshBootstrap()
+      const { order, movement, tableTab } = await createOrderApi(payload, key)
+      applyOfficialEffects({ order, movement, tableTab })
       setCheckoutKey(null)
       setActiveTab('orders')
       showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo'))
@@ -479,7 +540,7 @@ function App() {
     setRequestKey('client:create:quick')
     try {
       const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' })
-      setClients((current) => [client, ...current])
+      applyOfficialEffects({ client })
       return client
     } catch (error) {
       showApiError(error)
@@ -496,7 +557,7 @@ function App() {
     setRequestKey(`order:status:${orderId}`)
     try {
       const { order } = await updateOrderStatusApi(orderId, 'Finalizado')
-      setOrders((current) => current.map((item) => item.id === orderId ? order : item))
+      applyOfficialEffects({ order })
       showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado')
     } catch (error) {
       showApiError(error)
@@ -510,13 +571,7 @@ function App() {
     setRequestKey(`order:cancel:${orderId}`)
     try {
       const { order, movement, tableTab } = await cancelOrderApi(orderId, payload)
-      setOrders((current) => current.map((item) => item.id === order.id ? { ...item, ...order } : item))
-      if (movement) {
-        setMovements((current) => current.some((item) => item.id === movement.id)
-          ? current.map((item) => item.id === movement.id ? movement : item)
-          : [movement, ...current])
-      }
-      if (tableTab) setTableTabs((current) => current.map((tab) => tab.id === tableTab.id ? tableTab : tab))
+      applyOfficialEffects({ order, movement, tableTab })
       showSuccessMessage(payload.refundNow ? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso')
       return true
     } catch (error) {
@@ -545,9 +600,8 @@ function App() {
     if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return
     setRequestKey(`payment:${paymentOrder.id}`)
     try {
-      const { order, movement } = await registerPaymentApi(paymentOrder.id, paymentMethod)
-      setOrders((current) => current.map((item) => item.id === order.id ? order : item))
-      setMovements((current) => current.some((item) => item.id === movement.id) ? current : [movement, ...current])
+      const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod)
+      applyOfficialEffects({ order, movement, tableTab })
       closePaymentModal()
       showSuccessMessage(`Pagamento recebido via ${paymentMethod}`)
     } catch (error) {
@@ -562,12 +616,7 @@ function App() {
     setRequestKey(`table-tab:payment:${tableTabId}`)
     try {
       const result = await registerTableTabPaymentApi(tableTabId, method)
-      setOrders((current) => current.map((item) => result.orders.find((order) => order.id === item.id) ?? item))
-      setMovements((current) => {
-        const ids = new Set(current.map((item) => item.id))
-        return [...result.movements.filter((item) => !ids.has(item.id)), ...current]
-      })
-      setTableTabs((current) => current.map((tab) => tab.id === result.tableTab.id ? result.tableTab : tab))
+      applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab })
       showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`)
       return true
     } catch (error) {
@@ -583,12 +632,7 @@ function App() {
     setRequestKey(`order:refund:${orderId}`)
     try {
       const { order, movement } = await refundOrderApi(orderId, payload)
-      setOrders((current) => current.map((item) => item.id === order.id ? order : item))
-      if (movement?.source === 'order-refund') {
-        setMovements((current) => current.some((item) => item.id === movement.id)
-          ? current.map((item) => item.id === movement.id ? movement : item)
-          : [movement, ...current])
-      }
+      applyOfficialEffects({ order, movement })
       showSuccessMessage('Estorno registrado com sucesso')
       return true
     } catch (error) {
@@ -628,7 +672,7 @@ function App() {
     setRequestKey('client:create')
     try {
       const { client } = await createClientApi(clientPayload())
-      setClients((current) => [client, ...current])
+      applyOfficialEffects({ client })
       resetClientForm()
       showSuccessMessage('Cliente adicionado com sucesso')
     } catch (error) {
@@ -644,7 +688,7 @@ function App() {
     setRequestKey(`client:update:${id}`)
     try {
       const { client } = await updateClientApi(id, clientPayload())
-      setClients((current) => current.map((item) => item.id === id ? client : item))
+      applyOfficialEffects({ client })
       resetClientForm()
       showSuccessMessage('Cliente atualizado com sucesso')
     } catch (error) {
@@ -683,8 +727,8 @@ function App() {
     setRequestKey(`client:delete:${clientId}`)
     try {
       await deleteClientApi(clientId)
-      const remaining = clients.filter((client) => client.id !== clientId)
-      setClients(remaining)
+      syncGuardRef.current.markMutation(['clients'])
+      setClients((current) => removeById(current, clientId))
       if (editingClientId === clientId) resetClientForm()
     } catch (error) {
       showApiError(error)
@@ -736,12 +780,12 @@ function App() {
     try {
       if (editing) {
         const { product } = await updateProductApi(editing, productPayload())
-        setProducts((current) => current.map((item) => item.id === editing ? product : item))
+        applyOfficialEffects({ product })
         setEditingProductId(null)
         showSuccessMessage('Produto atualizado com sucesso')
       } else {
         const { product } = await createProductApi(productPayload())
-        setProducts((current) => [product, ...current])
+        applyOfficialEffects({ product })
         showSuccessMessage('Produto adicionado com sucesso')
       }
       setNewProduct(emptyProduct())
@@ -758,8 +802,8 @@ function App() {
     setRequestKey(`product:delete:${productId}`)
     try {
       await deleteProductApi(productId)
-      const remaining = products.filter((product) => product.id !== productId)
-      setProducts(remaining)
+      syncGuardRef.current.markMutation(['products'])
+      setProducts((current) => removeById(current, productId))
       if (editingProductId === productId) {
         setEditingProductId(null)
         setNewProduct(emptyProduct())
@@ -791,7 +835,7 @@ function App() {
     setRequestKey('movement:create')
     try {
       const { movement } = await createMovementApi({ type: newMovement.type, category: newMovement.category, description, value })
-      setMovements((current) => [movement, ...current])
+      applyOfficialEffects({ movement })
       setNewMovement({ type: 'entrada', category: 'Vendas', description: '', value: '0' })
       setShowMovementModal(false)
       showSuccessMessage('Movimentação registrada com sucesso')
@@ -826,7 +870,7 @@ function App() {
         <div className="system-state-screen">
           <div className="system-state-card">
             {bootstrapState === 'error' ? (
-              <><h2>Não foi possível carregar os dados</h2><p>Confira sua conexão e tente novamente.</p><Button type="button" onClick={refreshBootstrap} disabled={!isOnline || requestKey !== null}>Tentar novamente</Button></>
+              <><h2>Não foi possível carregar os dados</h2><p>Confira sua conexão e tente novamente.</p><Button type="button" onClick={() => void refreshBootstrap()} disabled={!isOnline || requestKey !== null}>Tentar novamente</Button></>
             ) : (
               <><h2>Carregando dados</h2><p>Sincronizando a operação da Amor &amp; Sabor…</p></>
             )}
