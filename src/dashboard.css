@@ -280,7 +280,7 @@
   }
 
   .dashboard-chart-axis {
-    font-size: 10px;
+    font-size: 15px;
   }
 
   .dashboard-horizontal-bar-copy,
@@ -294,5 +294,39 @@
 
   .dashboard-payment-legend-row strong {
     margin-left: 20px;
+  }
+
+  .dashboard-recent-section .recent-order {
+    grid-template-columns: 38px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .dashboard-recent-section .recent-order-statuses {
+    grid-column: 2;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .dashboard-recent-section .recent-order-value {
+    grid-column: 2;
+    grid-row: auto;
+    min-width: 0;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .dashboard-recent-section .recent-order-main span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-chart-axis {
+    font-size: 20px;
   }
 }
