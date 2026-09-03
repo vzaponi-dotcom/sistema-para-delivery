@@ -22,6 +22,26 @@ test('movement modal keeps SystemSelect and a decimal-capable number input', asy
   assert.match(app, /<input[^>]*type="number"[^>]*min="0"[^>]*step="0\.01"/)
 })
 
+test('finance exposes pending refunds with a register action only when supplied', async () => {
+  const finance = await read('./Finance.jsx')
+
+  assert.match(finance, /pendingRefundOrders/)
+  assert.match(finance, /Estornos pendentes/)
+  assert.match(finance, /Registrar estorno/)
+  assert.match(finance, /cancelledAt/)
+  assert.match(finance, /paidAmount/)
+})
+
+test('App derives pending refunds and wires deferred refund without persisting a refund status', async () => {
+  const app = await read('../App.jsx')
+
+  assert.match(app, /getOrderRefundState/)
+  assert.match(app, /pendingRefundOrders/)
+  assert.match(app, /refundOrderApi/)
+  assert.match(app, /source === 'order-refund'/)
+  assert.doesNotMatch(app, /refundStatus/)
+})
+
 test('more menu actions including theme and logout stay touch friendly', async () => {
   const nav = await read('../components/MobileNavigation.jsx')
   const navCss = await read('../mobile-navigation.css')
