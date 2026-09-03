@@ -20,7 +20,7 @@ test('mobile toast is viewport anchored and cannot stretch between top and botto
   const polish = await read('./ui-polish.css')
 
   assert.match(app, /import\s+\{\s*createPortal\s*\}\s+from\s+'react-dom'/)
-  assert.match(app, /createPortal\([\s\S]*toast-success[\s\S]*document\.body\)/)
+  assert.match(app, /createPortal\([\s\S]*toast-success[\s\S]*document\.body\s*,?\s*\)/)
   assert.match(polish, /@media\s*\(max-width:\s*640px\)[\s\S]*\.toast-success\s*\{[^}]*top:\s*70px[^}]*bottom:\s*auto/s)
   assert.doesNotMatch(foundation, /\.toast-success\s*\{[^}]*bottom:/s)
   assert.doesNotMatch(interactions, /body\s+\.toast-success\s*\{[^}]*bottom:/s)
