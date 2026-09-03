@@ -1,0 +1,16 @@
+@media (max-width: 640px) {
+  .movement-title-line strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .movement-main > span {
+    overflow-wrap: anywhere;
+  }
+
+  .movement-value {
+    grid-column: 2;
+    justify-self: start;
+    white-space: nowrap;
+  }
+}
