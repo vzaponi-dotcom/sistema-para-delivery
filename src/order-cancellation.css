@@ -1,0 +1,128 @@
+.button-danger-outline {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+}
+
+.button-danger-outline:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 58%, var(--border));
+}
+
+.cancel-order-warning,
+.cancel-refund-panel {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.cancel-order-warning strong,
+.cancel-refund-panel strong {
+  color: var(--text);
+}
+
+.cancel-order-warning span,
+.cancel-refund-panel span,
+.cancel-refund-panel small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.cancel-refund-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.cancel-refund-choice .active,
+.history-filter .active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.cancel-order-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.form-error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: .84rem;
+  font-weight: 650;
+}
+
+.order-action-feedback {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface-soft);
+  font-size: .86rem;
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.history-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.order-cancel-meta {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.status-cancelado,
+.status-warning {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.status-success {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+@media (max-width: 640px) {
+  .history-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-filter {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .history-filter .button,
+  .order-cancel-action,
+  .cancel-refund-choice .button {
+    min-height: var(--mobile-touch-target, 44px);
+  }
+
+  .order-queue-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .order-queue-actions .order-cancel-action {
+    grid-column: 1 / -1;
+  }
+}
