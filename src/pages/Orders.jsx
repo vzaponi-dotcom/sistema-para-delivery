@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../order-operations.css'
 import '../order-operations-compact.css'
-import { cancelOrder as cancelOrderApi } from '../api/client.js'
 import Button from '../components/Button'
 import CancelOrderDialog from '../components/CancelOrderDialog'
 import Icon from '../components/Icon'
@@ -26,13 +25,11 @@ import {
 const orderNumber = (id) => String(id).slice(-4)
 const timingLabels = { 'on-time': 'No prazo', late: 'Atrasado', 'very-late': 'Muito atrasado' }
 
-function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange }) {
+function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange }) {
   const [now, setNow] = useState(() => new Date())
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
-  const [cancelledIds, setCancelledIds] = useState(() => new Set())
-  const [feedback, setFeedback] = useState('')
   const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set())
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
@@ -49,12 +46,6 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
       window.removeEventListener('focus', refreshNow)
     }
   }, [])
-
-  useEffect(() => {
-    if (!feedback) return undefined
-    const timer = window.setTimeout(() => setFeedback(''), 2200)
-    return () => window.clearTimeout(timer)
-  }, [feedback])
 
   const runAction = async (key, action) => {
     if (actionsDisabled) return
@@ -77,16 +68,12 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
   }
 
   const confirmCancellation = async (payload) => {
-    if (!cancelOrder || actionsDisabled) return
+    if (!cancelOrder || actionsDisabled || !onCancelOrder) return
     const id = cancelOrder.id
     setPendingAction(`cancel:${id}`)
     try {
-      await cancelOrderApi(id, payload)
-      setCancelledIds((current) => new Set([...current, String(id)]))
-      setCancelOrder(null)
-      setFeedback(payload.refundNow ? 'Pedido cancelado e estorno registrado.' : 'Pedido cancelado com sucesso.')
-    } catch (error) {
-      setFeedback(error?.message || 'Não foi possível cancelar o pedido.')
+      const saved = await onCancelOrder(id, payload)
+      if (saved !== false) setCancelOrder(null)
     } finally {
       setPendingAction(null)
     }
@@ -94,12 +81,12 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
 
   const normalizedSearch = search.trim().toLowerCase()
   const activeOrders = useMemo(() => orders
-    .filter((order) => isOrderActive(order) && !cancelledIds.has(String(order.id)))
+    .filter(isOrderActive)
     .filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [cancelledIds, normalizedSearch, orders])
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [normalizedSearch, orders])
 
-  const activeCount = orders.filter((order) => isOrderActive(order) && !cancelledIds.has(String(order.id))).length
-  const delayedCount = orders.filter((order) => isOrderActive(order) && !cancelledIds.has(String(order.id)) && getOrderTimingState(order, now) !== 'on-time').length
+  const activeCount = orders.filter(isOrderActive).length
+  const delayedCount = orders.filter((order) => isOrderActive(order) && getOrderTimingState(order, now) !== 'on-time').length
   const finishedTodayCount = orders.filter((order) => order.status === 'Finalizado' && isFinishedToday(order, now)).length
 
   return (
@@ -118,8 +105,6 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
           </div>
         )}
       />
-
-      {feedback && <div className="order-action-feedback" role="status">{feedback}</div>}
 
       <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
