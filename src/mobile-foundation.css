@@ -1,5 +1,6 @@
 :root {
   --layer-mobile-nav: 60;
+  --layer-floating-action: 70;
   --layer-overlay: 100;
   --layer-overlay-raised: 110;
   --layer-toast: 120;
