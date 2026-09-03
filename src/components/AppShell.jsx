@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import '../order-cancellation.css'
-import OrderHistory from '../pages/OrderHistory.jsx'
 import { DashboardPeriodProvider } from './DashboardPeriodProvider'
 import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
@@ -73,7 +72,7 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
         <Sidebar activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
         <main className="app-main" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div key={activeTab} className="app-content page-transition" data-direction={pageDirection}>
-            {activeTab === 'history' ? <OrderHistory /> : children}
+            {children}
           </div>
         </main>
         <MobileNavigation activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
