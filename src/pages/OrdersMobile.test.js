@@ -18,8 +18,8 @@ test('kitchen item toggle is a comfortable touch target', async () => {
   assert.match(css, /\.order-items-toggle\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target\))/s)
 })
 
-test('mobile kitchen customer and operation text can wrap instead of clipping', async () => {
-  const css = await read('../order-operations.css')
+test('final compact cascade lets mobile customer and history text wrap instead of clipping', async () => {
+  const css = await read('../order-operations-compact.css')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-queue-title span:not\(\.status-badge\)\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-history-main span\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
