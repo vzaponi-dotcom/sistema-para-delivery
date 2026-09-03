@@ -37,6 +37,13 @@ export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiR
 export const updateOrderStatus = (id, status = 'Finalizado') => apiRequest(`/api/orders/${encodeURIComponent(id)}/status`, withJson('PATCH', { status }))
 export const cancelOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/cancel`, withJson('POST', payload))
 export const refundOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/refund`, withJson('POST', payload))
+// Compatibility-only export while App.jsx is migrated away from its old handler.
+// It never issues DELETE and therefore cannot erase an order.
+export const deleteOrder = async () => {
+  const error = new Error('Exclusão de pedidos foi substituída por cancelamento.')
+  error.code = 'ORDER_DELETE_REMOVED'
+  throw error
+}
 export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
