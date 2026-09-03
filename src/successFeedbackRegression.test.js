@@ -16,9 +16,9 @@ test('important success feedback uses a centered viewport confirmation while err
 
 test('success confirmation is centered, blurs the page softly and stays compact on mobile', async () => {
   const css = await read('./success-feedback.css')
-  const indexCss = await read('./index.css')
+  const main = await read('./main.jsx')
 
-  assert.match(indexCss, /@import '\.\/success-feedback\.css'/)
+  assert.match(main, /import '\.\/success-feedback\.css'/)
   assert.match(css, /\.success-confirmation-overlay\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0[^}]*display:\s*grid[^}]*place-items:\s*center[^}]*backdrop-filter:\s*blur\(4px\)/s)
   assert.match(css, /\.success-confirmation-card\s*\{[^}]*width:\s*min\(320px,\s*calc\(100vw\s*-\s*32px\)\)[^}]*min-height:\s*160px[^}]*max-height:\s*min\(240px,\s*calc\(100dvh\s*-\s*48px\)\)/s)
   assert.match(css, /\.success-confirmation-icon\s*\{[^}]*width:\s*56px[^}]*height:\s*56px/s)
