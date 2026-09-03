@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../order-operations.css'
 import '../order-operations-compact.css'
+import { cancelOrder as cancelOrderApi } from '../api/client.js'
 import Button from '../components/Button'
+import CancelOrderDialog from '../components/CancelOrderDialog'
 import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
@@ -24,10 +26,13 @@ import {
 const orderNumber = (id) => String(id).slice(-4)
 const timingLabels = { 'on-time': 'No prazo', late: 'Atrasado', 'very-late': 'Muito atrasado' }
 
-function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange }) {
+function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange }) {
   const [now, setNow] = useState(() => new Date())
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
+  const [cancelOrder, setCancelOrder] = useState(null)
+  const [cancelledIds, setCancelledIds] = useState(() => new Set())
+  const [feedback, setFeedback] = useState('')
   const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set())
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
@@ -45,6 +50,12 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
     }
   }, [])
 
+  useEffect(() => {
+    if (!feedback) return undefined
+    const timer = window.setTimeout(() => setFeedback(''), 2200)
+    return () => window.clearTimeout(timer)
+  }, [feedback])
+
   const runAction = async (key, action) => {
     if (actionsDisabled) return
     setPendingAction(key)
@@ -60,14 +71,35 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
     })
   }
 
+  const navigateHistory = () => {
+    if (onNavigateHistory) onNavigateHistory()
+    else if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('app:navigate', { detail: 'history' }))
+  }
+
+  const confirmCancellation = async (payload) => {
+    if (!cancelOrder || actionsDisabled) return
+    const id = cancelOrder.id
+    setPendingAction(`cancel:${id}`)
+    try {
+      await cancelOrderApi(id, payload)
+      setCancelledIds((current) => new Set([...current, String(id)]))
+      setCancelOrder(null)
+      setFeedback(payload.refundNow ? 'Pedido cancelado e estorno registrado.' : 'Pedido cancelado com sucesso.')
+    } catch (error) {
+      setFeedback(error?.message || 'Não foi possível cancelar o pedido.')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   const normalizedSearch = search.trim().toLowerCase()
   const activeOrders = useMemo(() => orders
-    .filter(isOrderActive)
+    .filter((order) => isOrderActive(order) && !cancelledIds.has(String(order.id)))
     .filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [normalizedSearch, orders])
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [cancelledIds, normalizedSearch, orders])
 
-  const activeCount = orders.filter(isOrderActive).length
-  const delayedCount = orders.filter((order) => isOrderActive(order) && getOrderTimingState(order, now) !== 'on-time').length
+  const activeCount = orders.filter((order) => isOrderActive(order) && !cancelledIds.has(String(order.id))).length
+  const delayedCount = orders.filter((order) => isOrderActive(order) && !cancelledIds.has(String(order.id)) && getOrderTimingState(order, now) !== 'on-time').length
   const finishedTodayCount = orders.filter((order) => order.status === 'Finalizado' && isFinishedToday(order, now)).length
 
   return (
@@ -81,11 +113,13 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             <button type="button" className="button button-secondary kitchen-sound-toggle" aria-pressed={soundEnabled} title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'} onClick={() => onSoundEnabledChange?.(!soundEnabled)}>
               <span aria-hidden="true">{soundEnabled ? '🔊' : '🔇'}</span><span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
-            <Button type="button" variant="secondary" onClick={onNavigateHistory}>Ver histórico</Button>
+            <Button type="button" variant="secondary" onClick={navigateHistory}>Ver histórico</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>
         )}
       />
+
+      {feedback && <div className="order-action-feedback" role="status">{feedback}</div>}
 
       <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
@@ -128,7 +162,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                   <div className="order-queue-actions">
                     <Button type="button" variant="secondary" onClick={() => setDetailOrder(order)} disabled={actionsDisabled}>Ver detalhes</Button>
                     <Button className="order-final-action" disabled={actionsDisabled} onClick={() => runAction(`finish:${order.id}`, () => onFinalizeOrder(order.id))}>{getFinalActionLabel(order)}</Button>
-                    <Button type="button" variant="secondary" className="button-danger-outline order-cancel-action" onClick={() => onCancelOrder(order)} disabled={actionsDisabled}>Cancelar pedido</Button>
+                    <Button type="button" variant="secondary" className="button-danger-outline order-cancel-action" onClick={() => setCancelOrder(order)} disabled={actionsDisabled}>Cancelar pedido</Button>
                   </div>
                 </div>
               </article>
@@ -138,6 +172,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
         </div>
       </section>
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
+      <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={Boolean(cancelOrder && pendingAction === `cancel:${cancelOrder.id}`)} />
     </>
   )
 }
