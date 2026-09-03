@@ -29,7 +29,7 @@ test('more menu actions including theme and logout stay touch friendly', async (
   assert.match(nav, /<BottomSheet[^>]*title="Mais opções"/)
   assert.match(nav, />A Receber</)
   assert.match(nav, />Financeiro</)
-  assert.match(nav, />Sair do sistema</)
+  assert.match(nav, /Sair do sistema/)
   assert.match(navCss, /\.mobile-more-action,\s*\.mobile-more-logout\s*\{[\s\S]*?min-height:\s*48px/s)
   assert.match(navCss, /\.mobile-more-theme \.theme-option\s*\{[^}]*min-height:\s*48px/s)
 })
