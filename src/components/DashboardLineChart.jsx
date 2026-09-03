@@ -21,6 +21,7 @@ function DashboardLineChart({
   valueKey = 'value',
   labelKey = 'label',
   formatValue = (value) => String(value),
+  formatAxisValue = formatValue,
   valuesVisible = true,
   ariaLabel = 'Gráfico de linha',
 }) {
@@ -44,7 +45,7 @@ function DashboardLineChart({
             <g key={ratio}>
               <line className="dashboard-chart-grid" x1={LEFT} x2={WIDTH - RIGHT} y1={tickY} y2={tickY} />
               <text className="dashboard-chart-axis" x={LEFT - 8} y={tickY + 4} textAnchor="end">
-                {valuesVisible ? formatValue(maxValue * ratio) : MASK}
+                {valuesVisible ? formatAxisValue(maxValue * ratio) : MASK}
               </text>
             </g>
           )
