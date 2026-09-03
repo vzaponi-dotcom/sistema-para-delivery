@@ -14,10 +14,12 @@ test('modal focus lifecycle does not restart when an inline onClose callback cha
   assert.doesNotMatch(modal, /previousFocus\.current = document\.activeElement[\s\S]*\}, \[onClose\]\)/s)
 })
 
-test('new product starts with zero price while editing keeps the existing product price', async () => {
+test('new product form normalizes its initial price to zero while editing keeps the existing price', async () => {
+  const form = await read('./components/ProductForm.jsx')
   const app = await read('./App.jsx')
 
-  assert.match(app, /const emptyProduct = \(\) => \(\{[\s\S]*price: formatBRLCurrencyValue\(0\)/s)
+  assert.match(form, /const initializedNewPriceRef = useRef\(false\)/)
+  assert.match(form, /if \(editing \|\| initializedNewPriceRef\.current\) return/)
+  assert.match(form, /price: formatBRLCurrencyValue\(0\)/)
   assert.match(app, /price: formatBRLCurrencyValue\(product\.price\)/)
-  assert.match(app, /const openNewProduct = \(\) => \{[\s\S]*setNewProduct\(emptyProduct\(\)\)/s)
 })
