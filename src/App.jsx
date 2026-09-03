@@ -5,6 +5,7 @@ import './central-data.css'
 import './new-order.css'
 import './client-duplicate.css'
 import './product-form.css'
+import './finance-mobile.css'
 import AppShell from './components/AppShell'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
@@ -25,6 +26,7 @@ import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
+import { getOrderRefundState } from './utils/orderLifecycle.js'
 import { activeOrderIdSet, getNewActiveOrderIds } from './utils/orderRealtime.js'
 import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
 import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
@@ -34,13 +36,13 @@ import {
   createOrder as createOrderApi,
   createProduct as createProductApi,
   deleteClient as deleteClientApi,
-  deleteOrder as deleteOrderApi,
   deleteProduct as deleteProductApi,
   getBootstrap as getBootstrapApi,
   getOrders as getOrdersApi,
   getSession as getSessionApi,
   login as loginApi,
   logout as logoutApi,
+  refundOrder as refundOrderApi,
   registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
   updateClient as updateClientApi,
@@ -370,6 +372,8 @@ function App() {
     return { entries, exits, balance: entries - exits }
   }, [movements])
 
+  const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
+
   const filteredClients = useMemo(() => {
     const normalizedSearch = clientSearch.trim().toLowerCase()
     const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch))
@@ -498,20 +502,6 @@ function App() {
     }
   }
 
-  const handleDeleteOrder = async (orderId) => {
-    if (writesBlocked) return
-    setRequestKey(`order:delete:${orderId}`)
-    try {
-      await deleteOrderApi(orderId)
-      setOrders((current) => current.filter((order) => order.id !== orderId))
-      setMovements((current) => current.filter((movement) => !(movement.source === 'order-payment' && movement.orderId === orderId)))
-    } catch (error) {
-      showApiError(error)
-    } finally {
-      setRequestKey(null)
-    }
-  }
-
   const openPaymentModal = (orderId) => {
     if (writesBlocked) return
     const order = orders.find((item) => item.id === orderId)
@@ -554,6 +544,27 @@ function App() {
       })
       setTableTabs((current) => current.map((tab) => tab.id === result.tableTab.id ? result.tableTab : tab))
       showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`)
+      return true
+    } catch (error) {
+      showApiError(error)
+      return false
+    } finally {
+      setRequestKey(null)
+    }
+  }
+
+  const handleRegisterRefund = async (orderId, payload) => {
+    if (writesBlocked) return false
+    setRequestKey(`order:refund:${orderId}`)
+    try {
+      const { order, movement } = await refundOrderApi(orderId, payload)
+      setOrders((current) => current.map((item) => item.id === order.id ? order : item))
+      if (movement?.source === 'order-refund') {
+        setMovements((current) => current.some((item) => item.id === movement.id)
+          ? current.map((item) => item.id === movement.id ? movement : item)
+          : [movement, ...current])
+      }
+      showSuccessMessage('Estorno registrado com sucesso')
       return true
     } catch (error) {
       showApiError(error)
@@ -833,7 +844,7 @@ function App() {
       )}
       <AppShell activeTab={activeTab} onNavigate={setActiveTab} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onDeleteOrder={handleDeleteOrder} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onNavigateHistory={() => setActiveTab('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
         {activeTab === 'new-order' && (
           <NewOrder
             clients={clients}
@@ -849,7 +860,7 @@ function App() {
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} />}
+        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
 
         {paymentOrder && (
           <Modal title="Registrar pagamento" onClose={closePaymentModal}>
