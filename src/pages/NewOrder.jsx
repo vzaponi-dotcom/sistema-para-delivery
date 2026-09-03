@@ -17,10 +17,10 @@ import {
   removeCartItem,
   updateCartItem,
 } from '../utils/orderCart.js'
-import { formatPhone } from '../utils/formFormatting.js'
+import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../utils/formFormatting.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
-const emptyAdjustment = { type: 'none', mode: 'fixed', value: '0', reason: '' }
+const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 const ORDER_TYPE_OPTIONS = [
   { value: 'Entrega', label: 'Entrega' },
   { value: 'Retirada', label: 'Retirada' },
@@ -41,7 +41,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const [localIdentityValue, setLocalIdentityValue] = useState('')
   const [orderDate, setOrderDate] = useState(toLocalDateValue())
   const [items, setItems] = useState([])
-  const [deliveryFee, setDeliveryFee] = useState('0')
+  const [deliveryFee, setDeliveryFee] = useState(() => formatBRLCurrencyValue(0))
   const [adjustment, setAdjustment] = useState(emptyAdjustment)
   const [quickClient, setQuickClient] = useState({ open: false, name: '', phone: '' })
   const [quickClientError, setQuickClientError] = useState('')
@@ -71,10 +71,20 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     type,
     orderDate,
     items,
-    deliveryFee: type === 'Entrega' ? deliveryFee : 0,
+    deliveryFee: type === 'Entrega' ? deliveryFee : formatBRLCurrencyValue(0),
     adjustment,
   }
-  const preview = calculateOrderPreview(draft)
+  const numericDraft = {
+    ...draft,
+    deliveryFee: type === 'Entrega' ? parseBRLCurrencyInput(deliveryFee) : 0,
+    adjustment: {
+      ...adjustment,
+      value: adjustment.mode === 'fixed'
+        ? parseBRLCurrencyInput(adjustment.value)
+        : Math.max(0, Number(adjustment.value) || 0),
+    },
+  }
+  const preview = calculateOrderPreview(numericDraft)
   const canSubmit = Boolean(identityValidation.ok && orderDate && items.length)
   const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
 
@@ -88,7 +98,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     setType(nextType)
     setCheckoutError('')
     closeQuickClient()
-    if (nextType !== 'Entrega') setDeliveryFee('0')
+    if (nextType !== 'Entrega') setDeliveryFee(formatBRLCurrencyValue(0))
     if (nextType === 'Local') {
       setLocalIdentityType('guest_name')
       setLocalIdentityValue('')
@@ -104,8 +114,14 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
 
   const handleAdjustmentChange = (patch) => {
     setAdjustment((current) => {
+      if (patch.type === 'none') return emptyAdjustment()
       const next = { ...current, ...patch }
-      if (patch.type === 'none') return emptyAdjustment
+      if (patch.mode === 'fixed' && current.mode !== 'fixed') {
+        next.value = formatBRLCurrencyValue(Number(current.value) || 0)
+      }
+      if (patch.mode === 'percentage' && current.mode !== 'percentage') {
+        next.value = String(parseBRLCurrencyInput(current.value))
+      }
       return next
     })
   }
@@ -183,7 +199,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const save = async (paymentMethod) => {
     if (disabled || !canSubmit) return
     setCheckoutError('')
-    const success = await onSubmit(buildOrderPayload(draft, paymentMethod))
+    const success = await onSubmit(buildOrderPayload(numericDraft, paymentMethod))
     if (!success) setCheckoutError('Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.')
   }
 
