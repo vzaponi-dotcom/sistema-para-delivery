@@ -143,7 +143,7 @@
 }
 
 .receivable-order-row .button {
-  min-height: 38px;
+  min-height: var(--mobile-touch-target, 44px);
   padding: 0 13px;
   font-size: 0.8rem;
 }
@@ -257,14 +257,18 @@
 
   .receivable-table-tab-action .button {
     width: 100%;
-    min-height: 44px;
+    min-height: var(--mobile-touch-target, 44px);
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .receivable-client-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .receivable-client-copy strong {
+    overflow-wrap: anywhere;
   }
 
   .receivable-client-total {
@@ -276,16 +280,27 @@
     grid-template-columns: 1fr;
   }
 
+  .receivable-order-main span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .receivable-order-amount {
+    min-width: 0;
     text-align: left;
   }
 
   .receivable-order-actions {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .receivable-order-actions .button {
     width: 100%;
+    min-height: var(--mobile-touch-target, 44px);
   }
 
   .table-tab-payment-summary {
