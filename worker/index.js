@@ -3,6 +3,7 @@ import { apiError, assertSameOriginMutation, handleError, json, readJson } from 
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { listOrders } from './orderReadRepository.js'
+import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
@@ -69,12 +70,26 @@ const authenticatedApi = async (request, env) => {
     assertSameOriginMutation(request)
     const input = validateCheckoutInput(await readJson(request), request.headers.get('idempotency-key'))
     const order = await createOrder(env.DB, session.businessId, input)
-    return json({ order }, { status: 201 })
+    const movement = input.paymentMethod
+      ? await loadMovementByOrderSource(env.DB, session.businessId, order.id, 'order-payment')
+      : null
+    const tableTab = order.tableTabId
+      ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
+      : null
+    return json({ order, movement, tableTab }, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
   if (statusMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const body = await readJson(request); if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.'); const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1])); if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ order }) }
   const paymentMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment$/)
-  if (paymentMatch && request.method === 'POST') { assertSameOriginMutation(request); const { method } = await readJson(request); const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentMethod(method)); return json(result, { status: 201 }) }
+  if (paymentMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const { method } = await readJson(request)
+    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentMethod(method))
+    const tableTab = result.order?.tableTabId
+      ? await loadTableTabById(env.DB, session.businessId, result.order.tableTabId)
+      : null
+    return json({ ...result, tableTab }, { status: 201 })
+  }
   const cancelMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/)
   if (cancelMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
