@@ -29,8 +29,9 @@ test('worker and browser client expose an orders-only GET refresh path', () => {
 test('App polls orders every two seconds only through the orders refresh path and refreshes on focus', () => {
   const app = read('src/App.jsx')
   assert.match(app, /getOrders as getOrdersApi/)
+  assert.match(app, /const ORDER_SYNC_INTERVAL_MS = 2_000/)
   assert.match(app, /const timer = window\.setInterval/)
-  assert.match(app, /},\s*2_000\)/)
+  assert.match(app, /},\s*ORDER_SYNC_INTERVAL_MS\)/)
   assert.match(app, /activeTab !== ['"]orders['"]/)
   assert.match(app, /visibilitychange/)
   assert.match(app, /window\.addEventListener\(['"]focus['"]/)
