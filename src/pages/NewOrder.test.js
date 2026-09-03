@@ -78,6 +78,17 @@ test('product form uses a BRL formatted text input', () => {
   assert.doesNotMatch(form, /<span>Preço<\/span>[\s\S]*<input type="number"/)
 })
 
+test('new order keeps money display formatted but normalizes preview and payload to numbers', () => {
+  const page = source('./NewOrder.jsx')
+
+  assert.match(page, /formatBRLCurrencyValue/)
+  assert.match(page, /parseBRLCurrencyInput/)
+  assert.match(page, /formatBRLCurrencyValue\(0\)/)
+  assert.match(page, /numericDraft/)
+  assert.match(page, /calculateOrderPreview\(numericDraft\)/)
+  assert.match(page, /buildOrderPayload\(numericDraft, paymentMethod\)/)
+})
+
 test('new order still exposes catalog, cart and both checkout actions', () => {
   const page = source('./NewOrder.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
