@@ -29,3 +29,11 @@ test('paid flow asks about refund and requires method only for immediate refund'
 test('unpaid cancellation does not render the refund decision block', () => {
   assert.match(source, /isPaid &&/)
 })
+
+test('cancellation uses a second review step before invoking the write callback', () => {
+  assert.match(source, /reviewPayload/)
+  assert.match(source, /Revisar cancelamento/)
+  assert.match(source, /Confirmar cancelamento definitivamente/)
+  assert.match(source, /handleFinalConfirm/)
+  assert.match(source, /onConfirm\(reviewPayload\)/)
+})
