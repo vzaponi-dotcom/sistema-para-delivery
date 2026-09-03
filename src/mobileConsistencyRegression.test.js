@@ -13,13 +13,18 @@ test('touch feedback does not depend on hover', async () => {
   assert.match(interactions, /\.button:active/)
 })
 
-test('mobile toast stays above bottom navigation', async () => {
+test('mobile toast is viewport anchored and cannot stretch between top and bottom', async () => {
+  const app = await read('./App.jsx')
   const foundation = await read('./mobile-foundation.css')
   const interactions = await read('./mobile-interactions.css')
+  const polish = await read('./ui-polish.css')
 
-  assert.match(foundation, /\.toast-success[\s\S]*var\(--mobile-bottom-nav-height\)/)
-  assert.match(foundation, /\.toast-success\s*\{[^}]*z-index:\s*var\(--layer-toast\)/s)
-  assert.match(interactions, /body \.toast-success\s*\{[^}]*bottom:\s*var\(--mobile-toast-bottom\)/s)
+  assert.match(app, /import\s+\{\s*createPortal\s*\}\s+from\s+'react-dom'/)
+  assert.match(app, /createPortal\([\s\S]*toast-success[\s\S]*document\.body\)/)
+  assert.match(polish, /@media\s*\(max-width:\s*640px\)[\s\S]*\.toast-success\s*\{[^}]*top:\s*70px[^}]*bottom:\s*auto/s)
+  assert.doesNotMatch(foundation, /\.toast-success\s*\{[^}]*bottom:/s)
+  assert.doesNotMatch(interactions, /body\s+\.toast-success\s*\{[^}]*bottom:/s)
+  assert.match(interactions, /body\s*>\s*\.toast-success\s*\{[^}]*z-index:\s*var\(--layer-toast\)/s)
 })
 
 test('reduced motion remains available for mobile transitions', async () => {
