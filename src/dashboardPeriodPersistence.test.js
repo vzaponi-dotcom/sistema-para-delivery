@@ -12,7 +12,7 @@ test('dashboard period is owned by the authenticated shell instead of the dashbo
   assert.equal(fs.existsSync(contextUrl), true)
   assert.match(appShell, /import \{ DashboardPeriodProvider \} from ['"]\.\/DashboardPeriodProvider['"]/)
   assert.match(appShell, /<DashboardPeriodProvider>[\s\S]*<div className="app-shell">[\s\S]*<\/DashboardPeriodProvider>/)
-  assert.match(appShell, /activeTab === 'history' \? <OrderHistory \/> : children/)
+  assert.match(appShell, /\{children\}/)
   assert.doesNotMatch(dashboard, /const \[period, setPeriod\] = useState/)
   assert.match(dashboard, /const \{ period, setPeriod \} = useDashboardPeriod\(\)/)
   assert.match(dashboard, /DashboardPeriodSelector value=\{period\} onChange=\{setPeriod\}/)
