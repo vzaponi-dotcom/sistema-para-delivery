@@ -37,12 +37,16 @@ test('new confirmation and cancellation review dialogs inherit the mobile-safe m
   const confirmation = await read('./components/ConfirmationDialog.jsx')
   const cancellation = await read('./components/CancelOrderDialog.jsx')
   const foundation = await read('./mobile-foundation.css')
+  const appCss = await read('./App.css')
+
   assert.match(confirmation, /<Modal/)
   assert.match(confirmation, /form-actions/)
   assert.match(cancellation, /<Modal/)
   assert.match(cancellation, /form-actions/)
   assert.match(foundation, /@media\s*\(max-width:\s*640px\)/)
-  assert.match(foundation, /\.form-actions\s*\{[^}]*grid-template-columns:\s*1fr/s)
+  assert.match(foundation, /body > \.modal-backdrop > \.modal-card\s*\{[^}]*max-height:\s*var\(--mobile-overlay-max-height\)/s)
+  assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.form-actions\s*\{[^}]*flex-direction:\s*column-reverse/s)
+  assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.form-actions \.button\s*\{[^}]*width:\s*100%/s)
 })
 
 test('shared overlay layers keep sheets above modals without magic z-index drift', async () => {
