@@ -3,6 +3,7 @@ import '../order-operations.css'
 import '../order-operations-compact.css'
 import Button from '../components/Button'
 import CancelOrderDialog from '../components/CancelOrderDialog'
+import ConfirmationDialog from '../components/ConfirmationDialog'
 import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
@@ -30,6 +31,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
+  const [finalizeCandidate, setFinalizeCandidate] = useState(null)
   const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set())
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
@@ -51,6 +53,15 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
     if (actionsDisabled) return
     setPendingAction(key)
     try { await action() } finally { setPendingAction(null) }
+  }
+
+  const confirmFinalize = async () => {
+    if (!finalizeCandidate || actionsDisabled) return
+    const order = finalizeCandidate
+    await runAction(`finish:${order.id}`, async () => {
+      await onFinalizeOrder(order.id)
+      setFinalizeCandidate(null)
+    })
   }
 
   const toggleOrderItems = (orderId) => {
@@ -146,7 +157,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                   </div>
                   <div className="order-queue-actions">
                     <Button type="button" variant="secondary" onClick={() => setDetailOrder(order)} disabled={actionsDisabled}>Ver detalhes</Button>
-                    <Button className="order-final-action" disabled={actionsDisabled} onClick={() => runAction(`finish:${order.id}`, () => onFinalizeOrder(order.id))}>{getFinalActionLabel(order)}</Button>
+                    <Button className="order-final-action" disabled={actionsDisabled} onClick={() => setFinalizeCandidate(order)}>{getFinalActionLabel(order)}</Button>
                     <Button type="button" variant="secondary" className="button-danger-outline order-cancel-action" onClick={() => setCancelOrder(order)} disabled={actionsDisabled}>Cancelar pedido</Button>
                   </div>
                 </div>
@@ -157,6 +168,17 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
         </div>
       </section>
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
+      {finalizeCandidate && (
+        <ConfirmationDialog
+          title="Confirmar finalização"
+          message={`O pedido #${orderNumber(finalizeCandidate.id)} de ${finalizeCandidate.client} sairá da fila de preparo. Confirme antes de continuar.`}
+          confirmLabel="Confirmar finalização"
+          confirmVariant="primary"
+          onClose={() => setFinalizeCandidate(null)}
+          onConfirm={confirmFinalize}
+          disabled={actionsDisabled}
+        />
+      )}
       <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={Boolean(cancelOrder && pendingAction === `cancel:${cancelOrder.id}`)} />
     </>
   )
