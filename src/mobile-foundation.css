@@ -36,12 +36,6 @@
     padding-bottom: var(--mobile-content-bottom-space);
     scroll-padding-bottom: var(--mobile-content-bottom-space);
   }
-
-  .toast-success {
-    --mobile-toast-bottom: calc(var(--mobile-bottom-nav-height) + 12px + var(--mobile-safe-bottom));
-    bottom: var(--mobile-toast-bottom);
-    z-index: var(--layer-toast);
-  }
 }
 
 @media (max-width: 640px) {
