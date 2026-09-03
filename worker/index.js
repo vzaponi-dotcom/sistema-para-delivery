@@ -1,8 +1,9 @@
 import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
+import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { listOrders } from './orderReadRepository.js'
-import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteOrder, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
@@ -74,6 +75,18 @@ const authenticatedApi = async (request, env) => {
   if (statusMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const body = await readJson(request); if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.'); const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1])); if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ order }) }
   const paymentMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment$/)
   if (paymentMatch && request.method === 'POST') { assertSameOriginMutation(request); const { method } = await readJson(request); const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentMethod(method)); return json(result, { status: 201 }) }
+  const cancelMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/)
+  if (cancelMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const order = await cancelOrder(env.DB, session.businessId, decodeURIComponent(cancelMatch[1]), await readJson(request))
+    return json({ order })
+  }
+  const refundMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/refund$/)
+  if (refundMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const result = await registerOrderRefund(env.DB, session.businessId, decodeURIComponent(refundMatch[1]), await readJson(request))
+    return json(result, { status: 201 })
+  }
   const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
   if (tableTabPaymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
@@ -81,8 +94,6 @@ const authenticatedApi = async (request, env) => {
     const result = await registerTableTabPayment(env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method))
     return json(result, { status: 201 })
   }
-  const orderMatch = url.pathname.match(/^\/api\/orders\/([^/]+)$/)
-  if (orderMatch && request.method === 'DELETE') { assertSameOriginMutation(request); const deleted = await deleteOrder(env.DB, session.businessId, decodeURIComponent(orderMatch[1])); if (!deleted) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ deleted: true }) }
   if (url.pathname === '/api/movements' && request.method === 'POST') { assertSameOriginMutation(request); const movement = await createMovement(env.DB, session.businessId, movementInput(await readJson(request))); return json({ movement }, { status: 201 }) }
 
   if (url.pathname === '/api/products' && request.method === 'POST') { assertSameOriginMutation(request); const product = await createProduct(env.DB, session.businessId, productInput(await readJson(request))); return json({ product }, { status: 201 }) }
