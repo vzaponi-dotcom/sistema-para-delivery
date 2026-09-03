@@ -32,13 +32,14 @@ test('finance exposes pending refunds with a register action only when supplied'
   assert.match(finance, /paidAmount/)
 })
 
-test('App derives pending refunds and wires deferred refund without persisting a refund status', async () => {
+test('App derives pending refunds and applies the authoritative deferred refund effects', async () => {
   const app = await read('../App.jsx')
 
   assert.match(app, /getOrderRefundState/)
   assert.match(app, /pendingRefundOrders/)
   assert.match(app, /refundOrderApi/)
-  assert.match(app, /source === 'order-refund'/)
+  assert.match(app, /const \{ order, movement \} = await refundOrderApi/)
+  assert.match(app, /applyOfficialEffects\(\{ order, movement \}\)/)
   assert.doesNotMatch(app, /refundStatus/)
 })
 
