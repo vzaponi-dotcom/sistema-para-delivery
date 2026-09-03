@@ -57,4 +57,15 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
+
+  body > .modal-backdrop .modal-footer {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  body > .modal-backdrop .modal-footer .button {
+    width: 100%;
+    min-height: 48px;
+  }
 }
