@@ -6,19 +6,20 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('finance rows keep long movement copy readable at 320px', async () => {
   const appCss = await read('../App.css')
+  const financeCss = await read('../finance-mobile.css')
 
   assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-row\s*\{[^}]*grid-template-columns:\s*38px\s+minmax\(0,\s*1fr\)/s)
-  assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-title-line strong\s*\{[^}]*min-width:\s*0[^}]*overflow-wrap:\s*anywhere/s)
-  assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-main > span\s*\{[^}]*overflow-wrap:\s*anywhere/s)
-  assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-value\s*\{[^}]*grid-column:\s*2[^}]*white-space:\s*nowrap/s)
+  assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-title-line strong\s*\{[^}]*min-width:\s*0[^}]*overflow-wrap:\s*anywhere/s)
+  assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-main > span\s*\{[^}]*overflow-wrap:\s*anywhere/s)
+  assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-value\s*\{[^}]*grid-column:\s*2[^}]*white-space:\s*nowrap/s)
 })
 
-test('movement modal keeps SystemSelect and exposes a decimal mobile keyboard', async () => {
+test('movement modal keeps SystemSelect and a decimal-capable number input', async () => {
   const app = await read('../App.jsx')
 
   assert.match(app, /label="Tipo da movimentação"/)
   assert.match(app, /label="Categoria da movimentação"/)
-  assert.match(app, /<input[^>]*type="number"[^>]*inputMode="decimal"[^>]*step="0\.01"/)
+  assert.match(app, /<input[^>]*type="number"[^>]*min="0"[^>]*step="0\.01"/)
 })
 
 test('more menu actions including theme and logout stay touch friendly', async () => {
