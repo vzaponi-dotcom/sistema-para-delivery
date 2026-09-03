@@ -22,6 +22,7 @@ import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
+import OrderHistory from './pages/OrderHistory'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
@@ -31,6 +32,7 @@ import { activeOrderIdSet, getNewActiveOrderIds } from './utils/orderRealtime.js
 import { toLocalDateValue } from './utils/orderWorkflow'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
+  cancelOrder as cancelOrderApi,
   createClient as createClientApi,
   createMovement as createMovementApi,
   createOrder as createOrderApi,
@@ -503,6 +505,28 @@ function App() {
     }
   }
 
+  const handleCancelOrder = async (orderId, payload) => {
+    if (writesBlocked) return false
+    setRequestKey(`order:cancel:${orderId}`)
+    try {
+      const { order, movement, tableTab } = await cancelOrderApi(orderId, payload)
+      setOrders((current) => current.map((item) => item.id === order.id ? { ...item, ...order } : item))
+      if (movement) {
+        setMovements((current) => current.some((item) => item.id === movement.id)
+          ? current.map((item) => item.id === movement.id ? movement : item)
+          : [movement, ...current])
+      }
+      if (tableTab) setTableTabs((current) => current.map((tab) => tab.id === tableTab.id ? tableTab : tab))
+      showSuccessMessage(payload.refundNow ? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso')
+      return true
+    } catch (error) {
+      showApiError(error)
+      return false
+    } finally {
+      setRequestKey(null)
+    }
+  }
+
   const openPaymentModal = (orderId) => {
     if (writesBlocked) return
     const order = orders.find((item) => item.id === orderId)
@@ -845,7 +869,8 @@ function App() {
       )}
       <AppShell activeTab={activeTab} onNavigate={setActiveTab} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onNavigateHistory={() => setActiveTab('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => setActiveTab('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} />}
         {activeTab === 'new-order' && (
           <NewOrder
             clients={clients}
