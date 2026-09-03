@@ -5,390 +5,326 @@ Status: aprovado em conversa, aguardando revisão final da especificação
 
 ## 1. Objetivo
 
-Substituir a exclusão física de pedidos por um fluxo auditável de cancelamento, separar o histórico da fila operacional e tratar corretamente o impacto financeiro de pedidos cancelados, inclusive quando já houver pagamento.
+Substituir a exclusão física de pedidos por um fluxo auditável de cancelamento, separar o Histórico da fila operacional e tratar corretamente pedidos cancelados que já tenham pagamento.
 
-O desenho deve preservar a realidade operacional e financeira: pedidos cancelados continuam existindo para auditoria, pagamentos recebidos não são apagados e devoluções ao cliente são registradas como saídas financeiras vinculadas ao pedido e ao pagamento original.
+Princípio central: um cancelamento altera o estado do pedido; ele não apaga o que aconteceu. Pagamentos recebidos permanecem registrados e devoluções ao cliente são novas saídas financeiras vinculadas ao pedido e ao pagamento original.
 
-## 2. Problemas atuais
+## 2. Problema atual
 
-Hoje a interface expõe uma ação de excluir pedido tanto na fila ativa quanto no histórico. No backend, essa ação executa hard delete do pedido. Itens e pagamentos são removidos por cascata, e a movimentação automática de pagamento é apagada antes da exclusão.
+Hoje a interface permite excluir pedidos ativos e finalizados. O backend executa hard delete: o pedido desaparece, itens e pagamento são removidos por cascata e a movimentação automática de pagamento é apagada.
 
-Como consequência, os indicadores financeiros e comerciais recalculam corretamente após a exclusão, mas o sistema passa a representar o pedido como se nunca tivesse existido. Isso impede auditoria de cancelamentos, apaga a trilha do pagamento e não permite distinguir uma venda válida de um pedido que foi cancelado depois.
+Os totais recalculam de forma coerente após a exclusão, mas o sistema perde a trilha de auditoria e passa a representar o pedido como se nunca tivesse existido.
 
-## 3. Decisões de produto aprovadas
+## 3. Decisões aprovadas
 
-1. A ação de lixeira será substituída por uma ação explícita **Cancelar pedido**.
-2. Cancelamento será irreversível.
-3. Pedidos em preparo e finalizados poderão ser cancelados.
-4. Todo cancelamento exigirá um motivo.
-5. Motivos iniciais:
-   - Cliente desistiu
-   - Pedido duplicado
-   - Produto indisponível
-   - Erro no lançamento
-   - Outro
-6. Quando o motivo for **Outro**, uma descrição complementar será obrigatória.
-7. Cancelamento de pedido pago implica estorno integral quando a devolução for registrada. Reembolso parcial não faz parte desta versão.
-8. Para pedido pago, o sistema perguntará se o valor já foi devolvido ao cliente.
-9. Se a devolução já tiver ocorrido, o usuário informará a forma de estorno e o sistema registrará a saída financeira no mesmo fluxo.
-10. Se a devolução ainda não tiver ocorrido, o pedido ficará com estorno pendente e será gerenciado pelo painel Financeiro.
-11. O Financeiro terá uma seção destacada **Estornos pendentes** no topo da tela.
-12. A forma de estorno será registrada explicitamente. A interface sugerirá a mesma forma do pagamento original, mas permitirá alteração.
-13. O Histórico de Pedidos será uma tela própria, separada da fila operacional.
-14. No desktop, Histórico ficará logo após Pedidos na navegação lateral.
-15. No mobile, Histórico ficará dentro de **Mais**. A tela Pedidos terá um atalho discreto **Ver histórico**.
-16. O card **Recebido hoje** passará a representar o valor líquido de pagamentos de pedidos no dia: entradas de pagamentos menos estornos realizados naquele dia.
+- A lixeira será substituída por **Cancelar pedido**.
+- Cancelamento é irreversível.
+- Pedidos **Em preparo** e **Finalizados** podem ser cancelados.
+- Todo cancelamento exige motivo.
+- Motivos iniciais: Cliente desistiu, Pedido duplicado, Produto indisponível, Erro no lançamento e Outro.
+- **Outro** exige uma descrição complementar.
+- Cancelamento de pedido pago trabalha apenas com estorno integral nesta versão.
+- Ao cancelar pedido pago, o sistema pergunta se o valor já foi devolvido.
+- Se já foi devolvido, o usuário informa a forma de estorno e a saída é registrada no mesmo fluxo.
+- Se ainda não foi devolvido, o pedido fica com **Estorno pendente**.
+- Estornos pendentes serão gerenciados no topo do **Financeiro**.
+- A forma de estorno será registrada; a mesma forma do pagamento original será apenas uma sugestão inicial.
+- O **Histórico de Pedidos** será uma tela separada.
+- Desktop: Histórico logo após Pedidos. Mobile: Histórico em Mais, com atalho **Ver histórico** em Pedidos.
+- **Recebido hoje** passa a representar pagamentos de pedidos recebidos no dia menos estornos registrados no dia.
 
-## 4. Abordagem arquitetural escolhida
+## 4. Arquitetura escolhida
 
-A solução adotada será **cancelamento persistido no pedido + estorno como movimentação financeira vinculada**.
+Adotaremos **soft cancel no pedido + estorno como movimentação financeira vinculada**.
 
-Não será criada uma tabela específica de estornos nesta versão. O pedido armazenará os dados do cancelamento, enquanto a devolução será representada por uma movimentação financeira de saída com uma origem própria, por exemplo `order-refund`, vinculada ao pedido e ao pagamento original.
+Não haverá tabela específica de estornos nesta versão. O pedido guarda os dados do cancelamento. A devolução é uma movimentação financeira de saída com origem `order-refund`, vinculada por `order_id` e `payment_id` ao pedido e ao pagamento original.
 
-Essa abordagem foi escolhida por resolver o problema atual com boa auditabilidade, baixo acoplamento e sem antecipar complexidade de reembolsos parciais ou múltiplos estornos.
+Não será criado `refund_status` redundante no pedido. A situação será derivada:
+
+- Cancelado + não pago -> sem estorno necessário.
+- Cancelado + pago + sem `order-refund` -> **Estorno pendente**.
+- Cancelado + pago + com `order-refund` -> **Estornado**.
 
 ## 5. Estados do pedido
 
-Os estados operacionais relevantes passam a ser:
+Estados operacionais relevantes:
 
-- **Em preparo** — pedido ativo na operação.
-- **Finalizado** — pedido concluído operacionalmente.
-- **Cancelado** — estado terminal e irreversível.
+- **Em preparo** — ativo na operação.
+- **Finalizado** — concluído operacionalmente.
+- **Cancelado** — terminal e irreversível.
 
-Regras:
+Transições permitidas:
 
-- Em preparo -> pode finalizar ou cancelar.
-- Finalizado -> pode cancelar.
-- Cancelado -> não pode ser reaberto, finalizado novamente ou cancelado novamente.
-- Um pedido cancelado permanece persistido e disponível no Histórico.
+- Em preparo -> Finalizado.
+- Em preparo -> Cancelado.
+- Finalizado -> Cancelado.
+- Cancelado -> nenhuma transição de retorno.
 
-## 6. Dados do cancelamento
+## 6. Persistência do cancelamento
 
-A tabela de pedidos deverá armazenar, além do `status`, os seguintes dados:
+A tabela `orders` receberá campos aditivos:
 
-- `cancelled_at` — data e hora do cancelamento.
-- `cancel_reason` — código estável do motivo selecionado.
-- `cancel_reason_note` — descrição complementar; obrigatória apenas quando o motivo for `Outro`.
+- `cancelled_at` — data/hora do cancelamento;
+- `cancel_reason` — código estável do motivo;
+- `cancel_reason_note` — descrição complementar, obrigatória quando o motivo for Outro.
 
-Os novos campos serão opcionais para preservar compatibilidade com pedidos existentes. Para pedidos não cancelados, permanecem nulos.
+Pedidos existentes continuam válidos; os novos campos ficam nulos para registros não cancelados.
 
-Não será persistido um campo redundante de `refund_status` no pedido.
+## 7. Estorno financeiro
 
-A situação financeira do cancelamento será derivada dos dados existentes:
+O pagamento original e sua movimentação de entrada nunca são apagados pelo cancelamento.
 
-- Cancelado + não pago -> sem estorno necessário.
-- Cancelado + pago + sem movimentação de estorno -> **Estorno pendente**.
-- Cancelado + pago + com movimentação de estorno -> **Estornado**.
+Quando a devolução ocorrer, será criada uma movimentação de saída com:
 
-A intenção é evitar estados impossíveis, como pedido marcado como estornado sem uma saída financeira correspondente.
-
-## 7. Registro do estorno
-
-O pagamento original nunca será apagado em razão do cancelamento.
-
-Quando houver devolução ao cliente, será criada uma movimentação financeira de saída com:
-
-- valor igual a 100% do valor efetivamente pago do pedido;
-- data e hora do registro do estorno;
+- `source = 'order-refund'`;
+- valor = 100% do valor efetivamente pago;
+- data/hora do registro;
 - forma de devolução;
-- origem específica de estorno de pedido, por exemplo `order-refund`;
-- vínculo com `order_id`;
-- vínculo com o pagamento original, quando a estrutura atual permitir esse relacionamento de forma consistente.
+- `order_id` do pedido cancelado;
+- `payment_id` do pagamento original.
 
-Exemplo de trilha financeira:
+Exemplo:
 
 - `+ R$ 80,00 — Pagamento pedido #1234 — Pix`
 - `- R$ 80,00 — Estorno pedido #1234 — Pix`
 
-O saldo líquido é zero, mas a entrada e a devolução continuam auditáveis.
-
-## 8. Fluxo de cancelamento na interface
+## 8. Fluxos de cancelamento
 
 ### 8.1 Pedido não pago
 
 1. Usuário toca em **Cancelar pedido**.
-2. Sistema abre confirmação de cancelamento.
-3. Usuário seleciona o motivo obrigatório.
-4. Se o motivo for Outro, informa a descrição obrigatória.
-5. Confirma.
-6. Pedido passa para Cancelado.
-7. Pedido sai da fila operacional.
-8. Pedido aparece no Histórico.
-9. Pedido deixa de participar de vendas, recebíveis e demais indicadores de venda válida.
+2. Seleciona motivo obrigatório.
+3. Se escolher Outro, informa a descrição.
+4. Confirma.
+5. Pedido vira Cancelado, sai da operação e permanece no Histórico.
+6. Não há movimentação financeira de estorno.
 
-### 8.2 Pedido pago — valor ainda não devolvido
+### 8.2 Pedido pago, ainda não devolvido
 
-1. Usuário inicia o cancelamento e informa o motivo.
-2. Sistema detecta que existe pagamento.
-3. Sistema pergunta: **O valor já foi devolvido ao cliente?**
-4. Usuário responde **Não**.
-5. Pedido é cancelado.
-6. Pagamento e entrada financeira original permanecem intactos.
-7. Pedido passa a aparecer como **Estorno pendente**.
-8. Pendência é exibida na seção Estornos pendentes do Financeiro.
-
-### 8.3 Pedido pago — valor já devolvido
-
-1. Usuário inicia o cancelamento e informa o motivo.
+1. Usuário informa o motivo.
 2. Sistema pergunta se o valor já foi devolvido.
-3. Usuário responde **Sim**.
-4. Sistema solicita a forma da devolução, pré-selecionando a forma do pagamento original quando possível.
-5. Usuário confirma.
-6. Backend grava o cancelamento e o estorno como uma única operação lógica.
-7. Pedido fica Cancelado e sua situação financeira é derivada como Estornado.
+3. Usuário responde Não.
+4. Pedido vira Cancelado.
+5. Pagamento e entrada financeira permanecem.
+6. O pedido passa a ser derivado como **Estorno pendente**.
+7. A pendência aparece no Financeiro.
+
+### 8.3 Pedido pago, já devolvido
+
+1. Usuário informa o motivo.
+2. Responde Sim à pergunta sobre devolução.
+3. Informa a forma de estorno.
+4. Backend grava cancelamento e saída `order-refund` como uma única operação consistente.
+5. O pedido passa a ser derivado como **Estornado**.
 
 ## 9. Tela Pedidos
 
-A tela Pedidos passa a representar somente a operação atual.
+A tela Pedidos fica dedicada à operação atual.
 
 Ela deve:
 
-- listar pedidos ainda ativos;
-- manter ações operacionais existentes, como finalizar;
+- listar apenas pedidos ativos;
+- manter ações operacionais como finalizar;
 - substituir a lixeira por **Cancelar pedido**;
-- remover pedidos Finalizados e Cancelados da fila operacional;
-- expor um atalho **Ver histórico**;
-- não usar exclusão física como ação operacional de usuário.
+- não listar Finalizados ou Cancelados na fila operacional;
+- oferecer **Ver histórico**;
+- não expor exclusão física de pedido.
 
-## 10. Nova tela Histórico de Pedidos
+## 10. Histórico de Pedidos
 
-O Histórico será separado da tela Pedidos.
-
-Conteúdo:
-
-- pedidos Finalizados;
-- pedidos Cancelados.
+Nova tela própria contendo Finalizados e Cancelados.
 
 Filtros mínimos:
 
-- Todos
-- Finalizados
-- Cancelados
+- Todos;
+- Finalizados;
+- Cancelados.
 
-Busca deve seguir o padrão atual do sistema e permitir localizar pedidos por identificadores e dados úteis ao operador, de acordo com os campos já disponíveis na listagem.
+A busca seguirá o padrão já existente e deverá localizar pedidos pelos dados relevantes disponíveis na listagem.
 
-Para pedidos cancelados, exibir:
+Pedido cancelado deve mostrar:
 
-- badge **Cancelado**;
-- motivo do cancelamento;
-- descrição do motivo quando houver;
+- badge Cancelado;
+- motivo;
+- descrição, quando houver;
 - data/hora do cancelamento;
-- situação financeira:
-  - sem estorno necessário;
-  - Estorno pendente;
-  - Estornado.
+- situação financeira: sem estorno necessário, Estorno pendente ou Estornado.
 
-Pedidos Finalizados ainda poderão ser cancelados a partir desta tela.
-
-Pedidos Cancelados não terão ação de reativação.
+Pedidos Finalizados ainda podem ser cancelados no Histórico. Pedidos Cancelados não podem ser reativados.
 
 ## 11. Navegação
 
-### Desktop
+Desktop:
 
-Ordem relevante no menu lateral:
+1. Dashboard
+2. Pedidos
+3. Histórico
+4. Clientes
+5. Produtos
+6. A Receber
+7. Financeiro
 
-- Dashboard
-- Pedidos
-- Histórico
-- Clientes
-- Produtos
-- A Receber
-- Financeiro
+Mobile:
 
-### Mobile
-
-A barra inferior não ganhará um novo item direto.
-
-Histórico será acessível por:
-
-- menu **Mais**;
-- atalho **Ver histórico** na tela Pedidos.
-
-A navegação deve continuar respeitando os contratos mobile já existentes no projeto.
+- Histórico fica em **Mais**;
+- Pedidos expõe o atalho **Ver histórico**;
+- a barra inferior não recebe um novo item.
 
 ## 12. Financeiro — Estornos pendentes
 
-No topo do Financeiro haverá uma seção **Estornos pendentes**.
+No topo do Financeiro haverá uma seção **Estornos pendentes**, destacada apenas quando houver itens.
 
-A seção só precisa ocupar destaque quando existirem pendências. Deve mostrar, no mínimo:
+Cada item deve mostrar pelo menos:
 
-- identificação do pedido;
-- cliente ou identificação de atendimento local;
+- pedido;
+- cliente ou identificação do atendimento local;
 - valor integral a devolver;
 - data do cancelamento;
-- botão **Registrar estorno**.
+- ação **Registrar estorno**.
 
-Ao registrar estorno:
+Ao registrar:
 
-1. sistema abre o fluxo de registro;
-2. forma de devolução é obrigatória;
-3. forma do pagamento original é sugerida quando disponível;
-4. valor é fixo e integral;
-5. backend valida que o pedido está cancelado, está pago e ainda não foi estornado;
-6. saída financeira é criada;
-7. item deixa a lista de pendências;
-8. movimentação permanece no histórico financeiro.
+1. forma de devolução é obrigatória;
+2. forma do pagamento original é sugerida;
+3. valor é calculado e fixado pelo backend;
+4. backend valida elegibilidade;
+5. cria a saída `order-refund`;
+6. a pendência desaparece da seção;
+7. a movimentação permanece no histórico financeiro.
 
-## 13. Regras financeiras e indicadores
+## 13. Regras de indicadores
 
-### 13.1 Indicadores comerciais
+Pedidos Cancelados ficam fora de:
 
-Pedidos Cancelados serão excluídos de:
-
-- vendas do dia;
-- vendas por período;
+- vendas do dia e por período;
 - quantidade de pedidos válidos;
 - ticket médio;
 - produtos mais vendidos;
 - composição por forma de pagamento das vendas;
-- demais métricas comerciais baseadas em pedidos válidos.
+- A Receber;
+- pedidos ativos;
+- demais métricas comerciais que representam venda válida.
 
-### 13.2 A Receber
+### Recebido hoje
 
-Pedidos Cancelados não participarão de A Receber, mesmo que nunca tenham sido pagos.
-
-### 13.3 Pedidos ativos
-
-Cancelados não contarão como pedidos ativos.
-
-### 13.4 Recebido hoje
-
-**Recebido hoje** será calculado a partir da realidade financeira do dia:
+Passa a ser:
 
 `pagamentos de pedidos recebidos no dia - estornos de pedidos registrados no dia`
 
-Consequências:
+Assim:
 
-- pagamento e estorno no mesmo dia -> impacto líquido zero;
-- pagamento hoje e estorno amanhã -> hoje registra a entrada, amanhã registra a saída;
-- nenhum histórico financeiro anterior é reescrito retroativamente.
+- pagamento e estorno no mesmo dia -> líquido zero;
+- pagamento hoje e estorno amanhã -> entrada hoje e saída amanhã;
+- nenhum dia anterior é reescrito retroativamente.
 
-### 13.5 Fluxo de caixa
-
-Entradas e saídas continuam sendo calculadas a partir das movimentações financeiras. Estorno é uma saída real e afeta o saldo a partir da data em que foi registrado.
+O Fluxo de Caixa continua baseado nas movimentações financeiras reais.
 
 ## 14. Comandas e atendimento local
 
-A lógica que determina se uma comanda/mesa ainda possui pedidos pendentes deverá ignorar pedidos Cancelados.
+Consultas que identificam pedidos pendentes de uma comanda devem ignorar status Cancelado.
 
-Se um pedido cancelado era o último pedido pendente da comanda, a comanda poderá ser encerrada pela mesma regra de liquidação usada pelo sistema, desde que não exista outro pedido válido pendente.
+Se o pedido cancelado era o último pedido pendente, a comanda poderá ser encerrada pela regra normal de liquidação, desde que não exista outro pedido válido pendente.
 
-Cancelamento não deve deixar comandas artificialmente abertas.
+## 15. API
 
-## 15. API e responsabilidades do backend
-
-O backend será a fonte de verdade das regras de cancelamento e estorno.
-
-A interface esconderá ações inválidas para boa UX, mas o backend deverá rejeitar explicitamente qualquer operação inconsistente.
+O backend será a fonte de verdade das regras.
 
 ### 15.1 Cancelar pedido
 
-Deverá existir uma operação semântica de cancelamento em vez de usar o endpoint de hard delete como ação operacional.
+Será criada uma operação semântica de cancelamento.
 
-Validações mínimas:
+Validações:
 
 - pedido existe e pertence ao negócio autenticado;
-- pedido ainda não está Cancelado;
 - estado atual permite cancelamento;
-- motivo pertence ao conjunto aceito;
-- motivo Outro exige descrição não vazia;
-- pedido não pode ser reaberto após cancelamento.
+- pedido ainda não está Cancelado;
+- motivo é válido;
+- Outro exige descrição;
+- em estorno imediato, forma de devolução é válida.
 
-O endpoint deve suportar dois resultados para pedido pago:
+O backend deverá suportar:
 
 - cancelamento sem estorno imediato;
 - cancelamento com estorno integral imediato.
 
-Quando houver estorno imediato, cancelamento e criação da saída devem ser atomicamente consistentes. O sistema não deve retornar sucesso parcial.
+Cancelamento + estorno imediato devem ter consistência atômica: não pode existir sucesso parcial.
 
-### 15.2 Registrar estorno
+### 15.2 Registrar estorno posterior
 
-Deverá existir uma operação própria para registrar posteriormente a devolução de um pedido cancelado.
+Operação própria para pedido cancelado com devolução pendente.
 
-Validações mínimas:
+Validações:
 
 - pedido existe e pertence ao negócio autenticado;
 - pedido está Cancelado;
-- pedido possui pagamento válido;
-- não existe estorno integral anterior para o mesmo pedido;
-- forma de devolução é válida e obrigatória;
-- valor do estorno é calculado pelo backend e não aceito livremente do cliente.
+- existe pagamento válido;
+- ainda não existe `order-refund` para o pedido;
+- forma de devolução é válida;
+- valor é calculado pelo backend e não aceito livremente do cliente.
 
-### 15.3 Idempotência prática
+Uma segunda tentativa de estorno integral será rejeitada com erro de domínio.
 
-Repetição acidental de clique ou requisição não pode criar dois estornos integrais para o mesmo pedido.
+## 16. Fim do hard delete operacional
 
-O backend deve verificar a existência de estorno antes da criação e rejeitar uma segunda tentativa com erro de domínio apropriado.
+O endpoint público atual de `DELETE /api/orders/:id` será removido como parte desta mudança, juntamente com o cliente de API e as ações de interface que o utilizam.
 
-## 16. Hard delete
+Não haverá capacidade administrativa de hard delete de pedidos nesta entrega. Caso isso seja necessário futuramente, será uma funcionalidade separada e deliberadamente restrita.
 
-A exclusão física deixa de fazer parte do fluxo operacional normal do sistema.
-
-O endpoint atual de DELETE não deverá permanecer acessível pela interface para cancelamento.
-
-Durante a implementação, será decidido se o endpoint será removido completamente ou mantido apenas como capacidade interna/administrativa não exposta, desde que isso não crie ambiguidade com o novo fluxo. A opção preferida é remover o uso operacional e os testes que tratam hard delete como comportamento normal de pedido.
-
-Nenhuma rotina de cancelamento poderá apagar automaticamente:
+Cancelamento nunca apaga:
 
 - pedido;
-- itens do pedido;
+- itens;
 - pagamento original;
 - movimentação de entrada do pagamento.
 
 ## 17. Compatibilidade e migração
 
-A migração de banco deve ser aditiva.
+A migração será aditiva.
 
-Pedidos existentes continuam válidos sem transformação de status.
+Pedidos existentes não terão status alterado. Os novos campos começam nulos.
 
-Os novos campos de cancelamento começam nulos para registros antigos.
+Como `status` já é textual, Cancelado será introduzido sem reescrever os pedidos antigos.
 
-A introdução de `Cancelado` deve ser compatível com a coluna textual de status já existente.
-
-Qualquer consulta que hoje trate “não finalizado” como sinônimo de “ativo” deverá ser revisada para não incluir Cancelado por acidente.
-
-Também deverão ser revisadas consultas que inferem pendência somente pela ausência de pagamento, especialmente em comandas e A Receber.
+Toda consulta que hoje use “não finalizado” como sinônimo de ativo deverá ser revisada para não incluir Cancelado. O mesmo vale para consultas que inferem pendência apenas pela ausência de pagamento, especialmente em A Receber e comandas.
 
 ## 18. Erros e consistência
 
-Casos que devem gerar erro de domínio, sem alteração parcial:
+Devem falhar sem alteração parcial:
 
 - cancelar pedido já cancelado;
 - cancelar sem motivo;
-- motivo Outro sem descrição;
-- registrar estorno para pedido não cancelado;
-- registrar estorno para pedido não pago;
+- Outro sem descrição;
+- estornar pedido não cancelado;
+- estornar pedido não pago;
 - registrar segundo estorno integral;
-- forma de devolução inválida ou ausente;
-- tentativa de alterar valor do estorno no cliente.
+- forma de devolução ausente ou inválida;
+- tentativa do cliente de definir valor diferente do estorno integral.
 
-Se o cancelamento com estorno imediato falhar na etapa financeira, a operação completa deve ser considerada falha. O usuário poderá tentar novamente sem encontrar o pedido em um estado falso de estorno concluído.
+Falha durante cancelamento com estorno imediato não pode deixar o sistema marcando estorno concluído sem a correspondente saída financeira.
 
-## 19. Componentes e áreas impactadas
+## 19. Áreas impactadas
 
-A implementação deverá revisar, no mínimo:
+O plano de implementação deverá mapear os arquivos concretos no estado atual do repositório para, no mínimo:
 
-- tela Pedidos;
-- nova tela Histórico de Pedidos;
-- navegação desktop;
-- navegação mobile / Mais;
-- modais ou bottom sheets de cancelamento e estorno;
-- StatusBadge e estilos associados;
-- App e estado central de pedidos/movimentações;
-- cliente de API de pedidos;
+- Pedidos;
+- nova tela Histórico;
+- navegação desktop e mobile;
+- fluxo/modal de cancelamento;
+- fluxo/modal de estorno;
+- StatusBadge;
+- App/estado central;
+- cliente de API;
 - Worker/router;
-- repositório de pedidos no Worker;
-- repositório/métodos de movimentações financeiras;
+- repositórios de pedidos, pagamentos e movimentos;
 - migrations D1;
 - A Receber;
 - Financeiro;
-- Dashboard e analytics;
-- utilitários de status de pedido;
-- lógica de fechamento de comandas/mesas;
-- testes de regressão e integração existentes afetados.
+- Dashboard/analytics;
+- utilitários de status;
+- fechamento de comandas;
+- testes afetados.
 
-O plano de implementação deverá mapear os arquivos concretos no estado atual do repositório antes de qualquer edição.
+Não haverá refatoração não relacionada ao objetivo desta feature.
 
 ## 20. Estratégia de testes
 
@@ -396,77 +332,67 @@ A implementação seguirá TDD.
 
 Cobertura obrigatória:
 
-1. pedido não pago cancelado permanece no banco;
-2. pedido não pago cancelado sai das métricas comerciais;
-3. pedido não pago cancelado sai de A Receber;
-4. pedido pago cancelado sem devolução resulta em Estorno pendente;
-5. pagamento original permanece após cancelamento;
-6. entrada financeira original permanece após cancelamento;
-7. pedido pago cancelado com devolução cria uma única saída integral;
-8. segundo estorno é rejeitado;
-9. motivo de cancelamento é obrigatório;
-10. Outro exige descrição;
-11. Finalizado pode ser cancelado;
-12. Cancelado não pode ser reaberto;
-13. Cancelado não aparece na fila operacional;
-14. Cancelado aparece no Histórico;
-15. Histórico filtra Todos, Finalizados e Cancelados;
-16. comandas ignoram pedidos Cancelados ao avaliar pendências;
-17. Dashboard exclui Cancelados de vendas, ticket, contagem e produtos mais vendidos;
-18. A Receber exclui Cancelados;
-19. Recebido hoje usa pagamentos menos estornos do dia;
-20. Financeiro lista estornos pendentes corretamente;
-21. Registrar estorno remove a pendência sem apagar o histórico;
-22. forma de estorno é persistida;
-23. navegação desktop expõe Histórico após Pedidos;
-24. navegação mobile expõe Histórico dentro de Mais;
-25. atalho Ver histórico funciona a partir de Pedidos;
-26. regressões existentes de criação, finalização, pagamento e comandas continuam passando.
+1. cancelado não pago permanece no banco;
+2. cancelado não pago sai das métricas e de A Receber;
+3. cancelado pago sem devolução gera Estorno pendente;
+4. pagamento e entrada originais permanecem;
+5. cancelado pago com devolução cria uma única saída integral;
+6. segundo estorno é rejeitado;
+7. motivo é obrigatório;
+8. Outro exige descrição;
+9. Finalizado pode ser cancelado;
+10. Cancelado não pode ser reaberto;
+11. Cancelado não aparece em Pedidos ativos;
+12. Cancelado aparece no Histórico;
+13. filtros do Histórico funcionam;
+14. comandas ignoram Cancelados ao avaliar pendências;
+15. Dashboard exclui Cancelados de métricas comerciais;
+16. Recebido hoje desconta estornos registrados no dia;
+17. Financeiro lista e resolve estornos pendentes;
+18. forma de estorno é persistida;
+19. navegação desktop e mobile para Histórico funciona;
+20. regressões existentes de criação, finalização, pagamento e comandas continuam passando.
 
-## 21. Validação antes de considerar concluído
+## 21. Validação técnica
 
-A feature só será considerada tecnicamente concluída após validação fresca de:
+Antes de considerar a implementação concluída, será exigida validação fresca de:
 
 - suíte completa de testes;
 - lint;
 - build de produção;
 - Worker dry-run;
-- migrations validadas;
+- migrations;
 - regressões de pedidos, pagamentos, Financeiro, Dashboard, A Receber e comandas.
 
-Nenhum deploy é implícito nesta especificação. Deploy de produção permanece uma etapa separada, executada somente após implementação validada e autorização explícita.
+Deploy não faz parte implicitamente desta especificação. Produção só será alterada após implementação validada e autorização explícita.
 
-## 22. Fora de escopo desta versão
-
-Não fazem parte desta entrega:
+## 22. Fora de escopo
 
 - estorno parcial;
 - múltiplos estornos para o mesmo pedido;
-- reabertura de pedido cancelado;
-- aprovação de cancelamento por permissões diferentes;
-- auditoria completa por usuário/funcionário;
-- entidade genérica de eventos de pedido;
-- tabela própria de refunds/reembolsos;
-- integração de cancelamento com o futuro cardápio digital;
-- automações externas de devolução via Pix, adquirente ou gateway.
-
-Esses itens podem ser evoluídos posteriormente sem invalidar a arquitetura desta versão.
+- reabertura de cancelado;
+- permissões diferenciadas para aprovação de cancelamento;
+- auditoria por funcionário/usuário;
+- tabela própria de refunds;
+- sistema genérico de eventos de pedido;
+- integração do cancelamento com o futuro cardápio digital;
+- devolução automática via Pix, adquirente ou gateway.
 
 ## 23. Critérios de aceite
 
-A mudança estará funcionalmente correta quando:
+A feature estará correta quando:
 
-- nenhum operador precisar excluir um pedido para desfazer uma venda;
-- todo cancelamento permanecer visível no histórico;
-- motivo de cancelamento for sempre conhecido;
-- pagamento original nunca desaparecer por causa de cancelamento;
-- estorno pendente for claramente gerenciável no Financeiro;
-- devolução registrada gerar saída financeira integral e auditável;
-- vendas e métricas comerciais ignorarem cancelados;
-- A Receber ignorar cancelados;
-- Recebido hoje refletir pagamentos menos estornos do próprio dia;
-- comandas não permanecerem abertas por causa de pedidos cancelados;
-- fila Pedidos representar apenas a operação ativa;
+- cancelar não apagar nenhum pedido;
+- todo cancelamento permanecer no Histórico;
+- todo cancelamento possuir motivo válido;
+- Outro exigir descrição;
+- pagamentos originais permanecerem auditáveis;
+- estornos pendentes forem gerenciáveis no Financeiro;
+- devolução registrada gerar uma saída integral vinculada ao pedido e pagamento;
+- cancelados não entrarem em vendas, ticket, produtos mais vendidos, A Receber ou pedidos ativos;
+- Recebido hoje representar o líquido diário de pagamentos menos estornos;
+- comandas não ficarem abertas por causa de pedidos cancelados;
+- Pedidos representar apenas operação ativa;
 - Histórico concentrar Finalizados e Cancelados;
-- não houver possibilidade de estorno integral duplicado;
-- dados antigos permanecerem compatíveis após a migração.
+- estorno integral duplicado ser impossível;
+- dados existentes continuarem compatíveis após a migração.
