@@ -27,6 +27,15 @@ const PERIOD_HELPERS = {
   '30d': 'Hoje + 29 dias anteriores',
 }
 
+const compactMoneyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
+const formatCompactAxisValue = (value) => compactMoneyFormatter.format(Number(value) || 0)
+
 function Dashboard({ totals, orders, currency, onNewOrder }) {
   const { period, setPeriod } = useDashboardPeriod()
   const [valuesVisible, setValuesVisible] = useState(true)
@@ -108,7 +117,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
             <div><span className="section-kicker">Tendência</span><h2>Vendas por dia</h2></div>
             <div className="section-meta">{PERIOD_HELPERS[period]}</div>
           </div>
-          <DashboardLineChart data={daily} valueKey="sales" labelKey="label" formatValue={currency} valuesVisible={valuesVisible} ariaLabel="Vendas por dia no período selecionado" />
+          <DashboardLineChart data={daily} valueKey="sales" labelKey="label" formatValue={currency} formatAxisValue={formatCompactAxisValue} valuesVisible={valuesVisible} ariaLabel="Vendas por dia no período selecionado" />
         </article>
 
         <article className="surface-card dashboard-chart-card">
