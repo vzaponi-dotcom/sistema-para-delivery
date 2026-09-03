@@ -78,8 +78,8 @@ const authenticatedApi = async (request, env) => {
   const cancelMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/)
   if (cancelMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const order = await cancelOrder(env.DB, session.businessId, decodeURIComponent(cancelMatch[1]), await readJson(request))
-    return json({ order })
+    const result = await cancelOrder(env.DB, session.businessId, decodeURIComponent(cancelMatch[1]), await readJson(request))
+    return json(result)
   }
   const refundMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/refund$/)
   if (refundMatch && request.method === 'POST') {
