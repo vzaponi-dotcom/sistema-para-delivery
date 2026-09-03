@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import Button from './Button'
 import Icon from './Icon'
 import {
@@ -8,7 +9,7 @@ import {
   suggestPresentationType,
   validateProductPresentation,
 } from '../../shared/productCatalog.js'
-import { formatBRLCurrencyInput } from '../utils/formFormatting.js'
+import { formatBRLCurrencyInput, formatBRLCurrencyValue } from '../utils/formFormatting.js'
 
 const PRESENTATION_OPTIONS = [
   { value: 'unit', label: 'Unidade' },
@@ -19,6 +20,15 @@ const PRESENTATION_OPTIONS = [
 const SIZE_PRESETS = ['P', 'M', 'G']
 
 function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, editing = false }) {
+  const initializedNewPriceRef = useRef(false)
+
+  useEffect(() => {
+    if (editing || initializedNewPriceRef.current) return
+    initializedNewPriceRef.current = true
+    const zeroPrice = formatBRLCurrencyValue(0)
+    if (value.price !== zeroPrice) onChange({ ...value, price: zeroPrice })
+  }, [editing, onChange, value])
+
   const validation = validateProductPresentation(value)
   const normalizedPresentation = validation.ok ? validation.value : value
   const previewPresentation = validation.ok ? formatProductPresentation(normalizedPresentation) : ''
