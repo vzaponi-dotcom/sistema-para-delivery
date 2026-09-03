@@ -26,10 +26,10 @@ import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
-import { getOrderRefundState } from './utils/orderLifecycle.js'
+import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
 import { activeOrderIdSet, getNewActiveOrderIds } from './utils/orderRealtime.js'
-import { isOrderFinished, toLocalDateValue } from './utils/orderWorkflow'
-import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
+import { toLocalDateValue } from './utils/orderWorkflow'
+import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
   createClient as createClientApi,
   createMovement as createMovementApi,
@@ -359,12 +359,13 @@ function App() {
   }, [successMessage])
 
   const totals = useMemo(() => {
-    const salesToday = orders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0)
-    const receivedToday = orders.filter((order) => isOrderPaid(order) && order.paidAt && toLocalDateValue(order.paidAt) === todayValue).reduce((total, order) => total + Number(order.paidAmount || order.total || 0), 0)
-    const receivables = orders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0)
-    const activeOrders = orders.filter((order) => !isOrderFinished(order)).length
+    const validOrders = orders.filter((order) => !isOrderCancelled(order))
+    const salesToday = validOrders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0)
+    const receivedToday = calculateReceivedToday(movements, todayValue)
+    const receivables = validOrders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0)
+    const activeOrders = orders.filter(isOrderActive).length
     return { salesToday, receivedToday, receivables, activeOrders }
-  }, [orders, todayValue])
+  }, [movements, orders, todayValue])
 
   const financialTotals = useMemo(() => {
     const entries = movements.filter((movement) => movement.type === 'entrada').reduce((total, movement) => total + Number(movement.value), 0)
@@ -505,7 +506,7 @@ function App() {
   const openPaymentModal = (orderId) => {
     if (writesBlocked) return
     const order = orders.find((item) => item.id === orderId)
-    if (!order || isOrderPaid(order)) return
+    if (!order || isOrderPaid(order) || isOrderCancelled(order)) return
     setPaymentOrderId(orderId)
     setPaymentMethod('Pix')
   }
@@ -517,7 +518,7 @@ function App() {
 
   const handleRegisterPayment = async (event) => {
     event.preventDefault()
-    if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder)) return
+    if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return
     setRequestKey(`payment:${paymentOrder.id}`)
     try {
       const { order, movement } = await registerPaymentApi(paymentOrder.id, paymentMethod)
@@ -859,7 +860,7 @@ function App() {
         )}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
-        {activeTab === 'receivables' && <Receivables orders={orders} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
+        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
 
         {paymentOrder && (
