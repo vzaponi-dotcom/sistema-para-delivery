@@ -6,13 +6,14 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 
 test('orders operation renders all items and exposes complete detail', () => {
   const orders = source('./Orders.jsx')
+  const history = source('./OrderHistory.jsx')
   const detail = source('../components/OrderDetail.jsx')
 
   assert.match(orders, /getOrderItems\(order\)/)
   assert.match(orders, /order-items-list/)
   assert.match(orders, /item\.note/)
   assert.match(orders, /Ver detalhes/)
-  assert.match(orders, /getOrderItemsSummary\(order\)/)
+  assert.match(history, /getOrderItemsSummary\(order\)/)
   assert.match(detail, /Taxa de entrega/)
   assert.match(detail, /Forma de pagamento/)
   assert.match(detail, /Subtotal/)
