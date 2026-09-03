@@ -12,6 +12,8 @@ const isTopmostDialog = (element) => {
 function Modal({ title, onClose, children, footer }) {
   const cardRef = useRef(null)
   const previousFocus = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined
@@ -28,7 +30,7 @@ function Modal({ title, onClose, children, footer }) {
 
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (event.key !== 'Tab') return
@@ -52,7 +54,7 @@ function Modal({ title, onClose, children, footer }) {
       document.body.style.overflow = previousOverflow
       previousFocus.current?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   const content = (
     <div className="modal-backdrop" data-navigation-swipe-block="true" onMouseDown={onClose}>
