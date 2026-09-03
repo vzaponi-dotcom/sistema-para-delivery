@@ -68,6 +68,7 @@ export const mapOrderItemRow = (row) => ({
 export const mapOrderRow = (row, items = []) => {
   const firstItem = items[0] ?? null
   const paid = Boolean(row.payment_id)
+  const refundMovementId = row.refund_movement_id ?? null
   const adjustmentMode = row.adjustment_mode || 'fixed'
   const adjustmentValue = adjustmentMode === 'percentage'
     ? Number(row.adjustment_value || 0) / 100
@@ -98,10 +99,17 @@ export const mapOrderRow = (row, items = []) => {
     date: row.order_date,
     createdAt: row.created_at,
     finishedAt: row.finished_at ?? null,
+    cancelledAt: row.cancelled_at ?? null,
+    cancelReason: row.cancel_reason ?? null,
+    cancelReasonNote: row.cancel_reason_note ?? '',
     paymentStatus: paid ? 'Pago' : 'Pendente',
+    paymentId: paid ? row.payment_id : null,
     paymentMethod: paid ? row.payment_method : null,
     paidAt: paid ? row.paid_at : null,
     paidAmount: paid ? centsToMoney(row.paid_amount_cents) : 0,
+    refundMovementId,
+    refundedAt: row.refund_created_at ?? null,
+    refundState: row.status === 'Cancelado' && paid ? (refundMovementId ? 'refunded' : 'pending') : 'none',
     items,
   }
 }
@@ -109,7 +117,7 @@ export const mapOrderRow = (row, items = []) => {
 export const mapMovementRow = (row) => ({ id: row.id, type: row.type, category: row.category, description: row.description, value: centsToMoney(row.value_cents), source: row.source || 'manual', orderId: row.order_id ?? null, paymentId: row.payment_id ?? null, movementDate: row.movement_date, date: row.movement_date, createdAt: row.created_at })
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -396,6 +404,7 @@ export const updateOrderStatus = async (db, businessId, id, now = new Date()) =>
   const order = await loadOrderById(db, businessId, id)
   if (!order) return null
   if (order.status === 'Finalizado') return order
+  if (order.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode ser reaberto ou finalizado novamente.')
   await db.prepare(`UPDATE orders SET status = 'Finalizado', finished_at = COALESCE(finished_at, ?) WHERE id = ? AND business_id = ?`).bind(now.toISOString(), id, businessId).run()
   return loadOrderById(db, businessId, id)
 }
@@ -415,7 +424,7 @@ export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = n
   if (!tableTabId) return null
   const pending = await db.prepare(`SELECT COUNT(*) AS count
     FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
-    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL`).bind(businessId, tableTabId).first()
+    WHERE o.business_id = ? AND o.table_tab_id = ? AND o.status <> 'Cancelado' AND p.id IS NULL`).bind(businessId, tableTabId).first()
   if (Number(pending?.count || 0) > 0) return null
 
   const timestamp = now.toISOString()
@@ -434,7 +443,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
 
   const pendingResult = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents
     FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
-    WHERE o.business_id = ? AND o.table_tab_id = ? AND p.id IS NULL
+    WHERE o.business_id = ? AND o.table_tab_id = ? AND o.status <> 'Cancelado' AND p.id IS NULL
     ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
   const pending = rows(pendingResult)
   const paidAt = now.toISOString()
@@ -478,8 +487,9 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
 }
 
 export const registerOrderPayment = async (db, businessId, orderId, method, now = new Date()) => {
-  const orderRow = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
+  const orderRow = await db.prepare(`SELECT o.id, o.status, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
   if (!orderRow) throw repositoryError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
+  if (orderRow.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode receber pagamento.')
   if (orderRow.payment_id) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
 
   const paymentId = crypto.randomUUID()
