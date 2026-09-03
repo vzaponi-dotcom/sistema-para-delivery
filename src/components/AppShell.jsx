@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import '../order-cancellation.css'
 import OrderHistory from '../pages/OrderHistory.jsx'
 import { DashboardPeriodProvider } from './DashboardPeriodProvider'
 import MobileNavigation from './MobileNavigation'
