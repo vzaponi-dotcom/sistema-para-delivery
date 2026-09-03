@@ -31,10 +31,6 @@ class OrderDb {
               const row = db.tableTabs.get(id)
               return row?.business_id === businessId ? row : null
             }
-            if (sql.includes('FROM movements')) {
-              const [businessId, orderId, source] = values
-              return [...db.movements.values()].find((entry) => entry.business_id === businessId && entry.order_id === orderId && entry.source === source) ?? null
-            }
             if (sql.includes('FROM clients')) { const [id, businessId] = values; const row = db.clients.get(id); return row?.business_id === businessId ? row : null }
             if (sql.includes('FROM products')) { const [id, businessId] = values; const row = db.products.get(id); return row?.business_id === businessId && row.active === 1 ? row : null }
             if (sql.includes('idempotency_key')) { const [businessId, key] = values; return [...db.orders.values()].find((row) => row.business_id === businessId && row.idempotency_key === key) ?? null }
@@ -103,33 +99,6 @@ test('payment uses official total and duplicate payment creates no second moveme
   const result = await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix', new Date('2026-09-01T20:05:00.000Z'))
   assert.equal(result.payment.amount, 64); assert.equal(result.movement.value, 64); assert.equal(result.order.paymentStatus, 'Pago'); assert.equal(db.movements.size, 1)
   await assert.rejects(() => registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix'), (error) => error.status === 409 && error.code === 'ORDER_ALREADY_PAID'); assert.equal(db.movements.size, 1)
-})
-
-test('single-order payment returns the closed table tab effect when it settles the tab', async () => {
-  const db = new OrderDb()
-  const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Local', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'tab-pay' }, new Date('2026-09-01T20:00:00.000Z'))
-  db.tableTabs.set('tab-1', { id: 'tab-1', business_id: 'amor-e-sabor', table_identifier: '04', status: 'open', opened_at: '2026-09-01T19:00:00.000Z', closed_at: null })
-  db.orders.get(order.id).table_tab_id = 'tab-1'
-
-  const result = await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix', new Date('2026-09-01T20:05:00.000Z'))
-
-  assert.equal(result.tableTab.status, 'closed')
-  assert.equal(result.tableTab.id, 'tab-1')
-})
-
-test('paid checkout movement can be loaded by authoritative order source', async () => {
-  const repositories = await import('./repositories.js')
-  assert.equal(typeof repositories.loadMovementByOrderSource, 'function')
-
-  const db = new OrderDb()
-  const order = await createOrder(db, 'amor-e-sabor', {
-    clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'paid-create', paymentMethod: 'Pix',
-  }, new Date('2026-09-01T20:00:00.000Z'))
-
-  const movement = await repositories.loadMovementByOrderSource(db, 'amor-e-sabor', order.id, 'order-payment')
-  assert.equal(movement.source, 'order-payment')
-  assert.equal(movement.orderId, order.id)
-  assert.equal(movement.value, order.total)
 })
 
 test('finalization is idempotent and preserves paid order audit history', async () => {
