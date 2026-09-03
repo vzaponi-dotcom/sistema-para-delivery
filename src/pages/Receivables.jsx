@@ -10,14 +10,14 @@ import StatCard from '../components/StatCard'
 import SystemSelect from '../components/SystemSelect'
 import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate, toLocalDateValue } from '../utils/orderWorkflow'
-import { getPendingAmount, isOrderPaid } from '../utils/paymentWorkflow'
-import { groupPendingOrders } from '../utils/receivables.js'
+import { calculateReceivedToday, getPendingAmount } from '../utils/paymentWorkflow'
+import { getPendingReceivableOrders, groupPendingOrders } from '../utils/receivables.js'
 
 const orderNumber = (id) => String(id).slice(-4)
 const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
   .map((value) => ({ value, label: value }))
 
-function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRegisterTableTabPayment }) {
+function Receivables({ orders, movements = [], tableTabs = [], currency, onRegisterPayment, onRegisterTableTabPayment }) {
   const [search, setSearch] = useState('')
   const [detailOrder, setDetailOrder] = useState(null)
   const [tableTabPaymentGroup, setTableTabPaymentGroup] = useState(null)
@@ -26,19 +26,18 @@ function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRe
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
 
+  const allPendingOrders = useMemo(() => getPendingReceivableOrders(orders), [orders])
   const pendingOrders = useMemo(
-    () =>
-      orders
-        .filter((order) => !isOrderPaid(order))
-        .filter((order) => {
-          if (!normalizedSearch) return true
-          return [order.client, getOrderItemsSearchText(order), order.type, order.orderDate, String(order.id)]
-            .join(' ')
-            .toLowerCase()
-            .includes(normalizedSearch)
-        })
-        .sort((a, b) => String(a.orderDate).localeCompare(String(b.orderDate))),
-    [normalizedSearch, orders],
+    () => allPendingOrders
+      .filter((order) => {
+        if (!normalizedSearch) return true
+        return [order.client, getOrderItemsSearchText(order), order.type, order.orderDate, String(order.id)]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedSearch)
+      })
+      .sort((a, b) => String(a.orderDate).localeCompare(String(b.orderDate))),
+    [allPendingOrders, normalizedSearch],
   )
 
   const groups = useMemo(() => {
@@ -50,13 +49,9 @@ function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRe
     })
   }, [pendingOrders, tableTabs])
 
-  const totalPending = orders
-    .filter((order) => !isOrderPaid(order))
-    .reduce((sum, order) => sum + getPendingAmount(order), 0)
-  const pendingCount = orders.filter((order) => !isOrderPaid(order)).length
-  const receivedToday = orders
-    .filter((order) => isOrderPaid(order) && order.paidAt && toLocalDateValue(order.paidAt) === today)
-    .reduce((sum, order) => sum + Number(order.paidAmount || order.total || 0), 0)
+  const totalPending = allPendingOrders.reduce((sum, order) => sum + getPendingAmount(order), 0)
+  const pendingCount = allPendingOrders.length
+  const receivedToday = calculateReceivedToday(movements, today)
 
   const openTableTabPayment = (group) => {
     setTableTabPaymentMethod('Pix')
@@ -85,7 +80,7 @@ function Receivables({ orders, tableTabs = [], currency, onRegisterPayment, onRe
       <section className="stats-grid receivables-stats" aria-label="Resumo de recebimentos">
         <StatCard label="A receber" value={currency(totalPending)} helper="Saldo pendente" icon="wallet" tone="warning" />
         <StatCard label="Pedidos pendentes" value={pendingCount} helper="Ainda não pagos" icon="receipt" />
-        <StatCard label="Recebido hoje" value={currency(receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
+        <StatCard label="Recebido hoje" value={currency(receivedToday)} helper="Pagamentos menos estornos do dia" icon="arrow-up" tone="success" />
       </section>
 
       <section className="surface-card receivables-surface">
