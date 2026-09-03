@@ -20,6 +20,7 @@ test('new product form normalizes its initial price to zero while editing keeps 
 
   assert.match(form, /const initializedNewPriceRef = useRef\(false\)/)
   assert.match(form, /if \(editing \|\| initializedNewPriceRef\.current\) return/)
-  assert.match(form, /price: formatBRLCurrencyValue\(0\)/)
+  assert.match(form, /const zeroPrice = formatBRLCurrencyValue\(0\)/)
+  assert.match(form, /onChange\(\{ \.\.\.value, price: zeroPrice \}\)/)
   assert.match(app, /price: formatBRLCurrencyValue\(product\.price\)/)
 })
