@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createMovement, createOrder, deleteOrder, registerOrderPayment, updateOrderStatus } from './repositories.js'
+import { createMovement, createOrder, registerOrderPayment, updateOrderStatus } from './repositories.js'
 
 class OrderDb {
   constructor() {
@@ -23,7 +23,7 @@ class OrderDb {
           async first() {
             if (sql.includes('COUNT(*) AS count')) {
               const [businessId, tableTabId] = values
-              const count = [...db.orders.values()].filter((order) => order.business_id === businessId && order.table_tab_id === tableTabId && ![...db.payments.values()].some((payment) => payment.business_id === businessId && payment.order_id === order.id)).length
+              const count = [...db.orders.values()].filter((order) => order.business_id === businessId && order.table_tab_id === tableTabId && order.status !== 'Cancelado' && ![...db.payments.values()].some((payment) => payment.business_id === businessId && payment.order_id === order.id)).length
               return { count }
             }
             if (sql.includes('FROM table_tabs')) {
@@ -69,10 +69,6 @@ class OrderDb {
       this.items.set(id, { id, business_id: businessId, order_id: orderId, product_id: productId, name_snapshot: name, category_snapshot: category, size_snapshot: size, quantity, catalog_price_cents: catalogPrice, unit_price_cents: unitPrice, price_reason: priceReason, note, created_at: createdAt })
     } else if (sql.includes('UPDATE orders SET status')) {
       const [finishedAt, id, businessId] = values; const row = this.orders.get(id); if (row?.business_id === businessId) Object.assign(row, { status: 'Finalizado', finished_at: row.finished_at || finishedAt })
-    } else if (sql.includes('DELETE FROM movements')) {
-      const [businessId, orderId] = values; for (const [id, row] of this.movements) if (row.business_id === businessId && row.order_id === orderId && row.source === 'order-payment') this.movements.delete(id)
-    } else if (sql.includes('DELETE FROM orders')) {
-      const [id, businessId] = values; const row = this.orders.get(id); if (row?.business_id === businessId) { this.orders.delete(id); for (const [itemId, item] of this.items) if (item.order_id === id) this.items.delete(itemId); for (const [paymentId, payment] of this.payments) if (payment.order_id === id) this.payments.delete(paymentId) }
     } else if (sql.includes('INSERT INTO payments')) {
       const [id, businessId, orderId, amount, method, paidAt, createdAt] = values; if ([...this.payments.values()].some((row) => row.order_id === orderId)) throw new Error('UNIQUE constraint failed'); this.payments.set(id, { id, business_id: businessId, order_id: orderId, amount_cents: amount, method, paid_at: paidAt, created_at: createdAt })
     } else if (sql.includes('INSERT INTO movements')) {
@@ -105,29 +101,10 @@ test('payment uses official total and duplicate payment creates no second moveme
   await assert.rejects(() => registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix'), (error) => error.status === 409 && error.code === 'ORDER_ALREADY_PAID'); assert.equal(db.movements.size, 1)
 })
 
-test('deleting the only order closes its open table tab', async () => {
-  const db = new OrderDb()
-  db.tableTabs.set('tab-1', { id: 'tab-1', business_id: 'amor-e-sabor', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null })
-  db.orders.set('o1', { id: 'o1', business_id: 'amor-e-sabor', table_tab_id: 'tab-1' })
-
-  assert.equal(await deleteOrder(db, 'amor-e-sabor', 'o1'), true)
-  assert.equal(db.tableTabs.get('tab-1').status, 'closed')
-})
-
-test('deleting one of two table orders keeps the tab open', async () => {
-  const db = new OrderDb()
-  db.tableTabs.set('tab-1', { id: 'tab-1', business_id: 'amor-e-sabor', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null })
-  db.orders.set('o1', { id: 'o1', business_id: 'amor-e-sabor', table_tab_id: 'tab-1' })
-  db.orders.set('o2', { id: 'o2', business_id: 'amor-e-sabor', table_tab_id: 'tab-1' })
-
-  assert.equal(await deleteOrder(db, 'amor-e-sabor', 'o1'), true)
-  assert.equal(db.tableTabs.get('tab-1').status, 'open')
-})
-
-test('finalization is idempotent and delete removes automatic movement', async () => {
+test('finalization is idempotent and preserves paid order audit history', async () => {
   const db = new OrderDb(); const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'finish' }, new Date('2026-09-01T20:00:00.000Z'))
   const finalized = await updateOrderStatus(db, 'amor-e-sabor', order.id, new Date('2026-09-01T20:10:00.000Z')); const again = await updateOrderStatus(db, 'amor-e-sabor', order.id, new Date('2026-09-01T20:20:00.000Z')); assert.equal(again.finishedAt, finalized.finishedAt)
-  await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Dinheiro', new Date('2026-09-01T20:30:00.000Z')); assert.equal(await deleteOrder(db, 'amor-e-sabor', order.id), true); assert.equal(db.orders.size, 0); assert.equal(db.movements.size, 0)
+  await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Dinheiro', new Date('2026-09-01T20:30:00.000Z')); assert.equal(db.orders.size, 1); assert.equal(db.movements.size, 1); assert.equal([...db.movements.values()][0].source, 'order-payment')
 })
 
 test('manual movement stores integer cents and business scope', async () => {
