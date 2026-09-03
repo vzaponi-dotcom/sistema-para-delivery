@@ -1,0 +1,12 @@
+@media (hover: none) {
+  .button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+@media (max-width: 820px) {
+  body .toast-success {
+    bottom: var(--mobile-toast-bottom);
+    z-index: var(--layer-toast);
+  }
+}
