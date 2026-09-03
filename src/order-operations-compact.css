@@ -11,7 +11,7 @@
 }
 
 .order-items-toggle {
-  min-height: 34px;
+  min-height: var(--mobile-touch-target);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -90,22 +90,50 @@
     gap: 10px;
   }
 
+  .order-queue-title span:not(.status-badge) {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .order-history-main span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .order-queue-actions {
     grid-column: auto;
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 5px;
+    display: grid;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr) var(--mobile-touch-target);
+    gap: 6px;
   }
 
   .order-queue-actions .button {
-    width: auto;
+    width: 100%;
     min-width: 0;
+    min-height: var(--mobile-touch-target);
     padding: 0 8px;
     font-size: 0.72rem;
+    line-height: 1.15;
+    white-space: normal;
   }
 
   .order-queue-actions .order-final-action {
-    flex: 1 1 auto;
-    overflow-wrap: normal;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .order-queue-actions .icon-button {
+    width: var(--mobile-touch-target);
+    height: var(--mobile-touch-target);
+    min-width: var(--mobile-touch-target);
+    min-height: var(--mobile-touch-target);
+    flex: 0 0 var(--mobile-touch-target);
+    justify-self: end;
   }
 }
