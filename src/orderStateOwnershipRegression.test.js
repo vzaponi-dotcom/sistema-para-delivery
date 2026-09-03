@@ -25,8 +25,10 @@ test('central cancellation applies all authoritative effects immediately before 
 
   assert.match(app, /const handleCancelOrder = async \(orderId, payload\)/)
   assert.match(app, /const \{ order, movement, tableTab \} = await cancelOrderApi/)
-  assert.match(app, /setOrders\(\(current\)[\s\S]*order\.id/s)
-  assert.match(app, /movement[\s\S]*setMovements/s)
-  assert.match(app, /tableTab[\s\S]*setTableTabs/s)
+  assert.match(app, /applyOfficialEffects\(\{ order, movement, tableTab \}\)/)
+  assert.match(app, /const applyOfficialEffects = \(\{ order, orders: nextOrders, movement, movements: nextMovements, tableTab/)
+  assert.match(app, /if \(order\) setOrders\(\(current\) => upsertById\(current, order\)\)/)
+  assert.match(app, /if \(movement\) setMovements\(\(current\) => upsertById\(current, movement\)\)/)
+  assert.match(app, /if \(tableTab\) setTableTabs\(\(current\) => upsertById\(current, tableTab\)\)/)
   assert.match(app, /showSuccessMessage\(payload\.refundNow \? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'\)/)
 })
