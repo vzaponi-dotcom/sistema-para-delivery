@@ -1,4 +1,4 @@
-name: TDD finance task 8
+name: Verify finance implementation
 
 on:
   push:
@@ -6,14 +6,29 @@ on:
       - finance-task-6-ui-corrections
 
 jobs:
-  red-green:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run finance final regression tests
-        run: node --test src/pages/FinanceMoreMobile.test.js src/pages/Finance.test.js src/financeRealtimeRegression.test.js
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Worker bundle
+        run: npx --yes wrangler@4.128.0 deploy --dry-run
