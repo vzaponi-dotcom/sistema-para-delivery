@@ -14,6 +14,11 @@ test('dashboard analytics stacks on mobile and keeps tap targets usable', () => 
   assert.match(css, /\.dashboard-privacy-toggle[\s\S]*44px/)
 })
 
+test('operational timing cards reuse responsive analytics grid', () => {
+  const css = source('./dashboard.css')
+  assert.match(css, /dashboard-operational-metrics/)
+})
+
 test('dashboard chart styling uses theme variables instead of hard-coded chart colors', () => {
   const css = source('./dashboard.css')
 
