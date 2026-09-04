@@ -4,7 +4,7 @@
 
 **Goal:** Reorganizar a tela Nova venda em um wizard interno de exatamente três etapas — Cliente, Produtos e Finalizar — preservando integralmente o rascunho, o contrato de checkout e as regras atuais de pedidos.
 
-**Architecture:** `NewOrder` continua dono único do rascunho e passa a controlar `currentStep`, validações de acesso e dirty state. Componentes focados renderizam cada etapa sem duplicar estado; `App` continua dono de `activeTab` e recebe apenas o sinal de rascunho sujo para proteger saídas globais. Nenhuma etapa intermediária persiste dados; `POST /api/orders` continua sendo chamado somente na etapa Finalizar.
+**Architecture:** `NewOrder` continua dono único do rascunho e passa a controlar `currentStep`, `maxReachedStep`, validações de acesso e dirty state. Componentes focados renderizam cada etapa sem duplicar estado; `App` continua dono de `activeTab` e recebe apenas o sinal de rascunho sujo para proteger saídas globais. Nenhuma etapa intermediária persiste dados; `POST /api/orders` continua sendo chamado somente na etapa Finalizar.
 
 **Tech Stack:** React 19.2.8, React DOM 19.2.8, Vite 8.2.2, Node.js 22 `node:test`, CSS existente do projeto, Cloudflare Worker/D1 sem mudança de contrato, Wrangler 4.128.0.
 
@@ -29,9 +29,25 @@
 - Não implementar `beforeunload`, persistência em `localStorage` ou recuperação de rascunho após reload nesta rodada.
 - Nenhuma alteração de produção antes da homologação no ambiente de staging.
 
+## File Map
+
+- `src/utils/newOrderStepFlow.js`: política pura de etapas, ordem de navegação, subtotal/quantidade e dirty state.
+- `src/utils/newOrderStepFlow.test.js`: testes unitários das regras puras.
+- `src/components/NewOrderStepIndicator.jsx`: indicador acessível Cliente → Produtos → Finalizar.
+- `src/components/NewOrderCustomerStep.jsx`: Etapa 1 controlada; cliente, tipo, identidade local, data e cadastro rápido.
+- `src/components/NewOrderCartSummary.jsx`: resumo compacto somente de itens/subtotal, sem fechamento financeiro.
+- `src/components/NewOrderProductsStep.jsx`: Etapa 2; contexto do atendimento, catálogo, resumo desktop e ação fixa mobile.
+- `src/components/NewOrderReviewStep.jsx`: Etapa 3; contexto, `OrderCart` e `OrderCheckoutSummary`.
+- `src/pages/NewOrder.jsx`: dono do rascunho, etapa atual/mais distante alcançada, validações, handlers, dirty state e checkout.
+- `src/pages/NewOrderWizard.test.js`: testes estruturais do wizard e separação de responsabilidades.
+- `src/pages/NewOrderMobile.test.js`: regressões responsivas/mobile.
+- `src/App.jsx`: guarda de saída do rascunho sem mover o carrinho para estado global.
+- `src/AppNewOrderGuard.test.js`: testes estruturais da integração de navegação/descartar.
+- `src/new-order.css`: layout das três etapas, resumo adaptativo, safe area e responsividade.
+
 ---
 
-### Task 1: Criar a política pura do fluxo, acesso às etapas e dirty state
+### Task 1: Criar a política pura do fluxo, acesso, histórico de etapas e dirty state
 
 **Files:**
 - Create: `src/utils/newOrderStepFlow.js`
@@ -39,17 +55,19 @@
 
 **Interfaces:**
 - Produces: `NEW_ORDER_STEPS`
+- Produces: `NEW_ORDER_STEP_ORDER`
 - Produces: `getOrderItemCount(items: Array): number`
 - Produces: `getOrderItemsSubtotal(items: Array): number`
 - Produces: `getNewOrderStepAccess({ identityValid, orderDate, itemCount }): { customer: true, products: boolean, review: boolean }`
-- Produces: `canNavigateToNewOrderStep(step, access): boolean`
+- Produces: `canNavigateToNewOrderStep({ targetStep, currentStep, maxReachedStep, access }): boolean`
+- Produces: `getFurthestReachedStep(currentMaxStep, nextStep): string`
 - Produces: `createNewOrderDirtySnapshot(draft): string`
 - Produces: `isNewOrderDraftDirty(draft, initialSnapshot): boolean`
 - Produces: `shouldConfirmNewOrderExit({ activeTab, targetTab, draftDirty }): boolean`
 
-- [ ] **Step 1: Write the failing unit tests for step access and cart summary values**
+- [ ] **Step 1: Write RED tests for step access, sequential progression and revisiting reached steps**
 
-Create `src/utils/newOrderStepFlow.test.js` with these initial tests:
+Create `src/utils/newOrderStepFlow.test.js`:
 
 ```js
 import test from 'node:test'
@@ -57,22 +75,58 @@ import assert from 'node:assert/strict'
 import {
   NEW_ORDER_STEPS,
   canNavigateToNewOrderStep,
+  createNewOrderDirtySnapshot,
+  getFurthestReachedStep,
   getNewOrderStepAccess,
   getOrderItemCount,
   getOrderItemsSubtotal,
+  isNewOrderDraftDirty,
+  shouldConfirmNewOrderExit,
 } from './newOrderStepFlow.js'
 
 test('step access requires valid customer data before products and at least one item before review', () => {
-  const invalidCustomer = getNewOrderStepAccess({ identityValid: false, orderDate: '2026-09-04', itemCount: 2 })
-  assert.deepEqual(invalidCustomer, { customer: true, products: false, review: false })
+  assert.deepEqual(
+    getNewOrderStepAccess({ identityValid: false, orderDate: '2026-09-04', itemCount: 2 }),
+    { customer: true, products: false, review: false },
+  )
+  assert.deepEqual(
+    getNewOrderStepAccess({ identityValid: true, orderDate: '2026-09-04', itemCount: 0 }),
+    { customer: true, products: true, review: false },
+  )
+  assert.deepEqual(
+    getNewOrderStepAccess({ identityValid: true, orderDate: '2026-09-04', itemCount: 2 }),
+    { customer: true, products: true, review: true },
+  )
+})
 
-  const emptyCart = getNewOrderStepAccess({ identityValid: true, orderDate: '2026-09-04', itemCount: 0 })
-  assert.deepEqual(emptyCart, { customer: true, products: true, review: false })
+test('navigation allows the next step or an already reached step but never skips an unreached step', () => {
+  const access = { customer: true, products: true, review: true }
 
-  const ready = getNewOrderStepAccess({ identityValid: true, orderDate: '2026-09-04', itemCount: 3 })
-  assert.deepEqual(ready, { customer: true, products: true, review: true })
-  assert.equal(canNavigateToNewOrderStep(NEW_ORDER_STEPS.REVIEW, ready), true)
-  assert.equal(canNavigateToNewOrderStep(NEW_ORDER_STEPS.REVIEW, emptyCart), false)
+  assert.equal(canNavigateToNewOrderStep({
+    targetStep: NEW_ORDER_STEPS.PRODUCTS,
+    currentStep: NEW_ORDER_STEPS.CUSTOMER,
+    maxReachedStep: NEW_ORDER_STEPS.CUSTOMER,
+    access,
+  }), true)
+
+  assert.equal(canNavigateToNewOrderStep({
+    targetStep: NEW_ORDER_STEPS.REVIEW,
+    currentStep: NEW_ORDER_STEPS.CUSTOMER,
+    maxReachedStep: NEW_ORDER_STEPS.CUSTOMER,
+    access,
+  }), false)
+
+  assert.equal(canNavigateToNewOrderStep({
+    targetStep: NEW_ORDER_STEPS.REVIEW,
+    currentStep: NEW_ORDER_STEPS.CUSTOMER,
+    maxReachedStep: NEW_ORDER_STEPS.REVIEW,
+    access,
+  }), true)
+})
+
+test('furthest reached step only moves forward', () => {
+  assert.equal(getFurthestReachedStep(NEW_ORDER_STEPS.CUSTOMER, NEW_ORDER_STEPS.PRODUCTS), NEW_ORDER_STEPS.PRODUCTS)
+  assert.equal(getFurthestReachedStep(NEW_ORDER_STEPS.REVIEW, NEW_ORDER_STEPS.CUSTOMER), NEW_ORDER_STEPS.REVIEW)
 })
 
 test('product summary uses quantity and product subtotal only', () => {
@@ -84,11 +138,39 @@ test('product summary uses quantity and product subtotal only', () => {
   assert.equal(getOrderItemCount(items), 3)
   assert.equal(getOrderItemsSubtotal(items), 55.5)
 })
+
+const pristineDraft = () => ({
+  clientId: 'client-1',
+  type: 'Entrega',
+  localIdentityType: 'guest_name',
+  localIdentityValue: '',
+  orderDate: '2026-09-04',
+  items: [],
+  deliveryFee: 'R$ 0,00',
+  adjustment: { type: 'none', mode: 'fixed', value: 'R$ 0,00', reason: '' },
+  quickClient: { open: false, name: '', phone: '' },
+})
+
+test('dirty state ignores opening an empty quick form but detects meaningful draft changes', () => {
+  const initial = pristineDraft()
+  const snapshot = createNewOrderDirtySnapshot(initial)
+
+  assert.equal(isNewOrderDraftDirty(initial, snapshot), false)
+  assert.equal(isNewOrderDraftDirty({ ...initial, quickClient: { open: true, name: '', phone: '' } }, snapshot), false)
+  assert.equal(isNewOrderDraftDirty({ ...initial, clientId: 'client-2' }, snapshot), true)
+  assert.equal(isNewOrderDraftDirty({ ...initial, items: [{ productId: 10, quantity: 1, note: '' }] }, snapshot), true)
+  assert.equal(isNewOrderDraftDirty({ ...initial, deliveryFee: 'R$ 5,00' }, snapshot), true)
+})
+
+test('global exit confirmation only applies when leaving a dirty new order', () => {
+  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'orders', draftDirty: true }), true)
+  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'new-order', draftDirty: true }), false)
+  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'orders', draftDirty: false }), false)
+  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'orders', targetTab: 'clients', draftDirty: true }), false)
+})
 ```
 
 - [ ] **Step 2: Run the focused test and verify RED**
-
-Run:
 
 ```bash
 node --test src/utils/newOrderStepFlow.test.js
@@ -96,9 +178,9 @@ node --test src/utils/newOrderStepFlow.test.js
 
 Expected: FAIL because `src/utils/newOrderStepFlow.js` does not exist.
 
-- [ ] **Step 3: Implement the minimal step/access helpers**
+- [ ] **Step 3: Implement the pure flow helpers**
 
-Create `src/utils/newOrderStepFlow.js` with:
+Create `src/utils/newOrderStepFlow.js`:
 
 ```js
 export const NEW_ORDER_STEPS = Object.freeze({
@@ -106,6 +188,14 @@ export const NEW_ORDER_STEPS = Object.freeze({
   PRODUCTS: 'products',
   REVIEW: 'review',
 })
+
+export const NEW_ORDER_STEP_ORDER = Object.freeze([
+  NEW_ORDER_STEPS.CUSTOMER,
+  NEW_ORDER_STEPS.PRODUCTS,
+  NEW_ORDER_STEPS.REVIEW,
+])
+
+const stepIndex = (step) => NEW_ORDER_STEP_ORDER.indexOf(step)
 
 export const getOrderItemCount = (items = []) => items.reduce(
   (sum, item) => sum + Number(item.quantity || 0),
@@ -126,78 +216,19 @@ export const getNewOrderStepAccess = ({ identityValid, orderDate, itemCount }) =
   }
 }
 
-export const canNavigateToNewOrderStep = (step, access) => Boolean(access?.[step])
-```
+export const canNavigateToNewOrderStep = ({ targetStep, currentStep, maxReachedStep, access }) => {
+  if (!access?.[targetStep]) return false
+  const targetIndex = stepIndex(targetStep)
+  const currentIndex = stepIndex(currentStep)
+  const maxReachedIndex = stepIndex(maxReachedStep)
+  if (targetIndex < 0 || currentIndex < 0 || maxReachedIndex < 0) return false
+  return targetIndex <= maxReachedIndex || targetIndex === currentIndex + 1
+}
 
-- [ ] **Step 4: Run the focused test and verify GREEN**
+export const getFurthestReachedStep = (currentMaxStep, nextStep) => (
+  stepIndex(nextStep) > stepIndex(currentMaxStep) ? nextStep : currentMaxStep
+)
 
-Run:
-
-```bash
-node --test src/utils/newOrderStepFlow.test.js
-```
-
-Expected: PASS for the access and subtotal tests.
-
-- [ ] **Step 5: Add failing dirty-state and global-exit policy tests**
-
-Append to `src/utils/newOrderStepFlow.test.js`:
-
-```js
-import {
-  createNewOrderDirtySnapshot,
-  isNewOrderDraftDirty,
-  shouldConfirmNewOrderExit,
-} from './newOrderStepFlow.js'
-
-const pristineDraft = () => ({
-  clientId: 'client-1',
-  type: 'Entrega',
-  localIdentityType: 'guest_name',
-  localIdentityValue: '',
-  orderDate: '2026-09-04',
-  items: [],
-  deliveryFee: 'R$ 0,00',
-  adjustment: { type: 'none', mode: 'fixed', value: 'R$ 0,00', reason: '' },
-  quickClient: { open: false, name: '', phone: '' },
-})
-
-test('dirty state ignores technical defaults but detects meaningful draft changes', () => {
-  const initial = pristineDraft()
-  const snapshot = createNewOrderDirtySnapshot(initial)
-
-  assert.equal(isNewOrderDraftDirty(initial, snapshot), false)
-  assert.equal(isNewOrderDraftDirty({ ...initial, quickClient: { open: true, name: '', phone: '' } }, snapshot), false)
-  assert.equal(isNewOrderDraftDirty({ ...initial, clientId: 'client-2' }, snapshot), true)
-  assert.equal(isNewOrderDraftDirty({ ...initial, items: [{ productId: 10, quantity: 1, note: '' }] }, snapshot), true)
-  assert.equal(isNewOrderDraftDirty({ ...initial, deliveryFee: 'R$ 5,00' }, snapshot), true)
-})
-
-test('global exit confirmation only applies when leaving a dirty new order', () => {
-  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'orders', draftDirty: true }), true)
-  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'new-order', draftDirty: true }), false)
-  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'orders', draftDirty: false }), false)
-  assert.equal(shouldConfirmNewOrderExit({ activeTab: 'orders', targetTab: 'clients', draftDirty: true }), false)
-})
-```
-
-Keep a single import block in the final test file; do not leave duplicate imports.
-
-- [ ] **Step 6: Run the focused test and verify RED for the new exports**
-
-Run:
-
-```bash
-node --test src/utils/newOrderStepFlow.test.js
-```
-
-Expected: FAIL because the dirty-state and exit-policy exports do not exist yet.
-
-- [ ] **Step 7: Implement normalized dirty-state and exit policy**
-
-Add to `src/utils/newOrderStepFlow.js`:
-
-```js
 const normalizeText = (value) => String(value ?? '').trim()
 
 export const createNewOrderDirtySnapshot = (draft = {}) => JSON.stringify({
@@ -233,20 +264,16 @@ export const shouldConfirmNewOrderExit = ({ activeTab, targetTab, draftDirty }) 
 )
 ```
 
-The `quickClient.open` flag is intentionally excluded: merely opening the quick form without typing does not make the draft dirty.
-
-- [ ] **Step 8: Run focused and full utility tests**
-
-Run:
+- [ ] **Step 4: Run focused and full tests**
 
 ```bash
 node --test src/utils/newOrderStepFlow.test.js
 npm test
 ```
 
-Expected: both PASS.
+Expected: PASS.
 
-- [ ] **Step 9: Commit Task 1**
+- [ ] **Step 5: Commit Task 1**
 
 ```bash
 git add src/utils/newOrderStepFlow.js src/utils/newOrderStepFlow.test.js
@@ -263,11 +290,10 @@ git commit -m "feat: add new order step flow policy"
 - Modify: `src/new-order.css`
 
 **Interfaces:**
-- Consumes: `NEW_ORDER_STEPS` from `src/utils/newOrderStepFlow.js`
-- Produces: `NewOrderStepIndicator({ currentStep, access, onNavigate })`
-- `access` shape is `{ customer: boolean, products: boolean, review: boolean }`
+- Consumes: `NEW_ORDER_STEPS`, `NEW_ORDER_STEP_ORDER`.
+- Produces: `NewOrderStepIndicator({ currentStep, maxReachedStep, access, onNavigate })`.
 
-- [ ] **Step 1: Write the failing structural test for the indicator**
+- [ ] **Step 1: Write RED structural test for the indicator**
 
 Create `src/pages/NewOrderWizard.test.js`:
 
@@ -278,7 +304,7 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('new order exposes an accessible three-step indicator', async () => {
+test('new order exposes an accessible three-step indicator with reached-state awareness', async () => {
   const indicator = await read('../components/NewOrderStepIndicator.jsx')
 
   assert.match(indicator, /Etapas da nova venda/)
@@ -286,12 +312,13 @@ test('new order exposes an accessible three-step indicator', async () => {
   assert.match(indicator, /Produtos/)
   assert.match(indicator, /Finalizar/)
   assert.match(indicator, /aria-current/)
+  assert.match(indicator, /maxReachedStep/)
   assert.match(indicator, /disabled=\{!accessible\}/)
   assert.match(indicator, /onNavigate\(step\.id\)/)
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [ ] **Step 2: Run and verify RED**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js
@@ -304,7 +331,7 @@ Expected: FAIL because `NewOrderStepIndicator.jsx` does not exist.
 Create `src/components/NewOrderStepIndicator.jsx`:
 
 ```jsx
-import { NEW_ORDER_STEPS } from '../utils/newOrderStepFlow.js'
+import { NEW_ORDER_STEPS, NEW_ORDER_STEP_ORDER } from '../utils/newOrderStepFlow.js'
 
 const STEPS = [
   { id: NEW_ORDER_STEPS.CUSTOMER, number: 1, label: 'Cliente' },
@@ -312,13 +339,16 @@ const STEPS = [
   { id: NEW_ORDER_STEPS.REVIEW, number: 3, label: 'Finalizar' },
 ]
 
-function NewOrderStepIndicator({ currentStep, access, onNavigate }) {
+function NewOrderStepIndicator({ currentStep, maxReachedStep, access, onNavigate }) {
+  const maxReachedIndex = NEW_ORDER_STEP_ORDER.indexOf(maxReachedStep)
+
   return (
     <nav className="new-order-step-indicator" aria-label="Etapas da nova venda">
       {STEPS.map((step, index) => {
         const active = currentStep === step.id
         const accessible = Boolean(access?.[step.id])
-        const completed = !active && accessible && STEPS.findIndex((item) => item.id === currentStep) > index
+        const reached = index <= maxReachedIndex
+        const completed = reached && !active
         return (
           <button
             key={step.id}
@@ -339,6 +369,8 @@ function NewOrderStepIndicator({ currentStep, access, onNavigate }) {
 
 export default NewOrderStepIndicator
 ```
+
+Accessibility rule: a previously reached step that becomes invalid is still rendered as reached but `disabled`, so validation state wins over history and the user cannot reopen a dependent invalid destination.
 
 - [ ] **Step 4: Add minimal indicator CSS**
 
@@ -393,18 +425,11 @@ Append to `src/new-order.css`:
 }
 ```
 
-- [ ] **Step 5: Run focused tests and lint**
+- [ ] **Step 5: Verify GREEN and commit**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js
 npm run lint
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit Task 2**
-
-```bash
 git add src/components/NewOrderStepIndicator.jsx src/pages/NewOrderWizard.test.js src/new-order.css
 git commit -m "feat: add new order step indicator"
 ```
@@ -415,50 +440,65 @@ git commit -m "feat: add new order step indicator"
 
 **Files:**
 - Create: `src/components/NewOrderCustomerStep.jsx`
-- Modify: `src/pages/NewOrder.jsx`
+- Modify: `src/pages/NewOrder.jsx:1-340`
 - Modify: `src/pages/NewOrderWizard.test.js`
 - Modify: `src/new-order.css`
 
 **Interfaces:**
-- Consumes: `NEW_ORDER_STEPS`, `getNewOrderStepAccess`, `getOrderItemCount`, `canNavigateToNewOrderStep`
-- Produces: `NewOrderCustomerStep(props)` as a controlled UI component; it does not own cart, checkout, or API state.
-- `NewOrder` remains owner of `clientId`, `clientSearch`, `type`, `localIdentityType`, `localIdentityValue`, `orderDate`, `quickClient`, duplicate handling and async quick-client creation.
+- Consumes: `NEW_ORDER_STEPS`, `getNewOrderStepAccess`, `getOrderItemCount`, `canNavigateToNewOrderStep`, `getFurthestReachedStep`.
+- Produces: controlled `NewOrderCustomerStep` with no API imports and no cart/checkout state.
+- `NewOrder` remains owner of client/identity/date/quick-client state and duplicate resolution.
 
-- [ ] **Step 1: Add failing tests for step-1 composition and validation wiring**
+- [ ] **Step 1: Add RED tests for the first step**
 
 Append to `src/pages/NewOrderWizard.test.js`:
 
 ```js
-test('new order starts on customer step and keeps catalog and checkout out of that step component', async () => {
+test('new order starts on customer step and customer step contains only attendance data', async () => {
   const page = await read('./NewOrder.jsx')
   const customerStep = await read('../components/NewOrderCustomerStep.jsx')
 
   assert.match(page, /useState\(NEW_ORDER_STEPS\.CUSTOMER\)/)
-  assert.match(page, /getNewOrderStepAccess/)
+  assert.match(page, /maxReachedStep/)
   assert.match(page, /NewOrderCustomerStep/)
   assert.match(customerStep, /Tipo do pedido/)
   assert.match(customerStep, /Data do pedido/)
   assert.match(customerStep, /\+ Novo cliente/)
   assert.match(customerStep, /Continuar/)
+  assert.match(customerStep, /aria-pressed/)
   assert.doesNotMatch(customerStep, /OrderProductCatalog/)
   assert.doesNotMatch(customerStep, /OrderCart/)
   assert.doesNotMatch(customerStep, /OrderCheckoutSummary/)
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [ ] **Step 2: Run and verify RED**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js
 ```
 
-Expected: FAIL because `NewOrderCustomerStep.jsx` does not exist and `NewOrder` has no step state.
+Expected: FAIL because `NewOrderCustomerStep.jsx` and wizard state do not exist.
 
-- [ ] **Step 3: Move the existing customer/operation markup into a controlled component**
+- [ ] **Step 3: Create the complete controlled customer-step component**
 
-Create `src/components/NewOrderCustomerStep.jsx` with this public signature:
+Create `src/components/NewOrderCustomerStep.jsx` with these imports/constants and full rendering behavior:
 
 ```jsx
+import Button from './Button'
+
+const ORDER_TYPE_OPTIONS = [
+  { value: 'Entrega', label: 'Entrega' },
+  { value: 'Retirada', label: 'Retirada' },
+  { value: 'Local', label: 'Consumo no local' },
+]
+
+const LOCAL_IDENTITY_OPTIONS = [
+  { value: 'guest_name', label: 'Nome' },
+  { value: 'table', label: 'Mesa' },
+  { value: 'registered_client', label: 'Cliente cadastrado' },
+]
+
 function NewOrderCustomerStep({
   clients,
   filteredClients,
@@ -467,6 +507,7 @@ function NewOrderCustomerStep({
   clientPickerOpen,
   type,
   orderDate,
+  todayValue,
   localIdentityType,
   localIdentityValue,
   openTableTab,
@@ -486,36 +527,199 @@ function NewOrderCustomerStep({
   onQuickClientChange,
   onQuickClientSubmit,
   onQuickClientCancel,
-  onCancel,
   onContinue,
 }) {
-  // Render only the existing customer/type/date/quick-client UI and the Cancelar venda / Continuar actions.
+  const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
+
+  return (
+    <section className="surface-card new-order-customer-card new-order-step-card">
+      <div className="section-heading">
+        <div>
+          <span className="section-kicker">Etapa 1</span>
+          <h2>Cliente e atendimento</h2>
+        </div>
+      </div>
+
+      <div className="form-field">
+        <span>Tipo do pedido</span>
+        <div className="new-order-type-options" role="group" aria-label="Tipo do pedido">
+          {ORDER_TYPE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={type === option.value ? 'new-order-type-option selected' : 'new-order-type-option'}
+              aria-pressed={type === option.value}
+              onClick={() => onTypeChange(option.value)}
+              disabled={disabled}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {type === 'Local' && (
+        <div className="new-order-local-identity">
+          <span className="product-detail-label">Identificar por</span>
+          <div className="new-order-local-identity-options" role="group" aria-label="Identificação do consumo no local">
+            {LOCAL_IDENTITY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={localIdentityType === option.value ? 'new-order-local-identity-option selected' : 'new-order-local-identity-option'}
+                aria-pressed={localIdentityType === option.value}
+                onClick={() => onLocalIdentityTypeChange(option.value)}
+                disabled={disabled}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {localIdentityType === 'guest_name' && (
+            <label className="form-field">
+              <span>Nome</span>
+              <input
+                type="text"
+                maxLength={80}
+                placeholder="Ex: João"
+                value={localIdentityValue}
+                onChange={(event) => onLocalIdentityValueChange(event.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </label>
+          )}
+
+          {localIdentityType === 'table' && (
+            <label className="form-field">
+              <span>Mesa</span>
+              <input
+                type="text"
+                maxLength={12}
+                placeholder="Ex: 04 ou A-2"
+                value={localIdentityValue}
+                onChange={(event) => onLocalIdentityValueChange(event.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+              <small>Use letras, números ou hífen.</small>
+              {openTableTab && (
+                <div className="new-order-table-tab-hint" role="status">
+                  Mesa {openTableTab.tableIdentifier} · comanda aberta. Este pedido será adicionado automaticamente.
+                </div>
+              )}
+            </label>
+          )}
+        </div>
+      )}
+
+      {usesRegisteredClient && (
+        <>
+          <div className="form-field new-order-client-picker" onBlur={onClientBlur}>
+            <span>Cliente</span>
+            <div className="new-order-client-combobox">
+              <input
+                type="search"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={clientPickerOpen}
+                aria-controls="new-order-client-options"
+                placeholder="Digite o nome do cliente"
+                value={clientSearch}
+                onFocus={onClientFocus}
+                onChange={(event) => onClientSearchChange(event.target.value)}
+                disabled={disabled || !clients.length}
+                autoComplete="off"
+              />
+              {clientPickerOpen && !disabled && (
+                <div id="new-order-client-options" className="new-order-client-options" role="listbox">
+                  {filteredClients.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      role="option"
+                      aria-selected={client.id === clientId}
+                      className={client.id === clientId ? 'selected' : ''}
+                      onClick={() => onClientSelect(client)}
+                    >
+                      {client.name}
+                    </button>
+                  ))}
+                  {!filteredClients.length && <span className="new-order-client-empty">Nenhum cliente encontrado</span>}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button type="button" className="new-order-quick-client-toggle" onClick={onQuickClientToggle} disabled={disabled}>
+            + Novo cliente
+          </button>
+
+          {quickClient.open && (
+            <form className="new-order-quick-client" onSubmit={onQuickClientSubmit}>
+              {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
+              <label className="form-field">
+                <span>Nome</span>
+                <input
+                  type="text"
+                  value={quickClient.name}
+                  onChange={(event) => onQuickClientChange({ name: event.target.value })}
+                  placeholder="Nome do cliente"
+                  autoComplete="off"
+                />
+              </label>
+              <label className="form-field">
+                <span>Telefone</span>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  value={quickClient.phone}
+                  onChange={(event) => onQuickClientChange({ phone: event.target.value })}
+                  placeholder="(11) 99999-9999"
+                  autoComplete="off"
+                />
+              </label>
+              <div className="form-actions">
+                <Button type="button" variant="secondary" onClick={onQuickClientCancel} disabled={disabled}>Cancelar</Button>
+                <Button type="submit" disabled={disabled || !quickClient.name.trim()}>Adicionar cliente</Button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
+
+      <label className="form-field new-order-date-field">
+        <span>Data do pedido</span>
+        <input
+          type="date"
+          value={orderDate}
+          max={todayValue}
+          onChange={(event) => onOrderDateChange(event.target.value)}
+          disabled={disabled}
+        />
+      </label>
+
+      <div className="new-order-step-actions">
+        <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Continuar →</Button>
+      </div>
+    </section>
+  )
 }
+
+export default NewOrderCustomerStep
 ```
 
-Move the existing markup without changing these established behaviors:
+`NewOrder` must continue applying the existing `formatPhone` mask before updating `quickClient.phone`; pass `onQuickClientChange={(patch) => updateQuickClient(patch.phone !== undefined ? { ...patch, phone: formatPhone(patch.phone) } : patch)}`.
 
-```text
-Entrega/Retirada -> cliente cadastrado
-Local -> Nome | Mesa | Cliente cadastrado
-Mesa com comanda aberta -> hint existente
-+ Novo cliente -> nome + telefone + duplicidade existente
-Data -> max de hoje, como atualmente
-```
+- [ ] **Step 4: Add wizard state and dynamic navigation to `NewOrder`**
 
-The component must call callbacks only; it must not import `createOrderApi`, `buildOrderPayload`, `OrderCart`, `OrderCheckoutSummary` or `OrderProductCatalog`.
-
-- [ ] **Step 4: Add wizard state and dynamic access to `NewOrder`**
-
-At the top of `NewOrder`, keep every existing draft state and add:
+Import the helpers/components and add:
 
 ```jsx
 const [currentStep, setCurrentStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
-```
+const [maxReachedStep, setMaxReachedStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
 
-After `identityValidation` and `items` are available, compute:
-
-```jsx
 const itemCount = getOrderItemCount(items)
 const stepAccess = getNewOrderStepAccess({
   identityValid: identityValidation.ok,
@@ -524,61 +728,104 @@ const stepAccess = getNewOrderStepAccess({
 })
 
 const navigateStep = (targetStep) => {
-  if (canNavigateToNewOrderStep(targetStep, stepAccess)) setCurrentStep(targetStep)
+  const allowed = canNavigateToNewOrderStep({
+    targetStep,
+    currentStep,
+    maxReachedStep,
+    access: stepAccess,
+  })
+  if (!allowed) return
+  setCurrentStep(targetStep)
+  setMaxReachedStep((current) => getFurthestReachedStep(current, targetStep))
 }
 ```
 
-Render `NewOrderStepIndicator` immediately below `PageHeader` and render `NewOrderCustomerStep` only when:
+Render the indicator directly below `PageHeader`:
 
 ```jsx
-currentStep === NEW_ORDER_STEPS.CUSTOMER
-```
-
-`onContinue` must call:
-
-```jsx
-() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)
-```
-
-and `canContinue` must be:
-
-```jsx
-stepAccess.products
-```
-
-- [ ] **Step 5: Preserve duplicate-client modal ownership in `NewOrder`**
-
-Keep `ClientDuplicateModal` in `NewOrder`, after the conditional step content, with the same callbacks already used today:
-
-```jsx
-<ClientDuplicateModal
-  client={duplicateClient}
-  onCancel={() => setDuplicateClient(null)}
-  onUseExisting={handleUseExistingDuplicate}
-  onConfirm={handleConfirmDuplicate}
-  disabled={disabled}
-  cancelLabel="Cancelar"
-  useExistingLabel="Usar cliente existente"
-  confirmLabel="Cadastrar mesmo assim"
+<NewOrderStepIndicator
+  currentStep={currentStep}
+  maxReachedStep={maxReachedStep}
+  access={stepAccess}
+  onNavigate={navigateStep}
 />
 ```
 
-This avoids moving async duplicate resolution into the visual step component.
+Render `NewOrderCustomerStep` only when `currentStep === NEW_ORDER_STEPS.CUSTOMER`; wire all existing handlers. `onContinue` is `() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)` and `canContinue={stepAccess.products}`.
 
-- [ ] **Step 6: Run focused regression tests**
+Keep the global PageHeader action as `Cancelar venda` throughout all three steps; do not duplicate a second discard button inside the step card.
+
+Update the PageHeader copy to:
+
+```jsx
+<PageHeader
+  eyebrow="Atendimento"
+  title="Nova venda"
+  description="Informe o atendimento, escolha os produtos e revise tudo antes de salvar."
+  actions={<Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Cancelar venda</Button>}
+/>
+```
+
+- [ ] **Step 5: Preserve duplicate-client ownership in `NewOrder`**
+
+Keep the existing `ClientDuplicateModal` in `NewOrder` after the active step content with the same callbacks and labels. Do not move duplicate resolution or `onCreateClient` into `NewOrderCustomerStep`.
+
+- [ ] **Step 6: Add type-option CSS and verify regression**
+
+Add:
+
+```css
+.new-order-step-card {
+  max-width: 760px;
+}
+
+.new-order-type-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.new-order-type-option {
+  min-height: 52px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 750;
+}
+
+.new-order-type-option.selected {
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.new-order-date-field {
+  margin-top: 18px;
+}
+
+.new-order-step-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+```
+
+Run:
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js
 node --test src/pages/NewOrder.test.js
 node --test src/pages/NewOrderMobile.test.js
+npm run lint
 ```
 
-Expected: PASS. Existing searchable-client, phone-mask, local identity and money assertions remain valid.
+Expected: PASS.
 
-- [ ] **Step 7: Run lint and commit Task 3**
+- [ ] **Step 7: Commit Task 3**
 
 ```bash
-npm run lint
 git add src/components/NewOrderCustomerStep.jsx src/pages/NewOrder.jsx src/pages/NewOrderWizard.test.js src/new-order.css
 git commit -m "feat: add customer step to new order flow"
 ```
@@ -596,12 +843,12 @@ git commit -m "feat: add customer step to new order flow"
 - Modify: `src/new-order.css`
 
 **Interfaces:**
-- Consumes: `getOrderItemCount(items)`, `getOrderItemsSubtotal(items)`
-- Produces: `NewOrderCartSummary({ items, itemCount, subtotal, currency, disabled, onReview })`
-- Produces: `NewOrderProductsStep({ products, items, currency, disabled, customerSummary, itemCount, subtotal, onAdd, onBack, onReview })`
+- Consumes: `getOrderItemCount(items)`, `getOrderItemsSubtotal(items)`.
+- Produces: `NewOrderCartSummary({ items, itemCount, subtotal, currency, disabled, onReview })`.
+- Produces: `NewOrderProductsStep({ products, items, currency, disabled, customerSummary, itemCount, subtotal, onAdd, onBack, onReview })`.
 - `OrderProductCatalog` remains unchanged and continues owning only search/category UI state.
 
-- [ ] **Step 1: Add failing tests for product-only step and subtotal-only summary**
+- [ ] **Step 1: Add RED tests for product-only step and subtotal-only summary**
 
 Append to `src/pages/NewOrderWizard.test.js`:
 
@@ -618,6 +865,7 @@ test('products step focuses on catalog and exposes a subtotal-only cart summary'
   assert.doesNotMatch(productsStep, /Taxa de entrega/)
   assert.doesNotMatch(productsStep, /Ajuste do pedido/)
   assert.match(cartSummary, /currency\(subtotal\)/)
+  assert.match(cartSummary, /Subtotal dos produtos/)
   assert.match(cartSummary, /Revisar pedido/)
 })
 ```
@@ -634,15 +882,15 @@ test('products step keeps a mobile cart action above the bottom navigation safe 
 })
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [ ] **Step 2: Run and verify RED**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js src/pages/NewOrderMobile.test.js
 ```
 
-Expected: FAIL because the two new components and their CSS do not exist.
+Expected: FAIL because the two new components do not exist.
 
-- [ ] **Step 3: Create the desktop compact cart summary**
+- [ ] **Step 3: Create the compact desktop summary**
 
 Create `src/components/NewOrderCartSummary.jsx`:
 
@@ -683,7 +931,7 @@ function NewOrderCartSummary({ items, itemCount, subtotal, currency, disabled, o
 export default NewOrderCartSummary
 ```
 
-No summary, do not pass `deliveryFee`, `adjustment` or `preview.total`.
+Do not add `deliveryFee`, `adjustment`, `preview.total`, payment method or checkout actions to this component.
 
 - [ ] **Step 4: Create the products step**
 
@@ -710,13 +958,7 @@ function NewOrderProductsStep({
     <section className="new-order-step new-order-products-step">
       <div className="new-order-step-context" role="status">{customerSummary}</div>
       <div className="new-order-products-layout">
-        <OrderProductCatalog
-          products={products}
-          items={items}
-          currency={currency}
-          disabled={disabled}
-          onAdd={onAdd}
-        />
+        <OrderProductCatalog products={products} items={items} currency={currency} disabled={disabled} onAdd={onAdd} />
         <NewOrderCartSummary
           items={items}
           itemCount={itemCount}
@@ -745,18 +987,13 @@ function NewOrderProductsStep({
 export default NewOrderProductsStep
 ```
 
-- [ ] **Step 5: Wire the product step to the single `items` state in `NewOrder`**
+- [ ] **Step 5: Wire the products step to the single draft in `NewOrder`**
 
-Compute:
+Compute once:
 
 ```jsx
 const itemCount = getOrderItemCount(items)
 const itemsSubtotal = getOrderItemsSubtotal(items)
-```
-
-Derive a context label in `NewOrder` from the currently valid identity:
-
-```jsx
 const selectedClient = clients.find((client) => client.id === clientId) ?? null
 const customerSummary = type === 'Local'
   ? (localIdentityType === 'registered_client'
@@ -767,28 +1004,17 @@ const customerSummary = type === 'Local'
   : `${selectedClient?.name || 'Cliente'} · ${type}`
 ```
 
-Render `NewOrderProductsStep` only when:
-
-```jsx
-currentStep === NEW_ORDER_STEPS.PRODUCTS
-```
-
-Use the existing add rule unchanged:
+Render only for `currentStep === NEW_ORDER_STEPS.PRODUCTS`. Preserve the existing add behavior exactly:
 
 ```jsx
 onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
-```
-
-Use transitions:
-
-```jsx
-onBack={() => setCurrentStep(NEW_ORDER_STEPS.CUSTOMER)}
+onBack={() => navigateStep(NEW_ORDER_STEPS.CUSTOMER)}
 onReview={() => navigateStep(NEW_ORDER_STEPS.REVIEW)}
 ```
 
 - [ ] **Step 6: Add adaptive desktop/mobile CSS**
 
-Add to `src/new-order.css`:
+Add:
 
 ```css
 .new-order-step-context {
@@ -875,20 +1101,11 @@ Add to `src/new-order.css`:
 }
 ```
 
-The `70px` offset is deliberately above the fixed `.mobile-bottom-nav`, whose item height is approximately 52px plus padding/safe-area.
-
-- [ ] **Step 7: Run focused regressions and verify GREEN**
+- [ ] **Step 7: Verify GREEN and commit**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js src/pages/NewOrderMobile.test.js src/pages/NewOrder.test.js
 npm run lint
-```
-
-Expected: PASS.
-
-- [ ] **Step 8: Commit Task 4**
-
-```bash
 git add src/components/NewOrderCartSummary.jsx src/components/NewOrderProductsStep.jsx src/pages/NewOrder.jsx src/pages/NewOrderWizard.test.js src/pages/NewOrderMobile.test.js src/new-order.css
 git commit -m "feat: add products step cart summary"
 ```
@@ -905,11 +1122,11 @@ git commit -m "feat: add products step cart summary"
 - Modify: `src/new-order.css`
 
 **Interfaces:**
-- Produces: `NewOrderReviewStep({ customerSummary, itemCount, cartProps, checkoutProps, disabled, onBack })`
-- Consumes existing `OrderCart` and `OrderCheckoutSummary` without moving checkout/API ownership out of `NewOrder`.
-- Existing `save(paymentMethod)` in `NewOrder` continues calling `buildOrderPayload(numericDraft, paymentMethod)` and `onSubmit`.
+- Produces: `NewOrderReviewStep({ customerSummary, itemCount, cartProps, checkoutProps, disabled, onBack })`.
+- Reuses existing `OrderCart` and `OrderCheckoutSummary`.
+- Existing `save(paymentMethod)` in `NewOrder` remains the only bridge to `onSubmit`.
 
-- [ ] **Step 1: Add failing tests for review-only cart/financial UI**
+- [ ] **Step 1: Add RED tests for review-only cart and financial UI**
 
 Append to `src/pages/NewOrderWizard.test.js`:
 
@@ -928,20 +1145,20 @@ test('review step owns the full cart and financial checkout composition', async 
 })
 ```
 
-Add to `src/pages/NewOrder.test.js`:
+Append to `src/pages/NewOrder.test.js`:
 
 ```js
-test('wizard keeps checkout payload unchanged and does not persist intermediate steps', () => {
+test('wizard keeps checkout payload unchanged and never persists intermediate step metadata', () => {
   const page = source('./NewOrder.jsx')
 
   assert.match(page, /buildOrderPayload\(numericDraft, paymentMethod\)/)
   assert.match(page, /await onSubmit\(buildOrderPayload\(numericDraft, paymentMethod\)\)/)
-  assert.doesNotMatch(page, /onSubmit\([^)]*currentStep/)
   assert.doesNotMatch(page, /step:\s*currentStep/)
+  assert.doesNotMatch(page, /currentStep:\s*currentStep/)
 })
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [ ] **Step 2: Run and verify RED**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js src/pages/NewOrder.test.js
@@ -949,7 +1166,7 @@ node --test src/pages/NewOrderWizard.test.js src/pages/NewOrder.test.js
 
 Expected: FAIL because `NewOrderReviewStep.jsx` does not exist.
 
-- [ ] **Step 3: Create the review composition component**
+- [ ] **Step 3: Create the review composition**
 
 Create `src/components/NewOrderReviewStep.jsx`:
 
@@ -958,14 +1175,7 @@ import Button from './Button'
 import OrderCart from './OrderCart'
 import OrderCheckoutSummary from './OrderCheckoutSummary'
 
-function NewOrderReviewStep({
-  customerSummary,
-  itemCount,
-  cartProps,
-  checkoutProps,
-  disabled,
-  onBack,
-}) {
+function NewOrderReviewStep({ customerSummary, itemCount, cartProps, checkoutProps, disabled, onBack }) {
   return (
     <section className="new-order-step new-order-review-step">
       <div className="new-order-review-context">
@@ -986,55 +1196,44 @@ function NewOrderReviewStep({
 export default NewOrderReviewStep
 ```
 
-- [ ] **Step 4: Wire the existing cart and checkout callbacks from `NewOrder`**
+- [ ] **Step 4: Wire existing cart/checkout callbacks from `NewOrder`**
 
-Render the component only for:
-
-```jsx
-currentStep === NEW_ORDER_STEPS.REVIEW
-```
-
-Pass the existing cart logic unchanged through `cartProps`:
+Render only for `currentStep === NEW_ORDER_STEPS.REVIEW` and pass:
 
 ```jsx
-cartProps={{
-  items,
-  currency,
-  disabled,
-  onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
-  onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
-  onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
-  onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
-}}
+<NewOrderReviewStep
+  customerSummary={customerSummary}
+  itemCount={itemCount}
+  disabled={disabled}
+  onBack={() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)}
+  cartProps={{
+    items,
+    currency,
+    disabled,
+    onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
+    onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
+    onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
+    onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
+  }}
+  checkoutProps={{
+    draft,
+    preview,
+    currency,
+    disabled,
+    canSubmit,
+    onDeliveryFeeChange: setDeliveryFee,
+    onAdjustmentChange: handleAdjustmentChange,
+    onSavePending: () => save(),
+    onSavePaid: (method) => save(method),
+  }}
+/>
 ```
 
-Pass the existing financial logic unchanged through `checkoutProps`:
+Do not reset any draft field on back/forward navigation.
 
-```jsx
-checkoutProps={{
-  draft,
-  preview,
-  currency,
-  disabled,
-  canSubmit,
-  onDeliveryFeeChange: setDeliveryFee,
-  onAdjustmentChange: handleAdjustmentChange,
-  onSavePending: () => save(),
-  onSavePaid: (method) => save(method),
-}}
-```
+- [ ] **Step 5: Preserve failure behavior on Finalizar**
 
-Use:
-
-```jsx
-onBack={() => setCurrentStep(NEW_ORDER_STEPS.PRODUCTS)}
-```
-
-Do not reset `deliveryFee`, `adjustment`, `items`, `clientId` or identity fields on step transitions.
-
-- [ ] **Step 5: Keep failure behavior on review step**
-
-Retain `save` with no step change on error:
+Keep:
 
 ```jsx
 const save = async (paymentMethod) => {
@@ -1045,11 +1244,9 @@ const save = async (paymentMethod) => {
 }
 ```
 
-Render `checkoutError` above the active step so a failed checkout remains visible while `currentStep` stays `review`.
+`checkoutError` remains above the active step; no `setCurrentStep` occurs on failure.
 
-- [ ] **Step 6: Add review layout CSS**
-
-Append:
+- [ ] **Step 6: Add review CSS**
 
 ```css
 .new-order-review-context {
@@ -1087,19 +1284,12 @@ Append:
 }
 ```
 
-- [ ] **Step 7: Run focused and checkout regression tests**
+- [ ] **Step 7: Verify GREEN and commit**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js src/pages/NewOrder.test.js
 npm test
 npm run lint
-```
-
-Expected: PASS. Existing checkout, BRL formatting, cart observation and catalog behavior remain green.
-
-- [ ] **Step 8: Commit Task 5**
-
-```bash
 git add src/components/NewOrderReviewStep.jsx src/pages/NewOrder.jsx src/pages/NewOrderWizard.test.js src/pages/NewOrder.test.js src/new-order.css
 git commit -m "feat: add new order review step"
 ```
@@ -1110,17 +1300,15 @@ git commit -m "feat: add new order review step"
 
 **Files:**
 - Modify: `src/pages/NewOrder.jsx`
-- Modify: `src/App.jsx`
+- Modify: `src/App.jsx:38-80, 300-430`
 - Create: `src/AppNewOrderGuard.test.js`
-- Modify: `src/utils/newOrderStepFlow.test.js`
 
 **Interfaces:**
-- `NewOrder` gains optional prop: `onDraftDirtyChange(dirty: boolean)`
-- `App` gains local state: `newOrderDirty: boolean`, `pendingNavigationTab: string | null`
-- `AppShell` still receives `onNavigate(targetTab)`; `App` passes a guarded callback instead of raw `setActiveTab`.
-- Consumes `createNewOrderDirtySnapshot`, `isNewOrderDraftDirty`, `shouldConfirmNewOrderExit`.
+- `NewOrder` gains `onDraftDirtyChange(dirty: boolean)`.
+- `App` gains `newOrderDirty: boolean` and `pendingNavigationTab: string | null`.
+- `AppShell` still receives a single `onNavigate(targetTab)` callback, now guarded by `App`.
 
-- [ ] **Step 1: Write failing integration/source tests for the guard**
+- [ ] **Step 1: Write RED guard integration tests**
 
 Create `src/AppNewOrderGuard.test.js`:
 
@@ -1144,7 +1332,7 @@ test('app guards global navigation away from a dirty new order', () => {
   assert.match(app, /Descartar venda/)
 })
 
-test('new order reports dirty state without moving the cart to App', () => {
+test('new order reports dirty state without moving cart state to App', () => {
   const page = source('./pages/NewOrder.jsx')
   const app = source('./App.jsx')
 
@@ -1155,7 +1343,7 @@ test('new order reports dirty state without moving the cart to App', () => {
 })
 ```
 
-- [ ] **Step 2: Run the guard test and verify RED**
+- [ ] **Step 2: Run and verify RED**
 
 ```bash
 node --test src/AppNewOrderGuard.test.js
@@ -1163,25 +1351,9 @@ node --test src/AppNewOrderGuard.test.js
 
 Expected: FAIL because dirty reporting and guarded navigation do not exist.
 
-- [ ] **Step 3: Capture a normalized initial draft snapshot in `NewOrder`**
+- [ ] **Step 3: Capture one normalized initial draft snapshot in `NewOrder`**
 
-Add the prop:
-
-```jsx
-function NewOrder({
-  clients,
-  products,
-  tableTabs = [],
-  currency,
-  disabled,
-  onCancel,
-  onCreateClient,
-  onSubmit,
-  onDraftDirtyChange,
-}) {
-```
-
-After initializing the existing states, create one baseline per mounted order flow:
+Change the React import to include `useEffect` and `useRef`. Add the optional prop and baseline:
 
 ```jsx
 const initialDraftSnapshotRef = useRef(null)
@@ -1199,11 +1371,7 @@ if (initialDraftSnapshotRef.current === null) {
     quickClient,
   })
 }
-```
 
-Compute current dirty state from the same fields:
-
-```jsx
 const draftDirty = isNewOrderDraftDirty({
   clientId,
   type,
@@ -1215,11 +1383,7 @@ const draftDirty = isNewOrderDraftDirty({
   adjustment,
   quickClient,
 }, initialDraftSnapshotRef.current)
-```
 
-Report changes and clear the parent flag on unmount:
-
-```jsx
 useEffect(() => {
   onDraftDirtyChange?.(draftDirty)
 }, [draftDirty, onDraftDirtyChange])
@@ -1229,18 +1393,18 @@ useEffect(() => () => {
 }, [onDraftDirtyChange])
 ```
 
-Do not include `clientSearch` separately; changing the search already clears/changes `clientId`, which is the meaningful order identity state.
+Do not include `quickClient.open` in the signature and do not add `items` state to `App`.
 
-- [ ] **Step 4: Add guarded navigation state and functions to `App`**
+- [ ] **Step 4: Add guarded navigation in `App`**
 
-Add:
+Add states:
 
 ```jsx
 const [newOrderDirty, setNewOrderDirty] = useState(false)
 const [pendingNavigationTab, setPendingNavigationTab] = useState(null)
 ```
 
-Import `shouldConfirmNewOrderExit` and add:
+Import `shouldConfirmNewOrderExit`, then add:
 
 ```jsx
 const completeNavigation = (targetTab) => {
@@ -1269,15 +1433,15 @@ const confirmDiscardNewOrder = () => {
 }
 ```
 
-- [ ] **Step 5: Route AppShell and the Cancelar venda action through the guard**
+- [ ] **Step 5: Route global and explicit new-order exits through the guard**
 
-Change:
+Change AppShell to:
 
 ```jsx
 <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked}>
 ```
 
-Change the `NewOrder` render to:
+Change NewOrder to:
 
 ```jsx
 <NewOrder
@@ -1293,11 +1457,11 @@ Change the `NewOrder` render to:
 />
 ```
 
-`handleOrderCheckout` remains allowed to navigate directly after successful persistence because success has already committed the order and clears `checkoutKey`; the unmount cleanup clears `newOrderDirty`.
+`handleOrderCheckout` keeps its direct successful transition to `orders`; after successful persistence the page unmount cleanup clears the dirty signal.
 
-- [ ] **Step 6: Render the discard confirmation using the existing `Modal` pattern**
+- [ ] **Step 6: Render discard confirmation with existing Modal**
 
-Inside `AppShell` children, add:
+Inside `AppShell` children:
 
 ```jsx
 {pendingNavigationTab && (
@@ -1313,28 +1477,21 @@ Inside `AppShell` children, add:
 )}
 ```
 
-Do not use `window.confirm`; reuse the visual/modal system already present in `App`.
+Do not use `window.confirm`.
 
-- [ ] **Step 7: Run guard and full new-order tests**
+- [ ] **Step 7: Verify GREEN and commit**
 
 ```bash
 node --test src/AppNewOrderGuard.test.js src/utils/newOrderStepFlow.test.js src/pages/NewOrderWizard.test.js src/pages/NewOrder.test.js
 npm test
 npm run lint
-```
-
-Expected: PASS.
-
-- [ ] **Step 8: Commit Task 6**
-
-```bash
-git add src/pages/NewOrder.jsx src/App.jsx src/AppNewOrderGuard.test.js src/utils/newOrderStepFlow.test.js
+git add src/pages/NewOrder.jsx src/App.jsx src/AppNewOrderGuard.test.js
 git commit -m "feat: protect new order draft navigation"
 ```
 
 ---
 
-### Task 7: Fechar navegação reversível, foco, responsividade e regressões de estado
+### Task 7: Fechar foco, navegação reversível e responsividade 320–480 px
 
 **Files:**
 - Modify: `src/pages/NewOrder.jsx`
@@ -1344,51 +1501,52 @@ git commit -m "feat: protect new order draft navigation"
 - Modify: `src/new-order.css`
 
 **Interfaces:**
-- `NewOrder` remains the only owner of `items`, `deliveryFee`, `adjustment`, client/identity fields and `currentStep`.
-- Step changes only mutate `currentStep`.
-- Step indicator calls the same guarded `navigateStep` used by explicit navigation buttons.
+- All step transitions pass through `navigateStep`.
+- `maxReachedStep` records history but `stepAccess` dynamically blocks invalid destinations.
+- Active-step wrapper is the single predictable focus target.
 
-- [ ] **Step 1: Add failing source tests for reversible navigation and focus**
+- [ ] **Step 1: Add RED tests for focus, no-reset navigation and narrow screens**
 
 Append to `src/pages/NewOrderWizard.test.js`:
 
 ```js
-test('step navigation is reversible without resetting draft state and focuses the active step', async () => {
+test('step navigation preserves the single draft and focuses the active step', async () => {
   const page = await read('./NewOrder.jsx')
 
   assert.match(page, /const navigateStep = \(targetStep\) =>/)
-  assert.match(page, /canNavigateToNewOrderStep\(targetStep, stepAccess\)/)
+  assert.match(page, /getFurthestReachedStep/)
   assert.match(page, /stepContentRef/)
-  assert.match(page, /focus/)
+  assert.match(page, /stepContentRef\.current\?\.focus\(\)/)
   assert.match(page, /tabIndex="-1"/)
-  assert.doesNotMatch(page, /setItems\(\[\]\)[\s\S]{0,120}setCurrentStep/)
-  assert.doesNotMatch(page, /setAdjustment\(emptyAdjustment\(\)\)[\s\S]{0,120}setCurrentStep/)
+  assert.doesNotMatch(page, /setItems\(\[\]\)[\s\S]{0,140}setCurrentStep/)
+  assert.doesNotMatch(page, /setAdjustment\(emptyAdjustment\(\)\)[\s\S]{0,140}setCurrentStep/)
 })
 ```
 
 Append to `src/pages/NewOrderMobile.test.js`:
 
 ```js
-test('wizard steps collapse safely on narrow screens', async () => {
+test('wizard collapses review and type choices safely on narrow screens', async () => {
   const css = await read('../new-order.css')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-step-indicator/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-type-options\s*\{[^}]*grid-template-columns:\s*1fr/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-review-layout\s*\{[^}]*grid-template-columns:\s*1fr/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-review-context\s*\{[^}]*grid-template-columns:\s*1fr/s)
 })
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [ ] **Step 2: Run and verify RED**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js src/pages/NewOrderMobile.test.js
 ```
 
-Expected: FAIL until focus management and final narrow-screen rules exist.
+Expected: FAIL until focus and final mobile rules are implemented.
 
-- [ ] **Step 3: Add predictable focus after step changes**
+- [ ] **Step 3: Add one focus target around the active step**
 
-In `NewOrder`, add:
+In `NewOrder`:
 
 ```jsx
 const stepContentRef = useRef(null)
@@ -1398,17 +1556,88 @@ useEffect(() => {
 }, [currentStep])
 ```
 
-Wrap the active step content once:
+Use one wrapper with explicit conditional components:
 
 ```jsx
 <div ref={stepContentRef} className="new-order-step-content" tabIndex="-1">
-  {currentStep === NEW_ORDER_STEPS.CUSTOMER && customerStep}
-  {currentStep === NEW_ORDER_STEPS.PRODUCTS && productsStep}
-  {currentStep === NEW_ORDER_STEPS.REVIEW && reviewStep}
+  {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
+    <NewOrderCustomerStep
+      clients={clients}
+      filteredClients={filteredClients}
+      clientId={clientId}
+      clientSearch={clientSearch}
+      clientPickerOpen={clientPickerOpen}
+      type={type}
+      orderDate={orderDate}
+      todayValue={toLocalDateValue()}
+      localIdentityType={localIdentityType}
+      localIdentityValue={localIdentityValue}
+      openTableTab={openTableTab}
+      quickClient={quickClient}
+      quickClientError={quickClientError}
+      disabled={disabled}
+      canContinue={stepAccess.products}
+      onTypeChange={changeType}
+      onOrderDateChange={setOrderDate}
+      onLocalIdentityTypeChange={changeLocalIdentityType}
+      onLocalIdentityValueChange={setLocalIdentityValue}
+      onClientSearchChange={handleClientSearchChange}
+      onClientFocus={() => setClientPickerOpen(true)}
+      onClientBlur={handleClientPickerBlur}
+      onClientSelect={selectClient}
+      onQuickClientToggle={toggleQuickClient}
+      onQuickClientChange={(patch) => updateQuickClient(patch.phone !== undefined ? { ...patch, phone: formatPhone(patch.phone) } : patch)}
+      onQuickClientSubmit={handleQuickClientSubmit}
+      onQuickClientCancel={closeQuickClient}
+      onContinue={() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)}
+    />
+  )}
+
+  {currentStep === NEW_ORDER_STEPS.PRODUCTS && (
+    <NewOrderProductsStep
+      products={products}
+      items={items}
+      currency={currency}
+      disabled={disabled}
+      customerSummary={customerSummary}
+      itemCount={itemCount}
+      subtotal={itemsSubtotal}
+      onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
+      onBack={() => navigateStep(NEW_ORDER_STEPS.CUSTOMER)}
+      onReview={() => navigateStep(NEW_ORDER_STEPS.REVIEW)}
+    />
+  )}
+
+  {currentStep === NEW_ORDER_STEPS.REVIEW && (
+    <NewOrderReviewStep
+      customerSummary={customerSummary}
+      itemCount={itemCount}
+      disabled={disabled}
+      onBack={() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)}
+      cartProps={{
+        items,
+        currency,
+        disabled,
+        onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
+        onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
+        onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
+        onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
+      }}
+      checkoutProps={{
+        draft,
+        preview,
+        currency,
+        disabled,
+        canSubmit,
+        onDeliveryFeeChange: setDeliveryFee,
+        onAdjustmentChange: handleAdjustmentChange,
+        onSavePending: () => save(),
+        onSavePaid: (method) => save(method),
+      }}
+    />
+  )}
 </div>
 ```
-
-Use actual JSX variables or inline conditional components in the final implementation; there must be only one focus target for the active step.
 
 Add:
 
@@ -1418,23 +1647,9 @@ Add:
 }
 ```
 
-- [ ] **Step 4: Ensure the indicator cannot bypass dynamic validation**
+- [ ] **Step 4: Add final narrow-screen rules**
 
-Wire:
-
-```jsx
-<NewOrderStepIndicator
-  currentStep={currentStep}
-  access={stepAccess}
-  onNavigate={navigateStep}
-/>
-```
-
-Do not call `setCurrentStep` directly from `NewOrderStepIndicator`; all indicator navigation passes through `navigateStep` and `canNavigateToNewOrderStep`.
-
-- [ ] **Step 5: Add final 320–480px rules**
-
-In the existing `@media (max-width: 640px)` block, add:
+Inside the existing `@media (max-width: 640px)` block:
 
 ```css
 .new-order-step-indicator {
@@ -1454,6 +1669,7 @@ In the existing `@media (max-width: 640px)` block, add:
   flex: 0 0 22px;
 }
 
+.new-order-type-options,
 .new-order-review-layout,
 .new-order-review-context {
   grid-template-columns: 1fr;
@@ -1464,25 +1680,20 @@ In the existing `@media (max-width: 640px)` block, add:
 }
 ```
 
-Keep the existing cart and checkout mobile touch-target rules intact.
+Keep current touch targets for add, quantity, observation and checkout buttons intact.
 
-- [ ] **Step 6: Run all new-order/mobile regressions**
+- [ ] **Step 5: Verify all wizard regressions and commit**
 
 ```bash
 node --test src/pages/NewOrderWizard.test.js src/pages/NewOrderMobile.test.js src/pages/NewOrder.test.js src/AppNewOrderGuard.test.js src/utils/newOrderStepFlow.test.js
 npm test
 npm run lint
 npm run build
-```
-
-Expected: all PASS.
-
-- [ ] **Step 7: Commit Task 7**
-
-```bash
 git add src/pages/NewOrder.jsx src/components/NewOrderStepIndicator.jsx src/pages/NewOrderWizard.test.js src/pages/NewOrderMobile.test.js src/new-order.css
 git commit -m "fix: polish new order step navigation"
 ```
+
+Expected: all PASS.
 
 ---
 
@@ -1490,15 +1701,13 @@ git commit -m "fix: polish new order step navigation"
 
 **Files:**
 - Verify only: application, tests, Worker dry-runs and existing migrations.
-- No production files or production deployment are modified by this task.
+- No production deployment or production schema change is part of this task.
 
 **Interfaces:**
-- Consumes the completed feature branch.
+- Consumes the completed `feature/new-order-step-flow` branch.
 - Produces a validated staging candidate for human homologation.
 
-- [ ] **Step 1: Confirm branch and diff scope before validation**
-
-Run:
+- [ ] **Step 1: Confirm branch and clean diff scope**
 
 ```bash
 git branch --show-current
@@ -1506,70 +1715,47 @@ git status --short
 git diff master...HEAD --stat
 ```
 
-Expected:
+Expected branch:
 
 ```text
 feature/new-order-step-flow
 ```
 
-`git status --short` must be empty. Diff scope must be limited to the new-order wizard, its focused helpers/tests/CSS, `App` navigation guard, spec and plan.
+`git status --short` must be empty. Diff must be limited to the wizard, focused helpers/tests/CSS, `App` navigation guard, spec and plan.
 
-- [ ] **Step 2: Run the project test gate**
+- [ ] **Step 2: Run the normal project gate**
 
 ```bash
 npm test
-```
-
-Expected: PASS with zero failing tests.
-
-- [ ] **Step 3: Run lint and production build**
-
-```bash
 npm run lint
 npm run build
-```
-
-Expected: both PASS.
-
-- [ ] **Step 4: Verify migration integrity without creating a new migration**
-
-```bash
 npm run d1:migrate:local
-```
-
-Expected: existing migrations apply/verify successfully; no new migration file is required by this feature.
-
-- [ ] **Step 5: Run Worker dry-runs for default and staging environments**
-
-```bash
 npx --yes wrangler@4.128.0 deploy --dry-run
 npx --yes wrangler@4.128.0 deploy --dry-run --env staging
 ```
 
-Expected: both bundle validations PASS without deployment.
+Expected: every command exits successfully. No new migration file is created.
 
-- [ ] **Step 6: Review the branch diff before any staging publish**
-
-Run:
+- [ ] **Step 3: Review the final diff for architectural invariants**
 
 ```bash
 git diff master...HEAD -- src/pages/NewOrder.jsx src/App.jsx src/components src/utils src/new-order.css
 ```
 
-Review specifically that:
+Confirm all six invariants:
 
 ```text
-- no API payload gained currentStep/step fields
-- no D1 schema or migration changed
-- no product/cart state moved into App
-- no production deploy workflow changed
-- the stage-2 summary receives subtotal only
-- exit protection uses the existing Modal pattern
+1. API payload has no currentStep/step field.
+2. D1 schema/migrations are unchanged.
+3. App has no cart/items duplicate state.
+4. Product-stage summary receives product subtotal only.
+5. Dirty exit confirmation uses the existing Modal system.
+6. No production workflow or production deploy command was changed.
 ```
 
-- [ ] **Step 7: Publish through the official `Deploy staging` GitHub Actions workflow**
+- [ ] **Step 4: Publish through the official `Deploy staging` workflow**
 
-Use `.github/workflows/deploy-staging.yml` on `feature/new-order-step-flow`. The workflow itself executes:
+Dispatch `.github/workflows/deploy-staging.yml` on `feature/new-order-step-flow`. The existing workflow runs:
 
 ```text
 npm ci
@@ -1578,43 +1764,46 @@ npm run lint
 npm run build
 npm run d1:migrate:local
 wrangler deploy --dry-run --env staging
-staging migration check/application
+staging migration list/application
 staging PIN configuration
 npm run deploy:staging
 staging login smoke test
 ```
 
-Do not run `deploy:production` and do not dispatch `.github/workflows/deploy-production.yml`.
+Do not dispatch `.github/workflows/deploy-production.yml` and do not run `npm run deploy:production`.
 
-- [ ] **Step 8: Perform human staging acceptance for the wizard**
+- [ ] **Step 5: Perform human staging acceptance**
 
-On `https://sistema-para-delivery-staging.vzaponi.workers.dev`, verify all of these concrete scenarios:
+On `https://sistema-para-delivery-staging.vzaponi.workers.dev`, verify:
 
 ```text
 1. Nova venda opens on Cliente.
-2. Cliente invalid cannot advance.
-3. Entrega with valid registered client advances to Produtos.
+2. Invalid customer/identity cannot advance.
+3. Entrega and Retirada require a registered client.
 4. Local works with Nome, Mesa and Cliente cadastrado.
-5. Existing open table tab hint remains visible for Mesa.
-6. Produtos shows no delivery fee, adjustment or payment controls.
+5. Existing open-table hint remains visible.
+6. Products contains catalog only; no fee/adjustment/payment controls.
 7. Mobile shows fixed item-count + product-subtotal action above bottom navigation.
 8. Desktop shows compact side summary with product subtotal only.
 9. Empty cart cannot reach Finalizar.
 10. Adding an item enables Finalizar.
-11. Finalizar shows full cart, fee, adjustment, total and both save actions.
-12. Finalizar -> Produtos -> Cliente preserves items, fee and adjustment.
-13. Entrega -> Retirada/Local keeps items and zeroes delivery fee.
-14. Local -> Entrega/Retirada blocks forward navigation until a valid registered client exists.
-15. Clicking an earlier completed step works; future inaccessible steps stay blocked.
-16. Dirty Cancelar venda opens discard confirmation.
-17. Dirty sidebar/mobile navigation opens the same discard confirmation.
-18. Canceling discard keeps the complete draft.
-19. Confirming discard leaves Nova venda and clears the unmounted draft.
-20. Failed checkout remains on Finalizar with the draft intact.
-21. Successful pending checkout creates the same pending order behavior as before.
-22. Successful paid checkout still asks one payment method and keeps operational semantics unchanged.
+11. A future unreached step cannot be skipped.
+12. A previously reached step can be revisited while its validation remains valid.
+13. Invalidating Cliente disables Products/Finalizar without deleting the draft.
+14. Emptying the cart disables Finalizar without deleting customer/adjustment state.
+15. Finalizar shows full cart, delivery fee when applicable, adjustment, total and both save actions.
+16. Finalizar -> Produtos -> Cliente preserves items, fee and adjustment.
+17. Entrega -> Retirada/Local keeps items and zeroes delivery fee.
+18. Local -> Entrega/Retirada blocks forward navigation until a valid registered client exists.
+19. Dirty Cancelar venda opens discard confirmation.
+20. Dirty sidebar/mobile navigation opens the same discard confirmation.
+21. Canceling discard keeps the complete draft.
+22. Confirming discard leaves Nova venda and clears the unmounted draft.
+23. Failed checkout remains on Finalizar with the draft intact.
+24. Successful pending checkout preserves existing pending-payment behavior.
+25. Successful paid checkout still asks one payment method and preserves operational semantics.
 ```
 
-- [ ] **Step 9: Stop at staging homologation gate**
+- [ ] **Step 6: Stop at the staging homologation gate**
 
-After staging acceptance, report the exact commit SHA and staging result. Do not merge to `master` and do not deploy production until the human explicitly approves the staging result.
+Report the exact feature commit SHA, staging workflow result and acceptance result. Do not merge to `master` and do not deploy production until the human explicitly approves the staging result.
