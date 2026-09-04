@@ -8,6 +8,7 @@ import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
+import PrintingSettings from '../components/PrintingSettings'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems, getOrderItemsSearchText } from '../utils/orderCart.js'
@@ -26,13 +27,14 @@ import {
 const orderNumber = (id) => String(id).slice(-4)
 const timingLabels = { 'on-time': 'No prazo', late: 'Atrasado', 'very-late': 'Muito atrasado' }
 
-function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange }) {
+function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
   const [now, setNow] = useState(() => new Date())
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
   const [expandedOrderIds, setExpandedOrderIds] = useState(() => new Set())
+  const [showPrintingSettings, setShowPrintingSettings] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
 
@@ -111,6 +113,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             <button type="button" className="button button-secondary kitchen-sound-toggle" aria-pressed={soundEnabled} title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'} onClick={() => onSoundEnabledChange?.(!soundEnabled)}>
               <span aria-hidden="true">{soundEnabled ? '🔊' : '🔇'}</span><span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
+            <Button type="button" variant="secondary" onClick={() => setShowPrintingSettings(true)}>Impressão</Button>
             <Button type="button" variant="secondary" onClick={navigateHistory}>Ver histórico</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>
@@ -168,6 +171,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
         </div>
       </section>
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
+      {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
       {finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"
