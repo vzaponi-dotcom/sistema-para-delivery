@@ -21,3 +21,10 @@ test('editing opening balance review shows current and new values', async () => 
   assert.match(source, /Valor atual|Saldo atual/i)
   assert.match(source, /Novo valor|Novo saldo/i)
 })
+
+test('opening balance review closes only after a successful save', async () => {
+  const source = await readSource()
+  assert.match(source, /const result = await onSubmit\?\.\(review\)/)
+  assert.match(source, /if \(result === false\) return/)
+  assert.match(source, /onClose\?\.\(\)/)
+})
