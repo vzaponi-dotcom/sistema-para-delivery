@@ -7,6 +7,8 @@ const wrangler = readFileSync('wrangler.jsonc', 'utf8')
 const validateWorkflow = readFileSync('.github/workflows/validate.yml', 'utf8')
 const stagingWorkflowPath = '.github/workflows/deploy-staging.yml'
 const productionWorkflow = readFileSync('.github/workflows/deploy-production.yml', 'utf8')
+const prTemplate = readFileSync('.github/pull_request_template.md', 'utf8')
+const runbook = readFileSync('docs/release-and-migration-runbook.md', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
@@ -75,4 +77,19 @@ test('production deploy is manual, master-only, and validates locally before rem
   assert.match(productionWorkflow, /npm run deploy:production/)
   assert.doesNotMatch(productionWorkflow, /npm run d1:migrate:remote/)
   assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
+})
+
+test('PR template requires migration and rollback review', () => {
+  assert.match(prTemplate, /Migration impact/)
+  assert.match(prTemplate, /Rollback/)
+  assert.match(prTemplate, /Staging/)
+  assert.match(prTemplate, /Production data/)
+})
+
+test('release runbook documents staging before explicit production release', () => {
+  assert.match(runbook, /feature\/fix branch/i)
+  assert.match(runbook, /staging/i)
+  assert.match(runbook, /Deploy production/)
+  assert.match(runbook, /rollback/i)
+  assert.match(runbook, /never.*production.*staging/i)
 })
