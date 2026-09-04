@@ -50,6 +50,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const [duplicateClient, setDuplicateClient] = useState(null)
   const [checkoutError, setCheckoutError] = useState('')
   const initialDraftSnapshotRef = useRef(null)
+  const stepContentRef = useRef(null)
 
   if (initialDraftSnapshotRef.current === null) {
     initialDraftSnapshotRef.current = createNewOrderDirtySnapshot({
@@ -84,6 +85,10 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   useEffect(() => () => {
     onDraftDirtyChange?.(false)
   }, [onDraftDirtyChange])
+
+  useEffect(() => {
+    stepContentRef.current?.focus()
+  }, [currentStep])
 
   const filteredClients = useMemo(() => {
     const normalized = clientSearch.trim().toLowerCase()
@@ -140,7 +145,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const canSubmit = Boolean(stepAccess.review)
   const canContinueCustomer = stepAccess.products
 
-  const goToStep = (targetStep) => {
+  const navigateStep = (targetStep) => {
     if (!canNavigateToNewOrderStep({
       targetStep,
       currentStep,
@@ -285,85 +290,87 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
         currentStep={currentStep}
         maxReachedStep={maxReachedStep}
         access={stepAccess}
-        onNavigate={goToStep}
+        onNavigate={navigateStep}
       />
 
-      {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
-        <NewOrderCustomerStep
-          clients={clients}
-          filteredClients={filteredClients}
-          clientId={clientId}
-          clientSearch={clientSearch}
-          clientPickerOpen={clientPickerOpen}
-          type={type}
-          orderDate={orderDate}
-          todayValue={toLocalDateValue()}
-          localIdentityType={localIdentityType}
-          localIdentityValue={localIdentityValue}
-          openTableTab={openTableTab}
-          quickClient={quickClient}
-          quickClientError={quickClientError}
-          disabled={disabled}
-          canContinue={canContinueCustomer}
-          onTypeChange={changeType}
-          onOrderDateChange={setOrderDate}
-          onLocalIdentityTypeChange={changeLocalIdentityType}
-          onLocalIdentityValueChange={setLocalIdentityValue}
-          onClientSearchChange={handleClientSearchChange}
-          onClientFocus={() => setClientPickerOpen(true)}
-          onClientBlur={handleClientPickerBlur}
-          onClientSelect={selectClient}
-          onQuickClientToggle={toggleQuickClient}
-          onQuickClientChange={handleQuickClientChange}
-          onQuickClientSubmit={handleQuickClientSubmit}
-          onQuickClientCancel={closeQuickClient}
-          onContinue={() => goToStep(NEW_ORDER_STEPS.PRODUCTS)}
-        />
-      )}
+      <div ref={stepContentRef} tabIndex="-1" className="new-order-step-content">
+        {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
+          <NewOrderCustomerStep
+            clients={clients}
+            filteredClients={filteredClients}
+            clientId={clientId}
+            clientSearch={clientSearch}
+            clientPickerOpen={clientPickerOpen}
+            type={type}
+            orderDate={orderDate}
+            todayValue={toLocalDateValue()}
+            localIdentityType={localIdentityType}
+            localIdentityValue={localIdentityValue}
+            openTableTab={openTableTab}
+            quickClient={quickClient}
+            quickClientError={quickClientError}
+            disabled={disabled}
+            canContinue={canContinueCustomer}
+            onTypeChange={changeType}
+            onOrderDateChange={setOrderDate}
+            onLocalIdentityTypeChange={changeLocalIdentityType}
+            onLocalIdentityValueChange={setLocalIdentityValue}
+            onClientSearchChange={handleClientSearchChange}
+            onClientFocus={() => setClientPickerOpen(true)}
+            onClientBlur={handleClientPickerBlur}
+            onClientSelect={selectClient}
+            onQuickClientToggle={toggleQuickClient}
+            onQuickClientChange={handleQuickClientChange}
+            onQuickClientSubmit={handleQuickClientSubmit}
+            onQuickClientCancel={closeQuickClient}
+            onContinue={() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)}
+          />
+        )}
 
-      {currentStep === NEW_ORDER_STEPS.PRODUCTS && (
-        <NewOrderProductsStep
-          products={products}
-          items={items}
-          currency={currency}
-          disabled={disabled}
-          customerSummary={customerSummary}
-          itemCount={itemCount}
-          subtotal={itemsSubtotal}
-          onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
-          onBack={() => goToStep(NEW_ORDER_STEPS.CUSTOMER)}
-          onReview={() => goToStep(NEW_ORDER_STEPS.REVIEW)}
-        />
-      )}
+        {currentStep === NEW_ORDER_STEPS.PRODUCTS && (
+          <NewOrderProductsStep
+            products={products}
+            items={items}
+            currency={currency}
+            disabled={disabled}
+            customerSummary={customerSummary}
+            itemCount={itemCount}
+            subtotal={itemsSubtotal}
+            onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
+            onBack={() => navigateStep(NEW_ORDER_STEPS.CUSTOMER)}
+            onReview={() => navigateStep(NEW_ORDER_STEPS.REVIEW)}
+          />
+        )}
 
-      {currentStep === NEW_ORDER_STEPS.REVIEW && (
-        <NewOrderReviewStep
-          customerSummary={customerSummary}
-          itemCount={itemCount}
-          disabled={disabled}
-          onBack={() => goToStep(NEW_ORDER_STEPS.PRODUCTS)}
-          cartProps={{
-            items,
-            currency,
-            disabled,
-            onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
-            onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
-            onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
-            onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
-          }}
-          checkoutProps={{
-            draft,
-            preview,
-            currency,
-            disabled,
-            canSubmit,
-            onDeliveryFeeChange: setDeliveryFee,
-            onAdjustmentChange: handleAdjustmentChange,
-            onSavePending: () => save(),
-            onSavePaid: (method) => save(method),
-          }}
-        />
-      )}
+        {currentStep === NEW_ORDER_STEPS.REVIEW && (
+          <NewOrderReviewStep
+            customerSummary={customerSummary}
+            itemCount={itemCount}
+            disabled={disabled}
+            onBack={() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)}
+            cartProps={{
+              items,
+              currency,
+              disabled,
+              onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
+              onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
+              onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
+              onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
+            }}
+            checkoutProps={{
+              draft,
+              preview,
+              currency,
+              disabled,
+              canSubmit,
+              onDeliveryFeeChange: setDeliveryFee,
+              onAdjustmentChange: handleAdjustmentChange,
+              onSavePending: () => save(),
+              onSavePaid: (method) => save(method),
+            }}
+          />
+        )}
+      </div>
 
       {duplicateClient && (
         <ClientDuplicateModal
