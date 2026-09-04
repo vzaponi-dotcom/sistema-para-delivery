@@ -24,7 +24,8 @@ function Finance({
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const [deletingMovement, setDeletingMovement] = useState(null)
-  const writeDisabled = (typeof navigator !== 'undefined' && !navigator.onLine) || Boolean(actionKey)
+  const [deletingSubmitting, setDeletingSubmitting] = useState(false)
+  const writeDisabled = (typeof navigator !== 'undefined' && !navigator.onLine) || Boolean(actionKey) || deletingSubmitting
 
   const confirmRefund = async (payload) => {
     if (!refundOrder || refundSubmitting || !onRegisterRefund) return
@@ -39,8 +40,13 @@ function Finance({
 
   const confirmDeleteMovement = async () => {
     if (!deletingMovement || writeDisabled || !onDeleteMovement) return
-    const saved = await onDeleteMovement(deletingMovement.id)
-    if (saved !== false) setDeletingMovement(null)
+    setDeletingSubmitting(true)
+    try {
+      const saved = await onDeleteMovement(deletingMovement.id)
+      if (saved !== false) setDeletingMovement(null)
+    } finally {
+      setDeletingSubmitting(false)
+    }
   }
 
   return (
