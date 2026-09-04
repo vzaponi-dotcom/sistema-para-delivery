@@ -39,7 +39,8 @@
   font-size: 0.84rem;
 }
 
-.printing-state {
+.printing-state,
+.print-status-badge {
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 0.78rem;
@@ -48,14 +49,28 @@
   background: var(--surface, #fff);
 }
 
-.printing-state-connected {
+.printing-state-connected,
+.print-status-printed {
   border: 1px solid rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.08);
 }
 
 .printing-state-disconnected,
 .printing-state-unconfigured,
-.printing-state-unsupported {
+.printing-state-unsupported,
+.print-status-pending {
   border: 1px solid rgba(107, 114, 128, 0.35);
+}
+
+.print-status-processing {
+  border: 1px solid rgba(37, 99, 235, 0.32);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.print-status-failed,
+.print-status-requires_attention {
+  border: 1px solid rgba(220, 38, 38, 0.32);
+  background: rgba(220, 38, 38, 0.07);
 }
 
 .printing-info-grid {
@@ -75,7 +90,8 @@
   overflow-wrap: anywhere;
 }
 
-.printing-actions-row {
+.printing-actions-row,
+.order-printing-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -117,13 +133,129 @@
   cursor: pointer;
 }
 
-.printing-feedback {
+.printing-feedback,
+.order-printing-helper,
+.order-printing-error {
   margin: 0;
   font-size: 0.88rem;
 }
 
-.printing-feedback-error {
+.printing-feedback-error,
+.order-printing-error {
   font-weight: 600;
+}
+
+.order-printing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.order-printing-diagnostics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.order-printing-diagnostics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-subtle, #fafafa);
+}
+
+.order-printing-diagnostics span {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.78rem;
+}
+
+.order-printing-diagnostics strong {
+  overflow-wrap: anywhere;
+}
+
+.order-printing-diagnostic-error {
+  grid-column: 1 / -1;
+}
+
+.order-ticket-preview {
+  width: min(100%, 360px);
+  margin: 0 auto;
+  padding: 22px 18px;
+  border: 1px solid var(--border-color, #e6e6e6);
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.07);
+}
+
+.order-ticket-preview-header,
+.order-ticket-block,
+.order-ticket-message {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.order-ticket-preview-header {
+  align-items: center;
+  text-align: center;
+}
+
+.order-ticket-preview-header h3 {
+  margin: 4px 0 0;
+  font-size: 1.35rem;
+}
+
+.order-ticket-divider {
+  margin: 14px 0;
+  border-top: 1px dashed #555;
+}
+
+.order-ticket-item,
+.order-ticket-totals > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-ticket-item + .order-ticket-item {
+  margin-top: 10px;
+}
+
+.order-ticket-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.order-ticket-item span,
+.order-ticket-block span {
+  font-size: 0.86rem;
+}
+
+.order-ticket-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.order-ticket-total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 2px solid #111;
+  font-size: 1.08rem;
+}
+
+.order-ticket-message {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 0.86rem;
 }
 
 @media (max-width: 480px) {
@@ -134,20 +266,31 @@
     flex-direction: column;
   }
 
-  .printing-info-grid {
+  .printing-info-grid,
+  .order-printing-diagnostics {
     grid-template-columns: 1fr;
   }
 
-  .printing-actions-row {
+  .order-printing-diagnostic-error {
+    grid-column: auto;
+  }
+
+  .printing-actions-row,
+  .order-printing-actions {
     flex-direction: column;
   }
 
   .printing-actions-row .button,
-  .printing-primary-card .button {
+  .printing-primary-card .button,
+  .order-printing-actions .button {
     width: 100%;
   }
 
   .printing-toggle-row input {
     align-self: flex-end;
+  }
+
+  .order-ticket-preview {
+    padding: 18px 14px;
   }
 }
