@@ -140,7 +140,7 @@ A implementação deve ter testes determinísticos para largura lógica das linh
 
 ### 5.1 Regra geral
 
-Todo novo pedido elegível para cozinha entra no mesmo fluxo de impressão, independentemente da origem.
+Todo novo pedido elegível para cozinha usa o mesmo subsistema de impressão, independentemente da origem.
 
 Isso inclui:
 
@@ -150,11 +150,17 @@ Isso inclui:
 
 Sincronização, reload, retorno de aba ou polling nunca podem criar um novo trabalho automático para um pedido que já possui o trabalho inicial correspondente.
 
-### 5.2 Configuração padrão
+### 5.2 Configuração e criação do job automático
 
-- impressão automática: configurável, padrão operacional recomendado ligado após instalação concluída;
-- quantidade de cópias: configurável entre 1 e 2;
-- padrão recomendado: 2 cópias.
+- impressão automática é configurável na Estação Principal;
+- quantidade de cópias é configurável entre 1 e 2;
+- padrão recomendado: 2 cópias;
+- quando existir Estação Principal com impressão automática ativa no momento da criação do pedido, o backend cria o job automático inicial;
+- quando a impressão automática estiver desligada, ou não houver Estação Principal apta, nenhum job automático retroativo deve ser criado para aquele pedido;
+- reativar a impressão automática afeta apenas pedidos novos criados depois da ativação;
+- pedidos criados enquanto a automação estava desligada continuam podendo ser impressos manualmente.
+
+Essa regra impede que ligar a automação posteriormente descarregue silenciosamente uma fila histórica de pedidos.
 
 ### 5.3 Impressão manual
 
@@ -201,9 +207,11 @@ Os estados funcionais são:
 
 ### 6.3 Idempotência do job automático
 
-A criação de pedido e a criação de seu job automático inicial devem fazer parte da mesma operação lógica do backend, com proteção de idempotência.
+Quando a configuração exigir impressão automática, a criação de pedido e a criação de seu job automático inicial devem fazer parte da mesma operação lógica do backend, com proteção de idempotência.
 
-Para cada pedido deve existir no máximo um job automático inicial equivalente. Repetição da requisição de criação, polling ou reconciliação não pode produzir jobs automáticos duplicados.
+Para cada pedido deve existir no máximo um job automático inicial. Repetição da requisição de criação, polling ou reconciliação não pode produzir jobs automáticos duplicados.
+
+Quando a automação não estiver ativa no momento da criação, o pedido não recebe job automático inicial e não deve ganhá-lo retroativamente.
 
 Jobs manuais são eventos deliberadamente novos e podem coexistir em qualquer quantidade no histórico.
 
@@ -224,6 +232,8 @@ Cada `printJob` armazena o snapshot exato do `OrderPrintDocument` que deve proce
 ### 7.1 Nova tentativa do mesmo job
 
 Quando uma falha conhecida permite ao usuário escolher `Tentar novamente`, o sistema usa o mesmo snapshot daquele job.
+
+Essa tentativa é sempre iniciada manualmente; nunca existe retry automático de um job `failed`.
 
 ### 7.2 Reimpressão
 
@@ -488,7 +498,9 @@ Testar:
 
 Testar:
 
-- criação idempotente do job automático junto ao pedido;
+- criação idempotente do job automático junto ao pedido quando a automação estiver ativa;
+- ausência de job automático quando automação estiver desligada;
+- reativação não cria jobs retroativos;
 - polling/repetição não duplica job;
 - reimpressão cria novo job;
 - claim concorrente permite apenas uma estação;
@@ -551,20 +563,21 @@ Validar:
 
 A V1 está funcionalmente aceita quando:
 
-1. todo pedido novo cria no máximo um job automático inicial;
-2. somente a estação principal pode processar jobs automáticos;
-3. a MTP5 imprime o ticket aprovado com 2 cópias por padrão;
-4. impressão manual e reimpressão funcionam com confirmação adequada;
-5. falha de impressão nunca bloqueia o pedido;
-6. nenhuma falha dispara loop de retentativa automática;
-7. trabalhos antigos/incertos exigem ação humana antes de nova impressão;
-8. histórico de jobs permite identificar sucesso, falha, estação e horário;
-9. preview e PDF saem do mesmo documento canônico;
-10. ticket contém valores, pagamento, observações e mensagem de agradecimento;
-11. Chrome/Windows e Chrome/Android compatíveis conseguem utilizar a mesma aplicação web;
-12. navegador incompatível recebe orientação clara sem quebrar o restante do Gestão Delivery;
-13. testes automatizados, lint e build permanecem verdes;
-14. a aceitação com a MTP5 física é concluída nos dois ambientes alvo.
+1. pedido criado com automação ativa cria no máximo um job automático inicial;
+2. pedido criado com automação desligada não recebe job automático retroativo;
+3. somente a estação principal pode processar jobs automáticos;
+4. a MTP5 imprime o ticket aprovado com 2 cópias por padrão;
+5. impressão manual e reimpressão funcionam com confirmação adequada;
+6. falha de impressão nunca bloqueia o pedido;
+7. nenhuma falha dispara loop de retentativa automática;
+8. trabalhos antigos/incertos exigem ação humana antes de nova impressão;
+9. histórico de jobs permite identificar sucesso, falha, estação e horário;
+10. preview e PDF saem do mesmo documento canônico;
+11. ticket contém valores, pagamento, observações e mensagem de agradecimento;
+12. Chrome/Windows e Chrome/Android compatíveis conseguem utilizar a mesma aplicação web;
+13. navegador incompatível recebe orientação clara sem quebrar o restante do Gestão Delivery;
+14. testes automatizados, lint e build permanecem verdes;
+15. a aceitação com a MTP5 física é concluída nos dois ambientes alvo.
 
 ## 19. Fora de escopo
 
