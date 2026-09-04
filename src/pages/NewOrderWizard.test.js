@@ -49,3 +49,16 @@ test('products step focuses on catalog and exposes a subtotal-only cart summary'
   assert.match(cartSummary, /Subtotal dos produtos/)
   assert.match(cartSummary, /Revisar pedido/)
 })
+
+test('review step owns the full cart and financial checkout composition', async () => {
+  const reviewStep = await read('../components/NewOrderReviewStep.jsx')
+  const productsStep = await read('../components/NewOrderProductsStep.jsx')
+
+  assert.match(reviewStep, /OrderCart/)
+  assert.match(reviewStep, /OrderCheckoutSummary/)
+  assert.match(reviewStep, /Voltar aos produtos/)
+  assert.match(reviewStep, /customerSummary/)
+  assert.match(reviewStep, /itemCount/)
+  assert.doesNotMatch(productsStep, /OrderCart/)
+  assert.doesNotMatch(productsStep, /OrderCheckoutSummary/)
+})
