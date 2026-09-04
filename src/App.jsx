@@ -34,7 +34,7 @@ import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './ut
 import { shouldConfirmNewOrderExit } from './utils/newOrderStepFlow.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
-import { activeOrderIdSet, getNewActiveOrderIds } from './utils/orderRealtime.js'
+import { getNewOperationalOrderIds, operationalOrderIdSet } from './utils/orderRealtime.js'
 import { toLocalDateValue } from './utils/orderWorkflow'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
@@ -110,7 +110,7 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
-  const knownActiveOrderIdsRef = useRef(new Set())
+  const knownOperationalOrderIdsRef = useRef(new Set())
   const alertedOrderIdsRef = useRef(new Set())
   const currentOrdersRef = useRef([])
   const kitchenAudioContextRef = useRef(null)
@@ -133,7 +133,7 @@ function App() {
   const clearBusinessData = () => {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
-    knownActiveOrderIdsRef.current = new Set(); alertedOrderIdsRef.current = new Set(); currentOrdersRef.current = []
+    knownOperationalOrderIdsRef.current = new Set(); alertedOrderIdsRef.current = new Set(); currentOrdersRef.current = []
     setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
   }
 
@@ -263,7 +263,7 @@ function App() {
   useEffect(() => {
     if (activeTab !== 'orders' || !isOnline || authState !== 'authenticated' || bootstrapState !== 'ready') return undefined
     let cancelled = false
-    knownActiveOrderIdsRef.current = activeOrderIdSet(currentOrdersRef.current)
+    knownOperationalOrderIdsRef.current = operationalOrderIdSet(currentOrdersRef.current, new Date())
     const refreshOrders = async () => {
       if (ordersSyncInFlightRef.current || cancelled) return
       ordersSyncInFlightRef.current = true
@@ -272,8 +272,9 @@ function App() {
         const data = await getOrdersApi()
         if (cancelled || !Array.isArray(data?.orders) || !syncGuardRef.current.canApply(token, 'orders')) return
         const latestOrders = data.orders
-        const detectedIds = getNewActiveOrderIds(knownActiveOrderIdsRef.current, latestOrders).filter((id) => !alertedOrderIdsRef.current.has(id))
-        knownActiveOrderIdsRef.current = activeOrderIdSet(latestOrders); setOrders(latestOrders)
+        const now = new Date()
+        const detectedIds = getNewOperationalOrderIds(knownOperationalOrderIdsRef.current, latestOrders, now).filter((id) => !alertedOrderIdsRef.current.has(id))
+        knownOperationalOrderIdsRef.current = operationalOrderIdSet(latestOrders, now); setOrders(latestOrders)
         if (detectedIds.length) {
           detectedIds.forEach((id) => alertedOrderIdsRef.current.add(id)); setNewOrderIds((current) => new Set([...current, ...detectedIds])); if (kitchenSoundEnabled) void playKitchenNewOrderSound()
           if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current)

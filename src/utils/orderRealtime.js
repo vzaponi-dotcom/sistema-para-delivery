@@ -1,6 +1,8 @@
-const FINISHED_STATUSES = new Set(['Finalizado', 'Entregue', 'Despachado'])
+import { isScheduledWaiting } from '../../shared/orderTiming.js'
+import { isOrderActive } from './orderLifecycle.js'
 
-const isActiveOrder = (order) => Boolean(order?.id) && !order?.finishedAt && !FINISHED_STATUSES.has(order?.status)
+const FINISHED_STATUSES = new Set(['Finalizado', 'Entregue', 'Despachado'])
+const isActiveOrder = (order) => Boolean(order?.id) && isOrderActive(order) && !FINISHED_STATUSES.has(order?.status)
 
 export const activeOrderIdSet = (orders = []) => new Set(
   orders.filter(isActiveOrder).map((order) => String(order.id)),
@@ -9,4 +11,13 @@ export const activeOrderIdSet = (orders = []) => new Set(
 export const getNewActiveOrderIds = (previousIds, orders = []) => {
   const knownIds = previousIds instanceof Set ? previousIds : new Set(previousIds ?? [])
   return [...activeOrderIdSet(orders)].filter((id) => !knownIds.has(id))
+}
+
+export const operationalOrderIdSet = (orders = [], now = new Date()) => new Set(
+  orders.filter((order) => isActiveOrder(order) && !isScheduledWaiting(order, now)).map((order) => String(order.id)),
+)
+
+export const getNewOperationalOrderIds = (previousIds, orders = [], now = new Date()) => {
+  const knownIds = previousIds instanceof Set ? previousIds : new Set(previousIds ?? [])
+  return [...operationalOrderIdSet(orders, now)].filter((id) => !knownIds.has(id))
 }
