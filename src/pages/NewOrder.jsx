@@ -4,10 +4,10 @@ import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
 import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
 import NewOrderCustomerStep from '../components/NewOrderCustomerStep'
+import NewOrderProductsStep from '../components/NewOrderProductsStep'
 import NewOrderStepIndicator from '../components/NewOrderStepIndicator'
 import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
-import OrderProductCatalog from '../components/OrderProductCatalog'
 import PageHeader from '../components/PageHeader'
 import {
   addCartItem,
@@ -25,6 +25,7 @@ import {
   getFurthestReachedStep,
   getNewOrderStepAccess,
   getOrderItemCount,
+  getOrderItemsSubtotal,
 } from '../utils/newOrderStepFlow.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
@@ -86,6 +87,15 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   }
   const preview = calculateOrderPreview(numericDraft)
   const itemCount = getOrderItemCount(items)
+  const itemsSubtotal = getOrderItemsSubtotal(items)
+  const selectedClient = clients.find((client) => client.id === clientId) ?? null
+  const customerSummary = type === 'Local'
+    ? (localIdentityType === 'registered_client'
+        ? `${selectedClient?.name || 'Cliente'} · Consumo no local`
+        : localIdentityType === 'table'
+          ? `Mesa ${localIdentityValue.trim().toUpperCase()} · Consumo no local`
+          : `${localIdentityValue.trim() || 'Consumo local'} · Consumo no local`)
+    : `${selectedClient?.name || 'Cliente'} · ${type}`
   const stepAccess = getNewOrderStepAccess({
     identityValid: identityValidation.ok,
     orderDate,
@@ -275,19 +285,24 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
         />
       )}
 
-      {currentStep !== NEW_ORDER_STEPS.CUSTOMER && (
+      {currentStep === NEW_ORDER_STEPS.PRODUCTS && (
+        <NewOrderProductsStep
+          products={products}
+          items={items}
+          currency={currency}
+          disabled={disabled}
+          customerSummary={customerSummary}
+          itemCount={itemCount}
+          subtotal={itemsSubtotal}
+          onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
+          onBack={() => goToStep(NEW_ORDER_STEPS.CUSTOMER)}
+          onReview={() => goToStep(NEW_ORDER_STEPS.REVIEW)}
+        />
+      )}
+
+      {currentStep === NEW_ORDER_STEPS.REVIEW && (
         <div className="new-order-layout">
           <div className="new-order-main-column">
-            <OrderProductCatalog
-              products={products}
-              items={items}
-              currency={currency}
-              disabled={disabled}
-              onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
-            />
-          </div>
-
-          <div className="new-order-cart-column">
             <OrderCart
               items={items}
               currency={currency}
@@ -297,6 +312,9 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
               onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
               onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
             />
+          </div>
+
+          <div className="new-order-cart-column">
             <OrderCheckoutSummary
               draft={draft}
               preview={preview}
