@@ -93,7 +93,6 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   })
   const canSubmit = Boolean(stepAccess.review)
   const canContinueCustomer = stepAccess.products
-  const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
 
   const goToStep = (targetStep) => {
     if (!canNavigateToNewOrderStep({
@@ -245,34 +244,33 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
 
       {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
         <NewOrderCustomerStep
-          type={type}
-          orderDate={orderDate}
-          today={toLocalDateValue()}
-          disabled={disabled}
-          onTypeChange={changeType}
-          onOrderDateChange={setOrderDate}
-          localIdentityType={localIdentityType}
-          onLocalIdentityTypeChange={changeLocalIdentityType}
-          localIdentityValue={localIdentityValue}
-          onLocalIdentityValueChange={setLocalIdentityValue}
-          openTableTab={openTableTab}
-          usesRegisteredClient={usesRegisteredClient}
-          hasClients={clients.length > 0}
-          clientSearch={clientSearch}
-          clientPickerOpen={clientPickerOpen}
+          clients={clients}
           filteredClients={filteredClients}
           clientId={clientId}
-          onClientSearchChange={handleClientSearchChange}
-          onClientPickerFocus={() => setClientPickerOpen(true)}
-          onClientPickerBlur={handleClientPickerBlur}
-          onSelectClient={selectClient}
-          onToggleQuickClient={toggleQuickClient}
+          clientSearch={clientSearch}
+          clientPickerOpen={clientPickerOpen}
+          type={type}
+          orderDate={orderDate}
+          todayValue={toLocalDateValue()}
+          localIdentityType={localIdentityType}
+          localIdentityValue={localIdentityValue}
+          openTableTab={openTableTab}
           quickClient={quickClient}
           quickClientError={quickClientError}
+          disabled={disabled}
+          canContinue={canContinueCustomer}
+          onTypeChange={changeType}
+          onOrderDateChange={setOrderDate}
+          onLocalIdentityTypeChange={changeLocalIdentityType}
+          onLocalIdentityValueChange={setLocalIdentityValue}
+          onClientSearchChange={handleClientSearchChange}
+          onClientFocus={() => setClientPickerOpen(true)}
+          onClientBlur={handleClientPickerBlur}
+          onClientSelect={selectClient}
+          onQuickClientToggle={toggleQuickClient}
+          onQuickClientChange={handleQuickClientChange}
           onQuickClientSubmit={handleQuickClientSubmit}
           onQuickClientCancel={closeQuickClient}
-          onQuickClientChange={handleQuickClientChange}
-          canContinue={canContinueCustomer}
           onContinue={() => goToStep(NEW_ORDER_STEPS.PRODUCTS)}
         />
       )}
