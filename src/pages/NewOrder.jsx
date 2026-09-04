@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
 import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
 import Button from '../components/Button'
@@ -21,16 +21,18 @@ import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../u
 import {
   NEW_ORDER_STEPS,
   canNavigateToNewOrderStep,
+  createNewOrderDirtySnapshot,
   getFurthestReachedStep,
   getNewOrderStepAccess,
   getOrderItemCount,
   getOrderItemsSubtotal,
+  isNewOrderDraftDirty,
 } from '../utils/newOrderStepFlow.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCancel, onCreateClient, onSubmit }) {
+function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
   const [currentStep, setCurrentStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [maxReachedStep, setMaxReachedStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
@@ -47,6 +49,41 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const [quickClientError, setQuickClientError] = useState('')
   const [duplicateClient, setDuplicateClient] = useState(null)
   const [checkoutError, setCheckoutError] = useState('')
+  const initialDraftSnapshotRef = useRef(null)
+
+  if (initialDraftSnapshotRef.current === null) {
+    initialDraftSnapshotRef.current = createNewOrderDirtySnapshot({
+      clientId,
+      type,
+      localIdentityType,
+      localIdentityValue,
+      orderDate,
+      items,
+      deliveryFee,
+      adjustment,
+      quickClient,
+    })
+  }
+
+  const draftDirty = isNewOrderDraftDirty({
+    clientId,
+    type,
+    localIdentityType,
+    localIdentityValue,
+    orderDate,
+    items,
+    deliveryFee,
+    adjustment,
+    quickClient,
+  }, initialDraftSnapshotRef.current)
+
+  useEffect(() => {
+    onDraftDirtyChange?.(draftDirty)
+  }, [draftDirty, onDraftDirtyChange])
+
+  useEffect(() => () => {
+    onDraftDirtyChange?.(false)
+  }, [onDraftDirtyChange])
 
   const filteredClients = useMemo(() => {
     const normalized = clientSearch.trim().toLowerCase()
