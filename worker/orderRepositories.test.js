@@ -82,10 +82,10 @@ class OrderDb {
   }
 }
 
-test('createOrder calculates server cents and writes order plus item in one batch', async () => {
+test('createOrder calculates server cents and writes order contact snapshot and item in one batch', async () => {
   const db = new OrderDb()
   const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 2, orderDate: '2026-09-01', idempotencyKey: 'request-1' }, new Date('2026-09-01T20:00:00.000Z'))
-  assert.equal(order.total, 64); assert.equal(order.items[0].quantity, 2); assert.equal(order.items[0].catalogPrice, 32); assert.equal(db.batchCalls[0].length, 2); assert.equal([...db.orders.values()][0].total_cents, 6400)
+  assert.equal(order.total, 64); assert.equal(order.items[0].quantity, 2); assert.equal(order.items[0].catalogPrice, 32); assert.equal(db.batchCalls[0].length, 3); assert.equal([...db.orders.values()][0].total_cents, 6400)
 })
 
 test('same order idempotency key returns one backdated finalized order', async () => {
