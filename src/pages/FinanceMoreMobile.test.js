@@ -14,12 +14,31 @@ test('finance rows keep long movement copy readable at 320px', async () => {
   assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-value\s*\{[^}]*grid-column:\s*2[^}]*white-space:\s*nowrap/s)
 })
 
-test('movement modal keeps SystemSelect and a decimal-capable number input', async () => {
-  const app = await read('../App.jsx')
+test('movement dialog keeps BRL text input and structured finance fields on mobile', async () => {
+  const movementDialog = await read('../components/MovementDialog.jsx')
 
-  assert.match(app, /label="Tipo da movimentação"/)
-  assert.match(app, /label="Categoria da movimentação"/)
-  assert.match(app, /<input[^>]*type="number"[^>]*min="0"[^>]*step="0\.01"/)
+  assert.match(movementDialog, /type="text"/)
+  assert.match(movementDialog, /inputMode="decimal"/)
+  assert.match(movementDialog, /movementDate/)
+  assert.match(movementDialog, /paymentMethod/)
+})
+
+test('finance mobile summary is a 2 by 2 grid with touch-friendly filters and actions', async () => {
+  const financeCss = await read('../finance-mobile.css')
+
+  assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.finance-stats-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(financeCss, /\.finance-filter-trigger\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target,\s*44px\))/s)
+  assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.finance-movement-actions \.button\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target,\s*44px\))/s)
+})
+
+test('finance keeps search visible and moves secondary filters into BottomSheet on mobile', async () => {
+  const finance = await read('./Finance.jsx')
+  const bottomSheetCss = await read('../bottom-sheet.css')
+
+  assert.match(finance, /import BottomSheet from ['"]\.\.\/components\/BottomSheet['"]/)
+  assert.match(finance, /Filtrar movimentações/)
+  assert.match(finance, /FinanceHistoryFilters/)
+  assert.match(bottomSheetCss, /env\(safe-area-inset-bottom/)
 })
 
 test('finance exposes pending refunds with a register action only when supplied', async () => {
