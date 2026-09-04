@@ -6,6 +6,7 @@ const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 const wrangler = readFileSync('wrangler.jsonc', 'utf8')
 const validateWorkflow = readFileSync('.github/workflows/validate.yml', 'utf8')
 const stagingWorkflowPath = '.github/workflows/deploy-staging.yml'
+const productionWorkflow = readFileSync('.github/workflows/deploy-production.yml', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
@@ -63,4 +64,15 @@ test('staging workflow targets only staging resources', () => {
   assert.doesNotMatch(workflow, /npm run d1:migrate:production/)
   assert.doesNotMatch(workflow, /npm run deploy:production/)
   assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
+})
+
+test('production deploy is manual, master-only, and validates locally before remote writes', () => {
+  assert.match(productionWorkflow, /workflow_dispatch:/)
+  assert.match(productionWorkflow, /github\.ref == 'refs\/heads\/master'/)
+  assert.match(productionWorkflow, /ref: master/)
+  assert.match(productionWorkflow, /npm run d1:migrate:local/)
+  assert.match(productionWorkflow, /npm run d1:migrate:production/)
+  assert.match(productionWorkflow, /npm run deploy:production/)
+  assert.doesNotMatch(productionWorkflow, /npm run d1:migrate:remote/)
+  assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
 })
