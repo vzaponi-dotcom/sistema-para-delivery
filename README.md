@@ -88,17 +88,42 @@ O Wrangler serve a SPA e direciona `/api/*` para o Worker na mesma origem.
 
 ## Validação
 
-Antes de qualquer deploy:
+Antes de abrir/atualizar um PR, valide sem escrever em nenhum banco remoto:
 
 ```bash
 npm test
 npm run lint
 npm run build
-npx --yes wrangler@4.128.0 deploy --dry-run
 npm run d1:migrate:local
+npx --yes wrangler@4.128.0 deploy --dry-run
+npx --yes wrangler@4.128.0 deploy --dry-run --env staging
 ```
 
-O gate de validação não publica o Worker nem aplica migrations remotas.
+O workflow `.github/workflows/validate.yml` executa esse gate em Pull Requests para `master`. Ele não publica Workers nem aplica migrations remotas.
+
+## Ambientes e fluxo de release
+
+O projeto possui dois ambientes persistentes e isolados:
+
+- **staging:** Worker `sistema-para-delivery-staging` + D1 `amor-e-sabor-delivery-staging`, somente com dados fictícios;
+- **produção:** Worker `sistema-para-delivery` + D1 `amor-e-sabor-delivery`, com dados reais.
+
+Dados reais de produção nunca devem ser copiados para staging.
+
+O fluxo oficial é:
+
+```text
+feature/fix branch
+-> Pull Request para master
+-> Validate application verde
+-> Deploy staging
+-> homologação humana
+-> merge em master
+-> Deploy production explícito
+-> smoke test
+```
+
+O procedimento completo, incluindo migrations e rollback, está em `docs/release-and-migration-runbook.md`.
 
 ## Nova venda com vários itens
 
@@ -153,55 +178,27 @@ A seleção inicial da impressora precisa de uma ação explícita do usuário. 
 
 O checklist completo de validação física está em `docs/order-printing-mtp5-acceptance.md` e deve ser preenchido separadamente para Windows e Android.
 
+## Deploy de staging
+
+Staging é o ambiente usado para testar alterações antes de produção. O deploy oficial é feito pelo workflow:
+
+`.github/workflows/deploy-staging.yml` — **Deploy staging**
+
+Ele valida a aplicação, aplica migrations somente no D1 `amor-e-sabor-delivery-staging`, configura a credencial exclusiva de staging, publica `sistema-para-delivery-staging` e executa um smoke test de login.
+
+Não copie clientes, pedidos, pagamentos, endereços, telefones ou qualquer outro dado real de produção para staging.
+
 ## Deploy de produção
 
-A migration remota e o deploy continuam sendo **passos manuais de release**. Validar a branch não altera o D1 remoto nem publica o Worker.
+Produção não é publicada por comandos rotineiros de desenvolvimento. Depois de PR aprovado, CI verde, homologação em staging e merge em `master`, use exclusivamente o workflow:
 
-### 1. Aplicar as migrations remotas pendentes
+`.github/workflows/deploy-production.yml` — **Deploy production**
 
-```bash
-npm run d1:migrate:remote
-```
+Esse workflow é manual e restrito a `master`. Ele executa testes, lint, build, migration local, dry-run, lista/aplica migrations de produção, preserva/configura a credencial oficial e só então publica o Worker e executa o smoke test de login.
 
-As migrations evoluem o schema central sem importar dados antigos de teste do navegador. A migration do checkout multi-itens adiciona taxa de entrega ao pedido e observação por item; migrations posteriores também evoluem outros domínios, incluindo a persistência central de impressão.
+Os scripts `d1:migrate:production` e `deploy:production` existem para uso pelo fluxo de release. Eles não devem ser tratados como comandos comuns de desenvolvimento nem executados a partir de branches de feature.
 
-### 2. Gerar o verificador do PIN de produção
-
-Use um PIN definido pelo responsável pela operação. Não reutilize exemplos de documentação.
-
-```bash
-read -s AMOR_PIN
-PIN="$AMOR_PIN" node scripts/generate-pin-hash.mjs
-unset AMOR_PIN
-```
-
-Somente o verificador resultante pode ser gravado no D1. O PIN em texto puro nunca deve ser commitado ou salvo em arquivo.
-
-### 3. Gravar o verificador no D1 remoto
-
-No console D1 da Cloudflare, execute o SQL abaixo substituindo somente o placeholder pelo verificador gerado:
-
-```sql
-INSERT INTO auth_credentials (business_id, pin_hash, created_at, updated_at)
-VALUES ('amor-e-sabor', '<COLE_O_VERIFICADOR_AQUI>', datetime('now'), datetime('now'))
-ON CONFLICT(business_id) DO UPDATE SET
-  pin_hash = excluded.pin_hash,
-  updated_at = datetime('now');
-```
-
-Confirme sem imprimir o hash novamente:
-
-```sql
-SELECT business_id, length(pin_hash) AS verifier_length
-FROM auth_credentials
-WHERE business_id = 'amor-e-sabor';
-```
-
-### 4. Fazer o deploy
-
-```bash
-npm run deploy
-```
+Migrations destrutivas ou que transformem dados reais exigem estratégia de restauração revisada antes da autorização. Consulte `docs/release-and-migration-runbook.md`.
 
 ## Checklist de aceitação do checkout multi-itens
 
@@ -222,17 +219,28 @@ Também mantenha os checks operacionais existentes de autenticação, sincroniza
 
 ## Scripts
 
+Comandos normais de desenvolvimento e validação:
+
 ```bash
 npm run dev
 npm run build
 npm run preview
 npm run dev:worker
 npm run d1:migrate:local
-npm run d1:migrate:remote
-npm run deploy
 npm test
 npm run lint
 ```
+
+Comandos de ambiente controlado/release:
+
+```bash
+npm run d1:migrate:staging
+npm run deploy:staging
+npm run d1:migrate:production
+npm run deploy:production
+```
+
+Os dois comandos de produção são reservados ao workflow **Deploy production** no processo normal.
 
 ## Segurança
 

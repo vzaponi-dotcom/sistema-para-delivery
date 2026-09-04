@@ -26,5 +26,28 @@
         "period": 60
       }
     }
-  ]
+  ],
+  "env": {
+    "staging": {
+      "name": "sistema-para-delivery-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "amor-e-sabor-delivery-staging",
+          "database_id": "73a1c0c1-142f-4247-8ffc-e858ab2ac400",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "LOGIN_RATE_LIMITER",
+          "namespace_id": "2026090401",
+          "simple": {
+            "limit": 5,
+            "period": 60
+          }
+        }
+      ]
+    }
+  }
 }
