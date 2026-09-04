@@ -46,4 +46,8 @@ export const deleteOrder = async () => {
 }
 export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
+
 export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
+export const updateMovement = (id, movement) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, withJson('PATCH', movement))
+export const deleteMovement = (id) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, { method: 'DELETE' })
+export const saveFinanceSettings = (settings) => apiRequest('/api/finance-settings', withJson('PUT', settings))
