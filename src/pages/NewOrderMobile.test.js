@@ -45,3 +45,12 @@ test('products step keeps a mobile cart action above the bottom navigation safe 
   assert.match(css, /env\(safe-area-inset-bottom\)/)
   assert.match(css, /@media\s*\(max-width:\s*820px\)/)
 })
+
+test('wizard collapses review and type choices safely on narrow screens', async () => {
+  const css = await read('../new-order.css')
+
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-step-indicator/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-type-options\s*\{[^}]*grid-template-columns:\s*1fr/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-review-layout\s*\{[^}]*grid-template-columns:\s*1fr/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-review-context\s*\{[^}]*grid-template-columns:\s*1fr/s)
+})
