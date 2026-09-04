@@ -103,4 +103,5 @@ jobs:
           NODE
 
       - name: Summarize staging URL
-        run: echo 'Staging URL: https://sistema-para-delivery-staging.vzaponi.workers.dev' >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo 'Staging URL: https://sistema-para-delivery-staging.vzaponi.workers.dev' >> "$GITHUB_STEP_SUMMARY"
