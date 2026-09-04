@@ -13,6 +13,7 @@ import {
   buildOrderPayload,
   calculateOrderPreview,
   commitCartItemNote,
+  decrementCartProduct,
   editCartItemNote,
   removeCartItem,
   updateCartItem,
@@ -337,6 +338,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
             itemCount={itemCount}
             subtotal={itemsSubtotal}
             onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
+            onDecrease={(productId) => setItems((current) => decrementCartProduct(current, productId))}
             onBack={() => navigateStep(NEW_ORDER_STEPS.CUSTOMER)}
             onReview={() => navigateStep(NEW_ORDER_STEPS.REVIEW)}
           />
