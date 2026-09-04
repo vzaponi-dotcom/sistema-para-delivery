@@ -1,0 +1,153 @@
+.printing-settings {
+  gap: 16px;
+}
+
+.printing-status-card,
+.printing-primary-card,
+.printing-toggle-row,
+.printing-compatibility {
+  border: 1px solid var(--border-color, #e6e6e6);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--surface-subtle, #fafafa);
+}
+
+.printing-status-card,
+.printing-primary-card,
+.printing-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.printing-status-card > div,
+.printing-primary-card > div,
+.printing-toggle-row > span,
+.printing-compatibility {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.printing-label,
+.printing-info-grid span,
+.printing-primary-card span,
+.printing-toggle-row small,
+.printing-compatibility span {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.84rem;
+}
+
+.printing-state {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--surface, #fff);
+}
+
+.printing-state-connected {
+  border: 1px solid rgba(22, 163, 74, 0.35);
+}
+
+.printing-state-disconnected,
+.printing-state-unconfigured,
+.printing-state-unsupported {
+  border: 1px solid rgba(107, 114, 128, 0.35);
+}
+
+.printing-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.printing-info-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.printing-info-grid strong {
+  overflow-wrap: anywhere;
+}
+
+.printing-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.printing-toggle-row {
+  cursor: pointer;
+}
+
+.printing-toggle-row input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.printing-copy-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.printing-copy-options legend {
+  width: 100%;
+  margin-bottom: 2px;
+  font-weight: 700;
+}
+
+.printing-copy-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #e6e6e6);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.printing-feedback {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.printing-feedback-error {
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .printing-status-card,
+  .printing-primary-card,
+  .printing-toggle-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .printing-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .printing-actions-row {
+    flex-direction: column;
+  }
+
+  .printing-actions-row .button,
+  .printing-primary-card .button {
+    width: 100%;
+  }
+
+  .printing-toggle-row input {
+    align-self: flex-end;
+  }
+}
