@@ -34,11 +34,11 @@ test('product catalog replaces added action with synchronized quantity controls'
   assert.match(page, /onDecrease=\{\(productId\) => setItems/)
   assert.match(productsStep, /onDecrease/)
   assert.match(catalog, /getCartProductQuantity/)
-  assert.match(catalog, /new-order-product-quantity/)
+  assert.match(catalog, /new-order-product-quantity new-order-quantity-control/)
   assert.match(catalog, /Remover uma unidade/)
   assert.match(catalog, /Adicionar mais uma unidade/)
   assert.doesNotMatch(catalog, /✓ Adicionado/)
-  assert.match(css, /\.new-order-product-quantity\s*\{/)
+  assert.match(css, /\.new-order-quantity-control\s*\{/)
 })
 
 test('product catalog starts empty until a category is selected or search is typed', () => {
