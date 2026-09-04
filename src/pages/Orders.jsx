@@ -130,7 +130,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
       <section className="stats-grid stats-grid-four order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
         <StatCard label="Agendados" value={scheduledCount} helper="Aguardando janela operacional" icon="orders" />
-        <StatCard label="Com atraso" value={delayedCount} helper="Mais de 30 min" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
+        <StatCard label="Com atraso" value={delayedCount} helper="Pedidos fora do prazo" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
         <StatCard label="Finalizados hoje" value={finishedTodayCount} helper="Já saíram da operação" icon="dashboard" tone="success" />
       </section>
 

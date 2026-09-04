@@ -20,3 +20,8 @@ test('scheduled queue hides preparation-only actions while preserving details an
   assert.match(source, /getFinalActionLabel\(order\)/)
   assert.match(source, /order-cancel-action/)
 })
+
+test('delay statistic uses neutral wording for scheduled orders', async () => {
+  const source = await read('./Orders.jsx')
+  assert.match(source, /helper="Pedidos fora do prazo"/)
+})
