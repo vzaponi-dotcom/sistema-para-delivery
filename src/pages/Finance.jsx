@@ -1,15 +1,30 @@
 import { useState } from 'react'
 import Button from '../components/Button'
+import ConfirmationDialog from '../components/ConfirmationDialog'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 import RegisterRefundDialog from '../components/RegisterRefundDialog'
 import StatCard from '../components/StatCard'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
 
-function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund }) {
+function Finance({
+  totals,
+  movements,
+  financeSettings,
+  currentBalance,
+  currency,
+  onAddMovement,
+  onEditMovement,
+  onDeleteMovement,
+  onConfigureOpeningBalance,
+  pendingRefundOrders = [],
+  onRegisterRefund,
+  actionKey = null,
+}) {
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
-  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+  const [deletingMovement, setDeletingMovement] = useState(null)
+  const writeDisabled = (typeof navigator !== 'undefined' && !navigator.onLine) || Boolean(actionKey)
 
   const confirmRefund = async (payload) => {
     if (!refundOrder || refundSubmitting || !onRegisterRefund) return
@@ -22,14 +37,38 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
     }
   }
 
+  const confirmDeleteMovement = async () => {
+    if (!deletingMovement || writeDisabled || !onDeleteMovement) return
+    const saved = await onDeleteMovement(deletingMovement.id)
+    if (saved !== false) setDeletingMovement(null)
+  }
+
   return (
     <>
-      <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={<Button icon="plus" onClick={onAddMovement} disabled={writeDisabled}>Novo movimento</Button>} />
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Fluxo de caixa"
+        description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber."
+        actions={<Button icon="plus" onClick={onAddMovement} disabled={writeDisabled}>Novo movimento</Button>}
+      />
+
       <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">
         <StatCard label="Entradas" value={currency(totals.entries)} helper="Receita registrada" icon="arrow-up" tone="success" />
         <StatCard label="Saídas" value={currency(totals.exits)} helper="Despesas registradas" icon="arrow-down" tone="danger" />
         <StatCard label="Saldo" value={currency(totals.balance)} helper="Entradas menos saídas" icon="wallet" tone={totals.balance >= 0 ? 'neutral' : 'danger'} />
       </section>
+
+      <div className="finance-opening-balance-actions">
+        <Button type="button" variant="secondary" onClick={onConfigureOpeningBalance} disabled={writeDisabled}>
+          {financeSettings ? 'Editar saldo inicial' : 'Configurar saldo inicial'}
+        </Button>
+        {financeSettings && (
+          <span>
+            Abertura em {financeSettings.openingDate} · saldo atual {currentBalance === null || currentBalance === undefined ? 'não disponível' : currency(currentBalance)}
+          </span>
+        )}
+      </div>
+
       {pendingRefundOrders.length > 0 && (
         <section className="surface-card pending-refunds-surface">
           <div className="section-heading"><div><span className="section-kicker">Atenção</span><h2>Estornos pendentes</h2></div><span className="toolbar-count">{pendingRefundOrders.length} pendente(s)</span></div>
@@ -44,20 +83,54 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
           </div>
         </section>
       )}
+
       <section className="surface-card">
         <div className="section-heading"><div><span className="section-kicker">Histórico</span><h2>Movimentações</h2></div><span className="toolbar-count">{movements.length} registro(s)</span></div>
         <div className="movement-list">
           {movements.map((movement) => (
             <article className="movement-row" key={movement.id}>
               <div className={movement.type === 'entrada' ? 'movement-icon incoming' : 'movement-icon outgoing'}><Icon name={movement.type === 'entrada' ? 'arrow-up' : 'arrow-down'} size={18} /></div>
-              <div className="movement-main"><div className="movement-title-line"><strong>{movement.description}</strong><span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>{movement.type === 'entrada' ? 'Entrada' : 'Saída'}</span>{movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}{movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}</div><span>{movement.category} · {movement.date}{movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}</span></div>
+              <div className="movement-main">
+                <div className="movement-title-line">
+                  <strong>{movement.description}</strong>
+                  <span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>{movement.type === 'entrada' ? 'Entrada' : 'Saída'}</span>
+                  {movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}
+                  {movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}
+                </div>
+                <span>{movement.category} · {movement.movementDate || movement.date}{movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}</span>
+              </div>
               <strong className={movement.type === 'entrada' ? 'movement-value positive' : 'movement-value negative'}>{movement.type === 'entrada' ? '+' : '-'}{currency(movement.value)}</strong>
+              {movement.source === 'manual' && (
+                <div className="movement-actions">
+                  <Button type="button" variant="secondary" onClick={() => onEditMovement?.(movement)} disabled={writeDisabled}>Editar</Button>
+                  <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => setDeletingMovement(movement)} disabled={writeDisabled}>Excluir</Button>
+                </div>
+              )}
             </article>
           ))}
         </div>
         {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
       </section>
+
       <RegisterRefundDialog open={Boolean(refundOrder)} order={refundOrder} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
+
+      {deletingMovement && (
+        <ConfirmationDialog
+          title="Excluir movimentação"
+          message="Esta movimentação manual deixará de compor o fluxo de caixa."
+          details={(
+            <div className="form-stack compact-stack">
+              <strong>{deletingMovement.description}</strong>
+              <span>{currency(deletingMovement.value)} · {deletingMovement.movementDate || deletingMovement.date}</span>
+            </div>
+          )}
+          confirmLabel="Excluir movimentação"
+          confirmVariant="danger"
+          onClose={() => setDeletingMovement(null)}
+          onConfirm={confirmDeleteMovement}
+          disabled={writeDisabled}
+        />
+      )}
     </>
   )
 }
