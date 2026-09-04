@@ -59,6 +59,6 @@ test('review step owns the full cart and financial checkout composition', async 
   assert.match(reviewStep, /Voltar aos produtos/)
   assert.match(reviewStep, /customerSummary/)
   assert.match(reviewStep, /itemCount/)
-  assert.doesNotMatch(productsStep, /OrderCart/)
+  assert.doesNotMatch(productsStep, /import OrderCart|<OrderCart/)
   assert.doesNotMatch(productsStep, /OrderCheckoutSummary/)
 })
