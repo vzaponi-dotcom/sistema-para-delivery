@@ -1,0 +1,53 @@
+name: Inspect production D1 via API
+
+on:
+  push:
+    branches:
+      - hotfix/bootstrap-observability
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Read-only D1 API diagnostics
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: baa83769-4637-43f6-bf77-711f4f2ed069
+
+    steps:
+      - name: Check Cloudflare credentials
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare credentials are not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
+      - name: Query production D1 read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/$D1_DATABASE_ID/query"
+
+          query() {
+            local label="$1"
+            local sql="$2"
+            echo "=== $label ==="
+            jq -n --arg sql "$sql" '{sql:$sql}' > /tmp/query.json
+            curl --fail-with-body -sS \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data-binary @/tmp/query.json \
+              "$endpoint" | jq .
+          }
+
+          query "sqlite_master" "SELECT type, name FROM sqlite_master WHERE type IN ('table','index') ORDER BY type, name;"
+          query "migration table presence" "SELECT name FROM sqlite_master WHERE type='table' AND name='d1_migrations';"
+          query "applied migrations" "SELECT * FROM d1_migrations ORDER BY id;"
+
+          for table in businesses clients products orders order_items payments financial_movements sessions auth_credentials table_tabs; do
+            query "table_info:$table" "PRAGMA table_info($table);"
+          done
