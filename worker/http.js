@@ -37,6 +37,12 @@ export const handleError = (error) => {
     ? 'Não foi possível concluir a operação.'
     : (error?.message || 'Não foi possível concluir a operação.')
 
-  if (status >= 500) console.error('Worker error', { name: error?.name || 'Error', code, status })
+  if (status >= 500) console.error('Worker error', {
+    name: error?.name || 'Error',
+    code,
+    status,
+    message: error?.message || String(error),
+    stack: error?.stack || null,
+  })
   return json({ error: { code, message } }, { status })
 }
