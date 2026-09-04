@@ -4,7 +4,7 @@
 
 **Goal:** Evoluir o Financeiro para um fluxo de caixa realizado confiável, com categorias manuais seguras, data e meio estruturados, edição/exclusão de lançamentos manuais, saldo inicial, visão por período, filtros e sincronização automática sem permitir alterações em movimentos gerados por pedidos.
 
-**Architecture:** O D1 continua sendo a fonte de verdade. O Worker passa a modelar movimentos financeiros e configuração de abertura com regras de domínio explícitas; `App.jsx` continua proprietário das coleções autenticadas e aplica imediatamente os objetos oficiais retornados pelas escritas. Vocabulário financeiro estável fica em `shared/finance.js`, cálculos/filtros leves ficam em `src/utils/finance.js`, e a UI do Financeiro é dividida em diálogos/filtros focados para evitar expandir novamente `App.jsx`.
+**Architecture:** O D1 continua sendo a fonte de verdade. O Worker passa a modelar movimentos financeiros e configuração de abertura com regras de domínio explícitas; `App.jsx` continua proprietário das coleções autenticadas e aplica imediatamente os objetos oficiais retornados pelas escritas. Vocabulário financeiro estável fica em `shared/finance.js`, cálculos/filtros leves ficam em `src/utils/finance.js`, e a UI do Financeiro é dividida em diálogos e controles focados para evitar devolver regras financeiras para `App.jsx`.
 
 **Tech Stack:** React 19.2.x, Vite 8.2.x, Node test runner (`node --test`), Cloudflare Worker, D1/SQLite, Wrangler 4.128.0, oxlint.
 
@@ -90,7 +90,7 @@
 
 - [ ] **Step 1: Escrever testes RED para categorias, legados e fuso**
 
-Crie `shared/finance.test.js` cobrindo pelo menos:
+Crie `shared/finance.test.js`:
 
 ```js
 import test from 'node:test'
@@ -138,8 +138,6 @@ Expected: FAIL porque `shared/finance.js` ainda não existe.
 
 - [ ] **Step 3: Implementar o domínio compartilhado mínimo**
 
-Use códigos estáveis e normalize apenas para leitura/filtro:
-
 ```js
 export const FINANCE_TIME_ZONE = 'America/Sao_Paulo'
 export const PAYMENT_METHODS = ['Dinheiro', 'Pix', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
@@ -186,18 +184,19 @@ git commit -m "feat: define shared finance domain"
 
 ---
 
-### Task 2: Evoluir o schema e preservar metadados de movimentos automáticos
+### Task 2: Evoluir o schema, bootstrap e metadados de movimentos automáticos
 
 **Files:**
 - Create: `migrations/0009_finance_cash_flow.sql`
 - Create: `worker/financeMigration.test.js`
 - Create: `worker/financeRepository.js`
-- Create: `worker/financeRepository.test.js` (mapper/bootstrap subset first)
+- Create: `worker/financeRepository.test.js`
 - Modify: `worker/repositories.js`
 - Modify: `worker/orderCancellation.js`
 - Modify: `worker/orderWriteEffects.js`
 - Modify: `worker/orderRepositories.test.js`
 - Modify: `worker/orderCancellation.test.js`
+- Modify: `worker/index.test.js`
 
 **Interfaces:**
 - Produces: `mapMovementRow(row)`, `mapFinanceSettingsRow(row)`, `loadFinanceSettings(db, businessId)` from `worker/financeRepository.js`.
@@ -206,7 +205,7 @@ git commit -m "feat: define shared finance domain"
 
 - [ ] **Step 1: Escrever RED para a migração aditiva**
 
-Em `worker/financeMigration.test.js` leia a SQL e exija:
+Em `worker/financeMigration.test.js`:
 
 ```js
 assert.match(sql, /ALTER TABLE movements ADD COLUMN payment_method TEXT/i)
@@ -218,7 +217,7 @@ assert.match(sql, /opening_balance_cents INTEGER NOT NULL/i)
 assert.match(sql, /opening_date TEXT NOT NULL/i)
 ```
 
-- [ ] **Step 2: Escrever RED para mapeamento/automáticos**
+- [ ] **Step 2: Escrever RED para mapper, bootstrap e compatibilidade legada**
 
 Em `worker/financeRepository.test.js`:
 
@@ -234,19 +233,29 @@ assert.deepEqual(mapMovementRow({
 })
 ```
 
-Estenda `worker/orderRepositories.test.js` para provar que novos `order-payment` gravam `payment_method` igual ao método do pagamento e `updated_at = created_at`. Estenda o teste de estorno para provar que `order-refund` grava o **refundMethod** escolhido, não o método original.
+Estenda `worker/index.test.js` com três movimentos no bootstrap:
 
-- [ ] **Step 3: Executar RED**
-
-```bash
-node --test worker/financeMigration.test.js worker/financeRepository.test.js worker/orderRepositories.test.js worker/orderCancellation.test.js
+```js
+// venda antiga: movement.payment_method null + payment Pix -> response.paymentMethod === 'Pix'
+// estorno antigo: movement.payment_method null + payment Pix -> response.paymentMethod === null
+// movimento deleted_at preenchido -> não aparece em response.movements
 ```
 
-Expected: FAIL pelas colunas/mapper/metadados ainda inexistentes.
+O bootstrap também deve retornar `financeSettings: null` quando não houver linha de configuração.
 
-- [ ] **Step 4: Criar `0009_finance_cash_flow.sql`**
+- [ ] **Step 3: Escrever RED para novos movimentos automáticos**
 
-A migração deve ser somente aditiva:
+Estenda `worker/orderRepositories.test.js` para provar que novos `order-payment` gravam `payment_method` igual ao método do pagamento e `updated_at = created_at`. Estenda `worker/orderCancellation.test.js` para provar que `order-refund` grava o **refundMethod** escolhido, não o método original.
+
+- [ ] **Step 4: Executar RED**
+
+```bash
+node --test worker/financeMigration.test.js worker/financeRepository.test.js worker/orderRepositories.test.js worker/orderCancellation.test.js worker/index.test.js
+```
+
+Expected: FAIL pelas colunas/mapper/metadados/financeSettings ainda inexistentes.
+
+- [ ] **Step 5: Criar `0009_finance_cash_flow.sql`**
 
 ```sql
 ALTER TABLE movements ADD COLUMN payment_method TEXT;
@@ -269,7 +278,7 @@ CREATE INDEX movements_business_date_active_idx
 
 Não atualize categorias legadas e não invente `payment_method` para estornos antigos.
 
-- [ ] **Step 5: Criar mapper/config repository e atualizar leituras**
+- [ ] **Step 6: Criar mapper/config repository e atualizar leituras**
 
 Em `worker/financeRepository.js`:
 
@@ -291,20 +300,13 @@ export const mapMovementRow = (row) => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at ?? row.created_at,
 })
-
-export const mapFinanceSettingsRow = (row) => row ? ({
-  openingBalance: centsToMoney(row.opening_balance_cents),
-  openingDate: row.opening_date,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-}) : null
 ```
 
-`loadBootstrap()` deve selecionar somente `m.deleted_at IS NULL`, trazer `payment_method/updated_at` e retornar `financeSettings`. Para vendas automáticas antigas, a query pode usar `COALESCE(m.payment_method, p.method)` somente quando `m.source = 'order-payment'`; para `order-refund`, preserve `m.payment_method` nulo.
+`loadBootstrap()` deve selecionar somente movimentos `deleted_at IS NULL`, trazer `payment_method/updated_at` e retornar `financeSettings`. Para venda antiga, use fallback do pagamento somente quando `source = 'order-payment'`; para `order-refund`, preserve `payment_method` nulo.
 
-Atualize `orderWriteEffects.js` com a mesma regra e `deleted_at IS NULL`.
+`orderWriteEffects.js` usa a mesma regra de leitura e também exclui `deleted_at IS NOT NULL`.
 
-- [ ] **Step 6: Persistir meio/updated_at em todos os inserts automáticos**
+- [ ] **Step 7: Persistir meio/updated_at em todos os inserts automáticos**
 
 Atualize os três caminhos de criação de `order-payment` em `worker/repositories.js` e o insert de `order-refund` em `worker/orderCancellation.js`:
 
@@ -320,15 +322,15 @@ Venda: `payment_method = method/input.paymentMethod`. Estorno: `payment_method =
 
 Troque imports de `mapMovementRow` em `repositories.js`, `orderCancellation.js` e `orderWriteEffects.js` para `./financeRepository.js`.
 
-- [ ] **Step 7: Executar GREEN**
+- [ ] **Step 8: Executar GREEN**
 
 ```bash
-node --test worker/financeMigration.test.js worker/financeRepository.test.js worker/orderRepositories.test.js worker/orderCancellation.test.js worker/orderCancellationHttp.test.js
+node --test worker/financeMigration.test.js worker/financeRepository.test.js worker/orderRepositories.test.js worker/orderCancellation.test.js worker/orderCancellationHttp.test.js worker/index.test.js
 ```
 
 Expected: PASS.
 
-- [ ] **Step 8: Validar migração local, nunca remota**
+- [ ] **Step 9: Validar migração local, nunca remota**
 
 ```bash
 npm run d1:migrate:local
@@ -336,16 +338,16 @@ npm run d1:migrate:local
 
 Expected: migração 0009 aplicada com sucesso ao D1 local. **Não** executar `npm run d1:migrate:remote`.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add migrations/0009_finance_cash_flow.sql worker/financeMigration.test.js worker/financeRepository.js worker/financeRepository.test.js worker/repositories.js worker/orderCancellation.js worker/orderWriteEffects.js worker/orderRepositories.test.js worker/orderCancellation.test.js
+git add migrations/0009_finance_cash_flow.sql worker/financeMigration.test.js worker/financeRepository.js worker/financeRepository.test.js worker/repositories.js worker/orderCancellation.js worker/orderWriteEffects.js worker/orderRepositories.test.js worker/orderCancellation.test.js worker/index.test.js
 git commit -m "feat: persist finance cash flow metadata"
 ```
 
 ---
 
-### Task 3: Implementar cálculos de período, resumo, saldo e filtros como domínio puro do frontend
+### Task 3: Implementar cálculos de período, resumo, saldo e filtros como domínio puro
 
 **Files:**
 - Create: `src/utils/finance.js`
@@ -382,9 +384,11 @@ assert.equal(calculateCurrentBalance(movements, { openingBalance: 200, openingDa
 assert.equal(calculateCurrentBalance(movements, null), null)
 ```
 
-- [ ] **Step 3: Escrever RED para filtros secundários sem alterar resumo**
+Inclua movimento marcado com `deletedAt` no fixture e prove que ele não participa de resumo/saldo, mesmo que DTO ativo normalmente não o traga; isso protege funções puras contra dados de teste/estado transitório.
 
-Cubra busca, tipo, categoria normalizada e forma/meio:
+- [ ] **Step 3: Escrever RED para filtros secundários**
+
+Cubra busca, tipo, categoria normalizada, forma/meio e ausente:
 
 ```js
 const filtered = filterFinanceHistory(movements, {
@@ -393,7 +397,7 @@ const filtered = filterFinanceHistory(movements, {
 assert.deepEqual(filtered.map((item) => item.id), ['m-packaging'])
 ```
 
-Inclua uma linha legada `category: 'Insumos'` e prove que o filtro `supplies` a encontra via `normalizeMovementCategory()`.
+Inclua `category: 'Insumos'` e prove que `category: 'supplies'` encontra a linha. Inclua meio nulo e prove filtro especial `__missing__`.
 
 - [ ] **Step 4: Executar RED**
 
@@ -405,7 +409,7 @@ Expected: FAIL porque o utilitário não existe.
 
 - [ ] **Step 5: Implementar funções puras**
 
-Use comparação lexical em datas ISO `YYYY-MM-DD` e aritmética UTC somente para deslocar dias, sem converter `movementDate` em timestamp local:
+Use comparação lexical de datas ISO `YYYY-MM-DD` e aritmética UTC somente para deslocar dias:
 
 ```js
 const inRange = (date, range) => date >= range.startDate && date <= range.endDate
@@ -448,8 +452,8 @@ git commit -m "feat: add finance period and balance domain"
 - Create: `src/components/OpeningBalanceDialog.test.js`
 
 **Interfaces:**
-- `MovementDialog({ open, movement, today, disabled, onClose, onSubmit })`; `onSubmit(payload)` recebe `{ type, category, description, value, movementDate, paymentMethod }`.
-- `OpeningBalanceDialog({ open, settings, today, currentBalance, disabled, onClose, onSubmit })`; `onSubmit(payload)` recebe `{ openingBalance, openingDate }`.
+- `MovementDialog({ open, movement, today, disabled, onClose, onSubmit })`; `onSubmit(payload)` recebe `{ type, category, description, value, movementDate, paymentMethod }` e retorna Promise; o diálogo fecha somente quando a Promise resolve sem `false`.
+- `OpeningBalanceDialog({ open, settings, today, currentBalance, disabled, onClose, onSubmit })`; `onSubmit(payload)` recebe `{ openingBalance, openingDate }` e retorna Promise; o diálogo fecha somente após sucesso.
 - Produces formatting helpers: `formatSignedBRLCurrencyInput`, `formatSignedBRLCurrencyValue`, `parseSignedBRLCurrencyInput`.
 
 - [ ] **Step 1: RED para dinheiro assinado sem regressão do dinheiro comum**
@@ -460,12 +464,12 @@ Em `src/utils/formFormatting.test.js`:
 assert.equal(formatSignedBRLCurrencyValue(-100), '-R$ 100,00')
 assert.equal(formatSignedBRLCurrencyInput('-1234'), '-R$ 12,34')
 assert.equal(parseSignedBRLCurrencyInput('-R$ 12,34'), -12.34)
-assert.equal(formatBRLCurrencyValue(-100), 'R$ 0,00') // comportamento existente não muda
+assert.equal(formatBRLCurrencyValue(-100), 'R$ 0,00')
 ```
 
 - [ ] **Step 2: RED para `MovementDialog`**
 
-Use o padrão de regressão por fonte já usado no projeto e, onde possível, importe funções puras auxiliares do componente. Exija:
+Use o padrão de regressão por fonte já usado no projeto e um helper puro para a transição de tipo. Exija:
 
 ```js
 assert.match(source, /getManualMovementCategoryOptions/)
@@ -477,13 +481,9 @@ assert.match(source, /Revisar movimento|Revisar alterações/)
 assert.match(source, /ConfirmationDialog/)
 ```
 
-Também cubra por função pura exportada ou helper separado que trocar `entrada -> saida` limpa categoria incompatível.
-
-Novo movimento começa com `type: 'entrada'`, `category: ''`, `paymentMethod: ''`, data = `today`, valor `R$ 0,00`; não presumir Pix/categoria silenciosamente.
+Novo movimento começa com `type: 'entrada'`, `category: ''`, `paymentMethod: ''`, data = `today`, valor `R$ 0,00`; não presumir Pix/categoria silenciosamente. Trocar de tipo limpa categoria incompatível.
 
 - [ ] **Step 3: RED para `OpeningBalanceDialog`**
-
-Exija valor assinado, data, revisão forte, estado de edição e cópia sobre recálculo:
 
 ```js
 assert.match(source, /formatSignedBRLCurrencyInput/)
@@ -491,6 +491,8 @@ assert.match(source, /openingDate/)
 assert.match(source, /saldo atual|recalcula/i)
 assert.match(source, /ConfirmationDialog/)
 ```
+
+A review deve mostrar valores atuais e novos na edição.
 
 - [ ] **Step 4: Executar RED**
 
@@ -502,7 +504,7 @@ Expected: FAIL pelos helpers/componentes ausentes.
 
 - [ ] **Step 5: Implementar os helpers assinados**
 
-Não altere os três helpers BRL não negativos existentes. Adicione variantes específicas para abertura:
+Não altere os helpers BRL não negativos existentes:
 
 ```js
 export const parseSignedBRLCurrencyInput = (value) => {
@@ -513,11 +515,9 @@ export const parseSignedBRLCurrencyInput = (value) => {
 }
 ```
 
-A formatação assinada preserva o sinal e usa o mesmo padrão `R$ 0,00`.
+`formatSignedBRLCurrencyInput` e `formatSignedBRLCurrencyValue` usam o mesmo formato `R$ 0,00` e apenas prefixam `-` quando o valor é negativo.
 
 - [ ] **Step 6: Implementar `MovementDialog` com duas etapas**
-
-Formulário -> review -> `onSubmit`:
 
 ```js
 const payload = {
@@ -530,11 +530,11 @@ const payload = {
 }
 ```
 
-Desabilite “Revisar” sem categoria, descrição, valor > 0, data ou meio. `input type="date"` recebe `max={today}`. Ao editar, pré-preencha os dados persistidos e mude os textos para `Editar movimento` / `Revisar alterações`.
+Desabilite “Revisar” sem categoria, descrição, valor > 0, data ou meio. `input type="date"` recebe `max={today}`. Ao editar, pré-preencha dados persistidos e use `Editar movimento` / `Revisar alterações`.
 
 - [ ] **Step 7: Implementar `OpeningBalanceDialog`**
 
-Primeira configuração começa em `R$ 0,00` e `today`; edição usa valores atuais. A review mostra valor/data atuais quando existem, novos valores e, quando `currentBalance` estiver disponível, informa que o saldo será recalculado.
+Primeira configuração começa em `R$ 0,00` e `today`; edição usa valores atuais. A review mostra valor/data atuais, novos valores e alerta que o saldo atual será recalculado.
 
 - [ ] **Step 8: Executar GREEN**
 
@@ -574,12 +574,12 @@ git commit -m "feat: add reviewed finance forms"
 - Worker repository: `createManualMovement`, `updateManualMovement`, `softDeleteManualMovement`, `upsertFinanceSettings`.
 - HTTP: `POST /api/movements`, `PATCH /api/movements/:id`, `DELETE /api/movements/:id`, `PUT /api/finance-settings`.
 - Client: `createMovement(movement)`, `updateMovement(id, movement)`, `deleteMovement(id)`, `saveFinanceSettings(settings)`.
-- Delete response: `{ deletedMovementId: id }` only after `deleted_at` is persisted.
+- Delete response: `{ deletedMovementId: id }` somente após `deleted_at` persistido.
 - Settings response: `{ financeSettings }`.
 
 - [ ] **Step 1: RED para validação financeira**
 
-Em `worker/financeValidation.test.js` prove:
+Em `worker/financeValidation.test.js`:
 
 ```js
 const now = new Date('2026-09-03T20:00:00.000Z')
@@ -603,8 +603,6 @@ assert.deepEqual(parseFinanceSettingsInput({ openingBalance: -125.5, openingDate
 
 - [ ] **Step 2: RED para repository CRUD/proteção**
 
-Use FakeDb focado em `worker/financeRepository.test.js` e prove:
-
 ```js
 const created = await createManualMovement(db, businessId, input, now)
 assert.equal(created.source, 'manual')
@@ -619,13 +617,13 @@ assert.equal(deletedId, created.id)
 assert.ok(db.movements.get(created.id).deleted_at)
 ```
 
-Para `order-payment` e `order-refund`, PATCH/DELETE devem lançar erro `409` com código `MOVEMENT_MANAGED_BY_SYSTEM`. Movimento inexistente/excluído retorna `null` para a camada HTTP converter em 404.
+Para `order-payment` e `order-refund`, PATCH/DELETE lançam erro `409` com código `MOVEMENT_MANAGED_BY_SYSTEM`. Movimento inexistente ou já excluído retorna `null`; a rota converte para `404 MOVEMENT_NOT_FOUND`.
 
 - [ ] **Step 3: RED para rotas e cliente**
 
-Estenda `worker/index.test.js` com autenticação e Origin válidos para confirmar status/payloads das quatro rotas. Estenda `src/api/client.test.js` para exigir métodos/URLs exatos:
+Estenda `worker/index.test.js` com autenticação e Origin válidos para status/payloads das quatro rotas. Estenda `src/api/client.test.js` para exigir:
 
-```js
+```text
 PATCH /api/movements/:id
 DELETE /api/movements/:id
 PUT /api/finance-settings
@@ -633,19 +631,18 @@ PUT /api/finance-settings
 
 - [ ] **Step 4: RED para ownership/sync do App**
 
-Crie `src/financeRealtimeRegression.test.js` lendo `App.jsx` e exigindo:
+Crie `src/financeRealtimeRegression.test.js`:
 
 ```js
 assert.match(app, /const DATA_COLLECTIONS = \[[^\]]*'financeSettings'/s)
 assert.match(app, /setFinanceSettings/)
 assert.match(app, /deletedMovementId/)
 assert.match(app, /removeById\(current, deletedMovementId\)/)
-assert.match(app, /markMutation\([^)]*'movements'/s)
-assert.match(app, /markMutation\([^)]*'financeSettings'/s)
 assert.match(app, /data\?\.financeSettings \?\? null/)
+assert.doesNotMatch(app, /showMovementModal|newMovement|movementReview/)
 ```
 
-Também exija que o formulário inline antigo `showMovementModal/newMovement/movementReview` desapareça de `App.jsx` e que `Finance` receba callbacks de escrita.
+Também exija que `applyBootstrapCollections()` sempre aplique `setMovements(Array.isArray(data?.movements) ? data.movements : [])` quando o guard permitir, inclusive para lista vazia; isso permite que soft delete remoto desapareça sem F5.
 
 - [ ] **Step 5: Executar RED**
 
@@ -657,13 +654,13 @@ Expected: FAIL pelos contratos ainda ausentes.
 
 - [ ] **Step 6: Implementar validação server-side**
 
-Adicione em `worker/validation.js` um conversor assinado sem mudar `moneyToCents()`:
+Adicione conversão assinada sem mudar `moneyToCents()`:
 
 ```js
 export const signedMoneyToCents = (value, field = 'value') => {
   const number = Number(value)
   if (!Number.isFinite(number)) throw validationError(field, 'Informe um valor válido.')
-  return Math.round((number + Math.sign(number) * Number.EPSILON) * 100)
+  return Math.round(number * 100)
 }
 ```
 
@@ -671,7 +668,7 @@ export const signedMoneyToCents = (value, field = 'value') => {
 
 - [ ] **Step 7: Implementar repository com proteção de origem**
 
-O lookup deve sempre ser business-scoped e ativo:
+Lookup ativo e business-scoped:
 
 ```sql
 SELECT id, type, category, description, value_cents, source, order_id, payment_id,
@@ -681,7 +678,7 @@ WHERE id = ? AND business_id = ? AND deleted_at IS NULL
 LIMIT 1
 ```
 
-Antes de UPDATE/soft DELETE:
+Proteção:
 
 ```js
 if (row.source !== 'manual') {
@@ -689,9 +686,9 @@ if (row.source !== 'manual') {
 }
 ```
 
-UPDATE deve alterar somente os campos manuais e `updated_at`; nunca `source/order_id/payment_id/created_at`.
+UPDATE altera somente `type/category/description/value_cents/payment_method/movement_date/updated_at`. Nunca altera `source/order_id/payment_id/created_at`.
 
-`upsertFinanceSettings()` preserva `created_at` no conflito:
+Settings:
 
 ```sql
 INSERT INTO finance_settings (business_id, opening_balance_cents, opening_date, created_at, updated_at)
@@ -704,16 +701,7 @@ ON CONFLICT(business_id) DO UPDATE SET
 
 - [ ] **Step 8: Implementar rotas HTTP**
 
-Em `worker/index.js`, substitua o `movementInput` inline por `parseManualMovementInput` e adicione:
-
-```js
-const movementMatch = url.pathname.match(/^\/api\/movements\/([^/]+)$/)
-// PATCH -> { movement }
-// DELETE -> { deletedMovementId }
-// PUT /api/finance-settings -> { financeSettings }
-```
-
-Todas as mutações chamam `assertSameOriginMutation()` e usam `session.businessId`.
+Em `worker/index.js` substitua o `movementInput` inline por `parseManualMovementInput` e adicione `movementMatch` para PATCH/DELETE e `PUT /api/finance-settings`. Todas as mutações chamam `assertSameOriginMutation()` e usam `session.businessId`.
 
 - [ ] **Step 9: Implementar cliente e ownership do App**
 
@@ -731,11 +719,11 @@ Em `App.jsx`:
 - limpe-o no logout;
 - aplique `data.financeSettings ?? null` no bootstrap quando o guard permitir;
 - estenda `applyOfficialEffects()` para `financeSettings` e `deletedMovementId`;
-- crie handlers create/update/delete/settings com `requestKey`, `showApiError`, `showSuccessMessage` e objetos oficiais;
-- remova o formulário/review financeiro inline antigo de `App.jsx`;
+- handlers create/update/delete/settings usam `requestKey`, `showApiError`, `showSuccessMessage` e resposta oficial;
+- remova o formulário/review financeiro inline antigo;
 - passe `financeSettings`, `onCreateMovement`, `onUpdateMovement`, `onDeleteMovement`, `onSaveFinanceSettings` e `actionKey` para `Finance`.
 
-Exemplo do efeito de delete:
+Delete local:
 
 ```js
 if (deletedMovementId) {
@@ -744,9 +732,18 @@ if (deletedMovementId) {
 }
 ```
 
-- [ ] **Step 10: Integrar `MovementDialog` minimamente na página Finance**
+Settings local:
 
-Para não deixar o POST quebrado entre tarefas, `Finance.jsx` deve abrir `MovementDialog` pelo botão `Novo movimento` e chamar `onCreateMovement`/`onUpdateMovement`. A reorganização completa da tela virá nas Tasks 6–7.
+```js
+if (nextFinanceSettings !== undefined) {
+  changed.push('financeSettings')
+  setFinanceSettings(nextFinanceSettings)
+}
+```
+
+- [ ] **Step 10: Integrar `MovementDialog` na página Finance**
+
+O botão `Novo movimento` passa a abrir `MovementDialog`; criação chama `onCreateMovement`. Não mantenha o modal antigo em `App.jsx`.
 
 - [ ] **Step 11: Executar GREEN focado**
 
@@ -756,7 +753,7 @@ node --test worker/financeValidation.test.js worker/financeRepository.test.js wo
 
 Expected: PASS.
 
-- [ ] **Step 12: Rodar regressões de Worker/App relacionadas**
+- [ ] **Step 12: Rodar regressões relacionadas**
 
 ```bash
 node --test worker/orderRepositories.test.js worker/orderCancellation.test.js worker/orderCancellationHttp.test.js src/utils/dataSync.test.js src/successFeedbackRegression.test.js
@@ -777,20 +774,20 @@ git commit -m "feat: add authoritative finance write flows"
 
 **Files:**
 - Modify: `src/pages/Finance.jsx`
-- Modify: `src/pages/Finance.test.js` (create if absent from Task 7 setup; create now if needed)
+- Create: `src/pages/Finance.test.js`
 - Modify: `src/components/MovementDialog.jsx`
 - Modify: `src/components/MovementDialog.test.js`
 - Modify: `src/components/OpeningBalanceDialog.jsx`
 - Modify: `src/components/OpeningBalanceDialog.test.js`
 
 **Interfaces:**
-- `Finance` owns only transient UI state (`editingMovement`, `deletingMovement`, dialogs); App owns persisted collections.
-- Manual row actions are shown only for `movement.source === 'manual'`.
-- Automatic row action is `Ver pedido` only when a related order is available; no edit/delete UI.
+- `Finance` possui apenas estado transitório de UI (`editingMovement`, `deletingMovement`, `openingDialogOpen`); App possui coleções persistidas.
+- Ações Editar/Excluir aparecem somente para `movement.source === 'manual'`.
+- `OpeningBalanceDialog` recebe `financeSettings` atual e persiste via callback do App.
 
-- [ ] **Step 1: RED para ações manuais/automáticas**
+- [ ] **Step 1: RED para ações manuais e proteção visual de automáticos**
 
-Crie/estenda `src/pages/Finance.test.js` e exija:
+Em `src/pages/Finance.test.js`:
 
 ```js
 assert.match(source, /movement\.source === 'manual'/)
@@ -799,14 +796,13 @@ assert.match(source, />Excluir</)
 assert.match(source, /ConfirmationDialog/)
 assert.match(source, /onDeleteMovement/)
 assert.match(source, /OpeningBalanceDialog/)
-assert.doesNotMatch(source, /source === 'order-payment'[\s\S]{0,250}>Editar</)
 ```
 
-A confirmação de exclusão deve mostrar descrição, data e valor.
+Use fixture/helper puro para provar que uma linha `order-payment` não recebe ações Editar/Excluir.
 
-- [ ] **Step 2: RED para confirmação de abertura/alteração**
+- [ ] **Step 2: RED para confirmação destrutiva e abertura**
 
-Exija que `Finance` passe `financeSettings` e saldo atual ao `OpeningBalanceDialog`, e que o componente use texto distinto para primeira configuração e alteração.
+A confirmação de exclusão mostra descrição, data e valor. O saldo inicial tem ação `Configurar saldo inicial` sem settings e `Editar saldo inicial` quando configurado. A review de alteração mostra que o saldo será recalculado.
 
 - [ ] **Step 3: Executar RED**
 
@@ -816,26 +812,42 @@ node --test src/pages/Finance.test.js src/components/MovementDialog.test.js src/
 
 Expected: FAIL pelas ações/configuração ainda incompletas.
 
-- [ ] **Step 4: Implementar menu/ações de movimento manual**
+- [ ] **Step 4: Implementar edição de movimento manual**
 
-Um movimento manual abre `MovementDialog movement={movement}` para edição. Excluir abre `ConfirmationDialog` destrutivo com:
+`Editar` define `editingMovement` e abre:
 
 ```jsx
-<>
-  <strong>{deletingMovement.description}</strong>
-  <span>{currency(deletingMovement.value)} · {deletingMovement.movementDate}</span>
-</>
+<MovementDialog
+  open={Boolean(movementDialogOpen)}
+  movement={editingMovement}
+  today={today}
+  disabled={writeDisabled}
+  onSubmit={editingMovement ? (payload) => onUpdateMovement(editingMovement.id, payload) : onCreateMovement}
+/>
 ```
 
-Só após confirmar chame `onDeleteMovement(id)`. Feche o estado somente se a operação não retornar `false`/erro.
+Feche somente após callback resolver com sucesso.
 
-- [ ] **Step 5: Integrar `OpeningBalanceDialog`**
+- [ ] **Step 5: Implementar exclusão lógica com confirmação**
 
-Disponibilize uma ação provisória/semântica `Configurar saldo inicial` ou `Editar saldo inicial` na área financeira; a Task 7 a posicionará definitivamente no card Saldo atual. `onSubmit` chama `onSaveFinanceSettings(payload)` e fecha após sucesso.
+```jsx
+<ConfirmationDialog
+  title="Excluir movimentação"
+  message="Esta movimentação manual deixará de compor o fluxo de caixa."
+  details={<>
+    <strong>{deletingMovement.description}</strong>
+    <span>{currency(deletingMovement.value)} · {deletingMovement.movementDate}</span>
+  </>}
+  confirmLabel="Excluir movimentação"
+  confirmVariant="danger"
+/>
+```
 
-- [ ] **Step 6: Garantir feedback centralizado e bloqueio offline/request**
+Só após confirmar chame `onDeleteMovement(id)`.
 
-Use `actionKey`/`navigator.onLine` para impedir dupla submissão. Não crie novos toasts de sucesso locais; App já chama `showSuccessMessage()` para criação, edição, exclusão e settings.
+- [ ] **Step 6: Integrar `OpeningBalanceDialog`**
+
+Passe `settings={financeSettings}`, `today`, `currentBalance` e `onSubmit={onSaveFinanceSettings}`. Nesta tarefa a ação pode ficar na área de resumo; a Task 7 a posiciona no card definitivo de Saldo atual.
 
 - [ ] **Step 7: Executar GREEN**
 
@@ -861,20 +873,21 @@ git commit -m "feat: add finance correction and opening flows"
 - Create: `src/components/FinanceHistoryFilters.jsx`
 - Modify: `src/pages/Finance.jsx`
 - Modify: `src/pages/Finance.test.js`
+- Modify: `src/App.jsx`
 - Modify: `src/App.css`
 - Modify: `src/finance-mobile.css`
 
 **Interfaces:**
 - `FinancePeriodSelector({ value, today, onChange })` emite `{ key: 'today'|'7d'|'30d'|'custom', startDate?, endDate? }`.
 - `FinanceHistoryFilters({ value, categoryOptions, onChange })` emite `{ search, type, category, paymentMethod }`.
-- `Finance` deriva `periodRange`, `periodMovements`, `summary`, `currentBalance`, `filteredMovements`; não mantém totais financeiros em `App.jsx`.
+- `Finance` deriva `periodRange`, `periodMovements`, `summary`, `currentBalance`, `filteredMovements`; `App.jsx` deixa de calcular `financialTotals`.
 
 - [ ] **Step 1: RED para período padrão e quatro cards**
 
-Em `src/pages/Finance.test.js` exija:
+Em `src/pages/Finance.test.js`:
 
 ```js
-assert.match(source, /useState\([^)]*key:\s*'today'/s)
+assert.match(source, /key:\s*'today'/)
 assert.match(source, /FinancePeriodSelector/)
 assert.match(source, /label="Entradas"/)
 assert.match(source, /label="Saídas"/)
@@ -883,11 +896,9 @@ assert.match(source, /label="Saldo atual"/)
 assert.doesNotMatch(source, /label="Saldo"/)
 ```
 
-Saldo atual sem settings deve renderizar `Configure o saldo inicial` e ação de configuração, não `R$ 0,00` enganoso.
+Sem settings, Saldo atual mostra `Configure o saldo inicial` em vez de valor zero.
 
 - [ ] **Step 2: RED para filtros independentes dos cards**
-
-Exija duas coleções derivadas distintas:
 
 ```js
 assert.match(source, /summarizeFinancePeriod/)
@@ -896,9 +907,9 @@ assert.match(source, /periodMovements/)
 assert.match(source, /filteredMovements/)
 ```
 
-O `summary` deve usar movimentos do período antes dos filtros secundários.
+`summary` usa movimentos do período antes dos filtros secundários.
 
-- [ ] **Step 3: RED para estornos pendentes e detalhe de pedido automático**
+- [ ] **Step 3: RED para estornos pendentes e detalhe do pedido automático**
 
 ```js
 assert.match(source, /pendingRefundOrders\.map/)
@@ -907,7 +918,7 @@ assert.match(source, /movement\.orderId/)
 assert.match(source, /Ver pedido/)
 ```
 
-Estornos pendentes continuam consumindo `pendingRefundOrders` bruto e não `periodMovements`.
+`pendingRefundOrders` não passa por período nem filtros.
 
 - [ ] **Step 4: Executar RED**
 
@@ -919,21 +930,17 @@ Expected: FAIL pelo layout/controles ainda antigos.
 
 - [ ] **Step 5: Implementar `FinancePeriodSelector`**
 
-Desktop: quatro opções compactas. `Personalizado` mostra dois `input type="date"` com `max={today}`; normalize para manter `startDate <= endDate` antes de emitir período válido. Hoje/7/30 não precisam armazenar datas derivadas no estado.
+Hoje/7/30 são botões compactos. `Personalizado` mostra dois `input type="date"` com `max={today}`. Não emita período custom inválido; mantenha `startDate <= endDate`.
 
 - [ ] **Step 6: Implementar `FinanceHistoryFilters`**
-
-Filtros:
 
 ```js
 const EMPTY_FILTERS = { search: '', type: '', category: '', paymentMethod: '' }
 ```
 
-Tipo usa Todos/Entrada/Saída; categoria oferece códigos normalizados presentes nos movimentos do período + categorias conhecidas; forma/meio inclui `Não informado` como valor de filtro especial `__missing__` para dados legados.
+Tipo: Todos/Entrada/Saída. Categoria: códigos normalizados presentes no período + categorias conhecidas. Meio: métodos válidos + `Não informado` com valor `__missing__`.
 
 - [ ] **Step 7: Recalcular a tela a partir dos utilitários**
-
-Em `Finance.jsx`:
 
 ```js
 const today = getBusinessDate()
@@ -953,15 +960,15 @@ Cards:
 
 Remova `financialTotals` de `App.jsx` e a prop `totals` de `Finance`.
 
-- [ ] **Step 8: Enriquecer linhas do histórico**
+- [ ] **Step 8: Enriquecer histórico**
 
-Use `getMovementCategoryLabel(movement)`; meio ausente mostra `Não informado`; data usa `movement.movementDate`. Tags de origem permanecem claras. Para movimento automático com `orderId`, encontre o pedido em `orders` e abra o `OrderDetail` existente sem criar um segundo modelo de detalhe.
+Use `getMovementCategoryLabel(movement)`; meio ausente mostra `Não informado`; data usa `movement.movementDate`. Movimento automático com `orderId` encontra o pedido em `orders` e abre o `OrderDetail` já existente.
 
-Quando filtros secundários estiverem ativos, o contador pode mostrar `X de Y registros no período`; sem filtros, `Y registro(s)`.
+Contador: sem filtro secundário, `Y registro(s)`; com filtros, `X de Y registros no período`.
 
 - [ ] **Step 9: Posicionar abertura no card Saldo atual**
 
-Sem configuração: CTA `Configurar`. Com configuração: helper `Desde DD/MM/AAAA` e ação discreta `Editar saldo inicial`. O período selecionado não altera esse valor.
+Sem configuração: CTA `Configurar`. Com configuração: helper `Desde DD/MM/AAAA` e ação discreta `Editar saldo inicial`. O período selecionado não altera o valor.
 
 - [ ] **Step 10: Executar GREEN funcional**
 
@@ -980,23 +987,20 @@ git commit -m "feat: redesign finance cash flow view"
 
 ---
 
-### Task 8: Fechar responsividade, reconciliação remota e compatibilidade legada
+### Task 8: Fechar responsividade e regressões finais do Financeiro
 
 **Files:**
 - Modify: `src/pages/FinanceMoreMobile.test.js`
 - Modify: `src/finance-mobile.css`
 - Modify: `src/pages/Finance.test.js`
 - Modify: `src/financeRealtimeRegression.test.js`
-- Modify: `worker/index.test.js`
-- Modify: `worker/financeRepository.test.js`
-- Modify: `worker/orderWriteEffects.js` only if a RED reveals a missing compatibility field
 
 **Interfaces:**
-- Nenhuma interface nova; esta tarefa fecha os critérios de aceite com regressões de integração/fonte.
+- Nenhuma interface nova; esta tarefa fecha mobile e critérios finais sem ampliar escopo.
 
-- [ ] **Step 1: Atualizar o teste mobile antigo para o novo formulário**
+- [ ] **Step 1: RED para o novo formulário mobile**
 
-Remova a expectativa obsoleta de `<input type="number" min="0" step="0.01">` e exija o contrato final:
+Atualize o teste antigo que exige `type="number"` e passe a exigir em `MovementDialog.jsx`:
 
 ```js
 assert.match(movementDialog, /type="text"/)
@@ -1005,61 +1009,52 @@ assert.match(movementDialog, /movementDate/)
 assert.match(movementDialog, /paymentMethod/)
 ```
 
-- [ ] **Step 2: RED para grid 2 × 2 e filtros utilizáveis entre 320–480 px**
-
-Em `FinanceMoreMobile.test.js` exija CSS com:
+- [ ] **Step 2: RED para grid 2 × 2 e filtros touch-friendly**
 
 ```js
 assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.finance-stats-grid[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
 assert.match(financeCss, /\.finance-filter-trigger[^}]*min-height:\s*44px/s)
 ```
 
-Se `FinanceHistoryFilters` usar o `BottomSheet` existente no mobile, exija seu uso e preserve `safe-area-inset-bottom` já coberto pelo projeto.
+Exija também que linhas de movimentação continuem sem overflow a 320 px e que ações manuais ocupem alvo de toque mínimo de 44 px.
 
-- [ ] **Step 3: RED para reconciliação de delete/settings em outro dispositivo**
+- [ ] **Step 3: RED para filtros compactos no mobile**
 
-Em `src/financeRealtimeRegression.test.js`, prove por fonte que:
+Se a viewport pequena usa `BottomSheet`, exija `FinanceHistoryFilters` ou `Finance` importando o componente já existente e um trigger `Filtrar movimentações`. O sheet deve reutilizar a proteção `safe-area-inset-bottom` já coberta por `bottom-sheet.css`.
 
-- `applyBootstrapCollections()` substitui `movements` pela lista oficial, inclusive quando a lista fica menor/vazia;
-- `financeSettings` participa do mesmo guard de leitura;
-- delete local marca `movements` antes de remover;
-- settings local marca `financeSettings` antes de atualizar;
-- o refresh global de ~5 s continua ativo e não foi substituído por polling financeiro paralelo.
-
-- [ ] **Step 4: RED para bootstrap legado**
-
-Em Worker tests use um movimento `order-payment` legado com `payment_method = null` e pagamento relacionado `Pix`: resposta deve trazer `Pix`. Use `order-refund` legado com `payment_method = null`: resposta deve trazer `null`/`Não informado` no cliente, nunca o método original do pagamento.
-
-Também prove que um movimento com `deleted_at` preenchido não entra no bootstrap.
-
-- [ ] **Step 5: Executar RED**
+- [ ] **Step 4: Executar RED**
 
 ```bash
-node --test src/pages/FinanceMoreMobile.test.js src/financeRealtimeRegression.test.js worker/index.test.js worker/financeRepository.test.js
+node --test src/pages/FinanceMoreMobile.test.js src/pages/Finance.test.js src/financeRealtimeRegression.test.js
 ```
 
-Expected: pelo menos uma falha até os detalhes finais de CSS/reconciliação/legado estarem implementados.
+Expected: FAIL enquanto grid/trigger/composição mobile não estiverem completos.
 
-- [ ] **Step 6: Implementar apenas os ajustes apontados pelos REDs**
-
-No mobile, mantenha:
+- [ ] **Step 5: Implementar o CSS mobile definitivo**
 
 ```css
 @media (max-width: 640px) {
   .finance-stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .finance-filter-trigger,
+  .movement-action-button {
+    min-height: 44px;
+  }
 }
 ```
 
-Filtros detalhados devem ficar em sheet/modal compacto quando necessário; não transforme cada filtro em uma linha permanente que empurre o histórico para baixo.
+Preserve as regras existentes de quebra de texto/valor das linhas de movimento. Não empilhe quatro cards grandes em uma coluna.
 
-Garanta que bootstrap aplica `setMovements([])` quando a resposta oficial vier vazia; não use condições do tipo `nextMovements.length` para reconciliação autoritativa de leitura.
+- [ ] **Step 6: Implementar filtros mobile compactos**
+
+No desktop, filtros ficam inline/compactos. Em telas pequenas, renderize um botão `Filtrar movimentações` que abre o `BottomSheet` existente contendo Tipo, Categoria e Meio. Busca pode permanecer visível fora do sheet. Aplicar/fechar não altera os cards; apenas a lista.
 
 - [ ] **Step 7: Executar GREEN focado**
 
 ```bash
-node --test src/pages/FinanceMoreMobile.test.js src/pages/Finance.test.js src/financeRealtimeRegression.test.js worker/index.test.js worker/financeRepository.test.js
+node --test src/pages/FinanceMoreMobile.test.js src/pages/Finance.test.js src/financeRealtimeRegression.test.js
 ```
 
 Expected: PASS.
@@ -1078,7 +1073,7 @@ Expected: todos os testes passam.
 npm run lint
 ```
 
-Expected: 0 erros. Avisos existentes só são aceitáveis se não forem novos e forem documentados na revisão da tarefa.
+Expected: 0 erros. Avisos existentes só são aceitáveis se não forem novos e forem registrados na revisão da tarefa.
 
 - [ ] **Step 10: Build**
 
@@ -1106,12 +1101,12 @@ npm run deploy
 npx --yes wrangler@4.128.0 deploy
 ```
 
-Produção só pode ser alterada em uma etapa posterior, após autorização explícita do usuário.
+Produção só pode ser alterada depois de autorização explícita do usuário.
 
 - [ ] **Step 13: Commit**
 
 ```bash
-git add src/pages/FinanceMoreMobile.test.js src/finance-mobile.css src/pages/Finance.test.js src/financeRealtimeRegression.test.js worker/index.test.js worker/financeRepository.test.js worker/orderWriteEffects.js
+git add src/pages/FinanceMoreMobile.test.js src/finance-mobile.css src/pages/Finance.test.js src/financeRealtimeRegression.test.js
 git commit -m "test: lock finance cash flow regressions"
 ```
 
@@ -1119,7 +1114,7 @@ git commit -m "test: lock finance cash flow regressions"
 
 ## Execution Order and Review Gates
 
-Execute Tasks 1–8 em ordem. Cada Task deve usar seu próprio ciclo RED → GREEN → review → commit. Não acumule múltiplas Tasks em um único commit antes da revisão.
+Execute Tasks 1–8 em ordem. Cada Task usa seu próprio ciclo RED → GREEN → review → commit. Não acumule múltiplas Tasks em um único commit antes da revisão.
 
 Depois de cada Task:
 
@@ -1128,12 +1123,13 @@ git status --short
 git diff --check HEAD^ HEAD
 ```
 
-O reviewer deve conferir especificamente:
+O reviewer confere:
 
 1. comportamento da Task versus a spec;
 2. isolamento das unidades novas — evitar devolver regras para `App.jsx`;
 3. ausência de escrita/edição de movimentos automáticos;
-4. nenhuma regressão de atualização imediata/sync;
-5. nenhum acesso D1 remoto/deploy de produção.
+4. atualização imediata e convergência por bootstrap autoritativo;
+5. compatibilidade de movimentos legados;
+6. nenhuma operação D1 remota/deploy de produção.
 
-Ao final da Task 8, registre o SHA final e os resultados de `npm test`, lint, build e dry-run. Só então a implementação está pronta para uma eventual autorização separada de deploy.
+Ao final da Task 8, registre o SHA final e os resultados de `npm test`, lint, build e dry-run. Só então a implementação está pronta para uma autorização separada de deploy.
