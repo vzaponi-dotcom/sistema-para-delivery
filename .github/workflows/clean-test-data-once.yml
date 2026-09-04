@@ -39,17 +39,18 @@ jobs:
       - name: Show production counts before cleanup
         run: >-
           npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
-          --command "SELECT 'products' AS entity, COUNT(*) AS count FROM products WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'clients', COUNT(*) FROM clients WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'orders', COUNT(*) FROM orders WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'order_items', COUNT(*) FROM order_items WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'payments', COUNT(*) FROM payments WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'movements', COUNT(*) FROM movements WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'table_tabs', COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'finance_settings', COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'print_stations', COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'print_jobs', COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'auth_credentials', COUNT(*) FROM auth_credentials WHERE business_id='amor-e-sabor';"
+          --command "SELECT
+          (SELECT COUNT(*) FROM products WHERE business_id='amor-e-sabor') AS products,
+          (SELECT COUNT(*) FROM clients WHERE business_id='amor-e-sabor') AS clients,
+          (SELECT COUNT(*) FROM orders WHERE business_id='amor-e-sabor') AS orders,
+          (SELECT COUNT(*) FROM order_items WHERE business_id='amor-e-sabor') AS order_items,
+          (SELECT COUNT(*) FROM payments WHERE business_id='amor-e-sabor') AS payments,
+          (SELECT COUNT(*) FROM movements WHERE business_id='amor-e-sabor') AS movements,
+          (SELECT COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor') AS table_tabs,
+          (SELECT COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor') AS finance_settings,
+          (SELECT COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor') AS print_stations,
+          (SELECT COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor') AS print_jobs,
+          (SELECT COUNT(*) FROM auth_credentials WHERE business_id='amor-e-sabor') AS auth_credentials;"
 
       - name: Show products before cleanup
         run: >-
@@ -79,17 +80,18 @@ jobs:
       - name: Show production counts after cleanup
         run: >-
           npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
-          --command "SELECT 'products' AS entity, COUNT(*) AS count FROM products WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'clients', COUNT(*) FROM clients WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'orders', COUNT(*) FROM orders WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'order_items', COUNT(*) FROM order_items WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'payments', COUNT(*) FROM payments WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'movements', COUNT(*) FROM movements WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'table_tabs', COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'finance_settings', COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'print_stations', COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'print_jobs', COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor'
-          UNION ALL SELECT 'auth_credentials', COUNT(*) FROM auth_credentials WHERE business_id='amor-e-sabor';"
+          --command "SELECT
+          (SELECT COUNT(*) FROM products WHERE business_id='amor-e-sabor') AS products,
+          (SELECT COUNT(*) FROM clients WHERE business_id='amor-e-sabor') AS clients,
+          (SELECT COUNT(*) FROM orders WHERE business_id='amor-e-sabor') AS orders,
+          (SELECT COUNT(*) FROM order_items WHERE business_id='amor-e-sabor') AS order_items,
+          (SELECT COUNT(*) FROM payments WHERE business_id='amor-e-sabor') AS payments,
+          (SELECT COUNT(*) FROM movements WHERE business_id='amor-e-sabor') AS movements,
+          (SELECT COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor') AS table_tabs,
+          (SELECT COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor') AS finance_settings,
+          (SELECT COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor') AS print_stations,
+          (SELECT COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor') AS print_jobs,
+          (SELECT COUNT(*) FROM auth_credentials WHERE business_id='amor-e-sabor') AS auth_credentials;"
 
       - name: Show preserved products after cleanup
         run: >-
