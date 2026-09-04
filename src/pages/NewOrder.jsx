@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
+import { getBusinessDate } from '../../shared/finance.js'
 import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
 import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
@@ -29,8 +30,7 @@ import {
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
 } from '../utils/newOrderStepFlow.js'
-import { toLocalDateValue } from '../utils/orderWorkflow.js'
-import { businessDateTimeToIso, getBusinessDate, isFutureSameDaySchedule } from '../../shared/orderTiming.js'
+import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/orderTiming.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
@@ -43,7 +43,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const [type, setType] = useState('Entrega')
   const [localIdentityType, setLocalIdentityType] = useState('guest_name')
   const [localIdentityValue, setLocalIdentityValue] = useState('')
-  const [orderDate, setOrderDate] = useState(toLocalDateValue())
+  const [orderDate, setOrderDate] = useState(getBusinessDate())
   const [scheduleMode, setScheduleMode] = useState('now')
   const [scheduledTime, setScheduledTime] = useState('')
   const [items, setItems] = useState([])
@@ -322,7 +322,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
             clientPickerOpen={clientPickerOpen}
             type={type}
             orderDate={orderDate}
-            todayValue={toLocalDateValue()}
+            todayValue={getBusinessDate()}
             scheduleMode={scheduleMode}
             scheduledTime={scheduledTime}
             scheduleVisible={scheduleVisible}

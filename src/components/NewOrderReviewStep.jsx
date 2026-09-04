@@ -1,11 +1,12 @@
 import Button from './Button'
 import OrderCart from './OrderCart'
 import OrderCheckoutSummary from './OrderCheckoutSummary'
+import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
 
 function NewOrderReviewStep({ customerSummary, itemCount, cartProps, checkoutProps, disabled, onBack }) {
   const scheduledFor = checkoutProps?.draft?.scheduledFor
   const scheduledLabel = scheduledFor
-    ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(new Date(scheduledFor))
+    ? new Intl.DateTimeFormat('pt-BR', { timeZone: FINANCE_TIME_ZONE, hour: '2-digit', minute: '2-digit' }).format(new Date(scheduledFor))
     : null
   return (
     <section className="new-order-step new-order-review-step">

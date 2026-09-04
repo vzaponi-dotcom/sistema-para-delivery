@@ -138,3 +138,13 @@ test('wizard keeps checkout payload unchanged and never persists intermediate st
   assert.doesNotMatch(page, /step:\s*currentStep/)
   assert.doesNotMatch(page, /currentStep:\s*currentStep/)
 })
+
+test('scheduling uses the shared business timezone source', () => {
+  const page = source('./NewOrder.jsx')
+  const review = source('../components/NewOrderReviewStep.jsx')
+  assert.match(page, /import \{ getBusinessDate \} from '..\/\.\.?\/shared\/finance\.js'/)
+  assert.match(page, /useState\(getBusinessDate\(\)\)/)
+  assert.match(page, /todayValue=\{getBusinessDate\(\)\}/)
+  assert.match(review, /FINANCE_TIME_ZONE/)
+  assert.doesNotMatch(review, /timeZone:\s*'America\/Sao_Paulo'/)
+})
