@@ -8,7 +8,7 @@ Status: auto-revisado; aguardando revisão do usuário antes do plano de impleme
 
 Redesenhar a tela **Cozinha** para que a operação consiga identificar, em poucos segundos, qual pedido preparar, para quem, qual ação executar, se há atraso e se existe observação de produção.
 
-O redesign deve reproduzir com alta fidelidade a **Opção A aprovada**: fundo escuro quente, topo compacto, indicadores pequenos, tickets claros e separação visual nítida entre pedidos em preparo e agendados. A fidelidade é um requisito, não apenas uma referência de inspiração; responsividade e acessibilidade podem adaptar a composição, mas não devem descaracterizá-la.
+O mockup **“Opção A — Ticket clássico”**, aprovado no brainstorming, é a referência visual oficial da implementação. O redesign deve reproduzi-lo com alta fidelidade: fundo escuro quente, topo compacto, indicadores pequenos, tickets claros e separação visual nítida entre pedidos em preparo e agendados. A fidelidade é um requisito, não apenas uma referência de inspiração; responsividade e acessibilidade podem adaptar a composição, mas não devem descaracterizá-la.
 
 Esta rodada também corrige os achados de homologação relacionados a:
 
@@ -62,6 +62,12 @@ Esta especificação depende das regras de `2026-09-04-scheduled-orders-operatio
   - neutros: dados secundários e ações não prioritárias.
 
 O mapa mínimo de ícones cobre Cozinha, preparo, relógio/agendamento, alerta, finalização, cliente, entrega, retirada, local, observação, detalhes, impressão, som e cancelamento. Os desenhos podem ser equivalentes ao mockup, mas devem preservar o estilo do conjunto SVG interno.
+
+### 3.2 Referência visual oficial
+
+O mockup **“Opção A — Ticket clássico”** deve ser fornecido ao agente de implementação como referência visual. A descrição textual desta spec complementa a imagem, mas não autoriza redesenho livre.
+
+A implementação deve reproduzir com alta fidelidade as proporções, a hierarquia, os cards compactos do topo, os tickets claros, a distribuição das informações, os ícones, os chips, os espaçamentos, as ações com texto e a identidade de superfícies claras sobre fundo escuro. Ajustes são permitidos somente quando necessários para responsividade, acessibilidade ou conteúdo real mais longo, preservando a linguagem visual e a prioridade operacional do mockup.
 
 ## 4. Fonte de verdade e classificação temporal
 
@@ -188,13 +194,15 @@ Os equivalentes para `Retirada` e `Local` usam seus ícones próprios. A área p
 5 itens · Marmita G, Coca 2L, Pudim +2
 ```
 
-Quando existir, a observação geral fica logo abaixo:
+O modelo atual não possui observação geral do pedido. As observações operacionais vêm exclusivamente de `item.note`. Quando houver uma ou mais notas de item, o ticket agrega essas notas logo abaixo do resumo e preserva a associação com o item:
 
 ```text
-💬 Obs: sem cebola e arroz separado
+💬 Obs:
+Marmita G — sem cebola
+Suco — sem gelo
 ```
 
-A observação ocupa no máximo duas linhas no ticket e recebe reticências após esse limite; o texto integral fica disponível nos detalhes. Não mostrar total, pagamento, taxa, endereço ou telefone nesse nível.
+O bloco de observações ocupa no máximo duas linhas visuais no ticket e recebe reticências após esse limite; nenhum dado é descartado. Os detalhes exibem todas as observações completas, mantendo cada `item.note` associado ao respectivo item. Não criar campo novo de observação no banco ou no payload nesta rodada. Não mostrar total, pagamento, taxa, endereço ou telefone nesse nível.
 
 ### 7.3 Rodapé e ações
 
@@ -304,7 +312,8 @@ Antes de qualquer implementação, o plano deverá transformar estes critérios 
 - atualização imediata ao receber nova coleção de pedidos;
 - ordenação de cada fila, contadores e busca por cliente, número, produto e tipo;
 - ausência de `Aguardando janela` e presença de `Agendado para preparo` nos estados aplicáveis;
-- conteúdo e truncamento de observação do ticket;
+- agregação de `item.note`, associação com o item, ausência de notas e truncamento visual em duas linhas sem perda dos dados completos nos detalhes;
+- ausência de novo campo de observação no banco ou payload;
 - ações corretas por tipo e fila, inclusive cancelamento não exposto em preparo;
 - layout responsivo dos indicadores e tickets entre 320 e 480 px;
 - formatação de rótulo/valor dos horários nos detalhes;
@@ -316,12 +325,12 @@ Antes de qualquer implementação, o plano deverá transformar estes critérios 
 
 O redesign estará pronto para homologação quando:
 
-1. a Cozinha refletir a composição e hierarquia da Opção A, com tickets claros sobre fundo escuro e quatro indicadores compactos;
+1. a Cozinha refletir a composição e hierarquia do mockup oficial “Opção A — Ticket clássico”, com tickets claros sobre fundo escuro, quatro indicadores compactos, ações com texto e sem redesenho livre da referência visual;
 2. pedidos ativos estiverem sempre em exatamente uma fila principal, com atraso como sinalização adicional;
 3. nenhum texto da UI usar “Aguardando janela”;
 4. um pedido mudar de Agendado para Em preparo no instante operacional, sem interação do usuário e sem depender do intervalo de um minuto;
 5. a busca, as ordenações fixas e os estados vazios obedecerem esta spec;
-6. cada ticket mostrar identificação, tipo, resumo de itens, observação quando houver, tempo e ação adequada sem exibir informação financeira desnecessária;
+6. cada ticket mostrar identificação, tipo, resumo de itens, observações agregadas de `item.note` com associação preservada quando houver, tempo e ação adequada sem exibir informação financeira desnecessária;
 7. desktop e mobile preservarem legibilidade, áreas de toque e ausência de rolagem horizontal;
 8. detalhes mostrarem horários e valores em blocos semanticamente claros;
 9. a configuração de impressão estiver visualmente integrada nos temas claro e escuro;
@@ -335,6 +344,7 @@ Auto-revisão concluída em 2026-09-04:
 
 - nenhum placeholder, tarefa pendente ou decisão em aberto foi deixado no texto;
 - a classificação derivada é consistente com a feature de timing e não cria status persistido novo;
+- observações do ticket usam exclusivamente `item.note`, sem campo novo de banco ou payload, e o mockup “Opção A — Ticket clássico” está registrado como referência visual obrigatória;
 - a alteração de rótulo de impressão preserva a semântica técnica existente e evita alegar confirmação física;
 - o escopo está limitado à Cozinha, detalhes e impressão relacionados, sem expandir o redesign ao restante do produto;
 - regras de ordenação, filas, atraso, impressão manual e responsividade têm comportamento explícito.
