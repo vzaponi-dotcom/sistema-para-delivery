@@ -34,8 +34,14 @@ jobs:
         run: npm ci
       - name: Run production safety regression
         run: node --test scripts/infra/productionSafetyRegression.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Lint
+        run: npm run lint
       - name: Build
         run: npm run build
+      - name: Apply migrations to local D1
+        run: npm run d1:migrate:local
       - name: Validate production Worker bundle
         run: npx --yes wrangler@4.128.0 deploy --dry-run
       - name: Validate staging Worker bundle
