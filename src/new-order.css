@@ -739,3 +739,37 @@
     opacity: .55;
   }
 }
+
+.new-order-review-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.new-order-review-context > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.new-order-review-context span {
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+.new-order-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.new-order-review-cart {
+  display: grid;
+  gap: 12px;
+}
