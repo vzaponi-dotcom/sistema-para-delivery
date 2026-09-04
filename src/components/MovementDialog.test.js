@@ -25,3 +25,10 @@ test('new movement defaults are neutral and changing type clears an incompatible
   assert.match(source, /isManualMovementCategory/)
   assert.match(source, /category:\s*isManualMovementCategory\(nextType, current\.category\)\s*\?\s*current\.category\s*:\s*''/s)
 })
+
+test('movement dialog closes only after a successful save', async () => {
+  const source = await readSource()
+  assert.match(source, /const result = await onSubmit\?\.\(review\)/)
+  assert.match(source, /if \(result === false\) return/)
+  assert.match(source, /onClose\?\.\(\)/)
+})
