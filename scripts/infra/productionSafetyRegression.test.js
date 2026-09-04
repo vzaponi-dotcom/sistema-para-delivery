@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 const wrangler = readFileSync('wrangler.jsonc', 'utf8')
+const validateWorkflow = readFileSync('.github/workflows/validate.yml', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
@@ -38,4 +39,14 @@ test('package scripts make staging and production targets explicit', () => {
   )
   assert.equal(packageJson.scripts['d1:migrate:remote'], undefined)
   assert.equal(packageJson.scripts.deploy, undefined)
+})
+
+test('generic validation runs before merge and performs no remote writes', () => {
+  assert.match(validateWorkflow, /pull_request:/)
+  assert.match(validateWorkflow, /branches:\s*\n\s*- master/)
+  assert.match(validateWorkflow, /npm run d1:migrate:local/)
+  assert.match(validateWorkflow, /deploy --dry-run --env staging/)
+  assert.doesNotMatch(validateWorkflow, /d1:migrate:production/)
+  assert.doesNotMatch(validateWorkflow, /d1:migrate:staging/)
+  assert.doesNotMatch(validateWorkflow, /--remote/)
 })
