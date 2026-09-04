@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
 import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
+import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
 import NewOrderCustomerStep from '../components/NewOrderCustomerStep'
 import NewOrderStepIndicator from '../components/NewOrderStepIndicator'
@@ -229,7 +230,8 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
       <PageHeader
         eyebrow="Atendimento"
         title="Nova venda"
-        description="Monte o pedido em três etapas e confira tudo antes de salvar."
+        description="Informe o atendimento, escolha os produtos e revise tudo antes de salvar."
+        actions={<Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Cancelar venda</Button>}
       />
 
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
@@ -255,6 +257,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
           onLocalIdentityValueChange={setLocalIdentityValue}
           openTableTab={openTableTab}
           usesRegisteredClient={usesRegisteredClient}
+          hasClients={clients.length > 0}
           clientSearch={clientSearch}
           clientPickerOpen={clientPickerOpen}
           filteredClients={filteredClients}
@@ -270,7 +273,6 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
           onQuickClientCancel={closeQuickClient}
           onQuickClientChange={handleQuickClientChange}
           canContinue={canContinueCustomer}
-          onCancel={onCancel}
           onContinue={() => goToStep(NEW_ORDER_STEPS.PRODUCTS)}
         />
       )}
