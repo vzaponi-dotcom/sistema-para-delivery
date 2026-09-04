@@ -145,16 +145,15 @@ export const loadBootstrap = async (db, businessId) => {
     current.push(mapOrderItemRow(itemRow))
     itemsByOrder.set(itemRow.order_id, current)
   }
-  const bootstrap = {
+  return {
     business: business ? { id: business.id, name: business.name } : { id: businessId, name: 'Amor & Sabor' },
     clients: rows(clientsResult).map(mapClientRow),
     products: rows(productsResult).map(mapProductRow),
     orders: rows(ordersResult).map((orderRow) => mapOrderRow(orderRow, itemsByOrder.get(orderRow.id) ?? [])),
     tableTabs: rows(tableTabsResult).map(mapTableTabRow),
     movements: rows(movementsResult).map(mapMovementRow),
+    financeSettings,
   }
-  if (financeSettings) bootstrap.financeSettings = financeSettings
-  return bootstrap
 }
 
 const findClientRow = (db, businessId, id) => db.prepare(`SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1`).bind(id, businessId).first()
@@ -175,7 +174,7 @@ export const createClient = async (db, businessId, input, now = new Date()) => {
   }
 
   try {
-    await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp).run()
+    await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp, timestamp).run()
   } catch (error) {
     if (!isPhoneTriggerCollision(error)) throw error
     throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone) : null)
