@@ -33,6 +33,7 @@ jobs:
           src/printing/webSerialTransport.test.js
           src/printing/printJobRunner.test.js
           src/printing/printingManagerRegression.test.js
+          src/printing/pdfOrderRenderer.test.js
           src/realtimeSyncRegression.test.js
           src/utils/dataSync.test.js
 
