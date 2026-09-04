@@ -13,74 +13,62 @@ const LOCAL_IDENTITY_OPTIONS = [
 ]
 
 function NewOrderCustomerStep({
-  type,
-  orderDate,
-  today,
-  disabled,
-  onTypeChange,
-  onOrderDateChange,
-  localIdentityType,
-  onLocalIdentityTypeChange,
-  localIdentityValue,
-  onLocalIdentityValueChange,
-  openTableTab,
-  usesRegisteredClient,
-  hasClients,
-  clientSearch,
-  clientPickerOpen,
+  clients,
   filteredClients,
   clientId,
-  onClientSearchChange,
-  onClientPickerFocus,
-  onClientPickerBlur,
-  onSelectClient,
-  onToggleQuickClient,
+  clientSearch,
+  clientPickerOpen,
+  type,
+  orderDate,
+  todayValue,
+  localIdentityType,
+  localIdentityValue,
+  openTableTab,
   quickClient,
   quickClientError,
+  disabled,
+  canContinue,
+  onTypeChange,
+  onOrderDateChange,
+  onLocalIdentityTypeChange,
+  onLocalIdentityValueChange,
+  onClientSearchChange,
+  onClientFocus,
+  onClientBlur,
+  onClientSelect,
+  onQuickClientToggle,
+  onQuickClientChange,
   onQuickClientSubmit,
   onQuickClientCancel,
-  onQuickClientChange,
-  canContinue,
   onContinue,
 }) {
+  const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
+
   return (
-    <section className="surface-card new-order-customer-card new-order-customer-step new-order-step-card">
+    <section className="surface-card new-order-customer-card new-order-step-card">
       <div className="section-heading">
         <div>
-          <span className="section-kicker">Cliente e atendimento</span>
-          <h2>Dados da venda</h2>
+          <span className="section-kicker">Etapa 1</span>
+          <h2>Cliente e atendimento</h2>
         </div>
       </div>
 
-      <div className="new-order-operation-fields">
-        <div className="form-field">
-          <span>Tipo do pedido</span>
-          <div className="new-order-type-options" role="group" aria-label="Tipo do pedido">
-            {ORDER_TYPE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={type === option.value ? 'new-order-type-option selected' : 'new-order-type-option'}
-                aria-pressed={type === option.value}
-                onClick={() => onTypeChange(option.value)}
-                disabled={disabled}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+      <div className="form-field">
+        <span>Tipo do pedido</span>
+        <div className="new-order-type-options" role="group" aria-label="Tipo do pedido">
+          {ORDER_TYPE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={type === option.value ? 'new-order-type-option selected' : 'new-order-type-option'}
+              aria-pressed={type === option.value}
+              onClick={() => onTypeChange(option.value)}
+              disabled={disabled}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
-
-        <label className="form-field new-order-date-field">
-          <span>Data do pedido</span>
-          <input
-            type="date"
-            value={orderDate}
-            max={today}
-            onChange={(event) => onOrderDateChange(event.target.value)}
-            disabled={disabled}
-          />
-        </label>
       </div>
 
       {type === 'Local' && (
@@ -141,7 +129,7 @@ function NewOrderCustomerStep({
 
       {usesRegisteredClient && (
         <>
-          <div className="form-field new-order-client-picker" onBlur={onClientPickerBlur}>
+          <div className="form-field new-order-client-picker" onBlur={onClientBlur}>
             <span>Cliente</span>
             <div className="new-order-client-combobox">
               <input
@@ -152,9 +140,9 @@ function NewOrderCustomerStep({
                 aria-controls="new-order-client-options"
                 placeholder="Digite o nome do cliente"
                 value={clientSearch}
-                onFocus={onClientPickerFocus}
+                onFocus={onClientFocus}
                 onChange={(event) => onClientSearchChange(event.target.value)}
-                disabled={disabled || !hasClients}
+                disabled={disabled || !clients.length}
                 autoComplete="off"
               />
               {clientPickerOpen && !disabled && (
@@ -166,7 +154,7 @@ function NewOrderCustomerStep({
                       role="option"
                       aria-selected={client.id === clientId}
                       className={client.id === clientId ? 'selected' : ''}
-                      onClick={() => onSelectClient(client)}
+                      onClick={() => onClientSelect(client)}
                     >
                       {client.name}
                     </button>
@@ -177,7 +165,7 @@ function NewOrderCustomerStep({
             </div>
           </div>
 
-          <button type="button" className="new-order-quick-client-toggle" onClick={onToggleQuickClient} disabled={disabled}>
+          <button type="button" className="new-order-quick-client-toggle" onClick={onQuickClientToggle} disabled={disabled}>
             + Novo cliente
           </button>
 
@@ -213,6 +201,17 @@ function NewOrderCustomerStep({
           )}
         </>
       )}
+
+      <label className="form-field new-order-date-field">
+        <span>Data do pedido</span>
+        <input
+          type="date"
+          value={orderDate}
+          max={todayValue}
+          onChange={(event) => onOrderDateChange(event.target.value)}
+          disabled={disabled}
+        />
+      </label>
 
       <div className="new-order-step-actions">
         <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Continuar →</Button>
