@@ -35,6 +35,23 @@ test('product catalog keeps added state tied to the cart with readable white tex
   assert.match(css, /\.new-order-add-button span\s*\{[^}]*color:\s*#fff/s)
 })
 
+test('product catalog starts empty until a category is selected or search is typed', () => {
+  const catalog = source('../components/OrderProductCatalog.jsx')
+
+  assert.match(catalog, /const \[category, setCategory\] = useState\(null\)/)
+  assert.doesNotMatch(catalog, /\['Todos',/)
+  assert.match(catalog, /if \(!normalized && !category\) return \[\]/)
+  assert.match(catalog, /Selecione uma categoria ou busque um produto/)
+})
+
+test('product search ignores the selected category and adding keeps the category active', () => {
+  const catalog = source('../components/OrderProductCatalog.jsx')
+
+  assert.match(catalog, /if \(normalized\) return matchesSearch/)
+  assert.match(catalog, /return uiCategory === category/)
+  assert.match(catalog, /onClick=\{\(\) => onAdd\(product\)\}/)
+})
+
 test('item note typing preserves spaces and commits normalization on blur', () => {
   const page = source('./NewOrder.jsx')
   const cart = source('../components/OrderCart.jsx')
