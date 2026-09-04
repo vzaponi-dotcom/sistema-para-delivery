@@ -32,3 +32,25 @@ export const parseBRLCurrencyInput = (value) => {
   const number = Number(normalized)
   return Number.isFinite(number) && number >= 0 ? number : 0
 }
+
+export const formatSignedBRLCurrencyInput = (value) => {
+  const text = String(value ?? '').trim()
+  const negative = text.startsWith('-')
+  const formatted = formatBRLCurrencyInput(text.replace(/^-/, ''))
+  if (!formatted) return negative ? '-' : ''
+  return negative ? `-${formatted}` : formatted
+}
+
+export const formatSignedBRLCurrencyValue = (value) => {
+  const number = Number(value)
+  const safeValue = Number.isFinite(number) ? number : 0
+  const formatted = `R$ ${formatBRLNumber(Math.abs(safeValue))}`
+  return safeValue < 0 ? `-${formatted}` : formatted
+}
+
+export const parseSignedBRLCurrencyInput = (value) => {
+  const text = String(value ?? '').trim()
+  const negative = text.startsWith('-')
+  const number = parseBRLCurrencyInput(text.replace(/^-/, ''))
+  return negative ? -number : number
+}
