@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import '../order-operations.css'
 import '../order-operations-compact.css'
 import Button from '../components/Button'
@@ -142,7 +142,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
         <div className="section-heading order-queue-heading"><div><span className="section-kicker">Cozinha</span><h2>Em preparo</h2></div><span className="order-queue-help">Mais antigos aparecem primeiro</span></div>
 
         <div className="order-queue">
-          {[...preparingOrders, ...scheduledOrders].map((order) => {
+          {[...preparingOrders, ...scheduledOrders].map((order, index) => {
             const waiting = isScheduledWaiting(order, now)
             const elapsed = waiting ? 0 : getElapsedMinutes(order, now)
             const urgency = getOrderUrgency(order, now)
@@ -157,6 +157,8 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             const printJob = printing?.latestJobByOrderId?.get?.(String(order.id)) || null
 
             return (
+              <Fragment key={order.id}>
+              {index === preparingOrders.length && scheduledOrders.length > 0 && <div className="section-heading order-queue-heading"><div><span className="section-kicker">Aguardando janela</span><h2>Agendados</h2></div></div>}
               <article className={`order-queue-card urgency-${urgency}${isNewArrival ? ' order-new-arrival' : ''}`} key={order.id}>
                 <div className={`order-timing-marker timing-${timingState}`} title={`${timingLabel}. Pedido registrado às ${orderTime}.`}><span className="order-timing-dot" aria-hidden="true" /><strong>{timingLabel}</strong></div>
                 <div className="order-queue-body">
@@ -175,9 +177,9 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                   </div>
                 </div>
               </article>
+              </Fragment>
             )
           })}
-          {scheduledOrders.length > 0 && <div className="section-heading order-queue-heading"><div><span className="section-kicker">Aguardando janela</span><h2>Agendados</h2></div></div>}
           {!activeOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>{search ? 'Nenhum pedido ativo encontrado' : 'A fila está vazia'}</strong><span>{search ? 'Ajuste sua busca para localizar outros pedidos.' : 'Novos pedidos de hoje entram aqui automaticamente em preparo.'}</span></div>}
         </div>
       </section>
