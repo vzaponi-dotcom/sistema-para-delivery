@@ -5,9 +5,8 @@ import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
 import NewOrderCustomerStep from '../components/NewOrderCustomerStep'
 import NewOrderProductsStep from '../components/NewOrderProductsStep'
+import NewOrderReviewStep from '../components/NewOrderReviewStep'
 import NewOrderStepIndicator from '../components/NewOrderStepIndicator'
-import OrderCart from '../components/OrderCart'
-import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
 import PageHeader from '../components/PageHeader'
 import {
   addCartItem,
@@ -301,33 +300,32 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
       )}
 
       {currentStep === NEW_ORDER_STEPS.REVIEW && (
-        <div className="new-order-layout">
-          <div className="new-order-main-column">
-            <OrderCart
-              items={items}
-              currency={currency}
-              disabled={disabled}
-              onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))}
-              onNoteChange={(lineId, note) => setItems((current) => editCartItemNote(current, lineId, note))}
-              onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
-              onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
-            />
-          </div>
-
-          <div className="new-order-cart-column">
-            <OrderCheckoutSummary
-              draft={draft}
-              preview={preview}
-              currency={currency}
-              disabled={disabled}
-              canSubmit={canSubmit}
-              onDeliveryFeeChange={setDeliveryFee}
-              onAdjustmentChange={handleAdjustmentChange}
-              onSavePending={() => save()}
-              onSavePaid={(method) => save(method)}
-            />
-          </div>
-        </div>
+        <NewOrderReviewStep
+          customerSummary={customerSummary}
+          itemCount={itemCount}
+          disabled={disabled}
+          onBack={() => goToStep(NEW_ORDER_STEPS.PRODUCTS)}
+          cartProps={{
+            items,
+            currency,
+            disabled,
+            onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
+            onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
+            onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
+            onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
+          }}
+          checkoutProps={{
+            draft,
+            preview,
+            currency,
+            disabled,
+            canSubmit,
+            onDeliveryFeeChange: setDeliveryFee,
+            onAdjustmentChange: handleAdjustmentChange,
+            onSavePending: () => save(),
+            onSavePaid: (method) => save(method),
+          }}
+        />
       )}
 
       {duplicateClient && (
