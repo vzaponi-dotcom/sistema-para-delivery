@@ -19,3 +19,6 @@ jobs:
 
       - name: Run focused printing test
         run: node --test worker/orderPrintingMigration.test.js
+
+      - name: Validate local D1 migrations
+        run: npm run d1:migrate:local
