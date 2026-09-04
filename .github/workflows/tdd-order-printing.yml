@@ -32,6 +32,9 @@ jobs:
           src/printing/localPrintStation.test.js
           src/printing/webSerialTransport.test.js
           src/printing/printJobRunner.test.js
+          src/printing/printingManagerRegression.test.js
+          src/realtimeSyncRegression.test.js
+          src/utils/dataSync.test.js
 
       - name: Validate local D1 migrations
         run: npm run d1:migrate:local
