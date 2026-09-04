@@ -9,6 +9,8 @@ import StatusBadge from './StatusBadge'
 import { downloadOrderPdf } from '../printing/pdfOrderRenderer.js'
 import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../utils/orderWorkflow.js'
+import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
+import { getOperationalDurationMinutes, getOperationalStartAt } from '../../shared/orderTiming.js'
 
 const adjustmentLabel = (adjustment, currency) => {
   if (!adjustment || adjustment.type === 'none') return ''
@@ -26,7 +28,7 @@ const formatPrintTimestamp = (value) => {
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
     timeStyle: 'short',
-    timeZone: 'America/Sao_Paulo',
+    timeZone: FINANCE_TIME_ZONE,
   }).format(date)
 }
 
@@ -44,6 +46,10 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
   const reprintCopies = printJob?.copiesRequested === 1 ? 1 : defaultCopies
   const stationName = printing?.stations?.find((station) => station.id === printJob?.stationId)?.name || printJob?.stationId || '—'
   const printingDisabled = Boolean(printingAction) || printing?.supported === false
+  const now = new Date()
+  const operationalStartAt = getOperationalStartAt(order)
+  const operationalDurationMinutes = getOperationalDurationMinutes(order)
+  const scheduledPrintPending = printJob?.trigger === 'automatic' && printJob?.status === 'pending' && printJob?.availableAt && new Date(printJob.availableAt) > now
 
   const runPrintingAction = async (key, action) => {
     if (printingAction || typeof action !== 'function') return false
@@ -87,6 +93,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
 
   const actionButton = (() => {
     if (!printJob) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir pedido</Button>
+    if (scheduledPrintPending) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir agora</Button>
     if (printJob.status === 'printed') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
     if (printJob.status === 'failed') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Tentar novamente</Button>
     if (printJob.status === 'requires_attention') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Imprimir agora</Button>
@@ -115,6 +122,12 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
             <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
             <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? (order.paymentMethod || 'Não informada') : 'Pendente'}</strong></div>
           </div>
+
+          <section className="order-detail-section order-timing-section">
+            {order.scheduledFor && <div><span>Horário desejado</span><strong>{formatOrderTime(order.scheduledFor)}</strong></div>}
+            {operationalStartAt && <div><span>Início operacional</span><strong>{formatPrintTimestamp(operationalStartAt)}</strong></div>}
+            {operationalDurationMinutes !== null && <div><span>{order.type === 'Entrega' ? 'Tempo até sair para entrega' : 'Tempo até finalização'}</span><strong>{operationalDurationMinutes} min</strong></div>}
+          </section>
 
           <section className="order-detail-section">
             <div className="section-heading compact-section-heading">
@@ -167,6 +180,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
             </div>
 
             {!printJob && <p className="order-printing-helper">Este pedido ainda não possui histórico de impressão. Isso é esperado quando a impressão automática estava desligada.</p>}
+            {scheduledPrintPending && <p className="order-printing-helper">Impressão programada para {formatOrderTime(printJob.availableAt)}</p>}
             {['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
 
             {printJob && (

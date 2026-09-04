@@ -48,3 +48,10 @@ test('printing diagnostics use persisted sanitized fields instead of raw excepti
   assert.match(detail, /stationId/)
   assert.doesNotMatch(detail, /\.stack\b/)
 })
+
+test('future automatic jobs show scheduling and use a manual print action', () => {
+  assert.match(detail, /availableAt/)
+  assert.match(detail, /Impressão programada para/)
+  assert.match(detail, /printing\.printOrder|printOrder/)
+  assert.match(detail, /scheduledPrintPending[\s\S]*handleFirstPrint/)
+})
