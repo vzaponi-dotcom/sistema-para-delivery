@@ -2,6 +2,8 @@ import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSessi
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
+import { handlePrintingApi } from './orderPrintingApi.js'
+import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
@@ -59,6 +61,9 @@ const authenticatedApi = async (request, env) => {
   if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
   const url = new URL(request.url)
 
+  const printingResponse = await handlePrintingApi(request, env, session, url)
+  if (printingResponse) return printingResponse
+
   if (url.pathname === '/api/bootstrap' && request.method === 'GET') return json(await loadBootstrap(env.DB, session.businessId))
   if (url.pathname === '/api/clients' && request.method === 'POST') { assertSameOriginMutation(request); const client = await createClient(env.DB, session.businessId, clientInput(await readJson(request))); return json({ client }, { status: 201 }) }
   const clientMatch = url.pathname.match(/^\/api\/clients\/([^/]+)$/)
@@ -76,7 +81,8 @@ const authenticatedApi = async (request, env) => {
     const tableTab = order.tableTabId
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
-    return json({ order, movement, tableTab }, { status: 201 })
+    const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
+    return json({ order, movement, tableTab, printJob }, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
   if (statusMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const body = await readJson(request); if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.'); const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1])); if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ order }) }
