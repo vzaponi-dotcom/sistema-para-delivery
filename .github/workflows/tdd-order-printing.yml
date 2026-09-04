@@ -45,8 +45,17 @@ jobs:
           src/realtimeSyncRegression.test.js
           src/utils/dataSync.test.js
 
+      - name: Run full test suite
+        run: npm test
+
+      - name: Lint application
+        run: npm run lint
+
       - name: Build application
         run: npm run build
+
+      - name: Validate Worker dry run
+        run: npx --yes wrangler@4.128.0 deploy --dry-run
 
       - name: Validate local D1 migrations
         run: npm run d1:migrate:local
