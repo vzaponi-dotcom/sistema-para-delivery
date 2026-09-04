@@ -13,6 +13,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Cloudflare Worker
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -20,8 +21,10 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
-      - name: Checkout
+      - name: Checkout master
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -44,6 +47,9 @@ jobs:
       - name: Validate Worker bundle
         run: npx --yes wrangler@4.128.0 deploy --dry-run
 
+      - name: Apply migrations to local D1
+        run: npm run d1:migrate:local
+
       - name: Check Cloudflare credentials
         shell: bash
         run: |
@@ -56,7 +62,7 @@ jobs:
         run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery --remote
 
       - name: Apply D1 migrations
-        run: npm run d1:migrate:remote
+        run: npm run d1:migrate:production
 
       - name: Configure production PIN when provided
         shell: bash
@@ -97,7 +103,7 @@ jobs:
           --command "SELECT business_id, length(pin_hash) AS verifier_length FROM auth_credentials WHERE business_id = 'amor-e-sabor';"
 
       - name: Deploy
-        run: npm run deploy
+        run: npm run deploy:production
 
       - name: Verify production login with configured PIN
         env:
