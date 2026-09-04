@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { canConsumeAutomaticPrintJob } from './usePrintingManager.js'
 
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
@@ -26,6 +27,36 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.match(manager, /requestPrinterPort/)
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
+  assert.doesNotMatch(app, /detectedIds[\s\S]{0,500}printing\./)
+})
+
+test('automatic claim guard blocks duplicate or unsafe consumption states', () => {
+  const base = {
+    authenticated: true,
+    isOnline: true,
+    supported: true,
+    visible: true,
+    browserOnline: true,
+    busyJobId: null,
+    printerBlocked: false,
+    station: { isPrimary: true, autoPrintEnabled: true },
+  }
+  assert.equal(canConsumeAutomaticPrintJob(base), true)
+  for (const override of [
+    { authenticated: false },
+    { isOnline: false },
+    { supported: false },
+    { visible: false },
+    { browserOnline: false },
+    { busyJobId: 'job-running' },
+    { printerBlocked: true },
+    { station: null },
+    { station: { isPrimary: false, autoPrintEnabled: true } },
+    { station: { isPrimary: true, autoPrintEnabled: false } },
+  ]) assert.equal(canConsumeAutomaticPrintJob({ ...base, ...override }), false)
+
+  assert.match(manager, /canConsumeAutomaticPrintJob\(\{/)
+  assert.match(manager, /updateBlocked\(false\)/)
 })
 
 test('printing manager centralizes approved poll and heartbeat cadences', () => {
