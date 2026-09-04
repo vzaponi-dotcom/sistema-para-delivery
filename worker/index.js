@@ -1,11 +1,13 @@
 import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
+import { createManualMovement, softDeleteManualMovement, updateManualMovement, upsertFinanceSettings } from './financeRepository.js'
+import { parseFinanceSettingsInput, parseManualMovementInput } from './financeValidation.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
-import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
-import { moneyToCents, optionalText, requireNonEmpty, validateMovementType, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
+import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -52,7 +54,6 @@ const productInput = (body) => {
     ...presentation,
   }
 }
-const movementInput = (body) => { const valueCents = moneyToCents(body.value, 'value'); if (valueCents <= 0) throw apiError(400, 'VALIDATION_ERROR', 'O valor deve ser maior que zero.'); return { type: validateMovementType(body.type), category: requireNonEmpty(body.category, 'category'), description: requireNonEmpty(body.description, 'description'), valueCents } }
 
 const authenticatedApi = async (request, env) => {
   const session = await getAuthenticatedSession(request, env)
@@ -109,7 +110,32 @@ const authenticatedApi = async (request, env) => {
     const result = await registerTableTabPayment(env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method))
     return json(result, { status: 201 })
   }
-  if (url.pathname === '/api/movements' && request.method === 'POST') { assertSameOriginMutation(request); const movement = await createMovement(env.DB, session.businessId, movementInput(await readJson(request))); return json({ movement }, { status: 201 }) }
+
+  if (url.pathname === '/api/movements' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const movement = await createManualMovement(env.DB, session.businessId, parseManualMovementInput(await readJson(request)))
+    return json({ movement }, { status: 201 })
+  }
+  const movementMatch = url.pathname.match(/^\/api\/movements\/([^/]+)$/)
+  if (movementMatch && request.method === 'PATCH') {
+    assertSameOriginMutation(request)
+    const id = decodeURIComponent(movementMatch[1])
+    const movement = await updateManualMovement(env.DB, session.businessId, id, parseManualMovementInput(await readJson(request)))
+    if (!movement) throw apiError(404, 'MOVEMENT_NOT_FOUND', 'Movimentação não encontrada.')
+    return json({ movement })
+  }
+  if (movementMatch && request.method === 'DELETE') {
+    assertSameOriginMutation(request)
+    const id = decodeURIComponent(movementMatch[1])
+    const deletedMovementId = await softDeleteManualMovement(env.DB, session.businessId, id)
+    if (!deletedMovementId) throw apiError(404, 'MOVEMENT_NOT_FOUND', 'Movimentação não encontrada.')
+    return json({ deletedMovementId })
+  }
+  if (url.pathname === '/api/finance-settings' && request.method === 'PUT') {
+    assertSameOriginMutation(request)
+    const financeSettings = await upsertFinanceSettings(env.DB, session.businessId, parseFinanceSettingsInput(await readJson(request)))
+    return json({ financeSettings })
+  }
 
   if (url.pathname === '/api/products' && request.method === 'POST') { assertSameOriginMutation(request); const product = await createProduct(env.DB, session.businessId, productInput(await readJson(request))); return json({ product }, { status: 201 }) }
   const productMatch = url.pathname.match(/^\/api\/products\/([^/]+)$/)
