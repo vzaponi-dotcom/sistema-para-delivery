@@ -37,3 +37,11 @@ test('new order checkout actions stack and remain tappable on narrow screens', a
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-checkout-actions[^}]*grid-template-columns:\s*1fr/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-checkout-actions\s+\.button[^}]*min-height:\s*48px/s)
 })
+
+test('products step keeps a mobile cart action above the bottom navigation safe area', async () => {
+  const css = await read('../new-order.css')
+
+  assert.match(css, /\.new-order-mobile-cart-action/)
+  assert.match(css, /env\(safe-area-inset-bottom\)/)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)/)
+})
