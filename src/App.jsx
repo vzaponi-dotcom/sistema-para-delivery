@@ -9,11 +9,12 @@ import './finance-mobile.css'
 import AppShell from './components/AppShell'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
-import ConfirmationDialog from './components/ConfirmationDialog'
 import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
 import Modal from './components/Modal'
+import MovementDialog from './components/MovementDialog'
+import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
 import SystemSelect from './components/SystemSelect'
 import Dashboard from './pages/Dashboard'
@@ -27,6 +28,7 @@ import OrderHistory from './pages/OrderHistory'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
+import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
@@ -40,6 +42,7 @@ import {
   createOrder as createOrderApi,
   createProduct as createProductApi,
   deleteClient as deleteClientApi,
+  deleteMovement as deleteMovementApi,
   deleteProduct as deleteProductApi,
   getBootstrap as getBootstrapApi,
   getOrders as getOrdersApi,
@@ -49,16 +52,16 @@ import {
   refundOrder as refundOrderApi,
   registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
+  saveFinanceSettings as saveFinanceSettingsApi,
   updateClient as updateClientApi,
+  updateMovement as updateMovementApi,
   updateOrderStatus as updateOrderStatusApi,
   updateProduct as updateProductApi,
 } from './api/client'
 
 const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro'].map((value) => ({ value, label: value }))
-const MOVEMENT_TYPE_OPTIONS = [{ value: 'entrada', label: 'Entrada' }, { value: 'saida', label: 'Saída' }]
-const MOVEMENT_CATEGORY_OPTIONS = ['Vendas', 'Delivery', 'Insumos', 'Despesas', 'Outros'].map((value) => ({ value, label: value }))
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
-const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tableTabs', 'movements']
+const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tableTabs', 'movements', 'financeSettings']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -80,6 +83,7 @@ function App() {
   const [orders, setOrders] = useState([])
   const [tableTabs, setTableTabs] = useState([])
   const [movements, setMovements] = useState([])
+  const [financeSettings, setFinanceSettings] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [checkoutKey, setCheckoutKey] = useState(null)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
@@ -93,11 +97,11 @@ function App() {
   const [editingProductId, setEditingProductId] = useState(null)
   const [showProductForm, setShowProductForm] = useState(false)
   const [newProduct, setNewProduct] = useState(emptyProduct)
-  const [newMovement, setNewMovement] = useState({ type: 'entrada', category: 'Vendas', description: '', value: '0' })
-  const [movementReview, setMovementReview] = useState(null)
+  const [movementDialogOpen, setMovementDialogOpen] = useState(false)
+  const [editingMovement, setEditingMovement] = useState(null)
+  const [openingBalanceDialogOpen, setOpeningBalanceDialogOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-  const [showMovementModal, setShowMovementModal] = useState(false)
   const [paymentOrderId, setPaymentOrderId] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
@@ -123,9 +127,9 @@ function App() {
 
   const clearBusinessData = () => {
     resetSyncState()
-    setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setNewOrderIds(new Set())
+    setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownActiveOrderIdsRef.current = new Set(); alertedOrderIdsRef.current = new Set(); currentOrdersRef.current = []
-    setCheckoutKey(null); setPaymentOrderId(null); setShowMovementModal(false); setMovementReview(null); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
+    setCheckoutKey(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
   }
 
   const applyBootstrapCollections = (data, token) => {
@@ -135,12 +139,14 @@ function App() {
     if (guard.canApply(token, 'orders')) setOrders(Array.isArray(data?.orders) ? data.orders : [])
     if (guard.canApply(token, 'tableTabs')) setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
     if (guard.canApply(token, 'movements')) setMovements(Array.isArray(data?.movements) ? data.movements : [])
+    if (guard.canApply(token, 'financeSettings')) setFinanceSettings(data?.financeSettings ?? null)
   }
 
-  const applyOfficialEffects = ({ order, orders: nextOrders, movement, movements: nextMovements, tableTab, client, product }) => {
+  const applyOfficialEffects = ({ order, orders: nextOrders, movement, movements: nextMovements, deletedMovementId, financeSettings, tableTab, client, product }) => {
     const changed = []
     if (order || (Array.isArray(nextOrders) && nextOrders.length)) changed.push('orders')
-    if (movement || (Array.isArray(nextMovements) && nextMovements.length)) changed.push('movements')
+    if (movement || deletedMovementId || (Array.isArray(nextMovements) && nextMovements.length)) changed.push('movements')
+    if (financeSettings !== undefined) changed.push('financeSettings')
     if (tableTab) changed.push('tableTabs')
     if (client) changed.push('clients')
     if (product) changed.push('products')
@@ -149,6 +155,8 @@ function App() {
     if (Array.isArray(nextOrders) && nextOrders.length) setOrders((current) => upsertManyById(current, nextOrders))
     if (movement) setMovements((current) => upsertById(current, movement))
     if (Array.isArray(nextMovements) && nextMovements.length) setMovements((current) => upsertManyById(current, nextMovements))
+    if (deletedMovementId) setMovements((current) => removeById(current, deletedMovementId))
+    if (financeSettings !== undefined) setFinanceSettings(financeSettings)
     if (tableTab) setTableTabs((current) => upsertById(current, tableTab))
     if (client) setClients((current) => upsertById(current, client))
     if (product) setProducts((current) => upsertById(current, product))
@@ -284,6 +292,7 @@ function App() {
     return { salesToday, receivedToday, receivables, activeOrders }
   }, [movements, orders, todayValue])
   const financialTotals = useMemo(() => { const entries = movements.filter((movement) => movement.type === 'entrada').reduce((total, movement) => total + Number(movement.value), 0); const exits = movements.filter((movement) => movement.type === 'saida').reduce((total, movement) => total + Number(movement.value), 0); return { entries, exits, balance: entries - exits } }, [movements])
+  const currentFinanceBalance = useMemo(() => calculateCurrentBalance(movements, financeSettings), [financeSettings, movements])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
   const filteredClients = useMemo(() => { const normalizedSearch = clientSearch.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => clientSort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clientSearch, clientSort, clients])
   const filteredOrders = useMemo(() => { const normalizedSearch = orderSearch.trim().toLowerCase(); return orders.filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)) }, [orderSearch, orders])
@@ -338,16 +347,40 @@ function App() {
   const handleDeleteProduct = async (productId) => { if (writesBlocked) return; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); syncGuardRef.current.markMutation(['products']); setProducts((current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
   const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
 
-  const openMovementModal = () => { if (writesBlocked) return; setMovementReview(null); setShowMovementModal(true) }
-  const handleAddMovement = (event) => {
-    event.preventDefault(); const description = newMovement.description.trim(); const value = Number(newMovement.value) || 0
-    if (writesBlocked || !description || value <= 0) return
-    setMovementReview({ type: newMovement.type, category: newMovement.category, description, value }); setShowMovementModal(false)
+  const openNewMovement = () => { if (writesBlocked) return; setEditingMovement(null); setMovementDialogOpen(true) }
+  const openEditMovement = (movement) => { if (writesBlocked || movement?.source !== 'manual') return; setEditingMovement(movement); setMovementDialogOpen(true) }
+  const closeMovementDialog = () => { setMovementDialogOpen(false); setEditingMovement(null) }
+  const handleSaveMovement = async (payload) => {
+    if (writesBlocked) return false
+    const movementId = editingMovement?.id ?? null
+    setRequestKey(movementId ? `movement:update:${movementId}` : 'movement:create')
+    try {
+      const { movement } = movementId ? await updateMovementApi(movementId, payload) : await createMovementApi(payload)
+      applyOfficialEffects({ movement })
+      showSuccessMessage(movementId ? 'Movimentação atualizada com sucesso' : 'Movimentação registrada com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
-  const handleConfirmMovement = async () => {
-    if (writesBlocked || !movementReview) return
-    setRequestKey('movement:create')
-    try { const { movement } = await createMovementApi(movementReview); applyOfficialEffects({ movement }); setNewMovement({ type: 'entrada', category: 'Vendas', description: '', value: '0' }); setMovementReview(null); showSuccessMessage('Movimentação registrada com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) }
+  const handleDeleteMovement = async (movementId) => {
+    if (writesBlocked) return false
+    setRequestKey(`movement:delete:${movementId}`)
+    try {
+      const { deletedMovementId } = await deleteMovementApi(movementId)
+      applyOfficialEffects({ deletedMovementId })
+      showSuccessMessage('Movimentação excluída com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
+  const openOpeningBalanceDialog = () => { if (!writesBlocked) setOpeningBalanceDialogOpen(true) }
+  const handleSaveFinanceSettings = async (payload) => {
+    if (writesBlocked) return false
+    setRequestKey('finance-settings:save')
+    try {
+      const { financeSettings } = await saveFinanceSettingsApi(payload)
+      applyOfficialEffects({ financeSettings })
+      showSuccessMessage('Saldo inicial atualizado com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
 
   if (authState === 'checking') return <div className="system-state-screen"><div className="system-state-card"><h2>Carregando sistema</h2><p>Verificando sua sessão…</p></div></div>
@@ -367,15 +400,15 @@ function App() {
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} currency={currency} onAddMovement={openMovementModal} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
+        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
 
         {paymentOrder && <Modal title="Registrar pagamento" onClose={closePaymentModal}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · Pedido #{String(paymentOrder.id).slice(-4)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={closePaymentModal}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
 
         {showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
         {duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
         {showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
-        {showMovementModal && <Modal title="Registrar movimento" onClose={() => setShowMovementModal(false)}><form className="form-stack" onSubmit={handleAddMovement}><div className="form-grid two-columns"><div className="form-field"><span>Tipo</span><SystemSelect value={newMovement.type} options={MOVEMENT_TYPE_OPTIONS} onChange={(type) => setNewMovement((current) => ({ ...current, type }))} disabled={writesBlocked} label="Tipo da movimentação" /></div><div className="form-field"><span>Categoria</span><SystemSelect value={newMovement.category} options={MOVEMENT_CATEGORY_OPTIONS} onChange={(category) => setNewMovement((current) => ({ ...current, category }))} disabled={writesBlocked} label="Categoria da movimentação" /></div></div><label className="form-field"><span>Descrição</span><input type="text" placeholder="Ex: Compra de arroz" value={newMovement.description} onChange={(event) => setNewMovement((current) => ({ ...current, description: event.target.value }))} /></label><label className="form-field"><span>Valor</span><input type="number" min="0" step="0.01" value={newMovement.value} onChange={(event) => setNewMovement((current) => ({ ...current, value: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={() => setShowMovementModal(false)}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Revisar movimento</Button></div></form></Modal>}
-        {movementReview && <ConfirmationDialog title="Confirmar movimentação" message="Revise o lançamento financeiro antes de salvar." details={<><span>{movementReview.type === 'entrada' ? 'Entrada' : 'Saída'} · {movementReview.category}</span><strong>{currency(movementReview.value)}</strong><small>{movementReview.description}</small></>} confirmLabel="Confirmar movimentação" confirmVariant="primary" onClose={() => { setMovementReview(null); setShowMovementModal(true) }} onConfirm={handleConfirmMovement} disabled={writesBlocked} />}
+        <MovementDialog open={movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
+        <OpeningBalanceDialog open={openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
       </AppShell>
     </>
   )
