@@ -5,21 +5,23 @@ import { readFileSync } from 'node:fs'
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('new order uses one searchable client picker without phone in the selected label', () => {
-  const page = source('./NewOrder.jsx')
+  const customerStep = source('../components/NewOrderCustomerStep.jsx')
 
-  assert.match(page, /new-order-client-picker/)
-  assert.match(page, /role="combobox"/)
-  assert.match(page, /role="listbox"/)
-  assert.doesNotMatch(page, />Buscar cliente</)
-  assert.doesNotMatch(page, /\[client\.name, client\.phone\]/)
-  assert.doesNotMatch(page, /client\.name\}\{client\.phone/)
+  assert.match(customerStep, /new-order-client-picker/)
+  assert.match(customerStep, /role="combobox"/)
+  assert.match(customerStep, /role="listbox"/)
+  assert.doesNotMatch(customerStep, />Buscar cliente</)
+  assert.doesNotMatch(customerStep, /\[client\.name, client\.phone\]/)
+  assert.doesNotMatch(customerStep, /client\.name\}\{client\.phone/)
 })
 
 test('quick client phone reuses the normal phone mask', () => {
   const page = source('./NewOrder.jsx')
+  const customerStep = source('../components/NewOrderCustomerStep.jsx')
 
   assert.match(page, /formatPhone/)
-  assert.match(page, /phone: formatPhone\(event\.target\.value\)/)
+  assert.match(page, /phone: formatPhone\(patch\.phone\)/)
+  assert.match(customerStep, /onQuickClientChange\(\{ phone: event\.target\.value \}\)/)
 })
 
 test('product catalog keeps added state tied to the cart with readable white text', () => {
@@ -108,12 +110,13 @@ test('new order keeps money display formatted but normalizes preview and payload
 
 test('new order still exposes catalog, cart and both checkout actions', () => {
   const page = source('./NewOrder.jsx')
+  const customerStep = source('../components/NewOrderCustomerStep.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
   const cart = source('../components/OrderCart.jsx')
   const checkout = source('../components/OrderCheckoutSummary.jsx')
 
   assert.match(page, /Nova venda/)
-  assert.match(page, /\+ Novo cliente/)
+  assert.match(customerStep, /\+ Novo cliente/)
   assert.match(catalog, /Buscar produto/)
   assert.match(catalog, /Categorias de produtos/)
   assert.match(cart, /Carrinho/)
