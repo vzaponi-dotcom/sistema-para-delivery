@@ -15,6 +15,7 @@
     "deploy": "npm run build && npx --yes wrangler@4.128.0 deploy"
   },
   "dependencies": {
+    "jspdf": "4.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

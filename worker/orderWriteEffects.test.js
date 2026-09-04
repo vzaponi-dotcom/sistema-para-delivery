@@ -60,6 +60,6 @@ test('checkout and payment routes expose the authoritative effects to the client
   const source = await readFile(new URL('./index.js', import.meta.url), 'utf8')
   assert.match(source, /loadMovementByOrderSource/)
   assert.match(source, /loadTableTabById/)
-  assert.match(source, /return json\(\{ order, movement, tableTab \}/)
+  assert.match(source, /return json\(\{ order, movement, tableTab, printJob \}/)
   assert.match(source, /return json\(\{ \.\.\.result, tableTab \}/)
 })

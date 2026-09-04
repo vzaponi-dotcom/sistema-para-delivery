@@ -183,6 +183,7 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
     orders: [],
     tableTabs: [],
     movements: [],
+    financeSettings: null,
   })
 })
 
