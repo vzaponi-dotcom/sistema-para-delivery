@@ -1,0 +1,55 @@
+name: Bootstrap staging D1 once
+
+on:
+  push:
+    branches:
+      - chore/production-safety-hardening
+    paths:
+      - .github/workflows/bootstrap-staging-d1-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Create staging database only when absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.128.0 d1 list --json > /tmp/d1-list.json
+          STAGING_DATABASE_ID="$(node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const list = JSON.parse(fs.readFileSync('/tmp/d1-list.json', 'utf8'))
+          const match = list.find((db) => db.name === 'amor-e-sabor-delivery-staging')
+          process.stdout.write(match?.uuid || match?.id || '')
+          NODE
+          )"
+
+          if [ -z "$STAGING_DATABASE_ID" ]; then
+            npx --yes wrangler@4.128.0 d1 create amor-e-sabor-delivery-staging
+            npx --yes wrangler@4.128.0 d1 list --json > /tmp/d1-list.json
+            STAGING_DATABASE_ID="$(node --input-type=module <<'NODE'
+            import fs from 'node:fs'
+            const list = JSON.parse(fs.readFileSync('/tmp/d1-list.json', 'utf8'))
+            const match = list.find((db) => db.name === 'amor-e-sabor-delivery-staging')
+            process.stdout.write(match?.uuid || match?.id || '')
+            NODE
+            )"
+          fi
+
+          if [ -z "$STAGING_DATABASE_ID" ]; then
+            echo 'Could not resolve staging D1 database ID.' >&2
+            exit 1
+          fi
+
+          echo "STAGING_DATABASE_ID=$STAGING_DATABASE_ID"
