@@ -14,6 +14,7 @@ import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems, getOrderItemsSearchText } from '../utils/orderCart.js'
 import { isOrderActive } from '../utils/orderLifecycle.js'
+import { getOperationalStartAt, isScheduledWaiting } from '../../shared/orderTiming.js'
 import {
   formatElapsedDuration,
   formatOrderDate,
@@ -99,7 +100,11 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
     .filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch))
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [normalizedSearch, orders])
 
-  const activeCount = orders.filter(isOrderActive).length
+  const scheduledOrders = useMemo(() => activeOrders.filter((order) => isScheduledWaiting(order, now)).sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor)), [activeOrders, now])
+  const preparingOrders = useMemo(() => activeOrders.filter((order) => !isScheduledWaiting(order, now)).sort((a, b) => getOperationalStartAt(a) - getOperationalStartAt(b)), [activeOrders, now])
+
+  const activeCount = preparingOrders.length
+  const scheduledCount = scheduledOrders.length
   const delayedCount = orders.filter((order) => isOrderActive(order) && getOrderTimingState(order, now) !== 'on-time').length
   const finishedTodayCount = orders.filter((order) => order.status === 'Finalizado' && isFinishedToday(order, now)).length
   const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
@@ -122,8 +127,9 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
         )}
       />
 
-      <section className="stats-grid stats-grid-three order-ops-stats" aria-label="Resumo dos pedidos">
+      <section className="stats-grid stats-grid-four order-ops-stats" aria-label="Resumo dos pedidos">
         <StatCard label="Em preparo" value={activeCount} helper="Pedidos ativos agora" icon="receipt" />
+        <StatCard label="Agendados" value={scheduledCount} helper="Aguardando janela operacional" icon="orders" />
         <StatCard label="Com atraso" value={delayedCount} helper="Mais de 30 min" icon="orders" tone={delayedCount ? 'danger' : 'neutral'} />
         <StatCard label="Finalizados hoje" value={finishedTodayCount} helper="Já saíram da operação" icon="dashboard" tone="success" />
       </section>
@@ -133,11 +139,12 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
           <label className="search-control"><Icon name="search" size={18} /><input type="search" placeholder="Buscar cliente, produto, pagamento ou tipo" value={search} onChange={(event) => onSearchChange(event.target.value)} /></label>
           <span className="toolbar-count">{activeOrders.length} na fila</span>
         </div>
-        <div className="section-heading order-queue-heading"><div><span className="section-kicker">Cozinha</span><h2>Fila em preparo</h2></div><span className="order-queue-help">Mais antigos aparecem primeiro</span></div>
+        <div className="section-heading order-queue-heading"><div><span className="section-kicker">Cozinha</span><h2>Em preparo</h2></div><span className="order-queue-help">Mais antigos aparecem primeiro</span></div>
 
         <div className="order-queue">
-          {activeOrders.map((order) => {
-            const elapsed = getElapsedMinutes(order, now)
+          {[...preparingOrders, ...scheduledOrders].map((order) => {
+            const waiting = isScheduledWaiting(order, now)
+            const elapsed = waiting ? 0 : getElapsedMinutes(order, now)
             const urgency = getOrderUrgency(order, now)
             const timingState = getOrderTimingState(order, now)
             const timingLabel = timingLabels[timingState]
@@ -155,21 +162,22 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                 <div className="order-queue-body">
                   <div className="order-queue-number">#{orderNumber(order.id)}</div>
                   <div className="order-queue-main">
-                    <div className="order-queue-title"><div><strong>{order.client}</strong><span>{order.type} · {currency(order.total)}</span></div><div className="order-queue-badges"><StatusBadge status="Em preparo" /><PaymentBadge order={order} />{printJob && <PrintStatusBadge job={printJob} />}</div></div>
+                    <div className="order-queue-title"><div><strong>{order.client}</strong><span>{order.type} · {currency(order.total)}</span></div><div className="order-queue-badges"><StatusBadge status={waiting ? 'Agendado' : 'Em preparo'} /><PaymentBadge order={order} />{printJob && <PrintStatusBadge job={printJob} />}</div></div>
                     <button type="button" className="order-items-toggle" aria-expanded={itemsExpanded} aria-controls={itemsRegionId} onClick={() => toggleOrderItems(order.id)}><Icon name={itemsExpanded ? 'arrow-up' : 'arrow-down'} size={15} />{itemsExpanded ? `Ocultar itens (${orderItems.length})` : `Ver itens (${orderItems.length})`}</button>
                     {itemsExpanded && <div className="order-items-list" id={itemsRegionId}>{orderItems.map((item) => <div className="order-item-line" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}><strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>{item.note && <span>↳ {item.note}</span>}</div>)}</div>}
                     <div className="order-queue-meta"><span>{formatOrderDate(order.orderDate)}</span>{Number(order.deliveryFee || 0) > 0 && <span>Entrega {currency(order.deliveryFee)}</span>}</div>
-                    <div className={`order-time-line timing-${timingState}`}><span>Pedido às <strong>{orderTime}</strong></span><span aria-hidden="true">•</span><span>{elapsedLabel === 'agora' ? elapsedLabel : `há ${elapsedLabel}`}</span></div>
+                    <div className={`order-time-line timing-${timingState}`}>{waiting ? <span>Desejado <strong>{formatOrderTime(order.scheduledFor)}</strong></span> : <><span>Pedido às <strong>{orderTime}</strong></span><span aria-hidden="true">•</span><span>{elapsedLabel === 'agora' ? elapsedLabel : `há ${elapsedLabel}`}</span></>}</div>
                   </div>
                   <div className="order-queue-actions">
                     <Button type="button" variant="secondary" onClick={() => setDetailOrder(order)} disabled={actionsDisabled}>Ver detalhes</Button>
-                    <Button className="order-final-action" disabled={actionsDisabled} onClick={() => setFinalizeCandidate(order)}>{getFinalActionLabel(order)}</Button>
+                    {!waiting && <Button className="order-final-action" disabled={actionsDisabled} onClick={() => setFinalizeCandidate(order)}>{getFinalActionLabel(order)}</Button>}
                     <Button type="button" variant="secondary" className="button-danger-outline order-cancel-action" onClick={() => setCancelOrder(order)} disabled={actionsDisabled}>Cancelar pedido</Button>
                   </div>
                 </div>
               </article>
             )
           })}
+          {scheduledOrders.length > 0 && <div className="section-heading order-queue-heading"><div><span className="section-kicker">Aguardando janela</span><h2>Agendados</h2></div></div>}
           {!activeOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>{search ? 'Nenhum pedido ativo encontrado' : 'A fila está vazia'}</strong><span>{search ? 'Ajuste sua busca para localizar outros pedidos.' : 'Novos pedidos de hoje entram aqui automaticamente em preparo.'}</span></div>}
         </div>
       </section>
