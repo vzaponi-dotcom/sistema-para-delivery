@@ -24,17 +24,21 @@ test('quick client phone reuses the normal phone mask', () => {
   assert.match(customerStep, /onQuickClientChange\(\{ phone: event\.target\.value \}\)/)
 })
 
-test('product catalog keeps added state tied to the cart with readable white text', () => {
+test('product catalog replaces added action with synchronized quantity controls', () => {
   const page = source('./NewOrder.jsx')
+  const productsStep = source('../components/NewOrderProductsStep.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
   const css = source('../new-order.css')
 
-  assert.match(page, /items=\{items\}/)
-  assert.match(catalog, /items\.some/)
-  assert.match(catalog, /✓ Adicionado/)
-  assert.doesNotMatch(catalog, /setTimeout/)
-  assert.doesNotMatch(catalog, /useEffect/)
-  assert.match(css, /\.new-order-add-button span\s*\{[^}]*color:\s*#fff/s)
+  assert.match(page, /decrementCartProduct/)
+  assert.match(page, /onDecrease=\{\(productId\) => setItems/)
+  assert.match(productsStep, /onDecrease/)
+  assert.match(catalog, /getCartProductQuantity/)
+  assert.match(catalog, /new-order-product-quantity/)
+  assert.match(catalog, /Remover uma unidade/)
+  assert.match(catalog, /Adicionar mais uma unidade/)
+  assert.doesNotMatch(catalog, /✓ Adicionado/)
+  assert.match(css, /\.new-order-product-quantity\s*\{/)
 })
 
 test('product catalog starts empty until a category is selected or search is typed', () => {
