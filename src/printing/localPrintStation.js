@@ -15,6 +15,19 @@ const fingerprintsEqual = (left, right) => {
   return meaningful.length > 0 && meaningful.every((key) => left?.[key] === right?.[key])
 }
 
+export const detectPrintStationPlatform = (userAgent = globalThis.navigator?.userAgent || '') => {
+  const normalized = String(userAgent).toLowerCase()
+  if (normalized.includes('android')) return 'android'
+  if (normalized.includes('windows')) return 'windows'
+  return 'other'
+}
+
+export const getDefaultPrintStationName = (platform) => {
+  if (platform === 'windows') return 'Cozinha · Windows'
+  if (platform === 'android') return 'Cozinha · Android'
+  return 'Cozinha · Navegador'
+}
+
 export const getOrCreateLocalPrintStationId = (
   storage = globalThis.localStorage,
   randomUUID = () => globalThis.crypto.randomUUID(),
