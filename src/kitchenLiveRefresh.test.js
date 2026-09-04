@@ -43,6 +43,8 @@ test('kitchen UI supports one-time visual alerts and a persisted sound toggle', 
   const css = read('src/order-operations.css')
   assert.match(app, /kitchen-sound-enabled/)
   assert.match(app, /alertedOrderIdsRef/)
+  assert.match(app, /knownOperationalOrderIdsRef/)
+  assert.match(app, /getNewOperationalOrderIds/)
   assert.match(app, /newOrderIds/)
   assert.match(orders, /soundEnabled/)
   assert.match(orders, /onSoundEnabledChange/)
