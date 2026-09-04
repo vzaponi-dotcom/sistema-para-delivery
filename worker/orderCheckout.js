@@ -1,4 +1,5 @@
 import { validateCustomerIdentity } from '../shared/orderCustomerIdentity.js'
+import { getBusinessDate } from '../shared/finance.js'
 import {
   moneyToCents,
   optionalTextMax,
@@ -51,7 +52,7 @@ const validateAdjustment = (value = {}) => {
   return { type, mode, storedValue, reason }
 }
 
-export const validateCheckoutInput = (body = {}, idempotencyKey) => {
+export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date()) => {
   const type = validateOrderType(body.type)
   const rawIdentity = body.customerIdentity ?? { type: 'registered_client', clientId: body.clientId }
   const identityResult = validateCustomerIdentity(type, rawIdentity)
@@ -59,6 +60,23 @@ export const validateCheckoutInput = (body = {}, idempotencyKey) => {
   const customerIdentity = identityResult.value
   const orderDate = validateIsoDate(body.orderDate, 'orderDate')
   const stableKey = requireNonEmpty(idempotencyKey, 'idempotency-key')
+
+  let scheduledFor = null
+  if (body.scheduledFor !== undefined && body.scheduledFor !== null && body.scheduledFor !== '') {
+    if (typeof body.scheduledFor !== 'string') throw checkoutError('scheduledFor', 'Informe um horário agendado válido.')
+    const scheduledDate = new Date(body.scheduledFor)
+    const nowDate = now instanceof Date ? now : new Date(now)
+    if (Number.isNaN(scheduledDate.getTime()) || Number.isNaN(nowDate.getTime())) {
+      throw checkoutError('scheduledFor', 'Informe um horário agendado válido.')
+    }
+    if (type === 'Local') throw checkoutError('scheduledFor', 'Agendamento não é permitido para pedidos Local.')
+    const today = getBusinessDate(nowDate)
+    if (orderDate !== today || getBusinessDate(scheduledDate) !== today) {
+      throw checkoutError('scheduledFor', 'Agendamento deve ser no mesmo dia e não pode ser retroativo.')
+    }
+    if (scheduledDate <= nowDate) throw checkoutError('scheduledFor', 'O horário agendado deve ser no futuro.')
+    scheduledFor = scheduledDate.toISOString()
+  }
 
   if (!Array.isArray(body.items) || body.items.length === 0) {
     throw checkoutError('items', 'Adicione pelo menos um item ao pedido.')
@@ -96,6 +114,7 @@ export const validateCheckoutInput = (body = {}, idempotencyKey) => {
     deliveryFeeCents: type === 'Entrega' ? deliveryFeeCents : 0,
     adjustment,
     paymentMethod,
+    scheduledFor,
     idempotencyKey: stableKey,
   }
 }

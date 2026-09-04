@@ -54,3 +54,42 @@ test('discount percentage applies to products only and cannot consume fee', () =
     { type: 'discount', mode: 'fixed', storedValue: 2000 },
   ), { subtotalCents: 1000, adjustmentAmountCents: 1000, totalCents: 500 })
 })
+
+const scheduledNow = new Date('2026-09-04T13:00:00Z')
+const scheduledBase = {
+  clientId: 'c1',
+  type: 'Entrega',
+  orderDate: '2026-09-04',
+  items: [{ productId: 'p1', quantity: 1 }],
+}
+
+test('checkout accepts a valid future same-day scheduledFor and normalizes it', () => {
+  const input = validateCheckoutInput({
+    ...scheduledBase,
+    scheduledFor: '2026-09-04T15:00:00Z',
+  }, 'scheduled-valid', scheduledNow)
+
+  assert.equal(input.scheduledFor, '2026-09-04T15:00:00.000Z')
+})
+
+test('checkout rejects scheduledFor for Local orders', () => {
+  assert.throws(() => validateCheckoutInput({
+    ...scheduledBase,
+    type: 'Local',
+    scheduledFor: '2026-09-04T15:00:00Z',
+  }, 'scheduled-local', scheduledNow), /agendamento.*Local/i)
+})
+
+test('checkout rejects scheduledFor at or before checkout time', () => {
+  for (const scheduledFor of ['2026-09-04T13:00:00Z', '2026-09-04T12:59:59Z']) {
+    assert.throws(() => validateCheckoutInput({ ...scheduledBase, scheduledFor }, 'scheduled-past', scheduledNow), /futuro/i)
+  }
+})
+
+test('checkout rejects scheduledFor on retroactive orderDate', () => {
+  assert.throws(() => validateCheckoutInput({
+    ...scheduledBase,
+    orderDate: '2026-09-03',
+    scheduledFor: '2026-09-04T15:00:00Z',
+  }, 'scheduled-retroactive', scheduledNow), /retroativ|data.*pedido/i)
+})
