@@ -13,8 +13,6 @@ import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
 import Modal from './components/Modal'
-import MovementDialog from './components/MovementDialog'
-import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
 import SystemSelect from './components/SystemSelect'
 import Dashboard from './pages/Dashboard'
@@ -97,9 +95,6 @@ function App() {
   const [editingProductId, setEditingProductId] = useState(null)
   const [showProductForm, setShowProductForm] = useState(false)
   const [newProduct, setNewProduct] = useState(emptyProduct)
-  const [movementDialogOpen, setMovementDialogOpen] = useState(false)
-  const [editingMovement, setEditingMovement] = useState(null)
-  const [openingBalanceDialogOpen, setOpeningBalanceDialogOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [paymentOrderId, setPaymentOrderId] = useState(null)
@@ -129,7 +124,7 @@ function App() {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownActiveOrderIdsRef.current = new Set(); alertedOrderIdsRef.current = new Set(); currentOrdersRef.current = []
-    setCheckoutKey(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
+    setCheckoutKey(null); setPaymentOrderId(null); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
   }
 
   const applyBootstrapCollections = (data, token) => {
@@ -347,17 +342,23 @@ function App() {
   const handleDeleteProduct = async (productId) => { if (writesBlocked) return; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); syncGuardRef.current.markMutation(['products']); setProducts((current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
   const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
 
-  const openNewMovement = () => { if (writesBlocked) return; setEditingMovement(null); setMovementDialogOpen(true) }
-  const openEditMovement = (movement) => { if (writesBlocked || movement?.source !== 'manual') return; setEditingMovement(movement); setMovementDialogOpen(true) }
-  const closeMovementDialog = () => { setMovementDialogOpen(false); setEditingMovement(null) }
-  const handleSaveMovement = async (payload) => {
+  const handleCreateMovement = async (payload) => {
     if (writesBlocked) return false
-    const movementId = editingMovement?.id ?? null
-    setRequestKey(movementId ? `movement:update:${movementId}` : 'movement:create')
+    setRequestKey('movement:create')
     try {
-      const { movement } = movementId ? await updateMovementApi(movementId, payload) : await createMovementApi(payload)
+      const { movement } = await createMovementApi(payload)
       applyOfficialEffects({ movement })
-      showSuccessMessage(movementId ? 'Movimentação atualizada com sucesso' : 'Movimentação registrada com sucesso')
+      showSuccessMessage('Movimentação registrada com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
+  const handleUpdateMovement = async (movementId, payload) => {
+    if (writesBlocked) return false
+    setRequestKey(`movement:update:${movementId}`)
+    try {
+      const { movement } = await updateMovementApi(movementId, payload)
+      applyOfficialEffects({ movement })
+      showSuccessMessage('Movimentação atualizada com sucesso')
       return true
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
@@ -371,7 +372,6 @@ function App() {
       return true
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
-  const openOpeningBalanceDialog = () => { if (!writesBlocked) setOpeningBalanceDialogOpen(true) }
   const handleSaveFinanceSettings = async (payload) => {
     if (writesBlocked) return false
     setRequestKey('finance-settings:save')
@@ -400,15 +400,13 @@ function App() {
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
+        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onCreateMovement={handleCreateMovement} onUpdateMovement={handleUpdateMovement} onDeleteMovement={handleDeleteMovement} onSaveFinanceSettings={handleSaveFinanceSettings} actionKey={requestKey} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
 
         {paymentOrder && <Modal title="Registrar pagamento" onClose={closePaymentModal}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · Pedido #{String(paymentOrder.id).slice(-4)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={closePaymentModal}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
 
         {showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
         {duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
         {showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
-        <MovementDialog open={movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
-        <OpeningBalanceDialog open={openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
       </AppShell>
     </>
   )
