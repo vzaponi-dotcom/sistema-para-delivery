@@ -24,6 +24,12 @@ test('normalizes legacy active statuses into Em preparo', () => {
 })
 test('normalizes legacy final statuses as finished', () => { const normalized = normalizeOrder({ id: 2, status: 'Entregue', date: 'Hoje' }, now); assert.equal(normalized.status, 'Finalizado'); assert.ok(normalized.finishedAt); assert.equal(isOrderFinished(normalized), true) })
 test('calculates elapsed preparation minutes', () => { assert.equal(getElapsedMinutes({ createdAt: minutesAgo(12) }, now), 12) })
+test('uses scheduled time tolerance for punctuality and operational window for elapsed time', () => {
+  const order = { createdAt: '2026-09-04T12:00:00.000Z', scheduledFor: '2026-09-04T15:00:00.000Z' }
+  assert.equal(getOrderTimingState(order, new Date('2026-09-04T15:15:00.000Z')), 'on-time')
+  assert.equal(getOrderTimingState(order, new Date('2026-09-04T15:15:01.000Z')), 'late')
+  assert.equal(getElapsedMinutes(order, new Date('2026-09-04T14:10:00.000Z')), 0)
+})
 test('classifies urgency using operational thresholds', () => { assert.equal(getOrderUrgency({ createdAt: minutesAgo(30) }, now), 'normal'); assert.equal(getOrderUrgency({ createdAt: minutesAgo(31) }, now), 'attention'); assert.equal(getOrderUrgency({ createdAt: minutesAgo(40) }, now), 'attention'); assert.equal(getOrderUrgency({ createdAt: minutesAgo(41) }, now), 'delayed') })
 test('classifies live timing after 30 and 40 minutes', () => { assert.equal(getOrderTimingState({ createdAt: minutesAgo(30) }, now), 'on-time'); assert.equal(getOrderTimingState({ createdAt: minutesAgo(31) }, now), 'late'); assert.equal(getOrderTimingState({ createdAt: minutesAgo(40) }, now), 'late'); assert.equal(getOrderTimingState({ createdAt: minutesAgo(41) }, now), 'very-late') })
 test('formats the automatic order creation time', () => { const createdAt = new Date(2026, 8, 1, 11, 42, 0).toISOString(); assert.equal(formatOrderTime(createdAt), '11:42'); assert.equal(formatOrderTime('invalid'), '') })
