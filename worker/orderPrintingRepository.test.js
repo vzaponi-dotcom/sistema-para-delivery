@@ -143,6 +143,7 @@ test('station upsert and primary switch preserve exactly one primary station', a
 
   const stations = await listPrintStations(db, businessA)
   assert.equal(stations.filter((station) => station.isPrimary).length, 1)
+  assert.equal(Object.hasOwn(stations[0], 'availableAt'), false)
   assert.equal(stations.find((station) => station.isPrimary).id, 'station-b')
   assert.equal((await loadPrimaryAutomaticPrintStation(db, businessA)).id, 'station-b')
 })

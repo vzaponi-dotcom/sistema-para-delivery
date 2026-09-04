@@ -22,7 +22,6 @@ const mapStationRow = (row) => row ? ({
   defaultCopies: Number(row.default_copies) || 2,
   lastSeenAt: row.last_seen_at ?? null,
   createdAt: row.created_at,
-  availableAt: row.available_at ?? row.created_at,
   updatedAt: row.updated_at,
 }) : null
 
