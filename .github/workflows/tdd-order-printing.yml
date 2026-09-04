@@ -18,7 +18,12 @@ jobs:
           node-version: 22
 
       - name: Run focused printing tests
-        run: node --test worker/orderPrintingMigration.test.js shared/orderPrintDocument.test.js
+        run: >-
+          node --test
+          worker/orderPrintingMigration.test.js
+          shared/orderPrintDocument.test.js
+          worker/orderPrintingRepository.test.js
+          worker/orderPrintDocumentRepository.test.js
 
       - name: Validate local D1 migrations
         run: npm run d1:migrate:local
