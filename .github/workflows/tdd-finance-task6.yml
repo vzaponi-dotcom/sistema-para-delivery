@@ -1,4 +1,4 @@
-name: TDD finance task 7
+name: TDD finance task 8
 
 on:
   push:
@@ -15,5 +15,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run finance view tests
-        run: node --test src/pages/Finance.test.js src/utils/finance.test.js
+      - name: Run finance final regression tests
+        run: node --test src/pages/FinanceMoreMobile.test.js src/pages/Finance.test.js src/financeRealtimeRegression.test.js
