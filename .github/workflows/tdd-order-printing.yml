@@ -29,6 +29,8 @@ jobs:
           worker/orderPrintingHttp.test.js
           src/api/printingClient.test.js
           src/printing/escpos58mm.test.js
+          src/printing/localPrintStation.test.js
+          src/printing/webSerialTransport.test.js
 
       - name: Validate local D1 migrations
         run: npm run d1:migrate:local
