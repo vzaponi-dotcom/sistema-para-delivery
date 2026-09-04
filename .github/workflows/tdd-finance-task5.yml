@@ -1,0 +1,19 @@
+name: TDD finance task 5
+
+on:
+  push:
+    branches:
+      - tdd/finance-task5-contract-red
+
+jobs:
+  red-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run finance write contract tests
+        run: node --test worker/financeValidation.test.js worker/financeRepositoryCrud.test.js worker/financeRoutesRegression.test.js src/api/financeClientContract.test.js src/financeRealtimeRegression.test.js
