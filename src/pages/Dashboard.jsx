@@ -36,6 +36,9 @@ const compactMoneyFormatter = new Intl.NumberFormat('pt-BR', {
 })
 
 const formatCompactAxisValue = (value) => compactMoneyFormatter.format(Number(value) || 0)
+const formatOperationalMinutes = (value) => Number.isFinite(value)
+  ? `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} min`
+  : '—'
 
 function Dashboard({ totals, orders, currency, onNewOrder }) {
   const { period, setPeriod } = useDashboardPeriod()
@@ -125,9 +128,9 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
         ) : (
           <>
             <div className="stats-grid stats-grid-three dashboard-operational-summary">
-              <StatCard label="Tempo médio" value={`${operational.averageMinutes} min`} helper="Média do período" icon="clock" />
-              <StatCard label="Mais rápido" value={`${operational.fastestMinutes} min`} helper="Menor duração" icon="arrow-down" />
-              <StatCard label="Mais demorado" value={`${operational.slowestMinutes} min`} helper="Maior duração" icon="arrow-up" />
+              <StatCard label="Tempo médio" value={formatOperationalMinutes(operational.averageMinutes)} helper="Média do período" icon="clock" />
+              <StatCard label="Mais rápido" value={formatOperationalMinutes(operational.fastestMinutes)} helper="Menor duração" icon="arrow-down" />
+              <StatCard label="Mais demorado" value={formatOperationalMinutes(operational.slowestMinutes)} helper="Maior duração" icon="arrow-up" />
             </div>
             <div className="dashboard-operational-charts">
               <article className="dashboard-chart-card">
@@ -136,7 +139,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
               </article>
               <article className="dashboard-chart-card">
                 <div className="section-heading"><h3>Por tipo de atendimento</h3></div>
-                <DashboardBarChart data={operationalTypes} valueKey="value" labelKey="label" formatValue={(value) => `${value} min`} orientation="horizontal" ariaLabel="Tempo operacional médio por tipo de atendimento" />
+                <DashboardBarChart data={operationalTypes} valueKey="value" labelKey="label" formatValue={formatOperationalMinutes} orientation="horizontal" ariaLabel="Tempo operacional médio por tipo de atendimento" />
               </article>
             </div>
           </>
