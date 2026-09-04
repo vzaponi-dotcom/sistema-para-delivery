@@ -5,6 +5,7 @@ import test from 'node:test'
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 const wrangler = readFileSync('wrangler.jsonc', 'utf8')
 const validateWorkflow = readFileSync('.github/workflows/validate.yml', 'utf8')
+const stagingWorkflowPath = '.github/workflows/deploy-staging.yml'
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
@@ -49,4 +50,17 @@ test('generic validation runs before merge and performs no remote writes', () =>
   assert.doesNotMatch(validateWorkflow, /d1:migrate:production/)
   assert.doesNotMatch(validateWorkflow, /d1:migrate:staging/)
   assert.doesNotMatch(validateWorkflow, /--remote/)
+})
+
+test('staging workflow targets only staging resources', () => {
+  const workflow = readFileSync(stagingWorkflowPath, 'utf8')
+  assert.match(workflow, /workflow_dispatch:/)
+  assert.match(workflow, /environment: staging/)
+  assert.match(workflow, /npm run d1:migrate:staging/)
+  assert.match(workflow, /npm run deploy:staging/)
+  assert.match(workflow, /STAGING_PIN/)
+  assert.match(workflow, /sistema-para-delivery-staging\.vzaponi\.workers\.dev/)
+  assert.doesNotMatch(workflow, /npm run d1:migrate:production/)
+  assert.doesNotMatch(workflow, /npm run deploy:production/)
+  assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
 })
