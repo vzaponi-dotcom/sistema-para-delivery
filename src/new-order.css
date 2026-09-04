@@ -651,7 +651,10 @@
     font-size: .78rem;
   }
 
-  .new-order-type-options,
+  .new-order-type-options {
+    grid-template-columns: 1fr;
+  }
+
   .new-order-local-identity-options {
     grid-template-columns: 1fr;
   }
@@ -772,4 +775,14 @@
 .new-order-review-cart {
   display: grid;
   gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .new-order-review-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .new-order-review-context {
+    grid-template-columns: 1fr;
+  }
 }
