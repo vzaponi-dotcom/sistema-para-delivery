@@ -1,4 +1,5 @@
 import { formatPrintMoneyCents } from '../../shared/orderPrintDocument.js'
+import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
 import { encodeCp860 } from './cp860.js'
 import { MTP5_PROFILE } from './mtp5Profile.js'
 
@@ -90,7 +91,7 @@ const formatDateTime = (createdAt) => {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return sanitizeText(createdAt)
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
+    timeZone: FINANCE_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

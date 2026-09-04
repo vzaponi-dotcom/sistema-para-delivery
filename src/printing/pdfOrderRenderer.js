@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { formatPrintMoneyCents } from '../../shared/orderPrintDocument.js'
+import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
 
 const A5 = { orientation: 'portrait', unit: 'mm', format: 'a5' }
 const MARGIN = 12
@@ -10,7 +11,7 @@ const formatDateTime = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return sanitize(value)
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
+    timeZone: FINANCE_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
