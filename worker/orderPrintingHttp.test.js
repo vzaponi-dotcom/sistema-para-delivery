@@ -18,7 +18,7 @@ class D1Sqlite {
       CREATE TABLE orders (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_name_snapshot TEXT NOT NULL,
         client_phone_snapshot TEXT NOT NULL DEFAULT '', client_address_snapshot TEXT NOT NULL DEFAULT '',
-        type TEXT NOT NULL, order_date TEXT NOT NULL, subtotal_cents INTEGER NOT NULL,
+        type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Em preparo', subtotal_cents INTEGER NOT NULL,
         delivery_fee_cents INTEGER NOT NULL DEFAULT 0, adjustment_type TEXT NOT NULL DEFAULT 'none',
         adjustment_amount_cents INTEGER NOT NULL DEFAULT 0, adjustment_reason TEXT NOT NULL DEFAULT '',
         total_cents INTEGER NOT NULL, created_at TEXT NOT NULL
@@ -40,7 +40,7 @@ class D1Sqlite {
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
         status TEXT NOT NULL, copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
-        station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, processing_started_at TEXT,
+        station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT NOT NULL, processing_started_at TEXT,
         processed_at TEXT, last_error_code TEXT, last_error_message TEXT
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
@@ -169,9 +169,9 @@ test('claim-next rejects a secondary station and accepts only the primary automa
   await jsonRequest('/api/printing/stations/primary/make-primary', 'POST', cookie)
   currentEnv.DB.sqlite.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed, station_id,
-      snapshot_json, created_at, processing_started_at, processed_at, last_error_code, last_error_message
-    ) VALUES (?, ?, ?, 'order', 'automatic', 'pending', 2, 0, NULL, ?, ?, NULL, NULL, NULL, NULL)`)
-    .run('auto-1', 'amor-e-sabor', 'o1', JSON.stringify({ version: 1, type: 'order', order: { id: 'o1' } }), new Date().toISOString())
+      snapshot_json, created_at, available_at, processing_started_at, processed_at, last_error_code, last_error_message
+    ) VALUES (?, ?, ?, 'order', 'automatic', 'pending', 2, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .run('auto-1', 'amor-e-sabor', 'o1', JSON.stringify({ version: 1, type: 'order', order: { id: 'o1' } }), new Date().toISOString(), new Date().toISOString())
 
   const rejected = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'secondary' })
   assert.equal(rejected.status, 409)
@@ -214,9 +214,9 @@ test('printing endpoints require authentication and never expose another busines
   const cookie = await loginCookie(currentEnv)
   currentEnv.DB.sqlite.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed, station_id,
-      snapshot_json, created_at, processing_started_at, processed_at, last_error_code, last_error_message
-    ) VALUES (?, ?, NULL, 'test', 'manual', 'pending', 1, 0, NULL, ?, ?, NULL, NULL, NULL, NULL)`)
-    .run('other-job', 'other-business', JSON.stringify({ version: 1, type: 'test' }), new Date().toISOString())
+      snapshot_json, created_at, available_at, processing_started_at, processed_at, last_error_code, last_error_message
+    ) VALUES (?, ?, NULL, 'test', 'manual', 'pending', 1, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .run('other-job', 'other-business', JSON.stringify({ version: 1, type: 'test' }), new Date().toISOString(), new Date().toISOString())
   const response = await handleRequest(new Request('https://delivery.example/api/printing/jobs', { headers: { cookie } }), currentEnv)
   const jobs = (await response.json()).jobs
   assert.equal(jobs.some((job) => job.id === 'other-job'), false)

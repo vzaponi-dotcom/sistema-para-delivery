@@ -22,6 +22,7 @@ const mapStationRow = (row) => row ? ({
   defaultCopies: Number(row.default_copies) || 2,
   lastSeenAt: row.last_seen_at ?? null,
   createdAt: row.created_at,
+  availableAt: row.available_at ?? row.created_at,
   updatedAt: row.updated_at,
 }) : null
 
@@ -36,6 +37,7 @@ const mapJobRow = (row) => row ? ({
   stationId: row.station_id ?? null,
   document: JSON.parse(row.snapshot_json),
   createdAt: row.created_at,
+  availableAt: row.available_at ?? row.created_at,
   processingStartedAt: row.processing_started_at ?? null,
   processedAt: row.processed_at ?? null,
   lastError: row.last_error_code
@@ -125,10 +127,10 @@ export const prepareAutomaticPrintJobStatement = (db, businessId, input) => {
   const createdAt = timestamp(input.createdAt || new Date())
   return db.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed,
-      station_id, snapshot_json, created_at, processing_started_at, processed_at,
+      station_id, snapshot_json, created_at, available_at, processing_started_at, processed_at,
       last_error_code, last_error_message
-    ) VALUES (?, ?, ?, 'order', 'automatic', 'pending', ?, 0, NULL, ?, ?, NULL, NULL, NULL, NULL)`)
-    .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), createdAt)
+    ) VALUES (?, ?, ?, 'order', 'automatic', 'pending', ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), createdAt, timestamp(input.availableAt || input.createdAt || new Date()))
 }
 
 export const loadPrintJob = async (db, businessId, jobId) => {
@@ -155,8 +157,8 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
       status = 'requires_attention', processed_at = ?,
       last_error_code = 'PENDING_TOO_OLD',
       last_error_message = 'Impressão automática aguardou mais de 10 minutos.'
-      WHERE business_id = ? AND trigger = 'automatic' AND status = 'pending' AND created_at <= ?`)
-      .bind(processedAt, businessId, pendingCutoff),
+      WHERE business_id = ? AND trigger = 'automatic' AND status = 'pending' AND available_at <= ? AND available_at <= ?`)
+      .bind(processedAt, businessId, pendingCutoff, processedAt),
     db.prepare(`UPDATE print_jobs SET
       status = 'requires_attention', processed_at = ?,
       last_error_code = 'PROCESSING_OUTCOME_UNKNOWN',
@@ -183,10 +185,10 @@ export const createManualOrderPrintJob = async (db, businessId, input, now = new
   const id = String(input.id || crypto.randomUUID())
   await db.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed,
-      station_id, snapshot_json, created_at, processing_started_at, processed_at,
+      station_id, snapshot_json, created_at, available_at, processing_started_at, processed_at,
       last_error_code, last_error_message
-    ) VALUES (?, ?, ?, 'order', 'manual', 'pending', ?, 0, NULL, ?, ?, NULL, NULL, NULL, NULL)`)
-    .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), at).run()
+    ) VALUES (?, ?, ?, 'order', 'manual', 'pending', ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), at, at).run()
   return loadPrintJob(db, businessId, id)
 }
 
@@ -198,10 +200,10 @@ export const createTestPrintJob = async (db, businessId, input, now = new Date()
   const document = input.document || createTestPrintDocument({ businessName: input.businessName, createdAt: at })
   await db.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed,
-      station_id, snapshot_json, created_at, processing_started_at, processed_at,
+      station_id, snapshot_json, created_at, available_at, processing_started_at, processed_at,
       last_error_code, last_error_message
-    ) VALUES (?, ?, NULL, 'test', 'manual', 'pending', 1, 0, NULL, ?, ?, NULL, NULL, NULL, NULL)`)
-    .bind(id, businessId, JSON.stringify(document), at).run()
+    ) VALUES (?, ?, NULL, 'test', 'manual', 'pending', 1, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .bind(id, businessId, JSON.stringify(document), at, at).run()
   return loadPrintJob(db, businessId, id)
 }
 
@@ -223,11 +225,12 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
       last_error_code = NULL, last_error_message = NULL
     WHERE id = (
       SELECT id FROM print_jobs
-      WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending'
-      ORDER BY created_at ASC, id ASC LIMIT 1
-    ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending'
+      WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
+        AND EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status <> 'Cancelado')
+      ORDER BY available_at ASC, id ASC LIMIT 1
+    ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
     RETURNING *`)
-    .bind(stationId, at, businessId, businessId).first()
+    .bind(stationId, at, businessId, at, businessId, at).first()
   return mapJobRow(row)
 }
 
@@ -237,8 +240,9 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
   const row = await db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
-    WHERE id = ? AND business_id = ? AND status = 'pending'
-    RETURNING *`).bind(stationId, at, jobId, businessId).first()
+    WHERE id = ? AND business_id = ? AND status = 'pending' AND available_at <= ?
+      AND (trigger <> 'automatic' OR EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status <> 'Cancelado'))
+    RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')

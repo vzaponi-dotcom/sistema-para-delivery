@@ -56,7 +56,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL,
         trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL,
         copies_printed INTEGER NOT NULL DEFAULT 0, station_id TEXT, snapshot_json TEXT NOT NULL,
-        created_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT,
+        created_at TEXT NOT NULL, available_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT,
         last_error_code TEXT, last_error_message TEXT
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
