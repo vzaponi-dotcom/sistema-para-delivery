@@ -59,7 +59,7 @@ test('wizard focus target and step controls keep the final narrow-screen contrac
   const css = await read('../new-order.css')
 
   assert.match(css, /\.new-order-step-content:focus\s*\{[^}]*outline:\s*none/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-step-tab\s*\{[^}]*min-width:\s*0[^}]*padding:\s*6px[^}]*font-size:\s*\.76rem/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-step-tab\s*\{[^}]*min-width:\s*0[^}]*gap:\s*5px[^}]*padding:\s*6px[^}]*font-size:\s*\.76rem/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-step-number\s*\{[^}]*width:\s*22px[^}]*height:\s*22px[^}]*flex:\s*0\s+0\s+22px/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-review-layout\s*\{[^}]*grid-template-columns:\s*1fr[^}]*gap:\s*16px/s)
 })
