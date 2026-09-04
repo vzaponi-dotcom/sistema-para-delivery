@@ -25,6 +25,7 @@ function NewOrderCustomerStep({
   onLocalIdentityValueChange,
   openTableTab,
   usesRegisteredClient,
+  hasClients,
   clientSearch,
   clientPickerOpen,
   filteredClients,
@@ -40,11 +41,10 @@ function NewOrderCustomerStep({
   onQuickClientCancel,
   onQuickClientChange,
   canContinue,
-  onCancel,
   onContinue,
 }) {
   return (
-    <section className="surface-card new-order-customer-card new-order-customer-step">
+    <section className="surface-card new-order-customer-card new-order-customer-step new-order-step-card">
       <div className="section-heading">
         <div>
           <span className="section-kicker">Cliente e atendimento</span>
@@ -154,7 +154,7 @@ function NewOrderCustomerStep({
                 value={clientSearch}
                 onFocus={onClientPickerFocus}
                 onChange={(event) => onClientSearchChange(event.target.value)}
-                disabled={disabled || !filteredClients.length && !clientSearch}
+                disabled={disabled || !hasClients}
                 autoComplete="off"
               />
               {clientPickerOpen && !disabled && (
@@ -215,8 +215,7 @@ function NewOrderCustomerStep({
       )}
 
       <div className="new-order-step-actions">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Cancelar venda</Button>
-        <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Continuar</Button>
+        <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Continuar →</Button>
       </div>
     </section>
   )
