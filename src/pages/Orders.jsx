@@ -9,6 +9,7 @@ import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import PrintingSettings from '../components/PrintingSettings'
+import PrintStatusBadge from '../components/PrintStatusBadge'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems, getOrderItemsSearchText } from '../utils/orderCart.js'
@@ -101,6 +102,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
   const activeCount = orders.filter(isOrderActive).length
   const delayedCount = orders.filter((order) => isOrderActive(order) && getOrderTimingState(order, now) !== 'on-time').length
   const finishedTodayCount = orders.filter((order) => order.status === 'Finalizado' && isFinishedToday(order, now)).length
+  const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
 
   return (
     <>
@@ -145,6 +147,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
             const itemsExpanded = expandedOrderIds.has(order.id)
             const itemsRegionId = `order-items-${order.id}`
             const isNewArrival = newOrderIds.has(String(order.id))
+            const printJob = printing?.latestJobByOrderId?.get?.(String(order.id)) || null
 
             return (
               <article className={`order-queue-card urgency-${urgency}${isNewArrival ? ' order-new-arrival' : ''}`} key={order.id}>
@@ -152,7 +155,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
                 <div className="order-queue-body">
                   <div className="order-queue-number">#{orderNumber(order.id)}</div>
                   <div className="order-queue-main">
-                    <div className="order-queue-title"><div><strong>{order.client}</strong><span>{order.type} · {currency(order.total)}</span></div><div className="order-queue-badges"><StatusBadge status="Em preparo" /><PaymentBadge order={order} /></div></div>
+                    <div className="order-queue-title"><div><strong>{order.client}</strong><span>{order.type} · {currency(order.total)}</span></div><div className="order-queue-badges"><StatusBadge status="Em preparo" /><PaymentBadge order={order} />{printJob && <PrintStatusBadge job={printJob} />}</div></div>
                     <button type="button" className="order-items-toggle" aria-expanded={itemsExpanded} aria-controls={itemsRegionId} onClick={() => toggleOrderItems(order.id)}><Icon name={itemsExpanded ? 'arrow-up' : 'arrow-down'} size={15} />{itemsExpanded ? `Ocultar itens (${orderItems.length})` : `Ver itens (${orderItems.length})`}</button>
                     {itemsExpanded && <div className="order-items-list" id={itemsRegionId}>{orderItems.map((item) => <div className="order-item-line" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}><strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>{item.note && <span>↳ {item.note}</span>}</div>)}</div>}
                     <div className="order-queue-meta"><span>{formatOrderDate(order.orderDate)}</span>{Number(order.deliveryFee || 0) > 0 && <span>Entrega {currency(order.deliveryFee)}</span>}</div>
@@ -170,7 +173,7 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
           {!activeOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>{search ? 'Nenhum pedido ativo encontrado' : 'A fila está vazia'}</strong><span>{search ? 'Ajuste sua busca para localizar outros pedidos.' : 'Novos pedidos de hoje entram aqui automaticamente em preparo.'}</span></div>}
         </div>
       </section>
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} />}
       {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
       {finalizeCandidate && (
         <ConfirmationDialog
