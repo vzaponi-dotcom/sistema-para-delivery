@@ -1,0 +1,22 @@
+name: TDD finance task 6
+
+on:
+  push:
+    branches:
+      - finance-task-6-ui-corrections
+
+jobs:
+  red-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run finance correction UI tests
+        run: node --test src/pages/Finance.test.js src/components/MovementDialog.test.js src/components/OpeningBalanceDialog.test.js src/successFeedbackRegression.test.js
