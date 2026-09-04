@@ -26,7 +26,6 @@ import OrderHistory from './pages/OrderHistory'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
-import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
@@ -286,8 +285,6 @@ function App() {
     const validOrders = orders.filter((order) => !isOrderCancelled(order)); const salesToday = validOrders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0); const receivedToday = calculateReceivedToday(movements, todayValue); const receivables = validOrders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0); const activeOrders = orders.filter(isOrderActive).length
     return { salesToday, receivedToday, receivables, activeOrders }
   }, [movements, orders, todayValue])
-  const financialTotals = useMemo(() => { const entries = movements.filter((movement) => movement.type === 'entrada').reduce((total, movement) => total + Number(movement.value), 0); const exits = movements.filter((movement) => movement.type === 'saida').reduce((total, movement) => total + Number(movement.value), 0); return { entries, exits, balance: entries - exits } }, [movements])
-  const currentFinanceBalance = useMemo(() => calculateCurrentBalance(movements, financeSettings), [financeSettings, movements])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
   const filteredClients = useMemo(() => { const normalizedSearch = clientSearch.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => clientSort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clientSearch, clientSort, clients])
   const filteredOrders = useMemo(() => { const normalizedSearch = orderSearch.trim().toLowerCase(); return orders.filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)) }, [orderSearch, orders])
@@ -400,7 +397,7 @@ function App() {
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onCreateMovement={handleCreateMovement} onUpdateMovement={handleUpdateMovement} onDeleteMovement={handleDeleteMovement} onSaveFinanceSettings={handleSaveFinanceSettings} actionKey={requestKey} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
+        {activeTab === 'finance' && <Finance movements={movements} financeSettings={financeSettings} orders={orders} currency={currency} onCreateMovement={handleCreateMovement} onUpdateMovement={handleUpdateMovement} onDeleteMovement={handleDeleteMovement} onSaveFinanceSettings={handleSaveFinanceSettings} actionKey={requestKey} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
 
         {paymentOrder && <Modal title="Registrar pagamento" onClose={closePaymentModal}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · Pedido #{String(paymentOrder.id).slice(-4)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={closePaymentModal}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
 
