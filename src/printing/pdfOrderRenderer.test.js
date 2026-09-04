@@ -5,25 +5,23 @@ import { getOrderPdfFilename, renderOrderPdf } from './pdfOrderRenderer.js'
 
 const document = createOrderPrintDocument({
   businessName: 'Amor & Sabor',
-  order: {
-    id: 'order-0184',
-    number: '0184',
-    type: 'Entrega',
-    createdAt: '2026-09-03T20:15:00.000Z',
-    customerName: 'João da Silva',
-    customerPhone: '(11) 99876-5432',
-    customerAddress: 'Rua das Flores, 123',
-    items: [
-      { name: 'X-Burger', presentation: 'G', quantity: 2, unitPriceCents: 2500, note: 'Sem cebola' },
-      { name: 'Coca-Cola', presentation: '350ml', quantity: 1, unitPriceCents: 800, note: '' },
-    ],
-    subtotalCents: 5800,
-    deliveryFeeCents: 800,
-    adjustment: { type: 'discount', amountCents: 300, reason: 'Fidelidade' },
-    totalCents: 6300,
-    paymentStatus: 'Pago',
-    paymentMethod: 'Pix',
+  orderId: 'order-0184',
+  type: 'Entrega',
+  createdAt: '2026-09-03T20:15:00.000Z',
+  customer: {
+    name: 'João da Silva',
+    phone: '(11) 99876-5432',
+    address: 'Rua das Flores, 123',
   },
+  items: [
+    { name: 'X-Burger', presentation: 'G', quantity: 2, unitPriceCents: 2500, note: 'Sem cebola' },
+    { name: 'Coca-Cola', presentation: '350ml', quantity: 1, unitPriceCents: 800, note: '' },
+  ],
+  subtotalCents: 5800,
+  deliveryFeeCents: 800,
+  adjustment: { type: 'discount', amountCents: 300, reason: 'Fidelidade' },
+  totalCents: 6300,
+  payment: { status: 'Pago', method: 'Pix' },
 })
 
 class FakePdf {
