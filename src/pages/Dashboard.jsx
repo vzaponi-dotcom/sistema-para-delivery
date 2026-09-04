@@ -13,6 +13,7 @@ import Icon from '../components/Icon'
 import { useDashboardPeriod } from '../components/dashboardPeriodContext.js'
 import {
   buildDailySeries,
+  calculateOperationalMetrics,
   calculatePeriodMetrics,
   getPaymentMix,
   getTopProducts,
@@ -46,6 +47,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
     const now = new Date(`${todayValue}T12:00:00`)
     return {
       metrics: calculatePeriodMetrics(orders, period, now),
+      operational: calculateOperationalMetrics(orders, period, now),
       daily: buildDailySeries(orders, period, now),
       topProducts: getTopProducts(orders, period, now),
       paymentMix: getPaymentMix(orders, period, now),
@@ -54,7 +56,9 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
 
   const displayMoney = (value) => valuesVisible ? currency(value) : MONEY_MASK
   const privacyLabel = valuesVisible ? 'Ocultar valores' : 'Mostrar valores'
-  const { metrics, daily, topProducts, paymentMix } = analytics
+  const { metrics, operational, daily, topProducts, paymentMix } = analytics
+  const operationalBands = operational.bands.map((value, index) => ({ label: ['≤20 min', '21–30 min', '31–40 min', '>40 min'][index], value }))
+  const operationalTypes = Object.entries(operational.byType).map(([label, value]) => ({ label, value }))
   const newOrderFab = (
     <button
       type="button"
@@ -91,7 +95,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
         <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" />
         <StatCard label="Recebido hoje" value={displayMoney(totals.receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
         <StatCard label="A receber" value={displayMoney(totals.receivables)} helper="Pagamentos pendentes" icon="wallet" tone="warning" />
-        <StatCard label="Pedidos ativos" value={totals.activeOrders} helper="Na fila de preparo" icon="orders" />
+        <StatCard label="Pedidos ativos" value={totals.activeOrders} helper="Em preparo e agendados" icon="orders" />
       </section>
 
       <section className="dashboard-performance-section" aria-labelledby="dashboard-performance-title">
@@ -109,6 +113,34 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
           <StatCard label="Pedidos no período" value={metrics.orderCount} helper="Quantidade de pedidos" icon="orders" />
           <StatCard label="Ticket médio" value={displayMoney(metrics.averageTicket)} helper="Venda média por pedido" icon="ticket" />
         </div>
+      </section>
+
+      <section className="dashboard-operational-metrics surface-card dashboard-section" aria-labelledby="dashboard-operational-title">
+        <div className="section-heading">
+          <div><span className="section-kicker">Operação</span><h2 id="dashboard-operational-title">Tempo operacional</h2></div>
+          <div className="section-meta">Pedidos finalizados elegíveis</div>
+        </div>
+        {!operational.sampleSize ? (
+          <div className="dashboard-chart-empty">Sem pedidos concluídos elegíveis neste período</div>
+        ) : (
+          <>
+            <div className="stats-grid stats-grid-three dashboard-operational-summary">
+              <StatCard label="Tempo médio" value={`${operational.averageMinutes} min`} helper="Média do período" icon="clock" />
+              <StatCard label="Mais rápido" value={`${operational.fastestMinutes} min`} helper="Menor duração" icon="arrow-down" />
+              <StatCard label="Mais demorado" value={`${operational.slowestMinutes} min`} helper="Maior duração" icon="arrow-up" />
+            </div>
+            <div className="dashboard-operational-charts">
+              <article className="dashboard-chart-card">
+                <div className="section-heading"><h3>Por faixa de tempo</h3></div>
+                <DashboardBarChart data={operationalBands} valueKey="value" labelKey="label" formatValue={(value) => `${value} pedido(s)`} ariaLabel="Pedidos por faixa de tempo operacional" />
+              </article>
+              <article className="dashboard-chart-card">
+                <div className="section-heading"><h3>Por tipo de atendimento</h3></div>
+                <DashboardBarChart data={operationalTypes} valueKey="value" labelKey="label" formatValue={(value) => `${value} min`} orientation="horizontal" ariaLabel="Tempo operacional médio por tipo de atendimento" />
+              </article>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="dashboard-analytics-grid" aria-label="Gráficos de desempenho">
