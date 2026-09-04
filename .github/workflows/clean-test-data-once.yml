@@ -1,0 +1,97 @@
+name: Clean fictitious production data once
+
+on:
+  push:
+    branches:
+      - ops/clean-test-data
+    paths:
+      - .github/workflows/clean-test-data-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  clean:
+    name: Clean fictitious D1 data
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check Cloudflare credentials
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare credentials are not configured."
+            exit 1
+          fi
+
+      - name: Show production counts before cleanup
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --command "SELECT 'products' AS entity, COUNT(*) AS count FROM products WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'clients', COUNT(*) FROM clients WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'orders', COUNT(*) FROM orders WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'order_items', COUNT(*) FROM order_items WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'payments', COUNT(*) FROM payments WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'movements', COUNT(*) FROM movements WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'table_tabs', COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'finance_settings', COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'print_stations', COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'print_jobs', COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'auth_credentials', COUNT(*) FROM auth_credentials WHERE business_id='amor-e-sabor';"
+
+      - name: Show products before cleanup
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --command "SELECT id, name, category, price_cents, active FROM products WHERE business_id='amor-e-sabor' ORDER BY name, id;"
+
+      - name: Delete fictitious operational data only
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --file scripts/ops/clean-test-data.sql
+
+      - name: Verify operational data is empty
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --command "SELECT CASE WHEN (
+          (SELECT COUNT(*) FROM clients WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM orders WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM order_items WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM payments WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM movements WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor') +
+          (SELECT COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor')
+          ) = 0 THEN 'cleanup_ok' ELSE json_extract('invalid-json', '$') END AS result;"
+
+      - name: Show production counts after cleanup
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --command "SELECT 'products' AS entity, COUNT(*) AS count FROM products WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'clients', COUNT(*) FROM clients WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'orders', COUNT(*) FROM orders WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'order_items', COUNT(*) FROM order_items WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'payments', COUNT(*) FROM payments WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'movements', COUNT(*) FROM movements WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'table_tabs', COUNT(*) FROM table_tabs WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'finance_settings', COUNT(*) FROM finance_settings WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'print_stations', COUNT(*) FROM print_stations WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'print_jobs', COUNT(*) FROM print_jobs WHERE business_id='amor-e-sabor'
+          UNION ALL SELECT 'auth_credentials', COUNT(*) FROM auth_credentials WHERE business_id='amor-e-sabor';"
+
+      - name: Show preserved products after cleanup
+        run: >-
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
+          --command "SELECT id, name, category, price_cents, active FROM products WHERE business_id='amor-e-sabor' ORDER BY name, id;"
