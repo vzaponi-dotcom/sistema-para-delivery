@@ -8,24 +8,31 @@ import Button from './Button'
 
 function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd }) {
   const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('Todos')
+  const [category, setCategory] = useState(null)
 
   const categories = useMemo(
-    () => ['Todos', ...PRODUCT_CATEGORIES.filter((item) => products.some((product) => categoryForUi(product.category) === item))],
+    () => PRODUCT_CATEGORIES.filter((item) => products.some((product) => categoryForUi(product.category) === item)),
     [products],
   )
 
   const visibleProducts = useMemo(() => {
     const normalized = search.trim().toLocaleLowerCase('pt-BR')
+    if (!normalized && !category) return []
+
     return products.filter((product) => {
       const uiCategory = categoryForUi(product.category)
       const presentation = formatProductPresentation(product)
-      return (
-        (category === 'Todos' || uiCategory === category) &&
-        (!normalized || [product.name, uiCategory, presentation].join(' ').toLocaleLowerCase('pt-BR').includes(normalized))
-      )
+      const matchesSearch = [product.name, uiCategory, presentation]
+        .join(' ')
+        .toLocaleLowerCase('pt-BR')
+        .includes(normalized)
+
+      if (normalized) return matchesSearch
+      return uiCategory === category
     })
   }, [category, products, search])
+
+  const hasSelection = Boolean(search.trim() || category)
 
   return (
     <section className="surface-card new-order-catalog">
@@ -88,7 +95,14 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
           )
         })}
 
-        {!visibleProducts.length && (
+        {!hasSelection && (
+          <div className="empty-state compact">
+            <strong>Selecione uma categoria ou busque um produto</strong>
+            <span>Use as categorias acima ou digite na busca para encontrar rapidamente.</span>
+          </div>
+        )}
+
+        {hasSelection && !visibleProducts.length && (
           <div className="empty-state compact">
             <strong>Nenhum produto encontrado</strong>
             <span>Ajuste a busca ou selecione outra categoria.</span>
