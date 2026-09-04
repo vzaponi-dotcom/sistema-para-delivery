@@ -594,26 +594,20 @@
   font-size: .76rem;
 }
 
-.new-order-customer-step {
-  max-width: 860px;
-}
-
-.new-order-customer-step .new-order-operation-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(180px, .6fr);
-  gap: 16px;
+.new-order-step-card {
+  max-width: 760px;
 }
 
 .new-order-type-options,
 .new-order-local-identity-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .new-order-type-option,
 .new-order-local-identity-option {
-  min-height: var(--mobile-touch-target);
+  min-height: 52px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -636,10 +630,13 @@
   opacity: .55;
 }
 
+.new-order-date-field {
+  margin-top: 18px;
+}
+
 .new-order-step-actions {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
   margin-top: 18px;
 }
 
@@ -654,14 +651,8 @@
     font-size: .78rem;
   }
 
-  .new-order-customer-step .new-order-operation-fields,
   .new-order-type-options,
   .new-order-local-identity-options {
-    grid-template-columns: 1fr;
-  }
-
-  .new-order-step-actions {
-    display: grid;
     grid-template-columns: 1fr;
   }
 }
