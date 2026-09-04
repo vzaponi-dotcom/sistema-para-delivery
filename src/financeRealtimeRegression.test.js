@@ -12,7 +12,7 @@ test('App owns finance settings and merges authoritative finance write effects i
   assert.match(app, /deletedMovementId/)
   assert.match(app, /removeById\(current, deletedMovementId\)/)
   assert.match(app, /setFinanceSettings\(financeSettings\)/)
-  assert.match(app, /setMovements\(Array\.isArray\(data\?\.movements\) \? data\.movements : \[\]\)/)
+  assert.match(app, /guard\.canApply\(token, 'movements'\)\) setMovements\(Array\.isArray\(data\?\.movements\) \? data\.movements : \[\]\)/)
 })
 
 test('legacy movement modal state is removed from App in favor of reviewed finance dialogs', async () => {
