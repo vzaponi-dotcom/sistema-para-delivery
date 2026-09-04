@@ -1,14 +1,11 @@
-import { closeTableTabIfSettled, mapMovementRow } from './repositories.js'
+import { getBusinessDate } from '../shared/finance.js'
+import { mapMovementRow } from './financeRepository.js'
+import { closeTableTabIfSettled } from './repositories.js'
 import { centsToMoney, validatePaymentMethod } from './validation.js'
 
 export const CANCEL_REASONS = ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
 
 const domainError = (status, code, message) => Object.assign(new Error(message), { status, code })
-const businessDate = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  return `${values.year}-${values.month}-${values.day}`
-}
 
 const normalizeReason = (value) => {
   const reason = typeof value === 'string' ? value.trim() : ''
@@ -72,9 +69,9 @@ export const getOrderRefundState = (order) => {
 const createRefundStatement = (db, businessId, row, refundMethod, now) => {
   const id = crypto.randomUUID()
   const createdAt = now.toISOString()
-  const movementDate = businessDate(now)
+  const movementDate = getBusinessDate(now)
   const description = `Estorno pedido #${String(row.id).slice(-4)} · ${row.client_name_snapshot}`
-  const statement = db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+  const statement = db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     id,
     businessId,
     'saida',
@@ -85,6 +82,8 @@ const createRefundStatement = (db, businessId, row, refundMethod, now) => {
     row.id,
     row.payment_id,
     movementDate,
+    createdAt,
+    refundMethod,
     createdAt,
   )
   return {
@@ -98,8 +97,10 @@ const createRefundStatement = (db, businessId, row, refundMethod, now) => {
       source: 'order-refund',
       order_id: row.id,
       payment_id: row.payment_id,
+      payment_method: refundMethod,
       movement_date: movementDate,
       created_at: createdAt,
+      updated_at: createdAt,
     }),
   }
 }

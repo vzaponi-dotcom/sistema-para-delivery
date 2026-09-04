@@ -44,6 +44,11 @@ class CancellationDb {
               db.order.cancel_reason_note = note || null
             }
             if (sql.includes('UPDATE table_tabs SET')) db.tableTabClosed = true
+            if (sql.includes('INSERT INTO movements')) {
+              const [id, businessId, type, category, description, value, source, orderId, paymentId, movementDate, createdAt, paymentMethod, updatedAt] = values
+              db.refund = { id, business_id: businessId, type, category, description, value_cents: value, source, order_id: orderId, payment_id: paymentId, payment_method: paymentMethod, movement_date: movementDate, created_at: createdAt, updated_at: updatedAt }
+              db.movements.push(db.refund)
+            }
             return { success: true }
           },
         }
@@ -52,15 +57,7 @@ class CancellationDb {
   }
 
   async batch(statements) {
-    for (const statement of statements) {
-      if (statement.sql?.includes('INSERT INTO movements')) {
-        const [id, businessId, type, category, description, value, source, orderId, paymentId, movementDate, createdAt] = statement.values
-        this.refund = { id, business_id: businessId, type, category, description, value_cents: value, source, order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: createdAt }
-        this.movements.push(this.refund)
-      } else {
-        await statement.run()
-      }
-    }
+    for (const statement of statements) await statement.run()
     return []
   }
 }
@@ -103,15 +100,17 @@ test('paid cancellation can defer the full refund', async () => {
   assert.equal(db.movements.length, 0)
 })
 
-test('paid cancellation can create one immediate integral refund', async () => {
-  const db = new CancellationDb(paidOrder())
-  const result = await cancelOrder(db, 'biz', 'o1', { reason: 'entry_error', refundNow: true, refundMethod: 'Pix' }, new Date('2026-09-03T13:00:00.000Z'))
+test('paid cancellation can create one immediate integral refund using the effective refund method', async () => {
+  const db = new CancellationDb(paidOrder({ payment_method: 'Cartão de crédito' }))
+  const result = await cancelOrder(db, 'biz', 'o1', { reason: 'entry_error', refundNow: true, refundMethod: 'Dinheiro' }, new Date('2026-09-03T13:00:00.000Z'))
   assert.equal(result.order.refundState, 'refunded')
   assert.equal(result.movement.source, 'order-refund')
   assert.equal(result.movement.orderId, 'o1')
+  assert.equal(result.movement.paymentMethod, 'Dinheiro')
   assert.equal(db.refund.value_cents, 8000)
   assert.equal(db.refund.payment_id, 'pay1')
-  assert.equal(db.refund.source, 'order-refund')
+  assert.equal(db.refund.payment_method, 'Dinheiro')
+  assert.equal(db.refund.updated_at, db.refund.created_at)
 })
 
 test('already cancelled order and invalid deferred refunds are rejected', async () => {

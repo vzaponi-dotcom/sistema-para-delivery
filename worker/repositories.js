@@ -1,5 +1,7 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
+import { getBusinessDate } from '../shared/finance.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
+import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { centsToMoney } from './validation.js'
 
@@ -114,8 +116,6 @@ export const mapOrderRow = (row, items = []) => {
   }
 }
 
-export const mapMovementRow = (row) => ({ id: row.id, type: row.type, category: row.category, description: row.description, value: centsToMoney(row.value_cents), source: row.source || 'manual', orderId: row.order_id ?? null, paymentId: row.payment_id ?? null, movementDate: row.movement_date, date: row.movement_date, createdAt: row.created_at })
-
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
 const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
@@ -131,14 +131,21 @@ export const loadBootstrap = async (db, businessId) => {
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
   const itemsResult = await db.prepare(`${itemSelect} WHERE business_id = ? ORDER BY created_at ASC`).bind(businessId).all()
   const tableTabsResult = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
-  const movementsResult = await db.prepare(`SELECT id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at FROM movements WHERE business_id = ? ORDER BY created_at DESC`).bind(businessId).all()
+  const movementsResult = await db.prepare(`SELECT m.id, m.type, m.category, m.description, m.value_cents, m.source, m.order_id, m.payment_id,
+    CASE WHEN m.source = 'order-payment' THEN COALESCE(m.payment_method, p.method) ELSE m.payment_method END AS payment_method,
+    m.movement_date, m.created_at, m.updated_at
+    FROM movements m
+    LEFT JOIN payments p ON p.id = m.payment_id AND p.business_id = m.business_id
+    WHERE m.business_id = ? AND m.deleted_at IS NULL
+    ORDER BY m.created_at DESC`).bind(businessId).all()
+  const financeSettings = await loadFinanceSettings(db, businessId)
   const itemsByOrder = new Map()
   for (const itemRow of rows(itemsResult)) {
     const current = itemsByOrder.get(itemRow.order_id) ?? []
     current.push(mapOrderItemRow(itemRow))
     itemsByOrder.set(itemRow.order_id, current)
   }
-  return {
+  const bootstrap = {
     business: business ? { id: business.id, name: business.name } : { id: businessId, name: 'Amor & Sabor' },
     clients: rows(clientsResult).map(mapClientRow),
     products: rows(productsResult).map(mapProductRow),
@@ -146,6 +153,8 @@ export const loadBootstrap = async (db, businessId) => {
     tableTabs: rows(tableTabsResult).map(mapTableTabRow),
     movements: rows(movementsResult).map(mapMovementRow),
   }
+  if (financeSettings) bootstrap.financeSettings = financeSettings
+  return bootstrap
 }
 
 const findClientRow = (db, businessId, id) => db.prepare(`SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1`).bind(id, businessId).first()
@@ -269,11 +278,6 @@ export const deleteProduct = async (db, businessId, id, now = new Date()) => {
   return true
 }
 
-const businessDate = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  return `${values.year}-${values.month}-${values.day}`
-}
 const backdatedOperationalTimestamp = (orderDate) => `${orderDate}T15:00:00.000Z`
 
 const loadOrderById = async (db, businessId, id) => {
@@ -325,7 +329,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     pricedItems.push({ ...item, product, priceCents: product.price_cents })
   }
 
-  const today = businessDate(now)
+  const today = getBusinessDate(now)
   if (input.orderDate > today) throw repositoryError(400, 'ORDER_DATE_IN_FUTURE', 'A data do pedido não pode estar no futuro.')
 
   const historical = input.orderDate < today
@@ -383,10 +387,10 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     const paymentId = crypto.randomUUID()
     const movementId = crypto.randomUUID()
     const paidAt = now.toISOString()
-    const movementDate = businessDate(now)
+    const movementDate = getBusinessDate(now)
     const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${clientSnapshot}`
     statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, totals.totalCents, input.paymentMethod, paidAt, paidAt))
-    statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt))
+    statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt, input.paymentMethod, paidAt))
   }
 
   try {
@@ -436,7 +440,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
   const pending = rows(pendingResult)
   const paidAt = now.toISOString()
-  const movementDate = businessDate(now)
+  const movementDate = getBusinessDate(now)
   const statements = []
   const movementRows = []
 
@@ -446,7 +450,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     const description = `Pagamento pedido #${String(orderRow.id).slice(-4)} · ${orderRow.client_name_snapshot}`
     statements.push(
       db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderRow.id, orderRow.total_cents, method, paidAt, paidAt),
-      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderRow.id, paymentId, movementDate, paidAt),
+      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderRow.id, paymentId, movementDate, paidAt, method, paidAt),
     )
     movementRows.push({
       id: movementId,
@@ -457,8 +461,10 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
       source: 'order-payment',
       order_id: orderRow.id,
       payment_id: paymentId,
+      payment_method: method,
       movement_date: movementDate,
       created_at: paidAt,
+      updated_at: paidAt,
     })
   }
 
@@ -484,13 +490,13 @@ export const registerOrderPayment = async (db, businessId, orderId, method, now 
   const paymentId = crypto.randomUUID()
   const movementId = crypto.randomUUID()
   const paidAt = now.toISOString()
-  const movementDate = businessDate(now)
+  const movementDate = getBusinessDate(now)
   const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${orderRow.client_name_snapshot}`
 
   try {
     await db.batch([
       db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, orderRow.total_cents, method, paidAt, paidAt),
-      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderId, paymentId, movementDate, paidAt),
+      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderId, paymentId, movementDate, paidAt, method, paidAt),
     ])
   } catch (error) {
     const existingPayment = await db.prepare('SELECT id FROM payments WHERE order_id = ? AND business_id = ? LIMIT 1').bind(orderId, businessId).first()
@@ -499,7 +505,7 @@ export const registerOrderPayment = async (db, businessId, orderId, method, now 
   }
 
   const payment = { id: paymentId, orderId, amount: centsToMoney(orderRow.total_cents), method, paidAt }
-  const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: paidAt })
+  const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, payment_method: method, movement_date: movementDate, created_at: paidAt, updated_at: paidAt })
   await closeTableTabIfSettled(db, businessId, orderRow.table_tab_id, now)
   return { payment, movement, order: await loadOrderById(db, businessId, orderId) }
 }
@@ -507,7 +513,7 @@ export const registerOrderPayment = async (db, businessId, orderId, method, now 
 export const createMovement = async (db, businessId, input, now = new Date()) => {
   const id = crypto.randomUUID()
   const createdAt = now.toISOString()
-  const movementDate = businessDate(now)
+  const movementDate = getBusinessDate(now)
   await db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.type, input.category, input.description, input.valueCents, 'manual', null, null, movementDate, createdAt).run()
   return mapMovementRow({ id, type: input.type, category: input.category, description: input.description, value_cents: input.valueCents, source: 'manual', order_id: null, payment_id: null, movement_date: movementDate, created_at: createdAt })
 }
