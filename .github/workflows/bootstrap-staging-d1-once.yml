@@ -27,24 +27,12 @@ jobs:
         run: |
           set -euo pipefail
           npx --yes wrangler@4.128.0 d1 list --json > /tmp/d1-list.json
-          STAGING_DATABASE_ID="$(node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          const list = JSON.parse(fs.readFileSync('/tmp/d1-list.json', 'utf8'))
-          const match = list.find((db) => db.name === 'amor-e-sabor-delivery-staging')
-          process.stdout.write(match?.uuid || match?.id || '')
-          NODE
-          )"
+          STAGING_DATABASE_ID="$(node -e "const fs=require('node:fs'); const list=JSON.parse(fs.readFileSync('/tmp/d1-list.json','utf8')); const match=list.find((db)=>db.name==='amor-e-sabor-delivery-staging'); process.stdout.write(match?.uuid || match?.id || '')")"
 
           if [ -z "$STAGING_DATABASE_ID" ]; then
             npx --yes wrangler@4.128.0 d1 create amor-e-sabor-delivery-staging
             npx --yes wrangler@4.128.0 d1 list --json > /tmp/d1-list.json
-            STAGING_DATABASE_ID="$(node --input-type=module <<'NODE'
-            import fs from 'node:fs'
-            const list = JSON.parse(fs.readFileSync('/tmp/d1-list.json', 'utf8'))
-            const match = list.find((db) => db.name === 'amor-e-sabor-delivery-staging')
-            process.stdout.write(match?.uuid || match?.id || '')
-            NODE
-            )"
+            STAGING_DATABASE_ID="$(node -e "const fs=require('node:fs'); const list=JSON.parse(fs.readFileSync('/tmp/d1-list.json','utf8')); const match=list.find((db)=>db.name==='amor-e-sabor-delivery-staging'); process.stdout.write(match?.uuid || match?.id || '')")"
           fi
 
           if [ -z "$STAGING_DATABASE_ID" ]; then
