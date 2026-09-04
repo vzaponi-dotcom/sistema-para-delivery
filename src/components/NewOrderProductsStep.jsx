@@ -11,6 +11,7 @@ function NewOrderProductsStep({
   itemCount,
   subtotal,
   onAdd,
+  onDecrease,
   onBack,
   onReview,
 }) {
@@ -18,7 +19,14 @@ function NewOrderProductsStep({
     <section className="new-order-step new-order-products-step">
       <div className="new-order-step-context" role="status">{customerSummary}</div>
       <div className="new-order-products-layout">
-        <OrderProductCatalog products={products} items={items} currency={currency} disabled={disabled} onAdd={onAdd} />
+        <OrderProductCatalog
+          products={products}
+          items={items}
+          currency={currency}
+          disabled={disabled}
+          onAdd={onAdd}
+          onDecrease={onDecrease}
+        />
         <NewOrderCartSummary
           items={items}
           itemCount={itemCount}
