@@ -125,3 +125,12 @@ test('new order still exposes catalog, cart and both checkout actions', () => {
   assert.match(checkout, /Salvar e receber/)
   assert.match(checkout, /Forma de pagamento/)
 })
+
+test('wizard keeps checkout payload unchanged and never persists intermediate step metadata', () => {
+  const page = source('./NewOrder.jsx')
+
+  assert.match(page, /buildOrderPayload\(numericDraft, paymentMethod\)/)
+  assert.match(page, /await onSubmit\(buildOrderPayload\(numericDraft, paymentMethod\)\)/)
+  assert.doesNotMatch(page, /step:\s*currentStep/)
+  assert.doesNotMatch(page, /currentStep:\s*currentStep/)
+})
