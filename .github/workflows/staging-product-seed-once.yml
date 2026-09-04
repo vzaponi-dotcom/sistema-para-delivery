@@ -1,0 +1,138 @@
+name: Seed staging products once
+
+on:
+  push:
+    branches:
+      - ops/staging-product-seed-20260904
+    paths:
+      - .github/workflows/staging-product-seed-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    name: Seed staging product catalog
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      STAGING_PIN: ${{ secrets.STAGING_PIN }}
+      STAGING_URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
+
+    steps:
+      - name: Validate target and seed products
+        run: |
+          node --input-type=module <<'NODE'
+          const baseUrl = process.env.STAGING_URL
+          const pin = process.env.STAGING_PIN
+
+          if (!baseUrl.includes('sistema-para-delivery-staging')) {
+            throw new Error(`Refusing to seed non-staging URL: ${baseUrl}`)
+          }
+          if (!pin) throw new Error('STAGING_PIN is not configured.')
+
+          const login = await fetch(`${baseUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: baseUrl },
+            body: JSON.stringify({ pin }),
+          })
+          if (!login.ok) throw new Error(`Staging login failed: HTTP ${login.status}`)
+
+          const setCookies = typeof login.headers.getSetCookie === 'function'
+            ? login.headers.getSetCookie()
+            : [login.headers.get('set-cookie')].filter(Boolean)
+          const cookie = setCookies.map((value) => value.split(';')[0]).join('; ')
+          if (!cookie) throw new Error('Staging login did not return a session cookie.')
+
+          const request = async (path, init = {}) => {
+            const method = init.method || 'GET'
+            const headers = { cookie, ...(init.headers || {}) }
+            if (method !== 'GET') headers.origin = baseUrl
+            const response = await fetch(`${baseUrl}${path}`, { ...init, headers })
+            const text = await response.text()
+            let payload = null
+            try { payload = text ? JSON.parse(text) : null } catch { payload = text }
+            if (!response.ok) {
+              throw new Error(`${method} ${path} failed: HTTP ${response.status} ${JSON.stringify(payload)}`)
+            }
+            return payload
+          }
+
+          const seedProducts = [
+            { category: 'Refeições', name: '[TESTE] Marmita Frango P', price: 18, presentationType: 'size', presentationValue: 'P', presentationUnit: '' },
+            { category: 'Refeições', name: '[TESTE] Marmita Frango M', price: 22, presentationType: 'size', presentationValue: 'M', presentationUnit: '' },
+            { category: 'Refeições', name: '[TESTE] Marmita Carne G', price: 29, presentationType: 'size', presentationValue: 'G', presentationUnit: '' },
+            { category: 'Refeições', name: '[TESTE] Marmita Churrasco M', price: 32, presentationType: 'size', presentationValue: 'M', presentationUnit: '' },
+            { category: 'Refeições', name: '[TESTE] Prato Executivo', price: 27, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+
+            { category: 'Lanches', name: '[TESTE] X-Burguer', price: 16, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Lanches', name: '[TESTE] X-Salada', price: 19, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Lanches', name: '[TESTE] X-Bacon', price: 23, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Lanches', name: '[TESTE] Sanduíche de Frango', price: 18, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+
+            { category: 'Combos', name: '[TESTE] Combo Individual', price: 28, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Combos', name: '[TESTE] Combo Duplo', price: 48, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Combos', name: '[TESTE] Combo Família', price: 79, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+
+            { category: 'Porções', name: '[TESTE] Batata Frita P', price: 15, presentationType: 'size', presentationValue: 'P', presentationUnit: '' },
+            { category: 'Porções', name: '[TESTE] Batata Frita G', price: 25, presentationType: 'size', presentationValue: 'G', presentationUnit: '' },
+            { category: 'Porções', name: '[TESTE] Mandioca Frita M', price: 22, presentationType: 'size', presentationValue: 'M', presentationUnit: '' },
+            { category: 'Porções', name: '[TESTE] Calabresa Acebolada G', price: 34, presentationType: 'size', presentationValue: 'G', presentationUnit: '' },
+
+            { category: 'Bebidas', name: '[TESTE] Refrigerante Cola 350ml', price: 6, presentationType: 'volume', presentationValue: '350', presentationUnit: 'ml' },
+            { category: 'Bebidas', name: '[TESTE] Refrigerante Guaraná 350ml', price: 6, presentationType: 'volume', presentationValue: '350', presentationUnit: 'ml' },
+            { category: 'Bebidas', name: '[TESTE] Refrigerante Cola 2L', price: 14, presentationType: 'volume', presentationValue: '2', presentationUnit: 'L' },
+            { category: 'Bebidas', name: '[TESTE] Suco de Laranja 500ml', price: 9, presentationType: 'volume', presentationValue: '500', presentationUnit: 'ml' },
+            { category: 'Bebidas', name: '[TESTE] Água Mineral 500ml', price: 4, presentationType: 'volume', presentationValue: '500', presentationUnit: 'ml' },
+
+            { category: 'Sobremesas', name: '[TESTE] Pudim', price: 8, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Sobremesas', name: '[TESTE] Mousse de Chocolate', price: 9, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Sobremesas', name: '[TESTE] Bolo no Pote', price: 12, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+
+            { category: 'Adicionais', name: '[TESTE] Ovo Frito', price: 3, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Adicionais', name: '[TESTE] Bacon Extra', price: 5, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Adicionais', name: '[TESTE] Queijo Extra', price: 4, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Adicionais', name: '[TESTE] Porção de Arroz', price: 7, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+
+            { category: 'Molhos', name: '[TESTE] Molho de Alho', price: 2.5, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Molhos', name: '[TESTE] Molho Barbecue', price: 3, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Molhos', name: '[TESTE] Molho Picante', price: 2.5, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+
+            { category: 'Outros', name: '[TESTE] Talher Descartável', price: 1, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+            { category: 'Outros', name: '[TESTE] Embalagem Extra', price: 2, presentationType: 'unit', presentationValue: '', presentationUnit: '' },
+          ]
+
+          const before = await request('/api/bootstrap')
+          const existingNames = new Set((before.products || []).map((product) => product.name.trim().toLocaleLowerCase('pt-BR')))
+          let created = 0
+          let skipped = 0
+
+          for (const product of seedProducts) {
+            const key = product.name.trim().toLocaleLowerCase('pt-BR')
+            if (existingNames.has(key)) {
+              console.log(`SKIP ${product.name}`)
+              skipped += 1
+              continue
+            }
+            await request('/api/products', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(product),
+            })
+            existingNames.add(key)
+            created += 1
+            console.log(`CREATE ${product.category} :: ${product.name}`)
+          }
+
+          const after = await request('/api/bootstrap')
+          const testProducts = (after.products || []).filter((product) => product.name.startsWith('[TESTE]'))
+          console.log(`Products before: ${before.products?.length ?? 0}`)
+          console.log(`Created: ${created}`)
+          console.log(`Skipped: ${skipped}`)
+          console.log(`Products after: ${after.products?.length ?? 0}`)
+          console.log(`TESTE products now: ${testProducts.length}`)
+
+          if (testProducts.length < seedProducts.length) {
+            throw new Error(`Expected at least ${seedProducts.length} TESTE products, found ${testProducts.length}.`)
+          }
+          NODE
