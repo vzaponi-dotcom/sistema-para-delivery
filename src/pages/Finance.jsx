@@ -1,21 +1,40 @@
-import { useState } from 'react'
-import { getBusinessDate } from '../../shared/finance.js'
+import { useMemo, useState } from 'react'
+import { getBusinessDate, getMovementCategoryLabel, normalizeMovementCategory } from '../../shared/finance.js'
 import Button from '../components/Button'
 import ConfirmationDialog from '../components/ConfirmationDialog'
+import FinanceHistoryFilters from '../components/FinanceHistoryFilters'
+import FinancePeriodSelector from '../components/FinancePeriodSelector'
 import Icon from '../components/Icon'
 import MovementDialog from '../components/MovementDialog'
 import OpeningBalanceDialog from '../components/OpeningBalanceDialog'
+import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import RegisterRefundDialog from '../components/RegisterRefundDialog'
 import StatCard from '../components/StatCard'
+import {
+  calculateCurrentBalance,
+  filterFinanceHistory,
+  filterMovementsByPeriod,
+  getFinancePeriodRange,
+  hasFinanceSecondaryFilters,
+  summarizeFinancePeriod,
+} from '../utils/finance.js'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
 
+const EMPTY_FILTERS = { search: '', type: '', category: '', paymentMethod: '' }
+
+const formatFinanceDate = (value) => {
+  if (!value) return 'Não informado'
+  const [year, month, day] = String(value).split('-')
+  if (!year || !month || !day) return value
+  return `${day}/${month}/${year}`
+}
+
 function Finance({
-  totals,
   movements,
   financeSettings = null,
-  currentBalance = null,
   currency,
+  orders = [],
   onCreateMovement,
   onUpdateMovement,
   onDeleteMovement,
@@ -24,14 +43,35 @@ function Finance({
   pendingRefundOrders = [],
   onRegisterRefund,
 }) {
+  const [period, setPeriod] = useState({ key: 'today' })
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [editingMovement, setEditingMovement] = useState(undefined)
   const [deletingMovement, setDeletingMovement] = useState(null)
   const [openingDialogOpen, setOpeningDialogOpen] = useState(false)
+  const [orderDetailId, setOrderDetailId] = useState(null)
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const today = getBusinessDate()
+  const periodRange = getFinancePeriodRange(period, today)
+  const periodMovements = filterMovementsByPeriod(movements, periodRange)
+  const summary = summarizeFinancePeriod(movements, periodRange)
+  const currentBalance = calculateCurrentBalance(movements, financeSettings)
+  const filteredMovements = filterFinanceHistory(periodMovements, filters)
   const movementDialogOpen = editingMovement !== undefined
   const writeDisabled = (typeof navigator !== 'undefined' && !navigator.onLine) || Boolean(actionKey)
+  const secondaryFiltersActive = hasFinanceSecondaryFilters(filters)
+  const selectedOrder = orders.find((order) => order.id === orderDetailId) ?? null
+
+  const categoryOptions = useMemo(() => {
+    const labels = new Map()
+    movements.forEach((movement) => {
+      const code = normalizeMovementCategory(movement)
+      if (code) labels.set(code, getMovementCategoryLabel(movement))
+    })
+    return [...labels.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((left, right) => left.label.localeCompare(right.label, 'pt-BR'))
+  }, [movements])
 
   const confirmDeleteMovement = async () => {
     if (!deletingMovement || writeDisabled || !onDeleteMovement) return
@@ -55,21 +95,38 @@ function Finance({
       <PageHeader
         eyebrow="Financeiro"
         title="Fluxo de caixa"
-        description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber."
+        description="Acompanhe o resultado por período, o saldo atual e o histórico completo das movimentações."
         actions={<Button icon="plus" onClick={() => setEditingMovement(null)} disabled={writeDisabled}>Novo movimento</Button>}
       />
 
-      <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">
-        <StatCard label="Entradas" value={currency(totals.entries)} helper="Receita registrada" icon="arrow-up" tone="success" />
-        <StatCard label="Saídas" value={currency(totals.exits)} helper="Despesas registradas" icon="arrow-down" tone="danger" />
-        <StatCard label="Saldo" value={currency(totals.balance)} helper="Entradas menos saídas" icon="wallet" tone={totals.balance >= 0 ? 'neutral' : 'danger'} />
-      </section>
-
-      <div className="finance-opening-actions">
-        <Button type="button" variant="secondary" onClick={() => setOpeningDialogOpen(true)} disabled={writeDisabled}>
-          {financeSettings ? 'Editar saldo inicial' : 'Configurar saldo inicial'}
-        </Button>
+      <div className="finance-period-surface surface-card">
+        <div className="finance-block-heading">
+          <div>
+            <span className="section-kicker">Período</span>
+            <strong>Resumo do fluxo</strong>
+          </div>
+          <span className="finance-period-caption">Movimentos de {formatFinanceDate(periodRange.startDate)} até {formatFinanceDate(periodRange.endDate)}</span>
+        </div>
+        <FinancePeriodSelector value={period} today={today} onChange={setPeriod} />
       </div>
+
+      <section className="stats-grid finance-stats-grid" aria-label="Resumo financeiro">
+        <StatCard label="Entradas" value={currency(summary.entries)} helper="Receitas no período" icon="arrow-up" tone="success" />
+        <StatCard label="Saídas" value={currency(summary.exits)} helper="Despesas no período" icon="arrow-down" tone="danger" />
+        <StatCard label="Resultado" value={currency(summary.result)} helper="Entradas menos saídas" icon="finance" tone={summary.result >= 0 ? 'success' : 'danger'} />
+        <StatCard
+          label="Saldo atual"
+          value={currentBalance === null ? 'Configure o saldo inicial' : currency(currentBalance)}
+          helper={financeSettings ? `Desde ${formatFinanceDate(financeSettings.openingDate)}` : 'O saldo atual depende de uma abertura configurada.'}
+          icon="wallet"
+          tone={currentBalance === null || currentBalance >= 0 ? 'neutral' : 'danger'}
+          action={(
+            <Button type="button" variant="ghost" className="finance-balance-button" onClick={() => setOpeningDialogOpen(true)} disabled={writeDisabled}>
+              {financeSettings ? 'Editar saldo inicial' : 'Configurar saldo inicial'}
+            </Button>
+          )}
+        />
+      </section>
 
       {pendingRefundOrders.length > 0 && (
         <section className="surface-card pending-refunds-surface">
@@ -86,11 +143,19 @@ function Finance({
         </section>
       )}
 
-      <section className="surface-card">
-        <div className="section-heading"><div><span className="section-kicker">Histórico</span><h2>Movimentações</h2></div><span className="toolbar-count">{movements.length} registro(s)</span></div>
-        <div className="movement-list">
-          {movements.map((movement) => (
-            <article className="movement-row" key={movement.id}>
+      <section className="surface-card finance-history-surface">
+        <div className="section-heading finance-history-heading">
+          <div><span className="section-kicker">Histórico</span><h2>Movimentações</h2></div>
+          <span className="toolbar-count">
+            {secondaryFiltersActive ? `${filteredMovements.length} de ${periodMovements.length} no período` : `${periodMovements.length} registro(s) no período`}
+          </span>
+        </div>
+
+        <FinanceHistoryFilters value={filters} categoryOptions={categoryOptions} onChange={setFilters} />
+
+        <div className="movement-list finance-movement-list">
+          {filteredMovements.map((movement) => (
+            <article className="movement-row finance-movement-row" key={movement.id}>
               <div className={movement.type === 'entrada' ? 'movement-icon incoming' : 'movement-icon outgoing'}><Icon name={movement.type === 'entrada' ? 'arrow-up' : 'arrow-down'} size={18} /></div>
               <div className="movement-main">
                 <div className="movement-title-line">
@@ -99,19 +164,24 @@ function Finance({
                   {movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}
                   {movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}
                 </div>
-                <span>{movement.category} · {movement.movementDate || movement.date}{movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}</span>
+                <span>{getMovementCategoryLabel(movement)} · {formatFinanceDate(movement.movementDate || movement.date)} · {movement.paymentMethod || 'Não informado'}</span>
               </div>
               <strong className={movement.type === 'entrada' ? 'movement-value positive' : 'movement-value negative'}>{movement.type === 'entrada' ? '+' : '-'}{currency(movement.value)}</strong>
-              {movement.source === 'manual' && (
-                <div className="movement-actions">
-                  <Button type="button" variant="secondary" onClick={() => setEditingMovement(movement)} disabled={writeDisabled}>Editar</Button>
-                  <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => setDeletingMovement(movement)} disabled={writeDisabled}>Excluir</Button>
-                </div>
-              )}
+              <div className="movement-actions finance-movement-actions">
+                {movement.source === 'manual' && (
+                  <>
+                    <Button type="button" variant="secondary" onClick={() => setEditingMovement(movement)} disabled={writeDisabled}>Editar</Button>
+                    <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => setDeletingMovement(movement)} disabled={writeDisabled}>Excluir</Button>
+                  </>
+                )}
+                {movement.orderId && movement.source !== 'manual' && (
+                  <Button type="button" variant="ghost" onClick={() => setOrderDetailId(movement.orderId)}>Ver pedido</Button>
+                )}
+              </div>
             </article>
           ))}
         </div>
-        {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
+        {!filteredMovements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação encontrada</strong><span>Ajuste o período ou os filtros para consultar outros registros.</span></div>}
       </section>
 
       <MovementDialog
@@ -151,6 +221,7 @@ function Finance({
         onSubmit={onSaveFinanceSettings}
       />
 
+      <OrderDetail order={selectedOrder} currency={currency} onClose={() => setOrderDetailId(null)} />
       <RegisterRefundDialog open={Boolean(refundOrder)} order={refundOrder} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
     </>
   )
