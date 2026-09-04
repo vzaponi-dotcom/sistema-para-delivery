@@ -15,11 +15,11 @@ test('finance rows keep long movement copy readable at 320px', async () => {
 })
 
 test('movement modal keeps SystemSelect and a decimal-capable number input', async () => {
-  const app = await read('../App.jsx')
+  const movementDialog = await read('../components/MovementDialog.jsx')
 
-  assert.match(app, /label="Tipo da movimentação"/)
-  assert.match(app, /label="Categoria da movimentação"/)
-  assert.match(app, /<input[^>]*type="number"[^>]*min="0"[^>]*step="0\.01"/)
+  assert.match(movementDialog, /label="Tipo do movimento"/)
+  assert.match(movementDialog, /label="Categoria"/)
+  assert.match(movementDialog, /<input[\s\S]*?inputMode="decimal"[\s\S]*?formatBRLCurrencyInput/)
 })
 
 test('finance exposes pending refunds with a register action only when supplied', async () => {
