@@ -1,14 +1,7 @@
+import { PAYMENT_METHODS } from '../shared/finance.js'
 import { PRODUCT_CATEGORIES, validateProductPresentation } from '../shared/productCatalog.js'
 
-const PAYMENT_METHODS = new Set([
-  'Pix',
-  'Dinheiro',
-  'Cartão de débito',
-  'Cartão de crédito',
-  'Transferência',
-  'Outro',
-])
-
+const PAYMENT_METHOD_SET = new Set(PAYMENT_METHODS)
 const ORDER_TYPES = new Set(['Entrega', 'Retirada', 'Local'])
 const MOVEMENT_TYPES = new Set(['entrada', 'saida'])
 
@@ -50,7 +43,7 @@ export const validateOrderType = (value) => {
 }
 
 export const validatePaymentMethod = (value) => {
-  if (!PAYMENT_METHODS.has(value)) throw validationError('method', 'Forma de pagamento inválida.')
+  if (!PAYMENT_METHOD_SET.has(value)) throw validationError('method', 'Forma de pagamento inválida.')
   return value
 }
 
