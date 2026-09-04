@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
 import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
-import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
+import NewOrderCustomerStep from '../components/NewOrderCustomerStep'
+import NewOrderStepIndicator from '../components/NewOrderStepIndicator'
 import OrderCart from '../components/OrderCart'
 import OrderCheckoutSummary from '../components/OrderCheckoutSummary'
 import OrderProductCatalog from '../components/OrderProductCatalog'
 import PageHeader from '../components/PageHeader'
-import SystemSelect from '../components/SystemSelect'
 import {
   addCartItem,
   buildOrderPayload,
@@ -18,21 +18,20 @@ import {
   updateCartItem,
 } from '../utils/orderCart.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../utils/formFormatting.js'
+import {
+  NEW_ORDER_STEPS,
+  canNavigateToNewOrderStep,
+  getFurthestReachedStep,
+  getNewOrderStepAccess,
+  getOrderItemCount,
+} from '../utils/newOrderStepFlow.js'
 import { toLocalDateValue } from '../utils/orderWorkflow.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
-const ORDER_TYPE_OPTIONS = [
-  { value: 'Entrega', label: 'Entrega' },
-  { value: 'Retirada', label: 'Retirada' },
-  { value: 'Local', label: 'Consumo no local' },
-]
-const LOCAL_IDENTITY_OPTIONS = [
-  { value: 'guest_name', label: 'Nome' },
-  { value: 'table', label: 'Mesa' },
-  { value: 'registered_client', label: 'Cliente cadastrado' },
-]
 
 function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCancel, onCreateClient, onSubmit }) {
+  const [currentStep, setCurrentStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
+  const [maxReachedStep, setMaxReachedStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
@@ -85,8 +84,26 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     },
   }
   const preview = calculateOrderPreview(numericDraft)
-  const canSubmit = Boolean(identityValidation.ok && orderDate && items.length)
+  const itemCount = getOrderItemCount(items)
+  const stepAccess = getNewOrderStepAccess({
+    identityValid: identityValidation.ok,
+    orderDate,
+    itemCount,
+  })
+  const canSubmit = Boolean(stepAccess.review)
+  const canContinueCustomer = stepAccess.products
   const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
+
+  const goToStep = (targetStep) => {
+    if (!canNavigateToNewOrderStep({
+      targetStep,
+      currentStep,
+      maxReachedStep,
+      access: stepAccess,
+    })) return
+    setCurrentStep(targetStep)
+    setMaxReachedStep((current) => getFurthestReachedStep(current, targetStep))
+  }
 
   const closeQuickClient = () => {
     setQuickClient({ open: false, name: '', phone: '' })
@@ -196,6 +213,10 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     setQuickClient((current) => ({ ...current, ...patch }))
   }
 
+  const handleQuickClientChange = (patch) => {
+    updateQuickClient(patch.phone === undefined ? patch : { ...patch, phone: formatPhone(patch.phone) })
+  }
+
   const save = async (paymentMethod) => {
     if (disabled || !canSubmit) return
     setCheckoutError('')
@@ -208,213 +229,88 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
       <PageHeader
         eyebrow="Atendimento"
         title="Nova venda"
-        description="Monte todo o pedido, confira o total e salve como pendente ou já recebido."
-        actions={<Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Cancelar</Button>}
+        description="Monte o pedido em três etapas e confira tudo antes de salvar."
       />
 
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
 
-      <div className="new-order-layout">
-        <div className="new-order-main-column">
-          <section className="surface-card new-order-customer-card">
-            <div className="section-heading">
-              <div>
-                <span className="section-kicker">Cliente e operação</span>
-                <h2>Dados da venda</h2>
-              </div>
-            </div>
+      <NewOrderStepIndicator
+        currentStep={currentStep}
+        maxReachedStep={maxReachedStep}
+        access={stepAccess}
+        onNavigate={goToStep}
+      />
 
-            <div className="form-grid two-columns new-order-operation-fields">
-              <div className="form-field">
-                <span>Tipo do pedido</span>
-                <SystemSelect value={type} options={ORDER_TYPE_OPTIONS} onChange={changeType} disabled={disabled} label="Tipo do pedido" />
-              </div>
-              <label className="form-field">
-                <span>Data do pedido</span>
-                <input
-                  type="date"
-                  value={orderDate}
-                  max={toLocalDateValue()}
-                  onChange={(event) => setOrderDate(event.target.value)}
-                  disabled={disabled}
-                />
-              </label>
-            </div>
+      {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
+        <NewOrderCustomerStep
+          type={type}
+          orderDate={orderDate}
+          today={toLocalDateValue()}
+          disabled={disabled}
+          onTypeChange={changeType}
+          onOrderDateChange={setOrderDate}
+          localIdentityType={localIdentityType}
+          onLocalIdentityTypeChange={changeLocalIdentityType}
+          localIdentityValue={localIdentityValue}
+          onLocalIdentityValueChange={setLocalIdentityValue}
+          openTableTab={openTableTab}
+          usesRegisteredClient={usesRegisteredClient}
+          clientSearch={clientSearch}
+          clientPickerOpen={clientPickerOpen}
+          filteredClients={filteredClients}
+          clientId={clientId}
+          onClientSearchChange={handleClientSearchChange}
+          onClientPickerFocus={() => setClientPickerOpen(true)}
+          onClientPickerBlur={handleClientPickerBlur}
+          onSelectClient={selectClient}
+          onToggleQuickClient={toggleQuickClient}
+          quickClient={quickClient}
+          quickClientError={quickClientError}
+          onQuickClientSubmit={handleQuickClientSubmit}
+          onQuickClientCancel={closeQuickClient}
+          onQuickClientChange={handleQuickClientChange}
+          canContinue={canContinueCustomer}
+          onCancel={onCancel}
+          onContinue={() => goToStep(NEW_ORDER_STEPS.PRODUCTS)}
+        />
+      )}
 
-            {type === 'Local' && (
-              <div className="new-order-local-identity">
-                <span className="product-detail-label">Identificar por</span>
-                <div className="new-order-local-identity-options" role="group" aria-label="Identificação do consumo no local">
-                  {LOCAL_IDENTITY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={localIdentityType === option.value ? 'new-order-local-identity-option selected' : 'new-order-local-identity-option'}
-                      aria-pressed={localIdentityType === option.value}
-                      onClick={() => changeLocalIdentityType(option.value)}
-                      disabled={disabled}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+      {currentStep !== NEW_ORDER_STEPS.CUSTOMER && (
+        <div className="new-order-layout">
+          <div className="new-order-main-column">
+            <OrderProductCatalog
+              products={products}
+              items={items}
+              currency={currency}
+              disabled={disabled}
+              onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
+            />
+          </div>
 
-                {localIdentityType === 'guest_name' && (
-                  <label className="form-field">
-                    <span>Nome</span>
-                    <input
-                      type="text"
-                      maxLength={80}
-                      placeholder="Ex: João"
-                      value={localIdentityValue}
-                      onChange={(event) => setLocalIdentityValue(event.target.value)}
-                      disabled={disabled}
-                      autoComplete="off"
-                    />
-                  </label>
-                )}
-
-                {localIdentityType === 'table' && (
-                  <label className="form-field">
-                    <span>Mesa</span>
-                    <input
-                      type="text"
-                      maxLength={12}
-                      placeholder="Ex: 04 ou A-2"
-                      value={localIdentityValue}
-                      onChange={(event) => setLocalIdentityValue(event.target.value)}
-                      disabled={disabled}
-                      autoComplete="off"
-                    />
-                    <small>Use letras, números ou hífen.</small>
-                    {openTableTab && (
-                      <div className="new-order-table-tab-hint" role="status">
-                        Mesa {openTableTab.tableIdentifier} · comanda aberta. Este pedido será adicionado automaticamente.
-                      </div>
-                    )}
-                  </label>
-                )}
-              </div>
-            )}
-
-            {usesRegisteredClient && (
-              <>
-                <div
-                  className="form-field new-order-client-picker"
-                  onBlur={handleClientPickerBlur}
-                >
-                  <span>Cliente</span>
-                  <div className="new-order-client-combobox">
-                    <input
-                      type="search"
-                      role="combobox"
-                      aria-autocomplete="list"
-                      aria-expanded={clientPickerOpen}
-                      aria-controls="new-order-client-options"
-                      placeholder="Digite o nome do cliente"
-                      value={clientSearch}
-                      onFocus={() => setClientPickerOpen(true)}
-                      onChange={(event) => handleClientSearchChange(event.target.value)}
-                      disabled={disabled || !clients.length}
-                      autoComplete="off"
-                    />
-                    {clientPickerOpen && !disabled && (
-                      <div id="new-order-client-options" className="new-order-client-options" role="listbox">
-                        {filteredClients.map((client) => (
-                          <button
-                            key={client.id}
-                            type="button"
-                            role="option"
-                            aria-selected={client.id === clientId}
-                            className={client.id === clientId ? 'selected' : ''}
-                            onClick={() => selectClient(client)}
-                          >
-                            {client.name}
-                          </button>
-                        ))}
-                        {!filteredClients.length && (
-                          <span className="new-order-client-empty">Nenhum cliente encontrado</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="new-order-quick-client-toggle"
-                  onClick={toggleQuickClient}
-                  disabled={disabled}
-                >
-                  + Novo cliente
-                </button>
-
-                {quickClient.open && (
-                  <form className="new-order-quick-client" onSubmit={handleQuickClientSubmit}>
-                    {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
-                    <label className="form-field">
-                      <span>Nome</span>
-                      <input
-                        type="text"
-                        value={quickClient.name}
-                        onChange={(event) => updateQuickClient({ name: event.target.value })}
-                        placeholder="Nome do cliente"
-                        autoComplete="off"
-                      />
-                    </label>
-                    <label className="form-field">
-                      <span>Telefone</span>
-                      <input
-                        type="tel"
-                        inputMode="tel"
-                        value={quickClient.phone}
-                        onChange={(event) => updateQuickClient({ phone: formatPhone(event.target.value) })}
-                        placeholder="(11) 99999-9999"
-                        autoComplete="off"
-                      />
-                    </label>
-                    <div className="form-actions">
-                      <Button type="button" variant="secondary" onClick={closeQuickClient} disabled={disabled}>Cancelar</Button>
-                      <Button type="submit" disabled={disabled || !quickClient.name.trim()}>Adicionar cliente</Button>
-                    </div>
-                  </form>
-                )}
-              </>
-            )}
-          </section>
-
-          <OrderProductCatalog
-            products={products}
-            items={items}
-            currency={currency}
-            disabled={disabled}
-            onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
-          />
+          <div className="new-order-cart-column">
+            <OrderCart
+              items={items}
+              currency={currency}
+              disabled={disabled}
+              onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))}
+              onNoteChange={(lineId, note) => setItems((current) => editCartItemNote(current, lineId, note))}
+              onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
+              onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
+            />
+            <OrderCheckoutSummary
+              draft={draft}
+              preview={preview}
+              currency={currency}
+              disabled={disabled}
+              canSubmit={canSubmit}
+              onDeliveryFeeChange={setDeliveryFee}
+              onAdjustmentChange={handleAdjustmentChange}
+              onSavePending={() => save()}
+              onSavePaid={(method) => save(method)}
+            />
+          </div>
         </div>
-
-        <div className="new-order-cart-column">
-          <OrderCart
-            items={items}
-            currency={currency}
-            disabled={disabled}
-            onUpdate={(lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch))}
-            onNoteChange={(lineId, note) => setItems((current) => editCartItemNote(current, lineId, note))}
-            onNoteCommit={(lineId) => setItems((current) => commitCartItemNote(current, lineId))}
-            onRemove={(lineId) => setItems((current) => removeCartItem(current, lineId))}
-          />
-          <OrderCheckoutSummary
-            draft={draft}
-            preview={preview}
-            currency={currency}
-            disabled={disabled}
-            canSubmit={canSubmit}
-            onDeliveryFeeChange={setDeliveryFee}
-            onAdjustmentChange={handleAdjustmentChange}
-            onSavePending={() => save()}
-            onSavePaid={(method) => save(method)}
-          />
-        </div>
-      </div>
+      )}
 
       {duplicateClient && (
         <ClientDuplicateModal
