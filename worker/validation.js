@@ -18,6 +18,13 @@ export const moneyToCents = (value, field = 'value') => {
   return Math.round((number + Number.EPSILON) * 100)
 }
 
+export const signedMoneyToCents = (value, field = 'value') => {
+  if (typeof value === 'string' && value.trim() === '') throw validationError(field, 'Informe um valor válido.')
+  const number = Number(value)
+  if (!Number.isFinite(number)) throw validationError(field, 'Informe um valor válido.')
+  return Math.round((number + Math.sign(number) * Number.EPSILON) * 100)
+}
+
 export const centsToMoney = (value) => {
   const cents = Number(value)
   if (!Number.isFinite(cents)) return 0
@@ -42,8 +49,8 @@ export const validateOrderType = (value) => {
   return value
 }
 
-export const validatePaymentMethod = (value) => {
-  if (!PAYMENT_METHOD_SET.has(value)) throw validationError('method', 'Forma de pagamento inválida.')
+export const validatePaymentMethod = (value, field = 'method') => {
+  if (!PAYMENT_METHOD_SET.has(value)) throw validationError(field, 'Forma de pagamento inválida.')
   return value
 }
 
