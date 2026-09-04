@@ -34,3 +34,9 @@ jobs:
         run: npm ci
       - name: Run production safety regression
         run: node --test scripts/infra/productionSafetyRegression.test.js
+      - name: Build
+        run: npm run build
+      - name: Validate production Worker bundle
+        run: npx --yes wrangler@4.128.0 deploy --dry-run
+      - name: Validate staging Worker bundle
+        run: npx --yes wrangler@4.128.0 deploy --dry-run --env staging
