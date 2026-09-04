@@ -19,6 +19,7 @@ import {
   findAuthorizedPrinterPort,
   getDefaultPrintStationName,
   getOrCreateLocalPrintStationId,
+  getPrinterFingerprint,
   savePrinterFingerprint,
 } from './localPrintStation.js'
 import { MTP5_PROFILE } from './mtp5Profile.js'
@@ -43,7 +44,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   const [localStation, setLocalStation] = useState(null)
   const [stations, setStations] = useState([])
   const [jobs, setJobs] = useState([])
-  const [printerState, setPrinterState] = useState(supported ? 'disconnected' : 'unsupported')
+  const [printerState, setPrinterState] = useState(supported ? 'unconfigured' : 'unsupported')
   const [printerBlocked, setPrinterBlocked] = useState(false)
   const [busyJobId, setBusyJobId] = useState(null)
   const [lastError, setLastError] = useState(null)
@@ -95,6 +96,12 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     if (!supported) return null
     const stationId = localStationRef.current?.id
     if (!stationId) return null
+    const fingerprint = getPrinterFingerprint(globalThis.localStorage, stationId)
+    if (!fingerprint) {
+      portRef.current = null
+      setPrinterState('unconfigured')
+      return null
+    }
     const port = await findAuthorizedPrinterPort(globalThis.navigator?.serial, globalThis.localStorage, stationId)
     portRef.current = port || null
     if (!port) {
@@ -134,7 +141,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       return port
     } catch (error) {
       portRef.current = null
-      setPrinterState('disconnected')
+      setPrinterState(getPrinterFingerprint(globalThis.localStorage, stationId) ? 'disconnected' : 'unconfigured')
       reportError(error)
       throw error
     }
@@ -246,7 +253,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       portRef.current = null
       updateBusyJob(null)
       updateBlocked(false)
-      setPrinterState(supported ? 'disconnected' : 'unsupported')
+      setPrinterState(supported ? 'unconfigured' : 'unsupported')
       return undefined
     }
 
@@ -325,6 +332,12 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       if (!visiblePage() || !browserOnline() || busyJobIdRef.current || printerBlockedRef.current) return
       const station = localStationRef.current
       if (!station?.isPrimary || !station.autoPrintEnabled) return
+
+      if (!getPrinterFingerprint(globalThis.localStorage, station.id)) {
+        portRef.current = null
+        setPrinterState('unconfigured')
+        return
+      }
 
       let port
       try {
