@@ -62,3 +62,15 @@ test('review step owns the full cart and financial checkout composition', async 
   assert.doesNotMatch(productsStep, /import OrderCart|<OrderCart/)
   assert.doesNotMatch(productsStep, /OrderCheckoutSummary/)
 })
+
+test('step navigation preserves the single draft and focuses the active step', async () => {
+  const page = await read('./NewOrder.jsx')
+
+  assert.match(page, /const navigateStep = \(targetStep\) =>/)
+  assert.match(page, /getFurthestReachedStep/)
+  assert.match(page, /stepContentRef/)
+  assert.match(page, /stepContentRef\.current\?\.focus\(\)/)
+  assert.match(page, /tabIndex="-1"/)
+  assert.doesNotMatch(page, /setItems\(\[\]\)[\s\S]{0,140}setCurrentStep/)
+  assert.doesNotMatch(page, /setAdjustment\(emptyAdjustment\(\)\)[\s\S]{0,140}setCurrentStep/)
+})
