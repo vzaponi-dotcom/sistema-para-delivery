@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getBusinessDate, getMovementCategoryLabel, normalizeMovementCategory } from '../../shared/finance.js'
+import BottomSheet from '../components/BottomSheet'
 import Button from '../components/Button'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import FinanceHistoryFilters from '../components/FinanceHistoryFilters'
@@ -45,6 +46,7 @@ function Finance({
 }) {
   const [period, setPeriod] = useState({ key: 'today' })
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [editingMovement, setEditingMovement] = useState(undefined)
   const [deletingMovement, setDeletingMovement] = useState(null)
   const [openingDialogOpen, setOpeningDialogOpen] = useState(false)
@@ -151,7 +153,22 @@ function Finance({
           </span>
         </div>
 
-        <FinanceHistoryFilters value={filters} categoryOptions={categoryOptions} onChange={setFilters} />
+        <div className="finance-filters-desktop">
+          <FinanceHistoryFilters value={filters} categoryOptions={categoryOptions} onChange={setFilters} />
+        </div>
+        <div className="finance-filters-mobile">
+          <FinanceHistoryFilters value={filters} categoryOptions={categoryOptions} onChange={setFilters} showSecondary={false} />
+          <Button
+            type="button"
+            variant="secondary"
+            className="finance-filter-trigger"
+            aria-expanded={filterSheetOpen}
+            aria-haspopup="dialog"
+            onClick={() => setFilterSheetOpen(true)}
+          >
+            Filtrar movimentações{secondaryFiltersActive ? ' · filtros ativos' : ''}
+          </Button>
+        </div>
 
         <div className="movement-list finance-movement-list">
           {filteredMovements.map((movement) => (
@@ -183,6 +200,13 @@ function Finance({
         </div>
         {!filteredMovements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação encontrada</strong><span>Ajuste o período ou os filtros para consultar outros registros.</span></div>}
       </section>
+
+      <BottomSheet open={filterSheetOpen} title="Filtrar movimentações" onClose={() => setFilterSheetOpen(false)}>
+        <div className="finance-filter-sheet-content">
+          <FinanceHistoryFilters value={filters} categoryOptions={categoryOptions} onChange={setFilters} showSearch={false} />
+          <Button type="button" onClick={() => setFilterSheetOpen(false)}>Aplicar filtros</Button>
+        </div>
+      </BottomSheet>
 
       <MovementDialog
         open={movementDialogOpen}
