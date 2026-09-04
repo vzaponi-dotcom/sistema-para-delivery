@@ -23,10 +23,10 @@ test('new order mobile actions keep touch targets comfortable', async () => {
 })
 
 test('new order exposes mobile-friendly keyboards for phone and monetary values', async () => {
-  const page = await read('./NewOrder.jsx')
+  const customerStep = await read('../components/NewOrderCustomerStep.jsx')
   const checkout = await read('../components/OrderCheckoutSummary.jsx')
 
-  assert.match(page, /type="tel"[\s\S]{0,180}inputMode="tel"/)
+  assert.match(customerStep, /type="tel"[\s\S]{0,180}inputMode="tel"/)
   assert.match(checkout, /Taxa de entrega[\s\S]{0,300}inputMode="decimal"/)
   assert.match(checkout, /<span>Valor<\/span>[\s\S]{0,300}inputMode="decimal"/)
 })
