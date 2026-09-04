@@ -1,3 +1,120 @@
+.finance-period-surface {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.finance-block-heading,
+.finance-history-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.finance-block-heading .section-kicker {
+  margin-bottom: 5px;
+}
+
+.finance-block-heading strong {
+  display: block;
+  color: var(--text);
+  font-size: 1.08rem;
+}
+
+.finance-period-caption {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: right;
+}
+
+.finance-period,
+.finance-custom-period {
+  display: grid;
+  gap: 12px;
+}
+
+.finance-period-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.finance-period-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 750;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.finance-period-button:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-strong);
+}
+
+.finance-period-button.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.finance-custom-period {
+  grid-template-columns: repeat(2, minmax(0, 190px));
+  align-items: end;
+}
+
+.finance-custom-period label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.finance-custom-period input {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.finance-period-error {
+  grid-column: 1 / -1;
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.finance-stats-grid {
+  margin-bottom: 22px;
+}
+
+.stat-action {
+  margin-top: 10px;
+}
+
+.finance-balance-button {
+  min-height: 34px;
+  padding: 0;
+  justify-content: flex-start;
+  color: var(--primary);
+  font-size: 0.78rem;
+}
+
+.finance-balance-button:hover {
+  transform: none;
+  background: transparent;
+}
+
 .pending-refunds-surface {
   margin-bottom: 22px;
 }
@@ -52,7 +169,102 @@
   color: var(--muted);
 }
 
+.finance-history-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.8fr) repeat(3, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.finance-history-search {
+  width: 100%;
+}
+
+.finance-history-filters .system-select,
+.finance-history-filters .system-select-trigger {
+  width: 100%;
+}
+
+.finance-movement-row {
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+}
+
+.finance-movement-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.finance-movement-actions .button {
+  min-height: 38px;
+  padding: 0 11px;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1080px) {
+  .finance-history-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .finance-history-search {
+    grid-column: 1 / -1;
+  }
+
+  .finance-movement-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+
+  .finance-movement-actions {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .finance-block-heading,
+  .finance-history-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .finance-period-caption {
+    text-align: left;
+  }
+
+  .finance-history-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .finance-history-search {
+    grid-column: auto;
+  }
+}
+
 @media (max-width: 640px) {
+  .finance-period-surface,
+  .finance-history-surface {
+    padding: 17px;
+  }
+
+  .finance-period-presets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-period-button {
+    min-height: var(--mobile-touch-target, 44px);
+  }
+
+  .finance-custom-period {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .finance-custom-period input {
+    min-height: var(--mobile-touch-target, 44px);
+  }
+
   .movement-title-line strong {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -62,10 +274,24 @@
     overflow-wrap: anywhere;
   }
 
+  .finance-movement-row {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
   .movement-value {
     grid-column: 2;
     justify-self: start;
     white-space: nowrap;
+  }
+
+  .finance-movement-actions {
+    grid-column: 2;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .finance-movement-actions .button {
+    min-height: var(--mobile-touch-target, 44px);
   }
 
   .pending-refund-row {
