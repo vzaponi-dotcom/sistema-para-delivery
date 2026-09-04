@@ -2,7 +2,7 @@
 
 Data: 2026-09-04  
 Branch: `feature/new-order-step-flow`  
-Status: design aprovado em conversa; auto-revisão pendente
+Status: auto-revisado; aguardando aprovação do arquivo antes do plano de implementação
 
 ## 1. Objetivo
 
@@ -125,6 +125,8 @@ Regras de interação:
 - a semântica deve ser acessível por teclado e leitor de tela;
 - o estado visual não pode depender apenas de cor.
 
+O status de conclusão é **dinâmico** e depende das validações atuais. Se o operador voltar à etapa Cliente e tornar a identificação inválida, Produtos e Finalizar deixam de ser destinos acessíveis até que a etapa 1 volte a ser válida. O mesmo vale para Finalizar quando o carrinho ficar vazio. Os itens e demais dados continuam preservados; apenas o avanço fica bloqueado.
+
 Exemplo na etapa 3:
 
 ```text
@@ -242,7 +244,7 @@ O catálogo preserva integralmente:
 
 No celular, o catálogo ocupa a área principal e o carrinho completo não fica permanentemente aberto.
 
-Uma barra/ação fixa próxima ao rodapé mostra uma síntese:
+Uma barra/ação fixa próxima ao rodapé mostra uma síntese do carrinho baseada **somente no subtotal dos produtos**, por exemplo:
 
 ```text
 3 itens · R$ 72,00                 Ver carrinho →
@@ -266,7 +268,7 @@ O mini carrinho não é o fechamento financeiro completo. Ele mostra somente o n
 - itens adicionados;
 - quantidades;
 - quantidade total de itens;
-- prévia do subtotal/total exibível naquele momento;
+- subtotal dos produtos, sem taxa de entrega e sem desconto/acréscimo;
 - ação `Revisar pedido`.
 
 Taxa, desconto/acréscimo, forma de pagamento e ações definitivas ficam exclusivamente na etapa 3.
@@ -553,7 +555,8 @@ Novos cenários mínimos:
 5. avança para Finalizar após adicionar item;
 6. volta para etapa anterior preservando rascunho;
 7. etapa concluída anterior é navegável;
-8. etapa futura não pode ser pulada.
+8. etapa futura não pode ser pulada;
+9. invalidar uma etapa anterior bloqueia novamente os destinos dependentes sem apagar o rascunho.
 
 ### Preservação de estado
 
@@ -565,11 +568,12 @@ Novos cenários mínimos:
 
 ### Mobile/desktop
 
-1. mobile apresenta ação fixa com quantidade e valor;
+1. mobile apresenta ação fixa com quantidade e subtotal dos produtos;
 2. ação fixa não conflita com navegação inferior;
 3. desktop apresenta mini carrinho na etapa Produtos;
-4. fechamento financeiro não aparece na etapa Produtos;
-5. carrinho completo e fechamento aparecem somente na etapa Finalizar.
+4. mini carrinho não inclui taxa nem desconto/acréscimo;
+5. fechamento financeiro não aparece na etapa Produtos;
+6. carrinho completo e fechamento aparecem somente na etapa Finalizar.
 
 ### Proteção contra descarte
 
@@ -616,8 +620,10 @@ A rodada será considerada funcionalmente aprovada quando:
 - etapa Produtos focar no catálogo;
 - mobile usar resumo fixo do carrinho em vez de carrinho lateral permanente;
 - desktop usar resumo lateral compacto na etapa Produtos;
+- o resumo da etapa Produtos mostrar subtotal dos produtos, sem sugerir taxa ou ajuste ainda não revisados;
 - etapa Finalizar centralizar carrinho completo e ajustes financeiros;
 - etapas anteriores concluídas forem navegáveis e futuras não forem puláveis;
+- invalidação de etapa anterior bloquear novamente o avanço sem descartar dados;
 - troca de tipo respeitar a regra da taxa sem apagar produtos;
 - saída de rascunho sujo exigir confirmação;
 - falha de checkout preservar integralmente o pedido montado;
