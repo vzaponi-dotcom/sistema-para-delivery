@@ -30,3 +30,14 @@ test('BRL helpers convert product numbers to and from the formatted input', asyn
   assert.equal(formatting.formatBRLCurrencyValue(32), 'R$ 32,00')
   assert.equal(formatting.parseBRLCurrencyInput('R$ 1.234,56'), 1234.56)
 })
+
+test('signed BRL helpers support a negative opening balance without changing normal money rules', async () => {
+  const formatting = await loadFormatting()
+  assert.equal(typeof formatting.formatSignedBRLCurrencyInput, 'function')
+  assert.equal(typeof formatting.formatSignedBRLCurrencyValue, 'function')
+  assert.equal(typeof formatting.parseSignedBRLCurrencyInput, 'function')
+  assert.equal(formatting.formatSignedBRLCurrencyValue(-100), '-R$ 100,00')
+  assert.equal(formatting.formatSignedBRLCurrencyInput('-1234'), '-R$ 12,34')
+  assert.equal(formatting.parseSignedBRLCurrencyInput('-R$ 12,34'), -12.34)
+  assert.equal(formatting.formatBRLCurrencyValue(-100), 'R$ 0,00')
+})
