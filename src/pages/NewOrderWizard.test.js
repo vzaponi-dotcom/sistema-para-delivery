@@ -34,6 +34,16 @@ test('new order starts on customer step and customer step contains only attendan
   assert.doesNotMatch(customerStep, /OrderCheckoutSummary/)
 })
 
+test('customer step exposes same-day scheduling controls and helper text', async () => {
+  const source = await read('../components/NewOrderCustomerStep.jsx')
+  assert.match(source, /Quando preparar\?/)
+  assert.match(source, />Agora</)
+  assert.match(source, />Agendado</)
+  assert.match(source, /Horário desejado pelo cliente/)
+  assert.match(source, /Esse horário é uma referência de atendimento\./)
+  assert.match(source, /type="time"/)
+})
+
 test('products step focuses on catalog and exposes a subtotal-only cart summary', async () => {
   const productsStep = await read('../components/NewOrderProductsStep.jsx')
   const cartSummary = await read('../components/NewOrderCartSummary.jsx')
@@ -58,6 +68,7 @@ test('review step owns the full cart and financial checkout composition', async 
   assert.match(reviewStep, /OrderCheckoutSummary/)
   assert.match(reviewStep, /Voltar aos produtos/)
   assert.match(reviewStep, /customerSummary/)
+  assert.match(reviewStep, /Agendado/)
   assert.match(reviewStep, /itemCount/)
   assert.doesNotMatch(productsStep, /import OrderCart|<OrderCart/)
   assert.doesNotMatch(productsStep, /OrderCheckoutSummary/)

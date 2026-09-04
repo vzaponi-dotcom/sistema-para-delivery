@@ -21,6 +21,10 @@ function NewOrderCustomerStep({
   type,
   orderDate,
   todayValue,
+  scheduleMode,
+  scheduledTime,
+  scheduleVisible,
+  scheduleValid,
   localIdentityType,
   localIdentityValue,
   openTableTab,
@@ -30,6 +34,8 @@ function NewOrderCustomerStep({
   canContinue,
   onTypeChange,
   onOrderDateChange,
+  onScheduleModeChange,
+  onScheduledTimeChange,
   onLocalIdentityTypeChange,
   onLocalIdentityValueChange,
   onClientSearchChange,
@@ -212,6 +218,23 @@ function NewOrderCustomerStep({
           disabled={disabled}
         />
       </label>
+
+      {scheduleVisible && (
+        <div className="form-field new-order-schedule-field">
+          <span>Quando preparar?</span>
+          <div className="new-order-schedule-options" role="group" aria-label="Quando preparar">
+            <button type="button" className={scheduleMode === 'now' ? 'new-order-schedule-option selected' : 'new-order-schedule-option'} aria-pressed={scheduleMode === 'now'} onClick={() => onScheduleModeChange('now')} disabled={disabled}>Agora</button>
+            <button type="button" className={scheduleMode === 'scheduled' ? 'new-order-schedule-option selected' : 'new-order-schedule-option'} aria-pressed={scheduleMode === 'scheduled'} onClick={() => onScheduleModeChange('scheduled')} disabled={disabled}>Agendado</button>
+          </div>
+          {scheduleMode === 'scheduled' && (
+            <label className="form-field">
+              <span>Horário desejado pelo cliente</span>
+              <input type="time" value={scheduledTime} onChange={(event) => onScheduledTimeChange(event.target.value)} disabled={disabled} aria-invalid={!scheduleValid} />
+              <small>Esse horário é uma referência de atendimento.</small>
+            </label>
+          )}
+        </div>
+      )}
 
       <div className="new-order-step-actions">
         <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Continuar →</Button>

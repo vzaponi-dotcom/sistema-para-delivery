@@ -22,12 +22,12 @@ export const getOrderItemsSubtotal = (items = []) => items.reduce(
   0,
 )
 
-export const getNewOrderStepAccess = ({ identityValid, orderDate, itemCount }) => {
+export const getNewOrderStepAccess = ({ identityValid, orderDate, itemCount, scheduleValid = true }) => {
   const customerReady = Boolean(identityValid && orderDate)
   return {
     customer: true,
-    products: customerReady,
-    review: Boolean(customerReady && Number(itemCount || 0) > 0),
+    products: Boolean(customerReady && scheduleValid),
+    review: Boolean(customerReady && scheduleValid && Number(itemCount || 0) > 0),
   }
 }
 
@@ -52,6 +52,8 @@ export const createNewOrderDirtySnapshot = (draft = {}) => JSON.stringify({
   localIdentityType: String(draft.localIdentityType ?? ''),
   localIdentityValue: normalizeText(draft.localIdentityValue),
   orderDate: String(draft.orderDate ?? ''),
+  scheduleMode: String(draft.scheduleMode ?? 'now'),
+  scheduledTime: String(draft.scheduledTime ?? ''),
   items: (draft.items ?? []).map((item) => ({
     productId: item.productId,
     quantity: Number(item.quantity || 0),

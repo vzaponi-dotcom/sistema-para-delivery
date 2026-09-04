@@ -27,6 +27,13 @@ test('step access requires valid customer data before products and at least one 
   )
 })
 
+test('invalid schedule blocks products and schedule fields participate in dirty state', () => {
+  assert.equal(getNewOrderStepAccess({ identityValid: true, orderDate: '2026-09-04', itemCount: 1, scheduleValid: false }).products, false)
+  const initial = pristineDraft()
+  const snapshot = createNewOrderDirtySnapshot(initial)
+  assert.equal(isNewOrderDraftDirty({ ...initial, scheduleMode: 'scheduled', scheduledTime: '15:00' }, snapshot), true)
+})
+
 test('navigation allows the next step or an already reached step but never skips an unreached step', () => {
   const access = { customer: true, products: true, review: true }
 
