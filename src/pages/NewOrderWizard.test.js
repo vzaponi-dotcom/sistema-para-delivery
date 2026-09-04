@@ -33,3 +33,19 @@ test('new order starts on customer step and customer step contains only attendan
   assert.doesNotMatch(customerStep, /OrderCart/)
   assert.doesNotMatch(customerStep, /OrderCheckoutSummary/)
 })
+
+test('products step focuses on catalog and exposes a subtotal-only cart summary', async () => {
+  const productsStep = await read('../components/NewOrderProductsStep.jsx')
+  const cartSummary = await read('../components/NewOrderCartSummary.jsx')
+
+  assert.match(productsStep, /OrderProductCatalog/)
+  assert.match(productsStep, /NewOrderCartSummary/)
+  assert.match(productsStep, /new-order-mobile-cart-action/)
+  assert.match(productsStep, /Voltar/)
+  assert.doesNotMatch(productsStep, /OrderCheckoutSummary/)
+  assert.doesNotMatch(productsStep, /Taxa de entrega/)
+  assert.doesNotMatch(productsStep, /Ajuste do pedido/)
+  assert.match(cartSummary, /currency\(subtotal\)/)
+  assert.match(cartSummary, /Subtotal dos produtos/)
+  assert.match(cartSummary, /Revisar pedido/)
+})
