@@ -140,6 +140,7 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
         <label className="form-field">
           <span>Valor</span>
           <input
+            type="text"
             inputMode="decimal"
             value={draft.value}
             onChange={(event) => updateField('value', formatBRLCurrencyInput(event.target.value))}
