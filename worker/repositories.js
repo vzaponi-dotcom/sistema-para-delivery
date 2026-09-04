@@ -6,6 +6,7 @@ import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { centsToMoney } from './validation.js'
+import { getOperationalStartAt } from '../shared/orderTiming.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
@@ -103,6 +104,8 @@ export const mapOrderRow = (row, items = []) => {
     total: centsToMoney(row.total_cents),
     orderDate: row.order_date,
     date: row.order_date,
+    scheduledFor: row.scheduled_for ?? null,
+    isBackdated: Boolean(row.is_backdated),
     createdAt: row.created_at,
     finishedAt: row.finished_at ?? null,
     cancelledAt: row.cancelled_at ?? null,
@@ -121,7 +124,7 @@ export const mapOrderRow = (row, items = []) => {
 }
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'`
+const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -340,6 +343,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (input.orderDate > today) throw repositoryError(400, 'ORDER_DATE_IN_FUTURE', 'A data do pedido não pode estar no futuro.')
 
   const historical = input.orderDate < today
+  const scheduledFor = historical ? null : (input.scheduledFor || null)
+  const isBackdated = historical ? 1 : 0
   const createdAt = historical ? backdatedOperationalTimestamp(input.orderDate) : now.toISOString()
   const finishedAt = historical ? createdAt : null
   const status = historical ? 'Finalizado' : 'Em preparo'
@@ -348,7 +353,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
   const orderId = crypto.randomUUID()
 
-  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, scheduled_for, is_backdated, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     orderId,
     businessId,
     clientId,
@@ -358,6 +363,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     input.type,
     input.orderDate,
     status,
+    scheduledFor,
+    isBackdated,
     totals.subtotalCents,
     deliveryFeeCents,
     adjustment.type || 'none',
@@ -443,6 +450,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       copies: primaryPrintStation.defaultCopies,
       document: printDocument,
       createdAt,
+      availableAt: getOperationalStartAt({ createdAt, scheduledFor })?.toISOString() || createdAt,
     }))
   }
 

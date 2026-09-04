@@ -10,6 +10,8 @@ class OrderReadDb {
           async all() {
             if (sql.includes('FROM orders o')) {
               assert.match(sql, /o\.cancelled_at/)
+              assert.match(sql, /o\.scheduled_for/)
+              assert.match(sql, /o\.is_backdated/)
               assert.match(sql, /o\.cancel_reason/)
               assert.match(sql, /o\.cancel_reason_note/)
               assert.match(sql, /r\.id AS refund_movement_id/)
@@ -22,6 +24,7 @@ class OrderReadDb {
                     type: 'Entrega', order_date: '2026-09-03', status: 'Cancelado', subtotal_cents: 8000, delivery_fee_cents: 0,
                     adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0, adjustment_amount_cents: 0, adjustment_reason: '',
                     total_cents: 8000, created_at: '2026-09-03T12:00:00.000Z', finished_at: null,
+                    scheduled_for: '2026-09-03T15:00:00.000Z', is_backdated: 0,
                     cancelled_at: '2026-09-03T13:00:00.000Z', cancel_reason: 'client_changed_mind', cancel_reason_note: null,
                     payment_id: 'pay-1', payment_method: 'Pix', paid_at: '2026-09-03T12:05:00.000Z', paid_amount_cents: 8000,
                     refund_movement_id: 'refund-1', refund_created_at: '2026-09-03T13:05:00.000Z',
@@ -54,5 +57,7 @@ test('orders-only reads preserve official cancellation and refund identity', asy
   assert.equal(order.refundMovementId, 'refund-1')
   assert.equal(order.refundedAt, '2026-09-03T13:05:00.000Z')
   assert.equal(order.refundState, 'refunded')
+  assert.equal(order.scheduledFor, '2026-09-03T15:00:00.000Z')
+  assert.equal(order.isBackdated, false)
   assert.equal(legacy.cancelledAt, null)
 })

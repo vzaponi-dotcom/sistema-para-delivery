@@ -24,7 +24,7 @@ class D1Sqlite {
         adjustment_type TEXT NOT NULL, adjustment_mode TEXT NOT NULL, adjustment_value INTEGER NOT NULL,
         adjustment_amount_cents INTEGER NOT NULL, adjustment_reason TEXT NOT NULL,
         total_cents INTEGER NOT NULL, created_at TEXT NOT NULL, finished_at TEXT,
-        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, idempotency_key TEXT NOT NULL
+        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, scheduled_for TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, idempotency_key TEXT NOT NULL
       );
       CREATE UNIQUE INDEX orders_idempotency_idx ON orders (business_id, idempotency_key);
       CREATE TABLE order_items (
