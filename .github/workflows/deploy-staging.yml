@@ -19,6 +19,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       STAGING_PIN: ${{ secrets.STAGING_PIN }}
+      STAGING_READY_ATTEMPTS: 6
 
     steps:
       - name: Checkout
@@ -86,6 +87,29 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const baseUrl = process.env.STAGING_URL
+          const attempts = Number(process.env.STAGING_READY_ATTEMPTS)
+          let ready = false
+
+          for (let attempt = 1; attempt <= attempts; attempt += 1) {
+            try {
+              const response = await fetch(`${baseUrl}/api/auth/session`)
+              if (response.ok) {
+                console.log(`Staging ready on attempt ${attempt}/${attempts}`)
+                ready = true
+                break
+              }
+              console.log(`Staging readiness attempt ${attempt}/${attempts}: HTTP ${response.status}`)
+            } catch (error) {
+              console.log(`Staging readiness attempt ${attempt}/${attempts}: ${error.message}`)
+            }
+            if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 5000))
+          }
+
+          if (!ready) {
+            console.error('Staging did not become ready within the bounded propagation window.')
+            process.exit(1)
+          }
+
           const response = await fetch(`${baseUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', origin: baseUrl },
