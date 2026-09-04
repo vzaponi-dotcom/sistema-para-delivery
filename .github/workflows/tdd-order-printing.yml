@@ -24,6 +24,8 @@ jobs:
           shared/orderPrintDocument.test.js
           worker/orderPrintingRepository.test.js
           worker/orderPrintDocumentRepository.test.js
+          worker/orderAutomaticPrintJob.test.js
+          worker/multiItemCheckoutRepository.test.js
 
       - name: Validate local D1 migrations
         run: npm run d1:migrate:local
