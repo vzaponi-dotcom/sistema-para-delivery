@@ -8,7 +8,7 @@ Status: auto-revisado; aguardando aprovação do arquivo antes do plano de imple
 
 Corrigir a leitura operacional e os relatórios de tempo quando um cliente faz o pedido com antecedência, mantendo a operação simples e sem criar novas etapas manuais para a equipe.
 
-O sistema deve continuar com o fluxo operacional atual:
+O sistema continua com o fluxo operacional atual:
 
 - `Entrega`: **Em preparo → Saiu para entrega**;
 - `Retirada`: **Em preparo → Finalizar**;
@@ -38,13 +38,13 @@ As decisões aprovadas são:
 - pedidos agendados fora da janela aparecem separados da fila de preparo;
 - pedidos agendados são ordenados pelo horário desejado mais próximo primeiro;
 - a mudança de `Agendado` para `Em preparo` é derivada pelo relógio, sem exigir clique da equipe;
-- não é necessário criar um cron apenas para persistir mudança de status operacional;
+- não é necessário criar cron apenas para persistir essa mudança visual/operacional;
 - pedidos agendados não tocam o som de novo pedido quando são cadastrados fora da janela;
 - o som é disparado quando entram na janela operacional;
-- impressão automática de pedido agendado é liberada somente quando o pedido entra na janela operacional;
+- a impressão automática de pedido agendado é liberada somente quando o pedido entra na janela operacional;
 - cancelamento antes da liberação impede a impressão futura;
-- tolerância de atraso é fixa em 15 minutos nesta versão, mas a regra deve ficar centralizada para futura configuração;
-- janela de preparo é fixa em 50 minutos nesta versão, mas a regra deve ficar centralizada para futura configuração.
+- tolerância de atraso é fixa em 15 minutos nesta versão, mas a regra fica centralizada para futura configuração;
+- janela de preparo é fixa em 50 minutos nesta versão, mas a regra fica centralizada para futura configuração.
 
 ## 3. Problema atual
 
@@ -70,9 +70,9 @@ A nova arquitetura separa **momento do cadastro** de **momento em que o pedido e
 
 ## 4. Modelo de dados
 
-### 4.1 Pedido
+### 4.1 Pedido agendado
 
-A tabela `orders` receberá um campo nullable equivalente a:
+A tabela `orders` recebe um campo nullable equivalente a:
 
 ```text
 scheduled_for TEXT NULL
@@ -85,13 +85,13 @@ Semântica:
 
 Não será criado um campo redundante `schedule_mode`. O modo é derivado de `scheduled_for`.
 
-O timestamp deve ser armazenado em formato ISO/UTC, preservando a exibição e validação no fuso operacional do negócio.
+O timestamp é armazenado em ISO/UTC. Conversão, validação de dia e exibição devem usar o fuso operacional já adotado pelo sistema, e não depender do fuso arbitrário do navegador.
 
 O campo atual `created_at` continua representando exclusivamente a hora real em que o pedido foi registrado.
 
 ### 4.2 Identificação de lançamento retroativo
 
-Para impedir que pedidos históricos cadastrados manualmente contaminem as métricas de operação, a tabela `orders` deve receber também uma marca explícita equivalente a:
+Para impedir que pedidos históricos cadastrados manualmente contaminem métricas de operação, a tabela `orders` recebe uma marca explícita equivalente a:
 
 ```text
 is_backdated INTEGER NOT NULL DEFAULT 0
@@ -99,24 +99,26 @@ is_backdated INTEGER NOT NULL DEFAULT 0
 
 Novos pedidos com `order_date` anterior ao dia operacional recebem `is_backdated = 1`.
 
-A migration deve marcar registros históricos antigos compatíveis com o padrão atual de criação retroativa, no qual `created_at` e `finished_at` foram gravados com o mesmo timestamp artificial.
+A migration marca registros históricos antigos que seguem exatamente o padrão atual de criação retroativa: pedido finalizado cuja `created_at` e `finished_at` são iguais e correspondem ao timestamp artificial usado pelo fluxo histórico.
 
 Pedidos retroativos continuam permitidos conforme a regra atual, mas nunca podem ser agendados.
 
 ### 4.3 Impressão programada
 
-A tabela `print_jobs` deve ganhar um campo equivalente a:
+A tabela `print_jobs` recebe um campo equivalente a:
 
 ```text
 available_at TEXT
 ```
+
+Após a migration, todo job existente deve ter `available_at` preenchido; novas escritas nunca criam job sem esse valor.
 
 Semântica:
 
 - impressão automática comum: `available_at = created_at`;
 - impressão automática agendada: `available_at = operational_start_at`;
 - jobs antigos: migration preenche `available_at = created_at`;
-- jobs manuais e testes continuam disponíveis imediatamente.
+- jobs manuais e testes: `available_at = created_at`.
 
 O job pode existir tecnicamente desde o cadastro, mas **não é elegível para claim nem para envelhecimento por espera antes de `available_at`**.
 
@@ -124,7 +126,7 @@ Isso evita o comportamento atual em que um job automático pendente por mais de 
 
 ## 5. Constantes operacionais
 
-As regras devem ficar centralizadas em um único módulo compartilhável/testável, com valores equivalentes a:
+As regras ficam centralizadas em um único módulo compartilhável e testável, com valores equivalentes a:
 
 ```text
 SCHEDULED_PREP_LEAD_MINUTES = 50
@@ -183,7 +185,7 @@ O sistema nunca pode contar tempo operacional anterior à existência do pedido.
 
 O campo persistido `status` continua seguindo o lifecycle existente (`Em preparo`, `Finalizado`, `Cancelado`).
 
-`Agendado` é um **estado operacional derivado**, não um novo status persistido obrigatório.
+`Agendado` é um **estado operacional derivado**, não um novo status persistido.
 
 Para pedido ativo:
 
@@ -213,13 +215,13 @@ Pedido `Agendado` usa o horário desejado como referência:
 - até `scheduled_for + 15 min`: não atrasado;
 - depois de `scheduled_for + 15 min`: atrasado.
 
-Nesta primeira versão o pedido agendado não ganha uma segunda faixa específica de `Muito atrasado`; permanece como `Atrasado` após a tolerância. Isso evita inventar um segundo SLA não aprovado. Uma faixa adicional pode ser configurada futuramente.
+Nesta primeira versão o pedido agendado não recebe uma segunda faixa específica de `Muito atrasado`; permanece como `Atrasado` após a tolerância. Isso evita criar um segundo SLA não aprovado.
 
 ## 8. Nova venda
 
 ### 8.1 Local da opção
 
-Na etapa **Cliente** da Nova venda, após a escolha do tipo de atendimento e antes de avançar, `Entrega` e `Retirada` exibem:
+Na etapa **Cliente** da Nova venda, `Entrega` e `Retirada` exibem:
 
 ```text
 Quando preparar?
@@ -239,13 +241,13 @@ Esse horário é uma referência de atendimento.
 
 ### 8.2 Consumo no local
 
-Para `Consumo no local`, o seletor não é exibido e o rascunho deve permanecer em modo `Agora`.
+Para `Consumo no local`, o seletor não é exibido e o rascunho permanece em modo `Agora`.
 
-Se o operador escolher `Agendado` em Entrega/Retirada e depois mudar o tipo para `Local`, o horário agendado deve ser limpo do rascunho para evitar payload inválido oculto.
+Se o operador escolher `Agendado` em Entrega/Retirada e depois mudar o tipo para `Local`, o horário agendado é limpo do rascunho para evitar payload inválido oculto.
 
 ### 8.3 Validação no frontend
 
-O formulário deve impedir:
+O formulário impede:
 
 - agendamento para outro dia;
 - horário anterior ao momento atual;
@@ -258,7 +260,7 @@ A seleção deve ser acessível por teclado e touch e não depender apenas de co
 
 O backend continua sendo autoridade da regra.
 
-O checkout deve rejeitar:
+O checkout rejeita:
 
 - `scheduled_for` em pedido `Local`;
 - `scheduled_for` cuja data operacional não seja o mesmo dia de `order_date` e do cadastro atual;
@@ -276,7 +278,7 @@ A área de indicadores passa a distinguir:
 
 - **Em preparo** — pedidos ativos que já entraram na janela operacional;
 - **Agendados** — pedidos ativos ainda fora da janela;
-- **Com atraso** — pedidos atualmente atrasados conforme a política correspondente ao tipo de relógio;
+- **Com atraso** — pedidos atualmente atrasados conforme a política correspondente;
 - **Finalizados hoje** — mantém a semântica existente.
 
 Pedido agendado fora da janela não entra no contador `Em preparo`.
@@ -288,9 +290,9 @@ Contém:
 - todos os pedidos `Agora` ativos;
 - pedidos agendados cujo `agora >= operational_start_at`.
 
-A ordenação deve usar a referência operacional mais antiga primeiro.
+A ordenação usa a referência operacional mais antiga primeiro.
 
-Para pedido agendado dentro da janela, a interface deve deixar visível o horário desejado, por exemplo:
+Para pedido agendado dentro da janela, a interface deixa visível o horário desejado, por exemplo:
 
 ```text
 Desejado 12:00
@@ -310,7 +312,7 @@ Exemplo:
 12:30 · Carlos · Entrega
 ```
 
-O bloco deve mostrar de forma prioritária:
+O bloco mostra prioritariamente:
 
 - horário desejado;
 - cliente;
@@ -319,13 +321,13 @@ O bloco deve mostrar de forma prioritária:
 - acesso aos detalhes;
 - cancelamento.
 
-Não deve mostrar um contador de preparo correndo enquanto o pedido ainda está fora da janela.
+Não mostra contador de preparo correndo enquanto o pedido ainda está fora da janela.
 
 ### 9.4 Transição automática
 
-Quando o relógio alcança `operational_start_at`, a UI deve reclassificar o pedido automaticamente de `Agendado` para `Em preparo`, sem recarregar a página e sem clique da operação.
+Quando o relógio alcança `operational_start_at`, a UI reclassifica o pedido automaticamente de `Agendado` para `Em preparo`, sem recarregar a página e sem clique da operação.
 
-A implementação pode aproveitar o relógio periódico já existente na tela, desde que a atualização ocorra dentro de uma tolerância de aproximadamente um minuto.
+A implementação pode aproveitar o relógio periódico já existente na tela, desde que a atualização ocorra dentro de tolerância aproximada de um minuto.
 
 ## 10. Som de entrada na cozinha
 
@@ -344,11 +346,11 @@ Quando atingir `operational_start_at`:
 
 - tocar o mesmo alerta sonoro usado para novo pedido;
 - aplicar o destaque temporário de nova chegada, quando disponível;
-- evitar repetir o alerta continuamente a cada atualização do relógio.
+- evitar repetir o alerta a cada atualização do relógio.
 
-O controle de repetição pode ser local à sessão/dispositivo; não é necessário persistir um evento de áudio no backend nesta fase.
+O controle de repetição pode ser local à sessão/dispositivo; não é necessário persistir evento de áudio no backend nesta fase.
 
-Se o sistema for aberto depois que o pedido já entrou na janela, a interface deve simplesmente exibi-lo em `Em preparo`; não é requisito reproduzir alertas históricos que ocorreram enquanto o dispositivo estava fechado.
+Se o sistema for aberto depois que o pedido já entrou na janela, a interface simplesmente o exibe em `Em preparo`; não é requisito reproduzir alertas históricos que ocorreram enquanto o dispositivo estava fechado.
 
 ## 11. Impressão automática
 
@@ -378,7 +380,7 @@ available_at <= agora
 
 ### 11.3 Envelhecimento de pendência
 
-A regra atual de pendência antiga deve passar a usar `available_at`, não `created_at`.
+A regra de pendência antiga passa a usar `available_at`, não `created_at`.
 
 Portanto, um pedido criado às 09:00 para 12:00, disponível para impressão às 11:10, só pode ser considerado `PENDING_TOO_OLD` depois de permanecer disponível por mais de 10 minutos sem processamento.
 
@@ -386,19 +388,21 @@ O período 09:00–11:10 não conta como espera de impressão.
 
 ### 11.4 Cancelamento
 
-Ao cancelar um pedido, qualquer job automático ainda em `pending` e não processado deve deixar de ser elegível para impressão.
+Ao cancelar um pedido, qualquer job **automático** ainda em `pending` é removido antes de concluir o cancelamento. Isso vale tanto para pedido agendado quanto para pedido `Agora` que ainda não foi assumido pela estação.
 
-Para pedido agendado cancelado antes da janela, o sistema deve remover/cancelar tecnicamente o job pendente antes que ele possa ser assumido pela estação.
+Jobs manuais não são apagados por essa regra.
 
-Jobs já `processing`, `printed`, `failed` ou `requires_attention` não são apagados retroativamente; permanecem como histórico técnico.
+Jobs automáticos já `processing`, `printed`, `failed` ou `requires_attention` também não são apagados retroativamente; permanecem como histórico técnico.
 
-A consulta `claim-next` também deve garantir que nunca assume job automático cujo pedido esteja `Cancelado`, protegendo contra condições de corrida.
+Além disso, `claim-next` deve filtrar o status do pedido e nunca assumir job automático de pedido `Cancelado`. Essa checagem é obrigatória para proteger contra condição de corrida entre cancelamento e estação de impressão.
 
-### 11.5 Visualização de impressão antes da janela
+Assim, um pedido agendado cancelado antes da janela nunca chega fisicamente à cozinha por impressão automática.
 
-Se o operador abrir os detalhes de um pedido agendado antes de `available_at`, a UI não deve apresentar a impressão como erro ou atraso.
+### 11.5 Visualização antes da janela
 
-Deve comunicar algo equivalente a:
+Se o operador abrir os detalhes de um pedido agendado antes de `available_at`, a UI não apresenta a impressão como erro ou atraso.
+
+Exibe algo equivalente a:
 
 ```text
 Impressão programada para 11:10
@@ -408,7 +412,7 @@ A impressão manual continua permitida conforme as regras atuais, porque é uma 
 
 ## 12. Histórico e detalhes do pedido
 
-Os detalhes devem passar a mostrar, quando houver agendamento:
+Os detalhes passam a mostrar, quando houver agendamento:
 
 - horário em que o pedido foi criado;
 - horário desejado pelo cliente;
@@ -417,7 +421,7 @@ Os detalhes devem passar a mostrar, quando houver agendamento:
 
 Para pedidos comuns, mantém-se a apresentação atual com horário de entrada.
 
-No histórico, não é necessário criar uma nova etapa `Entregue`.
+No histórico, não é criada nova etapa `Entregue`.
 
 Para `Entrega`, `finished_at` continua significando o momento em que o operador confirmou **Saiu para entrega**.
 
@@ -456,7 +460,7 @@ Não entram na média final de tempo operacional:
 - pedidos ainda ativos;
 - registros sem timestamps válidos.
 
-Pedidos ativos podem aparecer em indicadores de operação corrente, mas não na média de pedidos concluídos.
+Pedidos ativos podem aparecer em indicadores da operação corrente, mas não na média de pedidos concluídos.
 
 ### 13.3 Terminologia
 
@@ -472,13 +476,13 @@ Ao detalhar por tipo:
 - `Retirada`: **Tempo até finalização**;
 - `Local`: **Tempo até finalização**.
 
-Nunca chamar `finished_at - created_at` de `tempo de entrega`, porque o sistema ainda não conhece o momento em que o cliente recebeu o pedido.
+Nunca chamar essa métrica de `tempo de entrega`, porque o sistema ainda não conhece o momento em que o cliente recebeu o pedido.
 
 ### 13.4 Indicadores iniciais
 
-A primeira apresentação usa o período já existente no Dashboard (`Hoje`, `7 dias`, `30 dias`) e adiciona uma seção operacional, sem criar uma nova página de relatórios nesta rodada.
+A primeira apresentação usa o período já existente no Dashboard (`Hoje`, `7 dias`, `30 dias`) e adiciona uma seção operacional, sem criar nova página de relatórios nesta rodada.
 
-Indicadores previstos:
+Indicadores:
 
 - tempo operacional médio;
 - pedido concluído mais rápido no período;
@@ -490,11 +494,11 @@ Indicadores previstos:
   - acima de 40 min;
 - comparação por tipo (`Entrega`, `Retirada`, `Local`) quando houver amostra.
 
-As métricas devem ser calculadas a partir dos timestamps persistidos, não de estados temporários do frontend.
+As métricas são calculadas a partir dos timestamps persistidos, não de estados temporários do frontend.
 
 ## 14. Pontualidade de pedidos agendados
 
-A arquitetura deve deixar disponível um cálculo secundário para pedidos agendados concluídos:
+A arquitetura deixa disponível um cálculo secundário para pedidos agendados concluídos:
 
 ```text
 schedule_delta = finished_at - scheduled_for
@@ -507,7 +511,7 @@ Interpretação para `Entrega` nesta fase:
 
 Isso mede **pontualidade de saída da operação**, não horário de recebimento pelo cliente.
 
-Não é necessário transformar essa métrica em SLA complexo nesta rodada. Ela pode ser usada futuramente em relatórios sem nova migration.
+Não é necessário transformar essa métrica em SLA complexo nesta rodada.
 
 ## 15. Regras de borda
 
@@ -537,7 +541,7 @@ agora 11:45
 horário informado 11:30
 ```
 
-Resultado: inválido. O operador deve usar `Agora` ou escolher um horário futuro.
+Resultado: inválido. O operador deve usar `Agora` ou escolher horário futuro.
 
 ### 15.3 Alteração de tipo antes do checkout
 
@@ -549,7 +553,8 @@ Resultado: inválido. O operador deve usar `Agora` ou escolher um horário futur
 
 - pedido sai das listas ativas conforme lifecycle atual;
 - nenhum som futuro é disparado;
-- impressão automática ainda não liberada não pode ser processada.
+- job automático pendente é removido;
+- impressão automática futura não pode ocorrer.
 
 ### 15.5 Finalização antecipada
 
@@ -566,9 +571,9 @@ Pedido de data passada mantém o comportamento histórico atual e nasce finaliza
 - não entra em métricas de tempo operacional;
 - não cria impressão automática da cozinha.
 
-## 16. Compatibilidade e migração
+## 16. Compatibilidade e migration
 
-A migration deve ser aditiva e segura para dados existentes.
+A migration é aditiva e segura para dados existentes.
 
 Pedidos antigos:
 
@@ -600,9 +605,9 @@ isBackdated
 
 Não é necessário criar endpoint separado para `Agendado → Em preparo`, porque essa mudança é derivada pelo relógio.
 
-Endpoints de leitura/bootstrap devem devolver os novos campos necessários para que qualquer dispositivo calcule o mesmo estado operacional.
+Endpoints de leitura/bootstrap devolvem os novos campos necessários para que qualquer dispositivo calcule o mesmo estado operacional.
 
-A API de impressão deve expor `availableAt` quando necessário para diagnóstico e apresentação de impressão programada.
+A API de impressão expõe `availableAt` para diagnóstico e apresentação de impressão programada.
 
 ## 18. Sincronização entre dispositivos
 
@@ -639,7 +644,7 @@ Cobertura mínima:
 - `available_at` em jobs comuns e agendados;
 - `claim-next` ignorando jobs antes de `available_at`;
 - envelhecimento de impressão contado a partir de `available_at`;
-- cancelamento impedindo claim futuro;
+- cancelamento removendo job automático ainda pendente;
 - job de pedido cancelado nunca sendo assumido;
 - impressão manual continuando disponível;
 - cálculo de duração operacional em pedidos comuns e agendados;
@@ -671,7 +676,7 @@ Não fazem parte desta implementação:
 A rodada estará funcionalmente correta quando for possível demonstrar:
 
 1. criar Entrega/Retirada como `Agora` sem regressão no fluxo atual;
-2. criar Entrega/Retirada como `Agendado` para um horário futuro do mesmo dia;
+2. criar Entrega/Retirada como `Agendado` para horário futuro do mesmo dia;
 3. ver o pedido fora de `Em preparo` enquanto faltarem mais de 50 minutos;
 4. ver o pedido em `Agendados`, ordenado pelo horário desejado;
 5. observar a entrada automática em `Em preparo` ao atingir a janela;
