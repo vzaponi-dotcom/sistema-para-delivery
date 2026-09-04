@@ -1,0 +1,19 @@
+name: TDD finance task 2
+
+on:
+  push:
+    branches:
+      - tdd/finance-task2-bootstrap-null-red
+
+jobs:
+  red-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run bootstrap contract test
+        run: node --test worker/financeBootstrapContract.test.js
