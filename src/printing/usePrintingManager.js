@@ -39,6 +39,27 @@ const printerError = (code, message) => Object.assign(new Error(message), { code
 const visiblePage = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 const browserOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false
 
+export const canConsumeAutomaticPrintJob = ({
+  authenticated,
+  isOnline,
+  supported,
+  visible,
+  browserOnline: browserIsOnline,
+  busyJobId,
+  printerBlocked,
+  station,
+}) => Boolean(
+  authenticated
+  && isOnline
+  && supported
+  && visible
+  && browserIsOnline
+  && !busyJobId
+  && !printerBlocked
+  && station?.isPrimary
+  && station?.autoPrintEnabled
+)
+
 export const usePrintingManager = ({ authenticated = false, isOnline = true, onError } = {}) => {
   const supported = isWebSerialSupported()
   const [localStation, setLocalStation] = useState(null)
@@ -329,9 +350,17 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   useEffect(() => {
     if (!authenticated || !isOnline || !supported) return undefined
     const consumeNext = async () => {
-      if (!visiblePage() || !browserOnline() || busyJobIdRef.current || printerBlockedRef.current) return
       const station = localStationRef.current
-      if (!station?.isPrimary || !station.autoPrintEnabled) return
+      if (!canConsumeAutomaticPrintJob({
+        authenticated,
+        isOnline,
+        supported,
+        visible: visiblePage(),
+        browserOnline: browserOnline(),
+        busyJobId: busyJobIdRef.current,
+        printerBlocked: printerBlockedRef.current,
+        station,
+      })) return
 
       if (!getPrinterFingerprint(globalThis.localStorage, station.id)) {
         portRef.current = null
