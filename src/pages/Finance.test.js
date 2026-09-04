@@ -54,6 +54,47 @@ test('opening balance action changes label after configuration and uses reviewed
   assert.match(source, /financeSettings\s*\?\s*'Editar saldo inicial'\s*:\s*'Configurar saldo inicial'/)
   assert.match(source, /OpeningBalanceDialog/)
   assert.match(source, /settings=\{financeSettings\}/)
-  assert.match(source, /currentBalance=\{currentBalance\}/)
   assert.match(source, /onSubmit=\{onSaveFinanceSettings\}/)
+})
+
+test('Finance defaults to today and renders the four cash-flow indicators', async () => {
+  const source = await readFinanceSource()
+
+  assert.match(source, /key:\s*'today'/)
+  assert.match(source, /FinancePeriodSelector/)
+  assert.match(source, /label="Entradas"/)
+  assert.match(source, /label="Saídas"/)
+  assert.match(source, /label="Resultado"/)
+  assert.match(source, /label="Saldo atual"/)
+  assert.doesNotMatch(source, /label="Saldo"/)
+  assert.match(source, /Configure o saldo inicial/)
+})
+
+test('period summary is calculated before secondary history filters', async () => {
+  const source = await readFinanceSource()
+
+  assert.match(source, /summarizeFinancePeriod/)
+  assert.match(source, /filterFinanceHistory/)
+  assert.match(source, /periodMovements/)
+  assert.match(source, /filteredMovements/)
+  assert.match(source, /summary\s*=\s*summarizeFinancePeriod\(movements,\s*periodRange\)/)
+  assert.match(source, /filteredMovements\s*=\s*filterFinanceHistory\(periodMovements,\s*filters\)/)
+})
+
+test('pending refunds stay global and automatic movements can open their order', async () => {
+  const source = await readFinanceSource()
+
+  assert.match(source, /pendingRefundOrders\.map/)
+  assert.match(source, /OrderDetail/)
+  assert.match(source, /movement\.orderId/)
+  assert.match(source, /Ver pedido/)
+})
+
+test('App delegates finance calculations to Finance instead of owning period totals', async () => {
+  const [finance, app] = await Promise.all([readFinanceSource(), readAppSource()])
+
+  assert.doesNotMatch(app, /const financialTotals = useMemo/)
+  assert.doesNotMatch(app, /totals=\{financialTotals\}/)
+  assert.doesNotMatch(finance, /\btotals\b/)
+  assert.match(app, /orders=\{orders\}/)
 })
