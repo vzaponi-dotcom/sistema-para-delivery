@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  detectPrintStationPlatform,
   findAuthorizedPrinterPort,
+  getDefaultPrintStationName,
   getOrCreateLocalPrintStationId,
   getPrinterFingerprint,
   savePrinterFingerprint,
@@ -27,6 +29,18 @@ test('local station id is generated once and reused from browser storage', () =>
   assert.equal(first, 'station-1')
   assert.equal(second, 'station-1')
   assert.equal(sequence, 1)
+})
+
+test('station platform detection and default names are deterministic for Windows Android and other', () => {
+  assert.equal(detectPrintStationPlatform('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), 'windows')
+  assert.equal(detectPrintStationPlatform('Mozilla/5.0 (Linux; Android 15; Pixel 8)'), 'android')
+  assert.equal(detectPrintStationPlatform('Mozilla/5.0 (X11; Linux x86_64)'), 'other')
+  assert.equal(detectPrintStationPlatform('Mozilla/5.0 (Windows NT 10.0; Android compatibility token)'), 'android')
+
+  assert.equal(getDefaultPrintStationName('windows'), 'Cozinha · Windows')
+  assert.equal(getDefaultPrintStationName('android'), 'Cozinha · Android')
+  assert.equal(getDefaultPrintStationName('other'), 'Cozinha · Navegador')
+  assert.equal(getDefaultPrintStationName('unexpected'), 'Cozinha · Navegador')
 })
 
 test('printer fingerprint persists only serial metadata and resolves the matching authorized port', async () => {
