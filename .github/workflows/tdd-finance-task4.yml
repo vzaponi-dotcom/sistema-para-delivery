@@ -1,0 +1,19 @@
+name: TDD finance task 4
+
+on:
+  push:
+    branches:
+      - tdd/finance-task4-forms-red
+
+jobs:
+  red-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run finance form tests
+        run: node --test src/utils/formFormatting.test.js src/components/MovementDialog.test.js src/components/OpeningBalanceDialog.test.js
