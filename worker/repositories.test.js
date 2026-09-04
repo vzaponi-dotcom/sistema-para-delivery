@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createClient, createProduct, deleteClient, deleteProduct, loadBootstrap, mapMovementRow, mapOrderItemRow, mapOrderRow, mapProductRow, updateClient, updateProduct } from './repositories.js'
+import { mapMovementRow } from './financeRepository.js'
+import { createClient, createProduct, deleteClient, deleteProduct, loadBootstrap, mapOrderItemRow, mapOrderRow, mapProductRow, updateClient, updateProduct } from './repositories.js'
 
 test('product row maps integer cents to current frontend price number', () => {
   assert.deepEqual(mapProductRow({ id: 'p1', category: 'Bebida', size: '350ml', name: 'Coca', price_cents: 850 }), {
