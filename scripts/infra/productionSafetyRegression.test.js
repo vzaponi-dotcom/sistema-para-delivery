@@ -68,6 +68,13 @@ test('staging workflow targets only staging resources', () => {
   assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
 })
 
+test('staging smoke check tolerates bounded workers.dev propagation delay', () => {
+  const workflow = readFileSync(stagingWorkflowPath, 'utf8')
+  assert.match(workflow, /STAGING_READY_ATTEMPTS:\s*6/)
+  assert.match(workflow, /for \(let attempt = 1; attempt <= attempts; attempt \+= 1\)/)
+  assert.match(workflow, /setTimeout\(resolve, 5000\)/)
+})
+
 test('production deploy is manual, master-only, and validates locally before remote writes', () => {
   assert.match(productionWorkflow, /workflow_dispatch:/)
   assert.match(productionWorkflow, /github\.ref == 'refs\/heads\/master'/)
