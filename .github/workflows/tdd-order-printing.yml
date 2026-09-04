@@ -41,6 +41,7 @@ jobs:
           src/printing/printJobRunner.test.js
           src/printing/printingManagerRegression.test.js
           src/printing/pdfOrderRenderer.test.js
+          src/pages/OrderHistory.test.js
           src/realtimeSyncRegression.test.js
           src/utils/dataSync.test.js
 
