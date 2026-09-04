@@ -5,34 +5,40 @@ import { readFileSync } from 'node:fs'
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('new order uses one searchable client picker without phone in the selected label', () => {
-  const page = source('./NewOrder.jsx')
+  const customerStep = source('../components/NewOrderCustomerStep.jsx')
 
-  assert.match(page, /new-order-client-picker/)
-  assert.match(page, /role="combobox"/)
-  assert.match(page, /role="listbox"/)
-  assert.doesNotMatch(page, />Buscar cliente</)
-  assert.doesNotMatch(page, /\[client\.name, client\.phone\]/)
-  assert.doesNotMatch(page, /client\.name\}\{client\.phone/)
+  assert.match(customerStep, /new-order-client-picker/)
+  assert.match(customerStep, /role="combobox"/)
+  assert.match(customerStep, /role="listbox"/)
+  assert.doesNotMatch(customerStep, />Buscar cliente</)
+  assert.doesNotMatch(customerStep, /\[client\.name, client\.phone\]/)
+  assert.doesNotMatch(customerStep, /client\.name\}\{client\.phone/)
 })
 
 test('quick client phone reuses the normal phone mask', () => {
   const page = source('./NewOrder.jsx')
+  const customerStep = source('../components/NewOrderCustomerStep.jsx')
 
   assert.match(page, /formatPhone/)
-  assert.match(page, /phone: formatPhone\(event\.target\.value\)/)
+  assert.match(page, /phone: formatPhone\(patch\.phone\)/)
+  assert.match(customerStep, /onQuickClientChange\(\{ phone: event\.target\.value \}\)/)
 })
 
-test('product catalog keeps added state tied to the cart with readable white text', () => {
+test('product catalog replaces added action with synchronized quantity controls', () => {
   const page = source('./NewOrder.jsx')
+  const productsStep = source('../components/NewOrderProductsStep.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
   const css = source('../new-order.css')
 
-  assert.match(page, /items=\{items\}/)
-  assert.match(catalog, /items\.some/)
-  assert.match(catalog, /✓ Adicionado/)
-  assert.doesNotMatch(catalog, /setTimeout/)
-  assert.doesNotMatch(catalog, /useEffect/)
-  assert.match(css, /\.new-order-add-button span\s*\{[^}]*color:\s*#fff/s)
+  assert.match(page, /decrementCartProduct/)
+  assert.match(page, /onDecrease=\{\(productId\) => setItems/)
+  assert.match(productsStep, /onDecrease/)
+  assert.match(catalog, /getCartProductQuantity/)
+  assert.match(catalog, /new-order-product-quantity new-order-quantity-control/)
+  assert.match(catalog, /Remover uma unidade/)
+  assert.match(catalog, /Adicionar mais uma unidade/)
+  assert.doesNotMatch(catalog, /✓ Adicionado/)
+  assert.match(css, /\.new-order-quantity-control\s*\{/)
 })
 
 test('product catalog starts empty until a category is selected or search is typed', () => {
@@ -108,12 +114,13 @@ test('new order keeps money display formatted but normalizes preview and payload
 
 test('new order still exposes catalog, cart and both checkout actions', () => {
   const page = source('./NewOrder.jsx')
+  const customerStep = source('../components/NewOrderCustomerStep.jsx')
   const catalog = source('../components/OrderProductCatalog.jsx')
   const cart = source('../components/OrderCart.jsx')
   const checkout = source('../components/OrderCheckoutSummary.jsx')
 
   assert.match(page, /Nova venda/)
-  assert.match(page, /\+ Novo cliente/)
+  assert.match(customerStep, /\+ Novo cliente/)
   assert.match(catalog, /Buscar produto/)
   assert.match(catalog, /Categorias de produtos/)
   assert.match(cart, /Carrinho/)
@@ -121,4 +128,13 @@ test('new order still exposes catalog, cart and both checkout actions', () => {
   assert.match(checkout, /Salvar pedido/)
   assert.match(checkout, /Salvar e receber/)
   assert.match(checkout, /Forma de pagamento/)
+})
+
+test('wizard keeps checkout payload unchanged and never persists intermediate step metadata', () => {
+  const page = source('./NewOrder.jsx')
+
+  assert.match(page, /buildOrderPayload\(numericDraft, paymentMethod\)/)
+  assert.match(page, /await onSubmit\(buildOrderPayload\(numericDraft, paymentMethod\)\)/)
+  assert.doesNotMatch(page, /step:\s*currentStep/)
+  assert.doesNotMatch(page, /currentStep:\s*currentStep/)
 })

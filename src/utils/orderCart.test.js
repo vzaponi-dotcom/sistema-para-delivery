@@ -4,7 +4,8 @@ import * as orderCart from './orderCart.js'
 
 const {
   addCartItem, buildOrderPayload, calculateOrderPreview,
-  commitCartItemNote, editCartItemNote,
+  commitCartItemNote, decrementCartProduct, editCartItemNote,
+  getCartProductQuantity,
   getOrderItems, getOrderItemsSearchText, getOrderItemsSummary,
   removeCartItem, updateCartItem,
 } = orderCart
@@ -53,6 +54,38 @@ test('quantity never drops below one and remove deletes the line', () => {
   items = updateCartItem(items, items[0].lineId, { quantity: 0 })
   assert.equal(items[0].quantity, 1)
   assert.deepEqual(removeCartItem(items, items[0].lineId), [])
+})
+
+test('catalog quantity sums every cart line for the same product', () => {
+  const items = [
+    { lineId: 'plain', productId: 'p1', quantity: 2, note: '' },
+    { lineId: 'note', productId: 'p1', quantity: 3, note: 'sem cebola' },
+    { lineId: 'other', productId: 'p2', quantity: 4, note: '' },
+  ]
+
+  assert.equal(getCartProductQuantity(items, 'p1'), 5)
+  assert.equal(getCartProductQuantity(items, 'p2'), 4)
+  assert.equal(getCartProductQuantity(items, 'missing'), 0)
+})
+
+test('catalog decrement removes one unit and removes the final cart line at zero', () => {
+  let items = [
+    { lineId: 'plain', productId: 'p1', quantity: 2, note: '' },
+    { lineId: 'note', productId: 'p1', quantity: 2, note: 'sem cebola' },
+  ]
+
+  items = decrementCartProduct(items, 'p1')
+  assert.equal(getCartProductQuantity(items, 'p1'), 3)
+  assert.equal(items.find((item) => item.lineId === 'plain').quantity, 1)
+
+  items = decrementCartProduct(items, 'p1')
+  assert.equal(getCartProductQuantity(items, 'p1'), 2)
+  assert.equal(items.some((item) => item.lineId === 'plain'), false)
+
+  items = decrementCartProduct(items, 'p1')
+  items = decrementCartProduct(items, 'p1')
+  assert.equal(getCartProductQuantity(items, 'p1'), 0)
+  assert.deepEqual(decrementCartProduct(items, 'missing'), items)
 })
 
 test('percentage discount excludes delivery fee and payload contains no price', () => {

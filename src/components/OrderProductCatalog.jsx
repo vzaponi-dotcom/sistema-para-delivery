@@ -4,9 +4,10 @@ import {
   categoryForUi,
   formatProductPresentation,
 } from '../../shared/productCatalog.js'
+import { getCartProductQuantity } from '../utils/orderCart.js'
 import Button from './Button'
 
-function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd }) {
+function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd, onDecrease }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState(null)
 
@@ -70,7 +71,8 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
 
       <div className="new-order-products">
         {visibleProducts.map((product) => {
-          const isAdded = items.some((item) => item.productId === product.id)
+          const quantity = getCartProductQuantity(items, product.id)
+          const isAdded = quantity > 0
           const uiCategory = categoryForUi(product.category)
           const presentation = formatProductPresentation(product)
           return (
@@ -81,15 +83,40 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
               </div>
               <div className="new-order-product-action">
                 <strong>{currency(product.price)}</strong>
-                <Button
-                  type="button"
-                  className="new-order-add-button"
-                  onClick={() => onAdd(product)}
-                  disabled={disabled}
-                  aria-live="polite"
-                >
-                  {isAdded ? '✓ Adicionado' : 'Adicionar'}
-                </Button>
+                {isAdded ? (
+                  <div
+                    className="new-order-product-quantity new-order-quantity-control"
+                    aria-label={`Quantidade de ${product.name}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onDecrease(product.id)}
+                      disabled={disabled}
+                      aria-label={`Remover uma unidade de ${product.name}`}
+                    >
+                      −
+                    </button>
+                    <span aria-live="polite">{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => onAdd(product)}
+                      disabled={disabled}
+                      aria-label={`Adicionar mais uma unidade de ${product.name}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    className="new-order-add-button"
+                    onClick={() => onAdd(product)}
+                    disabled={disabled}
+                    aria-label={`Adicionar ${product.name}`}
+                  >
+                    Adicionar
+                  </Button>
+                )}
               </div>
             </article>
           )

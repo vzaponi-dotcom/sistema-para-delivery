@@ -59,6 +59,25 @@ export const addCartItem = (items, product, note = '') => {
   }]
 }
 
+export const getCartProductQuantity = (items, productId) => (Array.isArray(items) ? items : [])
+  .filter((item) => item.productId === productId)
+  .reduce((sum, item) => sum + Math.max(1, Math.trunc(Number(item.quantity) || 1)), 0)
+
+export const decrementCartProduct = (items, productId) => {
+  const currentItems = Array.isArray(items) ? items : []
+  const matching = currentItems.filter((item) => item.productId === productId)
+  if (!matching.length) return currentItems
+
+  const target = matching.find((item) => !normalizeItemNote(item.note)) ?? matching[0]
+  const quantity = Math.max(1, Math.trunc(Number(target.quantity) || 1))
+
+  if (quantity <= 1) return currentItems.filter((item) => item.lineId !== target.lineId)
+
+  return currentItems.map((item) => item.lineId === target.lineId
+    ? { ...item, quantity: quantity - 1 }
+    : item)
+}
+
 export const updateCartItem = (items, lineId, patch = {}) => {
   const current = items.find((item) => item.lineId === lineId)
   if (!current) return items
