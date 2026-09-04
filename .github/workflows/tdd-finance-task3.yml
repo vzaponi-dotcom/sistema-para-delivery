@@ -1,0 +1,19 @@
+name: TDD finance task 3
+
+on:
+  push:
+    branches:
+      - tdd/finance-task3-domain-red
+
+jobs:
+  red-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run finance domain tests
+        run: node --test src/utils/finance.test.js shared/finance.test.js
