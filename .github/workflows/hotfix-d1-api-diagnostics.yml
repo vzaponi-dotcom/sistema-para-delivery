@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   inspect:
-    name: Read-only D1 API diagnostics
+    name: Read-only bootstrap query diagnostics
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -26,7 +26,7 @@ jobs:
             exit 1
           fi
 
-      - name: Query production D1 read-only
+      - name: Validate exact bootstrap SQL read-only
         shell: bash
         run: |
           set -euo pipefail
@@ -37,17 +37,22 @@ jobs:
             local sql="$2"
             echo "=== $label ==="
             jq -n --arg sql "$sql" '{sql:$sql}' > /tmp/query.json
-            curl --fail-with-body -sS \
+            response="$(curl --fail-with-body -sS \
               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               -H "Content-Type: application/json" \
               --data-binary @/tmp/query.json \
-              "$endpoint" | jq .
+              "$endpoint")"
+            echo "$response" | jq '{success, errors, results: [.result[]? | {success, results, meta: {changed_db: .meta.changed_db, rows_read: .meta.rows_read, rows_written: .meta.rows_written}}]}'
+            test "$(echo "$response" | jq -r '.success')" = "true"
+            test "$(echo "$response" | jq -r '[.result[]?.success] | all')" = "true"
           }
 
-          query "sqlite_master" "SELECT type, name FROM sqlite_master WHERE type IN ('table','index') ORDER BY type, name;"
-          query "migration table presence" "SELECT name FROM sqlite_master WHERE type='table' AND name='d1_migrations';"
-          query "applied migrations" "SELECT * FROM d1_migrations ORDER BY id;"
-
-          for table in businesses clients products orders order_items payments financial_movements sessions auth_credentials table_tabs; do
-            query "table_info:$table" "PRAGMA table_info($table);"
-          done
+          query "business count" "SELECT COUNT(*) AS count FROM businesses;"
+          query "movements schema" "PRAGMA table_info(movements);"
+          query "business query" "SELECT COUNT(*) AS count FROM (SELECT id, name FROM businesses WHERE id IN (SELECT business_id FROM auth_credentials));"
+          query "clients query" "SELECT COUNT(*) AS count FROM (SELECT id, name, phone, address FROM clients WHERE business_id IN (SELECT business_id FROM auth_credentials) ORDER BY name COLLATE NOCASE ASC);"
+          query "products query" "SELECT COUNT(*) AS count FROM (SELECT id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents FROM products WHERE business_id IN (SELECT business_id FROM auth_credentials) AND active = 1 ORDER BY name COLLATE NOCASE ASC);"
+          query "orders query" "SELECT COUNT(*) AS count FROM (SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' WHERE o.business_id IN (SELECT business_id FROM auth_credentials) ORDER BY o.created_at DESC);"
+          query "order items query" "SELECT COUNT(*) AS count FROM (SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items WHERE business_id IN (SELECT business_id FROM auth_credentials) ORDER BY created_at ASC);"
+          query "table tabs query" "SELECT COUNT(*) AS count FROM (SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id IN (SELECT business_id FROM auth_credentials) ORDER BY opened_at DESC);"
+          query "movements query" "SELECT COUNT(*) AS count FROM (SELECT id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at FROM movements WHERE business_id IN (SELECT business_id FROM auth_credentials) ORDER BY created_at DESC);"
