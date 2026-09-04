@@ -1,0 +1,72 @@
+import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
+
+const rows = (result) => Array.isArray(result?.results) ? result.results : []
+
+export const loadOrderPrintDocument = async (db, businessId, orderId) => {
+  const order = await db.prepare(`SELECT
+      o.id,
+      o.client_name_snapshot,
+      o.client_phone_snapshot,
+      o.client_address_snapshot,
+      o.type,
+      o.order_date,
+      o.subtotal_cents,
+      o.delivery_fee_cents,
+      o.adjustment_type,
+      o.adjustment_amount_cents,
+      o.adjustment_reason,
+      o.total_cents,
+      o.created_at,
+      b.name AS business_name,
+      p.id AS payment_id,
+      p.method AS payment_method
+    FROM orders o
+    JOIN businesses b ON b.id = o.business_id
+    LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+    WHERE o.id = ? AND o.business_id = ?
+    LIMIT 1`).bind(orderId, businessId).first()
+
+  if (!order) return null
+
+  const itemsResult = await db.prepare(`SELECT
+      name_snapshot,
+      size_snapshot,
+      quantity,
+      unit_price_cents,
+      note
+    FROM order_items
+    WHERE order_id = ? AND business_id = ?
+    ORDER BY created_at ASC, id ASC`).bind(orderId, businessId).all()
+
+  return createOrderPrintDocument({
+    businessName: order.business_name,
+    orderId: order.id,
+    orderDate: order.order_date,
+    createdAt: order.created_at,
+    type: order.type,
+    customer: {
+      name: order.client_name_snapshot,
+      phone: order.client_phone_snapshot || '',
+      address: order.client_address_snapshot || '',
+    },
+    items: rows(itemsResult).map((item) => ({
+      name: item.name_snapshot,
+      presentation: item.size_snapshot || '',
+      quantity: Number(item.quantity) || 1,
+      note: item.note || '',
+      unitPriceCents: Number(item.unit_price_cents) || 0,
+    })),
+    subtotalCents: Number(order.subtotal_cents) || 0,
+    deliveryFeeCents: Number(order.delivery_fee_cents) || 0,
+    adjustment: {
+      type: order.adjustment_type || 'none',
+      amountCents: Number(order.adjustment_amount_cents) || 0,
+      reason: order.adjustment_reason || '',
+    },
+    totalCents: Number(order.total_cents) || 0,
+    payment: {
+      status: order.payment_id ? 'Pago' : 'Pendente',
+      method: order.payment_id ? (order.payment_method || '') : '',
+    },
+  })
+}

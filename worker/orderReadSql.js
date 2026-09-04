@@ -1,4 +1,5 @@
 export const ORDER_SELECT = `SELECT o.id, o.client_id, o.client_name_snapshot,
+  o.client_phone_snapshot, o.client_address_snapshot,
   o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status,
   o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode,
   o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents,

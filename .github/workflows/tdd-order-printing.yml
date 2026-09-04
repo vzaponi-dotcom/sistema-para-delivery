@@ -1,0 +1,61 @@
+name: TDD order printing
+
+on:
+  push:
+    branches:
+      - feature/order-printing-escpos
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused printing tests
+        run: >-
+          node --test
+          worker/orderPrintingMigration.test.js
+          shared/orderPrintDocument.test.js
+          worker/orderPrintingRepository.test.js
+          worker/orderPrintDocumentRepository.test.js
+          worker/orderAutomaticPrintJob.test.js
+          worker/multiItemCheckoutRepository.test.js
+          worker/orderPrintingHttp.test.js
+          src/api/printingClient.test.js
+          src/components/PrintingSettings.test.js
+          src/components/OrderTicketPreview.test.js
+          src/printing/printingUi.test.js
+          src/printing/escpos58mm.test.js
+          src/printing/localPrintStation.test.js
+          src/printing/webSerialTransport.test.js
+          src/printing/printJobRunner.test.js
+          src/printing/printingManagerRegression.test.js
+          src/printing/pdfOrderRenderer.test.js
+          src/pages/OrderHistory.test.js
+          src/realtimeSyncRegression.test.js
+          src/utils/dataSync.test.js
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Lint application
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Validate Worker dry run
+        run: npx --yes wrangler@4.128.0 deploy --dry-run
+
+      - name: Validate local D1 migrations
+        run: npm run d1:migrate:local

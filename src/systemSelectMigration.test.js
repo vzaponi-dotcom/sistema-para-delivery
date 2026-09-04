@@ -36,11 +36,15 @@ test('App and Clients use the shared SystemSelect', async () => {
 
 test('App write selectors preserve blocked state and approved labels', async () => {
   const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
+  const movementDialog = await readFile(join(srcDir, 'components/MovementDialog.jsx'), 'utf8')
   const lines = app.split('\n')
-  for (const label of ['Forma de pagamento', 'Tipo da movimentação', 'Categoria da movimentação']) {
-    const selectorLine = lines.find((line) => line.includes('<SystemSelect') && line.includes(`label="${label}"`))
-    assert.ok(selectorLine, `missing SystemSelect for ${label}`)
-    assert.match(selectorLine, /disabled=\{writesBlocked\}/)
+  const paymentSelector = lines.find((line) => line.includes('<SystemSelect') && line.includes('label="Forma de pagamento"'))
+  assert.ok(paymentSelector, 'missing SystemSelect for Forma de pagamento')
+  assert.match(paymentSelector, /disabled=\{writesBlocked\}/)
+
+  assert.match(app, /<MovementDialog[^>]*disabled=\{writesBlocked\}/)
+  for (const label of ['Tipo do movimento', 'Categoria']) {
+    assert.match(movementDialog, new RegExp(`label="${label}"[\\s\\S]*?disabled=\\{locked\\}`))
   }
 
   const productForm = await readFile(join(srcDir, 'components/ProductForm.jsx'), 'utf8')

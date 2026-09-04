@@ -1,8 +1,10 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
 import { getBusinessDate } from '../shared/finance.js'
+import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
+import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { centsToMoney } from './validation.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
@@ -80,6 +82,8 @@ export const mapOrderRow = (row, items = []) => {
     id: row.id,
     clientId: row.client_id ?? null,
     client: row.client_name_snapshot,
+    clientPhone: row.client_phone_snapshot || '',
+    clientAddress: row.client_address_snapshot || '',
     customerIdentityType: row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name'),
     tableTabId: row.table_tab_id ?? null,
     type: row.type,
@@ -117,7 +121,7 @@ export const mapOrderRow = (row, items = []) => {
 }
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'`
+const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -194,7 +198,7 @@ export const updateClient = async (db, businessId, id, input, now = new Date()) 
     await db.prepare(`UPDATE clients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE id = ? AND business_id = ?`).bind(input.name, phone, input.address, now.toISOString(), id, businessId).run()
   } catch (error) {
     if (!isPhoneTriggerCollision(error)) throw error
-    throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone, id) : null)
+    throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone) : null)
   }
   return mapClientRow({ id, name: input.name, phone, address: input.address })
 }
@@ -305,12 +309,16 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
   let clientId = null
   let clientSnapshot = ''
+  let clientPhoneSnapshot = ''
+  let clientAddressSnapshot = ''
   let tableTabId = null
   if (customerIdentity.type === 'registered_client') {
-    const client = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
+    const client = await db.prepare('SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
     if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
     clientId = client.id
     clientSnapshot = client.name
+    clientPhoneSnapshot = formatClientPhone(client.phone)
+    clientAddressSnapshot = client.address || ''
   } else if (customerIdentity.type === 'guest_name') {
     clientSnapshot = customerIdentity.value
   } else if (customerIdentity.type === 'table') {
@@ -363,7 +371,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     idempotencyKey,
   )
 
-  const statements = [orderStatement]
+  const contactSnapshotStatement = db.prepare(`UPDATE orders SET client_phone_snapshot = ?, client_address_snapshot = ?
+    WHERE id = ? AND business_id = ?`).bind(clientPhoneSnapshot, clientAddressSnapshot, orderId, businessId)
+  const statements = [orderStatement, contactSnapshotStatement]
   for (const item of pricedItems) {
     statements.push(db.prepare(`INSERT INTO order_items (id, business_id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
       crypto.randomUUID(),
@@ -390,6 +400,50 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${clientSnapshot}`
     statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, totals.totalCents, input.paymentMethod, paidAt, paidAt))
     statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt, input.paymentMethod, paidAt))
+  }
+
+  const primaryPrintStation = status === 'Em preparo'
+    ? await loadPrimaryAutomaticPrintStation(db, businessId)
+    : null
+  if (primaryPrintStation) {
+    const business = await db.prepare('SELECT name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
+    const printDocument = createOrderPrintDocument({
+      businessName: business?.name || 'Amor & Sabor',
+      orderId,
+      orderDate: input.orderDate,
+      createdAt,
+      type: input.type,
+      customer: {
+        name: clientSnapshot,
+        phone: clientPhoneSnapshot,
+        address: clientAddressSnapshot,
+      },
+      items: pricedItems.map((item) => ({
+        name: item.product.name,
+        presentation: productSnapshotSize(item.product),
+        quantity: item.quantity,
+        note: item.note || '',
+        unitPriceCents: item.product.price_cents,
+      })),
+      subtotalCents: totals.subtotalCents,
+      deliveryFeeCents,
+      adjustment: {
+        type: adjustment.type || 'none',
+        amountCents: totals.adjustmentAmountCents,
+        reason: adjustment.reason || '',
+      },
+      totalCents: totals.totalCents,
+      payment: {
+        status: input.paymentMethod ? 'Pago' : 'Pendente',
+        method: input.paymentMethod || '',
+      },
+    })
+    statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
+      orderId,
+      copies: primaryPrintStation.defaultCopies,
+      document: printDocument,
+      createdAt,
+    }))
   }
 
   try {
