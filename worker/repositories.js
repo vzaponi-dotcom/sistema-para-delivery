@@ -174,7 +174,7 @@ export const createClient = async (db, businessId, input, now = new Date()) => {
   }
 
   try {
-    await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp, timestamp).run()
+    await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp).run()
   } catch (error) {
     if (!isPhoneTriggerCollision(error)) throw error
     throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone) : null)
