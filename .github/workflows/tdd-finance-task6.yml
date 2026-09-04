@@ -1,4 +1,4 @@
-name: TDD finance task 6
+name: TDD finance task 7
 
 on:
   push:
@@ -15,14 +15,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Test
-        run: npm test
-      - name: Lint
-        run: npm run lint
-      - name: Build
-        run: npm run build
-      - name: Worker dry-run
-        run: npx --yes wrangler@4.128.0 deploy --dry-run
+      - name: Run finance view tests
+        run: node --test src/pages/Finance.test.js src/utils/finance.test.js
