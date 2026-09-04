@@ -640,15 +640,26 @@
   margin-top: 18px;
 }
 
+.new-order-step-content:focus {
+  outline: none;
+}
+
 @media (max-width: 640px) {
   .new-order-step-indicator {
     gap: 6px;
   }
 
   .new-order-step-tab {
-    gap: 5px;
-    padding-inline: 8px;
-    font-size: .78rem;
+    min-width: 0;
+    gap: 4px;
+    padding: 6px;
+    font-size: .76rem;
+  }
+
+  .new-order-step-number {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
   }
 
   .new-order-type-options {
@@ -780,6 +791,7 @@
 @media (max-width: 640px) {
   .new-order-review-layout {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .new-order-review-context {
