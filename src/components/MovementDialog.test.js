@@ -16,12 +16,12 @@ test('movement dialog uses finance categories, BRL mask, date, payment method an
   assert.match(source, /max=\{today\}/)
 })
 
-test('new movement starts neutral and changing type clears an incompatible category', async () => {
+test('new movement defaults are neutral and changing type clears an incompatible category', async () => {
   const source = await readSource()
-  assert.match(source, /type:\s*'entrada'/)
-  assert.match(source, /category:\s*''/)
-  assert.match(source, /paymentMethod:\s*''/)
-  assert.match(source, /formatBRLCurrencyValue\(0\)/)
+  assert.match(source, /type:\s*movement\?\.type\s*\|\|\s*'entrada'/)
+  assert.match(source, /category:\s*movement\?\.source\s*===\s*'manual'\s*\?\s*movement\.category\s*\|\|\s*''\s*:\s*''/)
+  assert.match(source, /paymentMethod:\s*movement\?\.paymentMethod\s*\|\|\s*''/)
+  assert.match(source, /formatBRLCurrencyValue\(movement\?\.value\s*\?\?\s*0\)/)
   assert.match(source, /isManualMovementCategory/)
   assert.match(source, /category:\s*isManualMovementCategory\(nextType, current\.category\)\s*\?\s*current\.category\s*:\s*''/s)
 })
