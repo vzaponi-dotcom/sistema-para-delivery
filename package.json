@@ -11,8 +11,10 @@
     "test": "node --test",
     "preview": "vite preview",
     "d1:migrate:local": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --local",
-    "d1:migrate:remote": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --remote",
-    "deploy": "npm run build && npx --yes wrangler@4.128.0 deploy"
+    "d1:migrate:staging": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery-staging --remote --env staging",
+    "d1:migrate:production": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --remote",
+    "deploy:staging": "npm run build && npx --yes wrangler@4.128.0 deploy --env staging",
+    "deploy:production": "npm run build && npx --yes wrangler@4.128.0 deploy"
   },
   "dependencies": {
     "jspdf": "4.2.1",
