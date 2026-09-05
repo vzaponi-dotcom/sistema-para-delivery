@@ -80,7 +80,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
     downloadOrderPdf(document)
   })
 
-  const handleFirstPrint = () => runPrintingAction('print', () => printing?.printOrder?.(order.id, defaultCopies))
+  const handleFirstPrint = () => runPrintingAction('print', () => printing.printOrder(order.id, defaultCopies))
 
   const handleRetry = () => runPrintingAction('retry', () => printing?.retryJob?.(printJob))
 
@@ -184,7 +184,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
             {!printJob && <p className="order-printing-helper">Este pedido ainda não possui histórico de impressão. Isso é esperado quando a impressão automática estava desligada.</p>}
             {scheduledPrintPending && <p className="order-printing-helper">Impressão programada para {formatOrderTime(printJob.availableAt)}</p>}
-            {['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
+            {!scheduledPrintPending && ['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
 
             {printJob && (
               <div className="order-printing-diagnostics">

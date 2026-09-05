@@ -11,10 +11,12 @@ test('print status badge exposes all friendly persisted job states', () => {
   for (const label of [
     'Pendente de impressão',
     'Imprimindo',
-    'Impresso',
+    'Enviado para impressão',
     'Falha na impressão',
     'Requer atenção',
   ]) assert.match(badge, new RegExp(label))
+  assert.match(badge, /printed:\s*'Enviado para impressão'/)
+  assert.doesNotMatch(badge, /printed:\s*'Impresso'/)
 })
 
 test('kitchen preserves the shared printing manager in details without moving printing into tickets', async () => {
@@ -29,7 +31,7 @@ test('order detail keeps print actions separate and uses the shared printing man
   for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
   }
-  assert.match(detail, /Impressão do pedido/)
+  assert.match(detail, /<h3>Impressão<\/h3>/)
   assert.match(detail, /getPreviewDocument/)
   assert.match(detail, /downloadOrderPdf/)
   assert.match(detail, /printOrder/)
@@ -52,7 +54,9 @@ test('printing diagnostics use persisted sanitized fields instead of raw excepti
 
 test('future automatic jobs show scheduling and use a manual print action', () => {
   assert.match(detail, /availableAt/)
-  assert.match(detail, /Impressão programada para/)
-  assert.match(detail, /printing\.printOrder|printOrder/)
-  assert.match(detail, /scheduledPrintPending[\s\S]*handleFirstPrint/)
+  assert.match(detail, /Impressão programada para \{formatOrderTime\(printJob\.availableAt\)\}/)
+  assert.match(detail, /printing\.printOrder\(order\.id, defaultCopies\)/)
+  assert.match(detail, /if \(scheduledPrintPending\) return <Button[^>]*onClick=\{handleFirstPrint\}[^>]*>Imprimir agora<\/Button>/)
+  assert.match(detail, /\{!scheduledPrintPending && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
+  assert.doesNotMatch(detail, /if \(scheduledPrintPending\)[^\n]*handleRetry/)
 })

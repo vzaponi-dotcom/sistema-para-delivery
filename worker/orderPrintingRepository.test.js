@@ -6,6 +6,7 @@ import {
   PRINT_PROCESSING_MAX_AGE_MS,
   claimNextAutomaticPrintJob,
   claimPrintJob,
+  createManualOrderPrintJob,
   listPrintJobs,
   listPrintStations,
   loadAutomaticPrintJobForOrder,
@@ -242,6 +243,31 @@ test('automatic print waits for availableAt before aging or claim', async () => 
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
   const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', future)
   assert.equal(claimed.id, 'future-available')
+})
+
+test('manual printing leaves a future automatic job pending until its exact availableAt', async () => {
+  const future = new Date(baseNow.getTime() + 5 * 60 * 1000)
+  const before = new Date(future.getTime() - 1)
+  const db = makeDb()
+  await addStation(db, 'primary')
+  await setPrimaryPrintStation(db, businessA, 'primary', baseNow)
+  const automatic = await addAutomaticJob(db, { id: 'future-automatic', availableAt: future })
+  const manual = await createManualOrderPrintJob(db, businessA, {
+    id: 'manual-now',
+    orderId: 'o1',
+    copies: 2,
+    document,
+  }, baseNow)
+
+  await claimPrintJob(db, businessA, manual.id, 'primary', baseNow)
+  await markPrintJobPrinted(db, businessA, manual.id, 'primary', 2, baseNow)
+
+  assert.notEqual(manual.id, automatic.id)
+  assert.equal((await loadPrintJob(db, businessA, manual.id)).status, 'printed')
+  assert.equal((await loadPrintJob(db, businessA, automatic.id)).status, 'pending')
+  assert.equal((await loadPrintJob(db, businessA, automatic.id)).availableAt, future.toISOString())
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'primary', before), null)
+  assert.equal((await claimNextAutomaticPrintJob(db, businessA, 'primary', future)).id, automatic.id)
 })
 
 test('job and station reads are isolated by business id', async () => {

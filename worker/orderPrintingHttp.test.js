@@ -157,6 +157,43 @@ test('authenticated printing API configures a primary station and completes a ma
   assert.equal((await document.json()).document.order.id, 'o1')
 })
 
+test('HTTP manual lifecycle preserves a future automatic job unchanged', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  const future = new Date(Date.now() + 5 * 60 * 1000)
+  const createdAt = new Date().toISOString()
+  const automaticId = 'future-auto-http'
+
+  await jsonRequest('/api/printing/stations/primary', 'PUT', cookie, {
+    name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2,
+  })
+  await jsonRequest('/api/printing/stations/primary/make-primary', 'POST', cookie)
+  currentEnv.DB.sqlite.prepare(`INSERT INTO print_jobs (
+      id, business_id, order_id, type, trigger, status, copies_requested, copies_printed, station_id,
+      snapshot_json, created_at, available_at, processing_started_at, processed_at, last_error_code, last_error_message
+    ) VALUES (?, ?, ?, 'order', 'automatic', 'pending', 2, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .run(automaticId, 'amor-e-sabor', 'o1', JSON.stringify({ version: 1, type: 'order', order: { id: 'o1' } }), createdAt, future.toISOString())
+
+  const manualResponse = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })
+  assert.equal(manualResponse.status, 201)
+  const manual = (await manualResponse.json()).job
+  await jsonRequest(`/api/printing/jobs/${manual.id}/claim`, 'POST', cookie, { stationId: 'primary' })
+  const completed = await jsonRequest(`/api/printing/jobs/${manual.id}/complete`, 'POST', cookie, { stationId: 'primary', copiesPrinted: 2 })
+  assert.equal((await completed.json()).job.status, 'printed')
+
+  const jobsResponse = await handleRequest(new Request('https://delivery.example/api/printing/jobs?orderId=o1&limit=20', { headers: { cookie } }), currentEnv)
+  const jobs = (await jobsResponse.json()).jobs
+  const automatic = jobs.find((job) => job.id === automaticId)
+  assert.notEqual(manual.id, automatic.id)
+  assert.equal(jobs.some((job) => job.id === manual.id), true)
+  assert.equal(automatic.status, 'pending')
+  assert.equal(automatic.availableAt, future.toISOString())
+
+  const earlyClaim = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
+  assert.equal(earlyClaim.status, 200)
+  assert.equal((await earlyClaim.json()).job, null)
+})
+
 test('claim-next rejects a secondary station and accepts only the primary automatic station', async () => {
   currentEnv = await makeEnv()
   const cookie = await loginCookie(currentEnv)
