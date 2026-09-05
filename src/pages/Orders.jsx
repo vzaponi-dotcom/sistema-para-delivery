@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import '../order-operations.css'
 import '../order-operations-compact.css'
 import Button from '../components/Button'
@@ -29,8 +29,7 @@ import {
 const orderNumber = (id) => String(id).slice(-4)
 const timingLabels = { 'on-time': 'No prazo', late: 'Atrasado', 'very-late': 'Muito atrasado' }
 
-function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
-  const [now, setNow] = useState(() => new Date())
+function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -39,19 +38,6 @@ function Orders({ orders, search, onSearchChange, currency, onNewOrder, onFinali
   const [showPrintingSettings, setShowPrintingSettings] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
-
-  useEffect(() => {
-    const refreshNow = () => setNow(new Date())
-    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') refreshNow() }
-    const timer = window.setInterval(refreshNow, 60_000)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', refreshNow)
-    return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', refreshNow)
-    }
-  }, [])
 
   const runAction = async (key, action) => {
     if (actionsDisabled) return

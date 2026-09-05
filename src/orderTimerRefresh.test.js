@@ -4,11 +4,9 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('orders refresh elapsed time every minute and immediately after app resume', async () => {
+test('orders receive the shared kitchen clock instead of owning a minute timer', async () => {
   const source = await read('./pages/Orders.jsx')
-  assert.match(source, /setInterval[\s\S]*60_000/)
-  assert.match(source, /visibilitychange/)
-  assert.match(source, /document\.visibilityState === 'visible'/)
-  assert.match(source, /window\.addEventListener\('focus'/)
-  assert.match(source, /removeEventListener\('focus'/)
+  assert.match(source, /function Orders\(\{[^}]*\bnow\b/)
+  assert.doesNotMatch(source, /setInterval[\s\S]*60_000/)
+  assert.doesNotMatch(source, /setNow/)
 })

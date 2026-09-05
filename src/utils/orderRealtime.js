@@ -21,3 +21,12 @@ export const getNewOperationalOrderIds = (previousIds, orders = [], now = new Da
   const knownIds = previousIds instanceof Set ? previousIds : new Set(previousIds ?? [])
   return [...operationalOrderIdSet(orders, now)].filter((id) => !knownIds.has(id))
 }
+
+export const detectOperationalArrivals = (previousIds, orders = [], now = new Date(), alertedIds = new Set()) => {
+  const currentIds = operationalOrderIdSet(orders, now)
+  if (previousIds === undefined || previousIds === null) return { currentIds, newIds: [] }
+  const knownIds = previousIds instanceof Set ? previousIds : new Set(previousIds)
+  const alreadyAlerted = alertedIds instanceof Set ? alertedIds : new Set(alertedIds ?? [])
+  const newIds = [...currentIds].filter((id) => !knownIds.has(id) && !alreadyAlerted.has(id))
+  return { currentIds, newIds }
+}
