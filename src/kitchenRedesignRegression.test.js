@@ -149,6 +149,11 @@ test('small operational ticket text and actions meet WCAG AA contrast', () => {
       background: 'var(--kitchen-ticket)',
     },
     {
+      name: 'tempo do pedido atrasado',
+      selector: '.kitchen-ticket-late .kitchen-ticket-timing',
+      background: 'var(--kitchen-ticket)',
+    },
+    {
       name: 'Finalizar/Saiu para entrega',
       selector: '.kitchen-ticket-actions .button-primary',
       backgroundProperty: 'background',

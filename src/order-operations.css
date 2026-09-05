@@ -384,7 +384,7 @@
 }
 
 .kitchen-ticket-late .kitchen-ticket-timing {
-  color: var(--kitchen-late);
+  color: color-mix(in srgb, var(--kitchen-late) 90%, var(--kitchen-ticket-text));
 }
 
 .kitchen-ticket-actions {
