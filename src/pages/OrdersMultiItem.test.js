@@ -41,3 +41,13 @@ test('app order search uses the complete multi-item searchable text', () => {
   const app = source('../App.jsx')
   assert.match(app, /getOrderItemsSearchText\(order\)/)
 })
+
+test('focused kitchen ticket units preserve every item note without reviving the expandable item list', () => {
+  const ticket = source('../components/KitchenTicket.jsx')
+  const notes = source('../components/KitchenTicketNotes.jsx')
+
+  assert.match(ticket, /KitchenTicketNotes/)
+  assert.match(notes, /notes\.map/)
+  assert.match(notes, /note\.text/)
+  assert.doesNotMatch(ticket, /order-items-(?:toggle|list)/)
+})
