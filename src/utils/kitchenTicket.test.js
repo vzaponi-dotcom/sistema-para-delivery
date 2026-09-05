@@ -58,5 +58,5 @@ test('builds scheduled, preparing, and overdue timing copy in the business timez
     phase: 'preparing',
     timingState: 'late',
     order: { createdAt: '2026-09-04T12:00:00.000Z', scheduledFor: '2026-09-04T14:20:00.000Z' },
-  }, new Date('2026-09-04T14:47:00.000Z')), { primary: 'Fora do prazo há 12 min', secondary: '' })
+  }, new Date('2026-09-04T14:47:00.000Z')), { primary: 'Fora do prazo há 12 min', secondary: 'Desejado 11:20' })
 })
