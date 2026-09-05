@@ -71,7 +71,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
               <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
             <Button type="button" variant="secondary" onClick={() => setShowPrintingSettings(true)}>Impressão</Button>
-            <Button type="button" variant="secondary" onClick={navigateHistory}>Ver histórico</Button>
+            <Button type="button" variant="secondary" onClick={navigateHistory}>Histórico</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>
         )}
@@ -108,7 +108,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
                 />
               </div>
             ))}
-            {!queueModel.preparing.length && <div className="kitchen-queue-empty"><Icon name="preparation" size={24} /><strong>Nenhum pedido em preparo</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Novos pedidos aparecem aqui automaticamente.'}</span></div>}
+            {!queueModel.preparing.length && <div className="kitchen-queue-empty"><Icon name="preparation" size={24} /><strong>Nenhum pedido em preparo agora.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Novos pedidos aparecem aqui automaticamente.'}</span></div>}
           </div>
         </section>
 
@@ -130,7 +130,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
                 />
               </div>
             ))}
-            {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
+            {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado aguardando preparo.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
           </div>
         </section>
       </section>

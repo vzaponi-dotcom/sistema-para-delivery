@@ -1,3 +1,8 @@
+.kitchen-ticket-late .status-badge {
+  background: color-mix(in srgb, var(--kitchen-late) 18%, var(--kitchen-ticket));
+  color: color-mix(in srgb, var(--kitchen-late) 90%, var(--kitchen-ticket-text));
+}
+
 @media (max-width: 900px) {
   .kitchen-ticket {
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr) minmax(0, 0.8fr);
