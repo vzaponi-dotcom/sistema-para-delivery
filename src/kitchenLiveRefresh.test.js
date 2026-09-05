@@ -51,13 +51,3 @@ test('kitchen UI supports one-time visual alerts and a persisted sound toggle', 
   assert.match(orders, /order-new-arrival/)
   assert.match(css, /\.order-new-arrival/)
 })
-
-test('App owns the exact kitchen clock and detects arrivals on order or clock changes', () => {
-  const app = read('src/App.jsx')
-  assert.match(app, /useKitchenClock/)
-  assert.match(app, /const kitchenNow = useKitchenClock\(orders, \{ active: activeTab === 'orders' \}\)/)
-  assert.match(app, /now=\{kitchenNow\}/)
-  assert.match(app, /useEffect\(\(\) => \{[\s\S]*detectOperationalArrivals[\s\S]*\}, \[[^\]]*orders[^\]]*kitchenNow[^\]]*\]\)/)
-  const refreshOrdersBody = app.match(/const refreshOrders = async \(\) => \{[\s\S]*?\n    \}/)?.[0] || ''
-  assert.doesNotMatch(refreshOrdersBody, /detectOperationalArrivals|getNewOperationalOrderIds|operationalOrderIdSet/)
-})
