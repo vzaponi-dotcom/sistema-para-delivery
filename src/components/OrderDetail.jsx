@@ -120,6 +120,8 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
               <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
               <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
               <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? (order.paymentMethod || 'Não informada') : 'Pendente'}</strong></div>
+              {order.clientPhone && <div><span>Telefone</span><strong>{order.clientPhone}</strong></div>}
+              {order.clientAddress && <div><span>Endereço</span><strong>{order.clientAddress}</strong></div>}
             </div>
           </section>
 

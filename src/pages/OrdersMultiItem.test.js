@@ -84,3 +84,12 @@ test('preparing order cancellation is available in details while scheduled ticke
   assert.match(ticket, /scheduled\s*\?\s*<Button[^>]*onClick=\{\(\) => onCancel\?\.\(order\)\}/s)
   assert.match(ticket, /:\s*<Button[^>]*onClick=\{\(\) => onFinalize\?\.\(order\)\}[^>]*>\{getFinalActionLabel\(order\)\}/s)
 })
+
+test('order details retain contact snapshots while kitchen tickets omit them', () => {
+  const detail = source('../components/OrderDetail.jsx')
+  const ticket = source('../components/KitchenTicket.jsx')
+
+  assert.match(detail, /order\.clientPhone/)
+  assert.match(detail, /order\.clientAddress/)
+  assert.doesNotMatch(ticket, /order\.(?:clientPhone|clientAddress)/)
+})
