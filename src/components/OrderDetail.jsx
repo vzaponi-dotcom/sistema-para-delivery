@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Button from './Button'
 import ConfirmationDialog from './ConfirmationDialog'
 import Modal from './Modal'
+import OrderDetailTiming from './OrderDetailTiming.jsx'
 import OrderTicketPreview from './OrderTicketPreview'
 import PaymentBadge from './PaymentBadge'
 import PrintStatusBadge from './PrintStatusBadge'
@@ -10,7 +11,6 @@ import { downloadOrderPdf } from '../printing/pdfOrderRenderer.js'
 import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../utils/orderWorkflow.js'
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
-import { getOperationalDurationMinutes, getOperationalStartAt } from '../../shared/orderTiming.js'
 
 const adjustmentLabel = (adjustment, currency) => {
   if (!adjustment || adjustment.type === 'none') return ''
@@ -32,7 +32,7 @@ const formatPrintTimestamp = (value) => {
   }).format(date)
 }
 
-function OrderDetail({ order, currency, printing, printJob, onClose }) {
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
@@ -47,8 +47,6 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
   const stationName = printing?.stations?.find((station) => station.id === printJob?.stationId)?.name || printJob?.stationId || '—'
   const printingDisabled = Boolean(printingAction) || printing?.supported === false
   const now = new Date()
-  const operationalStartAt = getOperationalStartAt(order)
-  const operationalDurationMinutes = getOperationalDurationMinutes(order)
   const scheduledPrintPending = printJob?.trigger === 'automatic' && printJob?.status === 'pending' && printJob?.availableAt && new Date(printJob.availableAt) > now
 
   const runPrintingAction = async (key, action) => {
@@ -104,36 +102,36 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
     <>
       <Modal title={`Pedido #${String(order.id).slice(-4)}`} onClose={onClose}>
         <div className="order-detail">
-          <div className="order-detail-heading">
-            <div>
-              <span>Cliente</span>
-              <strong>{order.client}</strong>
+          <section className="order-detail-section order-detail-summary-section">
+            <div className="section-heading compact-section-heading"><h3>Resumo</h3></div>
+            <div className="order-detail-heading">
+              <div>
+                <span>Cliente</span>
+                <strong>{order.client}</strong>
+              </div>
+              <div className="order-detail-badges">
+                <StatusBadge status={order.status} />
+                <PaymentBadge order={order} />
+                {printJob && <PrintStatusBadge job={printJob} />}
+              </div>
             </div>
-            <div className="order-detail-badges">
-              <StatusBadge status={order.status} />
-              <PaymentBadge order={order} />
-              {printJob && <PrintStatusBadge job={printJob} />}
+            <div className="order-detail-meta">
+              <div><span>Tipo</span><strong>{order.type}</strong></div>
+              <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
+              <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
+              <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? (order.paymentMethod || 'Não informada') : 'Pendente'}</strong></div>
             </div>
-          </div>
-
-          <div className="order-detail-meta">
-            <div><span>Tipo</span><strong>{order.type}</strong></div>
-            <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
-            <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
-            <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? (order.paymentMethod || 'Não informada') : 'Pendente'}</strong></div>
-          </div>
+          </section>
 
           <section className="order-detail-section order-timing-section">
-            {order.scheduledFor && <div><span>Horário desejado</span><strong>{formatOrderTime(order.scheduledFor)}</strong></div>}
-            {operationalStartAt && <div><span>Início operacional</span><strong>{formatPrintTimestamp(operationalStartAt)}</strong></div>}
-            {operationalDurationMinutes !== null && <div><span>{order.type === 'Entrega' ? 'Tempo até sair para entrega' : 'Tempo até finalização'}</span><strong>{operationalDurationMinutes} min</strong></div>}
+            <div className="section-heading compact-section-heading"><h3>Horários</h3></div>
+            <OrderDetailTiming order={order} />
           </section>
 
           <section className="order-detail-section">
             <div className="section-heading compact-section-heading">
               <div>
-                <span className="section-kicker">Itens</span>
-                <h3>Conteúdo do pedido</h3>
+                <h3>Itens</h3>
               </div>
             </div>
             <div className="order-detail-items">
@@ -149,7 +147,9 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
             </div>
           </section>
 
-          <section className="order-detail-totals">
+          <section className="order-detail-section order-detail-values-section">
+            <div className="section-heading compact-section-heading"><h3>Valores</h3></div>
+            <div className="order-detail-totals">
             <div><span>Subtotal</span><strong>{currency(order.subtotal ?? order.total ?? 0)}</strong></div>
             {Number(order.deliveryFee || 0) > 0 && <div><span>Taxa de entrega</span><strong>{currency(order.deliveryFee)}</strong></div>}
             {adjustment.type !== 'none' && (
@@ -162,13 +162,14 @@ function OrderDetail({ order, currency, printing, printJob, onClose }) {
               </>
             )}
             <div className="order-detail-total-final"><span>Total</span><strong>{currency(order.total)}</strong></div>
+            </div>
+            {onRequestCancel && <div className="order-detail-cancel-action"><Button type="button" variant="secondary" onClick={onRequestCancel}>Cancelar pedido</Button></div>}
           </section>
 
           <section className="order-detail-section order-printing-section">
             <div className="section-heading compact-section-heading">
               <div>
-                <span className="section-kicker">Ticket oficial</span>
-                <h3>Impressão do pedido</h3>
+                <h3>Impressão</h3>
               </div>
               {printJob && <PrintStatusBadge job={printJob} />}
             </div>

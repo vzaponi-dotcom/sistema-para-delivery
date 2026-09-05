@@ -1,14 +1,29 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { buildOrderDetailTimingRows } from './OrderDetailTiming.js'
 
-const read = () => readFile(new URL('./OrderDetail.jsx', import.meta.url), 'utf8')
+const finishedDelivery = {
+  type: 'Entrega',
+  createdAt: '2026-09-04T21:10:00.000Z',
+  scheduledFor: '2026-09-04T23:42:00.000Z',
+  finishedAt: '2026-09-04T23:10:00.000Z',
+}
 
-test('order detail renders shared operational timing in the business timezone', async () => {
-  const source = await read()
-  for (const label of ['Horário desejado', 'Início operacional', 'Tempo até sair para entrega', 'Tempo até finalização']) assert.match(source, new RegExp(label))
-  assert.match(source, /getOperationalStartAt/)
-  assert.match(source, /getOperationalDurationMinutes/)
-  assert.match(source, /FINANCE_TIME_ZONE/)
+const finishedPickup = {
+  type: 'Retirada',
+  createdAt: '2026-09-04T21:10:00.000Z',
+  finishedAt: '2026-09-04T21:35:00.000Z',
+}
+
+test('builds operational timing rows in the business timezone', () => {
+  assert.deepEqual(buildOrderDetailTimingRows(finishedDelivery), [
+    { key: 'desired', label: 'Horário desejado', value: '20:42' },
+    { key: 'operational-start', label: 'Início operacional', value: '04/09/2026 às 19:52' },
+    { key: 'duration', label: 'Tempo até sair para entrega', value: '18 min' },
+  ])
+})
+
+test('labels a completed pickup duration by finalization', () => {
+  assert.equal(buildOrderDetailTimingRows(finishedPickup).at(-1).label, 'Tempo até finalização')
 })
 

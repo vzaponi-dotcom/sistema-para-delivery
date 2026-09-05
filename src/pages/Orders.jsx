@@ -10,6 +10,7 @@ import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PrintingSettings from '../components/PrintingSettings'
 import StatCard from '../components/StatCard'
+import { isScheduledWaiting } from '../../shared/orderTiming.js'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
 
 const orderNumber = (id) => String(id).slice(-4)
@@ -134,7 +135,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
         </section>
       </section>
 
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={isScheduledWaiting(detailOrder, now) ? undefined : () => { setDetailOrder(null); setCancelOrder(detailOrder) }} />}
       {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
       {finalizeCandidate && (
         <ConfirmationDialog

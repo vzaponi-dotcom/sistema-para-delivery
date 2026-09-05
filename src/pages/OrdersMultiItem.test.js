@@ -53,3 +53,34 @@ test('focused kitchen ticket units preserve every item note without reviving the
   assert.match(notes, /note\.text/)
   assert.doesNotMatch(ticket, /order-items-(?:toggle|list)/)
 })
+
+test('order details keep their semantic sections, item notes, and printing in the approved order', () => {
+  const detail = source('../components/OrderDetail.jsx')
+  const timing = source('../components/OrderDetailTiming.jsx')
+
+  const sectionOrder = ['Resumo', 'Horários', 'Itens', 'Valores', 'Impressão']
+  let previous = -1
+  for (const label of sectionOrder) {
+    const position = detail.indexOf(`>${label}<`)
+    assert.ok(position > previous, `${label} must follow the preceding detail section`)
+    previous = position
+  }
+  assert.match(detail, /item\.note && <span>↳ \{item\.note\}<\/span>/)
+  assert.match(timing, /className="order-detail-timing"/)
+  assert.match(timing, /className="order-detail-timing-row"/)
+  assert.match(timing, /<dt>\{row\.label\}<\/dt>/)
+  assert.match(timing, /<dd>\{row\.value\}<\/dd>/)
+})
+
+test('preparing order cancellation is available in details while scheduled tickets retain direct cancellation', () => {
+  const orders = source('./Orders.jsx')
+  const detail = source('../components/OrderDetail.jsx')
+  const ticket = source('../components/KitchenTicket.jsx')
+
+  assert.match(detail, /onRequestCancel/)
+  assert.match(detail, />Cancelar pedido</)
+  assert.match(orders, /isScheduledWaiting\(detailOrder, now\) \? undefined : \(\) =>/)
+  assert.match(orders, /onRequestCancel=\{isScheduledWaiting\(detailOrder, now\) \? undefined : \(\) => \{\s*setDetailOrder\(null\);?\s*setCancelOrder\(detailOrder\)\s*\}\}/s)
+  assert.match(ticket, /scheduled\s*\?\s*<Button[^>]*onClick=\{\(\) => onCancel\?\.\(order\)\}/s)
+  assert.match(ticket, /:\s*<Button[^>]*onClick=\{\(\) => onFinalize\?\.\(order\)\}[^>]*>\{getFinalActionLabel\(order\)\}/s)
+})
