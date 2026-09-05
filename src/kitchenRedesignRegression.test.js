@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { buildKitchenQueueModel } from './utils/kitchenQueue.js'
+import { buildKitchenTimingCopy, getKitchenItemNotes } from './utils/kitchenTicket.js'
 
 const read = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -64,6 +66,60 @@ function contrastRatio(foreground, background) {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
+test('integrated kitchen fixture preserves queues, counts, timing copy and item-note association', () => {
+  const now = new Date('2026-09-04T15:20:00.000Z')
+  const fixtures = [
+    { id: 'immediate-late', status: 'Em preparo', client: 'Ana', type: 'Local', createdAt: '2026-09-04T14:45:00.000Z', items: [{ name: 'Marmita G', note: 'sem cebola' }] },
+    { id: 'scheduled-before', status: 'Em preparo', client: 'Bruno', type: 'Entrega', createdAt: '2026-09-04T13:00:00.000Z', scheduledFor: '2026-09-04T16:30:00.000Z', items: [{ name: 'Suco', note: 'sem gelo' }] },
+    { id: 'scheduled-at-window', status: 'Em preparo', client: 'Carla', type: 'Retirada', createdAt: '2026-09-04T13:00:00.000Z', scheduledFor: '2026-09-04T16:10:00.000Z', items: [{ name: 'Pudim' }] },
+    { id: 'scheduled-overdue', status: 'Em preparo', client: 'Davi', type: 'Entrega', createdAt: '2026-09-04T13:00:00.000Z', scheduledFor: '2026-09-04T15:00:00.000Z', items: [{ name: 'Marmita P' }] },
+    { id: 'finished-today', status: 'Finalizado', type: 'Local', createdAt: '2026-09-04T13:00:00.000Z', finishedAt: '2026-09-04T15:00:00.000Z' },
+    { id: 'cancelled', status: 'Cancelado', type: 'Local', createdAt: '2026-09-04T13:00:00.000Z' },
+  ]
+
+  const model = buildKitchenQueueModel(fixtures, now, '')
+  const ids = (entries) => entries.map(({ order }) => order.id)
+  assert.deepEqual(ids(model.preparing), ['scheduled-overdue', 'immediate-late', 'scheduled-at-window'])
+  assert.deepEqual(ids(model.scheduled), ['scheduled-before'])
+  assert.deepEqual(model.counts, { preparing: 3, scheduled: 1, late: 2, finishedToday: 1 })
+  assert.equal(model.allActive.length, 4)
+
+  const scheduledBefore = model.scheduled[0]
+  assert.deepEqual(buildKitchenTimingCopy(scheduledBefore, now), { primary: 'Preparo em 20 min', secondary: 'Desejado 13:30' })
+  assert.deepEqual(getKitchenItemNotes(scheduledBefore.order).map(({ text }) => text), ['Suco — sem gelo'])
+
+  const atWindow = model.preparing.find(({ order }) => order.id === 'scheduled-at-window')
+  assert.deepEqual(buildKitchenTimingCopy(atWindow, now), { primary: 'Em preparo há 0 min', secondary: 'Desejado 13:10' })
+
+  const overdue = model.preparing.find(({ order }) => order.id === 'scheduled-overdue')
+  assert.deepEqual(buildKitchenTimingCopy(overdue, now), { primary: 'Fora do prazo há 5 min', secondary: 'Desejado 12:00' })
+})
+
+test('kitchen ticket exposes the approved derived state, attendance icons and exact actions', () => {
+  const ticket = read('./components/KitchenTicket.jsx')
+
+  assert.match(ticket, /Fora do prazo/)
+  assert.match(ticket, /Agendado para preparo/)
+  assert.match(ticket, /Entrega:\s*'delivery'/)
+  assert.match(ticket, /Retirada:\s*'pickup'/)
+  assert.match(ticket, /Local:\s*'local'/)
+  assert.match(ticket, />Cancelar<\/Button>/)
+  assert.doesNotMatch(ticket, />Cancelar pedido<\/Button>/)
+  for (const label of ['Exibir detalhes', 'Saiu para entrega', 'Finalizar']) {
+    const sources = `${ticket}\n${read('./utils/orderWorkflow.js')}`
+    assert.match(sources, new RegExp(label))
+  }
+})
+
+test('ticket privacy stays operational while shared details retain contact and financial data', () => {
+  const ticket = read('./components/KitchenTicket.jsx')
+  const detail = read('./components/OrderDetail.jsx')
+
+  assert.doesNotMatch(ticket, /order\.(?:total|subtotal|deliveryFee|paymentStatus|paymentMethod|clientPhone|clientAddress)/)
+  for (const field of ['clientPhone', 'clientAddress', 'subtotal', 'deliveryFee', 'total']) assert.match(detail, new RegExp(`order\\.${field}`))
+  assert.match(detail, /item\.note/)
+})
+
 test('kitchen visual primitives expose the approved icon and StatCard contracts', () => {
   const icon = read('./components/Icon.jsx')
   const statCard = read('./components/StatCard.jsx')
@@ -89,9 +145,21 @@ test('kitchen page keeps the approved two-queue composition and search vocabular
   assert.match(orders, /queueModel\.totalVisible/)
   assert.match(orders, /queueModel\.preparing\.map/)
   assert.match(orders, /queueModel\.scheduled\.map/)
-  assert.match(orders, /Nenhum pedido em preparo/)
-  assert.match(orders, /Nenhum pedido agendado/)
+  assert.match(orders, /Nenhum pedido em preparo agora\./)
+  assert.match(orders, /Nenhum pedido agendado aguardando preparo\./)
   assert.doesNotMatch(orders, /expandedOrderIds|toggleOrderItems|itemsExpanded|sort/i)
+})
+
+test('kitchen page exposes accessible queue names and full-text controls', () => {
+  const orders = read('./pages/Orders.jsx')
+  const ticket = read('./components/KitchenTicket.jsx')
+
+  assert.equal(orders.match(/className="kitchen-queue-section" aria-labelledby=/g)?.length, 2)
+  assert.match(orders, /<h2 id="kitchen-preparing-heading">/)
+  assert.match(orders, /<h2 id="kitchen-scheduled-heading">/)
+  assert.match(ticket, /<article[^>]*aria-label=/)
+  assert.match(ticket, /<StatusBadge/)
+  assert.match(ticket, /Exibir detalhes/)
 })
 
 test('kitchen theme centralizes the approved semantic palette in both themes', () => {

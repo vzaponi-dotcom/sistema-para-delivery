@@ -18,10 +18,19 @@ test('mobile queue headings and empty states remain readable for both permanent 
   const css = await read('../order-operations-compact.css')
   const narrow = css.slice(css.lastIndexOf('@media (max-width: 640px)'))
 
-  assert.equal(orders.match(/className="kitchen-queue-section"/g)?.length, 2)
+  assert.equal(orders.match(/className="kitchen-queue-section" aria-labelledby=/g)?.length, 2)
   assert.match(narrow, /\.kitchen-queue-heading\s*\{[^}]*align-items:\s*flex-start/s)
   assert.match(narrow, /\.kitchen-queue-help\s*\{[^}]*white-space:\s*normal/s)
   assert.match(narrow, /\.kitchen-queue-empty\s*\{[^}]*min-width:\s*0/s)
+})
+
+test('mobile kitchen retains two-by-two stats, note clamp, wrap protection and reduced motion', async () => {
+  const compact = await read('../order-operations-compact.css')
+  const base = await read('../order-operations.css')
+
+  assert.match(compact, /@media\s*\(max-width:\s*640px\)[\s\S]*\.kitchen-stats\s*\{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(base, /\.kitchen-ticket-note\s*\{[^}]*-webkit-line-clamp:\s*2[^}]*overflow:\s*hidden[^}]*overflow-wrap:\s*anywhere/s)
+  assert.match(compact, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.kitchen-ticket-highlighted\s*\{[^}]*animation:\s*none/s)
 })
 
 test('history text still wraps instead of clipping in the final compact cascade', async () => {

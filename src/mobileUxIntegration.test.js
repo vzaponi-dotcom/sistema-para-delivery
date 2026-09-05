@@ -25,3 +25,8 @@ test('desktop sidebar remains while bottom nav is mobile-only', async () => {
   assert.match(css, /\.mobile-bottom-nav\s*\{[^}]*display:\s*none/s)
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.mobile-bottom-nav\s*\{[^}]*display:\s*grid/s)
 })
+
+test('kitchen arrival animation honors reduced-motion preference', async () => {
+  const css = await read('./order-operations-compact.css')
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.kitchen-ticket-highlighted\s*\{[^}]*animation:\s*none/s)
+})
