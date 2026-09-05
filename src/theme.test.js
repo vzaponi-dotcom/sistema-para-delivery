@@ -98,3 +98,17 @@ test('dark theme defines a complete global palette', () => {
   assert.match(css, /--border:\s*#[0-9a-f]{6}/i)
   assert.match(css, /--primary-soft:\s*#[0-9a-f]{6}/i)
 })
+
+test('printing settings consume the shared semantic palette in both themes', () => {
+  const themeCss = source('./index.css')
+  const printingCss = source('./printing/printing.css')
+
+  for (const token of ['surface', 'surface-soft', 'text', 'muted', 'border', 'primary', 'success', 'success-soft', 'danger', 'danger-soft', 'info', 'info-soft']) {
+    assert.match(themeCss, new RegExp(`--${token}:`))
+  }
+
+  for (const token of ['surface', 'surface-soft', 'text', 'muted', 'border', 'primary']) {
+    assert.match(printingCss, new RegExp(`var\\(--${token}\\)`))
+  }
+  assert.doesNotMatch(printingCss, /var\(--[^,]+,\s*#[0-9a-f]{3,8}\)/i)
+})
