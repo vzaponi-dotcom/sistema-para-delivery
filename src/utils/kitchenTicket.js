@@ -1,6 +1,6 @@
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
 import { getOperationalStartAt, getScheduledLateAt } from '../../shared/orderTiming.js'
-import { getOrderItemDisplayName, getOrderItems, normalizeItemNote } from './orderCart.js'
+import { getOrderItemDisplayName, getOrderItems } from './orderCart.js'
 import { getElapsedMinutes } from './orderWorkflow.js'
 
 const itemKey = (item, index) => item.id || item.lineId || `${item.productId || item.name || 'item'}-${index}`
@@ -11,6 +11,7 @@ const formatTime = (value) => new Intl.DateTimeFormat('pt-BR', {
   hourCycle: 'h23',
 }).format(new Date(value))
 const elapsedLabel = (minutes) => `${Math.max(0, Math.floor(Number(minutes) || 0))} min`
+const normalizeKitchenItemNote = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 
 export const buildKitchenItemSummary = (order, limit = 3) => {
   const items = getOrderItems(order)
@@ -21,7 +22,7 @@ export const buildKitchenItemSummary = (order, limit = 3) => {
 }
 
 export const getKitchenItemNotes = (order) => getOrderItems(order)
-  .map((item, index) => ({ item, index, note: normalizeItemNote(item.note) }))
+  .map((item, index) => ({ item, index, note: normalizeKitchenItemNote(item.note) }))
   .filter(({ note }) => Boolean(note))
   .map(({ item, index, note }) => {
     const itemLabel = getOrderItemDisplayName(item)

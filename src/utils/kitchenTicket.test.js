@@ -30,6 +30,18 @@ test('keeps every non-empty note associated with its own item without reading a 
   assert.equal(Object.hasOwn(order, 'note'), false)
 })
 
+test('preserves the complete persisted item note in the kitchen view model', () => {
+  const note = `sem molho ${'muito importante '.repeat(24)}`.trim()
+
+  assert.equal(note.length > 300, true)
+  assert.deepEqual(getKitchenItemNotes({ items: [{ id: 'item-long-note', name: 'Marmita', note }] }), [{
+    key: 'item-long-note',
+    itemLabel: 'Marmita',
+    note,
+    text: `Marmita — ${note}`,
+  }])
+})
+
 test('builds scheduled, preparing, and overdue timing copy in the business timezone', () => {
   const now = new Date('2026-09-04T14:35:00.000Z')
 
