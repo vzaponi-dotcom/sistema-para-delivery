@@ -1,0 +1,46 @@
+name: Kitchen checkpoint TDD
+
+on:
+  push:
+    branches:
+      - codex/kitchen-redesign-homologation-20260904
+  workflow_dispatch:
+
+concurrency:
+  group: kitchen-checkpoint-tdd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: checkpoint-tdd
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Task 8 focused tests
+        run: node --test src/components/PrintingSettings.test.js src/theme.test.js src/printing/printingManagerRegression.test.js src/systemSelect.test.js
+
+      - name: Task 9 integrated tests
+        run: node --test src/kitchenRedesignRegression.test.js src/pages/OrdersScheduled.test.js src/pages/OrdersMobile.test.js src/mobileViewportRegression.test.js src/mobileUxIntegration.test.js
+
+      - name: Full test suite
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Diff check
+        run: git diff --check b4e3427fecc7b9cc4403423546f10904a14b13a8...HEAD
