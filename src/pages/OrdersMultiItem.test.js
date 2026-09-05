@@ -6,13 +6,16 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 
 test('orders operation renders all items and exposes complete detail', () => {
   const orders = source('./Orders.jsx')
+  const ticket = source('../components/KitchenTicket.jsx')
+  const notes = source('../components/KitchenTicketNotes.jsx')
   const history = source('./OrderHistory.jsx')
   const detail = source('../components/OrderDetail.jsx')
 
-  assert.match(orders, /getOrderItems\(order\)/)
-  assert.match(orders, /order-items-list/)
-  assert.match(orders, /item\.note/)
-  assert.match(orders, /Ver detalhes/)
+  assert.match(orders, /<KitchenTicket/)
+  assert.match(ticket, /buildKitchenItemSummary\(order\)/)
+  assert.match(ticket, /KitchenTicketNotes/)
+  assert.match(notes, /notes\.map/)
+  assert.match(ticket, /Exibir detalhes/)
   assert.match(history, /getOrderItemsSummary\(order\)/)
   assert.match(detail, /Taxa de entrega/)
   assert.match(detail, /Forma de pagamento/)
@@ -21,20 +24,19 @@ test('orders operation renders all items and exposes complete detail', () => {
 })
 
 test('orders and detail render the complete product label including size', () => {
-  const orders = source('./Orders.jsx')
+  const ticketUtils = source('../utils/kitchenTicket.js')
   const detail = source('../components/OrderDetail.jsx')
 
-  assert.match(orders, /getOrderItemDisplayName\(item\)/)
+  assert.match(ticketUtils, /map\(getOrderItemDisplayName\)/)
   assert.match(detail, /getOrderItemDisplayName\(item\)/)
 })
 
 test('mobile final action is styled to keep long delivery text inside the button', () => {
-  const orders = source('./Orders.jsx')
+  const ticket = source('../components/KitchenTicket.jsx')
   const css = source('../order-operations.css')
 
-  assert.match(orders, /order-final-action/)
-  assert.match(css, /\.order-final-action/)
-  assert.match(css, /white-space:\s*normal/)
+  assert.match(ticket, /getFinalActionLabel\(order\)/)
+  assert.match(css, /\.kitchen-ticket-actions \.button\s*\{[^}]*white-space:\s*normal/s)
 })
 
 test('app order search uses the complete multi-item searchable text', () => {

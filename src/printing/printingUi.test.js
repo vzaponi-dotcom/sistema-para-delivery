@@ -17,11 +17,12 @@ test('print status badge exposes all friendly persisted job states', () => {
   ]) assert.match(badge, new RegExp(label))
 })
 
-test('order cards show a print badge only when an official job exists', () => {
-  assert.match(orders, /PrintStatusBadge/)
+test('kitchen preserves the shared printing manager in details without moving printing into tickets', async () => {
+  const ticket = await readFile(new URL('../components/KitchenTicket.jsx', import.meta.url), 'utf8')
   assert.match(orders, /latestJobByOrderId/)
-  assert.match(orders, /printJob\s*&&\s*<PrintStatusBadge/)
+  assert.match(orders, /<OrderDetail[^>]*printing=\{printing\}[^>]*printJob=\{detailPrintJob\}/)
   assert.match(app, /printing=\{printing\}/)
+  assert.doesNotMatch(ticket, /printing|PrintStatusBadge|apiRequest|fetch\(/)
 })
 
 test('order detail keeps print actions separate and uses the shared printing manager', () => {

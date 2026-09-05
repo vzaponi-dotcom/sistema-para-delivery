@@ -48,6 +48,6 @@ test('kitchen UI supports one-time visual alerts and a persisted sound toggle', 
   assert.match(app, /newOrderIds/)
   assert.match(orders, /soundEnabled/)
   assert.match(orders, /onSoundEnabledChange/)
-  assert.match(orders, /order-new-arrival/)
-  assert.match(css, /\.order-new-arrival/)
+  assert.match(orders, /highlighted=\{newOrderIds\.has/)
+  assert.match(css, /\.kitchen-ticket-highlighted/)
 })

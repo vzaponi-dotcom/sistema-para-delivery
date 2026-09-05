@@ -15,18 +15,21 @@ test('elapsed duration switches to hours and minutes from one hour onward', () =
   assert.equal(orderWorkflow.formatElapsedDuration(347), '5h 47 min')
 })
 
-test('active order cards keep item details collapsed behind an accessible toggle', async () => {
-  const source = await read('./pages/Orders.jsx')
-  assert.match(source, /expandedOrderIds/)
-  assert.match(source, /aria-expanded=/)
-  assert.match(source, /Ver itens/)
-  assert.match(source, /Ocultar itens/)
+test('active kitchen tickets expose item summaries and associated notes without an expandable list', async () => {
+  const orders = await read('./pages/Orders.jsx')
+  const ticket = await read('./components/KitchenTicket.jsx')
+  const notes = await read('./components/KitchenTicketNotes.jsx')
+  assert.match(orders, /<KitchenTicket/)
+  assert.match(ticket, /buildKitchenItemSummary/)
+  assert.match(ticket, /KitchenTicketNotes/)
+  assert.match(notes, /getKitchenItemNotes/)
+  assert.doesNotMatch(orders, /expandedOrderIds|aria-expanded=|Ver itens|Ocultar itens/)
 })
 
-test('active order actions use one compact aligned action row', async () => {
+test('active kitchen ticket actions use two readable columns and full touch targets', async () => {
   const source = await readOptional('./order-operations-compact.css')
-  assert.match(source, /flex-wrap:\s*nowrap/)
-  assert.match(source, /min-height:\s*38px/)
+  assert.match(source, /\.kitchen-ticket-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(source, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*normal/s)
 })
 
 test('sidebar theme picker is a visual three-option segmented control with icons', async () => {

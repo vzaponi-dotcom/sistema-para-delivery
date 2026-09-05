@@ -4,23 +4,28 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('compact kitchen CSS keeps mobile actions inside the card', async () => {
+test('mobile classic tickets preserve full actions and comfortable touch targets', async () => {
   const css = await read('../order-operations-compact.css')
+  const narrow = css.slice(css.lastIndexOf('@media (max-width: 640px)'))
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-queue-actions\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:/s)
-  assert.doesNotMatch(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-queue-actions\s*\{[^}]*flex-wrap:\s*nowrap/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-queue-actions \.button\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target\))/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-queue-actions \.icon-button\s*\{[^}]*min-width:\s*(?:44px|var\(--mobile-touch-target\))[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target\))/s)
+  assert.match(narrow, /\.kitchen-ticket-actions\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:/s)
+  assert.match(narrow, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*normal/s)
+  assert.match(narrow, /\.kitchen-ticket-timing\s*\{[^}]*overflow-wrap:\s*anywhere/s)
 })
 
-test('kitchen item toggle is a comfortable touch target', async () => {
+test('mobile queue headings and empty states remain readable for both permanent queues', async () => {
+  const orders = await read('./Orders.jsx')
   const css = await read('../order-operations-compact.css')
-  assert.match(css, /\.order-items-toggle\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target\))/s)
+  const narrow = css.slice(css.lastIndexOf('@media (max-width: 640px)'))
+
+  assert.equal(orders.match(/className="kitchen-queue-section"/g)?.length, 2)
+  assert.match(narrow, /\.kitchen-queue-heading\s*\{[^}]*align-items:\s*flex-start/s)
+  assert.match(narrow, /\.kitchen-queue-help\s*\{[^}]*white-space:\s*normal/s)
+  assert.match(narrow, /\.kitchen-queue-empty\s*\{[^}]*min-width:\s*0/s)
 })
 
-test('final compact cascade lets mobile customer and history text wrap instead of clipping', async () => {
+test('history text still wraps instead of clipping in the final compact cascade', async () => {
   const css = await read('../order-operations-compact.css')
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-queue-title span:not\(\.status-badge\)\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-history-main span\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
 })
