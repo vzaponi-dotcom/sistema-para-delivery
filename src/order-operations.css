@@ -51,7 +51,7 @@
 
 .kitchen-header-actions .button-primary {
   background: var(--kitchen-preparing);
-  color: var(--kitchen-ticket);
+  color: var(--kitchen-ticket-text);
 }
 
 .kitchen-sound-toggle {
@@ -360,7 +360,7 @@
   align-items: flex-end;
   justify-content: center;
   gap: 2px;
-  color: var(--kitchen-preparing);
+  color: color-mix(in srgb, var(--kitchen-preparing) 70%, var(--kitchen-ticket-text));
   text-align: right;
 }
 
@@ -413,13 +413,13 @@
 }
 
 .kitchen-ticket-actions .button-primary {
-  background: var(--kitchen-finished);
+  background: color-mix(in srgb, var(--kitchen-finished) 90%, var(--kitchen-ticket-text));
   color: var(--kitchen-ticket);
 }
 
 .kitchen-ticket:has(.status-agendado) .kitchen-ticket-actions .button:last-child {
-  border-color: var(--kitchen-late);
-  background: var(--kitchen-late);
+  border-color: color-mix(in srgb, var(--kitchen-late) 90%, var(--kitchen-ticket-text));
+  background: color-mix(in srgb, var(--kitchen-late) 90%, var(--kitchen-ticket-text));
   color: var(--kitchen-ticket);
 }
 
