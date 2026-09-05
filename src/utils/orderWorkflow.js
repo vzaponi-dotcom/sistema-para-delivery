@@ -1,4 +1,5 @@
 import { getOperationalElapsedMinutes, getScheduledLateAt } from '../../shared/orderTiming.js'
+import { getBusinessDate } from '../../shared/finance.js'
 
 const FINAL_STATUSES = new Set(['Entregue', 'Finalizado', 'Despachado'])
 
@@ -94,4 +95,4 @@ export const getOrderTimingState = (order, now = new Date()) => {
 }
 export const getOrderUrgency = (order, now = new Date()) => { const timingState = getOrderTimingState(order, now); if (timingState === 'very-late') return 'delayed'; if (timingState === 'late') return 'attention'; return 'normal' }
 export const getFinalActionLabel = (order) => (order?.type === 'Entrega' ? 'Saiu para entrega' : 'Finalizar')
-export const isFinishedToday = (order, now = new Date()) => { const finishedAt = parseDate(order?.finishedAt); const reference = new Date(now); if (!finishedAt || Number.isNaN(reference.getTime())) return false; return finishedAt.getFullYear() === reference.getFullYear() && finishedAt.getMonth() === reference.getMonth() && finishedAt.getDate() === reference.getDate() }
+export const isFinishedToday = (order, now = new Date()) => { const finishedAt = parseDate(order?.finishedAt); const reference = new Date(now); if (!finishedAt || Number.isNaN(reference.getTime())) return false; return getBusinessDate(finishedAt) === getBusinessDate(reference) }
