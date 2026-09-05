@@ -189,9 +189,27 @@ test('HTTP manual lifecycle preserves a future automatic job unchanged', async (
   assert.equal(automatic.status, 'pending')
   assert.equal(automatic.availableAt, future.toISOString())
 
-  const earlyClaim = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
+  const claimAt = async (at) => {
+    const SystemDate = Date
+    globalThis.Date = class extends SystemDate {
+      constructor(...args) { super(...(args.length ? args : [at])) }
+      static now() { return at.getTime() }
+    }
+    try {
+      return await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
+    } finally {
+      globalThis.Date = SystemDate
+    }
+  }
+
+  const before = new Date(future.getTime() - 1)
+  const earlyClaim = await claimAt(before)
   assert.equal(earlyClaim.status, 200)
   assert.equal((await earlyClaim.json()).job, null)
+
+  const exactClaim = await claimAt(future)
+  assert.equal(exactClaim.status, 200)
+  assert.equal((await exactClaim.json()).job?.id, automaticId)
 })
 
 test('claim-next rejects a secondary station and accepts only the primary automatic station', async () => {
