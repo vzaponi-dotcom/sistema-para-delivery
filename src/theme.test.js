@@ -112,3 +112,29 @@ test('printing settings consume the shared semantic palette in both themes', () 
   }
   assert.doesNotMatch(printingCss, /var\(--[^,]+,\s*#[0-9a-f]{3,8}\)/i)
 })
+
+test('light kitchen palette follows the selected light theme while dark keeps Ticket clássico', () => {
+  const css = source('./index.css')
+  const lightMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/)
+  const darkMatch = css.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)
+
+  assert.ok(lightMatch, 'light root palette should exist')
+  assert.ok(darkMatch, 'dark root palette should exist')
+
+  const light = lightMatch[1]
+  const dark = darkMatch[1]
+
+  assert.match(light, /--kitchen-bg:\s*var\(--bg\);/)
+  assert.match(light, /--kitchen-panel:\s*var\(--surface-soft\);/)
+  assert.match(light, /--kitchen-ticket:\s*var\(--surface\);/)
+  assert.match(light, /--kitchen-ticket-text:\s*var\(--text\);/)
+  assert.match(light, /--kitchen-ticket-muted:\s*var\(--muted\);/)
+  assert.match(light, /--kitchen-preparing:\s*var\(--warning\);/)
+  assert.match(light, /--kitchen-scheduled:\s*var\(--info\);/)
+  assert.match(light, /--kitchen-late:\s*var\(--danger\);/)
+  assert.match(light, /--kitchen-finished:\s*var\(--success\);/)
+
+  assert.match(dark, /--kitchen-bg:\s*#1b1817;/i)
+  assert.match(dark, /--kitchen-panel:\s*#24201e;/i)
+  assert.match(dark, /--kitchen-ticket:\s*#fffaf7;/i)
+})
