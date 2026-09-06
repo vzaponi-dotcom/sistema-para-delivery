@@ -199,6 +199,71 @@
 .table-tab-payment-summary strong { color: var(--text); font-size: 0.95rem; }
 .table-tab-payment-note { margin: 14px 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--info-soft); color: var(--text); font-size: 0.82rem; line-height: 1.45; }
 
+.receivables-header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.receivables-payment-desktop-action { min-height: 44px; }
+.receivables-payment-fab { display: none; }
+
+.receivables-quick-payment {
+  display: grid;
+  gap: 12px;
+}
+
+.receivables-quick-payment-helper {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.receivables-quick-payment-list {
+  display: grid;
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.receivables-quick-payment-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.receivables-quick-payment-row:last-child { border-bottom: 0; }
+.receivables-quick-payment-row:hover:not(:disabled), .receivables-quick-payment-row:focus-visible { background: var(--surface-soft); }
+.receivables-quick-payment-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.receivables-quick-payment-row:disabled { opacity: 0.55; cursor: not-allowed; }
+.receivables-quick-payment-row > svg { color: var(--muted); }
+
+.receivables-quick-payment-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.receivables-quick-payment-main strong { overflow-wrap: anywhere; color: var(--text); font-size: 0.88rem; }
+.receivables-quick-payment-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.75rem; }
+.receivables-quick-payment-main small { color: var(--primary); font-size: 0.71rem; font-weight: 700; }
+.receivables-quick-payment-amount { white-space: nowrap; font-size: 0.88rem; }
+.receivables-quick-payment-empty { min-height: 150px; border: 0; border-radius: 0; }
+
 @media (max-width: 1100px) {
   .receivables-workspace { grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); }
 }
@@ -211,6 +276,32 @@
   .receivable-ledger-row > svg { display: none; }
   .receivables-workspace { display: block; }
   .receivables-detail-panel { display: none; }
+  .receivables-payment-desktop-action { display: none; }
+  .receivables-header-actions { display: none; }
+  .receivables-payment-fab {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-bottom) + var(--mobile-floating-gap));
+    z-index: var(--layer-floating-action);
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: calc(100vw - 32px);
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+  }
+  .receivables-payment-fab:disabled { opacity: 0.55; cursor: not-allowed; }
+  .receivables-payment-fab:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 }
 
 @media (max-width: 640px) {
@@ -221,4 +312,11 @@
   .receivable-ledger-table-action { width: calc(100% - 24px); justify-self: stretch; margin: 0 12px 12px; min-height: 44px; }
   .table-tab-payment-summary { grid-template-columns: 1fr; }
   .receivable-detail-meta { grid-template-columns: 1fr; }
+  .receivables-quick-payment-row { min-height: 56px; grid-template-columns: minmax(0, 1fr) auto; }
+  .receivables-quick-payment-row > svg { display: none; }
+  .receivables-quick-payment-main span { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+}
+
+@media (min-width: 821px) {
+  .receivables-payment-fab { display: none; }
 }
