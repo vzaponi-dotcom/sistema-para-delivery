@@ -133,24 +133,43 @@ Os preços oficiais e o total final são recalculados pelo Worker usando o catá
 
 `Salvar pedido` cria a venda com pagamento pendente. `Salvar e receber` registra a venda e um único pagamento integral no mesmo checkout. O pagamento não finaliza o andamento operacional: um pedido pago do dia continua `Em preparo` até a ação de finalização.
 
-## Impressão térmica de pedidos — MTP5 58 mm
+## Impressão térmica de pedidos — 58 mm ESC/POS
 
-O sistema possui um **Ticket Oficial** único para cozinha, embalagem/cliente, visualização e PDF. A integração física inicial usa a Goldensky MTP5 de 58 mm via ESC/POS e conexão serial Bluetooth autorizada pelo navegador.
+O sistema possui um **Ticket Oficial** único para cozinha, embalagem/cliente, visualização e PDF. O mesmo renderizador ESC/POS de 58 mm é usado nos dois transportes físicos homologáveis:
+
+- **Windows:** Chrome + Web Serial para impressora Bluetooth Classic/serial compatível;
+- **Android:** Chrome + aplicativo RawBT, que recebe os bytes ESC/POS do Gestão Delivery e cuida da conexão Bluetooth com a impressora.
+
+O perfil inicial continua com 203 dpi, 384 pontos por linha, largura imprimível de 48 mm e página de código CP860. A MPT-II usada na homologação Android deve ser configurada no RawBT com **203 dpi** e **384 pontos**.
 
 A configuração fica em **Pedidos > Impressão**.
 
-### Configuração inicial
+### Configuração inicial no Windows
 
-1. Faça o pareamento da MTP5 nas configurações Bluetooth do Windows ou Android.
+1. Pareie a impressora nas configurações Bluetooth do Windows.
 2. Abra o Gestão Delivery em uma origem HTTPS usando Chrome compatível.
 3. Entre em **Pedidos > Impressão**.
-4. Clique em **Conectar impressora** e selecione a MTP5 no seletor do navegador.
+4. Clique em **Conectar impressora** e selecione a porta da impressora no seletor do navegador.
 5. Execute **Testar impressão**.
-6. Se este for o computador/tablet responsável pela impressão automática, marque-o como **estação principal**.
-7. Escolha **1** ou **2 cópias**; o padrão operacional é 2.
-8. Ative a **impressão automática** somente depois de aprovar o teste físico.
+6. Se este computador for responsável pela impressão automática, marque-o como **estação principal**.
+7. Escolha **1** ou **2 cópias**.
+8. Ative a impressão automática somente depois de aprovar o teste físico.
 
-A seleção inicial da impressora precisa de uma ação explícita do usuário. Depois da autorização, o sistema tenta reutilizar somente a porta que já foi autorizada para aquele dispositivo.
+A seleção inicial no Windows precisa de uma ação explícita do usuário. Depois da autorização, o sistema tenta reutilizar somente a porta já autorizada naquele navegador.
+
+### Configuração inicial no Android com RawBT
+
+1. Pareie a impressora nas configurações Bluetooth do Android.
+2. Instale e abra o RawBT.
+3. No RawBT, selecione a impressora e confirme que uma impressão de teste do próprio aplicativo funciona.
+4. Para a MPT-II homologada, configure **203 dpi** e **384 pontos** de largura de impressão.
+5. Abra o Gestão Delivery no Chrome e entre em **Pedidos > Impressão**.
+6. Confirme **Plataforma: Android**, **Driver: RawBT** e o estado **RawBT pronto**.
+7. Não haverá seletor Web Serial nem botão de conexão Bluetooth do navegador no Android; a impressora é escolhida no RawBT.
+8. Escolha **1 cópia** e execute **Testar impressão** antes de testar pedidos reais.
+9. Depois de validar impressão manual, marque a estação como principal e teste a impressão automática de forma controlada antes de mantê-la ativa.
+
+`RawBT pronto` significa que o Gestão Delivery selecionou o transporte RawBT para Android; não é confirmação de que a impressora física está ligada ou conectada. A impressão de teste é a validação operacional.
 
 ### Comportamento operacional
 
@@ -159,24 +178,25 @@ A seleção inicial da impressora precisa de uma ação explícita do usuário. 
 - Apenas a estação principal consome jobs automáticos.
 - **Reimprimir** cria um novo job manual e pede confirmação, preservando o histórico anterior.
 - **Tentar novamente** reutiliza o mesmo job e o mesmo snapshot quando houve falha conhecida.
-- Se o resultado físico for incerto, o job fica em **Requer atenção** e depende de intervenção explícita.
 - Não há loop de retry automático depois de uma falha.
-- `Impresso` significa que a escrita serial terminou sem erro reportado; impressoras portáteis simples nem sempre conseguem confirmar que o papel saiu fisicamente.
+- No Web Serial, `Impresso` significa que a escrita serial terminou sem erro reportado; a impressora simples não confirma necessariamente a saída física do papel.
+- No Android/RawBT, o navegador só consegue confirmar que entregou o comando ao esquema do RawBT; a saída física precisa ser validada operacionalmente.
 - Preview e PDF continuam disponíveis mesmo sem a impressora conectada.
 - Pedidos finalizados continuam permitindo preview, PDF e reimpressão pelo Histórico.
 
 ### Compatibilidade e limites da V1
 
-- Alvo desktop: Chrome com Web Serial e Windows com a MTP5 pareada pelo sistema operacional.
-- Alvo Android: Chrome 138+ em dispositivo que exponha o fluxo serial necessário para a MTP5; a aceitação física é obrigatória antes de considerar a plataforma aprovada.
+- Alvo desktop: Chrome com Web Serial e Windows com impressora serial Bluetooth compatível pareada pelo sistema operacional.
+- Alvo Android: Chrome + RawBT configurado para a impressora ESC/POS; a MPT-II é o hardware de homologação atual.
+- A abertura automática do RawBT a partir de um job sem gesto do usuário depende do comportamento do Android/Chrome e deve ser validada fisicamente em staging antes de aprovar a impressão automática.
 - Safari e Firefox não possuem garantia de compatibilidade com este fluxo.
 - Não há envio automático do ticket por WhatsApp.
 - Não há failover automático para uma segunda estação de impressão.
 - Não há roteamento por setor/cozinha nem múltiplas impressoras na V1.
 - Não há comando de corte automático na V1.
-- A página de código inicial para português é CP860 (`ESC t 3`); o comportamento da unidade física da MTP5 é a autoridade final.
+- A página de código inicial para português é CP860 (`ESC t 3`); o comportamento da unidade física é a autoridade final.
 
-O checklist completo de validação física está em `docs/order-printing-mtp5-acceptance.md` e deve ser preenchido separadamente para Windows e Android.
+O checklist completo de validação física está em `docs/order-printing-mtp5-acceptance.md` e deve ser preenchido separadamente para Windows e Android/RawBT.
 
 ## Deploy de staging
 
