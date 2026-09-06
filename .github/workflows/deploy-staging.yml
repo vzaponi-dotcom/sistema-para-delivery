@@ -2,6 +2,9 @@ name: Deploy staging
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/products-list-form-ux
 
 permissions:
   contents: read
