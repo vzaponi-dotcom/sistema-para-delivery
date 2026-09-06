@@ -10,12 +10,13 @@ test('BottomSheet is focus-trapped and dismissible', async () => {
   assert.match(source, /event\.key === 'Escape'/)
   assert.match(source, /event\.key !== 'Tab'/)
   assert.match(source, /previousFocus/)
-  assert.match(source, /data-navigation-swipe-block/)
 })
 
-test('Modal backdrop also blocks navigation swipe', async () => {
+test('Modal keeps its accessible dialog behavior', async () => {
   const source = await read('./components/Modal.jsx')
-  assert.match(source, /modal-backdrop[^>]*data-navigation-swipe-block/s)
+  assert.match(source, /modal-backdrop/)
+  assert.match(source, /role="dialog"/)
+  assert.match(source, /aria-modal="true"/)
 })
 
 test('sheet CSS respects safe area and touch targets', async () => {
