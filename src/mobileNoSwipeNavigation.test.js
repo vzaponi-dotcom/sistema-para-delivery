@@ -26,6 +26,11 @@ test('app shell does not intercept horizontal touch gestures for navigation', as
   assert.doesNotMatch(source, /onTouchEnd=/)
 })
 
+test('mobile foundation does not block horizontal gestures inside scrollable controls', async () => {
+  const css = await read('./mobile-foundation.css')
+  assert.doesNotMatch(css, /\.app-main\s*\{[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
+})
+
 test('swipe-navigation helpers and opt-out markers are removed from runtime code', async () => {
   const forbidden = [
     'getAdjacentMobile' + 'Section',
