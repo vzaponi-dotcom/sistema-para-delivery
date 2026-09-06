@@ -191,7 +191,9 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
                               onClick={(event) => { event.stopPropagation(); toggleProductSelection(product.id) }}
                               disabled={actionsDisabled}
                             >
-                              {selected && <Icon name="check" size={15} />}
+                              <span className="product-select-checkbox-mark" aria-hidden="true">
+                                {selected && <Icon name="check" size={13} />}
+                              </span>
                             </button>
                           ) : (
                             <div className="product-icon"><Icon name={CATEGORY_ICON_NAMES[category]} size={18} /></div>
