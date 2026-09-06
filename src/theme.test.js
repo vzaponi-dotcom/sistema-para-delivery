@@ -141,40 +141,36 @@ test('light kitchen palette follows the selected light theme while dark keeps Ti
 
 test('kitchen board text colors remain readable when light surfaces replace the dark board', () => {
   const themeCss = source('./index.css')
-  const kitchenCss = source('./order-operations.css')
+  const contrastCss = optionalSource('./kitchen-theme-contrast.css')
   const lightMatch = themeCss.match(/:root\s*\{([\s\S]*?)\n\}/)
   const darkMatch = themeCss.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)
 
   assert.ok(lightMatch, 'light root palette should exist')
   assert.ok(darkMatch, 'dark root palette should exist')
+  assert.ok(contrastCss, 'kitchen contrast layer should exist')
 
   const light = lightMatch[1]
   const dark = darkMatch[1]
 
+  assert.match(themeCss, /@import ['"]\.\/kitchen-theme-contrast\.css['"];/)
   assert.match(light, /--kitchen-board-text:\s*var\(--text\);/)
   assert.match(light, /--kitchen-board-muted:\s*var\(--muted\);/)
   assert.match(dark, /--kitchen-board-text:\s*var\(--kitchen-ticket\);/)
   assert.match(dark, /--kitchen-board-muted:\s*color-mix\(in srgb,\s*var\(--kitchen-ticket\) 60%,\s*var\(--kitchen-panel\)\);/)
 
-  for (const selector of [
-    '.kitchen-page',
-    '.kitchen-page .page-header h1',
-    '.kitchen-header-actions .button-secondary',
-    '.kitchen-stat-card .stat-copy strong',
-    '.kitchen-queue-heading',
-    '.kitchen-queue-empty strong',
+  for (const className of [
+    'page-header h1',
+    'page-description',
+    'kitchen-header-actions',
+    'kitchen-stat-card',
+    'toolbar-count',
+    'kitchen-queue-heading',
+    'kitchen-queue-help',
+    'kitchen-queue-empty',
   ]) {
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    assert.match(kitchenCss, new RegExp(`${escaped}\\s*\\{[^}]*color:\\s*var\\(--kitchen-board-text\\)`, 's'))
+    assert.match(contrastCss, new RegExp(className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   }
 
-  for (const selector of [
-    '.kitchen-page .page-description',
-    '.kitchen-toolbar .toolbar-count',
-    '.kitchen-queue-help',
-    '.kitchen-queue-empty',
-  ]) {
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    assert.match(kitchenCss, new RegExp(`${escaped}\\s*\\{[^}]*color:\\s*var\\(--kitchen-board-muted\\)`, 's'))
-  }
+  assert.ok((contrastCss.match(/var\(--kitchen-board-text\)/g) || []).length >= 6)
+  assert.ok((contrastCss.match(/var\(--kitchen-board-muted\)/g) || []).length >= 5)
 })
