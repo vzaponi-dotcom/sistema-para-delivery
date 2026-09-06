@@ -57,10 +57,10 @@ const emptyTotals = () => ({ amount: 0, count: 0 })
 
 export const calculateReceivableSummary = (orders, today) => {
   const summary = { today: emptyTotals(), upcoming: emptyTotals(), overdue: emptyTotals() }
-  for (const order of getPendingReceivableOrders(orders)) {
-    const bucket = summary[getReceivableTiming(order, today).status]
+  for (const entry of buildPendingReceivableEntries(orders, [], today)) {
+    const bucket = summary[entry.timing.status]
     if (!bucket) continue
-    bucket.amount += getPendingAmount(order)
+    bucket.amount += entry.total
     bucket.count += 1
   }
   return summary
@@ -72,9 +72,9 @@ export const buildReceivablesForecast = (orders, today, horizonDays = 7) => {
     date: todayDay == null ? null : isoFromDayNumber(todayDay + index + 1), amount: 0, count: 0,
   }))
   const result = { overdue: emptyTotals(), today: emptyTotals(), days, later: emptyTotals() }
-  for (const order of getPendingReceivableOrders(orders)) {
-    const timing = getReceivableTiming(order, today)
-    const amount = getPendingAmount(order)
+  for (const entry of buildPendingReceivableEntries(orders, [], today)) {
+    const { timing } = entry
+    const amount = entry.total
     if (timing.status === 'overdue' || timing.status === 'today') {
       result[timing.status].amount += amount
       result[timing.status].count += 1
@@ -105,7 +105,7 @@ export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today
         kind: 'order',
         order,
         orders: [order],
-        label: order.client || 'Pedido sem identificaÃ§Ã£o',
+        label: order.client || 'Pedido sem identificação',
         total: getPendingAmount(order),
         expectedDate: getExpectedPaymentDate(order),
         timing: getReceivableTiming(order, today),

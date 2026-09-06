@@ -131,3 +131,16 @@ test('table tabs stay aggregated by newest pending order and urgency orders entr
     'order:late', 'table-tab:tab-4', 'order:future',
   ])
 })
+
+test('an open table tab is counted once in today summary and forecast using its newest pending order', () => {
+  const tableOrders = [
+    datedPending({ id: 'tab-old', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-03', total: 30 }),
+    datedPending({ id: 'tab-today', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-06', total: 40 }),
+  ]
+  assert.deepEqual(calculateReceivableSummary(tableOrders, '2026-09-06'), {
+    today: { amount: 70, count: 1 }, upcoming: { amount: 0, count: 0 }, overdue: { amount: 0, count: 0 },
+  })
+  const forecast = buildReceivablesForecast(tableOrders, '2026-09-06', 7)
+  assert.deepEqual(forecast.today, { amount: 70, count: 1 })
+  assert.deepEqual(forecast.overdue, { amount: 0, count: 0 })
+})
