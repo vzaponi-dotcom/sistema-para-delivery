@@ -6,15 +6,16 @@ const baseJob = {
   id: 'job-1',
   document: { version: 1, type: 'order' },
   copiesRequested: 2,
+  copiesPrinted: 0,
 }
 
-test('successful claimed job renders, writes and completes exactly once', async () => {
+test('successful first pass of a two-copy job renders and completes only copy 1/2', async () => {
   const calls = { renderer: 0, transport: 0, complete: 0, fail: 0 }
   const bytes = new Uint8Array([1, 2, 3])
   const renderer = (document, options) => {
     calls.renderer += 1
     assert.equal(document, baseJob.document)
-    assert.deepEqual(options, { copies: 2 })
+    assert.deepEqual(options, { copies: 1, copyNumber: 1, totalCopies: 2 })
     return bytes
   }
   const transport = async (port, receivedBytes) => {
@@ -26,7 +27,7 @@ test('successful claimed job renders, writes and completes exactly once', async 
     calls.complete += 1
     assert.equal(jobId, 'job-1')
     assert.equal(stationId, 'station-1')
-    assert.equal(copiesPrinted, 2)
+    assert.equal(copiesPrinted, 1)
   }
   const failJob = async () => { calls.fail += 1 }
 
@@ -42,6 +43,51 @@ test('successful claimed job renders, writes and completes exactly once', async 
 
   assert.deepEqual(result, { status: 'printed' })
   assert.deepEqual(calls, { renderer: 1, transport: 1, complete: 1, fail: 0 })
+})
+
+test('second pass resumes a two-copy job at copy 2/2 without reprinting the first copy', async () => {
+  const resumedJob = { ...baseJob, copiesPrinted: 1 }
+  const bytes = new Uint8Array([4, 5, 6])
+  let completePayload = null
+
+  const result = await runClaimedPrintJob({
+    job: resumedJob,
+    stationId: 'station-1',
+    port: 'port-1',
+    completeJob: async (jobId, stationId, copiesPrinted) => {
+      completePayload = { jobId, stationId, copiesPrinted }
+    },
+    failJob: async () => assert.fail('second copy must not fail'),
+    renderer: (document, options) => {
+      assert.equal(document, resumedJob.document)
+      assert.deepEqual(options, { copies: 1, copyNumber: 2, totalCopies: 2 })
+      return bytes
+    },
+    transport: async (_port, receivedBytes) => assert.equal(receivedBytes, bytes),
+  })
+
+  assert.deepEqual(result, { status: 'printed' })
+  assert.deepEqual(completePayload, { jobId: 'job-1', stationId: 'station-1', copiesPrinted: 2 })
+})
+
+test('one-copy job keeps a single physical pass labeled 1/1', async () => {
+  const job = { ...baseJob, copiesRequested: 1, copiesPrinted: 0 }
+  let completedCopies = null
+
+  await runClaimedPrintJob({
+    job,
+    stationId: 'station-1',
+    port: 'port-1',
+    completeJob: async (_jobId, _stationId, copiesPrinted) => { completedCopies = copiesPrinted },
+    failJob: async () => assert.fail('one-copy job must not fail'),
+    renderer: (_document, options) => {
+      assert.deepEqual(options, { copies: 1, copyNumber: 1, totalCopies: 1 })
+      return new Uint8Array([7])
+    },
+    transport: async () => {},
+  })
+
+  assert.equal(completedCopies, 1)
 })
 
 test('failure before serial write reports a known failed outcome once', async () => {
