@@ -15,7 +15,7 @@ jobs:
       - name: Checkout exact homologated target
         uses: actions/checkout@v4
         with:
-          ref: b911bb83d3ad111c2831a1645794c6829a1aa02f
+          ref: 52bf782ce6bc3eb54abee074b54f5e7463104b8f
           fetch-depth: 0
 
       - name: Setup Node
@@ -30,7 +30,7 @@ jobs:
       - name: Verify exact target and base ancestry
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "b911bb83d3ad111c2831a1645794c6829a1aa02f"
+          test "$(git rev-parse HEAD)" = "52bf782ce6bc3eb54abee074b54f5e7463104b8f"
           git merge-base --is-ancestor b4e3427fecc7b9cc4403423546f10904a14b13a8 HEAD
 
       - name: Full test suite
@@ -48,7 +48,7 @@ jobs:
       - name: Contract scans
         shell: bash
         run: |
-          if grep -RInE --exclude='*.test.js' --exclude='*.test.jsx' "Aguardando janela|printed:[[:space:]]*['\"]Impresso['\"]" src; then
+          if grep -RInE --exclude='*.test.js' --exclude='*.test.jsx' "Aguardando janela|printed:[[:space:]]*['\"]Impresso['\"]|Este pedido já foi impresso\." src; then
             echo "Forbidden user-facing kitchen/printing copy found"
             exit 1
           fi
