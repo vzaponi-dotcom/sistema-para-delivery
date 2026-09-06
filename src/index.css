@@ -2,6 +2,7 @@
 @import './mobile-foundation.css';
 @import './finance-mobile.css';
 @import './mobile-interactions.css';
+@import './kitchen-theme-contrast.css';
 
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -36,6 +37,8 @@
   --kitchen-ticket: var(--surface);
   --kitchen-ticket-text: var(--text);
   --kitchen-ticket-muted: var(--muted);
+  --kitchen-board-text: var(--text);
+  --kitchen-board-muted: var(--muted);
   --kitchen-preparing: var(--warning);
   --kitchen-scheduled: var(--info);
   --kitchen-late: var(--danger);
@@ -83,6 +86,8 @@
   --kitchen-ticket: #fffaf7;
   --kitchen-ticket-text: #25211f;
   --kitchen-ticket-muted: #6f6661;
+  --kitchen-board-text: var(--kitchen-ticket);
+  --kitchen-board-muted: color-mix(in srgb, var(--kitchen-ticket) 60%, var(--kitchen-panel));
   --kitchen-preparing: #d97706;
   --kitchen-scheduled: #2563eb;
   --kitchen-late: #dc3545;
