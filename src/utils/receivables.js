@@ -1,6 +1,24 @@
 import { isOrderCancelled } from './orderLifecycle.js'
 import { getPendingAmount, isOrderPaid } from './paymentWorkflow.js'
 
+const DAY_MS = 86_400_000
+const timingRank = { overdue: 0, today: 1, upcoming: 2 }
+
+const isoDayNumber = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? ''))
+  if (!match) return null
+  const [, rawYear, rawMonth, rawDay] = match
+  const year = Number(rawYear)
+  const month = Number(rawMonth)
+  const day = Number(rawDay)
+  const timestamp = Date.UTC(year, month - 1, day)
+  const parsed = new Date(timestamp)
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) return null
+  return timestamp / DAY_MS
+}
+
+const isoFromDayNumber = (dayNumber) => new Date(dayNumber * DAY_MS).toISOString().slice(0, 10)
+
 const isRegisteredClientOrder = (order) => Boolean(
   order?.clientId && (!order?.customerIdentityType || order.customerIdentityType === 'registered_client'),
 )
@@ -15,6 +33,120 @@ const groupKey = (order) => {
 
 export const getPendingReceivableOrders = (orders = []) => (Array.isArray(orders) ? orders : [])
   .filter((order) => !isOrderCancelled(order) && !isOrderPaid(order))
+
+export const getPaidReceivableOrders = (orders = []) => (Array.isArray(orders) ? orders : [])
+  .filter((order) => !isOrderCancelled(order) && isOrderPaid(order))
+
+export const getExpectedPaymentDate = (order) => order?.promisedPaymentDate || order?.orderDate || null
+
+export const getReceivableTiming = (order, today) => {
+  const expectedDate = getExpectedPaymentDate(order)
+  if (isOrderCancelled(order)) return { status: 'excluded', expectedDate, daysOverdue: 0 }
+  if (isOrderPaid(order)) return { status: 'paid', expectedDate, daysOverdue: 0 }
+  const expectedDay = isoDayNumber(expectedDate)
+  const todayDay = isoDayNumber(today)
+  if (expectedDay == null || todayDay == null) return { status: 'today', expectedDate, daysOverdue: 0 }
+  if (expectedDay < todayDay) return { status: 'overdue', expectedDate, daysOverdue: todayDay - expectedDay }
+  if (expectedDay > todayDay) return { status: 'upcoming', expectedDate, daysOverdue: 0 }
+  return { status: 'today', expectedDate, daysOverdue: 0 }
+}
+
+export const getDaysOverdue = (order, today) => getReceivableTiming(order, today).daysOverdue
+
+const emptyTotals = () => ({ amount: 0, count: 0 })
+
+export const calculateReceivableSummary = (orders, today) => {
+  const summary = { today: emptyTotals(), upcoming: emptyTotals(), overdue: emptyTotals() }
+  for (const order of getPendingReceivableOrders(orders)) {
+    const bucket = summary[getReceivableTiming(order, today).status]
+    if (!bucket) continue
+    bucket.amount += getPendingAmount(order)
+    bucket.count += 1
+  }
+  return summary
+}
+
+export const buildReceivablesForecast = (orders, today, horizonDays = 7) => {
+  const todayDay = isoDayNumber(today)
+  const days = Array.from({ length: horizonDays }, (_, index) => ({
+    date: todayDay == null ? null : isoFromDayNumber(todayDay + index + 1), amount: 0, count: 0,
+  }))
+  const result = { overdue: emptyTotals(), today: emptyTotals(), days, later: emptyTotals() }
+  for (const order of getPendingReceivableOrders(orders)) {
+    const timing = getReceivableTiming(order, today)
+    const amount = getPendingAmount(order)
+    if (timing.status === 'overdue' || timing.status === 'today') {
+      result[timing.status].amount += amount
+      result[timing.status].count += 1
+      continue
+    }
+    const delta = isoDayNumber(timing.expectedDate) - todayDay
+    const bucket = delta >= 1 && delta <= horizonDays ? result.days[delta - 1] : result.later
+    bucket.amount += amount
+    bucket.count += 1
+  }
+  return result
+}
+
+const newestOrderFirst = (orders) => [...orders].sort((left, right) => (
+  String(right.orderDate || '').localeCompare(String(left.orderDate || ''))
+  || String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
+))[0]
+
+export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today) => {
+  const pendingOrders = getPendingReceivableOrders(orders)
+  const entries = []
+  const tableOrdersByTab = new Map()
+
+  for (const order of pendingOrders) {
+    if (!isTableTabOrder(order)) {
+      entries.push({
+        key: `order:${order.id}`,
+        kind: 'order',
+        order,
+        orders: [order],
+        label: order.client || 'Pedido sem identificaÃ§Ã£o',
+        total: getPendingAmount(order),
+        expectedDate: getExpectedPaymentDate(order),
+        timing: getReceivableTiming(order, today),
+        createdAt: order.createdAt || '',
+      })
+      continue
+    }
+    const grouped = tableOrdersByTab.get(order.tableTabId) || []
+    grouped.push(order)
+    tableOrdersByTab.set(order.tableTabId, grouped)
+  }
+
+  for (const [tableTabId, tableOrders] of tableOrdersByTab) {
+    const newestOrder = newestOrderFirst(tableOrders)
+    const tableTab = (Array.isArray(tableTabs) ? tableTabs : []).find((item) => item.id === tableTabId)
+    const tableIdentifier = tableTab?.tableIdentifier || newestOrder.client?.replace(/^Mesa\s*/i, '') || tableTabId
+    const referenceOrder = { ...newestOrder, promisedPaymentDate: null }
+    entries.push({
+      key: `table-tab:${tableTabId}`,
+      kind: 'table_tab',
+      tableTabId,
+      order: newestOrder,
+      orders: tableOrders,
+      label: `Mesa ${tableIdentifier}`,
+      total: tableOrders.reduce((sum, order) => sum + getPendingAmount(order), 0),
+      expectedDate: newestOrder.orderDate || null,
+      timing: getReceivableTiming(referenceOrder, today),
+      createdAt: tableOrders.map((order) => order.createdAt || '').sort()[0] || '',
+    })
+  }
+  return entries
+}
+
+export const sortReceivableEntries = (entries = [], sortMode = 'urgency') => [...(Array.isArray(entries) ? entries : [])]
+  .sort((left, right) => {
+    if (sortMode === 'recent') return String(right.createdAt).localeCompare(String(left.createdAt))
+    if (sortMode === 'value-desc') return right.total - left.total || String(left.createdAt).localeCompare(String(right.createdAt))
+    return (timingRank[left.timing?.status] ?? 99) - (timingRank[right.timing?.status] ?? 99)
+      || String(left.expectedDate || '').localeCompare(String(right.expectedDate || ''))
+      || String(left.createdAt || '').localeCompare(String(right.createdAt || ''))
+  })
 
 export const groupPendingOrders = (orders = []) => {
   const grouped = new Map()
