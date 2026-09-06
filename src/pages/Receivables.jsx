@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../../shared/finance.js'
 import '../receivables.css'
+import '../receivables-forecast.css'
 import BottomSheet from '../components/BottomSheet'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
@@ -9,13 +10,16 @@ import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentPromiseDialog from '../components/PaymentPromiseDialog'
 import ReceivableDetail from '../components/ReceivableDetail'
+import ReceivablesForecastDialog from '../components/ReceivablesForecastDialog'
 import ReceivablesQuickPaymentDialog from '../components/ReceivablesQuickPaymentDialog'
 import SystemSelect from '../components/SystemSelect'
 import { getBusinessDate } from '../../shared/finance.js'
 import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate } from '../utils/orderWorkflow'
+import { calculateReceivedToday } from '../utils/paymentWorkflow.js'
 import {
   buildPendingReceivableEntries,
+  buildReceivablesForecast,
   calculateReceivableSummary,
   getPaidReceivableOrders,
   sortReceivableEntries,
@@ -75,7 +79,6 @@ function Receivables({
   onRegisterTableTabPayment,
   onUpdatePaymentPromise,
 }) {
-  void movements
   const [search, setSearch] = useState('')
   const [activeView, setActiveView] = useState('pending')
   const [timingFilter, setTimingFilter] = useState('all')
@@ -88,6 +91,7 @@ function Receivables({
   const [tableTabPaymentGroup, setTableTabPaymentGroup] = useState(null)
   const [tableTabPaymentMethod, setTableTabPaymentMethod] = useState('Pix')
   const [quickPaymentOpen, setQuickPaymentOpen] = useState(false)
+  const [forecastOpen, setForecastOpen] = useState(false)
   const [isMobileDetail, setIsMobileDetail] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 820px)').matches)
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = disabled || (typeof navigator !== 'undefined' && !navigator.onLine)
@@ -110,6 +114,8 @@ function Receivables({
   }, [])
 
   const summary = useMemo(() => calculateReceivableSummary(orders, today), [orders, today])
+  const forecast = useMemo(() => buildReceivablesForecast(orders, today, 7), [orders, today])
+  const receivedToday = useMemo(() => calculateReceivedToday(movements, today), [movements, today])
   const pendingEntries = useMemo(() => buildPendingReceivableEntries(orders, tableTabs, today), [orders, tableTabs, today])
   const quickPaymentEntries = useMemo(() => pendingEntries.filter((entry) => entry.kind === 'order'), [pendingEntries])
   const allPaidOrders = useMemo(() => getPaidReceivableOrders(orders), [orders])
@@ -137,7 +143,7 @@ function Receivables({
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
   }, [allPaidOrders, pendingEntries, selectedEntryKey])
 
-  const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || tableTabPaymentGroup || quickPaymentOpen)
+  const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || tableTabPaymentGroup || quickPaymentOpen || forecastOpen)
 
   useEffect(() => {
     if (selectedEntryKey && !selectedEntry) setSelectedEntryKey(null)
@@ -146,6 +152,8 @@ function Receivables({
   const selectPrimaryView = (view) => {
     if (!PRIMARY_VIEWS.includes(view)) return
     setActiveView(view)
+    setTimingFilter('all')
+    setExactDateFilter(null)
     setSelectedEntryKey(null)
   }
 
@@ -155,6 +163,14 @@ function Receivables({
     setTimingFilter(filter)
     setExactDateFilter(null)
     setSelectedEntryKey(null)
+  }
+
+  const applyForecastDate = (date) => {
+    setActiveView('pending')
+    setTimingFilter('all')
+    setExactDateFilter(date)
+    setSelectedEntryKey(null)
+    setForecastOpen(false)
   }
 
   const openOrderDetail = (entry) => setSelectedEntryKey(entry.key)
@@ -188,7 +204,18 @@ function Receivables({
 
   return (
     <>
-      <PageHeader eyebrow="Financeiro" title="A receber" description="Acompanhe o que entra hoje, os próximos recebimentos e os atrasos." />
+      <div className="receivables-page-header">
+        <PageHeader eyebrow="Financeiro" title="A receber" description="Acompanhe o que entra hoje, os próximos recebimentos e os atrasos." />
+        <button
+          type="button"
+          className="receivables-forecast-button"
+          onClick={() => setForecastOpen(true)}
+          aria-label="Previsão de recebimentos"
+        >
+          <Icon name="chart" size={18} />
+          <span>Previsão</span>
+        </button>
+      </div>
 
       <section className="receivables-summary-grid" aria-label="Resumo de recebimentos">
         <button type="button" className="receivables-summary-card" onClick={() => applyTimingFilter('today')}>
@@ -212,6 +239,7 @@ function Receivables({
           {activeView === 'pending' && (
             <div className="receivables-filter-strip" aria-label="Filtrar pendências por prazo">
               {TIMING_FILTERS.map((filter) => <button key={filter} type="button" aria-pressed={timingFilter === filter && !exactDateFilter} onClick={() => applyTimingFilter(filter)}>{TIMING_FILTER_LABELS[filter]}</button>)}
+              {exactDateFilter && <button type="button" aria-pressed="true" onClick={() => setExactDateFilter(null)}>Data {formatOrderDate(exactDateFilter)} ×</button>}
             </div>
           )}
 
@@ -292,6 +320,16 @@ function Receivables({
           onViewOrder={setDetailOrder}
         />
       </BottomSheet>
+
+      {forecastOpen && (
+        <ReceivablesForecastDialog
+          forecast={forecast}
+          receivedToday={receivedToday}
+          currency={currency}
+          onClose={() => setForecastOpen(false)}
+          onSelectDate={applyForecastDate}
+        />
+      )}
 
       {quickPaymentOpen && (
         <ReceivablesQuickPaymentDialog
