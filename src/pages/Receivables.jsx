@@ -176,7 +176,23 @@ function Receivables({
   const openOrderDetail = (entry) => setSelectedEntryKey(entry.key)
   const openPaidOrderDetail = (order) => setSelectedEntryKey(`paid:${order.id}`)
 
+  const registerPaymentFromDetail = (orderId) => {
+    setSelectedEntryKey(null)
+    onRegisterPayment?.(orderId)
+  }
+
+  const editPaymentPromiseFromDetail = (order) => {
+    setSelectedEntryKey(null)
+    setPromiseOrder(order)
+  }
+
+  const viewOrderFromDetail = (order) => {
+    setSelectedEntryKey(null)
+    setDetailOrder(order)
+  }
+
   const openTableTabPayment = (group) => {
+    setSelectedEntryKey(null)
     setTableTabPaymentMethod('Pix')
     setTableTabPaymentGroup(group)
   }
@@ -195,10 +211,10 @@ function Receivables({
       entry={selectedEntry}
       currency={currency}
       disabled={writeDisabled}
-      onRegisterPayment={onRegisterPayment}
+      onRegisterPayment={registerPaymentFromDetail}
       onRegisterTableTabPayment={openTableTabPayment}
-      onEditPaymentPromise={setPromiseOrder}
-      onViewOrder={setDetailOrder}
+      onEditPaymentPromise={editPaymentPromiseFromDetail}
+      onViewOrder={viewOrderFromDetail}
     />
   ) : null
 
@@ -314,10 +330,10 @@ function Receivables({
           entry={selectedEntry}
           currency={currency}
           disabled={writeDisabled}
-          onRegisterPayment={onRegisterPayment}
+          onRegisterPayment={registerPaymentFromDetail}
           onRegisterTableTabPayment={openTableTabPayment}
-          onEditPaymentPromise={setPromiseOrder}
-          onViewOrder={setDetailOrder}
+          onEditPaymentPromise={editPaymentPromiseFromDetail}
+          onViewOrder={viewOrderFromDetail}
         />
       </BottomSheet>
 
