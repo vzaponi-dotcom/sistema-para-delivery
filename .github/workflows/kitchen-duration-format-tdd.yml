@@ -1,0 +1,30 @@
+name: Kitchen duration format TDD
+
+on:
+  push:
+    branches:
+      - fix/kitchen-duration-format-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Focused kitchen duration tests
+        run: node --test src/utils/kitchenTicket.test.js
+      - name: Full suite
+        run: npm test
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Patch integrity
+        run: git diff --check 52bf782ce6bc3eb54abee074b54f5e7463104b8f...HEAD
