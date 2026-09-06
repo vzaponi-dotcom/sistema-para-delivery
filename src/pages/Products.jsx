@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Button from '../components/Button'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import Icon from '../components/Icon'
@@ -124,6 +125,16 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
     }
   }
 
+  const selectionActions = (className) => (
+    <div className={className} aria-live="polite">
+      <strong>{selectedProductIds.size} selecionado(s)</strong>
+      <div>
+        <button type="button" className="product-bulk-delete" onClick={() => setBulkDeleteOpen(true)} disabled={actionsDisabled || !selectedProductIds.size}>Excluir selecionados</button>
+        <button type="button" className="product-selection-cancel" onClick={cancelSelection} disabled={actionsDisabled}>Cancelar seleção</button>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <PageHeader
@@ -146,17 +157,9 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
           </div>
         </div>
 
-        {selectionMode && (
-          <div className="product-selection-toolbar" aria-live="polite">
-            <strong>{selectedProductIds.size} selecionado(s)</strong>
-            <div>
-              <button type="button" className="product-bulk-delete" onClick={() => setBulkDeleteOpen(true)} disabled={actionsDisabled || !selectedProductIds.size}>Excluir selecionados</button>
-              <button type="button" className="product-selection-cancel" onClick={cancelSelection} disabled={actionsDisabled}>Cancelar seleção</button>
-            </div>
-          </div>
-        )}
+        {selectionMode && selectionActions('product-selection-toolbar')}
 
-        <div className="product-list product-accordion-list">
+        <div className={selectionMode ? 'product-list product-accordion-list has-selection-actions' : 'product-list product-accordion-list'}>
           {groupedProducts.map(({ category, products: categoryProducts }) => {
             const expanded = Boolean(normalizedSearch) || categoryFilter !== 'Todos' || expandedCategories.has(category)
             return (
@@ -238,6 +241,11 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
 
         {!visibleProducts.length && <div className="empty-state"><Icon name="products" size={28} /><strong>Nenhum produto encontrado</strong><span>Adicione um item ao cardápio ou ajuste a busca e os filtros.</span></div>}
       </section>
+
+      {selectionMode && typeof document !== 'undefined' && createPortal(
+        selectionActions('product-selection-mobile-toolbar'),
+        document.body,
+      )}
 
       {deleteCandidate && (
         <ConfirmationDialog
