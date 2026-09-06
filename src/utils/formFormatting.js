@@ -6,6 +6,12 @@ export const formatPhone = (value) => {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
 }
 
+export const formatScheduledTimeInput = (value) => {
+  const digits = String(value ?? '').replace(/\D/g, '').slice(0, 4)
+  if (digits.length <= 2) return digits
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`
+}
+
 const formatBRLNumber = (value) => Number(value).toLocaleString('pt-BR', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
