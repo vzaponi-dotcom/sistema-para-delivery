@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { canConsumeAutomaticPrintJob } from './usePrintingManager.js'
+import {
+  canConsumeAutomaticPrintJob,
+  getPrintingTransportKind,
+  isPrintingTransportSupported,
+} from './usePrintingManager.js'
 
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
@@ -25,9 +29,23 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.match(manager, /runClaimedPrintJob/)
   assert.match(manager, /findAuthorizedPrinterPort/)
   assert.match(manager, /requestPrinterPort/)
+  assert.match(manager, /dispatchRawBtBytes/)
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
   assert.doesNotMatch(app, /detectedIds[\s\S]{0,500}printing\./)
+})
+
+test('Android selects RawBT while Windows and other platforms keep Web Serial', () => {
+  assert.equal(getPrintingTransportKind('android'), 'rawbt')
+  assert.equal(getPrintingTransportKind('windows'), 'web-serial')
+  assert.equal(getPrintingTransportKind('other'), 'web-serial')
+
+  assert.equal(isPrintingTransportSupported('android', undefined), true)
+  assert.equal(isPrintingTransportSupported('windows', undefined), false)
+  assert.equal(isPrintingTransportSupported('windows', { requestPort() {}, getPorts() {} }), true)
+
+  assert.match(manager, /transportKind === 'rawbt'/)
+  assert.match(manager, /dispatchRawBtBytes\(bytes\)/)
 })
 
 test('automatic claim guard blocks duplicate or unsafe consumption states', () => {
