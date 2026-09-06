@@ -181,18 +181,38 @@ const renderTestDocument = (document) => {
   return flattenBytes(parts)
 }
 
-export const renderEscPos58mm = (document, { copies = 1 } = {}) => {
+export const renderEscPos58mm = (document, {
+  copies = 1,
+  copyNumber = null,
+  totalCopies = null,
+} = {}) => {
   const count = Number(copies)
   if (count !== 1 && count !== 2) throw new RangeError('copies must be 1 or 2')
   if (!document || !['order', 'test'].includes(document.type)) throw new TypeError('Unsupported print document')
 
+  const selectedCopy = copyNumber == null && totalCopies == null
+    ? null
+    : { copyNumber: Number(copyNumber), totalCopies: Number(totalCopies) }
+
+  if (selectedCopy) {
+    if (document.type !== 'order' || count !== 1) throw new RangeError('selected copy rendering requires one order copy')
+    if (![1, 2].includes(selectedCopy.totalCopies)
+      || !Number.isInteger(selectedCopy.copyNumber)
+      || selectedCopy.copyNumber < 1
+      || selectedCopy.copyNumber > selectedCopy.totalCopies) {
+      throw new RangeError('selected copy must be within totalCopies')
+    }
+  }
+
   const parts = [initialize(), cancelChineseMode(), selectCodePage(MTP5_PROFILE.codePage)]
   if (document.type === 'test') {
     parts.push(renderTestDocument(document))
+  } else if (selectedCopy) {
+    parts.push(renderOrderCopy(document, selectedCopy.copyNumber, selectedCopy.totalCopies))
   } else {
-    for (let copyNumber = 1; copyNumber <= count; copyNumber += 1) {
-      if (copyNumber > 1) parts.push(LF, LF)
-      parts.push(renderOrderCopy(document, copyNumber, count))
+    for (let currentCopy = 1; currentCopy <= count; currentCopy += 1) {
+      if (currentCopy > 1) parts.push(LF, LF)
+      parts.push(renderOrderCopy(document, currentCopy, count))
     }
   }
   for (let index = 0; index < MTP5_PROFILE.feedLinesAfterJob; index += 1) parts.push(LF)
