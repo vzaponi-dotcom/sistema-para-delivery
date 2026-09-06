@@ -45,6 +45,11 @@ test('reprint requires confirmation with actual copy count while retries remain 
   assert.match(detail, /confirmLabel="Reimprimir"/)
 })
 
+test('reprint confirmation never claims physical paper output from a technical printed state', () => {
+  assert.match(detail, /Este pedido já foi enviado para impressão\./)
+  assert.doesNotMatch(detail, /Este pedido já foi impresso\./)
+})
+
 test('printing diagnostics use persisted sanitized fields instead of raw exception stacks', () => {
   assert.match(detail, /lastError/)
   assert.match(detail, /processedAt/)
