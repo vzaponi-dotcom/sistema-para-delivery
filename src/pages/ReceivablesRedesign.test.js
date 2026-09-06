@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -41,4 +41,26 @@ test('business date is refreshed while the page remains open', async () => {
   const page = await read('./Receivables.jsx')
   assert.match(page, /getBusinessDate/)
   assert.match(page, /setInterval/)
+})
+
+test('quick payment delegates to the existing App payment flow and excludes table tabs', async () => {
+  const page = await read('./Receivables.jsx')
+  const quickUrl = new URL('../components/ReceivablesQuickPaymentDialog.jsx', import.meta.url)
+  await assert.doesNotReject(() => access(quickUrl))
+  const quick = await read('../components/ReceivablesQuickPaymentDialog.jsx')
+  const app = await read('../App.jsx')
+
+  assert.match(page, /Registrar recebimento/)
+  assert.match(page, /pendingEntries\.filter\(\(entry\) => entry\.kind === 'order'\)/)
+  assert.match(page, /onSelect=\{onRegisterPayment\}/)
+  assert.match(quick, /onSelect\(entry\.order\.id\)/)
+  assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect/)
+  assert.doesNotMatch(quick, /registerPaymentApi|\/payment/)
+})
+
+test('table tabs keep aggregate payment and never expose promise editing', async () => {
+  const detail = await read('../components/ReceivableDetail.jsx')
+  assert.match(detail, /Registrar pagamento da comanda/)
+  assert.match(detail, /entry\.kind === 'table_tab'/)
+  assert.doesNotMatch(detail, /entry\.kind === 'table_tab'[\s\S]{0,1200}onEditPaymentPromise/)
 })
