@@ -247,7 +247,7 @@ function Receivables({
             <div className="receivables-header-actions">
               <Button
                 type="button"
-                icon="wallet"
+                icon="plus"
                 className="receivables-payment-desktop-action"
                 onClick={() => setQuickPaymentOpen(true)}
                 disabled={writeDisabled || quickPaymentEntries.length === 0 || !onRegisterPayment}
@@ -304,7 +304,7 @@ function Receivables({
           onClick={() => setQuickPaymentOpen(true)}
           disabled={writeDisabled || quickPaymentEntries.length === 0 || !onRegisterPayment}
         >
-          <Icon name="wallet" size={20} />
+          <Icon name="plus" size={20} />
           <span>Registrar recebimento</span>
         </button>
       )}
