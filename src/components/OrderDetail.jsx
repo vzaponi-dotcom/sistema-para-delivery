@@ -48,6 +48,9 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const printingDisabled = Boolean(printingAction) || printing?.supported === false
   const now = new Date()
   const scheduledPrintPending = printJob?.trigger === 'automatic' && printJob?.status === 'pending' && printJob?.availableAt && new Date(printJob.availableAt) > now
+  const awaitingSecondCopy = printJob?.status === 'printed'
+    && Number(printJob?.copiesRequested) === 2
+    && Number(printJob?.copiesPrinted) === 1
 
   const runPrintingAction = async (key, action) => {
     if (printingAction || typeof action !== 'function') return false
@@ -82,6 +85,8 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
   const handleFirstPrint = () => runPrintingAction('print', () => printing.printOrder(order.id, defaultCopies))
 
+  const handleSecondCopy = () => runPrintingAction('second-copy', () => printing?.printSecondCopy?.(printJob))
+
   const handleRetry = () => runPrintingAction('retry', () => printing?.retryJob?.(printJob))
 
   const handleConfirmedReprint = async () => {
@@ -92,6 +97,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const actionButton = (() => {
     if (!printJob) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir pedido</Button>
     if (scheduledPrintPending) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir agora</Button>
+    if (awaitingSecondCopy) return <Button type="button" onClick={handleSecondCopy} disabled={printingDisabled}>Imprimir 2ª via</Button>
     if (printJob.status === 'printed') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
     if (printJob.status === 'failed') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Tentar novamente</Button>
     if (printJob.status === 'requires_attention') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Imprimir agora</Button>
@@ -184,7 +190,8 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
             {!printJob && <p className="order-printing-helper">Este pedido ainda não possui histórico de impressão. Isso é esperado quando a impressão automática estava desligada.</p>}
             {scheduledPrintPending && <p className="order-printing-helper">Impressão programada para {formatOrderTime(printJob.availableAt)}</p>}
-            {!scheduledPrintPending && ['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
+            {awaitingSecondCopy && <p className="order-printing-helper">1ª via impressa. Destaque o papel na serrilha e, depois, imprima a 2ª via.</p>}
+            {!scheduledPrintPending && !awaitingSecondCopy && ['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
 
             {printJob && (
               <div className="order-printing-diagnostics">
