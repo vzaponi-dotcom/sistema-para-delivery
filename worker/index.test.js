@@ -9,6 +9,7 @@ class FakeDb {
     this.sessions = []
     this.clients = new Map()
     this.products = new Map()
+    this.orders = new Map()
   }
 
   prepare(sql) {
@@ -32,6 +33,11 @@ class FakeDb {
               const [id, businessId] = values
               const row = db.products.get(id)
               return row?.business_id === businessId && row.active !== 0 ? row : null
+            }
+            if (sql.includes('FROM orders')) {
+              const [id, businessId] = values
+              const row = db.orders.get(id)
+              return row?.business_id === businessId ? row : null
             }
             return null
           },
@@ -72,6 +78,10 @@ class FakeDb {
               const [revokedAt, tokenHash] = values
               const session = db.sessions.find((item) => item.token_hash === tokenHash)
               if (session) session.revoked_at = revokedAt
+            } else if (sql.includes('UPDATE orders SET promised_payment_date')) {
+              const [promisedPaymentDate, id, businessId] = values
+              const row = db.orders.get(id)
+              if (row?.business_id === businessId) row.promised_payment_date = promisedPaymentDate
             }
             return { success: true }
           },
@@ -244,4 +254,36 @@ test('client and product routes return 404 for records outside the session busin
   }), env)
   assert.equal(response.status, 404)
   assert.equal((await response.json()).error.code, 'CLIENT_NOT_FOUND')
+})
+
+const paymentPromiseOrder = (overrides = {}) => ({
+  id: 'order-promise', business_id: 'amor-e-sabor', client_id: 'c1', client_name_snapshot: 'Maria', client_phone_snapshot: '', client_address_snapshot: '',
+  customer_identity_type: 'registered_client', table_tab_id: null, type: 'Entrega', order_date: '2026-09-06', status: 'Finalizado', scheduled_for: null,
+  promised_payment_date: null, is_backdated: 0, subtotal_cents: 5000, delivery_fee_cents: 0, adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0,
+  adjustment_amount_cents: 0, adjustment_reason: '', total_cents: 5000, created_at: '2026-09-06T12:00:00.000Z', finished_at: null, cancelled_at: null,
+  payment_id: null, payment_method: null, paid_at: null, paid_amount_cents: null, refund_movement_id: null, refund_created_at: null, ...overrides,
+})
+
+test('payment-promise PATCH updates an in-business order and rejects invalid, past, and outside-business orders', async () => {
+  const env = await makeEnv()
+  env.DB.orders.set('order-promise', paymentPromiseOrder())
+  env.DB.orders.set('other-order', paymentPromiseOrder({ id: 'other-order', business_id: 'other-business' }))
+  const loginResponse = await login(env)
+  const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
+  const request = (id, promisedPaymentDate) => handleRequest(new Request(`https://delivery.example/api/orders/${id}/payment-promise`, {
+    method: 'PATCH', headers, body: JSON.stringify({ promisedPaymentDate }),
+  }), env)
+
+  const success = await request('order-promise', '2099-12-31')
+  assert.equal(success.status, 200)
+  assert.equal((await success.json()).order.promisedPaymentDate, '2099-12-31')
+  const invalid = await request('order-promise', '2026-02-31')
+  assert.equal(invalid.status, 400)
+  assert.equal((await invalid.json()).error.code, 'INVALID_PROMISED_PAYMENT_DATE')
+  const past = await request('order-promise', '2000-01-01')
+  assert.equal(past.status, 400)
+  assert.equal((await past.json()).error.code, 'PROMISED_PAYMENT_DATE_IN_PAST')
+  const outsideBusiness = await request('other-order', '2099-12-31')
+  assert.equal(outsideBusiness.status, 404)
+  assert.equal((await outsideBusiness.json()).error.code, 'ORDER_NOT_FOUND')
 })

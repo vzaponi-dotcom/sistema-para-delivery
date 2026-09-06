@@ -1,0 +1,71 @@
+.receivables-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.receivables-page-header > *:first-child { min-width: 0; }
+
+.receivables-forecast-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.receivables-forecast-button:hover { border-color: var(--primary); color: var(--primary); background: var(--surface-soft); }
+.receivables-forecast-button:focus-visible, .receivables-forecast-day:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.receivables-forecast-dialog { display: grid; gap: 18px; }
+.receivables-forecast-intro { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.receivables-forecast-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.receivables-forecast-metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.receivables-forecast-metric span { color: var(--muted); font-size: 0.72rem; font-weight: 750; }
+.receivables-forecast-metric strong { color: var(--text); font-size: 0.96rem; white-space: nowrap; }
+.receivables-forecast-metric small { color: var(--muted); font-size: 0.7rem; }
+.receivables-forecast-metric-danger strong { color: var(--danger); }
+.receivables-forecast-metric-warning strong { color: var(--warning); }
+.receivables-forecast-metric-realized strong { color: var(--success); }
+.receivables-forecast-days { display: grid; gap: 10px; }
+.receivables-forecast-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; color: var(--text); }
+.receivables-forecast-section-heading span { color: var(--muted); font-size: 0.74rem; }
+.receivables-forecast-day-list { display: grid; gap: 7px; }
+.receivables-forecast-day { min-height: 56px; display: grid; grid-template-columns: minmax(110px, 1fr) auto; gap: 5px 12px; align-items: center; padding: 9px 11px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.receivables-forecast-day:hover { border-color: var(--primary); background: var(--surface-soft); }
+.receivables-forecast-day-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.receivables-forecast-day-copy strong { font-size: 0.82rem; }
+.receivables-forecast-day-copy small { color: var(--muted); font-size: 0.7rem; }
+.receivables-forecast-day-value { white-space: nowrap; font-size: 0.82rem; font-weight: 800; }
+.receivables-forecast-bar { grid-column: 1 / -1; height: 5px; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
+.receivables-forecast-bar > span { display: block; min-width: 4px; height: 100%; border-radius: inherit; background: var(--primary); }
+
+@media (max-width: 1100px) {
+  .receivables-forecast-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .receivables-page-header { align-items: center; }
+  .receivables-forecast-button { min-width: 44px; padding: 0 11px; }
+}
+
+@media (max-width: 640px) {
+  .receivables-page-header { align-items: flex-start; }
+  .receivables-forecast-button span { display: none; }
+  .receivables-forecast-section-heading { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .receivables-forecast-day { min-height: 60px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receivables-forecast-button, .receivables-forecast-day { transition: none; }
+}

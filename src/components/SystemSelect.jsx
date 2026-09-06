@@ -122,7 +122,7 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
           </div>
         </BottomSheet>
       ) : (
-        <div id={listboxId} className="system-select-dropdown" role="listbox" aria-label={label} data-navigation-swipe-block="true">
+        <div id={listboxId} className="system-select-dropdown" role="listbox" aria-label={label}>
           {optionButtons('system-select-option')}
         </div>
       ))}

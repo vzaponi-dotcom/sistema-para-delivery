@@ -35,6 +35,10 @@ export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiR
   headers: { 'idempotency-key': idempotencyKey },
 })
 export const updateOrderStatus = (id, status = 'Finalizado') => apiRequest(`/api/orders/${encodeURIComponent(id)}/status`, withJson('PATCH', { status }))
+export const updateOrderPaymentPromise = (id, promisedPaymentDate) => apiRequest(
+  `/api/orders/${encodeURIComponent(id)}/payment-promise`,
+  withJson('PATCH', { promisedPaymentDate }),
+)
 export const cancelOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/cancel`, withJson('POST', payload))
 export const refundOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/refund`, withJson('POST', payload))
 // Compatibility-only export while App.jsx is migrated away from its old handler.

@@ -10,7 +10,8 @@ test('mobile foundation owns viewport safe-area and shared tokens', async () => 
   assert.match(css, /--mobile-safe-bottom:\s*env\(safe-area-inset-bottom/)
   assert.match(css, /--mobile-touch-target:\s*44px/)
   assert.match(css, /--mobile-overlay-max-height:\s*min\(88dvh,\s*720px\)/)
-  assert.match(css, /\.app-main\s*\{[^}]*overflow-x:\s*clip[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
+  assert.match(css, /\.app-main\s*\{[^}]*overflow-x:\s*clip/s)
+  assert.doesNotMatch(css, /\.app-main\s*\{[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
   assert.match(css, /html,\s*body,\s*#root\s*\{[^}]*overflow-x:\s*clip/s)
 })
 

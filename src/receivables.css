@@ -1,46 +1,114 @@
-.receivables-stats {
+.receivables-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   margin-bottom: 22px;
 }
 
-.receivables-surface {
+.receivables-summary-card {
+  min-width: 0;
+  min-height: 100px;
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 9px;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.receivables-summary-card:hover { border-color: var(--primary); background: var(--surface-soft); }
+.receivables-summary-card > span:not(.receivables-summary-icon), .receivables-summary-card > strong, .receivables-summary-card > small { grid-column: 2; }
+.receivables-summary-card > span:not(.receivables-summary-icon) { color: var(--muted); font-size: 0.76rem; font-weight: 750; }
+.receivables-summary-card strong { color: var(--text); font-size: 1.12rem; }
+.receivables-summary-card small { color: var(--muted); font-size: 0.72rem; }
+.receivables-summary-card-danger strong, .receivables-summary-card-danger .receivables-summary-icon { color: var(--danger); }
+
+.receivables-summary-icon {
+  grid-row: 1 / span 3;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.receivables-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  align-items: start;
   gap: 18px;
 }
 
-.receivables-groups {
-  display: grid;
-  gap: 14px;
+.receivables-surface { display: grid; gap: 16px; min-width: 0; }
+.receivables-primary-tabs { display: flex; gap: 8px; padding-bottom: 2px; border-bottom: 1px solid var(--border); }
+
+.receivables-primary-tabs button, .receivables-filter-strip button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
 }
 
-.receivable-client-card {
+.receivables-primary-tabs button[aria-pressed='true'] { color: var(--text); border-color: var(--border); background: var(--surface-soft); }
+.receivables-filter-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0; scrollbar-width: thin; }
+.receivables-filter-strip button { flex: 0 0 auto; min-height: 38px; border-color: var(--border); background: var(--surface-soft); }
+.receivables-filter-strip button[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+
+.receivables-controls {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(170px, 220px) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.receivables-sort-control { display: grid; grid-template-columns: auto minmax(130px, 1fr); align-items: center; gap: 8px; }
+.receivables-sort-control > span { color: var(--muted); font-size: 0.76rem; font-weight: 700; }
+
+.receivables-ledger {
+  display: grid;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: var(--surface-soft);
   overflow: hidden;
-}
-
-.receivable-table-tab-card {
-  box-shadow: 0 0 0 1px var(--primary-soft);
-}
-
-.receivable-client-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 15px 16px;
-  border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 
-.receivable-client-header > div:first-child {
+.receivable-ledger-item { display: grid; border-bottom: 1px solid var(--border); }
+.receivable-ledger-item:last-child { border-bottom: 0; }
+
+.receivable-ledger-row {
+  width: 100%;
   min-width: 0;
-  display: flex;
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
 }
 
-.receivable-client-avatar {
+.receivables-ledger > .receivable-ledger-row:last-of-type, .receivable-ledger-item > .receivable-ledger-row:last-child { border-bottom: 0; }
+.receivable-ledger-row:hover, .receivable-ledger-row[aria-pressed='true'] { background: var(--surface-soft); }
+
+.receivable-ledger-avatar {
   width: 38px;
   height: 38px;
   display: grid;
@@ -52,258 +120,237 @@
   font-weight: 850;
 }
 
-.receivable-client-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
+.receivable-ledger-avatar-paid { background: var(--success-soft); color: var(--success); }
+.receivable-ledger-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.receivable-ledger-main strong { overflow-wrap: anywhere; color: var(--text); font-size: 0.9rem; }
+.receivable-ledger-main > span:not(.receivable-timing):not(.receivable-paid-meta) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.76rem; }
+.receivable-timing, .receivable-paid-meta { width: fit-content; max-width: 100%; color: var(--muted); font-size: 0.73rem; font-weight: 700; }
+.receivable-timing-overdue { color: var(--danger); }
+.receivable-timing-today { color: var(--warning); }
+.receivable-timing-upcoming { color: var(--primary); }
+.receivable-paid-meta { color: var(--success); }
+.receivable-ledger-amount { white-space: nowrap; color: var(--text); font-size: 0.92rem; }
+.receivable-ledger-row > svg { color: var(--muted); }
 
-.receivable-client-copy strong {
-  color: var(--text);
-  font-size: 0.94rem;
-}
-
-.receivable-client-copy span {
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-
-.receivable-client-total {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  text-align: right;
-}
-
-.receivable-client-total span {
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 750;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.receivable-client-total strong {
-  color: var(--warning);
-  font-size: 1rem;
-}
-
-.receivable-orders {
-  display: grid;
-}
-
-.receivable-order-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.receivable-order-row:last-child {
-  border-bottom: 0;
-}
-
-.receivable-order-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.receivable-order-main strong {
-  color: var(--text);
-  font-size: 0.88rem;
-}
-
-.receivable-order-main span {
-  color: var(--muted);
-  font-size: 0.76rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.receivable-order-amount {
-  min-width: 100px;
-  text-align: right;
-  color: var(--text);
-  font-size: 0.92rem;
-}
-
-.receivable-order-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.receivable-order-row .button {
-  min-height: var(--mobile-touch-target, 44px);
+.receivable-ledger-table-action {
+  justify-self: end;
+  margin: 0 14px 12px;
+  min-height: 42px;
   padding: 0 13px;
-  font-size: 0.8rem;
-}
-
-.receivable-table-tab-action {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border-top: 1px solid var(--border);
-  background: var(--primary-soft);
-}
-
-.receivable-table-tab-action > div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.receivable-table-tab-action strong {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
   color: var(--text);
-  font-size: 0.86rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
 }
 
-.receivable-table-tab-action > div span {
-  color: var(--muted);
-  font-size: 0.76rem;
+.receivable-ledger-table-action:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.receivable-ledger-table-action:disabled { opacity: 0.55; cursor: not-allowed; }
+.receivables-empty-state { min-height: 180px; border: 0; border-radius: 0; }
+
+.receivables-detail-panel {
+  position: sticky;
+  top: 18px;
+  min-height: 260px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
 }
 
-.table-tab-payment-action-button {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #fff;
-}
+.receivable-detail, .receivable-detail-empty { display: grid; gap: 16px; }
+.receivable-detail-empty { min-height: 220px; place-items: center; color: var(--muted); text-align: center; font-size: 0.84rem; }
+.receivable-detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.receivable-detail-heading > div, .receivable-detail-status, .receivable-detail-meta > div { display: flex; flex-direction: column; gap: 4px; }
+.receivable-detail-heading span, .receivable-detail-status span, .receivable-detail-meta span { color: var(--muted); font-size: 0.72rem; }
+.receivable-detail-heading strong { color: var(--text); overflow-wrap: anywhere; }
+.receivable-detail-total { white-space: nowrap; font-size: 1.05rem; }
 
-.table-tab-payment-action-button span {
-  color: inherit;
-}
-
-.table-tab-payment-action-button:hover:not(:disabled) {
-  filter: brightness(0.9);
-}
-
-.table-tab-payment-action-button:focus-visible {
-  outline: 3px solid rgba(180, 35, 24, 0.24);
-  outline-offset: 2px;
-}
-
-.table-tab-payment-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.table-tab-payment-summary > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
+.receivable-detail-status {
+  padding: 11px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-soft);
 }
+.receivable-detail-status-overdue strong { color: var(--danger); }
+.receivable-detail-status-today strong { color: var(--warning); }
+.receivable-detail-status-upcoming strong { color: var(--primary); }
+.receivable-detail-status-paid strong { color: var(--success); }
 
-.table-tab-payment-summary span {
+.receivable-detail-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.receivable-detail-meta > div { min-width: 0; padding: 10px; border-radius: 10px; background: var(--surface-soft); }
+.receivable-detail-meta strong { color: var(--text); font-size: 0.82rem; overflow-wrap: anywhere; }
+.receivable-detail-note, .payment-promise-helper, .payment-promise-warning, .payment-promise-error { margin: 0; font-size: 0.8rem; line-height: 1.45; }
+.receivable-detail-note, .payment-promise-helper { color: var(--muted); }
+.receivable-detail-actions { display: grid; gap: 8px; }
+.receivable-detail-actions .button { width: 100%; min-height: 44px; }
+
+.payment-promise-dialog { display: grid; gap: 12px; }
+.payment-promise-dialog input[type='date'] { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
+.payment-promise-warning { padding: 10px 12px; border: 1px solid var(--warning); border-radius: 10px; background: var(--warning-soft); color: var(--text); }
+.payment-promise-error { color: var(--danger); }
+
+.table-tab-payment-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.table-tab-payment-summary > div { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.table-tab-payment-summary span { color: var(--muted); font-size: 0.72rem; }
+.table-tab-payment-summary strong { color: var(--text); font-size: 0.95rem; }
+.table-tab-payment-note { margin: 14px 0; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--info-soft); color: var(--text); font-size: 0.82rem; line-height: 1.45; }
+
+.receivables-header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.receivables-payment-desktop-action { min-height: 44px; }
+.receivables-payment-fab { display: none; }
+
+.receivables-quick-payment {
+  display: grid;
+  gap: 12px;
+}
+
+.receivables-quick-payment-helper {
+  margin: 0;
   color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.table-tab-payment-summary strong {
-  color: var(--text);
-  font-size: 0.95rem;
-}
-
-.table-tab-payment-note {
-  margin: 14px 0;
-  padding: 11px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--info-soft);
-  color: var(--text);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.45;
 }
 
-.receivables-toolbar-note {
-  color: var(--muted);
-  font-size: 0.76rem;
+.receivables-quick-payment-list {
+  display: grid;
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
 }
 
-@media (max-width: 760px) {
-  .receivable-order-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+.receivables-quick-payment-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.receivables-quick-payment-row:last-child { border-bottom: 0; }
+.receivables-quick-payment-row:hover:not(:disabled), .receivables-quick-payment-row:focus-visible { background: var(--surface-soft); }
+.receivables-quick-payment-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.receivables-quick-payment-row:disabled { opacity: 0.55; cursor: not-allowed; }
+.receivables-quick-payment-row > svg { color: var(--muted); }
+
+.receivables-quick-payment-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.receivables-quick-payment-main strong { overflow-wrap: anywhere; color: var(--text); font-size: 0.88rem; }
+.receivables-quick-payment-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.75rem; }
+.receivables-quick-payment-main small { color: var(--primary); font-size: 0.71rem; font-weight: 700; }
+.receivables-quick-payment-amount { white-space: nowrap; font-size: 0.88rem; }
+.receivables-quick-payment-empty { min-height: 150px; border: 0; border-radius: 0; }
+
+.receivable-ledger-row:focus-visible,
+.receivables-summary-card:focus-visible,
+.receivables-filter-strip button:focus-visible,
+.receivables-payment-fab:focus-visible,
+.receivables-forecast-row:focus-visible {
+  outline: 3px solid var(--primary-soft);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .receivables-workspace { grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); }
+}
+
+@media (min-width: 960px) {
+  .receivables-controls {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
   }
 
-  .receivable-order-actions {
-    grid-column: 1 / -1;
-    width: 100%;
+  .receivables-detail-panel {
+    position: sticky;
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
   }
+}
 
-  .receivable-order-actions .button {
-    flex: 1 1 0;
+@media (max-width: 820px) {
+  .receivables-summary-grid { grid-template-columns: repeat(3, minmax(148px, 1fr)); overflow-x: auto; padding-bottom: 4px; }
+  .receivables-filter-strip { margin-inline: -2px; padding: 2px; overflow-x: auto; scrollbar-width: none; }
+  .receivables-controls { grid-template-columns: minmax(0, 1fr); }
+  .receivables-sort-control { grid-template-columns: auto minmax(0, 1fr); }
+  .receivable-ledger-row { grid-template-columns: auto minmax(0, 1fr) auto; min-height: 72px; }
+  .receivable-ledger-row > svg { display: none; }
+  .receivable-ledger-amount { grid-column: 3; overflow-wrap: normal; }
+  .receivables-workspace { display: block; }
+  .receivables-detail-panel { display: none; }
+  .receivables-payment-desktop-action { display: none; }
+  .receivables-header-actions { display: none; }
+  .receivables-payment-fab {
+    position: fixed;
+    right: var(--mobile-page-inline);
+    bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-bottom) + var(--mobile-floating-gap));
+    z-index: var(--layer-floating-action);
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: calc(100vw - 32px);
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
   }
-
-  .receivable-table-tab-action {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .receivable-table-tab-action .button {
-    width: 100%;
-    min-height: var(--mobile-touch-target, 44px);
-  }
+  .receivables-payment-fab:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
 @media (max-width: 640px) {
-  .receivable-client-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+  .receivables-summary-card { min-height: 92px; }
+  .receivable-ledger-row { gap: 10px; padding: 12px; }
+  .receivable-ledger-main > span:not(.receivable-timing):not(.receivable-paid-meta) { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .receivable-ledger-amount { align-self: start; padding-top: 2px; }
+  .receivable-ledger-table-action { width: calc(100% - 24px); justify-self: stretch; margin: 0 12px 12px; min-height: 44px; }
+  .table-tab-payment-summary { grid-template-columns: 1fr; }
+  .receivable-detail-meta { grid-template-columns: 1fr; }
+  .receivables-quick-payment-row { min-height: 56px; grid-template-columns: minmax(0, 1fr) auto; }
+  .receivables-quick-payment-row > svg { display: none; }
+  .receivables-quick-payment-main span { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+}
 
-  .receivable-client-copy strong {
-    overflow-wrap: anywhere;
-  }
+@media (min-width: 821px) {
+  .receivables-payment-fab { display: none; }
+}
 
-  .receivable-client-total {
-    align-items: flex-start;
-    text-align: left;
-  }
-
-  .receivable-order-row {
-    grid-template-columns: 1fr;
-  }
-
-  .receivable-order-main span {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .receivable-order-amount {
-    min-width: 0;
-    text-align: left;
-  }
-
-  .receivable-order-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .receivable-order-actions .button {
-    width: 100%;
-    min-height: var(--mobile-touch-target, 44px);
-  }
-
-  .table-tab-payment-summary {
-    grid-template-columns: 1fr;
+@media (prefers-reduced-motion: reduce) {
+  .receivable-ledger-row,
+  .receivables-summary-card,
+  .receivables-payment-fab,
+  .receivables-forecast-bar {
+    transition: none !important;
   }
 }

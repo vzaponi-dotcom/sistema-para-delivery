@@ -1,15 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { getSwipeDirection } from './utils/mobileNavigation.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('mobile shell prevents horizontal viewport drift while preserving vertical scroll', async () => {
+test('mobile shell prevents horizontal viewport drift without blocking horizontal controls', async () => {
   const foundationCss = await read('./mobile-foundation.css')
   const mobileCss = await read('./mobile-navigation.css')
 
-  assert.match(foundationCss, /\.app-main\s*\{[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
+  assert.doesNotMatch(foundationCss, /\.app-main\s*\{[^}]*touch-action:\s*pan-y\s+pinch-zoom/s)
   assert.match(foundationCss, /\.app-main\s*\{[^}]*overscroll-behavior-x:\s*none/s)
   assert.match(mobileCss, /\.mobile-bottom-nav\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0/s)
   assert.match(mobileCss, /\.mobile-bottom-nav\s*\{[^}]*width:\s*100%/s)
@@ -31,13 +30,6 @@ test('dashboard FAB is viewport anchored and consumes shared mobile clearance to
     /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-floating-gap\)\s*\+\s*var\(--mobile-safe-bottom\)\)/s,
   )
   assert.doesNotMatch(mobileCss, /\.dashboard-new-order-fab\s*\{[^}]*bottom:/s)
-})
-
-test('quick deliberate flicks navigate while short or vertical gestures do not', () => {
-  assert.equal(getSwipeDirection({ deltaX: -36, deltaY: 8, durationMs: 110 }), 'next')
-  assert.equal(getSwipeDirection({ deltaX: 36, deltaY: 8, durationMs: 110 }), 'previous')
-  assert.equal(getSwipeDirection({ deltaX: -24, deltaY: 4, durationMs: 90 }), null)
-  assert.equal(getSwipeDirection({ deltaX: -44, deltaY: 48, durationMs: 100 }), null)
 })
 
 test('mobile page transition is smoother than the previous 200ms animation', async () => {

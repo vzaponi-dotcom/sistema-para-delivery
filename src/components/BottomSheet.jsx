@@ -58,14 +58,13 @@ function BottomSheet({ open, title, onClose, children }) {
   if (!open) return null
 
   const content = (
-    <div className="bottom-sheet-backdrop" data-navigation-swipe-block="true" onMouseDown={onClose}>
+    <div className="bottom-sheet-backdrop" onMouseDown={onClose}>
       <section
         ref={sheetRef}
         className="bottom-sheet"
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        data-navigation-swipe-block="true"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="bottom-sheet-header">

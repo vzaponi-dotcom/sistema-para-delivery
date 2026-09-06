@@ -8,6 +8,7 @@ import { handlePrintingApi } from './orderPrintingApi.js'
 import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
+import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
 import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
 import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
@@ -96,6 +97,13 @@ const authenticatedApi = async (request, env) => {
       ? await loadTableTabById(env.DB, session.businessId, result.order.tableTabId)
       : null
     return json({ ...result, tableTab }, { status: 201 })
+  }
+  const paymentPromiseMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment-promise$/)
+  if (paymentPromiseMatch && request.method === 'PATCH') {
+    assertSameOriginMutation(request)
+    const { promisedPaymentDate } = await readJson(request)
+    const order = await updateOrderPaymentPromise(env.DB, session.businessId, decodeURIComponent(paymentPromiseMatch[1]), promisedPaymentDate)
+    return json({ order })
   }
   const cancelMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/)
   if (cancelMatch && request.method === 'POST') {

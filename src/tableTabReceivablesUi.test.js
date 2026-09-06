@@ -2,20 +2,22 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const source = fs.readFileSync(new URL('./pages/Receivables.jsx', import.meta.url), 'utf8')
+const receivables = fs.readFileSync(new URL('./pages/Receivables.jsx', import.meta.url), 'utf8')
+const detail = fs.readFileSync(new URL('./components/ReceivableDetail.jsx', import.meta.url), 'utf8')
 const styles = fs.readFileSync(new URL('./receivables.css', import.meta.url), 'utf8')
 
-test('receivables offers one consolidated payment action for table tabs', () => {
-  assert.match(source, /Registrar pagamento da comanda/)
-  assert.match(source, /group\.kind === 'table_tab'/)
-  assert.match(source, /onRegisterTableTabPayment/)
-  assert.match(source, /todos os pedidos pendentes/i)
+test('receivables keeps table tabs consolidated and delegates aggregate payment through the detail action', () => {
+  assert.match(receivables, /buildPendingReceivableEntries/)
+  assert.match(detail, /entry\.kind === 'table_tab'/)
+  assert.match(detail, /Pedidos pendentes/)
+  assert.match(detail, /A comanda é recebida de forma integral/)
+  assert.match(detail, /Registrar pagamento da comanda/)
+  assert.match(detail, /onRegisterTableTabPayment/)
 })
 
-test('table tab payment action uses a high-contrast dedicated button style', () => {
-  assert.match(source, /className="table-tab-payment-action-button"/)
-  assert.match(styles, /\.table-tab-payment-action-button\s*\{[^}]*background:\s*var\(--danger\)/s)
-  assert.match(styles, /\.table-tab-payment-action-button\s*\{[^}]*color:\s*#fff/s)
-  assert.match(styles, /\.table-tab-payment-action-button:hover:not\(:disabled\)/)
-  assert.match(styles, /\.table-tab-payment-action-button:focus-visible/)
+test('table tab detail keeps promise editing out of the aggregate branch and removes the obsolete danger treatment', () => {
+  assert.match(detail, /if \(entry\.kind === 'table_tab'\)[\s\S]*Registrar pagamento da comanda/)
+  assert.match(detail, /const order = entry\.order[\s\S]*onEditPaymentPromise\?\.\(order\)/)
+  assert.doesNotMatch(detail, /table-tab-payment-action-button/)
+  assert.doesNotMatch(styles, /\.table-tab-payment-action-button/)
 })

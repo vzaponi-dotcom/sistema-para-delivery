@@ -57,7 +57,7 @@ function Modal({ title, onClose, children, footer }) {
   }, [])
 
   const content = (
-    <div className="modal-backdrop" data-navigation-swipe-block="true" onMouseDown={onClose}>
+    <div className="modal-backdrop" onMouseDown={onClose}>
       <div
         ref={cardRef}
         className="modal-card"
