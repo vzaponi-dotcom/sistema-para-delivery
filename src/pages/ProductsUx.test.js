@@ -50,10 +50,11 @@ test('mobile bulk actions render through a body portal instead of inside the tra
   assert.match(products, /import \{ createPortal \} from 'react-dom'/)
   assert.match(products, /createPortal\(/)
   assert.match(products, /product-selection-mobile-toolbar/)
+  assert.match(products, /product-accordion-list has-selection-actions/)
   assert.match(css, /\.product-selection-mobile-toolbar\s*\{[^}]*display:\s*none/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-selection-toolbar\s*\{[^}]*display:\s*none/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-selection-mobile-toolbar\s*\{[^}]*display:\s*flex[^}]*position:\s*fixed[^}]*bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom\)\)/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-accordion-list\s*\{[^}]*padding-bottom:\s*96px/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-accordion-list\.has-selection-actions\s*\{[^}]*padding-bottom:\s*96px/s)
 })
 
 test('product form uses option B segmented presentation control and horizontal size choices', async () => {
