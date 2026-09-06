@@ -36,3 +36,13 @@ test('payment flows keep the shared modal select architecture', async () => {
   assert.match(page, /<SystemSelect[\s\S]*label="Forma de pagamento da comanda"/)
   assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect[\s\S]*label="Forma de pagamento"/)
 })
+
+test('receivables mobile detail reuses the portal-backed shared BottomSheet', async () => {
+  const page = await read('./Receivables.jsx')
+  const sheet = await read('../components/BottomSheet.jsx')
+
+  assert.match(page, /import BottomSheet/)
+  assert.match(page, /<BottomSheet[\s\S]*Detalhes do recebimento/)
+  assert.match(sheet, /createPortal/)
+  assert.match(sheet, /role="dialog"/)
+})
