@@ -10,7 +10,14 @@ const formatTime = (value) => new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
   hourCycle: 'h23',
 }).format(new Date(value))
-const elapsedLabel = (minutes) => `${Math.max(0, Math.floor(Number(minutes) || 0))} min`
+const elapsedLabel = (minutes) => {
+  const totalMinutes = Math.max(0, Math.floor(Number(minutes) || 0))
+  if (totalMinutes < 60) return `${totalMinutes} min`
+
+  const hours = Math.floor(totalMinutes / 60)
+  const remainingMinutes = totalMinutes % 60
+  return remainingMinutes > 0 ? `${hours} h ${remainingMinutes} min` : `${hours} h`
+}
 const normalizeKitchenItemNote = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 
 export const buildKitchenItemSummary = (order, limit = 3) => {
