@@ -5,10 +5,12 @@ import { MTP5_PROFILE } from './mtp5Profile.js'
 
 const ESC = 0x1b
 const GS = 0x1d
+const FS = 0x1c
 const LF = Uint8Array.from([0x0a])
 
 const command = (...bytes) => Uint8Array.from(bytes)
 const initialize = () => command(ESC, 0x40)
+const cancelChineseMode = () => command(FS, 0x2e)
 const selectCodePage = (page) => command(ESC, 0x74, page)
 const selectFontA = () => command(ESC, 0x4d, 0)
 const align = (value) => command(ESC, 0x61, value)
@@ -27,6 +29,7 @@ const flattenBytes = (parts) => {
 }
 
 const sanitizeText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim()
+const formatEscPosMoneyCents = (cents) => formatPrintMoneyCents(cents).replace(/[\u00a0\u202f]/g, ' ')
 
 const hardWrapWord = (word, columns) => {
   const chunks = []
@@ -101,7 +104,7 @@ const formatDateTime = (createdAt) => {
   }).format(date).replace(',', ' -')
 }
 
-const amountLine = (label, cents, sign = '') => `${label}: ${sign}${formatPrintMoneyCents(cents)}`
+const amountLine = (label, cents, sign = '') => `${label}: ${sign}${formatEscPosMoneyCents(cents)}`
 
 const renderOrderCopy = (document, copyNumber, copies) => {
   const parts = []
@@ -132,7 +135,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
     const title = `${Number(item.quantity) || 1}x ${sanitizeText(item.name)}${presentation ? ` ${presentation}` : ''}`
     pushWrapped(parts, title)
     if (item.note) pushWrapped(parts, item.note, { prefix: 'Obs: ' })
-    if (Number.isFinite(Number(item.lineTotalCents))) pushLine(parts, `  ${formatPrintMoneyCents(item.lineTotalCents)}`)
+    if (Number.isFinite(Number(item.lineTotalCents))) pushLine(parts, `  ${formatEscPosMoneyCents(item.lineTotalCents)}`)
   }
 
   pushLine(parts, divider)
@@ -149,7 +152,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
   }
 
   pushRaw(parts, bold(true), size(0x11), align(1))
-  pushLine(parts, `TOTAL ${formatPrintMoneyCents(document.financial?.totalCents || 0)}`)
+  pushLine(parts, `TOTAL ${formatEscPosMoneyCents(document.financial?.totalCents || 0)}`)
   pushRaw(parts, size(0x00), bold(false), align(0))
 
   if (document.payment?.status === 'Pago') {
@@ -183,7 +186,7 @@ export const renderEscPos58mm = (document, { copies = 1 } = {}) => {
   if (count !== 1 && count !== 2) throw new RangeError('copies must be 1 or 2')
   if (!document || !['order', 'test'].includes(document.type)) throw new TypeError('Unsupported print document')
 
-  const parts = [initialize(), selectCodePage(MTP5_PROFILE.codePage)]
+  const parts = [initialize(), cancelChineseMode(), selectCodePage(MTP5_PROFILE.codePage)]
   if (document.type === 'test') {
     parts.push(renderTestDocument(document))
   } else {
