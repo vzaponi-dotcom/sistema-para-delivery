@@ -4,19 +4,19 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('receivables payment actions keep comfortable touch targets on narrow screens', async () => {
+test('receivables ledger keeps comfortable touch targets and horizontal filters on mobile', async () => {
   const css = await read('../receivables.css')
 
-  assert.match(css, /\.receivable-order-row \.button\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target(?:,\s*44px)?\))/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-order-actions\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*1fr/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-order-actions \.button\s*\{[^}]*width:\s*100%/s)
+  assert.match(css, /\.receivable-ledger-row\s*\{[^}]*min-height:\s*(?:44px|[4-9]\dpx)/s)
+  assert.match(css, /\.receivables-filter-strip\s*\{[^}]*overflow-x:\s*auto/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-ledger-table-action\s*\{[^}]*min-height:\s*44px/s)
 })
 
-test('receivables labels and order summaries wrap instead of clipping at mobile widths', async () => {
+test('receivables ledger labels and order summaries wrap instead of clipping at narrow widths', async () => {
   const css = await read('../receivables.css')
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-client-copy strong\s*\{[^}]*overflow-wrap:\s*anywhere/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-order-main span\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
+  assert.match(css, /\.receivable-ledger-main strong\s*\{[^}]*overflow-wrap:\s*anywhere/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-ledger-main > span[^}]*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
 })
 
 test('table tab payment summary and modal footer stack safely on mobile', async () => {

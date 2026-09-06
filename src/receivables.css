@@ -1,46 +1,187 @@
-.receivables-stats {
+.receivables-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   margin-bottom: 22px;
+}
+
+.receivables-summary-card {
+  min-width: 0;
+  min-height: 100px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 9px;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.receivables-summary-card:hover {
+  border-color: var(--primary);
+  background: var(--surface-soft);
+}
+
+.receivables-summary-card > span:not(.receivables-summary-icon),
+.receivables-summary-card > strong,
+.receivables-summary-card > small {
+  grid-column: 2;
+}
+
+.receivables-summary-card > span:not(.receivables-summary-icon) {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.receivables-summary-card strong {
+  color: var(--text);
+  font-size: 1.12rem;
+}
+
+.receivables-summary-card small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.receivables-summary-card-danger strong,
+.receivables-summary-card-danger .receivables-summary-icon {
+  color: var(--danger);
+}
+
+.receivables-summary-icon {
+  grid-row: 1 / span 3;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .receivables-surface {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
-.receivables-groups {
+.receivables-primary-tabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.receivables-primary-tabs button,
+.receivables-filter-strip button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.receivables-primary-tabs button[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--surface-soft);
+}
+
+.receivables-filter-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: thin;
+}
+
+.receivables-filter-strip button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border-color: var(--border);
+  background: var(--surface-soft);
+}
+
+.receivables-filter-strip button[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.receivables-controls {
   display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(240px, 1fr) minmax(170px, 220px) auto;
+  align-items: center;
+  gap: 12px;
 }
 
-.receivable-client-card {
+.receivables-sort-control {
+  display: grid;
+  grid-template-columns: auto minmax(130px, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.receivables-sort-control > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.receivables-ledger {
+  display: grid;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: var(--surface-soft);
   overflow: hidden;
-}
-
-.receivable-table-tab-card {
-  box-shadow: 0 0 0 1px var(--primary-soft);
-}
-
-.receivable-client-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 15px 16px;
-  border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 
-.receivable-client-header > div:first-child {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 11px;
+.receivable-ledger-item {
+  display: grid;
+  border-bottom: 1px solid var(--border);
 }
 
-.receivable-client-avatar {
+.receivable-ledger-item:last-child {
+  border-bottom: 0;
+}
+
+.receivable-ledger-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.receivables-ledger > .receivable-ledger-row:last-of-type,
+.receivable-ledger-item > .receivable-ledger-row:last-child {
+  border-bottom: 0;
+}
+
+.receivable-ledger-row:hover,
+.receivable-ledger-row[aria-pressed='true'] {
+  background: var(--surface-soft);
+}
+
+.receivable-ledger-avatar {
   width: 38px;
   height: 38px;
   display: grid;
@@ -52,146 +193,96 @@
   font-weight: 850;
 }
 
-.receivable-client-copy {
+.receivable-ledger-avatar-paid {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.receivable-ledger-main {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
-.receivable-client-copy strong {
+.receivable-ledger-main strong {
+  overflow-wrap: anywhere;
   color: var(--text);
-  font-size: 0.94rem;
+  font-size: 0.9rem;
 }
 
-.receivable-client-copy span {
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-
-.receivable-client-total {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  text-align: right;
-}
-
-.receivable-client-total span {
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 750;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.receivable-client-total strong {
-  color: var(--warning);
-  font-size: 1rem;
-}
-
-.receivable-orders {
-  display: grid;
-}
-
-.receivable-order-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.receivable-order-row:last-child {
-  border-bottom: 0;
-}
-
-.receivable-order-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.receivable-order-main strong {
-  color: var(--text);
-  font-size: 0.88rem;
-}
-
-.receivable-order-main span {
-  color: var(--muted);
-  font-size: 0.76rem;
+.receivable-ledger-main > span:not(.receivable-timing):not(.receivable-paid-meta) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
-.receivable-order-amount {
-  min-width: 100px;
-  text-align: right;
+.receivable-timing,
+.receivable-paid-meta {
+  width: fit-content;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.receivable-timing-overdue {
+  color: var(--danger);
+}
+
+.receivable-timing-today {
+  color: var(--warning);
+}
+
+.receivable-timing-upcoming {
+  color: var(--primary);
+}
+
+.receivable-paid-meta {
+  color: var(--success);
+}
+
+.receivable-ledger-amount {
+  white-space: nowrap;
   color: var(--text);
   font-size: 0.92rem;
 }
 
-.receivable-order-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.receivable-order-row .button {
-  min-height: var(--mobile-touch-target, 44px);
-  padding: 0 13px;
-  font-size: 0.8rem;
-}
-
-.receivable-table-tab-action {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border-top: 1px solid var(--border);
-  background: var(--primary-soft);
-}
-
-.receivable-table-tab-action > div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.receivable-table-tab-action strong {
-  color: var(--text);
-  font-size: 0.86rem;
-}
-
-.receivable-table-tab-action > div span {
+.receivable-ledger-row > svg {
   color: var(--muted);
-  font-size: 0.76rem;
 }
 
-.table-tab-payment-action-button {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #fff;
+.receivable-ledger-table-action {
+  justify-self: end;
+  margin: 0 14px 12px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
 }
 
-.table-tab-payment-action-button span {
-  color: inherit;
+.receivable-ledger-table-action:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.table-tab-payment-action-button:hover:not(:disabled) {
-  filter: brightness(0.9);
+.receivable-ledger-table-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.table-tab-payment-action-button:focus-visible {
-  outline: 3px solid rgba(180, 35, 24, 0.24);
-  outline-offset: 2px;
+.receivables-empty-state {
+  min-height: 180px;
+  border: 0;
+  border-radius: 0;
 }
 
 .table-tab-payment-summary {
@@ -231,76 +322,57 @@
   line-height: 1.45;
 }
 
-.receivables-toolbar-note {
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-
-@media (max-width: 760px) {
-  .receivable-order-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+@media (max-width: 820px) {
+  .receivables-summary-grid {
+    grid-template-columns: repeat(3, minmax(148px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 
-  .receivable-order-actions {
-    grid-column: 1 / -1;
-    width: 100%;
+  .receivables-controls {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .receivable-order-actions .button {
-    flex: 1 1 0;
+  .receivables-sort-control {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .receivable-table-tab-action {
-    align-items: stretch;
-    flex-direction: column;
+  .receivable-ledger-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .receivable-table-tab-action .button {
-    width: 100%;
-    min-height: var(--mobile-touch-target, 44px);
+  .receivable-ledger-row > svg {
+    display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .receivable-client-header {
-    align-items: flex-start;
-    flex-direction: column;
+  .receivables-summary-card {
+    min-height: 92px;
   }
 
-  .receivable-client-copy strong {
-    overflow-wrap: anywhere;
+  .receivable-ledger-row {
+    gap: 10px;
+    padding: 12px;
   }
 
-  .receivable-client-total {
-    align-items: flex-start;
-    text-align: left;
-  }
-
-  .receivable-order-row {
-    grid-template-columns: 1fr;
-  }
-
-  .receivable-order-main span {
+  .receivable-ledger-main > span:not(.receivable-timing):not(.receivable-paid-meta) {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  .receivable-order-amount {
-    min-width: 0;
-    text-align: left;
+  .receivable-ledger-amount {
+    align-self: start;
+    padding-top: 2px;
   }
 
-  .receivable-order-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .receivable-order-actions .button {
-    width: 100%;
-    min-height: var(--mobile-touch-target, 44px);
+  .receivable-ledger-table-action {
+    width: calc(100% - 24px);
+    justify-self: stretch;
+    margin: 0 12px 12px;
+    min-height: 44px;
   }
 
   .table-tab-payment-summary {
