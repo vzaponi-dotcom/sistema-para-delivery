@@ -59,6 +59,7 @@ import {
   updateClient as updateClientApi,
   updateMovement as updateMovementApi,
   updateOrderStatus as updateOrderStatusApi,
+  updateOrderPaymentPromise as updateOrderPaymentPromiseApi,
   updateProduct as updateProductApi,
 } from './api/client'
 
@@ -373,6 +374,16 @@ function App() {
   const closePaymentModal = () => { setPaymentOrderId(null); setPaymentMethod('Pix') }
   const handleRegisterPayment = async (event) => { event.preventDefault(); if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return; setRequestKey(`payment:${paymentOrder.id}`); try { const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod); applyOfficialEffects({ order, movement, tableTab }); closePaymentModal(); showSuccessMessage(`Pagamento recebido via ${paymentMethod}`) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
   const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleUpdatePaymentPromise = async (orderId, promisedPaymentDate) => {
+    if (writesBlocked) return false
+    setRequestKey(`payment-promise:${orderId}`)
+    try {
+      const { order } = await updateOrderPaymentPromiseApi(orderId, promisedPaymentDate)
+      applyOfficialEffects({ order })
+      showSuccessMessage(promisedPaymentDate ? 'Data prometida atualizada' : 'Data prometida removida')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
   const handleRegisterRefund = async (orderId, payload) => { if (writesBlocked) return false; setRequestKey(`order:refund:${orderId}`); try { const { order, movement } = await refundOrderApi(orderId, payload); applyOfficialEffects({ order, movement }); showSuccessMessage('Estorno registrado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
 
   const resetClientForm = () => { setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(false) }
@@ -447,7 +458,7 @@ function App() {
         {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
-        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} />}
+        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
 
         {pendingNavigationTab && (
