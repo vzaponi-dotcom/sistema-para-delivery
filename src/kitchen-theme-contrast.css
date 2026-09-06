@@ -1,0 +1,59 @@
+.kitchen-page.kitchen-page {
+  color: var(--kitchen-board-text);
+}
+
+.kitchen-page.kitchen-page .page-header h1 {
+  color: var(--kitchen-board-text);
+}
+
+.kitchen-page.kitchen-page .page-description {
+  color: var(--kitchen-board-muted);
+}
+
+.kitchen-page .kitchen-header-actions .button {
+  border-color: color-mix(in srgb, var(--kitchen-board-text) 18%, transparent);
+}
+
+.kitchen-page .kitchen-header-actions .button-secondary {
+  color: var(--kitchen-board-text);
+}
+
+.kitchen-page .kitchen-stat-card .stat-copy > span,
+.kitchen-page .kitchen-stat-card .stat-copy small {
+  color: var(--kitchen-board-muted);
+}
+
+.kitchen-page .kitchen-stat-card .stat-copy strong {
+  color: var(--kitchen-board-text);
+}
+
+.kitchen-page .kitchen-board {
+  border-color: color-mix(in srgb, var(--kitchen-board-text) 9%, transparent);
+}
+
+.kitchen-page .kitchen-toolbar .toolbar-count {
+  color: var(--kitchen-board-muted);
+}
+
+.kitchen-page .kitchen-queue-heading {
+  color: var(--kitchen-board-text);
+}
+
+.kitchen-page .kitchen-queue-heading svg,
+.kitchen-page .kitchen-queue-heading h2 span,
+.kitchen-page .kitchen-queue-help {
+  color: var(--kitchen-board-muted);
+}
+
+.kitchen-page .kitchen-queue-help {
+  border-color: color-mix(in srgb, var(--kitchen-board-text) 12%, transparent);
+}
+
+.kitchen-page .kitchen-queue-empty {
+  border-color: color-mix(in srgb, var(--kitchen-board-text) 18%, transparent);
+  color: var(--kitchen-board-muted);
+}
+
+.kitchen-page .kitchen-queue-empty strong {
+  color: var(--kitchen-board-text);
+}
