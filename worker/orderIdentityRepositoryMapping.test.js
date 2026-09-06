@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { mapOrderRow, mapTableTabRow } from './repositories.js'
 
 const source = readFileSync(new URL('./repositories.js', import.meta.url), 'utf8')
+const orderReadSql = readFileSync(new URL('./orderReadSql.js', import.meta.url), 'utf8')
 const baseRow = {
   id: 'o1',
   client_id: null,
@@ -63,4 +64,11 @@ test('order persistence stores identity type and derives server-side snapshots',
   assert.match(source, /clientSnapshot = `Mesa \$\{tableTab\.tableIdentifier\}`/)
   assert.match(source, /productSnapshotSize\(item\.product\)/)
   assert.match(source, /Pagamento pedido #[^\n]*clientSnapshot/)
+})
+
+test('order row maps promised payment date and official order reads select it', () => {
+  assert.equal(mapOrderRow({ ...baseRow, promised_payment_date: '2026-09-11' }, []).promisedPaymentDate, '2026-09-11')
+  assert.equal(mapOrderRow({ ...baseRow, promised_payment_date: null }, []).promisedPaymentDate, null)
+  assert.match(orderReadSql, /o\.promised_payment_date/)
+  assert.match(source, /o\.promised_payment_date/)
 })
