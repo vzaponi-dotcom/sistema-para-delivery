@@ -50,6 +50,7 @@ test('MTP5 profile centralizes physical width, logical columns, code page and se
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
   assert.equal(MTP5_PROFILE.fontAColumns, 32)
   assert.equal(MTP5_PROFILE.codePage, 3)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
   assert.deepEqual(MTP5_PROFILE.serial, {
     baudRate: 9600,
     dataBits: 8,
@@ -89,6 +90,30 @@ test('58mm renderer emits deterministic ESC/POS structure and two approved copie
   assert.equal(countBytes(bytes, encodeCp860('CÓPIA 1/2')), 1)
   assert.equal(countBytes(bytes, encodeCp860('CÓPIA 2/2')), 1)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1d, 0x56])), false)
+})
+
+test('MPT-II byte stream exits Chinese mode, keeps Portuguese accents and uses ASCII money spacing', () => {
+  const document = fixture({
+    customer: { name: 'João', phone: '', address: 'Endereço com observação' },
+    items: [{ name: 'Sanduíche', presentation: 'Un', quantity: 1, note: 'Acréscimo de queijo', unitPriceCents: 1800 }],
+    subtotalCents: 1800,
+    deliveryFeeCents: 0,
+    adjustment: { type: 'none', amountCents: 0, reason: '' },
+    totalCents: 1800,
+    payment: { status: 'Pendente', method: '' },
+  })
+  const bytes = renderEscPos58mm(document, { copies: 1 })
+  const chineseModeOff = Uint8Array.from([0x1c, 0x2e])
+  const codePage = Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])
+
+  assert.equal(includesBytes(bytes, chineseModeOff), true)
+  assert.equal(includesBytes(bytes, codePage), true)
+  assert.equal(includesBytes(bytes, encodeCp860('Sanduíche')), true)
+  assert.equal(includesBytes(bytes, encodeCp860('Endereço')), true)
+  assert.equal(includesBytes(bytes, encodeCp860('João')), true)
+  assert.equal(includesBytes(bytes, encodeCp860('Acréscimo')), true)
+  assert.equal(includesBytes(bytes, encodeCp860('R$ 18,00')), true)
+  assert.equal(bytes.includes(0xff), false)
 })
 
 test('one-copy pending pickup ticket omits empty delivery contact fields but keeps values and payment state', () => {
