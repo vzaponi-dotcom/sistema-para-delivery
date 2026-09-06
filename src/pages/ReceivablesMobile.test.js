@@ -53,6 +53,6 @@ test('quick payment FAB stays above the mobile navigation and safe area', async 
 
   assert.match(page, /className="receivables-payment-fab"/)
   assert.match(page, /aria-label="Registrar recebimento"/)
-  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-payment-fab\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-safe-bottom\)\s*\+\s*var\(--mobile-floating-gap\)\)[^}]*z-index:\s*var\(--layer-floating-action\)[^}]*min-height:\s*48px/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-payment-fab\s*\{[^}]*position:\s*fixed[^}]*right:\s*var\(--mobile-page-inline\)[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-safe-bottom\)\s*\+\s*var\(--mobile-floating-gap\)\)[^}]*z-index:\s*var\(--layer-floating-action\)[^}]*min-height:\s*48px/s)
   assert.match(css, /@media\s*\(min-width:\s*821px\)[\s\S]*\.receivables-payment-fab\s*\{[^}]*display:\s*none/s)
 })
