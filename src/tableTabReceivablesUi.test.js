@@ -6,17 +6,18 @@ const receivables = fs.readFileSync(new URL('./pages/Receivables.jsx', import.me
 const detail = fs.readFileSync(new URL('./components/ReceivableDetail.jsx', import.meta.url), 'utf8')
 const styles = fs.readFileSync(new URL('./receivables.css', import.meta.url), 'utf8')
 
-test('receivables keeps table tabs consolidated and delegates payment through the detail action', () => {
+test('receivables keeps table tabs consolidated and delegates aggregate payment through the detail action', () => {
   assert.match(receivables, /buildPendingReceivableEntries/)
-  assert.match(detail, /entry\.kind === 'table-tab'/)
-  assert.match(detail, /Pagamento agregado da comanda/)
-  assert.match(detail, /pedido\(s\) em aberto/i)
-  assert.match(detail, /Registrar recebimento/)
-  assert.match(detail, /!isTableTab && onEditPromise/)
+  assert.match(detail, /entry\.kind === 'table_tab'/)
+  assert.match(detail, /Pedidos pendentes/)
+  assert.match(detail, /A comanda é recebida de forma integral/)
+  assert.match(detail, /Registrar pagamento da comanda/)
+  assert.match(detail, /onRegisterTableTabPayment/)
 })
 
-test('table tab detail uses the shared primary payment action without the obsolete danger treatment', () => {
-  assert.match(detail, /className="btn btn-primary"/)
+test('table tab detail keeps promise editing out of the aggregate branch and removes the obsolete danger treatment', () => {
+  assert.match(detail, /if \(entry\.kind === 'table_tab'\)[\s\S]*Registrar pagamento da comanda/)
+  assert.match(detail, /const order = entry\.order[\s\S]*onEditPaymentPromise\?\.\(order\)/)
   assert.doesNotMatch(detail, /table-tab-payment-action-button/)
   assert.doesNotMatch(styles, /\.table-tab-payment-action-button/)
 })
