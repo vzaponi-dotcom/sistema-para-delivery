@@ -264,16 +264,42 @@
 .receivables-quick-payment-amount { white-space: nowrap; font-size: 0.88rem; }
 .receivables-quick-payment-empty { min-height: 150px; border: 0; border-radius: 0; }
 
+.receivable-ledger-row:focus-visible,
+.receivables-summary-card:focus-visible,
+.receivables-filter-strip button:focus-visible,
+.receivables-payment-fab:focus-visible,
+.receivables-forecast-row:focus-visible {
+  outline: 3px solid var(--primary-soft);
+  outline-offset: 2px;
+}
+
 @media (max-width: 1100px) {
   .receivables-workspace { grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); }
 }
 
+@media (min-width: 960px) {
+  .receivables-controls {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .receivables-detail-panel {
+    position: sticky;
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 820px) {
   .receivables-summary-grid { grid-template-columns: repeat(3, minmax(148px, 1fr)); overflow-x: auto; padding-bottom: 4px; }
+  .receivables-filter-strip { margin-inline: -2px; padding: 2px; overflow-x: auto; scrollbar-width: none; }
   .receivables-controls { grid-template-columns: minmax(0, 1fr); }
   .receivables-sort-control { grid-template-columns: auto minmax(0, 1fr); }
-  .receivable-ledger-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .receivable-ledger-row { grid-template-columns: auto minmax(0, 1fr) auto; min-height: 72px; }
   .receivable-ledger-row > svg { display: none; }
+  .receivable-ledger-amount { grid-column: 3; overflow-wrap: normal; }
   .receivables-workspace { display: block; }
   .receivables-detail-panel { display: none; }
   .receivables-payment-desktop-action { display: none; }
@@ -301,7 +327,6 @@
     cursor: pointer;
   }
   .receivables-payment-fab:disabled { opacity: 0.55; cursor: not-allowed; }
-  .receivables-payment-fab:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 }
 
 @media (max-width: 640px) {
@@ -319,4 +344,13 @@
 
 @media (min-width: 821px) {
   .receivables-payment-fab { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receivable-ledger-row,
+  .receivables-summary-card,
+  .receivables-payment-fab,
+  .receivables-forecast-bar {
+    transition: none !important;
+  }
 }
