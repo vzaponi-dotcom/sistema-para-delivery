@@ -51,9 +51,11 @@ test('quick payment delegates to the existing App payment flow and excludes tabl
   const app = await read('../App.jsx')
 
   assert.match(page, /Registrar recebimento/)
-  assert.match(page, /pendingEntries\.filter\(\(entry\) => entry\.kind === 'order'\)/)
+  assert.match(page, /quickPaymentEntries/)
+  assert.match(page, /entry\.kind === 'order'/)
   assert.match(page, /onSelect=\{onRegisterPayment\}/)
   assert.match(quick, /onSelect\(entry\.order\.id\)/)
+  assert.doesNotMatch(quick, /table_tab/)
   assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect/)
   assert.doesNotMatch(quick, /registerPaymentApi|\/payment/)
 })
