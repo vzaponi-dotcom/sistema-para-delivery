@@ -58,9 +58,9 @@ test('quick payment delegates to the existing App payment flow and excludes tabl
   assert.doesNotMatch(quick, /registerPaymentApi|\/payment/)
 })
 
-test('table tabs keep aggregate payment and never expose promise editing', async () => {
+test('table tabs keep aggregate payment and remain separate from quick payment', async () => {
   const detail = await read('../components/ReceivableDetail.jsx')
+  assert.match(detail, /if \(entry\.kind === 'table_tab'\)/)
   assert.match(detail, /Registrar pagamento da comanda/)
-  assert.match(detail, /entry\.kind === 'table_tab'/)
-  assert.doesNotMatch(detail, /entry\.kind === 'table_tab'[\s\S]{0,1200}onEditPaymentPromise/)
+  assert.match(detail, /onRegisterTableTabPayment/)
 })
