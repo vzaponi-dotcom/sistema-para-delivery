@@ -186,7 +186,7 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
           </label>
           <div className="form-field">
             <span>Unidade</span>
-            <div className="product-unit-options" role="group" aria-label="Unidade de medida">
+            <div className="product-measure-unit-segmented" role="group" aria-label="Unidade de medida">
               {(value.presentationType === 'volume' ? ['ml', 'L'] : ['g', 'kg']).map((unit) => {
                 const selected = value.presentationUnit === unit
                 return (
@@ -199,11 +199,6 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
                     disabled={disabled}
                   >
                     <span>{unit}</span>
-                    {selected && (
-                      <span className="product-selection-check" aria-hidden="true">
-                        <Icon name="check" size={13} />
-                      </span>
-                    )}
                   </button>
                 )
               })}
