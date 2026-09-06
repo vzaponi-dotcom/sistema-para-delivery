@@ -56,3 +56,12 @@ test('quick payment FAB stays above the mobile navigation and safe area', async 
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-payment-fab\s*\{[^}]*position:\s*fixed[^}]*right:\s*var\(--mobile-page-inline\)[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-safe-bottom\)\s*\+\s*var\(--mobile-floating-gap\)\)[^}]*z-index:\s*var\(--layer-floating-action\)[^}]*min-height:\s*48px/s)
   assert.match(css, /@media\s*\(min-width:\s*821px\)[\s\S]*\.receivables-payment-fab\s*\{[^}]*display:\s*none/s)
 })
+
+test('receivables hardens desktop detail, money wrapping, focus and reduced motion', async () => {
+  const css = await read('../receivables.css')
+
+  assert.match(css, /@media\s*\(min-width:\s*960px\)[\s\S]*\.receivables-detail-panel\s*\{[^}]*position:\s*sticky[^}]*max-height:\s*calc\(100dvh\s*-\s*36px\)[^}]*overflow-y:\s*auto/s)
+  assert.match(css, /\.receivable-ledger-amount\s*\{[^}]*white-space:\s*nowrap/s)
+  assert.match(css, /\.receivable-ledger-row:focus-visible[\s\S]*\.receivables-summary-card:focus-visible[\s\S]*\.receivables-filter-strip button:focus-visible[\s\S]*\.receivables-payment-fab:focus-visible[\s\S]*\.receivables-forecast-row:focus-visible\s*\{/s)
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.receivable-ledger-row[\s\S]*\.receivables-summary-card[\s\S]*\.receivables-payment-fab[\s\S]*\.receivables-forecast-bar[\s\S]*transition:\s*none\s*!important/s)
+})

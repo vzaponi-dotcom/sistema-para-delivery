@@ -43,6 +43,15 @@ test('business date is refreshed while the page remains open', async () => {
   assert.match(page, /setInterval/)
 })
 
+test('receivables controls remain semantic and keyboard accessible', async () => {
+  const page = await read('./Receivables.jsx')
+
+  assert.match(page, /receivables-filter-strip[\s\S]*aria-pressed=\{timingFilter === filter && !exactDateFilter\}/)
+  assert.match(page, /aria-label="Previsão de recebimentos"/)
+  assert.doesNotMatch(page, /<div[^>]*className=["'`]receivable-ledger-row["'`][^>]*onClick=/)
+  assert.match(page, /<button[^>]*className="receivable-ledger-row"/)
+})
+
 test('quick payment delegates to the existing App payment flow and excludes table tabs', async () => {
   const page = await read('./Receivables.jsx')
   const quickUrl = new URL('../components/ReceivablesQuickPaymentDialog.jsx', import.meta.url)
