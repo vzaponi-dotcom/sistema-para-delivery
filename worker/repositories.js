@@ -287,7 +287,7 @@ export const deleteProduct = async (db, businessId, id, now = new Date()) => {
 
 const backdatedOperationalTimestamp = (orderDate) => `${orderDate}T15:00:00.000Z`
 
-const loadOrderById = async (db, businessId, id) => {
+export const loadOrderById = async (db, businessId, id) => {
   const row = await db.prepare(`${orderSelect} WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(id, businessId).first()
   if (!row) return null
   const itemsResult = await db.prepare(`${itemSelect} WHERE order_id = ? AND business_id = ? ORDER BY created_at ASC`).bind(id, businessId).all()
