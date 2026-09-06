@@ -9,6 +9,7 @@ import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentPromiseDialog from '../components/PaymentPromiseDialog'
 import ReceivableDetail from '../components/ReceivableDetail'
+import ReceivablesQuickPaymentDialog from '../components/ReceivablesQuickPaymentDialog'
 import SystemSelect from '../components/SystemSelect'
 import { getBusinessDate } from '../../shared/finance.js'
 import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
@@ -86,6 +87,7 @@ function Receivables({
   const [promiseOrder, setPromiseOrder] = useState(null)
   const [tableTabPaymentGroup, setTableTabPaymentGroup] = useState(null)
   const [tableTabPaymentMethod, setTableTabPaymentMethod] = useState('Pix')
+  const [quickPaymentOpen, setQuickPaymentOpen] = useState(false)
   const [isMobileDetail, setIsMobileDetail] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 820px)').matches)
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = disabled || (typeof navigator !== 'undefined' && !navigator.onLine)
@@ -109,6 +111,7 @@ function Receivables({
 
   const summary = useMemo(() => calculateReceivableSummary(orders, today), [orders, today])
   const pendingEntries = useMemo(() => buildPendingReceivableEntries(orders, tableTabs, today), [orders, tableTabs, today])
+  const quickPaymentEntries = useMemo(() => pendingEntries.filter((entry) => entry.kind === 'order'), [pendingEntries])
   const allPaidOrders = useMemo(() => getPaidReceivableOrders(orders), [orders])
 
   const visiblePendingEntries = useMemo(() => {
@@ -133,6 +136,8 @@ function Receivables({
     }
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
   }, [allPaidOrders, pendingEntries, selectedEntryKey])
+
+  const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || tableTabPaymentGroup || quickPaymentOpen)
 
   useEffect(() => {
     if (selectedEntryKey && !selectedEntry) setSelectedEntryKey(null)
@@ -210,6 +215,20 @@ function Receivables({
             </div>
           )}
 
+          {activeView === 'pending' && (
+            <div className="receivables-header-actions">
+              <Button
+                type="button"
+                icon="wallet"
+                className="receivables-payment-desktop-action"
+                onClick={() => setQuickPaymentOpen(true)}
+                disabled={writeDisabled || quickPaymentEntries.length === 0 || !onRegisterPayment}
+              >
+                Registrar recebimento
+              </Button>
+            </div>
+          )}
+
           <div className="receivables-controls">
             <label className="search-control"><Icon name="search" size={18} /><input type="search" placeholder="Buscar identificação, pedido ou produto" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             {activeView === 'pending' && <div className="receivables-sort-control"><span>Ordenar</span><SystemSelect label="Ordenar recebimentos" value={sortMode} options={SORT_OPTIONS} onChange={setSortMode} /></div>}
@@ -249,6 +268,19 @@ function Receivables({
         </aside>
       </div>
 
+      {activeView === 'pending' && !overlayOpen && (
+        <button
+          type="button"
+          className="receivables-payment-fab"
+          aria-label="Registrar recebimento"
+          onClick={() => setQuickPaymentOpen(true)}
+          disabled={writeDisabled || quickPaymentEntries.length === 0 || !onRegisterPayment}
+        >
+          <Icon name="wallet" size={20} />
+          <span>Registrar recebimento</span>
+        </button>
+      )}
+
       <BottomSheet open={Boolean(selectedEntry) && isMobileDetail} title="Detalhes do recebimento" onClose={() => setSelectedEntryKey(null)}>
         <ReceivableDetail
           entry={selectedEntry}
@@ -260,6 +292,17 @@ function Receivables({
           onViewOrder={setDetailOrder}
         />
       </BottomSheet>
+
+      {quickPaymentOpen && (
+        <ReceivablesQuickPaymentDialog
+          open={quickPaymentOpen}
+          entries={quickPaymentEntries}
+          currency={currency}
+          disabled={writeDisabled}
+          onClose={() => setQuickPaymentOpen(false)}
+          onSelect={onRegisterPayment}
+        />
+      )}
 
       {promiseOrder && <PaymentPromiseDialog order={promiseOrder} today={today} disabled={writeDisabled} onSave={onUpdatePaymentPromise} onClose={() => setPromiseOrder(null)} />}
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
