@@ -111,7 +111,7 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
 
       <fieldset className="product-form-section" disabled={disabled}>
         <legend>Apresentação</legend>
-        <div className="product-presentation-options">
+        <div className="product-presentation-segmented" role="group" aria-label="Apresentação do produto">
           {PRESENTATION_OPTIONS.map((option) => {
             const selected = value.presentationType === option.value
             return (
@@ -123,21 +123,17 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
                 onClick={() => changePresentationType(option.value)}
               >
                 <span>{option.label}</span>
-                {selected && (
-                  <span className="product-selection-check" aria-hidden="true">
-                    <Icon name="check" size={13} />
-                  </span>
-                )}
               </button>
             )
           })}
         </div>
+        <small className="product-presentation-helper">Escolha como este produto será apresentado no cardápio.</small>
       </fieldset>
 
       {value.presentationType === 'size' && (
         <div className="product-presentation-detail">
           <span className="product-detail-label">Tamanho</span>
-          <div className="product-size-options" role="group" aria-label="Tamanho do produto">
+          <div className="product-size-scroll" role="group" aria-label="Tamanho do produto">
             {[...SIZE_PRESETS, 'Outro'].map((preset) => {
               const selected = sizePreset === preset
               return (
@@ -221,7 +217,7 @@ function ProductForm({ value, onChange, onSubmit, onCancel, disabled = false, ed
       )}
 
       <div className="product-preview" aria-label="Prévia do produto">
-        <span>Prévia</span>
+        <span>Pré-visualização</span>
         <strong>{value.name?.trim() || 'Nome do produto'}</strong>
         <small>{categoryForUi(value.category)}{previewPresentation ? ` · ${previewPresentation}` : ''}</small>
         <b>{value.price || 'R$ 0,00'}</b>
