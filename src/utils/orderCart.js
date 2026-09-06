@@ -161,6 +161,7 @@ export const buildOrderPayload = (draft = {}, paymentMethod) => {
     },
   }
   if (paymentMethod) payload.paymentMethod = paymentMethod
+  if (draft.scheduledFor) payload.scheduledFor = draft.scheduledFor
   return payload
 }
 

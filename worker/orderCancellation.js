@@ -123,15 +123,17 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
     orderId,
     businessId,
   )
+  const deletePendingAutomaticPrint = db.prepare(`DELETE FROM print_jobs
+    WHERE business_id = ? AND order_id = ? AND trigger = 'automatic' AND status = 'pending'`).bind(businessId, orderId)
 
   let refund = null
   if (existing.payment_id && input.refundNow) {
     const refundMethod = normalizeRefundMethod(input.refundMethod)
     if (existing.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
     refund = createRefundStatement(db, businessId, existing, refundMethod, now)
-    await db.batch([update, refund.statement])
+    await db.batch([update, deletePendingAutomaticPrint, refund.statement])
   } else {
-    await update.run()
+    await db.batch([update, deletePendingAutomaticPrint])
   }
 
   const tableTab = await closeTableTabIfSettled(db, businessId, existing.table_tab_id, now)

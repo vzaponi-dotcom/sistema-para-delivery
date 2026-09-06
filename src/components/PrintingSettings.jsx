@@ -99,10 +99,10 @@ function PrintingSettings({ printing, onClose }) {
           </div>
 
           <div className="printing-info-grid">
-            <div><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
-            <div><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
-            <div><span>Estação principal</span><strong>{station?.isPrimary ? 'Sim' : 'Não'}</strong></div>
-            <div><span>Impressão automática</span><strong>{autoPrintEnabled ? 'Ligada' : 'Desligada'}</strong></div>
+            <div className="printing-info-card"><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
+            <div className="printing-info-card"><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
+            <div className="printing-info-card"><span>Estação principal</span><strong>{station?.isPrimary ? 'Sim' : 'Não'}</strong></div>
+            <div className="printing-info-card"><span>Impressão automática</span><strong>{autoPrintEnabled ? 'Ligada' : 'Desligada'}</strong></div>
           </div>
 
           <div className="printing-actions-row">

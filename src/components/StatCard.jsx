@@ -1,8 +1,9 @@
 import Icon from './Icon'
 
-function StatCard({ label, value, helper, icon = 'dashboard', tone = 'neutral' }) {
+function StatCard({ label, value, helper, icon = 'dashboard', tone = 'neutral', className = '' }) {
+  const classes = ['stat-card', `tone-${tone}`, className].filter(Boolean).join(' ')
   return (
-    <article className={`stat-card tone-${tone}`}>
+    <article className={classes}>
       <div className="stat-icon"><Icon name={icon} size={20} /></div>
       <div className="stat-copy">
         <span>{label}</span>

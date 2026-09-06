@@ -108,28 +108,30 @@ class CheckoutDb {
         })
       }
     } else if (sql.includes('INSERT INTO orders')) {
-      const hasTableTab = values.length === 20
+      const hasTableTab = values.length === 22
       const [id, businessId, clientId, clientName, customerIdentityType] = values
       const tableTabId = hasTableTab ? values[5] : null
       const offset = hasTableTab ? 1 : 0
       const type = values[5 + offset]
       const orderDate = values[6 + offset]
       const status = values[7 + offset]
-      const subtotal = values[8 + offset]
-      const deliveryFee = values[9 + offset]
-      const adjustmentType = values[10 + offset]
-      const adjustmentMode = values[11 + offset]
-      const adjustmentValue = values[12 + offset]
-      const adjustmentAmount = values[13 + offset]
-      const adjustmentReason = values[14 + offset]
-      const total = values[15 + offset]
-      const createdAt = values[16 + offset]
-      const finishedAt = values[17 + offset]
-      const idempotencyKey = values[18 + offset]
+      const scheduledFor = values[8 + offset]
+      const isBackdated = values[9 + offset]
+      const subtotal = values[10 + offset]
+      const deliveryFee = values[11 + offset]
+      const adjustmentType = values[12 + offset]
+      const adjustmentMode = values[13 + offset]
+      const adjustmentValue = values[14 + offset]
+      const adjustmentAmount = values[15 + offset]
+      const adjustmentReason = values[16 + offset]
+      const total = values[17 + offset]
+      const createdAt = values[18 + offset]
+      const finishedAt = values[19 + offset]
+      const idempotencyKey = values[20 + offset]
       if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
       this.orders.set(id, {
         id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType,
-        table_tab_id: tableTabId, type, order_date: orderDate, status, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
+        table_tab_id: tableTabId, type, order_date: orderDate, status, scheduled_for: scheduledFor, is_backdated: isBackdated, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
         adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue,
         adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total,
         created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey,
@@ -190,6 +192,17 @@ test('order/item mapping exposes delivery fee, note and friendly percentage', ()
   assert.equal(item.note, 'sem cebola')
   assert.equal(order.deliveryFee, 8)
   assert.equal(order.adjustment.value, 7.5)
+})
+
+test('order mapping exposes scheduled metadata and backdated marker', () => {
+  const order = mapOrderRow({
+    id: 'o-scheduled', client_name_snapshot: 'Maria', type: 'Entrega', status: 'Em preparo', order_date: '2026-09-04',
+    scheduled_for: '2026-09-04T15:00:00.000Z', is_backdated: 0, subtotal_cents: 1000, delivery_fee_cents: 0,
+    adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0, adjustment_amount_cents: 0, total_cents: 1000,
+    created_at: '2026-09-04T12:00:00.000Z', finished_at: null,
+  })
+  assert.equal(order.scheduledFor, '2026-09-04T15:00:00.000Z')
+  assert.equal(order.isBackdated, false)
 })
 
 test('createOrder uses server product prices for several items, fee and adjustment', async () => {

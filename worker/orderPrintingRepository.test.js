@@ -6,6 +6,7 @@ import {
   PRINT_PROCESSING_MAX_AGE_MS,
   claimNextAutomaticPrintJob,
   claimPrintJob,
+  createManualOrderPrintJob,
   listPrintJobs,
   listPrintStations,
   loadAutomaticPrintJobForOrder,
@@ -25,7 +26,7 @@ class D1Sqlite {
     this.sqlite.exec(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE businesses (id TEXT PRIMARY KEY);
-      CREATE TABLE orders (id TEXT PRIMARY KEY, business_id TEXT NOT NULL);
+      CREATE TABLE orders (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Em preparo');
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
@@ -51,6 +52,7 @@ class D1Sqlite {
         station_id TEXT,
         snapshot_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
+        available_at TEXT NOT NULL,
         processing_started_at TEXT,
         processed_at TEXT,
         last_error_code TEXT,
@@ -119,13 +121,14 @@ const addStation = async (db, id, overrides = {}) => upsertPrintStation(db, over
   defaultCopies: overrides.defaultCopies || 2,
 }, baseNow)
 
-const addAutomaticJob = async (db, { id, orderId = 'o1', businessId = businessA, createdAt = baseNow } = {}) => {
+const addAutomaticJob = async (db, { id, orderId = 'o1', businessId = businessA, createdAt = baseNow, availableAt = createdAt } = {}) => {
   const statement = prepareAutomaticPrintJobStatement(db, businessId, {
     id,
     orderId,
     copies: 2,
     document: { ...document, order: { id: orderId, number: orderId.slice(-4) } },
     createdAt: createdAt.toISOString(),
+    availableAt: availableAt.toISOString(),
   })
   await db.batch([statement])
   return loadPrintJob(db, businessId, id)
@@ -141,6 +144,7 @@ test('station upsert and primary switch preserve exactly one primary station', a
 
   const stations = await listPrintStations(db, businessA)
   assert.equal(stations.filter((station) => station.isPrimary).length, 1)
+  assert.equal(Object.hasOwn(stations[0], 'availableAt'), false)
   assert.equal(stations.find((station) => station.isPrimary).id, 'station-b')
   assert.equal((await loadPrimaryAutomaticPrintStation(db, businessA)).id, 'station-b')
 })
@@ -227,6 +231,43 @@ test('aging moves stale pending and processing jobs to requires_attention before
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
   assert.equal((await loadPrintJob(db, businessA, 'old-pending')).status, 'requires_attention')
   assert.equal((await loadPrintJob(db, businessA, 'old-processing')).status, 'requires_attention')
+})
+
+test('automatic print waits for availableAt before aging or claim', async () => {
+  const future = new Date(baseNow.getTime() + 5 * 60 * 1000)
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  const job = await addAutomaticJob(db, { id: 'future-available', createdAt: new Date(baseNow.getTime() - 3 * 60 * 60 * 1000), availableAt: future })
+  assert.equal(job.availableAt, future.toISOString())
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+  const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', future)
+  assert.equal(claimed.id, 'future-available')
+})
+
+test('manual printing leaves a future automatic job pending until its exact availableAt', async () => {
+  const future = new Date(baseNow.getTime() + 5 * 60 * 1000)
+  const before = new Date(future.getTime() - 1)
+  const db = makeDb()
+  await addStation(db, 'primary')
+  await setPrimaryPrintStation(db, businessA, 'primary', baseNow)
+  const automatic = await addAutomaticJob(db, { id: 'future-automatic', availableAt: future })
+  const manual = await createManualOrderPrintJob(db, businessA, {
+    id: 'manual-now',
+    orderId: 'o1',
+    copies: 2,
+    document,
+  }, baseNow)
+
+  await claimPrintJob(db, businessA, manual.id, 'primary', baseNow)
+  await markPrintJobPrinted(db, businessA, manual.id, 'primary', 2, baseNow)
+
+  assert.notEqual(manual.id, automatic.id)
+  assert.equal((await loadPrintJob(db, businessA, manual.id)).status, 'printed')
+  assert.equal((await loadPrintJob(db, businessA, automatic.id)).status, 'pending')
+  assert.equal((await loadPrintJob(db, businessA, automatic.id)).availableAt, future.toISOString())
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'primary', before), null)
+  assert.equal((await claimNextAutomaticPrintJob(db, businessA, 'primary', future)).id, automatic.id)
 })
 
 test('job and station reads are isolated by business id', async () => {

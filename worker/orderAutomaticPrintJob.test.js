@@ -24,7 +24,7 @@ class D1Sqlite {
         adjustment_type TEXT NOT NULL, adjustment_mode TEXT NOT NULL, adjustment_value INTEGER NOT NULL,
         adjustment_amount_cents INTEGER NOT NULL, adjustment_reason TEXT NOT NULL,
         total_cents INTEGER NOT NULL, created_at TEXT NOT NULL, finished_at TEXT,
-        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, idempotency_key TEXT NOT NULL
+        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, scheduled_for TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, idempotency_key TEXT NOT NULL
       );
       CREATE UNIQUE INDEX orders_idempotency_idx ON orders (business_id, idempotency_key);
       CREATE TABLE order_items (
@@ -56,7 +56,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL,
         trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL,
         copies_printed INTEGER NOT NULL DEFAULT 0, station_id TEXT, snapshot_json TEXT NOT NULL,
-        created_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT,
+        created_at TEXT NOT NULL, available_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT,
         last_error_code TEXT, last_error_message TEXT
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)

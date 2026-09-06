@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findClientDuplicates } from '../../shared/clientIdentity.js'
+import { getBusinessDate } from '../../shared/finance.js'
 import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
 import Button from '../components/Button'
 import ClientDuplicateModal from '../components/ClientDuplicateModal'
@@ -29,7 +30,7 @@ import {
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
 } from '../utils/newOrderStepFlow.js'
-import { toLocalDateValue } from '../utils/orderWorkflow.js'
+import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/orderTiming.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
@@ -42,7 +43,9 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const [type, setType] = useState('Entrega')
   const [localIdentityType, setLocalIdentityType] = useState('guest_name')
   const [localIdentityValue, setLocalIdentityValue] = useState('')
-  const [orderDate, setOrderDate] = useState(toLocalDateValue())
+  const [orderDate, setOrderDate] = useState(getBusinessDate())
+  const [scheduleMode, setScheduleMode] = useState('now')
+  const [scheduledTime, setScheduledTime] = useState('')
   const [items, setItems] = useState([])
   const [deliveryFee, setDeliveryFee] = useState(() => formatBRLCurrencyValue(0))
   const [adjustment, setAdjustment] = useState(emptyAdjustment)
@@ -60,6 +63,8 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
       localIdentityType,
       localIdentityValue,
       orderDate,
+      scheduleMode,
+      scheduledTime,
       items,
       deliveryFee,
       adjustment,
@@ -73,6 +78,8 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     localIdentityType,
     localIdentityValue,
     orderDate,
+    scheduleMode,
+    scheduledTime,
     items,
     deliveryFee,
     adjustment,
@@ -116,6 +123,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     items,
     deliveryFee: type === 'Entrega' ? deliveryFee : formatBRLCurrencyValue(0),
     adjustment,
+    scheduledFor: scheduleMode === 'scheduled' ? businessDateTimeToIso(orderDate, scheduledTime) : null,
   }
   const numericDraft = {
     ...draft,
@@ -129,6 +137,9 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   }
   const preview = calculateOrderPreview(numericDraft)
   const itemCount = getOrderItemCount(items)
+  const scheduledFor = draft.scheduledFor
+  const scheduleVisible = type !== 'Local' && orderDate === getBusinessDate()
+  const scheduleValid = scheduleMode === 'now' || (scheduleVisible && isFutureSameDaySchedule({ type, orderDate, scheduledFor, now: new Date() }))
   const itemsSubtotal = getOrderItemsSubtotal(items)
   const selectedClient = clients.find((client) => client.id === clientId) ?? null
   const customerSummary = type === 'Local'
@@ -142,6 +153,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     identityValid: identityValidation.ok,
     orderDate,
     itemCount,
+    scheduleValid,
   })
   const canSubmit = Boolean(stepAccess.review)
   const canContinueCustomer = stepAccess.products
@@ -167,11 +179,17 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     setType(nextType)
     setCheckoutError('')
     closeQuickClient()
+    if (nextType === 'Local') { setScheduleMode('now'); setScheduledTime('') }
     if (nextType !== 'Entrega') setDeliveryFee(formatBRLCurrencyValue(0))
     if (nextType === 'Local') {
       setLocalIdentityType('guest_name')
       setLocalIdentityValue('')
     }
+  }
+
+  const changeOrderDate = (value) => {
+    setOrderDate(value)
+    if (value !== getBusinessDate()) { setScheduleMode('now'); setScheduledTime('') }
   }
 
   const changeLocalIdentityType = (nextType) => {
@@ -304,7 +322,11 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
             clientPickerOpen={clientPickerOpen}
             type={type}
             orderDate={orderDate}
-            todayValue={toLocalDateValue()}
+            todayValue={getBusinessDate()}
+            scheduleMode={scheduleMode}
+            scheduledTime={scheduledTime}
+            scheduleVisible={scheduleVisible}
+            scheduleValid={scheduleValid}
             localIdentityType={localIdentityType}
             localIdentityValue={localIdentityValue}
             openTableTab={openTableTab}
@@ -313,7 +335,9 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
             disabled={disabled}
             canContinue={canContinueCustomer}
             onTypeChange={changeType}
-            onOrderDateChange={setOrderDate}
+            onOrderDateChange={changeOrderDate}
+            onScheduleModeChange={setScheduleMode}
+            onScheduledTimeChange={setScheduledTime}
             onLocalIdentityTypeChange={changeLocalIdentityType}
             onLocalIdentityValueChange={setLocalIdentityValue}
             onClientSearchChange={handleClientSearchChange}

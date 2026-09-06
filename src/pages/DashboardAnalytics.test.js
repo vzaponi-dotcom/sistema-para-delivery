@@ -38,6 +38,22 @@ test('dashboard renders all four approved analytics visualizations', () => {
   assert.match(page, /DashboardPaymentMix/)
 })
 
+test('dashboard renders operational timing metrics and uses shared analytics helper', () => {
+  const page = source('./Dashboard.jsx')
+  const analytics = source('../utils/dashboardAnalytics.js')
+
+  assert.match(analytics, /getOperationalDurationMinutes/)
+  assert.match(page, /calculateOperationalMetrics/)
+  assert.match(page, /Tempo operacional/)
+  assert.match(page, /Tempo médio/)
+  assert.match(page, /Mais rápido/)
+  assert.match(page, /Mais demorado/)
+  assert.match(page, /Por faixa de tempo/)
+  assert.match(page, /Por tipo de atendimento/)
+  assert.match(page, /Sem pedidos concluídos elegíveis neste período/)
+  assert.match(page, /Em preparo e agendados/)
+})
+
 test('one global eye control starts visible and masks dashboard money without persistence', () => {
   const page = source('./Dashboard.jsx')
 

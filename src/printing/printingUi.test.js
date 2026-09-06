@@ -11,24 +11,27 @@ test('print status badge exposes all friendly persisted job states', () => {
   for (const label of [
     'Pendente de impressão',
     'Imprimindo',
-    'Impresso',
+    'Enviado para impressão',
     'Falha na impressão',
     'Requer atenção',
   ]) assert.match(badge, new RegExp(label))
+  assert.match(badge, /printed:\s*'Enviado para impressão'/)
+  assert.doesNotMatch(badge, /printed:\s*'Impresso'/)
 })
 
-test('order cards show a print badge only when an official job exists', () => {
-  assert.match(orders, /PrintStatusBadge/)
+test('kitchen preserves the shared printing manager in details without moving printing into tickets', async () => {
+  const ticket = await readFile(new URL('../components/KitchenTicket.jsx', import.meta.url), 'utf8')
   assert.match(orders, /latestJobByOrderId/)
-  assert.match(orders, /printJob\s*&&\s*<PrintStatusBadge/)
+  assert.match(orders, /<OrderDetail[^>]*printing=\{printing\}[^>]*printJob=\{detailPrintJob\}/)
   assert.match(app, /printing=\{printing\}/)
+  assert.doesNotMatch(ticket, /printing|PrintStatusBadge|apiRequest|fetch\(/)
 })
 
 test('order detail keeps print actions separate and uses the shared printing manager', () => {
   for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
   }
-  assert.match(detail, /Impressão do pedido/)
+  assert.match(detail, /<h3>Impressão<\/h3>/)
   assert.match(detail, /getPreviewDocument/)
   assert.match(detail, /downloadOrderPdf/)
   assert.match(detail, /printOrder/)
@@ -42,9 +45,23 @@ test('reprint requires confirmation with actual copy count while retries remain 
   assert.match(detail, /confirmLabel="Reimprimir"/)
 })
 
+test('reprint confirmation never claims physical paper output from a technical printed state', () => {
+  assert.match(detail, /Este pedido já foi enviado para impressão\./)
+  assert.doesNotMatch(detail, /Este pedido já foi impresso\./)
+})
+
 test('printing diagnostics use persisted sanitized fields instead of raw exception stacks', () => {
   assert.match(detail, /lastError/)
   assert.match(detail, /processedAt/)
   assert.match(detail, /stationId/)
   assert.doesNotMatch(detail, /\.stack\b/)
+})
+
+test('future automatic jobs show scheduling and use a manual print action', () => {
+  assert.match(detail, /availableAt/)
+  assert.match(detail, /Impressão programada para \{formatOrderTime\(printJob\.availableAt\)\}/)
+  assert.match(detail, /printing\.printOrder\(order\.id, defaultCopies\)/)
+  assert.match(detail, /if \(scheduledPrintPending\) return <Button[^>]*onClick=\{handleFirstPrint\}[^>]*>Imprimir agora<\/Button>/)
+  assert.match(detail, /\{!scheduledPrintPending && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
+  assert.doesNotMatch(detail, /if \(scheduledPrintPending\)[^\n]*handleRetry/)
 })

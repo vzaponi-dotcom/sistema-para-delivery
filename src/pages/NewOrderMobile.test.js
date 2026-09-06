@@ -13,6 +13,12 @@ test('new order uses a single narrow-screen flow without horizontal pressure', a
   assert.match(css, /overflow-wrap:\s*anywhere/)
 })
 
+test('schedule options keep the mobile touch target and two-column layout', async () => {
+  const css = await read('../new-order.css')
+  assert.match(css, /\.new-order-schedule-options\s*\{[^}]*grid-template-columns:\s*repeat\(2/s)
+  assert.match(css, /\.new-order-schedule-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,44px\)/s)
+})
+
 test('new order mobile actions keep touch targets comfortable', async () => {
   const css = await read('../new-order.css')
 

@@ -1,7 +1,7 @@
 const STATUS_LABELS = {
   pending: 'Pendente de impressão',
   processing: 'Imprimindo',
-  printed: 'Impresso',
+  printed: 'Enviado para impressão',
   failed: 'Falha na impressão',
   requires_attention: 'Requer atenção',
 }

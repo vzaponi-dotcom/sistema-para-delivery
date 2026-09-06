@@ -27,6 +27,7 @@ import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
+import { useKitchenClock } from './hooks/useKitchenClock.js'
 import { usePrintingManager } from './printing/usePrintingManager'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
@@ -34,7 +35,7 @@ import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './ut
 import { shouldConfirmNewOrderExit } from './utils/newOrderStepFlow.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
-import { activeOrderIdSet, getNewActiveOrderIds } from './utils/orderRealtime.js'
+import { detectOperationalArrivals } from './utils/orderRealtime.js'
 import { toLocalDateValue } from './utils/orderWorkflow'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
@@ -67,6 +68,8 @@ const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tableTabs', 'movemen
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
+// Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
 const readKitchenSoundPreference = () => {
   if (typeof window === 'undefined') return true
@@ -110,9 +113,8 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
-  const knownActiveOrderIdsRef = useRef(new Set())
+  const knownOperationalOrderIdsRef = useRef(undefined)
   const alertedOrderIdsRef = useRef(new Set())
-  const currentOrdersRef = useRef([])
   const kitchenAudioContextRef = useRef(null)
   const newOrderHighlightTimerRef = useRef(null)
   const syncGuardRef = useRef(createCollectionSyncGuard(DATA_COLLECTIONS))
@@ -123,6 +125,7 @@ function App() {
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
   const writesBlocked = !isOnline || requestKey !== null
   const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline })
+  const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' })
 
   const resetSyncState = () => {
     syncGuardRef.current = createCollectionSyncGuard(DATA_COLLECTIONS)
@@ -133,7 +136,7 @@ function App() {
   const clearBusinessData = () => {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
-    knownActiveOrderIdsRef.current = new Set(); alertedOrderIdsRef.current = new Set(); currentOrdersRef.current = []
+    knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set()
     setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
   }
 
@@ -235,8 +238,6 @@ function App() {
     window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline)
     return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline) }
   }, [])
-  useEffect(() => { currentOrdersRef.current = orders }, [orders])
-
   useEffect(() => {
     if (!kitchenSoundEnabled) return undefined
     const unlockAudio = () => {
@@ -263,7 +264,6 @@ function App() {
   useEffect(() => {
     if (activeTab !== 'orders' || !isOnline || authState !== 'authenticated' || bootstrapState !== 'ready') return undefined
     let cancelled = false
-    knownActiveOrderIdsRef.current = activeOrderIdSet(currentOrdersRef.current)
     const refreshOrders = async () => {
       if (ordersSyncInFlightRef.current || cancelled) return
       ordersSyncInFlightRef.current = true
@@ -272,13 +272,7 @@ function App() {
         const data = await getOrdersApi()
         if (cancelled || !Array.isArray(data?.orders) || !syncGuardRef.current.canApply(token, 'orders')) return
         const latestOrders = data.orders
-        const detectedIds = getNewActiveOrderIds(knownActiveOrderIdsRef.current, latestOrders).filter((id) => !alertedOrderIdsRef.current.has(id))
-        knownActiveOrderIdsRef.current = activeOrderIdSet(latestOrders); setOrders(latestOrders)
-        if (detectedIds.length) {
-          detectedIds.forEach((id) => alertedOrderIdsRef.current.add(id)); setNewOrderIds((current) => new Set([...current, ...detectedIds])); if (kitchenSoundEnabled) void playKitchenNewOrderSound()
-          if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current)
-          newOrderHighlightTimerRef.current = window.setTimeout(() => { setNewOrderIds(new Set()); newOrderHighlightTimerRef.current = null }, 2600)
-        }
+        setOrders(latestOrders)
       } catch (error) { if (!cancelled && error?.status === 401) expireSession() } finally { ordersSyncInFlightRef.current = false }
     }
     void refreshOrders()
@@ -286,7 +280,30 @@ function App() {
     const handleVisibilityChange = () => { if (document.visibilityState === 'visible') void refreshOrders() }; const handleFocus = () => void refreshOrders()
     document.addEventListener('visibilitychange', handleVisibilityChange); window.addEventListener('focus', handleFocus)
     return () => { cancelled = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', handleVisibilityChange); window.removeEventListener('focus', handleFocus) }
-  }, [activeTab, authState, bootstrapState, isOnline, kitchenSoundEnabled])
+  }, [activeTab, authState, bootstrapState, isOnline])
+
+  useEffect(() => {
+    if (activeTab !== 'orders') {
+      knownOperationalOrderIdsRef.current = undefined
+      return
+    }
+    const { currentIds, newIds: detectedIds } = detectOperationalArrivals(
+      knownOperationalOrderIdsRef.current,
+      orders,
+      kitchenNow,
+      alertedOrderIdsRef.current,
+    )
+    knownOperationalOrderIdsRef.current = currentIds
+    if (!detectedIds.length) return
+    detectedIds.forEach((id) => alertedOrderIdsRef.current.add(id))
+    setNewOrderIds((current) => new Set([...current, ...detectedIds]))
+    if (kitchenSoundEnabled) void playKitchenNewOrderSound()
+    if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current)
+    newOrderHighlightTimerRef.current = window.setTimeout(() => {
+      setNewOrderIds(new Set())
+      newOrderHighlightTimerRef.current = null
+    }, 2600)
+  }, [activeTab, orders, kitchenNow, kitchenSoundEnabled])
 
   useEffect(() => () => { if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current); if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close() }, [])
   useEffect(() => { if (!toastMessage) return; const timer = window.setTimeout(() => setToastMessage(''), 2600); return () => window.clearTimeout(timer) }, [toastMessage])
@@ -425,7 +442,7 @@ function App() {
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
       <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} />}
         {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}

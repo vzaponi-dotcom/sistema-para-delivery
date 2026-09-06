@@ -29,6 +29,20 @@ const icons = {
   'arrow-up': <path d="m7 14 5-5 5 5M12 9v10"/>,
   'arrow-down': <path d="m7 10 5 5 5-5M12 5v10"/>,
   menu: <path d="M4 7h16M4 12h16M4 17h16"/>,
+  kitchen: <><path d="M4 4h16v16H4Z"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
+  preparation: <><path d="M5 4h14v16H5Z"/><path d="M8 8h8M8 12h5M8 16h8"/></>,
+  clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+  alert: <><path d="m12 3 9 18H3Z"/><path d="M12 9v5M12 17h.01"/></>,
+  client: <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3-6 8-6s8 2 8 6"/></>,
+  delivery: <><path d="M3 6h11v12H3Z"/><path d="M14 10h4l3 3v5h-7Z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></>,
+  pickup: <><path d="M4 9h16v11H4Z"/><path d="M6 9 8 4h8l2 5M8 13h8"/></>,
+  local: <><path d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></>,
+  note: <><path d="M5 3h14v18H5Z"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
+  details: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
+  printer: <><path d="M6 9V3h12v6M6 17H3V9h18v8h-3"/><path d="M6 14h12v7H6Z"/></>,
+  'volume-on': <><path d="M4 10h4l5-4v12l-5-4H4Z"/><path d="M16 9c2 2 2 4 0 6M19 6c4 4 4 8 0 12"/></>,
+  'volume-off': <><path d="m4 4 16 16M4 10h4l5-4v5M13 15v3l-5-4H4"/></>,
+  cancel: <><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></>,
 }
 
 function Icon({ name, size = 20, className = '' }) {

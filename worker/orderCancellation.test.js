@@ -7,6 +7,7 @@ class CancellationDb {
     this.order = { business_id: 'biz', table_tab_id: null, cancelled_at: null, cancel_reason: null, cancel_reason_note: null, ...order }
     this.refund = null
     this.movements = []
+    this.printJobs = []
     this.tableTabClosed = false
   }
 
@@ -36,6 +37,10 @@ class CancellationDb {
             return null
           },
           async run() {
+            if (sql.includes('DELETE FROM print_jobs')) {
+              const [businessId, orderId] = values
+              db.printJobs = db.printJobs.filter((job) => !(job.business_id === businessId && job.order_id === orderId && job.trigger === 'automatic' && job.status === 'pending'))
+            }
             if (sql.includes("UPDATE orders SET status = 'Cancelado'")) {
               const [cancelledAt, reason, note] = values
               db.order.status = 'Cancelado'
@@ -90,6 +95,20 @@ test('unpaid cancellation preserves history without refund movement', async () =
   assert.equal(result.order.refundState, 'none')
   assert.equal(result.movement, null)
   assert.equal(db.movements.length, 0)
+})
+
+test('cancellation removes only pending automatic print job', async () => {
+  const db = new CancellationDb(paidOrder())
+  db.printJobs = [
+    { business_id: 'biz', order_id: 'o1', trigger: 'automatic', status: 'pending' },
+    { business_id: 'biz', order_id: 'o1', trigger: 'manual', status: 'pending' },
+    { business_id: 'biz', order_id: 'o1', trigger: 'automatic', status: 'printed' },
+  ]
+  await cancelOrder(db, 'biz', 'o1', { reason: 'client_changed_mind', refundNow: false }, new Date('2026-09-03T13:00:00.000Z'))
+  assert.deepEqual(db.printJobs.map(({ trigger, status }) => ({ trigger, status })), [
+    { trigger: 'manual', status: 'pending' },
+    { trigger: 'automatic', status: 'printed' },
+  ])
 })
 
 test('paid cancellation can defer the full refund', async () => {

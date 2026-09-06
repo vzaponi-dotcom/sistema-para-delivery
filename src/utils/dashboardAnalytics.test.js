@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildDailySeries,
+  calculateOperationalMetrics,
   calculatePeriodMetrics,
   filterOrdersByPeriod,
   getDashboardDateRange,
@@ -112,4 +113,39 @@ test('payment mix uses paid orders only, groups by method, and falls back to tot
     { method: 'Pix', amount: 75 },
     { method: 'Dinheiro', amount: 20 },
   ])
+})
+
+test('operational metrics include only eligible finalized orders and calculate duration bands', () => {
+  const orders = [
+    makeOrder({ id: 'now-20', status: 'Finalizado', type: 'Entrega', createdAt: '2026-09-02T10:00:00.000Z', finishedAt: '2026-09-02T10:20:00.000Z' }),
+    makeOrder({ id: 'scheduled-45', status: 'Finalizado', type: 'Retirada', createdAt: '2026-09-02T10:00:00.000Z', scheduledFor: '2026-09-02T11:35:00.000Z', finishedAt: '2026-09-02T11:30:00.000Z' }),
+    makeOrder({ id: 'cancelled', status: 'Cancelado', type: 'Local', createdAt: '2026-09-02T10:00:00.000Z', finishedAt: '2026-09-02T10:10:00.000Z' }),
+    makeOrder({ id: 'backdated', status: 'Finalizado', type: 'Entrega', isBackdated: true, createdAt: '2026-09-02T10:00:00.000Z', finishedAt: '2026-09-02T10:05:00.000Z' }),
+    makeOrder({ id: 'active', status: 'Em preparo', type: 'Local', createdAt: '2026-09-02T10:00:00.000Z' }),
+  ]
+
+  assert.deepEqual(calculateOperationalMetrics(orders, 'today', now), {
+    sampleSize: 2,
+    averageMinutes: 32.5,
+    fastestMinutes: 20,
+    slowestMinutes: 45,
+    bands: [1, 0, 0, 1],
+    byType: { Entrega: 20, Retirada: 45, Local: 0 },
+  })
+})
+
+test('operational metrics exclude invalid timestamps and negative durations', () => {
+  const orders = [
+    makeOrder({ status: 'Finalizado', createdAt: 'invalid', finishedAt: '2026-09-02T10:20:00.000Z' }),
+    makeOrder({ status: 'Finalizado', createdAt: '2026-09-02T10:20:00.000Z', finishedAt: '2026-09-02T10:10:00.000Z' }),
+  ]
+
+  assert.deepEqual(calculateOperationalMetrics(orders, 'today', now), {
+    sampleSize: 0,
+    averageMinutes: 0,
+    fastestMinutes: 0,
+    slowestMinutes: 0,
+    bands: [0, 0, 0, 0],
+    byType: { Entrega: 0, Retirada: 0, Local: 0 },
+  })
 })

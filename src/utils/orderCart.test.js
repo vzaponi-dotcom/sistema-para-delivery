@@ -102,6 +102,13 @@ test('percentage discount excludes delivery fee and payload contains no price', 
   assert.equal(payload.adjustment.reason, 'fidelidade')
 })
 
+test('payload includes scheduledFor only when provided', () => {
+  const draft = { type: 'Entrega', orderDate: '2026-09-04', items: [], deliveryFee: 0, scheduledFor: '2026-09-04T15:00:00.000Z' }
+  assert.equal(buildOrderPayload(draft).scheduledFor, draft.scheduledFor)
+  assert.equal(buildOrderPayload({ ...draft, scheduledFor: null }).scheduledFor, undefined)
+  assert.equal(buildOrderPayload({ ...draft, type: 'Local', scheduledFor: null }).scheduledFor, undefined)
+})
+
 test('summary and search use every item and tolerate legacy fields', () => {
   const order = { items: [{ name: 'Marmita G', quantity: 2 }, { name: 'Coca-Cola', quantity: 1 }] }
   assert.match(getOrderItemsSummary(order), /Coca-Cola/)
