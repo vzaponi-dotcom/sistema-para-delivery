@@ -92,6 +92,14 @@ test('58mm renderer emits deterministic ESC/POS structure and two approved copie
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1d, 0x56])), false)
 })
 
+test('renderer can emit only the selected second physical copy while preserving the 2-copy label', () => {
+  const bytes = renderEscPos58mm(fixture(), { copies: 1, copyNumber: 2, totalCopies: 2 })
+
+  assert.equal(countBytes(bytes, encodeCp860('CÓPIA 1/2')), 0)
+  assert.equal(countBytes(bytes, encodeCp860('CÓPIA 2/2')), 1)
+  assert.equal(countBytes(bytes, encodeCp860('PEDIDO #0184')), 2)
+})
+
 test('MPT-II byte stream exits Chinese mode, keeps Portuguese accents and uses ASCII money spacing', () => {
   const document = fixture({
     customer: { name: 'João', phone: '', address: 'Endereço com observação' },
