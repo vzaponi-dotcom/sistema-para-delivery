@@ -274,6 +274,22 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return executeClaimedJob(claimed.job, port)
   }, [executeClaimedJob, getExplicitPort])
 
+  const printSecondCopy = useCallback(async (job) => {
+    const station = localStationRef.current
+    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+    if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    if (
+      job.status !== 'printed'
+      || Number(job.copiesRequested) !== 2
+      || Number(job.copiesPrinted) !== 1
+    ) {
+      throw printerError('PRINT_SECOND_COPY_NOT_READY', 'A segunda via não está disponível para este trabalho.')
+    }
+    const port = await getExplicitPort()
+    const claimed = await claimPrintJob(job.id, station.id)
+    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
+  }, [executeClaimedJob, getExplicitPort])
+
   const retryJob = useCallback(async (jobOrId) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
@@ -463,6 +479,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     makePrimary,
     testPrint,
     printOrder,
+    printSecondCopy,
     retryJob,
     getPreviewDocument,
   }
