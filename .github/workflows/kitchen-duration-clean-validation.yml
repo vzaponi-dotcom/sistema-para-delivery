@@ -1,0 +1,38 @@
+name: Kitchen duration clean validation
+
+on:
+  push:
+    branches:
+      - ops/validate-kitchen-duration-687b5cd
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact clean candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 687b5cd29252db5df0497281b7acaaf642fe2325
+          fetch-depth: 0
+      - name: Verify exact candidate
+        run: |
+          test "$(git rev-parse HEAD)" = "687b5cd29252db5df0497281b7acaaf642fe2325"
+          git merge-base --is-ancestor 52bf782ce6bc3eb54abee074b54f5e7463104b8f HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Focused kitchen duration tests
+        run: node --test src/utils/kitchenTicket.test.js
+      - name: Full suite
+        run: npm test
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Patch integrity
+        run: git diff --check 52bf782ce6bc3eb54abee074b54f5e7463104b8f...HEAD
