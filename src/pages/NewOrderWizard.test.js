@@ -41,7 +41,8 @@ test('customer step exposes same-day scheduling controls and helper text', async
   assert.match(source, />Agendado</)
   assert.match(source, /Horário desejado pelo cliente/)
   assert.match(source, /Esse horário é uma referência de atendimento\./)
-  assert.match(source, /type="time"/)
+  assert.doesNotMatch(source, /type="time"/)
+  assert.match(source, /type="text"[\s\S]{0,220}inputMode="numeric"/)
 })
 
 test('products step focuses on catalog and exposes a subtotal-only cart summary', async () => {

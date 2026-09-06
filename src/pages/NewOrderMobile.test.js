@@ -19,6 +19,18 @@ test('schedule options keep the mobile touch target and two-column layout', asyn
   assert.match(css, /\.new-order-schedule-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,44px\)/s)
 })
 
+test('schedule choice reuses the themed selection pattern and scheduled time uses the numeric keyboard', async () => {
+  const css = await read('../new-order.css')
+  const customerStep = await read('../components/NewOrderCustomerStep.jsx')
+
+  assert.match(css, /\.new-order-type-option\.selected,[\s\S]{0,120}\.new-order-local-identity-option\.selected\s*\{[^}]*background:\s*var\(--primary-soft\)[^}]*color:\s*var\(--primary\)/s)
+  assert.match(customerStep, /scheduleMode === 'now' \? 'new-order-schedule-option new-order-type-option selected' : 'new-order-schedule-option new-order-type-option'/)
+  assert.match(customerStep, /scheduleMode === 'scheduled' \? 'new-order-schedule-option new-order-type-option selected' : 'new-order-schedule-option new-order-type-option'/)
+  assert.doesNotMatch(customerStep, /type="time"/)
+  assert.match(customerStep, /Horário desejado pelo cliente[\s\S]{0,400}type="text"[\s\S]{0,220}inputMode="numeric"/)
+  assert.match(customerStep, /onScheduledTimeChange\(formatScheduledTimeInput\(event\.target\.value\)\)/)
+})
+
 test('new order mobile actions keep touch targets comfortable', async () => {
   const css = await read('../new-order.css')
 
