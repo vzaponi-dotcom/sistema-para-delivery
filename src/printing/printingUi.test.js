@@ -77,6 +77,6 @@ test('future automatic jobs show scheduling and use a manual print action', () =
   assert.match(detail, /Impressão programada para \{formatOrderTime\(printJob\.availableAt\)\}/)
   assert.match(detail, /printing\.printOrder\(order\.id, defaultCopies\)/)
   assert.match(detail, /if \(scheduledPrintPending\) return <Button[^>]*onClick=\{handleFirstPrint\}[^>]*>Imprimir agora<\/Button>/)
-  assert.match(detail, /\{!scheduledPrintPending && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
+  assert.match(detail, /\{!scheduledPrintPending && !awaitingSecondCopy && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
   assert.doesNotMatch(detail, /if \(scheduledPrintPending\)[^\n]*handleRetry/)
 })
