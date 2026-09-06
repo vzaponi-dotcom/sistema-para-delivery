@@ -1,7 +1,9 @@
 name: Deploy staging
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ops/staging-deploy-duration-687b5cd
 
 permissions:
   contents: read
@@ -22,8 +24,14 @@ jobs:
       STAGING_READY_ATTEMPTS: 6
 
     steps:
-      - name: Checkout
+      - name: Checkout exact approved feature SHA
         uses: actions/checkout@v4
+        with:
+          ref: 687b5cd29252db5df0497281b7acaaf642fe2325
+          fetch-depth: 0
+
+      - name: Verify exact approved SHA
+        run: test "$(git rev-parse HEAD)" = "687b5cd29252db5df0497281b7acaaf642fe2325"
 
       - name: Setup Node
         uses: actions/setup-node@v4
