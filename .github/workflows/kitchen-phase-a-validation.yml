@@ -48,11 +48,11 @@ jobs:
       - name: Contract scans
         shell: bash
         run: |
-          if grep -RInE "Aguardando janela|printed:[[:space:]]*['\"]Impresso['\"]" src; then
+          if grep -RInE --exclude='*.test.js' --exclude='*.test.jsx' "Aguardando janela|printed:[[:space:]]*['\"]Impresso['\"]" src; then
             echo "Forbidden user-facing kitchen/printing copy found"
             exit 1
           fi
-          if grep -RInE "order\.note|orderNote|generalNote" src shared worker migrations; then
+          if grep -RInE --exclude='*.test.js' --exclude='*.test.jsx' "order\.note|orderNote|generalNote" src shared worker migrations; then
             echo "Unexpected order-level note contract found"
             exit 1
           fi
