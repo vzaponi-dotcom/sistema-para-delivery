@@ -14,17 +14,27 @@ test('Orders header exposes printing settings and mounts the shared settings mod
   assert.match(orders, /printing=\{printing\}/)
 })
 
-test('printing settings expose honest connection, station and compatibility states', () => {
-  for (const label of ['Conectada', 'Desconectada', 'Não configurada', 'Navegador incompatível']) {
+test('printing settings expose honest connection, station and transport states', () => {
+  for (const label of ['Conectada', 'Desconectada', 'Não configurada', 'Navegador incompatível', 'RawBT pronto']) {
     assert.match(settings, new RegExp(label))
   }
-  for (const label of ['Estação', 'Plataforma', 'Estação principal', 'Impressão automática', 'Cópias por pedido']) {
+  for (const label of ['Estação', 'Plataforma', 'Driver', 'Estação principal', 'Impressão automática', 'Cópias por pedido']) {
     assert.match(settings, new RegExp(label))
   }
   assert.match(settings, /Windows/)
-  assert.match(settings, /Chrome/)
+  assert.match(settings, /Web Serial/)
   assert.match(settings, /Android/)
-  assert.match(settings, /138\+/)
+  assert.match(settings, /RawBT/)
+  assert.match(settings, /MPT-II/)
+})
+
+test('Android RawBT hides Web Serial connection chooser but preserves test and station controls', () => {
+  assert.match(settings, /printing\?\.transportKind === 'rawbt'/)
+  assert.match(settings, /!isRawBt && \(/)
+  assert.match(settings, /Conectar impressora/)
+  assert.match(settings, /Trocar impressora/)
+  assert.match(settings, /Testar impressão/)
+  assert.match(settings, /Configure a MPT-II no RawBT/)
 })
 
 test('settings actions use the printing manager and persist only one or two copies', () => {
@@ -36,9 +46,6 @@ test('settings actions use the printing manager and persist only one or two copi
   assert.match(settings, /value=\{1\}/)
   assert.match(settings, /value=\{2\}/)
   assert.match(settings, /Imprimir novos pedidos automaticamente/)
-  assert.match(settings, /Conectar impressora/)
-  assert.match(settings, /Trocar impressora/)
-  assert.match(settings, /Testar impressão/)
 })
 
 test('making a station primary requires the shared confirmation dialog with exclusivity warning', () => {
@@ -48,7 +55,8 @@ test('making a station primary requires the shared confirmation dialog with excl
   assert.match(settings, /confirmLabel="Tornar principal"/)
 })
 
-test('manager distinguishes unsupported, unconfigured, disconnected and connected states honestly', () => {
+test('manager distinguishes RawBT driver readiness and Web Serial connection states honestly', () => {
+  assert.match(manager, /'driver-ready'/)
   assert.match(manager, /'unsupported'/)
   assert.match(manager, /'unconfigured'/)
   assert.match(manager, /'disconnected'/)
