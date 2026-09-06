@@ -41,3 +41,14 @@ test('signed BRL helpers support a negative opening balance without changing nor
   assert.equal(formatting.parseSignedBRLCurrencyInput('-R$ 12,34'), -12.34)
   assert.equal(formatting.formatBRLCurrencyValue(-100), 'R$ 0,00')
 })
+
+test('scheduled time formatter turns numeric typing into the HH:MM mask', async () => {
+  const formatting = await loadFormatting()
+  assert.equal(typeof formatting.formatScheduledTimeInput, 'function')
+  assert.equal(formatting.formatScheduledTimeInput('1'), '1')
+  assert.equal(formatting.formatScheduledTimeInput('12'), '12')
+  assert.equal(formatting.formatScheduledTimeInput('123'), '12:3')
+  assert.equal(formatting.formatScheduledTimeInput('1230'), '12:30')
+  assert.equal(formatting.formatScheduledTimeInput('12:30'), '12:30')
+  assert.equal(formatting.formatScheduledTimeInput('123045'), '12:30')
+})
