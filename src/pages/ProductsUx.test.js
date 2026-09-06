@@ -35,12 +35,25 @@ test('multi-select keeps a comfortable touch target while showing a compact sele
   assert.match(css, /\.product-select-checkbox-mark\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/s)
 })
 
-test('bulk selection actions stay accessible while scrolling on desktop and mobile', async () => {
+test('bulk selection actions stay accessible while scrolling on desktop', async () => {
   const css = await read('../product-selection.css')
 
   assert.match(css, /\.product-selection-toolbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*12px[^}]*z-index:\s*30/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-selection-toolbar\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom\)\)[^}]*left:\s*12px[^}]*right:\s*12px/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-selection-toolbar \+ \.product-accordion-list\s*\{[^}]*padding-bottom:\s*96px/s)
+})
+
+test('mobile bulk actions render through a body portal instead of inside the transformed page transition', async () => {
+  const products = await read('./Products.jsx')
+  const shell = await read('../components/AppShell.jsx')
+  const css = await read('../product-selection.css')
+
+  assert.match(shell, /className="app-content page-transition"/)
+  assert.match(products, /import \{ createPortal \} from 'react-dom'/)
+  assert.match(products, /createPortal\(/)
+  assert.match(products, /product-selection-mobile-toolbar/)
+  assert.match(css, /\.product-selection-mobile-toolbar\s*\{[^}]*display:\s*none/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-selection-toolbar\s*\{[^}]*display:\s*none/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-selection-mobile-toolbar\s*\{[^}]*display:\s*flex[^}]*position:\s*fixed[^}]*bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom\)\)/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.product-accordion-list\s*\{[^}]*padding-bottom:\s*96px/s)
 })
 
 test('product form uses option B segmented presentation control and horizontal size choices', async () => {
