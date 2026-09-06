@@ -12,6 +12,7 @@ test('print status badge exposes all friendly persisted job states', () => {
     'Pendente de impressão',
     'Imprimindo',
     'Enviado para impressão',
+    'Aguardando 2ª via',
     'Falha na impressão',
     'Requer atenção',
   ]) assert.match(badge, new RegExp(label))
@@ -28,14 +29,28 @@ test('kitchen preserves the shared printing manager in details without moving pr
 })
 
 test('order detail keeps print actions separate and uses the shared printing manager', () => {
-  for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
+  for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Imprimir 2ª via', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
   }
   assert.match(detail, /<h3>Impressão<\/h3>/)
   assert.match(detail, /getPreviewDocument/)
   assert.match(detail, /downloadOrderPdf/)
   assert.match(detail, /printOrder/)
+  assert.match(detail, /printSecondCopy/)
   assert.match(detail, /retryJob/)
+})
+
+test('partial two-copy jobs wait for a tear and expose only the explicit second-copy action', () => {
+  assert.match(detail, /copiesRequested.*2/)
+  assert.match(detail, /copiesPrinted.*1/)
+  assert.match(detail, /printing\?\.printSecondCopy\?\.\(printJob\)/)
+  assert.match(detail, /1ª via impressa\. Destaque o papel na serrilha e, depois, imprima a 2ª via\./)
+
+  const secondCopyBranch = detail.indexOf('Imprimir 2ª via')
+  const reprintBranch = detail.indexOf('Reimprimir')
+  assert.notEqual(secondCopyBranch, -1)
+  assert.notEqual(reprintBranch, -1)
+  assert.ok(secondCopyBranch < reprintBranch)
 })
 
 test('reprint requires confirmation with actual copy count while retries remain explicit interventions', () => {
