@@ -17,14 +17,14 @@ test('approved catalog and local-order round stays wired across app surfaces', (
   assert.match(newOrder, /table/)
   assert.match(newOrder, /registered_client/)
   assert.doesNotMatch(receivables, /Clientes devendo/)
-  assert.match(receivables, /Pendências por identificação/)
-  assert.match(receivables, /groupPendingOrders/)
+  assert.match(receivables, /buildPendingReceivableEntries/)
+  assert.match(receivables, /ReceivableDetail/)
 })
 
 test('table tab integration stays wired across persistence, app, receivables and new order', () => {
   assert.match(repositories, /table_tab_id/)
   assert.match(repositories, /getOrCreateOpenTableTab/)
-  assert.match(receivables, /table_tab/)
+  assert.match(receivables, /buildPendingReceivableEntries/)
   assert.match(app, /tableTabs/)
   assert.match(newOrderCustomerStep, /comanda aberta/)
 })
