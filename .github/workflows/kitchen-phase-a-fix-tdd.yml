@@ -1,0 +1,30 @@
+name: Kitchen Phase A Finding TDD
+
+on:
+  push:
+    branches:
+      - codex/kitchen-redesign-homologation-20260904
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Focused printing semantics
+        run: node --test src/printing/printingUi.test.js
+      - name: Full suite
+        run: npm test
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Patch integrity
+        run: git diff --check
