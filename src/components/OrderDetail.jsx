@@ -208,7 +208,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
       {confirmReprint && (
         <ConfirmationDialog
           title="Confirmar reimpressão"
-          message={`Este pedido já foi impresso. Deseja imprimir mais ${reprintCopies} ${reprintCopies === 1 ? 'cópia' : 'cópias'}?`}
+          message={`Este pedido já foi enviado para impressão. Deseja imprimir mais ${reprintCopies} ${reprintCopies === 1 ? 'cópia' : 'cópias'}?`}
           confirmLabel="Reimprimir"
           confirmVariant="primary"
           onClose={() => setConfirmReprint(false)}
