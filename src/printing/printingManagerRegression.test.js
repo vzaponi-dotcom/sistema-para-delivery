@@ -77,6 +77,21 @@ test('automatic claim guard blocks duplicate or unsafe consumption states', () =
   assert.match(manager, /updateBlocked\(false\)/)
 })
 
+test('second copy resumes the existing partial job explicitly without creating a replacement job', () => {
+  const start = manager.indexOf('const printSecondCopy = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('const retryJob = useCallback', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(block, /copiesRequested\) !== 2|copiesRequested !== 2/)
+  assert.match(block, /copiesPrinted\) !== 1|copiesPrinted !== 1/)
+  assert.match(block, /claimPrintJob\(job\.id, station\.id\)/)
+  assert.match(block, /executeClaimedJob\(claimed\.job, port/)
+  assert.doesNotMatch(block, /createManualPrintJob/)
+  assert.match(manager, /\bprintSecondCopy,\s*\n/)
+})
+
 test('printing manager centralizes approved poll and heartbeat cadences', () => {
   assert.match(manager, /export const PRINT_JOB_POLL_MS = 2_000/)
   assert.match(manager, /export const PRINT_STATE_POLL_MS = 5_000/)
