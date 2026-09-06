@@ -216,6 +216,61 @@ test('printed transition records copies and rejects completion from another stat
   assert.equal(printed.copiesPrinted, 2)
 })
 
+test('partial two-copy jobs wait for an explicit second-copy claim and keep their progress', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'split-job' })
+
+  const firstClaim = await claimPrintJob(db, businessA, 'split-job', 'station-a', baseNow)
+  assert.equal(firstClaim.copiesPrinted, 0)
+
+  const firstCopy = await markPrintJobPrinted(db, businessA, 'split-job', 'station-a', 1, baseNow)
+  assert.equal(firstCopy.status, 'printed')
+  assert.equal(firstCopy.copiesPrinted, 1)
+
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+
+  const secondClaim = await claimPrintJob(db, businessA, 'split-job', 'station-a', baseNow)
+  assert.equal(secondClaim.status, 'processing')
+  assert.equal(secondClaim.copiesPrinted, 1)
+
+  const secondCopy = await markPrintJobPrinted(db, businessA, 'split-job', 'station-a', 2, baseNow)
+  assert.equal(secondCopy.status, 'printed')
+  assert.equal(secondCopy.copiesPrinted, 2)
+
+  await assert.rejects(
+    () => claimPrintJob(db, businessA, 'split-job', 'station-a', baseNow),
+    (error) => error.code === 'PRINT_JOB_NOT_PENDING',
+  )
+})
+
+test('retry after a failed second copy preserves the first copy and cannot re-enter the automatic queue', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'split-retry' })
+
+  await claimPrintJob(db, businessA, 'split-retry', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'split-retry', 'station-a', 1, baseNow)
+  await claimPrintJob(db, businessA, 'split-retry', 'station-a', baseNow)
+  await markPrintJobFailed(db, businessA, 'split-retry', 'station-a', {
+    code: 'SERIAL_OPEN_FAILED', message: 'Impressora desconectada', uncertain: false,
+  }, baseNow)
+
+  const failed = await loadPrintJob(db, businessA, 'split-retry')
+  assert.equal(failed.status, 'failed')
+  assert.equal(failed.copiesPrinted, 1)
+
+  const retried = await retryPrintJob(db, businessA, 'split-retry', baseNow)
+  assert.equal(retried.status, 'printed')
+  assert.equal(retried.copiesPrinted, 1)
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+
+  const secondClaim = await claimPrintJob(db, businessA, 'split-retry', 'station-a', baseNow)
+  assert.equal(secondClaim.copiesPrinted, 1)
+})
+
 test('aging moves stale pending and processing jobs to requires_attention before automatic claim', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
