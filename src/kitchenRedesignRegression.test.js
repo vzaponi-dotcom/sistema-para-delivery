@@ -164,7 +164,18 @@ test('kitchen page exposes accessible queue names and full-text controls', () =>
 
 test('kitchen theme centralizes the approved semantic palette in both themes', () => {
   const css = read('./index.css')
-  const requiredTokens = {
+  const lightTokens = {
+    'kitchen-bg': 'var(--bg)',
+    'kitchen-panel': 'var(--surface-soft)',
+    'kitchen-ticket': 'var(--surface)',
+    'kitchen-ticket-text': 'var(--text)',
+    'kitchen-ticket-muted': 'var(--muted)',
+    'kitchen-preparing': 'var(--warning)',
+    'kitchen-scheduled': 'var(--info)',
+    'kitchen-late': 'var(--danger)',
+    'kitchen-finished': 'var(--success)',
+  }
+  const darkTokens = {
     'kitchen-bg': '#1b1817',
     'kitchen-panel': '#24201e',
     'kitchen-ticket': '#fffaf7',
@@ -178,9 +189,11 @@ test('kitchen theme centralizes the approved semantic palette in both themes', (
   const lightTheme = css.slice(css.indexOf(':root {'), css.indexOf(":root[data-theme='dark']"))
   const darkTheme = css.slice(css.indexOf(":root[data-theme='dark']"), css.indexOf('* {'))
 
-  for (const [name, value] of Object.entries(requiredTokens)) {
-    assert.match(lightTheme, new RegExp(`--${name}:\\s*${value}`, 'i'))
-    assert.match(darkTheme, new RegExp(`--${name}:\\s*${value}`, 'i'))
+  for (const [name, value] of Object.entries(lightTokens)) {
+    assert.ok(lightTheme.includes(`--${name}: ${value};`), `light theme should map --${name} to ${value}`)
+  }
+  for (const [name, value] of Object.entries(darkTokens)) {
+    assert.ok(darkTheme.includes(`--${name}: ${value};`), `dark theme should keep --${name} at ${value}`)
   }
 })
 
