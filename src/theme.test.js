@@ -138,3 +138,43 @@ test('light kitchen palette follows the selected light theme while dark keeps Ti
   assert.match(dark, /--kitchen-panel:\s*#24201e;/i)
   assert.match(dark, /--kitchen-ticket:\s*#fffaf7;/i)
 })
+
+test('kitchen board text colors remain readable when light surfaces replace the dark board', () => {
+  const themeCss = source('./index.css')
+  const kitchenCss = source('./order-operations.css')
+  const lightMatch = themeCss.match(/:root\s*\{([\s\S]*?)\n\}/)
+  const darkMatch = themeCss.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)
+
+  assert.ok(lightMatch, 'light root palette should exist')
+  assert.ok(darkMatch, 'dark root palette should exist')
+
+  const light = lightMatch[1]
+  const dark = darkMatch[1]
+
+  assert.match(light, /--kitchen-board-text:\s*var\(--text\);/)
+  assert.match(light, /--kitchen-board-muted:\s*var\(--muted\);/)
+  assert.match(dark, /--kitchen-board-text:\s*var\(--kitchen-ticket\);/)
+  assert.match(dark, /--kitchen-board-muted:\s*color-mix\(in srgb,\s*var\(--kitchen-ticket\) 60%,\s*var\(--kitchen-panel\)\);/)
+
+  for (const selector of [
+    '.kitchen-page',
+    '.kitchen-page .page-header h1',
+    '.kitchen-header-actions .button-secondary',
+    '.kitchen-stat-card .stat-copy strong',
+    '.kitchen-queue-heading',
+    '.kitchen-queue-empty strong',
+  ]) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    assert.match(kitchenCss, new RegExp(`${escaped}\\s*\\{[^}]*color:\\s*var\\(--kitchen-board-text\\)`, 's'))
+  }
+
+  for (const selector of [
+    '.kitchen-page .page-description',
+    '.kitchen-toolbar .toolbar-count',
+    '.kitchen-queue-help',
+    '.kitchen-queue-empty',
+  ]) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    assert.match(kitchenCss, new RegExp(`${escaped}\\s*\\{[^}]*color:\\s*var\\(--kitchen-board-muted\\)`, 's'))
+  }
+})
