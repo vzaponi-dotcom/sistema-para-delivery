@@ -280,7 +280,7 @@
   .receivables-header-actions { display: none; }
   .receivables-payment-fab {
     position: fixed;
-    right: max(16px, env(safe-area-inset-right));
+    right: var(--mobile-page-inline);
     bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-safe-bottom) + var(--mobile-floating-gap));
     z-index: var(--layer-floating-action);
     min-height: 48px;
