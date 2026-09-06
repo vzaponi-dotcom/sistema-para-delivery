@@ -230,18 +230,14 @@ function NewOrderCustomerStep({
               aria-pressed={scheduleMode === 'now'}
               onClick={() => onScheduleModeChange('now')}
               disabled={disabled}
-            >
-              Agora
-            </button>
+            >Agora</button>
             <button
               type="button"
               className={scheduleMode === 'scheduled' ? 'new-order-schedule-option new-order-type-option selected' : 'new-order-schedule-option new-order-type-option'}
               aria-pressed={scheduleMode === 'scheduled'}
               onClick={() => onScheduleModeChange('scheduled')}
               disabled={disabled}
-            >
-              Agendado
-            </button>
+            >Agendado</button>
           </div>
           {scheduleMode === 'scheduled' && (
             <label className="form-field">
