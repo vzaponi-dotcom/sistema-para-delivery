@@ -60,3 +60,18 @@ test('builds scheduled, preparing, and overdue timing copy in the business timez
     order: { createdAt: '2026-09-04T12:00:00.000Z', scheduledFor: '2026-09-04T14:20:00.000Z' },
   }, new Date('2026-09-04T14:47:00.000Z')), { primary: 'Fora do prazo há 12 min', secondary: 'Desejado 11:20' })
 })
+
+test('formats kitchen elapsed durations as hours after 60 minutes', () => {
+  const now = new Date('2026-09-05T18:00:00.000Z')
+  const primaryFor = (minutes) => buildKitchenTimingCopy({
+    phase: 'preparing',
+    timingState: 'on-time',
+    order: { createdAt: new Date(now.getTime() - (minutes * 60_000)).toISOString() },
+  }, now).primary
+
+  assert.equal(primaryFor(59), 'Em preparo há 59 min')
+  assert.equal(primaryFor(60), 'Em preparo há 1 h')
+  assert.equal(primaryFor(65), 'Em preparo há 1 h 5 min')
+  assert.equal(primaryFor(120), 'Em preparo há 2 h')
+  assert.equal(primaryFor(1546), 'Em preparo há 25 h 46 min')
+})
