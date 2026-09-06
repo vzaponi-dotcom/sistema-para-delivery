@@ -16,7 +16,6 @@ test('products are rendered as category accordions with compact rows and per-ite
 
 test('products support explicit multi-select plus long press and bulk delete confirmation', async () => {
   const products = await read('./Products.jsx')
-  const app = await read('../App.jsx')
 
   assert.match(products, /selectedProductIds/)
   assert.match(products, /selectionMode/)
@@ -24,9 +23,7 @@ test('products support explicit multi-select plus long press and bulk delete con
   assert.match(products, /onPointerDown=/)
   assert.match(products, /Excluir selecionados/)
   assert.match(products, /Cancelar seleção/)
-  assert.match(products, /onDeleteMany/)
-  assert.match(app, /const handleDeleteProducts = async/)
-  assert.match(app, /onDeleteMany=\{handleDeleteProducts\}/)
+  assert.match(products, /await onDelete\(productId\)/)
 })
 
 test('product form uses option B segmented presentation control and horizontal size choices', async () => {
