@@ -2,11 +2,6 @@ name: Deploy staging
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/scheduled-order-ux
-    paths:
-      - .github/workflows/deploy-staging.yml
 
 permissions:
   contents: read
