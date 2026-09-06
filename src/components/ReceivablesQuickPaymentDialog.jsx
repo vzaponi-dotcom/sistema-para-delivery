@@ -36,8 +36,8 @@ function ReceivablesQuickPaymentDialog({
 
   const selectEntry = (entry) => {
     if (disabled || !entry?.order?.id || !onSelect) return
-    onClose?.()
     onSelect(entry.order.id)
+    onClose?.()
   }
 
   return (
@@ -80,7 +80,7 @@ function ReceivablesQuickPaymentDialog({
           {!visibleEntries.length && (
             <div className="empty-state receivables-quick-payment-empty">
               <Icon name="wallet" size={26} />
-              <strong>{entries.length ? 'Nenhum pedido encontrado' : 'Nenhum pedido disponível'}</strong>
+              <strong>Nenhum pedido pendente encontrado.</strong>
               <span>{entries.length ? 'Ajuste a busca para localizar outro pedido.' : 'As comandas continuam sendo recebidas pela ação própria de pagamento agregado.'}</span>
             </div>
           )}
