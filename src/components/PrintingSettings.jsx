@@ -10,6 +10,7 @@ const CONNECTION_LABELS = {
   unconfigured: 'Não configurada',
   unsupported: 'Navegador incompatível',
   connecting: 'Conectando…',
+  'driver-ready': 'RawBT pronto',
 }
 
 const PLATFORM_LABELS = {
@@ -20,6 +21,7 @@ const PLATFORM_LABELS = {
 
 function PrintingSettings({ printing, onClose }) {
   const station = printing?.localStation || null
+  const isRawBt = printing?.transportKind === 'rawbt'
   const [defaultCopies, setDefaultCopies] = useState(2)
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
@@ -48,7 +50,7 @@ function PrintingSettings({ printing, onClose }) {
   }
 
   const connectPrinter = () => run('connect', () => printing.connectPrinter(), 'Impressora conectada e autorizada neste dispositivo.')
-  const testPrint = () => run('test', () => printing.testPrint(), 'Teste enviado para a impressora.')
+  const testPrint = () => run('test', () => printing.testPrint(), isRawBt ? 'Teste enviado ao RawBT.' : 'Teste enviado para a impressora.')
 
   const saveStationSettings = async (next = {}) => {
     const nextCopies = next.defaultCopies ?? defaultCopies
@@ -98,17 +100,26 @@ function PrintingSettings({ printing, onClose }) {
             <span className={`printing-state printing-state-${printerState}`}>{connectionLabel}</span>
           </div>
 
+          {isRawBt && (
+            <p className="printing-feedback">
+              RawBT pronto indica que o driver Android será usado. A conexão física com a MPT-II é validada pela impressão de teste.
+            </p>
+          )}
+
           <div className="printing-info-grid">
             <div className="printing-info-card"><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
             <div className="printing-info-card"><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
+            <div className="printing-info-card"><span>Driver</span><strong>{isRawBt ? 'RawBT' : 'Web Serial'}</strong></div>
             <div className="printing-info-card"><span>Estação principal</span><strong>{station?.isPrimary ? 'Sim' : 'Não'}</strong></div>
             <div className="printing-info-card"><span>Impressão automática</span><strong>{autoPrintEnabled ? 'Ligada' : 'Desligada'}</strong></div>
           </div>
 
           <div className="printing-actions-row">
-            <Button type="button" variant="secondary" onClick={connectPrinter} disabled={disabled || printing?.supported === false}>
-              {configured ? 'Trocar impressora' : 'Conectar impressora'}
-            </Button>
+            {!isRawBt && (
+              <Button type="button" variant="secondary" onClick={connectPrinter} disabled={disabled || printing?.supported === false}>
+                {configured ? 'Trocar impressora' : 'Conectar impressora'}
+              </Button>
+            )}
             <Button type="button" variant="secondary" onClick={testPrint} disabled={disabled || printing?.supported === false}>Testar impressão</Button>
           </div>
 
@@ -133,7 +144,8 @@ function PrintingSettings({ printing, onClose }) {
           <div className="printing-compatibility">
             <strong>Compatibilidade</strong>
             <span>Windows + Chrome com Web Serial disponível.</span>
-            <span>Android + Chrome 138+ quando o Web Serial estiver disponível para o dispositivo e a impressora pareada.</span>
+            <span>Android usa o RawBT para enviar o mesmo ticket ESC/POS à impressora.</span>
+            {isRawBt && <span>Configure a MPT-II no RawBT antes de testar a impressão.</span>}
           </div>
 
           {printing?.lastError?.message && <p className="printing-feedback printing-feedback-error">{printing.lastError.message}</p>}
