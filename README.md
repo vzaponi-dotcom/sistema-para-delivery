@@ -135,27 +135,31 @@ Os preços oficiais e o total final são recalculados pelo Worker usando o catá
 
 ## Impressão térmica de pedidos — 58 mm ESC/POS
 
-O sistema possui um **Ticket Oficial** único para cozinha, embalagem/cliente, visualização e PDF. O mesmo renderizador ESC/POS de 58 mm é usado nos dois transportes físicos homologáveis:
+O sistema possui um **Ticket Oficial** único para cozinha, embalagem/cliente, visualização e PDF. O mesmo documento de impressão é usado pelos transportes físicos atuais:
 
-- **Windows:** Chrome + Web Serial para impressora Bluetooth Classic/serial compatível;
+- **Windows:** Chrome + QZ Tray 2.2.6, enviando os bytes RAW/ESC-POS para a fila local `MPT-II` no Windows;
 - **Android:** Chrome + aplicativo RawBT, que recebe os bytes ESC/POS do Gestão Delivery e cuida da conexão Bluetooth com a impressora.
 
-O perfil inicial continua com 203 dpi, 384 pontos por linha, largura imprimível de 48 mm e página de código CP860. A MPT-II usada na homologação Android deve ser configurada no RawBT com **203 dpi** e **384 pontos**.
+Na estação Windows homologada, a MPT-II aparece no USB como `YICHIP - printer demo`, usa a fila `MPT-II`, driver `Generic / Text Only` e porta `USB001`. Esse hardware não expõe uma porta COM, portanto o caminho Windows da MPT-II não usa Web Serial.
+
+O perfil térmico usa 203 dpi, 384 pontos por linha e largura imprimível de 48 mm. Como a interpretação de páginas de código da MPT-II não foi confiável para acentos, **Windows/QZ e Android/RawBT usam o modo `mpt2-bitmap`**. O texto ESC/POS/CP860 permanece como fallback somente para transportes compatíveis que não usam essa unidade MPT-II.
 
 A configuração fica em **Pedidos > Impressão**.
 
-### Configuração inicial no Windows
+### Configuração inicial no Windows com QZ Tray
 
-1. Pareie a impressora nas configurações Bluetooth do Windows.
-2. Abra o Gestão Delivery em uma origem HTTPS usando Chrome compatível.
-3. Entre em **Pedidos > Impressão**.
-4. Clique em **Conectar impressora** e selecione a porta da impressora no seletor do navegador.
-5. Execute **Testar impressão**.
-6. Se este computador for responsável pela impressão automática, marque-o como **estação principal**.
-7. Escolha **1** ou **2 cópias**.
-8. Ative a impressão automática somente depois de aprovar o teste físico.
+1. Instale e abra o QZ Tray 2.2.6.
+2. Confirme no Windows a fila `MPT-II` com driver `Generic / Text Only` na porta `USB001`.
+3. Provisione a confiança/certificado da estação conforme `docs/operations/windows-qz-tray-printing.md`.
+4. Abra o Gestão Delivery em staging e entre em **Pedidos > Impressão**.
+5. Confirme **Plataforma: Windows** e **Driver: QZ Tray**.
+6. Clique em **Configurar impressora** e selecione explicitamente a fila `MPT-II`.
+7. Execute **Testar impressão**.
+8. Se este computador for responsável pela impressão automática, marque-o como **estação principal**.
+9. Escolha **1** ou **2 cópias**.
+10. Ative a impressão automática somente depois de aprovar o teste físico.
 
-A seleção inicial no Windows precisa de uma ação explícita do usuário. Depois da autorização, o sistema tenta reutilizar somente a porta já autorizada naquele navegador.
+A fila QZ escolhida fica salva localmente por estação. O sistema não seleciona silenciosamente outra impressora por ela ser a padrão do Windows. O QZ Tray deve permanecer aberto para a impressão automática.
 
 ### Configuração inicial no Android com RawBT
 
@@ -176,27 +180,30 @@ A seleção inicial no Windows precisa de uma ação explícita do usuário. Dep
 - Um pedido novo gera no máximo um job automático, apenas se a estação principal estiver com impressão automática ativa no momento da criação.
 - Atualizar a página, sincronizar outro dispositivo, trocar de aba ou recuperar foco não cria um novo job de impressão.
 - Apenas a estação principal consome jobs automáticos.
+- No Windows, o consumidor automático só faz claim quando QZ, assinatura e fila local configurada estão prontos.
+- Se o QZ estiver fechado ou a fila `MPT-II` desaparecer, novos jobs automáticos não devem ser consumidos até a recuperação da estação.
 - **Reimprimir** cria um novo job manual e pede confirmação, preservando o histórico anterior.
 - **Tentar novamente** reutiliza o mesmo job e o mesmo snapshot quando houve falha conhecida.
 - Não há loop de retry automático depois de uma falha.
-- No Web Serial, `Impresso` significa que a escrita serial terminou sem erro reportado; a impressora simples não confirma necessariamente a saída física do papel.
+- Em `2 cópias`, o primeiro passe imprime apenas `CÓPIA 1/2`; a segunda via só imprime após a ação explícita **Imprimir 2ª via** no mesmo job.
 - No Android/RawBT, o navegador só consegue confirmar que entregou o comando ao esquema do RawBT; a saída física precisa ser validada operacionalmente.
 - Preview e PDF continuam disponíveis mesmo sem a impressora conectada.
 - Pedidos finalizados continuam permitindo preview, PDF e reimpressão pelo Histórico.
 
 ### Compatibilidade e limites da V1
 
-- Alvo desktop: Chrome com Web Serial e Windows com impressora serial Bluetooth compatível pareada pelo sistema operacional.
-- Alvo Android: Chrome + RawBT configurado para a impressora ESC/POS; a MPT-II é o hardware de homologação atual.
+- Alvo Windows homologado: Chrome + QZ Tray 2.2.6 + fila USB `MPT-II` (`Generic / Text Only`, `USB001`).
+- Alvo Android: Chrome + RawBT configurado para a MPT-II ESC/POS.
+- Outras plataformas podem manter o fallback Web Serial onde o navegador e o hardware já forem compatíveis, mas isso não é o caminho Windows da MPT-II.
 - A abertura automática do RawBT a partir de um job sem gesto do usuário depende do comportamento do Android/Chrome e deve ser validada fisicamente em staging antes de aprovar a impressão automática.
 - Safari e Firefox não possuem garantia de compatibilidade com este fluxo.
 - Não há envio automático do ticket por WhatsApp.
 - Não há failover automático para uma segunda estação de impressão.
 - Não há roteamento por setor/cozinha nem múltiplas impressoras na V1.
 - Não há comando de corte automático na V1.
-- A página de código inicial para português é CP860 (`ESC t 3`); o comportamento da unidade física é a autoridade final.
+- A compatibilidade física da impressora é a autoridade final para largura, avanço, acentos e saída de papel.
 
-O checklist completo de validação física está em `docs/order-printing-mtp5-acceptance.md` e deve ser preenchido separadamente para Windows e Android/RawBT.
+O runbook operacional do Windows/QZ está em `docs/operations/windows-qz-tray-printing.md`. O checklist físico existente em `docs/order-printing-mtp5-acceptance.md` continua útil para o Android/RawBT e para os critérios gerais do ticket; os passos Windows/Web Serial nele são históricos e não substituem o runbook QZ.
 
 ## Deploy de staging
 
@@ -272,3 +279,4 @@ Os dois comandos de produção são reservados ao workflow **Deploy production**
 - Tentativas de login têm rate limiting no Worker.
 - Escritas não são enfileiradas offline.
 - O navegador não persiste PIN de pareamento Bluetooth nem objetos de permissão serial.
+- A chave privada QZ (`QZ_SIGNING_PRIVATE_KEY`) existe somente como secret do Worker e nunca deve entrar no bundle, Git, D1, screenshots ou logs.
