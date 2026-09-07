@@ -15,6 +15,14 @@ test('receivables keeps table tabs consolidated and delegates aggregate payment 
   assert.match(detail, /onRegisterTableTabPayment/)
 })
 
+test('table tab payment action is not exposed directly in the receivables ledger', () => {
+  assert.doesNotMatch(receivables, /receivable-ledger-table-action/)
+  assert.doesNotMatch(receivables, /entry\.kind === 'table_tab' && <button[^>]*onClick=\{\(\) => openTableTabPayment\(entry\)\}/)
+  assert.match(detail, /Registrar pagamento da comanda/)
+  assert.match(receivables, /tableTabPaymentGroup &&/)
+  assert.match(receivables, /title="Registrar pagamento da comanda"/)
+})
+
 test('table tab detail keeps promise editing out of the aggregate branch and removes the obsolete danger treatment', () => {
   assert.match(detail, /if \(entry\.kind === 'table_tab'\)[\s\S]*Registrar pagamento da comanda/)
   assert.match(detail, /const order = entry\.order[\s\S]*onEditPaymentPromise\?\.\(order\)/)
