@@ -85,7 +85,7 @@ test('QZ printer resolution rejects a missing saved queue', async () => {
   )
 })
 
-test('QZ RAW transport preserves Uint8Array bytes as base64', async () => {
+test('QZ RAW transport preserves Uint8Array bytes as base64 without mutating payload', async () => {
   let captured
   const qzApi = {
     websocket: { isActive: () => true },
@@ -94,9 +94,11 @@ test('QZ RAW transport preserves Uint8Array bytes as base64', async () => {
     print: async (config, data) => { captured = { config, data } },
   }
   const bytes = Uint8Array.from([0x1b, 0x40, 0x00, 0xff, 0x0a])
+  const original = Uint8Array.from(bytes)
 
   await printQzRawBytes(qzApi, 'MPT-II', bytes)
 
+  assert.deepEqual(bytes, original)
   assert.equal(captured.config.printer, 'MPT-II')
   assert.deepEqual(captured.data, [{
     type: 'raw',
@@ -120,16 +122,18 @@ test('QZ websocket connection failures are normalized', async () => {
   )
 })
 
-test('QZ print rejection becomes QZ_PRINT_FAILED', async () => {
+test('QZ print rejection becomes QZ_PRINT_FAILED after one spool attempt', async () => {
+  let printCalls = 0
   const qzApi = {
     websocket: { isActive: () => true },
     printers: { find: async () => ['MPT-II'] },
     configs: { create: (printer) => ({ printer }) },
-    print: async () => { throw new Error('spool failed') },
+    print: async () => { printCalls += 1; throw new Error('spool failed') },
   }
 
   await assert.rejects(
     () => printQzRawBytes(qzApi, 'MPT-II', Uint8Array.from([0x1b, 0x40])),
     (error) => error.code === 'QZ_PRINT_FAILED',
   )
+  assert.equal(printCalls, 1)
 })
