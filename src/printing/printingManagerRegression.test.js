@@ -32,7 +32,16 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.match(manager, /dispatchRawBtBytes/)
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
-  assert.doesNotMatch(app, /detectedIds[\s\S]{0,500}printing\./)
+
+  const detectedIdsIndex = app.indexOf('newIds: detectedIds')
+  assert.notEqual(detectedIdsIndex, -1)
+  const detectionEffectStart = app.lastIndexOf('useEffect(() => {', detectedIdsIndex)
+  assert.notEqual(detectionEffectStart, -1)
+  const nextEffectStart = app.indexOf('useEffect(() => {', detectedIdsIndex + 1)
+  assert.notEqual(nextEffectStart, -1)
+  const detectionEffect = app.slice(detectionEffectStart, nextEffectStart)
+  assert.match(detectionEffect, /detectedIds/)
+  assert.doesNotMatch(detectionEffect, /\bprinting\./)
 })
 
 test('Android selects RawBT while Windows and other platforms keep Web Serial', () => {
