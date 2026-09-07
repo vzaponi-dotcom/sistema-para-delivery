@@ -57,6 +57,15 @@ test('orders page wires ticket actions by phase and keeps global counts independ
   assert.doesNotMatch(source, /(?:preparing|scheduled)\.length[^\n]*StatCard/)
 })
 
+test('scheduled order details keep cancellation available and do not introduce editing', async () => {
+  const source = await read('./Orders.jsx')
+
+  assert.match(source, /<OrderDetail[\s\S]*onRequestCancel=\{\(\) =>/)
+  assert.doesNotMatch(source, /isScheduledWaiting\(detailOrder, now\)\s*\?\s*undefined/)
+  assert.doesNotMatch(source, /Editar pedido/)
+  assert.doesNotMatch(source, /onEditOrder/)
+})
+
 test('legacy waiting-window copy is absent from application source', async () => {
   const allSource = await readSourceTree(new URL('../', import.meta.url))
   assert.doesNotMatch(allSource, /Aguardando janela/i)
