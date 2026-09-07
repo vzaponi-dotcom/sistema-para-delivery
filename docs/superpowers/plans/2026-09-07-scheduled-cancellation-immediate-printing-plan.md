@@ -39,20 +39,20 @@ No new runtime modules are required. The implementation should stay inside the e
 
 ---
 
-### Task 1: Make new scheduled automatic jobs immediately available
+### Task 1: Make newly-created scheduled jobs available immediately
 
 **Files:**
 - Modify: `worker/orderAutomaticPrintJob.test.js`
-- Modify: `worker/repositories.js` in `createOrder(...)`, where `prepareAutomaticPrintJobStatement(...)` receives `availableAt`
+- Modify: `worker/repositories.js`
+- Regression only: `shared/orderTiming.test.js`
 
 **Interfaces:**
-- Consumes: `createOrder(db, businessId, input, now)` and `prepareAutomaticPrintJobStatement(db, businessId, input)`.
-- Produces: for every newly-created current order that qualifies for automatic printing, `print_jobs.created_at === print_jobs.available_at === createdAt`, including when `scheduled_for` is in the future.
-- Preserves: `orders.scheduled_for` and all existing operational timing helpers; this task does not change kitchen phase logic.
+- Consumes: `createOrder(db, businessId, rawInput, now)`, `prepareAutomaticPrintJobStatement(db, businessId, input)`.
+- Produces: newly-created automatic order jobs with `available_at === created_at` regardless of `scheduled_for`; no change to `getOperationalStartAt` or kitchen timing helpers.
 
-- [ ] **Step 1: Add a failing scheduled-order availability test**
+- [x] **Step 1: Write the failing checkout regression for a scheduled order**
 
-Append a checkout-level test in `worker/orderAutomaticPrintJob.test.js` using the existing `seed()` and `input()` helpers:
+Add to `worker/orderAutomaticPrintJob.test.js`:
 
 ```js
 test('new scheduled order is printable immediately while keeping its scheduled time', async () => {
@@ -73,9 +73,9 @@ test('new scheduled order is printable immediately while keeping its scheduled t
 })
 ```
 
-Keep the existing tests for current orders, idempotency, disabled automatic printing, no primary station and backdated orders unchanged.
+This proves printing eligibility changes without mutating the customer's requested time.
 
-- [ ] **Step 2: Run only the checkout printing contract and verify RED**
+- [x] **Step 2: Run the focused test and confirm RED**
 
 Run:
 
@@ -83,13 +83,11 @@ Run:
 node --test worker/orderAutomaticPrintJob.test.js
 ```
 
-Expected: the new scheduled-order test fails because current production code stores `available_at` at the operational start instead of `created_at`; all pre-existing tests remain green.
+Expected before implementation: the new scheduled test fails because `available_at` equals the existing operational start (`scheduled_for - 50 minutes`) rather than `created_at`. Existing tests continue to pass.
 
-- [ ] **Step 3: Implement the minimal availability change**
+- [x] **Step 3: Change only new automatic-job availability in checkout**
 
-In `worker/repositories.js`, change only the automatic print-job construction inside `createOrder(...)`.
-
-Current behavior:
+In `worker/repositories.js`, the existing creation block is equivalent to:
 
 ```js
 statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
@@ -101,7 +99,7 @@ statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
 }))
 ```
 
-Target behavior:
+Change only the availability argument:
 
 ```js
 statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
@@ -113,41 +111,19 @@ statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
 }))
 ```
 
-If `getOperationalStartAt` is no longer referenced anywhere else in `worker/repositories.js`, remove only that now-unused import:
+If `getOperationalStartAt` becomes unused in `worker/repositories.js`, remove only that unused import. Do not change `shared/orderTiming.js`.
 
-```js
-import { getOperationalStartAt } from '../shared/orderTiming.js'
-```
-
-Do not change `shared/orderTiming.js`.
-
-- [ ] **Step 4: Run the focused test and verify GREEN**
+- [x] **Step 4: Run checkout and timing regressions**
 
 Run:
 
 ```bash
-node --test worker/orderAutomaticPrintJob.test.js
+node --test worker/orderAutomaticPrintJob.test.js shared/orderTiming.test.js src/utils/kitchenQueue.test.js src/hooks/useKitchenClock.test.js
 ```
 
-Expected: all tests in the file pass, including:
+Expected: PASS. In particular, existing timing assertions such as a 12:00 scheduled order beginning operational preparation at 11:10 must remain unchanged.
 
-- current order creates one automatic job;
-- scheduled order gets `available_at = created_at`;
-- same idempotency key still creates one job;
-- auto-print disabled or no primary station creates no job;
-- backdated order creates no automatic job.
-
-- [ ] **Step 5: Run timing regressions to prove printing did not move the kitchen window**
-
-Run:
-
-```bash
-node --test shared/orderTiming.test.js src/utils/kitchenQueue.test.js src/hooks/useKitchenClock.test.js
-```
-
-Expected: PASS with no production changes in timing files.
-
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```bash
 git add worker/repositories.js worker/orderAutomaticPrintJob.test.js
@@ -156,20 +132,20 @@ git commit -m "feat: print new scheduled orders immediately"
 
 ---
 
-### Task 2: Allow cancellation from scheduled-order details
+### Task 2: Allow scheduled-order cancellation from details
 
 **Files:**
 - Modify: `src/pages/OrdersScheduled.test.js`
 - Modify: `src/pages/Orders.jsx`
+- Regression alignment: `src/pages/OrdersMultiItem.test.js`
 
 **Interfaces:**
-- Consumes: existing `setCancelOrder`, `CancelOrderDialog`, `onCancelOrder`, and `OrderDetail` prop `onRequestCancel`.
-- Produces: scheduled orders waiting outside the operational window expose `Cancelar` on the card and `Cancelar pedido` through `OrderDetail`.
-- Preserves: no `Editar pedido` action and no new mutation API.
+- Consumes: existing `setCancelOrder(order)`, `CancelOrderDialog`, `OrderDetail` prop `onRequestCancel`.
+- Produces: every active order detail, including a scheduled-waiting order, receives an `onRequestCancel` callback; no edit interface is added.
 
-- [ ] **Step 1: Add a failing details-action contract**
+- [x] **Step 1: Write the failing source-level UI contract**
 
-Add this test to `src/pages/OrdersScheduled.test.js`:
+Add to `src/pages/OrdersScheduled.test.js`:
 
 ```js
 test('scheduled order details keep cancellation available and do not introduce editing', async () => {
@@ -182,9 +158,7 @@ test('scheduled order details keep cancellation available and do not introduce e
 })
 ```
 
-Also preserve the existing test that the scheduled `KitchenTicket` block has `onCancel={setCancelOrder}`.
-
-- [ ] **Step 2: Run the focused UI test and verify RED**
+- [x] **Step 2: Run the focused UI test and confirm RED**
 
 Run:
 
@@ -192,91 +166,66 @@ Run:
 node --test src/pages/OrdersScheduled.test.js
 ```
 
-Expected: the new test fails because `Orders.jsx` currently sets `onRequestCancel={undefined}` while `isScheduledWaiting(detailOrder, now)` is true.
+Expected before implementation: FAIL because `Orders.jsx` contains the `isScheduledWaiting(detailOrder, now) ? undefined : ...` guard.
 
-- [ ] **Step 3: Remove only the scheduled-details cancellation suppression**
+- [x] **Step 3: Remove only the scheduled-waiting cancellation suppression**
 
-In `src/pages/Orders.jsx`, replace:
-
-```jsx
-{detailOrder && <OrderDetail
-  order={detailOrder}
-  currency={currency}
-  printing={printing}
-  printJob={detailPrintJob}
-  onClose={() => setDetailOrder(null)}
-  onRequestCancel={isScheduledWaiting(detailOrder, now)
-    ? undefined
-    : () => { setDetailOrder(null); setCancelOrder(detailOrder) }}
-/>}
-```
-
-with the same detail wiring but an unconditional existing cancellation action:
+In `src/pages/Orders.jsx`, change:
 
 ```jsx
-{detailOrder && <OrderDetail
-  order={detailOrder}
-  currency={currency}
-  printing={printing}
-  printJob={detailPrintJob}
-  onClose={() => setDetailOrder(null)}
-  onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }}
-/>}
+onRequestCancel={isScheduledWaiting(detailOrder, now)
+  ? undefined
+  : () => {
+      setDetailOrder(null)
+      setCancelOrder(detailOrder)
+    }}
 ```
 
-Then remove this import if it is no longer used in the file:
+to the existing cancellation flow without that guard:
 
-```js
-import { isScheduledWaiting } from '../../shared/orderTiming.js'
+```jsx
+onRequestCancel={() => {
+  setDetailOrder(null)
+  setCancelOrder(detailOrder)
+}}
 ```
 
-Do not change `OrderDetail.jsx` or `CancelOrderDialog.jsx` unless the focused test exposes a pre-existing contract mismatch.
+If `isScheduledWaiting` becomes unused in this file, remove only that import. Do not add `Editar`, `onEditOrder`, or a new form mode.
 
-- [ ] **Step 4: Run focused scheduled UI tests and verify GREEN**
+- [x] **Step 4: Run the kitchen UI regressions**
 
 Run:
 
 ```bash
-node --test src/pages/OrdersScheduled.test.js src/components/KitchenTicket.test.js src/components/CancelOrderDialog.test.js
+node --test src/pages/OrdersScheduled.test.js src/pages/OrdersMultiItem.test.js src/utils/kitchenQueue.test.js
 ```
 
-Expected: PASS. Card cancellation remains present, detail cancellation is no longer hidden, and no edit action exists.
+Expected: PASS. The scheduled card still wires `onCancel={setCancelOrder}`, details now expose cancellation, and queue phase behavior is unchanged.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```bash
-git add src/pages/Orders.jsx src/pages/OrdersScheduled.test.js
-git commit -m "fix: allow cancelling waiting scheduled orders"
+git add src/pages/Orders.jsx src/pages/OrdersScheduled.test.js src/pages/OrdersMultiItem.test.js
+git commit -m "feat: allow cancelling scheduled orders from details"
 ```
 
 ---
 
-### Task 3: Lock cancellation behavior for immediate print jobs
+### Task 3: Lock cancellation effects on automatic print jobs
 
 **Files:**
 - Modify: `worker/orderCancellation.test.js`
-- Production file reviewed but not expected to change: `worker/orderCancellation.js`
+- Production file reviewed, not expected to change: `worker/orderCancellation.js`
 
 **Interfaces:**
 - Consumes: `cancelOrder(db, businessId, orderId, input, now)`.
-- Produces: regression proof that cancelling an active scheduled order removes only a still-pending automatic job, preserves already-printed history and creates no cancellation print job.
-- Preserves: existing paid-order refund behavior.
+- Produces: regression contract that cancellation removes only `trigger='automatic' AND status='pending'`; printed history survives; no cancellation job is created.
 
-This is a characterization/regression task. The inspected production implementation already performs the required delete:
+This is a **characterization/regression task**. The current repository implementation already contains the intended delete statement, so the strengthened test is expected to be GREEN immediately. Do not manufacture a production-code change just to create a RED state. If it fails, diagnose the mismatch before changing production behavior.
 
-```sql
-DELETE FROM print_jobs
-WHERE business_id = ?
-  AND order_id = ?
-  AND trigger = 'automatic'
-  AND status = 'pending'
-```
+- [x] **Step 1: Strengthen the existing print-job cancellation test**
 
-Therefore the new tests are expected to be GREEN immediately. Do not manufacture a production change just to create a RED state.
-
-- [ ] **Step 1: Strengthen the existing pending/printed cancellation test**
-
-Extend `cancellation removes only pending automatic print job` so it models the two-copy state explicitly:
+In `worker/orderCancellation.test.js`, replace the existing print-job fixture in `cancellation removes only pending automatic print job` with:
 
 ```js
 db.printJobs = [
@@ -286,27 +235,18 @@ db.printJobs = [
 ]
 ```
 
-After `cancelOrder(...)`, assert that:
+After `cancelOrder(...)`, assert:
 
 ```js
 assert.deepEqual(db.printJobs.map(({ trigger, status, copies_printed }) => ({ trigger, status, copies_printed })), [
   { trigger: 'manual', status: 'pending', copies_printed: 0 },
   { trigger: 'automatic', status: 'printed', copies_printed: 1 },
 ])
-```
-
-This proves a printed `1/2` automatic job remains only as technical history rather than being replaced by a cancellation ticket.
-
-- [ ] **Step 2: Add an explicit no-cancellation-ticket assertion**
-
-In the same test, capture the count after cancellation and assert no new print job was appended:
-
-```js
 assert.equal(db.printJobs.length, 2)
 assert.equal(db.printJobs.some((job) => job.type === 'cancellation' || job.trigger === 'cancellation'), false)
 ```
 
-- [ ] **Step 3: Run the cancellation domain test**
+- [x] **Step 2: Run the focused cancellation test**
 
 Run:
 
@@ -314,19 +254,23 @@ Run:
 node --test worker/orderCancellation.test.js
 ```
 
-Expected: GREEN on current implementation. If this test fails, stop and use `superpowers:systematic-debugging`; a failure means the inspected cancellation behavior does not match the approved design and this plan must be corrected before production code is changed.
+Expected: PASS on the current implementation. If it fails, stop and inspect the actual delete/job creation behavior; do not broaden cancellation behavior without reconciling it with the spec.
 
-- [ ] **Step 4: Confirm no production diff was created by this task**
+- [x] **Step 3: Confirm no production change is needed**
 
-Run:
+Review `worker/orderCancellation.js`. The intended statement remains:
 
-```bash
-git diff -- worker/orderCancellation.js
+```sql
+DELETE FROM print_jobs
+WHERE business_id = ?
+  AND order_id = ?
+  AND trigger = 'automatic'
+  AND status = 'pending'
 ```
 
-Expected: empty output.
+Do not add any `INSERT INTO print_jobs` for cancellation.
 
-- [ ] **Step 5: Commit Task 3**
+- [x] **Step 4: Commit Task 3**
 
 ```bash
 git add worker/orderCancellation.test.js
@@ -335,34 +279,21 @@ git commit -m "test: lock scheduled cancellation print behavior"
 
 ---
 
-### Task 4: Prevent any second-copy claim after cancellation
+### Task 4: Block a cancelled order from printing a pending second copy
 
 **Files:**
 - Modify: `worker/orderPrintingRepository.test.js`
-- Production file reviewed but not expected to change: `worker/orderPrintingRepository.js`
+- Production file reviewed, not expected to change: `worker/orderPrintingRepository.js`
 
 **Interfaces:**
-- Consumes: `claimPrintJob(...)`, `claimNextAutomaticPrintJob(...)`, `markPrintJobPrinted(...)`, `loadPrintJob(...)`.
-- Produces: regression proof that an automatic job already at `printed`, `copiesPrinted = 1`, `copiesRequested = 2` cannot be reclaimed after its order becomes `Cancelado`.
-- Preserves: normal explicit second-copy claim for non-cancelled orders.
+- Consumes: `claimPrintJob`, `claimNextAutomaticPrintJob`, `markPrintJobPrinted`, `loadPrintJob`.
+- Produces: regression contract that an automatic job preserved at `printed` with `copiesPrinted=1` cannot be claimed again after its order becomes `Cancelado`.
 
-The inspected repository already protects automatic claims with:
+This is also a characterization/regression task. `claimPrintJob` already contains the automatic-order status guard, so the new regression should be GREEN without production changes. If it is not, diagnose first.
 
-```sql
-trigger <> 'automatic'
-OR EXISTS (
-  SELECT 1 FROM orders
-  WHERE orders.id = print_jobs.order_id
-    AND orders.business_id = print_jobs.business_id
-    AND orders.status <> 'Cancelado'
-)
-```
+- [x] **Step 1: Add the cancelled-second-copy regression**
 
-This task should therefore be test-only unless the focused regression demonstrates otherwise.
-
-- [ ] **Step 1: Add a cancelled-second-copy regression test**
-
-Append to `worker/orderPrintingRepository.test.js` using the existing `makeDb()`, `addStation()`, `addAutomaticJob()` helpers:
+Append to `worker/orderPrintingRepository.test.js`:
 
 ```js
 test('cancelled automatic order cannot claim its pending second copy', async () => {
@@ -396,7 +327,7 @@ test('cancelled automatic order cannot claim its pending second copy', async () 
 })
 ```
 
-- [ ] **Step 2: Run the focused repository test**
+- [x] **Step 2: Run the printing repository tests**
 
 Run:
 
@@ -404,19 +335,19 @@ Run:
 node --test worker/orderPrintingRepository.test.js
 ```
 
-Expected: GREEN on current implementation, including the existing non-cancelled two-copy tests.
+Expected: PASS. This proves a refreshed UI cannot reclaim a second copy after cancellation, while the already-printed first copy remains recorded.
 
-- [ ] **Step 3: Confirm production repository remained unchanged**
+- [x] **Step 3: Run cancellation + printing regressions together**
 
 Run:
 
 ```bash
-git diff -- worker/orderPrintingRepository.js
+node --test worker/orderCancellation.test.js worker/orderPrintingRepository.test.js
 ```
 
-Expected: empty output. If the new test fails, diagnose before changing production code because claim protection is already part of the current security boundary.
+Expected: PASS with no production changes in either repository.
 
-- [ ] **Step 4: Commit Task 4**
+- [x] **Step 4: Commit Task 4**
 
 ```bash
 git add worker/orderPrintingRepository.test.js
@@ -425,7 +356,7 @@ git commit -m "test: block second copy after cancellation"
 
 ---
 
-### Task 5: Full regression gate and release preparation
+### Task 5: Full verification, staging deploy, and physical homologation
 
 **Files:**
 - Review: `.github/workflows/validate.yml`
@@ -436,7 +367,7 @@ git commit -m "test: block second copy after cancellation"
 - Consumes: completed Tasks 1–4.
 - Produces: a green feature branch ready for staging, not production.
 
-- [ ] **Step 1: Verify branch contains no order-editing or Windows/QZ additions**
+- [x] **Step 1: Verify branch contains no order-editing or Windows/QZ additions**
 
 Run:
 
@@ -452,7 +383,7 @@ Review the diff and confirm:
 - no migration file;
 - only the approved printing availability and cancellation UI production changes plus regression tests.
 
-- [ ] **Step 2: Handle the independent RawBT test-print hotfix before staging**
+- [x] **Step 2: Handle the independent RawBT test-print hotfix before staging**
 
 Check PR #10 / `master` status.
 
@@ -467,7 +398,7 @@ git merge --no-ff origin/master
 
 Resolve only genuine merge conflicts; do not use `reset`, `restore`, `clean` or `stash` as shortcuts.
 
-- [ ] **Step 3: Run the complete local validation gate**
+- [x] **Step 3: Run the complete local validation gate**
 
 Run exactly the same commands as `.github/workflows/validate.yml`:
 
@@ -483,7 +414,7 @@ npm run d1:migrate:local
 
 Expected: every command exits 0.
 
-- [ ] **Step 4: Review the final diff against the spec**
+- [x] **Step 4: Review the final diff against the spec**
 
 Verify all of these are true:
 
@@ -503,7 +434,7 @@ QZ: absent
 migration: absent
 ```
 
-- [ ] **Step 5: Ensure PR #11 is still draft and CI is green**
+- [x] **Step 5: Ensure PR #11 is still draft and CI is green**
 
 Push the task commits, then verify the `Validate application` workflow covers:
 
@@ -550,6 +481,12 @@ On the Android/RawBT primary station:
 After staging homologation, report the exact commit SHA, CI run and physical results. Do not merge PR #11 and do not deploy production until the user explicitly approves production.
 
 ---
+
+## Implementation checkpoint — 2026-09-07
+
+Tasks 1–4 are implemented on `feature/scheduled-cancel-immediate-printing` and the full validation gate passed on commit `01e0bbe8a2582fc10002ec615197a47f20a0291f` (Validate application run `34130967916`). The current branch head differs from that verified commit only by removal of the temporary verification workflow; runtime and test files are unchanged.
+
+PR #10 (`hotfix/rawbt-test-print-selected-copy`) remains open and unmerged; `master` remains at `69a026172379ea53bfada0b5d19ff251a7b1a605`. Per the approved plan, the hotfix has not been cherry-picked or duplicated into this feature. Staging is intentionally blocked pending the release-baseline decision for PR #10.
 
 ## Self-Review Record
 
