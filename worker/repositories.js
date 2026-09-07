@@ -5,6 +5,7 @@ import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
+import { getOrCreateOpenTableTabByTableId } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
@@ -32,29 +33,12 @@ export const mapProductRow = (row) => {
 }
 export const mapTableTabRow = (row) => ({
   id: row.id,
+  tableId: row.table_id ?? null,
   tableIdentifier: row.table_identifier,
   status: row.status,
   openedAt: row.opened_at,
   closedAt: row.closed_at ?? null,
 })
-
-export const normalizeTableIdentifier = (value) => String(value ?? '').trim().toUpperCase()
-
-export const getOrCreateOpenTableTab = async (db, businessId, rawIdentifier, now = new Date()) => {
-  const tableIdentifier = normalizeTableIdentifier(rawIdentifier)
-  const selectOpen = () => db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? AND table_identifier = ? AND status = 'open' LIMIT 1`).bind(businessId, tableIdentifier).first()
-
-  let row = await selectOpen()
-  if (row) return mapTableTabRow(row)
-
-  const id = crypto.randomUUID()
-  const timestamp = now.toISOString()
-  await db.prepare(`INSERT OR IGNORE INTO table_tabs (id, business_id, table_identifier, status, opened_at, closed_at, created_at, updated_at) VALUES (?, ?, ?, 'open', ?, NULL, ?, ?)`).bind(id, businessId, tableIdentifier, timestamp, timestamp, timestamp).run()
-
-  row = await selectOpen()
-  if (!row) throw repositoryError(500, 'TABLE_TAB_CREATE_FAILED', 'Não foi possível abrir a comanda da mesa.')
-  return mapTableTabRow(row)
-}
 
 export const mapOrderItemRow = (row) => ({
   id: row.id,
@@ -137,7 +121,7 @@ export const loadBootstrap = async (db, businessId) => {
   const productsResult = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
   const itemsResult = await db.prepare(`${itemSelect} WHERE business_id = ? ORDER BY created_at ASC`).bind(businessId).all()
-  const tableTabsResult = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
+  const tableTabsResult = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
   const movementsResult = await db.prepare(`SELECT m.id, m.type, m.category, m.description, m.value_cents, m.source, m.order_id, m.payment_id,
     CASE WHEN m.source = 'order-payment' THEN COALESCE(m.payment_method, p.method) ELSE m.payment_method END AS payment_method,
     m.movement_date, m.created_at, m.updated_at
@@ -325,8 +309,16 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   } else if (customerIdentity.type === 'guest_name') {
     clientSnapshot = customerIdentity.value
   } else if (customerIdentity.type === 'table') {
-    const tableTab = await getOrCreateOpenTableTab(db, businessId, customerIdentity.value, now)
-    clientSnapshot = `Mesa ${tableTab.tableIdentifier}`
+    if (customerIdentity.clientId) {
+      const client = await db.prepare('SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
+      if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+      clientId = client.id
+      clientSnapshot = client.name
+      clientPhoneSnapshot = formatClientPhone(client.phone)
+      clientAddressSnapshot = client.address || ''
+    }
+    const tableTab = await getOrCreateOpenTableTabByTableId(db, businessId, customerIdentity.tableId, now)
+    if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
     tableTabId = tableTab.id
   } else {
     throw repositoryError(400, 'INVALID_CUSTOMER_IDENTITY', 'Identificação do pedido inválida.')
@@ -484,13 +476,13 @@ export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = n
   const timestamp = now.toISOString()
   await db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = COALESCE(closed_at, ?), updated_at = ?
     WHERE id = ? AND business_id = ? AND status = 'open'`).bind(timestamp, timestamp, tableTabId, businessId).run()
-  const row = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at FROM table_tabs
+  const row = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at FROM table_tabs
     WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
   return row ? mapTableTabRow(row) : null
 }
 
 export const registerTableTabPayment = async (db, businessId, tableTabId, method, now = new Date()) => {
-  const tabRow = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
+  const tabRow = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
     FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
   if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
   if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')

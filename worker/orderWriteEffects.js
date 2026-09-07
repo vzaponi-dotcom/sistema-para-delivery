@@ -15,7 +15,7 @@ export const loadMovementByOrderSource = async (db, businessId, orderId, source)
 
 export const loadTableTabById = async (db, businessId, tableTabId) => {
   if (!tableTabId) return null
-  const row = await db.prepare(`SELECT id, table_identifier, status, opened_at, closed_at
+  const row = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
     FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
   return row ? mapTableTabRow(row) : null
 }

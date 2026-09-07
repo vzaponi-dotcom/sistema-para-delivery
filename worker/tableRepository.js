@@ -86,6 +86,50 @@ export const loadTableById = async (db, businessId, tableId) => {
   return mapTableRow(row)
 }
 
+const mapOpenTableTabRow = (row) => ({
+  id: row.id,
+  tableId: row.table_id,
+  tableIdentifier: row.table_identifier,
+  status: row.status,
+  openedAt: row.opened_at,
+  closedAt: row.closed_at ?? null,
+})
+
+export const getOrCreateOpenTableTabByTableId = async (db, businessId, tableId, now = new Date()) => {
+  const table = await db.prepare(`SELECT id, name, is_active
+    FROM tables
+    WHERE id = ? AND business_id = ?
+    LIMIT 1`).bind(tableId, businessId).first()
+  if (!table) throw domainError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
+  if (!table.is_active) throw domainError(409, 'TABLE_INACTIVE', 'A mesa está inativa.')
+
+  const selectOpen = () => db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
+    FROM table_tabs
+    WHERE business_id = ? AND table_id = ? AND status = 'open'
+    LIMIT 1`).bind(businessId, table.id).first()
+
+  let row = await selectOpen()
+  if (row) return mapOpenTableTabRow(row)
+
+  const id = crypto.randomUUID()
+  const timestamp = now.toISOString()
+  await db.prepare(`INSERT OR IGNORE INTO table_tabs (
+    id, business_id, table_id, table_identifier, status, opened_at, closed_at, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, 'open', ?, NULL, ?, ?)`).bind(
+    id,
+    businessId,
+    table.id,
+    table.name,
+    timestamp,
+    timestamp,
+    timestamp,
+  ).run()
+
+  row = await selectOpen()
+  if (!row) throw domainError(500, 'TABLE_TAB_CREATE_FAILED', 'Não foi possível abrir a comanda da mesa.')
+  return mapOpenTableTabRow(row)
+}
+
 export const createTable = async (db, businessId, input, now = new Date()) => {
   const { name, nameKey } = normalizeTableName(input?.name)
   const orderRow = await db.prepare(`SELECT COALESCE(MAX(sort_order), 0) AS max_sort_order

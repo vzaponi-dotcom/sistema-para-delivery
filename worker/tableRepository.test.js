@@ -5,6 +5,7 @@ import * as tableRepository from './tableRepository.js'
 
 const {
   createTable,
+  getOrCreateOpenTableTabByTableId,
   listTables,
   loadTableById,
   normalizeTableName,
@@ -34,8 +35,15 @@ class D1Sqlite {
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
         table_id TEXT REFERENCES tables(id),
-        status TEXT NOT NULL
+        table_identifier TEXT NOT NULL,
+        status TEXT NOT NULL,
+        opened_at TEXT NOT NULL,
+        closed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
+      CREATE UNIQUE INDEX idx_table_tabs_one_open_per_table_id
+        ON table_tabs (business_id, table_id) WHERE status = 'open';
       INSERT INTO businesses (id) VALUES ('biz-a'), ('biz-b');
     `)
   }
@@ -106,7 +114,9 @@ test('listTables orders tables and derives occupancy from an open table tab', as
   const db = new D1Sqlite()
   insertTable(db, { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: 0 })
   insertTable(db, { id: 'first', name: 'Mesa 1', sortOrder: 1 })
-  db.exec("INSERT INTO table_tabs (id, business_id, table_id, status) VALUES ('tab-1', 'biz-a', 'first', 'open')")
+  db.exec(`INSERT INTO table_tabs (
+    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
+  ) VALUES ('tab-1', 'biz-a', 'first', 'Mesa 1', 'open', '${now.toISOString()}', '${now.toISOString()}', '${now.toISOString()}')`)
 
   assert.deepEqual(await listTables(db, 'biz-a'), [
     { id: 'first', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1' },
@@ -144,7 +154,9 @@ test('renameTable changes a free table and hides normalized uniqueness errors', 
 test('occupied tables cannot be renamed or deactivated', async () => {
   const db = new D1Sqlite()
   insertTable(db, { id: 'occupied', name: 'Mesa 1', sortOrder: 1 })
-  db.exec("INSERT INTO table_tabs (id, business_id, table_id, status) VALUES ('tab-open', 'biz-a', 'occupied', 'open')")
+  db.exec(`INSERT INTO table_tabs (
+    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
+  ) VALUES ('tab-open', 'biz-a', 'occupied', 'Mesa 1', 'open', '${now.toISOString()}', '${now.toISOString()}', '${now.toISOString()}')`)
 
   await assert.rejects(
     () => renameTable(db, 'biz-a', 'occupied', 'Novo nome', now),
@@ -179,4 +191,47 @@ test('reorderTables accepts every business table exactly once and never updates 
 
 test('table repository exposes no hard-delete operation', () => {
   assert.equal(Object.hasOwn(tableRepository, 'deleteTable'), false)
+})
+
+test('active table opens one tab with the exact table name snapshot and reuses it', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'table-1', name: 'Varanda', sortOrder: 1 })
+
+  const first = await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', now)
+  const second = await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', new Date('2026-09-07T15:01:00.000Z'))
+
+  assert.equal(first.id, second.id)
+  assert.equal(first.tableId, 'table-1')
+  assert.equal(first.tableIdentifier, 'Varanda')
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 1)
+})
+
+test('missing, cross-business, and inactive tables are rejected by the domain', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'inactive', name: 'Mesa 1', sortOrder: 1, isActive: 0 })
+  insertTable(db, { id: 'other', businessId: 'biz-b', name: 'Mesa 2', sortOrder: 1 })
+
+  for (const tableId of ['missing', 'other']) {
+    await assert.rejects(
+      () => getOrCreateOpenTableTabByTableId(db, 'biz-a', tableId, now),
+      (error) => error.status === 404 && error.code === 'TABLE_NOT_FOUND',
+    )
+  }
+  await assert.rejects(
+    () => getOrCreateOpenTableTabByTableId(db, 'biz-a', 'inactive', now),
+    (error) => error.status === 409 && error.code === 'TABLE_INACTIVE',
+  )
+})
+
+test('concurrent attempts cannot create two open tabs for the same table', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'table-1', name: 'Mesa 1', sortOrder: 1 })
+
+  const [first, second] = await Promise.all([
+    getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', now),
+    getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', now),
+  ])
+
+  assert.equal(first.id, second.id)
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 1)
 })
