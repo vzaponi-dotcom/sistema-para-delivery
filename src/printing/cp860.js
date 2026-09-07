@@ -8,6 +8,8 @@ const EXTENDED = new Map([
   ['°', 0xf8], ['²', 0xfd], ['\u00a0', 0xff],
 ])
 
+const EXTENDED_BY_BYTE = new Map([...EXTENDED].map(([character, byte]) => [byte, character]))
+
 const ASCII_REPLACEMENTS = new Map([
   ['–', '-'], ['—', '-'], ['‘', "'"], ['’', "'"], ['“', '"'], ['”', '"'], ['…', '...'],
 ])
@@ -28,4 +30,11 @@ export const encodeCp860 = (value) => {
     bytes.push(EXTENDED.get(rawCharacter) ?? 0x3f)
   }
   return Uint8Array.from(bytes)
+}
+
+export const decodeCp860Byte = (value) => {
+  const byte = Number(value)
+  if (!Number.isInteger(byte) || byte < 0 || byte > 0xff) return '?'
+  if (byte <= 0x7f) return String.fromCharCode(byte)
+  return EXTENDED_BY_BYTE.get(byte) ?? '?'
 }
