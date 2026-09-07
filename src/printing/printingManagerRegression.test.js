@@ -44,14 +44,15 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.doesNotMatch(detectionEffect, /\bprinting\./)
 })
 
-test('Android selects RawBT while Windows and other platforms keep Web Serial', () => {
+test('Android uses RawBT, Windows uses QZ, and other platforms keep Web Serial fallback', () => {
   assert.equal(getPrintingTransportKind('android'), 'rawbt')
-  assert.equal(getPrintingTransportKind('windows'), 'web-serial')
+  assert.equal(getPrintingTransportKind('windows'), 'qz')
   assert.equal(getPrintingTransportKind('other'), 'web-serial')
 
   assert.equal(isPrintingTransportSupported('android', undefined), true)
-  assert.equal(isPrintingTransportSupported('windows', undefined), false)
-  assert.equal(isPrintingTransportSupported('windows', { requestPort() {}, getPorts() {} }), true)
+  assert.equal(isPrintingTransportSupported('windows', undefined), true)
+  assert.equal(isPrintingTransportSupported('other', undefined), false)
+  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
 
   assert.match(manager, /transportKind === 'rawbt'/)
   assert.match(manager, /dispatchRawBtBytes\(bytes\)/)
@@ -70,7 +71,7 @@ test('Android RawBT enables MPT-II bitmap rendering while Web Serial keeps nativ
   )
 })
 
-test('automatic claim guard blocks duplicate or unsafe consumption states', () => {
+test('automatic claim guard blocks duplicate, unready, or unsafe consumption states', () => {
   const base = {
     authenticated: true,
     isOnline: true,
@@ -79,6 +80,7 @@ test('automatic claim guard blocks duplicate or unsafe consumption states', () =
     browserOnline: true,
     busyJobId: null,
     printerBlocked: false,
+    transportReady: true,
     station: { isPrimary: true, autoPrintEnabled: true },
   }
   assert.equal(canConsumeAutomaticPrintJob(base), true)
@@ -90,6 +92,7 @@ test('automatic claim guard blocks duplicate or unsafe consumption states', () =
     { browserOnline: false },
     { busyJobId: 'job-running' },
     { printerBlocked: true },
+    { transportReady: false },
     { station: null },
     { station: { isPrimary: false, autoPrintEnabled: true } },
     { station: { isPrimary: true, autoPrintEnabled: false } },
