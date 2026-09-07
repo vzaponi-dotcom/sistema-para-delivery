@@ -184,3 +184,31 @@ test('unexpected errors are normalized without scheduling hidden retries', async
     globalThis.setTimeout = originalSetTimeout
   }
 })
+
+test('test print renders without selected-copy options and completes one physical pass', async () => {
+  const job = {
+    id: 'job-test-1',
+    document: { version: 1, type: 'test' },
+    copiesRequested: 1,
+    copiesPrinted: 0,
+  }
+  const bytes = new Uint8Array([9, 9])
+  let completedCopies = null
+
+  const result = await runClaimedPrintJob({
+    job,
+    stationId: 'station-1',
+    port: null,
+    completeJob: async (_jobId, _stationId, copiesPrinted) => { completedCopies = copiesPrinted },
+    failJob: async () => assert.fail('test print must not fail'),
+    renderer: (document, options) => {
+      assert.equal(document, job.document)
+      assert.deepEqual(options, { copies: 1 })
+      return bytes
+    },
+    transport: async (_port, receivedBytes) => assert.equal(receivedBytes, bytes),
+  })
+
+  assert.deepEqual(result, { status: 'printed' })
+  assert.equal(completedCopies, 1)
+})
