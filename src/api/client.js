@@ -1,17 +1,36 @@
+const buildRequestOptions = (options = {}) => ({
+  ...options,
+  credentials: 'same-origin',
+  headers: { 'content-type': 'application/json', ...(options.headers || {}) },
+})
+
+const requestError = (response, payload) => {
+  const error = new Error(payload?.error?.message || 'Não foi possível concluir a operação.')
+  error.status = response.status
+  error.code = payload?.error?.code || 'REQUEST_FAILED'
+  return error
+}
+
 const apiRequest = async (path, options = {}) => {
-  const response = await fetch(path, {
-    ...options,
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json', ...(options.headers || {}) },
-  })
+  const response = await fetch(path, buildRequestOptions(options))
   const payload = await response.json().catch(() => null)
-  if (!response.ok) {
-    const error = new Error(payload?.error?.message || 'Não foi possível concluir a operação.')
-    error.status = response.status
-    error.code = payload?.error?.code || 'REQUEST_FAILED'
-    throw error
-  }
+  if (!response.ok) throw requestError(response, payload)
   return payload
+}
+
+const apiTextRequest = async (path, options = {}) => {
+  const response = await fetch(path, buildRequestOptions(options))
+  const text = await response.text()
+  if (!response.ok) {
+    let payload = null
+    try {
+      payload = JSON.parse(text)
+    } catch {
+      // Plain-text failures fall back to the standard request error below.
+    }
+    throw requestError(response, payload)
+  }
+  return text
 }
 
 const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
@@ -71,3 +90,5 @@ export const completePrintJob = (jobId, stationId, copiesPrinted) => apiRequest(
 export const failPrintJob = (jobId, stationId, failure) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/fail`, withJson('POST', { stationId, ...failure }))
 export const retryPrintJob = (jobId, stationId) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/retry`, withJson('POST', { stationId }))
 export const getOrderPrintDocument = (orderId) => apiRequest(`/api/orders/${encodeURIComponent(orderId)}/print-document`)
+export const getQzCertificate = () => apiTextRequest('/api/printing/qz/certificate')
+export const signQzPayload = (toSign) => apiTextRequest('/api/printing/qz/sign', withJson('POST', { toSign }))
