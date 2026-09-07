@@ -1,17 +1,30 @@
 /* Mobile-specific control density and layout overrides. */
 
 @media (max-width: 640px) {
-  .new-order-type-options {
+  .new-order-type-options,
+  .new-order-local-identity-options {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
 
-  .new-order-type-options > .new-order-type-option {
+  .new-order-type-options > .new-order-type-option,
+  .new-order-local-identity-options > .new-order-local-identity-option {
     min-height: var(--mobile-touch-target, 44px);
     padding: 6px 4px;
     font-size: 0.72rem;
     line-height: 1.15;
     white-space: normal;
+  }
+
+  .new-order-local-identity-options > .new-order-local-identity-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .new-order-local-identity-option svg {
+    flex: 0 0 auto;
   }
 
   .kitchen-page .page-actions {
