@@ -137,7 +137,7 @@ function Receivables({
   const selectedEntry = useMemo(() => {
     if (!selectedEntryKey) return null
     if (selectedEntryKey.startsWith('paid:')) {
-      const order = allPaidOrders.find((item) => `paid:${item.id}` === selectedEntryKey)
+      const order = allPaidOrders.find((item) => `paid:${order.id}` === selectedEntryKey)
       return order ? paidEntry(order) : null
     }
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
@@ -288,7 +288,6 @@ function Receivables({
                     <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{entry.kind === 'table_tab' ? `${entry.orders.length} pedido(s) nesta comanda` : `Pedido #${orderNumber(entry.order.id)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry)}</span></span>
                     <strong className="receivable-ledger-amount">{currency(entry.total)}</strong><Icon name="details" size={18} />
                   </button>
-                  {entry.kind === 'table_tab' && <button type="button" className="receivable-ledger-table-action" onClick={() => openTableTabPayment(entry)} disabled={writeDisabled || !onRegisterTableTabPayment}>Registrar pagamento da comanda</button>}
                 </div>
               ))}
               {!visiblePendingEntries.length && <div className="empty-state receivables-empty-state"><Icon name="wallet" size={28} /><strong>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Tudo recebido por aqui' : 'Nenhum recebimento neste filtro'}</strong><span>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Quando houver um pedido pendente, ele aparecerá automaticamente nesta tela.' : 'Tente outro período ou ajuste a busca.'}</span></div>}
