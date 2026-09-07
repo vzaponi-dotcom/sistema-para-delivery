@@ -11,22 +11,64 @@ const baseCheckout = {
   adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
 }
 
-test('local checkout accepts guest identity while delivery rejects table identity', () => {
-  const guest = validateCheckoutInput({
+test('local checkout requires table identity and accepts an optional client', () => {
+  const withoutClient = validateCheckoutInput({
     ...baseCheckout,
     clientId: undefined,
     type: 'Local',
-    customerIdentity: { type: 'guest_name', value: '  João  ' },
-  }, 'guest-key')
+    customerIdentity: { type: 'table', tableId: ' table-123 ' },
+  }, 'table-key')
 
-  assert.deepEqual(guest.customerIdentity, { type: 'guest_name', value: 'João' })
+  assert.deepEqual(withoutClient.customerIdentity, { type: 'table', tableId: 'table-123' })
 
+  const withClient = validateCheckoutInput({
+    ...baseCheckout,
+    clientId: undefined,
+    type: 'Local',
+    customerIdentity: { type: 'table', tableId: 'table-123', clientId: ' client-456 ' },
+  }, 'table-client-key')
+
+  assert.deepEqual(withClient.customerIdentity, {
+    type: 'table',
+    tableId: 'table-123',
+    clientId: 'client-456',
+  })
+})
+
+test('new local checkout rejects missing table, guest name, and client-only identity', () => {
+  const invalidIdentities = [
+    { type: 'table' },
+    { type: 'guest_name', value: 'João' },
+    { type: 'registered_client', clientId: 'c1' },
+  ]
+
+  for (const customerIdentity of invalidIdentities) {
+    assert.throws(() => validateCheckoutInput({
+      ...baseCheckout,
+      clientId: undefined,
+      type: 'Local',
+      customerIdentity,
+    }, 'invalid-local-key'), (error) => error.status === 400 && error.code === 'VALIDATION_ERROR')
+  }
+})
+
+test('delivery rejects table identity', () => {
   assert.throws(() => validateCheckoutInput({
     ...baseCheckout,
     clientId: undefined,
     type: 'Entrega',
-    customerIdentity: { type: 'table', value: '04' },
+    customerIdentity: { type: 'table', tableId: 'table-123' },
   }, 'delivery-key'), /cliente cadastrado/i)
+})
+
+test('pickup accepts only a registered client with clientId', () => {
+  assert.deepEqual(validateCheckoutInput({
+    ...baseCheckout,
+    customerIdentity: { type: 'registered_client', clientId: ' client-123 ' },
+  }, 'pickup-key').customerIdentity, {
+    type: 'registered_client',
+    clientId: 'client-123',
+  })
 })
 
 test('legacy clientId payload remains compatible as registered client', () => {

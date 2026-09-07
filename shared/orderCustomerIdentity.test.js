@@ -1,31 +1,34 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { validateCustomerIdentity } from './orderCustomerIdentity.js'
+import { CUSTOMER_IDENTITY_TYPES, validateCustomerIdentity } from './orderCustomerIdentity.js'
 
 test('delivery and pickup require a registered client', () => {
   assert.equal(validateCustomerIdentity('Entrega', { type: 'guest_name', value: 'Ana' }).ok, false)
-  assert.equal(validateCustomerIdentity('Retirada', { type: 'table', value: '04' }).ok, false)
+  assert.equal(validateCustomerIdentity('Retirada', { type: 'table', tableId: 'table-123' }).ok, false)
   assert.deepEqual(validateCustomerIdentity('Entrega', { type: 'registered_client', clientId: 'c1' }), {
     ok: true,
     value: { type: 'registered_client', clientId: 'c1' },
   })
 })
 
-test('local accepts registered client guest name and table', () => {
-  assert.deepEqual(validateCustomerIdentity('Local', { type: 'guest_name', value: '  João  ' }), {
+test('local requires a table id and accepts an optional registered client', () => {
+  assert.deepEqual(validateCustomerIdentity('Local', { type: 'table', tableId: ' table-123 ' }), {
     ok: true,
-    value: { type: 'guest_name', value: 'João' },
+    value: { type: 'table', tableId: 'table-123' },
   })
-  assert.deepEqual(validateCustomerIdentity('Local', { type: 'table', value: 'A-2' }), {
+  assert.deepEqual(validateCustomerIdentity('Local', { type: 'table', tableId: 'table-123', clientId: ' client-456 ' }), {
     ok: true,
-    value: { type: 'table', value: 'A-2' },
+    value: { type: 'table', tableId: 'table-123', clientId: 'client-456' },
   })
-  assert.equal(validateCustomerIdentity('Local', { type: 'registered_client', clientId: 'c1' }).ok, true)
 })
 
-test('local identity enforces approved name and table limits', () => {
-  assert.equal(validateCustomerIdentity('Local', { type: 'table', value: 'Mesa 2' }).ok, false)
-  assert.equal(validateCustomerIdentity('Local', { type: 'table', value: 'ABCDEFGHIJKLM' }).ok, false)
-  assert.equal(validateCustomerIdentity('Local', { type: 'guest_name', value: '' }).ok, false)
-  assert.equal(validateCustomerIdentity('Local', { type: 'guest_name', value: 'x'.repeat(81) }).ok, false)
+test('local rejects missing tables and legacy identity formats for new checkout', () => {
+  assert.equal(validateCustomerIdentity('Local', { type: 'table' }).ok, false)
+  assert.equal(validateCustomerIdentity('Local', { type: 'table', tableId: '   ' }).ok, false)
+  assert.equal(validateCustomerIdentity('Local', { type: 'guest_name', value: 'João' }).ok, false)
+  assert.equal(validateCustomerIdentity('Local', { type: 'registered_client', clientId: 'c1' }).ok, false)
+})
+
+test('guest name remains a recognized historical identity type', () => {
+  assert.equal(CUSTOMER_IDENTITY_TYPES.includes('guest_name'), true)
 })
