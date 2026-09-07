@@ -17,6 +17,21 @@ test('order type choices stay three-across and compact on mobile', async () => {
   assert.match(css, /\.new-order-type-options\s*>\s*\.new-order-type-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
 })
 
+test('local identity choices stay three-across and use semantic icons on mobile', async () => {
+  const css = await read('./mobile-compact-controls.css')
+  const customerStep = await read('./components/NewOrderCustomerStep.jsx')
+  const icon = await read('./components/Icon.jsx')
+
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-local-identity-options\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(css, /\.new-order-local-identity-options\s*>\s*\.new-order-local-identity-option\s*\{[^}]*display:\s*flex[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
+  assert.match(customerStep, /import Icon from '\.\/Icon'/)
+  assert.match(customerStep, /\{ value: 'guest_name', label: 'Nome', icon: 'client' \}/)
+  assert.match(customerStep, /\{ value: 'table', label: 'Mesa', icon: 'table' \}/)
+  assert.match(customerStep, /\{ value: 'registered_client', label: 'Cliente cadastrado', icon: 'clients' \}/)
+  assert.match(customerStep, /<Icon name=\{option\.icon\} size=\{16\} \/>/)
+  assert.match(icon, /\btable:\s*<>/)
+})
+
 test('kitchen header actions fill the mobile width with four controls and a very-narrow fallback', async () => {
   const css = await read('./mobile-compact-controls.css')
 
