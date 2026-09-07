@@ -16,11 +16,10 @@ export const runClaimedPrintJob = async ({
     }
 
     const copyNumber = copiesPrinted + 1
-    const bytes = renderer(job.document, {
-      copies: 1,
-      copyNumber,
-      totalCopies,
-    })
+    const renderOptions = job?.document?.type === 'order'
+      ? { copies: 1, copyNumber, totalCopies }
+      : { copies: 1 }
+    const bytes = renderer(job.document, renderOptions)
     await transport(port, bytes)
     await completeJob(job.id, stationId, copyNumber)
     return { status: 'printed' }
