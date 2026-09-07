@@ -41,3 +41,25 @@ test('kitchen header actions fill the mobile width with four controls and a very
   assert.match(css, /\.kitchen-page \.kitchen-header-actions \.button\s*\{[^}]*min-width:\s*0[^}]*white-space:\s*normal/s)
   assert.match(css, /@media\s*\(max-width:\s*340px\)[\s\S]*\.kitchen-page \.kitchen-header-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
 })
+
+test('mobile cart matches the approved compact icon-and-pill layout without changing cart actions', async () => {
+  const css = await read('./mobile-compact-controls.css')
+  const cart = await read('./components/OrderCart.jsx')
+
+  assert.match(cart, /import Icon from '\.\/Icon'/)
+  assert.match(cart, /import \{ CATEGORY_ICON_NAMES, categoryForUi \} from '\.\.\/\.\.\/shared\/productCatalog\.js'/)
+  assert.match(cart, /className="new-order-cart-category-icon"/)
+  assert.match(cart, /<Icon name=\{CATEGORY_ICON_NAMES\[categoryForUi\(item\.category\)\]\} size=\{22\} \/>/)
+
+  assert.match(cart, /onUpdate\(item\.lineId, \{ quantity: Number\(item\.quantity \|\| 1\) - 1 \}\)/)
+  assert.match(cart, /onUpdate\(item\.lineId, \{ quantity: Number\(item\.quantity \|\| 1\) \+ 1 \}\)/)
+  assert.match(cart, /onClick=\{\(\) => onRemove\(item\.lineId\)\}/)
+  assert.match(cart, /onNoteChange\(item\.lineId, event\.target\.value\)/)
+
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-cart-line\s*\{[^}]*grid-template-columns:\s*52px\s+minmax\(0,\s*1fr\)\s+auto[^}]*grid-template-areas:/s)
+  assert.match(css, /\.new-order-cart-category-icon\s*\{[^}]*grid-area:\s*icon[^}]*display:\s*grid[^}]*width:\s*52px[^}]*height:\s*52px/s)
+  assert.match(css, /\.new-order-cart-quantity\s*\{[^}]*grid-area:\s*quantity[^}]*justify-items:\s*start/s)
+  assert.match(css, /\.new-order-cart-content\s*\{[^}]*grid-area:\s*content/s)
+  assert.match(css, /\.new-order-cart-aside\s*\{[^}]*grid-area:\s*aside/s)
+  assert.match(css, /\.new-order-quantity-control button\s*\{[^}]*width:\s*34px[^}]*height:\s*34px[^}]*min-width:\s*34px[^}]*min-height:\s*34px/s)
+})
