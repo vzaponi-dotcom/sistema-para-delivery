@@ -56,15 +56,15 @@ test('authenticated QZ certificate route returns plain text without caching', as
 })
 
 test('QZ signing route requires same-origin mutation protection', async () => {
-  const response = await route('/api/printing/qz/sign', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: { toSign: 'payload' },
-    env: { QZ_SIGNING_PRIVATE_KEY: await createTestPrivateKey() },
-  })
-
-  assert.equal(response.status, 403)
-  assert.equal((await response.json()).error.code, 'INVALID_ORIGIN')
+  await assert.rejects(
+    () => route('/api/printing/qz/sign', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: { toSign: 'payload' },
+      env: { QZ_SIGNING_PRIVATE_KEY: await createTestPrivateKey() },
+    }),
+    (error) => error.status === 403 && error.code === 'INVALID_ORIGIN',
+  )
 })
 
 test('authenticated QZ signing route returns a plain-text Base64 signature without caching', async () => {
