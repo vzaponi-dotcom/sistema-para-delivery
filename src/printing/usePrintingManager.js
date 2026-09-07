@@ -213,7 +213,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         port,
         completeJob: completePrintJob,
         failJob: failPrintJob,
-        renderer: renderEscPos58mm,
+        renderer: (document, options) => renderEscPos58mm(document, {
+          ...options,
+          compatibilityMode: isRawBt ? 'mpt2-bitmap' : null,
+        }),
         transport: transportKind === 'rawbt'
           ? (_selectedPort, bytes) => dispatchRawBtBytes(bytes)
           : (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
