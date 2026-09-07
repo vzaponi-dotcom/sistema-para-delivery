@@ -57,6 +57,19 @@ test('Android selects RawBT while Windows and other platforms keep Web Serial', 
   assert.match(manager, /dispatchRawBtBytes\(bytes\)/)
 })
 
+test('Android RawBT enables MPT-II bitmap rendering while Web Serial keeps native text rendering', () => {
+  const start = manager.indexOf('const executeClaimedJob = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('const saveStationSettings', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(
+    block,
+    /renderer:\s*\(document,\s*options\)\s*=>\s*renderEscPos58mm\(document,\s*\{[\s\S]*\.\.\.options,[\s\S]*compatibilityMode:\s*isRawBt\s*\?\s*'mpt2-bitmap'\s*:\s*null[\s\S]*\}\)/,
+  )
+})
+
 test('automatic claim guard blocks duplicate or unsafe consumption states', () => {
   const base = {
     authenticated: true,
