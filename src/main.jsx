@@ -7,6 +7,7 @@ import { ThemeProvider } from './components/ThemeProvider.jsx'
 import { initializeTheme } from './utils/theme.js'
 import './theme.css'
 import './product-selection.css'
+import './mobile-compact-controls.css'
 
 initializeTheme()
 
