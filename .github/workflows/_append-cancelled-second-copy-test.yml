@@ -1,0 +1,73 @@
+name: Append cancelled second-copy regression
+
+on:
+  push:
+    branches:
+      - feature/scheduled-cancel-immediate-printing
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "${{ github.event.head_commit.message == 'chore: append cancelled second-copy regression' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/scheduled-cancel-immediate-printing
+          fetch-depth: 0
+
+      - name: Append exact Task 4 regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('worker/orderPrintingRepository.test.js')
+          source = path.read_text()
+          marker = "test('cancelled automatic order cannot claim its pending second copy'"
+          if marker in source:
+              raise SystemExit('regression test already exists')
+          addition = r'''
+
+          test('cancelled automatic order cannot claim its pending second copy', async () => {
+            const db = makeDb()
+            await addStation(db, 'station-a')
+            await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+            await addAutomaticJob(db, { id: 'cancelled-second-copy' })
+
+            await claimPrintJob(db, businessA, 'cancelled-second-copy', 'station-a', baseNow)
+            const firstCopy = await markPrintJobPrinted(
+              db,
+              businessA,
+              'cancelled-second-copy',
+              'station-a',
+              1,
+              baseNow,
+            )
+            assert.equal(firstCopy.copiesPrinted, 1)
+
+            db.exec(`UPDATE orders SET status = 'Cancelado' WHERE id = 'o1' AND business_id = '${businessA}'`)
+
+            assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+            await assert.rejects(
+              () => claimPrintJob(db, businessA, 'cancelled-second-copy', 'station-a', baseNow),
+              (error) => error.code === 'PRINT_JOB_NOT_PENDING',
+            )
+
+            const preserved = await loadPrintJob(db, businessA, 'cancelled-second-copy')
+            assert.equal(preserved.status, 'printed')
+            assert.equal(preserved.copiesPrinted, 1)
+          })
+          '''
+          source = source.rstrip() + addition + '\n'
+          path.write_text(source)
+          PY
+          rm .github/workflows/_append-cancelled-second-copy-test.yml
+
+      - name: Commit scoped regression
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/orderPrintingRepository.test.js .github/workflows/_append-cancelled-second-copy-test.yml
+          git commit -m "test: block second copy after cancellation"
+          git push origin HEAD:feature/scheduled-cancel-immediate-printing
