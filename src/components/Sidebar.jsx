@@ -10,6 +10,7 @@ const navigation = [
   { id: 'products', label: 'Produtos', icon: 'products' },
   { id: 'receivables', label: 'A Receber', icon: 'wallet' },
   { id: 'finance', label: 'Financeiro', icon: 'finance' },
+  { id: 'tables', label: 'Mesas', icon: 'table' },
 ]
 
 const themeOptions = [
