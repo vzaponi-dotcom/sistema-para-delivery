@@ -72,15 +72,15 @@ test('order details keep their semantic sections, item notes, and printing in th
   assert.match(timing, /<dd>\{row\.value\}<\/dd>/)
 })
 
-test('preparing order cancellation is available in details while scheduled tickets retain direct cancellation', () => {
+test('active order cancellation is available in details while scheduled tickets retain direct cancellation', () => {
   const orders = source('./Orders.jsx')
   const detail = source('../components/OrderDetail.jsx')
   const ticket = source('../components/KitchenTicket.jsx')
 
   assert.match(detail, /onRequestCancel/)
   assert.match(detail, />Cancelar pedido</)
-  assert.match(orders, /isScheduledWaiting\(detailOrder, now\) \? undefined : \(\) =>/)
-  assert.match(orders, /onRequestCancel=\{isScheduledWaiting\(detailOrder, now\) \? undefined : \(\) => \{\s*setDetailOrder\(null\);?\s*setCancelOrder\(detailOrder\)\s*\}\}/s)
+  assert.match(orders, /onRequestCancel=\{\(\) => \{\s*setDetailOrder\(null\);?\s*setCancelOrder\(detailOrder\)\s*\}\}/s)
+  assert.doesNotMatch(orders, /isScheduledWaiting\(detailOrder, now\)/)
   assert.match(ticket, /scheduled\s*\?\s*<Button[^>]*onClick=\{\(\) => onCancel\?\.\(order\)\}/s)
   assert.match(ticket, /:\s*<Button[^>]*onClick=\{\(\) => onFinalize\?\.\(order\)\}[^>]*>\{getFinalActionLabel\(order\)\}/s)
 })
