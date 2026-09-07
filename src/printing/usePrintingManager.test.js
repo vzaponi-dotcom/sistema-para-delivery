@@ -4,6 +4,7 @@ import {
   canConsumeAutomaticPrintJob,
   getPrintingTransportKind,
   getRendererCompatibilityMode,
+  isPrintingTransportSupported,
 } from './usePrintingManager.js'
 
 const readyAutomaticConsumer = (overrides = {}) => ({
@@ -26,6 +27,7 @@ test('Windows uses QZ and both MPT-II local transports use bitmap rendering', ()
   assert.equal(getRendererCompatibilityMode('qz'), 'mpt2-bitmap')
   assert.equal(getRendererCompatibilityMode('rawbt'), 'mpt2-bitmap')
   assert.equal(getRendererCompatibilityMode('web-serial'), null)
+  assert.equal(isPrintingTransportSupported('windows', undefined), true)
 })
 
 test('automatic consumer does not claim while local transport is not ready', () => {
