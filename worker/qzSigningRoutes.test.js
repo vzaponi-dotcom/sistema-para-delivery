@@ -65,7 +65,7 @@ test('QZ signing route requires same-origin mutation protection', async () => {
       body: { toSign: 'payload' },
       env: { QZ_SIGNING_PRIVATE_KEY: privateKey },
     }),
-    (error) => error.status === 403 && error.code === 'INVALID_ORIGIN',
+    (error) => error.status === 403 && error.code === 'ORIGIN_NOT_ALLOWED',
   )
 })
 
