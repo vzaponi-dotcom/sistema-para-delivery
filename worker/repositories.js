@@ -6,7 +6,6 @@ import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { centsToMoney } from './validation.js'
-import { getOperationalStartAt } from '../shared/orderTiming.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
@@ -451,7 +450,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       copies: primaryPrintStation.defaultCopies,
       document: printDocument,
       createdAt,
-      availableAt: getOperationalStartAt({ createdAt, scheduledFor })?.toISOString() || createdAt,
+      availableAt: createdAt,
     }))
   }
 

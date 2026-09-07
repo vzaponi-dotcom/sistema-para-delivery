@@ -336,3 +336,34 @@ test('job and station reads are isolated by business id', async () => {
   assert.deepEqual((await listPrintJobs(db, businessA)).map((item) => item.id), ['job-a'])
   assert.equal(await loadPrintJob(db, businessA, 'job-b'), null)
 })
+
+test('cancelled automatic order cannot claim its pending second copy', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'cancelled-second-copy' })
+
+  await claimPrintJob(db, businessA, 'cancelled-second-copy', 'station-a', baseNow)
+  const firstCopy = await markPrintJobPrinted(
+    db,
+    businessA,
+    'cancelled-second-copy',
+    'station-a',
+    1,
+    baseNow,
+  )
+  assert.equal(firstCopy.copiesPrinted, 1)
+
+  db.exec(`UPDATE orders SET status = 'Cancelado' WHERE id = 'o1' AND business_id = '${businessA}'`)
+
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+  await assert.rejects(
+    () => claimPrintJob(db, businessA, 'cancelled-second-copy', 'station-a', baseNow),
+    (error) => error.code === 'PRINT_JOB_NOT_PENDING',
+  )
+
+  const preserved = await loadPrintJob(db, businessA, 'cancelled-second-copy')
+  assert.equal(preserved.status, 'printed')
+  assert.equal(preserved.copiesPrinted, 1)
+})
+

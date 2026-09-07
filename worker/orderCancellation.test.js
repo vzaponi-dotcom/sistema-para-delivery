@@ -100,15 +100,17 @@ test('unpaid cancellation preserves history without refund movement', async () =
 test('cancellation removes only pending automatic print job', async () => {
   const db = new CancellationDb(paidOrder())
   db.printJobs = [
-    { business_id: 'biz', order_id: 'o1', trigger: 'automatic', status: 'pending' },
-    { business_id: 'biz', order_id: 'o1', trigger: 'manual', status: 'pending' },
-    { business_id: 'biz', order_id: 'o1', trigger: 'automatic', status: 'printed' },
+    { business_id: 'biz', order_id: 'o1', trigger: 'automatic', status: 'pending', copies_printed: 0 },
+    { business_id: 'biz', order_id: 'o1', trigger: 'manual', status: 'pending', copies_printed: 0 },
+    { business_id: 'biz', order_id: 'o1', trigger: 'automatic', status: 'printed', copies_printed: 1 },
   ]
   await cancelOrder(db, 'biz', 'o1', { reason: 'client_changed_mind', refundNow: false }, new Date('2026-09-03T13:00:00.000Z'))
-  assert.deepEqual(db.printJobs.map(({ trigger, status }) => ({ trigger, status })), [
-    { trigger: 'manual', status: 'pending' },
-    { trigger: 'automatic', status: 'printed' },
+  assert.deepEqual(db.printJobs.map(({ trigger, status, copies_printed }) => ({ trigger, status, copies_printed })), [
+    { trigger: 'manual', status: 'pending', copies_printed: 0 },
+    { trigger: 'automatic', status: 'printed', copies_printed: 1 },
   ])
+  assert.equal(db.printJobs.length, 2)
+  assert.equal(db.printJobs.some((job) => job.type === 'cancellation' || job.trigger === 'cancellation'), false)
 })
 
 test('paid cancellation can defer the full refund', async () => {
