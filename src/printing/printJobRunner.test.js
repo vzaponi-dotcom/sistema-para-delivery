@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { runClaimedPrintJob } from './printJobRunner.js'
+import { printQzRawBytes } from './qzTrayTransport.js'
 
 const baseJob = {
   id: 'job-1',
@@ -114,6 +115,47 @@ test('failure before serial write reports a known failed outcome once', async ()
     payload: {
       code: 'SERIAL_OPEN_FAILED',
       message: 'Não foi possível conectar à impressora.',
+      uncertain: false,
+    },
+  })
+})
+
+test('QZ print rejection fails the claimed job once and never completes it', async () => {
+  const bytes = Uint8Array.from([0x1b, 0x40, 0x0a])
+  const qzApi = {
+    websocket: { isActive: () => true },
+    printers: { find: async () => ['MPT-II'] },
+    configs: { create: (printer) => ({ printer }) },
+    print: async () => { throw new Error('spool failed') },
+  }
+  let failPayload = null
+  let completeCalls = 0
+  let renderCalls = 0
+
+  const result = await runClaimedPrintJob({
+    job: baseJob,
+    stationId: 'station-1',
+    port: null,
+    completeJob: async () => { completeCalls += 1 },
+    failJob: async (jobId, stationId, payload) => { failPayload = { jobId, stationId, payload } },
+    renderer: (_document, options) => {
+      renderCalls += 1
+      assert.deepEqual(options, { copies: 1, copyNumber: 1, totalCopies: 2 })
+      return bytes
+    },
+    transport: async (_port, receivedBytes) => printQzRawBytes(qzApi, 'MPT-II', receivedBytes),
+  })
+
+  assert.equal(result.status, 'failed')
+  assert.equal(result.error?.code, 'QZ_PRINT_FAILED')
+  assert.equal(renderCalls, 1)
+  assert.equal(completeCalls, 0)
+  assert.deepEqual(failPayload, {
+    jobId: 'job-1',
+    stationId: 'station-1',
+    payload: {
+      code: 'QZ_PRINT_FAILED',
+      message: 'Falha ao enviar o ticket para o QZ Tray.',
       uncertain: false,
     },
   })
