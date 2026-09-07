@@ -18,9 +18,20 @@ const tableOccupiedError = () => domainError(
   'A mesa está ocupada e não pode ser alterada.',
 )
 
+const tableDestinationOccupiedError = () => domainError(
+  409,
+  'TABLE_DESTINATION_OCCUPIED',
+  'A mesa de destino está ocupada.',
+)
+
 const isTableNameCollision = (error) => {
   const message = String(error?.message || '')
   return /idx_tables_business_name_key|UNIQUE constraint failed:\s*tables\.business_id,\s*tables\.name_key/i.test(message)
+}
+
+const isOpenTableTabCollision = (error) => {
+  const message = String(error?.message || '')
+  return /idx_table_tabs_one_open_per_table_id|UNIQUE constraint failed:\s*table_tabs\.business_id,\s*table_tabs\.table_id/i.test(message)
 }
 
 const runWithTableNameCollision = async (operation) => {
@@ -128,6 +139,93 @@ export const getOrCreateOpenTableTabByTableId = async (db, businessId, tableId, 
   row = await selectOpen()
   if (!row) throw domainError(500, 'TABLE_TAB_CREATE_FAILED', 'Não foi possível abrir a comanda da mesa.')
   return mapOpenTableTabRow(row)
+}
+
+export const transferOpenTableTab = async (
+  db,
+  businessId,
+  sourceTableId,
+  destinationTableId,
+  now = new Date(),
+) => {
+  if (sourceTableId === destinationTableId) {
+    throw domainError(409, 'TABLE_TRANSFER_SAME_TABLE', 'A mesa de destino deve ser diferente da origem.')
+  }
+
+  const sourceTab = await db.prepare(`SELECT id
+    FROM table_tabs
+    WHERE business_id = ? AND table_id = ? AND status = 'open'
+    LIMIT 1`).bind(businessId, sourceTableId).first()
+  if (!sourceTab) {
+    throw domainError(409, 'TABLE_SOURCE_FREE', 'A mesa de origem não possui comanda aberta.')
+  }
+
+  const destination = await db.prepare(`SELECT
+      tables.id,
+      tables.name,
+      tables.is_active,
+      open_tabs.id AS open_table_tab_id
+    FROM tables
+    LEFT JOIN table_tabs open_tabs
+      ON open_tabs.business_id = tables.business_id
+     AND open_tabs.table_id = tables.id
+     AND open_tabs.status = 'open'
+    WHERE tables.business_id = ? AND tables.id = ?
+    LIMIT 1`).bind(businessId, destinationTableId).first()
+  if (!destination) {
+    throw domainError(404, 'TABLE_DESTINATION_NOT_FOUND', 'Mesa de destino não encontrada.')
+  }
+  if (!destination.is_active) {
+    throw domainError(409, 'TABLE_DESTINATION_INACTIVE', 'A mesa de destino está inativa.')
+  }
+  if (destination.open_table_tab_id) throw tableDestinationOccupiedError()
+
+  let result
+  try {
+    result = await db.prepare(`UPDATE table_tabs
+      SET table_id = ?, table_identifier = ?, updated_at = ?
+      WHERE business_id = ?
+        AND table_id = ?
+        AND status = 'open'
+        AND NOT EXISTS (
+          SELECT 1 FROM table_tabs
+          WHERE business_id = ? AND table_id = ? AND status = 'open'
+        )`).bind(
+      destination.id,
+      destination.name,
+      now.toISOString(),
+      businessId,
+      sourceTableId,
+      businessId,
+      destination.id,
+    ).run()
+  } catch (error) {
+    if (isOpenTableTabCollision(error)) throw tableDestinationOccupiedError()
+    throw error
+  }
+
+  if (result?.meta?.changes !== 1) {
+    const occupiedDestination = await db.prepare(`SELECT id
+      FROM table_tabs
+      WHERE business_id = ? AND table_id = ? AND status = 'open'
+      LIMIT 1`).bind(businessId, destination.id).first()
+    if (occupiedDestination) throw tableDestinationOccupiedError()
+
+    const currentSource = await db.prepare(`SELECT id
+      FROM table_tabs
+      WHERE business_id = ? AND table_id = ? AND status = 'open'
+      LIMIT 1`).bind(businessId, sourceTableId).first()
+    if (!currentSource) {
+      throw domainError(409, 'TABLE_SOURCE_FREE', 'A mesa de origem não possui comanda aberta.')
+    }
+    throw domainError(409, 'TABLE_TRANSFER_CONFLICT', 'Não foi possível transferir a comanda.')
+  }
+
+  const transferred = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
+    FROM table_tabs
+    WHERE id = ? AND business_id = ?
+    LIMIT 1`).bind(sourceTab.id, businessId).first()
+  return mapOpenTableTabRow(transferred)
 }
 
 export const createTable = async (db, businessId, input, now = new Date()) => {

@@ -12,6 +12,7 @@ const {
   renameTable,
   reorderTables,
   setTableActive,
+  transferOpenTableTab,
 } = tableRepository
 
 class D1Sqlite {
@@ -44,6 +45,10 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX idx_table_tabs_one_open_per_table_id
         ON table_tabs (business_id, table_id) WHERE status = 'open';
+      CREATE TABLE orders (
+        id TEXT PRIMARY KEY,
+        table_tab_id TEXT REFERENCES table_tabs(id)
+      );
       INSERT INTO businesses (id) VALUES ('biz-a'), ('biz-b');
     `)
   }
@@ -98,6 +103,20 @@ const insertTable = (db, { id, businessId = 'biz-a', name, nameKey = name.toUppe
     nameKey,
     sortOrder,
     isActive,
+    now.toISOString(),
+    now.toISOString(),
+  )
+}
+
+const insertOpenTableTab = (db, { id, tableId, businessId = 'biz-a', tableIdentifier }) => {
+  db.sqlite.prepare(`INSERT INTO table_tabs (
+    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, 'open', ?, ?, ?)`).run(
+    id,
+    businessId,
+    tableId,
+    tableIdentifier,
+    now.toISOString(),
     now.toISOString(),
     now.toISOString(),
   )
@@ -234,4 +253,108 @@ test('concurrent attempts cannot create two open tabs for the same table', async
 
   assert.equal(first.id, second.id)
   assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 1)
+})
+
+test('transferOpenTableTab moves the same tab and its orders to the active free destination', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'destination', name: 'Varanda', sortOrder: 2 })
+  insertOpenTableTab(db, { id: 'tab-1', tableId: 'source', tableIdentifier: 'Mesa 1' })
+  db.sqlite.prepare('INSERT INTO orders (id, table_tab_id) VALUES (?, ?)').run('order-1', 'tab-1')
+
+  const transferred = await transferOpenTableTab(db, 'biz-a', 'source', 'destination', now)
+
+  assert.deepEqual(transferred, {
+    id: 'tab-1',
+    tableId: 'destination',
+    tableIdentifier: 'Varanda',
+    status: 'open',
+    openedAt: now.toISOString(),
+    closedAt: null,
+  })
+  assert.equal(db.sqlite.prepare('SELECT table_tab_id FROM orders WHERE id = ?').get('order-1').table_tab_id, 'tab-1')
+  assert.equal((await loadTableById(db, 'biz-a', 'source')).occupancy, 'free')
+  assert.equal((await loadTableById(db, 'biz-a', 'destination')).occupancy, 'occupied')
+})
+
+test('transferOpenTableTab rejects a source without an open tab', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'destination', name: 'Mesa 2', sortOrder: 2 })
+
+  await assert.rejects(
+    () => transferOpenTableTab(db, 'biz-a', 'source', 'destination', now),
+    (error) => error.status === 409 && error.code === 'TABLE_SOURCE_FREE',
+  )
+})
+
+test('transferOpenTableTab rejects a missing or cross-business destination', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'other', businessId: 'biz-b', name: 'Mesa 2', sortOrder: 1 })
+  insertOpenTableTab(db, { id: 'tab-1', tableId: 'source', tableIdentifier: 'Mesa 1' })
+
+  for (const destinationId of ['missing', 'other']) {
+    await assert.rejects(
+      () => transferOpenTableTab(db, 'biz-a', 'source', destinationId, now),
+      (error) => error.status === 404 && error.code === 'TABLE_DESTINATION_NOT_FOUND',
+    )
+  }
+})
+
+test('transferOpenTableTab rejects an inactive destination', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'destination', name: 'Mesa 2', sortOrder: 2, isActive: 0 })
+  insertOpenTableTab(db, { id: 'tab-1', tableId: 'source', tableIdentifier: 'Mesa 1' })
+
+  await assert.rejects(
+    () => transferOpenTableTab(db, 'biz-a', 'source', 'destination', now),
+    (error) => error.status === 409 && error.code === 'TABLE_DESTINATION_INACTIVE',
+  )
+})
+
+test('transferOpenTableTab rejects an occupied destination without merging tabs', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'destination', name: 'Mesa 2', sortOrder: 2 })
+  insertOpenTableTab(db, { id: 'source-tab', tableId: 'source', tableIdentifier: 'Mesa 1' })
+  insertOpenTableTab(db, { id: 'destination-tab', tableId: 'destination', tableIdentifier: 'Mesa 2' })
+
+  await assert.rejects(
+    () => transferOpenTableTab(db, 'biz-a', 'source', 'destination', now),
+    (error) => error.status === 409 && error.code === 'TABLE_DESTINATION_OCCUPIED',
+  )
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 2)
+})
+
+test('transferOpenTableTab rejects transferring a tab to its current table', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
+  insertOpenTableTab(db, { id: 'tab-1', tableId: 'source', tableIdentifier: 'Mesa 1' })
+
+  await assert.rejects(
+    () => transferOpenTableTab(db, 'biz-a', 'source', 'source', now),
+    (error) => error.status === 409 && error.code === 'TABLE_TRANSFER_SAME_TABLE',
+  )
+})
+
+test('concurrent transfers to one destination cannot create two open tabs there', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'source-1', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'source-2', name: 'Mesa 2', sortOrder: 2 })
+  insertTable(db, { id: 'destination', name: 'Mesa 3', sortOrder: 3 })
+  insertOpenTableTab(db, { id: 'tab-1', tableId: 'source-1', tableIdentifier: 'Mesa 1' })
+  insertOpenTableTab(db, { id: 'tab-2', tableId: 'source-2', tableIdentifier: 'Mesa 2' })
+
+  const results = await Promise.allSettled([
+    transferOpenTableTab(db, 'biz-a', 'source-1', 'destination', now),
+    transferOpenTableTab(db, 'biz-a', 'source-2', 'destination', now),
+  ])
+
+  assert.equal(results.filter(({ status }) => status === 'fulfilled').length, 1)
+  assert.equal(results.filter(({ status }) => status === 'rejected').length, 1)
+  assert.equal(results.find(({ status }) => status === 'rejected').reason.code, 'TABLE_DESTINATION_OCCUPIED')
+  assert.equal(db.sqlite.prepare(`SELECT count(*) AS count FROM table_tabs
+    WHERE business_id = 'biz-a' AND table_id = 'destination' AND status = 'open'`).get().count, 1)
 })
