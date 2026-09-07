@@ -14,6 +14,13 @@ test('dashboard analytics stacks on mobile and keeps tap targets usable', () => 
   assert.match(css, /\.dashboard-privacy-toggle[\s\S]*44px/)
 })
 
+test('dashboard metric cards use two columns on mobile', () => {
+  const css = source('./App.css')
+
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.stats-grid\s*,\s*\.stats-grid-three\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)/)
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.stats-grid-three \.stat-card:last-child\s*\{[\s\S]*grid-column:\s*auto/)
+})
+
 test('operational timing cards reuse responsive analytics grid', () => {
   const css = source('./dashboard.css')
   assert.match(css, /dashboard-operational-metrics/)

@@ -15,3 +15,8 @@ test('fixed adjustment uses BRL while percentage stays numeric', () => {
   assert.match(source, /placeholder="R\$ 0,00"/)
   assert.match(source, /type="number"[\s\S]*max="100"/)
 })
+
+test('checkout keeps compact fields in a two-column mobile layout without horizontal overflow', () => {
+  assert.match(source, /new-order-checkout-fields/)
+  assert.match(source, /new-order-adjustment-fields/)
+})

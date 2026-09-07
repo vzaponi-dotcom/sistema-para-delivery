@@ -17,10 +17,14 @@ const themeOptions = [
   { value: 'system', label: 'Automático', icon: 'system' },
 ]
 
+const themeCycle = ['light', 'dark', 'system']
+
 function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const { themePreference, setThemePreference } = useTheme()
   const moreActive = activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance'
+  const currentThemeOption = themeOptions.find((option) => option.value === themePreference) || themeOptions[2]
+  const nextThemePreference = themeCycle[(themeCycle.indexOf(currentThemeOption.value) + 1) % themeCycle.length]
 
   const navigate = (id) => {
     onNavigate(id)
@@ -55,13 +59,10 @@ function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = fa
 
         <div className="mobile-more-theme">
           <span className="mobile-more-label">Tema</span>
-          <div className="theme-segmented-control" role="group" aria-label="Tema do sistema">
-            {themeOptions.map((option) => (
-              <button key={option.value} type="button" className={themePreference === option.value ? 'theme-option active' : 'theme-option'} aria-pressed={themePreference === option.value} onClick={() => setThemePreference(option.value)}>
-                <Icon name={option.icon} size={16} />{option.label}
-              </button>
-            ))}
-          </div>
+          <button type="button" className="theme-cycle-button" aria-label={`Tema atual: ${currentThemeOption.label}. Clique para alternar`} title="Clique para alternar o tema" onClick={() => setThemePreference(nextThemePreference)}>
+            <Icon name={currentThemeOption.icon} size={18} />
+            <span>{currentThemeOption.label}</span>
+          </button>
         </div>
 
         {onLogout && <button type="button" className="mobile-more-logout" onClick={onLogout} disabled={logoutDisabled}>Sair do sistema</button>}

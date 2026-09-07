@@ -52,14 +52,14 @@ test('more menu actions including theme and logout stay touch friendly', async (
   assert.match(nav, />Financeiro</)
   assert.match(nav, /Sair do sistema/)
   assert.match(navCss, /\.mobile-more-action,\s*\.mobile-more-logout\s*\{[\s\S]*?min-height:\s*48px/s)
-  assert.match(navCss, /\.mobile-more-theme \.theme-option\s*\{[^}]*min-height:\s*48px/s)
+  assert.match(navCss, /\.mobile-more-theme \.theme-cycle-button\s*\{[^}]*min-height:\s*44px/s)
 })
 
 test('more menu remains safe at 320px without horizontal label clipping', async () => {
   const navCss = await read('../mobile-navigation.css')
   const sheetCss = await read('../bottom-sheet.css')
 
-  assert.match(navCss, /@media\s*\(max-width:\s*390px\)[\s\S]*\.mobile-more-theme \.theme-segmented-control\s*\{[^}]*grid-template-columns:\s*1fr/s)
-  assert.match(navCss, /@media\s*\(max-width:\s*390px\)[\s\S]*\.mobile-more-theme \.theme-option\s*\{[^}]*white-space:\s*normal/s)
+  assert.match(navCss, /\.mobile-more-theme \.theme-cycle-button\s*\{[^}]*width:\s*100%/s)
+  assert.match(navCss, /\.mobile-more-theme \.theme-cycle-button:focus-visible/)
   assert.match(sheetCss, /env\(safe-area-inset-bottom/)
 })

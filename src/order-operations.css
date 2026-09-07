@@ -276,11 +276,11 @@
   flex-wrap: wrap;
 }
 
-.kitchen-ticket-number {
-  color: var(--kitchen-ticket-text);
-  font-size: 1.04rem;
-  font-weight: 900;
-  letter-spacing: -0.025em;
+.kitchen-ticket-customer-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+  line-height: 1.15;
 }
 
 .kitchen-ticket .status-badge {
@@ -313,6 +313,12 @@
 .kitchen-ticket-customer strong {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.kitchen-ticket-id {
+  color: var(--kitchen-ticket-muted) !important;
+  font-size: 0.66rem;
+  opacity: 0.65;
 }
 
 .kitchen-ticket-customer span {

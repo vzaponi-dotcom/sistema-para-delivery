@@ -29,6 +29,18 @@ function OrderCheckoutSummary({
   const [showPayment, setShowPayment] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const adjustment = draft.adjustment
+  const adjustmentTypeField = (
+    <div className="form-field">
+      <span>Ajuste do pedido</span>
+      <SystemSelect
+        value={adjustment.type}
+        options={ADJUSTMENT_OPTIONS}
+        onChange={(type) => onAdjustmentChange({ type })}
+        disabled={disabled}
+        label="Ajuste do pedido"
+      />
+    </div>
+  )
 
   return (
     <section className="surface-card new-order-checkout">
@@ -40,7 +52,8 @@ function OrderCheckoutSummary({
       </div>
 
       {draft.type === 'Entrega' && (
-        <label className="form-field">
+        <div className="new-order-checkout-fields">
+          <label className="form-field">
           <span>Taxa de entrega</span>
           <input
             type="text"
@@ -51,23 +64,16 @@ function OrderCheckoutSummary({
             disabled={disabled}
           />
           <small className="form-hint">Deixe R$ 0,00 quando não houver taxa.</small>
-        </label>
+          </label>
+          {adjustmentTypeField}
+        </div>
       )}
 
       <div className="new-order-adjustment">
-        <div className="form-field">
-          <span>Ajuste do pedido</span>
-          <SystemSelect
-            value={adjustment.type}
-            options={ADJUSTMENT_OPTIONS}
-            onChange={(type) => onAdjustmentChange({ type })}
-            disabled={disabled}
-            label="Ajuste do pedido"
-          />
-        </div>
+        {draft.type !== 'Entrega' && adjustmentTypeField}
 
         {adjustment.type !== 'none' && (
-          <div className="form-grid two-columns">
+          <div className="new-order-adjustment-fields">
             <div className="form-field">
               <span>Modo</span>
               <SystemSelect
