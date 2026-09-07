@@ -1,6 +1,6 @@
 import { formatPrintMoneyCents } from '../../shared/orderPrintDocument.js'
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
-import { encodeCp860 } from './cp860.js'
+import { decodeCp860Byte, encodeCp860 } from './cp860.js'
 import { MTP5_PROFILE } from './mtp5Profile.js'
 
 const ESC = 0x1b
@@ -16,6 +16,8 @@ const selectFontA = () => command(ESC, 0x4d, 0)
 const align = (value) => command(ESC, 0x61, value)
 const bold = (enabled) => command(ESC, 0x45, enabled ? 1 : 0)
 const size = (value) => command(GS, 0x21, value)
+const setLineSpacing = (dots) => command(ESC, 0x33, dots)
+const restoreLineSpacing = () => command(ESC, 0x32)
 
 const flattenBytes = (parts) => {
   const length = parts.reduce((total, part) => total + part.length, 0)
@@ -181,10 +183,159 @@ const renderTestDocument = (document) => {
   return flattenBytes(parts)
 }
 
+const defaultCanvasFactory = () => {
+  const canvas = globalThis.document?.createElement?.('canvas')
+  if (!canvas) throw new Error('Canvas is unavailable for MPT-II bitmap rendering')
+  return canvas
+}
+
+const parseTextLines = (bytes) => {
+  let currentAlign = 0
+  let currentBold = false
+  let currentSize = 0
+  let text = ''
+  let lineStyle = null
+  const lines = []
+
+  const captureStyle = () => {
+    if (!lineStyle) lineStyle = { align: currentAlign, bold: currentBold, size: currentSize }
+  }
+  const flushLine = () => {
+    lines.push({ text, ...(lineStyle || { align: currentAlign, bold: currentBold, size: currentSize }) })
+    text = ''
+    lineStyle = null
+  }
+
+  for (let index = 0; index < bytes.length;) {
+    const byte = bytes[index]
+    if (byte === 0x0a) {
+      flushLine()
+      index += 1
+      continue
+    }
+    if (byte === ESC) {
+      const operation = bytes[index + 1]
+      if (operation === 0x40) {
+        currentAlign = 0
+        currentBold = false
+        currentSize = 0
+        index += 2
+        continue
+      }
+      if (operation === 0x74 || operation === 0x4d) {
+        index += 3
+        continue
+      }
+      if (operation === 0x61) {
+        currentAlign = bytes[index + 2] ?? 0
+        index += 3
+        continue
+      }
+      if (operation === 0x45) {
+        currentBold = Boolean(bytes[index + 2])
+        index += 3
+        continue
+      }
+    }
+    if (byte === GS && bytes[index + 1] === 0x21) {
+      currentSize = bytes[index + 2] ?? 0
+      index += 3
+      continue
+    }
+    if (byte === FS && bytes[index + 1] === 0x2e) {
+      index += 2
+      continue
+    }
+    if (byte < 0x20) {
+      index += 1
+      continue
+    }
+    captureStyle()
+    text += decodeCp860Byte(byte)
+    index += 1
+  }
+  if (text) flushLine()
+  return lines
+}
+
+const isDarkPixel = (data, offset) => {
+  const alpha = data[offset + 3]
+  if (!alpha) return false
+  return ((data[offset] + data[offset + 1] + data[offset + 2]) / 3) < 200
+}
+
+const rasterizeMpt2TextBytes = (bytes, createCanvas = defaultCanvasFactory) => {
+  const width = MTP5_PROFILE.dotsPerLine
+  const normalCellWidth = width / MTP5_PROFILE.fontAColumns
+  const bandHeight = 24
+  const lines = parseTextLines(bytes)
+  const parts = [initialize(), cancelChineseMode(), setLineSpacing(bandHeight)]
+
+  for (const line of lines) {
+    if (!line.text) {
+      parts.push(LF)
+      continue
+    }
+
+    const widthMultiplier = ((line.size >> 4) & 0x07) + 1
+    const heightMultiplier = (line.size & 0x07) + 1
+    const lineHeight = bandHeight * heightMultiplier
+    const cellWidth = normalCellWidth * widthMultiplier
+    const characters = [...line.text]
+    const textWidth = characters.length * cellWidth
+    const startX = line.align === 1
+      ? Math.max(0, (width - textWidth) / 2)
+      : line.align === 2
+        ? Math.max(0, width - textWidth)
+        : 0
+
+    const canvas = createCanvas()
+    canvas.width = width
+    canvas.height = lineHeight
+    const context = canvas.getContext?.('2d')
+    if (!context) throw new Error('Canvas 2D context is unavailable for MPT-II bitmap rendering')
+    context.fillStyle = '#fff'
+    context.fillRect(0, 0, width, lineHeight)
+    context.fillStyle = '#000'
+    context.font = `${line.bold ? '700' : '400'} ${20 * heightMultiplier}px monospace`
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+
+    characters.forEach((character, characterIndex) => {
+      if (character === ' ') return
+      const centerX = startX + (characterIndex * cellWidth) + (cellWidth / 2)
+      context.fillText(character, centerX, lineHeight / 2)
+    })
+
+    const image = context.getImageData(0, 0, width, lineHeight)
+    for (let bandStart = 0; bandStart < lineHeight; bandStart += bandHeight) {
+      const packed = new Uint8Array(width * 3)
+      for (let x = 0; x < width; x += 1) {
+        for (let byteRow = 0; byteRow < 3; byteRow += 1) {
+          let value = 0
+          for (let bit = 0; bit < 8; bit += 1) {
+            const y = bandStart + (byteRow * 8) + bit
+            if (y >= lineHeight) continue
+            const pixelOffset = ((y * width) + x) * 4
+            if (isDarkPixel(image.data, pixelOffset)) value |= 0x80 >> bit
+          }
+          packed[(x * 3) + byteRow] = value
+        }
+      }
+      parts.push(command(ESC, 0x2a, 33, width & 0xff, (width >> 8) & 0xff), packed, LF)
+    }
+  }
+
+  parts.push(restoreLineSpacing())
+  return flattenBytes(parts)
+}
+
 export const renderEscPos58mm = (document, {
   copies = 1,
   copyNumber = null,
   totalCopies = null,
+  compatibilityMode = null,
+  createCanvas = defaultCanvasFactory,
 } = {}) => {
   const count = Number(copies)
   if (count !== 1 && count !== 2) throw new RangeError('copies must be 1 or 2')
@@ -216,5 +367,8 @@ export const renderEscPos58mm = (document, {
     }
   }
   for (let index = 0; index < MTP5_PROFILE.feedLinesAfterJob; index += 1) parts.push(LF)
-  return flattenBytes(parts)
+
+  const rendered = flattenBytes(parts)
+  if (compatibilityMode === 'mpt2-bitmap') return rasterizeMpt2TextBytes(rendered, createCanvas)
+  return rendered
 }
