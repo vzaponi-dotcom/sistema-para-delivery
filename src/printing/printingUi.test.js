@@ -6,6 +6,7 @@ const badge = await readFile(new URL('../components/PrintStatusBadge.jsx', impor
 const orders = await readFile(new URL('../pages/Orders.jsx', import.meta.url), 'utf8')
 const detail = await readFile(new URL('../components/OrderDetail.jsx', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
+const settings = await readFile(new URL('../components/PrintingSettings.jsx', import.meta.url), 'utf8')
 
 test('print status badge exposes all friendly persisted job states', () => {
   for (const label of [
@@ -92,4 +93,19 @@ test('app globally prompts one waiting second copy at a time and dismissal does 
   assert.match(app, /cancelLabel="Cancelar"/)
   assert.match(app, /Destaque o papel na serrilha antes de continuar\./)
   assert.match(app, /dismissedSecondCopyJobIdsRef\.current\.add\(secondCopyPromptJobId\)/)
+})
+
+test('printing settings exposes Windows QZ setup without regressing Android RawBT', () => {
+  assert.match(settings, /QZ Tray/)
+  assert.match(settings, /Configurar impressora|Trocar impressora/)
+  assert.match(settings, /MPT-II/)
+  assert.match(settings, /RawBT/)
+  assert.doesNotMatch(settings, /Windows \+ Chrome com Web Serial disponível\./)
+  assert.match(settings, /printing\?\.transportKind === 'qz'/)
+  assert.match(settings, /printing\.refreshPrinters\(\)/)
+  assert.match(settings, /printing\.selectPrinter\(printerName\)/)
+  assert.match(settings, /printing\?\.availablePrinters/)
+  assert.match(settings, /SystemSelect/)
+  assert.doesNotMatch(settings, /<select\b/)
+  assert.match(settings, /O QZ Tray deve permanecer aberto no Windows para impressão automática\./)
 })
