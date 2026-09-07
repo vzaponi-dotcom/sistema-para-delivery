@@ -80,3 +80,16 @@ test('future automatic jobs show scheduling and use a manual print action', () =
   assert.match(detail, /\{!scheduledPrintPending && !awaitingSecondCopy && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
   assert.doesNotMatch(detail, /if \(scheduledPrintPending\)[^\n]*handleRetry/)
 })
+
+test('app globally prompts one waiting second copy at a time and dismissal does not consume it', () => {
+  assert.match(app, /import ConfirmationDialog from '\.\/components\/ConfirmationDialog'/)
+  assert.match(app, /secondCopyPromptJobId/)
+  assert.match(app, /dismissedSecondCopyJobIdsRef/)
+  assert.match(app, /copiesRequested.*2/)
+  assert.match(app, /copiesPrinted.*1/)
+  assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
+  assert.match(app, /confirmLabel="Imprimir 2ª via"/)
+  assert.match(app, /cancelLabel="Cancelar"/)
+  assert.match(app, /Destaque o papel na serrilha antes de continuar\./)
+  assert.match(app, /dismissedSecondCopyJobIdsRef\.current\.add\(secondCopyPromptJobId\)/)
+})
