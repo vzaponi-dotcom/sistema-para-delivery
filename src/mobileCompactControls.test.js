@@ -63,3 +63,16 @@ test('mobile cart matches the approved compact icon-and-pill layout without chan
   assert.match(css, /\.new-order-cart-aside\s*\{[^}]*grid-area:\s*aside[^}]*align-self:\s*start/s)
   assert.match(css, /\.new-order-quantity-control button\s*\{[^}]*width:\s*34px[^}]*height:\s*34px[^}]*min-width:\s*34px[^}]*min-height:\s*34px/s)
 })
+
+test('existing cart notes stay readable on mobile instead of collapsing into an ellipsis', async () => {
+  const css = await read('./mobile-compact-controls.css')
+  const cart = await read('./components/OrderCart.jsx')
+
+  assert.match(cart, /className="new-order-note-summary"/)
+  assert.match(cart, /<span title=\{item\.note\}>📝 \{item\.note\}<\/span>/)
+  assert.match(cart, />Editar observação<\/button>/)
+
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-note-summary\s*\{[^}]*display:\s*grid[^}]*gap:\s*3px/s)
+  assert.match(css, /\.new-order-note-summary\s*>\s*span\s*\{[^}]*white-space:\s*normal[^}]*overflow:\s*visible[^}]*text-overflow:\s*clip[^}]*overflow-wrap:\s*anywhere/s)
+  assert.match(css, /\.new-order-note-summary\s+button\s*\{[^}]*min-height:\s*30px[^}]*justify-self:\s*start/s)
+})
