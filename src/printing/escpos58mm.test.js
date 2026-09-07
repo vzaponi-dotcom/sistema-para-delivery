@@ -50,7 +50,7 @@ test('MTP5 profile centralizes physical width, logical columns, code page and se
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
   assert.equal(MTP5_PROFILE.fontAColumns, 32)
   assert.equal(MTP5_PROFILE.codePage, 3)
-  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 1)
   assert.deepEqual(MTP5_PROFILE.serial, {
     baudRate: 9600,
     dataBits: 8,
