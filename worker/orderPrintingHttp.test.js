@@ -16,8 +16,9 @@ class D1Sqlite {
       );
       CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
       CREATE TABLE orders (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_name_snapshot TEXT NOT NULL,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_id TEXT, client_name_snapshot TEXT NOT NULL,
         client_phone_snapshot TEXT NOT NULL DEFAULT '', client_address_snapshot TEXT NOT NULL DEFAULT '',
+        customer_identity_type TEXT NOT NULL DEFAULT 'registered_client', table_tab_id TEXT,
         type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Em preparo', subtotal_cents INTEGER NOT NULL,
         delivery_fee_cents INTEGER NOT NULL DEFAULT 0, adjustment_type TEXT NOT NULL DEFAULT 'none',
         adjustment_amount_cents INTEGER NOT NULL DEFAULT 0, adjustment_reason TEXT NOT NULL DEFAULT '',
@@ -30,6 +31,9 @@ class D1Sqlite {
       );
       CREATE TABLE payments (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, method TEXT NOT NULL, paid_at TEXT NOT NULL
+      );
+      CREATE TABLE table_tabs (
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_identifier TEXT NOT NULL
       );
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,

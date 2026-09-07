@@ -11,9 +11,12 @@ class D1Sqlite {
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
+        client_id TEXT,
         client_name_snapshot TEXT NOT NULL,
         client_phone_snapshot TEXT NOT NULL DEFAULT '',
         client_address_snapshot TEXT NOT NULL DEFAULT '',
+        customer_identity_type TEXT NOT NULL DEFAULT 'registered_client',
+        table_tab_id TEXT,
         type TEXT NOT NULL,
         order_date TEXT NOT NULL,
         subtotal_cents INTEGER NOT NULL,
@@ -41,6 +44,11 @@ class D1Sqlite {
         order_id TEXT NOT NULL,
         method TEXT NOT NULL,
         paid_at TEXT NOT NULL
+      );
+      CREATE TABLE table_tabs (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        table_identifier TEXT NOT NULL
       );
     `)
   }
@@ -83,6 +91,17 @@ const seedOrder = (db) => {
       ('i2', 'amor-e-sabor', 'o1', 'BATATA', 'G', 1, 1950, '', '2026-09-03T23:31:01.000Z');
     INSERT INTO payments (id, business_id, order_id, method, paid_at)
       VALUES ('p1', 'amor-e-sabor', 'o1', 'Pix', '2026-09-03T23:32:00.000Z');
+
+    INSERT INTO table_tabs (id, business_id, table_identifier) VALUES ('tab-4', 'amor-e-sabor', 'Mesa 4');
+    INSERT INTO orders (
+      id, business_id, client_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot, customer_identity_type, table_tab_id,
+      type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
+      adjustment_amount_cents, adjustment_reason, total_cents, created_at
+    ) VALUES (
+      'local-with-client', 'amor-e-sabor', 'client-4', 'Hugo', '', '', 'table', 'tab-4',
+      'Local', '2026-09-03', 3200, 0, 'none', 0, '', 3200,
+      '2026-09-03T20:00:00.000Z'
+    );
 
     INSERT INTO orders (
       id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
@@ -133,6 +152,15 @@ test('legacy-compatible blank contact snapshots stay blank and unpaid order stay
   assert.deepEqual(document.customer, { name: 'Mesa A-01', phone: '', address: '' })
   assert.deepEqual(document.payment, { status: 'Pendente', method: '' })
   assert.equal(document.financial.deliveryFeeCents, 0)
+})
+
+test('local ticket identity comes from the immutable table tab snapshot after a table rename', async () => {
+  const db = new D1Sqlite()
+  seedOrder(db)
+
+  const document = await loadOrderPrintDocument(db, 'amor-e-sabor', 'local-with-client')
+
+  assert.equal(document.customer.name, 'Mesa 4 · Hugo')
 })
 
 test('order print document lookup is business scoped and missing orders return null', async () => {

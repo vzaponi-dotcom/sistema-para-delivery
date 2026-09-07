@@ -25,7 +25,9 @@ export const createOrderPrintDocument = (input = {}) => ({
     type: String(input.type ?? ''),
   },
   customer: {
-    name: String(input.customer?.name || ''),
+    name: input.customerIdentityType === 'table' && input.tableIdentifier
+      ? `${input.tableIdentifier}${input.hasOptionalClient && input.customer?.name ? ` · ${input.customer.name}` : ''}`
+      : String(input.customer?.name || ''),
     phone: String(input.customer?.phone || ''),
     address: String(input.customer?.address || ''),
   },

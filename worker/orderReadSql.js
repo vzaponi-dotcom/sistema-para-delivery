@@ -6,11 +6,13 @@ export const ORDER_SELECT = `SELECT o.id, o.client_id, o.client_name_snapshot,
   o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note,
   p.id AS payment_id, p.method AS payment_method, p.paid_at,
   p.amount_cents AS paid_amount_cents,
-  r.id AS refund_movement_id, r.created_at AS refund_created_at
+  r.id AS refund_movement_id, r.created_at AS refund_created_at,
+  tt.table_identifier AS table_identifier
   FROM orders o
   LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
   LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id
-    AND r.source = 'order-refund'`
+    AND r.source = 'order-refund'
+  LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
 
 export const ORDER_ITEM_SELECT = `SELECT id, order_id, product_id, name_snapshot,
   category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents,
