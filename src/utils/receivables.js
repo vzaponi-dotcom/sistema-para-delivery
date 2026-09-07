@@ -121,7 +121,7 @@ export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today
   for (const [tableTabId, tableOrders] of tableOrdersByTab) {
     const newestOrder = newestOrderFirst(tableOrders)
     const tableTab = (Array.isArray(tableTabs) ? tableTabs : []).find((item) => item.id === tableTabId)
-    const tableIdentifier = tableTab?.tableIdentifier || newestOrder.client?.replace(/^Mesa\s*/i, '') || tableTabId
+    const tableIdentifier = String(tableTab?.tableIdentifier || newestOrder.client || tableTabId).replace(/^Mesa\s*/i, '')
     const referenceOrder = { ...newestOrder, promisedPaymentDate: null }
     entries.push({
       key: `table-tab:${tableTabId}`,

@@ -132,6 +132,20 @@ test('table tabs stay aggregated by newest pending order and urgency orders entr
   ])
 })
 
+test('table tab labels do not duplicate the Mesa prefix from registered identifiers', () => {
+  const entries = buildPendingReceivableEntries([
+    datedPending({
+      id: 'tab-registered-name',
+      client: 'Mesa 1',
+      clientId: null,
+      customerIdentityType: 'table',
+      tableTabId: 'tab-registered-name',
+    }),
+  ], [{ id: 'tab-registered-name', tableIdentifier: 'Mesa 1', status: 'open' }], '2026-09-06')
+
+  assert.equal(entries[0].label, 'Mesa 1')
+})
+
 test('an open table tab is counted once in today summary and forecast using its newest pending order', () => {
   const tableOrders = [
     datedPending({ id: 'tab-old', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-03', total: 30 }),
