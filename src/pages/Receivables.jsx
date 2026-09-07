@@ -137,7 +137,7 @@ function Receivables({
   const selectedEntry = useMemo(() => {
     if (!selectedEntryKey) return null
     if (selectedEntryKey.startsWith('paid:')) {
-      const order = allPaidOrders.find((item) => `paid:${order.id}` === selectedEntryKey)
+      const order = allPaidOrders.find((item) => `paid:${item.id}` === selectedEntryKey)
       return order ? paidEntry(order) : null
     }
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
