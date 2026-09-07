@@ -1,12 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { registerTableTabPayment } from './repositories.js'
+import { listTables } from './tableRepository.js'
 
 class TableTabPaymentDb {
   constructor() {
     this.tableTabs = [
-      { id: 'tab-1', business_id: 'amor-e-sabor', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null },
-      { id: 'tab-closed', business_id: 'amor-e-sabor', table_identifier: '05', status: 'closed', opened_at: '2026-09-02T16:00:00.000Z', closed_at: '2026-09-02T17:00:00.000Z' },
+      { id: 'tab-1', business_id: 'amor-e-sabor', table_id: 'table-4', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null },
+      { id: 'tab-closed', business_id: 'amor-e-sabor', table_id: 'table-5', table_identifier: '05', status: 'closed', opened_at: '2026-09-02T16:00:00.000Z', closed_at: '2026-09-02T17:00:00.000Z' },
+    ]
+    this.tables = [
+      { id: 'table-4', business_id: 'amor-e-sabor', name: 'Mesa 4', sort_order: 4, is_active: 1 },
+      { id: 'table-5', business_id: 'amor-e-sabor', name: 'Mesa 5', sort_order: 5, is_active: 1 },
     ]
     this.orders = [
       { id: 'o1', business_id: 'amor-e-sabor', table_tab_id: 'tab-1', client_id: null, client_name_snapshot: 'Mesa 04', customer_identity_type: 'table', type: 'Local', order_date: '2026-09-02', status: 'Em preparo', subtotal_cents: 2000, delivery_fee_cents: 0, adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0, adjustment_amount_cents: 0, adjustment_reason: '', total_cents: 2000, created_at: '2026-09-02T18:00:00.000Z', finished_at: null },
@@ -44,6 +49,17 @@ class TableTabPaymentDb {
             return null
           },
           async all() {
+            if (sql.includes('FROM tables') && sql.includes('open_tabs')) {
+              const [businessId] = values
+              return {
+                results: db.tables.map((table) => ({
+                  ...table,
+                  open_table_tab_id: db.tableTabs.find((tab) => (
+                    tab.business_id === businessId && tab.table_id === table.id && tab.status === 'open'
+                  ))?.id ?? null,
+                })),
+              }
+            }
             if (sql.includes('FROM orders o') && sql.includes('table_tab_id') && sql.includes('p.id IS NULL')) {
               const [businessId, tabId] = values
               return { results: db.orders.filter((order) => order.business_id === businessId && order.table_tab_id === tabId && !db.payments.some((payment) => payment.business_id === businessId && payment.order_id === order.id)).map((order) => ({ id: order.id, client_name_snapshot: order.client_name_snapshot, total_cents: order.total_cents })) }
@@ -112,4 +128,20 @@ test('table tab payment enforces business scope and closed-tab retry safety', as
     () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-closed', 'Pix', now),
     (error) => error.code === 'TABLE_TAB_ALREADY_CLOSED',
   )
+})
+
+test('table tab payment keeps the transferred tab id and releases the destination table', async () => {
+  const db = new TableTabPaymentDb()
+  db.tableTabs[0].table_id = 'table-5'
+  db.tableTabs[0].table_identifier = 'Mesa 5'
+  for (const order of db.orders) order.client_name_snapshot = 'Mesa 5'
+  const now = new Date('2026-09-02T19:00:00.000Z')
+
+  const result = await registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', now)
+
+  assert.equal(result.tableTab.id, 'tab-1')
+  assert.equal(result.tableTab.tableId, 'table-5')
+  assert.equal(result.tableTab.status, 'closed')
+  assert.equal((await listTables(db, 'amor-e-sabor')).find((table) => table.id === 'table-5').occupancy, 'free')
+  assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 0)
 })
