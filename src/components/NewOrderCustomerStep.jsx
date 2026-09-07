@@ -1,4 +1,5 @@
 import Button from './Button'
+import Icon from './Icon'
 import { formatScheduledTimeInput } from '../utils/formFormatting.js'
 
 const ORDER_TYPE_OPTIONS = [
@@ -8,9 +9,9 @@ const ORDER_TYPE_OPTIONS = [
 ]
 
 const LOCAL_IDENTITY_OPTIONS = [
-  { value: 'guest_name', label: 'Nome' },
-  { value: 'table', label: 'Mesa' },
-  { value: 'registered_client', label: 'Cliente cadastrado' },
+  { value: 'guest_name', label: 'Nome', icon: 'client' },
+  { value: 'table', label: 'Mesa', icon: 'table' },
+  { value: 'registered_client', label: 'Cliente cadastrado', icon: 'clients' },
 ]
 
 function NewOrderCustomerStep({
@@ -91,6 +92,7 @@ function NewOrderCustomerStep({
                 onClick={() => onLocalIdentityTypeChange(option.value)}
                 disabled={disabled}
               >
+                <Icon name={option.icon} size={16} />
                 {option.label}
               </button>
             ))}

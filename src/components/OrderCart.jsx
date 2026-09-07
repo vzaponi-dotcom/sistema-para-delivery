@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Button from './Button'
+import Icon from './Icon'
+import { CATEGORY_ICON_NAMES, categoryForUi } from '../../shared/productCatalog.js'
 
 function OrderCart({
   items,
@@ -28,6 +30,10 @@ function OrderCart({
       <div className="new-order-cart-lines">
         {items.map((item) => (
           <article className="new-order-cart-line" key={item.lineId}>
+            <div className="new-order-cart-category-icon" aria-hidden="true">
+              <Icon name={CATEGORY_ICON_NAMES[categoryForUi(item.category)]} size={22} />
+            </div>
+
             <div className="new-order-cart-quantity">
               <div className="new-order-quantity-control" aria-label={`Quantidade de ${item.name}`}>
                 <button type="button" onClick={() => onUpdate(item.lineId, { quantity: Number(item.quantity || 1) - 1 })} disabled={disabled}>−</button>
