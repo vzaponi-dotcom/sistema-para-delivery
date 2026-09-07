@@ -146,6 +146,20 @@ test('table tab labels do not duplicate the Mesa prefix from registered identifi
   assert.equal(entries[0].label, 'Mesa 1')
 })
 
+test('table tab labels preserve custom registered table names', () => {
+  const entries = buildPendingReceivableEntries([
+    datedPending({
+      id: 'tab-custom-name',
+      client: 'Varanda 1',
+      clientId: null,
+      customerIdentityType: 'table',
+      tableTabId: 'tab-custom-name',
+    }),
+  ], [{ id: 'tab-custom-name', tableIdentifier: 'Varanda 1', status: 'open' }], '2026-09-06')
+
+  assert.equal(entries[0].label, 'Varanda 1')
+})
+
 test('an open table tab is counted once in today summary and forecast using its newest pending order', () => {
   const tableOrders = [
     datedPending({ id: 'tab-old', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-03', total: 30 }),

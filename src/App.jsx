@@ -40,6 +40,7 @@ import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/or
 import { detectOperationalArrivals } from './utils/orderRealtime.js'
 import { toLocalDateValue } from './utils/orderWorkflow'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
+import { formatTableIdentifierLabel } from './utils/receivables.js'
 import {
   cancelOrder as cancelOrderApi,
   createClient as createClientApi,
@@ -426,7 +427,7 @@ function App() {
   const openPaymentModal = (orderId) => { if (writesBlocked) return; const order = orders.find((item) => item.id === orderId); if (!order || isOrderPaid(order) || isOrderCancelled(order)) return; setPaymentOrderId(orderId); setPaymentMethod('Pix') }
   const closePaymentModal = () => { setPaymentOrderId(null); setPaymentMethod('Pix') }
   const handleRegisterPayment = async (event) => { event.preventDefault(); if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return; setRequestKey(`payment:${paymentOrder.id}`); try { const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod); applyOfficialEffects({ order, movement, tableTab }); closePaymentModal(); showSuccessMessage(`Pagamento recebido via ${paymentMethod}`) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(result.tableTab.tableIdentifier)} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
   const handleCreateTable = async (name) => {
     if (writesBlocked) return false
     setRequestKey('table:create')
