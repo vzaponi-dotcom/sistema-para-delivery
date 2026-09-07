@@ -12,6 +12,7 @@ test('print status badge exposes all friendly persisted job states', () => {
     'Pendente de impressão',
     'Imprimindo',
     'Enviado para impressão',
+    'Aguardando 2ª via',
     'Falha na impressão',
     'Requer atenção',
   ]) assert.match(badge, new RegExp(label))
@@ -28,14 +29,28 @@ test('kitchen preserves the shared printing manager in details without moving pr
 })
 
 test('order detail keeps print actions separate and uses the shared printing manager', () => {
-  for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
+  for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Imprimir 2ª via', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
   }
   assert.match(detail, /<h3>Impressão<\/h3>/)
   assert.match(detail, /getPreviewDocument/)
   assert.match(detail, /downloadOrderPdf/)
   assert.match(detail, /printOrder/)
+  assert.match(detail, /printSecondCopy/)
   assert.match(detail, /retryJob/)
+})
+
+test('partial two-copy jobs wait for a tear and expose only the explicit second-copy action', () => {
+  assert.match(detail, /copiesRequested.*2/)
+  assert.match(detail, /copiesPrinted.*1/)
+  assert.match(detail, /printing\?\.printSecondCopy\?\.\(printJob\)/)
+  assert.match(detail, /1ª via impressa\. Destaque o papel na serrilha e, depois, imprima a 2ª via\./)
+
+  const secondCopyBranch = detail.indexOf('Imprimir 2ª via')
+  const reprintBranch = detail.indexOf('Reimprimir')
+  assert.notEqual(secondCopyBranch, -1)
+  assert.notEqual(reprintBranch, -1)
+  assert.ok(secondCopyBranch < reprintBranch)
 })
 
 test('reprint requires confirmation with actual copy count while retries remain explicit interventions', () => {
@@ -62,6 +77,19 @@ test('future automatic jobs show scheduling and use a manual print action', () =
   assert.match(detail, /Impressão programada para \{formatOrderTime\(printJob\.availableAt\)\}/)
   assert.match(detail, /printing\.printOrder\(order\.id, defaultCopies\)/)
   assert.match(detail, /if \(scheduledPrintPending\) return <Button[^>]*onClick=\{handleFirstPrint\}[^>]*>Imprimir agora<\/Button>/)
-  assert.match(detail, /\{!scheduledPrintPending && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
+  assert.match(detail, /\{!scheduledPrintPending && !awaitingSecondCopy && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
   assert.doesNotMatch(detail, /if \(scheduledPrintPending\)[^\n]*handleRetry/)
+})
+
+test('app globally prompts one waiting second copy at a time and dismissal does not consume it', () => {
+  assert.match(app, /import ConfirmationDialog from '\.\/components\/ConfirmationDialog'/)
+  assert.match(app, /secondCopyPromptJobId/)
+  assert.match(app, /dismissedSecondCopyJobIdsRef/)
+  assert.match(app, /copiesRequested.*2/)
+  assert.match(app, /copiesPrinted.*1/)
+  assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
+  assert.match(app, /confirmLabel="Imprimir 2ª via"/)
+  assert.match(app, /cancelLabel="Cancelar"/)
+  assert.match(app, /Destaque o papel na serrilha antes de continuar\./)
+  assert.match(app, /dismissedSecondCopyJobIdsRef\.current\.add\(secondCopyPromptJobId\)/)
 })

@@ -24,6 +24,7 @@ import {
 } from './localPrintStation.js'
 import { MTP5_PROFILE } from './mtp5Profile.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
+import { dispatchRawBtBytes } from './rawBtTransport.js'
 import {
   isWebSerialSupported,
   probeSerialPort,
@@ -38,6 +39,15 @@ export const STATION_HEARTBEAT_MS = 15_000
 const printerError = (code, message) => Object.assign(new Error(message), { code })
 const visiblePage = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 const browserOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false
+
+export const getPrintingTransportKind = (platform) => (
+  platform === 'android' ? 'rawbt' : 'web-serial'
+)
+
+export const isPrintingTransportSupported = (
+  platform,
+  serial = globalThis.navigator?.serial,
+) => getPrintingTransportKind(platform) === 'rawbt' || isWebSerialSupported(serial)
 
 export const canConsumeAutomaticPrintJob = ({
   authenticated,
@@ -61,11 +71,14 @@ export const canConsumeAutomaticPrintJob = ({
 )
 
 export const usePrintingManager = ({ authenticated = false, isOnline = true, onError } = {}) => {
-  const supported = isWebSerialSupported()
+  const platform = detectPrintStationPlatform()
+  const transportKind = getPrintingTransportKind(platform)
+  const supported = isPrintingTransportSupported(platform)
+  const isRawBt = transportKind === 'rawbt'
   const [localStation, setLocalStation] = useState(null)
   const [stations, setStations] = useState([])
   const [jobs, setJobs] = useState([])
-  const [printerState, setPrinterState] = useState(supported ? 'unconfigured' : 'unsupported')
+  const [printerState, setPrinterState] = useState(isRawBt ? 'driver-ready' : (supported ? 'unconfigured' : 'unsupported'))
   const [printerBlocked, setPrinterBlocked] = useState(false)
   const [busyJobId, setBusyJobId] = useState(null)
   const [lastError, setLastError] = useState(null)
@@ -114,7 +127,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   }, [authenticated, updateLocalStation])
 
   const resolveAuthorizedPort = useCallback(async ({ probe = false } = {}) => {
-    if (!supported) return null
+    if (isRawBt || !supported) return null
     const stationId = localStationRef.current?.id
     if (!stationId) return null
     const fingerprint = getPrinterFingerprint(globalThis.localStorage, stationId)
@@ -144,12 +157,21 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       reportError(error)
       return null
     }
-  }, [reportError, supported, updateBlocked])
+  }, [isRawBt, reportError, supported, updateBlocked])
 
   const connectPrinter = useCallback(async () => {
-    if (!supported) throw printerError('WEB_SERIAL_UNSUPPORTED', 'Este navegador não oferece impressão Bluetooth compatível.')
     const stationId = localStationRef.current?.id
     if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+
+    if (isRawBt) {
+      portRef.current = null
+      setPrinterState('driver-ready')
+      setLastError(null)
+      updateBlocked(false)
+      return null
+    }
+
+    if (!supported) throw printerError('WEB_SERIAL_UNSUPPORTED', 'Este navegador não oferece impressão Bluetooth compatível.')
     setPrinterState('connecting')
     try {
       const port = await requestPrinterPort(globalThis.navigator?.serial)
@@ -166,9 +188,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       reportError(error)
       throw error
     }
-  }, [reportError, supported, updateBlocked])
+  }, [isRawBt, reportError, supported, updateBlocked])
 
   const getExplicitPort = useCallback(async () => {
+    if (isRawBt) return null
     let port = portRef.current || await resolveAuthorizedPort({ probe: true })
     if (port) return port
     try {
@@ -178,7 +201,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       if (error?.code) throw error
       throw printerError('PRINTER_NOT_AUTHORIZED', 'Selecione e autorize a impressora antes de imprimir.')
     }
-  }, [connectPrinter, resolveAuthorizedPort])
+  }, [connectPrinter, isRawBt, resolveAuthorizedPort])
 
   const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false } = {}) => {
     if (!job) return null
@@ -190,16 +213,21 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         port,
         completeJob: completePrintJob,
         failJob: failPrintJob,
-        renderer: renderEscPos58mm,
-        transport: (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
+        renderer: (document, options) => renderEscPos58mm(document, {
+          ...options,
+          compatibilityMode: isRawBt ? 'mpt2-bitmap' : null,
+        }),
+        transport: transportKind === 'rawbt'
+          ? (_selectedPort, bytes) => dispatchRawBtBytes(bytes)
+          : (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
       })
       if (result.status === 'printed') {
-        setPrinterState('connected')
+        setPrinterState(isRawBt ? 'driver-ready' : 'connected')
         setLastError(null)
         if (clearBlockOnSuccess) updateBlocked(false)
       } else {
-        setPrinterState('disconnected')
-        if (['SERIAL_OPEN_FAILED', 'PRINTER_NOT_AUTHORIZED'].includes(result.error?.code)) updateBlocked(true)
+        setPrinterState(isRawBt ? 'driver-ready' : 'disconnected')
+        if (['SERIAL_OPEN_FAILED', 'PRINTER_NOT_AUTHORIZED', 'RAWBT_LAUNCH_FAILED'].includes(result.error?.code)) updateBlocked(true)
         reportError(result.error)
       }
       return result
@@ -207,7 +235,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       updateBusyJob(null)
       try { await refresh() } catch (error) { reportError(error) }
     }
-  }, [refresh, reportError, updateBlocked, updateBusyJob])
+  }, [isRawBt, refresh, reportError, transportKind, updateBlocked, updateBusyJob])
 
   const saveStationSettings = useCallback(async (settings = {}) => {
     const current = localStationRef.current
@@ -249,6 +277,22 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return executeClaimedJob(claimed.job, port)
   }, [executeClaimedJob, getExplicitPort])
 
+  const printSecondCopy = useCallback(async (job) => {
+    const station = localStationRef.current
+    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+    if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    if (
+      job.status !== 'printed'
+      || Number(job.copiesRequested) !== 2
+      || Number(job.copiesPrinted) !== 1
+    ) {
+      throw printerError('PRINT_SECOND_COPY_NOT_READY', 'A segunda via não está disponível para este trabalho.')
+    }
+    const port = await getExplicitPort()
+    const claimed = await claimPrintJob(job.id, station.id)
+    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
+  }, [executeClaimedJob, getExplicitPort])
+
   const retryJob = useCallback(async (jobOrId) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
@@ -274,7 +318,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       portRef.current = null
       updateBusyJob(null)
       updateBlocked(false)
-      setPrinterState(supported ? 'unconfigured' : 'unsupported')
+      setPrinterState(isRawBt ? 'driver-ready' : (supported ? 'unconfigured' : 'unsupported'))
       return undefined
     }
 
@@ -283,7 +327,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     const initialize = async () => {
       try {
         const stationId = getOrCreateLocalPrintStationId()
-        const platform = detectPrintStationPlatform()
         const stationPayload = await getPrintStations()
         if (cancelled || generation !== initializationRef.current) return
         const existingStations = Array.isArray(stationPayload?.stations) ? stationPayload.stations : []
@@ -300,21 +343,26 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         if (cancelled || generation !== initializationRef.current) return
         updateLocalStation(station)
         await refresh()
-        if (!cancelled && generation === initializationRef.current && supported) await resolveAuthorizedPort({ probe: true })
+        if (cancelled || generation !== initializationRef.current) return
+        if (isRawBt) {
+          setPrinterState('driver-ready')
+        } else if (supported) {
+          await resolveAuthorizedPort({ probe: true })
+        }
       } catch (error) {
         if (!cancelled) reportError(error)
       }
     }
     void initialize()
     return () => { cancelled = true }
-  }, [authenticated, refresh, reportError, resolveAuthorizedPort, supported, updateBlocked, updateBusyJob, updateLocalStation])
+  }, [authenticated, isRawBt, platform, refresh, reportError, resolveAuthorizedPort, supported, updateBlocked, updateBusyJob, updateLocalStation])
 
   useEffect(() => {
     if (!authenticated || !isOnline) return undefined
     const sync = () => {
       if (!visiblePage()) return
       void refresh().catch(reportError)
-      if (!busyJobIdRef.current && supported) void resolveAuthorizedPort({ probe: false }).catch(reportError)
+      if (!isRawBt && !busyJobIdRef.current && supported) void resolveAuthorizedPort({ probe: false }).catch(reportError)
     }
     const timer = globalThis.setInterval?.(sync, PRINT_STATE_POLL_MS)
     const handleVisibility = () => { if (visiblePage()) sync() }
@@ -326,7 +374,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       document?.removeEventListener?.('visibilitychange', handleVisibility)
       globalThis.removeEventListener?.('focus', handleFocus)
     }
-  }, [authenticated, isOnline, refresh, reportError, resolveAuthorizedPort, supported])
+  }, [authenticated, isOnline, isRawBt, refresh, reportError, resolveAuthorizedPort, supported])
 
   useEffect(() => {
     if (!authenticated || !isOnline || !localStation?.id) return undefined
@@ -362,6 +410,19 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         station,
       })) return
 
+      if (transportKind === 'rawbt') {
+        try {
+          const response = await claimNextPrintJob(station.id)
+          if (!response?.job) return
+          await executeClaimedJob(response.job, null)
+        } catch (error) {
+          if (error?.code === 'RAWBT_LAUNCH_FAILED') updateBlocked(true)
+          reportError(error)
+          try { await refresh() } catch { /* next state poll will recover */ }
+        }
+        return
+      }
+
       if (!getPrinterFingerprint(globalThis.localStorage, station.id)) {
         portRef.current = null
         setPrinterState('unconfigured')
@@ -394,7 +455,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     }
     const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
     return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [authenticated, executeClaimedJob, isOnline, refresh, reportError, supported, updateBlocked])
+  }, [authenticated, executeClaimedJob, isOnline, refresh, reportError, supported, transportKind, updateBlocked])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()
@@ -406,6 +467,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   return {
     supported,
+    transportKind,
     localStation,
     stations,
     jobs,
@@ -420,6 +482,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     makePrimary,
     testPrint,
     printOrder,
+    printSecondCopy,
     retryJob,
     getPreviewDocument,
   }

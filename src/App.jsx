@@ -9,6 +9,7 @@ import './finance-mobile.css'
 import AppShell from './components/AppShell'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
+import ConfirmationDialog from './components/ConfirmationDialog'
 import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
@@ -69,6 +70,7 @@ const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tableTabs', 'movemen
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+const isAwaitingSecondCopyJob = (job) => job?.status === 'printed' && Number(job?.copiesRequested) === 2 && Number(job?.copiesPrinted) === 1
 
 // Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
@@ -114,10 +116,13 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
+  const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
+  const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
   const knownOperationalOrderIdsRef = useRef(undefined)
   const alertedOrderIdsRef = useRef(new Set())
   const kitchenAudioContextRef = useRef(null)
   const newOrderHighlightTimerRef = useRef(null)
+  const dismissedSecondCopyJobIdsRef = useRef(new Set())
   const syncGuardRef = useRef(createCollectionSyncGuard(DATA_COLLECTIONS))
   const bootstrapSyncInFlightRef = useRef(false)
   const ordersSyncInFlightRef = useRef(false)
@@ -127,6 +132,9 @@ function App() {
   const writesBlocked = !isOnline || requestKey !== null
   const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline })
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' })
+  const secondCopyPromptJob = printing.jobs.find((job) => job.id === secondCopyPromptJobId) ?? null
+  const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
+  const secondCopyPromptOrderNumber = String(secondCopyPromptOrder?.id || secondCopyPromptJob?.orderId || '').slice(-4)
 
   const resetSyncState = () => {
     syncGuardRef.current = createCollectionSyncGuard(DATA_COLLECTIONS)
@@ -137,8 +145,8 @@ function App() {
   const clearBusinessData = () => {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
-    knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set()
-    setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false)
+    knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedSecondCopyJobIdsRef.current = new Set()
+    setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false)
   }
 
   const applyBootstrapCollections = (data, token) => {
@@ -306,6 +314,16 @@ function App() {
     }, 2600)
   }, [activeTab, orders, kitchenNow, kitchenSoundEnabled])
 
+  useEffect(() => {
+    if (secondCopyPromptJobId) {
+      const current = printing.jobs.find((job) => job.id === secondCopyPromptJobId)
+      if (!isAwaitingSecondCopyJob(current)) setSecondCopyPromptJobId(null)
+      return
+    }
+    const next = printing.jobs.find((job) => isAwaitingSecondCopyJob(job) && !dismissedSecondCopyJobIdsRef.current.has(job.id))
+    if (next?.id) setSecondCopyPromptJobId(next.id)
+  }, [printing.jobs, secondCopyPromptJobId])
+
   useEffect(() => () => { if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current); if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close() }, [])
   useEffect(() => { if (!toastMessage) return; const timer = window.setTimeout(() => setToastMessage(''), 2600); return () => window.clearTimeout(timer) }, [toastMessage])
   useEffect(() => { if (!successMessage) return; const timer = window.setTimeout(() => setSuccessMessage(''), 1800); return () => window.clearTimeout(timer) }, [successMessage])
@@ -320,6 +338,30 @@ function App() {
   const filteredClients = useMemo(() => { const normalizedSearch = clientSearch.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => clientSort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clientSearch, clientSort, clients])
   const filteredOrders = useMemo(() => { const normalizedSearch = orderSearch.trim().toLowerCase(); return orders.filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)) }, [orderSearch, orders])
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setSuccessMessage(message)
+
+  const dismissSecondCopyPrompt = () => {
+    if (secondCopyPromptJobId) dismissedSecondCopyJobIdsRef.current.add(secondCopyPromptJobId)
+    setSecondCopyPromptJobId(null)
+  }
+
+  const handleGlobalSecondCopy = async () => {
+    if (!secondCopyPromptJob || secondCopyPromptBusy) return
+    setSecondCopyPromptBusy(true)
+    try {
+      const result = await printing.printSecondCopy(secondCopyPromptJob)
+      if (result?.status !== 'printed') {
+        showApiError(result?.error || new Error('Não foi possível imprimir a 2ª via.'))
+        return
+      }
+      dismissedSecondCopyJobIdsRef.current.add(secondCopyPromptJob.id)
+      setSecondCopyPromptJobId(null)
+      showSuccessMessage('2ª via enviada para impressão')
+    } catch (error) {
+      showApiError(error)
+    } finally {
+      setSecondCopyPromptBusy(false)
+    }
+  }
 
   const validateClientIdentity = (draft, excludeId = null, action = 'create') => {
     const duplicate = findClientDuplicates(clients, draft, excludeId)
@@ -481,6 +523,18 @@ function App() {
         <MovementDialog open={movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
         <OpeningBalanceDialog open={openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
       </AppShell>
+
+      {secondCopyPromptJob && (
+        <ConfirmationDialog
+          title={secondCopyPromptOrderNumber ? `Pedido #${secondCopyPromptOrderNumber} · 1ª via impressa` : '1ª via impressa'}
+          message="Destaque o papel na serrilha antes de continuar."
+          confirmLabel="Imprimir 2ª via"
+          cancelLabel="Cancelar"
+          onClose={dismissSecondCopyPrompt}
+          onConfirm={handleGlobalSecondCopy}
+          disabled={secondCopyPromptBusy || Boolean(printing.busyJobId)}
+        />
+      )}
     </>
   )
 }

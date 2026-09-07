@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { canConsumeAutomaticPrintJob } from './usePrintingManager.js'
+import {
+  canConsumeAutomaticPrintJob,
+  getPrintingTransportKind,
+  isPrintingTransportSupported,
+} from './usePrintingManager.js'
 
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
@@ -25,9 +29,45 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.match(manager, /runClaimedPrintJob/)
   assert.match(manager, /findAuthorizedPrinterPort/)
   assert.match(manager, /requestPrinterPort/)
+  assert.match(manager, /dispatchRawBtBytes/)
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
-  assert.doesNotMatch(app, /detectedIds[\s\S]{0,500}printing\./)
+
+  const detectedIdsIndex = app.indexOf('newIds: detectedIds')
+  assert.notEqual(detectedIdsIndex, -1)
+  const detectionEffectStart = app.lastIndexOf('useEffect(() => {', detectedIdsIndex)
+  assert.notEqual(detectionEffectStart, -1)
+  const nextEffectStart = app.indexOf('useEffect(() => {', detectedIdsIndex + 1)
+  assert.notEqual(nextEffectStart, -1)
+  const detectionEffect = app.slice(detectionEffectStart, nextEffectStart)
+  assert.match(detectionEffect, /detectedIds/)
+  assert.doesNotMatch(detectionEffect, /\bprinting\./)
+})
+
+test('Android selects RawBT while Windows and other platforms keep Web Serial', () => {
+  assert.equal(getPrintingTransportKind('android'), 'rawbt')
+  assert.equal(getPrintingTransportKind('windows'), 'web-serial')
+  assert.equal(getPrintingTransportKind('other'), 'web-serial')
+
+  assert.equal(isPrintingTransportSupported('android', undefined), true)
+  assert.equal(isPrintingTransportSupported('windows', undefined), false)
+  assert.equal(isPrintingTransportSupported('windows', { requestPort() {}, getPorts() {} }), true)
+
+  assert.match(manager, /transportKind === 'rawbt'/)
+  assert.match(manager, /dispatchRawBtBytes\(bytes\)/)
+})
+
+test('Android RawBT enables MPT-II bitmap rendering while Web Serial keeps native text rendering', () => {
+  const start = manager.indexOf('const executeClaimedJob = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('const saveStationSettings', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(
+    block,
+    /renderer:\s*\(document,\s*options\)\s*=>\s*renderEscPos58mm\(document,\s*\{[\s\S]*\.\.\.options,[\s\S]*compatibilityMode:\s*isRawBt\s*\?\s*'mpt2-bitmap'\s*:\s*null[\s\S]*\}\)/,
+  )
 })
 
 test('automatic claim guard blocks duplicate or unsafe consumption states', () => {
@@ -57,6 +97,21 @@ test('automatic claim guard blocks duplicate or unsafe consumption states', () =
 
   assert.match(manager, /canConsumeAutomaticPrintJob\(\{/)
   assert.match(manager, /updateBlocked\(false\)/)
+})
+
+test('second copy resumes the existing partial job explicitly without creating a replacement job', () => {
+  const start = manager.indexOf('const printSecondCopy = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('const retryJob = useCallback', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(block, /copiesRequested\) !== 2|copiesRequested !== 2/)
+  assert.match(block, /copiesPrinted\) !== 1|copiesPrinted !== 1/)
+  assert.match(block, /claimPrintJob\(job\.id, station\.id\)/)
+  assert.match(block, /executeClaimedJob\(claimed\.job, port/)
+  assert.doesNotMatch(block, /createManualPrintJob/)
+  assert.match(manager, /\bprintSecondCopy,\s*\n/)
 })
 
 test('printing manager centralizes approved poll and heartbeat cadences', () => {

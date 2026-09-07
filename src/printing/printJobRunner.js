@@ -8,9 +8,21 @@ export const runClaimedPrintJob = async ({
   transport,
 }) => {
   try {
-    const bytes = renderer(job.document, { copies: job.copiesRequested })
+    const totalCopies = Number(job?.copiesRequested)
+    const copiesPrinted = Number(job?.copiesPrinted || 0)
+    if (![1, 2].includes(totalCopies)) throw new RangeError('copiesRequested must be 1 or 2')
+    if (!Number.isInteger(copiesPrinted) || copiesPrinted < 0 || copiesPrinted >= totalCopies) {
+      throw new RangeError('copiesPrinted must identify a remaining copy')
+    }
+
+    const copyNumber = copiesPrinted + 1
+    const bytes = renderer(job.document, {
+      copies: 1,
+      copyNumber,
+      totalCopies,
+    })
     await transport(port, bytes)
-    await completeJob(job.id, stationId, job.copiesRequested)
+    await completeJob(job.id, stationId, copyNumber)
     return { status: 'printed' }
   } catch (error) {
     const uncertain = error?.code === 'SERIAL_WRITE_UNCERTAIN'

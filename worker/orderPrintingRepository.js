@@ -239,7 +239,9 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
   const row = await db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
-    WHERE id = ? AND business_id = ? AND status = 'pending' AND available_at <= ?
+    WHERE id = ? AND business_id = ?
+      AND ((status = 'pending' AND available_at <= ?)
+        OR (status = 'printed' AND copies_printed > 0 AND copies_printed < copies_requested))
       AND (trigger <> 'automatic' OR EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status <> 'Cancelado'))
     RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
@@ -255,7 +257,8 @@ export const markPrintJobPrinted = async (db, businessId, jobId, stationId, copi
       status = 'printed', copies_printed = ?, processed_at = ?,
       last_error_code = NULL, last_error_message = NULL
     WHERE id = ? AND business_id = ? AND status = 'processing' AND station_id = ?
-    RETURNING *`).bind(copies, at, jobId, businessId, stationId).first()
+      AND ? > copies_printed AND ? <= copies_requested
+    RETURNING *`).bind(copies, at, jobId, businessId, stationId, copies, copies).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
@@ -278,10 +281,13 @@ export const markPrintJobFailed = async (db, businessId, jobId, stationId, failu
 }
 
 export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => {
-  const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
-      status = 'pending', station_id = NULL, processing_started_at = NULL, processed_at = NULL,
-      copies_printed = 0, last_error_code = NULL, last_error_message = NULL
+      status = CASE
+        WHEN copies_printed > 0 AND copies_printed < copies_requested THEN 'printed'
+        ELSE 'pending'
+      END,
+      station_id = NULL, processing_started_at = NULL, processed_at = NULL,
+      last_error_code = NULL, last_error_message = NULL
     WHERE id = ? AND business_id = ? AND status IN ('failed', 'requires_attention')
     RETURNING *`).bind(jobId, businessId).first()
   if (row) return mapJobRow(row)
