@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  clearQzPrinterName,
   detectPrintStationPlatform,
   findAuthorizedPrinterPort,
   getDefaultPrintStationName,
   getOrCreateLocalPrintStationId,
   getPrinterFingerprint,
+  getQzPrinterName,
   savePrinterFingerprint,
+  saveQzPrinterName,
 } from './localPrintStation.js'
 
 class MemoryStorage {
@@ -75,4 +78,23 @@ test('duplicate matching fingerprints are considered ambiguous instead of choosi
   savePrinterFingerprint(storage, stationId, first)
 
   assert.equal(await findAuthorizedPrinterPort({ getPorts: async () => [first, second] }, storage, stationId), null)
+})
+
+test('QZ printer name is trimmed and scoped by local station id', () => {
+  const storage = new MemoryStorage()
+
+  assert.equal(saveQzPrinterName(storage, 'station-a', '  MPT-II  '), 'MPT-II')
+  assert.equal(getQzPrinterName(storage, 'station-a'), 'MPT-II')
+  assert.equal(getQzPrinterName(storage, 'station-b'), null)
+})
+
+test('blank QZ printer name is not persisted and clear removes the saved queue', () => {
+  const storage = new MemoryStorage()
+
+  assert.equal(saveQzPrinterName(storage, 'station-a', '   '), '')
+  assert.equal(getQzPrinterName(storage, 'station-a'), null)
+
+  saveQzPrinterName(storage, 'station-a', 'MPT-II')
+  clearQzPrinterName(storage, 'station-a')
+  assert.equal(getQzPrinterName(storage, 'station-a'), null)
 })
