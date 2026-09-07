@@ -8,6 +8,9 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
       o.client_name_snapshot,
       o.client_phone_snapshot,
       o.client_address_snapshot,
+      o.client_id,
+      o.customer_identity_type,
+      tt.table_identifier,
       o.type,
       o.order_date,
       o.subtotal_cents,
@@ -22,6 +25,7 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
       p.method AS payment_method
     FROM orders o
     JOIN businesses b ON b.id = o.business_id
+    LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id
     LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
     WHERE o.id = ? AND o.business_id = ?
     LIMIT 1`).bind(orderId, businessId).first()
@@ -44,6 +48,9 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
     orderDate: order.order_date,
     createdAt: order.created_at,
     type: order.type,
+    customerIdentityType: order.customer_identity_type,
+    tableIdentifier: order.table_identifier,
+    hasOptionalClient: Boolean(order.client_id),
     customer: {
       name: order.client_name_snapshot,
       phone: order.client_phone_snapshot || '',

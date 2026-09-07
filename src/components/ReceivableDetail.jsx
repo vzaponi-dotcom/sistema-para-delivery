@@ -1,4 +1,5 @@
 import Button from './Button'
+import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate } from '../utils/orderWorkflow.js'
 
 const timingText = (entry) => {
@@ -44,6 +45,26 @@ function ReceivableDetail({
         <div className="receivable-detail-meta">
           <div><span>Pedidos pendentes</span><strong>{entry.orders.length}</strong></div>
           <div><span>Data de referência</span><strong>{formatOrderDate(entry.expectedDate)}</strong></div>
+        </div>
+        <div className="receivable-table-tab-orders">
+          {entry.orders.map((order) => (
+            <section className="receivable-table-tab-order" key={order.id}>
+              <div className="receivable-table-tab-order-heading">
+                <strong>Pedido #{String(order.id || '').slice(-4)}</strong>
+                <strong>{currency(order.total ?? order.subtotal ?? 0)}</strong>
+              </div>
+              <div className="receivable-table-tab-items">
+                {getOrderItems(order).map((item) => (
+                  <div className="receivable-table-tab-item" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
+                    <div>
+                      <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
+                      {item.note && <span>↳ {item.note}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
         <p className="receivable-detail-note">A comanda é recebida de forma integral. A data prometida não é editada por aqui nesta versão.</p>
         <div className="receivable-detail-actions">

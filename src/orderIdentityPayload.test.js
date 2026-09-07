@@ -10,13 +10,21 @@ const baseDraft = {
   adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
 }
 
-test('order payload sends explicit local customer identity without fake client id', () => {
+test('order payload sends a registered table without requiring a local client', () => {
   const payload = buildOrderPayload({
     ...baseDraft,
-    customerIdentity: { type: 'guest_name', value: 'João' },
+    customerIdentity: { type: 'table', tableId: 'table-4' },
   })
-  assert.deepEqual(payload.customerIdentity, { type: 'guest_name', value: 'João' })
+  assert.deepEqual(payload.customerIdentity, { type: 'table', tableId: 'table-4' })
   assert.equal(Object.hasOwn(payload, 'clientId'), false)
+})
+
+test('order payload keeps the table primary when an optional local client is linked', () => {
+  const payload = buildOrderPayload({
+    ...baseDraft,
+    customerIdentity: { type: 'table', tableId: 'table-4', clientId: 'client-1' },
+  })
+  assert.deepEqual(payload.customerIdentity, { type: 'table', tableId: 'table-4', clientId: 'client-1' })
 })
 
 test('registered customer identity remains explicit in order payload', () => {

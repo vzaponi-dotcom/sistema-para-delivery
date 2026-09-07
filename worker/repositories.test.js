@@ -69,7 +69,7 @@ class BootstrapDb {
           async all() {
             if (sql.includes('FROM clients')) return { results: [{ id: 'c1', name: 'Maria', phone: '11', address: 'Centro' }] }
             if (sql.includes('FROM products')) return { results: [{ id: 'p1', category: 'Bebida', size: '350ml', name: 'Coca', price_cents: 850 }] }
-            if (sql.includes('FROM table_tabs')) return { results: [{ id: 'tab-1', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null }] }
+            if (sql.includes('FROM table_tabs')) return { results: [{ id: 'tab-1', table_id: 'table-1', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null }] }
             if (sql.includes('FROM orders')) return { results: [{
               id: 'o1', client_id: 'c1', client_name_snapshot: 'Maria', table_tab_id: null, type: 'Entrega', order_date: '2026-09-01', status: 'Em preparo',
               subtotal_cents: 850, delivery_fee_cents: 0, adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0,
@@ -98,7 +98,7 @@ test('loadBootstrap scopes every business-owned query and attaches order items a
   assert.equal(result.orders[0].items[0].name, 'Coca')
   assert.equal(result.orders[0].items[0].note, '')
   assert.deepEqual(result.tableTabs, [{
-    id: 'tab-1', tableIdentifier: '04', status: 'open',
+    id: 'tab-1', tableId: 'table-1', tableIdentifier: '04', status: 'open',
     openedAt: '2026-09-02T18:00:00.000Z', closedAt: null,
   }])
   assert.deepEqual(result.movements, [])

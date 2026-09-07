@@ -73,6 +73,31 @@ test('canonical document normalizes optional values without inventing payment or
   assert.equal(document.items[0].note, '')
 })
 
+test('local order documents prioritize the persisted table snapshot and append an optional client', () => {
+  const withoutClient = createOrderPrintDocument(orderInput({
+    type: 'Local',
+    customerIdentityType: 'table',
+    tableIdentifier: 'Mesa 4',
+    customer: { name: 'Mesa 4' },
+  }))
+  const withClient = createOrderPrintDocument(orderInput({
+    type: 'Local',
+    customerIdentityType: 'table',
+    tableIdentifier: 'Mesa 4',
+    hasOptionalClient: true,
+    customer: { name: 'Hugo' },
+  }))
+  const legacyGuest = createOrderPrintDocument(orderInput({
+    type: 'Local',
+    customerIdentityType: 'guest_name',
+    customer: { name: 'Nome legado' },
+  }))
+
+  assert.equal(withoutClient.customer.name, 'Mesa 4')
+  assert.equal(withClient.customer.name, 'Mesa 4 · Hugo')
+  assert.equal(legacyGuest.customer.name, 'Nome legado')
+})
+
 test('money and friendly order helpers use Brazilian ticket formatting', () => {
   assert.equal(formatPrintMoneyCents(8750), 'R$ 87,50')
   assert.equal(getFriendlyOrderNumber('order-0184'), '0184')

@@ -1,5 +1,4 @@
 export const CUSTOMER_IDENTITY_TYPES = ['registered_client', 'guest_name', 'table']
-export const TABLE_ID_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/
 
 const fail = (field, message) => ({ ok: false, field, message })
 
@@ -13,26 +12,26 @@ export const validateCustomerIdentity = (orderType, identity = {}) => {
     return fail('customerIdentity.type', 'Entrega e retirada exigem cliente cadastrado.')
   }
 
-  if (type === 'registered_client') {
+  if (orderType !== 'Local') {
     const clientId = String(identity.clientId ?? '').trim()
     if (!clientId) return fail('customerIdentity.clientId', 'Selecione um cliente cadastrado.')
-    return { ok: true, value: { type, clientId } }
+    return { ok: true, value: { type: 'registered_client', clientId } }
   }
 
-  if (orderType !== 'Local') {
-    return fail('customerIdentity.type', 'Esta identificação só pode ser usada em consumo no local.')
+  if (type !== 'table') {
+    return fail('customerIdentity.type', 'Consumo no local exige uma mesa cadastrada.')
   }
 
-  const value = String(identity.value ?? '').trim()
-  if (type === 'guest_name') {
-    if (!value || value.length > 80) {
-      return fail('customerIdentity.value', 'Informe um nome com até 80 caracteres.')
-    }
-    return { ok: true, value: { type, value } }
-  }
+  const tableId = String(identity.tableId ?? '').trim()
+  if (!tableId) return fail('customerIdentity.tableId', 'Selecione uma mesa.')
 
-  if (!value || value.length > 12 || !TABLE_ID_PATTERN.test(value)) {
-    return fail('customerIdentity.value', 'Informe uma mesa válida com até 12 caracteres, usando letras, números ou hífen.')
+  const clientId = String(identity.clientId ?? '').trim()
+  return {
+    ok: true,
+    value: {
+      type: 'table',
+      tableId,
+      ...(clientId ? { clientId } : {}),
+    },
   }
-  return { ok: true, value: { type, value } }
 }

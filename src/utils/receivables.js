@@ -93,6 +93,11 @@ const newestOrderFirst = (orders) => [...orders].sort((left, right) => (
   || String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
 ))[0]
 
+export const formatTableIdentifierLabel = (value) => {
+  const identifier = String(value ?? '').trim()
+  return /^\d+$/.test(identifier) ? `Mesa ${identifier}` : identifier
+}
+
 export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today) => {
   const pendingOrders = getPendingReceivableOrders(orders)
   const entries = []
@@ -121,7 +126,7 @@ export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today
   for (const [tableTabId, tableOrders] of tableOrdersByTab) {
     const newestOrder = newestOrderFirst(tableOrders)
     const tableTab = (Array.isArray(tableTabs) ? tableTabs : []).find((item) => item.id === tableTabId)
-    const tableIdentifier = tableTab?.tableIdentifier || newestOrder.client?.replace(/^Mesa\s*/i, '') || tableTabId
+    const tableIdentifier = formatTableIdentifierLabel(tableTab?.tableIdentifier || newestOrder.client || tableTabId)
     const referenceOrder = { ...newestOrder, promisedPaymentDate: null }
     entries.push({
       key: `table-tab:${tableTabId}`,
@@ -129,7 +134,7 @@ export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today
       tableTabId,
       order: newestOrder,
       orders: tableOrders,
-      label: `Mesa ${tableIdentifier}`,
+      label: tableIdentifier,
       total: tableOrders.reduce((sum, order) => sum + getPendingAmount(order), 0),
       expectedDate: newestOrder.orderDate || null,
       timing: getReceivableTiming(referenceOrder, today),

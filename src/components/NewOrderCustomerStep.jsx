@@ -1,5 +1,5 @@
 import Button from './Button'
-import Icon from './Icon'
+import LocalTableSelector from './LocalTableSelector'
 import { formatScheduledTimeInput } from '../utils/formFormatting.js'
 
 const ORDER_TYPE_OPTIONS = [
@@ -8,14 +8,10 @@ const ORDER_TYPE_OPTIONS = [
   { value: 'Local', label: 'Consumo no local' },
 ]
 
-const LOCAL_IDENTITY_OPTIONS = [
-  { value: 'guest_name', label: 'Nome', icon: 'client' },
-  { value: 'table', label: 'Mesa', icon: 'table' },
-  { value: 'registered_client', label: 'Cliente cadastrado', icon: 'clients' },
-]
-
 function NewOrderCustomerStep({
   clients,
+  tables,
+  selectedTableId,
   filteredClients,
   clientId,
   clientSearch,
@@ -27,9 +23,6 @@ function NewOrderCustomerStep({
   scheduledTime,
   scheduleVisible,
   scheduleValid,
-  localIdentityType,
-  localIdentityValue,
-  openTableTab,
   quickClient,
   quickClientError,
   disabled,
@@ -38,8 +31,7 @@ function NewOrderCustomerStep({
   onOrderDateChange,
   onScheduleModeChange,
   onScheduledTimeChange,
-  onLocalIdentityTypeChange,
-  onLocalIdentityValueChange,
+  onTableSelect,
   onClientSearchChange,
   onClientFocus,
   onClientBlur,
@@ -50,8 +42,6 @@ function NewOrderCustomerStep({
   onQuickClientCancel,
   onContinue,
 }) {
-  const usesRegisteredClient = type !== 'Local' || localIdentityType === 'registered_client'
-
   return (
     <section className="surface-card new-order-customer-card new-order-step-card">
       <div className="section-heading">
@@ -81,65 +71,19 @@ function NewOrderCustomerStep({
 
       {type === 'Local' && (
         <div className="new-order-local-identity">
-          <span className="product-detail-label">Identificar por</span>
-          <div className="new-order-local-identity-options" role="group" aria-label="Identificação do consumo no local">
-            {LOCAL_IDENTITY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={localIdentityType === option.value ? 'new-order-local-identity-option selected' : 'new-order-local-identity-option'}
-                aria-pressed={localIdentityType === option.value}
-                onClick={() => onLocalIdentityTypeChange(option.value)}
-                disabled={disabled}
-              >
-                <Icon name={option.icon} size={16} />
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          {localIdentityType === 'guest_name' && (
-            <label className="form-field">
-              <span>Nome</span>
-              <input
-                type="text"
-                maxLength={80}
-                placeholder="Ex: João"
-                value={localIdentityValue}
-                onChange={(event) => onLocalIdentityValueChange(event.target.value)}
-                disabled={disabled}
-                autoComplete="off"
-              />
-            </label>
-          )}
-
-          {localIdentityType === 'table' && (
-            <label className="form-field">
-              <span>Mesa</span>
-              <input
-                type="text"
-                maxLength={12}
-                placeholder="Ex: 04 ou A-2"
-                value={localIdentityValue}
-                onChange={(event) => onLocalIdentityValueChange(event.target.value)}
-                disabled={disabled}
-                autoComplete="off"
-              />
-              <small>Use letras, números ou hífen.</small>
-              {openTableTab && (
-                <div className="new-order-table-tab-hint" role="status">
-                  Mesa {openTableTab.tableIdentifier} · comanda aberta. Este pedido será adicionado automaticamente.
-                </div>
-              )}
-            </label>
-          )}
+          <span className="product-detail-label">Selecione uma mesa</span>
+          <LocalTableSelector
+            tables={tables}
+            selectedTableId={selectedTableId}
+            onSelect={onTableSelect}
+            disabled={disabled}
+          />
         </div>
       )}
 
-      {usesRegisteredClient && (
-        <>
+      <>
           <div className="form-field new-order-client-picker" onBlur={onClientBlur}>
-            <span>Cliente</span>
+            <span>{type === 'Local' ? 'Vincular cliente cadastrado — opcional' : 'Cliente'}</span>
             <div className="new-order-client-combobox">
               <input
                 type="search"
@@ -208,8 +152,7 @@ function NewOrderCustomerStep({
               </div>
             </form>
           )}
-        </>
-      )}
+      </>
 
       <label className="form-field new-order-date-field">
         <span>Data do pedido</span>

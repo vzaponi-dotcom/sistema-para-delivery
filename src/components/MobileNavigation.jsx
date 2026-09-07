@@ -22,7 +22,7 @@ const themeCycle = ['light', 'dark', 'system']
 function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const { themePreference, setThemePreference } = useTheme()
-  const moreActive = activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance'
+  const moreActive = activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance' || activeTab === 'tables'
   const currentThemeOption = themeOptions.find((option) => option.value === themePreference) || themeOptions[2]
   const nextThemePreference = themeCycle[(themeCycle.indexOf(currentThemeOption.value) + 1) % themeCycle.length]
 
@@ -54,6 +54,9 @@ function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = fa
           </button>
           <button type="button" className={activeTab === 'finance' ? 'mobile-more-action active' : 'mobile-more-action'} onClick={() => navigate('finance')}>
             <Icon name="finance" size={20} /><span>Financeiro</span>
+          </button>
+          <button type="button" className={activeTab === 'tables' ? 'mobile-more-action active' : 'mobile-more-action'} onClick={() => navigate('tables')}>
+            <Icon name="table" size={20} /><span>Mesas</span>
           </button>
         </div>
 

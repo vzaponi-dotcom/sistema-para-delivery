@@ -4,7 +4,10 @@ import { createOrder, mapOrderItemRow, mapOrderRow } from './repositories.js'
 
 class CheckoutDb {
   constructor() {
-    this.clients = new Map([['c1', { id: 'c1', business_id: 'amor-e-sabor', name: 'Maria' }]])
+    this.clients = new Map([
+      ['c1', { id: 'c1', business_id: 'amor-e-sabor', name: 'Maria', phone: '11999999999', address: '' }],
+      ['other-client', { id: 'other-client', business_id: 'outro-negocio', name: 'Outro cliente', phone: '', address: '' }],
+    ])
     this.products = new Map([
       ['p1', { id: 'p1', business_id: 'amor-e-sabor', category: 'Marmita', size: 'G', name: 'Marmita G', price_cents: 3200, active: 1 }],
       ['p2', { id: 'p2', business_id: 'amor-e-sabor', category: 'Bebida', size: 'Lata', name: 'Coca', price_cents: 800, active: 1 }],
@@ -13,6 +16,11 @@ class CheckoutDb {
     this.items = new Map()
     this.payments = new Map()
     this.movements = new Map()
+    this.tables = new Map([
+      ['table-1', { id: 'table-1', business_id: 'amor-e-sabor', name: 'Mesa 4', is_active: 1 }],
+      ['table-inactive', { id: 'table-inactive', business_id: 'amor-e-sabor', name: 'Mesa 5', is_active: 0 }],
+      ['other-table', { id: 'other-table', business_id: 'outro-negocio', name: 'Mesa 6', is_active: 1 }],
+    ])
     this.tableTabs = []
     this.failNextBatch = false
   }
@@ -25,9 +33,14 @@ class CheckoutDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM tables')) {
+              const [tableId, businessId] = values
+              const row = db.tables.get(tableId)
+              return row?.business_id === businessId ? row : null
+            }
             if (sql.includes('FROM table_tabs')) {
-              const [businessId, tableIdentifier] = values
-              return db.tableTabs.find((row) => row.business_id === businessId && row.table_identifier === tableIdentifier && row.status === 'open') ?? null
+              const [businessId, tableId] = values
+              return db.tableTabs.find((row) => row.business_id === businessId && row.table_id === tableId && row.status === 'open') ?? null
             }
             if (sql.includes('idempotency_key') && !sql.includes('INSERT')) {
               const [businessId, key] = values
@@ -99,11 +112,11 @@ class CheckoutDb {
 
   async _run(sql, values) {
     if (sql.includes('INSERT OR IGNORE INTO table_tabs')) {
-      const [id, businessId, tableIdentifier, openedAt, createdAt, updatedAt] = values
-      const existing = this.tableTabs.find((row) => row.business_id === businessId && row.table_identifier === tableIdentifier && row.status === 'open')
+      const [id, businessId, tableId, tableIdentifier, openedAt, createdAt, updatedAt] = values
+      const existing = this.tableTabs.find((row) => row.business_id === businessId && row.table_id === tableId && row.status === 'open')
       if (!existing) {
         this.tableTabs.push({
-          id, business_id: businessId, table_identifier: tableIdentifier, status: 'open', opened_at: openedAt,
+          id, business_id: businessId, table_id: tableId, table_identifier: tableIdentifier, status: 'open', opened_at: openedAt,
           closed_at: null, created_at: createdAt, updated_at: updatedAt,
         })
       }
@@ -170,9 +183,9 @@ const baseInput = (overrides = {}) => ({
   ...overrides,
 })
 
-const tableInput = (value, idempotencyKey) => baseInput({
+const tableInput = (tableId, idempotencyKey, clientId) => baseInput({
   clientId: null,
-  customerIdentity: { type: 'table', value },
+  customerIdentity: { type: 'table', tableId, ...(clientId ? { clientId } : {}) },
   type: 'Local',
   idempotencyKey,
   items: [{ productId: 'p1', quantity: 1, note: '' }],
@@ -217,18 +230,44 @@ test('createOrder uses server product prices for several items, fee and adjustme
   assert.equal(order.paymentStatus, 'Pendente')
 })
 
-test('table orders reuse one open canonical tab and preserve leading-zero table identity', async () => {
+test('local orders without a client reuse the persistent table tab and its exact name snapshot', async () => {
   const db = new CheckoutDb()
   const now = new Date('2026-09-02T18:00:00.000Z')
-  const first = await createOrder(db, 'amor-e-sabor', tableInput('a-01', 'tab-a-1'), now)
-  const second = await createOrder(db, 'amor-e-sabor', tableInput('A-01', 'tab-a-2'), new Date('2026-09-02T18:01:00.000Z'))
+  const first = await createOrder(db, 'amor-e-sabor', tableInput('table-1', 'tab-a-1'), now)
+  const second = await createOrder(db, 'amor-e-sabor', tableInput('table-1', 'tab-a-2'), new Date('2026-09-02T18:01:00.000Z'))
+
   assert.equal(first.tableTabId, second.tableTabId)
   assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 1)
-  assert.equal(db.tableTabs[0].table_identifier, 'A-01')
+  assert.equal(db.tableTabs[0].table_id, 'table-1')
+  assert.equal(db.tableTabs[0].table_identifier, 'Mesa 4')
+  assert.equal(first.clientId, null)
+  assert.equal(first.client, 'Mesa 4')
+  assert.equal(first.customerIdentityType, 'table')
+})
 
-  const order04 = await createOrder(db, 'amor-e-sabor', tableInput('04', 'tab-04'), new Date('2026-09-02T18:02:00.000Z'))
-  const order4 = await createOrder(db, 'amor-e-sabor', tableInput('4', 'tab-4'), new Date('2026-09-02T18:03:00.000Z'))
-  assert.notEqual(order04.tableTabId, order4.tableTabId)
+test('local order persists an optional same-business client snapshot', async () => {
+  const db = new CheckoutDb()
+  const order = await createOrder(
+    db,
+    'amor-e-sabor',
+    tableInput('table-1', 'table-client', 'c1'),
+    new Date('2026-09-02T18:00:00.000Z'),
+  )
+
+  assert.equal(order.clientId, 'c1')
+  assert.equal(order.client, 'Maria')
+  assert.equal(order.customerIdentityType, 'table')
+  assert.equal(order.tableTabId, db.tableTabs[0].id)
+})
+
+test('local order rejects an optional client from another business', async () => {
+  const db = new CheckoutDb()
+
+  await assert.rejects(
+    () => createOrder(db, 'amor-e-sabor', tableInput('table-1', 'cross-client', 'other-client'), new Date('2026-09-02T18:00:00.000Z')),
+    (error) => error.status === 404 && error.code === 'CLIENT_NOT_FOUND',
+  )
+  assert.equal(db.orders.size, 0)
 })
 
 test('paid retry creates one order, payment and movement and stays Em preparo', async () => {

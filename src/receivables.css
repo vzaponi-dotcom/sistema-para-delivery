@@ -188,6 +188,15 @@
 .receivable-detail-actions { display: grid; gap: 8px; }
 .receivable-detail-actions .button { width: 100%; min-height: 44px; }
 
+.receivable-table-tab-orders { display: grid; gap: 10px; }
+.receivable-table-tab-order { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.receivable-table-tab-order-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--text); }
+.receivable-table-tab-order-heading strong:last-child { white-space: nowrap; }
+.receivable-table-tab-items { display: grid; gap: 8px; }
+.receivable-table-tab-item { min-width: 0; display: flex; flex-direction: column; gap: 4px; color: var(--text); font-size: 0.82rem; }
+.receivable-table-tab-item > div { display: flex; flex-direction: column; gap: 3px; }
+.receivable-table-tab-item span { color: var(--muted); font-size: 0.76rem; overflow-wrap: anywhere; }
+
 .payment-promise-dialog { display: grid; gap: 12px; }
 .payment-promise-dialog input[type='date'] { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
 .payment-promise-warning { padding: 10px 12px; border: 1px solid var(--warning); border-radius: 10px; background: var(--warning-soft); color: var(--text); }

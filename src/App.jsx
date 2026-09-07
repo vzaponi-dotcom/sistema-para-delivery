@@ -26,6 +26,7 @@ import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
+import Tables from './pages/Tables'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { useKitchenClock } from './hooks/useKitchenClock.js'
@@ -39,12 +40,14 @@ import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/or
 import { detectOperationalArrivals } from './utils/orderRealtime.js'
 import { toLocalDateValue } from './utils/orderWorkflow'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
+import { formatTableIdentifierLabel } from './utils/receivables.js'
 import {
   cancelOrder as cancelOrderApi,
   createClient as createClientApi,
   createMovement as createMovementApi,
   createOrder as createOrderApi,
   createProduct as createProductApi,
+  createTable as createTableApi,
   deleteClient as deleteClientApi,
   deleteMovement as deleteMovementApi,
   deleteProduct as deleteProductApi,
@@ -56,17 +59,20 @@ import {
   refundOrder as refundOrderApi,
   registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
+  reorderTables as reorderTablesApi,
   saveFinanceSettings as saveFinanceSettingsApi,
   updateClient as updateClientApi,
   updateMovement as updateMovementApi,
   updateOrderStatus as updateOrderStatusApi,
   updateOrderPaymentPromise as updateOrderPaymentPromiseApi,
   updateProduct as updateProductApi,
+  updateTable as updateTableApi,
+  transferTableTab as transferTableTabApi,
 } from './api/client'
 
 const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro'].map((value) => ({ value, label: value }))
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
-const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tableTabs', 'movements', 'financeSettings']
+const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -89,6 +95,7 @@ function App() {
   const [products, setProducts] = useState([])
   const [clients, setClients] = useState([])
   const [orders, setOrders] = useState([])
+  const [tables, setTables] = useState([])
   const [tableTabs, setTableTabs] = useState([])
   const [movements, setMovements] = useState([])
   const [financeSettings, setFinanceSettings] = useState(null)
@@ -144,7 +151,7 @@ function App() {
 
   const clearBusinessData = () => {
     resetSyncState()
-    setProducts([]); setClients([]); setOrders([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
+    setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedSecondCopyJobIdsRef.current = new Set()
     setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false)
   }
@@ -154,16 +161,19 @@ function App() {
     if (guard.canApply(token, 'clients')) setClients(Array.isArray(data?.clients) ? data.clients : [])
     if (guard.canApply(token, 'products')) setProducts(Array.isArray(data?.products) ? data.products : [])
     if (guard.canApply(token, 'orders')) setOrders(Array.isArray(data?.orders) ? data.orders : [])
+    if (guard.canApply(token, 'tables')) setTables(Array.isArray(data?.tables) ? data.tables : [])
     if (guard.canApply(token, 'tableTabs')) setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
     if (guard.canApply(token, 'movements')) setMovements(Array.isArray(data?.movements) ? data.movements : [])
     if (guard.canApply(token, 'financeSettings')) setFinanceSettings(data?.financeSettings ?? null)
   }
 
-  const applyOfficialEffects = ({ order, orders: nextOrders, movement, movements: nextMovements, deletedMovementId, financeSettings, tableTab, client, product }) => {
+  const applyOfficialEffects = ({ order, orders: nextOrders, movement, movements: nextMovements, deletedMovementId, financeSettings, table, tables: nextTables, tableTab, client, product }) => {
     const changed = []
     if (order || (Array.isArray(nextOrders) && nextOrders.length)) changed.push('orders')
     if (movement || deletedMovementId || (Array.isArray(nextMovements) && nextMovements.length)) changed.push('movements')
     if (financeSettings !== undefined) changed.push('financeSettings')
+    if (table) changed.push('tables')
+    if (Array.isArray(nextTables)) changed.push('tables')
     if (tableTab) changed.push('tableTabs')
     if (client) changed.push('clients')
     if (product) changed.push('products')
@@ -174,6 +184,8 @@ function App() {
     if (Array.isArray(nextMovements) && nextMovements.length) setMovements((current) => upsertManyById(current, nextMovements))
     if (deletedMovementId) setMovements((current) => removeById(current, deletedMovementId))
     if (financeSettings !== undefined) setFinanceSettings(financeSettings)
+    if (table) setTables((current) => upsertById(current, table))
+    if (Array.isArray(nextTables)) setTables(nextTables)
     if (tableTab) setTableTabs((current) => upsertById(current, tableTab))
     if (client) setClients((current) => upsertById(current, client))
     if (product) setProducts((current) => upsertById(current, product))
@@ -415,7 +427,56 @@ function App() {
   const openPaymentModal = (orderId) => { if (writesBlocked) return; const order = orders.find((item) => item.id === orderId); if (!order || isOrderPaid(order) || isOrderCancelled(order)) return; setPaymentOrderId(orderId); setPaymentMethod('Pix') }
   const closePaymentModal = () => { setPaymentOrderId(null); setPaymentMethod('Pix') }
   const handleRegisterPayment = async (event) => { event.preventDefault(); if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return; setRequestKey(`payment:${paymentOrder.id}`); try { const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod); applyOfficialEffects({ order, movement, tableTab }); closePaymentModal(); showSuccessMessage(`Pagamento recebido via ${paymentMethod}`) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento da Mesa ${result.tableTab.tableIdentifier} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(result.tableTab.tableIdentifier)} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleCreateTable = async (name) => {
+    if (writesBlocked) return false
+    setRequestKey('table:create')
+    try {
+      const result = await createTableApi({ name })
+      applyOfficialEffects({ tables: result.tables })
+      showSuccessMessage('Mesa adicionada com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
+  const handleRenameTable = async (tableId, name) => {
+    if (writesBlocked) return false
+    setRequestKey(`table:rename:${tableId}`)
+    try {
+      const result = await updateTableApi(tableId, { name })
+      applyOfficialEffects({ tables: result.tables })
+      showSuccessMessage('Mesa renomeada com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
+  const handleSetTableActive = async (tableId, isActive) => {
+    if (writesBlocked) return false
+    setRequestKey(`table:active:${tableId}`)
+    try {
+      const result = await updateTableApi(tableId, { isActive })
+      applyOfficialEffects({ tables: result.tables })
+      showSuccessMessage(isActive ? 'Mesa ativada com sucesso' : 'Mesa desativada com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
+  const handleReorderTables = async (tableIds) => {
+    if (writesBlocked) return false
+    setRequestKey('table:reorder')
+    try {
+      const result = await reorderTablesApi(tableIds)
+      applyOfficialEffects({ tables: result.tables })
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
+  const handleTransferTableTab = async (sourceTableId, destinationTableId) => {
+    if (writesBlocked) return false
+    setRequestKey(`table:transfer:${sourceTableId}`)
+    try {
+      const result = await transferTableTabApi(sourceTableId, destinationTableId)
+      applyOfficialEffects({ tables: result.tables, tableTab: result.tableTab })
+      showSuccessMessage('Comanda transferida com sucesso')
+      return true
+    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+  }
   const handleUpdatePaymentPromise = async (orderId, promisedPaymentDate) => {
     if (writesBlocked) return false
     setRequestKey(`payment-promise:${orderId}`)
@@ -497,11 +558,12 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
         {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} />}
-        {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
+        {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tables={tables} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
+        {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
 
         {pendingNavigationTab && (
           <Modal title="Descartar venda em andamento?" onClose={cancelDiscardNewOrder}>

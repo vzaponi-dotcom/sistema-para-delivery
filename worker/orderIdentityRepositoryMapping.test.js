@@ -38,12 +38,14 @@ test('order row exposes explicit customer identity and table tab without losing 
 test('table tab row maps the persistent session fields for the UI', () => {
   assert.deepEqual(mapTableTabRow({
     id: 'tab-1',
+    table_id: 'table-1',
     table_identifier: '04',
     status: 'open',
     opened_at: '2026-09-02T18:00:00.000Z',
     closed_at: null,
   }), {
     id: 'tab-1',
+    tableId: 'table-1',
     tableIdentifier: '04',
     status: 'open',
     openedAt: '2026-09-02T18:00:00.000Z',
@@ -60,8 +62,6 @@ test('legacy order row derives identity type and keeps table tab optional', () =
 test('order persistence stores identity type and derives server-side snapshots', () => {
   assert.match(source, /customer_identity_type/)
   assert.match(source, /table_tab_id/)
-  assert.match(source, /customerIdentity\.type === 'guest_name'/)
-  assert.match(source, /clientSnapshot = `Mesa \$\{tableTab\.tableIdentifier\}`/)
   assert.match(source, /productSnapshotSize\(item\.product\)/)
   assert.match(source, /Pagamento pedido #[^\n]*clientSnapshot/)
 })

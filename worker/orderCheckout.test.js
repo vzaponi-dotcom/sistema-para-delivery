@@ -76,6 +76,7 @@ test('checkout rejects scheduledFor for Local orders', () => {
   assert.throws(() => validateCheckoutInput({
     ...scheduledBase,
     type: 'Local',
+    customerIdentity: { type: 'table', tableId: 'table-123' },
     scheduledFor: '2026-09-04T15:00:00Z',
   }, 'scheduled-local', scheduledNow), /agendamento.*Local/i)
 })

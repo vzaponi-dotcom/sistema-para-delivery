@@ -10,6 +10,8 @@ class FakeDb {
     this.clients = new Map()
     this.products = new Map()
     this.orders = new Map()
+    this.tables = new Map()
+    this.tableTabs = new Map()
   }
 
   prepare(sql) {
@@ -42,6 +44,28 @@ class FakeDb {
             return null
           },
           async all() {
+            if (sql.includes('FROM tables')) {
+              return {
+                results: [...db.tables.values()]
+                  .filter((table) => table.business_id === values[0])
+                  .map((table) => ({
+                    ...table,
+                    open_table_tab_id: [...db.tableTabs.values()].find((tab) => (
+                      tab.business_id === table.business_id
+                      && tab.table_id === table.id
+                      && tab.status === 'open'
+                    ))?.id ?? null,
+                  }))
+                  .sort((left, right) => left.sort_order - right.sort_order || left.name.localeCompare(right.name)),
+              }
+            }
+            if (sql.includes('FROM table_tabs')) {
+              return {
+                results: [...db.tableTabs.values()]
+                  .filter((tab) => tab.business_id === values[0])
+                  .sort((left, right) => right.opened_at.localeCompare(left.opened_at)),
+              }
+            }
             return { results: [] }
           },
           async run() {
@@ -179,6 +203,12 @@ test('mutations reject a missing or cross-origin Origin header', async () => {
 
 test('authenticated bootstrap returns the shared clean business dataset', async () => {
   const env = await makeEnv()
+  env.DB.tables.set('table-2', { id: 'table-2', business_id: 'amor-e-sabor', name: 'Mesa 2', sort_order: 2, is_active: 1 })
+  env.DB.tables.set('table-1', { id: 'table-1', business_id: 'amor-e-sabor', name: 'Mesa 1', sort_order: 1, is_active: 1 })
+  env.DB.tableTabs.set('tab-1', {
+    id: 'tab-1', business_id: 'amor-e-sabor', table_id: 'table-2', table_identifier: 'Mesa 2', status: 'open',
+    opened_at: '2026-09-07T12:00:00.000Z', closed_at: null,
+  })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
   const response = await handleRequest(new Request('https://delivery.example/api/bootstrap', {
@@ -191,7 +221,14 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
     clients: [],
     products: [],
     orders: [],
-    tableTabs: [],
+    tables: [
+      { id: 'table-1', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'free', openTableTabId: null },
+      { id: 'table-2', name: 'Mesa 2', sortOrder: 2, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1' },
+    ],
+    tableTabs: [{
+      id: 'tab-1', tableId: 'table-2', tableIdentifier: 'Mesa 2', status: 'open',
+      openedAt: '2026-09-07T12:00:00.000Z', closedAt: null,
+    }],
     movements: [],
     financeSettings: null,
   })

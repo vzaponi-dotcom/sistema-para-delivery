@@ -18,3 +18,7 @@ test('App owns table tabs from bootstrap and passes them to order and receivable
   assert.match(app, /<Receivables[\s\S]*?tableTabs=\{tableTabs\}/)
   assert.match(app, /onRegisterTableTabPayment=\{handleRegisterTableTabPayment\}/)
 })
+
+test('table transfer applies the returned table list and table tab in one official effect', () => {
+  assert.match(app, /applyOfficialEffects\(\{ tables: result\.tables, tableTab: result\.tableTab \}\)/)
+})

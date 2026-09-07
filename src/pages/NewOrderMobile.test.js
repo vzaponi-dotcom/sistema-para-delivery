@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -11,6 +12,17 @@ test('new order uses a single narrow-screen flow without horizontal pressure', a
   assert.match(css, /\.new-order-product\s*>\s*div:first-child\s*\{[^}]*min-width:\s*0/s)
   assert.match(css, /\.new-order-cart-line-heading\s*\{[^}]*min-width:\s*0/s)
   assert.match(css, /overflow-wrap:\s*anywhere/)
+})
+
+test('local table grid stays responsive with textual status and mobile touch targets', async () => {
+  const css = await read('../local-order-identity.css')
+  const selectorUrl = new URL('../components/LocalTableSelector.jsx', import.meta.url)
+  const selector = existsSync(selectorUrl) ? await read('../components/LocalTableSelector.jsx') : ''
+
+  assert.match(css, /\.new-order-table-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(140px, 1fr\)\)/s)
+  assert.match(css, /\.new-order-table-option\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target, 44px\))/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-table-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s)
+  assert.match(selector, /new-order-table-status/)
 })
 
 test('schedule options keep the mobile touch target and two-column layout', async () => {
