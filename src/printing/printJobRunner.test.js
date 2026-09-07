@@ -155,7 +155,7 @@ test('QZ print rejection fails the claimed job once and never completes it', asy
     stationId: 'station-1',
     payload: {
       code: 'QZ_PRINT_FAILED',
-      message: 'Falha ao enviar o ticket para o QZ Tray.',
+      message: 'O QZ Tray não conseguiu enviar a impressão para a MPT-II.',
       uncertain: false,
     },
   })

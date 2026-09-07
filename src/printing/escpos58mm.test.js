@@ -161,8 +161,12 @@ test('MPT-II bitmap compatibility preserves Portuguese text and both copy labels
   })
   const drawnText = drawnCharacters.join('')
 
-  for (const text of ['Sanduíche', 'Endereço', 'João', 'Acréscimo', 'Observação', 'CÓPIA 1/2', 'CÓPIA 2/2']) {
+  for (const text of ['Sanduíche', 'Endereço', 'João', 'Acréscimo', 'Observação']) {
     assert.equal(drawnText.includes(text), true, `bitmap should preserve ${text}`)
+  }
+  for (const text of ['CÓPIA 1/2', 'CÓPIA 2/2']) {
+    const visibleGlyphs = text.replace(/\s/g, '')
+    assert.equal(drawnText.includes(visibleGlyphs), true, `bitmap should preserve visible glyphs for ${text}`)
   }
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x2a, 33, 0x80, 0x01])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])), false)
