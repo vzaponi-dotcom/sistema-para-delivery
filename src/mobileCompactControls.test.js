@@ -56,10 +56,10 @@ test('mobile cart matches the approved compact icon-and-pill layout without chan
   assert.match(cart, /onClick=\{\(\) => onRemove\(item\.lineId\)\}/)
   assert.match(cart, /onNoteChange\(item\.lineId, event\.target\.value\)/)
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-cart-line\s*\{[^}]*grid-template-columns:\s*52px\s+minmax\(0,\s*1fr\)\s+auto[^}]*grid-template-areas:/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-cart-line\s*\{[^}]*grid-template-columns:\s*100px\s+minmax\(0,\s*1fr\)\s+auto[^}]*grid-template-areas:\s*"icon content aside"\s*"quantity content aside"/s)
   assert.match(css, /\.new-order-cart-category-icon\s*\{[^}]*grid-area:\s*icon[^}]*display:\s*grid[^}]*width:\s*52px[^}]*height:\s*52px/s)
   assert.match(css, /\.new-order-cart-quantity\s*\{[^}]*grid-area:\s*quantity[^}]*justify-items:\s*start/s)
   assert.match(css, /\.new-order-cart-content\s*\{[^}]*grid-area:\s*content/s)
-  assert.match(css, /\.new-order-cart-aside\s*\{[^}]*grid-area:\s*aside/s)
+  assert.match(css, /\.new-order-cart-aside\s*\{[^}]*grid-area:\s*aside[^}]*align-self:\s*start/s)
   assert.match(css, /\.new-order-quantity-control button\s*\{[^}]*width:\s*34px[^}]*height:\s*34px[^}]*min-width:\s*34px[^}]*min-height:\s*34px/s)
 })
