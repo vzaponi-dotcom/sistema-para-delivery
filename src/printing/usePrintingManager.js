@@ -40,14 +40,20 @@ const printerError = (code, message) => Object.assign(new Error(message), { code
 const visiblePage = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 const browserOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false
 
-export const getPrintingTransportKind = (platform) => (
-  platform === 'android' ? 'rawbt' : 'web-serial'
+export const getPrintingTransportKind = (platform) => {
+  if (platform === 'android') return 'rawbt'
+  if (platform === 'windows') return 'qz'
+  return 'web-serial'
+}
+
+export const getRendererCompatibilityMode = (transportKind) => (
+  ['rawbt', 'qz'].includes(transportKind) ? 'mpt2-bitmap' : null
 )
 
 export const isPrintingTransportSupported = (
   platform,
   serial = globalThis.navigator?.serial,
-) => getPrintingTransportKind(platform) === 'rawbt' || isWebSerialSupported(serial)
+) => ['rawbt', 'qz'].includes(getPrintingTransportKind(platform)) || isWebSerialSupported(serial)
 
 export const canConsumeAutomaticPrintJob = ({
   authenticated,
@@ -57,6 +63,7 @@ export const canConsumeAutomaticPrintJob = ({
   browserOnline: browserIsOnline,
   busyJobId,
   printerBlocked,
+  transportReady,
   station,
 }) => Boolean(
   authenticated
@@ -66,6 +73,7 @@ export const canConsumeAutomaticPrintJob = ({
   && browserIsOnline
   && !busyJobId
   && !printerBlocked
+  && transportReady
   && station?.isPrimary
   && station?.autoPrintEnabled
 )
