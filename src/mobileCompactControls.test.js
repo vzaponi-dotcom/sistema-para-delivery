@@ -13,8 +13,8 @@ test('mobile compact controls stylesheet is wired from the application entrypoin
 test('order type choices stay three-across and compact on mobile', async () => {
   const css = await read('./mobile-compact-controls.css')
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-type-options\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
-  assert.match(css, /\.new-order-type-options\s*>\s*\.new-order-type-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-type-options(?:\s*,[^{}]+)?\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(css, /\.new-order-type-options\s*>\s*\.new-order-type-option(?:\s*,[^{}]+)?\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
 })
 
 test('local identity choices stay three-across and use semantic icons on mobile', async () => {
@@ -23,7 +23,8 @@ test('local identity choices stay three-across and use semantic icons on mobile'
   const icon = await read('./components/Icon.jsx')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-local-identity-options\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
-  assert.match(css, /\.new-order-local-identity-options\s*>\s*\.new-order-local-identity-option\s*\{[^}]*display:\s*flex[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
+  assert.match(css, /\.new-order-local-identity-options\s*>\s*\.new-order-local-identity-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
+  assert.match(css, /\.new-order-local-identity-options\s*>\s*\.new-order-local-identity-option\s*\{[^}]*display:\s*flex[^}]*align-items:\s*center[^}]*justify-content:\s*center/s)
   assert.match(customerStep, /import Icon from '\.\/Icon'/)
   assert.match(customerStep, /\{ value: 'guest_name', label: 'Nome', icon: 'client' \}/)
   assert.match(customerStep, /\{ value: 'table', label: 'Mesa', icon: 'table' \}/)
