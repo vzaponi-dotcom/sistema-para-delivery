@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './client.js'
+import * as tableClient from './client.js'
 
 const withFetch = async (implementation, callback) => {
   const original = globalThis.fetch
@@ -121,4 +122,24 @@ test('table tab payment helper encodes the id and posts the payment method', asy
   assert.equal(path, '/api/table-tabs/tab%201/payment')
   assert.equal(options.method, 'POST')
   assert.deepEqual(JSON.parse(options.body), { method: 'Pix' })
+})
+
+test('table management helpers use encoded authenticated API routes and exact payloads', async () => {
+  const calls = []
+  await withFetch(async (...args) => {
+    calls.push(args)
+    return new Response(JSON.stringify({ tables: [] }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }, async () => {
+    await tableClient.createTable({ name: 'Varanda' })
+    await tableClient.updateTable('mesa 1', { isActive: false })
+    await tableClient.reorderTables(['mesa-2', 'mesa-1'])
+    await tableClient.transferTableTab('mesa 1', 'mesa-2')
+  })
+
+  assert.deepEqual(calls.map(([path, options]) => [path, options.method, JSON.parse(options.body)]), [
+    ['/api/tables', 'POST', { name: 'Varanda' }],
+    ['/api/tables/mesa%201', 'PATCH', { isActive: false }],
+    ['/api/tables/order', 'PUT', { tableIds: ['mesa-2', 'mesa-1'] }],
+    ['/api/tables/mesa%201/transfer', 'POST', { destinationTableId: 'mesa-2' }],
+  ])
 })

@@ -10,6 +10,7 @@ import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
 import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
@@ -58,6 +59,14 @@ const productInput = (body) => {
   }
 }
 
+const tablePatchInput = (body) => {
+  const keys = Object.keys(body)
+  if (keys.length !== 1 || !['name', 'isActive'].includes(keys[0])) {
+    throw apiError(400, 'INVALID_TABLE_PATCH', 'Informe somente name ou isActive.')
+  }
+  return keys[0]
+}
+
 const authenticatedApi = async (request, env) => {
   const session = await getAuthenticatedSession(request, env)
   if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
@@ -67,6 +76,40 @@ const authenticatedApi = async (request, env) => {
   if (printingResponse) return printingResponse
 
   if (url.pathname === '/api/bootstrap' && request.method === 'GET') return json(await loadBootstrap(env.DB, session.businessId))
+  if (url.pathname === '/api/tables' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    await createTable(env.DB, session.businessId, await readJson(request))
+    return json({ tables: await listTables(env.DB, session.businessId) }, { status: 201 })
+  }
+  if (url.pathname === '/api/tables/order' && request.method === 'PUT') {
+    assertSameOriginMutation(request)
+    const { tableIds } = await readJson(request)
+    return json({ tables: await reorderTables(env.DB, session.businessId, tableIds) })
+  }
+  const tableTransferMatch = url.pathname.match(/^\/api\/tables\/([^/]+)\/transfer$/)
+  if (tableTransferMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const { destinationTableId } = await readJson(request)
+    const tableTab = await transferOpenTableTab(
+      env.DB,
+      session.businessId,
+      decodeURIComponent(tableTransferMatch[1]),
+      destinationTableId,
+    )
+    return json({ tables: await listTables(env.DB, session.businessId), tableTab })
+  }
+  const tableMatch = url.pathname.match(/^\/api\/tables\/([^/]+)$/)
+  if (tableMatch && request.method === 'PATCH') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    const field = tablePatchInput(body)
+    const tableId = decodeURIComponent(tableMatch[1])
+    const table = field === 'name'
+      ? await renameTable(env.DB, session.businessId, tableId, body.name)
+      : await setTableActive(env.DB, session.businessId, tableId, body.isActive)
+    if (!table) throw apiError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
+    return json({ tables: await listTables(env.DB, session.businessId) })
+  }
   if (url.pathname === '/api/clients' && request.method === 'POST') { assertSameOriginMutation(request); const client = await createClient(env.DB, session.businessId, clientInput(await readJson(request))); return json({ client }, { status: 201 }) }
   const clientMatch = url.pathname.match(/^\/api\/clients\/([^/]+)$/)
   if (clientMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const client = await updateClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]), clientInput(await readJson(request))); if (!client) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ client }) }

@@ -5,7 +5,7 @@ import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
-import { getOrCreateOpenTableTabByTableId } from './tableRepository.js'
+import { getOrCreateOpenTableTabByTableId, listTables } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
@@ -122,6 +122,7 @@ export const loadBootstrap = async (db, businessId) => {
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
   const itemsResult = await db.prepare(`${itemSelect} WHERE business_id = ? ORDER BY created_at ASC`).bind(businessId).all()
   const tableTabsResult = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
+  const tables = await listTables(db, businessId)
   const movementsResult = await db.prepare(`SELECT m.id, m.type, m.category, m.description, m.value_cents, m.source, m.order_id, m.payment_id,
     CASE WHEN m.source = 'order-payment' THEN COALESCE(m.payment_method, p.method) ELSE m.payment_method END AS payment_method,
     m.movement_date, m.created_at, m.updated_at
@@ -141,6 +142,7 @@ export const loadBootstrap = async (db, businessId) => {
     clients: rows(clientsResult).map(mapClientRow),
     products: rows(productsResult).map(mapProductRow),
     orders: rows(ordersResult).map((orderRow) => mapOrderRow(orderRow, itemsByOrder.get(orderRow.id) ?? [])),
+    tables,
     tableTabs: rows(tableTabsResult).map(mapTableTabRow),
     movements: rows(movementsResult).map(mapMovementRow),
     financeSettings,
