@@ -131,6 +131,6 @@ test('App mounts one printing manager and passes it to Orders without changing o
 
   assert.match(app, /getNew(?:Active|Operational)OrderIds/)
   assert.match(app, /detectedIds/)
-  assert.match(app, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tableTabs', 'movements', 'financeSettings'\]/)
+  assert.match(app, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings'\]/)
   assert.doesNotMatch(app, /DATA_COLLECTIONS = \[[^\]]*print/i)
 })

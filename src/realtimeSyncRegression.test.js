@@ -6,7 +6,7 @@ const app = await readFile(new URL('./App.jsx', import.meta.url), 'utf8')
 
 test('app wires per-collection guards for global and orders synchronization', () => {
   assert.match(app, /createCollectionSyncGuard/)
-  assert.match(app, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tableTabs', 'movements', 'financeSettings'\]/)
+  assert.match(app, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings'\]/)
   assert.match(app, /const GLOBAL_SYNC_INTERVAL_MS = 5_000/)
   assert.match(app, /const ORDER_SYNC_INTERVAL_MS = 2_000/)
   assert.match(app, /bootstrapSyncInFlightRef/)
