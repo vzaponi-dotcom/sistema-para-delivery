@@ -124,10 +124,10 @@ test('MPT-II byte stream exits Chinese mode, keeps Portuguese accents and uses A
   assert.equal(bytes.includes(0xff), false)
 })
 
-test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 instead of printer code pages', () => {
+test('MPT-II bitmap compatibility preserves Portuguese text and both copy labels', () => {
   const document = fixture({
     customer: { name: 'João', phone: '', address: 'Endereço com observação' },
-    items: [{ name: 'Sanduíche', presentation: 'Un', quantity: 1, note: 'Acréscimo de queijo', unitPriceCents: 1800 }],
+    items: [{ name: 'Sanduíche', presentation: 'Un', quantity: 1, note: 'Observação: Acréscimo de queijo', unitPriceCents: 1800 }],
     subtotalCents: 1800,
     deliveryFeeCents: 0,
     adjustment: { type: 'none', amountCents: 0, reason: '' },
@@ -155,17 +155,15 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
   }
 
   const bytes = renderEscPos58mm(document, {
-    copies: 1,
+    copies: 2,
     compatibilityMode: 'mpt2-bitmap',
     createCanvas,
   })
   const drawnText = drawnCharacters.join('')
 
-  assert.equal(drawnText.includes('Sanduíche'), true)
-  assert.equal(drawnText.includes('Endereço'), true)
-  assert.equal(drawnText.includes('João'), true)
-  assert.equal(drawnText.includes('Acréscimo'), true)
-  assert.equal(drawnText.includes('CÓPIA'), true)
+  for (const text of ['Sanduíche', 'Endereço', 'João', 'Acréscimo', 'Observação', 'CÓPIA 1/2', 'CÓPIA 2/2']) {
+    assert.equal(drawnText.includes(text), true, `bitmap should preserve ${text}`)
+  }
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x2a, 33, 0x80, 0x01])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])), false)
 })
