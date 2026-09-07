@@ -142,6 +142,23 @@ test('current checkout snapshots customer contact and enqueues one paid automati
   assert.deepEqual(snapshot.payment, { status: 'Pago', method: 'Pix' })
 })
 
+test('new scheduled order is printable immediately while keeping its scheduled time', async () => {
+  const db = seed()
+  const now = new Date('2026-09-03T12:00:00.000Z')
+  const scheduledFor = '2026-09-03T16:00:00.000Z'
+
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    idempotencyKey: 'scheduled-immediate-print',
+    scheduledFor,
+  }), now)
+
+  const jobs = db.all(`SELECT created_at, available_at FROM print_jobs WHERE order_id = '${order.id}'`)
+  assert.equal(jobs.length, 1)
+  assert.equal(jobs[0].created_at, now.toISOString())
+  assert.equal(jobs[0].available_at, now.toISOString())
+  assert.equal(order.scheduledFor, scheduledFor)
+})
+
 test('checkout retry with the same idempotency key keeps one order and one automatic print job', async () => {
   const db = seed()
   const first = await createOrder(db, 'amor-e-sabor', input(), new Date('2026-09-03T23:31:00.000Z'))
