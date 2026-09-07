@@ -31,6 +31,13 @@ test('schedule choice reuses the themed selection pattern and scheduled time use
   assert.match(customerStep, /onScheduledTimeChange\(formatScheduledTimeInput\(event\.target\.value\)\)/)
 })
 
+test('customer and schedule labels have breathing room after the preceding controls', async () => {
+  const css = await read('../new-order.css')
+
+  assert.match(css, /\.new-order-client-picker\s*\{[^}]*margin-top:\s*12px/s)
+  assert.match(css, /\.new-order-schedule-field\s*\{[^}]*margin-top:\s*12px/s)
+})
+
 test('new order mobile actions keep touch targets comfortable', async () => {
   const css = await read('../new-order.css')
 
@@ -54,6 +61,14 @@ test('new order checkout actions stack and remain tappable on narrow screens', a
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-checkout-actions[^}]*grid-template-columns:\s*1fr/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-checkout-actions\s+\.button[^}]*min-height:\s*48px/s)
+})
+
+test('checkout compact field grids keep two columns on mobile', async () => {
+  const css = await read('../new-order.css')
+
+  assert.match(css, /\.new-order-checkout-fields,[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)/)
+  assert.match(css, /\.new-order-adjustment-fields[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)/)
+  assert.match(css, /\.new-order-checkout-fields\s*,\s*\.new-order-adjustment-fields\s*\{[\s\S]*min-width:\s*0/s)
 })
 
 test('products step keeps a mobile cart action above the bottom navigation safe area', async () => {

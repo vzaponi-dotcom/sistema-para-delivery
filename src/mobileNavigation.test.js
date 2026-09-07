@@ -17,6 +17,17 @@ test('Mais exposes secondary navigation theme and logout', async () => {
   for (const label of ['A Receber', 'Financeiro', 'Claro', 'Escuro', 'Automático', 'Sair do sistema']) assert.match(source, new RegExp(label))
 })
 
+test('mobile more menu uses one compact theme cycle control', async () => {
+  const source = await read('./components/MobileNavigation.jsx')
+  const css = await read('./mobile-navigation.css')
+
+  assert.match(source, /theme-cycle-button/)
+  assert.match(source, /setThemePreference\(nextThemePreference\)/)
+  assert.match(source, /aria-label=\{`Tema atual:/)
+  assert.match(css, /\.mobile-more-theme \.theme-cycle-button\s*\{[^}]*min-height:\s*44px/s)
+  assert.doesNotMatch(css, /\.mobile-more-theme \.theme-segmented-control\s*\{/) 
+})
+
 test('bottom bar is fixed safe-area aware and five columns wide', async () => {
   const css = await read('./mobile-navigation.css')
   assert.match(css, /position:\s*fixed/)
