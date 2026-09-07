@@ -17,20 +17,15 @@ test('order type choices stay three-across and compact on mobile', async () => {
   assert.match(css, /\.new-order-type-options\s*>\s*\.new-order-type-option(?:\s*,[^{}]+)?\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
 })
 
-test('local identity choices stay three-across and use semantic icons on mobile', async () => {
-  const css = await read('./mobile-compact-controls.css')
-  const customerStep = await read('./components/NewOrderCustomerStep.jsx')
-  const icon = await read('./components/Icon.jsx')
+test('registered table choices stay readable and tappable on mobile', async () => {
+  const css = await read('./local-order-identity.css')
+  const selector = await read('./components/LocalTableSelector.jsx')
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-local-identity-options\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
-  assert.match(css, /\.new-order-local-identity-options\s*>\s*\.new-order-local-identity-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)[^}]*white-space:\s*normal/s)
-  assert.match(css, /\.new-order-local-identity-options\s*>\s*\.new-order-local-identity-option\s*\{[^}]*display:\s*flex[^}]*align-items:\s*center[^}]*justify-content:\s*center/s)
-  assert.match(customerStep, /import Icon from '\.\/Icon'/)
-  assert.match(customerStep, /\{ value: 'guest_name', label: 'Nome', icon: 'client' \}/)
-  assert.match(customerStep, /\{ value: 'table', label: 'Mesa', icon: 'table' \}/)
-  assert.match(customerStep, /\{ value: 'registered_client', label: 'Cliente cadastrado', icon: 'clients' \}/)
-  assert.match(customerStep, /<Icon name=\{option\.icon\} size=\{16\} \/>/)
-  assert.match(icon, /\btable:\s*<>/)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-table-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(css, /\.new-order-table-option\s*\{[^}]*min-height:\s*var\(--mobile-touch-target,\s*44px\)/s)
+  assert.match(selector, /Ocupada/)
+  assert.match(selector, /Livre/)
+  assert.match(selector, /aria-pressed/)
 })
 
 test('kitchen header actions fill the mobile width with four controls and a very-narrow fallback', async () => {

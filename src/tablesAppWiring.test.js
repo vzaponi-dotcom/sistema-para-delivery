@@ -29,6 +29,6 @@ test('App prepares table mutation handlers using official API responses and requ
   assert.match(app, /transferTableTabApi\(sourceTableId, destinationTableId\)[\s\S]*?applyOfficialEffects\(\{ tables: result\.tables, tableTab: result\.tableTab \}\)/)
 })
 
-test('NewOrder receives the official tables collection without adding table-selection UI', () => {
+test('NewOrder receives the official tables collection for registered table selection', () => {
   assert.match(app, /<NewOrder[\s\S]*?tables=\{tables\}/)
 })

@@ -49,8 +49,8 @@ const normalizeText = (value) => String(value ?? '').trim()
 export const createNewOrderDirtySnapshot = (draft = {}) => JSON.stringify({
   clientId: String(draft.clientId ?? ''),
   type: String(draft.type ?? ''),
-  localIdentityType: String(draft.localIdentityType ?? ''),
-  localIdentityValue: normalizeText(draft.localIdentityValue),
+  selectedTableId: String(draft.selectedTableId ?? ''),
+  localClientId: String(draft.localClientId ?? ''),
   orderDate: String(draft.orderDate ?? ''),
   scheduleMode: String(draft.scheduleMode ?? 'now'),
   scheduledTime: String(draft.scheduledTime ?? ''),

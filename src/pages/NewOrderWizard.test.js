@@ -86,3 +86,13 @@ test('step navigation preserves the single draft and focuses the active step', a
   assert.doesNotMatch(page, /setItems\(\[\]\)[\s\S]{0,140}setCurrentStep/)
   assert.doesNotMatch(page, /setAdjustment\(emptyAdjustment\(\)\)[\s\S]{0,140}setCurrentStep/)
 })
+
+test('wizard dirty state tracks the selected table and optional local client', async () => {
+  const page = await read('./NewOrder.jsx')
+  const flow = await read('../utils/newOrderStepFlow.js')
+
+  assert.match(page, /createNewOrderDirtySnapshot\(\{[\s\S]*selectedTableId,[\s\S]*localClientId,/)
+  assert.match(page, /isNewOrderDraftDirty\(\{[\s\S]*selectedTableId,[\s\S]*localClientId,/)
+  assert.match(flow, /selectedTableId: String\(draft\.selectedTableId \?\? ''\)/)
+  assert.match(flow, /localClientId: String\(draft\.localClientId \?\? ''\)/)
+})

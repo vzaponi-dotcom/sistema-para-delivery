@@ -34,15 +34,16 @@ import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/ord
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+function NewOrder({ clients, products, tables = [], currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
   const [currentStep, setCurrentStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [maxReachedStep, setMaxReachedStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
   const [type, setType] = useState('Entrega')
-  const [localIdentityType, setLocalIdentityType] = useState('guest_name')
-  const [localIdentityValue, setLocalIdentityValue] = useState('')
+  const [selectedTableId, setSelectedTableId] = useState('')
+  const [localClientId, setLocalClientId] = useState('')
+  const [localClientSearch, setLocalClientSearch] = useState('')
   const [orderDate, setOrderDate] = useState(getBusinessDate())
   const [scheduleMode, setScheduleMode] = useState('now')
   const [scheduledTime, setScheduledTime] = useState('')
@@ -60,8 +61,8 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     initialDraftSnapshotRef.current = createNewOrderDirtySnapshot({
       clientId,
       type,
-      localIdentityType,
-      localIdentityValue,
+      selectedTableId,
+      localClientId,
       orderDate,
       scheduleMode,
       scheduledTime,
@@ -75,8 +76,8 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const draftDirty = isNewOrderDraftDirty({
     clientId,
     type,
-    localIdentityType,
-    localIdentityValue,
+    selectedTableId,
+    localClientId,
     orderDate,
     scheduleMode,
     scheduledTime,
@@ -98,25 +99,22 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     stepContentRef.current?.focus()
   }, [currentStep])
 
+  const activeClientId = type === 'Local' ? localClientId : clientId
+  const activeClientSearch = type === 'Local' ? localClientSearch : clientSearch
   const filteredClients = useMemo(() => {
-    const normalized = clientSearch.trim().toLowerCase()
-    if (!normalized || clients.some((client) => client.id === clientId && client.name === clientSearch)) return clients
+    const normalized = activeClientSearch.trim().toLowerCase()
+    if (!normalized || clients.some((client) => client.id === activeClientId && client.name === activeClientSearch)) return clients
     return clients.filter((client) => client.name.toLowerCase().includes(normalized))
-  }, [clientId, clientSearch, clients])
+  }, [activeClientId, activeClientSearch, clients])
 
   const customerIdentity = type === 'Local'
-    ? (localIdentityType === 'registered_client'
-        ? { type: 'registered_client', clientId }
-        : { type: localIdentityType, value: localIdentityValue })
+    ? { type: 'table', tableId: selectedTableId, ...(localClientId ? { clientId: localClientId } : {}) }
     : { type: 'registered_client', clientId }
   const identityValidation = validateCustomerIdentity(type, customerIdentity)
-  const normalizedLocalTable = localIdentityType === 'table' ? localIdentityValue.trim().toUpperCase() : ''
-  const openTableTab = normalizedLocalTable
-    ? tableTabs.find((tab) => tab.status === 'open' && tab.tableIdentifier === normalizedLocalTable) ?? null
-    : null
+  const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
 
   const draft = {
-    clientId,
+    clientId: activeClientId,
     customerIdentity,
     type,
     orderDate,
@@ -142,12 +140,9 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   const scheduleValid = scheduleMode === 'now' || (scheduleVisible && isFutureSameDaySchedule({ type, orderDate, scheduledFor, now: new Date() }))
   const itemsSubtotal = getOrderItemsSubtotal(items)
   const selectedClient = clients.find((client) => client.id === clientId) ?? null
+  const selectedLocalClient = clients.find((client) => client.id === localClientId) ?? null
   const customerSummary = type === 'Local'
-    ? (localIdentityType === 'registered_client'
-        ? `${selectedClient?.name || 'Cliente'} · Consumo no local`
-        : localIdentityType === 'table'
-          ? `Mesa ${localIdentityValue.trim().toUpperCase()} · Consumo no local`
-          : `${localIdentityValue.trim() || 'Consumo local'} · Consumo no local`)
+    ? `${selectedTable?.name || 'Mesa'}${selectedLocalClient?.name ? ` · ${selectedLocalClient.name}` : ''}`
     : `${selectedClient?.name || 'Cliente'} · ${type}`
   const stepAccess = getNewOrderStepAccess({
     identityValid: identityValidation.ok,
@@ -181,10 +176,6 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     closeQuickClient()
     if (nextType === 'Local') { setScheduleMode('now'); setScheduledTime('') }
     if (nextType !== 'Entrega') setDeliveryFee(formatBRLCurrencyValue(0))
-    if (nextType === 'Local') {
-      setLocalIdentityType('guest_name')
-      setLocalIdentityValue('')
-    }
   }
 
   const changeOrderDate = (value) => {
@@ -192,11 +183,9 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
     if (value !== getBusinessDate()) { setScheduleMode('now'); setScheduledTime('') }
   }
 
-  const changeLocalIdentityType = (nextType) => {
-    setLocalIdentityType(nextType)
-    setLocalIdentityValue('')
+  const selectTable = (tableId) => {
+    setSelectedTableId(tableId)
     setCheckoutError('')
-    closeQuickClient()
   }
 
   const handleAdjustmentChange = (patch) => {
@@ -214,14 +203,24 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
   }
 
   const handleClientSearchChange = (value) => {
-    setClientSearch(value)
-    setClientId('')
+    if (type === 'Local') {
+      setLocalClientSearch(value)
+      setLocalClientId('')
+    } else {
+      setClientSearch(value)
+      setClientId('')
+    }
     setClientPickerOpen(true)
   }
 
   const selectClient = (client) => {
-    setClientId(client.id)
-    setClientSearch(client.name)
+    if (type === 'Local') {
+      setLocalClientId(client.id)
+      setLocalClientSearch(client.name)
+    } else {
+      setClientId(client.id)
+      setClientSearch(client.name)
+    }
     setClientPickerOpen(false)
   }
 
@@ -316,9 +315,11 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
         {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
           <NewOrderCustomerStep
             clients={clients}
+            tables={tables}
+            selectedTableId={selectedTableId}
             filteredClients={filteredClients}
-            clientId={clientId}
-            clientSearch={clientSearch}
+            clientId={activeClientId}
+            clientSearch={activeClientSearch}
             clientPickerOpen={clientPickerOpen}
             type={type}
             orderDate={orderDate}
@@ -327,9 +328,6 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
             scheduledTime={scheduledTime}
             scheduleVisible={scheduleVisible}
             scheduleValid={scheduleValid}
-            localIdentityType={localIdentityType}
-            localIdentityValue={localIdentityValue}
-            openTableTab={openTableTab}
             quickClient={quickClient}
             quickClientError={quickClientError}
             disabled={disabled}
@@ -338,8 +336,7 @@ function NewOrder({ clients, products, tableTabs = [], currency, disabled, onCan
             onOrderDateChange={changeOrderDate}
             onScheduleModeChange={setScheduleMode}
             onScheduledTimeChange={setScheduledTime}
-            onLocalIdentityTypeChange={changeLocalIdentityType}
-            onLocalIdentityValueChange={setLocalIdentityValue}
+            onTableSelect={selectTable}
             onClientSearchChange={handleClientSearchChange}
             onClientFocus={() => setClientPickerOpen(true)}
             onClientBlur={handleClientPickerBlur}

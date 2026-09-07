@@ -77,8 +77,8 @@ test('product summary uses quantity and product subtotal only', () => {
 const pristineDraft = () => ({
   clientId: 'client-1',
   type: 'Entrega',
-  localIdentityType: 'guest_name',
-  localIdentityValue: '',
+  selectedTableId: '',
+  localClientId: '',
   orderDate: '2026-09-04',
   items: [],
   deliveryFee: 'R$ 0,00',
@@ -95,6 +95,14 @@ test('dirty state ignores opening an empty quick form but detects meaningful dra
   assert.equal(isNewOrderDraftDirty({ ...initial, clientId: 'client-2' }, snapshot), true)
   assert.equal(isNewOrderDraftDirty({ ...initial, items: [{ productId: 10, quantity: 1, note: '' }] }, snapshot), true)
   assert.equal(isNewOrderDraftDirty({ ...initial, deliveryFee: 'R$ 5,00' }, snapshot), true)
+})
+
+test('dirty state detects registered table and optional local client changes', () => {
+  const initial = pristineDraft()
+  const snapshot = createNewOrderDirtySnapshot(initial)
+
+  assert.equal(isNewOrderDraftDirty({ ...initial, selectedTableId: 'table-4' }, snapshot), true)
+  assert.equal(isNewOrderDraftDirty({ ...initial, localClientId: 'client-2' }, snapshot), true)
 })
 
 test('global exit confirmation only applies when leaving a dirty new order', () => {
