@@ -27,6 +27,7 @@
 
 .new-order-client-picker {
   position: relative;
+  margin-top: 12px;
 }
 
 .new-order-client-combobox {
@@ -374,6 +375,14 @@
 .new-order-checkout {
   display: grid;
   gap: 16px;
+}
+
+.new-order-checkout-fields,
+.new-order-adjustment-fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .new-order-adjustment {
@@ -801,3 +810,4 @@
 
 .new-order-schedule-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .new-order-schedule-option { min-height: var(--mobile-touch-target,44px); }
+.new-order-schedule-field { margin-top: 12px; }

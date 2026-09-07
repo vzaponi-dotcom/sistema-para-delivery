@@ -17,10 +17,10 @@ function KitchenTicket({ entry, now, disabled = false, highlighted = false, onDe
 
   return <article className={`kitchen-ticket${highlighted ? ' kitchen-ticket-highlighted' : ''}`} aria-label={`Pedido #${orderNumber(order.id)}`}>
     <header className="kitchen-ticket-header">
-      <span className="kitchen-ticket-number">#{orderNumber(order.id)}</span>
+      <strong className="kitchen-ticket-customer-name">{order.client || 'Cliente não identificado'}</strong>
       <StatusBadge status={status} label={statusLabel} />
     </header>
-    <div className="kitchen-ticket-customer"><strong>{order.client}</strong><span><Icon name={attendanceIcons[order.type] || 'local'} size={16} />{order.type}</span></div>
+    <div className="kitchen-ticket-customer"><span><Icon name={attendanceIcons[order.type] || 'local'} size={16} />{order.type}</span><span className="kitchen-ticket-id">Pedido #{orderNumber(order.id)}</span></div>
     <p className="kitchen-ticket-items">{buildKitchenItemSummary(order)}</p>
     <KitchenTicketNotes order={order} />
     <div className="kitchen-ticket-timing"><strong>{timing.primary}</strong>{timing.secondary && <span>{timing.secondary}</span>}</div>
