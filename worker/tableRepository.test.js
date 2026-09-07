@@ -1,0 +1,182 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { DatabaseSync } from 'node:sqlite'
+import * as tableRepository from './tableRepository.js'
+
+const {
+  createTable,
+  listTables,
+  loadTableById,
+  normalizeTableName,
+  renameTable,
+  reorderTables,
+  setTableActive,
+} = tableRepository
+
+class D1Sqlite {
+  constructor() {
+    this.sqlite = new DatabaseSync(':memory:')
+    this.sqlite.exec(`
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE businesses (id TEXT PRIMARY KEY);
+      CREATE TABLE tables (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL REFERENCES businesses(id),
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL,
+        sort_order INTEGER NOT NULL,
+        is_active INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_tables_business_name_key ON tables (business_id, name_key);
+      CREATE TABLE table_tabs (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        table_id TEXT REFERENCES tables(id),
+        status TEXT NOT NULL
+      );
+      INSERT INTO businesses (id) VALUES ('biz-a'), ('biz-b');
+    `)
+  }
+
+  prepare(sql) {
+    const database = this.sqlite
+    return {
+      bind(...values) {
+        return {
+          async first() {
+            return database.prepare(sql).get(...values) ?? null
+          },
+          async all() {
+            return { results: database.prepare(sql).all(...values) }
+          },
+          async run() {
+            const result = database.prepare(sql).run(...values)
+            return { success: true, meta: { changes: Number(result.changes || 0) } }
+          },
+        }
+      },
+    }
+  }
+
+  async batch(statements) {
+    this.sqlite.exec('BEGIN')
+    try {
+      const results = []
+      for (const statement of statements) results.push(await statement.run())
+      this.sqlite.exec('COMMIT')
+      return results
+    } catch (error) {
+      this.sqlite.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  exec(sql) {
+    this.sqlite.exec(sql)
+  }
+}
+
+const now = new Date('2026-09-07T15:00:00.000Z')
+
+const insertTable = (db, { id, businessId = 'biz-a', name, nameKey = name.toUpperCase(), sortOrder, isActive = 1 }) => {
+  db.sqlite.prepare(`INSERT INTO tables (
+    id, business_id, name, name_key, sort_order, is_active, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    id,
+    businessId,
+    name,
+    nameKey,
+    sortOrder,
+    isActive,
+    now.toISOString(),
+    now.toISOString(),
+  )
+}
+
+test('normalizeTableName collapses spaces, builds a case-insensitive key, and enforces its limit', () => {
+  assert.deepEqual(normalizeTableName('  Mesa   8  '), { name: 'Mesa 8', nameKey: 'MESA 8' })
+  assert.throws(() => normalizeTableName('   '), (error) => error.status === 400 && error.code === 'VALIDATION_ERROR')
+  assert.deepEqual(normalizeTableName('x'.repeat(60)), { name: 'x'.repeat(60), nameKey: 'X'.repeat(60) })
+  assert.throws(() => normalizeTableName('x'.repeat(61)), (error) => error.status === 400 && error.code === 'VALIDATION_ERROR')
+})
+
+test('listTables orders tables and derives occupancy from an open table tab', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: 0 })
+  insertTable(db, { id: 'first', name: 'Mesa 1', sortOrder: 1 })
+  db.exec("INSERT INTO table_tabs (id, business_id, table_id, status) VALUES ('tab-1', 'biz-a', 'first', 'open')")
+
+  assert.deepEqual(await listTables(db, 'biz-a'), [
+    { id: 'first', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1' },
+    { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: false, occupancy: 'free', openTableTabId: null },
+  ])
+})
+
+test('createTable normalizes the name and appends after the current business order', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'existing', name: 'Mesa 1', sortOrder: 4 })
+  insertTable(db, { id: 'other', businessId: 'biz-b', name: 'Mesa 9', sortOrder: 30 })
+
+  const created = await createTable(db, 'biz-a', { name: '  Jardim   1 ' }, now)
+
+  assert.equal(created.name, 'Jardim 1')
+  assert.equal(created.sortOrder, 5)
+  assert.equal(created.isActive, true)
+  assert.equal(created.occupancy, 'free')
+  assert.equal((await loadTableById(db, 'biz-a', created.id)).name, 'Jardim 1')
+  assert.equal(await loadTableById(db, 'biz-b', created.id), null)
+})
+
+test('renameTable changes a free table and hides normalized uniqueness errors', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'one', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'two', name: 'Mesa 2', sortOrder: 2 })
+
+  assert.equal((await renameTable(db, 'biz-a', 'one', '  Varanda   A  ', now)).name, 'Varanda A')
+  await assert.rejects(
+    () => renameTable(db, 'biz-a', 'one', ' mesa   2 ', now),
+    (error) => error.status === 409 && error.code === 'TABLE_NAME_EXISTS' && !/UNIQUE constraint/i.test(error.message),
+  )
+})
+
+test('occupied tables cannot be renamed or deactivated', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'occupied', name: 'Mesa 1', sortOrder: 1 })
+  db.exec("INSERT INTO table_tabs (id, business_id, table_id, status) VALUES ('tab-open', 'biz-a', 'occupied', 'open')")
+
+  await assert.rejects(
+    () => renameTable(db, 'biz-a', 'occupied', 'Novo nome', now),
+    (error) => error.status === 409 && error.code === 'TABLE_OCCUPIED',
+  )
+  await assert.rejects(
+    () => setTableActive(db, 'biz-a', 'occupied', false, now),
+    (error) => error.status === 409 && error.code === 'TABLE_OCCUPIED',
+  )
+})
+
+test('a free table can be deactivated and later reactivated', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'free', name: 'Mesa 1', sortOrder: 1 })
+
+  assert.equal((await setTableActive(db, 'biz-a', 'free', false, now)).isActive, false)
+  assert.equal((await setTableActive(db, 'biz-a', 'free', true, now)).isActive, true)
+})
+
+test('reorderTables accepts every business table exactly once and never updates another business', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'one', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'two', name: 'Mesa 2', sortOrder: 2 })
+  insertTable(db, { id: 'other', businessId: 'biz-b', name: 'Mesa 1', sortOrder: 7 })
+
+  assert.deepEqual((await reorderTables(db, 'biz-a', ['two', 'one'], now)).map((table) => table.id), ['two', 'one'])
+  assert.equal((await loadTableById(db, 'biz-b', 'other')).sortOrder, 7)
+  await assert.rejects(() => reorderTables(db, 'biz-a', ['one', 'one'], now), (error) => error.code === 'INVALID_TABLE_ORDER')
+  await assert.rejects(() => reorderTables(db, 'biz-a', ['one'], now), (error) => error.code === 'INVALID_TABLE_ORDER')
+  await assert.rejects(() => reorderTables(db, 'biz-a', ['one', 'other'], now), (error) => error.code === 'INVALID_TABLE_ORDER')
+})
+
+test('table repository exposes no hard-delete operation', () => {
+  assert.equal(Object.hasOwn(tableRepository, 'deleteTable'), false)
+})
