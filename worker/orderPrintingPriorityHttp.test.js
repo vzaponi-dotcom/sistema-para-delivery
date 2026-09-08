@@ -98,5 +98,6 @@ test('HTTP prioritize preserves terminal jobs and returns a consistent conflict'
     (error) => error.status === 409 && error.code === 'PRINT_JOB_PRIORITIZE_NOT_ALLOWED',
   )
   const preserved = db.sqlite.prepare('SELECT status, priority FROM print_jobs WHERE id = ?').get('printed-job')
-  assert.deepEqual(preserved, { status: 'printed', priority: 0 })
+  assert.equal(preserved.status, 'printed')
+  assert.equal(preserved.priority, 0)
 })
