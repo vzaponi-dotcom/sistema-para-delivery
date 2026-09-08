@@ -123,7 +123,7 @@ const makeDb = () => {
 const addStation = async (db, id, overrides = {}) => upsertPrintStation(db, overrides.businessId || businessA, {
   id,
   name: overrides.name || id,
-  platform: overrides.platform || 'android',
+  platform: overrides.platform || 'windows',
   autoPrintEnabled: overrides.autoPrintEnabled ?? true,
   defaultCopies: overrides.defaultCopies || 2,
 }, baseNow)
