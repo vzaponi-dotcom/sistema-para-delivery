@@ -1,7 +1,9 @@
 import { createTestPrintDocument } from '../shared/orderPrintDocument.js'
+import { resolvePrintQueueState } from '../shared/printQueue.js'
 
 export const PRINT_PENDING_MAX_AGE_MS = 10 * 60 * 1000
 export const PRINT_PROCESSING_MAX_AGE_MS = 2 * 60 * 1000
+export const PRINT_STATION_HEARTBEAT_TIMEOUT_MS = 60 * 1000
 
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
@@ -20,17 +22,49 @@ const AUTOMATIC_ORDER_ELIGIBLE_SQL = `EXISTS (
     AND orders.status NOT IN ('Cancelado', 'Finalizado')
 )`
 
-const mapStationRow = (row) => row ? ({
-  id: row.id,
-  name: row.name,
-  platform: row.platform,
-  isPrimary: Boolean(row.is_primary),
-  autoPrintEnabled: Boolean(row.auto_print_enabled),
-  defaultCopies: Number(row.default_copies) || 2,
-  lastSeenAt: row.last_seen_at ?? null,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-}) : null
+export const resolvePrintStationHealth = (station, now = new Date()) => {
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime()
+  const seenMs = station?.lastSeenAt ? new Date(station.lastSeenAt).getTime() : Number.NaN
+  const online = Number.isFinite(nowMs)
+    && Number.isFinite(seenMs)
+    && nowMs >= seenMs
+    && nowMs - seenMs <= PRINT_STATION_HEARTBEAT_TIMEOUT_MS
+  const qzReady = online && Boolean(station?.qzReady)
+  const printerReady = online && Boolean(station?.printerReady)
+  const ready = Boolean(
+    online
+    && station?.isPrimary
+    && station?.platform === 'windows'
+    && qzReady
+    && printerReady
+  )
+  return {
+    online,
+    qzReady,
+    printerReady,
+    ready,
+    automaticReady: ready && Boolean(station?.autoPrintEnabled),
+  }
+}
+
+const mapStationRow = (row, now = new Date()) => {
+  if (!row) return null
+  const station = {
+    id: row.id,
+    name: row.name,
+    platform: row.platform,
+    isPrimary: Boolean(row.is_primary),
+    autoPrintEnabled: Boolean(row.auto_print_enabled),
+    defaultCopies: Number(row.default_copies) || 2,
+    lastSeenAt: row.last_seen_at ?? null,
+    qzReady: Boolean(row.qz_ready),
+    printerReady: Boolean(row.printer_ready),
+    lastReadyAt: row.last_ready_at ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+  return { ...station, health: resolvePrintStationHealth(station, now) }
+}
 
 const mapJobRow = (row) => row ? ({
   id: row.id,
@@ -57,20 +91,24 @@ const mapJobRow = (row) => row ? ({
     : null,
 }) : null
 
-const loadPrintStation = async (db, businessId, stationId) => {
-  const row = await db.prepare(`SELECT id, business_id, name, platform, is_primary, auto_print_enabled,
-    default_copies, last_seen_at, created_at, updated_at
-    FROM print_stations WHERE id = ? AND business_id = ? LIMIT 1`)
+const loadPrintStation = async (db, businessId, stationId, now = new Date()) => {
+  const row = await db.prepare(`SELECT * FROM print_stations WHERE id = ? AND business_id = ? LIMIT 1`)
     .bind(stationId, businessId).first()
-  return mapStationRow(row)
+  return mapStationRow(row, now)
 }
 
-export const listPrintStations = async (db, businessId) => {
-  const result = await db.prepare(`SELECT id, business_id, name, platform, is_primary, auto_print_enabled,
-    default_copies, last_seen_at, created_at, updated_at
-    FROM print_stations WHERE business_id = ? ORDER BY created_at ASC, id ASC`)
+const loadPrimaryPrintStation = async (db, businessId, now = new Date()) => {
+  const row = await db.prepare(`SELECT * FROM print_stations
+    WHERE business_id = ? AND is_primary = 1
+    LIMIT 1`).bind(businessId).first()
+  return mapStationRow(row, now)
+}
+
+export const listPrintStations = async (db, businessId, now = new Date()) => {
+  const result = await db.prepare(`SELECT * FROM print_stations
+    WHERE business_id = ? ORDER BY created_at ASC, id ASC`)
     .bind(businessId).all()
-  return rows(result).map(mapStationRow)
+  return rows(result).map((row) => mapStationRow(row, now))
 }
 
 export const loadBusinessPrintSettings = async (db, businessId) => {
@@ -116,13 +154,13 @@ export const upsertPrintStation = async (db, businessId, input, now = new Date()
     WHERE print_stations.business_id = excluded.business_id`)
     .bind(id, businessId, name, platform, input.autoPrintEnabled ? 1 : 0, copies, at, at, at).run()
 
-  const station = await loadPrintStation(db, businessId, id)
+  const station = await loadPrintStation(db, businessId, id, now)
   if (!station) throw repositoryError(409, 'PRINT_STATION_ID_CONFLICT', 'Esta estação pertence a outro negócio.')
   return station
 }
 
 export const setPrimaryPrintStation = async (db, businessId, stationId, now = new Date()) => {
-  const station = await loadPrintStation(db, businessId, stationId)
+  const station = await loadPrintStation(db, businessId, stationId, now)
   if (!station) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Estação de impressão não encontrada.')
   const at = timestamp(now)
   await db.batch([
@@ -131,26 +169,23 @@ export const setPrimaryPrintStation = async (db, businessId, stationId, now = ne
     db.prepare(`UPDATE print_stations SET is_primary = 1, updated_at = ?
       WHERE id = ? AND business_id = ?`).bind(at, stationId, businessId),
   ])
-  return loadPrintStation(db, businessId, stationId)
+  return loadPrintStation(db, businessId, stationId, now)
 }
 
 export const touchPrintStation = async (db, businessId, stationId, now = new Date()) => {
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_stations SET last_seen_at = ?, updated_at = ?
     WHERE id = ? AND business_id = ?
-    RETURNING id, business_id, name, platform, is_primary, auto_print_enabled, default_copies,
-      last_seen_at, created_at, updated_at`)
+    RETURNING *`)
     .bind(at, at, stationId, businessId).first()
-  return mapStationRow(row)
+  return mapStationRow(row, now)
 }
 
-export const loadPrimaryAutomaticPrintStation = async (db, businessId) => {
-  const row = await db.prepare(`SELECT id, business_id, name, platform, is_primary, auto_print_enabled,
-    default_copies, last_seen_at, created_at, updated_at
-    FROM print_stations
+export const loadPrimaryAutomaticPrintStation = async (db, businessId, now = new Date()) => {
+  const row = await db.prepare(`SELECT * FROM print_stations
     WHERE business_id = ? AND is_primary = 1 AND auto_print_enabled = 1
     LIMIT 1`).bind(businessId).first()
-  return mapStationRow(row)
+  return mapStationRow(row, now)
 }
 
 export const prepareAutomaticPrintJobStatement = (db, businessId, input) => {
@@ -213,7 +248,8 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
 }
 
 export const listPrintJobs = async (db, businessId, options = {}) => {
-  await agePrintJobs(db, businessId, options.now || new Date())
+  const now = options.now || new Date()
+  await agePrintJobs(db, businessId, now)
   const limit = clampLimit(options.limit)
   const result = options.orderId
     ? await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ? AND order_id = ?
@@ -222,7 +258,14 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
     : await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ?
       ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
       LIMIT ?`).bind(businessId, limit).all()
-  return rows(result).map(mapJobRow)
+  const station = await loadPrimaryPrintStation(db, businessId, now)
+  return rows(result).map((row) => {
+    const job = mapJobRow(row)
+    const stationReady = job?.trigger === 'automatic'
+      ? Boolean(station?.health?.automaticReady)
+      : Boolean(station?.health?.ready)
+    return { ...job, queueState: resolvePrintQueueState(job.status, { stationReady }) }
+  })
 }
 
 export const createManualOrderPrintJob = async (db, businessId, input, now = new Date()) => {
@@ -239,7 +282,7 @@ export const createManualOrderPrintJob = async (db, businessId, input, now = new
 }
 
 export const createTestPrintJob = async (db, businessId, input, now = new Date()) => {
-  const station = await loadPrintStation(db, businessId, input.stationId)
+  const station = await loadPrintStation(db, businessId, input.stationId, now)
   if (!station) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Estação de impressão não encontrada.')
   const at = timestamp(now)
   const id = String(input.id || crypto.randomUUID())
@@ -253,14 +296,14 @@ export const createTestPrintJob = async (db, businessId, input, now = new Date()
   return loadPrintJob(db, businessId, id)
 }
 
-const requireStation = async (db, businessId, stationId) => {
-  const station = await loadPrintStation(db, businessId, stationId)
+const requireStation = async (db, businessId, stationId, now = new Date()) => {
+  const station = await loadPrintStation(db, businessId, stationId, now)
   if (!station) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Estação de impressão não encontrada.')
   return station
 }
 
-const requirePrimaryQzPrintStation = async (db, businessId, stationId) => {
-  const station = await requireStation(db, businessId, stationId)
+const requirePrimaryQzPrintStation = async (db, businessId, stationId, now = new Date()) => {
+  const station = await requireStation(db, businessId, stationId, now)
   if (!station.isPrimary) {
     throw repositoryError(409, 'PRINT_STATION_NOT_PRIMARY', 'Somente a estação principal pode executar trabalhos de impressão.')
   }
@@ -270,11 +313,31 @@ const requirePrimaryQzPrintStation = async (db, businessId, stationId) => {
   return station
 }
 
+export const heartbeatPrintStation = async (db, businessId, stationId, health = {}, now = new Date()) => {
+  await requirePrimaryQzPrintStation(db, businessId, stationId, now)
+  const at = timestamp(now)
+  const qzReady = Boolean(health.qzReady)
+  const printerReady = qzReady && Boolean(health.printerReady)
+  const row = await db.prepare(`UPDATE print_stations SET
+      last_seen_at = ?, qz_ready = ?, printer_ready = ?,
+      last_ready_at = CASE WHEN ? = 1 AND ? = 1 THEN ? ELSE last_ready_at END,
+      updated_at = ?
+    WHERE id = ? AND business_id = ?
+    RETURNING *`)
+    .bind(at, qzReady ? 1 : 0, printerReady ? 1 : 0, qzReady ? 1 : 0, printerReady ? 1 : 0, at, at, stationId, businessId)
+    .first()
+  if (!row) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Estação de impressão não encontrada.')
+  return mapStationRow(row, now)
+}
+
 export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now = new Date()) => {
   await agePrintJobs(db, businessId, now)
-  const station = await requirePrimaryQzPrintStation(db, businessId, stationId)
+  const station = await requirePrimaryQzPrintStation(db, businessId, stationId, now)
   if (!station.autoPrintEnabled) {
     throw repositoryError(409, 'PRINT_STATION_NOT_PRIMARY', 'Somente a estação principal com impressão automática ativa pode assumir novos trabalhos.')
+  }
+  if (!station.health.ready) {
+    throw repositoryError(409, 'PRINT_STATION_NOT_READY', 'A estação principal QZ não está pronta para imprimir.')
   }
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
@@ -292,7 +355,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
 }
 
 export const claimPrintJob = async (db, businessId, jobId, stationId, now = new Date()) => {
-  await requirePrimaryQzPrintStation(db, businessId, stationId)
+  await requirePrimaryQzPrintStation(db, businessId, stationId, now)
   await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
