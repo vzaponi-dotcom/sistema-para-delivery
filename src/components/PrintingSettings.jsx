@@ -126,6 +126,7 @@ function PrintingSettings({ printing, onClose }) {
   const configured = !['unconfigured', 'unsupported'].includes(printerState)
   const disabled = Boolean(pendingAction) || !station
   const qzPrinters = Array.isArray(printing?.availablePrinters) ? printing.availablePrinters : []
+  const qzPrinterOptions = qzPrinters.map((printerName) => ({ value: printerName, label: printerName }))
 
   return (
     <>
@@ -175,7 +176,7 @@ function PrintingSettings({ printing, onClose }) {
                   <SystemSelect
                     value={qzPrinterSelection}
                     onChange={setQzPrinterSelection}
-                    options={qzPrinters}
+                    options={qzPrinterOptions}
                     placeholder={pendingAction === 'qz-discover' ? 'Buscando impressoras…' : 'Selecione a impressora'}
                     ariaLabel="Impressora QZ"
                     disabled={disabled || pendingAction === 'qz-discover'}
