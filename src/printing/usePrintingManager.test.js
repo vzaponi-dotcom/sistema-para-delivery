@@ -1,11 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  canExecuteSecondCopy,
   canConsumeAutomaticPrintJob,
   getPrintingTransportKind,
   getRendererCompatibilityMode,
   isPrintingTransportSupported,
 } from './usePrintingManager.js'
+
+const awaitingSecondCopyJob = {
+  status: 'awaiting_second_copy',
+  copiesRequested: 2,
+  copiesPrinted: 1,
+}
 
 const readyAutomaticConsumer = (overrides = {}) => ({
   authenticated: true,
@@ -53,4 +60,25 @@ test('transport support alone cannot bypass station and local-readiness guards',
     transportReady: true,
     station: { isPrimary: true, autoPrintEnabled: false },
   })), false)
+})
+
+test('the primary QZ station can execute an awaiting second copy', () => {
+  assert.equal(canExecuteSecondCopy({
+    isQz: true,
+    station: { isPrimary: true, platform: 'windows' },
+    job: awaitingSecondCopyJob,
+  }), true)
+})
+
+test('non-QZ and secondary stations cannot execute an awaiting second copy', () => {
+  assert.equal(canExecuteSecondCopy({
+    isQz: false,
+    station: { isPrimary: true, platform: 'android' },
+    job: awaitingSecondCopyJob,
+  }), false)
+  assert.equal(canExecuteSecondCopy({
+    isQz: true,
+    station: { isPrimary: false, platform: 'windows' },
+    job: awaitingSecondCopyJob,
+  }), false)
 })

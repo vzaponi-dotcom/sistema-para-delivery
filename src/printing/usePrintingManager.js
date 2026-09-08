@@ -100,6 +100,15 @@ export const canConsumeAutomaticPrintJob = ({
   && (allowManual || station?.autoPrintEnabled)
 )
 
+export const canExecuteSecondCopy = ({ isQz, station, job }) => Boolean(
+  isQz
+  && station?.isPrimary
+  && station?.platform === 'windows'
+  && job?.status === 'awaiting_second_copy'
+  && Number(job?.copiesRequested) === 2
+  && Number(job?.copiesPrinted) === 1
+)
+
 export const canSendPrintStationHeartbeat = ({
   authenticated,
   isOnline,
@@ -480,17 +489,13 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
     if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
-    if (
-      job.status !== 'printed'
-      || Number(job.copiesRequested) !== 2
-      || Number(job.copiesPrinted) !== 1
-    ) {
+    if (!canExecuteSecondCopy({ isQz, station, job })) {
       throw printerError('PRINT_SECOND_COPY_NOT_READY', 'A segunda via não está disponível para este trabalho.')
     }
     const port = await getExplicitPort()
     const claimed = await claimPrintJob(job.id, station.id)
     return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
-  }, [executeClaimedJob, getExplicitPort])
+  }, [executeClaimedJob, getExplicitPort, isQz])
 
   const retryJob = useCallback(async (jobOrId) => {
     const station = localStationRef.current
