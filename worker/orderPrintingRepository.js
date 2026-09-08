@@ -369,7 +369,7 @@ export const prioritizePrintJob = async (db, businessId, jobId) => {
   throw repositoryError(409, 'PRINT_JOB_PRIORITIZE_NOT_ALLOWED', 'Este trabalho de impressão não pode ser priorizado neste estado.')
 }
 
-export const reprintPrintJob = async (db, businessId, jobId, copies, now = new Date()) => {
+export const reprintPrintJob = async (db, businessId, jobId, copies, document, now = new Date()) => {
   const requestedCopies = assertCopies(copies)
   const at = timestamp(now)
   const id = crypto.randomUUID()
@@ -380,12 +380,12 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, now = new D
       action_actor_label, action_at, last_error_code, last_error_message
     )
     SELECT ?, business_id, order_id, 'order', 'manual', 'pending', 0, id,
-      ?, 0, NULL, snapshot_json, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+      ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
     FROM print_jobs
     WHERE id = ? AND business_id = ? AND type = 'order'
       AND status = 'printed' AND copies_printed >= copies_requested
     RETURNING *`)
-    .bind(id, requestedCopies, at, at, jobId, businessId).first()
+    .bind(id, requestedCopies, JSON.stringify(document), at, at, jobId, businessId).first()
   if (row) return mapJobRow(row)
 
   const existing = await loadPrintJob(db, businessId, jobId)
