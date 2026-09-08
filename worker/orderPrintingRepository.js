@@ -227,24 +227,15 @@ const routeIneligibleAutomaticJobsToAttention = async (db, businessId, now = new
 const agePrintJobs = async (db, businessId, now = new Date()) => {
   const at = now instanceof Date ? now : new Date(now)
   const processedAt = at.toISOString()
-  const pendingCutoff = new Date(at.getTime() - PRINT_PENDING_MAX_AGE_MS).toISOString()
   const processingCutoff = new Date(at.getTime() - PRINT_PROCESSING_MAX_AGE_MS).toISOString()
 
   await routeIneligibleAutomaticJobsToAttention(db, businessId, at)
-  await db.batch([
-    db.prepare(`UPDATE print_jobs SET
-      status = 'requires_attention', processed_at = ?,
-      last_error_code = 'PENDING_TOO_OLD',
-      last_error_message = 'Impressão automática aguardou mais de 10 minutos.'
-      WHERE business_id = ? AND trigger = 'automatic' AND status = 'pending' AND available_at <= ? AND available_at <= ?`)
-      .bind(processedAt, businessId, pendingCutoff, processedAt),
-    db.prepare(`UPDATE print_jobs SET
+  await db.prepare(`UPDATE print_jobs SET
       status = 'requires_attention', processed_at = ?,
       last_error_code = 'PROCESSING_OUTCOME_UNKNOWN',
       last_error_message = 'A estação não confirmou o resultado da impressão.'
       WHERE business_id = ? AND status = 'processing' AND processing_started_at <= ?`)
-      .bind(processedAt, businessId, processingCutoff),
-  ])
+    .bind(processedAt, businessId, processingCutoff).run()
 }
 
 export const listPrintJobs = async (db, businessId, options = {}) => {

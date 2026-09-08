@@ -293,7 +293,7 @@ test('retry after a failed second copy preserves the first copy and cannot re-en
   assert.equal(secondClaim.copiesPrinted, 1)
 })
 
-test('aging moves stale pending and processing jobs to requires_attention before automatic claim', async () => {
+test('aging preserves active pending jobs but routes stale processing to requires_attention', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
   await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
@@ -305,8 +305,9 @@ test('aging moves stale pending and processing jobs to requires_attention before
   await addAutomaticJob(db, { id: 'old-processing', orderId: 'o2', createdAt: processingAt })
   await claimPrintJob(db, businessA, 'old-processing', 'station-a', processingAt)
 
-  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
-  assert.equal((await loadPrintJob(db, businessA, 'old-pending')).status, 'requires_attention')
+  const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow)
+  assert.equal(claimed.id, 'old-pending')
+  assert.equal(claimed.status, 'processing')
   assert.equal((await loadPrintJob(db, businessA, 'old-processing')).status, 'requires_attention')
 })
 
