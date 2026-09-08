@@ -117,7 +117,7 @@ const requestJson = (env, cookie, path, method, body) => handleRequest(new Reque
   body: body === undefined ? undefined : JSON.stringify(body),
 }), env)
 
-test('reprint API creates a linked pending manual job without requiring a station on the requesting device', async () => {
+test('reprint API creates a linked pending manual job from the current official order without requiring a station on the requesting device', async () => {
   const env = await makeEnv()
   const cookie = await loginCookie(env)
 
@@ -131,6 +131,9 @@ test('reprint API creates a linked pending manual job without requiring a statio
   await requestJson(env, cookie, `/api/printing/jobs/${original.id}/complete`, 'POST', { stationId: 'kitchen', copiesPrinted: 1 })
   const countBefore = env.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
 
+  env.DB.sqlite.prepare(`UPDATE orders SET client_name_snapshot = ?, client_address_snapshot = ?
+    WHERE id = ? AND business_id = ?`).run('Maria Atualizada', 'Rua Nova, 20', 'o1', 'amor-e-sabor')
+
   const response = await requestJson(env, cookie, `/api/printing/jobs/${original.id}/reprint`, 'POST', { copies: 2 })
   assert.equal(response.status, 201)
   const reprint = (await response.json()).job
@@ -140,7 +143,10 @@ test('reprint API creates a linked pending manual job without requiring a statio
   assert.equal(reprint.status, 'pending')
   assert.equal(reprint.copiesRequested, 2)
   assert.equal(reprint.stationId, null)
-  assert.deepEqual(reprint.document, original.document)
+  assert.equal(original.document.customer.name, 'Maria')
+  assert.equal(reprint.document.customer.name, 'Maria Atualizada')
+  assert.equal(reprint.document.customer.address, 'Rua Nova, 20')
+  assert.notDeepEqual(reprint.document, original.document)
   assert.equal(env.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, countBefore + 1)
 
   const jobsResponse = await requestJson(env, cookie, '/api/printing/jobs?orderId=o1&limit=20', 'GET')
@@ -148,6 +154,7 @@ test('reprint API creates a linked pending manual job without requiring a statio
   const preservedOriginal = jobs.find((job) => job.id === original.id)
   assert.equal(preservedOriginal.status, 'printed')
   assert.equal(preservedOriginal.parentJobId, null)
+  assert.equal(preservedOriginal.document.customer.name, 'Maria')
 })
 
 test('reprint API validates copies as one or two', async () => {
