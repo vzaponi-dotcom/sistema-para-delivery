@@ -174,3 +174,13 @@ test('kitchen board text colors remain readable when light surfaces replace the 
   assert.ok((contrastCss.match(/var\(--kitchen-board-text\)/g) || []).length >= 6)
   assert.ok((contrastCss.match(/var\(--kitchen-board-muted\)/g) || []).length >= 5)
 })
+
+test('dark login brand uses semantic foreground colors without changing shared logo defaults', () => {
+  const css = source('./theme.css')
+  const brand = source('./components/BrandLogo.jsx')
+
+  assert.match(css, /\[data-theme=['"]dark['"]\]\s+\.login-brand\s+text:first-of-type\s*\{[^}]*fill:\s*var\(--text\);[^}]*\}/s)
+  assert.match(css, /\[data-theme=['"]dark['"]\]\s+\.login-brand\s+text:last-of-type\s*\{[^}]*fill:\s*var\(--muted\);[^}]*\}/s)
+  assert.match(brand, /fill=['"]#25211f['"]/i)
+  assert.match(brand, /fill=['"]#716863['"]/i)
+})

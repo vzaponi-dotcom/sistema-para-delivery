@@ -69,6 +69,14 @@
   border-color: var(--border);
 }
 
+[data-theme='dark'] .login-brand text:first-of-type {
+  fill: var(--text);
+}
+
+[data-theme='dark'] .login-brand text:last-of-type {
+  fill: var(--muted);
+}
+
 [data-theme='dark'] .toast-success {
   border-color: var(--border-strong);
   background: var(--success-soft);
