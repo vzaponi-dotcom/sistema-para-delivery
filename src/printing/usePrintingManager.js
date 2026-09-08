@@ -78,8 +78,11 @@ export const isPrintingTransportSupported = (
   serial = globalThis.navigator?.serial,
 ) => ['rawbt', 'qz'].includes(getPrintingTransportKind(platform)) || isWebSerialSupported(serial)
 
-export const shouldAutoConnectQz = ({ savedPrinterName, suppressed = false } = {}) => (
-  Boolean(String(savedPrinterName || '').trim()) && !suppressed
+export const shouldAutoConnectQz = ({ savedPrinterName, suppressed = false, station } = {}) => (
+  Boolean(String(savedPrinterName || '').trim())
+  && !suppressed
+  && station?.isPrimary === true
+  && station?.autoPrintEnabled === true
 )
 
 export const canConsumeAutomaticPrintJob = ({
@@ -203,6 +206,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     if (automatic && !shouldAutoConnectQz({
       savedPrinterName,
       suppressed: qzAutoConnectSuppressedRef.current,
+      station: localStationRef.current,
     })) {
       setPrinterState('disconnected')
       return null
@@ -553,6 +557,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
           if (shouldAutoConnectQz({
             savedPrinterName,
             suppressed: qzAutoConnectSuppressedRef.current,
+            station,
           })) {
             await resolveConfiguredQzPrinter(station.id, { automatic: true })
           } else {
@@ -577,13 +582,15 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       void refresh().catch(reportError)
       if (busyJobIdRef.current || !supported) return
       if (isQz) {
-        const stationId = localStationRef.current?.id
+        const station = localStationRef.current
+        const stationId = station?.id
         const savedPrinterName = stationId
           ? getQzPrinterName(globalThis.localStorage, stationId)
           : null
         if (stationId && shouldAutoConnectQz({
           savedPrinterName,
           suppressed: qzAutoConnectSuppressedRef.current,
+          station,
         })) {
           void resolveConfiguredQzPrinter(stationId, { automatic: true })
         }
