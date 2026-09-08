@@ -88,3 +88,42 @@ test('print queue renders station health and a responsive four-card summary', as
   assert.match(styles, /\.print-queue-summary[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
 })
+
+test('print queue renders the empty state only when jobs are absent', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /const jobs = Array\.isArray\(printing\?\.jobs\) \? printing\.jobs : \[\]/)
+  assert.match(page, /jobs\.length === 0/)
+  assert.match(page, /Os trabalhos de impressão aparecerão aqui\./)
+  assert.match(page, /jobs\.map/)
+})
+
+test('print queue job rows expose identity, origin, copies, status, time and station', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  for (const pattern of [
+    /document\?\.order\?\.number/,
+    /document\?\.customer\?\.name/,
+    /job\?\.trigger/,
+    /job\?\.copiesPrinted/,
+    /job\?\.copiesRequested/,
+    /job\?\.createdAt/,
+    /job\?\.stationId/,
+    /job\?\.attentionReason/,
+    /getPrintQueueLabel/,
+  ]) assert.match(page, pattern)
+})
+
+test('print queue keeps structured desktop rows and compact mobile cards without horizontal overflow', async () => {
+  const [page, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('../print-queue.css'),
+  ])
+
+  assert.match(page, /print-queue-jobs-table/)
+  assert.match(page, /print-queue-job-card/)
+  assert.match(styles, /\.print-queue-jobs-table/)
+  assert.match(styles, /\.print-queue-job-card/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-jobs-table[\s\S]*display: none/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-job-card[\s\S]*display: grid/)
+})

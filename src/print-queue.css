@@ -1,5 +1,25 @@
 .print-queue-page { min-width: 0; }
 .print-queue-settings-button { white-space: nowrap; }
+.print-queue-jobs-section { min-width: 0; margin-top: 18px; }
+.print-queue-jobs-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+.print-queue-jobs-heading h2 { margin: 0; color: var(--text); font-size: 1.18rem; letter-spacing: -0.02em; }
+.print-queue-jobs-heading .section-kicker { margin-bottom: 5px; }
+.print-queue-jobs-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.print-queue-jobs-table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.print-queue-jobs-table th, .print-queue-jobs-table td { padding: 13px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.print-queue-jobs-table th { background: var(--surface-soft); color: var(--muted); font-size: 0.68rem; font-weight: 850; text-transform: uppercase; letter-spacing: 0.07em; }
+.print-queue-jobs-table td { color: var(--text-soft); font-size: 0.84rem; }
+.print-queue-jobs-table tbody tr:last-child td { border-bottom: 0; }
+.print-queue-status { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+.print-queue-status-queued { background: var(--info-soft); color: var(--info); }
+.print-queue-status-waiting_station, .print-queue-status-waiting_second_copy { background: var(--warning-soft); color: var(--warning); }
+.print-queue-status-printing { background: var(--purple-soft); color: var(--purple); }
+.print-queue-status-printed { background: var(--success-soft); color: var(--success); }
+.print-queue-status-attention { background: var(--danger-soft); color: var(--danger); }
+.print-queue-status-discarded { background: var(--surface-strong); color: var(--muted); }
+.print-queue-attention-reason { display: block; margin: 5px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
+.print-queue-empty { margin: 0; padding: 28px 18px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-soft); color: var(--muted); text-align: center; }
+.print-queue-job-cards { display: none; }
 
 .print-queue-station-card {
   display: flex;
@@ -23,6 +43,14 @@
 @media (max-width: 640px) {
   .print-queue-settings-button { width: auto !important; padding: 0 12px; }
   .print-queue-settings-button span { display: none; }
+  .print-queue-jobs-table-wrap { display: none; }
+  .print-queue-job-cards { display: grid; gap: 10px; }
+  .print-queue-job-card { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+  .print-queue-job-card-header, .print-queue-job-meta { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .print-queue-job-card-header strong, .print-queue-job-customer { min-width: 0; overflow-wrap: anywhere; }
+  .print-queue-job-customer { display: block; margin-top: 8px; color: var(--text); }
+  .print-queue-job-meta { justify-content: flex-start; flex-wrap: wrap; margin-top: 8px; color: var(--muted); font-size: 0.78rem; }
+  .print-queue-job-meta span { min-width: 0; overflow-wrap: anywhere; }
   .print-queue-station-card { align-items: flex-start; flex-direction: column; }
   .print-queue-station-health { text-align: left; }
   .print-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
