@@ -92,17 +92,22 @@ const setup = async ({ table = false } = {}) => {
   return { db, document }
 }
 
-test('reprint creates a new linked manual job and leaves the printed original untouched', async () => {
+test('reprint creates a new linked manual job using the current official order snapshot and leaves the printed original untouched', async () => {
   assert.equal(typeof printingRepository.reprintPrintJob, 'function')
   const { db, document } = await setup()
   const originalBefore = await loadPrintJob(db, businessId, 'original-job')
   const countBefore = db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
+  const currentDocument = {
+    ...document,
+    customer: { ...document.customer, name: 'Maria Atualizada' },
+  }
 
   const reprint = await printingRepository.reprintPrintJob(
     db,
     businessId,
     'original-job',
     2,
+    currentDocument,
     new Date(now.getTime() + 1000),
   )
 
@@ -115,7 +120,8 @@ test('reprint creates a new linked manual job and leaves the printed original un
   assert.equal(reprint.copiesRequested, 2)
   assert.equal(reprint.copiesPrinted, 0)
   assert.equal(reprint.stationId, null)
-  assert.deepEqual(reprint.document, document)
+  assert.deepEqual(reprint.document, currentDocument)
+  assert.notDeepEqual(reprint.document, originalBefore.document)
   assert.equal(db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, countBefore + 1)
 
   const originalAfter = await loadPrintJob(db, businessId, 'original-job')
@@ -124,10 +130,10 @@ test('reprint creates a new linked manual job and leaves the printed original un
 })
 
 test('reprint accepts either one or two requested copies from the same printed original', async () => {
-  const { db } = await setup()
+  const { db, document } = await setup()
 
-  const one = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, now)
-  const two = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 2, new Date(now.getTime() + 1))
+  const one = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, document, now)
+  const two = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 2, document, new Date(now.getTime() + 1))
 
   assert.equal(one.copiesRequested, 1)
   assert.equal(two.copiesRequested, 2)
@@ -137,9 +143,9 @@ test('reprint accepts either one or two requested copies from the same printed o
 })
 
 test('a table automatic ticket that originally had one copy can be manually reprinted with two copies', async () => {
-  const { db } = await setup({ table: true })
+  const { db, document } = await setup({ table: true })
 
-  const reprint = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 2, now)
+  const reprint = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 2, document, now)
 
   assert.equal(reprint.copiesRequested, 2)
   assert.equal(reprint.parentJobId, 'original-job')
@@ -150,13 +156,14 @@ test('a table automatic ticket that originally had one copy can be manually repr
 test('reprint rejects a job that has not finished printing', async () => {
   const db = new D1Sqlite()
   db.exec(`INSERT INTO orders (id, business_id, status) VALUES ('order-1', '${businessId}', 'Em preparo')`)
+  const document = { version: 1, type: 'order', order: { id: 'order-1' } }
   await db.batch([prepareAutomaticPrintJobStatement(db, businessId, {
     id: 'pending-job', orderId: 'order-1', copies: 1,
-    document: { version: 1, type: 'order', order: { id: 'order-1' } }, createdAt: now, availableAt: now,
+    document, createdAt: now, availableAt: now,
   })])
 
   await assert.rejects(
-    () => printingRepository.reprintPrintJob(db, businessId, 'pending-job', 1, now),
+    () => printingRepository.reprintPrintJob(db, businessId, 'pending-job', 1, document, now),
     (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
   )
 })
