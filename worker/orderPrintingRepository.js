@@ -31,6 +31,8 @@ const mapJobRow = (row) => row ? ({
   type: row.type,
   trigger: row.trigger,
   status: row.status,
+  priority: Number(row.priority || 0),
+  parentJobId: row.parent_job_id ?? null,
   copiesRequested: Number(row.copies_requested),
   copiesPrinted: Number(row.copies_printed || 0),
   stationId: row.station_id ?? null,
@@ -39,6 +41,10 @@ const mapJobRow = (row) => row ? ({
   availableAt: row.available_at ?? row.created_at,
   processingStartedAt: row.processing_started_at ?? null,
   processedAt: row.processed_at ?? null,
+  discardedAt: row.discarded_at ?? null,
+  attentionReason: row.attention_reason ?? null,
+  actionActorLabel: row.action_actor_label ?? null,
+  actionAt: row.action_at ?? null,
   lastError: row.last_error_code
     ? { code: row.last_error_code, message: row.last_error_message || '' }
     : null,
@@ -172,9 +178,11 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
   const limit = clampLimit(options.limit)
   const result = options.orderId
     ? await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ? AND order_id = ?
-      ORDER BY created_at DESC, id DESC LIMIT ?`).bind(businessId, options.orderId, limit).all()
+      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
+      LIMIT ?`).bind(businessId, options.orderId, limit).all()
     : await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ?
-      ORDER BY created_at DESC, id DESC LIMIT ?`).bind(businessId, limit).all()
+      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
+      LIMIT ?`).bind(businessId, limit).all()
   return rows(result).map(mapJobRow)
 }
 

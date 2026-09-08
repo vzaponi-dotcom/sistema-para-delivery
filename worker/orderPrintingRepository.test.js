@@ -47,14 +47,20 @@ class D1Sqlite {
         type TEXT NOT NULL,
         trigger TEXT NOT NULL,
         status TEXT NOT NULL,
+        priority INTEGER NOT NULL DEFAULT 0,
+        parent_job_id TEXT,
         copies_requested INTEGER NOT NULL,
         copies_printed INTEGER NOT NULL DEFAULT 0,
         station_id TEXT,
         snapshot_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        available_at TEXT NOT NULL,
+        available_at TEXT,
         processing_started_at TEXT,
         processed_at TEXT,
+        discarded_at TEXT,
+        attention_reason TEXT,
+        action_actor_label TEXT,
+        action_at TEXT,
         last_error_code TEXT,
         last_error_message TEXT
       );
@@ -335,6 +341,69 @@ test('job and station reads are isolated by business id', async () => {
   assert.deepEqual((await listPrintStations(db, businessA)).map((item) => item.id), ['station-a'])
   assert.deepEqual((await listPrintJobs(db, businessA)).map((item) => item.id), ['job-a'])
   assert.equal(await loadPrintJob(db, businessA, 'job-b'), null)
+})
+
+test('listPrintJobs exposes centralized queue fields and orders jobs deterministically', async () => {
+  const db = makeDb()
+  const jobIds = ['priority-job', 'legacy-job', 'available-job', 'created-job', 'stable-a', 'stable-b']
+  for (const id of jobIds) {
+    await createManualOrderPrintJob(db, businessA, { id, orderId: 'o1', copies: 2, document }, baseNow)
+  }
+
+  db.exec(`
+    UPDATE print_jobs SET
+      priority = 1,
+      parent_job_id = 'original-job',
+      discarded_at = '2026-09-03T23:09:00.000Z',
+      attention_reason = 'PRINTER_OFFLINE',
+      action_actor_label = 'Caixa 1',
+      action_at = '2026-09-03T23:10:00.000Z',
+      created_at = '2026-09-03T23:10:00.000Z',
+      available_at = '2026-09-03T23:10:00.000Z'
+    WHERE id = 'priority-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:00:00.000Z', available_at = NULL WHERE id = 'legacy-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:05:00.000Z', available_at = '2026-09-03T23:01:00.000Z' WHERE id = 'available-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:02:00.000Z', available_at = NULL WHERE id = 'created-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:03:00.000Z', available_at = '2026-09-03T23:03:00.000Z' WHERE id IN ('stable-a', 'stable-b');
+  `)
+
+  const jobs = await listPrintJobs(db, businessA, { now: baseNow })
+  const priorityJob = jobs.find((job) => job.id === 'priority-job')
+  const legacyJob = jobs.find((job) => job.id === 'legacy-job')
+
+  assert.deepEqual(jobs.map((job) => job.id), [
+    'priority-job', 'legacy-job', 'available-job', 'created-job', 'stable-a', 'stable-b',
+  ])
+  assert.deepEqual({
+    priority: priorityJob.priority,
+    parentJobId: priorityJob.parentJobId,
+    discardedAt: priorityJob.discardedAt,
+    attentionReason: priorityJob.attentionReason,
+    actionActorLabel: priorityJob.actionActorLabel,
+    actionAt: priorityJob.actionAt,
+  }, {
+    priority: 1,
+    parentJobId: 'original-job',
+    discardedAt: '2026-09-03T23:09:00.000Z',
+    attentionReason: 'PRINTER_OFFLINE',
+    actionActorLabel: 'Caixa 1',
+    actionAt: '2026-09-03T23:10:00.000Z',
+  })
+  assert.deepEqual({
+    priority: legacyJob.priority,
+    parentJobId: legacyJob.parentJobId,
+    discardedAt: legacyJob.discardedAt,
+    attentionReason: legacyJob.attentionReason,
+    actionActorLabel: legacyJob.actionActorLabel,
+    actionAt: legacyJob.actionAt,
+  }, {
+    priority: 0,
+    parentJobId: null,
+    discardedAt: null,
+    attentionReason: null,
+    actionActorLabel: null,
+    actionAt: null,
+  })
 })
 
 test('cancelled automatic order cannot claim its pending second copy', async () => {
