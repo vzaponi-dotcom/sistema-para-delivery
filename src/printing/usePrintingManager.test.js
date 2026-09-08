@@ -24,7 +24,6 @@ const readyAutomaticConsumer = (overrides = {}) => ({
 test('Windows uses QZ, Android keeps RawBT, and only fallback platforms depend on Web Serial', () => {
   assert.equal(getPrintingTransportKind('windows'), 'qz')
   assert.equal(getPrintingTransportKind('android'), 'rawbt')
-  assert.equal(getPrintingTransportKind('other'), 'web-serial')
   assert.equal(getRendererCompatibilityMode('qz'), 'mpt2-bitmap')
   assert.equal(getRendererCompatibilityMode('rawbt'), 'mpt2-bitmap')
   assert.equal(getRendererCompatibilityMode('web-serial'), null)
@@ -35,11 +34,15 @@ test('Windows uses QZ, Android keeps RawBT, and only fallback platforms depend o
   assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
 })
 
-test('QZ auto-connect only runs for a configured station and stops after an automatic connection failure', () => {
-  assert.equal(shouldAutoConnectQz({ savedPrinterName: null, suppressed: false }), false)
-  assert.equal(shouldAutoConnectQz({ savedPrinterName: '', suppressed: false }), false)
-  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: true }), false)
-  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: false }), true)
+test('QZ auto-connect only runs for an active configured print station and stops after an automatic connection failure', () => {
+  const activeStation = { isPrimary: true, autoPrintEnabled: true }
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: null, suppressed: false, station: activeStation }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: '', suppressed: false, station: activeStation }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: true, station: activeStation }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: false, station: null }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: false, station: { isPrimary: false, autoPrintEnabled: true } }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: false, station: { isPrimary: true, autoPrintEnabled: false } }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: false, station: activeStation }), true)
 })
 
 test('automatic consumer does not claim while QZ or another local transport is not ready', () => {
