@@ -12,13 +12,34 @@ const formatJobTime = (createdAt) => {
   return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(date)
 }
 
+const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''))
+
+const getOperationalOrderNumber = (order = {}) => {
+  const explicitNumber = [order.displayNumber, order.operationalNumber, order.orderNumber]
+    .map((value) => String(value || '').trim())
+    .find(Boolean)
+  if (explicitNumber) return explicitNumber
+
+  const snapshotNumber = String(order.number || '').trim()
+  if (!snapshotNumber) return null
+  if (isUuid(order.id) && String(order.id).endsWith(snapshotNumber)) return null
+  return snapshotNumber
+}
+
+const getCustomerOrTable = (document) => {
+  const customer = String(document?.customer?.name || '').trim()
+  const table = String(document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier || '').trim()
+  if (table && customer && customer !== table && !customer.startsWith(`${table} ·`)) return `${table} · ${customer}`
+  return table || customer || null
+}
+
 const getPrintJobView = (job, stationReady) => {
   const state = job?.queueState
     ? resolvePrintQueueState(job.queueState)
     : resolvePrintQueueState(job?.status, { stationReady })
   return {
-    orderNumber: job?.document?.order?.number || null,
-    customerOrTable: job?.document?.customer?.name || null,
+    orderNumber: getOperationalOrderNumber(job?.document?.order),
+    customerOrTable: getCustomerOrTable(job?.document),
     origin: job?.trigger === 'automatic' ? 'Automático' : job?.trigger === 'manual' ? 'Manual' : null,
     copies: `${Number(job?.copiesPrinted) || 0}/${Number(job?.copiesRequested) || 0}`,
     status: getPrintQueueLabel(state),

@@ -102,7 +102,7 @@ test('print queue job rows expose identity, origin, copies, status, time and sta
   const page = await readSource('./PrintQueue.jsx')
 
   for (const pattern of [
-    /document\?\.order\?\.number/,
+    /order\.number/,
     /document\?\.customer\?\.name/,
     /job\?\.trigger/,
     /job\?\.copiesPrinted/,
@@ -126,4 +126,22 @@ test('print queue keeps structured desktop rows and compact mobile cards without
   assert.match(styles, /\.print-queue-job-card/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-jobs-table[\s\S]*display: none/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-job-card[\s\S]*display: grid/)
+})
+
+test('print queue uses an operational order number and never treats a UUID suffix as one', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /getOperationalOrderNumber/)
+  assert.match(page, /displayNumber|operationalNumber|orderNumber/)
+  assert.match(page, /order\.number/)
+  assert.doesNotMatch(page, /String\(.*order.*\)\.slice\(-4\)/)
+})
+
+test('print queue preserves official table and customer identity with a neutral fallback', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /getCustomerOrTable/)
+  assert.match(page, /tableIdentifier/)
+  assert.match(page, /customerOrTable: getCustomerOrTable/)
+  assert.match(page, /orderNumber \? `Pedido #\$\{job\.orderNumber\}` : 'Pedido'/)
 })
