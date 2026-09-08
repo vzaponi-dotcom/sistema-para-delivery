@@ -117,9 +117,9 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
         </div>
         <div className="print-queue-filters" aria-label="Filtros da fila de impressão">
           <label className="print-queue-search">
-            <span className="sr-only">Buscar pedido, cliente ou mesa</span>
             <input
               type="search"
+              aria-label="Buscar pedido, cliente ou mesa"
               placeholder="Buscar pedido, cliente ou mesa"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
