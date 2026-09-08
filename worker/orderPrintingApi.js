@@ -11,6 +11,7 @@ import {
   loadBusinessPrintSettings,
   markPrintJobFailed,
   markPrintJobPrinted,
+  prioritizePrintJob,
   retryPrintJob,
   saveBusinessPrintSettings,
   setPrimaryPrintStation,
@@ -150,6 +151,13 @@ export const handlePrintingApi = async (request, env, session, url) => {
     const body = await readJson(request)
     const actorLabel = String(body.actorLabel ?? '').trim() || 'Sistema'
     const job = await discardPrintJob(env.DB, businessId, decodeURIComponent(discardMatch[1]), actorLabel)
+    return json({ job })
+  }
+
+  const prioritizeMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/prioritize$/)
+  if (prioritizeMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const job = await prioritizePrintJob(env.DB, businessId, decodeURIComponent(prioritizeMatch[1]))
     return json({ job })
   }
 
