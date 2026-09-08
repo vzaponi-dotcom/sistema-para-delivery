@@ -1,9 +1,15 @@
+import { useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Button from '../components/Button'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../shared/printQueue.js'
+import {
+  filterPrintQueueJobs,
+  PRINT_QUEUE_ORIGIN_FILTERS,
+  PRINT_QUEUE_STATUS_FILTERS,
+} from './printQueueFilters.js'
 
 const formatJobTime = (createdAt) => {
   if (!createdAt) return null
@@ -40,7 +46,7 @@ const getPrintJobView = (job, stationReady) => {
   return {
     orderNumber: getOperationalOrderNumber(job?.document?.order),
     customerOrTable: getCustomerOrTable(job?.document),
-    origin: job?.trigger === 'automatic' ? 'Automático' : job?.trigger === 'manual' ? 'Manual' : null,
+    origin: job?.trigger === 'automatic' ? 'Automático' : job?.trigger === 'manual' ? 'Manual/Reimpressão' : null,
     copies: `${Number(job?.copiesPrinted) || 0}/${Number(job?.copiesRequested) || 0}`,
     status: getPrintQueueLabel(state),
     state,
@@ -56,7 +62,12 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
   const stationSummary = getPrintStationSummary(station)
   const stationReady = station?.health?.ready
   const summary = buildPrintQueueSummary(jobs, { stationReady })
-  const jobRows = jobs.map((job) => getPrintJobView(job, stationReady))
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('all')
+  const [origin, setOrigin] = useState('all')
+  const filteredJobs = filterPrintQueueJobs(jobs, { search, status, origin, stationReady })
+  const jobRows = filteredJobs.map((job) => getPrintJobView(job, stationReady))
+  const hasActiveFilters = Boolean(search.trim()) || status !== 'all' || origin !== 'all'
 
   return (
     <div className="print-queue-page">
@@ -104,8 +115,33 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
             <h2>Trabalhos de impressão</h2>
           </div>
         </div>
+        <div className="print-queue-filters" aria-label="Filtros da fila de impressão">
+          <label className="print-queue-search">
+            <span className="sr-only">Buscar pedido, cliente ou mesa</span>
+            <input
+              type="search"
+              placeholder="Buscar pedido, cliente ou mesa"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <label className="print-queue-filter-control">
+            <span>Status</span>
+            <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtrar por status">
+              {PRINT_QUEUE_STATUS_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="print-queue-filter-control">
+            <span>Origem</span>
+            <select value={origin} onChange={(event) => setOrigin(event.target.value)} aria-label="Filtrar por origem">
+              {PRINT_QUEUE_ORIGIN_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+        </div>
         {jobs.length === 0 ? (
           <p className="print-queue-empty">Os trabalhos de impressão aparecerão aqui.</p>
+        ) : filteredJobs.length === 0 && hasActiveFilters ? (
+          <p className="print-queue-empty print-queue-filtered-empty">Nenhum trabalho encontrado com os filtros atuais.</p>
         ) : (
           <>
             <div className="print-queue-jobs-table-wrap">
@@ -123,7 +159,7 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
                 </thead>
                 <tbody>
                   {jobRows.map((job, index) => (
-                    <tr key={jobs[index]?.id || `${job.orderNumber || 'job'}-${index}`}>
+                    <tr key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-${index}`}>
                       <td>{job.orderNumber ? `Pedido #${job.orderNumber}` : 'Pedido'}</td>
                       <td>{job.customerOrTable || '—'}</td>
                       <td>{job.origin || '—'}</td>
@@ -138,7 +174,7 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
             </div>
             <div className="print-queue-job-cards" aria-label="Trabalhos de impressão em cards">
               {jobRows.map((job, index) => (
-                <article className="print-queue-job-card" key={jobs[index]?.id || `${job.orderNumber || 'job'}-card-${index}`}>
+                <article className="print-queue-job-card" key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-card-${index}`}>
                   <div className="print-queue-job-card-header">
                     <strong>{job.orderNumber ? `Pedido #${job.orderNumber}` : 'Pedido'}</strong>
                     <span className={`print-queue-status print-queue-status-${job.state}`}>{job.status}</span>

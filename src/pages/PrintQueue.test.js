@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
+import { filterPrintQueueJobs, getPrintQueueSearchText } from './printQueueFilters.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -95,7 +96,7 @@ test('print queue renders the empty state only when jobs are absent', async () =
   assert.match(page, /const jobs = Array\.isArray\(printing\?\.jobs\) \? printing\.jobs : \[\]/)
   assert.match(page, /jobs\.length === 0/)
   assert.match(page, /Os trabalhos de impressão aparecerão aqui\./)
-  assert.match(page, /jobs\.map/)
+  assert.match(page, /filteredJobs\.map/)
 })
 
 test('print queue job rows expose identity, origin, copies, status, time and station', async () => {
@@ -144,4 +145,72 @@ test('print queue preserves official table and customer identity with a neutral 
   assert.match(page, /tableIdentifier/)
   assert.match(page, /customerOrTable: getCustomerOrTable/)
   assert.match(page, /orderNumber \? `Pedido #\$\{job\.orderNumber\}` : 'Pedido'/)
+})
+
+const filterJobs = [
+  {
+    id: 'customer-job',
+    trigger: 'automatic',
+    status: 'pending',
+    document: { customer: { name: 'Ana Souza' }, tableIdentifier: 'Mesa 4', order: { number: '104' } },
+  },
+  {
+    id: 'table-job',
+    trigger: 'manual',
+    status: 'printed',
+    document: { customer: { name: 'Bruno Lima' }, tableIdentifier: 'Mesa 12', order: { displayNumber: '205' } },
+  },
+  {
+    id: 'technical-id-job',
+    trigger: 'automatic',
+    status: 'attention',
+    document: { customer: { name: 'Carla Dias' }, order: { id: '123e4567-e89b-12d3-a456-426614174000', number: '123e4567-e89b-12d3-a456-426614174000' } },
+  },
+]
+
+test('print queue search matches customer case-insensitively', () => {
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'ANA SOUZA' }).map((job) => job.id), ['customer-job'])
+})
+
+test('print queue search matches table identifiers', () => {
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'mesa 12' }).map((job) => job.id), ['table-job'])
+})
+
+test('print queue search matches an available operational order number', () => {
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: '205' }).map((job) => job.id), ['table-job'])
+})
+
+test('print queue search does not match technical UUIDs', () => {
+  assert.equal(getPrintQueueSearchText(filterJobs[2]).includes('123e4567-e89b-12d3-a456-426614174000'), false)
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: '123e4567-e89b-12d3-a456-426614174000' }), [])
+})
+
+test('print queue filters by canonical status and combines status with search', () => {
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { status: 'printed' }).map((job) => job.id), ['table-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'mesa', status: 'printed' }).map((job) => job.id), ['table-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { status: 'queued' }).map((job) => job.id), ['customer-job'])
+})
+
+test('print queue filters by reliable origin values', () => {
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { origin: 'automatic' }).map((job) => job.id), ['customer-job', 'technical-id-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { origin: 'manual' }).map((job) => job.id), ['table-job'])
+})
+
+test('print queue returns no jobs when active filters match nothing', () => {
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'inexistente', status: 'printed' }), [])
+})
+
+test('print queue exposes responsive filter controls without structural horizontal overflow', async () => {
+  const [page, filters, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('./printQueueFilters.js'),
+    readSource('../print-queue.css'),
+  ])
+
+  assert.match(page, /Buscar pedido, cliente ou mesa/)
+  assert.match(filters, /Todos/)
+  assert.match(filters, /Manual\/Reimpressão/)
+  assert.match(styles, /\.print-queue-filters/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-filters[\s\S]*flex-direction: column/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-search[\s\S]*width: 100%/)
 })
