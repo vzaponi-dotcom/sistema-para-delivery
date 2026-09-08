@@ -11,6 +11,7 @@ import {
   getPrintJobs,
   getPrintStations,
   getQzCertificate,
+  heartbeatPrintStation,
   makePrimaryPrintStation,
   retryPrintJob,
   signQzPayload,
@@ -95,6 +96,34 @@ export const canConsumeAutomaticPrintJob = ({
   && station?.isPrimary
   && station?.autoPrintEnabled
 )
+
+export const canSendPrintStationHeartbeat = ({
+  authenticated,
+  isOnline,
+  browserOnline: browserIsOnline,
+  isQz,
+  station,
+}) => Boolean(
+  authenticated
+  && isOnline
+  && browserIsOnline
+  && isQz
+  && station?.id
+  && station?.isPrimary
+  && station?.platform === 'windows'
+)
+
+export const buildPrintStationHeartbeatHealth = ({
+  qzActive,
+  transportReady,
+  configuredPrinterName,
+}) => {
+  const qzReady = Boolean(qzActive)
+  return {
+    qzReady,
+    printerReady: Boolean(qzReady && transportReady && String(configuredPrinterName || '').trim()),
+  }
+}
 
 export const usePrintingManager = ({ authenticated = false, isOnline = true, onError } = {}) => {
   const platform = detectPrintStationPlatform()
@@ -561,23 +590,39 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   }, [authenticated, isOnline, isQz, isRawBt, refresh, reportError, resolveAuthorizedPort, resolveConfiguredQzPrinter, supported])
 
   useEffect(() => {
-    if (!authenticated || !isOnline || !localStation?.id) return undefined
+    const eligible = () => canSendPrintStationHeartbeat({
+      authenticated,
+      isOnline,
+      browserOnline: browserOnline(),
+      isQz,
+      station: localStationRef.current,
+    })
+    if (!eligible()) return undefined
+
+    let cancelled = false
     const heartbeat = async () => {
       const station = localStationRef.current
-      if (!station) return
+      if (!station || !eligible()) return
+      const health = buildPrintStationHeartbeatHealth({
+        qzActive: Boolean(qz.websocket?.isActive?.()),
+        transportReady: transportReadyRef.current,
+        configuredPrinterName: configuredPrinterNameRef.current,
+      })
       try {
-        const response = await upsertPrintStation(station.id, {
-          name: station.name,
-          platform: station.platform,
-          autoPrintEnabled: station.autoPrintEnabled,
-          defaultCopies: station.defaultCopies,
-        })
-        updateLocalStation(response.station)
-      } catch (error) { reportError(error) }
+        const response = await heartbeatPrintStation(station.id, health)
+        if (!cancelled && response?.station) updateLocalStation(response.station)
+      } catch (error) {
+        if (!cancelled) reportError(error)
+      }
     }
-    const timer = globalThis.setInterval?.(() => { if (visiblePage()) void heartbeat() }, STATION_HEARTBEAT_MS)
-    return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [authenticated, isOnline, localStation?.id, reportError, updateLocalStation])
+
+    void heartbeat()
+    const timer = globalThis.setInterval?.(() => { void heartbeat() }, STATION_HEARTBEAT_MS)
+    return () => {
+      cancelled = true
+      if (timer) globalThis.clearInterval?.(timer)
+    }
+  }, [authenticated, configuredPrinterName, isOnline, isQz, localStation?.id, localStation?.isPrimary, localStation?.platform, reportError, transportReady, updateLocalStation])
 
   useEffect(() => {
     if (!authenticated || !isOnline || !supported) return undefined
