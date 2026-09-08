@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
+import * as printingRepository from './orderPrintingRepository.js'
 import {
   PRINT_PENDING_MAX_AGE_MS,
   PRINT_PROCESSING_MAX_AGE_MS,
@@ -436,3 +437,65 @@ test('cancelled automatic order cannot claim its pending second copy', async () 
   assert.equal(preserved.copiesPrinted, 1)
 })
 
+test('discard preserves the job history, is idempotent, and keeps the job out of automatic claiming', async () => {
+  assert.equal(typeof printingRepository.discardPrintJob, 'function')
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  const original = await addAutomaticJob(db, { id: 'discard-me' })
+  const beforeCount = db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
+  const discardedAt = new Date(baseNow.getTime() + 30_000)
+
+  const discarded = await printingRepository.discardPrintJob(db, businessA, original.id, 'Caixa 1', discardedAt)
+  assert.equal(discarded.status, 'discarded')
+  assert.equal(discarded.discardedAt, discardedAt.toISOString())
+  assert.equal(discarded.actionAt, discardedAt.toISOString())
+  assert.equal(discarded.actionActorLabel, 'Caixa 1')
+  assert.deepEqual(discarded.document, original.document)
+  assert.equal(db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, beforeCount)
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', new Date(discardedAt.getTime() + 1000)), null)
+  await assert.rejects(
+    () => retryPrintJob(db, businessA, original.id, discardedAt),
+    (error) => error.code === 'PRINT_JOB_RETRY_NOT_ALLOWED',
+  )
+
+  const repeated = await printingRepository.discardPrintJob(
+    db,
+    businessA,
+    original.id,
+    'Outro dispositivo',
+    new Date(discardedAt.getTime() + 60_000),
+  )
+  assert.equal(repeated.discardedAt, discardedAt.toISOString())
+  assert.equal(repeated.actionAt, discardedAt.toISOString())
+  assert.equal(repeated.actionActorLabel, 'Caixa 1')
+})
+
+test('discard rejects an in-flight or fully printed job but allows a pending second copy', async () => {
+  assert.equal(typeof printingRepository.discardPrintJob, 'function')
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+
+  await addAutomaticJob(db, { id: 'processing-job', orderId: 'o1' })
+  await claimPrintJob(db, businessA, 'processing-job', 'station-a', baseNow)
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'processing-job', 'Sistema', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+
+  await addAutomaticJob(db, { id: 'partial-job', orderId: 'o2' })
+  await claimPrintJob(db, businessA, 'partial-job', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'partial-job', 'station-a', 1, baseNow)
+  const partialDiscarded = await printingRepository.discardPrintJob(db, businessA, 'partial-job', 'Sistema', baseNow)
+  assert.equal(partialDiscarded.status, 'discarded')
+  assert.equal(partialDiscarded.copiesPrinted, 1)
+
+  await createManualOrderPrintJob(db, businessA, { id: 'printed-job', orderId: 'o1', copies: 1, document }, baseNow)
+  await claimPrintJob(db, businessA, 'printed-job', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'printed-job', 'station-a', 1, baseNow)
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'printed-job', 'Sistema', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+})
