@@ -9,7 +9,7 @@ const receivablesStyles = fs.readFileSync(new URL('./receivables.css', import.me
 
 test('tables keeps occupied-table transfer as the primary operational action', () => {
   assert.match(tables, /className="table-transfer-primary"/)
-  assert.match(tables, /table-occupied-actions[\s\S]*?<Button[^>]*className="table-transfer-primary"[^>]*>Transferir comanda<\/Button>/)
+  assert.match(tables, /table-occupied-actions[\s\S]*?<Button(?=[^>]*className="table-transfer-primary")[^>]*>Transferir comanda<\/Button>/)
   assert.doesNotMatch(tables, /className="table-transfer-primary"[^>]*variant="secondary"/)
   assert.match(tables, /className="table-deactivate-action"[^>]*variant="secondary"/)
 })
