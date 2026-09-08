@@ -238,16 +238,35 @@ test('checkout retry with the same idempotency key keeps one order and one autom
   assert.equal(db.all(`SELECT * FROM print_jobs`).length, 1)
 })
 
-test('auto-print disabled or no primary station creates no automatic job and enabling later does not backfill', async () => {
+test('eligible checkout creates one unassigned automatic job without a ready primary station', async () => {
   const disabled = seed({ auto: false })
-  await createOrder(disabled, 'amor-e-sabor', input({ idempotencyKey: 'disabled' }), new Date('2026-09-03T23:31:00.000Z'))
-  assert.equal(disabled.all(`SELECT * FROM print_jobs`).length, 0)
+  const disabledInput = input({ idempotencyKey: 'disabled' })
+  await createOrder(disabled, 'amor-e-sabor', disabledInput, new Date('2026-09-03T23:31:00.000Z'))
+  await createOrder(disabled, 'amor-e-sabor', disabledInput, new Date('2026-09-03T23:32:00.000Z'))
+  assert.equal(disabled.all(`SELECT * FROM print_jobs`).length, 1)
+  assert.equal(disabled.all(`SELECT * FROM print_jobs`)[0].station_id, null)
   disabled.exec(`UPDATE print_stations SET auto_print_enabled = 1 WHERE id = 'station-a'`)
-  assert.equal(disabled.all(`SELECT * FROM print_jobs`).length, 0)
+  assert.equal(disabled.all(`SELECT * FROM print_jobs`).length, 1)
 
   const secondaryOnly = seed({ primary: false })
   await createOrder(secondaryOnly, 'amor-e-sabor', input({ idempotencyKey: 'secondary' }), new Date('2026-09-03T23:31:00.000Z'))
-  assert.equal(secondaryOnly.all(`SELECT * FROM print_jobs`).length, 0)
+  assert.equal(secondaryOnly.all(`SELECT * FROM print_jobs`).length, 1)
+  assert.equal(secondaryOnly.all(`SELECT * FROM print_jobs`)[0].station_id, null)
+
+  const offline = seed()
+  assert.equal(offline.all(`SELECT last_seen_at FROM print_stations`)[0].last_seen_at, null)
+  await createOrder(offline, 'amor-e-sabor', input({ idempotencyKey: 'offline' }), new Date('2026-09-03T23:31:00.000Z'))
+  assert.equal(offline.all(`SELECT * FROM print_jobs`).length, 1)
+  assert.equal(offline.all(`SELECT * FROM print_jobs`)[0].station_id, null)
+
+  const noStation = seed()
+  noStation.exec(`DELETE FROM print_stations`)
+  const noStationInput = input({ idempotencyKey: 'no-station' })
+  await createOrder(noStation, 'amor-e-sabor', noStationInput, new Date('2026-09-03T23:31:00.000Z'))
+  await createOrder(noStation, 'amor-e-sabor', noStationInput, new Date('2026-09-03T23:32:00.000Z'))
+  assert.equal(noStation.all(`SELECT * FROM orders`).length, 1)
+  assert.equal(noStation.all(`SELECT * FROM print_jobs`).length, 1)
+  assert.equal(noStation.all(`SELECT * FROM print_jobs`)[0].station_id, null)
 })
 
 test('historical/backdated orders never enqueue automatic kitchen printing', async () => {

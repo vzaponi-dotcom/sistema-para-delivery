@@ -4,7 +4,7 @@ import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
-import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
+import { prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { getOrCreateOpenTableTabByTableId, listTables } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 
@@ -409,10 +409,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt, input.paymentMethod, paidAt))
   }
 
-  const primaryPrintStation = status === 'Em preparo'
-    ? await loadPrimaryAutomaticPrintStation(db, businessId)
-    : null
-  if (primaryPrintStation) {
+  if (status === 'Em preparo') {
     const printSettings = await db.prepare(`SELECT default_copies
       FROM business_print_settings
       WHERE business_id = ?

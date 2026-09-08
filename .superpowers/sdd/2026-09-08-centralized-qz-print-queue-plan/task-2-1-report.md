@@ -110,3 +110,108 @@ Resultado: exit code 0; somente avisos informativos de conversão LF/CRLF do Git
 - Desvio operacional: foi necessário usar `npm.cmd test` porque a política de execução do PowerShell bloqueou `npm.ps1`; isso não altera o comando npm executado (`node --test`).
 - A fixture do teste focado recebeu apenas as estruturas atuais necessárias para exercer a migration 0014 e o fluxo real de mesa. A suíte completa não exigiu outros alinhamentos.
 - Preocupação residual baixa: o fallback 2 cobre uma linha central ausente, mas em produção a migration 0014 deve garantir essa linha; uma ausência indicaria inconsistência de dados a ser tratada em tarefa operacional separada.
+
+## Fix round 1 — criação independente da estação
+
+### Finding e causa raiz
+
+O review identificou que `createOrder` ainda condicionava a criação do job a `loadPrimaryAutomaticPrintStation`. O finding foi confirmado contra a especificação central: todo pedido elegível deve gerar um job mesmo sem estação disponível. A causa raiz era o uso da prontidão/configuração do executor físico como gate de persistência da fila. O próprio `prepareAutomaticPrintJobStatement` já separava corretamente os conceitos ao persistir `station_id = NULL`; a estação deve ser exigida somente no claim.
+
+### TDD — RED
+
+O contrato antigo que esperava zero jobs foi substituído antes da mudança de produção. O novo teste exige exatamente um job não atribuído quando:
+
+- a estação primária tem `auto_print_enabled = 0`;
+- existe somente estação secundária;
+- a estação primária está offline (`last_seen_at = NULL`);
+- não existe nenhuma estação;
+- o checkout é repetido com a mesma chave nos cenários desabilitado e sem estação.
+
+Comando:
+
+```text
+node --test worker/orderAutomaticPrintJob.test.js
+```
+
+RED observado:
+
+```text
+tests 9
+pass 8
+fail 1
+Expected values to be strictly equal: 0 !== 1
+```
+
+### GREEN
+
+Foi removida somente a consulta/gate de `loadPrimaryAutomaticPrintStation` na criação. O bloco de criação do job agora usa `status === 'Em preparo'` como condição de elegibilidade. Não houve mudança em claim, estação QZ, estados de fila ou transporte.
+
+Comando focado:
+
+```text
+node --test worker/orderAutomaticPrintJob.test.js
+```
+
+Resultado:
+
+```text
+tests 9
+pass 9
+fail 0
+```
+
+### Alinhamento mínimo de fixture
+
+A primeira suíte completa revelou uma única expectativa antiga em `worker/orderRepositories.test.js`: o batch de um pedido elegível agora contém quatro statements (pedido, snapshot de contato, item e job), mas a fixture exigia três.
+
+Primeira execução completa:
+
+```text
+npm.cmd test
+tests 681
+pass 680
+fail 1
+worker/orderRepositories.test.js: 4 !== 3
+```
+
+O alinhamento foi restrito a mudar a expectativa de tamanho do batch de 3 para 4. A verificação conjunta passou:
+
+```text
+node --test worker/orderRepositories.test.js worker/orderAutomaticPrintJob.test.js
+tests 14
+pass 14
+fail 0
+```
+
+### Verificação final
+
+```text
+npm.cmd test
+tests 681
+pass 681
+fail 0
+duration_ms 3455.4127
+```
+
+`git diff --check` retornou exit code 0, com apenas avisos informativos de LF/CRLF no Windows.
+
+### Arquivos desta rodada
+
+- `worker/repositories.js` — remove o gate de estação na criação do job.
+- `worker/orderAutomaticPrintJob.test.js` — cobre desabilitada, secundária, offline, ausente, `station_id = NULL` e retry idempotente.
+- `worker/orderRepositories.test.js` — alinha de 3 para 4 o tamanho esperado do batch.
+- `.superpowers/sdd/2026-09-08-centralized-qz-print-queue-plan/task-2-1-report.md` — registra esta rodada.
+
+### Auto-revisão da rodada
+
+- Todo pedido com `status === 'Em preparo'` agenda exatamente um job na mesma transação do pedido.
+- Pedido histórico/finalizado continua sem job automático.
+- O job permanece não atribuído até claim; nenhum executor é escolhido na criação.
+- A chave idempotente do pedido e o índice único do job preservam exatamente um pedido e um job em retries.
+- A leitura da configuração central de vias permanece no momento da criação, inclusive sem estação.
+- Claim, QZ, RawBT, Web Serial e a Tarefa 2.2 não foram alterados.
+- Não foram encontrados problemas adicionais de correção, regressão ou escopo.
+
+### Desvios e preocupações da rodada
+
+- O único desvio foi o alinhamento mínimo da fixture de batch descrito acima, exigido pela nova garantia de criação. Nenhuma preocupação residual nova foi identificada.
