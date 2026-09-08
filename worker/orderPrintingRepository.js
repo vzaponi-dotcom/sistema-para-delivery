@@ -308,6 +308,35 @@ export const markPrintJobFailed = async (db, businessId, jobId, stationId, failu
   throw repositoryError(409, 'PRINT_JOB_NOT_PROCESSING', 'Este trabalho não está sendo processado por esta estação.')
 }
 
+export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Sistema', now = new Date()) => {
+  const existing = await loadPrintJob(db, businessId, jobId)
+  if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+  if (existing.status === 'discarded') return existing
+
+  const partialPrinted = existing.status === 'printed'
+    && existing.copiesPrinted > 0
+    && existing.copiesPrinted < existing.copiesRequested
+  const discardable = ['pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy'].includes(existing.status)
+    || partialPrinted
+  if (!discardable) {
+    throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
+  }
+
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const row = await db.prepare(`UPDATE print_jobs SET
+      status = 'discarded', discarded_at = ?, action_actor_label = ?, action_at = ?
+    WHERE id = ? AND business_id = ?
+      AND (status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
+        OR (status = 'printed' AND copies_printed > 0 AND copies_printed < copies_requested))
+    RETURNING *`).bind(at, actor, at, jobId, businessId).first()
+  if (row) return mapJobRow(row)
+
+  const current = await loadPrintJob(db, businessId, jobId)
+  if (current?.status === 'discarded') return current
+  throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
+}
+
 export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => {
   const row = await db.prepare(`UPDATE print_jobs SET
       status = CASE
