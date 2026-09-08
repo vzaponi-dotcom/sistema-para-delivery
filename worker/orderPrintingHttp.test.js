@@ -368,3 +368,47 @@ test('printing endpoints require authentication and never expose another busines
   const jobs = (await response.json()).jobs
   assert.equal(jobs.some((job) => job.id === 'other-job'), false)
 })
+
+test('discard endpoint preserves history and audit without requiring a print station', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  const manual = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })
+  const original = (await manual.json()).job
+  const beforeCount = currentEnv.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
+
+  const discardedResponse = await jsonRequest(`/api/printing/jobs/${original.id}/discard`, 'POST', cookie, { actorLabel: 'Caixa 1' })
+  assert.equal(discardedResponse.status, 200)
+  const discarded = (await discardedResponse.json()).job
+  assert.equal(discarded.status, 'discarded')
+  assert.equal(discarded.actionActorLabel, 'Caixa 1')
+  assert.equal(typeof discarded.discardedAt, 'string')
+  assert.equal(discarded.actionAt, discarded.discardedAt)
+  assert.deepEqual(discarded.document, original.document)
+  assert.equal(currentEnv.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, beforeCount)
+
+  const repeatedResponse = await jsonRequest(`/api/printing/jobs/${original.id}/discard`, 'POST', cookie, { actorLabel: 'Outro dispositivo' })
+  assert.equal(repeatedResponse.status, 200)
+  const repeated = (await repeatedResponse.json()).job
+  assert.equal(repeated.discardedAt, discarded.discardedAt)
+  assert.equal(repeated.actionAt, discarded.actionAt)
+  assert.equal(repeated.actionActorLabel, 'Caixa 1')
+
+  const jobs = (await (await jsonRequest('/api/printing/jobs?orderId=o1&limit=20', 'GET', cookie)).json()).jobs
+  assert.equal(jobs.find((job) => job.id === original.id)?.status, 'discarded')
+})
+
+test('discard endpoint rejects a fully printed job with a stable conflict code', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  await jsonRequest('/api/printing/stations/s1', 'PUT', cookie, {
+    name: 'PC', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
+  })
+  const manual = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })
+  const job = (await manual.json()).job
+  await jsonRequest(`/api/printing/jobs/${job.id}/claim`, 'POST', cookie, { stationId: 's1' })
+  await jsonRequest(`/api/printing/jobs/${job.id}/complete`, 'POST', cookie, { stationId: 's1', copiesPrinted: 1 })
+
+  const response = await jsonRequest(`/api/printing/jobs/${job.id}/discard`, 'POST', cookie, { actorLabel: 'Sistema' })
+  assert.equal(response.status, 409)
+  assert.equal((await response.json()).error.code, 'PRINT_JOB_DISCARD_NOT_ALLOWED')
+})
