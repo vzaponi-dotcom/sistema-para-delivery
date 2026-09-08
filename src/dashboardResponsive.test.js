@@ -21,6 +21,34 @@ test('dashboard metric cards use two columns on mobile', () => {
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.stats-grid-three \.stat-card:last-child\s*\{[\s\S]*grid-column:\s*auto/)
 })
 
+test('dashboard KPI values stay on one line with smaller mobile typography', () => {
+  const css = source('./App.css')
+  const desktopValueRule = css.match(/\.stat-copy strong\s*\{([^}]*)\}/)
+  const mobileValueRule = css.match(/@media \(max-width: 640px\)[\s\S]*?\.stat-copy strong\s*\{([^}]*)\}/)
+
+  assert.ok(desktopValueRule)
+  assert.ok(mobileValueRule)
+  assert.match(mobileValueRule[1], /font-size:\s*clamp\(1rem,/)
+  assert.match(mobileValueRule[1], /white-space:\s*nowrap/)
+  assert.match(mobileValueRule[1], /overflow-wrap:\s*normal/)
+  assert.match(desktopValueRule[1], /font-size:\s*clamp\(1\.55rem,/)
+})
+
+test('dashboard KPI cards reserve enough copy width at 320px', () => {
+  const css = source('./App.css')
+  const compactCardRule = css.match(/@media \(max-width: 390px\)[\s\S]*?\.stat-card\s*\{([^}]*)\}/)
+  const compactIconRule = css.match(/@media \(max-width: 390px\)[\s\S]*?\.stat-icon\s*\{([^}]*)\}/)
+  const compactValueRule = css.match(/@media \(max-width: 390px\)[\s\S]*?\.stat-copy strong\s*\{([^}]*)\}/)
+
+  assert.ok(compactCardRule)
+  assert.ok(compactIconRule)
+  assert.ok(compactValueRule)
+  assert.match(compactCardRule[1], /padding:\s*8px/)
+  assert.match(compactCardRule[1], /gap:\s*6px/)
+  assert.match(compactIconRule[1], /width:\s*30px/)
+  assert.match(compactValueRule[1], /font-size:\s*0\.9rem/)
+})
+
 test('operational timing cards reuse responsive analytics grid', () => {
   const css = source('./dashboard.css')
   assert.match(css, /dashboard-operational-metrics/)
