@@ -58,6 +58,11 @@ const QZ_BLOCKING_ERROR_CODES = new Set([
   'QZ_PRINT_FAILED',
 ])
 
+const isQzPermissionDenied = (error) => {
+  const detail = String(error?.cause?.message || error?.cause || error?.message || '').toLowerCase()
+  return detail.includes('blocked by client') || detail.includes('request blocked') || detail.includes('denied')
+}
+
 export const getPrintingTransportKind = (platform) => {
   if (platform === 'android') return 'rawbt'
   if (platform === 'windows') return 'qz'
@@ -72,6 +77,10 @@ export const isPrintingTransportSupported = (
   platform,
   serial = globalThis.navigator?.serial,
 ) => ['rawbt', 'qz'].includes(getPrintingTransportKind(platform)) || isWebSerialSupported(serial)
+
+export const shouldAutoConnectQz = ({ savedPrinterName, suppressed = false } = {}) => (
+  Boolean(String(savedPrinterName || '').trim()) && !suppressed
+)
 
 export const canConsumeAutomaticPrintJob = ({
   authenticated,
@@ -120,6 +129,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   const configuredPrinterNameRef = useRef(null)
   const transportReadyRef = useRef(isRawBt)
   const qzSecurityConfiguredRef = useRef(false)
+  const qzAutoConnectSuppressedRef = useRef(false)
   const initializationRef = useRef(0)
 
   const updateLocalStation = useCallback((station) => {
@@ -181,20 +191,29 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return { stations: nextStations, jobs: nextJobs }
   }, [authenticated, updateLocalStation])
 
-  const resolveConfiguredQzPrinter = useCallback(async (stationId) => {
+  const resolveConfiguredQzPrinter = useCallback(async (stationId, { automatic = false } = {}) => {
     if (!isQz || !stationId) return null
-    configureQz()
+    const savedPrinterName = getQzPrinterName(globalThis.localStorage, stationId)
+    updateConfiguredPrinterName(savedPrinterName)
     updateTransportReady(false)
+    if (!savedPrinterName) {
+      setPrinterState('unconfigured')
+      return null
+    }
+    if (automatic && !shouldAutoConnectQz({
+      savedPrinterName,
+      suppressed: qzAutoConnectSuppressedRef.current,
+    })) {
+      setPrinterState('disconnected')
+      return null
+    }
+
+    configureQz()
     setPrinterState('connecting')
     try {
       await ensureQzConnected(qz)
-      const savedPrinterName = getQzPrinterName(globalThis.localStorage, stationId)
-      updateConfiguredPrinterName(savedPrinterName)
-      if (!savedPrinterName) {
-        setPrinterState('unconfigured')
-        return null
-      }
       const resolvedPrinter = await resolveQzPrinter(qz, savedPrinterName)
+      qzAutoConnectSuppressedRef.current = false
       updateConfiguredPrinterName(resolvedPrinter)
       updateTransportReady(true)
       updateBlocked(false)
@@ -202,6 +221,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       setLastError(null)
       return resolvedPrinter
     } catch (error) {
+      if (automatic && isQzPermissionDenied(error)) qzAutoConnectSuppressedRef.current = true
       updateTransportReady(false)
       setPrinterState(error?.code === 'QZ_PRINTER_NOT_FOUND' ? 'unconfigured' : 'disconnected')
       if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
@@ -212,6 +232,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   const refreshPrinters = useCallback(async () => {
     if (!isQz) return []
+    qzAutoConnectSuppressedRef.current = false
     configureQz()
     setPrinterState('connecting')
     try {
@@ -237,6 +258,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     const requestedPrinter = String(printerName || '').trim()
     if (!requestedPrinter) throw printerError('QZ_PRINTER_NOT_CONFIGURED', 'Selecione a impressora desta estação.')
 
+    qzAutoConnectSuppressedRef.current = false
     configureQz()
     updateTransportReady(false)
     setPrinterState('connecting')
@@ -314,6 +336,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     }
 
     if (isQz) {
+      qzAutoConnectSuppressedRef.current = false
       const printer = await resolveConfiguredQzPrinter(stationId)
       if (!printer) throw printerError('QZ_PRINTER_NOT_CONFIGURED', 'Selecione a impressora desta estação.')
       return null
@@ -347,7 +370,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
 
     if (transportKind === 'qz') {
-      if (!transportReadyRef.current) await resolveConfiguredQzPrinter(stationId)
+      if (!transportReadyRef.current) {
+        qzAutoConnectSuppressedRef.current = false
+        await resolveConfiguredQzPrinter(stationId)
+      }
       if (!transportReadyRef.current || !configuredPrinterNameRef.current) {
         throw printerError('QZ_PRINTER_NOT_CONFIGURED', 'Selecione a impressora desta estação.')
       }
@@ -482,6 +508,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   useEffect(() => {
     if (!authenticated) {
       initializationRef.current += 1
+      qzAutoConnectSuppressedRef.current = false
       updateLocalStation(null)
       setStations([])
       setJobs([])
@@ -521,7 +548,17 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
           updateTransportReady(true)
           setPrinterState('driver-ready')
         } else if (isQz) {
-          await resolveConfiguredQzPrinter(station.id)
+          const savedPrinterName = getQzPrinterName(globalThis.localStorage, station.id)
+          updateConfiguredPrinterName(savedPrinterName)
+          if (shouldAutoConnectQz({
+            savedPrinterName,
+            suppressed: qzAutoConnectSuppressedRef.current,
+          })) {
+            await resolveConfiguredQzPrinter(station.id, { automatic: true })
+          } else {
+            updateTransportReady(false)
+            setPrinterState(savedPrinterName ? 'disconnected' : 'unconfigured')
+          }
         } else if (supported) {
           await resolveAuthorizedPort({ probe: true })
         }
@@ -541,8 +578,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       if (busyJobIdRef.current || !supported) return
       if (isQz) {
         const stationId = localStationRef.current?.id
-        if (stationId && getQzPrinterName(globalThis.localStorage, stationId)) {
-          void resolveConfiguredQzPrinter(stationId)
+        const savedPrinterName = stationId
+          ? getQzPrinterName(globalThis.localStorage, stationId)
+          : null
+        if (stationId && shouldAutoConnectQz({
+          savedPrinterName,
+          suppressed: qzAutoConnectSuppressedRef.current,
+        })) {
+          void resolveConfiguredQzPrinter(stationId, { automatic: true })
         }
       } else if (!isRawBt) {
         void resolveAuthorizedPort({ probe: false }).catch(reportError)
