@@ -71,14 +71,14 @@ const setupPrimaryWindowsStation = async (db) => {
   await printingRepository.setPrimaryPrintStation(db, businessId, 'kitchen', baseNow)
 }
 
-const addAutomaticJob = async (db, id = 'job-1') => {
+const addAutomaticJob = async (db, id = 'job-1', at = baseNow) => {
   await db.batch([printingRepository.prepareAutomaticPrintJobStatement(db, businessId, {
     id,
     orderId: 'o1',
     copies: 2,
     document,
-    createdAt: baseNow,
-    availableAt: baseNow,
+    createdAt: at,
+    availableAt: at,
   })])
 }
 
@@ -178,6 +178,28 @@ test('queued automatic jobs derive waiting_station until the primary station is 
   }, baseNow)
   jobs = await printingRepository.listPrintJobs(db, businessId, { now: baseNow })
   assert.equal(jobs[0].queueState, 'queued')
+})
+
+test('active automatic jobs survive a long station outage and remain claimable after recovery', async () => {
+  const db = new D1Sqlite()
+  await setupPrimaryWindowsStation(db)
+  const oldAt = new Date(baseNow.getTime() - printingRepository.PRINT_PENDING_MAX_AGE_MS - 5 * 60 * 1000)
+  await addAutomaticJob(db, 'offline-job', oldAt)
+
+  let jobs = await printingRepository.listPrintJobs(db, businessId, { now: baseNow })
+  assert.equal(jobs[0].status, 'pending')
+  assert.equal(jobs[0].queueState, 'waiting_station')
+
+  await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
+    qzReady: true,
+    printerReady: true,
+  }, baseNow)
+  jobs = await printingRepository.listPrintJobs(db, businessId, { now: baseNow })
+  assert.equal(jobs[0].status, 'pending')
+  assert.equal(jobs[0].queueState, 'queued')
+
+  const claimed = await printingRepository.claimNextAutomaticPrintJob(db, businessId, 'kitchen', baseNow)
+  assert.equal(claimed.id, 'offline-job')
 })
 
 test('heartbeat HTTP endpoint accepts only health data and returns derived station health', async () => {
