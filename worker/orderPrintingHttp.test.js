@@ -216,7 +216,7 @@ test('authenticated printing API configures a primary station and completes a ma
   assert.deepEqual((await empty.json()).stations, [])
 
   const station = await jsonRequest('/api/printing/stations/station%20a', 'PUT', cookie, {
-    name: 'Tablet da cozinha', platform: 'android', autoPrintEnabled: true, defaultCopies: 2,
+    name: 'PC da cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2,
   })
   assert.equal(station.status, 200)
   assert.equal((await station.json()).station.id, 'station a')
@@ -335,6 +335,7 @@ test('uncertain failure requires attention and retry preserves the same job id a
   await jsonRequest('/api/printing/stations/s1', 'PUT', cookie, {
     name: 'PC', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
   })
+  await jsonRequest('/api/printing/stations/s1/make-primary', 'POST', cookie)
   const manual = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })
   const original = (await manual.json()).job
   await jsonRequest(`/api/printing/jobs/${original.id}/claim`, 'POST', cookie, { stationId: 's1' })
@@ -403,6 +404,7 @@ test('discard endpoint rejects a fully printed job with a stable conflict code',
   await jsonRequest('/api/printing/stations/s1', 'PUT', cookie, {
     name: 'PC', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
   })
+  await jsonRequest('/api/printing/stations/s1/make-primary', 'POST', cookie)
   const manual = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })
   const job = (await manual.json()).job
   await jsonRequest(`/api/printing/jobs/${job.id}/claim`, 'POST', cookie, { stationId: 's1' })
