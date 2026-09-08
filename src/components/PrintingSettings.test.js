@@ -30,7 +30,7 @@ test('printing settings expose honest connection, station and transport states',
 
 test('Android RawBT hides Web Serial connection chooser but preserves test and station controls', () => {
   assert.match(settings, /printing\?\.transportKind === 'rawbt'/)
-  assert.match(settings, /!isRawBt && \(/)
+  assert.match(settings, /!isRawBt && !isQz && \(/)
   assert.match(settings, /Conectar impressora/)
   assert.match(settings, /Trocar impressora/)
   assert.match(settings, /Testar impressão/)
