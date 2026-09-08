@@ -1,7 +1,7 @@
 import { apiError, assertSameOriginMutation, json, readJson } from './http.js'
 import { loadOrderPrintDocument } from './orderPrintDocumentRepository.js'
+import { claimNextPrintJob } from './orderPrintingCentralClaim.js'
 import {
-  claimNextAutomaticPrintJob,
   claimPrintJob,
   createManualOrderPrintJob,
   createTestPrintJob,
@@ -161,7 +161,7 @@ export const handlePrintingApi = async (request, env, session, url) => {
   if (url.pathname === '/api/printing/jobs/claim-next' && request.method === 'POST') {
     assertSameOriginMutation(request)
     const body = await readJson(request)
-    const job = await claimNextAutomaticPrintJob(env.DB, businessId, stationIdFromBody(body))
+    const job = await claimNextPrintJob(env.DB, businessId, stationIdFromBody(body))
     return json({ job })
   }
 
