@@ -12,6 +12,7 @@ import {
   markPrintJobFailed,
   markPrintJobPrinted,
   prioritizePrintJob,
+  reprintPrintJob,
   retryPrintJob,
   saveBusinessPrintSettings,
   setPrimaryPrintStation,
@@ -159,6 +160,19 @@ export const handlePrintingApi = async (request, env, session, url) => {
     assertSameOriginMutation(request)
     const job = await prioritizePrintJob(env.DB, businessId, decodeURIComponent(prioritizeMatch[1]))
     return json({ job })
+  }
+
+  const reprintMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/reprint$/)
+  if (reprintMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    const job = await reprintPrintJob(
+      env.DB,
+      businessId,
+      decodeURIComponent(reprintMatch[1]),
+      printCopies(body.copies),
+    )
+    return json({ job }, { status: 201 })
   }
 
   const jobActionMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/(claim|complete|fail|retry)$/)
