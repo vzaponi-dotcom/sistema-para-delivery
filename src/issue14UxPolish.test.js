@@ -8,9 +8,11 @@ const detail = fs.readFileSync(new URL('./components/ReceivableDetail.jsx', impo
 const receivablesStyles = fs.readFileSync(new URL('./receivables.css', import.meta.url), 'utf8')
 
 test('tables keeps occupied-table transfer as the primary operational action', () => {
-  assert.match(tables, /className="table-transfer-primary"/)
-  assert.match(tables, /table-occupied-actions[\s\S]*?<Button(?=[^>]*className="table-transfer-primary")[^>]*>Transferir comanda<\/Button>/)
-  assert.doesNotMatch(tables, /className="table-transfer-primary"[^>]*variant="secondary"/)
+  const occupiedActions = tables.match(/<div className="table-occupied-actions">([\s\S]*?)<\/div>/)?.[1] ?? ''
+
+  assert.match(occupiedActions, /className="table-transfer-primary"/)
+  assert.match(occupiedActions, />Transferir comanda<\/Button>/)
+  assert.doesNotMatch(occupiedActions, /variant="secondary"/)
   assert.match(tables, /className="table-deactivate-action"[^>]*variant="secondary"/)
 })
 
