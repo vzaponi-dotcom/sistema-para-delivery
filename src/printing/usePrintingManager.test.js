@@ -5,6 +5,7 @@ import {
   getPrintingTransportKind,
   getRendererCompatibilityMode,
   isPrintingTransportSupported,
+  shouldAutoConnectQz,
 } from './usePrintingManager.js'
 
 const readyAutomaticConsumer = (overrides = {}) => ({
@@ -32,6 +33,13 @@ test('Windows uses QZ, Android keeps RawBT, and only fallback platforms depend o
   assert.equal(isPrintingTransportSupported('android', undefined), true)
   assert.equal(isPrintingTransportSupported('other', undefined), false)
   assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
+})
+
+test('QZ auto-connect only runs for a configured station and stops after an automatic connection failure', () => {
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: null, suppressed: false }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: '', suppressed: false }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: true }), false)
+  assert.equal(shouldAutoConnectQz({ savedPrinterName: 'Impressora pedido', suppressed: false }), true)
 })
 
 test('automatic consumer does not claim while QZ or another local transport is not ready', () => {
