@@ -254,7 +254,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
       SELECT id FROM print_jobs
       WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
         AND EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status NOT IN ('Cancelado', 'Finalizado'))
-      ORDER BY available_at ASC, id ASC LIMIT 1
+      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
     ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
     RETURNING *`)
     .bind(stationId, at, businessId, at, businessId, at).first()
@@ -335,6 +335,17 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   const current = await loadPrintJob(db, businessId, jobId)
   if (current?.status === 'discarded') return current
   throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
+}
+
+export const prioritizePrintJob = async (db, businessId, jobId) => {
+  const row = await db.prepare(`UPDATE print_jobs SET priority = 1
+    WHERE id = ? AND business_id = ? AND status = 'pending'
+    RETURNING *`).bind(jobId, businessId).first()
+  if (row) return mapJobRow(row)
+
+  const existing = await loadPrintJob(db, businessId, jobId)
+  if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+  throw repositoryError(409, 'PRINT_JOB_PRIORITIZE_NOT_ALLOWED', 'Este trabalho de impressão não pode ser priorizado neste estado.')
 }
 
 export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => {
