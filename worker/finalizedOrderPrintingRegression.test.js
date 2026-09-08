@@ -5,6 +5,7 @@ import {
   claimNextAutomaticPrintJob,
   claimPrintJob,
   createManualOrderPrintJob,
+  heartbeatPrintStation,
   prepareAutomaticPrintJobStatement,
   setPrimaryPrintStation,
   upsertPrintStation,
@@ -18,7 +19,9 @@ class D1Sqlite {
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
-        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT,
+        qz_ready INTEGER NOT NULL DEFAULT 0, printer_ready INTEGER NOT NULL DEFAULT 0, last_ready_at TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (
@@ -69,6 +72,7 @@ const setup = async () => {
     id: 'kitchen', name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2,
   }, now)
   await setPrimaryPrintStation(db, businessId, 'kitchen', now)
+  await heartbeatPrintStation(db, businessId, 'kitchen', { qzReady: true, printerReady: true }, now)
   return db
 }
 

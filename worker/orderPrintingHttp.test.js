@@ -43,7 +43,9 @@ class D1Sqlite {
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
-        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT,
+        qz_ready INTEGER NOT NULL DEFAULT 0, printer_ready INTEGER NOT NULL DEFAULT 0, last_ready_at TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (
@@ -288,6 +290,11 @@ test('HTTP manual lifecycle preserves a future automatic job unchanged', async (
       static now() { return at.getTime() }
     }
     try {
+      const heartbeat = await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, {
+        qzReady: true,
+        printerReady: true,
+      })
+      assert.equal(heartbeat.status, 200)
       return await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
     } finally {
       globalThis.Date = SystemDate
@@ -323,6 +330,12 @@ test('claim-next rejects a secondary station and accepts only the primary automa
   const rejected = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'secondary' })
   assert.equal(rejected.status, 409)
   assert.equal((await rejected.json()).error.code, 'PRINT_STATION_NOT_PRIMARY')
+
+  const heartbeat = await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, {
+    qzReady: true,
+    printerReady: true,
+  })
+  assert.equal(heartbeat.status, 200)
 
   const claimed = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
   assert.equal(claimed.status, 200)

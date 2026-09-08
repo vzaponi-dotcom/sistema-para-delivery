@@ -8,6 +8,7 @@ import {
   claimNextAutomaticPrintJob,
   claimPrintJob,
   createManualOrderPrintJob,
+  heartbeatPrintStation,
   listPrintJobs,
   listPrintStations,
   loadAutomaticPrintJobForOrder,
@@ -17,7 +18,7 @@ import {
   markPrintJobPrinted,
   prepareAutomaticPrintJobStatement,
   retryPrintJob,
-  setPrimaryPrintStation,
+  setPrimaryPrintStation as setPrimaryPrintStationRepository,
   upsertPrintStation,
 } from './orderPrintingRepository.js'
 
@@ -37,6 +38,9 @@ class D1Sqlite {
         auto_print_enabled INTEGER NOT NULL DEFAULT 0,
         default_copies INTEGER NOT NULL DEFAULT 2,
         last_seen_at TEXT,
+        qz_ready INTEGER NOT NULL DEFAULT 0,
+        printer_ready INTEGER NOT NULL DEFAULT 0,
+        last_ready_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -127,6 +131,17 @@ const addStation = async (db, id, overrides = {}) => upsertPrintStation(db, over
   autoPrintEnabled: overrides.autoPrintEnabled ?? true,
   defaultCopies: overrides.defaultCopies || 2,
 }, baseNow)
+
+const setPrimaryPrintStation = async (db, businessId, stationId, at = baseNow) => {
+  const station = await setPrimaryPrintStationRepository(db, businessId, stationId, at)
+  if (station.platform === 'windows') {
+    await heartbeatPrintStation(db, businessId, stationId, {
+      qzReady: true,
+      printerReady: true,
+    }, at)
+  }
+  return station
+}
 
 const addAutomaticJob = async (db, { id, orderId = 'o1', businessId = businessA, createdAt = baseNow, availableAt = createdAt } = {}) => {
   const statement = prepareAutomaticPrintJobStatement(db, businessId, {
@@ -303,6 +318,7 @@ test('automatic print waits for availableAt before aging or claim', async () => 
   const job = await addAutomaticJob(db, { id: 'future-available', createdAt: new Date(baseNow.getTime() - 3 * 60 * 60 * 1000), availableAt: future })
   assert.equal(job.availableAt, future.toISOString())
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+  await heartbeatPrintStation(db, businessA, 'station-a', { qzReady: true, printerReady: true }, future)
   const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', future)
   assert.equal(claimed.id, 'future-available')
 })
@@ -328,7 +344,9 @@ test('manual printing leaves a future automatic job pending until its exact avai
   assert.equal((await loadPrintJob(db, businessA, manual.id)).status, 'printed')
   assert.equal((await loadPrintJob(db, businessA, automatic.id)).status, 'pending')
   assert.equal((await loadPrintJob(db, businessA, automatic.id)).availableAt, future.toISOString())
+  await heartbeatPrintStation(db, businessA, 'primary', { qzReady: true, printerReady: true }, before)
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'primary', before), null)
+  await heartbeatPrintStation(db, businessA, 'primary', { qzReady: true, printerReady: true }, future)
   assert.equal((await claimNextAutomaticPrintJob(db, businessA, 'primary', future)).id, automatic.id)
 })
 

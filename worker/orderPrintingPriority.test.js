@@ -19,6 +19,9 @@ class D1Sqlite {
         auto_print_enabled INTEGER NOT NULL DEFAULT 0,
         default_copies INTEGER NOT NULL DEFAULT 2,
         last_seen_at TEXT,
+        qz_ready INTEGER NOT NULL DEFAULT 0,
+        printer_ready INTEGER NOT NULL DEFAULT 0,
+        last_ready_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -125,12 +128,17 @@ test('prioritize is central, keeps an offline queued job pending, and makes it t
     id: 'kitchen', name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 1,
   }, baseNow)
   await printingRepository.setPrimaryPrintStation(db, businessId, 'kitchen', baseNow)
+  const claimAt = new Date(baseNow.getTime() + 2000)
+  await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
+    qzReady: true,
+    printerReady: true,
+  }, claimAt)
 
   const claimed = await printingRepository.claimNextAutomaticPrintJob(
     db,
     businessId,
     'kitchen',
-    new Date(baseNow.getTime() + 2000),
+    claimAt,
   )
   assert.equal(claimed.id, 'urgent-job')
   assert.equal(claimed.priority, 1)
