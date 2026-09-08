@@ -13,6 +13,18 @@ dist-ssr
 *.local
 .wrangler/
 
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+*.p12
+*.pfx
+QZ Tray Demo Cert/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
