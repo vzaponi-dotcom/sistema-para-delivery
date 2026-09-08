@@ -23,7 +23,8 @@ class D1Sqlite {
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
-        status TEXT NOT NULL, copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0,
+        copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
         station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT NOT NULL,
         processing_started_at TEXT, processed_at TEXT, last_error_code TEXT, last_error_message TEXT
       );
