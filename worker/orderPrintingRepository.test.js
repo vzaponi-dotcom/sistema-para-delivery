@@ -238,6 +238,35 @@ test('printed transition records copies and rejects completion from another stat
   assert.equal(printed.copiesPrinted, 2)
 })
 
+test('first completion of a two-copy job persists awaiting_second_copy with one copy printed', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'awaiting-second-copy' })
+  await claimPrintJob(db, businessA, 'awaiting-second-copy', 'station-a', baseNow)
+
+  const firstCopy = await markPrintJobPrinted(db, businessA, 'awaiting-second-copy', 'station-a', 1, baseNow)
+
+  assert.equal(firstCopy.copiesPrinted, 1)
+  assert.notEqual(firstCopy.status, 'printed')
+  assert.equal(firstCopy.status, 'awaiting_second_copy')
+})
+
+test('second completion of a two-copy job persists printed with two copies printed', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'complete-second-copy' })
+  await claimPrintJob(db, businessA, 'complete-second-copy', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'complete-second-copy', 'station-a', 1, baseNow)
+  await claimPrintJob(db, businessA, 'complete-second-copy', 'station-a', baseNow)
+
+  const secondCopy = await markPrintJobPrinted(db, businessA, 'complete-second-copy', 'station-a', 2, baseNow)
+
+  assert.equal(secondCopy.copiesPrinted, 2)
+  assert.equal(secondCopy.status, 'printed')
+})
+
 test('partial two-copy jobs wait for an explicit second-copy claim and keep their progress', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
@@ -248,7 +277,7 @@ test('partial two-copy jobs wait for an explicit second-copy claim and keep thei
   assert.equal(firstClaim.copiesPrinted, 0)
 
   const firstCopy = await markPrintJobPrinted(db, businessA, 'split-job', 'station-a', 1, baseNow)
-  assert.equal(firstCopy.status, 'printed')
+  assert.equal(firstCopy.status, 'awaiting_second_copy')
   assert.equal(firstCopy.copiesPrinted, 1)
 
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
@@ -285,7 +314,7 @@ test('retry after a failed second copy preserves the first copy and cannot re-en
   assert.equal(failed.copiesPrinted, 1)
 
   const retried = await retryPrintJob(db, businessA, 'split-retry', baseNow)
-  assert.equal(retried.status, 'printed')
+  assert.equal(retried.status, 'awaiting_second_copy')
   assert.equal(retried.copiesPrinted, 1)
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
 
@@ -452,7 +481,7 @@ test('cancelled automatic order cannot claim its pending second copy', async () 
   )
 
   const preserved = await loadPrintJob(db, businessA, 'cancelled-second-copy')
-  assert.equal(preserved.status, 'printed')
+  assert.equal(preserved.status, 'awaiting_second_copy')
   assert.equal(preserved.copiesPrinted, 1)
 })
 

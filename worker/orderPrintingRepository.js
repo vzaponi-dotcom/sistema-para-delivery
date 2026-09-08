@@ -354,7 +354,7 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
       last_error_code = NULL, last_error_message = NULL
     WHERE id = ? AND business_id = ?
       AND ((status = 'pending' AND available_at <= ?)
-        OR (status = 'printed' AND copies_printed > 0 AND copies_printed < copies_requested))
+        OR (status = 'awaiting_second_copy' AND copies_printed > 0 AND copies_printed < copies_requested))
       AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
     RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
@@ -367,11 +367,12 @@ export const markPrintJobPrinted = async (db, businessId, jobId, stationId, copi
   const copies = assertCopies(copiesPrinted)
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
-      status = 'printed', copies_printed = ?, processed_at = ?,
+      status = CASE WHEN ? < copies_requested THEN 'awaiting_second_copy' ELSE 'printed' END,
+      copies_printed = ?, processed_at = ?,
       last_error_code = NULL, last_error_message = NULL
     WHERE id = ? AND business_id = ? AND status = 'processing' AND station_id = ?
       AND ? > copies_printed AND ? <= copies_requested
-    RETURNING *`).bind(copies, at, jobId, businessId, stationId, copies, copies).first()
+    RETURNING *`).bind(copies, copies, at, jobId, businessId, stationId, copies, copies).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
@@ -461,7 +462,7 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, document, n
 export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => {
   const row = await db.prepare(`UPDATE print_jobs SET
       status = CASE
-        WHEN copies_printed > 0 AND copies_printed < copies_requested THEN 'printed'
+        WHEN copies_printed > 0 AND copies_printed < copies_requested THEN 'awaiting_second_copy'
         ELSE 'pending'
       END,
       station_id = NULL, processing_started_at = NULL, processed_at = NULL,

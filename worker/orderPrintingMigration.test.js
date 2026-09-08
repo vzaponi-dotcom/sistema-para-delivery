@@ -25,6 +25,11 @@ async function applyMigrationsBeforeCentralizedQueue(db) {
   for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
 }
 
+async function applyAllMigrations(db) {
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file.endsWith('.sql')).sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+}
+
 function rows(statement) {
   return statement.all().map((row) => ({ ...row }))
 }
@@ -82,4 +87,19 @@ test('centralized queue migration preserves historical jobs and deterministicall
     action_actor_label: 'Kitchen PC',
     action_at: '2026-09-08T12:05:00.000Z',
   })
+})
+
+test('print jobs schema accepts awaiting_second_copy', async () => {
+  const db = new DatabaseSync(':memory:')
+  await applyAllMigrations(db)
+  const createdAt = '2026-09-08T12:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('business-awaiting-second-copy', 'awaiting-second-copy', 'Awaiting second copy', createdAt, createdAt)
+
+  db.prepare(`INSERT INTO print_jobs (
+    id, business_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at
+  ) VALUES (?, ?, 'test', 'manual', 'awaiting_second_copy', 2, 1, '{}', ?)`)
+    .run('job-awaiting-second-copy', 'business-awaiting-second-copy', createdAt)
+
+  assert.equal(db.prepare('SELECT status FROM print_jobs WHERE id = ?').get('job-awaiting-second-copy').status, 'awaiting_second_copy')
 })
