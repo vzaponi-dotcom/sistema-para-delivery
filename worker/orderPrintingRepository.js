@@ -225,7 +225,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
     WHERE id = (
       SELECT id FROM print_jobs
       WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
-        AND EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status <> 'Cancelado')
+        AND EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status NOT IN ('Cancelado', 'Finalizado'))
       ORDER BY available_at ASC, id ASC LIMIT 1
     ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
     RETURNING *`)
@@ -242,7 +242,7 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
     WHERE id = ? AND business_id = ?
       AND ((status = 'pending' AND available_at <= ?)
         OR (status = 'printed' AND copies_printed > 0 AND copies_printed < copies_requested))
-      AND (trigger <> 'automatic' OR EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status <> 'Cancelado'))
+      AND (trigger <> 'automatic' OR EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status NOT IN ('Cancelado', 'Finalizado')))
     RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
