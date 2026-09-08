@@ -77,6 +77,7 @@ const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const isAwaitingSecondCopyJob = (job) => job?.status === 'printed' && Number(job?.copiesRequested) === 2 && Number(job?.copiesPrinted) === 1
+const isSecondCopyPromptEligible = (job, order) => isAwaitingSecondCopyJob(job) && isOrderActive(order)
 
 // Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
@@ -329,12 +330,16 @@ function App() {
   useEffect(() => {
     if (secondCopyPromptJobId) {
       const current = printing.jobs.find((job) => job.id === secondCopyPromptJobId)
-      if (!isAwaitingSecondCopyJob(current)) setSecondCopyPromptJobId(null)
+      const currentOrder = orders.find((order) => order.id === current?.orderId)
+      if (!isSecondCopyPromptEligible(current, currentOrder)) setSecondCopyPromptJobId(null)
       return
     }
-    const next = printing.jobs.find((job) => isAwaitingSecondCopyJob(job) && !dismissedSecondCopyJobIdsRef.current.has(job.id))
+    const next = printing.jobs.find((job) => {
+      const order = orders.find((candidate) => candidate.id === job.orderId)
+      return isSecondCopyPromptEligible(job, order) && !dismissedSecondCopyJobIdsRef.current.has(job.id)
+    })
     if (next?.id) setSecondCopyPromptJobId(next.id)
-  }, [printing.jobs, secondCopyPromptJobId])
+  }, [printing.jobs, orders, secondCopyPromptJobId])
 
   useEffect(() => () => { if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current); if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close() }, [])
   useEffect(() => { if (!toastMessage) return; const timer = window.setTimeout(() => setToastMessage(''), 2600); return () => window.clearTimeout(timer) }, [toastMessage])
