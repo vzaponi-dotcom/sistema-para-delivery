@@ -87,6 +87,13 @@ export const getPrintSettings = () => apiRequest('/api/printing/settings')
 export const savePrintSettings = (settings) => apiRequest('/api/printing/settings', withJson('PUT', settings))
 export const getPrintStations = () => apiRequest('/api/printing/stations')
 export const upsertPrintStation = (id, station) => apiRequest(`/api/printing/stations/${encodeURIComponent(id)}`, withJson('PUT', station))
+export const heartbeatPrintStation = (id, health = {}) => apiRequest(
+  `/api/printing/stations/${encodeURIComponent(id)}/heartbeat`,
+  withJson('POST', {
+    qzReady: Boolean(health.qzReady),
+    printerReady: Boolean(health.printerReady),
+  }),
+)
 export const makePrimaryPrintStation = (id) => apiRequest(`/api/printing/stations/${encodeURIComponent(id)}/make-primary`, { method: 'POST' })
 export const getPrintJobs = ({ orderId = '', limit = 100 } = {}) => {
   const params = new URLSearchParams({ ...(orderId ? { orderId } : {}), limit: String(limit) })
