@@ -259,10 +259,21 @@ const requireStation = async (db, businessId, stationId) => {
   return station
 }
 
+const requirePrimaryQzPrintStation = async (db, businessId, stationId) => {
+  const station = await requireStation(db, businessId, stationId)
+  if (!station.isPrimary) {
+    throw repositoryError(409, 'PRINT_STATION_NOT_PRIMARY', 'Somente a estação principal pode executar trabalhos de impressão.')
+  }
+  if (station.platform !== 'windows') {
+    throw repositoryError(409, 'PRINT_STATION_NOT_QZ_EXECUTOR', 'Somente a estação principal Windows com QZ pode executar trabalhos de impressão.')
+  }
+  return station
+}
+
 export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now = new Date()) => {
   await agePrintJobs(db, businessId, now)
-  const station = await requireStation(db, businessId, stationId)
-  if (!station.isPrimary || !station.autoPrintEnabled) {
+  const station = await requirePrimaryQzPrintStation(db, businessId, stationId)
+  if (!station.autoPrintEnabled) {
     throw repositoryError(409, 'PRINT_STATION_NOT_PRIMARY', 'Somente a estação principal com impressão automática ativa pode assumir novos trabalhos.')
   }
   const at = timestamp(now)
@@ -281,7 +292,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
 }
 
 export const claimPrintJob = async (db, businessId, jobId, stationId, now = new Date()) => {
-  await requireStation(db, businessId, stationId)
+  await requirePrimaryQzPrintStation(db, businessId, stationId)
   await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
