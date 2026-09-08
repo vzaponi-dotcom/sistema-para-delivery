@@ -83,6 +83,8 @@ export const updateMovement = (id, movement) => apiRequest(`/api/movements/${enc
 export const deleteMovement = (id) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, { method: 'DELETE' })
 export const saveFinanceSettings = (settings) => apiRequest('/api/finance-settings', withJson('PUT', settings))
 
+export const getPrintSettings = () => apiRequest('/api/printing/settings')
+export const savePrintSettings = (settings) => apiRequest('/api/printing/settings', withJson('PUT', settings))
 export const getPrintStations = () => apiRequest('/api/printing/stations')
 export const upsertPrintStation = (id, station) => apiRequest(`/api/printing/stations/${encodeURIComponent(id)}`, withJson('PUT', station))
 export const makePrimaryPrintStation = (id) => apiRequest(`/api/printing/stations/${encodeURIComponent(id)}/make-primary`, { method: 'POST' })

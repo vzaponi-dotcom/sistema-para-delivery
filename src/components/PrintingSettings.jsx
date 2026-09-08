@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getPrintSettings, savePrintSettings } from '../api/client.js'
 import Button from './Button'
 import ConfirmationDialog from './ConfirmationDialog'
 import Modal from './Modal'
@@ -32,7 +33,10 @@ function PrintingSettings({ printing, onClose }) {
   const station = printing?.localStation || null
   const isRawBt = printing?.transportKind === 'rawbt'
   const isQz = printing?.transportKind === 'qz'
-  const [defaultCopies, setDefaultCopies] = useState(2)
+  const [defaultCopies, setDefaultCopies] = useState(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsLoadAttempt, setSettingsLoadAttempt] = useState(0)
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [confirmPrimary, setConfirmPrimary] = useState(false)
@@ -41,9 +45,22 @@ function PrintingSettings({ printing, onClose }) {
   const [qzPrinterSelection, setQzPrinterSelection] = useState('')
 
   useEffect(() => {
-    setDefaultCopies(station?.defaultCopies === 1 ? 1 : 2)
     setAutoPrintEnabled(Boolean(station?.autoPrintEnabled))
-  }, [station?.id, station?.defaultCopies, station?.autoPrintEnabled])
+  }, [station?.id, station?.autoPrintEnabled])
+
+  useEffect(() => {
+    let active = true
+    setSettingsLoading(true)
+    setSettingsError('')
+    getPrintSettings().then(({ settings }) => {
+      if (active) setDefaultCopies(settings.defaultCopies)
+    }).catch((error) => {
+      if (active) setSettingsError(error?.message || 'Não foi possível carregar as vias do negócio.')
+    }).finally(() => {
+      if (active) setSettingsLoading(false)
+    })
+    return () => { active = false }
+  }, [settingsLoadAttempt])
 
   useEffect(() => {
     setQzPrinterSelection(printing?.configuredPrinterName || '')
@@ -91,14 +108,11 @@ function PrintingSettings({ printing, onClose }) {
   }
 
   const saveStationSettings = async (next = {}) => {
-    const nextCopies = next.defaultCopies ?? defaultCopies
     const nextAuto = next.autoPrintEnabled ?? autoPrintEnabled
-    if (nextCopies !== 1 && nextCopies !== 2) return false
     return run('save', () => printing.saveStationSettings({
       name: station?.name,
       platform: station?.platform,
       autoPrintEnabled: nextAuto,
-      defaultCopies: nextCopies,
     }), 'Configuração de impressão salva.')
   }
 
@@ -110,10 +124,15 @@ function PrintingSettings({ printing, onClose }) {
   }
 
   const handleCopiesChange = async (event) => {
-    const next = Number(event.target.value) === 1 ? 1 : 2
+    const next = Number(event.target.value)
+    if (pendingAction || settingsLoading || defaultCopies === null || (next !== 1 && next !== 2)) return
+    const previous = defaultCopies
     setDefaultCopies(next)
-    const saved = await saveStationSettings({ defaultCopies: next })
-    if (!saved) setDefaultCopies(station?.defaultCopies === 1 ? 1 : 2)
+    const saved = await run('save-copies', async () => {
+      const { settings } = await savePrintSettings({ defaultCopies: next })
+      setDefaultCopies(settings.defaultCopies)
+    }, 'Vias do negócio salvas para novos pedidos.')
+    if (!saved) setDefaultCopies(previous)
   }
 
   const makePrimary = async () => {
@@ -227,11 +246,24 @@ function PrintingSettings({ printing, onClose }) {
             <input type="checkbox" checked={autoPrintEnabled} onChange={handleAutoPrintChange} disabled={disabled} />
           </label>
 
-          <fieldset className="printing-copy-options" disabled={disabled}>
-            <legend>Cópias por pedido</legend>
+          <fieldset className="printing-copy-options" disabled={Boolean(pendingAction) || settingsLoading || defaultCopies === null}>
+            <legend>Cópias por pedido do negócio</legend>
             <label><input type="radio" name="defaultCopies" value={1} checked={defaultCopies === 1} onChange={handleCopiesChange} />1 cópia</label>
             <label><input type="radio" name="defaultCopies" value={2} checked={defaultCopies === 2} onChange={handleCopiesChange} />2 cópias</label>
           </fieldset>
+          <p className="printing-feedback">
+            Regra central do negócio para novos pedidos de Entrega/Retirada, compartilhada entre todos os dispositivos.
+            Mesa/consumo local automático usa sempre 1 via. Pedidos já criados mantêm a quantidade de vias original.
+          </p>
+          {settingsLoading && <p className="printing-feedback" role="status">Carregando vias do negócio…</p>}
+          {settingsError && (
+            <div className="printing-feedback printing-feedback-error" role="alert">
+              <p>{settingsError}</p>
+              <Button type="button" variant="secondary" onClick={() => setSettingsLoadAttempt((attempt) => attempt + 1)} disabled={settingsLoading}>
+                Tentar novamente
+              </Button>
+            </div>
+          )}
 
           {!station?.isPrimary && (
             <div className="printing-primary-card">

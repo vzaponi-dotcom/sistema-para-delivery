@@ -1,11 +1,173 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { transformWithOxc } from 'vite'
+import { getPrintSettings, savePrintSettings } from '../api/client.js'
 
 const settings = await readFile(new URL('./PrintingSettings.jsx', import.meta.url), 'utf8')
 const orders = await readFile(new URL('../pages/Orders.jsx', import.meta.url), 'utf8')
 const manager = await readFile(new URL('../printing/usePrintingManager.js', import.meta.url), 'utf8')
 const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
+
+// Execute the real JSX and handlers with a small hook scheduler; browser-only
+// modal/transport dependencies stay outside this business-settings test boundary.
+const compiled = await transformWithOxc(settings.replace(/^import .*\r?\n/gm, '').replace('export default PrintingSettings', 'return PrintingSettings'), 'PrintingSettings.jsx', {
+  jsx: { runtime: 'classic', pragma: 'element', pragmaFrag: 'Fragment' },
+})
+const makeSettings = new Function('useState', 'useEffect', 'element', 'Fragment', 'Button', 'ConfirmationDialog', 'Modal', 'SystemSelect', 'getPrintSettings', 'savePrintSettings', compiled.code)
+const mountSettings = (printing) => {
+  const state = [], effects = []
+  let cursor = 0
+  let queuedEffects = []
+  const useState = (initial) => {
+    const index = cursor++
+    if (!(index in state)) state[index] = initial
+    return [state[index], (next) => { state[index] = typeof next === 'function' ? next(state[index]) : next }]
+  }
+  const useEffect = (action, dependencies) => {
+    const index = cursor++
+    if (!effects[index] || dependencies.some((value, at) => !Object.is(value, effects[index].dependencies[at]))) {
+      queuedEffects.push(() => {
+        effects[index]?.cleanup?.()
+        effects[index] = { dependencies, cleanup: action() }
+      })
+    }
+  }
+  const element = (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) })
+  const Component = makeSettings(useState, useEffect, element, 'Fragment', 'Button', 'ConfirmationDialog', 'Modal', 'SystemSelect', getPrintSettings, savePrintSettings)
+  const view = {
+    tree: null,
+    render(nextPrinting = printing) {
+      printing = nextPrinting
+      cursor = 0
+      view.tree = Component({ printing, onClose() {} })
+      const pending = queuedEffects
+      queuedEffects = []
+      pending.forEach((effect) => effect())
+      return view
+    },
+    async settle() {
+      await new Promise((resolve) => setImmediate(resolve))
+      view.render()
+      await new Promise((resolve) => setImmediate(resolve))
+      return view.render()
+    },
+    nodes(predicate) {
+      const found = []
+      const visit = (node) => {
+        if (!node || typeof node !== 'object') return
+        if (predicate(node)) found.push(node)
+        node.children.forEach(visit)
+      }
+      visit(view.tree)
+      return found
+    },
+    unmount() { effects.forEach((effect) => effect?.cleanup?.()) },
+  }
+  return view.render()
+}
+const copiesField = (view) => view.nodes((node) => node.type === 'fieldset')[0]
+const radio = (view, copies) => view.nodes((node) => node.type === 'input' && node.props.value === copies)[0]
+const viewText = (view) => JSON.stringify(view.tree)
+
+test('copies load from the business and save centrally while local station changes preserve the central value', async () => {
+  const originalFetch = globalThis.fetch
+  const calls = [], stationWrites = []
+  let persistedCopies = 1
+  globalThis.fetch = async (path, options) => {
+    calls.push([path, options])
+    if (options.method === 'PUT') persistedCopies = JSON.parse(options.body).defaultCopies
+    return Response.json({ settings: { defaultCopies: persistedCopies } })
+  }
+  const printing = {
+    localStation: { id: 's1', name: 'PC', platform: 'windows', defaultCopies: 2, autoPrintEnabled: false },
+    saveStationSettings: async (value) => { stationWrites.push(value) },
+  }
+  const view = mountSettings(printing)
+  try {
+    await view.settle()
+    assert.equal(radio(view, 1).props.checked, true)
+    assert.equal(copiesField(view).props.disabled, false)
+    view.render({ ...printing, localStation: { ...printing.localStation, defaultCopies: 1 } })
+    await view.settle()
+    await radio(view, 2).props.onChange({ target: { value: '2' } })
+    await view.settle()
+    assert.equal(persistedCopies, 2)
+    assert.equal(radio(view, 2).props.checked, true)
+    assert.equal(stationWrites.length, 0)
+    assert.deepEqual(calls.map(([path, options]) => [path, options.method || 'GET']), [
+      ['/api/printing/settings', 'GET'], ['/api/printing/settings', 'PUT'],
+    ])
+    await view.nodes((node) => node.type === 'input' && node.props.type === 'checkbox')[0].props.onChange({ target: { checked: true } })
+    await view.settle()
+    assert.equal(stationWrites[0].autoPrintEnabled, true)
+    assert.equal(Object.hasOwn(stationWrites[0], 'defaultCopies'), false)
+    assert.equal(radio(view, 2).props.checked, true)
+    assert.match(viewText(view), /negócio/)
+    assert.match(viewText(view), /Entrega.*Retirada/)
+    assert.match(viewText(view), /[Mm]esa.*consumo local.*1 via/)
+  } finally { view.unmount(); globalThis.fetch = originalFetch }
+})
+
+test('an authenticated device without a printer station can edit central copies after loading', async () => {
+  const originalFetch = globalThis.fetch
+  let finishLoading
+  globalThis.fetch = async (_path, options) => options.method === 'PUT'
+    ? Response.json({ settings: { defaultCopies: 1 } })
+    : new Promise((resolve) => { finishLoading = resolve })
+  const view = mountSettings({ localStation: null, supported: false })
+  try {
+    assert.equal(copiesField(view).props.disabled, true)
+    assert.equal(radio(view, 2).props.checked, false)
+    finishLoading(Response.json({ settings: { defaultCopies: 2 } }))
+    await view.settle()
+    assert.equal(copiesField(view).props.disabled, false)
+    await radio(view, 1).props.onChange({ target: { value: '1' } })
+    await view.settle()
+    assert.equal(radio(view, 1).props.checked, true)
+  } finally { view.unmount(); globalThis.fetch = originalFetch }
+})
+
+test('failed central saves restore the confirmed business value and report the server error', async () => {
+  const originalFetch = globalThis.fetch
+  let rejectSave
+  globalThis.fetch = async (_path, options) => options.method === 'PUT'
+    ? new Promise((resolve) => { rejectSave = () => resolve(Response.json({ error: { message: 'Falha ao salvar vias' } }, { status: 503 })) })
+    : Response.json({ settings: { defaultCopies: 1 } })
+  const view = mountSettings({ localStation: { id: 's1', defaultCopies: 2 } })
+  try {
+    await view.settle()
+    const saving = radio(view, 2).props.onChange({ target: { value: '2' } })
+    view.render()
+    assert.equal(copiesField(view).props.disabled, true)
+    rejectSave()
+    await saving
+    await view.settle()
+    assert.equal(radio(view, 1).props.checked, true)
+    assert.equal(copiesField(view).props.disabled, false)
+    assert.match(viewText(view), /Falha ao salvar vias/)
+  } finally { view.unmount(); globalThis.fetch = originalFetch }
+})
+
+test('failed central loading leaves copies unavailable and offers a working retry', async () => {
+  const originalFetch = globalThis.fetch
+  let attempts = 0
+  globalThis.fetch = async () => ++attempts === 1
+    ? Response.json({ error: { message: 'Sem conexão com o servidor' } }, { status: 503 })
+    : Response.json({ settings: { defaultCopies: 1 } })
+  const view = mountSettings({ localStation: { id: 's1', defaultCopies: 2 } })
+  try {
+    await view.settle()
+    assert.equal(copiesField(view).props.disabled, true)
+    assert.match(viewText(view), /Sem conexão com o servidor/)
+    const retry = view.nodes((node) => node.type === 'Button' && JSON.stringify(node.children).includes('Tentar novamente'))[0]
+    assert.ok(retry)
+    await retry.props.onClick()
+    await view.settle()
+    assert.equal(copiesField(view).props.disabled, false)
+    assert.equal(radio(view, 1).props.checked, true)
+  } finally { view.unmount(); globalThis.fetch = originalFetch }
+})
 
 test('Orders header exposes printing settings and mounts the shared settings modal', () => {
   assert.match(orders, /PrintingSettings/)

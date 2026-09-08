@@ -66,6 +66,26 @@ export const listPrintStations = async (db, businessId) => {
   return rows(result).map(mapStationRow)
 }
 
+export const loadBusinessPrintSettings = async (db, businessId) => {
+  const row = await db.prepare(`SELECT default_copies FROM business_print_settings
+    WHERE business_id = ? LIMIT 1`).bind(businessId).first()
+  return { defaultCopies: row?.default_copies ?? 2 }
+}
+
+export const saveBusinessPrintSettings = async (db, businessId, input, now = new Date()) => {
+  const copies = input.defaultCopies
+  if (copies !== 1 && copies !== 2) {
+    throw repositoryError(400, 'INVALID_PRINT_COPIES', 'defaultCopies deve ser 1 ou 2.')
+  }
+  const at = timestamp(now)
+  await db.prepare(`INSERT INTO business_print_settings (business_id, default_copies, created_at, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(business_id) DO UPDATE SET
+      default_copies = excluded.default_copies, updated_at = excluded.updated_at`)
+    .bind(businessId, copies, at, at).run()
+  return loadBusinessPrintSettings(db, businessId)
+}
+
 export const upsertPrintStation = async (db, businessId, input, now = new Date()) => {
   const id = String(input.id || '')
   if (!id) throw repositoryError(400, 'PRINT_STATION_ID_REQUIRED', 'Identificador da estação é obrigatório.')

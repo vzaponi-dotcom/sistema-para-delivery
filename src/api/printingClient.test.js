@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import * as client from './client.js'
 import {
   claimNextPrintJob,
   claimPrintJob,
@@ -24,6 +25,30 @@ const withFetch = async (callback) => {
   }
   try { await callback(calls) } finally { globalThis.fetch = original }
 }
+
+test('central print settings client reads and updates the business default with session credentials', async () => {
+  assert.equal(typeof client.getPrintSettings, 'function')
+  assert.equal(typeof client.savePrintSettings, 'function')
+  const original = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async (path, options) => {
+    calls.push([path, options])
+    return Response.json({ settings: { defaultCopies: options.method === 'PUT' ? 1 : 2 } })
+  }
+  try {
+    assert.deepEqual(await client.getPrintSettings(), { settings: { defaultCopies: 2 } })
+    assert.deepEqual(await client.savePrintSettings({ defaultCopies: 1 }), { settings: { defaultCopies: 1 } })
+    assert.deepEqual(calls.map(([path, options]) => [path, options.method || 'GET', options.credentials]), [
+      ['/api/printing/settings', 'GET', 'same-origin'],
+      ['/api/printing/settings', 'PUT', 'same-origin'],
+    ])
+    assert.deepEqual(JSON.parse(calls[1][1].body), { defaultCopies: 1 })
+    globalThis.fetch = async () => Response.json({ error: { code: 'INVALID_PRINT_COPIES', message: 'defaultCopies deve ser 1 ou 2.' } }, { status: 400 })
+    await assert.rejects(client.savePrintSettings({ defaultCopies: 3 }), { status: 400, code: 'INVALID_PRINT_COPIES' })
+  } finally {
+    globalThis.fetch = original
+  }
+})
 
 test('printing client helpers use stable authenticated same-origin routes and encoded ids', async () => {
   await withFetch(async (calls) => {

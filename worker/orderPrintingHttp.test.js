@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
-import { hashPin } from './auth.js'
+import { createSession, hashPin, sessionCookie } from './auth.js'
 import { handleRequest } from './index.js'
 
 class D1Sqlite {
@@ -15,6 +15,11 @@ class D1Sqlite {
         created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, revoked_at TEXT
       );
       CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE business_print_settings (
+        business_id TEXT PRIMARY KEY REFERENCES businesses(id),
+        default_copies INTEGER NOT NULL DEFAULT 2 CHECK (default_copies IN (1, 2)),
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
       CREATE TABLE orders (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_id TEXT, client_name_snapshot TEXT NOT NULL,
         client_phone_snapshot TEXT NOT NULL DEFAULT '', client_address_snapshot TEXT NOT NULL DEFAULT '',
@@ -120,6 +125,87 @@ const jsonRequest = (path, method, cookie, body) => handleRequest(new Request(`h
 }), currentEnv)
 
 let currentEnv
+
+test('central copies are shared by authenticated devices and isolated by the session business', async () => {
+  currentEnv = await makeEnv()
+  currentEnv.DB.exec(`INSERT INTO business_print_settings VALUES
+    ('amor-e-sabor', 1, '2026-09-08T10:00:00.000Z', '2026-09-08T10:00:00.000Z'),
+    ('other-business', 2, '2026-09-08T10:00:00.000Z', '2026-09-08T10:00:00.000Z')`)
+  const firstDevice = await loginCookie(currentEnv)
+  const secondDevice = await loginCookie(currentEnv)
+  const other = await createSession(currentEnv, 'other-business')
+  const otherCookie = sessionCookie(other.token, 3600).split(';')[0]
+  const read = (cookie) => jsonRequest('/api/printing/settings', 'GET', cookie)
+
+  const migrated = await read(firstDevice)
+  assert.equal(migrated.status, 200)
+  assert.deepEqual(await migrated.json(), { settings: { defaultCopies: 1 } })
+  for (const [cookie, defaultCopies] of [[secondDevice, 2], [firstDevice, 1]]) {
+    const saved = await jsonRequest('/api/printing/settings', 'PUT', cookie, { defaultCopies })
+    assert.equal(saved.status, 200)
+    assert.deepEqual(await saved.json(), { settings: { defaultCopies } })
+    assert.deepEqual(await (await read(secondDevice)).json(), { settings: { defaultCopies } })
+  }
+  assert.deepEqual(await (await read(otherCookie)).json(), { settings: { defaultCopies: 2 } })
+  const savedOther = await jsonRequest('/api/printing/settings', 'PUT', otherCookie, { defaultCopies: 1 })
+  assert.equal(savedOther.status, 200)
+  assert.equal((await jsonRequest('/api/printing/settings', 'PUT', firstDevice, { defaultCopies: 2 })).status, 200)
+  assert.deepEqual(await (await read(otherCookie)).json(), { settings: { defaultCopies: 1 } })
+  assert.equal(currentEnv.DB.sqlite.prepare('SELECT created_at FROM business_print_settings WHERE business_id = ?').get('amor-e-sabor').created_at, '2026-09-08T10:00:00.000Z')
+})
+
+test('central settings default to two for a new business and persist independently of station updates and existing jobs', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  const defaults = await jsonRequest('/api/printing/settings', 'GET', cookie)
+  assert.equal(defaults.status, 200)
+  assert.deepEqual(await defaults.json(), { settings: { defaultCopies: 2 } })
+  const job = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })).json()).job
+  const before = currentEnv.DB.sqlite.prepare('SELECT * FROM print_jobs WHERE id = ?').get(job.id)
+  assert.equal((await jsonRequest('/api/printing/settings', 'PUT', cookie, { defaultCopies: 1 })).status, 200)
+  await jsonRequest('/api/printing/stations/legacy', 'PUT', cookie, {
+    name: 'Legacy', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2,
+  })
+  await jsonRequest('/api/printing/stations/legacy/make-primary', 'POST', cookie)
+  assert.deepEqual(await (await jsonRequest('/api/printing/settings', 'GET', cookie)).json(), { settings: { defaultCopies: 1 } })
+  assert.deepEqual(currentEnv.DB.sqlite.prepare('SELECT * FROM print_jobs WHERE id = ?').get(job.id), before)
+})
+
+test('central settings reject missing, extra and non-integer copies without changing persisted settings', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  for (const body of [{}, { defaultCopies: 1, businessId: 'other-business' }, { defaultCopies: 2, stationId: 's1' }]) {
+    const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, body)
+    assert.equal(response.status, 400)
+    assert.equal((await response.json()).error.code, 'INVALID_PRINT_SETTINGS')
+  }
+  for (const defaultCopies of [0, 3, -1, 1.5, '1', '2', true, false, null, [], {}]) {
+    const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, { defaultCopies })
+    assert.equal(response.status, 400, JSON.stringify({ defaultCopies }))
+    assert.equal((await response.json()).error.code, 'INVALID_PRINT_COPIES')
+  }
+  for (const body of [undefined, null, [], 'invalid']) {
+    const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, body)
+    assert.equal(response.status, 400)
+    assert.equal((await response.json()).error.code, 'INVALID_JSON')
+  }
+  assert.equal(currentEnv.DB.sqlite.prepare('SELECT count(*) AS count FROM business_print_settings').get().count, 0)
+})
+
+test('central settings require authentication for reads and writes and same origin for writes', async () => {
+  currentEnv = await makeEnv()
+  for (const method of ['GET', 'PUT']) {
+    const response = await jsonRequest('/api/printing/settings', method, '', method === 'PUT' ? { defaultCopies: 1 } : undefined)
+    assert.equal(response.status, 401)
+  }
+  const cookie = await loginCookie(currentEnv)
+  const response = await handleRequest(new Request('https://delivery.example/api/printing/settings', {
+    method: 'PUT', headers: { cookie, origin: 'https://other.example', 'content-type': 'application/json' },
+    body: JSON.stringify({ defaultCopies: 1 }),
+  }), currentEnv)
+  assert.equal(response.status, 403)
+  assert.equal((await response.json()).error.code, 'ORIGIN_NOT_ALLOWED')
+})
 
 test('authenticated printing API configures a primary station and completes a manual order job', async () => {
   currentEnv = await makeEnv()

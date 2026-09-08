@@ -7,9 +7,11 @@ import {
   createTestPrintJob,
   listPrintJobs,
   listPrintStations,
+  loadBusinessPrintSettings,
   markPrintJobFailed,
   markPrintJobPrinted,
   retryPrintJob,
+  saveBusinessPrintSettings,
   setPrimaryPrintStation,
   upsertPrintStation,
 } from './orderPrintingRepository.js'
@@ -38,6 +40,23 @@ const stationIdFromBody = (body) => requiredText(body.stationId, 'stationId', 'I
 
 export const handlePrintingApi = async (request, env, session, url) => {
   const businessId = session.businessId
+
+  if (url.pathname === '/api/printing/settings') {
+    // TODO: apply role-based authorization here when roles exist. Today every
+    // authenticated device may view/update its business settings, without a station requirement.
+    if (request.method === 'GET') {
+      return json({ settings: await loadBusinessPrintSettings(env.DB, businessId) })
+    }
+    if (request.method === 'PUT') {
+      assertSameOriginMutation(request)
+      const body = await readJson(request)
+      const keys = Object.keys(body)
+      if (keys.length !== 1 || keys[0] !== 'defaultCopies') {
+        throw apiError(400, 'INVALID_PRINT_SETTINGS', 'Informe somente defaultCopies.')
+      }
+      return json({ settings: await saveBusinessPrintSettings(env.DB, businessId, body) })
+    }
+  }
 
   if (url.pathname === '/api/printing/qz/certificate' && request.method === 'GET') {
     return new Response(getConfiguredQzCertificate(env), {
