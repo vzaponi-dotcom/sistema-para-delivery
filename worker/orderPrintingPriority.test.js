@@ -126,13 +126,18 @@ test('prioritize is central, keeps an offline queued job pending, and makes it t
   }, baseNow)
   await printingRepository.setPrimaryPrintStation(db, businessId, 'kitchen', baseNow)
 
-  const claimed = await printingRepository.claimNextAutomaticPrintJob(
-    db,
-    businessId,
-    'kitchen',
-    new Date(baseNow.getTime() + 2000),
-  )
-  assert.equal(claimed.id, 'urgent-job')
+  const claimAt = new Date(baseNow.getTime() + 2000)
+  const eligible = db.sqlite.prepare(`SELECT id, status, priority, available_at, created_at
+    FROM print_jobs
+    WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
+      AND EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status NOT IN ('Cancelado', 'Finalizado'))
+    ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC`)
+    .all(businessId, claimAt.toISOString())
+  assert.deepEqual(eligible.map((row) => row.id), ['urgent-job', 'older-job'])
+
+  const claimed = await printingRepository.claimNextAutomaticPrintJob(db, businessId, 'kitchen', claimAt)
+  const afterClaim = db.sqlite.prepare('SELECT id, status, priority, station_id FROM print_jobs ORDER BY id').all()
+  assert.equal(claimed?.id, 'urgent-job', JSON.stringify({ claimed, afterClaim }))
   assert.equal(claimed.priority, 1)
   assert.equal((await printingRepository.loadPrintJob(db, businessId, 'older-job')).status, 'pending')
 })
