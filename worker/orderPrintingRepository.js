@@ -13,6 +13,13 @@ const assertCopies = (copies) => {
   return value
 }
 
+const AUTOMATIC_ORDER_ELIGIBLE_SQL = `EXISTS (
+  SELECT 1 FROM orders
+  WHERE orders.id = print_jobs.order_id
+    AND orders.business_id = print_jobs.business_id
+    AND orders.status NOT IN ('Cancelado', 'Finalizado')
+)`
+
 const mapStationRow = (row) => row ? ({
   id: row.id,
   name: row.name,
@@ -171,12 +178,24 @@ export const loadAutomaticPrintJobForOrder = async (db, businessId, orderId) => 
   return mapJobRow(row)
 }
 
+const routeIneligibleAutomaticJobsToAttention = async (db, businessId, now = new Date()) => {
+  const at = timestamp(now)
+  await db.prepare(`UPDATE print_jobs SET
+      status = 'requires_attention', processed_at = ?,
+      last_error_code = 'ORDER_NOT_PRINTABLE',
+      last_error_message = 'O pedido foi finalizado ou cancelado antes da impressão automática.'
+    WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending'
+      AND NOT ${AUTOMATIC_ORDER_ELIGIBLE_SQL}`)
+    .bind(at, businessId).run()
+}
+
 const agePrintJobs = async (db, businessId, now = new Date()) => {
   const at = now instanceof Date ? now : new Date(now)
   const processedAt = at.toISOString()
   const pendingCutoff = new Date(at.getTime() - PRINT_PENDING_MAX_AGE_MS).toISOString()
   const processingCutoff = new Date(at.getTime() - PRINT_PROCESSING_MAX_AGE_MS).toISOString()
 
+  await routeIneligibleAutomaticJobsToAttention(db, businessId, at)
   await db.batch([
     db.prepare(`UPDATE print_jobs SET
       status = 'requires_attention', processed_at = ?,
@@ -253,7 +272,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
     WHERE id = (
       SELECT id FROM print_jobs
       WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
-        AND EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status NOT IN ('Cancelado', 'Finalizado'))
+        AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL}
       ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
     ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
     RETURNING *`)
@@ -263,6 +282,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
 
 export const claimPrintJob = async (db, businessId, jobId, stationId, now = new Date()) => {
   await requireStation(db, businessId, stationId)
+  await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
@@ -270,7 +290,7 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
     WHERE id = ? AND business_id = ?
       AND ((status = 'pending' AND available_at <= ?)
         OR (status = 'printed' AND copies_printed > 0 AND copies_printed < copies_requested))
-      AND (trigger <> 'automatic' OR EXISTS (SELECT 1 FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id AND orders.status NOT IN ('Cancelado', 'Finalizado')))
+      AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
     RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
@@ -294,10 +314,11 @@ export const markPrintJobPrinted = async (db, businessId, jobId, stationId, copi
 }
 
 export const markPrintJobFailed = async (db, businessId, jobId, stationId, failure = {}, now = new Date()) => {
-  const nextStatus = failure.uncertain ? 'requires_attention' : 'failed'
   const at = timestamp(now)
   const code = String(failure.code || 'PRINT_FAILED').slice(0, 100)
   const message = String(failure.message || 'Não foi possível imprimir o pedido.').slice(0, 500)
+  const qzFailure = String(failure.transport || '').toLowerCase() === 'qz' || code.toUpperCase().startsWith('QZ_')
+  const nextStatus = failure.uncertain || qzFailure ? 'requires_attention' : 'failed'
   const row = await db.prepare(`UPDATE print_jobs SET
       status = ?, processed_at = ?, last_error_code = ?, last_error_message = ?
     WHERE id = ? AND business_id = ? AND status = 'processing' AND station_id = ?
@@ -357,6 +378,7 @@ export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => 
       station_id = NULL, processing_started_at = NULL, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
     WHERE id = ? AND business_id = ? AND status IN ('failed', 'requires_attention')
+      AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
     RETURNING *`).bind(jobId, businessId).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
