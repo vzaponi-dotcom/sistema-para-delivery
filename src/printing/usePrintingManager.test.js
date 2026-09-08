@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   canExecuteSecondCopy,
+  canPresentSecondCopyPrompt,
   canConsumeAutomaticPrintJob,
   getPrintingTransportKind,
   getRendererCompatibilityMode,
@@ -77,6 +78,21 @@ test('non-QZ and secondary stations cannot execute an awaiting second copy', () 
     job: awaitingSecondCopyJob,
   }), false)
   assert.equal(canExecuteSecondCopy({
+    isQz: true,
+    station: { isPrimary: false, platform: 'windows' },
+    job: awaitingSecondCopyJob,
+  }), false)
+})
+
+test('only an unacknowledged awaiting copy can present the second-copy prompt on primary QZ', () => {
+  const primaryQz = { isQz: true, station: { isPrimary: true, platform: 'windows' } }
+
+  assert.equal(canPresentSecondCopyPrompt({ ...primaryQz, job: awaitingSecondCopyJob }), true)
+  assert.equal(canPresentSecondCopyPrompt({
+    ...primaryQz,
+    job: { ...awaitingSecondCopyJob, secondCopyPromptedAt: '2026-09-08T12:00:00.000Z' },
+  }), false)
+  assert.equal(canPresentSecondCopyPrompt({
     isQz: true,
     station: { isPrimary: false, platform: 'windows' },
     job: awaitingSecondCopyJob,

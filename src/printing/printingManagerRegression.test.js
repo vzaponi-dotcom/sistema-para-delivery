@@ -142,8 +142,7 @@ test('second copy resumes the existing partial job explicitly without creating a
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
-  assert.match(block, /copiesRequested\) !== 2|copiesRequested !== 2/)
-  assert.match(block, /copiesPrinted\) !== 1|copiesPrinted !== 1/)
+  assert.match(block, /canExecuteSecondCopy\(\{ isQz, station, job \}\)/)
   assert.match(block, /claimPrintJob\(job\.id, station\.id\)/)
   assert.match(block, /executeClaimedJob\(claimed\.job, port/)
   assert.doesNotMatch(block, /createManualPrintJob/)
@@ -159,7 +158,7 @@ test('printing manager centralizes approved poll and heartbeat cadences', () => 
 })
 
 test('App mounts one printing manager and passes it to Orders without changing order sync detection', () => {
-  assert.match(app, /import \{ usePrintingManager \} from '\.\/printing\/usePrintingManager'/)
+  assert.match(app, /import \{ canPresentSecondCopyPrompt, usePrintingManager \} from '\.\/printing\/usePrintingManager'/)
   const hookCalls = app.match(/usePrintingManager\(/g) || []
   assert.equal(hookCalls.length, 1)
   assert.match(app, /const printing = usePrintingManager\(/)

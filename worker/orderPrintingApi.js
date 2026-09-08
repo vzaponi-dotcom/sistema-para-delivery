@@ -2,6 +2,7 @@ import { apiError, assertSameOriginMutation, json, readJson } from './http.js'
 import { loadOrderPrintDocument } from './orderPrintDocumentRepository.js'
 import { claimNextPrintJob } from './orderPrintingCentralClaim.js'
 import {
+  acknowledgeSecondCopyPrompt,
   claimPrintJob,
   createManualOrderPrintJob,
   createTestPrintJob,
@@ -163,6 +164,13 @@ export const handlePrintingApi = async (request, env, session, url) => {
     const body = await readJson(request)
     const job = await claimNextPrintJob(env.DB, businessId, stationIdFromBody(body))
     return json({ job })
+  }
+
+  const secondCopyPromptMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/second-copy-prompt$/)
+  if (secondCopyPromptMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json(await acknowledgeSecondCopyPrompt(env.DB, businessId, decodeURIComponent(secondCopyPromptMatch[1]), stationIdFromBody(body)))
   }
 
   const discardMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/discard$/)

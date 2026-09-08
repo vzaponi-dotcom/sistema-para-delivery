@@ -66,6 +66,7 @@ class D1Sqlite {
         attention_reason TEXT,
         action_actor_label TEXT,
         action_at TEXT,
+        second_copy_prompted_at TEXT,
         last_error_code TEXT,
         last_error_message TEXT
       );
@@ -265,6 +266,26 @@ test('second completion of a two-copy job persists printed with two copies print
 
   assert.equal(secondCopy.copiesPrinted, 2)
   assert.equal(secondCopy.status, 'printed')
+})
+
+test('primary QZ station acknowledges a second-copy prompt once without completing the job', async () => {
+  assert.equal(typeof printingRepository.acknowledgeSecondCopyPrompt, 'function')
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'prompt-job' })
+  await claimPrintJob(db, businessA, 'prompt-job', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'prompt-job', 'station-a', 1, baseNow)
+
+  const first = await printingRepository.acknowledgeSecondCopyPrompt(db, businessA, 'prompt-job', 'station-a', baseNow)
+  const repeated = await printingRepository.acknowledgeSecondCopyPrompt(db, businessA, 'prompt-job', 'station-a', new Date(baseNow.getTime() + 1000))
+
+  assert.equal(first.promptPresented, true)
+  assert.equal(first.job.status, 'awaiting_second_copy')
+  assert.equal(first.job.copiesPrinted, 1)
+  assert.equal(first.job.secondCopyPromptedAt, baseNow.toISOString())
+  assert.equal(repeated.promptPresented, false)
+  assert.equal(repeated.job.secondCopyPromptedAt, baseNow.toISOString())
 })
 
 test('partial two-copy jobs wait for an explicit second-copy claim and keep their progress', async () => {

@@ -13,9 +13,10 @@ test('global second-copy prompt only selects jobs whose order is still active', 
   assert.match(appSource, /isSecondCopyPromptEligible\(job, order\)/)
 })
 
-test('second-copy prompt reacts when an order is finalized', () => {
-  assert.match(
-    appSource,
-    /\[printing\.jobs, orders, secondCopyPromptJobId\]/,
-  )
+test('second-copy prompt is acknowledged once by the eligible primary QZ station', () => {
+  assert.match(appSource, /job\?\.status === 'awaiting_second_copy'/)
+  assert.match(appSource, /canPresentSecondCopyPrompt\(\{\s*isQz: printing\.transportKind === 'qz',\s*station: printing\.localStation, job,/)
+  assert.match(appSource, /printing\.acknowledgeSecondCopyPrompt\(next\)/)
+  assert.match(appSource, /cancelLabel="Depois"/)
+  assert.doesNotMatch(appSource, /dismissedSecondCopyJobIdsRef/)
 })

@@ -54,7 +54,7 @@ class D1Sqlite {
         copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
         station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT, processing_started_at TEXT,
         processed_at TEXT, discarded_at TEXT, attention_reason TEXT, action_actor_label TEXT, action_at TEXT,
-        last_error_code TEXT, last_error_message TEXT
+        second_copy_prompted_at TEXT, last_error_code TEXT, last_error_message TEXT
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
@@ -238,6 +238,19 @@ test('authenticated printing API configures a primary station and completes a ma
   assert.equal(claimed.status, 200)
   assert.equal((await claimed.json()).job.status, 'processing')
 
+  const firstCompleted = await jsonRequest(`/api/printing/jobs/${job.id}/complete`, 'POST', cookie, { stationId: 'station a', copiesPrinted: 1 })
+  assert.equal(firstCompleted.status, 200)
+  assert.equal((await firstCompleted.json()).job.status, 'awaiting_second_copy')
+
+  const acknowledged = await jsonRequest(`/api/printing/jobs/${job.id}/second-copy-prompt`, 'POST', cookie, { stationId: 'station a' })
+  assert.equal(acknowledged.status, 200)
+  assert.equal((await acknowledged.json()).promptPresented, true)
+  const repeatedAcknowledgment = await jsonRequest(`/api/printing/jobs/${job.id}/second-copy-prompt`, 'POST', cookie, { stationId: 'station a' })
+  assert.equal(repeatedAcknowledgment.status, 200)
+  assert.equal((await repeatedAcknowledgment.json()).promptPresented, false)
+
+  const claimedSecondCopy = await jsonRequest(`/api/printing/jobs/${job.id}/claim`, 'POST', cookie, { stationId: 'station a' })
+  assert.equal(claimedSecondCopy.status, 200)
   const completed = await jsonRequest(`/api/printing/jobs/${job.id}/complete`, 'POST', cookie, { stationId: 'station a', copiesPrinted: 2 })
   assert.equal(completed.status, 200)
   assert.equal((await completed.json()).job.status, 'printed')

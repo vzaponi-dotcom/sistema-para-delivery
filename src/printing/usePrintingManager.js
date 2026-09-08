@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import qz from 'qz-tray'
 import {
+  acknowledgeSecondCopyPrompt as acknowledgeSecondCopyPromptApi,
   claimNextPrintJob,
   claimPrintJob,
   completePrintJob,
@@ -107,6 +108,10 @@ export const canExecuteSecondCopy = ({ isQz, station, job }) => Boolean(
   && job?.status === 'awaiting_second_copy'
   && Number(job?.copiesRequested) === 2
   && Number(job?.copiesPrinted) === 1
+)
+
+export const canPresentSecondCopyPrompt = ({ isQz, station, job }) => (
+  canExecuteSecondCopy({ isQz, station, job }) && !job?.secondCopyPromptedAt
 )
 
 export const canSendPrintStationHeartbeat = ({
@@ -497,6 +502,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
   }, [executeClaimedJob, getExplicitPort, isQz])
 
+  const acknowledgeSecondCopyPrompt = useCallback(async (job) => {
+    const station = localStationRef.current
+    if (!station?.id || !canExecuteSecondCopy({ isQz, station, job })) return { promptPresented: false }
+    const response = await acknowledgeSecondCopyPromptApi(job.id, station.id)
+    await refresh()
+    return response
+  }, [isQz, refresh])
+
   const retryJob = useCallback(async (jobOrId) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
@@ -731,6 +744,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     testPrint,
     printOrder,
     printSecondCopy,
+    acknowledgeSecondCopyPrompt,
     retryJob,
     getPreviewDocument,
   }

@@ -86,6 +86,7 @@ const mapJobRow = (row) => row ? ({
   attentionReason: row.attention_reason ?? null,
   actionActorLabel: row.action_actor_label ?? null,
   actionAt: row.action_at ?? null,
+  secondCopyPromptedAt: row.second_copy_prompted_at ?? null,
   lastError: row.last_error_code
     ? { code: row.last_error_code, message: row.last_error_message || '' }
     : null,
@@ -474,4 +475,17 @@ export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => 
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   throw repositoryError(409, 'PRINT_JOB_RETRY_NOT_ALLOWED', 'Este trabalho não pode ser tentado novamente neste estado.')
+}
+
+export const acknowledgeSecondCopyPrompt = async (db, businessId, jobId, stationId, now = new Date()) => {
+  await requirePrimaryQzPrintStation(db, businessId, stationId, now)
+  const at = timestamp(now)
+  const row = await db.prepare(`UPDATE print_jobs SET second_copy_prompted_at = ?
+    WHERE id = ? AND business_id = ? AND status = 'awaiting_second_copy'
+      AND copies_requested = 2 AND copies_printed = 1 AND second_copy_prompted_at IS NULL
+    RETURNING *`).bind(at, jobId, businessId).first()
+  if (row) return { job: mapJobRow(row), promptPresented: true }
+  const job = await loadPrintJob(db, businessId, jobId)
+  if (!job) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+  return { job, promptPresented: false }
 }

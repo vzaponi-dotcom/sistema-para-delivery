@@ -103,3 +103,13 @@ test('print jobs schema accepts awaiting_second_copy', async () => {
 
   assert.equal(db.prepare('SELECT status FROM print_jobs WHERE id = ?').get('job-awaiting-second-copy').status, 'awaiting_second_copy')
 })
+
+test('print jobs schema persists second-copy prompt acknowledgments', async () => {
+  const db = new DatabaseSync(':memory:')
+  await applyAllMigrations(db)
+
+  assert.equal(
+    db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_jobs') WHERE name = 'second_copy_prompted_at'").get().count,
+    1,
+  )
+})
