@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
+import { claimNextPrintJob } from './orderPrintingCentralClaim.js'
 import {
-  claimNextAutomaticPrintJob,
   createManualOrderPrintJob,
   heartbeatPrintStation,
   setPrimaryPrintStation,
@@ -108,7 +108,7 @@ test('primary QZ station consumes a manual queued job even when automatic printi
     document: { version: 1, type: 'order', order: { id: 'order-manual', number: '0001' } },
   }, now)
 
-  const claimed = await claimNextAutomaticPrintJob(db, businessId, 'kitchen-qz', now)
+  const claimed = await claimNextPrintJob(db, businessId, 'kitchen-qz', now)
   assert.equal(claimed.id, manual.id)
   assert.equal(claimed.trigger, 'manual')
   assert.equal(claimed.status, 'processing')
