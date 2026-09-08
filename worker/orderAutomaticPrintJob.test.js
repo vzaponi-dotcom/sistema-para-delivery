@@ -43,15 +43,24 @@ class D1Sqlite {
         movement_date TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT
       );
       CREATE TABLE table_tabs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_identifier TEXT NOT NULL,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_id TEXT, table_identifier TEXT NOT NULL,
         status TEXT NOT NULL, opened_at TEXT NOT NULL, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
+      CREATE TABLE tables (
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, name_key TEXT NOT NULL,
+        sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_table_tabs_one_open_per_table_id ON table_tabs (business_id, table_id) WHERE status = 'open';
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
         default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
+      CREATE TABLE business_print_settings (
+        business_id TEXT PRIMARY KEY, default_copies INTEGER NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL,
         trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL,
@@ -87,7 +96,7 @@ class D1Sqlite {
   all(sql) { return this.sqlite.prepare(sql).all() }
 }
 
-const seed = ({ auto = true, primary = true } = {}) => {
+const seed = ({ auto = true, primary = true, centralCopies = 2 } = {}) => {
   const db = new D1Sqlite()
   db.exec(`
     INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');
@@ -102,6 +111,11 @@ const seed = ({ auto = true, primary = true } = {}) => {
       id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at
     ) VALUES ('station-a', 'amor-e-sabor', 'Tablet da cozinha', 'android', ${primary ? 1 : 0}, ${auto ? 1 : 0}, 2,
       '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
+    INSERT INTO business_print_settings (business_id, default_copies, created_at, updated_at)
+      VALUES ('amor-e-sabor', ${centralCopies}, '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
+    INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at)
+      VALUES ('table-1', 'amor-e-sabor', 'Mesa 1', 'MESA 1', 1, 1,
+        '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
   `)
   return db
 }
@@ -140,6 +154,61 @@ test('current checkout snapshots customer contact and enqueues one paid automati
   assert.equal(snapshot.customer.address, 'Rua das Flores, 123')
   assert.equal(snapshot.items[0].note, 'sem cebola')
   assert.deepEqual(snapshot.payment, { status: 'Pago', method: 'Pix' })
+})
+
+test('table checkout requests one automatic copy when the central default is two', async () => {
+  const db = seed({ centralCopies: 2 })
+
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    customerIdentity: { type: 'table', tableId: 'table-1' },
+    type: 'Local',
+    idempotencyKey: 'table-one-copy',
+  }), new Date('2026-09-03T23:31:00.000Z'))
+
+  const job = db.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+  assert.equal(job.copies_requested, 1)
+})
+
+test('delivery checkout snapshots the central default of one or two copies', async () => {
+  const oneCopyDb = seed({ centralCopies: 1 })
+  const oneCopyOrder = await createOrder(oneCopyDb, 'amor-e-sabor', input({
+    idempotencyKey: 'delivery-one-copy',
+  }), new Date('2026-09-03T23:31:00.000Z'))
+  assert.equal(oneCopyDb.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${oneCopyOrder.id}'`)[0].copies_requested, 1)
+
+  const twoCopyDb = seed({ centralCopies: 2 })
+  const twoCopyOrder = await createOrder(twoCopyDb, 'amor-e-sabor', input({
+    idempotencyKey: 'delivery-two-copies',
+  }), new Date('2026-09-03T23:31:00.000Z'))
+  assert.equal(twoCopyDb.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${twoCopyOrder.id}'`)[0].copies_requested, 2)
+})
+
+test('pickup checkout snapshots the central default of one or two copies', async () => {
+  const oneCopyDb = seed({ centralCopies: 1 })
+  const oneCopyOrder = await createOrder(oneCopyDb, 'amor-e-sabor', input({
+    type: 'Retirada',
+    idempotencyKey: 'pickup-one-copy',
+  }), new Date('2026-09-03T23:31:00.000Z'))
+  assert.equal(oneCopyDb.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${oneCopyOrder.id}'`)[0].copies_requested, 1)
+
+  const twoCopyDb = seed({ centralCopies: 2 })
+  const twoCopyOrder = await createOrder(twoCopyDb, 'amor-e-sabor', input({
+    type: 'Retirada',
+    idempotencyKey: 'pickup-two-copies',
+  }), new Date('2026-09-03T23:31:00.000Z'))
+  assert.equal(twoCopyDb.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${twoCopyOrder.id}'`)[0].copies_requested, 2)
+})
+
+test('changing the central default does not rewrite an existing automatic job copy snapshot', async () => {
+  const db = seed({ centralCopies: 1 })
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    idempotencyKey: 'immutable-copy-snapshot',
+  }), new Date('2026-09-03T23:31:00.000Z'))
+
+  db.exec(`UPDATE business_print_settings SET default_copies = 2 WHERE business_id = 'amor-e-sabor'`)
+
+  const job = db.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+  assert.equal(job.copies_requested, 1)
 })
 
 test('new scheduled order is printable immediately while keeping its scheduled time', async () => {

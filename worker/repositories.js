@@ -413,6 +413,13 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     ? await loadPrimaryAutomaticPrintStation(db, businessId)
     : null
   if (primaryPrintStation) {
+    const printSettings = await db.prepare(`SELECT default_copies
+      FROM business_print_settings
+      WHERE business_id = ?
+      LIMIT 1`).bind(businessId).first()
+    const automaticCopies = customerIdentity.type === 'table' || tableTabId
+      ? 1
+      : Number(printSettings?.default_copies) || 2
     const business = await db.prepare('SELECT name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
     const printDocument = createOrderPrintDocument({
       businessName: business?.name || 'Amor & Sabor',
@@ -447,7 +454,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     })
     statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
       orderId,
-      copies: primaryPrintStation.defaultCopies,
+      copies: automaticCopies,
       document: printDocument,
       createdAt,
       availableAt: createdAt,
