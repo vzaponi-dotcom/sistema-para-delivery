@@ -5,6 +5,7 @@ import {
   claimPrintJob,
   createManualOrderPrintJob,
   createTestPrintJob,
+  discardPrintJob,
   listPrintJobs,
   listPrintStations,
   loadBusinessPrintSettings,
@@ -140,6 +141,15 @@ export const handlePrintingApi = async (request, env, session, url) => {
     assertSameOriginMutation(request)
     const body = await readJson(request)
     const job = await claimNextAutomaticPrintJob(env.DB, businessId, stationIdFromBody(body))
+    return json({ job })
+  }
+
+  const discardMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/discard$/)
+  if (discardMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    const actorLabel = String(body.actorLabel ?? '').trim() || 'Sistema'
+    const job = await discardPrintJob(env.DB, businessId, decodeURIComponent(discardMatch[1]), actorLabel)
     return json({ job })
   }
 
