@@ -26,12 +26,12 @@ test('Tables provides creation, free-table rename, accessible reordering and con
   const page = await read('./Tables.jsx')
 
   assert.match(page, /Nova mesa/)
-  assert.match(page, /Renomear mesa/)
+  assert.match(page, /onClick=\{\(\) => beginRename\(table\)\}[^>]*>Renomear<\/Button>/)
   assert.match(page, /Mover .* para cima/)
   assert.match(page, /Mover .* para baixo/)
   assert.match(page, /Confirmar desativaçã[oã]/)
   assert.match(page, /onSetActive\(deactivatingTable\.id, false\)/)
-  assert.match(page, /Reativar mesa/)
+  assert.match(page, /onClick=\{\(\) => void onSetActive\(table\.id, true\)\}[^>]*>Reativar<\/Button>/)
   assert.doesNotMatch(page, /Excluir mesa/)
 })
 
