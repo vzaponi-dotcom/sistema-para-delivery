@@ -51,6 +51,7 @@ test('central print settings client reads and updates the business default with 
 })
 
 test('printing client helpers use stable authenticated same-origin routes and encoded ids', async () => {
+  assert.equal(typeof client.discardPrintJob, 'function')
   await withFetch(async (calls) => {
     await getPrintStations()
     await upsertPrintStation('station 1', { name: 'Tablet', platform: 'android', autoPrintEnabled: true, defaultCopies: 2 })
@@ -63,6 +64,7 @@ test('printing client helpers use stable authenticated same-origin routes and en
     await completePrintJob('job 1', 'station 1', 2)
     await failPrintJob('job 1', 'station 1', { code: 'SERIAL_OPEN_FAILED', message: 'offline', uncertain: false })
     await retryPrintJob('job 1', 'station 1')
+    await client.discardPrintJob('job 1', 'Caixa 1')
     await getOrderPrintDocument('order 1')
 
     assert.deepEqual(calls.map(([path, options]) => [path, options?.method || 'GET']), [
@@ -77,6 +79,7 @@ test('printing client helpers use stable authenticated same-origin routes and en
       ['/api/printing/jobs/job%201/complete', 'POST'],
       ['/api/printing/jobs/job%201/fail', 'POST'],
       ['/api/printing/jobs/job%201/retry', 'POST'],
+      ['/api/printing/jobs/job%201/discard', 'POST'],
       ['/api/orders/order%201/print-document', 'GET'],
     ])
 
@@ -85,5 +88,6 @@ test('printing client helpers use stable authenticated same-origin routes and en
     assert.deepEqual(JSON.parse(calls[5][1].body), { stationId: 'station 1' })
     assert.deepEqual(JSON.parse(calls[8][1].body), { stationId: 'station 1', copiesPrinted: 2 })
     assert.deepEqual(JSON.parse(calls[9][1].body), { stationId: 'station 1', code: 'SERIAL_OPEN_FAILED', message: 'offline', uncertain: false })
+    assert.deepEqual(JSON.parse(calls[11][1].body), { actorLabel: 'Caixa 1' })
   })
 })
