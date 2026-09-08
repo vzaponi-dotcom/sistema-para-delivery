@@ -30,7 +30,7 @@ Esta mudança deve:
 8. impedir pop-ups globais ou repetitivos em dispositivos que não executam a impressão;
 9. manter jobs seguros quando a estação principal estiver desligada ou indisponível;
 10. impedir retomada automática de jobs cujo pedido já foi finalizado ou cancelado;
-11. mover a quantidade padrão de vias de uma preferência local da estação para uma configuração central do negócio;
+11. mover a quantidade padrão de vias de uma preferência local da estação para uma configuração central do negócio, com regra operacional específica para pedidos de mesa/consumo local;
 12. remover, depois da homologação do novo fluxo, os caminhos legados RawBT e Web Serial que deixarem de ter função;
 13. reescrever a documentação operacional para refletir a arquitetura realmente suportada;
 14. deixar a auditoria preparada para futura introdução de usuários, perfis e permissões sem implementar RBAC nesta entrega.
@@ -164,23 +164,35 @@ A configuração central aceita somente:
 - `1 via`; ou
 - `2 vias`.
 
-A alteração pode ser feita em qualquer dispositivo autenticado pelo modelo de autenticação atual.
+Essa configuração é a regra padrão para pedidos de **Entrega** e **Retirada**.
+
+Pedidos de **mesa/consumo local** são uma exceção operacional deliberada: o job automático inicial deve sempre nascer com **1 via**, independentemente da configuração central. Para esta regra, considera-se pedido de mesa/consumo local aquele identificado pelo domínio atual como `Local` e/ou associado a mesa/comanda, conforme o modelo oficial do pedido. O objetivo é imprimir somente a via necessária para a cozinha, sem criar uma segunda via artificial que depois precisaria ser descartada.
+
+A alteração da configuração central pode ser feita em qualquer dispositivo autenticado pelo modelo de autenticação atual.
 
 Enquanto não existirem usuários/perfis, não haverá permissão granular específica. A estrutura deve, porém, permitir futura restrição sem redesenhar jobs ou histórico.
 
 ### 6.2 Imutabilidade por job
 
-Ao criar o job, `copies_requested` recebe o valor da configuração central naquele instante.
+Ao criar um job automático inicial:
+
+- pedido de mesa/consumo local recebe `copies_requested = 1`;
+- pedido de Entrega/Retirada recebe o valor da configuração central vigente naquele instante.
 
 Alterar a configuração depois:
 
-- afeta somente novos jobs;
+- afeta somente novos jobs de Entrega/Retirada;
 - nunca muda jobs já existentes;
-- nunca acrescenta ou remove segunda via de job em andamento.
+- nunca acrescenta ou remove segunda via de job em andamento;
+- não altera a regra fixa de 1 via para o job automático inicial de mesa/consumo local.
+
+Uma **reimpressão manual** é uma ação deliberada e pode escolher 1 ou 2 vias mesmo quando o pedido original é de mesa/consumo local. Essa escolha pertence ao novo job de reimpressão e não altera a regra automática do tipo de atendimento.
 
 ### 6.3 Persistência
 
 A implementação deve introduzir configuração central de impressão por `business_id`, em estrutura dedicada ou equivalente. A preferência `print_stations.default_copies` existente deve ser migrada/compatibilizada e depois descontinuada; não pode permanecer como fonte oficial concorrente.
+
+A regra de 1 via para mesa/consumo local deve ser decidida no backend no momento de criação do job, usando o tipo oficial do pedido, e não por heurística visual do frontend.
 
 ## 7. Criação automática de jobs
 
@@ -193,7 +205,10 @@ Regras:
 - polling, reload, foco de aba e sincronização nunca criam job novo;
 - a estação física estar offline não impede a criação do job;
 - o job permanece na fila até poder ser processado ou até exigir intervenção;
-- origem do pedido não altera a regra: sistema interno, cardápio digital futuro ou outra origem oficial usam o mesmo contrato.
+- origem do pedido não altera a regra: sistema interno, cardápio digital futuro ou outra origem oficial usam o mesmo contrato;
+- pedido de mesa/consumo local cria o job automático inicial com exatamente 1 via;
+- pedido de Entrega/Retirada cria o job automático inicial com 1 ou 2 vias conforme a configuração central vigente;
+- essa decisão de vias é persistida no próprio job e não é recalculada depois.
 
 Esta decisão substitui o comportamento antigo que condicionava a existência do job automático à presença de uma estação principal com `auto_print_enabled` no momento da criação.
 
@@ -337,6 +352,8 @@ O limiar antigo fixo de 10 minutos não é mais a regra central do fluxo.
 
 ## 13. Duas vias
 
+O fluxo automático de duas vias aplica-se aos jobs cujo `copies_requested = 2`, normalmente pedidos de Entrega/Retirada quando a configuração central está em 2 vias. O job automático inicial de mesa/consumo local nasce com 1 via e, portanto, **não entra em `awaiting_second_copy` e não gera pop-up de segunda via**.
+
 Quando `copies_requested = 2`:
 
 1. a estação principal faz claim do job;
@@ -351,6 +368,8 @@ Quando `copies_requested = 2`:
 10. após sucesso, `copies_printed = 2` e o job passa para `printed`.
 
 A segunda via não cria um novo job. É continuação do mesmo trabalho original.
+
+Uma reimpressão manual de um pedido local pode, por decisão explícita do operador, ser criada com 2 vias; nesse caso o novo job manual segue normalmente este fluxo de duas vias.
 
 ## 14. Regra dos pop-ups e notificações
 
@@ -370,7 +389,8 @@ Esse modal:
 - aparece no máximo uma vez por transição para `awaiting_second_copy`;
 - não aparece em celulares/tablets/outros PCs;
 - não reaparece por reload, foco de aba ou sincronização;
-- não precisa permanecer aberto para que a segunda via fique disponível.
+- não precisa permanecer aberto para que a segunda via fique disponível;
+- nunca aparece para o job automático inicial de mesa/consumo local, pois esse job possui apenas 1 via.
 
 Para garantir isso, o backend deve possuir um mecanismo persistente de acknowledgment/evento, por exemplo `second_copy_prompted_at` ou evento equivalente. Uma lista local de IDs dispensados não pode ser a única proteção.
 
@@ -410,7 +430,7 @@ Ao solicitar `Reimprimir`:
 - cria-se um novo job manual;
 - o novo job referencia o job de origem por `parent_job_id` ou equivalente;
 - registra novo snapshot a partir do estado oficial atual do pedido;
-- quantidade de vias pode ser escolhida em 1 ou 2 para aquela reimpressão;
+- quantidade de vias pode ser escolhida em 1 ou 2 para aquela reimpressão, inclusive para pedido de mesa/consumo local;
 - o job original permanece intocado;
 - a timeline/histórico deve permitir navegar entre original e reimpressões.
 
@@ -474,6 +494,8 @@ Elementos conceituais a considerar:
 - metadados de saúde/prontidão da estação;
 - eventual marca de estações legadas/inativas durante a transição.
 
+A regra de 1 via para mesa/consumo local não precisa necessariamente de coluna própria se puder ser derivada deterministicamente do tipo oficial do pedido no momento em que o job é criado. O valor final deve sempre ficar materializado em `copies_requested` no job.
+
 ### 19.1 Compatibilidade com dados existentes
 
 Na migração:
@@ -523,8 +545,9 @@ A tela atual de impressão deve ser reorganizada em dois blocos conceituais.
 
 ### 21.1 Configuração do negócio — disponível em todos os dispositivos autenticados
 
-- quantidade padrão: 1 ou 2 vias;
-- explicação de que a escolha vale para novos jobs;
+- quantidade padrão: 1 ou 2 vias para Entrega/Retirada;
+- explicação clara de que pedidos de mesa/consumo local usam sempre 1 via no job automático inicial;
+- explicação de que a escolha vale para novos jobs de Entrega/Retirada;
 - estado resumido da estação principal, somente leitura.
 
 ### 21.2 Configuração física — relevante somente no PC da cozinha
@@ -588,7 +611,7 @@ A documentação operacional precisa ficar coerente com a arquitetura final.
 - remover Android/RawBT;
 - transformar o checklist em homologação da fila central QZ;
 - incluir teste de solicitação pelo celular com impressão física no PC;
-- incluir PC/QZ offline, retomada, 1/2 vias, descarte, reimpressão e pop-up único.
+- incluir PC/QZ offline, retomada, 1/2 vias, regra de 1 via para mesa/consumo local, descarte, reimpressão e pop-up único.
 
 `docs/operations/windows-qz-tray-printing.md`
 
@@ -596,6 +619,7 @@ A documentação operacional precisa ficar coerente com a arquitetura final.
 - remover smoke test Android/RawBT;
 - explicar que todos os dispositivos apenas criam jobs centrais;
 - documentar `Fila de impressão`, saúde da estação e recuperação offline;
+- documentar a exceção automática de 1 via para mesa/consumo local;
 - atualizar nomes de fila/driver somente a partir da estação física realmente homologada, sem hard-code inventado.
 
 README e outros documentos ativos:
@@ -624,6 +648,7 @@ A ordem é obrigatória para não retirar o caminho atual antes de provar o novo
 
 - migration aditiva;
 - configuração central;
+- regra automática de 1 via para mesa/consumo local;
 - novos estados/eventos/parent link/prioridade;
 - backend ainda compatível com frontend anterior durante a transição quando necessário.
 
@@ -648,6 +673,9 @@ Antes de remover legado, validar com hardware real:
 - pedido criado no PC -> impressão QZ;
 - pedido criado no celular -> job central -> impressão QZ no PC;
 - solicitação manual pelo celular -> impressão no PC;
+- pedido de mesa/consumo local -> exatamente 1 via automática mesmo com padrão do negócio em 2 vias;
+- pedido Entrega/Retirada -> respeita 1/2 vias da configuração central;
+- reimpressão manual de pedido local -> permite escolha explícita de 1 ou 2 vias;
 - 1 via;
 - 2 vias com pausa e único aviso;
 - `Depois` + retomada pela fila;
@@ -693,6 +721,10 @@ Testar:
 
 - todo novo pedido elegível cria exatamente um job automático mesmo sem estação online;
 - idempotência do job automático;
+- pedido de mesa/consumo local cria job automático com exatamente 1 via, mesmo quando o padrão central é 2;
+- pedido de Entrega/Retirada usa a quantidade central vigente no instante da criação;
+- mudar a configuração central não altera `copies_requested` de jobs já criados;
+- reimpressão manual de pedido local pode criar novo job com 1 ou 2 vias conforme escolha explícita;
 - celular não pode claimar execução física;
 - somente estação principal QZ pode claimar;
 - prioridade altera a ordem sem interromper job em processamento;
@@ -728,7 +760,7 @@ Testar desktop e mobile:
 - `Imprimir agora` não chama transporte local;
 - toast em dispositivo solicitante;
 - discard/reprint/timeline;
-- configuração central 1/2 vias;
+- configuração central 1/2 vias com explicação da exceção para mesa/consumo local;
 - ausência de UI RawBT/Web Serial.
 
 ### 25.4 Pop-up de segunda via
@@ -738,6 +770,7 @@ Testar:
 - só estação principal exibe;
 - celular/tablet nunca exibem;
 - aparece uma vez ao entrar em `awaiting_second_copy`;
+- job automático inicial de mesa/consumo local nunca entra em `awaiting_second_copy`;
 - reload não reapresenta após acknowledgment;
 - `Depois` preserva o job na fila;
 - `Imprimir 2ª via` imprime somente cópia 2;
@@ -767,23 +800,25 @@ A arquitetura estará pronta para promoção somente quando:
 3. apenas a estação Windows principal/QZ puder executar fisicamente jobs;
 4. celular e tablet puderem solicitar impressão sem aplicativo/driver externo;
 5. todo novo pedido elegível entrar automaticamente na fila;
-6. estação offline não perder jobs;
-7. `Imprimir agora` priorizar sem tentar impressão local;
-8. finalizados/cancelados pendentes não imprimirem silenciosamente no retorno da estação;
-9. fila visual funcionar em desktop e mobile;
-10. descarte preservar histórico;
-11. reimpressão gerar job novo vinculado;
-12. 1/2 vias usarem configuração central e snapshot do job;
-13. duas vias funcionarem com pausa manual e um único pop-up na estação principal;
-14. nenhum pop-up de segunda via aparecer em dispositivos secundários;
-15. reload/foco/sincronização não duplicarem job, cópia ou popup;
-16. falha conhecida e resultado incerto tiverem semânticas diferentes;
-17. documentação ativa refletir somente a arquitetura QZ central;
-18. documentos históricos conflitantes estiverem claramente marcados como superseded;
-19. código legado RawBT/Web Serial estiver removido após homologação;
-20. testes, lint, build e validações de Worker/migrations estiverem verdes;
-21. homologação física em staging estiver aprovada no HEAD exato;
-22. produção permanecer intocada até autorização explícita posterior.
+6. pedido de mesa/consumo local criar exatamente 1 via no job automático inicial, independentemente do padrão central;
+7. pedido de Entrega/Retirada respeitar a configuração central de 1/2 vias;
+8. estação offline não perder jobs;
+9. `Imprimir agora` priorizar sem tentar impressão local;
+10. finalizados/cancelados pendentes não imprimirem silenciosamente no retorno da estação;
+11. fila visual funcionar em desktop e mobile;
+12. descarte preservar histórico;
+13. reimpressão gerar job novo vinculado e permitir escolha explícita de vias;
+14. duas vias funcionarem com pausa manual e um único pop-up na estação principal;
+15. job automático local nunca gerar pop-up de segunda via;
+16. nenhum pop-up de segunda via aparecer em dispositivos secundários;
+17. reload/foco/sincronização não duplicarem job, cópia ou popup;
+18. falha conhecida e resultado incerto tiverem semânticas diferentes;
+19. documentação ativa refletir somente a arquitetura QZ central e a regra local de 1 via;
+20. documentos históricos conflitantes estiverem claramente marcados como superseded;
+21. código legado RawBT/Web Serial estiver removido após homologação;
+22. testes, lint, build e validações de Worker/migrations estiverem verdes;
+23. homologação física em staging estiver aprovada no HEAD exato;
+24. produção permanecer intocada até autorização explícita posterior.
 
 ## 27. Evolução futura — usuários e permissões
 
@@ -805,5 +840,7 @@ Até essa evolução, valem as permissões gerais da autenticação atual. Event
 O Gestão Delivery adota **fila central + uma única estação física Windows/QZ** como arquitetura oficial de impressão.
 
 Celulares, tablets e computadores secundários deixam de ser impressoras/estações físicas e passam a ser clientes da fila. A simplificação operacional — uma impressora, um PC, um QZ Tray, uma fila central — tem prioridade sobre manter múltiplos transportes específicos por plataforma.
+
+A quantidade padrão central de vias vale para Entrega/Retirada, enquanto o job automático inicial de mesa/consumo local usa sempre 1 via para atender apenas à necessidade da cozinha. Reimpressões continuam podendo escolher 1 ou 2 vias explicitamente.
 
 RawBT e Web Serial serão removidos somente depois da nova arquitetura estar implementada e fisicamente homologada em staging, evitando uma janela em que o estabelecimento fique sem impressão funcional.
