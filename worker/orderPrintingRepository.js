@@ -369,6 +369,30 @@ export const prioritizePrintJob = async (db, businessId, jobId) => {
   throw repositoryError(409, 'PRINT_JOB_PRIORITIZE_NOT_ALLOWED', 'Este trabalho de impressão não pode ser priorizado neste estado.')
 }
 
+export const reprintPrintJob = async (db, businessId, jobId, copies, now = new Date()) => {
+  const requestedCopies = assertCopies(copies)
+  const at = timestamp(now)
+  const id = crypto.randomUUID()
+  const row = await db.prepare(`INSERT INTO print_jobs (
+      id, business_id, order_id, type, trigger, status, priority, parent_job_id,
+      copies_requested, copies_printed, station_id, snapshot_json, created_at, available_at,
+      processing_started_at, processed_at, discarded_at, attention_reason,
+      action_actor_label, action_at, last_error_code, last_error_message
+    )
+    SELECT ?, business_id, order_id, 'order', 'manual', 'pending', 0, id,
+      ?, 0, NULL, snapshot_json, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    FROM print_jobs
+    WHERE id = ? AND business_id = ? AND type = 'order'
+      AND status = 'printed' AND copies_printed >= copies_requested
+    RETURNING *`)
+    .bind(id, requestedCopies, at, at, jobId, businessId).first()
+  if (row) return mapJobRow(row)
+
+  const existing = await loadPrintJob(db, businessId, jobId)
+  if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+  throw repositoryError(409, 'PRINT_JOB_REPRINT_NOT_ALLOWED', 'Este trabalho de impressão ainda não pode ser reimpresso.')
+}
+
 export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => {
   const row = await db.prepare(`UPDATE print_jobs SET
       status = CASE
