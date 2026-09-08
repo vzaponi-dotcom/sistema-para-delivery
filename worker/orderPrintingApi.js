@@ -13,6 +13,7 @@ import {
   setPrimaryPrintStation,
   upsertPrintStation,
 } from './orderPrintingRepository.js'
+import { getConfiguredQzCertificate, signQzPayload } from './qzSigning.js'
 
 const requiredText = (value, field, message = `${field} é obrigatório.`) => {
   const text = String(value ?? '').trim()
@@ -37,6 +38,26 @@ const stationIdFromBody = (body) => requiredText(body.stationId, 'stationId', 'I
 
 export const handlePrintingApi = async (request, env, session, url) => {
   const businessId = session.businessId
+
+  if (url.pathname === '/api/printing/qz/certificate' && request.method === 'GET') {
+    return new Response(getConfiguredQzCertificate(env), {
+      headers: {
+        'content-type': 'text/plain; charset=UTF-8',
+        'cache-control': 'no-store',
+      },
+    })
+  }
+
+  if (url.pathname === '/api/printing/qz/sign' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const { toSign } = await readJson(request)
+    return new Response(await signQzPayload(env, toSign), {
+      headers: {
+        'content-type': 'text/plain; charset=UTF-8',
+        'cache-control': 'no-store',
+      },
+    })
+  }
 
   if (url.pathname === '/api/printing/stations' && request.method === 'GET') {
     return json({ stations: await listPrintStations(env.DB, businessId) })
