@@ -26,6 +26,7 @@ import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
+import PrintQueue from './pages/PrintQueue'
 import Tables from './pages/Tables'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
@@ -565,11 +566,12 @@ function App() {
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
       <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} />}
         {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tables={tables} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
+        {activeTab === 'print-queue' && <PrintQueue />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}

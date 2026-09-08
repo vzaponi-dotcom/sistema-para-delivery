@@ -14,7 +14,7 @@ import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
 
 const orderNumber = (id) => String(id).slice(-4)
 
-function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
+function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, onNavigatePrintQueue, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -69,7 +69,8 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
               <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
               <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
-            <Button type="button" variant="secondary" onClick={() => setShowPrintingSettings(true)}>Impressão</Button>
+            <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Impressão</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowPrintingSettings(true)}>Configurações</Button>
             <Button type="button" variant="secondary" onClick={navigateHistory}>Histórico</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>

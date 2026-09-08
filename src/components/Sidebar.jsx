@@ -8,6 +8,7 @@ const navigation = [
   { id: 'history', label: 'Histórico', icon: 'receipt' },
   { id: 'clients', label: 'Clientes', icon: 'clients' },
   { id: 'products', label: 'Produtos', icon: 'products' },
+  { id: 'print-queue', label: 'Fila de impressão', icon: 'printer' },
   { id: 'receivables', label: 'A Receber', icon: 'wallet' },
   { id: 'finance', label: 'Financeiro', icon: 'finance' },
   { id: 'tables', label: 'Mesas', icon: 'table' },
