@@ -30,12 +30,13 @@ test('table tab detail keeps promise editing out of the aggregate branch and rem
   assert.doesNotMatch(styles, /\.table-tab-payment-action-button/)
 })
 
-test('table tab detail lists every order with its items, notes, order total, and one aggregate payment action', () => {
+test('table tab detail lists every order with readable item hierarchy, notes, subtotal, and one aggregate payment action', () => {
   assert.match(detail, /entry\.orders\.map\(\(order\) =>/)
-  assert.match(detail, /Pedido #\{String\(order\.id \|\| ''\)\.slice\(-4\)\}/)
+  assert.match(detail, /receivable-table-tab-order-heading[\s\S]*?<span>Pedido<\/span>[\s\S]*?#\{String\(order\.id \|\| ''\)\.slice\(-4\)\}/)
   assert.match(detail, /getOrderItems\(order\)\.map\(\(item\) =>/)
-  assert.match(detail, /\{item\.quantity\}x \{getOrderItemDisplayName\(item\)\}/)
+  assert.match(detail, /receivable-table-tab-item-quantity">\{item\.quantity\}x/)
+  assert.match(detail, /receivable-table-tab-item-content[\s\S]*getOrderItemDisplayName\(item\)/)
   assert.match(detail, /item\.note && <span>↳ \{item\.note\}<\/span>/)
-  assert.match(detail, /currency\(order\.total \?\? order\.subtotal \?\? 0\)/)
+  assert.match(detail, /receivable-table-tab-order-subtotal[\s\S]*currency\(order\.total \?\? order\.subtotal \?\? 0\)/)
   assert.equal((detail.match(/Registrar pagamento da comanda/g) || []).length, 1)
 })

@@ -363,3 +363,42 @@
     transition: none !important;
   }
 }
+
+/* Issue #14: clearer hierarchy for open table tabs without changing payment behavior. */
+.receivable-table-tab-heading { align-items: stretch; }
+.receivable-table-tab-total {
+  min-width: 150px;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--primary-border, var(--border));
+  border-radius: 12px;
+  background: var(--primary-soft);
+  text-align: right;
+}
+.receivable-table-tab-total span { color: var(--text-soft); font-size: .7rem; font-weight: 700; }
+.receivable-table-tab-total strong { color: var(--primary); font-size: 1.12rem; white-space: nowrap; }
+.receivable-table-tab-order { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.receivable-table-tab-order-heading { align-items: flex-start; padding-bottom: 9px; border-bottom: 1px solid var(--border); }
+.receivable-table-tab-order-heading > div:first-child, .receivable-table-tab-order-subtotal { display: grid; gap: 2px; }
+.receivable-table-tab-order-heading span, .receivable-table-tab-order-subtotal span { color: var(--muted); font-size: .7rem; font-weight: 700; }
+.receivable-table-tab-order-subtotal { text-align: right; }
+.receivable-table-tab-order-subtotal strong { white-space: nowrap; font-size: .9rem; }
+.receivable-table-tab-items { gap: 0; }
+.receivable-table-tab-item { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--border); color: var(--text); font-size: .82rem; }
+.receivable-table-tab-item:first-child { padding-top: 0; border-top: 0; }
+.receivable-table-tab-item:last-child { padding-bottom: 0; }
+.receivable-table-tab-item-quantity { min-width: 34px; min-height: 28px; display: inline-grid; place-items: center; padding: 0 7px; border-radius: 9px; background: var(--primary-soft); color: var(--primary); font-size: .74rem; font-weight: 850; }
+.receivable-table-tab-item-content { min-width: 0; display: grid; gap: 3px; }
+.receivable-table-tab-item-content strong { color: var(--text); overflow-wrap: anywhere; }
+.receivable-table-tab-item-content span { color: var(--muted); font-size: .76rem; line-height: 1.4; overflow-wrap: anywhere; }
+.receivable-table-tab-payment-footer { display: grid; gap: 10px; padding-top: 2px; }
+.receivable-table-tab-payment-footer > span { color: var(--text-soft); font-size: .8rem; line-height: 1.4; }
+
+@media (max-width: 640px) {
+  .receivable-table-tab-heading { align-items: stretch; flex-direction: column; }
+  .receivable-table-tab-total { width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; box-sizing: border-box; text-align: left; }
+  .receivable-table-tab-order-heading { align-items: flex-start; }
+  .receivable-table-tab-order { padding: 11px; }
+  .receivable-table-tab-payment-footer .button { width: 100%; min-height: 44px; }
+}
