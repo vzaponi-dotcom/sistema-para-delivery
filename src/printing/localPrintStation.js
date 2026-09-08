@@ -1,5 +1,6 @@
 const STATION_ID_KEY = 'delivery-print-station-id'
 const fingerprintKey = (stationId) => `delivery-printer-fingerprint:${stationId}`
+const qzPrinterKey = (stationId) => `delivery-qz-printer-name:${stationId}`
 
 const fingerprintFromInfo = (info = {}) => {
   const fingerprint = {}
@@ -58,6 +59,25 @@ export const savePrinterFingerprint = (storage = globalThis.localStorage, statio
 
 export const clearPrinterFingerprint = (storage = globalThis.localStorage, stationId) => {
   storage?.removeItem?.(fingerprintKey(stationId))
+}
+
+export const getQzPrinterName = (storage = globalThis.localStorage, stationId) => {
+  const value = String(storage?.getItem?.(qzPrinterKey(stationId)) ?? '').trim()
+  return value || null
+}
+
+export const saveQzPrinterName = (storage = globalThis.localStorage, stationId, printerName) => {
+  const value = String(printerName ?? '').trim()
+  if (!value) {
+    storage?.removeItem?.(qzPrinterKey(stationId))
+    return ''
+  }
+  storage?.setItem?.(qzPrinterKey(stationId), value)
+  return value
+}
+
+export const clearQzPrinterName = (storage = globalThis.localStorage, stationId) => {
+  storage?.removeItem?.(qzPrinterKey(stationId))
 }
 
 export const findAuthorizedPrinterPort = async (serial = globalThis.navigator?.serial, storage = globalThis.localStorage, stationId) => {
