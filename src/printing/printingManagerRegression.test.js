@@ -44,33 +44,67 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.doesNotMatch(detectionEffect, /\bprinting\./)
 })
 
-test('Android selects RawBT while Windows and other platforms keep Web Serial', () => {
+test('Android uses RawBT, Windows uses QZ, and other platforms keep Web Serial fallback', () => {
   assert.equal(getPrintingTransportKind('android'), 'rawbt')
-  assert.equal(getPrintingTransportKind('windows'), 'web-serial')
+  assert.equal(getPrintingTransportKind('windows'), 'qz')
   assert.equal(getPrintingTransportKind('other'), 'web-serial')
 
   assert.equal(isPrintingTransportSupported('android', undefined), true)
-  assert.equal(isPrintingTransportSupported('windows', undefined), false)
-  assert.equal(isPrintingTransportSupported('windows', { requestPort() {}, getPorts() {} }), true)
+  assert.equal(isPrintingTransportSupported('windows', undefined), true)
+  assert.equal(isPrintingTransportSupported('other', undefined), false)
+  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
 
   assert.match(manager, /transportKind === 'rawbt'/)
   assert.match(manager, /dispatchRawBtBytes\(bytes\)/)
 })
 
-test('Android RawBT enables MPT-II bitmap rendering while Web Serial keeps native text rendering', () => {
+test('QZ and RawBT use MPT-II bitmap rendering while Web Serial keeps native text rendering', () => {
   const start = manager.indexOf('const executeClaimedJob = useCallback')
   assert.notEqual(start, -1)
   const end = manager.indexOf('const saveStationSettings', start)
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
-  assert.match(
-    block,
-    /renderer:\s*\(document,\s*options\)\s*=>\s*renderEscPos58mm\(document,\s*\{[\s\S]*\.\.\.options,[\s\S]*compatibilityMode:\s*isRawBt\s*\?\s*'mpt2-bitmap'\s*:\s*null[\s\S]*\}\)/,
-  )
+  assert.match(block, /compatibilityMode:\s*getRendererCompatibilityMode\(transportKind\)/)
+  assert.match(block, /printQzRawBytes\(qz, configuredPrinterNameRef\.current, bytes\)/)
+  assert.match(block, /dispatchRawBtBytes\(bytes\)/)
+  assert.match(block, /writeSerialBytes\(selectedPort, bytes, MTP5_PROFILE\.serial\)/)
 })
 
-test('automatic claim guard blocks duplicate or unsafe consumption states', () => {
+test('Windows QZ lifecycle configures signed security and exposes explicit local queue setup', () => {
+  assert.match(manager, /import qz from 'qz-tray'/)
+  assert.match(manager, /getQzCertificate/)
+  assert.match(manager, /signQzPayload/)
+  for (const qzName of [
+    'configureQzSecurity',
+    'ensureQzConnected',
+    'listQzPrinters',
+    'resolveQzPrinter',
+    'printQzRawBytes',
+  ]) assert.match(manager, new RegExp(`\\b${qzName}\\b`))
+  assert.match(manager, /getQzPrinterName/)
+  assert.match(manager, /saveQzPrinterName/)
+
+  assert.match(manager, /const \[availablePrinters, setAvailablePrinters\] = useState\(\[\]\)/)
+  assert.match(manager, /const \[configuredPrinterName, setConfiguredPrinterName\] = useState\(null\)/)
+  assert.match(manager, /const \[transportReady, setTransportReady\] = useState\(/)
+  assert.match(manager, /const refreshPrinters = useCallback\(async \(\) =>/)
+  assert.match(manager, /const selectPrinter = useCallback\(async \(printerName\) =>/)
+  assert.match(manager, /configureQzSecurity\(\{[\s\S]*qzApi:\s*qz,[\s\S]*getCertificate:\s*getQzCertificate,[\s\S]*signPayload:\s*signQzPayload/)
+  assert.match(manager, /ensureQzConnected\(qz\)/)
+  assert.match(manager, /resolveQzPrinter\(qz, savedPrinterName\)/)
+  assert.match(manager, /saveQzPrinterName\(globalThis\.localStorage, stationId, selectedPrinter\)/)
+
+  const explicitPortStart = manager.indexOf('const getExplicitPort = useCallback')
+  assert.notEqual(explicitPortStart, -1)
+  const explicitPortEnd = manager.indexOf('const executeClaimedJob = useCallback', explicitPortStart)
+  assert.notEqual(explicitPortEnd, -1)
+  const explicitPort = manager.slice(explicitPortStart, explicitPortEnd)
+  assert.match(explicitPort, /transportKind === 'qz'/)
+  assert.match(explicitPort, /transportReadyRef\.current/)
+})
+
+test('automatic claim guard blocks duplicate, unready, or unsafe consumption states', () => {
   const base = {
     authenticated: true,
     isOnline: true,
@@ -79,6 +113,7 @@ test('automatic claim guard blocks duplicate or unsafe consumption states', () =
     browserOnline: true,
     busyJobId: null,
     printerBlocked: false,
+    transportReady: true,
     station: { isPrimary: true, autoPrintEnabled: true },
   }
   assert.equal(canConsumeAutomaticPrintJob(base), true)
@@ -90,12 +125,13 @@ test('automatic claim guard blocks duplicate or unsafe consumption states', () =
     { browserOnline: false },
     { busyJobId: 'job-running' },
     { printerBlocked: true },
+    { transportReady: false },
     { station: null },
     { station: { isPrimary: false, autoPrintEnabled: true } },
     { station: { isPrimary: true, autoPrintEnabled: false } },
   ]) assert.equal(canConsumeAutomaticPrintJob({ ...base, ...override }), false)
 
-  assert.match(manager, /canConsumeAutomaticPrintJob\(\{/)
+  assert.match(manager, /canConsumeAutomaticPrintJob\(\{[\s\S]*transportReady:\s*transportReadyRef\.current/)
   assert.match(manager, /updateBlocked\(false\)/)
 })
 

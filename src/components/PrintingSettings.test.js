@@ -30,11 +30,16 @@ test('printing settings expose honest connection, station and transport states',
 
 test('Android RawBT hides Web Serial connection chooser but preserves test and station controls', () => {
   assert.match(settings, /printing\?\.transportKind === 'rawbt'/)
-  assert.match(settings, /!isRawBt && \(/)
+  assert.match(settings, /!isRawBt && !isQz && \(/)
   assert.match(settings, /Conectar impressora/)
   assert.match(settings, /Trocar impressora/)
   assert.match(settings, /Testar impressão/)
   assert.match(settings, /Configure a MPT-II no RawBT/)
+})
+
+test('QZ printer discovery adapts queue names to SystemSelect option objects', () => {
+  assert.match(settings, /qzPrinterOptions\s*=\s*qzPrinters\.map\(\(printerName\)\s*=>\s*\(\{\s*value:\s*printerName,\s*label:\s*printerName,?\s*\}\)\)/s)
+  assert.match(settings, /options=\{qzPrinterOptions\}/)
 })
 
 test('settings actions use the printing manager and persist only one or two copies', () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Button from './Button'
 import ConfirmationDialog from './ConfirmationDialog'
 import Modal from './Modal'
+import SystemSelect from './SystemSelect'
 import '../printing/printing.css'
 
 const CONNECTION_LABELS = {
@@ -13,6 +14,14 @@ const CONNECTION_LABELS = {
   'driver-ready': 'RawBT pronto',
 }
 
+const QZ_CONNECTION_LABELS = {
+  connected: 'QZ Tray conectado',
+  disconnected: 'QZ Tray desconectado',
+  unconfigured: 'Impressora QZ não configurada',
+  unsupported: 'QZ Tray indisponível',
+  connecting: 'Conectando ao QZ Tray…',
+}
+
 const PLATFORM_LABELS = {
   windows: 'Windows',
   android: 'Android',
@@ -22,16 +31,23 @@ const PLATFORM_LABELS = {
 function PrintingSettings({ printing, onClose }) {
   const station = printing?.localStation || null
   const isRawBt = printing?.transportKind === 'rawbt'
+  const isQz = printing?.transportKind === 'qz'
   const [defaultCopies, setDefaultCopies] = useState(2)
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [confirmPrimary, setConfirmPrimary] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [qzConfiguring, setQzConfiguring] = useState(false)
+  const [qzPrinterSelection, setQzPrinterSelection] = useState('')
 
   useEffect(() => {
     setDefaultCopies(station?.defaultCopies === 1 ? 1 : 2)
     setAutoPrintEnabled(Boolean(station?.autoPrintEnabled))
   }, [station?.id, station?.defaultCopies, station?.autoPrintEnabled])
+
+  useEffect(() => {
+    setQzPrinterSelection(printing?.configuredPrinterName || '')
+  }, [printing?.configuredPrinterName])
 
   const run = async (key, action, successMessage = '') => {
     if (pendingAction) return false
@@ -51,6 +67,28 @@ function PrintingSettings({ printing, onClose }) {
 
   const connectPrinter = () => run('connect', () => printing.connectPrinter(), 'Impressora conectada e autorizada neste dispositivo.')
   const testPrint = () => run('test', () => printing.testPrint(), isRawBt ? 'Teste enviado ao RawBT.' : 'Teste enviado para a impressora.')
+
+  const openQzConfiguration = async () => {
+    setQzConfiguring(true)
+    setQzPrinterSelection(printing?.configuredPrinterName || '')
+    await run('qz-discover', () => printing.refreshPrinters())
+  }
+
+  const refreshQzPrinters = () => run('qz-discover', () => printing.refreshPrinters())
+
+  const saveQzPrinter = async () => {
+    const printerName = String(qzPrinterSelection || '').trim()
+    if (!printerName) {
+      setFeedback('Selecione uma impressora antes de salvar.')
+      return
+    }
+    const saved = await run(
+      'qz-select',
+      () => printing.selectPrinter(printerName),
+      `Impressora ${printerName} configurada nesta estação.`,
+    )
+    if (saved) setQzConfiguring(false)
+  }
 
   const saveStationSettings = async (next = {}) => {
     const nextCopies = next.defaultCopies ?? defaultCopies
@@ -84,9 +122,11 @@ function PrintingSettings({ printing, onClose }) {
   }
 
   const printerState = printing?.supported === false ? 'unsupported' : (printing?.printerState || 'unconfigured')
-  const connectionLabel = CONNECTION_LABELS[printerState] || 'Desconectada'
+  const connectionLabel = (isQz ? QZ_CONNECTION_LABELS : CONNECTION_LABELS)[printerState] || 'Desconectada'
   const configured = !['unconfigured', 'unsupported'].includes(printerState)
   const disabled = Boolean(pendingAction) || !station
+  const qzPrinters = Array.isArray(printing?.availablePrinters) ? printing.availablePrinters : []
+  const qzPrinterOptions = qzPrinters.map((printerName) => ({ value: printerName, label: printerName }))
 
   return (
     <>
@@ -109,18 +149,77 @@ function PrintingSettings({ printing, onClose }) {
           <div className="printing-info-grid">
             <div className="printing-info-card"><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
             <div className="printing-info-card"><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
-            <div className="printing-info-card"><span>Driver</span><strong>{isRawBt ? 'RawBT' : 'Web Serial'}</strong></div>
+            <div className="printing-info-card"><span>Driver</span><strong>{isRawBt ? 'RawBT' : (isQz ? 'QZ Tray' : 'Web Serial')}</strong></div>
             <div className="printing-info-card"><span>Estação principal</span><strong>{station?.isPrimary ? 'Sim' : 'Não'}</strong></div>
             <div className="printing-info-card"><span>Impressão automática</span><strong>{autoPrintEnabled ? 'Ligada' : 'Desligada'}</strong></div>
           </div>
 
+          {isQz && (
+            <div className="printing-settings-section">
+              <div className="printing-settings-heading">
+                <div>
+                  <h3>Impressora do Windows</h3>
+                  <p>O QZ Tray deve permanecer aberto no Windows para impressão automática.</p>
+                </div>
+                <span className={`printing-state printing-state-${printing?.transportReady ? 'connected' : 'unconfigured'}`}>
+                  {printing?.transportReady ? 'Pronta' : 'Configuração necessária'}
+                </span>
+              </div>
+
+              <div className="printing-inline-card">
+                <strong>{printing?.configuredPrinterName || 'Nenhuma fila configurada'}</strong>
+                <span>Fila local esperada: MPT-II. A escolha fica salva somente nesta estação.</span>
+              </div>
+
+              {qzConfiguring ? (
+                <div className="form-stack">
+                  <SystemSelect
+                    value={qzPrinterSelection}
+                    onChange={setQzPrinterSelection}
+                    options={qzPrinterOptions}
+                    placeholder={pendingAction === 'qz-discover' ? 'Buscando impressoras…' : 'Selecione a impressora'}
+                    ariaLabel="Impressora QZ"
+                    disabled={disabled || pendingAction === 'qz-discover'}
+                  />
+                  {pendingAction !== 'qz-discover' && qzPrinters.length === 0 && (
+                    <p className="printing-feedback">Nenhuma fila foi encontrada. Confirme que o QZ Tray está aberto e atualize a lista.</p>
+                  )}
+                  <div className="printing-actions-row">
+                    <Button type="button" variant="secondary" onClick={refreshQzPrinters} disabled={disabled}>
+                      Atualizar lista
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => setQzConfiguring(false)} disabled={disabled}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" onClick={saveQzPrinter} disabled={disabled || !qzPrinterSelection}>
+                      Salvar impressora
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="printing-actions-row">
+                  <Button type="button" variant="secondary" onClick={openQzConfiguration} disabled={disabled || printing?.supported === false}>
+                    {printing?.configuredPrinterName ? 'Trocar impressora' : 'Configurar impressora'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="printing-actions-row">
-            {!isRawBt && (
+            {!isRawBt && !isQz && (
               <Button type="button" variant="secondary" onClick={connectPrinter} disabled={disabled || printing?.supported === false}>
                 {configured ? 'Trocar impressora' : 'Conectar impressora'}
               </Button>
             )}
-            <Button type="button" variant="secondary" onClick={testPrint} disabled={disabled || printing?.supported === false}>Testar impressão</Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={testPrint}
+              disabled={disabled || printing?.supported === false || (isQz && !printing?.transportReady)}
+            >
+              Testar impressão
+            </Button>
           </div>
 
           <label className="printing-toggle-row">
@@ -143,8 +242,9 @@ function PrintingSettings({ printing, onClose }) {
 
           <div className="printing-compatibility">
             <strong>Compatibilidade</strong>
-            <span>Windows + Chrome com Web Serial disponível.</span>
+            <span>Windows usa o QZ Tray para enviar o mesmo ticket ESC/POS diretamente à fila configurada.</span>
             <span>Android usa o RawBT para enviar o mesmo ticket ESC/POS à impressora.</span>
+            <span>Outras plataformas compatíveis continuam usando Web Serial como fallback.</span>
             {isRawBt && <span>Configure a MPT-II no RawBT antes de testar a impressão.</span>}
           </div>
 
