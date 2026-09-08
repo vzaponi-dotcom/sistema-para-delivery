@@ -9,7 +9,7 @@ const baseJob = {
   copiesPrinted: 0,
 }
 
-test('successful first pass of a two-copy job renders and completes only copy 1/2', async () => {
+test('successful first pass of a two-copy job waits explicitly for copy 2/2', async () => {
   const calls = { renderer: 0, transport: 0, complete: 0, fail: 0 }
   const bytes = new Uint8Array([1, 2, 3])
   const renderer = (document, options) => {
@@ -41,7 +41,7 @@ test('successful first pass of a two-copy job renders and completes only copy 1/
     transport,
   })
 
-  assert.deepEqual(result, { status: 'printed' })
+  assert.deepEqual(result, { status: 'waiting_second_copy' })
   assert.deepEqual(calls, { renderer: 1, transport: 1, complete: 1, fail: 0 })
 })
 
@@ -70,11 +70,11 @@ test('second pass resumes a two-copy job at copy 2/2 without reprinting the firs
   assert.deepEqual(completePayload, { jobId: 'job-1', stationId: 'station-1', copiesPrinted: 2 })
 })
 
-test('one-copy job keeps a single physical pass labeled 1/1', async () => {
+test('one-copy job keeps a single physical pass labeled 1/1 and completes immediately', async () => {
   const job = { ...baseJob, copiesRequested: 1, copiesPrinted: 0 }
   let completedCopies = null
 
-  await runClaimedPrintJob({
+  const result = await runClaimedPrintJob({
     job,
     stationId: 'station-1',
     port: 'port-1',
@@ -87,6 +87,7 @@ test('one-copy job keeps a single physical pass labeled 1/1', async () => {
     transport: async () => {},
   })
 
+  assert.deepEqual(result, { status: 'printed' })
   assert.equal(completedCopies, 1)
 })
 

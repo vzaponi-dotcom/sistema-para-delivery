@@ -38,6 +38,26 @@ test('manual print request only enqueues and never opens or executes local trans
   assert.doesNotMatch(block, /executeClaimedJob\(/)
 })
 
+test('waiting_second_copy is a successful physical pass and does not mark the QZ transport disconnected', () => {
+  const start = manager.indexOf('const executeClaimedJob = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('const saveStationSettings = useCallback', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(block, /\['printed', 'waiting_second_copy'\]\.includes\(result\.status\)/)
+})
+
+test('explicit second-copy execution only accepts the dedicated waiting state', () => {
+  const start = manager.indexOf('const printSecondCopy = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('const retryJob = useCallback', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(block, /job\.status !== 'waiting_second_copy'/)
+})
+
 test('QZ transport failure is surfaced as requires_attention to the caller', async () => {
   const error = Object.assign(new Error('QZ recusou o envio.'), { code: 'QZ_PRINT_FAILED' })
   let failPayload = null
