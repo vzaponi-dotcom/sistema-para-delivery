@@ -77,7 +77,7 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
               </div>
 
               {occupied ? (
-                <div className="table-occupied-actions"><p className="table-occupied-note">Comanda em andamento</p><Button type="button" className="table-transfer-primary" onClick={() => setTransferSource(table)} disabled={disabled}>Transferir comanda</Button></div>
+                <div className="table-occupied-actions"><p className="table-occupied-note">Feche ou transfira a comanda antes de renomear/desativar.</p><Button type="button" className="table-transfer-primary" onClick={() => setTransferSource(table)} disabled={disabled}>Transferir comanda</Button></div>
               ) : (
                 <div className="table-management-actions">
                   <Button type="button" variant="secondary" icon="edit" onClick={() => beginRename(table)} disabled={disabled}>Renomear</Button>
