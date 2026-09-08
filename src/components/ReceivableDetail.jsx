@@ -31,12 +31,15 @@ function ReceivableDetail({
   if (entry.kind === 'table_tab') {
     return (
       <div className="receivable-detail">
-        <div className="receivable-detail-heading">
+        <div className="receivable-detail-heading receivable-table-tab-heading">
           <div>
             <span>Comanda</span>
             <strong>{entry.label}</strong>
           </div>
-          <strong className="receivable-detail-total">{currency(entry.total)}</strong>
+          <div className="receivable-table-tab-total">
+            <span>Total da comanda</span>
+            <strong>{currency(entry.total)}</strong>
+          </div>
         </div>
         <div className="receivable-detail-status">
           <span>Prazo</span>
@@ -50,14 +53,15 @@ function ReceivableDetail({
           {entry.orders.map((order) => (
             <section className="receivable-table-tab-order" key={order.id}>
               <div className="receivable-table-tab-order-heading">
-                <strong>Pedido #{String(order.id || '').slice(-4)}</strong>
-                <strong>{currency(order.total ?? order.subtotal ?? 0)}</strong>
+                <div><span>Pedido</span><strong>#{String(order.id || '').slice(-4)}</strong></div>
+                <div className="receivable-table-tab-order-subtotal"><span>Subtotal</span><strong>{currency(order.total ?? order.subtotal ?? 0)}</strong></div>
               </div>
               <div className="receivable-table-tab-items">
                 {getOrderItems(order).map((item) => (
                   <div className="receivable-table-tab-item" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
-                    <div>
-                      <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
+                    <span className="receivable-table-tab-item-quantity">{item.quantity}x</span>
+                    <div className="receivable-table-tab-item-content">
+                      <strong>{getOrderItemDisplayName(item)}</strong>
                       {item.note && <span>↳ {item.note}</span>}
                     </div>
                   </div>
@@ -67,10 +71,13 @@ function ReceivableDetail({
           ))}
         </div>
         <p className="receivable-detail-note">A comanda é recebida de forma integral. A data prometida não é editada por aqui nesta versão.</p>
-        <div className="receivable-detail-actions">
-          <Button type="button" onClick={() => onRegisterTableTabPayment?.(entry)} disabled={disabled || !onRegisterTableTabPayment}>
-            Registrar pagamento da comanda
-          </Button>
+        <div className="receivable-table-tab-payment-footer">
+          <span>Confira os pedidos antes de receber a comanda.</span>
+          <div className="receivable-detail-actions">
+            <Button type="button" onClick={() => onRegisterTableTabPayment?.(entry)} disabled={disabled || !onRegisterTableTabPayment}>
+              Registrar pagamento da comanda
+            </Button>
+          </div>
         </div>
       </div>
     )
