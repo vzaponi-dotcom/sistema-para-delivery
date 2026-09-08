@@ -83,6 +83,8 @@ export const canConsumeAutomaticPrintJob = ({
   busyJobId,
   printerBlocked,
   transportReady,
+  isQz = true,
+  allowManual = false,
   station,
 }) => Boolean(
   authenticated
@@ -93,8 +95,9 @@ export const canConsumeAutomaticPrintJob = ({
   && !busyJobId
   && !printerBlocked
   && transportReady
+  && isQz
   && station?.isPrimary
-  && station?.autoPrintEnabled
+  && (allowManual || station?.autoPrintEnabled)
 )
 
 export const canSendPrintStationHeartbeat = ({
@@ -468,13 +471,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   }, [executeClaimedJob, getExplicitPort])
 
   const printOrder = useCallback(async (orderId, copies = localStationRef.current?.defaultCopies || 2) => {
-    const station = localStationRef.current
-    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const port = await getExplicitPort()
     const created = await createManualPrintJob(orderId, copies)
-    const claimed = await claimPrintJob(created.job.id, station.id)
-    return executeClaimedJob(claimed.job, port)
-  }, [executeClaimedJob, getExplicitPort])
+    try { await refresh() } catch (error) { reportError(error) }
+    return created
+  }, [refresh, reportError])
 
   const printSecondCopy = useCallback(async (job) => {
     const station = localStationRef.current
@@ -637,6 +637,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         busyJobId: busyJobIdRef.current,
         printerBlocked: printerBlockedRef.current,
         transportReady: transportReadyRef.current,
+        isQz,
+        allowManual: true,
         station,
       })) return
 
@@ -691,7 +693,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     }
     const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
     return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [authenticated, executeClaimedJob, isOnline, refresh, reportError, supported, transportKind, updateBlocked, updateTransportReady])
+  }, [authenticated, executeClaimedJob, isOnline, isQz, refresh, reportError, supported, transportKind, updateBlocked, updateTransportReady])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()
