@@ -52,10 +52,10 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
     <div className="tables-page">
       <PageHeader title="Mesas" description="Organize as mesas e transfira comandas abertas com segurança." />
 
-      <section className="surface-card table-create-card">
+      <section className="surface-card table-create-card table-create-card-compact">
         <form className="table-create-form" onSubmit={createTable}>
           <label className="form-field"><span>Nova mesa</span><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Ex: Varanda 1" maxLength="60" disabled={disabled} /></label>
-          <Button type="submit" icon="plus" disabled={disabled || !newName.trim()}>Nova mesa</Button>
+          <Button type="submit" icon="plus" disabled={disabled || !newName.trim()}>Adicionar</Button>
         </form>
       </section>
 
@@ -64,7 +64,7 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
           const occupied = table.occupancy === 'occupied'
           const editing = editingTableId === table.id
           return (
-            <article className={table.isActive ? 'table-management-card' : 'table-management-card inactive'} key={table.id}>
+            <article className={`table-management-card${occupied ? ' occupied' : ''}${table.isActive ? '' : ' inactive'}`} key={table.id}>
               <div className="table-management-summary">
                 {editing ? (
                   <form className="table-rename-form" onSubmit={(event) => saveRename(event, table)}>
@@ -77,15 +77,15 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
               </div>
 
               {occupied ? (
-                <div className="table-occupied-actions"><p>Feche ou transfira a comanda antes de renomear/desativar.</p><Button type="button" variant="secondary" onClick={() => setTransferSource(table)} disabled={disabled}>Transferir comanda</Button></div>
+                <div className="table-occupied-actions"><p className="table-occupied-note">Comanda em andamento</p><Button type="button" className="table-transfer-primary" onClick={() => setTransferSource(table)} disabled={disabled}>Transferir comanda</Button></div>
               ) : (
                 <div className="table-management-actions">
-                  <Button type="button" variant="secondary" icon="edit" onClick={() => beginRename(table)} disabled={disabled}>Renomear mesa</Button>
-                  <div className="table-order-actions">
+                  <Button type="button" variant="secondary" icon="edit" onClick={() => beginRename(table)} disabled={disabled}>Renomear</Button>
+                  <div className="table-order-actions" aria-label={`Ordenar ${table.name}`}>
                     <button type="button" className="icon-button" aria-label={`Mover ${table.name} para cima`} onClick={() => void moveTable(index, -1)} disabled={disabled || index === 0}><Icon name="arrow-up" size={18} /></button>
                     <button type="button" className="icon-button" aria-label={`Mover ${table.name} para baixo`} onClick={() => void moveTable(index, 1)} disabled={disabled || index === orderedTables.length - 1}><Icon name="arrow-down" size={18} /></button>
                   </div>
-                  {table.isActive ? <Button type="button" variant="danger" onClick={() => setDeactivatingTable(table)} disabled={disabled}>Desativar mesa</Button> : <Button type="button" onClick={() => void onSetActive(table.id, true)} disabled={disabled}>Reativar mesa</Button>}
+                  {table.isActive ? <Button type="button" className="table-deactivate-action" variant="secondary" onClick={() => setDeactivatingTable(table)} disabled={disabled}>Desativar</Button> : <Button type="button" onClick={() => void onSetActive(table.id, true)} disabled={disabled}>Reativar</Button>}
                 </div>
               )}
             </article>
