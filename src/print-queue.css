@@ -1,0 +1,26 @@
+.print-queue-page { min-width: 0; }
+
+.print-queue-station-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.print-queue-station-copy, .print-queue-station-health { display: grid; gap: 4px; min-width: 0; }
+.print-queue-station-copy span, .print-queue-station-health span { color: var(--text-soft); font-size: 0.82rem; }
+.print-queue-station-health { text-align: right; }
+.print-queue-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+
+@media (max-width: 640px) {
+  .print-queue-station-card { align-items: flex-start; flex-direction: column; }
+  .print-queue-station-health { text-align: left; }
+  .print-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

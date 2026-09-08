@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
+import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -32,4 +33,51 @@ test('mobile keeps five bottom tabs and exposes the print queue through Mais', a
   assert.doesNotMatch(mobileNavigation, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
   assert.match(mobileNavigation, /activeTab === 'print-queue'/)
   assert.match(mobileNavigation, /onClick=\{\(\) => navigate\('print-queue'\)\}/)
+})
+
+test('print queue summary counts only the four operational queue states', () => {
+  assert.deepEqual(buildPrintQueueSummary([
+    { status: 'pending' },
+    { queueState: 'waiting_station' },
+    { status: 'awaiting_second_copy' },
+    { status: 'requires_attention' },
+    { status: 'processing' },
+    { status: 'printed' },
+    { status: 'discarded' },
+  ], { stationReady: true }), {
+    queued: 1,
+    waitingStation: 1,
+    waitingSecondCopy: 1,
+    attention: 1,
+  })
+})
+
+test('print station summary reports available health without inventing an online state', () => {
+  assert.deepEqual(getPrintStationSummary({
+    health: { online: true, qzReady: true, printerReady: false },
+  }), {
+    onlineLabel: 'Online',
+    qzLabel: 'QZ disponível',
+    printerLabel: 'Impressora indisponível',
+  })
+  assert.deepEqual(getPrintStationSummary(null), {
+    onlineLabel: 'Status indisponível',
+    qzLabel: null,
+    printerLabel: null,
+  })
+})
+
+test('print queue renders station health and a responsive four-card summary', async () => {
+  const [app, page, styles] = await Promise.all([
+    readSource('../App.jsx'),
+    readSource('./PrintQueue.jsx'),
+    readSource('../print-queue.css'),
+  ])
+
+  for (const label of ['Cozinha PC', 'Na fila', 'Aguardando estação', 'Aguardando 2ª via', 'Requer atenção']) {
+    assert.match(page, new RegExp(label))
+  }
+  assert.match(app, /<PrintQueue printing=\{printing\}/)
+  assert.match(styles, /\.print-queue-summary[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
 })
