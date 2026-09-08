@@ -8,6 +8,7 @@ import {
   getOrCreateLocalPrintStationId,
   getPrinterFingerprint,
   getQzPrinterName,
+  isQzPrintStationEligible,
   savePrinterFingerprint,
   saveQzPrinterName,
 } from './localPrintStation.js'
@@ -44,6 +45,15 @@ test('station platform detection and default names are deterministic for Windows
   assert.equal(getDefaultPrintStationName('android'), 'Cozinha · Android')
   assert.equal(getDefaultPrintStationName('other'), 'Cozinha · Navegador')
   assert.equal(getDefaultPrintStationName('unexpected'), 'Cozinha · Navegador')
+})
+
+test('only Windows with an explicitly configured QZ printer is locally eligible for physical execution', () => {
+  assert.equal(typeof isQzPrintStationEligible, 'function')
+  assert.equal(isQzPrintStationEligible({ platform: 'windows', qzPrinterName: 'MPT-II' }), true)
+  assert.equal(isQzPrintStationEligible({ platform: 'windows', qzPrinterName: '  Impressora pedido  ' }), true)
+  assert.equal(isQzPrintStationEligible({ platform: 'windows', qzPrinterName: '' }), false)
+  assert.equal(isQzPrintStationEligible({ platform: 'android', qzPrinterName: 'MPT-II' }), false)
+  assert.equal(isQzPrintStationEligible({ platform: 'other', qzPrinterName: 'MPT-II' }), false)
 })
 
 test('printer fingerprint persists only serial metadata and resolves the matching authorized port', async () => {
