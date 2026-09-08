@@ -124,6 +124,7 @@ test('reprint API creates a linked pending manual job from the current official 
   await requestJson(env, cookie, '/api/printing/stations/kitchen', 'PUT', {
     name: 'Cozinha', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
   })
+  await requestJson(env, cookie, '/api/printing/stations/kitchen/make-primary', 'POST')
   const created = await requestJson(env, cookie, '/api/orders/o1/print-jobs', 'POST', { copies: 1 })
   assert.equal(created.status, 201)
   const original = (await created.json()).job
