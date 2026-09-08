@@ -5,6 +5,7 @@ import Button from '../components/Button'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../shared/printQueue.js'
+import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import {
   filterPrintQueueJobs,
   PRINT_QUEUE_ORIGIN_FILTERS,
@@ -35,8 +36,7 @@ const getOperationalOrderNumber = (order = {}) => {
 const getCustomerOrTable = (document) => {
   const customer = String(document?.customer?.name || '').trim()
   const table = String(document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier || '').trim()
-  if (table && customer && customer !== table && !customer.startsWith(`${table} ·`)) return `${table} · ${customer}`
-  return table || customer || null
+  return formatOrderCustomerIdentity({ tableIdentifier: table, customerName: customer })
 }
 
 const getPrintJobView = (job, stationReady) => {

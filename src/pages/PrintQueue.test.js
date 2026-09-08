@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText } from './printQueueFilters.js'
+import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -145,6 +146,22 @@ test('print queue preserves official table and customer identity with a neutral 
   assert.match(page, /tableIdentifier/)
   assert.match(page, /customerOrTable: getCustomerOrTable/)
   assert.match(page, /orderNumber \? `Pedido #\$\{job\.orderNumber\}` : 'Pedido'/)
+})
+
+test('print queue reuses the operational local identity for table and customer', () => {
+  assert.equal(formatOrderCustomerIdentity({ tableIdentifier: 'Mesa 3', customerName: 'Ana' }), 'Mesa 3 · Ana')
+})
+
+test('print queue keeps the table identity when no customer is present', () => {
+  assert.equal(formatOrderCustomerIdentity({ tableIdentifier: 'Mesa 3', customerName: '' }), 'Mesa 3')
+})
+
+test('print queue keeps the customer identity when no table is present', () => {
+  assert.equal(formatOrderCustomerIdentity({ tableIdentifier: '', customerName: 'Ana' }), 'Ana')
+})
+
+test('print queue uses the neutral fallback when table and customer are absent', () => {
+  assert.equal(formatOrderCustomerIdentity({ tableIdentifier: '', customerName: '' }), null)
 })
 
 const filterJobs = [

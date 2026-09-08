@@ -11,6 +11,13 @@ export const formatPrintMoneyCents = (cents) => new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 }).format(nonNegativeInteger(cents) / 100)
 
+export const formatOrderCustomerIdentity = ({ tableIdentifier, customerName } = {}) => {
+  const table = String(tableIdentifier || '').trim()
+  const customer = String(customerName || '').trim()
+  if (table && customer && customer !== table && !customer.startsWith(`${table} ·`)) return `${table} · ${customer}`
+  return table || customer || null
+}
+
 export const createOrderPrintDocument = (input = {}) => ({
   version: ORDER_PRINT_DOCUMENT_VERSION,
   type: 'order',
@@ -25,9 +32,10 @@ export const createOrderPrintDocument = (input = {}) => ({
     type: String(input.type ?? ''),
   },
   customer: {
-    name: input.customerIdentityType === 'table' && input.tableIdentifier
-      ? `${input.tableIdentifier}${input.hasOptionalClient && input.customer?.name ? ` · ${input.customer.name}` : ''}`
-      : String(input.customer?.name || ''),
+    name: formatOrderCustomerIdentity({
+      tableIdentifier: input.customerIdentityType === 'table' ? input.tableIdentifier : '',
+      customerName: input.customerIdentityType === 'table' && !input.hasOptionalClient ? '' : input.customer?.name,
+    }) || '',
     phone: String(input.customer?.phone || ''),
     address: String(input.customer?.address || ''),
   },
