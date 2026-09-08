@@ -6,6 +6,7 @@ import {
   createManualOrderPrintJob,
   createTestPrintJob,
   discardPrintJob,
+  heartbeatPrintStation,
   listPrintJobs,
   listPrintStations,
   loadBusinessPrintSettings,
@@ -84,6 +85,23 @@ export const handlePrintingApi = async (request, env, session, url) => {
 
   if (url.pathname === '/api/printing/stations' && request.method === 'GET') {
     return json({ stations: await listPrintStations(env.DB, businessId) })
+  }
+
+  const heartbeatMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)\/heartbeat$/)
+  if (heartbeatMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    const keys = Object.keys(body).sort()
+    if (keys.some((key) => !['printerReady', 'qzReady'].includes(key))) {
+      throw apiError(400, 'INVALID_PRINT_STATION_HEALTH', 'Informe somente qzReady e printerReady.')
+    }
+    const station = await heartbeatPrintStation(
+      env.DB,
+      businessId,
+      decodeURIComponent(heartbeatMatch[1]),
+      { qzReady: Boolean(body.qzReady), printerReady: Boolean(body.printerReady) },
+    )
+    return json({ station })
   }
 
   const stationMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)$/)
