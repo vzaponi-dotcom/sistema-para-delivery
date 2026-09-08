@@ -42,6 +42,7 @@ const icons = {
   note: <><path d="M5 3h14v18H5Z"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
   details: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
   printer: <><path d="M6 9V3h12v6M6 17H3V9h18v8h-3"/><path d="M6 14h12v7H6Z"/></>,
+  settings: <><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M3 12h2M19 12h2M12 3v2M12 19v2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></>,
   'volume-on': <><path d="M4 10h4l5-4v12l-5-4H4Z"/><path d="M16 9c2 2 2 4 0 6M19 6c4 4 4 8 0 12"/></>,
   'volume-off': <><path d="m4 4 16 16M4 10h4l5-4v5M13 15v3l-5-4H4"/></>,
   cancel: <><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></>,

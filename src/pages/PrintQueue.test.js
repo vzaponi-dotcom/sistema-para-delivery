@@ -10,6 +10,10 @@ test('print queue page provides the initial structural heading', async () => {
 
   assert.match(page, /title="Fila de impressão"/)
   assert.match(page, /Acompanhe e gerencie as impressões da cozinha/)
+  assert.match(page, /Configurações/)
+  assert.match(page, /aria-label="Configurações de impressão"/)
+  assert.match(page, /icon="settings"/)
+  assert.match(page, /onOpenPrintingSettings/)
 })
 
 test('desktop navigation and the kitchen printing shortcut open the print queue', async () => {
@@ -20,7 +24,10 @@ test('desktop navigation and the kitchen printing shortcut open the print queue'
   ])
 
   assert.match(app, /import PrintQueue from '\.\/pages\/PrintQueue'/)
+  assert.match(app, /import PrintingSettings from '\.\/components\/PrintingSettings'/)
   assert.match(app, /activeTab === 'print-queue' && <PrintQueue/)
+  assert.match(app, /onOpenPrintingSettings=\{\(\) => setShowPrintingSettings\(true\)\}/)
+  assert.match(app, /showPrintingSettings && <PrintingSettings printing=\{printing\}/)
   assert.match(sidebar, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
   assert.match(orders, /onNavigatePrintQueue/)
   assert.match(orders, /onClick=\{onNavigatePrintQueue\}>Impressão<\/Button>/)

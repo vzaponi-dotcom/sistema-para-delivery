@@ -8,7 +8,6 @@ import Icon from '../components/Icon'
 import KitchenTicket from '../components/KitchenTicket'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
-import PrintingSettings from '../components/PrintingSettings'
 import StatCard from '../components/StatCard'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
 
@@ -19,7 +18,6 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
-  const [showPrintingSettings, setShowPrintingSettings] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
   const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search), [orders, now, search])
@@ -70,7 +68,6 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
               <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
             <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Impressão</Button>
-            <Button type="button" variant="secondary" onClick={() => setShowPrintingSettings(true)}>Configurações</Button>
             <Button type="button" variant="secondary" onClick={navigateHistory}>Histórico</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>
@@ -136,7 +133,6 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
       </section>
 
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }} />}
-      {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
       {finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"

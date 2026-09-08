@@ -1,9 +1,10 @@
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
+import Button from '../components/Button'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 
-function PrintQueue({ printing }) {
+function PrintQueue({ printing, onOpenPrintingSettings }) {
   const station = printing?.localStation ?? null
   const stationSummary = getPrintStationSummary(station)
   const summary = buildPrintQueueSummary(printing?.jobs, { stationReady: station?.health?.ready })
@@ -14,6 +15,19 @@ function PrintQueue({ printing }) {
         eyebrow="Operação"
         title="Fila de impressão"
         description="Acompanhe e gerencie as impressões da cozinha"
+        actions={(
+          <Button
+            type="button"
+            variant="secondary"
+            icon="settings"
+            className="print-queue-settings-button"
+            aria-label="Configurações de impressão"
+            title="Configurações de impressão"
+            onClick={onOpenPrintingSettings}
+          >
+            Configurações
+          </Button>
+        )}
       />
       <section className="print-queue-station-card" aria-label="Status da estação de impressão">
         <div className="print-queue-station-copy">

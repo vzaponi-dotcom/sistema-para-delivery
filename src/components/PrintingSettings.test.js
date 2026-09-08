@@ -169,11 +169,11 @@ test('failed central loading leaves copies unavailable and offers a working retr
   } finally { view.unmount(); globalThis.fetch = originalFetch }
 })
 
-test('Orders header exposes printing settings and mounts the shared settings modal', () => {
-  assert.match(orders, /PrintingSettings/)
+test('Orders header keeps only the focused kitchen actions', () => {
+  assert.doesNotMatch(orders, />Configurações</)
   assert.match(orders, />Impressão</)
-  assert.match(orders, /showPrintingSettings/)
-  assert.match(orders, /printing=\{printing\}/)
+  assert.match(orders, /onNavigateHistory/)
+  assert.match(orders, />Novo pedido</)
 })
 
 test('printing settings expose honest connection, station and transport states', () => {
