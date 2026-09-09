@@ -606,10 +606,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       station,
       job,
     })) return { promptPresented: false }
-    const response = await acknowledgeSecondCopyPromptApi(job.id, station.id)
-    await refresh()
-    return response
-  }, [isQz, refresh])
+    return acknowledgeSecondCopyPromptApi(job.id, station.id)
+  }, [isQz])
 
   const retryJob = useCallback(async (jobOrId) => {
     const station = localStationRef.current
