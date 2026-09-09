@@ -16,7 +16,7 @@ A V1 deve permitir que o usuário:
 - use uma área de análise detalhada para explorar pedidos e seus dados associados;
 - exporte os mesmos recortes em CSV, Excel e PDF;
 - diferencie corretamente venda, recebimento e valor a receber;
-- diferencie tempo total do pedido de tempo de preparo real/instrumentado;
+- diferencie tempo total do pedido de tempo de preparo oficial/instrumentado;
 - mantenha consistência entre dashboard, drill-down, análise detalhada e exportações.
 
 O Centro de Relatórios deve nascer com arquitetura preparada para receber futuramente módulos adicionais, como Clientes e Financeiro avançado, sem exigir reescrita da base de Reporting.
@@ -67,7 +67,9 @@ Motivo: embora impressão não altere diretamente as métricas de negócio, a fe
 
 Deve ser concluída antes das métricas operacionais finais.
 
-O conceito oficial de prazo (`lateAt` / `deadlineAt`) deve ser a fonte canônica para análises de atraso, prioridade e desvio operacional.
+O conceito oficial de prazo (`lateAt` / `deadlineAt`) deve ser a fonte canônica para análises de **atraso operacional em relação ao prazo**, prioridade e desvio de deadline.
+
+Esse conceito é diferente da **meta de duração de preparo** configurável definida nesta spec. Reporting deve preservar ambos sem misturá-los.
 
 #### Issue #30 — Permitir pagamento dividido em múltiplas formas na baixa
 
@@ -171,42 +173,54 @@ Devem permanecer separadas:
 - data operacional do pedido;
 - `created_at` — momento de registro no sistema;
 - `scheduled_for` — horário agendado/prometido;
-- `preparation_started_at` — início oficial do preparo;
+- `preparation_started_at` — início oficial de preparo segundo a regra vigente no momento do pedido;
 - `finished_at` — conclusão;
-- `cancelled_at`, quando aplicável.
+- `cancelled_at`, quando aplicável;
+- `late_at` / `deadline_at`, conforme a semântica final consolidada pela Issue #28.
 
 Não misturar essas referências em uma única noção genérica de “data”.
 
 ## 6. Instrumentação operacional
 
-Hoje a fila da cozinha calcula dinamicamente a fase `preparing` com base no início operacional. Para preservar histórico confiável, Reporting requer persistir o momento oficial em que o pedido passa a estar em preparo.
+Hoje a fila da cozinha calcula dinamicamente a fase `preparing` com base no início operacional. Para preservar histórico confiável, Reporting requer persistir o momento oficial em que o pedido entra em preparo segundo a regra operacional vigente.
 
-### 6.1 Novo timestamp
+### 6.1 Timestamp canônico
 
-Adicionar um timestamp persistido equivalente a:
+Adicionar e usar o campo:
 
 `preparation_started_at`
 
-Nome técnico pode ser refinado na implementação, mas a semântica não deve mudar.
+Ele representa o **início oficial do preparo segundo o fluxo do sistema**, e não uma comprovação física de que alguém iniciou manualmente o preparo naquele segundo.
 
-Ele representa o **início oficial do preparo segundo o fluxo do sistema**, e não uma comprovação física de que alguém começou manualmente naquele segundo.
+### 6.2 Persistência determinística
 
-### 6.2 Regra para pedidos imediatos
+O valor deve ser definido de forma determinística, sem depender de um navegador, tela da cozinha ou estação estar aberta no instante da transição.
 
-O início oficial de preparo ocorre imediatamente quando o pedido entra no fluxo operacional.
+Para pedido imediato:
 
-### 6.3 Regra para pedidos agendados
+`preparation_started_at = created_at`
 
-O pedido permanece aguardando até chegar ao momento operacional calculado pela regra vigente. Ao entrar oficialmente na fila de preparo, o timestamp deve ser persistido.
+Para pedido agendado:
 
-Persistir esse valor é obrigatório para evitar que mudanças futuras na regra de antecedência alterem retroativamente os relatórios antigos.
+`preparation_started_at = max(created_at, scheduled_for - antecedência_operacional_vigente)`
+
+A regra atual usa 50 minutos de antecedência, mas o timestamp persistido deve congelar o valor oficial aplicado àquele pedido.
+
+Se um pedido agendado for remarcado **antes** do início oficial de preparo, o timestamp pode ser recalculado segundo a nova programação. Depois que o início oficial já tiver sido alcançado, mudanças posteriores não devem reescrever retroativamente o histórico operacional já ocorrido.
+
+Pedidos retroativos sem evidência temporal confiável podem manter `preparation_started_at` ausente.
+
+### 6.3 Por que persistir
+
+Persistir esse valor evita que uma mudança futura, por exemplo de 50 para 40 minutos de antecedência, altere retroativamente os relatórios antigos.
 
 ### 6.4 Métricas temporais derivadas
 
-- **Tempo de espera operacional** = `preparation_started_at - created_at`;
 - **Tempo de preparo** = `finished_at - preparation_started_at`;
 - **Tempo total do pedido** = `finished_at - created_at`;
-- métricas de agendamento usam `scheduled_for` como referência adicional.
+- **Tempo até entrar em preparo** = `preparation_started_at - created_at`.
+
+`Tempo até entrar em preparo` é uma métrica diagnóstica. Para pedidos agendados, ela inclui espera planejada até a janela operacional e **não deve ser interpretada como atraso da cozinha** nem usada para medir cumprimento de meta.
 
 ### 6.5 Histórico antigo
 
@@ -227,12 +241,14 @@ O sistema deve permitir configurar:
 
 Quando uma meta específica não estiver configurada, usar a meta geral como fallback.
 
-As metas alimentam:
+As metas são metas de **duração do preparo**, e não substituem o prazo/deadline operacional da Issue #28.
 
-- percentual dentro da meta;
-- percentual acima da meta;
-- atraso médio;
-- quantidade de pedidos críticos;
+Elas alimentam:
+
+- percentual dentro da meta de preparo;
+- percentual acima da meta de preparo;
+- excesso médio sobre a meta;
+- quantidade de pedidos acima da meta;
 - evolução do cumprimento;
 - comparação por tipo e faixa de horário.
 
@@ -240,7 +256,7 @@ As metas alimentam:
 
 ### 8.1 Pedidos no período
 
-Pedidos cuja data operacional pertence ao intervalo filtrado.
+Todos os pedidos persistidos cuja data operacional pertence ao intervalo filtrado, incluindo cancelados para fins de volume/taxa de cancelamento quando o filtro não os excluir explicitamente.
 
 ### 8.2 Vendas realizadas
 
@@ -248,11 +264,13 @@ Soma dos pedidos válidos/finalizados do período, excluindo cancelamentos e efe
 
 ### 8.3 Valor recebido
 
-Pagamentos efetivamente registrados segundo a data de recebimento e os filtros aplicáveis.
+Soma dos pagamentos efetivamente registrados no intervalo de `paid_at`, respeitando os demais filtros semanticamente compatíveis.
+
+Na UI, rotular explicitamente como **Recebido no período** para não induzir o usuário a interpretar esse valor como vendas do período operacional.
 
 ### 8.4 A receber
 
-Saldo ainda não quitado dos pedidos válidos considerados no recorte aplicável.
+Saldo ainda não quitado dos pedidos válidos cuja data operacional pertence ao recorte analisado.
 
 ### 8.5 Ticket médio
 
@@ -260,55 +278,86 @@ Saldo ainda não quitado dos pedidos válidos considerados no recorte aplicável
 
 ### 8.6 Taxa de cancelamento
 
-`pedidos cancelados / total de pedidos operacionais do período`
+`pedidos cancelados no recorte / todos os pedidos do mesmo recorte operacional`
 
-O denominador exato deve ser centralizado no Reporting Service e permanecer estável em todos os consumidores.
+O recorte usa data operacional e os mesmos filtros de tipo/agendamento/cliente aplicáveis. O status não deve ser aplicado ao denominador de forma que torne a taxa tautológica.
 
 ### 8.7 Valor cancelado/estornado
 
 Total financeiro associado aos cancelamentos/estornos conforme as regras oficiais do sistema.
 
-### 8.8 Tempo de espera
-
-`preparation_started_at - referência de entrada operacional aplicável`
-
-Na V1, a referência deverá ser definida de forma consistente com o fluxo oficial para evitar que pedidos agendados sejam tratados como “esperando preparo” durante o período em que ainda não deveriam estar operacionais.
-
-### 8.9 Tempo de preparo
+### 8.8 Tempo de preparo
 
 `finished_at - preparation_started_at`
 
-Somente quando ambos os timestamps forem confiáveis.
+Somente quando ambos os timestamps forem confiáveis e `finished_at >= preparation_started_at`.
 
-### 8.10 Tempo total operacional
+### 8.9 Tempo total do pedido
 
-Tempo entre a referência operacional definida para o pedido e sua finalização.
+`finished_at - created_at`
 
-Quando for exibido também `tempo total do pedido`, manter nomenclatura distinta para evitar ambiguidade.
+Essa métrica pode existir para histórico anterior à nova instrumentação, desde que os timestamps sejam confiáveis.
 
-### 8.11 Cumprimento da meta
+### 8.10 Tempo até entrar em preparo
 
-Percentual de pedidos com tempo de preparo dentro da meta aplicável ao tipo.
+`preparation_started_at - created_at`
 
-### 8.12 Atraso médio
+É informativo/diagnóstico. Para agendados, inclui espera planejada e não mede atraso operacional.
 
-Média do desvio apenas dos pedidos que ultrapassaram a meta aplicável.
+### 8.11 Cumprimento da meta de preparo
 
-### 8.13 Horário de pico
+Percentual de pedidos elegíveis cujo `tempo de preparo <= meta aplicável ao tipo`.
+
+### 8.12 Excesso médio sobre a meta de preparo
+
+Média de `tempo de preparo - meta aplicável` apenas entre pedidos que ultrapassaram a meta.
+
+Não rotular essa métrica apenas como “atraso médio”, para evitar confusão com atraso em relação ao `late_at` / `deadline_at` operacional.
+
+### 8.13 Atraso operacional
+
+Usar a referência canônica final definida pela Issue #28 (`late_at` / `deadline_at`).
+
+Reporting pode expor, separadamente:
+
+- quantidade de pedidos operacionalmente atrasados;
+- minutos de atraso operacional;
+- atraso operacional médio;
+- distribuição por faixa de atraso.
+
+Essas métricas não substituem as métricas de meta de preparo.
+
+### 8.14 Pontualidade de pedidos agendados
+
+Para pedidos agendados, manter métricas específicas:
+
+- **início oficial de preparo em relação à janela operacional prevista**;
+- **conclusão em relação a `scheduled_for`**;
+- **atraso de conclusão** segundo o prazo/grace oficial vigente.
+
+### 8.15 Horário de pico
 
 Faixa horária com maior volume de pedidos. Reporting também pode expor separadamente uma visão de maior carga operacional, sem confundir volume com duração.
 
-### 8.14 Produto mais vendido
+### 8.16 Produto mais vendido
 
 Ranking principal por **quantidade de unidades**.
 
-Faturamento por produto é métrica separada.
+Receita por produto é métrica separada.
 
-### 8.15 Participação do produto
+### 8.17 Receita líquida por produto
 
-`vendas atribuídas ao produto / vendas totais de produtos no mesmo recorte`
+Para reconciliar Produtos com as vendas realizadas, o Reporting Service deve atribuir descontos/acréscimos de nível de pedido proporcionalmente aos itens segundo sua participação no subtotal antes do ajuste.
 
-### 8.16 Comparação de período
+O rateio deve ser determinístico em centavos, com tratamento explícito de arredondamento para garantir que a soma das receitas líquidas atribuídas aos itens seja exatamente igual ao total líquido do pedido.
+
+Não aplicar rateio a pedidos cancelados que estejam excluídos das vendas realizadas.
+
+### 8.18 Participação do produto
+
+`receita líquida atribuída ao produto / receita líquida total de produtos no mesmo recorte`
+
+### 8.19 Comparação de período
 
 Sempre contra o período imediatamente anterior de mesma duração e com os mesmos filtros semânticos.
 
@@ -316,7 +365,7 @@ Exemplos:
 
 - hoje x ontem;
 - últimos 7 dias x 7 dias anteriores;
-- este mês x período anterior equivalente;
+- este mês x período imediatamente anterior equivalente em duração;
 - personalizado de 10 dias x 10 dias imediatamente anteriores.
 
 Quando não houver base comparável suficiente, não exibir percentual inventado.
@@ -338,8 +387,8 @@ A Análise detalhada deve permitir incluir/excluir cancelados pelos filtros.
 Reporting deve manter três conceitos distintos:
 
 - **Vendas realizadas** — valor dos pedidos válidos segundo a data operacional;
-- **Valor recebido** — pagamentos efetivamente registrados;
-- **A receber** — saldo ainda pendente.
+- **Recebido no período** — pagamentos segundo `paid_at`;
+- **A receber** — saldo ainda pendente dos pedidos do recorte operacional.
 
 Nunca usar “faturamento” de forma ambígua para misturar venda e caixa recebido.
 
@@ -353,12 +402,12 @@ KPIs principais:
 - pedidos;
 - ticket médio;
 - tempo médio de preparo;
-- percentual dentro da meta;
+- percentual dentro da meta de preparo;
 - taxa de cancelamento.
 
 Indicadores complementares quando fizer sentido:
 
-- valor recebido;
+- recebido no período;
 - a receber;
 - comparação com período anterior.
 
@@ -366,7 +415,7 @@ Gráficos/blocos:
 
 - evolução de vendas e pedidos;
 - distribuição Entrega / Retirada / Local;
-- situação operacional dentro/acima da meta;
+- situação operacional dentro/acima da meta de preparo;
 - produtos em destaque.
 
 ### 11.2 Operação
@@ -375,10 +424,11 @@ KPIs:
 
 - pedidos no período;
 - tempo médio de preparo;
-- tempo total;
-- percentual dentro da meta;
-- pedidos acima da meta;
-- atraso médio;
+- tempo total do pedido;
+- percentual dentro da meta de preparo;
+- pedidos acima da meta de preparo;
+- excesso médio sobre a meta;
+- atraso operacional;
 - pico operacional.
 
 Análises:
@@ -386,9 +436,11 @@ Análises:
 - volume por horário;
 - volume por dia da semana;
 - tempo de preparo ao longo do período;
-- cumprimento da meta;
+- cumprimento da meta de preparo;
+- atraso operacional por deadline;
 - Entrega x Retirada x Local;
 - imediato x agendado;
+- pontualidade de agendados;
 - cancelamentos operacionais;
 - pedidos que exigem atenção.
 
@@ -399,7 +451,7 @@ KPIs:
 - vendas realizadas;
 - quantidade de pedidos;
 - ticket médio;
-- valor recebido;
+- recebido no período;
 - a receber;
 - cancelado/estornado.
 
@@ -425,8 +477,8 @@ KPIs:
 Análises:
 
 - ranking por quantidade;
-- vendas por produto;
-- vendas por categoria;
+- receita líquida por produto;
+- receita líquida por categoria;
 - desempenho por tamanho/apresentação;
 - participação percentual;
 - crescimento/queda contra período anterior;
@@ -447,11 +499,15 @@ Deve oferecer exploração tabular de pedidos com colunas configuráveis, inclui
 - total;
 - pagamento;
 - criação;
-- início do preparo;
+- início oficial do preparo;
 - finalização;
-- tempo de espera;
+- tempo até entrar em preparo;
 - tempo de preparo;
-- tempo total.
+- tempo total;
+- meta de preparo aplicável;
+- excesso sobre meta;
+- deadline/lateAt operacional;
+- atraso operacional.
 
 Funcionalidades:
 
@@ -498,12 +554,15 @@ Data é o filtro padrão. Deve existir opção explícita de **filtrar também p
 - categoria;
 - cliente.
 
+Quando um filtro não for semanticamente aplicável a uma métrica específica, o contrato de Reporting deve deixar essa regra explícita em vez de produzir resultados silenciosamente incoerentes.
+
 ### 12.4 Filtros contextuais
 
 Operação:
 
-- dentro/acima da meta;
+- dentro/acima da meta de preparo;
 - faixas de tempo;
+- atraso operacional;
 - situação de agendamento.
 
 Produtos:
@@ -615,7 +674,7 @@ Não precisa despejar centenas de linhas detalhadas; detalhamento extenso perten
 
 ### 16.4 Consistência
 
-Se a tela mostra um recorte `Este mês + Entrega + Pix`, a exportação deve representar exatamente o mesmo conjunto lógico.
+Se a tela mostra um recorte `Este mês + Entrega + Pix`, a exportação deve representar exatamente o mesmo conjunto lógico para todas as métricas às quais esses filtros são aplicáveis.
 
 Métricas sem base suficiente devem continuar aparecendo como `sem dados suficientes`, nunca `0` por conveniência.
 
@@ -682,8 +741,10 @@ Cobertura mínima esperada:
 - cancelamentos e estornos;
 - pagamentos divididos após Issue #30;
 - metas gerais e por tipo;
+- prazo/deadline operacional após Issue #28;
 - histórico antigo sem `preparation_started_at`;
 - comparação de período;
+- rateio determinístico de descontos/acréscimos por produto;
 - paginação e filtros;
 - isolamento por `business_id`;
 - consistência entre dashboard, drill-down e exportações;
@@ -700,11 +761,14 @@ Regra de regressão:
 - [ ] Visão Geral, Operação, Vendas, Produtos e Análise detalhada compartilham os mesmos filtros globais.
 - [ ] Período padrão é `Este mês`.
 - [ ] Comparação automática usa o período anterior equivalente quando possível.
-- [ ] Vendas realizadas, recebido e a receber são conceitos separados.
+- [ ] Vendas realizadas, recebido no período e a receber são conceitos separados.
 - [ ] Cancelamentos não contaminam vendas líquidas e continuam analisáveis.
-- [ ] Tempo de preparo usa instrumentação persistida confiável.
+- [ ] Tempo de preparo usa `preparation_started_at` persistido de forma determinística.
 - [ ] Histórico sem instrumentação não recebe valores estimados apresentados como reais.
-- [ ] Metas podem ser gerais e específicas por tipo, com fallback.
+- [ ] Metas de preparo podem ser gerais e específicas por tipo, com fallback.
+- [ ] Atraso operacional por deadline e excesso sobre meta de preparo são métricas distintas.
+- [ ] Pedidos agendados têm métricas próprias de pontualidade.
+- [ ] Receita líquida por produto reconcilia com os totais líquidos dos pedidos por rateio determinístico.
 - [ ] Gráficos e KPIs suportam drill-down quando aplicável.
 - [ ] Análise detalhada usa paginação server-side.
 - [ ] CSV, Excel e PDF refletem os mesmos filtros e métricas da tela.
