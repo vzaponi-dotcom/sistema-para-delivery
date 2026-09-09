@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const appSource = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
+const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 
 test('global second-copy prompt only selects jobs whose order is still active', () => {
   assert.match(
@@ -19,6 +20,17 @@ test('second-copy prompt is acknowledged once by the eligible primary QZ station
   assert.match(appSource, /acknowledgeSecondCopyPrompt\(next\)/)
   assert.match(appSource, /cancelLabel="Depois"/)
   assert.doesNotMatch(appSource, /dismissedSecondCopyJobIdsRef/)
+})
+
+test('second-copy acknowledgement returns before queue refresh can cancel the popup effect', () => {
+  const start = managerSource.indexOf('const acknowledgeSecondCopyPrompt = useCallback')
+  const end = managerSource.indexOf('const retryJob = useCallback', start)
+  assert.notEqual(start, -1)
+  assert.notEqual(end, -1)
+  const acknowledgement = managerSource.slice(start, end)
+
+  assert.match(acknowledgement, /await acknowledgeSecondCopyPromptApi\(job\.id, station\.id\)/)
+  assert.doesNotMatch(acknowledgement, /await refresh\(\)/)
 })
 
 test('second-copy prompt eligibility reacts when local QZ readiness changes', () => {
