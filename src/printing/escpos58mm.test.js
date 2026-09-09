@@ -87,7 +87,7 @@ test('MTP5 profile centralizes physical width, logical columns, code page and se
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
   assert.equal(MTP5_PROFILE.fontAColumns, 32)
   assert.equal(MTP5_PROFILE.codePage, 3)
-  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 1)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 3)
   assert.deepEqual(MTP5_PROFILE.serial, {
     baudRate: 9600,
     dataBits: 8,
@@ -116,16 +116,38 @@ test('ticket hierarchy makes secondary text legible without letting TOTAL domina
   const lines = styledLines(renderEscPos58mm(fixture()))
   const line = (prefix) => lines.find(({ text }) => text.startsWith(prefix))
 
-  assert.equal(line('Cliente: ')?.size, 0x00)
-  assert.equal(line('Telefone: ')?.size, 0x00)
-  assert.equal(line('2x X-BURGER')?.size, 0x00)
-  assert.equal(line('Obs: ')?.size, 0x00)
-  assert.equal(line('Subtotal: ')?.size, 0x00)
-  assert.equal(line('Pagamento: ')?.size, 0x00)
+  assert.equal(line('Cliente: ')?.size, 0x01)
+  assert.equal(line('Telefone: ')?.size, 0x01)
+  assert.equal(line('Endere')?.size, 0x01)
+  assert.equal(line('2x X-BURGER')?.size, 0x01)
+  assert.equal(line('Obs: ')?.size, 0x01)
+  assert.equal(line('Subtotal: ')?.size, 0x01)
+  assert.equal(line('Pagamento: ')?.size, 0x01)
   assert.equal(line('PEDIDO #')?.size, 0x11)
-  assert.equal(line('TOTAL ')?.size, 0x10)
+  assert.equal(line('TOTAL ')?.size, 0x01)
   assert.equal(line('TOTAL ')?.bold, true)
   assert.equal(line('TOTAL ')?.size < 0x11, true)
+})
+
+test('MPT-II ticket wraps the complete accented footer within 384 dots and leaves two extra feed lines', () => {
+  const message = 'Obrigado pela compra! Agradecemos a preferência. Volte sempre.'
+  const document = fixture()
+  document.message = message
+  const bytes = renderEscPos58mm(document, { copies: 1 })
+  const lines = styledLines(bytes)
+  const footerStart = lines.map(({ text }) => text).lastIndexOf('PEDIDO #184') + 1
+  const footerLines = lines.slice(footerStart).filter(({ text }) => text)
+  const trailingFeedLines = [...bytes].reverse().findIndex((byte) => byte !== 0x0a)
+
+  assert.equal(footerLines.map(({ text }) => text).join(' ').includes('Obrigado pela compra!'), true)
+  assert.equal(includesBytes(bytes, encodeCp860('Agradecemos a prefer')),
+    true)
+  assert.equal(footerLines.map(({ text }) => text).join(' ').includes('Volte sempre.'), true)
+  assert.equal(footerLines.every(({ text }) => text.length <= MTP5_PROFILE.fontAColumns), true)
+  assert.equal(footerLines.every(({ size }) => size === 0x01), true)
+  assert.equal(trailingFeedLines, 3)
+  assert.equal(MTP5_PROFILE.dotsPerLine, 384)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 3)
 })
 
 test('58mm renderer emits deterministic ESC/POS structure and two approved copies without cut command', () => {
@@ -220,8 +242,8 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
   assert.equal(drawnText.includes('João'), true)
   assert.equal(drawnText.includes('Acréscimo'), true)
   assert.equal(drawnText.includes('CÓPIA'), true)
-  assert.equal(drawnFonts.includes('400 24px monospace'), true)
-  assert.equal(drawnFonts.includes('700 24px monospace'), true)
+  assert.equal(drawnFonts.includes('400 48px monospace'), true)
+  assert.equal(drawnFonts.includes('700 48px monospace'), true)
   assert.equal(drawnFonts.includes('400 20px monospace'), false)
   assert.equal(drawnFonts.includes('700 40px monospace'), false)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x2a, 33, 0x80, 0x01])), true)

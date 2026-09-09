@@ -109,7 +109,8 @@ const formatDateTime = (createdAt) => {
 const amountLine = (label, cents, sign = '') => `${label}: ${sign}${formatEscPosMoneyCents(cents)}`
 
 const ORDER_TITLE_SIZE = 0x11
-const TOTAL_SIZE = 0x10
+const SECONDARY_TEXT_SIZE = 0x01
+const TOTAL_SIZE = 0x01
 
 const renderOrderCopy = (document, copyNumber, copies) => {
   const parts = []
@@ -123,6 +124,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
   pushLine(parts, document.order?.type || '')
   pushRaw(parts, align(0))
   pushLine(parts, divider)
+  pushRaw(parts, size(SECONDARY_TEXT_SIZE))
 
   pushWrapped(parts, document.customer?.name, { prefix: 'Cliente: ' })
   if (document.customer?.phone) pushWrapped(parts, document.customer.phone, { prefix: 'Telefone: ' })
@@ -158,7 +160,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
 
   pushRaw(parts, bold(true), size(TOTAL_SIZE), align(1))
   pushLine(parts, `TOTAL ${formatEscPosMoneyCents(document.financial?.totalCents || 0)}`)
-  pushRaw(parts, size(0x00), bold(false), align(0))
+  pushRaw(parts, size(SECONDARY_TEXT_SIZE), bold(false), align(0))
 
   if (document.payment?.status === 'Pago') {
     pushLine(parts, `Pagamento: PAGO${document.payment.method ? ` - ${document.payment.method}` : ''}`)
@@ -170,7 +172,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
   pushRaw(parts, align(1))
   pushLine(parts, `CÓPIA ${copyNumber}/${copies}`)
   pushLine(parts, `PEDIDO #${document.order?.number || ''}`)
-  pushLine(parts, document.message || '')
+  pushWrapped(parts, document.message || '')
   pushRaw(parts, align(0))
   return flattenBytes(parts)
 }
