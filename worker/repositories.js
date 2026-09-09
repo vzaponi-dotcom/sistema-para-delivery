@@ -69,6 +69,7 @@ export const mapOrderRow = (row, items = []) => {
 
   return {
     id: row.id,
+    orderNumber: Number(row.order_number),
     clientId: row.client_id ?? null,
     client,
     clientPhone: row.client_phone_snapshot || '',
@@ -114,7 +115,7 @@ export const mapOrderRow = (row, items = []) => {
 }
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -354,10 +355,17 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const adjustment = input.adjustment || { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
   const orderId = crypto.randomUUID()
+  const sequenceRow = await db.prepare(`INSERT INTO order_sequences (business_id, last_order_number)
+    VALUES (?, 1)
+    ON CONFLICT (business_id) DO UPDATE SET last_order_number = order_sequences.last_order_number + 1
+    RETURNING last_order_number`).bind(businessId).first()
+  const orderNumber = Number(sequenceRow?.last_order_number)
+  if (!Number.isInteger(orderNumber) || orderNumber < 1) throw new Error('ORDER_NUMBER_ALLOCATION_FAILED')
 
-  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, scheduled_for, is_backdated, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+  const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, order_number, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, scheduled_for, is_backdated, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     orderId,
     businessId,
+    orderNumber,
     clientId,
     clientSnapshot,
     customerIdentity.type,

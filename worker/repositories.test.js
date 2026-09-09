@@ -22,12 +22,13 @@ test('order item snapshots map prices and product identity', () => {
 test('order row exposes current payment fields and first-item compatibility fields', () => {
   const item = { id: 'i1', productId: 'p1', name: 'Marmita Média', category: 'Marmita', size: 'M', quantity: 2, catalogPrice: 21, unitPrice: 21, priceReason: '', note: '' }
   const order = mapOrderRow({
-    id: 'o1', client_id: 'c1', client_name_snapshot: 'Maria', type: 'Entrega', status: 'Em preparo',
+    id: 'o1', order_number: 7, client_id: 'c1', client_name_snapshot: 'Maria', type: 'Entrega', status: 'Em preparo',
     order_date: '2026-09-01', subtotal_cents: 4200, delivery_fee_cents: 0, total_cents: 4200, created_at: '2026-09-01T20:00:00.000Z',
     finished_at: null, payment_id: null, payment_method: null, paid_at: null, paid_amount_cents: null,
     adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0, adjustment_amount_cents: 0, adjustment_reason: '',
   }, [item])
   assert.equal(order.paymentStatus, 'Pendente')
+  assert.equal(order.orderNumber, 7)
   assert.equal(order.total, 42)
   assert.equal(order.deliveryFee, 0)
   assert.equal(order.productName, 'Marmita Média')
@@ -71,7 +72,7 @@ class BootstrapDb {
             if (sql.includes('FROM products')) return { results: [{ id: 'p1', category: 'Bebida', size: '350ml', name: 'Coca', price_cents: 850 }] }
             if (sql.includes('FROM table_tabs')) return { results: [{ id: 'tab-1', table_id: 'table-1', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null }] }
             if (sql.includes('FROM orders')) return { results: [{
-              id: 'o1', client_id: 'c1', client_name_snapshot: 'Maria', table_tab_id: null, type: 'Entrega', order_date: '2026-09-01', status: 'Em preparo',
+              id: 'o1', order_number: 7, client_id: 'c1', client_name_snapshot: 'Maria', table_tab_id: null, type: 'Entrega', order_date: '2026-09-01', status: 'Em preparo',
               subtotal_cents: 850, delivery_fee_cents: 0, adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0,
               adjustment_amount_cents: 0, adjustment_reason: '', total_cents: 850, created_at: '2026-09-01T20:00:00.000Z', finished_at: null,
               payment_id: null, payment_method: null, paid_at: null, paid_amount_cents: null,
@@ -96,6 +97,7 @@ test('loadBootstrap scopes every business-owned query and attaches order items a
   assert.equal(result.clients[0].name, 'Maria')
   assert.equal(result.products[0].price, 8.5)
   assert.equal(result.orders[0].items[0].name, 'Coca')
+  assert.equal(result.orders[0].orderNumber, 7)
   assert.equal(result.orders[0].items[0].note, '')
   assert.deepEqual(result.tableTabs, [{
     id: 'tab-1', tableId: 'table-1', tableIdentifier: '04', status: 'open',

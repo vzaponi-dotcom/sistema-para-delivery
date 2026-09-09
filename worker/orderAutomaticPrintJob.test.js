@@ -16,7 +16,7 @@ class D1Sqlite {
         name TEXT NOT NULL, price_cents INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1
       );
       CREATE TABLE orders (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_id TEXT,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_number INTEGER NOT NULL, client_id TEXT,
         client_name_snapshot TEXT NOT NULL, client_phone_snapshot TEXT NOT NULL DEFAULT '',
         client_address_snapshot TEXT NOT NULL DEFAULT '', customer_identity_type TEXT,
         table_tab_id TEXT, type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL,
@@ -27,6 +27,10 @@ class D1Sqlite {
         cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, scheduled_for TEXT, promised_payment_date TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, idempotency_key TEXT NOT NULL
       );
       CREATE UNIQUE INDEX orders_idempotency_idx ON orders (business_id, idempotency_key);
+      CREATE TABLE order_sequences (
+        business_id TEXT PRIMARY KEY,
+        last_order_number INTEGER NOT NULL
+      );
       CREATE TABLE order_items (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, product_id TEXT,
         name_snapshot TEXT NOT NULL, category_snapshot TEXT, size_snapshot TEXT, quantity INTEGER NOT NULL,
