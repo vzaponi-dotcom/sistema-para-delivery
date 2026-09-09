@@ -26,6 +26,7 @@
 - Keep the existing 50-minute scheduled-preparation rule and current Cozinha ordering/late/arrival semantics unchanged.
 - No `Novos` status/column; newly operational orders are normal `Em preparo` orders with temporary visual/audio feedback.
 - Polling remains approximately 2 seconds; do not add WebSocket/SSE.
+- Keep D1 writes lightweight: `last_seen_at` may update at most once per 60 seconds per active TV session, even though state polling is ~2 seconds. Cookie renewal may be returned on successful state reads because it does not require a D1 write.
 - TV theme is fixed dark/high-contrast and independent of the administrative theme.
 - Visible capacity is 4 `Em preparo` + 3 `Agendados`; no pagination/carousel. Overflow is indicated and the next queued order fills a released slot automatically.
 - No production deploy. Final deployment steps in this plan target staging only for homologation.
@@ -223,7 +224,7 @@ git commit -m "refactor: share kitchen operational queue model"
   - `issueKitchenTvAccess(db, businessId, pairingTokenHash, now)`
   - `activateKitchenTvSession(db, businessId, pairingTokenHash, sessionTokenHash, now) -> boolean`
   - `loadKitchenTvSessionByHash(db, sessionTokenHash)`
-  - `touchKitchenTvSession(db, businessId, now)`
+  - `touchKitchenTvSession(db, businessId, now, minIntervalMs = 60_000) -> boolean`
   - `revokeKitchenTvAccess(db, businessId, now)`
 
 - [ ] **Step 1: Write the migration RED test**
@@ -332,14 +333,18 @@ import {
   touchKitchenTvSession, revokeKitchenTvAccess,
 } from './kitchenTvAccessRepository.js'
 
-test('pairing is one-use and revoke kills the active session', async () => {
+test('pairing is one-use, last-seen writes are throttled, and revoke kills the active session', async () => {
   const { DB, sqlite } = await createMigratedD1()
   await issueKitchenTvAccess(DB, 'amor-e-sabor', 'pair-hash-1', new Date('2026-09-09T12:00:00.000Z'))
   assert.equal(await activateKitchenTvSession(DB, 'amor-e-sabor', 'pair-hash-1', 'session-hash-1', new Date('2026-09-09T12:01:00.000Z')), true)
   assert.equal(await activateKitchenTvSession(DB, 'amor-e-sabor', 'pair-hash-1', 'session-hash-2', new Date('2026-09-09T12:02:00.000Z')), false)
   assert.equal((await loadKitchenTvSessionByHash(DB, 'session-hash-1')).business_id, 'amor-e-sabor')
-  await touchKitchenTvSession(DB, 'amor-e-sabor', new Date('2026-09-09T12:03:00.000Z'))
-  assert.equal(sqlite.prepare('SELECT last_seen_at FROM kitchen_tv_access WHERE business_id = ?').get('amor-e-sabor').last_seen_at, '2026-09-09T12:03:00.000Z')
+
+  assert.equal(await touchKitchenTvSession(DB, 'amor-e-sabor', new Date('2026-09-09T12:01:30.000Z')), false)
+  assert.equal(sqlite.prepare('SELECT last_seen_at FROM kitchen_tv_access WHERE business_id = ?').get('amor-e-sabor').last_seen_at, '2026-09-09T12:01:00.000Z')
+  assert.equal(await touchKitchenTvSession(DB, 'amor-e-sabor', new Date('2026-09-09T12:02:01.000Z')), true)
+  assert.equal(sqlite.prepare('SELECT last_seen_at FROM kitchen_tv_access WHERE business_id = ?').get('amor-e-sabor').last_seen_at, '2026-09-09T12:02:01.000Z')
+
   await revokeKitchenTvAccess(DB, 'amor-e-sabor', new Date('2026-09-09T12:04:00.000Z'))
   assert.equal(await loadKitchenTvSessionByHash(DB, 'session-hash-1'), null)
 })
@@ -394,7 +399,23 @@ export const activateKitchenTvSession = async (db, businessId, pairingTokenHash,
 }
 ```
 
-Implement the load/touch/revoke statements directly against `kitchen_tv_access`; revoke sets both hashes to `NULL` and `revoked_at` to the supplied timestamp.
+Implement `touchKitchenTvSession` with a cutoff so polling does not cause a D1 write every two seconds:
+
+```js
+export const touchKitchenTvSession = async (db, businessId, now = new Date(), minIntervalMs = 60_000) => {
+  const at = now.toISOString()
+  const cutoff = new Date(now.getTime() - minIntervalMs).toISOString()
+  const result = await db.prepare(`
+    UPDATE kitchen_tv_access
+    SET last_seen_at = ?
+    WHERE business_id = ? AND session_token_hash IS NOT NULL AND revoked_at IS NULL
+      AND (last_seen_at IS NULL OR last_seen_at <= ?)
+  `).bind(at, businessId, cutoff).run()
+  return Number(result?.meta?.changes || 0) > 0
+}
+```
+
+Implement load/revoke directly against `kitchen_tv_access`; revoke sets both hashes to `NULL` and `revoked_at` to the supplied timestamp.
 
 - [ ] **Step 9: Run GREEN**
 
@@ -424,11 +445,11 @@ git commit -m "feat: persist kitchen tv access"
 - `createOpaqueToken(byteLength = 32) -> string`.
 - `hashOpaqueToken(value) -> Promise<string>` returning 64-char SHA-256 hex.
 - TV cookie name `amor_kitchen_tv`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/kitchen-tv`.
-- `KITCHEN_TV_SESSION_MAX_AGE = 400 * 24 * 60 * 60` = `34560000` seconds; valid state reads refresh this cookie.
+- `KITCHEN_TV_SESSION_MAX_AGE = 400 * 24 * 60 * 60` = `34560000` seconds; valid state reads may renew this cookie without causing a D1 write.
 - `getKitchenTvSettings(env, businessId) -> { status, pairedAt, lastSeenAt }`, status in `not_configured | awaiting_pairing | active | revoked`.
 - `generateKitchenTvAccess(env, businessId, now) -> { pairingToken, settings }`.
 - `pairKitchenTvAccess(env, businessId, pairingToken, now) -> { sessionToken, businessId } | null`.
-- `getKitchenTvSession(request, env, now) -> { businessId, sessionToken } | null`.
+- `getKitchenTvSession(request, env, now) -> { businessId, sessionToken } | null`; it calls the throttled `touchKitchenTvSession`, so ~2-second polling does not mean ~2-second D1 writes.
 - `revokeKitchenTvAccessSession(env, businessId, now)`.
 
 - [ ] **Step 1: Write RED tests**
@@ -530,7 +551,7 @@ export const pairKitchenTvAccess = async (env, businessId, pairingToken, now = n
 }
 ```
 
-`getKitchenTvSession` parses only `amor_kitchen_tv`, hashes it, uses `loadKitchenTvSessionByHash`, touches last-seen, and returns `{ businessId: row.business_id, sessionToken: originalCookieToken }`. It must never read `amor_session`.
+`getKitchenTvSession` parses only `amor_kitchen_tv`, hashes it, uses `loadKitchenTvSessionByHash`, calls throttled `touchKitchenTvSession`, and returns `{ businessId: row.business_id, sessionToken: originalCookieToken }`. It must never read `amor_session`.
 
 - [ ] **Step 6: Run GREEN**
 
@@ -744,7 +765,7 @@ const assertPairAllowed = async (env) => {
 }
 ```
 
-`GET /state` authenticates only `getKitchenTvSession`, returns `401 KITCHEN_TV_UNAUTHORIZED` if invalid/revoked, returns `listKitchenTvOrders` when valid, sets `Cache-Control: no-store`, and refreshes the same TV cookie lifetime via `Set-Cookie`.
+`GET /state` authenticates only `getKitchenTvSession`, returns `401 KITCHEN_TV_UNAUTHORIZED` if invalid/revoked, returns `listKitchenTvOrders` when valid, sets `Cache-Control: no-store`, and may refresh the same TV cookie lifetime via `Set-Cookie`. No D1 write is required solely to refresh the cookie.
 
 Admin mutations remain same-origin protected.
 
@@ -976,6 +997,8 @@ git commit -m "feat: add kitchen tv settings"
 
 - [ ] **Step 1: Write RED tests**
 
+`src/appEntryMode.test.js`:
+
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -1030,9 +1053,13 @@ export default function AdminRoot() {
 
 - [ ] **Step 4: Implement pure entry mode and dynamic `main.jsx`**
 
+`src/appEntryMode.js`:
+
 ```js
 export const getAppEntryMode = (pathname) => pathname === '/cozinha-tv' ? 'tv' : 'admin'
 ```
+
+`src/main.jsx`:
 
 ```jsx
 import { StrictMode } from 'react'
@@ -1193,7 +1220,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { transformWithOxc } from 'vite'
 
-const source = await readFile(new URL('./KitchenTvApp.jsx', import.meta.url), 'utf8'
+const source = await readFile(new URL('./KitchenTvApp.jsx', import.meta.url), 'utf8')
+
 test('TV app wires approved polling, arrival, fullscreen and audio behavior', async () => {
   assert.match(source, /bootstrapKitchenTvSession/)
   assert.match(source, /refreshKitchenTvSession/)
@@ -1207,12 +1235,6 @@ test('TV app wires approved polling, arrival, fullscreen and audio behavior', as
   assert.match(source, /Iniciar painel da cozinha/)
   await transformWithOxc(source, 'KitchenTvApp.jsx', { jsx: { runtime: 'automatic' } })
 })
-```
-
-Correct the missing closing parenthesis in the first `readFile(...)` line while creating the actual test file:
-
-```js
-const source = await readFile(new URL('./KitchenTvApp.jsx', import.meta.url), 'utf8')
 ```
 
 - [ ] **Step 8: Run app-wiring RED**
@@ -1592,12 +1614,13 @@ Record the staging URL, tested commit SHA, applied Kitchen TV migration filename
 - Audio/fullscreen interaction + audio fallback: Task 8 + Task 9.
 - Offline stale vs revoked clear state: Task 8 + Task 10.
 - Minimal Configurações UI: Task 6.
+- Lightweight polling without 2-second D1 writes: Tasks 2–5.
 - Staging-only deploy/homologation: Task 10.
 - Print-queue conflict control: Global Constraints + Task 10.
 
 ### Placeholder scan
 
-No `TBD`, `TODO`, “implement later”, “similar to”, comment-only test bodies, or undefined fixture/helper names remain. Test helpers used by later tasks are explicitly defined in Task 2 or in the same test snippet.
+The plan contains no unresolved placeholder steps, comment-only test bodies, or undefined fixture/helper names. Test helpers used by later tasks are explicitly defined in Task 2 or in the same test snippet.
 
 ### Type/name consistency
 
