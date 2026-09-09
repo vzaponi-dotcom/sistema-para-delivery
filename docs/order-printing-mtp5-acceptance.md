@@ -300,3 +300,38 @@ A funcionalidade só deve ser considerada **fisicamente aprovada** para uma plat
 Para Android, aprovação manual e aprovação automática são gates separados. Se o fluxo manual funcionar, mas o Chrome bloquear a abertura automática do RawBT, a impressão manual pode ser homologada enquanto a autoimpressão permanece não aprovada.
 
 A aprovação deste checklist não executa deploy de produção, não aplica migrations de produção e não altera a configuração de produção por conta própria.
+
+---
+
+## Checkpoint documental — Fase 9 / aprovação física da fila QZ centralizada
+
+- **Data da homologação:** 2026-09-09
+- **Branch:** `feature/centralized-qz-print-queue`
+- **SHA aprovado:** `966ac651c8b840a1d2fe9240e1f8fca6d4be41b8`
+- **Ambiente:** staging
+- **Equipamento:** Windows + QZ Tray + fila MPT-II + USB
+
+### Matriz resumida dos cenários validados
+
+| Cenário | Resultado |
+| --- | --- |
+| Impressão automática pela estação principal Windows/QZ | Aprovado |
+| Pedido Delivery com 2 vias; primeira via automática | Aprovado |
+| Popup automático da segunda via no PC | Aprovado |
+| Popup remoto da segunda via no celular originador e solicitação pelo celular | Aprovado |
+| Conclusão correta 2/2 — Impresso | Aprovado |
+| Scroll após modal | Aprovado |
+| Pedido Mesa respeita 1 via | Aprovado |
+| QZ/estação offline, jobs aguardando e retomada após reabertura do QZ | Aprovado |
+| Descarte, reimpressão e sequência de múltiplos jobs | Aprovado |
+| Sem popup antigo após reload | Aprovado |
+| Semântica de QZ, fila e prontidão | Aprovado |
+| Ticket MPT-II, fonte bitmap final, total, rodapé e avanço final | Aprovado |
+
+### Limitação conhecida
+
+A fila MPT-II continua sendo encontrada pelo Windows mesmo sem o USB físico conectado. Isso é uma característica da fila/driver do Windows e não foi tratado como prontidão física isoladamente; a operação permanece condicionada à disponibilidade real do QZ, da estação e da impressora.
+
+### Aprovação e gate
+
+A homologação física em staging foi explicitamente aprovada pelo usuário após a validação integral dos cenários acima. O gate da Fase 9 está liberado para a Fase 10 — inventário e posterior limpeza planejada — sem autorizar, neste checkpoint, a remoção de RawBT/Web Serial nem o início da Tarefa 10.2.
