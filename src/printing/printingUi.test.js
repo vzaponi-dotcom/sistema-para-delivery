@@ -28,7 +28,7 @@ test('kitchen preserves the shared printing manager in details without moving pr
   assert.doesNotMatch(ticket, /printing|PrintStatusBadge|apiRequest|fetch\(/)
 })
 
-test('order detail keeps print actions separate and uses the shared printing manager', () => {
+test('order detail keeps print actions separate and uses the central queue commands', () => {
   for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Imprimir 2ª via', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
   }
@@ -36,15 +36,21 @@ test('order detail keeps print actions separate and uses the shared printing man
   assert.match(detail, /getPreviewDocument/)
   assert.match(detail, /downloadOrderPdf/)
   assert.match(detail, /printOrder/)
-  assert.match(detail, /printSecondCopy/)
-  assert.match(detail, /retryJob/)
+  assert.match(detail, /requestPrintNow/)
+  assert.match(detail, /requestSecondCopy/)
+  assert.match(detail, /requestRetry/)
+  assert.match(detail, /requestReprint/)
+  assert.doesNotMatch(detail, /printSecondCopy/)
+  assert.doesNotMatch(detail, /retryJob/)
+  assert.doesNotMatch(detail, /claimPrintJob|claimNextPrintJob|dispatchRawBt|writeSerialBytes|\bqz\./)
+  assert.doesNotMatch(detail, /printing\?\.supported === false/)
 })
 
 test('partial two-copy jobs wait for a tear and expose only the explicit second-copy action', () => {
   assert.match(detail, /copiesRequested.*2/)
   assert.match(detail, /copiesPrinted.*1/)
-  assert.match(detail, /printing\?\.printSecondCopy\?\.\(printJob\)/)
-  assert.match(detail, /1ª via impressa\. Destaque o papel na serrilha e, depois, imprima a 2ª via\./)
+  assert.match(detail, /printing\?\.requestSecondCopy\?\.\(printJob\)/)
+  assert.match(detail, /1ª via impressa\. A 2ª via continua pendente na fila da cozinha\./)
 
   const secondCopyBranch = detail.indexOf('Imprimir 2ª via')
   const reprintBranch = detail.indexOf('Reimprimir')
@@ -72,11 +78,11 @@ test('printing diagnostics use persisted sanitized fields instead of raw excepti
   assert.doesNotMatch(detail, /\.stack\b/)
 })
 
-test('future automatic jobs show scheduling and use a manual print action', () => {
+test('future automatic jobs show scheduling and use central priority', () => {
   assert.match(detail, /availableAt/)
   assert.match(detail, /Impressão programada para \{formatOrderTime\(printJob\.availableAt\)\}/)
-  assert.match(detail, /printing\.printOrder\(order\.id, defaultCopies\)/)
-  assert.match(detail, /if \(scheduledPrintPending\) return <Button[^>]*onClick=\{handleFirstPrint\}[^>]*>Imprimir agora<\/Button>/)
+  assert.match(detail, /printing\?\.requestPrintNow\?\.\(printJob\)/)
+  assert.match(detail, /if \(scheduledPrintPending\) return <Button[^>]*onClick=\{handlePrintNow\}[^>]*>Imprimir agora<\/Button>/)
   assert.match(detail, /\{!scheduledPrintPending && !awaitingSecondCopy && \['pending', 'processing'\]\.includes\(printJob\?\.status\)/)
   assert.doesNotMatch(detail, /if \(scheduledPrintPending\)[^\n]*handleRetry/)
 })
@@ -85,7 +91,7 @@ test('app globally prompts an unacknowledged waiting second copy and persists th
   assert.match(app, /import ConfirmationDialog from '\.\/components\/ConfirmationDialog'/)
   assert.match(app, /secondCopyPromptJobId/)
   assert.match(app, /canPresentSecondCopyPrompt/)
-  assert.match(app, /printing\.acknowledgeSecondCopyPrompt\(next\)/)
+  assert.match(app, /acknowledgeSecondCopyPrompt\(next\)/)
   assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
   assert.match(app, /confirmLabel="Imprimir 2ª via"/)
   assert.match(app, /cancelLabel="Depois"/)
@@ -102,4 +108,50 @@ test('physical popup remains separate from remote queue decisions', async () => 
   assert.match(queue, /printing\?\.skipSecondCopy\?\.\(selectedJob\)/)
   assert.doesNotMatch(queue, /printSecondCopy\(/)
   assert.match(details, /Não impressa por decisão do operador/)
+})
+
+test('successful active order creation confirms queueing without invoking a local transport', () => {
+  const start = app.indexOf('const handleOrderCheckout = async')
+  const end = app.indexOf('const handleQuickCreateClient', start)
+  assert.notEqual(start, -1)
+  assert.notEqual(end, -1)
+  const checkout = app.slice(start, end)
+
+  assert.match(checkout, /Pedido enviado para a fila da cozinha/)
+  assert.match(checkout, /setToastMessage/)
+  assert.doesNotMatch(checkout, /\bprinting\.|printOrder|printSecondCopy|claimPrintJob|claimNextPrintJob|dispatchRawBt|writeSerialBytes|\bqz\./)
+})
+
+test('remote order actions announce approved queue outcomes and never retain a local printing error', () => {
+  for (const message of [
+    'Pedido enviado para a fila da cozinha',
+    'Pedido priorizado na fila',
+    'Nova tentativa enviada para a fila',
+    'Reimpressão adicionada à fila',
+    '2ª via enviada para a fila',
+  ]) assert.match(detail, new RegExp(message))
+  assert.match(detail, /onToast/)
+  assert.doesNotMatch(detail, /useState\(''\).*printingError|setPrintingError|order-printing-error/)
+})
+
+test('physical print failures surface a human queue-attention toast without a global error modal', () => {
+  assert.match(app, /usePrintingManager\(\{[^}]*onError:/)
+  assert.match(app, /Impressão requer atenção na fila/)
+  assert.doesNotMatch(app, /printErrorModal|pendingPrintError|showPrintError|printingError/)
+})
+
+test('a failed physical second copy closes its prompt instead of keeping a blocking retry loop', () => {
+  const start = app.indexOf('const handleGlobalSecondCopy = async')
+  const end = app.indexOf('const validateClientIdentity', start)
+  assert.notEqual(start, -1)
+  assert.notEqual(end, -1)
+  const handler = app.slice(start, end)
+
+  assert.match(handler, /if \(result\?\.status !== 'printed'\) \{\s*setSecondCopyPromptJobId\(null\)/)
+  assert.match(handler, /catch \(error\) \{\s*setSecondCopyPromptJobId\(null\)/)
+})
+
+test('reload has no persisted global print-error dialog to reopen', () => {
+  assert.doesNotMatch(app, /localStorage[^\n]*(?:printError|printingError)|(?:printError|printingError)[^\n]*localStorage/)
+  assert.doesNotMatch(app, /<ConfirmationDialog[^>]*(?:printError|printingError|lastError)/)
 })

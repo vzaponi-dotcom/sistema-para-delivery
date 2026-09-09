@@ -13,7 +13,7 @@ import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, onNavigatePrintQueue, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
+function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, onNavigatePrintQueue, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -132,7 +132,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
         </section>
       </section>
 
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }} onToast={onToast} />}
       {finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"

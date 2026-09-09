@@ -85,7 +85,7 @@ test('non-QZ and secondary stations cannot execute an awaiting second copy', () 
 })
 
 test('only an unacknowledged awaiting copy can present the second-copy prompt on primary QZ', () => {
-  const primaryQz = { isQz: true, station: { isPrimary: true, platform: 'windows' } }
+  const primaryQz = { isQz: true, transportReady: true, printerBlocked: false, station: { isPrimary: true, platform: 'windows' } }
 
   assert.equal(canPresentSecondCopyPrompt({ ...primaryQz, job: awaitingSecondCopyJob }), true)
   assert.equal(canPresentSecondCopyPrompt({
@@ -94,7 +94,28 @@ test('only an unacknowledged awaiting copy can present the second-copy prompt on
   }), false)
   assert.equal(canPresentSecondCopyPrompt({
     isQz: true,
+    transportReady: true,
+    printerBlocked: false,
     station: { isPrimary: false, platform: 'windows' },
+    job: awaitingSecondCopyJob,
+  }), false)
+})
+
+test('an unready or blocked primary QZ station cannot present the physical second-copy prompt', () => {
+  const station = { isPrimary: true, platform: 'windows' }
+
+  assert.equal(canPresentSecondCopyPrompt({
+    isQz: true,
+    transportReady: false,
+    printerBlocked: false,
+    station,
+    job: awaitingSecondCopyJob,
+  }), false)
+  assert.equal(canPresentSecondCopyPrompt({
+    isQz: true,
+    transportReady: true,
+    printerBlocked: true,
+    station,
     job: awaitingSecondCopyJob,
   }), false)
 })

@@ -116,8 +116,11 @@ export const canExecuteSecondCopy = ({ isQz, station, job }) => Boolean(
   && Number(job?.copiesPrinted) === 1
 )
 
-export const canPresentSecondCopyPrompt = ({ isQz, station, job }) => (
-  canExecuteSecondCopy({ isQz, station, job }) && !job?.secondCopyPromptedAt
+export const canPresentSecondCopyPrompt = ({ isQz, transportReady, printerBlocked, station, job }) => (
+  Boolean(transportReady)
+  && !printerBlocked
+  && canExecuteSecondCopy({ isQz, station, job })
+  && !job?.secondCopyPromptedAt
 )
 
 export const canSendPrintStationHeartbeat = ({

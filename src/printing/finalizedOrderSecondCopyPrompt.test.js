@@ -15,8 +15,19 @@ test('global second-copy prompt only selects jobs whose order is still active', 
 
 test('second-copy prompt is acknowledged once by the eligible primary QZ station', () => {
   assert.match(appSource, /job\?\.status === 'awaiting_second_copy'/)
-  assert.match(appSource, /canPresentSecondCopyPrompt\(\{\s*isQz: printing\.transportKind === 'qz',\s*station: printing\.localStation, job,/)
-  assert.match(appSource, /printing\.acknowledgeSecondCopyPrompt\(next\)/)
+  assert.match(appSource, /canPresentSecondCopyPrompt\(\{\s*isQz: printTransportKind === 'qz',\s*transportReady: printTransportReady,\s*printerBlocked,\s*station: localPrintStation,\s*job,/)
+  assert.match(appSource, /acknowledgeSecondCopyPrompt\(next\)/)
   assert.match(appSource, /cancelLabel="Depois"/)
   assert.doesNotMatch(appSource, /dismissedSecondCopyJobIdsRef/)
+})
+
+test('second-copy prompt eligibility reacts when local QZ readiness changes', () => {
+  const promptStart = appSource.indexOf('const next = printJobs.find')
+  const promptEnd = appSource.indexOf('useEffect(() => () =>', promptStart)
+  assert.notEqual(promptStart, -1)
+  assert.notEqual(promptEnd, -1)
+  const promptEffect = appSource.slice(promptStart, promptEnd)
+
+  assert.doesNotMatch(promptEffect, /\bprinting\./)
+  assert.match(promptEffect, /\[printJobs,[^\]]*printTransportReady[^\]]*printerBlocked[^\]]*\]/)
 })

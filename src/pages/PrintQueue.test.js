@@ -386,3 +386,12 @@ test('remote second-copy decisions use their approved toasts and confirmation va
   assert.match(page, /confirmation === 'skipSecondCopy' \? 'danger'/)
   assert.doesNotMatch(page, /printSecondCopy\(/)
 })
+
+test('print queue remains central-API-only for every operational action', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  for (const command of ['requestPrintNow', 'requestRetry', 'requestDiscard', 'requestForcePrint', 'requestReprint', 'requestSecondCopy', 'skipSecondCopy']) {
+    assert.match(page, new RegExp(`printing\\?\\.${command}`))
+  }
+  assert.doesNotMatch(page, /printSecondCopy\(|claimPrintJob\(|claimNextPrintJob\(|dispatchRawBt|writeSerialBytes|\bqz\./)
+})

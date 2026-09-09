@@ -17,7 +17,7 @@ const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order:
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast }) {
   const [filter, setFilter] = useState('all')
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -63,7 +63,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
           {!terminalOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>Nenhum pedido neste filtro</strong><span>Os pedidos finalizados e cancelados aparecerão aqui.</span></div>}
         </div>
       </section>
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrder(null)} onToast={onToast} />}
       <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} />
     </>
   )

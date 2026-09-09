@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import './App.css'
 import './central-data.css'
@@ -141,9 +141,20 @@ function App() {
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
   const writesBlocked = !isOnline || requestKey !== null
-  const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline })
+  const handlePrintingError = useCallback(() => {
+    setToastMessage('Impressão requer atenção na fila')
+  }, [])
+  const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline, onError: handlePrintingError })
+  const {
+    jobs: printJobs,
+    transportKind: printTransportKind,
+    transportReady: printTransportReady,
+    printerBlocked,
+    localStation: localPrintStation,
+    acknowledgeSecondCopyPrompt,
+  } = printing
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' })
-  const secondCopyPromptJob = printing.jobs.find((job) => job.id === secondCopyPromptJobId) ?? null
+  const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
   const secondCopyPromptOrderNumber = secondCopyPromptOrder ? formatOrderDisplayNumber(secondCopyPromptOrder) : 'Pedido'
 
@@ -332,24 +343,28 @@ function App() {
 
   useEffect(() => {
     if (secondCopyPromptJobId) {
-      const current = printing.jobs.find((job) => job.id === secondCopyPromptJobId)
+      const current = printJobs.find((job) => job.id === secondCopyPromptJobId)
       const currentOrder = orders.find((order) => order.id === current?.orderId)
       if (!isSecondCopyPromptEligible(current, currentOrder)) setSecondCopyPromptJobId(null)
       return
     }
-    const next = printing.jobs.find((job) => {
+    const next = printJobs.find((job) => {
       const order = orders.find((candidate) => candidate.id === job.orderId)
       return isSecondCopyPromptEligible(job, order) && canPresentSecondCopyPrompt({
-        isQz: printing.transportKind === 'qz', station: printing.localStation, job,
+        isQz: printTransportKind === 'qz',
+        transportReady: printTransportReady,
+        printerBlocked,
+        station: localPrintStation,
+        job,
       })
     })
     if (!next?.id) return
     let cancelled = false
-    void printing.acknowledgeSecondCopyPrompt(next).then((result) => {
+    void acknowledgeSecondCopyPrompt(next).then((result) => {
       if (!cancelled && result?.promptPresented) setSecondCopyPromptJobId(next.id)
     }).catch(showApiError)
     return () => { cancelled = true }
-  }, [printing.jobs, printing.transportKind, printing.localStation, printing.acknowledgeSecondCopyPrompt, orders, secondCopyPromptJobId])
+  }, [printJobs, printTransportKind, localPrintStation, acknowledgeSecondCopyPrompt, orders, secondCopyPromptJobId, printTransportReady, printerBlocked])
 
   useEffect(() => () => { if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current); if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close() }, [])
   useEffect(() => { if (!toastMessage) return; const timer = window.setTimeout(() => setToastMessage(''), 2600); return () => window.clearTimeout(timer) }, [toastMessage])
@@ -376,12 +391,13 @@ function App() {
     try {
       const result = await printing.printSecondCopy(secondCopyPromptJob)
       if (result?.status !== 'printed') {
-        showApiError(result?.error || new Error('Não foi possível imprimir a 2ª via.'))
+        setSecondCopyPromptJobId(null)
         return
       }
       setSecondCopyPromptJobId(null)
       showSuccessMessage('2ª via enviada para impressão')
     } catch (error) {
+      setSecondCopyPromptJobId(null)
       showApiError(error)
     } finally {
       setSecondCopyPromptBusy(false)
@@ -432,7 +448,7 @@ function App() {
   const handleOrderCheckout = async (payload) => {
     if (writesBlocked) return false
     const key = checkoutKey || crypto.randomUUID(); if (!checkoutKey) setCheckoutKey(key); setRequestKey('order:create')
-    try { const { order, movement, tableTab } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab }); setCheckoutKey(null); setActiveTab('orders'); showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo')); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+    try { const { order, movement, tableTab } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab }); setCheckoutKey(null); setActiveTab('orders'); if (order.status === 'Finalizado') showSuccessMessage('Pedido anterior salvo no histórico'); else setToastMessage('Pedido enviado para a fila da cozinha'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleQuickCreateClient = async ({ name, phone }) => { if (writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
   const handleFinalizeOrder = async (orderId) => { if (writesBlocked) return; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
@@ -569,8 +585,8 @@ function App() {
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
       <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} onToast={setToastMessage} />}
         {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tables={tables} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
