@@ -49,6 +49,7 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
       WHERE business_id = ? AND type = 'order' AND status = 'pending' AND available_at <= ?
         AND (
           trigger = 'manual'
+          OR last_error_code = 'FORCE_PRINT_AUTHORIZED'
           OR (trigger = 'automatic' AND ? = 1 AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
         )
       ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1

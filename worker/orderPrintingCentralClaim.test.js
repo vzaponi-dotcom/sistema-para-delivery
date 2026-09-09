@@ -5,6 +5,7 @@ import { claimNextPrintJob } from './orderPrintingCentralClaim.js'
 import {
   createManualOrderPrintJob,
   heartbeatPrintStation,
+  prepareAutomaticPrintJobStatement,
   setPrimaryPrintStation,
   upsertPrintStation,
 } from './orderPrintingRepository.js'
@@ -84,6 +85,32 @@ class D1Sqlite {
 const businessId = 'amor-e-sabor'
 const now = new Date('2026-09-08T20:30:00.000Z')
 
+const addAutomaticJob = async (db, { id, orderId, errorCode = null }) => {
+  await db.batch([prepareAutomaticPrintJobStatement(db, businessId, {
+    id,
+    orderId,
+    copies: 1,
+    document: { version: 1, type: 'order', order: { id: orderId, number: '0001' } },
+    createdAt: now,
+    availableAt: now,
+  })])
+  if (errorCode) {
+    await db.prepare(`UPDATE print_jobs SET status = 'pending', last_error_code = ? WHERE id = ?`).bind(errorCode, id).run()
+  }
+}
+
+const addReadyPrimary = async (db, { autoPrintEnabled = true } = {}) => {
+  await upsertPrintStation(db, businessId, {
+    id: 'kitchen-qz',
+    name: 'Cozinha PC',
+    platform: 'windows',
+    autoPrintEnabled,
+    defaultCopies: 2,
+  }, now)
+  await setPrimaryPrintStation(db, businessId, 'kitchen-qz', now)
+  await heartbeatPrintStation(db, businessId, 'kitchen-qz', { qzReady: true, printerReady: true }, now)
+}
+
 test('primary QZ station consumes a manual queued job even when automatic printing is disabled', async () => {
   const db = new D1Sqlite()
   db.sqlite.exec(`
@@ -113,4 +140,87 @@ test('primary QZ station consumes a manual queued job even when automatic printi
   assert.equal(claimed.trigger, 'manual')
   assert.equal(claimed.status, 'processing')
   assert.equal(claimed.stationId, 'kitchen-qz')
+})
+
+test('primary QZ station claims authorized finalized and cancelled automatic jobs', async (t) => {
+  for (const status of ['Finalizado', 'Cancelado']) {
+    await t.test(status, async () => {
+      const db = new D1Sqlite()
+      db.sqlite.exec(`
+        INSERT INTO businesses (id) VALUES ('${businessId}');
+        INSERT INTO orders (id, business_id, status) VALUES ('order-${status}', '${businessId}', '${status}');
+      `)
+      await addReadyPrimary(db, { autoPrintEnabled: false })
+      await addAutomaticJob(db, { id: `authorized-${status}`, orderId: `order-${status}`, errorCode: 'FORCE_PRINT_AUTHORIZED' })
+
+      const claimed = await claimNextPrintJob(db, businessId, 'kitchen-qz', now)
+      assert.equal(claimed.id, `authorized-${status}`)
+      assert.equal(claimed.status, 'processing')
+      assert.equal(claimed.lastError, null)
+    })
+  }
+})
+
+test('finalized and cancelled automatic jobs without force authorization are not claimed', async (t) => {
+  for (const status of ['Finalizado', 'Cancelado']) {
+    await t.test(status, async () => {
+      const db = new D1Sqlite()
+      db.sqlite.exec(`
+        INSERT INTO businesses (id) VALUES ('${businessId}');
+        INSERT INTO orders (id, business_id, status) VALUES ('order-${status}', '${businessId}', '${status}');
+      `)
+      await addReadyPrimary(db)
+      await addAutomaticJob(db, { id: `unapproved-${status}`, orderId: `order-${status}` })
+
+      assert.equal(await claimNextPrintJob(db, businessId, 'kitchen-qz', now), null)
+    })
+  }
+})
+
+test('normal automatic jobs require auto-print enabled while manual jobs remain claimable', async () => {
+  const db = new D1Sqlite()
+  db.sqlite.exec(`
+    INSERT INTO businesses (id) VALUES ('${businessId}');
+    INSERT INTO orders (id, business_id, status) VALUES ('order-active', '${businessId}', 'Em preparo');
+  `)
+  await addReadyPrimary(db, { autoPrintEnabled: false })
+  await addAutomaticJob(db, { id: 'automatic-active', orderId: 'order-active' })
+  assert.equal(await claimNextPrintJob(db, businessId, 'kitchen-qz', now), null)
+
+  await db.prepare(`UPDATE print_stations SET auto_print_enabled = 1 WHERE id = ?`).bind('kitchen-qz').run()
+  const claimedAutomatic = await claimNextPrintJob(db, businessId, 'kitchen-qz', now)
+  assert.equal(claimedAutomatic.id, 'automatic-active')
+
+  const manual = await createManualOrderPrintJob(db, businessId, {
+    id: 'manual-after-automatic',
+    orderId: 'order-active',
+    copies: 1,
+    document: { version: 1, type: 'order', order: { id: 'order-active', number: '0001' } },
+  }, now)
+  assert.equal((await claimNextPrintJob(db, businessId, 'kitchen-qz', now)).id, manual.id)
+})
+
+test('claim central rejects a non-primary or non-ready station', async (t) => {
+  await t.test('non-primary', async () => {
+    const db = new D1Sqlite()
+    db.sqlite.exec(`
+      INSERT INTO businesses (id) VALUES ('${businessId}');
+      INSERT INTO orders (id, business_id, status) VALUES ('order-active', '${businessId}', 'Em preparo');
+    `)
+    await upsertPrintStation(db, businessId, { id: 'secondary', name: 'Tablet', platform: 'windows', autoPrintEnabled: true, defaultCopies: 1 }, now)
+    await addAutomaticJob(db, { id: 'automatic-active', orderId: 'order-active' })
+    await assert.rejects(() => claimNextPrintJob(db, businessId, 'secondary', now), (error) => error.code === 'PRINT_STATION_NOT_PRIMARY')
+  })
+
+  await t.test('not-ready', async () => {
+    const db = new D1Sqlite()
+    db.sqlite.exec(`
+      INSERT INTO businesses (id) VALUES ('${businessId}');
+      INSERT INTO orders (id, business_id, status) VALUES ('order-active', '${businessId}', 'Em preparo');
+    `)
+    await upsertPrintStation(db, businessId, { id: 'kitchen-qz', name: 'Cozinha PC', platform: 'windows', autoPrintEnabled: true, defaultCopies: 1 }, now)
+    await setPrimaryPrintStation(db, businessId, 'kitchen-qz', now)
+    await addAutomaticJob(db, { id: 'automatic-active', orderId: 'order-active' })
+    await assert.rejects(() => claimNextPrintJob(db, businessId, 'kitchen-qz', now), (error) => error.code === 'PRINT_STATION_NOT_READY')
+  })
 })

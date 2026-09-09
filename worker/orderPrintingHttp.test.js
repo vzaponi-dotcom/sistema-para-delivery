@@ -355,6 +355,32 @@ test('claim-next rejects a secondary station and accepts only the primary automa
   assert.equal((await claimed.json()).job.id, 'auto-1')
 })
 
+test('force-print authorized finalized automatic job can be claimed by the QZ station', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  await jsonRequest('/api/printing/stations/primary', 'PUT', cookie, {
+    name: 'PC', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
+  })
+  await jsonRequest('/api/printing/stations/primary/make-primary', 'POST', cookie)
+  await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true })
+  currentEnv.DB.sqlite.prepare(`UPDATE orders SET status = 'Finalizado' WHERE id = 'o1'`).run()
+  currentEnv.DB.sqlite.prepare(`INSERT INTO print_jobs (
+      id, business_id, order_id, type, trigger, status, copies_requested, copies_printed, station_id,
+      snapshot_json, created_at, available_at, processing_started_at, processed_at, last_error_code, last_error_message
+    ) VALUES (?, ?, ?, 'order', 'automatic', 'requires_attention', 1, 0, NULL, ?, ?, ?, NULL, NULL, ?, ?)`)
+    .run('authorized-finalized', 'amor-e-sabor', 'o1', JSON.stringify({ version: 1, type: 'order', order: { id: 'o1' } }), new Date().toISOString(), new Date().toISOString(), 'ORDER_FINALIZED_BEFORE_PRINT', 'Pedido finalizado antes da impressao.')
+
+  const forced = await jsonRequest('/api/printing/jobs/authorized-finalized/force-print', 'POST', cookie, { actorLabel: 'Caixa 1' })
+  assert.equal(forced.status, 200)
+  assert.equal((await forced.json()).job.status, 'pending')
+
+  const claimed = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
+  assert.equal(claimed.status, 200)
+  const claimedBody = await claimed.json()
+  assert.equal(claimedBody.job.id, 'authorized-finalized')
+  assert.equal(claimedBody.job.status, 'processing')
+})
+
 test('uncertain failure requires attention and rejects unsafe retry', async () => {
   currentEnv = await makeEnv()
   const cookie = await loginCookie(currentEnv)
