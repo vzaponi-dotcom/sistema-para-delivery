@@ -180,6 +180,13 @@ test('reprint accepts discarded and physically-uncertain order jobs, but rejects
   const uncertain = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 2, document, now)
   assert.equal(uncertain.parentJobId, 'original-job')
 
+  db.sqlite.prepare("UPDATE print_jobs SET status = 'requires_attention', last_error_code = ? WHERE id = ?")
+    .run('SERIAL_WRITE_UNCERTAIN', 'original-job')
+  const serialOriginalBefore = await loadPrintJob(db, businessId, 'original-job')
+  const serialUncertain = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, document, now)
+  assert.equal(serialUncertain.parentJobId, 'original-job')
+  assert.deepEqual(await loadPrintJob(db, businessId, 'original-job'), serialOriginalBefore)
+
   for (const code of ['QZ_PRINT_FAILED', 'ORDER_FINALIZED_BEFORE_PRINT']) {
     db.sqlite.prepare("UPDATE print_jobs SET status = 'requires_attention', last_error_code = ? WHERE id = ?")
       .run(code, 'original-job')

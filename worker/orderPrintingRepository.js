@@ -474,7 +474,7 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, document, n
       AND (
         (status = 'printed' AND copies_printed >= copies_requested)
         OR status = 'discarded'
-        OR (status = 'requires_attention' AND last_error_code = 'PROCESSING_OUTCOME_UNKNOWN')
+        OR (status = 'requires_attention' AND last_error_code IN ('PROCESSING_OUTCOME_UNKNOWN', 'SERIAL_WRITE_UNCERTAIN'))
       )
     RETURNING *`)
     .bind(id, requestedCopies, JSON.stringify(document), at, at, jobId, businessId).first()

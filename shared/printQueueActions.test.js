@@ -25,6 +25,7 @@ test('finalized and cancelled attention expose force print and discard, never re
 
 test('eligible physically-uncertain attention exposes reprint and discard, while unknown attention remains safely discard-only', () => {
   assert.deepEqual(actions({ type: 'order', status: 'requires_attention', lastError: { code: 'PROCESSING_OUTCOME_UNKNOWN' } }), ['reprint', 'discard'])
+  assert.deepEqual(actions({ type: 'order', status: 'requires_attention', lastError: { code: 'SERIAL_WRITE_UNCERTAIN' } }), ['reprint', 'discard'])
   assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'UNRECOGNIZED_FAILURE' } }), ['discard'])
   assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'ORDER_NOT_PRINTABLE' } }), ['discard'])
 })

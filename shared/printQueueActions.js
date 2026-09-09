@@ -14,6 +14,7 @@ const RETRYABLE_ATTENTION_CODES = new Set([
 
 const REPRINTABLE_UNCERTAIN_ATTENTION_CODES = new Set([
   'PROCESSING_OUTCOME_UNKNOWN',
+  'SERIAL_WRITE_UNCERTAIN',
 ])
 
 const errorCode = (job) => String(job?.lastError?.code || job?.attentionReason || '').trim().toUpperCase()
