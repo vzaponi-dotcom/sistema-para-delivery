@@ -334,3 +334,12 @@ test('print queue opens details from desktop rows and mobile cards, with actions
   const queueRows = page.slice(page.indexOf('<tbody>'), page.indexOf('{selectedDetails &&'))
   assert.doesNotMatch(queueRows, /<Button/)
 })
+
+test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  const manager = await readSource('../printing/usePrintingManager.js')
+  assert.match(page, /Trabalho de impressão descartado/)
+  assert.match(page, /Impressão autorizada e enviada para a fila/)
+  assert.doesNotMatch(page, /Ãƒ|Ã‚|ï¿½/)
+  assert.doesNotMatch(manager, /Ãƒ|Ã‚|ï¿½/)
+})

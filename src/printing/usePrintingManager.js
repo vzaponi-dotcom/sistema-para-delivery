@@ -526,7 +526,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   const requestPrintNow = useCallback(async (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
-    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await prioritizePrintJob(jobId)
     await refresh()
     return response
@@ -534,7 +534,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   const requestRetry = useCallback(async (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
-    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await retryPrintJob(jobId)
     await refresh()
     return response
@@ -542,7 +542,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   const requestDiscard = useCallback(async (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
-    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await discardPrintJob(jobId)
     await refresh()
     return response
@@ -550,7 +550,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   const requestForcePrint = useCallback(async (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
-    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await forcePrintJobApi(jobId)
     await refresh()
     return response

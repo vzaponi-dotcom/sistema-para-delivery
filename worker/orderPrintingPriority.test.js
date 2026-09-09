@@ -123,6 +123,8 @@ test('prioritize is central, keeps an offline queued job pending, and makes it t
   assert.equal(prioritized.status, 'pending')
   assert.equal(prioritized.priority, 1)
   assert.equal(prioritized.stationId, null)
+  assert.equal(prioritized.actionAt, baseNow.toISOString())
+  assert.equal(prioritized.actionActorLabel, 'Sistema')
 
   await printingRepository.upsertPrintStation(db, businessId, {
     id: 'kitchen', name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 1,

@@ -226,23 +226,22 @@ export const handlePrintingApi = async (request, env, session, url) => {
     const body = await readJson(request)
     const jobId = decodeURIComponent(jobActionMatch[1])
     const action = jobActionMatch[2]
-    const stationId = stationIdFromBody(body)
 
     if (action === 'claim') {
-      return json({ job: await claimPrintJob(env.DB, businessId, jobId, stationId) })
+      return json({ job: await claimPrintJob(env.DB, businessId, jobId, stationIdFromBody(body)) })
     }
     if (action === 'complete') {
-      return json({ job: await markPrintJobPrinted(env.DB, businessId, jobId, stationId, printCopies(body.copiesPrinted, 'copiesPrinted')) })
+      return json({ job: await markPrintJobPrinted(env.DB, businessId, jobId, stationIdFromBody(body), printCopies(body.copiesPrinted, 'copiesPrinted')) })
     }
     if (action === 'fail') {
-      return json({ job: await markPrintJobFailed(env.DB, businessId, jobId, stationId, {
+      return json({ job: await markPrintJobFailed(env.DB, businessId, jobId, stationIdFromBody(body), {
         code: requiredText(body.code, 'code', 'Código da falha é obrigatório.'),
         message: requiredText(body.message, 'message', 'Mensagem da falha é obrigatória.'),
         uncertain: Boolean(body.uncertain),
       }) })
     }
     if (action === 'retry') {
-      return json({ job: await retryPrintJob(env.DB, businessId, jobId) })
+      return json({ job: await retryPrintJob(env.DB, businessId, jobId, new Date(), String(body.actorLabel ?? '').trim() || 'Sistema') })
     }
   }
 

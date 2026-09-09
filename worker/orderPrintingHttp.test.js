@@ -377,6 +377,31 @@ test('uncertain failure requires attention and rejects unsafe retry', async () =
   assert.equal((await retried.json()).error.code, 'PRINT_JOB_RETRY_NOT_ALLOWED')
 })
 
+test('recoverable retry can be requested remotely without station and remains unclaimed', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  await jsonRequest('/api/printing/stations/s1', 'PUT', cookie, {
+    name: 'PC', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
+  })
+  await jsonRequest('/api/printing/stations/s1/make-primary', 'POST', cookie)
+  const manual = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })
+  const original = (await manual.json()).job
+  await jsonRequest(`/api/printing/jobs/${original.id}/claim`, 'POST', cookie, { stationId: 's1' })
+  await jsonRequest(`/api/printing/jobs/${original.id}/fail`, 'POST', cookie, {
+    stationId: 's1', code: 'QZ_PRINT_FAILED', message: 'falha recuperável', uncertain: false,
+  })
+
+  const retried = await jsonRequest(`/api/printing/jobs/${original.id}/retry`, 'POST', cookie, {})
+  assert.equal(retried.status, 200)
+  const retryJob = (await retried.json()).job
+  assert.equal(retryJob.id, original.id)
+  assert.deepEqual(retryJob.document, original.document)
+  assert.equal(retryJob.status, 'pending')
+  assert.equal(retryJob.stationId, null)
+  assert.equal(retryJob.actionActorLabel, 'Sistema')
+  assert.equal(typeof retryJob.actionAt, 'string')
+})
+
 test('printing endpoints require authentication and never expose another business jobs', async () => {
   currentEnv = await makeEnv()
   const unauthorized = await handleRequest(new Request('https://delivery.example/api/printing/stations'), currentEnv)

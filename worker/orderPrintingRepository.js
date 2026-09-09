@@ -422,10 +422,12 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
 }
 
-export const prioritizePrintJob = async (db, businessId, jobId) => {
-  const row = await db.prepare(`UPDATE print_jobs SET priority = 1
+export const prioritizePrintJob = async (db, businessId, jobId, now = new Date(), actorLabel = 'Sistema') => {
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const row = await db.prepare(`UPDATE print_jobs SET priority = 1, action_actor_label = ?, action_at = ?
     WHERE id = ? AND business_id = ? AND status = 'pending'
-    RETURNING *`).bind(jobId, businessId).first()
+    RETURNING *`).bind(actor, at, jobId, businessId).first()
   if (row) return mapJobRow(row)
 
   const existing = await loadPrintJob(db, businessId, jobId)
@@ -457,7 +459,7 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, document, n
   throw repositoryError(409, 'PRINT_JOB_REPRINT_NOT_ALLOWED', 'Este trabalho de impressão ainda não pode ser reimpresso.')
 }
 
-export const retryPrintJob = async (db, businessId, jobId, _now = new Date()) => {
+export const retryPrintJob = async (db, businessId, jobId, now = new Date(), actorLabel = 'Sistema') => {
   const retryExisting = await loadPrintJob(db, businessId, jobId)
   if (!retryExisting) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Print job not found.')
   const orderEligible = retryExisting.trigger !== 'automatic'
@@ -465,16 +467,18 @@ export const retryPrintJob = async (db, businessId, jobId, _now = new Date()) =>
   if (!isRetryablePrintJob(retryExisting) || !orderEligible) {
     throw repositoryError(409, 'PRINT_JOB_RETRY_NOT_ALLOWED', 'This print job cannot be retried in its current state.')
   }
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
   const row = await db.prepare(`UPDATE print_jobs SET
       status = CASE
         WHEN copies_printed > 0 AND copies_printed < copies_requested THEN 'awaiting_second_copy'
         ELSE 'pending'
       END,
       station_id = NULL, processing_started_at = NULL, processed_at = NULL,
-      last_error_code = NULL, last_error_message = NULL
+      last_error_code = NULL, last_error_message = NULL, action_actor_label = ?, action_at = ?
     WHERE id = ? AND business_id = ? AND status IN ('failed', 'requires_attention')
       AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
-    RETURNING *`).bind(jobId, businessId).first()
+    RETURNING *`).bind(actor, at, jobId, businessId).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')

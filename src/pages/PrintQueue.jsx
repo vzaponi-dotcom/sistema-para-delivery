@@ -78,10 +78,10 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
       if (action === 'retry') await printing?.requestRetry?.(selectedJob)
       if (action === 'discard') await printing?.requestDiscard?.(selectedJob)
       if (action === 'forcePrint') await printing?.requestForcePrint?.(selectedJob)
-      onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressÃ£o descartado', forcePrint: 'ImpressÃ£o autorizada e enviada para a fila' }[action])
+      onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressão descartado', forcePrint: 'Impressão autorizada e enviada para a fila' }[action])
       closeDetails()
     } catch (error) {
-      onToast?.(error?.message || 'NÃ£o foi possÃ­vel concluir a operaÃ§Ã£o.')
+      onToast?.(error?.message || 'Não foi possível concluir a operação.')
     } finally {
       setActionPending(false)
       setConfirmation(null)
@@ -233,8 +233,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
         </Modal>
       )}
       {confirmation && <ConfirmationDialog
-        title={confirmation === 'discard' ? 'Descartar trabalho de impressÃ£o?' : 'Imprimir mesmo assim?'}
-        message={confirmation === 'discard' ? `O trabalho de impressÃ£o de ${orderNumber} serÃ¡ descartado.` : `${orderNumber} jÃ¡ foi finalizado ou cancelado. Autorizar a impressÃ£o original?`}
+        title={confirmation === 'discard' ? 'Descartar trabalho de impressão?' : 'Imprimir mesmo assim?'}
+        message={confirmation === 'discard' ? `O trabalho de impressão de ${orderNumber} será descartado.` : `${orderNumber} já foi finalizado ou cancelado. Autorizar a impressão original?`}
         confirmLabel={confirmation === 'discard' ? 'Descartar' : 'Imprimir mesmo assim'}
         cancelLabel="Cancelar"
         confirmVariant={confirmation === 'discard' ? 'secondary' : undefined}
