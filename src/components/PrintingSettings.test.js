@@ -80,6 +80,7 @@ test('copies load from the business and save centrally while local station chang
     return Response.json({ settings: { defaultCopies: persistedCopies } })
   }
   const printing = {
+    transportKind: 'qz',
     localStation: { id: 's1', name: 'PC', platform: 'windows', defaultCopies: 2, autoPrintEnabled: false },
     saveStationSettings: async (value) => { stationWrites.push(value) },
   }
@@ -177,7 +178,7 @@ test('Orders header keeps only the focused kitchen actions', () => {
 })
 
 test('printing settings expose honest connection, station and transport states', () => {
-  for (const label of ['Conectada', 'Desconectada', 'Não configurada', 'Navegador incompatível']) {
+  for (const label of ['QZ Tray conectado', 'QZ Tray desconectado', 'Impressora QZ não configurada']) {
     assert.match(settings, new RegExp(label))
   }
   for (const label of ['Estação', 'Plataforma', 'Driver', 'Estação principal', 'Impressão automática', 'Cópias por pedido']) {
@@ -200,9 +201,18 @@ test('QZ copy separates Tray connection from queue discovery and send readiness'
 })
 
 test('Android is queue-only and does not expose a physical printer control', () => {
-  assert.match(settings, /printing\?\.supported !== false/)
   assert.doesNotMatch(settings, /isRawBt|transportKind === 'rawbt'|RawBT/)
   assert.match(settings, /fila central.*impressão física/i)
+})
+
+test('queue-only settings hide physical controls and use a semantic queue status while retaining central copies', () => {
+  assert.doesNotMatch(settings, /Navegador incompatível/)
+  assert.match(settings, /Fila central/)
+  assert.match(settings, /Somente solicitações|somente solicitações/i)
+  assert.match(settings, /\{isQz && \([\s\S]*Testar impressão[\s\S]*\)\}/)
+  assert.match(settings, /\{isQz && \([\s\S]*Imprimir novos pedidos automaticamente[\s\S]*\)\}/)
+  assert.match(settings, /\{isQz && \([\s\S]*Tornar estação principal[\s\S]*\)\}/)
+  assert.match(settings, /printing-copy-options/)
 })
 
 test('QZ printer discovery adapts queue names to SystemSelect option objects', () => {

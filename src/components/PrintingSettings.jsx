@@ -6,14 +6,6 @@ import Modal from './Modal'
 import SystemSelect from './SystemSelect'
 import '../printing/printing.css'
 
-const CONNECTION_LABELS = {
-  connected: 'Conectada',
-  disconnected: 'Desconectada',
-  unconfigured: 'Não configurada',
-  unsupported: 'Navegador incompatível',
-  connecting: 'Conectando…',
-}
-
 const QZ_CONNECTION_LABELS = {
   connected: 'QZ Tray conectado',
   disconnected: 'QZ Tray desconectado',
@@ -138,10 +130,9 @@ function PrintingSettings({ printing, onClose }) {
     if (saved) setConfirmPrimary(false)
   }
 
-  const printerState = printing?.supported === false ? 'unsupported' : (printing?.printerState || 'unconfigured')
+  const printerState = printing?.printerState || 'unconfigured'
   const qzConnectionState = printing?.qzConnected ? 'connected' : (printerState === 'connecting' ? 'connecting' : 'disconnected')
-  const connectionLabel = (isQz ? QZ_CONNECTION_LABELS : CONNECTION_LABELS)[isQz ? qzConnectionState : printerState] || 'Desconectada'
-  const configured = !['unconfigured', 'unsupported'].includes(printerState)
+  const connectionLabel = isQz ? (QZ_CONNECTION_LABELS[qzConnectionState] || 'Desconectada') : 'Somente solicitações'
   const queueConfigured = Boolean(String(printing?.configuredPrinterName || '').trim())
   const queueFound = Boolean(printing?.printerQueueFound)
   const disabled = Boolean(pendingAction) || !station
@@ -154,7 +145,7 @@ function PrintingSettings({ printing, onClose }) {
         <div className="printing-settings form-stack">
           <div className="printing-status-card">
             <div>
-              <span className="printing-label">{isQz ? 'QZ Tray' : 'Impressora'}</span>
+              <span className="printing-label">{isQz ? 'QZ Tray' : 'Fila central'}</span>
               <strong>{connectionLabel}</strong>
             </div>
             <span className={`printing-state printing-state-${isQz ? qzConnectionState : printerState}`}>{connectionLabel}</span>
@@ -226,26 +217,25 @@ function PrintingSettings({ printing, onClose }) {
             </div>
           )}
 
-          <div className="printing-actions-row">
-            {!isQz && printing?.supported !== false && (
-              <Button type="button" variant="secondary" onClick={connectPrinter} disabled={disabled || printing?.supported === false}>
-                {configured ? 'Trocar impressora' : 'Conectar impressora'}
+          {isQz && (
+            <div className="printing-actions-row">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={testPrint}
+                disabled={disabled || !printing?.transportReady}
+              >
+                Testar impressão
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={testPrint}
-              disabled={disabled || printing?.supported === false || (isQz && !printing?.transportReady)}
-            >
-              Testar impressão
-            </Button>
-          </div>
+            </div>
+          )}
 
-          <label className="printing-toggle-row">
-            <span><strong>Imprimir novos pedidos automaticamente</strong><small>Somente a estação principal consome a fila automática.</small></span>
-            <input type="checkbox" checked={autoPrintEnabled} onChange={handleAutoPrintChange} disabled={disabled} />
-          </label>
+          {isQz && (
+            <label className="printing-toggle-row">
+              <span><strong>Imprimir novos pedidos automaticamente</strong><small>Somente a estação principal consome a fila automática.</small></span>
+              <input type="checkbox" checked={autoPrintEnabled} onChange={handleAutoPrintChange} disabled={disabled} />
+            </label>
+          )}
 
           <fieldset className="printing-copy-options" disabled={Boolean(pendingAction) || settingsLoading || defaultCopies === null}>
             <legend>Cópias por pedido do negócio</legend>
@@ -266,7 +256,7 @@ function PrintingSettings({ printing, onClose }) {
             </div>
           )}
 
-          {!station?.isPrimary && (
+          {isQz && !station?.isPrimary && (
             <div className="printing-primary-card">
               <div><strong>Tornar estação principal</strong><span>Necessário para receber automaticamente os novos pedidos.</span></div>
               <Button type="button" variant="secondary" onClick={() => setConfirmPrimary(true)} disabled={disabled}>Tornar estação principal</Button>
@@ -285,7 +275,7 @@ function PrintingSettings({ printing, onClose }) {
         </div>
       </Modal>
 
-      {confirmPrimary && (
+      {isQz && confirmPrimary && (
         <ConfirmationDialog
           title="Tornar estação principal"
           message="Esta será a única estação responsável pela impressão automática. As outras estações continuam disponíveis para ações manuais."
