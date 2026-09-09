@@ -1,6 +1,7 @@
 import Button from './Button'
 import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate } from '../utils/orderWorkflow.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const timingText = (entry) => {
   if (entry.kind === 'table_tab') {
@@ -53,7 +54,7 @@ function ReceivableDetail({
           {entry.orders.map((order) => (
             <section className="receivable-table-tab-order" key={order.id}>
               <div className="receivable-table-tab-order-heading">
-                <div><span>Pedido</span><strong>#{String(order.id || '').slice(-4)}</strong></div>
+                <div><span>Pedido</span><strong>{formatOrderDisplayNumber(order)}</strong></div>
                 <div className="receivable-table-tab-order-subtotal"><span>Subtotal</span><strong>{currency(order.total ?? order.subtotal ?? 0)}</strong></div>
               </div>
               <div className="receivable-table-tab-items">
@@ -103,7 +104,7 @@ function ReceivableDetail({
       </div>
 
       <div className="receivable-detail-meta">
-        <div><span>Pedido</span><strong>#{String(order?.id || '').slice(-4)}</strong></div>
+        <div><span>Pedido</span><strong>{formatOrderDisplayNumber(order)}</strong></div>
         <div><span>Data do pedido</span><strong>{formatOrderDate(order?.orderDate)}</strong></div>
         <div><span>Data prometida</span><strong>{promise ? formatOrderDate(promise) : 'Não definida'}</strong></div>
         {paid && <div><span>Forma de pagamento</span><strong>{order?.paymentMethod || 'Não informada'}</strong></div>}

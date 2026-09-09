@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Button from './Button'
 import Modal from './Modal'
 import SystemSelect from './SystemSelect'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const PAYMENT_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
   .map((value) => ({ value, label: value }))
@@ -30,7 +31,7 @@ function RegisterRefundDialog({ open, order, onClose, onConfirm, submitting = fa
     <Modal title="Registrar estorno" onClose={submitting ? () => {} : onClose}>
       <form className="form-stack refund-order-form" onSubmit={handleSubmit}>
         <div className="refund-order-summary">
-          <span>Pedido #{String(order.id).slice(-4)} · {order.client}</span>
+          <span>{formatOrderDisplayNumber(order)} · {order.client}</span>
           <strong>{currency(amount)}</strong>
           <small>O valor integral pago será registrado como estorno e aparecerá como saída no Financeiro.</small>
         </div>

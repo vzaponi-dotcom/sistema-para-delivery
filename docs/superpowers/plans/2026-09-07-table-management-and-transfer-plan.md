@@ -936,3 +936,4 @@ Esta tarefa só começa depois do PR draft estar com CI verde.
 - Preserve idempotência de criação de pedido e comportamento atual de `idempotency-key`.
 - Preserve compatibilidade dos pedidos antigos com `guest_name` em histórico/leitura.
 - Preserve todo o fluxo financeiro e de impressão; somente a string de apresentação da identidade local pode mudar conforme a spec.
+# **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.

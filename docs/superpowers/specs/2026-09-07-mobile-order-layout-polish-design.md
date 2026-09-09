@@ -67,3 +67,4 @@ The category icon is the permanent no-photo treatment for this round. Future sup
 ## Validation
 
 Implementation must follow TDD. Regression coverage should protect the responsive layout contracts, semantic category-icon wiring, and preservation of existing cart actions. Before staging, run the complete repository CI gate and review the full PR diff. Physical approval is required on staging before merge to `master`.
+# **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.

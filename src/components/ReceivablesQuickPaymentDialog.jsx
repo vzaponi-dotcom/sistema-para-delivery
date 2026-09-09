@@ -3,8 +3,8 @@ import Icon from './Icon'
 import Modal from './Modal'
 import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
 import { formatOrderDate } from '../utils/orderWorkflow.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-const orderNumber = (id) => String(id || '').slice(-4)
 
 function ReceivablesQuickPaymentDialog({
   open,
@@ -69,7 +69,7 @@ function ReceivablesQuickPaymentDialog({
             >
               <span className="receivables-quick-payment-main">
                 <strong>{entry.label || 'Pedido sem identificação'}</strong>
-                <span>Pedido #{orderNumber(entry.order.id)} · {getOrderItemsSummary(entry.order)}</span>
+                <span>{formatOrderDisplayNumber(entry.order)} · {getOrderItemsSummary(entry.order)}</span>
                 <small>{entry.expectedDate ? `Pagamento esperado em ${formatOrderDate(entry.expectedDate)}` : 'Pagamento pendente'}</small>
               </span>
               <strong className="receivables-quick-payment-amount">{currency(entry.total)}</strong>

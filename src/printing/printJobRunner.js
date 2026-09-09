@@ -24,12 +24,14 @@ export const runClaimedPrintJob = async ({
     await completeJob(job.id, stationId, copyNumber)
     return { status: 'printed' }
   } catch (error) {
-    const uncertain = error?.code === 'SERIAL_WRITE_UNCERTAIN'
+    const code = error?.code || 'PRINT_FAILED'
+    const uncertain = code === 'SERIAL_WRITE_UNCERTAIN'
+    const requiresAttention = uncertain || String(code).toUpperCase().startsWith('QZ_')
     await failJob(job.id, stationId, {
-      code: error?.code || 'PRINT_FAILED',
+      code,
       message: error?.message || 'Não foi possível imprimir o pedido.',
       uncertain,
     })
-    return { status: uncertain ? 'requires_attention' : 'failed', error }
+    return { status: requiresAttention ? 'requires_attention' : 'failed', error }
   }
 }

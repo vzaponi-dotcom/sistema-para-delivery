@@ -21,9 +21,52 @@ const countBytes = (haystack, needle) => {
   return count
 }
 
+const styledLines = (bytes) => {
+  const lines = []
+  let size = 0
+  let bold = false
+  let align = 0
+  let text = ''
+  for (let index = 0; index < bytes.length;) {
+    if (bytes[index] === 0x0a) {
+      lines.push({ text, size, bold, align })
+      text = ''
+      index += 1
+      continue
+    }
+    if (bytes[index] === 0x1b && bytes[index + 1] === 0x45) {
+      bold = Boolean(bytes[index + 2])
+      index += 3
+      continue
+    }
+    if (bytes[index] === 0x1b && bytes[index + 1] === 0x61) {
+      align = bytes[index + 2]
+      index += 3
+      continue
+    }
+    if (bytes[index] === 0x1b && [0x40, 0x4d, 0x61, 0x74].includes(bytes[index + 1])) {
+      index += bytes[index + 1] === 0x40 ? 2 : 3
+      continue
+    }
+    if (bytes[index] === 0x1d && bytes[index + 1] === 0x21) {
+      size = bytes[index + 2]
+      index += 3
+      continue
+    }
+    if (bytes[index] < 0x20) {
+      index += 1
+      continue
+    }
+    text += String.fromCharCode(bytes[index])
+    index += 1
+  }
+  return lines
+}
+
 const fixture = (overrides = {}) => createOrderPrintDocument({
   businessName: 'Amor & Sabor',
   orderId: 'order-0184',
+  orderNumber: 184,
   orderDate: '2026-09-03',
   createdAt: '2026-09-03T23:31:00.000Z',
   type: 'Entrega',
@@ -44,20 +87,13 @@ const fixture = (overrides = {}) => createOrderPrintDocument({
   ...overrides,
 })
 
-test('MTP5 profile centralizes physical width, logical columns, code page and serial defaults', () => {
+test('MTP5 profile centralizes physical width, logical columns and code page', () => {
   assert.equal(MTP5_PROFILE.paperWidthMm, 58)
   assert.equal(MTP5_PROFILE.printableWidthMm, 48)
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
   assert.equal(MTP5_PROFILE.fontAColumns, 32)
   assert.equal(MTP5_PROFILE.codePage, 3)
-  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 1)
-  assert.deepEqual(MTP5_PROFILE.serial, {
-    baudRate: 9600,
-    dataBits: 8,
-    stopBits: 1,
-    parity: 'none',
-    flowControl: 'none',
-  })
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
 })
 
 test('CP860 encoder preserves Portuguese ticket characters and replaces unsupported glyphs', () => {
@@ -75,12 +111,50 @@ test('text wrapping never exceeds the 32-column normal-font budget', () => {
   assert.deepEqual(hardWrapped, ['ABCDEFGHIJKLMNOPQRSTUVWXYZ123456', '7890'])
 })
 
+test('ticket hierarchy makes secondary text legible without letting TOTAL dominate', () => {
+  const lines = styledLines(renderEscPos58mm(fixture()))
+  const line = (prefix) => lines.find(({ text }) => text.startsWith(prefix))
+
+  assert.equal(line('Cliente: ')?.size, 0x00)
+  assert.equal(line('Telefone: ')?.size, 0x00)
+  assert.equal(line('Endere')?.size, 0x00)
+  assert.equal(line('2x X-BURGER')?.size, 0x00)
+  assert.equal(line('Obs: ')?.size, 0x00)
+  assert.equal(line('Subtotal: ')?.size, 0x00)
+  assert.equal(line('Pagamento: ')?.size, 0x00)
+  assert.equal(line('PEDIDO #')?.size, 0x11)
+  assert.equal(line('TOTAL ')?.size, 0x00)
+  assert.equal(line('TOTAL ')?.bold, true)
+  assert.equal(line('TOTAL ')?.align, 1)
+})
+
+test('MPT-II ticket wraps the complete accented footer within 384 dots and leaves two extra feed lines', () => {
+  const message = 'Obrigado pela compra! Agradecemos a preferência. Volte sempre.'
+  const document = fixture()
+  document.message = message
+  const bytes = renderEscPos58mm(document, { copies: 1 })
+  const lines = styledLines(bytes)
+  const footerStart = lines.map(({ text }) => text).lastIndexOf('PEDIDO #184') + 1
+  const footerLines = lines.slice(footerStart).filter(({ text }) => text)
+  const trailingFeedLines = [...bytes].reverse().findIndex((byte) => byte !== 0x0a)
+
+  assert.equal(footerLines.map(({ text }) => text).join(' ').includes('Obrigado pela compra!'), true)
+  assert.equal(includesBytes(bytes, encodeCp860('Agradecemos a prefer')),
+    true)
+  assert.equal(footerLines.map(({ text }) => text).join(' ').includes('Volte sempre.'), true)
+  assert.equal(footerLines.every(({ text }) => text.length <= MTP5_PROFILE.fontAColumns), true)
+  assert.equal(footerLines.every(({ size }) => size === 0x00), true)
+  assert.equal(trailingFeedLines, 2)
+  assert.equal(MTP5_PROFILE.dotsPerLine, 384)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
+})
+
 test('58mm renderer emits deterministic ESC/POS structure and two approved copies without cut command', () => {
   const bytes = renderEscPos58mm(fixture(), { copies: 2 })
 
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x40])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, 0x03])), true)
-  assert.equal(includesBytes(bytes, encodeCp860('PEDIDO #0184')), true)
+  assert.equal(includesBytes(bytes, encodeCp860('PEDIDO #184')), true)
   assert.equal(includesBytes(bytes, encodeCp860('João Silva')), true)
   assert.equal(includesBytes(bytes, encodeCp860('sem cebola')), false)
   assert.equal(includesBytes(bytes, encodeCp860('Sem cebola')), true)
@@ -97,7 +171,7 @@ test('renderer can emit only the selected second physical copy while preserving 
 
   assert.equal(countBytes(bytes, encodeCp860('CÓPIA 1/2')), 0)
   assert.equal(countBytes(bytes, encodeCp860('CÓPIA 2/2')), 1)
-  assert.equal(countBytes(bytes, encodeCp860('PEDIDO #0184')), 2)
+  assert.equal(countBytes(bytes, encodeCp860('PEDIDO #184')), 2)
 })
 
 test('MPT-II byte stream exits Chinese mode, keeps Portuguese accents and uses ASCII money spacing', () => {
@@ -135,6 +209,8 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
     payment: { status: 'Pendente', method: '' },
   })
   const drawnCharacters = []
+  const drawnFonts = []
+  const drawnSamples = []
   const createCanvas = () => {
     const canvas = { width: 0, height: 0 }
     const context = {
@@ -143,7 +219,11 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
       textAlign: '',
       textBaseline: '',
       fillRect() {},
-      fillText(character) { drawnCharacters.push(character) },
+      fillText(character) {
+        drawnCharacters.push(character)
+        drawnFonts.push(this.font)
+        drawnSamples.push({ font: this.font, height: canvas.height })
+      },
       getImageData() {
         const data = new Uint8ClampedArray(canvas.width * canvas.height * 4)
         data.fill(255)
@@ -166,6 +246,12 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
   assert.equal(drawnText.includes('João'), true)
   assert.equal(drawnText.includes('Acréscimo'), true)
   assert.equal(drawnText.includes('CÓPIA'), true)
+  const rasterFontSizes = drawnSamples.map(({ font }) => Number.parseInt(font.match(/ (\d+)px /)?.[1] || '0', 10))
+  assert.equal(rasterFontSizes.includes(27), true)
+  assert.equal(rasterFontSizes.includes(48), false)
+  const normalSamples = drawnSamples.filter(({ font }) => font.includes(' 27px '))
+  assert.equal(normalSamples.length > 0, true)
+  assert.equal(normalSamples.every(({ height }) => height === 24), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x2a, 33, 0x80, 0x01])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])), false)
 })

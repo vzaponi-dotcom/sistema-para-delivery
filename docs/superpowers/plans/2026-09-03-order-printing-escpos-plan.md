@@ -1,5 +1,7 @@
 # Order Printing ESC/POS Implementation Plan
 
+> **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte `docs/superpowers/specs/2026-09-08-centralized-qz-print-queue-design.md` e `docs/superpowers/plans/2026-09-08-centralized-qz-print-queue-plan.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add reliable 58 mm ESC/POS order printing to Gestão Delivery with one canonical customer-safe ticket, automatic/manual print jobs, one primary print station, Chrome Web Serial support on Windows and Android, HTML preview, and downloadable PDF.

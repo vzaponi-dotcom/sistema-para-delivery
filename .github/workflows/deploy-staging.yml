@@ -1,6 +1,9 @@
 name: Deploy staging
 
 on:
+  push:
+    branches:
+      - feature/centralized-qz-print-queue
   workflow_dispatch:
 
 permissions:

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
+import * as printingRepository from './orderPrintingRepository.js'
 import {
   PRINT_PENDING_MAX_AGE_MS,
   PRINT_PROCESSING_MAX_AGE_MS,
   claimNextAutomaticPrintJob,
   claimPrintJob,
   createManualOrderPrintJob,
+  heartbeatPrintStation,
   listPrintJobs,
   listPrintStations,
   loadAutomaticPrintJobForOrder,
@@ -16,7 +18,7 @@ import {
   markPrintJobPrinted,
   prepareAutomaticPrintJobStatement,
   retryPrintJob,
-  setPrimaryPrintStation,
+  setPrimaryPrintStation as setPrimaryPrintStationRepository,
   upsertPrintStation,
 } from './orderPrintingRepository.js'
 
@@ -36,6 +38,9 @@ class D1Sqlite {
         auto_print_enabled INTEGER NOT NULL DEFAULT 0,
         default_copies INTEGER NOT NULL DEFAULT 2,
         last_seen_at TEXT,
+        qz_ready INTEGER NOT NULL DEFAULT 0,
+        printer_ready INTEGER NOT NULL DEFAULT 0,
+        last_ready_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -47,14 +52,23 @@ class D1Sqlite {
         type TEXT NOT NULL,
         trigger TEXT NOT NULL,
         status TEXT NOT NULL,
+        priority INTEGER NOT NULL DEFAULT 0,
+        parent_job_id TEXT,
         copies_requested INTEGER NOT NULL,
         copies_printed INTEGER NOT NULL DEFAULT 0,
         station_id TEXT,
         snapshot_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        available_at TEXT NOT NULL,
+        available_at TEXT,
         processing_started_at TEXT,
         processed_at TEXT,
+        discarded_at TEXT,
+        attention_reason TEXT,
+        action_actor_label TEXT,
+        action_at TEXT,
+        second_copy_prompted_at TEXT,
+        second_copy_requested_at TEXT,
+        second_copy_skipped_at TEXT,
         last_error_code TEXT,
         last_error_message TEXT
       );
@@ -113,13 +127,67 @@ const makeDb = () => {
   return db
 }
 
+test('remote second-copy decisions preserve the original job and snapshot', async () => {
+  assert.equal(typeof printingRepository.requestSecondCopy, 'function')
+  assert.equal(typeof printingRepository.skipSecondCopy, 'function')
+  const db = makeDb()
+  await addAutomaticJob(db, { id: 'remote-copy' })
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a')
+  await claimPrintJob(db, businessA, 'remote-copy', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'remote-copy', 'station-a', 1, baseNow)
+  const beforeDecision = await loadPrintJob(db, businessA, 'remote-copy')
+  const requested = await printingRepository.requestSecondCopy(db, businessA, 'remote-copy', 'Operador', baseNow)
+  assert.equal(requested.id, 'remote-copy')
+  assert.equal(requested.status, 'pending')
+  assert.equal(requested.copiesPrinted, 1)
+  assert.deepEqual(requested.document, beforeDecision.document)
+  assert.equal(requested.secondCopyRequestedAt, baseNow.toISOString())
+  await assert.rejects(() => printingRepository.skipSecondCopy(db, businessA, 'remote-copy', 'Operador', baseNow), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
+})
+
+test('remote second-copy requests and skips are idempotent and mutually exclusive', async () => {
+  const db = makeDb()
+  await addAutomaticJob(db, { id: 'idempotent-request' })
+  await addAutomaticJob(db, { id: 'idempotent-skip', orderId: 'o2' })
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a')
+  for (const id of ['idempotent-request', 'idempotent-skip']) {
+    await claimPrintJob(db, businessA, id, 'station-a', baseNow)
+    await markPrintJobPrinted(db, businessA, id, 'station-a', 1, baseNow)
+  }
+  const firstRequest = await printingRepository.requestSecondCopy(db, businessA, 'idempotent-request', 'Operador', baseNow)
+  const repeatedRequest = await printingRepository.requestSecondCopy(db, businessA, 'idempotent-request', 'Operador', new Date(baseNow.getTime() + 1000))
+  assert.equal(repeatedRequest.id, firstRequest.id)
+  assert.equal(repeatedRequest.secondCopyRequestedAt, firstRequest.secondCopyRequestedAt)
+  assert.deepEqual(repeatedRequest.document, firstRequest.document)
+  await assert.rejects(() => printingRepository.skipSecondCopy(db, businessA, 'idempotent-request'), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
+  const firstSkip = await printingRepository.skipSecondCopy(db, businessA, 'idempotent-skip', 'Operador', baseNow)
+  const repeatedSkip = await printingRepository.skipSecondCopy(db, businessA, 'idempotent-skip', 'Operador', new Date(baseNow.getTime() + 1000))
+  assert.equal(repeatedSkip.id, firstSkip.id)
+  assert.equal(repeatedSkip.secondCopySkippedAt, firstSkip.secondCopySkippedAt)
+  assert.equal(repeatedSkip.discardedAt, firstSkip.discardedAt)
+  await assert.rejects(() => printingRepository.requestSecondCopy(db, businessA, 'idempotent-skip'), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
+})
+
 const addStation = async (db, id, overrides = {}) => upsertPrintStation(db, overrides.businessId || businessA, {
   id,
   name: overrides.name || id,
-  platform: overrides.platform || 'android',
+  platform: overrides.platform || 'windows',
   autoPrintEnabled: overrides.autoPrintEnabled ?? true,
   defaultCopies: overrides.defaultCopies || 2,
 }, baseNow)
+
+const setPrimaryPrintStation = async (db, businessId, stationId, at = baseNow) => {
+  const station = await setPrimaryPrintStationRepository(db, businessId, stationId, at)
+  if (station.platform === 'windows') {
+    await heartbeatPrintStation(db, businessId, stationId, {
+      qzReady: true,
+      printerReady: true,
+    }, at)
+  }
+  return station
+}
 
 const addAutomaticJob = async (db, { id, orderId = 'o1', businessId = businessA, createdAt = baseNow, availableAt = createdAt } = {}) => {
   const statement = prepareAutomaticPrintJobStatement(db, businessId, {
@@ -216,6 +284,55 @@ test('printed transition records copies and rejects completion from another stat
   assert.equal(printed.copiesPrinted, 2)
 })
 
+test('first completion of a two-copy job persists awaiting_second_copy with one copy printed', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'awaiting-second-copy' })
+  await claimPrintJob(db, businessA, 'awaiting-second-copy', 'station-a', baseNow)
+
+  const firstCopy = await markPrintJobPrinted(db, businessA, 'awaiting-second-copy', 'station-a', 1, baseNow)
+
+  assert.equal(firstCopy.copiesPrinted, 1)
+  assert.notEqual(firstCopy.status, 'printed')
+  assert.equal(firstCopy.status, 'awaiting_second_copy')
+})
+
+test('second completion of a two-copy job persists printed with two copies printed', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'complete-second-copy' })
+  await claimPrintJob(db, businessA, 'complete-second-copy', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'complete-second-copy', 'station-a', 1, baseNow)
+  await claimPrintJob(db, businessA, 'complete-second-copy', 'station-a', baseNow)
+
+  const secondCopy = await markPrintJobPrinted(db, businessA, 'complete-second-copy', 'station-a', 2, baseNow)
+
+  assert.equal(secondCopy.copiesPrinted, 2)
+  assert.equal(secondCopy.status, 'printed')
+})
+
+test('primary QZ station acknowledges a second-copy prompt once without completing the job', async () => {
+  assert.equal(typeof printingRepository.acknowledgeSecondCopyPrompt, 'function')
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'prompt-job' })
+  await claimPrintJob(db, businessA, 'prompt-job', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'prompt-job', 'station-a', 1, baseNow)
+
+  const first = await printingRepository.acknowledgeSecondCopyPrompt(db, businessA, 'prompt-job', 'station-a', baseNow)
+  const repeated = await printingRepository.acknowledgeSecondCopyPrompt(db, businessA, 'prompt-job', 'station-a', new Date(baseNow.getTime() + 1000))
+
+  assert.equal(first.promptPresented, true)
+  assert.equal(first.job.status, 'awaiting_second_copy')
+  assert.equal(first.job.copiesPrinted, 1)
+  assert.equal(first.job.secondCopyPromptedAt, baseNow.toISOString())
+  assert.equal(repeated.promptPresented, false)
+  assert.equal(repeated.job.secondCopyPromptedAt, baseNow.toISOString())
+})
+
 test('partial two-copy jobs wait for an explicit second-copy claim and keep their progress', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
@@ -226,7 +343,7 @@ test('partial two-copy jobs wait for an explicit second-copy claim and keep thei
   assert.equal(firstClaim.copiesPrinted, 0)
 
   const firstCopy = await markPrintJobPrinted(db, businessA, 'split-job', 'station-a', 1, baseNow)
-  assert.equal(firstCopy.status, 'printed')
+  assert.equal(firstCopy.status, 'awaiting_second_copy')
   assert.equal(firstCopy.copiesPrinted, 1)
 
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
@@ -263,7 +380,7 @@ test('retry after a failed second copy preserves the first copy and cannot re-en
   assert.equal(failed.copiesPrinted, 1)
 
   const retried = await retryPrintJob(db, businessA, 'split-retry', baseNow)
-  assert.equal(retried.status, 'printed')
+  assert.equal(retried.status, 'awaiting_second_copy')
   assert.equal(retried.copiesPrinted, 1)
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
 
@@ -271,7 +388,7 @@ test('retry after a failed second copy preserves the first copy and cannot re-en
   assert.equal(secondClaim.copiesPrinted, 1)
 })
 
-test('aging moves stale pending and processing jobs to requires_attention before automatic claim', async () => {
+test('aging preserves active pending jobs but routes stale processing to requires_attention', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
   await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
@@ -283,8 +400,9 @@ test('aging moves stale pending and processing jobs to requires_attention before
   await addAutomaticJob(db, { id: 'old-processing', orderId: 'o2', createdAt: processingAt })
   await claimPrintJob(db, businessA, 'old-processing', 'station-a', processingAt)
 
-  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
-  assert.equal((await loadPrintJob(db, businessA, 'old-pending')).status, 'requires_attention')
+  const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow)
+  assert.equal(claimed.id, 'old-pending')
+  assert.equal(claimed.status, 'processing')
   assert.equal((await loadPrintJob(db, businessA, 'old-processing')).status, 'requires_attention')
 })
 
@@ -296,6 +414,7 @@ test('automatic print waits for availableAt before aging or claim', async () => 
   const job = await addAutomaticJob(db, { id: 'future-available', createdAt: new Date(baseNow.getTime() - 3 * 60 * 60 * 1000), availableAt: future })
   assert.equal(job.availableAt, future.toISOString())
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow), null)
+  await heartbeatPrintStation(db, businessA, 'station-a', { qzReady: true, printerReady: true }, future)
   const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', future)
   assert.equal(claimed.id, 'future-available')
 })
@@ -321,7 +440,9 @@ test('manual printing leaves a future automatic job pending until its exact avai
   assert.equal((await loadPrintJob(db, businessA, manual.id)).status, 'printed')
   assert.equal((await loadPrintJob(db, businessA, automatic.id)).status, 'pending')
   assert.equal((await loadPrintJob(db, businessA, automatic.id)).availableAt, future.toISOString())
+  await heartbeatPrintStation(db, businessA, 'primary', { qzReady: true, printerReady: true }, before)
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'primary', before), null)
+  await heartbeatPrintStation(db, businessA, 'primary', { qzReady: true, printerReady: true }, future)
   assert.equal((await claimNextAutomaticPrintJob(db, businessA, 'primary', future)).id, automatic.id)
 })
 
@@ -335,6 +456,69 @@ test('job and station reads are isolated by business id', async () => {
   assert.deepEqual((await listPrintStations(db, businessA)).map((item) => item.id), ['station-a'])
   assert.deepEqual((await listPrintJobs(db, businessA)).map((item) => item.id), ['job-a'])
   assert.equal(await loadPrintJob(db, businessA, 'job-b'), null)
+})
+
+test('listPrintJobs exposes centralized queue fields and orders jobs deterministically', async () => {
+  const db = makeDb()
+  const jobIds = ['priority-job', 'legacy-job', 'available-job', 'created-job', 'stable-a', 'stable-b']
+  for (const id of jobIds) {
+    await createManualOrderPrintJob(db, businessA, { id, orderId: 'o1', copies: 2, document }, baseNow)
+  }
+
+  db.exec(`
+    UPDATE print_jobs SET
+      priority = 1,
+      parent_job_id = 'original-job',
+      discarded_at = '2026-09-03T23:09:00.000Z',
+      attention_reason = 'PRINTER_OFFLINE',
+      action_actor_label = 'Caixa 1',
+      action_at = '2026-09-03T23:10:00.000Z',
+      created_at = '2026-09-03T23:10:00.000Z',
+      available_at = '2026-09-03T23:10:00.000Z'
+    WHERE id = 'priority-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:00:00.000Z', available_at = NULL WHERE id = 'legacy-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:05:00.000Z', available_at = '2026-09-03T23:01:00.000Z' WHERE id = 'available-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:02:00.000Z', available_at = NULL WHERE id = 'created-job';
+    UPDATE print_jobs SET created_at = '2026-09-03T23:03:00.000Z', available_at = '2026-09-03T23:03:00.000Z' WHERE id IN ('stable-a', 'stable-b');
+  `)
+
+  const jobs = await listPrintJobs(db, businessA, { now: baseNow })
+  const priorityJob = jobs.find((job) => job.id === 'priority-job')
+  const legacyJob = jobs.find((job) => job.id === 'legacy-job')
+
+  assert.deepEqual(jobs.map((job) => job.id), [
+    'priority-job', 'legacy-job', 'available-job', 'created-job', 'stable-a', 'stable-b',
+  ])
+  assert.deepEqual({
+    priority: priorityJob.priority,
+    parentJobId: priorityJob.parentJobId,
+    discardedAt: priorityJob.discardedAt,
+    attentionReason: priorityJob.attentionReason,
+    actionActorLabel: priorityJob.actionActorLabel,
+    actionAt: priorityJob.actionAt,
+  }, {
+    priority: 1,
+    parentJobId: 'original-job',
+    discardedAt: '2026-09-03T23:09:00.000Z',
+    attentionReason: 'PRINTER_OFFLINE',
+    actionActorLabel: 'Caixa 1',
+    actionAt: '2026-09-03T23:10:00.000Z',
+  })
+  assert.deepEqual({
+    priority: legacyJob.priority,
+    parentJobId: legacyJob.parentJobId,
+    discardedAt: legacyJob.discardedAt,
+    attentionReason: legacyJob.attentionReason,
+    actionActorLabel: legacyJob.actionActorLabel,
+    actionAt: legacyJob.actionAt,
+  }, {
+    priority: 0,
+    parentJobId: null,
+    discardedAt: null,
+    attentionReason: null,
+    actionActorLabel: null,
+    actionAt: null,
+  })
 })
 
 test('cancelled automatic order cannot claim its pending second copy', async () => {
@@ -363,7 +547,94 @@ test('cancelled automatic order cannot claim its pending second copy', async () 
   )
 
   const preserved = await loadPrintJob(db, businessA, 'cancelled-second-copy')
-  assert.equal(preserved.status, 'printed')
+  assert.equal(preserved.status, 'awaiting_second_copy')
   assert.equal(preserved.copiesPrinted, 1)
 })
 
+test('a stale remote second-copy request cannot authorize a finalized or cancelled order', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'stale-finalized-second-copy' })
+  await addAutomaticJob(db, { id: 'stale-cancelled-second-copy', orderId: 'o2' })
+  for (const id of ['stale-finalized-second-copy', 'stale-cancelled-second-copy']) {
+    await claimPrintJob(db, businessA, id, 'station-a', baseNow)
+    await markPrintJobPrinted(db, businessA, id, 'station-a', 1, baseNow)
+  }
+  db.exec(`UPDATE orders SET status = 'Finalizado' WHERE id = 'o1' AND business_id = '${businessA}'`)
+  db.exec(`UPDATE orders SET status = 'Cancelado' WHERE id = 'o2' AND business_id = '${businessA}'`)
+
+  for (const id of ['stale-finalized-second-copy', 'stale-cancelled-second-copy']) {
+    await assert.rejects(
+      () => printingRepository.requestSecondCopy(db, businessA, id, 'Celular', baseNow),
+      (error) => error.code === 'PRINT_SECOND_COPY_NOT_AWAITING',
+    )
+    const preserved = await loadPrintJob(db, businessA, id)
+    assert.equal(preserved.status, 'awaiting_second_copy')
+    assert.equal(preserved.copiesPrinted, 1)
+  }
+})
+
+test('discard preserves the job history, is idempotent, and keeps the job out of automatic claiming', async () => {
+  assert.equal(typeof printingRepository.discardPrintJob, 'function')
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  const original = await addAutomaticJob(db, { id: 'discard-me' })
+  const beforeCount = db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
+  const discardedAt = new Date(baseNow.getTime() + 30_000)
+
+  const discarded = await printingRepository.discardPrintJob(db, businessA, original.id, 'Caixa 1', discardedAt)
+  assert.equal(discarded.status, 'discarded')
+  assert.equal(discarded.discardedAt, discardedAt.toISOString())
+  assert.equal(discarded.actionAt, discardedAt.toISOString())
+  assert.equal(discarded.actionActorLabel, 'Caixa 1')
+  assert.deepEqual(discarded.document, original.document)
+  assert.equal(db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, beforeCount)
+  assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'station-a', new Date(discardedAt.getTime() + 1000)), null)
+  await assert.rejects(
+    () => retryPrintJob(db, businessA, original.id, discardedAt),
+    (error) => error.code === 'PRINT_JOB_RETRY_NOT_ALLOWED',
+  )
+
+  const repeated = await printingRepository.discardPrintJob(
+    db,
+    businessA,
+    original.id,
+    'Outro dispositivo',
+    new Date(discardedAt.getTime() + 60_000),
+  )
+  assert.equal(repeated.discardedAt, discardedAt.toISOString())
+  assert.equal(repeated.actionAt, discardedAt.toISOString())
+  assert.equal(repeated.actionActorLabel, 'Caixa 1')
+})
+
+test('discard rejects an in-flight, fully printed, or awaiting-second-copy job', async () => {
+  assert.equal(typeof printingRepository.discardPrintJob, 'function')
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+
+  await addAutomaticJob(db, { id: 'processing-job', orderId: 'o1' })
+  await claimPrintJob(db, businessA, 'processing-job', 'station-a', baseNow)
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'processing-job', 'Sistema', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+
+  await addAutomaticJob(db, { id: 'partial-job', orderId: 'o2' })
+  await claimPrintJob(db, businessA, 'partial-job', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'partial-job', 'station-a', 1, baseNow)
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'partial-job', 'Sistema', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+
+  await createManualOrderPrintJob(db, businessA, { id: 'printed-job', orderId: 'o1', copies: 1, document }, baseNow)
+  await claimPrintJob(db, businessA, 'printed-job', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'printed-job', 'station-a', 1, baseNow)
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'printed-job', 'Sistema', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+})

@@ -1,6 +1,8 @@
 # QZ Printing Master Sync Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte `docs/superpowers/specs/2026-09-08-centralized-qz-print-queue-design.md` e `docs/superpowers/plans/2026-09-08-centralized-qz-print-queue-plan.md`.
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or `executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rebase the Windows QZ Tray implementation from PR #8 onto the current `master` without regressing the printing, table-management, scheduled-order, or mobile changes already merged after PR #8 branched.
 

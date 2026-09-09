@@ -22,7 +22,7 @@ const themeCycle = ['light', 'dark', 'system']
 function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const { themePreference, setThemePreference } = useTheme()
-  const moreActive = activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance' || activeTab === 'tables'
+  const moreActive = activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance' || activeTab === 'tables' || activeTab === 'print-queue'
   const currentThemeOption = themeOptions.find((option) => option.value === themePreference) || themeOptions[2]
   const nextThemePreference = themeCycle[(themeCycle.indexOf(currentThemeOption.value) + 1) % themeCycle.length]
 
@@ -57,6 +57,9 @@ function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = fa
           </button>
           <button type="button" className={activeTab === 'tables' ? 'mobile-more-action active' : 'mobile-more-action'} onClick={() => navigate('tables')}>
             <Icon name="table" size={20} /><span>Mesas</span>
+          </button>
+          <button type="button" className={activeTab === 'print-queue' ? 'mobile-more-action active' : 'mobile-more-action'} onClick={() => navigate('print-queue')}>
+            <Icon name="printer" size={20} /><span>Fila de impressão</span>
           </button>
         </div>
 

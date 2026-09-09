@@ -11,6 +11,8 @@ import { downloadOrderPdf } from '../printing/pdfOrderRenderer.js'
 import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../utils/orderWorkflow.js'
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import { getPrintJobActions } from '../../shared/printQueueActions.js'
 
 const adjustmentLabel = (adjustment, currency) => {
   if (!adjustment || adjustment.type === 'none') return ''
@@ -32,12 +34,11 @@ const formatPrintTimestamp = (value) => {
   }).format(date)
 }
 
-function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel }) {
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, onToast }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
   const [printingAction, setPrintingAction] = useState(null)
-  const [printingError, setPrintingError] = useState('')
 
   if (!order) return null
   const items = getOrderItems(order)
@@ -45,22 +46,23 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const defaultCopies = printing?.localStation?.defaultCopies === 1 ? 1 : 2
   const reprintCopies = printJob?.copiesRequested === 1 ? 1 : defaultCopies
   const stationName = printing?.stations?.find((station) => station.id === printJob?.stationId)?.name || printJob?.stationId || '—'
-  const printingDisabled = Boolean(printingAction) || printing?.supported === false
+  const printingDisabled = Boolean(printingAction)
   const now = new Date()
   const scheduledPrintPending = printJob?.trigger === 'automatic' && printJob?.status === 'pending' && printJob?.availableAt && new Date(printJob.availableAt) > now
-  const awaitingSecondCopy = printJob?.status === 'printed'
+  const awaitingSecondCopy = ['awaiting_second_copy', 'printed'].includes(printJob?.status)
     && Number(printJob?.copiesRequested) === 2
     && Number(printJob?.copiesPrinted) === 1
+  const primaryQueueAction = getPrintJobActions(printJob, { order })[0]?.key || null
 
-  const runPrintingAction = async (key, action) => {
+  const runPrintingAction = async (key, action, successMessage) => {
     if (printingAction || typeof action !== 'function') return false
     setPrintingAction(key)
-    setPrintingError('')
     try {
       await action()
+      if (successMessage) onToast?.(successMessage)
       return true
     } catch (error) {
-      setPrintingError(error?.message || 'Não foi possível concluir a ação de impressão.')
+      onToast?.(error?.message || 'Não foi possível concluir a ação de impressão.')
       return false
     } finally {
       setPrintingAction(null)
@@ -83,30 +85,35 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
     downloadOrderPdf(document)
   })
 
-  const handleFirstPrint = () => runPrintingAction('print', () => printing.printOrder(order.id, defaultCopies))
+  const handleFirstPrint = () => runPrintingAction('print', () => printing?.printOrder?.(order.id, defaultCopies), 'Pedido enviado para a fila da cozinha')
 
-  const handleSecondCopy = () => runPrintingAction('second-copy', () => printing?.printSecondCopy?.(printJob))
+  const handlePrintNow = () => runPrintingAction('print-now', () => printing?.requestPrintNow?.(printJob), 'Pedido priorizado na fila')
 
-  const handleRetry = () => runPrintingAction('retry', () => printing?.retryJob?.(printJob))
+  const handleSecondCopy = () => runPrintingAction('second-copy', () => printing?.requestSecondCopy?.(printJob), '2ª via enviada para a fila')
+
+  const handleRetry = () => runPrintingAction('retry', () => printing?.requestRetry?.(printJob), 'Nova tentativa enviada para a fila')
+
+  const handleForcePrint = () => runPrintingAction('force-print', () => printing?.requestForcePrint?.(printJob), 'Impressão autorizada e enviada para a fila')
 
   const handleConfirmedReprint = async () => {
-    const printed = await runPrintingAction('reprint', () => printing?.printOrder?.(order.id, reprintCopies))
+    const printed = await runPrintingAction('reprint', () => printing?.requestReprint?.(printJob, reprintCopies), 'Reimpressão adicionada à fila')
     if (printed) setConfirmReprint(false)
   }
 
   const actionButton = (() => {
     if (!printJob) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir pedido</Button>
-    if (scheduledPrintPending) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir agora</Button>
+    if (scheduledPrintPending) return <Button type="button" onClick={handlePrintNow} disabled={printingDisabled}>Imprimir agora</Button>
     if (awaitingSecondCopy) return <Button type="button" onClick={handleSecondCopy} disabled={printingDisabled}>Imprimir 2ª via</Button>
     if (printJob.status === 'printed') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
-    if (printJob.status === 'failed') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Tentar novamente</Button>
-    if (printJob.status === 'requires_attention') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Imprimir agora</Button>
+    if (primaryQueueAction === 'retry') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Tentar novamente</Button>
+    if (primaryQueueAction === 'reprint') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
+    if (primaryQueueAction === 'forcePrint') return <Button type="button" onClick={handleForcePrint} disabled={printingDisabled}>Imprimir mesmo assim</Button>
     return null
   })()
 
   return (
     <>
-      <Modal title={`Pedido #${String(order.id).slice(-4)}`} onClose={onClose}>
+      <Modal title={formatOrderDisplayNumber(order)} onClose={onClose}>
         <div className="order-detail">
           <section className="order-detail-section order-detail-summary-section">
             <div className="section-heading compact-section-heading"><h3>Resumo</h3></div>
@@ -190,7 +197,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
             {!printJob && <p className="order-printing-helper">Este pedido ainda não possui histórico de impressão. Isso é esperado quando a impressão automática estava desligada.</p>}
             {scheduledPrintPending && <p className="order-printing-helper">Impressão programada para {formatOrderTime(printJob.availableAt)}</p>}
-            {awaitingSecondCopy && <p className="order-printing-helper">1ª via impressa. Destaque o papel na serrilha e, depois, imprima a 2ª via.</p>}
+            {awaitingSecondCopy && <p className="order-printing-helper">1ª via impressa. A 2ª via continua pendente na fila da cozinha.</p>}
             {!scheduledPrintPending && !awaitingSecondCopy && ['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
 
             {printJob && (
@@ -201,7 +208,6 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
                 {printJob.lastError?.message && <div className="order-printing-diagnostic-error"><span>Diagnóstico</span><strong>{printJob.lastError.message}</strong></div>}
               </div>
             )}
-            {printingError && <p className="order-printing-error" role="alert">{printingError}</p>}
           </section>
         </div>
       </Modal>

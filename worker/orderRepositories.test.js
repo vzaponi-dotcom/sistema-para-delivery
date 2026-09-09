@@ -4,14 +4,22 @@ import { createMovement, createOrder, registerOrderPayment, updateOrderStatus } 
 
 class OrderDb {
   constructor() {
-    this.clients = new Map([['c1', { id: 'c1', business_id: 'amor-e-sabor', name: 'Maria' }]])
-    this.products = new Map([['p1', { id: 'p1', business_id: 'amor-e-sabor', category: 'Marmita', size: 'P', name: 'Marmita Pequena', price_cents: 3200, active: 1 }]])
+    this.clients = new Map([
+      ['c1', { id: 'c1', business_id: 'amor-e-sabor', name: 'Maria' }],
+      ['c2', { id: 'c2', business_id: 'other-business', name: 'João' }],
+    ])
+    this.products = new Map([
+      ['p1', { id: 'p1', business_id: 'amor-e-sabor', category: 'Marmita', size: 'P', name: 'Marmita Pequena', price_cents: 3200, active: 1 }],
+      ['p2', { id: 'p2', business_id: 'other-business', category: 'Marmita', size: 'P', name: 'Marmita Pequena', price_cents: 3200, active: 1 }],
+    ])
     this.orders = new Map()
+    this.orderSequences = new Map()
     this.items = new Map()
     this.payments = new Map()
     this.movements = new Map()
     this.tableTabs = new Map()
     this.batchCalls = []
+    this.failNextBatch = false
   }
 
   prepare(sql) {
@@ -21,6 +29,12 @@ class OrderDb {
         return {
           sql, values,
           async first() {
+            if (sql.includes('INSERT INTO order_sequences')) {
+              const [businessId] = values
+              const next = (db.orderSequences.get(businessId) ?? 0) + 1
+              db.orderSequences.set(businessId, next)
+              return { last_order_number: next }
+            }
             if (sql.includes('COUNT(*) AS count')) {
               const [businessId, tableTabId] = values
               const count = [...db.orders.values()].filter((order) => order.business_id === businessId && order.table_tab_id === tableTabId && order.status !== 'Cancelado' && ![...db.payments.values()].some((payment) => payment.business_id === businessId && payment.order_id === order.id)).length
@@ -55,15 +69,19 @@ class OrderDb {
 
   async batch(statements) {
     this.batchCalls.push(statements)
+    if (this.failNextBatch) {
+      this.failNextBatch = false
+      throw new Error('forced batch failure')
+    }
     const snapshots = { orders: new Map(this.orders), items: new Map(this.items), payments: new Map(this.payments), movements: new Map(this.movements), tableTabs: new Map([...this.tableTabs].map(([id, tab]) => [id, { ...tab }])) }
     try { return await Promise.all(statements.map((statement) => statement.run())) } catch (error) { this.orders = snapshots.orders; this.items = snapshots.items; this.payments = snapshots.payments; this.movements = snapshots.movements; this.tableTabs = snapshots.tableTabs; throw error }
   }
 
   async _run(sql, values) {
     if (sql.includes('INSERT INTO orders')) {
-      const [id, businessId, clientId, clientName, customerIdentityType, tableTabId, type, orderDate, status, scheduledFor, isBackdated, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
+      const [id, businessId, orderNumber, clientId, clientName, customerIdentityType, tableTabId, type, orderDate, status, scheduledFor, isBackdated, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
       if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
-      this.orders.set(id, { id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType, table_tab_id: tableTabId, type, order_date: orderDate, status, scheduled_for: scheduledFor, is_backdated: isBackdated, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee, adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue, adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total, created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey })
+      this.orders.set(id, { id, business_id: businessId, order_number: orderNumber, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType, table_tab_id: tableTabId, type, order_date: orderDate, status, scheduled_for: scheduledFor, is_backdated: isBackdated, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee, adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue, adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total, created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey })
     } else if (sql.includes('INSERT INTO order_items')) {
       const [id, businessId, orderId, productId, name, category, size, quantity, catalogPrice, unitPrice, priceReason, note, createdAt] = values
       this.items.set(id, { id, business_id: businessId, order_id: orderId, product_id: productId, name_snapshot: name, category_snapshot: category, size_snapshot: size, quantity, catalog_price_cents: catalogPrice, unit_price_cents: unitPrice, price_reason: priceReason, note, created_at: createdAt })
@@ -85,13 +103,49 @@ class OrderDb {
 test('createOrder calculates server cents and writes order contact snapshot and item in one batch', async () => {
   const db = new OrderDb()
   const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 2, orderDate: '2026-09-01', idempotencyKey: 'request-1' }, new Date('2026-09-01T20:00:00.000Z'))
-  assert.equal(order.total, 64); assert.equal(order.items[0].quantity, 2); assert.equal(order.items[0].catalogPrice, 32); assert.equal(db.batchCalls[0].length, 3); assert.equal([...db.orders.values()][0].total_cents, 6400)
+  assert.equal(order.orderNumber, 1); assert.equal(order.total, 64); assert.equal(order.items[0].quantity, 2); assert.equal(order.items[0].catalogPrice, 32); assert.equal(db.batchCalls[0].length, 4); assert.equal([...db.orders.values()][0].total_cents, 6400)
+})
+
+test('new orders use independent business sequences and never reuse cancelled or finalized numbers', async () => {
+  const db = new OrderDb()
+  const first = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'number-1' }, new Date('2026-09-01T20:00:00.000Z'))
+  await updateOrderStatus(db, 'amor-e-sabor', first.id, new Date('2026-09-01T20:01:00.000Z'))
+  const second = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'number-2' }, new Date('2026-09-01T20:02:00.000Z'))
+  db.orders.get(second.id).status = 'Cancelado'
+  const third = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'number-3' }, new Date('2026-09-01T20:03:00.000Z'))
+  const otherBusiness = await createOrder(db, 'other-business', { clientId: 'c2', productId: 'p2', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'other-number-1' }, new Date('2026-09-01T20:04:00.000Z'))
+
+  assert.equal(first.orderNumber, 1)
+  assert.equal(second.orderNumber, 2)
+  assert.equal(third.orderNumber, 3)
+  assert.equal(otherBusiness.orderNumber, 1)
 })
 
 test('same order idempotency key returns one backdated finalized order', async () => {
   const db = new OrderDb(); const payload = { clientId: 'c1', productId: 'p1', type: 'Retirada', quantity: 1, orderDate: '2026-08-31', idempotencyKey: 'same-key' }
   const first = await createOrder(db, 'amor-e-sabor', payload, new Date('2026-09-01T20:00:00.000Z')); const second = await createOrder(db, 'amor-e-sabor', payload, new Date('2026-09-01T20:01:00.000Z'))
-  assert.equal(first.id, second.id); assert.equal(first.status, 'Finalizado'); assert.equal(db.orders.size, 1)
+  assert.equal(first.id, second.id); assert.equal(first.orderNumber, second.orderNumber); assert.equal(first.status, 'Finalizado'); assert.equal(db.orders.size, 1)
+})
+
+test('distinct concurrent creations receive distinct numbers even when sequence gaps are safer than reuse', async () => {
+  const db = new OrderDb()
+  const [first, second] = await Promise.all([
+    createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'concurrent-1' }, new Date('2026-09-01T20:00:00.000Z')),
+    createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'concurrent-2' }, new Date('2026-09-01T20:00:00.001Z')),
+  ])
+
+  assert.notEqual(first.orderNumber, second.orderNumber)
+  assert.deepEqual(new Set([first.orderNumber, second.orderNumber]), new Set([1, 2]))
+})
+
+test('number uniqueness is prioritized over gapless sequencing after a failed creation', async () => {
+  const db = new OrderDb()
+  db.failNextBatch = true
+
+  await assert.rejects(() => createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'failed-number' }))
+  const next = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'after-failure' })
+
+  assert.equal(next.orderNumber, 2)
 })
 
 test('payment uses official total and duplicate payment creates no second movement', async () => {

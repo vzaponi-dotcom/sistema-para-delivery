@@ -11,6 +11,7 @@ class D1Sqlite {
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
+        order_number INTEGER,
         client_id TEXT,
         client_name_snapshot TEXT NOT NULL,
         client_phone_snapshot TEXT NOT NULL DEFAULT '',
@@ -77,11 +78,11 @@ const seedOrder = (db) => {
     INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor'), ('other', 'Outro');
     INSERT INTO orders (
       id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
-      type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
+      order_number, type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
       adjustment_amount_cents, adjustment_reason, total_cents, created_at
     ) VALUES (
       'o1', 'amor-e-sabor', 'João Silva', '(11) 99876-5432', 'Rua das Flores, 123',
-      'Entrega', '2026-09-03', 7950, 800, 'discount', 200, 'fidelidade', 8550,
+      58, 'Entrega', '2026-09-03', 7950, 800, 'discount', 200, 'fidelidade', 8550,
       '2026-09-03T23:31:00.000Z'
     );
     INSERT INTO order_items (
@@ -95,21 +96,21 @@ const seedOrder = (db) => {
     INSERT INTO table_tabs (id, business_id, table_identifier) VALUES ('tab-4', 'amor-e-sabor', 'Mesa 4');
     INSERT INTO orders (
       id, business_id, client_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot, customer_identity_type, table_tab_id,
-      type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
+      order_number, type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
       adjustment_amount_cents, adjustment_reason, total_cents, created_at
     ) VALUES (
       'local-with-client', 'amor-e-sabor', 'client-4', 'Hugo', '', '', 'table', 'tab-4',
-      'Local', '2026-09-03', 3200, 0, 'none', 0, '', 3200,
+      59, 'Local', '2026-09-03', 3200, 0, 'none', 0, '', 3200,
       '2026-09-03T20:00:00.000Z'
     );
 
     INSERT INTO orders (
       id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
-      type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
+      order_number, type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
       adjustment_amount_cents, adjustment_reason, total_cents, created_at
     ) VALUES (
       'legacy', 'amor-e-sabor', 'Mesa A-01', '', '',
-      'Local', '2026-09-03', 3200, 0, 'none', 0, '', 3200,
+      60, 'Local', '2026-09-03', 3200, 0, 'none', 0, '', 3200,
       '2026-09-03T20:00:00.000Z'
     );
     INSERT INTO order_items (
@@ -126,6 +127,7 @@ test('current order print document is rebuilt from immutable order/item snapshot
 
   assert.equal(document.business.name, 'Amor & Sabor')
   assert.equal(document.order.id, 'o1')
+  assert.equal(document.order.number, '58')
   assert.equal(document.customer.name, 'João Silva')
   assert.equal(document.customer.phone, '(11) 99876-5432')
   assert.equal(document.customer.address, 'Rua das Flores, 123')

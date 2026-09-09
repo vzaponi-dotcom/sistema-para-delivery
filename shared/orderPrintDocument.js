@@ -4,12 +4,17 @@ export const ORDER_PRINT_THANK_YOU = 'Obrigado pela compra! Agradecemos a prefer
 const nonNegativeInteger = (value) => Math.max(0, Math.round(Number(value) || 0))
 const positiveQuantity = (value) => Math.max(1, Math.floor(Number(value) || 1))
 
-export const getFriendlyOrderNumber = (id) => String(id ?? '').slice(-4)
-
 export const formatPrintMoneyCents = (cents) => new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
 }).format(nonNegativeInteger(cents) / 100)
+
+export const formatOrderCustomerIdentity = ({ tableIdentifier, customerName } = {}) => {
+  const table = String(tableIdentifier || '').trim()
+  const customer = String(customerName || '').trim()
+  if (table && customer && customer !== table && !customer.startsWith(`${table} ·`)) return `${table} · ${customer}`
+  return table || customer || null
+}
 
 export const createOrderPrintDocument = (input = {}) => ({
   version: ORDER_PRINT_DOCUMENT_VERSION,
@@ -19,15 +24,16 @@ export const createOrderPrintDocument = (input = {}) => ({
   },
   order: {
     id: String(input.orderId ?? ''),
-    number: getFriendlyOrderNumber(input.orderId),
+    number: Number.isInteger(Number(input.orderNumber)) && Number(input.orderNumber) > 0 ? String(input.orderNumber) : '',
     orderDate: String(input.orderDate ?? ''),
     createdAt: String(input.createdAt ?? ''),
     type: String(input.type ?? ''),
   },
   customer: {
-    name: input.customerIdentityType === 'table' && input.tableIdentifier
-      ? `${input.tableIdentifier}${input.hasOptionalClient && input.customer?.name ? ` · ${input.customer.name}` : ''}`
-      : String(input.customer?.name || ''),
+    name: formatOrderCustomerIdentity({
+      tableIdentifier: input.customerIdentityType === 'table' ? input.tableIdentifier : '',
+      customerName: input.customerIdentityType === 'table' && !input.hasOptionalClient ? '' : input.customer?.name,
+    }) || '',
     phone: String(input.customer?.phone || ''),
     address: String(input.customer?.address || ''),
   },

@@ -8,7 +8,7 @@ test('kitchen ticket exposes only the operational ticket information and complet
   const ticket = source('./KitchenTicket.jsx')
   const notes = source('./KitchenTicketNotes.jsx')
 
-  for (const label of ['orderNumber', 'order.client', 'Icon', 'order.type', 'buildKitchenItemSummary', 'StatusBadge', 'buildKitchenTimingCopy', 'Exibir detalhes']) {
+  for (const label of ['formatOrderDisplayNumber', 'order.client', 'Icon', 'order.type', 'buildKitchenItemSummary', 'StatusBadge', 'buildKitchenTimingCopy', 'Exibir detalhes']) {
     assert.match(ticket, new RegExp(label.replace('.', '\\.')))
   }
   assert.match(notes, /kitchen-ticket-notes/)
@@ -33,7 +33,8 @@ test('kitchen ticket prioritizes the customer name and de-emphasizes the order i
   const styles = source('../order-operations.css')
 
   assert.match(ticket, /kitchen-ticket-customer-name[^}]*order\.client/)
-  assert.match(ticket, /kitchen-ticket-id[^}]*orderNumber\(order\.id\)/)
+  assert.match(ticket, /kitchen-ticket-id[^}]*formatOrderDisplayNumber\(order\)/)
+  assert.match(ticket, /aria-label=\{formatOrderDisplayNumber\(order\)\}/)
   assert.match(styles, /\.kitchen-ticket-id[\s\S]*opacity:/)
   assert.match(styles, /\.kitchen-ticket-customer-name/)
 })

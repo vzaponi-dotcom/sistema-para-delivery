@@ -1,5 +1,6 @@
 import { getOperationalStartAt, isScheduledWaiting } from '../../shared/orderTiming.js'
 import { getOrderItemsSearchText } from './orderCart.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import { isOrderActive } from './orderLifecycle.js'
 import { getOrderTimingState, isFinishedToday } from './orderWorkflow.js'
 
@@ -13,7 +14,7 @@ const compareScheduledFor = (first, second) => getTimestamp(new Date(first.order
 const matchesKitchenSearch = (order, normalizedSearch) => !normalizedSearch || [
   order.client,
   order.id,
-  String(order.id ?? '').slice(-4),
+  formatOrderDisplayNumber(order),
   getOrderItemsSearchText(order),
   order.type,
 ].join(' ').toLocaleLowerCase('pt-BR').includes(normalizedSearch)

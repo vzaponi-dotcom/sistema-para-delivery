@@ -27,9 +27,8 @@ test('printing manager is driven by official job APIs and never by new-order det
   ]) assert.match(manager, new RegExp(`\\b${apiName}\\b`))
 
   assert.match(manager, /runClaimedPrintJob/)
-  assert.match(manager, /findAuthorizedPrinterPort/)
-  assert.match(manager, /requestPrinterPort/)
-  assert.match(manager, /dispatchRawBtBytes/)
+  assert.doesNotMatch(manager, /findAuthorizedPrinterPort|requestPrinterPort/)
+  assert.doesNotMatch(manager, /dispatchRawBtBytes/)
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
 
@@ -44,21 +43,20 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.doesNotMatch(detectionEffect, /\bprinting\./)
 })
 
-test('Android uses RawBT, Windows uses QZ, and other platforms keep Web Serial fallback', () => {
-  assert.equal(getPrintingTransportKind('android'), 'rawbt')
+test('Android and other platforms are queue-only while Windows uses QZ', () => {
+  assert.equal(getPrintingTransportKind('android'), 'queue-only')
   assert.equal(getPrintingTransportKind('windows'), 'qz')
-  assert.equal(getPrintingTransportKind('other'), 'web-serial')
+  assert.equal(getPrintingTransportKind('other'), 'queue-only')
 
-  assert.equal(isPrintingTransportSupported('android', undefined), true)
+  assert.equal(isPrintingTransportSupported('android', undefined), false)
   assert.equal(isPrintingTransportSupported('windows', undefined), true)
   assert.equal(isPrintingTransportSupported('other', undefined), false)
-  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
+  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), false)
 
-  assert.match(manager, /transportKind === 'rawbt'/)
-  assert.match(manager, /dispatchRawBtBytes\(bytes\)/)
+  assert.doesNotMatch(manager, /transportKind === 'rawbt'|dispatchRawBtBytes\(bytes\)/)
 })
 
-test('QZ and RawBT use MPT-II bitmap rendering while Web Serial keeps native text rendering', () => {
+test('QZ uses MPT-II bitmap rendering and queue-only platforms do not render physically', () => {
   const start = manager.indexOf('const executeClaimedJob = useCallback')
   assert.notEqual(start, -1)
   const end = manager.indexOf('const saveStationSettings', start)
@@ -67,8 +65,7 @@ test('QZ and RawBT use MPT-II bitmap rendering while Web Serial keeps native tex
 
   assert.match(block, /compatibilityMode:\s*getRendererCompatibilityMode\(transportKind\)/)
   assert.match(block, /printQzRawBytes\(qz, configuredPrinterNameRef\.current, bytes\)/)
-  assert.match(block, /dispatchRawBtBytes\(bytes\)/)
-  assert.match(block, /writeSerialBytes\(selectedPort, bytes, MTP5_PROFILE\.serial\)/)
+  assert.doesNotMatch(block, /writeSerialBytes|MTP5_PROFILE\.serial/)
 })
 
 test('Windows QZ lifecycle configures signed security and exposes explicit local queue setup', () => {
@@ -142,10 +139,10 @@ test('second copy resumes the existing partial job explicitly without creating a
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
-  assert.match(block, /copiesRequested\) !== 2|copiesRequested !== 2/)
-  assert.match(block, /copiesPrinted\) !== 1|copiesPrinted !== 1/)
-  assert.match(block, /claimPrintJob\(job\.id, station\.id\)/)
-  assert.match(block, /executeClaimedJob\(claimed\.job, port/)
+  assert.match(block, /claimAndExecuteSecondCopy\(\{/)
+  assert.match(block, /claimJob: claimPrintJob/)
+  assert.match(block, /executeClaimedJob\(claimedJob, null/)
+  assert.match(block, /preparePort: getExplicitPort/)
   assert.doesNotMatch(block, /createManualPrintJob/)
   assert.match(manager, /\bprintSecondCopy,\s*\n/)
 })
@@ -159,7 +156,7 @@ test('printing manager centralizes approved poll and heartbeat cadences', () => 
 })
 
 test('App mounts one printing manager and passes it to Orders without changing order sync detection', () => {
-  assert.match(app, /import \{ usePrintingManager \} from '\.\/printing\/usePrintingManager'/)
+  assert.match(app, /import \{ canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager \} from '\.\/printing\/usePrintingManager'/)
   const hookCalls = app.match(/usePrintingManager\(/g) || []
   assert.equal(hookCalls.length, 1)
   assert.match(app, /const printing = usePrintingManager\(/)

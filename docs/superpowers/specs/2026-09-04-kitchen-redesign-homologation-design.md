@@ -1,5 +1,7 @@
 # Gestão Delivery — Redesign da Cozinha e correções de homologação
 
+> **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.
+
 Data: 2026-09-04
 Branch alvo: `feature/scheduled-orders-operational-timing`
 Status: auto-revisado; aguardando revisão do usuário antes do plano de implementação
@@ -350,3 +352,4 @@ Auto-revisão concluída em 2026-09-04:
 - regras de ordenação, filas, atraso, impressão manual e responsividade têm comportamento explícito.
 
 O próximo passo permitido é a revisão desta spec pelo usuário. O plano de implementação não deve ser criado antes dessa aprovação.
+# **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.

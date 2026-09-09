@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { runClaimedPrintJob } from './printJobRunner.js'
+import { createPhysicalJobFailureNotifier } from './usePrintingManager.js'
 
 const baseJob = {
   id: 'job-1',
@@ -211,4 +212,44 @@ test('test print renders without selected-copy options and completes one physica
 
   assert.deepEqual(result, { status: 'printed' })
   assert.equal(completedCopies, 1)
+})
+
+test('known and uncertain failures persist once and produce one toast each without modal state', async () => {
+  const notifier = createPhysicalJobFailureNotifier()
+  const persisted = []
+  const ui = { toasts: [], modal: null }
+  const scenarios = [
+    { id: 'known-job', code: 'SERIAL_OPEN_FAILED', status: 'failed', uncertain: false },
+    { id: 'uncertain-job', code: 'SERIAL_WRITE_UNCERTAIN', status: 'requires_attention', uncertain: true },
+  ]
+
+  for (const scenario of scenarios) {
+    const job = { ...baseJob, id: scenario.id }
+    const error = Object.assign(new Error(`${scenario.id} failed`), { code: scenario.code })
+    const result = await runClaimedPrintJob({
+      job,
+      stationId: 'kitchen-primary',
+      port: null,
+      completeJob: async () => assert.fail('failed physical job must not complete'),
+      failJob: async (jobId, stationId, payload) => { persisted.push({ jobId, stationId, payload }) },
+      renderer: () => new Uint8Array([1]),
+      transport: async () => { throw error },
+    })
+
+    assert.equal(result.status, scenario.status)
+    assert.equal(notifier.notify({
+      job,
+      status: result.status,
+      error: result.error,
+      onNotify: () => { ui.toasts.push('Impressão requer atenção na fila') },
+    }), true)
+    assert.equal(notifier.notify({ job, status: result.status, error: result.error, onNotify: () => ui.toasts.push('duplicate') }), false)
+  }
+
+  assert.deepEqual(persisted.map(({ jobId, stationId, payload }) => ({ jobId, stationId, code: payload.code, uncertain: payload.uncertain })), [
+    { jobId: 'known-job', stationId: 'kitchen-primary', code: 'SERIAL_OPEN_FAILED', uncertain: false },
+    { jobId: 'uncertain-job', stationId: 'kitchen-primary', code: 'SERIAL_WRITE_UNCERTAIN', uncertain: true },
+  ])
+  assert.deepEqual(ui.toasts, ['Impressão requer atenção na fila', 'Impressão requer atenção na fila'])
+  assert.equal(ui.modal, null)
 })

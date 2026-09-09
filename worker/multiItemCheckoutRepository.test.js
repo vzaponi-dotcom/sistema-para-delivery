@@ -13,6 +13,7 @@ class CheckoutDb {
       ['p2', { id: 'p2', business_id: 'amor-e-sabor', category: 'Bebida', size: 'Lata', name: 'Coca', price_cents: 800, active: 1 }],
     ])
     this.orders = new Map()
+    this.orderSequences = new Map()
     this.items = new Map()
     this.payments = new Map()
     this.movements = new Map()
@@ -33,6 +34,12 @@ class CheckoutDb {
           sql,
           values,
           async first() {
+            if (sql.includes('INSERT INTO order_sequences')) {
+              const [businessId] = values
+              const next = (db.orderSequences.get(businessId) ?? 0) + 1
+              db.orderSequences.set(businessId, next)
+              return { last_order_number: next }
+            }
             if (sql.includes('FROM tables')) {
               const [tableId, businessId] = values
               const row = db.tables.get(tableId)
@@ -121,29 +128,10 @@ class CheckoutDb {
         })
       }
     } else if (sql.includes('INSERT INTO orders')) {
-      const hasTableTab = values.length === 22
-      const [id, businessId, clientId, clientName, customerIdentityType] = values
-      const tableTabId = hasTableTab ? values[5] : null
-      const offset = hasTableTab ? 1 : 0
-      const type = values[5 + offset]
-      const orderDate = values[6 + offset]
-      const status = values[7 + offset]
-      const scheduledFor = values[8 + offset]
-      const isBackdated = values[9 + offset]
-      const subtotal = values[10 + offset]
-      const deliveryFee = values[11 + offset]
-      const adjustmentType = values[12 + offset]
-      const adjustmentMode = values[13 + offset]
-      const adjustmentValue = values[14 + offset]
-      const adjustmentAmount = values[15 + offset]
-      const adjustmentReason = values[16 + offset]
-      const total = values[17 + offset]
-      const createdAt = values[18 + offset]
-      const finishedAt = values[19 + offset]
-      const idempotencyKey = values[20 + offset]
+      const [id, businessId, orderNumber, clientId, clientName, customerIdentityType, tableTabId, type, orderDate, status, scheduledFor, isBackdated, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
       if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
       this.orders.set(id, {
-        id, business_id: businessId, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType,
+        id, business_id: businessId, order_number: orderNumber, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType,
         table_tab_id: tableTabId, type, order_date: orderDate, status, scheduled_for: scheduledFor, is_backdated: isBackdated, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
         adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue,
         adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total,

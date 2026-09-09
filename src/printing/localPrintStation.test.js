@@ -3,12 +3,10 @@ import test from 'node:test'
 import {
   clearQzPrinterName,
   detectPrintStationPlatform,
-  findAuthorizedPrinterPort,
   getDefaultPrintStationName,
   getOrCreateLocalPrintStationId,
-  getPrinterFingerprint,
   getQzPrinterName,
-  savePrinterFingerprint,
+  isQzPrintStationEligible,
   saveQzPrinterName,
 } from './localPrintStation.js'
 
@@ -18,8 +16,6 @@ class MemoryStorage {
   setItem(key, value) { this.values.set(key, String(value)) }
   removeItem(key) { this.values.delete(key) }
 }
-
-const port = (info) => ({ getInfo: () => ({ ...info }) })
 
 test('local station id is generated once and reused from browser storage', () => {
   const storage = new MemoryStorage()
@@ -46,38 +42,13 @@ test('station platform detection and default names are deterministic for Windows
   assert.equal(getDefaultPrintStationName('unexpected'), 'Cozinha · Navegador')
 })
 
-test('printer fingerprint persists only serial metadata and resolves the matching authorized port', async () => {
-  const storage = new MemoryStorage()
-  const stationId = 'station-a'
-  const printer = port({ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' })
-  const other = port({ usbVendorId: 1234, usbProductId: 5678 })
-
-  const fingerprint = savePrinterFingerprint(storage, stationId, printer)
-  assert.deepEqual(fingerprint, { bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' })
-  assert.deepEqual(getPrinterFingerprint(storage, stationId), fingerprint)
-
-  const serial = { getPorts: async () => [other, printer] }
-  assert.equal(await findAuthorizedPrinterPort(serial, storage, stationId), printer)
-})
-
-test('authorized port discovery uses one-port fallback but refuses ambiguous unmatched ports', async () => {
-  const storage = new MemoryStorage()
-  const stationId = 'station-a'
-  const one = port({ usbVendorId: 111, usbProductId: 222 })
-  assert.equal(await findAuthorizedPrinterPort({ getPorts: async () => [one] }, storage, stationId), one)
-
-  const two = port({ usbVendorId: 333, usbProductId: 444 })
-  assert.equal(await findAuthorizedPrinterPort({ getPorts: async () => [one, two] }, storage, stationId), null)
-})
-
-test('duplicate matching fingerprints are considered ambiguous instead of choosing arbitrarily', async () => {
-  const storage = new MemoryStorage()
-  const stationId = 'station-a'
-  const first = port({ usbVendorId: 111, usbProductId: 222 })
-  const second = port({ usbVendorId: 111, usbProductId: 222 })
-  savePrinterFingerprint(storage, stationId, first)
-
-  assert.equal(await findAuthorizedPrinterPort({ getPorts: async () => [first, second] }, storage, stationId), null)
+test('only Windows with an explicitly configured QZ printer is locally eligible for physical execution', () => {
+  assert.equal(typeof isQzPrintStationEligible, 'function')
+  assert.equal(isQzPrintStationEligible({ platform: 'windows', qzPrinterName: 'MPT-II' }), true)
+  assert.equal(isQzPrintStationEligible({ platform: 'windows', qzPrinterName: '  Impressora pedido  ' }), true)
+  assert.equal(isQzPrintStationEligible({ platform: 'windows', qzPrinterName: '' }), false)
+  assert.equal(isQzPrintStationEligible({ platform: 'android', qzPrinterName: 'MPT-II' }), false)
+  assert.equal(isQzPrintStationEligible({ platform: 'other', qzPrinterName: 'MPT-II' }), false)
 })
 
 test('QZ printer name is trimmed and scoped by local station id', () => {

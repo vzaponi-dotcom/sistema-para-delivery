@@ -37,7 +37,6 @@ jobs:
           src/printing/printingUi.test.js
           src/printing/escpos58mm.test.js
           src/printing/localPrintStation.test.js
-          src/printing/webSerialTransport.test.js
           src/printing/printJobRunner.test.js
           src/printing/printingManagerRegression.test.js
           src/printing/pdfOrderRenderer.test.js

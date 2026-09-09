@@ -11,13 +11,13 @@ import StatusBadge from '../components/StatusBadge'
 import { getOrderItemsSummary } from '../utils/orderCart.js'
 import { getOrderRefundState, isOrderFinished } from '../utils/orderLifecycle.js'
 import { formatCancellationDate, formatOrderDate } from '../utils/orderWorkflow.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order: 'Pedido duplicado', product_unavailable: 'Produto indisponível', entry_error: 'Erro no lançamento', other: 'Outro' }
-const orderNumber = (id) => String(id).slice(-4)
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast }) {
   const [filter, setFilter] = useState('all')
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -48,7 +48,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
             const cancelReason = reasonLabels[order.cancelReason] || order.cancelReason || ''
             return (
               <article className="order-history-row" key={order.id}>
-                <div className="order-history-number">#{orderNumber(order.id)}</div>
+                <div className="order-history-number">{formatOrderDisplayNumber(order)}</div>
                 <div className="order-history-main">
                   <strong>{order.client}</strong>
                   <span>{getOrderItemsSummary(order)} · {order.type} · {formatOrderDate(order.orderDate)}</span>
@@ -63,7 +63,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
           {!terminalOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>Nenhum pedido neste filtro</strong><span>Os pedidos finalizados e cancelados aparecerão aqui.</span></div>}
         </div>
       </section>
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrder(null)} onToast={onToast} />}
       <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} />
     </>
   )

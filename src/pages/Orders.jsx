@@ -8,18 +8,16 @@ import Icon from '../components/Icon'
 import KitchenTicket from '../components/KitchenTicket'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
-import PrintingSettings from '../components/PrintingSettings'
 import StatCard from '../components/StatCard'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-const orderNumber = (id) => String(id).slice(-4)
 
-function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
+function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, onNavigatePrintQueue, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
-  const [showPrintingSettings, setShowPrintingSettings] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
   const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search), [orders, now, search])
@@ -69,7 +67,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
               <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
               <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
-            <Button type="button" variant="secondary" onClick={() => setShowPrintingSettings(true)}>Impressão</Button>
+            <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Impressão</Button>
             <Button type="button" variant="secondary" onClick={navigateHistory}>Histórico</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>
@@ -134,12 +132,11 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
         </section>
       </section>
 
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }} />}
-      {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }} onToast={onToast} />}
       {finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"
-          message={`O pedido #${orderNumber(finalizeCandidate.id)} de ${finalizeCandidate.client} sairá da fila de preparo. Confirme antes de continuar.`}
+          message={`${formatOrderDisplayNumber(finalizeCandidate)} de ${finalizeCandidate.client} sairá da fila de preparo. Confirme antes de continuar.`}
           confirmLabel="Confirmar finalização"
           confirmVariant="primary"
           onClose={() => setFinalizeCandidate(null)}

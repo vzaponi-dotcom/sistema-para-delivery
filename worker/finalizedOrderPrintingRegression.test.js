@@ -5,6 +5,7 @@ import {
   claimNextAutomaticPrintJob,
   claimPrintJob,
   createManualOrderPrintJob,
+  heartbeatPrintStation,
   prepareAutomaticPrintJobStatement,
   setPrimaryPrintStation,
   upsertPrintStation,
@@ -18,14 +19,17 @@ class D1Sqlite {
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
-        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT,
+        qz_ready INTEGER NOT NULL DEFAULT 0, printer_ready INTEGER NOT NULL DEFAULT 0, last_ready_at TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
-        status TEXT NOT NULL, copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0,
+        copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
         station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT NOT NULL,
-        processing_started_at TEXT, processed_at TEXT, last_error_code TEXT, last_error_message TEXT
+        processing_started_at TEXT, processed_at TEXT, second_copy_requested_at TEXT, second_copy_skipped_at TEXT, last_error_code TEXT, last_error_message TEXT
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
@@ -68,6 +72,7 @@ const setup = async () => {
     id: 'kitchen', name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2,
   }, now)
   await setPrimaryPrintStation(db, businessId, 'kitchen', now)
+  await heartbeatPrintStation(db, businessId, 'kitchen', { qzReady: true, printerReady: true }, now)
   return db
 }
 
