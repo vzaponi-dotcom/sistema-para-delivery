@@ -302,7 +302,7 @@ const rasterizeMpt2TextBytes = (bytes, createCanvas = defaultCanvasFactory) => {
     context.fillStyle = '#fff'
     context.fillRect(0, 0, width, lineHeight)
     context.fillStyle = '#000'
-    context.font = `${line.bold ? '700' : '400'} ${25 * heightMultiplier}px monospace`
+    context.font = `${line.bold ? '700' : '400'} ${27 * heightMultiplier}px monospace`
     context.textAlign = 'center'
     context.textBaseline = 'middle'
 

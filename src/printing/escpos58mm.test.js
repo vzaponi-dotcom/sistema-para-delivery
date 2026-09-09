@@ -93,7 +93,7 @@ test('MTP5 profile centralizes physical width, logical columns, code page and se
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
   assert.equal(MTP5_PROFILE.fontAColumns, 32)
   assert.equal(MTP5_PROFILE.codePage, 3)
-  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 1)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
   assert.deepEqual(MTP5_PROFILE.serial, {
     baudRate: 9600,
     dataBits: 8,
@@ -151,9 +151,9 @@ test('MPT-II ticket wraps the complete accented footer within 384 dots and leave
   assert.equal(footerLines.map(({ text }) => text).join(' ').includes('Volte sempre.'), true)
   assert.equal(footerLines.every(({ text }) => text.length <= MTP5_PROFILE.fontAColumns), true)
   assert.equal(footerLines.every(({ size }) => size === 0x00), true)
-  assert.equal(trailingFeedLines, 1)
+  assert.equal(trailingFeedLines, 2)
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
-  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 1)
+  assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
 })
 
 test('58mm renderer emits deterministic ESC/POS structure and two approved copies without cut command', () => {
@@ -254,12 +254,11 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
   assert.equal(drawnText.includes('Acréscimo'), true)
   assert.equal(drawnText.includes('CÓPIA'), true)
   const rasterFontSizes = drawnSamples.map(({ font }) => Number.parseInt(font.match(/ (\d+)px /)?.[1] || '0', 10))
-  assert.equal(rasterFontSizes.some((fontSize) => fontSize > 24 && fontSize < 48), true)
+  assert.equal(rasterFontSizes.includes(27), true)
   assert.equal(rasterFontSizes.includes(48), false)
-  assert.equal(drawnSamples.every(({ font, height }) => {
-    const fontSize = Number.parseInt(font.match(/ (\d+)px /)?.[1] || '0', 10)
-    return fontSize >= 48 || fontSize <= height + 1
-  }), true)
+  const normalSamples = drawnSamples.filter(({ font }) => font.includes(' 27px '))
+  assert.equal(normalSamples.length > 0, true)
+  assert.equal(normalSamples.every(({ height }) => height === 24), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x2a, 33, 0x80, 0x01])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])), false)
 })

@@ -11,5 +11,5 @@ export const MTP5_PROFILE = Object.freeze({
     parity: 'none',
     flowControl: 'none',
   }),
-  feedLinesAfterJob: 1,
+  feedLinesAfterJob: 2,
 })
