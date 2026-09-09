@@ -1,20 +1,5 @@
 const STATION_ID_KEY = 'delivery-print-station-id'
-const fingerprintKey = (stationId) => `delivery-printer-fingerprint:${stationId}`
 const qzPrinterKey = (stationId) => `delivery-qz-printer-name:${stationId}`
-
-const fingerprintFromInfo = (info = {}) => {
-  const fingerprint = {}
-  for (const key of ['usbVendorId', 'usbProductId', 'bluetoothServiceClassId']) {
-    if (info[key] !== undefined && info[key] !== null && info[key] !== '') fingerprint[key] = info[key]
-  }
-  return fingerprint
-}
-
-const fingerprintsEqual = (left, right) => {
-  const keys = ['usbVendorId', 'usbProductId', 'bluetoothServiceClassId']
-  const meaningful = keys.filter((key) => left?.[key] !== undefined || right?.[key] !== undefined)
-  return meaningful.length > 0 && meaningful.every((key) => left?.[key] === right?.[key])
-}
 
 export const detectPrintStationPlatform = (userAgent = globalThis.navigator?.userAgent || '') => {
   const normalized = String(userAgent).toLowerCase()
@@ -44,27 +29,6 @@ export const getOrCreateLocalPrintStationId = (
   return id
 }
 
-export const getPrinterFingerprint = (storage = globalThis.localStorage, stationId) => {
-  const raw = storage?.getItem?.(fingerprintKey(stationId))
-  if (!raw) return null
-  try {
-    const value = JSON.parse(raw)
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : null
-  } catch {
-    return null
-  }
-}
-
-export const savePrinterFingerprint = (storage = globalThis.localStorage, stationId, port) => {
-  const fingerprint = fingerprintFromInfo(port?.getInfo?.() || {})
-  storage?.setItem?.(fingerprintKey(stationId), JSON.stringify(fingerprint))
-  return fingerprint
-}
-
-export const clearPrinterFingerprint = (storage = globalThis.localStorage, stationId) => {
-  storage?.removeItem?.(fingerprintKey(stationId))
-}
-
 export const getQzPrinterName = (storage = globalThis.localStorage, stationId) => {
   const value = String(storage?.getItem?.(qzPrinterKey(stationId)) ?? '').trim()
   return value || null
@@ -84,16 +48,3 @@ export const clearQzPrinterName = (storage = globalThis.localStorage, stationId)
   storage?.removeItem?.(qzPrinterKey(stationId))
 }
 
-export const findAuthorizedPrinterPort = async (serial = globalThis.navigator?.serial, storage = globalThis.localStorage, stationId) => {
-  if (!serial?.getPorts) return null
-  const ports = await serial.getPorts()
-  if (!Array.isArray(ports) || ports.length === 0) return null
-
-  const saved = getPrinterFingerprint(storage, stationId)
-  if (saved) {
-    const matches = ports.filter((port) => fingerprintsEqual(saved, fingerprintFromInfo(port?.getInfo?.() || {})))
-    return matches.length === 1 ? matches[0] : null
-  }
-
-  return ports.length === 1 ? ports[0] : null
-}

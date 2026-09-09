@@ -271,7 +271,7 @@ function PrintingSettings({ printing, onClose }) {
             <strong>Compatibilidade</strong>
             <span>Windows usa o QZ Tray para enviar o mesmo ticket ESC/POS diretamente à fila configurada.</span>
             <span>Android cria e acompanha trabalhos na fila; a impressão física ocorre somente na estação principal Windows.</span>
-            <span>Outras plataformas compatíveis continuam usando Web Serial como fallback.</span>
+            <span>Outras plataformas criam e acompanham trabalhos na fila; somente o Windows executa a impressão física.</span>
           </div>
 
           {printing?.lastError?.message && <p className="printing-feedback printing-feedback-error">{printing.lastError.message}</p>}

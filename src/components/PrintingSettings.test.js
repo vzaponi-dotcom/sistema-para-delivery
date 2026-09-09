@@ -184,7 +184,7 @@ test('printing settings expose honest connection, station and transport states',
     assert.match(settings, new RegExp(label))
   }
   assert.match(settings, /Windows/)
-  assert.match(settings, /Web Serial/)
+  assert.doesNotMatch(settings, /Web Serial/)
   assert.match(settings, /Android/)
   assert.doesNotMatch(settings, /RawBT/)
   assert.doesNotMatch(settings, /MPT-II/)
@@ -227,12 +227,12 @@ test('making a station primary requires the shared confirmation dialog with excl
   assert.match(settings, /confirmLabel="Tornar principal"/)
 })
 
-test('manager distinguishes queue-only and Web Serial connection states honestly', () => {
+test('manager distinguishes queue-only and QZ connection states honestly', () => {
   assert.match(manager, /'unsupported'/)
   assert.match(manager, /'unconfigured'/)
   assert.match(manager, /'disconnected'/)
   assert.match(manager, /'connected'/)
-  assert.match(manager, /getPrinterFingerprint/)
+  assert.doesNotMatch(manager, /getPrinterFingerprint|navigator\.serial/)
 })
 
 test('printing settings expose stable themed hooks without changing control semantics', () => {

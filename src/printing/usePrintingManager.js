@@ -27,15 +27,11 @@ import {
 import { renderEscPos58mm } from './escpos58mm.js'
 import {
   detectPrintStationPlatform,
-  findAuthorizedPrinterPort,
   getDefaultPrintStationName,
   getOrCreateLocalPrintStationId,
-  getPrinterFingerprint,
   getQzPrinterName,
-  savePrinterFingerprint,
   saveQzPrinterName,
 } from './localPrintStation.js'
-import { MTP5_PROFILE } from './mtp5Profile.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 import {
   configureQzSecurity,
@@ -46,12 +42,6 @@ import {
   printQzRawBytes,
   resolveQzPrinter,
 } from './qzTrayTransport.js'
-import {
-  isWebSerialSupported,
-  probeSerialPort,
-  requestPrinterPort,
-  writeSerialBytes,
-} from './webSerialTransport.js'
 
 export const PRINT_JOB_POLL_MS = 2_000
 export const PRINT_STATE_POLL_MS = 5_000
@@ -70,17 +60,14 @@ const QZ_BLOCKING_ERROR_CODES = new Set([
 export const getPrintingTransportKind = (platform) => {
   if (platform === 'windows') return 'qz'
   if (platform === 'android') return 'queue-only'
-  return 'web-serial'
+  return 'queue-only'
 }
 
 export const getRendererCompatibilityMode = (transportKind) => (
   transportKind === 'qz' ? 'mpt2-bitmap' : null
 )
 
-export const isPrintingTransportSupported = (
-  platform,
-  serial = globalThis.navigator?.serial,
-) => getPrintingTransportKind(platform) === 'qz' || isWebSerialSupported(serial)
+export const isPrintingTransportSupported = (platform) => getPrintingTransportKind(platform) === 'qz'
 
 export const canConsumeAutomaticPrintJob = ({
   authenticated,
@@ -444,47 +431,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     }
   }, [configureQz, isQz, reportError, updateBlocked, updateConfiguredPrinterName, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
-  const resolveAuthorizedPort = useCallback(async ({ probe = false } = {}) => {
-    if (isQz || !supported) return null
-    const stationId = localStationRef.current?.id
-    if (!stationId) return null
-    const fingerprint = getPrinterFingerprint(globalThis.localStorage, stationId)
-    if (!fingerprint) {
-      portRef.current = null
-      updateTransportReady(false)
-      setPrinterState('unconfigured')
-      return null
-    }
-    const port = await findAuthorizedPrinterPort(globalThis.navigator?.serial, globalThis.localStorage, stationId)
-    portRef.current = port || null
-    if (!port) {
-      updateTransportReady(false)
-      setPrinterState('disconnected')
-      return null
-    }
-    if (!probe || busyJobIdRef.current) {
-      updateTransportReady(true)
-      return port
-    }
-
-    setPrinterState('connecting')
-    try {
-      await probeSerialPort(port, MTP5_PROFILE.serial)
-      updateTransportReady(true)
-      updateBlocked(false)
-      setPrinterState('connected')
-      setLastError(null)
-      return port
-    } catch (error) {
-      portRef.current = null
-      updateTransportReady(false)
-      setPrinterState('disconnected')
-      if (error?.code === 'SERIAL_OPEN_FAILED') updateBlocked(true)
-      reportError(error)
-      return null
-    }
-  }, [isQz, reportError, supported, updateBlocked, updateTransportReady])
-
   const connectPrinter = useCallback(async () => {
     const stationId = localStationRef.current?.id
     if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
@@ -495,27 +441,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       return null
     }
 
-    if (!supported) throw printerError('WEB_SERIAL_UNSUPPORTED', 'Este navegador não oferece impressão Bluetooth compatível.')
-    updateTransportReady(false)
-    setPrinterState('connecting')
-    try {
-      const port = await requestPrinterPort(globalThis.navigator?.serial)
-      await probeSerialPort(port, MTP5_PROFILE.serial)
-      savePrinterFingerprint(globalThis.localStorage, stationId, port)
-      portRef.current = port
-      updateTransportReady(true)
-      setPrinterState('connected')
-      setLastError(null)
-      updateBlocked(false)
-      return port
-    } catch (error) {
-      portRef.current = null
-      updateTransportReady(false)
-      setPrinterState(getPrinterFingerprint(globalThis.localStorage, stationId) ? 'disconnected' : 'unconfigured')
-      reportError(error)
-      throw error
-    }
-  }, [isQz, reportError, resolveConfiguredQzPrinter, supported, updateBlocked, updateTransportReady])
+    throw printerError('PRINT_QUEUE_ONLY', 'Esta plataforma apenas cria e acompanha trabalhos na fila central. A impressão física ocorre no Windows com QZ Tray.')
+  }, [isQz, resolveConfiguredQzPrinter])
 
   const getExplicitPort = useCallback(async () => {
     const stationId = localStationRef.current?.id
@@ -529,16 +456,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       return null
     }
 
-    let port = portRef.current || await resolveAuthorizedPort({ probe: true })
-    if (port) return port
-    try {
-      port = await connectPrinter()
-      return port
-    } catch (error) {
-      if (error?.code) throw error
-      throw printerError('PRINTER_NOT_AUTHORIZED', 'Selecione e autorize a impressora antes de imprimir.')
-    }
-  }, [connectPrinter, resolveAuthorizedPort, resolveConfiguredQzPrinter, transportKind])
+    throw printerError('PRINT_QUEUE_ONLY', 'Esta plataforma apenas cria e acompanha trabalhos na fila central. A impressão física ocorre no Windows com QZ Tray.')
+  }, [resolveConfiguredQzPrinter, transportKind])
 
   const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false, preparePort } = {}) => {
     if (!job) return null
@@ -554,10 +473,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
           ...options,
           compatibilityMode: getRendererCompatibilityMode(transportKind),
         }),
-        transport: async (selectedPort, bytes) => {
-          const readyPort = typeof preparePort === 'function' ? await preparePort() : selectedPort
+        transport: async (_selectedPort, bytes) => {
+          if (typeof preparePort === 'function') await preparePort()
           if (transportKind === 'qz') return printQzRawBytes(qz, configuredPrinterNameRef.current, bytes)
-          return writeSerialBytes(readyPort, bytes, MTP5_PROFILE.serial)
+          throw printerError('PRINT_QUEUE_ONLY', 'Esta estação não executa impressão física.')
         },
       })
       if (result.status === 'printed') {
@@ -566,7 +485,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
           updatePrinterQueueFound(true)
           updateTransportReady(true)
         }
-        if (transportKind === 'web-serial') updateTransportReady(true)
         setPrinterState('connected')
         setLastError(null)
         if (clearBlockOnSuccess) updateBlocked(false)

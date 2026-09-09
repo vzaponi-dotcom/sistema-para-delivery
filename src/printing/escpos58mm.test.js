@@ -87,20 +87,13 @@ const fixture = (overrides = {}) => createOrderPrintDocument({
   ...overrides,
 })
 
-test('MTP5 profile centralizes physical width, logical columns, code page and serial defaults', () => {
+test('MTP5 profile centralizes physical width, logical columns and code page', () => {
   assert.equal(MTP5_PROFILE.paperWidthMm, 58)
   assert.equal(MTP5_PROFILE.printableWidthMm, 48)
   assert.equal(MTP5_PROFILE.dotsPerLine, 384)
   assert.equal(MTP5_PROFILE.fontAColumns, 32)
   assert.equal(MTP5_PROFILE.codePage, 3)
   assert.equal(MTP5_PROFILE.feedLinesAfterJob, 2)
-  assert.deepEqual(MTP5_PROFILE.serial, {
-    baudRate: 9600,
-    dataBits: 8,
-    stopBits: 1,
-    parity: 'none',
-    flowControl: 'none',
-  })
 })
 
 test('CP860 encoder preserves Portuguese ticket characters and replaces unsupported glyphs', () => {

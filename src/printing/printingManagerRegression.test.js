@@ -27,8 +27,7 @@ test('printing manager is driven by official job APIs and never by new-order det
   ]) assert.match(manager, new RegExp(`\\b${apiName}\\b`))
 
   assert.match(manager, /runClaimedPrintJob/)
-  assert.match(manager, /findAuthorizedPrinterPort/)
-  assert.match(manager, /requestPrinterPort/)
+  assert.doesNotMatch(manager, /findAuthorizedPrinterPort|requestPrinterPort/)
   assert.doesNotMatch(manager, /dispatchRawBtBytes/)
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
@@ -44,20 +43,20 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.doesNotMatch(detectionEffect, /\bprinting\./)
 })
 
-test('Android is queue-only, Windows uses QZ, and other platforms keep Web Serial fallback', () => {
+test('Android and other platforms are queue-only while Windows uses QZ', () => {
   assert.equal(getPrintingTransportKind('android'), 'queue-only')
   assert.equal(getPrintingTransportKind('windows'), 'qz')
-  assert.equal(getPrintingTransportKind('other'), 'web-serial')
+  assert.equal(getPrintingTransportKind('other'), 'queue-only')
 
   assert.equal(isPrintingTransportSupported('android', undefined), false)
   assert.equal(isPrintingTransportSupported('windows', undefined), true)
   assert.equal(isPrintingTransportSupported('other', undefined), false)
-  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
+  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), false)
 
   assert.doesNotMatch(manager, /transportKind === 'rawbt'|dispatchRawBtBytes\(bytes\)/)
 })
 
-test('QZ uses MPT-II bitmap rendering while Web Serial keeps native text rendering', () => {
+test('QZ uses MPT-II bitmap rendering and queue-only platforms do not render physically', () => {
   const start = manager.indexOf('const executeClaimedJob = useCallback')
   assert.notEqual(start, -1)
   const end = manager.indexOf('const saveStationSettings', start)
@@ -66,7 +65,7 @@ test('QZ uses MPT-II bitmap rendering while Web Serial keeps native text renderi
 
   assert.match(block, /compatibilityMode:\s*getRendererCompatibilityMode\(transportKind\)/)
   assert.match(block, /printQzRawBytes\(qz, configuredPrinterNameRef\.current, bytes\)/)
-  assert.match(block, /writeSerialBytes\(readyPort, bytes, MTP5_PROFILE\.serial\)/)
+  assert.doesNotMatch(block, /writeSerialBytes|MTP5_PROFILE\.serial/)
 })
 
 test('Windows QZ lifecycle configures signed security and exposes explicit local queue setup', () => {

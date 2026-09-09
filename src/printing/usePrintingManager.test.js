@@ -37,18 +37,18 @@ const readyAutomaticConsumer = (overrides = {}) => ({
   ...overrides,
 })
 
-test('Windows uses QZ, Android becomes queue-only, and other platforms retain Web Serial temporarily', () => {
+test('only Windows uses a physical QZ transport; Android and other platforms are queue-only', () => {
   assert.equal(getPrintingTransportKind('windows'), 'qz')
   assert.equal(getPrintingTransportKind('android'), 'queue-only')
-  assert.equal(getPrintingTransportKind('other'), 'web-serial')
+  assert.equal(getPrintingTransportKind('other'), 'queue-only')
   assert.equal(getRendererCompatibilityMode('qz'), 'mpt2-bitmap')
   assert.equal(getRendererCompatibilityMode('queue-only'), null)
-  assert.equal(getRendererCompatibilityMode('web-serial'), null)
+  assert.equal(getRendererCompatibilityMode('queue-only'), null)
 
   assert.equal(isPrintingTransportSupported('windows', undefined), true)
   assert.equal(isPrintingTransportSupported('android', undefined), false)
   assert.equal(isPrintingTransportSupported('other', undefined), false)
-  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
+  assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), false)
 })
 
 test('automatic consumer does not claim while QZ or another local transport is not ready', () => {
