@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import '../bottom-sheet.css'
 import Icon from './Icon'
+import { acquireScrollLock } from './scrollLock.js'
 
 const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const dialogSelector = '[role="dialog"][aria-modal="true"]'
@@ -18,8 +19,7 @@ function BottomSheet({ open, title, onClose, children }) {
     if (!open) return undefined
 
     previousFocus.current = document.activeElement
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireScrollLock(document)
 
     const controls = () => Array.from(sheetRef.current?.querySelectorAll(focusable) || [])
     controls()[0]?.focus()
@@ -50,7 +50,7 @@ function BottomSheet({ open, title, onClose, children }) {
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       previousFocus.current?.focus?.()
     }
   }, [open, onClose])

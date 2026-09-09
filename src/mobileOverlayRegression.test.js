@@ -8,7 +8,7 @@ test('modal and bottom sheet lock background scroll and restore focus', async ()
   const modal = await read('./components/Modal.jsx')
   const sheet = await read('./components/BottomSheet.jsx')
   for (const source of [modal, sheet]) {
-    assert.match(source, /document\.body\.style\.overflow/)
+    assert.match(source, /acquireScrollLock/)
     assert.match(source, /previousFocus/)
     assert.match(source, /event\.key === 'Escape'/)
   }
