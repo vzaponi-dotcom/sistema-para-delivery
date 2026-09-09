@@ -146,6 +146,30 @@ test('remote second-copy decisions preserve the original job and snapshot', asyn
   await assert.rejects(() => printingRepository.skipSecondCopy(db, businessA, 'remote-copy', 'Operador', baseNow), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
 })
 
+test('remote second-copy requests and skips are idempotent and mutually exclusive', async () => {
+  const db = makeDb()
+  await addAutomaticJob(db, { id: 'idempotent-request' })
+  await addAutomaticJob(db, { id: 'idempotent-skip', orderId: 'o2' })
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a')
+  for (const id of ['idempotent-request', 'idempotent-skip']) {
+    await claimPrintJob(db, businessA, id, 'station-a', baseNow)
+    await markPrintJobPrinted(db, businessA, id, 'station-a', 1, baseNow)
+  }
+  const firstRequest = await printingRepository.requestSecondCopy(db, businessA, 'idempotent-request', 'Operador', baseNow)
+  const repeatedRequest = await printingRepository.requestSecondCopy(db, businessA, 'idempotent-request', 'Operador', new Date(baseNow.getTime() + 1000))
+  assert.equal(repeatedRequest.id, firstRequest.id)
+  assert.equal(repeatedRequest.secondCopyRequestedAt, firstRequest.secondCopyRequestedAt)
+  assert.deepEqual(repeatedRequest.document, firstRequest.document)
+  await assert.rejects(() => printingRepository.skipSecondCopy(db, businessA, 'idempotent-request'), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
+  const firstSkip = await printingRepository.skipSecondCopy(db, businessA, 'idempotent-skip', 'Operador', baseNow)
+  const repeatedSkip = await printingRepository.skipSecondCopy(db, businessA, 'idempotent-skip', 'Operador', new Date(baseNow.getTime() + 1000))
+  assert.equal(repeatedSkip.id, firstSkip.id)
+  assert.equal(repeatedSkip.secondCopySkippedAt, firstSkip.secondCopySkippedAt)
+  assert.equal(repeatedSkip.discardedAt, firstSkip.discardedAt)
+  await assert.rejects(() => printingRepository.requestSecondCopy(db, businessA, 'idempotent-skip'), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
+})
+
 const addStation = async (db, id, overrides = {}) => upsertPrintStation(db, overrides.businessId || businessA, {
   id,
   name: overrides.name || id,
