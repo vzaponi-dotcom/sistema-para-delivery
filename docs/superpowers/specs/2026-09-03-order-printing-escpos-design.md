@@ -1,5 +1,7 @@
 # Gestão Delivery — Impressão Térmica de Pedidos e Ticket Digital
 
+> **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte `docs/superpowers/specs/2026-09-08-centralized-qz-print-queue-design.md` e `docs/superpowers/plans/2026-09-08-centralized-qz-print-queue-plan.md`.
+
 Data: 2026-09-03
 
 ## Objetivo

@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.
+
 **Goal:** Make newly-created scheduled orders eligible for automatic printing immediately while keeping them operationally scheduled until the existing 50-minute window, and allow those waiting scheduled orders to be cancelled from their detail view without introducing order editing.
 
 **Architecture:** Keep printing eligibility and kitchen timing as separate concerns. New automatic print jobs will use `created_at` as `available_at`, while `scheduled_for` and `operational_start_at` continue to drive kitchen grouping, sound and lateness. Cancellation continues through the existing order-cancellation domain flow; the frontend only removes the condition that hides cancellation from scheduled-order details, while backend regression tests lock the existing pending-job deletion and cancelled-order claim protections.
@@ -513,3 +515,4 @@ No `TBD`, `TODO`, “implement later”, unspecified validation, or undefined pr
 ### Type/name consistency
 
 The plan uses the existing names inspected in the repository: `createOrder`, `prepareAutomaticPrintJobStatement`, `cancelOrder`, `claimPrintJob`, `claimNextAutomaticPrintJob`, `markPrintJobPrinted`, `loadPrintJob`, `setCancelOrder`, `onRequestCancel`, `scheduledFor`, `createdAt`, `availableAt`, `copiesPrinted`, and `copiesRequested`.
+# **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.

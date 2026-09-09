@@ -396,3 +396,4 @@ A feature está pronta quando:
 - CI fica verde;
 - staging é homologado fisicamente;
 - produção continua intocada até aprovação explícita.
+# **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.

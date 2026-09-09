@@ -112,3 +112,4 @@ Document the cart compact layout, category icon reuse, TDD RED/GREEN evidence, a
   6. light and dark themes remain readable;
   7. there is no horizontal overflow.
 - Do not merge or deploy production until the user explicitly approves the staging result.
+# **SUPERSEDED (2026-09-08):** Documento histórico substituído pela arquitetura QZ centralizada. Consulte a spec/plano centralizados de 2026-09-08.
