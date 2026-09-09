@@ -12,6 +12,10 @@ const RETRYABLE_ATTENTION_CODES = new Set([
   'QZ_PRINT_FAILED',
 ])
 
+const REPRINTABLE_UNCERTAIN_ATTENTION_CODES = new Set([
+  'PROCESSING_OUTCOME_UNKNOWN',
+])
+
 const errorCode = (job) => String(job?.lastError?.code || job?.attentionReason || '').trim().toUpperCase()
 
 export const isForcePrintReason = (jobOrReason) => {
@@ -26,7 +30,17 @@ export const isRetryablePrintJob = (job) => {
   return state === 'attention' && RETRYABLE_ATTENTION_CODES.has(errorCode(job))
 }
 
-export const getPrintJobActions = (job) => {
+export const isReprintablePrintJob = (job, { order } = {}) => {
+  if (job?.type !== 'order' || order?.status === 'Cancelado') return false
+  const state = resolvePrintQueueState(job?.queueState || job?.status)
+  if (state === 'printed' || state === 'discarded') return true
+  return state === 'attention'
+    && !isForcePrintReason(job)
+    && !isRetryablePrintJob(job)
+    && REPRINTABLE_UNCERTAIN_ATTENTION_CODES.has(errorCode(job))
+}
+
+export const getPrintJobActions = (job, options = {}) => {
   const state = resolvePrintQueueState(job?.queueState || job?.status)
   if (state === 'queued' || state === 'waiting_station') {
     return [
@@ -37,7 +51,9 @@ export const getPrintJobActions = (job) => {
   if (state === 'attention') {
     if (isForcePrintReason(job)) return [{ key: 'forcePrint', label: 'Imprimir mesmo assim' }, { key: 'discard', label: 'Descartar' }]
     if (isRetryablePrintJob(job)) return [{ key: 'retry', label: 'Tentar novamente' }, { key: 'discard', label: 'Descartar' }]
+    if (isReprintablePrintJob(job, options)) return [{ key: 'reprint', label: 'Reimprimir' }, { key: 'discard', label: 'Descartar' }]
     return [{ key: 'discard', label: 'Descartar' }]
   }
+  if (isReprintablePrintJob(job, options)) return [{ key: 'reprint', label: 'Reimprimir' }]
   return []
 }

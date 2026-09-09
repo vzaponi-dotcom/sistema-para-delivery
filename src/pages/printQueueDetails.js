@@ -58,6 +58,6 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
       at: formatDateTime(job.actionAt),
       actor: presentText(job.actionActorLabel),
     } : null,
-    actions: getPrintJobActions(job),
+    actions: getPrintJobActions(job, { order }),
   }
 }

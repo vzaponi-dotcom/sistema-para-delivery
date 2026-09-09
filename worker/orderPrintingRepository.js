@@ -465,7 +465,17 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, document, n
       ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
     FROM print_jobs
     WHERE id = ? AND business_id = ? AND type = 'order'
-      AND status = 'printed' AND copies_printed >= copies_requested
+      AND EXISTS (
+        SELECT 1 FROM orders
+        WHERE orders.id = print_jobs.order_id
+          AND orders.business_id = print_jobs.business_id
+          AND orders.status <> 'Cancelado'
+      )
+      AND (
+        (status = 'printed' AND copies_printed >= copies_requested)
+        OR status = 'discarded'
+        OR (status = 'requires_attention' AND last_error_code = 'PROCESSING_OUTCOME_UNKNOWN')
+      )
     RETURNING *`)
     .bind(id, requestedCopies, JSON.stringify(document), at, at, jobId, businessId).first()
   if (row) return mapJobRow(row)

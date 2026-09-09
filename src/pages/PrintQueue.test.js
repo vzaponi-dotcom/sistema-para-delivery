@@ -335,7 +335,7 @@ test('print queue opens details from desktop rows and mobile cards, with actions
   assert.doesNotMatch(queueRows, /<Button/)
 })
 
-test('print queue modal orders actions by primary, destructive, close on mobile and close, destructive, primary on desktop', async () => {
+test('print queue modal orders actions by primary, destructive, ticket, close on mobile and close, ticket, destructive, primary on desktop', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
     readSource('../print-queue.css'),
@@ -344,7 +344,7 @@ test('print queue modal orders actions by primary, destructive, close on mobile 
   assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key === 'discard'\)/)
   assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key !== 'discard'\)/)
   assert.match(styles, /\.print-queue-detail-actions[\s\S]*\.print-queue-detail-close/)
-  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-detail-primary[\s\S]*order: 1[\s\S]*\.print-queue-detail-destructive[\s\S]*order: 2[\s\S]*\.print-queue-detail-close[\s\S]*order: 3/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-detail-primary[\s\S]*order: 1[\s\S]*\.print-queue-detail-destructive[\s\S]*order: 2[\s\S]*\.print-queue-detail-ticket[\s\S]*order: 3[\s\S]*\.print-queue-detail-close[\s\S]*order: 4/)
 })
 
 test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
@@ -354,4 +354,26 @@ test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
   assert.match(page, /Impressão autorizada e enviada para a fila/)
   assert.doesNotMatch(page, /Ãƒ|Ã‚|ï¿½/)
   assert.doesNotMatch(manager, /Ãƒ|Ã‚|ï¿½/)
+})
+
+test('7F-B1 keeps reprint and ticket preview in the detail modal, using the immutable job snapshot', async () => {
+  const [page, manager, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('../printing/usePrintingManager.js'),
+    readSource('../print-queue.css'),
+  ])
+
+  assert.match(page, /import OrderTicketPreview/)
+  assert.match(page, /requestReprint/)
+  assert.match(manager, /const requestReprint = useCallback/)
+  assert.match(page, /title=\{`Reimprimir \$\{selectedDetails\.title\}`\}/)
+  assert.match(page, /\[1, 2\]\.map\(\(copies\)/)
+  assert.match(page, /copies === 1 \? 'via' : 'vias'/)
+  assert.match(page, /disabled=\{!reprintCopies \|\| actionPending\}/)
+  assert.match(page, /Reimpressão adicionada à fila/)
+  assert.match(page, /title=\{`Ticket do \$\{selectedDetails\.title\}`\}/)
+  assert.match(page, /<OrderTicketPreview document=\{selectedJob\.document\} \/>/)
+  assert.doesNotMatch(page, /getPreviewDocument/)
+  assert.match(styles, /\.print-queue-detail-ticket \{ order: 3;/)
+  assert.match(styles, /\.print-queue-detail-close \{ order: 4;/)
 })

@@ -167,3 +167,39 @@ test('reprint rejects a job that has not finished printing', async () => {
     (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
   )
 })
+
+test('reprint accepts discarded and physically-uncertain order jobs, but rejects retryable and force-print attention', async () => {
+  const { db, document } = await setup()
+
+  db.sqlite.prepare("UPDATE print_jobs SET status = 'discarded' WHERE id = ?").run('original-job')
+  const discarded = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, document, now)
+  assert.equal(discarded.parentJobId, 'original-job')
+
+  db.sqlite.prepare("UPDATE print_jobs SET status = 'requires_attention', last_error_code = ? WHERE id = ?")
+    .run('PROCESSING_OUTCOME_UNKNOWN', 'original-job')
+  const uncertain = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 2, document, now)
+  assert.equal(uncertain.parentJobId, 'original-job')
+
+  for (const code of ['QZ_PRINT_FAILED', 'ORDER_FINALIZED_BEFORE_PRINT']) {
+    db.sqlite.prepare("UPDATE print_jobs SET status = 'requires_attention', last_error_code = ? WHERE id = ?")
+      .run(code, 'original-job')
+    await assert.rejects(
+      () => printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, document, now),
+      (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
+    )
+  }
+})
+
+test('reprint allows finalized orders but rejects cancelled orders from the authoritative order state', async () => {
+  const { db, document } = await setup()
+
+  db.sqlite.prepare("UPDATE orders SET status = 'Finalizado' WHERE id = ?").run('order-1')
+  const finalized = await printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, document, now)
+  assert.equal(finalized.status, 'pending')
+
+  db.sqlite.prepare("UPDATE orders SET status = 'Cancelado' WHERE id = ?").run('order-1')
+  await assert.rejects(
+    () => printingRepository.reprintPrintJob(db, businessId, 'original-job', 1, document, now),
+    (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
+  )
+})

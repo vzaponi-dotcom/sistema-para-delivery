@@ -4,6 +4,7 @@ import StatCard from '../components/StatCard'
 import Button from '../components/Button'
 import Modal from '../components/Modal'
 import ConfirmationDialog from '../components/ConfirmationDialog'
+import OrderTicketPreview from '../components/OrderTicketPreview'
 import SystemSelect from '../components/SystemSelect'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
@@ -59,6 +60,9 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
   const [selectedJob, setSelectedJob] = useState(null)
   const [confirmation, setConfirmation] = useState(null)
   const [actionPending, setActionPending] = useState(false)
+  const [reprintCopies, setReprintCopies] = useState(null)
+  const [showReprint, setShowReprint] = useState(false)
+  const [showTicket, setShowTicket] = useState(false)
   const ordersById = new Map(orders.map((order) => [String(order.id), order]))
   const filteredJobs = filterPrintQueueJobs(jobs, { search, status, origin, stationReady, orders })
   const jobRows = filteredJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
@@ -69,7 +73,12 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
     stationReady,
   }) : null
 
-  const closeDetails = () => setSelectedJob(null)
+  const closeDetails = () => {
+    setSelectedJob(null)
+    setShowReprint(false)
+    setShowTicket(false)
+    setReprintCopies(null)
+  }
   const runAction = async (action) => {
     if (!selectedJob || actionPending) return
     setActionPending(true)
@@ -89,7 +98,24 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
   }
   const requestAction = (action) => {
     if (action === 'discard' || action === 'forcePrint') setConfirmation(action)
+    else if (action === 'reprint') {
+      setReprintCopies(null)
+      setShowReprint(true)
+    }
     else void runAction(action)
+  }
+  const confirmReprint = async () => {
+    if (!selectedJob || !reprintCopies || actionPending) return
+    setActionPending(true)
+    try {
+      await printing?.requestReprint?.(selectedJob, reprintCopies)
+      onToast?.('Reimpressão adicionada à fila')
+      closeDetails()
+    } catch (error) {
+      onToast?.(error?.message || 'Não foi possível concluir a reimpressão.')
+    } finally {
+      setActionPending(false)
+    }
   }
   const orderNumber = selectedDetails?.title || 'este pedido'
 
@@ -216,6 +242,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
       {selectedDetails && (
           <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">
             <Button type="button" variant="secondary" className="print-queue-detail-close" onClick={closeDetails} disabled={actionPending}>Fechar</Button>
+            {selectedJob?.type === 'order' && selectedJob?.document?.type === 'order' && <Button type="button" variant="secondary" className="print-queue-detail-ticket" onClick={() => setShowTicket(true)} disabled={actionPending}>Ver ticket</Button>}
             {selectedDetails.actions.filter((action) => action.key === 'discard').map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
             {selectedDetails.actions.filter((action) => action.key !== 'discard').map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
           </div>}>
@@ -236,6 +263,18 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
           </div>
         </Modal>
       )}
+      {showReprint && selectedDetails && <Modal title={`Reimprimir ${selectedDetails.title}`} onClose={() => setShowReprint(false)} footer={<div className="print-queue-reprint-actions">
+        <Button type="button" variant="secondary" onClick={() => setShowReprint(false)} disabled={actionPending}>Cancelar</Button>
+        <Button type="button" onClick={() => void confirmReprint()} disabled={!reprintCopies || actionPending}>Confirmar reimpressão</Button>
+      </div>}>
+        <p className="print-queue-reprint-copy">Escolha a quantidade de vias para o novo trabalho.</p>
+        <div className="print-queue-reprint-options" role="group" aria-label="Quantidade de vias">
+          {[1, 2].map((copies) => <Button key={copies} type="button" variant={reprintCopies === copies ? 'primary' : 'secondary'} className="print-queue-reprint-option" aria-pressed={reprintCopies === copies} onClick={() => setReprintCopies(copies)} disabled={actionPending}>{copies} {copies === 1 ? 'via' : 'vias'}</Button>)}
+        </div>
+      </Modal>}
+      {showTicket && selectedJob?.document?.type === 'order' && selectedDetails && <Modal title={`Ticket do ${selectedDetails.title}`} onClose={() => setShowTicket(false)} footer={<div className="print-queue-ticket-actions"><Button type="button" variant="secondary" onClick={() => setShowTicket(false)}>Fechar</Button></div>}>
+        <OrderTicketPreview document={selectedJob.document} />
+      </Modal>}
       {confirmation && <ConfirmationDialog
         title={confirmation === 'discard' ? 'Descartar trabalho de impressão?' : 'Imprimir mesmo assim?'}
         message={confirmation === 'discard' ? `O trabalho de impressão de ${orderNumber} será descartado.` : `${orderNumber} já foi finalizado ou cancelado. Autorizar a impressão original?`}

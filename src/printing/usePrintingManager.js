@@ -17,6 +17,7 @@ import {
   heartbeatPrintStation,
   makePrimaryPrintStation,
   prioritizePrintJob,
+  reprintPrintJob,
   retryPrintJob,
   signQzPayload,
   upsertPrintStation,
@@ -556,6 +557,16 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return response
   }, [refresh])
 
+  const requestReprint = useCallback(async (jobOrId, copies) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    try {
+      return await reprintPrintJob(jobId, copies)
+    } finally {
+      await refresh()
+    }
+  }, [refresh])
+
   const getPreviewDocument = useCallback(async (orderId) => {
     const response = await getOrderPrintDocument(orderId)
     return response.document
@@ -785,6 +796,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     requestRetry,
     requestDiscard,
     requestForcePrint,
+    requestReprint,
     getPreviewDocument,
   }
 }
