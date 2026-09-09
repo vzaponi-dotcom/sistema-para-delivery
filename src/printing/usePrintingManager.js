@@ -39,6 +39,7 @@ import { MTP5_PROFILE } from './mtp5Profile.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 import {
   configureQzSecurity,
+  createQzReadinessController,
   ensureQzConnected,
   listQzPrinters,
   printQzRawBytes,
@@ -248,6 +249,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const configuredPrinterNameRef = useRef(null)
   const transportReadyRef = useRef(false)
   const qzSecurityConfiguredRef = useRef(false)
+  const qzReadinessRef = useRef(createQzReadinessController())
   const initializationRef = useRef(0)
   const [physicalJobFailureNotifier] = useState(createPhysicalJobFailureNotifier)
 
@@ -317,17 +319,19 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const resolveConfiguredQzPrinter = useCallback(async (stationId) => {
     if (!isQz || !stationId) return null
     configureQz()
-    updateTransportReady(false)
-    setPrinterState('connecting')
+    if (!transportReadyRef.current) setPrinterState('connecting')
     try {
       await ensureQzConnected(qz)
       const savedPrinterName = getQzPrinterName(globalThis.localStorage, stationId)
       updateConfiguredPrinterName(savedPrinterName)
       if (!savedPrinterName) {
+        updateTransportReady(false)
         setPrinterState('unconfigured')
         return null
       }
-      const resolvedPrinter = await resolveQzPrinter(qz, savedPrinterName)
+      const resolvedPrinter = await qzReadinessRef.current.probe(
+        () => resolveQzPrinter(qz, savedPrinterName),
+      )
       updateConfiguredPrinterName(resolvedPrinter)
       updateTransportReady(true)
       updateBlocked(false)

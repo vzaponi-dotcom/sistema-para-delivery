@@ -1,5 +1,30 @@
 const qzError = (code, message, cause) => Object.assign(new Error(message), { code, cause })
 
+export const createQzReadinessController = () => {
+  let ready = false
+  let inFlight = null
+
+  return {
+    isReady: () => ready,
+    probe: async (operation) => {
+      if (inFlight) return inFlight
+      inFlight = Promise.resolve()
+        .then(operation)
+        .then((result) => {
+          ready = true
+          return result
+        }, (error) => {
+          ready = false
+          throw error
+        })
+        .finally(() => {
+          inFlight = null
+        })
+      return inFlight
+    },
+  }
+}
+
 const bytesToBase64 = (bytes) => {
   if (!(bytes instanceof Uint8Array)) {
     throw qzError('QZ_PRINT_FAILED', 'Dados de impressão inválidos.')
