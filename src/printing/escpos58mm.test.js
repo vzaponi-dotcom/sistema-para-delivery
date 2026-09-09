@@ -21,6 +21,42 @@ const countBytes = (haystack, needle) => {
   return count
 }
 
+const styledLines = (bytes) => {
+  const lines = []
+  let size = 0
+  let bold = false
+  let text = ''
+  for (let index = 0; index < bytes.length;) {
+    if (bytes[index] === 0x0a) {
+      lines.push({ text, size, bold })
+      text = ''
+      index += 1
+      continue
+    }
+    if (bytes[index] === 0x1b && bytes[index + 1] === 0x45) {
+      bold = Boolean(bytes[index + 2])
+      index += 3
+      continue
+    }
+    if (bytes[index] === 0x1b && [0x40, 0x4d, 0x61, 0x74].includes(bytes[index + 1])) {
+      index += bytes[index + 1] === 0x40 ? 2 : 3
+      continue
+    }
+    if (bytes[index] === 0x1d && bytes[index + 1] === 0x21) {
+      size = bytes[index + 2]
+      index += 3
+      continue
+    }
+    if (bytes[index] < 0x20) {
+      index += 1
+      continue
+    }
+    text += String.fromCharCode(bytes[index])
+    index += 1
+  }
+  return lines
+}
+
 const fixture = (overrides = {}) => createOrderPrintDocument({
   businessName: 'Amor & Sabor',
   orderId: 'order-0184',
@@ -74,6 +110,22 @@ test('text wrapping never exceeds the 32-column normal-font budget', () => {
 
   const hardWrapped = wrapPrintText('ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890', 32)
   assert.deepEqual(hardWrapped, ['ABCDEFGHIJKLMNOPQRSTUVWXYZ123456', '7890'])
+})
+
+test('ticket hierarchy makes secondary text legible without letting TOTAL dominate', () => {
+  const lines = styledLines(renderEscPos58mm(fixture()))
+  const line = (prefix) => lines.find(({ text }) => text.startsWith(prefix))
+
+  assert.equal(line('Cliente: ')?.size, 0x00)
+  assert.equal(line('Telefone: ')?.size, 0x00)
+  assert.equal(line('2x X-BURGER')?.size, 0x00)
+  assert.equal(line('Obs: ')?.size, 0x00)
+  assert.equal(line('Subtotal: ')?.size, 0x00)
+  assert.equal(line('Pagamento: ')?.size, 0x00)
+  assert.equal(line('PEDIDO #')?.size, 0x11)
+  assert.equal(line('TOTAL ')?.size, 0x10)
+  assert.equal(line('TOTAL ')?.bold, true)
+  assert.equal(line('TOTAL ')?.size < 0x11, true)
 })
 
 test('58mm renderer emits deterministic ESC/POS structure and two approved copies without cut command', () => {
@@ -136,6 +188,7 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
     payment: { status: 'Pendente', method: '' },
   })
   const drawnCharacters = []
+  const drawnFonts = []
   const createCanvas = () => {
     const canvas = { width: 0, height: 0 }
     const context = {
@@ -144,7 +197,7 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
       textAlign: '',
       textBaseline: '',
       fillRect() {},
-      fillText(character) { drawnCharacters.push(character) },
+      fillText(character) { drawnCharacters.push(character); drawnFonts.push(this.font) },
       getImageData() {
         const data = new Uint8ClampedArray(canvas.width * canvas.height * 4)
         data.fill(255)
@@ -167,6 +220,10 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
   assert.equal(drawnText.includes('João'), true)
   assert.equal(drawnText.includes('Acréscimo'), true)
   assert.equal(drawnText.includes('CÓPIA'), true)
+  assert.equal(drawnFonts.includes('400 24px monospace'), true)
+  assert.equal(drawnFonts.includes('700 24px monospace'), true)
+  assert.equal(drawnFonts.includes('400 20px monospace'), false)
+  assert.equal(drawnFonts.includes('700 40px monospace'), false)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x2a, 33, 0x80, 0x01])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])), false)
 })

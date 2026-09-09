@@ -108,12 +108,15 @@ const formatDateTime = (createdAt) => {
 
 const amountLine = (label, cents, sign = '') => `${label}: ${sign}${formatEscPosMoneyCents(cents)}`
 
+const ORDER_TITLE_SIZE = 0x11
+const TOTAL_SIZE = 0x10
+
 const renderOrderCopy = (document, copyNumber, copies) => {
   const parts = []
   pushRaw(parts, selectFontA(), size(0x00), bold(false), align(1))
   pushRaw(parts, bold(true))
   pushLine(parts, document.business?.name || 'Amor & Sabor')
-  pushRaw(parts, size(0x11))
+  pushRaw(parts, size(ORDER_TITLE_SIZE))
   pushLine(parts, `PEDIDO #${document.order?.number || ''}`)
   pushRaw(parts, size(0x00), bold(false))
   if (document.order?.createdAt) pushLine(parts, formatDateTime(document.order.createdAt))
@@ -153,7 +156,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
     if (adjustment.reason) pushWrapped(parts, adjustment.reason, { prefix: 'Motivo: ' })
   }
 
-  pushRaw(parts, bold(true), size(0x11), align(1))
+  pushRaw(parts, bold(true), size(TOTAL_SIZE), align(1))
   pushLine(parts, `TOTAL ${formatEscPosMoneyCents(document.financial?.totalCents || 0)}`)
   pushRaw(parts, size(0x00), bold(false), align(0))
 
@@ -297,7 +300,7 @@ const rasterizeMpt2TextBytes = (bytes, createCanvas = defaultCanvasFactory) => {
     context.fillStyle = '#fff'
     context.fillRect(0, 0, width, lineHeight)
     context.fillStyle = '#000'
-    context.font = `${line.bold ? '700' : '400'} ${20 * heightMultiplier}px monospace`
+    context.font = `${line.bold ? '700' : '400'} ${24 * heightMultiplier}px monospace`
     context.textAlign = 'center'
     context.textBaseline = 'middle'
 
