@@ -202,6 +202,7 @@ test('QZ copy separates Tray connection from queue discovery and send readiness'
 test('Android is queue-only and does not expose a physical printer control', () => {
   assert.match(settings, /printing\?\.supported !== false/)
   assert.doesNotMatch(settings, /isRawBt|transportKind === 'rawbt'|RawBT/)
+  assert.match(settings, /fila central.*impressão física/i)
 })
 
 test('QZ printer discovery adapts queue names to SystemSelect option objects', () => {

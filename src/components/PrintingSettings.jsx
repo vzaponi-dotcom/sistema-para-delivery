@@ -160,6 +160,12 @@ function PrintingSettings({ printing, onClose }) {
             <span className={`printing-state printing-state-${isQz ? qzConnectionState : printerState}`}>{connectionLabel}</span>
           </div>
 
+          {!isQz && (
+            <p className="printing-feedback">
+              Esta estação usa a fila central; a impressão física ocorre somente no Windows com QZ Tray.
+            </p>
+          )}
+
           <div className="printing-info-grid">
             <div className="printing-info-card"><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
             <div className="printing-info-card"><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
