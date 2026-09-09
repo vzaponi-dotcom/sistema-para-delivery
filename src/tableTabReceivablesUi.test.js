@@ -32,7 +32,7 @@ test('table tab detail keeps promise editing out of the aggregate branch and rem
 
 test('table tab detail lists every order with readable item hierarchy, notes, subtotal, and one aggregate payment action', () => {
   assert.match(detail, /entry\.orders\.map\(\(order\) =>/)
-  assert.match(detail, /receivable-table-tab-order-heading[\s\S]*?<span>Pedido<\/span>[\s\S]*?#\{String\(order\.id \|\| ''\)\.slice\(-4\)\}/)
+  assert.match(detail, /receivable-table-tab-order-heading[\s\S]*?<span>Pedido<\/span>[\s\S]*?formatOrderDisplayNumber\(order\)/)
   assert.match(detail, /getOrderItems\(order\)\.map\(\(item\) =>/)
   assert.match(detail, /receivable-table-tab-item-quantity">\{item\.quantity\}x/)
   assert.match(detail, /receivable-table-tab-item-content[\s\S]*getOrderItemDisplayName\(item\)/)

@@ -63,7 +63,7 @@ test('order persistence stores identity type and derives server-side snapshots',
   assert.match(source, /customer_identity_type/)
   assert.match(source, /table_tab_id/)
   assert.match(source, /productSnapshotSize\(item\.product\)/)
-  assert.match(source, /Pagamento pedido #[^\n]*clientSnapshot/)
+  assert.match(source, /formatOrderDisplayNumber\(\{ orderNumber \}\)\.replace\('Pedido', 'Pagamento pedido'\)/)
 })
 
 test('order row maps promised payment date and official order reads select it', () => {

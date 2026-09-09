@@ -2,6 +2,7 @@ import { getBusinessDate } from '../shared/finance.js'
 import { mapMovementRow } from './financeRepository.js'
 import { closeTableTabIfSettled } from './repositories.js'
 import { centsToMoney, validatePaymentMethod } from './validation.js'
+import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 
 export const CANCEL_REASONS = ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
 
@@ -29,7 +30,7 @@ const normalizeRefundMethod = (value) => {
   return validatePaymentMethod(method)
 }
 
-const orderContextSql = `SELECT o.id, o.status, o.table_tab_id, o.client_name_snapshot,
+const orderContextSql = `SELECT o.id, o.order_number, o.status, o.table_tab_id, o.client_name_snapshot,
   o.cancelled_at, o.cancel_reason, o.cancel_reason_note,
   p.id AS payment_id, p.method AS payment_method, p.amount_cents AS paid_amount_cents, p.paid_at,
   r.id AS refund_movement_id, r.created_at AS refund_created_at
@@ -44,6 +45,7 @@ const mapContext = (row) => {
   if (!row) return null
   const order = {
     id: row.id,
+    orderNumber: row.order_number,
     client: row.client_name_snapshot,
     tableTabId: row.table_tab_id ?? null,
     status: row.status,
@@ -70,7 +72,7 @@ const createRefundStatement = (db, businessId, row, refundMethod, now) => {
   const id = crypto.randomUUID()
   const createdAt = now.toISOString()
   const movementDate = getBusinessDate(now)
-  const description = `Estorno pedido #${String(row.id).slice(-4)} · ${row.client_name_snapshot}`
+  const description = `${formatOrderDisplayNumber(row).replace('Pedido', 'Estorno pedido')} · ${row.client_name_snapshot}`
   const statement = db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     id,
     businessId,

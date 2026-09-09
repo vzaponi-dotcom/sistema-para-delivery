@@ -86,7 +86,7 @@ test('print queue renders station health and a responsive four-card summary', as
   for (const label of ['Cozinha PC', 'Na fila', 'Aguardando estação', 'Aguardando 2ª via', 'Requer atenção']) {
     assert.match(page, new RegExp(label))
   }
-  assert.match(app, /<PrintQueue printing=\{printing\}/)
+  assert.match(app, /<PrintQueue orders=\{orders\} printing=\{printing\}/)
   assert.match(styles, /\.print-queue-summary[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
 })
@@ -104,7 +104,7 @@ test('print queue job rows expose identity, origin, copies, status, time and sta
   const page = await readSource('./PrintQueue.jsx')
 
   for (const pattern of [
-    /order\.number/,
+    /orderNumber/,
     /document\?\.customer\?\.name/,
     /job\?\.trigger/,
     /job\?\.copiesPrinted/,
@@ -133,9 +133,9 @@ test('print queue keeps structured desktop rows and compact mobile cards without
 test('print queue uses an operational order number and never treats a UUID suffix as one', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
-  assert.match(page, /getOperationalOrderNumber/)
+  assert.match(page, /formatOrderDisplayNumber/)
   assert.match(page, /displayNumber|operationalNumber|orderNumber/)
-  assert.match(page, /order\.number/)
+  assert.match(page, /ordersById/)
   assert.doesNotMatch(page, /String\(.*order.*\)\.slice\(-4\)/)
 })
 
@@ -145,7 +145,7 @@ test('print queue preserves official table and customer identity with a neutral 
   assert.match(page, /getCustomerOrTable/)
   assert.match(page, /tableIdentifier/)
   assert.match(page, /customerOrTable: getCustomerOrTable/)
-  assert.match(page, /orderNumber \? `Pedido #\$\{job\.orderNumber\}` : 'Pedido'/)
+  assert.match(page, /formatOrderDisplayNumber\(order\)/)
 })
 
 test('print queue reuses the operational local identity for table and customer', () => {
@@ -169,42 +169,51 @@ const filterJobs = [
     id: 'customer-job',
     trigger: 'automatic',
     status: 'pending',
-    document: { customer: { name: 'Ana Souza' }, tableIdentifier: 'Mesa 4', order: { number: '104' } },
+    orderId: 'order-104',
+    document: { customer: { name: 'Ana Souza' }, tableIdentifier: 'Mesa 4', order: { number: '0000' } },
   },
   {
     id: 'table-job',
     trigger: 'manual',
     status: 'printed',
-    document: { customer: { name: 'Bruno Lima' }, tableIdentifier: 'Mesa 12', order: { displayNumber: '205' } },
+    orderId: 'order-205',
+    document: { customer: { name: 'Bruno Lima' }, tableIdentifier: 'Mesa 12', order: { displayNumber: '0000' } },
   },
   {
     id: 'technical-id-job',
     trigger: 'automatic',
     status: 'attention',
+    orderId: 'order-123',
     document: { customer: { name: 'Carla Dias' }, order: { id: '123e4567-e89b-12d3-a456-426614174000', number: '123e4567-e89b-12d3-a456-426614174000' } },
   },
 ]
 
+const filterOrders = [
+  { id: 'order-104', orderNumber: 104 },
+  { id: 'order-205', orderNumber: 205 },
+  { id: 'order-123', orderNumber: 123 },
+]
+
 test('print queue search matches customer case-insensitively', () => {
-  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'ANA SOUZA' }).map((job) => job.id), ['customer-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'ANA SOUZA', orders: filterOrders }).map((job) => job.id), ['customer-job'])
 })
 
 test('print queue search matches table identifiers', () => {
-  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'mesa 12' }).map((job) => job.id), ['table-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'mesa 12', orders: filterOrders }).map((job) => job.id), ['table-job'])
 })
 
 test('print queue search matches an available operational order number', () => {
-  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: '205' }).map((job) => job.id), ['table-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'Pedido 205', orders: filterOrders }).map((job) => job.id), ['table-job'])
 })
 
 test('print queue search does not match technical UUIDs', () => {
-  assert.equal(getPrintQueueSearchText(filterJobs[2]).includes('123e4567-e89b-12d3-a456-426614174000'), false)
-  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: '123e4567-e89b-12d3-a456-426614174000' }), [])
+  assert.equal(getPrintQueueSearchText(filterJobs[2], filterOrders).includes('123e4567-e89b-12d3-a456-426614174000'), false)
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: '123e4567-e89b-12d3-a456-426614174000', orders: filterOrders }), [])
 })
 
 test('print queue filters by canonical status and combines status with search', () => {
   assert.deepEqual(filterPrintQueueJobs(filterJobs, { status: 'printed' }).map((job) => job.id), ['table-job'])
-  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'mesa', status: 'printed' }).map((job) => job.id), ['table-job'])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'mesa', status: 'printed', orders: filterOrders }).map((job) => job.id), ['table-job'])
   assert.deepEqual(filterPrintQueueJobs(filterJobs, { status: 'queued' }).map((job) => job.id), ['customer-job'])
 })
 
@@ -214,7 +223,7 @@ test('print queue filters by reliable origin values', () => {
 })
 
 test('print queue returns no jobs when active filters match nothing', () => {
-  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'inexistente', status: 'printed' }), [])
+  assert.deepEqual(filterPrintQueueJobs(filterJobs, { search: 'inexistente', status: 'printed', orders: filterOrders }), [])
 })
 
 test('print queue exposes responsive filter controls without structural horizontal overflow', async () => {
@@ -230,4 +239,19 @@ test('print queue exposes responsive filter controls without structural horizont
   assert.match(styles, /\.print-queue-filters/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-filters[\s\S]*flex-direction: column/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-search[\s\S]*width: 100%/)
+})
+
+test('print queue resolves the official number from orders for jobs with legacy snapshots', async () => {
+  const jobs = [{ id: 'job-1', orderId: 'order-1', document: { order: { id: 'order-1', number: '0000' } }, trigger: 'automatic', status: 'pending' }]
+  const orders = [{ id: 'order-1', orderNumber: 58 }]
+
+  assert.deepEqual(filterPrintQueueJobs(jobs, { search: 'Pedido 58', orders }).map((job) => job.id), ['job-1'])
+  assert.deepEqual(filterPrintQueueJobs(jobs, { search: '550e8400-e29b-41d4-a716-446655440000', orders }), [])
+})
+
+test('print queue receives orders for current operational identity lookup', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /function PrintQueue\(\{[^}]*orders/)
+  assert.match(page, /orderId/)
+  assert.match(page, /orderNumber/)
 })

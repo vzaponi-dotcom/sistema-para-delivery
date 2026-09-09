@@ -6,7 +6,7 @@ const parseDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-const orderNumber = (id) => String(id ?? '').slice(-4)
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 export const normalizePayment = (order) => {
   const isPaid = order?.paymentStatus === 'Pago'
@@ -49,7 +49,7 @@ export const createOrderPaymentMovement = (order, paymentMethod, paidAt = new Da
     id,
     type: 'entrada',
     category: 'Vendas',
-    description: `Pagamento pedido #${orderNumber(order?.id)} · ${order?.client || 'Cliente'}`,
+    description: `${formatOrderDisplayNumber(order).replace('Pedido', 'Pagamento pedido')} · ${order?.client || 'Cliente'}`,
     value: Number(order?.total) || 0,
     date: formatOrderDate(localDate),
     paymentMethod,

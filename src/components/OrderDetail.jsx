@@ -11,6 +11,7 @@ import { downloadOrderPdf } from '../printing/pdfOrderRenderer.js'
 import { getOrderItemDisplayName, getOrderItems } from '../utils/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../utils/orderWorkflow.js'
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const adjustmentLabel = (adjustment, currency) => {
   if (!adjustment || adjustment.type === 'none') return ''
@@ -106,7 +107,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
   return (
     <>
-      <Modal title={`Pedido #${String(order.id).slice(-4)}`} onClose={onClose}>
+      <Modal title={formatOrderDisplayNumber(order)} onClose={onClose}>
         <div className="order-detail">
           <section className="order-detail-section order-detail-summary-section">
             <div className="section-heading compact-section-heading"><h3>Resumo</h3></div>

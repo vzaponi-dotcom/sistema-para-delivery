@@ -5,6 +5,7 @@ const rows = (result) => Array.isArray(result?.results) ? result.results : []
 export const loadOrderPrintDocument = async (db, businessId, orderId) => {
   const order = await db.prepare(`SELECT
       o.id,
+      o.order_number,
       o.client_name_snapshot,
       o.client_phone_snapshot,
       o.client_address_snapshot,
@@ -45,6 +46,7 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
   return createOrderPrintDocument({
     businessName: order.business_name,
     orderId: order.id,
+    orderNumber: order.order_number,
     orderDate: order.order_date,
     createdAt: order.created_at,
     type: order.type,

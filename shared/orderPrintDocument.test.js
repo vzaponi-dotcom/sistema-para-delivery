@@ -6,12 +6,12 @@ import {
   createOrderPrintDocument,
   createTestPrintDocument,
   formatPrintMoneyCents,
-  getFriendlyOrderNumber,
 } from './orderPrintDocument.js'
 
 const orderInput = (overrides = {}) => ({
   businessName: 'Amor & Sabor',
   orderId: 'order-0184',
+  orderNumber: 184,
   orderDate: '2026-09-03',
   createdAt: '2026-09-03T23:31:00.000Z',
   type: 'Entrega',
@@ -36,7 +36,7 @@ test('canonical order print document keeps approved customer-safe ticket data in
   assert.equal(document.type, 'order')
   assert.equal(document.business.name, 'Amor & Sabor')
   assert.equal(document.order.id, 'order-0184')
-  assert.equal(document.order.number, '0184')
+  assert.equal(document.order.number, '184')
   assert.equal(document.order.type, 'Entrega')
   assert.deepEqual(document.customer, {
     name: 'João Silva',
@@ -98,9 +98,13 @@ test('local order documents prioritize the persisted table snapshot and append a
   assert.equal(legacyGuest.customer.name, 'Nome legado')
 })
 
-test('money and friendly order helpers use Brazilian ticket formatting', () => {
+test('money formatting uses Brazilian ticket formatting', () => {
   assert.equal(formatPrintMoneyCents(8750), 'R$ 87,50')
-  assert.equal(getFriendlyOrderNumber('order-0184'), '0184')
+})
+
+test('order print document uses the official number and leaves it blank when absent', () => {
+  assert.equal(createOrderPrintDocument(orderInput({ orderNumber: 58 })).order.number, '58')
+  assert.equal(createOrderPrintDocument(orderInput({ orderNumber: undefined })).order.number, '')
 })
 
 test('test print document is explicit and never fabricates an order', () => {

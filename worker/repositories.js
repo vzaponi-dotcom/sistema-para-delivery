@@ -1,6 +1,7 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
+import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
@@ -414,7 +415,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     const movementId = crypto.randomUUID()
     const paidAt = now.toISOString()
     const movementDate = getBusinessDate(now)
-    const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${clientSnapshot}`
+    const description = `${formatOrderDisplayNumber({ orderNumber }).replace('Pedido', 'Pagamento pedido')} · ${clientSnapshot}`
     statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, totals.totalCents, input.paymentMethod, paidAt, paidAt))
     statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt, input.paymentMethod, paidAt))
   }
@@ -431,6 +432,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     const printDocument = createOrderPrintDocument({
       businessName: business?.name || 'Amor & Sabor',
       orderId,
+      orderNumber,
       orderDate: input.orderDate,
       createdAt,
       type: input.type,
@@ -512,7 +514,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
   if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
   if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
 
-  const pendingResult = await db.prepare(`SELECT o.id, o.client_name_snapshot, o.total_cents
+  const pendingResult = await db.prepare(`SELECT o.id, o.order_number, o.client_name_snapshot, o.total_cents
     FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
     WHERE o.business_id = ? AND o.table_tab_id = ? AND o.status <> 'Cancelado' AND p.id IS NULL
     ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
@@ -525,7 +527,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
   for (const orderRow of pending) {
     const paymentId = crypto.randomUUID()
     const movementId = crypto.randomUUID()
-    const description = `Pagamento pedido #${String(orderRow.id).slice(-4)} · ${orderRow.client_name_snapshot}`
+    const description = `${formatOrderDisplayNumber(orderRow).replace('Pedido', 'Pagamento pedido')} · ${orderRow.client_name_snapshot}`
     statements.push(
       db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderRow.id, orderRow.total_cents, method, paidAt, paidAt),
       db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderRow.id, paymentId, movementDate, paidAt, method, paidAt),
@@ -560,7 +562,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
 }
 
 export const registerOrderPayment = async (db, businessId, orderId, method, now = new Date()) => {
-  const orderRow = await db.prepare(`SELECT o.id, o.status, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
+  const orderRow = await db.prepare(`SELECT o.id, o.order_number, o.status, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
   if (!orderRow) throw repositoryError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
   if (orderRow.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode receber pagamento.')
   if (orderRow.payment_id) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
@@ -569,7 +571,7 @@ export const registerOrderPayment = async (db, businessId, orderId, method, now 
   const movementId = crypto.randomUUID()
   const paidAt = now.toISOString()
   const movementDate = getBusinessDate(now)
-  const description = `Pagamento pedido #${String(orderId).slice(-4)} · ${orderRow.client_name_snapshot}`
+  const description = `${formatOrderDisplayNumber(orderRow).replace('Pedido', 'Pagamento pedido')} · ${orderRow.client_name_snapshot}`
 
   try {
     await db.batch([

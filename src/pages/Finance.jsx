@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import RegisterRefundDialog from '../components/RegisterRefundDialog'
 import StatCard from '../components/StatCard'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund }) {
   const [refundOrder, setRefundOrder] = useState(null)
@@ -36,7 +37,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
           <div className="pending-refund-list">
             {pendingRefundOrders.map((order) => (
               <article className="pending-refund-row" key={order.id}>
-                <div className="pending-refund-main"><strong>Pedido #{String(order.id).slice(-4)} · {order.client}</strong><span>Cancelado em {formatCancellationDate(order.cancelledAt)}</span></div>
+                <div className="pending-refund-main"><strong>{formatOrderDisplayNumber(order)} · {order.client}</strong><span>Cancelado em {formatCancellationDate(order.cancelledAt)}</span></div>
                 <strong className="pending-refund-value">{currency(order.paidAmount || order.total || 0)}</strong>
                 <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => setRefundOrder(order)} disabled={writeDisabled || refundSubmitting}>Registrar estorno</Button>
               </article>

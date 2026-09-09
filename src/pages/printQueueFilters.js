@@ -1,27 +1,14 @@
 import { PRINT_QUEUE_STATES, resolvePrintQueueState } from '../../shared/printQueue.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''))
-
-const getOperationalOrderNumber = (order = {}) => {
-  const explicitNumber = [order.displayNumber, order.operationalNumber, order.orderNumber]
-    .map((value) => String(value || '').trim())
-    .find(Boolean)
-  if (explicitNumber) return explicitNumber
-
-  const snapshotNumber = String(order.number || '').trim()
-  if (!snapshotNumber) return null
-  if (isUuid(order.id) && String(order.id).endsWith(snapshotNumber)) return null
-  return snapshotNumber
-}
-
-const getHumanIdentifiers = (job) => {
+const getHumanIdentifiers = (job, ordersById) => {
   const document = job?.document || {}
-  const order = document.order || {}
+  const order = ordersById.get(String(job?.orderId || ''))
   return [
-    getOperationalOrderNumber(order),
+    order && formatOrderDisplayNumber(order),
     document.customer?.name,
     document.tableIdentifier,
-    order.tableIdentifier,
+    order?.tableIdentifier,
     document.table?.identifier,
   ].filter(Boolean)
 }
@@ -31,14 +18,19 @@ const normalizeSearch = (value) => String(value || '')
   .toLocaleLowerCase('pt-BR')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
+  .replace(/#/g, '')
 
-export const getPrintQueueSearchText = (job) => getHumanIdentifiers(job).map(normalizeSearch).join(' ')
+export const getPrintQueueSearchText = (job, orders = []) => {
+  const ordersById = new Map(orders.map((order) => [String(order.id), order]))
+  return getHumanIdentifiers(job, ordersById).map(normalizeSearch).join(' ')
+}
 
-export const filterPrintQueueJobs = (jobs, { search = '', status = 'all', origin = 'all', stationReady = true } = {}) => {
+export const filterPrintQueueJobs = (jobs, { search = '', status = 'all', origin = 'all', stationReady = true, orders = [] } = {}) => {
   const normalizedSearch = normalizeSearch(search)
+  const ordersById = new Map(orders.map((order) => [String(order.id), order]))
   return jobs.filter((job) => {
     const jobState = resolvePrintQueueState(job?.queueState || job?.status, { stationReady })
-    const searchMatches = !normalizedSearch || getPrintQueueSearchText(job).includes(normalizedSearch)
+    const searchMatches = !normalizedSearch || getHumanIdentifiers(job, ordersById).map(normalizeSearch).join(' ').includes(normalizedSearch)
     const statusMatches = status === 'all' || jobState === status
     const originMatches = origin === 'all' || job?.trigger === origin
     return searchMatches && statusMatches && originMatches

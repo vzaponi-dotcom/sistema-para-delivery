@@ -24,8 +24,8 @@ import {
   getPaidReceivableOrders,
   sortReceivableEntries,
 } from '../utils/receivables.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-const orderNumber = (id) => String(id).slice(-4)
 const PRIMARY_VIEWS = ['pending', 'paid']
 const TIMING_FILTERS = ['all', 'today', 'upcoming', 'overdue']
 const TIMING_FILTER_LABELS = { all: 'Todos', today: 'Hoje', upcoming: 'Próximos', overdue: 'Em atraso' }
@@ -285,7 +285,7 @@ function Receivables({
                 <div className={`receivable-ledger-item${entry.kind === 'table_tab' ? ' receivable-ledger-item-table' : ''}`} key={entry.key}>
                   <button type="button" className="receivable-ledger-row" aria-pressed={selectedEntryKey === entry.key} onClick={() => openOrderDetail(entry)}>
                     <span className="receivable-ledger-avatar">{entry.label.charAt(0).toUpperCase()}</span>
-                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{entry.kind === 'table_tab' ? `${entry.orders.length} pedido(s) nesta comanda` : `Pedido #${orderNumber(entry.order.id)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry)}</span></span>
+                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{entry.kind === 'table_tab' ? `${entry.orders.length} pedido(s) nesta comanda` : `${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry)}</span></span>
                     <strong className="receivable-ledger-amount">{currency(entry.total)}</strong><Icon name="details" size={18} />
                   </button>
                 </div>
@@ -297,7 +297,7 @@ function Receivables({
               {visiblePaidOrders.map((order) => (
                 <button type="button" className="receivable-ledger-row" aria-pressed={selectedEntryKey === `paid:${order.id}`} key={order.id} onClick={() => openPaidOrderDetail(order)}>
                   <span className="receivable-ledger-avatar receivable-ledger-avatar-paid"><Icon name="check" size={17} /></span>
-                  <span className="receivable-ledger-main"><strong>{order.client || 'Pedido sem identificação'}</strong><span>Pedido #{orderNumber(order.id)} · {getOrderItemsSummary(order)}</span><span className="receivable-paid-meta">{paidMeta(order)}</span></span>
+                  <span className="receivable-ledger-main"><strong>{order.client || 'Pedido sem identificação'}</strong><span>{formatOrderDisplayNumber(order)} · {getOrderItemsSummary(order)}</span><span className="receivable-paid-meta">{paidMeta(order)}</span></span>
                   <strong className="receivable-ledger-amount">{currency(order.total || 0)}</strong><Icon name="details" size={18} />
                 </button>
               ))}

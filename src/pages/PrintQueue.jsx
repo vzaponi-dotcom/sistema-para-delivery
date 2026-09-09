@@ -7,6 +7,7 @@ import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../shared/printQueue.js'
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import {
   filterPrintQueueJobs,
   PRINT_QUEUE_ORIGIN_FILTERS,
@@ -20,32 +21,18 @@ const formatJobTime = (createdAt) => {
   return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(date)
 }
 
-const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''))
-
-const getOperationalOrderNumber = (order = {}) => {
-  const explicitNumber = [order.displayNumber, order.operationalNumber, order.orderNumber]
-    .map((value) => String(value || '').trim())
-    .find(Boolean)
-  if (explicitNumber) return explicitNumber
-
-  const snapshotNumber = String(order.number || '').trim()
-  if (!snapshotNumber) return null
-  if (isUuid(order.id) && String(order.id).endsWith(snapshotNumber)) return null
-  return snapshotNumber
-}
-
 const getCustomerOrTable = (document) => {
   const customer = String(document?.customer?.name || '').trim()
   const table = String(document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier || '').trim()
   return formatOrderCustomerIdentity({ tableIdentifier: table, customerName: customer })
 }
 
-const getPrintJobView = (job, stationReady) => {
+const getPrintJobView = (job, stationReady, order) => {
   const state = job?.queueState
     ? resolvePrintQueueState(job.queueState)
     : resolvePrintQueueState(job?.status, { stationReady })
   return {
-    orderNumber: getOperationalOrderNumber(job?.document?.order),
+    orderNumber: order ? formatOrderDisplayNumber(order) : 'Pedido',
     customerOrTable: getCustomerOrTable(job?.document),
     origin: job?.trigger === 'automatic' ? 'Automático' : job?.trigger === 'manual' ? 'Manual/Reimpressão' : null,
     copies: `${Number(job?.copiesPrinted) || 0}/${Number(job?.copiesRequested) || 0}`,
@@ -57,7 +44,7 @@ const getPrintJobView = (job, stationReady) => {
   }
 }
 
-function PrintQueue({ printing, onOpenPrintingSettings }) {
+function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
   const station = printing?.localStation ?? null
   const jobs = Array.isArray(printing?.jobs) ? printing.jobs : []
   const stationSummary = getPrintStationSummary(station)
@@ -66,8 +53,9 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [origin, setOrigin] = useState('all')
-  const filteredJobs = filterPrintQueueJobs(jobs, { search, status, origin, stationReady })
-  const jobRows = filteredJobs.map((job) => getPrintJobView(job, stationReady))
+  const ordersById = new Map(orders.map((order) => [String(order.id), order]))
+  const filteredJobs = filterPrintQueueJobs(jobs, { search, status, origin, stationReady, orders })
+  const jobRows = filteredJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const hasActiveFilters = Boolean(search.trim()) || status !== 'all' || origin !== 'all'
 
   return (
@@ -157,7 +145,7 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
                 <tbody>
                   {jobRows.map((job, index) => (
                     <tr key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-${index}`}>
-                      <td>{job.orderNumber ? `Pedido #${job.orderNumber}` : 'Pedido'}</td>
+                      <td>{job.orderNumber}</td>
                       <td>{job.customerOrTable || '—'}</td>
                       <td>{job.origin || '—'}</td>
                       <td>{job.copies} vias</td>
@@ -173,7 +161,7 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
               {jobRows.map((job, index) => (
                 <article className="print-queue-job-card" key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-card-${index}`}>
                   <div className="print-queue-job-card-header">
-                    <strong>{job.orderNumber ? `Pedido #${job.orderNumber}` : 'Pedido'}</strong>
+                    <strong>{job.orderNumber}</strong>
                     <span className={`print-queue-status print-queue-status-${job.state}`}>{job.status}</span>
                   </div>
                   <strong className="print-queue-job-customer">{job.customerOrTable || '—'}</strong>

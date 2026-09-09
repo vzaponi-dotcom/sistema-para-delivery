@@ -24,6 +24,7 @@ const countBytes = (haystack, needle) => {
 const fixture = (overrides = {}) => createOrderPrintDocument({
   businessName: 'Amor & Sabor',
   orderId: 'order-0184',
+  orderNumber: 184,
   orderDate: '2026-09-03',
   createdAt: '2026-09-03T23:31:00.000Z',
   type: 'Entrega',
@@ -80,7 +81,7 @@ test('58mm renderer emits deterministic ESC/POS structure and two approved copie
 
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x40])), true)
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, 0x03])), true)
-  assert.equal(includesBytes(bytes, encodeCp860('PEDIDO #0184')), true)
+  assert.equal(includesBytes(bytes, encodeCp860('PEDIDO #184')), true)
   assert.equal(includesBytes(bytes, encodeCp860('João Silva')), true)
   assert.equal(includesBytes(bytes, encodeCp860('sem cebola')), false)
   assert.equal(includesBytes(bytes, encodeCp860('Sem cebola')), true)
@@ -97,7 +98,7 @@ test('renderer can emit only the selected second physical copy while preserving 
 
   assert.equal(countBytes(bytes, encodeCp860('CÓPIA 1/2')), 0)
   assert.equal(countBytes(bytes, encodeCp860('CÓPIA 2/2')), 1)
-  assert.equal(countBytes(bytes, encodeCp860('PEDIDO #0184')), 2)
+  assert.equal(countBytes(bytes, encodeCp860('PEDIDO #184')), 2)
 })
 
 test('MPT-II byte stream exits Chinese mode, keeps Portuguese accents and uses ASCII money spacing', () => {

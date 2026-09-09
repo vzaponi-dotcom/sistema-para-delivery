@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Button from './Button'
 import Modal from './Modal'
 import SystemSelect from './SystemSelect'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const REASON_OPTIONS = [
   { value: 'client_changed_mind', label: 'Cliente desistiu' },
@@ -47,7 +48,7 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
     return (
       <Modal title="Revisar cancelamento" onClose={submitting ? () => {} : () => setReviewPayload(null)}>
         <div className="form-stack cancel-order-form">
-          <div className="cancel-order-warning"><strong>Pedido #{String(order.id).slice(-4)} · {order.client}</strong><span>Esta ação cancela o pedido e o mantém somente no histórico.</span></div>
+          <div className="cancel-order-warning"><strong>{formatOrderDisplayNumber(order)} · {order.client}</strong><span>Esta ação cancela o pedido e o mantém somente no histórico.</span></div>
           <div className="payment-summary-card">
             <span>Motivo: {reasonLabel}{reviewPayload.note ? ` · ${reviewPayload.note}` : ''}</span>
             {isPaid && <span>{reviewPayload.refundNow ? `Estorno já realizado via ${reviewPayload.refundMethod}` : 'Estorno ficará pendente no Financeiro'}</span>}
@@ -64,7 +65,7 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
   return (
     <Modal title="Cancelar pedido" onClose={submitting ? () => {} : onClose}>
       <form className="form-stack cancel-order-form" onSubmit={handleSubmit}>
-        <div className="cancel-order-warning"><strong>Pedido #{String(order.id).slice(-4)} · {order.client}</strong><span>O pedido continuará no histórico e deixará de participar das vendas e da operação.</span></div>
+          <div className="cancel-order-warning"><strong>{formatOrderDisplayNumber(order)} · {order.client}</strong><span>O pedido continuará no histórico e deixará de participar das vendas e da operação.</span></div>
         <div className="form-field"><span>Motivo do cancelamento</span><SystemSelect value={reason} options={REASON_OPTIONS} onChange={(value) => { setReason(value); setError('') }} placeholder="Selecione um motivo" label="Motivo do cancelamento" disabled={submitting} /></div>
         {reason === 'other' && <label className="form-field"><span>Descreva o motivo</span><textarea value={note} maxLength={240} onChange={(event) => { setNote(event.target.value); setError('') }} placeholder="Explique brevemente o motivo" disabled={submitting} /></label>}
         {isPaid && (

@@ -4,8 +4,6 @@ export const ORDER_PRINT_THANK_YOU = 'Obrigado pela compra! Agradecemos a prefer
 const nonNegativeInteger = (value) => Math.max(0, Math.round(Number(value) || 0))
 const positiveQuantity = (value) => Math.max(1, Math.floor(Number(value) || 1))
 
-export const getFriendlyOrderNumber = (id) => String(id ?? '').slice(-4)
-
 export const formatPrintMoneyCents = (cents) => new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
@@ -26,7 +24,7 @@ export const createOrderPrintDocument = (input = {}) => ({
   },
   order: {
     id: String(input.orderId ?? ''),
-    number: getFriendlyOrderNumber(input.orderId),
+    number: Number.isInteger(Number(input.orderNumber)) && Number(input.orderNumber) > 0 ? String(input.orderNumber) : '',
     orderDate: String(input.orderDate ?? ''),
     createdAt: String(input.createdAt ?? ''),
     type: String(input.type ?? ''),

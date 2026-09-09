@@ -20,7 +20,7 @@ class D1Sqlite {
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE orders (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_id TEXT, client_name_snapshot TEXT NOT NULL,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_number INTEGER, client_id TEXT, client_name_snapshot TEXT NOT NULL,
         client_phone_snapshot TEXT NOT NULL DEFAULT '', client_address_snapshot TEXT NOT NULL DEFAULT '',
         customer_identity_type TEXT NOT NULL DEFAULT 'registered_client', table_tab_id TEXT,
         type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Em preparo',
@@ -89,10 +89,10 @@ const makeEnv = async () => {
   DB.sqlite.exec(`
     INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');
     INSERT INTO orders (
-      id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot, type,
+      id, business_id, order_number, client_name_snapshot, client_phone_snapshot, client_address_snapshot, type,
       order_date, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_amount_cents,
       adjustment_reason, total_cents, created_at
-    ) VALUES ('o1', 'amor-e-sabor', 'Maria', '(11) 99876-5432', 'Rua A, 10', 'Entrega',
+    ) VALUES ('o1', 'amor-e-sabor', 1, 'Maria', '(11) 99876-5432', 'Rua A, 10', 'Entrega',
       '2026-09-08', 5000, 800, 'none', 0, '', 5800, '2026-09-08T19:00:00.000Z');
     INSERT INTO order_items (
       id, business_id, order_id, name_snapshot, size_snapshot, quantity, unit_price_cents, note, created_at

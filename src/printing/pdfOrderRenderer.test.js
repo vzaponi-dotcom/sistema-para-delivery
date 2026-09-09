@@ -6,6 +6,7 @@ import { getOrderPdfFilename, renderOrderPdf } from './pdfOrderRenderer.js'
 const document = createOrderPrintDocument({
   businessName: 'Amor & Sabor',
   orderId: 'order-0184',
+  orderNumber: 184,
   type: 'Entrega',
   createdAt: '2026-09-03T20:15:00.000Z',
   customer: {
@@ -46,7 +47,7 @@ class FakePdf {
 }
 
 test('PDF filename is stable and uses the friendly order number', () => {
-  assert.equal(getOrderPdfFilename(document), 'pedido-0184.pdf')
+  assert.equal(getOrderPdfFilename(document), 'pedido-184.pdf')
 })
 
 test('A5 PDF is text-native and contains the same customer-safe ticket semantics', () => {
@@ -65,7 +66,7 @@ test('A5 PDF is text-native and contains the same customer-safe ticket semantics
   const text = instance.writes.join('\n')
   for (const expected of [
     'Amor & Sabor',
-    'PEDIDO #0184',
+    'PEDIDO #184',
     'João da Silva',
     '2x X-Burger G',
     'Sem cebola',

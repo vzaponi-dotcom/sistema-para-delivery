@@ -10,8 +10,8 @@ import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-const orderNumber = (id) => String(id).slice(-4)
 
 function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, onNavigatePrintQueue, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing }) {
   const [pendingAction, setPendingAction] = useState(null)
@@ -136,7 +136,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
       {finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"
-          message={`O pedido #${orderNumber(finalizeCandidate.id)} de ${finalizeCandidate.client} sairá da fila de preparo. Confirme antes de continuar.`}
+          message={`${formatOrderDisplayNumber(finalizeCandidate)} de ${finalizeCandidate.client} sairá da fila de preparo. Confirme antes de continuar.`}
           confirmLabel="Confirmar finalização"
           confirmVariant="primary"
           onClose={() => setFinalizeCandidate(null)}
