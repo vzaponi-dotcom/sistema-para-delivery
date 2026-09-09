@@ -2,6 +2,7 @@ import { useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Button from '../components/Button'
+import SystemSelect from '../components/SystemSelect'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../shared/printQueue.js'
@@ -127,15 +128,11 @@ function PrintQueue({ printing, onOpenPrintingSettings }) {
           </label>
           <label className="print-queue-filter-control">
             <span>Status</span>
-            <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtrar por status">
-              {PRINT_QUEUE_STATUS_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <SystemSelect value={status} options={PRINT_QUEUE_STATUS_FILTERS} onChange={setStatus} label="Filtrar por status" />
           </label>
           <label className="print-queue-filter-control">
             <span>Origem</span>
-            <select value={origin} onChange={(event) => setOrigin(event.target.value)} aria-label="Filtrar por origem">
-              {PRINT_QUEUE_ORIGIN_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <SystemSelect value={origin} options={PRINT_QUEUE_ORIGIN_FILTERS} onChange={setOrigin} label="Filtrar por origem" />
           </label>
         </div>
         {jobs.length === 0 ? (
