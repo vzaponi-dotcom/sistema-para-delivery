@@ -489,3 +489,57 @@ test('discard endpoint rejects a fully printed job with a stable conflict code',
   assert.equal(response.status, 409)
   assert.equal((await response.json()).error.code, 'PRINT_JOB_DISCARD_NOT_ALLOWED')
 })
+
+test('HTTP second-copy request resumes and completes the same job without creating another job', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  await jsonRequest('/api/printing/stations/qz', 'PUT', cookie, { name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2 })
+  await jsonRequest('/api/printing/stations/qz/make-primary', 'POST', cookie)
+  await jsonRequest('/api/printing/stations/qz/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true })
+  const created = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })
+  const original = (await created.json()).job
+  await jsonRequest(`/api/printing/jobs/${original.id}/claim`, 'POST', cookie, { stationId: 'qz' })
+  const first = await jsonRequest(`/api/printing/jobs/${original.id}/complete`, 'POST', cookie, { stationId: 'qz', copiesPrinted: 1 })
+  assert.equal((await first.json()).job.status, 'awaiting_second_copy')
+
+  const requested = await jsonRequest(`/api/printing/jobs/${original.id}/request-second-copy`, 'POST', cookie, {})
+  const requestedJob = (await requested.json()).job
+  assert.equal(requestedJob.id, original.id)
+  assert.equal(requestedJob.status, 'pending')
+  assert.equal(requestedJob.copiesPrinted, 1)
+  assert.ok(requestedJob.secondCopyRequestedAt)
+  const claimed = await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'qz' })
+  const claimedJob = (await claimed.json()).job
+  assert.equal(claimedJob.id, original.id)
+  assert.equal(claimedJob.status, 'processing')
+  const completed = await jsonRequest(`/api/printing/jobs/${original.id}/complete`, 'POST', cookie, { stationId: 'qz', copiesPrinted: 2 })
+  assert.equal((await completed.json()).job.status, 'printed')
+  const jobs = (await (await jsonRequest('/api/printing/jobs?orderId=o1&limit=20', 'GET', cookie)).json()).jobs
+  assert.equal(jobs.length, 1)
+})
+
+test('HTTP second-copy skip is terminal, authenticated, and business isolated', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  await jsonRequest('/api/printing/stations/qz', 'PUT', cookie, { name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2 })
+  await jsonRequest('/api/printing/stations/qz/make-primary', 'POST', cookie)
+  await jsonRequest('/api/printing/stations/qz/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true })
+  const original = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })).json()).job
+  await jsonRequest(`/api/printing/jobs/${original.id}/claim`, 'POST', cookie, { stationId: 'qz' })
+  await jsonRequest(`/api/printing/jobs/${original.id}/complete`, 'POST', cookie, { stationId: 'qz', copiesPrinted: 1 })
+
+  assert.equal((await jsonRequest(`/api/printing/jobs/${original.id}/skip-second-copy`, 'POST', '', {})).status, 401)
+  const other = await createSession(currentEnv, 'other-business')
+  const otherCookie = sessionCookie(other.token, 3600).split(';')[0]
+  assert.equal((await jsonRequest(`/api/printing/jobs/${original.id}/request-second-copy`, 'POST', otherCookie, {})).status, 404)
+  assert.equal((await jsonRequest(`/api/printing/jobs/${original.id}/skip-second-copy`, 'POST', otherCookie, {})).status, 404)
+
+  const skipped = await jsonRequest(`/api/printing/jobs/${original.id}/skip-second-copy`, 'POST', cookie, {})
+  const job = (await skipped.json()).job
+  assert.equal(job.id, original.id)
+  assert.equal(job.status, 'discarded')
+  assert.equal(job.copiesRequested, 2)
+  assert.equal(job.copiesPrinted, 1)
+  assert.ok(job.secondCopySkippedAt)
+  assert.equal((await (await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'qz' })).json()).job, null)
+})

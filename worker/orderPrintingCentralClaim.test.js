@@ -226,3 +226,48 @@ test('claim central rejects a non-primary or non-ready station', async (t) => {
     await assert.rejects(() => claimNextPrintJob(db, businessId, 'kitchen-qz', now), (error) => error.code === 'PRINT_STATION_NOT_READY')
   })
 })
+
+test('requested second copy outranks a priority-one normal job and is claimed only once with auto-print disabled', async () => {
+  const db = new D1Sqlite()
+  db.sqlite.exec(`
+    INSERT INTO businesses (id) VALUES ('${businessId}');
+    INSERT INTO orders (id, business_id, status) VALUES
+      ('order-second-copy', '${businessId}', 'Em preparo'),
+      ('order-normal', '${businessId}', 'Em preparo');
+  `)
+  await addReadyPrimary(db, { autoPrintEnabled: false })
+  await addAutomaticJob(db, { id: 'requested-second-copy', orderId: 'order-second-copy' })
+  await db.prepare(`UPDATE print_jobs SET copies_requested = 2, copies_printed = 1,
+    second_copy_requested_at = ?, priority = 0 WHERE id = ?`).bind(now.toISOString(), 'requested-second-copy').run()
+  const normal = await createManualOrderPrintJob(db, businessId, {
+    id: 'priority-normal', orderId: 'order-normal', copies: 1,
+    document: { version: 1, type: 'order', order: { id: 'order-normal', number: '0002' } },
+  }, now)
+  await db.prepare(`UPDATE print_jobs SET priority = 1 WHERE id = ?`).bind(normal.id).run()
+
+  assert.equal((await claimNextPrintJob(db, businessId, 'kitchen-qz', now)).id, 'requested-second-copy')
+  assert.equal((await claimNextPrintJob(db, businessId, 'kitchen-qz', now)).id, 'priority-normal')
+  assert.equal(await claimNextPrintJob(db, businessId, 'kitchen-qz', now), null)
+})
+
+test('finalized and cancelled orders allow only an explicitly requested second-copy continuation', async (t) => {
+  for (const status of ['Finalizado', 'Cancelado']) {
+    await t.test(status, async () => {
+      const db = new D1Sqlite()
+      db.sqlite.exec(`
+        INSERT INTO businesses (id) VALUES ('${businessId}');
+        INSERT INTO orders (id, business_id, status) VALUES
+          ('continued-${status}', '${businessId}', '${status}'),
+          ('normal-${status}', '${businessId}', '${status}');
+      `)
+      await addReadyPrimary(db)
+      await addAutomaticJob(db, { id: `second-copy-${status}`, orderId: `continued-${status}` })
+      await addAutomaticJob(db, { id: `normal-${status}`, orderId: `normal-${status}` })
+      await db.prepare(`UPDATE print_jobs SET copies_requested = 2, copies_printed = 1,
+        second_copy_requested_at = ? WHERE id = ?`).bind(now.toISOString(), `second-copy-${status}`).run()
+
+      assert.equal((await claimNextPrintJob(db, businessId, 'kitchen-qz', now)).id, `second-copy-${status}`)
+      assert.equal(await claimNextPrintJob(db, businessId, 'kitchen-qz', now), null)
+    })
+  }
+})
