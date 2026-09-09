@@ -42,9 +42,9 @@ Dispositivos móveis e outras plataformas são somente solicitantes; apenas a es
 
 ## Registro
 
-**Modelo:**  
-**Versões Windows/QZ:**  
-**Data/responsável:**  
+**Modelo:**
+**Versões Windows/QZ:**
+**Data/responsável:**
 **Observações:**
 
 ## Checkpoint preservado — Fase 9
