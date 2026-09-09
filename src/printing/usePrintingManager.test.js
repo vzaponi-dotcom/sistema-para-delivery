@@ -37,16 +37,16 @@ const readyAutomaticConsumer = (overrides = {}) => ({
   ...overrides,
 })
 
-test('Windows uses QZ, Android keeps RawBT, and only fallback platforms depend on Web Serial', () => {
+test('Windows uses QZ, Android becomes queue-only, and other platforms retain Web Serial temporarily', () => {
   assert.equal(getPrintingTransportKind('windows'), 'qz')
-  assert.equal(getPrintingTransportKind('android'), 'rawbt')
+  assert.equal(getPrintingTransportKind('android'), 'queue-only')
   assert.equal(getPrintingTransportKind('other'), 'web-serial')
   assert.equal(getRendererCompatibilityMode('qz'), 'mpt2-bitmap')
-  assert.equal(getRendererCompatibilityMode('rawbt'), 'mpt2-bitmap')
+  assert.equal(getRendererCompatibilityMode('queue-only'), null)
   assert.equal(getRendererCompatibilityMode('web-serial'), null)
 
   assert.equal(isPrintingTransportSupported('windows', undefined), true)
-  assert.equal(isPrintingTransportSupported('android', undefined), true)
+  assert.equal(isPrintingTransportSupported('android', undefined), false)
   assert.equal(isPrintingTransportSupported('other', undefined), false)
   assert.equal(isPrintingTransportSupported('other', { requestPort() {}, getPorts() {} }), true)
 })

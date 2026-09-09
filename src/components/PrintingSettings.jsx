@@ -12,7 +12,6 @@ const CONNECTION_LABELS = {
   unconfigured: 'Não configurada',
   unsupported: 'Navegador incompatível',
   connecting: 'Conectando…',
-  'driver-ready': 'RawBT pronto',
 }
 
 const QZ_CONNECTION_LABELS = {
@@ -31,7 +30,6 @@ const PLATFORM_LABELS = {
 
 function PrintingSettings({ printing, onClose }) {
   const station = printing?.localStation || null
-  const isRawBt = printing?.transportKind === 'rawbt'
   const isQz = printing?.transportKind === 'qz'
   const [defaultCopies, setDefaultCopies] = useState(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
@@ -83,7 +81,7 @@ function PrintingSettings({ printing, onClose }) {
   }
 
   const connectPrinter = () => run('connect', () => printing.connectPrinter(), 'Impressora conectada e autorizada neste dispositivo.')
-  const testPrint = () => run('test', () => printing.testPrint(), isRawBt ? 'Teste enviado ao RawBT.' : 'Teste enviado para a impressora.')
+  const testPrint = () => run('test', () => printing.testPrint(), 'Teste enviado para a impressora.')
 
   const openQzConfiguration = async () => {
     setQzConfiguring(true)
@@ -162,16 +160,10 @@ function PrintingSettings({ printing, onClose }) {
             <span className={`printing-state printing-state-${isQz ? qzConnectionState : printerState}`}>{connectionLabel}</span>
           </div>
 
-          {isRawBt && (
-            <p className="printing-feedback">
-              RawBT pronto indica que o driver Android será usado. A conexão física com a MPT-II é validada pela impressão de teste.
-            </p>
-          )}
-
           <div className="printing-info-grid">
             <div className="printing-info-card"><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
             <div className="printing-info-card"><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
-            <div className="printing-info-card"><span>Driver</span><strong>{isRawBt ? 'RawBT' : (isQz ? 'QZ Tray' : 'Web Serial')}</strong></div>
+            <div className="printing-info-card"><span>Driver</span><strong>{isQz ? 'QZ Tray' : 'Fila central'}</strong></div>
             <div className="printing-info-card"><span>Estação principal</span><strong>{station?.isPrimary ? 'Sim' : 'Não'}</strong></div>
             <div className="printing-info-card"><span>Impressão automática</span><strong>{autoPrintEnabled ? 'Ligada' : 'Desligada'}</strong></div>
           </div>
@@ -229,7 +221,7 @@ function PrintingSettings({ printing, onClose }) {
           )}
 
           <div className="printing-actions-row">
-            {!isRawBt && !isQz && (
+            {!isQz && printing?.supported !== false && (
               <Button type="button" variant="secondary" onClick={connectPrinter} disabled={disabled || printing?.supported === false}>
                 {configured ? 'Trocar impressora' : 'Conectar impressora'}
               </Button>
@@ -278,9 +270,8 @@ function PrintingSettings({ printing, onClose }) {
           <div className="printing-compatibility">
             <strong>Compatibilidade</strong>
             <span>Windows usa o QZ Tray para enviar o mesmo ticket ESC/POS diretamente à fila configurada.</span>
-            <span>Android usa o RawBT para enviar o mesmo ticket ESC/POS à impressora.</span>
+            <span>Android cria e acompanha trabalhos na fila; a impressão física ocorre somente na estação principal Windows.</span>
             <span>Outras plataformas compatíveis continuam usando Web Serial como fallback.</span>
-            {isRawBt && <span>Configure a MPT-II no RawBT antes de testar a impressão.</span>}
           </div>
 
           {printing?.lastError?.message && <p className="printing-feedback printing-feedback-error">{printing.lastError.message}</p>}

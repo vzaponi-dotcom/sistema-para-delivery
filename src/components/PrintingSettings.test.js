@@ -177,7 +177,7 @@ test('Orders header keeps only the focused kitchen actions', () => {
 })
 
 test('printing settings expose honest connection, station and transport states', () => {
-  for (const label of ['Conectada', 'Desconectada', 'Não configurada', 'Navegador incompatível', 'RawBT pronto']) {
+  for (const label of ['Conectada', 'Desconectada', 'Não configurada', 'Navegador incompatível']) {
     assert.match(settings, new RegExp(label))
   }
   for (const label of ['Estação', 'Plataforma', 'Driver', 'Estação principal', 'Impressão automática', 'Cópias por pedido']) {
@@ -186,8 +186,8 @@ test('printing settings expose honest connection, station and transport states',
   assert.match(settings, /Windows/)
   assert.match(settings, /Web Serial/)
   assert.match(settings, /Android/)
-  assert.match(settings, /RawBT/)
-  assert.match(settings, /MPT-II/)
+  assert.doesNotMatch(settings, /RawBT/)
+  assert.doesNotMatch(settings, /MPT-II/)
 })
 
 test('QZ copy separates Tray connection from queue discovery and send readiness', () => {
@@ -199,13 +199,9 @@ test('QZ copy separates Tray connection from queue discovery and send readiness'
   assert.doesNotMatch(settings, /Impressora disponÃ­vel/)
 })
 
-test('Android RawBT hides Web Serial connection chooser but preserves test and station controls', () => {
-  assert.match(settings, /printing\?\.transportKind === 'rawbt'/)
-  assert.match(settings, /!isRawBt && !isQz && \(/)
-  assert.match(settings, /Conectar impressora/)
-  assert.match(settings, /Trocar impressora/)
-  assert.match(settings, /Testar impressão/)
-  assert.match(settings, /Configure a MPT-II no RawBT/)
+test('Android is queue-only and does not expose a physical printer control', () => {
+  assert.match(settings, /printing\?\.supported !== false/)
+  assert.doesNotMatch(settings, /isRawBt|transportKind === 'rawbt'|RawBT/)
 })
 
 test('QZ printer discovery adapts queue names to SystemSelect option objects', () => {
@@ -231,8 +227,7 @@ test('making a station primary requires the shared confirmation dialog with excl
   assert.match(settings, /confirmLabel="Tornar principal"/)
 })
 
-test('manager distinguishes RawBT driver readiness and Web Serial connection states honestly', () => {
-  assert.match(manager, /'driver-ready'/)
+test('manager distinguishes queue-only and Web Serial connection states honestly', () => {
   assert.match(manager, /'unsupported'/)
   assert.match(manager, /'unconfigured'/)
   assert.match(manager, /'disconnected'/)

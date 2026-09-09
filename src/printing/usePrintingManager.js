@@ -46,7 +46,6 @@ import {
   printQzRawBytes,
   resolveQzPrinter,
 } from './qzTrayTransport.js'
-import { dispatchRawBtBytes } from './rawBtTransport.js'
 import {
   isWebSerialSupported,
   probeSerialPort,
@@ -69,19 +68,19 @@ const QZ_BLOCKING_ERROR_CODES = new Set([
 ])
 
 export const getPrintingTransportKind = (platform) => {
-  if (platform === 'android') return 'rawbt'
   if (platform === 'windows') return 'qz'
+  if (platform === 'android') return 'queue-only'
   return 'web-serial'
 }
 
 export const getRendererCompatibilityMode = (transportKind) => (
-  ['rawbt', 'qz'].includes(transportKind) ? 'mpt2-bitmap' : null
+  transportKind === 'qz' ? 'mpt2-bitmap' : null
 )
 
 export const isPrintingTransportSupported = (
   platform,
   serial = globalThis.navigator?.serial,
-) => ['rawbt', 'qz'].includes(getPrintingTransportKind(platform)) || isWebSerialSupported(serial)
+) => getPrintingTransportKind(platform) === 'qz' || isWebSerialSupported(serial)
 
 export const canConsumeAutomaticPrintJob = ({
   authenticated,
@@ -236,7 +235,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const platform = detectPrintStationPlatform()
   const transportKind = getPrintingTransportKind(platform)
   const supported = isPrintingTransportSupported(platform)
-  const isRawBt = transportKind === 'rawbt'
   const isQz = transportKind === 'qz'
   const [localStation, setLocalStation] = useState(null)
   const [stations, setStations] = useState([])
@@ -447,7 +445,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   }, [configureQz, isQz, reportError, updateBlocked, updateConfiguredPrinterName, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const resolveAuthorizedPort = useCallback(async ({ probe = false } = {}) => {
-    if (isRawBt || isQz || !supported) return null
+    if (isQz || !supported) return null
     const stationId = localStationRef.current?.id
     if (!stationId) return null
     const fingerprint = getPrinterFingerprint(globalThis.localStorage, stationId)
@@ -485,20 +483,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       reportError(error)
       return null
     }
-  }, [isQz, isRawBt, reportError, supported, updateBlocked, updateTransportReady])
+  }, [isQz, reportError, supported, updateBlocked, updateTransportReady])
 
   const connectPrinter = useCallback(async () => {
     const stationId = localStationRef.current?.id
     if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-
-    if (isRawBt) {
-      portRef.current = null
-      updateTransportReady(true)
-      setPrinterState('driver-ready')
-      setLastError(null)
-      updateBlocked(false)
-      return null
-    }
 
     if (isQz) {
       const printer = await resolveConfiguredQzPrinter(stationId)
@@ -526,10 +515,9 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       reportError(error)
       throw error
     }
-  }, [isQz, isRawBt, reportError, resolveConfiguredQzPrinter, supported, updateBlocked, updateTransportReady])
+  }, [isQz, reportError, resolveConfiguredQzPrinter, supported, updateBlocked, updateTransportReady])
 
   const getExplicitPort = useCallback(async () => {
-    if (isRawBt) return null
     const stationId = localStationRef.current?.id
     if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
 
@@ -550,7 +538,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       if (error?.code) throw error
       throw printerError('PRINTER_NOT_AUTHORIZED', 'Selecione e autorize a impressora antes de imprimir.')
     }
-  }, [connectPrinter, isRawBt, resolveAuthorizedPort, resolveConfiguredQzPrinter, transportKind])
+  }, [connectPrinter, resolveAuthorizedPort, resolveConfiguredQzPrinter, transportKind])
 
   const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false, preparePort } = {}) => {
     if (!job) return null
@@ -568,7 +556,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         }),
         transport: async (selectedPort, bytes) => {
           const readyPort = typeof preparePort === 'function' ? await preparePort() : selectedPort
-          if (transportKind === 'rawbt') return dispatchRawBtBytes(bytes)
           if (transportKind === 'qz') return printQzRawBytes(qz, configuredPrinterNameRef.current, bytes)
           return writeSerialBytes(readyPort, bytes, MTP5_PROFILE.serial)
         },
@@ -580,15 +567,15 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
           updateTransportReady(true)
         }
         if (transportKind === 'web-serial') updateTransportReady(true)
-        setPrinterState(isRawBt ? 'driver-ready' : 'connected')
+        setPrinterState('connected')
         setLastError(null)
         if (clearBlockOnSuccess) updateBlocked(false)
       } else {
-        if (transportKind !== 'rawbt') updateTransportReady(false)
+        updateTransportReady(false)
         if (transportKind === 'qz') updateQzConnected(Boolean(qz.websocket?.isActive?.()))
-        setPrinterState(isRawBt ? 'driver-ready' : 'disconnected')
+        setPrinterState('disconnected')
         if (
-          ['SERIAL_OPEN_FAILED', 'PRINTER_NOT_AUTHORIZED', 'RAWBT_LAUNCH_FAILED'].includes(result.error?.code)
+          ['SERIAL_OPEN_FAILED', 'PRINTER_NOT_AUTHORIZED'].includes(result.error?.code)
           || QZ_BLOCKING_ERROR_CODES.has(result.error?.code)
         ) updateBlocked(true)
         reportError(result.error)
@@ -599,7 +586,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       updateBusyJob(null)
       try { await refresh() } catch (error) { reportError(error) }
     }
-  }, [isRawBt, notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
+  }, [notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const saveStationSettings = useCallback(async (settings = {}) => {
     const current = localStationRef.current
