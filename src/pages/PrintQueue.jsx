@@ -214,7 +214,11 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
         )}
       </section>
       {selectedDetails && (
-        <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions"><Button type="button" variant="secondary" onClick={closeDetails} disabled={actionPending}>Fechar</Button>{selectedDetails.actions.map((action) => <Button key={action.key} type="button" variant={action.key === 'discard' ? 'secondary' : undefined} onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}</div>}>
+          <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">
+            <Button type="button" variant="secondary" className="print-queue-detail-close" onClick={closeDetails} disabled={actionPending}>Fechar</Button>
+            {selectedDetails.actions.filter((action) => action.key === 'discard').map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => action.key !== 'discard').map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
+          </div>}>
           {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
           <div className="print-queue-detail-sections">
             <section aria-labelledby="print-detail-status"><h3 id="print-detail-status">Status</h3><p>{selectedDetails.status}</p></section>

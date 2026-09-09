@@ -23,6 +23,22 @@ const AUTOMATIC_ORDER_ELIGIBLE_SQL = `EXISTS (
     AND orders.status NOT IN ('Cancelado', 'Finalizado')
 )`
 
+const LEGACY_FORCE_PRINT_REASON = 'ORDER_NOT_PRINTABLE'
+
+const legacyForcePrintReason = async (db, businessId, job) => {
+  if (job?.status !== 'requires_attention' || job?.trigger !== 'automatic' || job?.lastError?.code !== LEGACY_FORCE_PRINT_REASON) return null
+  const order = await db.prepare(`SELECT status FROM orders WHERE id = ? AND business_id = ? LIMIT 1`)
+    .bind(job.orderId, businessId).first()
+  if (order?.status === 'Finalizado') return 'ORDER_FINALIZED_BEFORE_PRINT'
+  if (order?.status === 'Cancelado') return 'ORDER_CANCELLED_BEFORE_PRINT'
+  return null
+}
+
+const applyLegacyForcePrintReason = async (db, businessId, job) => {
+  const reason = await legacyForcePrintReason(db, businessId, job)
+  return reason ? { ...job, lastError: { ...job.lastError, code: reason } } : job
+}
+
 export const resolvePrintStationHealth = (station, now = new Date()) => {
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime()
   const seenMs = station?.lastSeenAt ? new Date(station.lastSeenAt).getTime() : Number.NaN
@@ -253,13 +269,13 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
       ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
       LIMIT ?`).bind(businessId, limit).all()
   const station = await loadPrimaryPrintStation(db, businessId, now)
-  return rows(result).map((row) => {
-    const job = mapJobRow(row)
+  return Promise.all(rows(result).map(async (row) => {
+    const job = await applyLegacyForcePrintReason(db, businessId, mapJobRow(row))
     const stationReady = job?.trigger === 'automatic'
       ? Boolean(station?.health?.automaticReady)
       : Boolean(station?.health?.ready)
     return { ...job, queueState: resolvePrintQueueState(job.status, { stationReady }) }
-  })
+  }))
 }
 
 export const createManualOrderPrintJob = async (db, businessId, input, now = new Date()) => {
@@ -501,7 +517,9 @@ export const acknowledgeSecondCopyPrompt = async (db, businessId, jobId, station
 export const forcePrintJob = async (db, businessId, jobId, actorLabel = 'Sistema', now = new Date()) => {
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Print job not found.')
-  if (existing.status !== 'requires_attention' || !isForcePrintReason(existing)) {
+  const legacyReason = await legacyForcePrintReason(db, businessId, existing)
+  const forceReason = isForcePrintReason(existing) ? existing.lastError.code : legacyReason
+  if (existing.status !== 'requires_attention' || !forceReason) {
     throw repositoryError(409, 'PRINT_JOB_FORCE_PRINT_NOT_ALLOWED', 'This print job cannot be forced in its current state.')
   }
   const at = timestamp(now)
@@ -511,7 +529,15 @@ export const forcePrintJob = async (db, businessId, jobId, actorLabel = 'Sistema
       last_error_code = 'FORCE_PRINT_AUTHORIZED', last_error_message = 'Impressao autorizada manualmente.',
       attention_reason = NULL, action_actor_label = ?, action_at = ?
     WHERE id = ? AND business_id = ? AND status = 'requires_attention'
-      AND last_error_code IN ('ORDER_FINALIZED_BEFORE_PRINT', 'ORDER_CANCELLED_BEFORE_PRINT')
+      AND (
+        last_error_code IN ('ORDER_FINALIZED_BEFORE_PRINT', 'ORDER_CANCELLED_BEFORE_PRINT')
+        OR (last_error_code = 'ORDER_NOT_PRINTABLE' AND EXISTS (
+          SELECT 1 FROM orders
+          WHERE orders.id = print_jobs.order_id
+            AND orders.business_id = print_jobs.business_id
+            AND orders.status IN ('Finalizado', 'Cancelado')
+        ))
+      )
     RETURNING *`).bind(actor, at, jobId, businessId).first()
   if (row) return mapJobRow(row)
   const current = await loadPrintJob(db, businessId, jobId)

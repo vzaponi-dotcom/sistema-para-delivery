@@ -30,6 +30,8 @@
 .print-queue-job-row:hover td, .print-queue-job-row:focus-within td { background: var(--surface-soft); }
 .print-queue-job-card { cursor: pointer; }
 .print-queue-detail-identity { margin: -4px 0 18px; color: var(--text-soft); font-weight: 750; }
+.print-queue-detail-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+.print-queue-detail-close { margin-right: auto; }
 .print-queue-detail-sections { display: grid; gap: 16px; }
 .print-queue-detail-sections section { padding-top: 14px; border-top: 1px solid var(--border); }
 .print-queue-detail-sections h3 { margin: 0 0 8px; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
@@ -74,4 +76,9 @@
   .print-queue-station-health { text-align: left; }
   .print-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .print-queue-detail-sections p { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .print-queue-detail-actions { align-items: stretch; flex-direction: column; flex-wrap: nowrap; }
+  .print-queue-detail-actions .button { width: 100%; }
+  .print-queue-detail-primary { order: 1; }
+  .print-queue-detail-destructive { order: 2; }
+  .print-queue-detail-close { order: 3; margin-right: 0; }
 }

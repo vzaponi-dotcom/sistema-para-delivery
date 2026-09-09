@@ -37,6 +37,7 @@ export const getPrintJobActions = (job) => {
   if (state === 'attention') {
     if (isForcePrintReason(job)) return [{ key: 'forcePrint', label: 'Imprimir mesmo assim' }, { key: 'discard', label: 'Descartar' }]
     if (isRetryablePrintJob(job)) return [{ key: 'retry', label: 'Tentar novamente' }, { key: 'discard', label: 'Descartar' }]
+    return [{ key: 'discard', label: 'Descartar' }]
   }
   return []
 }

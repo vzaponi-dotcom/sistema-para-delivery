@@ -208,6 +208,37 @@ test('force print authorizes only finalized-before-print attention and keeps the
   assert.equal(forced.actionActorLabel, 'Caixa 1')
 })
 
+test('legacy not-printable attention is force-printable only when the order is finalized', async () => {
+  const db = await setup({ orderId: 'legacy-finalized-order', orderStatus: 'Finalizado' })
+  await addAutomaticJob(db, { id: 'legacy-finalized-job', orderId: 'legacy-finalized-order' })
+  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'ORDER_NOT_PRINTABLE', last_error_message = 'Pedido finalizado antes da impressao.' WHERE id = ?`).bind('legacy-finalized-job').run()
+
+  const forced = await forcePrintJob(db, businessId, 'legacy-finalized-job', 'Caixa 1', new Date(now.getTime() + 1000))
+  assert.equal(forced.status, 'pending')
+  assert.equal(forced.lastError.code, 'FORCE_PRINT_AUTHORIZED')
+})
+
+test('legacy not-printable attention is force-printable only when the order is cancelled', async () => {
+  const db = await setup({ orderId: 'legacy-cancelled-order', orderStatus: 'Cancelado' })
+  await addAutomaticJob(db, { id: 'legacy-cancelled-job', orderId: 'legacy-cancelled-order' })
+  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'ORDER_NOT_PRINTABLE', last_error_message = 'Pedido cancelado antes da impressao.' WHERE id = ?`).bind('legacy-cancelled-job').run()
+
+  const forced = await forcePrintJob(db, businessId, 'legacy-cancelled-job', 'Caixa 1', new Date(now.getTime() + 1000))
+  assert.equal(forced.status, 'pending')
+  assert.equal(forced.lastError.code, 'FORCE_PRINT_AUTHORIZED')
+})
+
+test('legacy not-printable attention stays discard-only for an active order', async () => {
+  const db = await setup({ orderId: 'legacy-active-order', orderStatus: 'Em preparo' })
+  await addAutomaticJob(db, { id: 'legacy-active-job', orderId: 'legacy-active-order' })
+  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'ORDER_NOT_PRINTABLE', last_error_message = 'Pedido ainda ativo.' WHERE id = ?`).bind('legacy-active-job').run()
+
+  await assert.rejects(
+    () => forcePrintJob(db, businessId, 'legacy-active-job', 'Caixa 1', new Date(now.getTime() + 1000)),
+    (error) => error.code === 'PRINT_JOB_FORCE_PRINT_NOT_ALLOWED',
+  )
+})
+
 test('retry rejects uncertain and special attention reasons', async () => {
   const db = await setup()
   await addAutomaticJob(db, { id: 'unknown-job' })

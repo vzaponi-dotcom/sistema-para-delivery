@@ -330,9 +330,21 @@ test('print queue opens details from desktop rows and mobile cards, with actions
   assert.match(page, /onClick=\{\(\) => setSelectedJob\(filteredJobs\[index\]\)\}/)
   assert.match(page, /<Modal[\s\S]*selectedDetails\.title/)
   assert.match(page, /Fechar/)
-  assert.match(page, /selectedDetails\.actions\.map/)
+  assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key !== 'discard'\)/)
   const queueRows = page.slice(page.indexOf('<tbody>'), page.indexOf('{selectedDetails &&'))
   assert.doesNotMatch(queueRows, /<Button/)
+})
+
+test('print queue modal orders actions by primary, destructive, close on mobile and close, destructive, primary on desktop', async () => {
+  const [page, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('../print-queue.css'),
+  ])
+
+  assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key === 'discard'\)/)
+  assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key !== 'discard'\)/)
+  assert.match(styles, /\.print-queue-detail-actions[\s\S]*\.print-queue-detail-close/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-detail-primary[\s\S]*order: 1[\s\S]*\.print-queue-detail-destructive[\s\S]*order: 2[\s\S]*\.print-queue-detail-close[\s\S]*order: 3/)
 })
 
 test('7F-A queue messages use UTF-8 Portuguese strings', async () => {

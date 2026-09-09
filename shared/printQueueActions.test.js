@@ -23,8 +23,10 @@ test('finalized and cancelled attention expose force print and discard, never re
   assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'ORDER_CANCELLED_BEFORE_PRINT' } }), ['forcePrint', 'discard'])
 })
 
-test('uncertain attention and terminal jobs expose no actions', () => {
-  assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'PROCESSING_OUTCOME_UNKNOWN' } }), [])
+test('uncertain and unknown attention expose discard as the safe fallback', () => {
+  assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'PROCESSING_OUTCOME_UNKNOWN' } }), ['discard'])
+  assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'UNRECOGNIZED_FAILURE' } }), ['discard'])
+  assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'ORDER_NOT_PRINTABLE' } }), ['discard'])
   assert.deepEqual(actions({ status: 'printed' }), [])
   assert.deepEqual(actions({ status: 'discarded' }), [])
 })
