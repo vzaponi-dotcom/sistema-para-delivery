@@ -109,8 +109,8 @@ const formatDateTime = (createdAt) => {
 const amountLine = (label, cents, sign = '') => `${label}: ${sign}${formatEscPosMoneyCents(cents)}`
 
 const ORDER_TITLE_SIZE = 0x11
-const SECONDARY_TEXT_SIZE = 0x01
-const TOTAL_SIZE = 0x01
+const SECONDARY_TEXT_SIZE = 0x00
+const TOTAL_SIZE = 0x00
 
 const renderOrderCopy = (document, copyNumber, copies) => {
   const parts = []
@@ -302,7 +302,7 @@ const rasterizeMpt2TextBytes = (bytes, createCanvas = defaultCanvasFactory) => {
     context.fillStyle = '#fff'
     context.fillRect(0, 0, width, lineHeight)
     context.fillStyle = '#000'
-    context.font = `${line.bold ? '700' : '400'} ${24 * heightMultiplier}px monospace`
+    context.font = `${line.bold ? '700' : '400'} ${25 * heightMultiplier}px monospace`
     context.textAlign = 'center'
     context.textBaseline = 'middle'
 
