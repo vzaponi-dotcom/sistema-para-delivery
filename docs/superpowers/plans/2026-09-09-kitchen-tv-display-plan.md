@@ -4,7 +4,7 @@
 
 **Goal:** Build a lightweight, read-only Kitchen TV surface that reuses the current Cozinha operational rules, pairs once without the normal PIN, and displays only active kitchen-safe order data.
 
-**Architecture:** Keep one project/deploy, but split `/cozinha-tv` into a dedicated lazy-loaded frontend entry that does not bootstrap the administrative app. Add a restricted TV pairing/session boundary and a minimal active-only API in the Worker; keep the normal Cozinha as the only interactive operational surface and share only the small queue/timing logic needed by both UIs.
+**Architecture:** Keep one project/deploy, but split `/cozinha-tv` into a dedicated lazy-loaded frontend entry that never bootstraps the administrative app. Add a restricted TV pairing/session boundary and a minimal active-only API in the Worker; keep the normal Cozinha as the only interactive operational surface and share only the small queue/timing logic needed by both UIs.
 
 **Tech Stack:** React 19, Vite 8, Cloudflare Worker, Cloudflare D1/SQLite migrations, Web Crypto, Web Audio/Fullscreen browser APIs, Node `node:test`, `node:sqlite`, oxlint.
 
@@ -16,8 +16,8 @@
 - At execution time, use `superpowers:using-git-worktrees` to create a fresh isolated worktree; do not implement inside an old dirty/diverged worktree.
 - Before Task 1, update this feature on top of the **final remote HEAD that contains the completed centralized print queue**. The expected source is `origin/feature/centralized-qz-print-queue`; if that work has moved to the project's staging integration branch, use that final remote integration HEAD instead.
 - Preserve the approved spec and this plan while rebasing; create the implementation branch from the rebased design branch, e.g. `feature/kitchen-tv-display`.
-- Current migrations on the design base end at `0018_second_copy_decisions.sql`; Task 2 therefore uses `0019_kitchen_tv_access.sql`. If the completed print-queue work adds another migration before execution, renumber the Kitchen TV migration to the next sequential number before writing it, without changing its contents/semantics.
-- Run baseline verification before the first RED test: `npm test`, `npm run lint`, and `npm run build`. If baseline is not green after rebasing onto the final print-queue HEAD, stop and fix/resolve the base before Kitchen TV changes.
+- Current migrations on the design base end at `0018_second_copy_decisions.sql`; Task 2 therefore uses `0019_kitchen_tv_access.sql`. If the completed print-queue work adds another migration before execution, renumber the Kitchen TV migration to the next sequential number before writing it, without changing its schema semantics.
+- Run baseline verification before the first RED test: `npm test`, `npm run lint`, and `npm run build`. If baseline is not green after rebasing onto the final print-queue HEAD, resolve the base first; do not hide a print-queue regression inside Kitchen TV work.
 - Strict TDD: write a focused failing test first for every behavior change, run it and observe RED, implement the minimum code, run GREEN, then run the nearest regression set.
 - One TV only in v1. Do not introduce device lists, names, per-device configuration, or generalized multi-TV abstractions.
 - TV is read-only. No finalize, cancel, print, edit, create, payment, finance, or administrative action may be callable from the TV session.
@@ -27,7 +27,7 @@
 - No `Novos` status/column; newly operational orders are normal `Em preparo` orders with temporary visual/audio feedback.
 - Polling remains approximately 2 seconds; do not add WebSocket/SSE.
 - TV theme is fixed dark/high-contrast and independent of the administrative theme.
-- Visible capacity target is 4 `Em preparo` + 3 `Agendados`; no pagination or carousel. Overflow is indicated and the next queued order fills a released slot automatically.
+- Visible capacity is 4 `Em preparo` + 3 `Agendados`; no pagination/carousel. Overflow is indicated and the next queued order fills a released slot automatically.
 - No production deploy. Final deployment steps in this plan target staging only for homologation.
 
 ---
@@ -36,55 +36,44 @@
 
 ### Shared operational selection
 
-- Create `src/utils/kitchenOperationalQueue.js` — pure queue/timing classification used by both normal Cozinha and TV.
+- Create `src/utils/kitchenOperationalQueue.js` — pure queue/timing classification shared by normal Cozinha and TV.
 - Create `src/utils/kitchenOperationalQueue.test.js` — boundary/order/late regression coverage.
-- Modify `src/utils/kitchenQueue.js` — keep search + finished-today concerns here, delegating the operational queues to the new pure module.
-- Keep `src/utils/orderRealtime.js` and `shared/orderTiming.js` as existing sources of truth; do not fork them.
+- Modify `src/utils/kitchenQueue.js` — keep search + finished-today concerns here and delegate the operational queue to the new module.
+- Keep `src/utils/orderRealtime.js` and `shared/orderTiming.js` as existing sources of truth.
 
 ### Worker / D1
 
-- Create `migrations/0019_kitchen_tv_access.sql` — one Kitchen TV access row per business; renumber only if the final print-queue base has moved beyond `0018`.
-- Create `worker/kitchenTvAccessMigration.test.js` — schema/migration constraints.
-- Create `worker/kitchenTvAccessRepository.js` — single-record pairing/session persistence.
-- Create `worker/kitchenTvAccessRepository.test.js` — repository lifecycle tests.
-- Create `worker/opaqueToken.js` — cryptographically secure opaque token generation + SHA-256 hashing shared by admin session token creation and TV credentials.
-- Modify `worker/auth.js` — use `opaqueToken.js` for normal session opaque tokens without changing PIN/session behavior.
-- Create `worker/kitchenTvAuth.js` — dedicated TV cookie, pairing generation/consumption, session validation, status mapping, revoke/regenerate semantics.
-- Create `worker/kitchenTvAuth.test.js` — one-time pairing, cookie, persistence, separation from admin auth.
-- Create `worker/kitchenTvStateRepository.js` — active-only whitelisted order/item query.
-- Create `worker/kitchenTvStateRepository.test.js` — no-sensitive-data and active-only contract tests.
-- Create `worker/kitchenTvApi.js` — public TV `pair/state` handlers and admin-authenticated TV settings handlers.
-- Create `worker/kitchenTvApi.test.js` — HTTP/authorization contract.
-- Modify `worker/index.js` — minimal route dispatch only.
+- Create `migrations/0019_kitchen_tv_access.sql` — one Kitchen TV access row per business; renumber only if the execution base has moved beyond `0018`.
+- Create `worker/testD1Adapter.js` — reusable test-only D1-shaped adapter over `node:sqlite` for Kitchen TV Worker tests.
+- Create `worker/kitchenTvAccessMigration.test.js`.
+- Create `worker/kitchenTvAccessRepository.js` and `worker/kitchenTvAccessRepository.test.js`.
+- Create `worker/opaqueToken.js`; modify `worker/auth.js` only to reuse opaque token generation/hashing for normal admin session tokens.
+- Create `worker/kitchenTvAuth.js` and `worker/kitchenTvAuth.test.js`.
+- Create `worker/kitchenTvStateRepository.js` and `worker/kitchenTvStateRepository.test.js`.
+- Create `worker/kitchenTvApi.js` and `worker/kitchenTvApi.test.js`.
+- Modify `worker/index.js` only for route dispatch.
 
 ### Administrative Configurações
 
-- Modify `src/api/client.js` — authenticated Kitchen TV settings/access/revoke calls only.
-- Create `src/pages/Settings.jsx` — monodispositivo `Configurações > TV da Cozinha` UI.
-- Create `src/pages/Settings.test.js` — settings state/action behavior using the existing Vite JSX transform test style.
-- Create `src/kitchen-tv-settings.css` — settings-only admin styles.
-- Modify `src/App.jsx` — import/render `Settings` only; do not move TV runtime state into `App`.
-- Modify `src/components/Sidebar.jsx` — add Configurações entry.
-- Modify `src/components/MobileNavigation.jsx` — add Configurações under `Mais` and include it in `moreActive`.
+- Modify `src/api/client.js`; create `src/api/kitchenTvSettingsClient.test.js`.
+- Create `src/pages/kitchenTvSettingsModel.js` and `src/pages/kitchenTvSettingsModel.test.js`.
+- Create `src/pages/Settings.jsx` and `src/pages/Settings.test.js`.
+- Create `src/kitchen-tv-settings.css`.
+- Modify `src/App.jsx`, `src/components/Sidebar.jsx`, and `src/components/MobileNavigation.jsx` only for the new admin page/navigation.
 
 ### Lightweight TV frontend
 
-- Create `src/AdminRoot.jsx` — move current admin-only CSS/theme/App imports out of `main.jsx`.
-- Create `src/appEntryMode.js` — pure pathname-to-entry decision.
-- Create `src/appEntryMode.test.js` — route selection.
-- Create `src/mainKitchenTvEntry.test.js` — guard that `main.jsx` uses dynamic imports and does not statically import the admin tree.
-- Modify `src/main.jsx` — minimal dynamic loader for admin vs TV.
-- Create `src/tv/KitchenTvRoot.jsx` — TV-only root importing TV-only CSS.
-- Create `src/tv/KitchenTvApp.jsx` — pairing/start/poll/offline/unauthorized/audio/fullscreen lifecycle.
-- Create `src/tv/KitchenTvApp.test.js` — lifecycle tests.
-- Create `src/tv/kitchenTvApi.js` — TV-only network client; must not import `src/api/client.js`.
-- Create `src/tv/kitchenTvAudio.js` — small Web Audio unlock/play helper.
-- Create `src/tv/kitchenTvPresentation.js` — pure 4+3 visible-capacity/overflow selector.
-- Create `src/tv/kitchenTvPresentation.test.js` — capacity/ordering tests.
-- Create `src/tv/KitchenTvBoard.jsx` — board/header/sections/stale banner.
-- Create `src/tv/KitchenTvOrderCard.jsx` — customer-first cards for preparing/scheduled.
-- Create `src/tv/KitchenTvBoard.test.js` — semantic/source/UI contract guards.
-- Create `src/tv/kitchen-tv.css` — fixed dark 16:9 layout and lightweight CSS-only arrival emphasis.
+- Create `src/AdminRoot.jsx`.
+- Create `src/appEntryMode.js`, `src/appEntryMode.test.js`, and `src/mainKitchenTvEntry.test.js`.
+- Modify `src/main.jsx` into a minimal dynamic entry loader.
+- Create `src/tv/KitchenTvRoot.jsx`.
+- Create TV-only `src/tv/kitchenTvApi.js`.
+- Create pure lifecycle helpers `src/tv/kitchenTvSession.js` and `src/tv/kitchenTvSession.test.js`.
+- Create `src/tv/kitchenTvAudio.js` and `src/tv/kitchenTvAudio.test.js`.
+- Create `src/tv/KitchenTvApp.jsx` and `src/tv/KitchenTvApp.test.js`.
+- Create `src/tv/kitchenTvPresentation.js` and `src/tv/kitchenTvPresentation.test.js`.
+- Create `src/tv/KitchenTvBoard.jsx`, `src/tv/KitchenTvOrderCard.jsx`, `src/tv/KitchenTvBoard.test.js`.
+- Create `src/tv/kitchen-tv.css`.
 
 ---
 
@@ -97,13 +86,15 @@
 - Test: `src/utils/kitchenQueue.test.js`
 
 **Interfaces:**
-- Consumes: `isScheduledWaiting(order, now)`, `getOperationalStartAt(order)` from `shared/orderTiming.js`; `isOrderActive(order)` from `src/utils/orderLifecycle.js`; `getOrderTimingState(order, now)` from `src/utils/orderWorkflow.js`.
-- Produces: `buildKitchenOperationalQueue(orders = [], now = new Date()) -> { allActive, preparing, scheduled, counts }` where every entry is `{ order, phase, operationalStartAt, timingState, isLate }` and `counts` is `{ preparing, scheduled, late }`.
-- `src/utils/kitchenQueue.js` remains the search-aware wrapper and continues returning `finishedToday` and `totalVisible` for the current Cozinha UI.
+- Consumes `isScheduledWaiting`, `getOperationalStartAt`, `isOrderActive`, `getOrderTimingState`.
+- Produces `buildKitchenOperationalQueue(orders = [], now = new Date()) -> { allActive, preparing, scheduled, counts }`.
+- Each queue entry remains `{ order, phase, operationalStartAt, timingState, isLate }`.
+- `counts` is `{ preparing, scheduled, late }`.
+- `src/utils/kitchenQueue.js` remains the search-aware wrapper and still adds `finishedToday` + `totalVisible` for normal Cozinha.
 
 - [ ] **Step 1: Write the failing core tests**
 
-Create `src/utils/kitchenOperationalQueue.test.js` with focused tests that duplicate the current semantics before moving code:
+Create `src/utils/kitchenOperationalQueue.test.js`:
 
 ```js
 import test from 'node:test'
@@ -112,7 +103,7 @@ import { buildKitchenOperationalQueue } from './kitchenOperationalQueue.js'
 
 const ids = (entries) => entries.map(({ order }) => order.id)
 
-test('scheduled order crosses from scheduled to preparing at the existing 50-minute boundary', () => {
+test('scheduled order crosses at the existing 50-minute operational boundary', () => {
   const order = {
     id: 'scheduled-1', status: 'Em preparo', type: 'Entrega',
     createdAt: '2026-09-04T08:00:00.000Z',
@@ -122,7 +113,7 @@ test('scheduled order crosses from scheduled to preparing at the existing 50-min
   assert.deepEqual(ids(buildKitchenOperationalQueue([order], new Date('2026-09-04T14:10:00.000Z')).preparing), ['scheduled-1'])
 })
 
-test('operational queues preserve current sorting and exclude terminal orders', () => {
+test('queues preserve current ordering and exclude terminal orders', () => {
   const orders = [
     { id: 'prep-b', status: 'Em preparo', type: 'Local', createdAt: '2026-09-04T09:00:00.000Z' },
     { id: 'prep-a', status: 'Em preparo', type: 'Local', createdAt: '2026-09-04T09:00:00.000Z' },
@@ -138,19 +129,17 @@ test('operational queues preserve current sorting and exclude terminal orders', 
 })
 ```
 
-- [ ] **Step 2: Run the new test and verify RED**
-
-Run:
+- [ ] **Step 2: Run RED**
 
 ```bash
 node --test src/utils/kitchenOperationalQueue.test.js
 ```
 
-Expected: FAIL because `src/utils/kitchenOperationalQueue.js` does not exist.
+Expected: FAIL because the module does not exist.
 
-- [ ] **Step 3: Implement the pure operational selector**
+- [ ] **Step 3: Implement the pure selector**
 
-Create `src/utils/kitchenOperationalQueue.js` with the logic currently embedded in `kitchenQueue.js`:
+Create `src/utils/kitchenOperationalQueue.js`:
 
 ```js
 import { getOperationalStartAt, isScheduledWaiting } from '../../shared/orderTiming.js'
@@ -166,13 +155,7 @@ export const buildKitchenOperationalQueue = (orders = [], now = new Date()) => {
   const allActive = orders.filter(isOrderActive).map((order) => {
     const phase = isScheduledWaiting(order, now) ? 'scheduled' : 'preparing'
     const timingState = getOrderTimingState(order, now)
-    return {
-      order,
-      phase,
-      operationalStartAt: getOperationalStartAt(order),
-      timingState,
-      isLate: timingState !== 'on-time',
-    }
+    return { order, phase, operationalStartAt: getOperationalStartAt(order), timingState, isLate: timingState !== 'on-time' }
   })
   const preparing = allActive.filter(({ phase }) => phase === 'preparing').sort(compareOperationalStart)
   const scheduled = allActive.filter(({ phase }) => phase === 'scheduled').sort(compareScheduledFor)
@@ -180,24 +163,19 @@ export const buildKitchenOperationalQueue = (orders = [], now = new Date()) => {
     allActive,
     preparing,
     scheduled,
-    counts: {
-      preparing: preparing.length,
-      scheduled: scheduled.length,
-      late: allActive.filter(({ isLate }) => isLate).length,
-    },
+    counts: { preparing: preparing.length, scheduled: scheduled.length, late: allActive.filter(({ isLate }) => isLate).length },
   }
 }
 ```
 
-- [ ] **Step 4: Refactor `kitchenQueue.js` to delegate without changing its public contract**
+- [ ] **Step 4: Make `kitchenQueue.js` delegate only operational classification**
 
-Replace only the operational classification/sorting block. Keep search normalization and `finishedToday` in the wrapper:
+Keep search and `finishedToday` in `kitchenQueue.js`:
 
 ```js
 const operational = buildKitchenOperationalQueue(orders, now)
 const preparing = operational.preparing.filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
 const scheduled = operational.scheduled.filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
-
 return {
   ...operational,
   preparing,
@@ -210,80 +188,70 @@ return {
 }
 ```
 
-Delete the now-duplicated sort/classification helpers from `kitchenQueue.js` and import `buildKitchenOperationalQueue`.
+Delete only the duplicated operational sort/classification helpers from `kitchenQueue.js`.
 
-- [ ] **Step 5: Run core + existing Cozinha queue tests**
+- [ ] **Step 5: Run GREEN + current Cozinha regressions**
 
 ```bash
 node --test src/utils/kitchenOperationalQueue.test.js src/utils/kitchenQueue.test.js src/utils/orderRealtime.test.js
 ```
 
-Expected: PASS. Existing queue ordering/count/search behavior must be unchanged.
+Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/utils/kitchenOperationalQueue.js src/utils/kitchenOperationalQueue.test.js src/utils/kitchenQueue.js src/utils/kitchenQueue.test.js
+git add src/utils/kitchenOperationalQueue.js src/utils/kitchenOperationalQueue.test.js src/utils/kitchenQueue.js
 git commit -m "refactor: share kitchen operational queue model"
 ```
 
 ---
 
-### Task 2: Add the single-TV D1 access record and repository
+### Task 2: Add the single-TV D1 schema, D1 test adapter, and access repository
 
 **Files:**
-- Create: `migrations/0019_kitchen_tv_access.sql` (renumber only if required by the execution-base migration sequence)
+- Create: `migrations/0019_kitchen_tv_access.sql`
+- Create: `worker/testD1Adapter.js`
 - Create: `worker/kitchenTvAccessMigration.test.js`
 - Create: `worker/kitchenTvAccessRepository.js`
 - Create: `worker/kitchenTvAccessRepository.test.js`
 
 **Interfaces:**
-- Produces `loadKitchenTvAccess(db, businessId)`.
-- Produces `issueKitchenTvAccess(db, businessId, pairingTokenHash, now)`; issuing/regenerating clears prior session/pairing timestamps and revocation.
-- Produces `activateKitchenTvSession(db, businessId, pairingTokenHash, sessionTokenHash, now) -> boolean`; atomic one-time consume of the pairing hash.
-- Produces `loadKitchenTvSessionByHash(db, sessionTokenHash)`.
-- Produces `touchKitchenTvSession(db, businessId, now)`.
-- Produces `revokeKitchenTvAccess(db, businessId, now)`; clears both hashes and sets `revoked_at`.
+- Test helper: `createMigratedD1(businessId = 'amor-e-sabor') -> Promise<{ DB, sqlite }>`.
+- Repository functions:
+  - `loadKitchenTvAccess(db, businessId)`
+  - `issueKitchenTvAccess(db, businessId, pairingTokenHash, now)`
+  - `activateKitchenTvSession(db, businessId, pairingTokenHash, sessionTokenHash, now) -> boolean`
+  - `loadKitchenTvSessionByHash(db, sessionTokenHash)`
+  - `touchKitchenTvSession(db, businessId, now)`
+  - `revokeKitchenTvAccess(db, businessId, now)`
 
 - [ ] **Step 1: Write the migration RED test**
-
-Create `worker/kitchenTvAccessMigration.test.js` using the existing `node:sqlite` migration style:
 
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile, readdir } from 'node:fs/promises'
-import { DatabaseSync } from 'node:sqlite'
+import { createMigratedD1 } from './testD1Adapter.js'
 
-const migrationsUrl = new URL('../migrations/', import.meta.url)
-const applyAll = async (db) => {
-  const files = (await readdir(migrationsUrl)).filter((file) => file.endsWith('.sql')).sort()
-  for (const file of files) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
-}
-
-test('kitchen TV migration creates one access row per business and hashed credential columns', async () => {
-  const db = new DatabaseSync(':memory:')
-  await applyAll(db)
-  const columns = db.prepare("SELECT name FROM pragma_table_info('kitchen_tv_access') ORDER BY cid").all().map(({ name }) => name)
+test('Kitchen TV migration creates the monodispositivo credential table', async () => {
+  const { sqlite } = await createMigratedD1()
+  const columns = sqlite.prepare("SELECT name FROM pragma_table_info('kitchen_tv_access') ORDER BY cid").all().map(({ name }) => name)
   assert.deepEqual(columns, [
     'business_id', 'pairing_token_hash', 'session_token_hash',
     'created_at', 'paired_at', 'last_seen_at', 'revoked_at',
   ])
-  assert.equal(db.prepare("SELECT count(*) AS count FROM pragma_index_list('kitchen_tv_access')").get().count >= 2, true)
 })
 ```
 
-- [ ] **Step 2: Run migration test to verify RED**
+- [ ] **Step 2: Run RED**
 
 ```bash
 node --test worker/kitchenTvAccessMigration.test.js
 ```
 
-Expected: FAIL because the table does not exist.
+Expected: FAIL because `testD1Adapter.js`/the migration do not exist.
 
-- [ ] **Step 3: Add the migration**
-
-Create the sequential migration with exactly one row per business:
+- [ ] **Step 3: Create the migration**
 
 ```sql
 CREATE TABLE kitchen_tv_access (
@@ -306,7 +274,46 @@ CREATE UNIQUE INDEX kitchen_tv_access_session_hash_idx
   WHERE session_token_hash IS NOT NULL;
 ```
 
-- [ ] **Step 4: Run migration test GREEN**
+- [ ] **Step 4: Create the exact reusable D1-shaped test adapter**
+
+`worker/testD1Adapter.js`:
+
+```js
+import { DatabaseSync } from 'node:sqlite'
+import { readFile, readdir } from 'node:fs/promises'
+
+const migrationsUrl = new URL('../migrations/', import.meta.url)
+
+const wrapDb = (sqlite) => ({
+  prepare(sql) {
+    const statement = sqlite.prepare(sql)
+    return {
+      bind(...values) {
+        return {
+          async run() {
+            const result = statement.run(...values)
+            return { success: true, meta: { changes: Number(result.changes || 0) } }
+          },
+          async first() { return statement.get(...values) ?? null },
+          async all() { return { results: statement.all(...values).map((row) => ({ ...row })) } },
+        }
+      },
+    }
+  },
+})
+
+export const createMigratedD1 = async (businessId = 'amor-e-sabor') => {
+  const sqlite = new DatabaseSync(':memory:')
+  const files = (await readdir(migrationsUrl)).filter((file) => file.endsWith('.sql')).sort()
+  for (const file of files) sqlite.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+  const at = '2026-09-09T12:00:00.000Z'
+  sqlite.prepare('INSERT OR IGNORE INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run(businessId, businessId, 'Test Business', at, at)
+  return { DB: wrapDb(sqlite), sqlite }
+}
+```
+
+- [ ] **Step 5: Run migration GREEN**
 
 ```bash
 node --test worker/kitchenTvAccessMigration.test.js
@@ -314,38 +321,39 @@ node --test worker/kitchenTvAccessMigration.test.js
 
 Expected: PASS.
 
-- [ ] **Step 5: Write repository lifecycle RED tests**
-
-In `worker/kitchenTvAccessRepository.test.js`, use a small D1-shaped adapter over `DatabaseSync` and prove the whole single-record lifecycle:
+- [ ] **Step 6: Write repository lifecycle RED tests**
 
 ```js
-test('issuing, pairing, touching and revoking one Kitchen TV access is atomic', async () => {
-  const db = await migratedD1Adapter()
-  const issued = await issueKitchenTvAccess(db, 'amor-e-sabor', 'pair-hash-1', new Date('2026-09-09T12:00:00.000Z'))
-  assert.equal(issued.pairing_token_hash, 'pair-hash-1')
-  assert.equal(issued.session_token_hash, null)
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createMigratedD1 } from './testD1Adapter.js'
+import {
+  issueKitchenTvAccess, activateKitchenTvSession, loadKitchenTvSessionByHash,
+  touchKitchenTvSession, revokeKitchenTvAccess,
+} from './kitchenTvAccessRepository.js'
 
-  assert.equal(await activateKitchenTvSession(db, 'amor-e-sabor', 'pair-hash-1', 'session-hash-1', new Date('2026-09-09T12:01:00.000Z')), true)
-  assert.equal(await activateKitchenTvSession(db, 'amor-e-sabor', 'pair-hash-1', 'session-hash-2', new Date('2026-09-09T12:02:00.000Z')), false)
-
-  const session = await loadKitchenTvSessionByHash(db, 'session-hash-1')
-  assert.equal(session.business_id, 'amor-e-sabor')
-
-  await touchKitchenTvSession(db, 'amor-e-sabor', new Date('2026-09-09T12:03:00.000Z'))
-  await revokeKitchenTvAccess(db, 'amor-e-sabor', new Date('2026-09-09T12:04:00.000Z'))
-  assert.equal(await loadKitchenTvSessionByHash(db, 'session-hash-1'), null)
+test('pairing is one-use and revoke kills the active session', async () => {
+  const { DB, sqlite } = await createMigratedD1()
+  await issueKitchenTvAccess(DB, 'amor-e-sabor', 'pair-hash-1', new Date('2026-09-09T12:00:00.000Z'))
+  assert.equal(await activateKitchenTvSession(DB, 'amor-e-sabor', 'pair-hash-1', 'session-hash-1', new Date('2026-09-09T12:01:00.000Z')), true)
+  assert.equal(await activateKitchenTvSession(DB, 'amor-e-sabor', 'pair-hash-1', 'session-hash-2', new Date('2026-09-09T12:02:00.000Z')), false)
+  assert.equal((await loadKitchenTvSessionByHash(DB, 'session-hash-1')).business_id, 'amor-e-sabor')
+  await touchKitchenTvSession(DB, 'amor-e-sabor', new Date('2026-09-09T12:03:00.000Z'))
+  assert.equal(sqlite.prepare('SELECT last_seen_at FROM kitchen_tv_access WHERE business_id = ?').get('amor-e-sabor').last_seen_at, '2026-09-09T12:03:00.000Z')
+  await revokeKitchenTvAccess(DB, 'amor-e-sabor', new Date('2026-09-09T12:04:00.000Z'))
+  assert.equal(await loadKitchenTvSessionByHash(DB, 'session-hash-1'), null)
 })
 
-test('generating a new pairing invalidates the previous active TV session', async () => {
-  const db = await migratedD1Adapter()
-  await issueKitchenTvAccess(db, 'amor-e-sabor', 'pair-1', new Date('2026-09-09T12:00:00.000Z'))
-  await activateKitchenTvSession(db, 'amor-e-sabor', 'pair-1', 'session-1', new Date('2026-09-09T12:01:00.000Z'))
-  await issueKitchenTvAccess(db, 'amor-e-sabor', 'pair-2', new Date('2026-09-09T12:02:00.000Z'))
-  assert.equal(await loadKitchenTvSessionByHash(db, 'session-1'), null)
+test('issuing a new access invalidates the previous TV session', async () => {
+  const { DB } = await createMigratedD1()
+  await issueKitchenTvAccess(DB, 'amor-e-sabor', 'pair-1', new Date('2026-09-09T12:00:00.000Z'))
+  await activateKitchenTvSession(DB, 'amor-e-sabor', 'pair-1', 'session-1', new Date('2026-09-09T12:01:00.000Z'))
+  await issueKitchenTvAccess(DB, 'amor-e-sabor', 'pair-2', new Date('2026-09-09T12:02:00.000Z'))
+  assert.equal(await loadKitchenTvSessionByHash(DB, 'session-1'), null)
 })
 ```
 
-- [ ] **Step 6: Run repository tests RED**
+- [ ] **Step 7: Run repository RED**
 
 ```bash
 node --test worker/kitchenTvAccessRepository.test.js
@@ -353,9 +361,9 @@ node --test worker/kitchenTvAccessRepository.test.js
 
 Expected: FAIL because repository functions do not exist.
 
-- [ ] **Step 7: Implement `kitchenTvAccessRepository.js` minimally**
+- [ ] **Step 8: Implement the repository**
 
-Use D1 statements with an UPSERT for issue/regenerate and an atomic `UPDATE ... WHERE pairing_token_hash = ?` for one-time pairing. The key statements must have these semantics:
+Use an UPSERT for issue/regenerate and an atomic pairing consume:
 
 ```js
 export const issueKitchenTvAccess = async (db, businessId, pairingTokenHash, now = new Date()) => {
@@ -382,30 +390,28 @@ export const activateKitchenTvSession = async (db, businessId, pairingTokenHash,
     SET pairing_token_hash = NULL, session_token_hash = ?, paired_at = ?, last_seen_at = ?, revoked_at = NULL
     WHERE business_id = ? AND pairing_token_hash = ? AND revoked_at IS NULL
   `).bind(sessionTokenHash, at, at, businessId, pairingTokenHash).run()
-  return Number(result?.meta?.changes ?? result?.changes ?? 0) > 0
+  return Number(result?.meta?.changes || 0) > 0
 }
 ```
 
-Implement the remaining load/touch/revoke functions exactly to the interfaces above; `revoke` must set both token hashes to `NULL`.
+Implement the load/touch/revoke statements directly against `kitchen_tv_access`; revoke sets both hashes to `NULL` and `revoked_at` to the supplied timestamp.
 
-- [ ] **Step 8: Run repository + migration tests GREEN**
+- [ ] **Step 9: Run GREEN**
 
 ```bash
 node --test worker/kitchenTvAccessMigration.test.js worker/kitchenTvAccessRepository.test.js
 ```
 
-Expected: PASS.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add migrations/*_kitchen_tv_access.sql worker/kitchenTvAccessMigration.test.js worker/kitchenTvAccessRepository.js worker/kitchenTvAccessRepository.test.js
+git add migrations/*_kitchen_tv_access.sql worker/testD1Adapter.js worker/kitchenTvAccessMigration.test.js worker/kitchenTvAccessRepository.js worker/kitchenTvAccessRepository.test.js
 git commit -m "feat: persist kitchen tv access"
 ```
 
 ---
 
-### Task 3: Add opaque-token reuse and dedicated TV pairing/session auth
+### Task 3: Add opaque token reuse and dedicated TV auth/session semantics
 
 **Files:**
 - Create: `worker/opaqueToken.js`
@@ -415,74 +421,93 @@ git commit -m "feat: persist kitchen tv access"
 - Create: `worker/kitchenTvAuth.test.js`
 
 **Interfaces:**
-- `createOpaqueToken(byteLength = 32) -> string` returns URL-safe high-entropy text.
-- `hashOpaqueToken(value) -> Promise<string>` returns a 64-char SHA-256 hex digest.
-- `KITCHEN_TV_SESSION_MAX_AGE = 400 * 24 * 60 * 60` seconds; requests refresh the cookie lifetime, giving effective persistence while the TV is used.
-- `kitchenTvSessionCookie(token, maxAgeSeconds = KITCHEN_TV_SESSION_MAX_AGE)` and `clearKitchenTvSessionCookie()` use cookie name `amor_kitchen_tv`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/kitchen-tv`.
-- `getKitchenTvSettings(env, businessId)` returns `{ status, pairedAt, lastSeenAt }` where status is `not_configured | awaiting_pairing | active | revoked`.
+- `createOpaqueToken(byteLength = 32) -> string`.
+- `hashOpaqueToken(value) -> Promise<string>` returning 64-char SHA-256 hex.
+- TV cookie name `amor_kitchen_tv`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/kitchen-tv`.
+- `KITCHEN_TV_SESSION_MAX_AGE = 400 * 24 * 60 * 60` = `34560000` seconds; valid state reads refresh this cookie.
+- `getKitchenTvSettings(env, businessId) -> { status, pairedAt, lastSeenAt }`, status in `not_configured | awaiting_pairing | active | revoked`.
 - `generateKitchenTvAccess(env, businessId, now) -> { pairingToken, settings }`.
 - `pairKitchenTvAccess(env, businessId, pairingToken, now) -> { sessionToken, businessId } | null`.
 - `getKitchenTvSession(request, env, now) -> { businessId, sessionToken } | null`.
-- `revokeKitchenTvAccessSession(env, businessId, now)` delegates server-side revoke.
+- `revokeKitchenTvAccessSession(env, businessId, now)`.
 
-- [ ] **Step 1: Write opaque-token + admin-session regression tests**
+- [ ] **Step 1: Write RED tests**
 
-Add to `worker/auth.test.js` and create a focused `worker/kitchenTvAuth.test.js` RED suite. Key assertions:
+`worker/kitchenTvAuth.test.js`:
 
 ```js
-test('opaque token helpers produce URL-safe random tokens and stable SHA-256 hashes', async () => {
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createMigratedD1 } from './testD1Adapter.js'
+import { createOpaqueToken, hashOpaqueToken } from './opaqueToken.js'
+import {
+  generateKitchenTvAccess, pairKitchenTvAccess, getKitchenTvSession,
+  kitchenTvSessionCookie, revokeKitchenTvAccessSession,
+} from './kitchenTvAuth.js'
+
+test('opaque credentials are URL-safe and stored only as hashes', async () => {
   const token = createOpaqueToken(32)
   assert.match(token, /^[A-Za-z0-9_-]+$/)
   assert.equal((await hashOpaqueToken(token)).length, 64)
-  assert.notEqual(await hashOpaqueToken(token), token)
+  const { DB, sqlite } = await createMigratedD1()
+  const { pairingToken } = await generateKitchenTvAccess({ DB }, 'amor-e-sabor', new Date('2026-09-09T12:00:00.000Z'))
+  const row = sqlite.prepare('SELECT pairing_token_hash FROM kitchen_tv_access WHERE business_id = ?').get('amor-e-sabor')
+  assert.notEqual(row.pairing_token_hash, pairingToken)
+  assert.equal(row.pairing_token_hash.length, 64)
 })
 
-test('Kitchen TV cookie is separate, long-lived and restricted to its API path', () => {
-  const cookie = kitchenTvSessionCookie('tv-token')
-  assert.match(cookie, /^amor_kitchen_tv=tv-token;/)
+test('Kitchen TV pairing is one-use and yields a separate long-lived cookie session', async () => {
+  const { DB } = await createMigratedD1()
+  const env = { DB }
+  const { pairingToken } = await generateKitchenTvAccess(env, 'amor-e-sabor', new Date('2026-09-09T12:00:00.000Z'))
+  const first = await pairKitchenTvAccess(env, 'amor-e-sabor', pairingToken, new Date('2026-09-09T12:01:00.000Z'))
+  assert.ok(first?.sessionToken)
+  assert.equal(await pairKitchenTvAccess(env, 'amor-e-sabor', pairingToken, new Date('2026-09-09T12:02:00.000Z')), null)
+  const cookie = kitchenTvSessionCookie(first.sessionToken)
+  assert.match(cookie, /^amor_kitchen_tv=/)
   assert.match(cookie, /HttpOnly/)
   assert.match(cookie, /Secure/)
   assert.match(cookie, /SameSite=Strict/)
   assert.match(cookie, /Path=\/api\/kitchen-tv/)
   assert.match(cookie, /Max-Age=34560000/)
+  const request = new Request('https://delivery.example/api/kitchen-tv/state', { headers: { cookie: cookie.split(';')[0] } })
+  assert.equal((await getKitchenTvSession(request, env, new Date('2026-09-09T12:03:00.000Z'))).businessId, 'amor-e-sabor')
+  await revokeKitchenTvAccessSession(env, 'amor-e-sabor', new Date('2026-09-09T12:04:00.000Z'))
+  assert.equal(await getKitchenTvSession(request, env, new Date('2026-09-09T12:05:00.000Z')), null)
 })
 ```
-
-Keep the existing `amor_session` tests unchanged.
 
 - [ ] **Step 2: Run RED**
 
 ```bash
-node --test worker/auth.test.js worker/kitchenTvAuth.test.js
+node --test worker/kitchenTvAuth.test.js worker/auth.test.js
 ```
 
-Expected: FAIL because `opaqueToken.js` and `kitchenTvAuth.js` do not exist.
-
-- [ ] **Step 3: Implement `worker/opaqueToken.js` and switch normal session token creation to it**
-
-Use Web Crypto only:
+- [ ] **Step 3: Implement `worker/opaqueToken.js`**
 
 ```js
 const encoder = new TextEncoder()
-const bytesToBase64Url = (bytes) => {
+const toBase64Url = (bytes) => {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
-const bytesToHex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+const toHex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 
-export const createOpaqueToken = (byteLength = 32) => bytesToBase64Url(crypto.getRandomValues(new Uint8Array(byteLength)))
+export const createOpaqueToken = (byteLength = 32) => toBase64Url(crypto.getRandomValues(new Uint8Array(byteLength)))
 export const hashOpaqueToken = async (value) => {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(String(value)))
-  return bytesToHex(new Uint8Array(digest))
+  return toHex(new Uint8Array(digest))
 }
 ```
 
-In `worker/auth.js`, replace only the local session random-token/SHA helpers with imports from `opaqueToken.js`. Do not alter PBKDF2 PIN hashing, session expiry, cookie name, or admin authorization behavior.
+- [ ] **Step 4: Modify admin `auth.js` only to reuse opaque session token generation/hashing**
 
-- [ ] **Step 4: Implement dedicated `worker/kitchenTvAuth.js`**
+Import `createOpaqueToken` and `hashOpaqueToken`; keep PBKDF2 PIN helpers, admin cookie name, seven-day expiry, and existing admin session schema unchanged. Existing `auth.test.js` must remain valid.
 
-Use the Task 2 repository. Required one-time pairing core:
+- [ ] **Step 5: Implement `kitchenTvAuth.js`**
+
+Core pairing generation/consume:
 
 ```js
 export const generateKitchenTvAccess = async (env, businessId, now = new Date()) => {
@@ -493,37 +518,25 @@ export const generateKitchenTvAccess = async (env, businessId, now = new Date())
 
 export const pairKitchenTvAccess = async (env, businessId, pairingToken, now = new Date()) => {
   if (typeof pairingToken !== 'string' || !pairingToken) return null
-  const pairingHash = await hashOpaqueToken(pairingToken)
   const sessionToken = createOpaqueToken()
-  const sessionHash = await hashOpaqueToken(sessionToken)
-  const activated = await activateKitchenTvSession(env.DB, businessId, pairingHash, sessionHash, now)
+  const activated = await activateKitchenTvSession(
+    env.DB,
+    businessId,
+    await hashOpaqueToken(pairingToken),
+    await hashOpaqueToken(sessionToken),
+    now,
+  )
   return activated ? { businessId, sessionToken } : null
 }
 ```
 
-`getKitchenTvSession()` must parse only `amor_kitchen_tv`, hash it, load the active row by session hash, touch `last_seen_at`, and return the original cookie token only so the state endpoint can refresh its cookie lifetime. It must not read or accept `amor_session`.
+`getKitchenTvSession` parses only `amor_kitchen_tv`, hashes it, uses `loadKitchenTvSessionByHash`, touches last-seen, and returns `{ businessId: row.business_id, sessionToken: originalCookieToken }`. It must never read `amor_session`.
 
-- [ ] **Step 5: Add one-time pairing and revoke tests**
-
-Prove:
-
-```js
-const generated = await generateKitchenTvAccess(env, 'amor-e-sabor', now)
-assert.notEqual(dbRow.pairing_token_hash, generated.pairingToken)
-const first = await pairKitchenTvAccess(env, 'amor-e-sabor', generated.pairingToken, oneMinuteLater)
-assert.ok(first)
-assert.equal(await pairKitchenTvAccess(env, 'amor-e-sabor', generated.pairingToken, twoMinutesLater), null)
-```
-
-Also prove regenerate invalidates an active session and `getKitchenTvSession` returns `null` after revoke.
-
-- [ ] **Step 6: Run auth suites GREEN**
+- [ ] **Step 6: Run GREEN**
 
 ```bash
-node --test worker/auth.test.js worker/kitchenTvAuth.test.js worker/kitchenTvAccessRepository.test.js
+node --test worker/kitchenTvAuth.test.js worker/auth.test.js worker/kitchenTvAccessRepository.test.js
 ```
-
-Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
@@ -534,38 +547,45 @@ git commit -m "feat: add restricted kitchen tv auth"
 
 ---
 
-### Task 4: Add the active-only whitelisted Kitchen TV state repository
+### Task 4: Add the active-only whitelisted TV state repository
 
 **Files:**
 - Create: `worker/kitchenTvStateRepository.js`
 - Create: `worker/kitchenTvStateRepository.test.js`
 
-**Interfaces:**
-- Produces `listKitchenTvOrders(db, businessId) -> Promise<Array<KitchenTvOrder>>`.
-- `KitchenTvOrder` exact shape:
+**Interface:**
 
 ```js
-{
-  id: string,
-  orderNumber: number,
-  client: string,
-  type: 'Entrega' | 'Retirada' | 'Local' | string,
-  status: string,
-  createdAt: string,
-  scheduledFor: string | null,
-  tableIdentifier: string | null,
-  items: Array<{ name: string, quantity: number, note: string }>,
+KitchenTvOrder = {
+  id, orderNumber, client, type, status, createdAt, scheduledFor, tableIdentifier,
+  items: [{ name, quantity, note }],
 }
 ```
 
-- No full-order mapper from `repositories.js`; whitelist in this repository.
+`listKitchenTvOrders(db, businessId) -> Promise<KitchenTvOrder[]>`.
 
-- [ ] **Step 1: Write RED contract tests**
-
-Create a fake DB that captures SQL and returns rows containing extra sensitive fields to prove the mapper ignores them:
+- [ ] **Step 1: Write RED contract tests with a defined fake DB**
 
 ```js
-test('TV state returns only active kitchen-safe fields', async () => {
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { listKitchenTvOrders } from './kitchenTvStateRepository.js'
+
+const fakeDb = ({ orders, items }) => {
+  const state = { orderSql: '', itemSql: '', call: 0 }
+  return {
+    get orderSql() { return state.orderSql },
+    get itemSql() { return state.itemSql },
+    prepare(sql) {
+      const isOrderQuery = state.call++ === 0
+      if (isOrderQuery) state.orderSql = sql
+      else state.itemSql = sql
+      return { bind() { return { async all() { return { results: isOrderQuery ? orders : items } } } } }
+    },
+  }
+}
+
+test('TV query returns only active kitchen-safe fields', async () => {
   const db = fakeDb({
     orders: [{
       id: 'o1', order_number: 1842, client_id: 'c1', client_name_snapshot: 'Mariana Silva',
@@ -583,9 +603,19 @@ test('TV state returns only active kitchen-safe fields', async () => {
   assert.doesNotMatch(db.orderSql, /client_phone|client_address|total_cents|payment|refund/i)
   assert.doesNotMatch(db.itemSql, /unit_price|catalog_price|price_reason/i)
 })
-```
 
-Add a table/local-name test matching the current `mapOrderRow` convention: `Mesa 03 · João` when a table order has both table identifier and client snapshot; otherwise the table identifier alone.
+test('local/table customer label matches the normal order mapper convention', async () => {
+  const db = fakeDb({
+    orders: [{
+      id: 'local-1', order_number: 1843, client_id: 'c2', client_name_snapshot: 'João',
+      customer_identity_type: 'table', table_identifier: 'Mesa 03', type: 'Local', status: 'Em preparo',
+      created_at: '2026-09-09T12:00:00.000Z', scheduled_for: null,
+    }],
+    items: [],
+  })
+  assert.equal((await listKitchenTvOrders(db, 'amor-e-sabor'))[0].client, 'Mesa 03 · João')
+})
+```
 
 - [ ] **Step 2: Run RED**
 
@@ -593,11 +623,9 @@ Add a table/local-name test matching the current `mapOrderRow` convention: `Mesa
 node --test worker/kitchenTvStateRepository.test.js
 ```
 
-Expected: FAIL because the repository does not exist.
+- [ ] **Step 3: Implement exactly two active-only queries**
 
-- [ ] **Step 3: Implement the active-only queries**
-
-Use two small queries. The order query must not select sensitive columns:
+Order SQL:
 
 ```sql
 SELECT
@@ -611,7 +639,7 @@ WHERE o.business_id = ?
 ORDER BY o.created_at ASC
 ```
 
-Item query must also be active-only:
+Item SQL:
 
 ```sql
 SELECT oi.order_id, oi.name_snapshot, oi.quantity, oi.note, oi.created_at
@@ -622,25 +650,15 @@ WHERE oi.business_id = ?
 ORDER BY oi.created_at ASC
 ```
 
-Map only the documented `KitchenTvOrder` keys.
+Map only the documented TV keys. Do not call `mapOrderRow`/`mapOrderItemRow` because they intentionally add prices/contact/payment fields.
 
-- [ ] **Step 4: Run GREEN**
-
-```bash
-node --test worker/kitchenTvStateRepository.test.js
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Run current order-read regressions**
+- [ ] **Step 4: Run GREEN + normal order regressions**
 
 ```bash
-node --test worker/orderRepositories.test.js worker/orderIdentityRepositoryMapping.test.js worker/multiItemCheckoutRepository.test.js
+node --test worker/kitchenTvStateRepository.test.js worker/orderRepositories.test.js worker/orderIdentityRepositoryMapping.test.js
 ```
 
-Expected: PASS; this task must not modify the normal order repository.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add worker/kitchenTvStateRepository.js worker/kitchenTvStateRepository.test.js
@@ -649,7 +667,7 @@ git commit -m "feat: add minimal kitchen tv state query"
 
 ---
 
-### Task 5: Add TV API handlers and preserve the admin authorization boundary
+### Task 5: Add TV API routes without weakening admin auth
 
 **Files:**
 - Create: `worker/kitchenTvApi.js`
@@ -657,54 +675,55 @@ git commit -m "feat: add minimal kitchen tv state query"
 - Modify: `worker/index.js`
 
 **Interfaces:**
-- Public TV handler: `handleKitchenTvPublicApi(request, env, url) -> Response | null` handles only:
-  - `POST /api/kitchen-tv/pair`
-  - `GET /api/kitchen-tv/state`
-- Admin handler: `handleKitchenTvAdminApi(request, env, session, url) -> Response | null` handles only:
-  - `GET /api/kitchen-tv/settings`
-  - `POST /api/kitchen-tv/access`
-  - `POST /api/kitchen-tv/revoke`
-- Admin routes are reachable only after `getAuthenticatedSession()` succeeds in `authenticatedApi()`.
-- TV session never satisfies admin authentication.
-- Response contracts:
+- `handleKitchenTvPublicApi(request, env, url) -> Response | null` handles only `POST /api/kitchen-tv/pair` and `GET /api/kitchen-tv/state`.
+- `handleKitchenTvAdminApi(request, env, session, url) -> Response | null` handles only `GET /api/kitchen-tv/settings`, `POST /api/kitchen-tv/access`, `POST /api/kitchen-tv/revoke`.
+- Responses:
+  - settings: `{ settings: { status, pairedAt, lastSeenAt } }`
+  - access: `{ settings, pairingToken }`
+  - pair: `{ paired: true }`
+  - state: `{ orders }`
+
+- [ ] **Step 1: Write the integration RED test using the Task 2 D1 adapter**
 
 ```js
-// GET settings
-{ settings: { status, pairedAt, lastSeenAt } }
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createSession } from './auth.js'
+import { handleRequest } from './index.js'
+import { createMigratedD1 } from './testD1Adapter.js'
 
-// POST access
-{ settings, pairingToken }
-
-// POST pair
-{ paired: true }
-
-// GET state
-{ orders: KitchenTvOrder[] }
-```
-
-- [ ] **Step 1: Write HTTP RED tests**
-
-Cover the security boundary first:
-
-```js
-test('TV state requires the TV cookie, not the admin cookie', async () => {
-  const adminOnly = new Request('https://delivery.example/api/kitchen-tv/state', {
-    headers: { cookie: 'amor_session=admin-token' },
-  })
-  const response = await handleRequest(adminOnly, env)
-  assert.equal(response.status, 401)
+const makeEnv = async () => {
+  const { DB } = await createMigratedD1()
+  return { DB, LOGIN_RATE_LIMITER: { async limit() { return { success: true } } } }
+}
+const origin = 'https://delivery.example'
+const jsonBody = (method, body, cookie = '') => ({
+  method,
+  headers: { origin, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+  body: JSON.stringify(body),
 })
 
-test('TV cookie cannot access admin Kitchen TV settings', async () => {
-  const tvOnly = new Request('https://delivery.example/api/kitchen-tv/settings', {
-    headers: { cookie: 'amor_kitchen_tv=tv-token' },
-  })
-  const response = await handleRequest(tvOnly, env)
-  assert.equal(response.status, 401)
+test('admin generates access, one TV pairs, state works, revoke blocks next state', async () => {
+  const env = await makeEnv()
+  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date('2026-09-09T12:00:00.000Z'))
+  const adminCookie = `amor_session=${adminToken}`
+  const accessResponse = await handleRequest(new Request(`${origin}/api/kitchen-tv/access`, { method: 'POST', headers: { origin, cookie: adminCookie } }), env)
+  assert.equal(accessResponse.status, 200)
+  const { pairingToken } = await accessResponse.json()
+
+  const pairResponse = await handleRequest(new Request(`${origin}/api/kitchen-tv/pair`, jsonBody('POST', { token: pairingToken })), env)
+  assert.equal(pairResponse.status, 200)
+  const tvCookie = pairResponse.headers.get('set-cookie').split(';')[0]
+
+  assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: tvCookie } }), env)).status, 200)
+  assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: adminCookie } }), env)).status, 401)
+  assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/settings`, { headers: { cookie: tvCookie } }), env)).status, 401)
+
+  const revokeResponse = await handleRequest(new Request(`${origin}/api/kitchen-tv/revoke`, { method: 'POST', headers: { origin, cookie: adminCookie } }), env)
+  assert.equal(revokeResponse.status, 200)
+  assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: tvCookie } }), env)).status, 401)
 })
 ```
-
-Also test successful admin access generation, one-time pair, state read, revoke, and state failure after revoke.
 
 - [ ] **Step 2: Run RED**
 
@@ -712,16 +731,12 @@ Also test successful admin access generation, one-time pair, state read, revoke,
 node --test worker/kitchenTvApi.test.js
 ```
 
-Expected: FAIL because routes/handlers are absent.
+- [ ] **Step 3: Implement public/admin handlers**
 
-- [ ] **Step 3: Implement `worker/kitchenTvApi.js`**
-
-Public pairing must be same-origin and may reuse the existing limiter binding when present:
+Public pairing must call `assertSameOriginMutation`, use a high-entropy token, and return a generic invalid/used-token error. Reuse the existing rate limiter when present:
 
 ```js
-const BUSINESS_ID = 'amor-e-sabor'
 const PAIR_RATE_LIMIT_KEY = 'amor-e-sabor:kitchen-tv-pair'
-
 const assertPairAllowed = async (env) => {
   if (!env.LOGIN_RATE_LIMITER?.limit) return
   const { success } = await env.LOGIN_RATE_LIMITER.limit({ key: PAIR_RATE_LIMIT_KEY })
@@ -729,47 +744,35 @@ const assertPairAllowed = async (env) => {
 }
 ```
 
-For `POST /pair`: call `assertSameOriginMutation`, read `{ token }`, pair through Task 3, return generic `401 KITCHEN_TV_PAIRING_INVALID` for invalid/used secrets, and set `kitchenTvSessionCookie(sessionToken)`.
+`GET /state` authenticates only `getKitchenTvSession`, returns `401 KITCHEN_TV_UNAUTHORIZED` if invalid/revoked, returns `listKitchenTvOrders` when valid, sets `Cache-Control: no-store`, and refreshes the same TV cookie lifetime via `Set-Cookie`.
 
-For `GET /state`: call only `getKitchenTvSession`; on missing/revoked TV session return `401 KITCHEN_TV_UNAUTHORIZED`; otherwise return `listKitchenTvOrders(...)` and refresh the same TV cookie via `Set-Cookie`. Add `Cache-Control: no-store`.
+Admin mutations remain same-origin protected.
 
-Admin `POST access/revoke` must call `assertSameOriginMutation`.
+- [ ] **Step 4: Integrate dispatch in `worker/index.js`**
 
-- [ ] **Step 4: Integrate minimal dispatch in `worker/index.js`**
-
-Import the two handlers. In `authenticatedApi`, after obtaining the normal admin session and creating `url`, dispatch admin TV routes before printing/general routes:
+Inside `authenticatedApi`, immediately after normal admin session/url setup:
 
 ```js
 const kitchenTvAdminResponse = await handleKitchenTvAdminApi(request, env, session, url)
 if (kitchenTvAdminResponse) return kitchenTvAdminResponse
 ```
 
-In `handleRequest`, before the generic `if (url.pathname.startsWith('/api/')) return authenticatedApi(...)`, dispatch the public TV handler:
+Inside `handleRequest`, before the generic `/api/` -> `authenticatedApi` fallback:
 
 ```js
 const kitchenTvPublicResponse = await handleKitchenTvPublicApi(request, env, url)
 if (kitchenTvPublicResponse) return kitchenTvPublicResponse
 ```
 
-Do not special-case TV cookies in `getAuthenticatedSession()`.
+Do not modify `getAuthenticatedSession` to know about TV cookies.
 
-- [ ] **Step 5: Run API + auth GREEN**
-
-```bash
-node --test worker/kitchenTvApi.test.js worker/kitchenTvAuth.test.js worker/auth.test.js
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Run printing route regressions because `worker/index.js` is shared**
+- [ ] **Step 5: Run GREEN + printing HTTP regressions**
 
 ```bash
-node --test worker/orderPrintingHttp.test.js worker/orderPrintingPriorityHttp.test.js worker/orderPrintingReprintHttp.test.js
+node --test worker/kitchenTvApi.test.js worker/kitchenTvAuth.test.js worker/auth.test.js worker/orderPrintingHttp.test.js worker/orderPrintingPriorityHttp.test.js worker/orderPrintingReprintHttp.test.js
 ```
 
-Expected: PASS.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add worker/kitchenTvApi.js worker/kitchenTvApi.test.js worker/index.js
@@ -782,6 +785,9 @@ git commit -m "feat: expose restricted kitchen tv api"
 
 **Files:**
 - Modify: `src/api/client.js`
+- Create: `src/api/kitchenTvSettingsClient.test.js`
+- Create: `src/pages/kitchenTvSettingsModel.js`
+- Create: `src/pages/kitchenTvSettingsModel.test.js`
 - Create: `src/pages/Settings.jsx`
 - Create: `src/pages/Settings.test.js`
 - Create: `src/kitchen-tv-settings.css`
@@ -790,49 +796,63 @@ git commit -m "feat: expose restricted kitchen tv api"
 - Modify: `src/components/MobileNavigation.jsx`
 
 **Interfaces:**
-- Admin client exports:
-  - `getKitchenTvSettings()` -> `GET /api/kitchen-tv/settings`
-  - `generateKitchenTvAccess()` -> `POST /api/kitchen-tv/access`
-  - `revokeKitchenTvAccess()` -> `POST /api/kitchen-tv/revoke`
-- `Settings` owns its own loading/action state; `App.jsx` only renders it for `activeTab === 'settings'`.
-- Pairing URL is built client-side as `${window.location.origin}/cozinha-tv?token=${encodeURIComponent(pairingToken)}`; the server does not need to know the public host.
+- Admin client: `getKitchenTvSettings`, `generateKitchenTvAccess`, `revokeKitchenTvAccess`.
+- Pure model: `buildKitchenTvPairingUrl(origin, pairingToken)` and `formatKitchenTvLastSeen(value, now)`.
+- `Settings` owns its own network/action state; `App.jsx` only renders it.
 
-- [ ] **Step 1: Add failing admin-client and UI tests**
-
-Use the existing `transformWithOxc`/small-hook-scheduler style from `PrintingSettings.test.js`.
-
-Key behavior tests:
+- [ ] **Step 1: Write admin API client RED test**
 
 ```js
-test('not configured state can generate and copy the one-time Kitchen TV link', async () => {
-  // fake GET -> { settings: { status: 'not_configured', pairedAt: null, lastSeenAt: null } }
-  // fake POST /access -> { settings: { status: 'awaiting_pairing', ... }, pairingToken: 'pair-secret' }
-  // mount Settings, click "Gerar acesso da TV"
-  // assert rendered text contains /cozinha-tv?token=pair-secret
-  // invoke "Copiar link" and assert clipboard receives the full same-origin URL
-})
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { getKitchenTvSettings, generateKitchenTvAccess, revokeKitchenTvAccess } from './client.js'
 
-test('active state shows last access and can revoke with confirmation', async () => {
-  // fake GET -> active
-  // open revoke confirmation and confirm
-  // assert POST /api/kitchen-tv/revoke and revoked/not-configured-safe UI state
-})
-
-test('awaiting pairing after a page reload never invents or re-displays the secret', async () => {
-  // GET returns status awaiting_pairing but no token
-  // assert no URL is rendered and "Gerar novo acesso" is available
+test('Kitchen TV admin client uses only the three authenticated settings routes', async () => {
+  const originalFetch = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async (path, options = {}) => {
+    calls.push([path, options.method || 'GET'])
+    return Response.json({ settings: { status: 'not_configured', pairedAt: null, lastSeenAt: null }, pairingToken: 'secret' })
+  }
+  try {
+    await getKitchenTvSettings()
+    await generateKitchenTvAccess()
+    await revokeKitchenTvAccess()
+    assert.deepEqual(calls, [
+      ['/api/kitchen-tv/settings', 'GET'],
+      ['/api/kitchen-tv/access', 'POST'],
+      ['/api/kitchen-tv/revoke', 'POST'],
+    ])
+  } finally { globalThis.fetch = originalFetch }
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [ ] **Step 2: Write pure settings-model RED tests**
+
+```js
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { buildKitchenTvPairingUrl, formatKitchenTvLastSeen } from './kitchenTvSettingsModel.js'
+
+test('pairing URL stays same-origin and URL-encodes the one-time token', () => {
+  assert.equal(buildKitchenTvPairingUrl('https://delivery.example', 'a+b/c'), 'https://delivery.example/cozinha-tv?token=a%2Bb%2Fc')
+})
+
+test('last seen uses compact friendly labels', () => {
+  const now = new Date('2026-09-09T15:00:00.000Z')
+  assert.equal(formatKitchenTvLastSeen(null, now), 'Ainda não conectado')
+  assert.equal(formatKitchenTvLastSeen('2026-09-09T14:59:40.000Z', now), 'Agora')
+  assert.equal(formatKitchenTvLastSeen('2026-09-09T14:55:00.000Z', now), 'Há 5 min')
+})
+```
+
+- [ ] **Step 3: Run RED**
 
 ```bash
-node --test src/pages/Settings.test.js
+node --test src/api/kitchenTvSettingsClient.test.js src/pages/kitchenTvSettingsModel.test.js
 ```
 
-Expected: FAIL because the page/client methods do not exist.
-
-- [ ] **Step 3: Add the three authenticated API client functions**
+- [ ] **Step 4: Add the exact admin client functions and pure model**
 
 Append to `src/api/client.js`:
 
@@ -842,9 +862,47 @@ export const generateKitchenTvAccess = () => apiRequest('/api/kitchen-tv/access'
 export const revokeKitchenTvAccess = () => apiRequest('/api/kitchen-tv/revoke', { method: 'POST' })
 ```
 
-- [ ] **Step 4: Implement `Settings.jsx` as one monodispositivo section**
+Model URL:
 
-Import `PageHeader`, `Button`, `ConfirmationDialog`, `Icon`, and the three API functions. Keep state local:
+```js
+export const buildKitchenTvPairingUrl = (origin, pairingToken) => `${String(origin).replace(/\/$/, '')}/cozinha-tv?token=${encodeURIComponent(pairingToken)}`
+```
+
+Implement `formatKitchenTvLastSeen` with the exact labels asserted above, then `Hoje, HH:mm` for same-day older values and `dd/mm/yyyy HH:mm` otherwise.
+
+- [ ] **Step 5: Write the Settings UI source/structure RED test**
+
+`src/pages/Settings.test.js`:
+
+```js
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { transformWithOxc } from 'vite'
+
+const source = await readFile(new URL('./Settings.jsx', import.meta.url), 'utf8').catch(() => '')
+
+test('Settings keeps Kitchen TV monodispositivo and exposes approved actions/states', async () => {
+  assert.match(source, /TV da Cozinha/)
+  assert.match(source, /Gerar acesso da TV/)
+  assert.match(source, /Copiar link/)
+  assert.match(source, /Gerar novo acesso/)
+  assert.match(source, /Revogar acesso/)
+  assert.match(source, /TV da cozinha ativa/)
+  assert.doesNotMatch(source, /nome do dispositivo|Adicionar TV|lista de TVs/i)
+  await transformWithOxc(source, 'Settings.jsx', { jsx: { runtime: 'automatic' } })
+})
+```
+
+- [ ] **Step 6: Run UI RED**
+
+```bash
+node --test src/pages/Settings.test.js
+```
+
+- [ ] **Step 7: Implement `Settings.jsx` and styles**
+
+Use local state only:
 
 ```js
 const [settings, setSettings] = useState(null)
@@ -855,55 +913,50 @@ const [error, setError] = useState('')
 const [confirmRevoke, setConfirmRevoke] = useState(false)
 ```
 
-Required states:
+Required rendering:
 
-- `not_configured` / `revoked`: explanatory text + `Gerar acesso da TV`.
-- `awaiting_pairing` with `pairingToken` in component memory: show the one-time link + `Copiar link` + warning that it will not be recoverable later.
-- `awaiting_pairing` after reload with no local token: explain that the secret is no longer displayable and offer `Gerar novo acesso`.
-- `active`: `TV da cozinha ativa`, friendly `Último acesso`, `Gerar novo acesso`, `Revogar acesso`.
+- `not_configured` / `revoked`: explanation + `Gerar acesso da TV`.
+- `awaiting_pairing` with local `pairingToken`: render `buildKitchenTvPairingUrl(window.location.origin, pairingToken)`, `Copiar link`, and “exibido somente agora” warning.
+- `awaiting_pairing` without local token after reload: no secret/link; explain that a new access must be generated to obtain another link.
+- `active`: `TV da cozinha ativa`, formatted last access, `Gerar novo acesso`, `Revogar acesso`.
+- revoke opens `ConfirmationDialog`; confirmation calls `revokeKitchenTvAccess` and clears local token.
+- copy uses `navigator.clipboard.writeText(pairingUrl)`.
 
-No device name, list, table, theme, or permission UI.
+No device name/list/theme/permissions.
 
-- [ ] **Step 5: Wire the page into admin navigation only**
+- [ ] **Step 8: Wire only the admin navigation**
 
-In `src/App.jsx`, import `Settings` and add exactly:
+`App.jsx` imports `Settings` and renders:
 
 ```jsx
 {activeTab === 'settings' && <Settings />}
 ```
 
-In `Sidebar.jsx`, append:
+`Sidebar.jsx` navigation gets:
 
 ```js
 { id: 'settings', label: 'Configurações', icon: 'settings' }
 ```
 
-In `MobileNavigation.jsx`:
+`MobileNavigation.jsx` adds `settings` to `moreActive` and one `Configurações` button under `Mais`; do not add it to `directItems`.
 
-- include `activeTab === 'settings'` in `moreActive`;
-- add a `Configurações` button in the `Mais` sheet using existing `settings` icon.
-
-Do not add settings to the direct four mobile tabs.
-
-- [ ] **Step 6: Run UI GREEN + navigation regressions**
+- [ ] **Step 9: Run GREEN + admin regressions**
 
 ```bash
-node --test src/pages/Settings.test.js src/components/PrintingSettings.test.js
+node --test src/api/kitchenTvSettingsClient.test.js src/pages/kitchenTvSettingsModel.test.js src/pages/Settings.test.js src/components/PrintingSettings.test.js
 npm run lint
 ```
 
-Expected: PASS.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add src/api/client.js src/pages/Settings.jsx src/pages/Settings.test.js src/kitchen-tv-settings.css src/App.jsx src/components/Sidebar.jsx src/components/MobileNavigation.jsx
+git add src/api/client.js src/api/kitchenTvSettingsClient.test.js src/pages/kitchenTvSettingsModel.js src/pages/kitchenTvSettingsModel.test.js src/pages/Settings.jsx src/pages/Settings.test.js src/kitchen-tv-settings.css src/App.jsx src/components/Sidebar.jsx src/components/MobileNavigation.jsx
 git commit -m "feat: add kitchen tv settings"
 ```
 
 ---
 
-### Task 7: Split the TV entry from the administrative bundle
+### Task 7: Split `/cozinha-tv` away from the administrative bundle
 
 **Files:**
 - Create: `src/AdminRoot.jsx`
@@ -916,34 +969,39 @@ git commit -m "feat: add kitchen tv settings"
 - Create: `src/tv/kitchen-tv.css`
 
 **Interfaces:**
-- `getAppEntryMode(pathname) -> 'tv' | 'admin'` returns `tv` only for exact `/cozinha-tv`.
-- `main.jsx` statically imports only React/ReactDOM + `appEntryMode`; admin and TV roots are dynamic imports.
-- `AdminRoot.jsx` owns the current admin CSS/theme initialization and wraps `App` with `ThemeProvider`.
-- `KitchenTvRoot.jsx` imports only TV CSS and `KitchenTvApp`.
+- `getAppEntryMode(pathname) -> 'tv' | 'admin'`, TV only for exact `/cozinha-tv`.
+- `main.jsx` statically imports only React/ReactDOM + entry-mode helper; roots are dynamic imports.
+- `AdminRoot.jsx` owns current admin CSS/theme initialization + `ThemeProvider` + `App`.
+- `KitchenTvRoot.jsx` imports only TV CSS + `KitchenTvApp`.
 
-- [ ] **Step 1: Write route + source-architecture RED tests**
-
-`src/appEntryMode.test.js`:
+- [ ] **Step 1: Write RED tests**
 
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { getAppEntryMode } from './appEntryMode.js'
 
-test('only the dedicated pathname selects the TV entry', () => {
+test('only /cozinha-tv selects TV mode', () => {
   assert.equal(getAppEntryMode('/cozinha-tv'), 'tv')
   assert.equal(getAppEntryMode('/'), 'admin')
-  assert.equal(getAppEntryMode('/pedidos'), 'admin')
+  assert.equal(getAppEntryMode('/orders'), 'admin')
 })
 ```
 
-`src/mainKitchenTvEntry.test.js` reads `main.jsx` as text and asserts:
+`src/mainKitchenTvEntry.test.js`:
 
 ```js
-assert.doesNotMatch(mainSource, /import App from/)
-assert.doesNotMatch(mainSource, /ThemeProvider/)
-assert.match(mainSource, /import\('\.\/AdminRoot\.jsx'\)/)
-assert.match(mainSource, /import\('\.\/tv\/KitchenTvRoot\.jsx'\)/)
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+
+const main = await readFile(new URL('./main.jsx', import.meta.url), 'utf8')
+test('main dynamically selects admin or TV without static admin imports', () => {
+  assert.doesNotMatch(main, /import App from/)
+  assert.doesNotMatch(main, /ThemeProvider/)
+  assert.match(main, /import\('\.\/AdminRoot\.jsx'\)/)
+  assert.match(main, /import\('\.\/tv\/KitchenTvRoot\.jsx'\)/)
+})
 ```
 
 - [ ] **Step 2: Run RED**
@@ -952,11 +1010,7 @@ assert.match(mainSource, /import\('\.\/tv\/KitchenTvRoot\.jsx'\)/)
 node --test src/appEntryMode.test.js src/mainKitchenTvEntry.test.js
 ```
 
-Expected: FAIL because `appEntryMode.js`/dynamic entry do not exist.
-
-- [ ] **Step 3: Move all current admin-root concerns into `AdminRoot.jsx`**
-
-`AdminRoot.jsx` must contain the imports currently in `main.jsx` that the TV must not load:
+- [ ] **Step 3: Move current admin root concerns into `AdminRoot.jsx`**
 
 ```jsx
 import './index.css'
@@ -969,21 +1023,16 @@ import { ThemeProvider } from './components/ThemeProvider.jsx'
 import { initializeTheme } from './utils/theme.js'
 
 initializeTheme()
-
 export default function AdminRoot() {
   return <ThemeProvider><App /></ThemeProvider>
 }
 ```
 
-- [ ] **Step 4: Implement the minimal entry decision and dynamic loader**
-
-`appEntryMode.js`:
+- [ ] **Step 4: Implement pure entry mode and dynamic `main.jsx`**
 
 ```js
 export const getAppEntryMode = (pathname) => pathname === '/cozinha-tv' ? 'tv' : 'admin'
 ```
-
-`main.jsx` becomes conceptually:
 
 ```jsx
 import { StrictMode } from 'react'
@@ -999,20 +1048,16 @@ void loadRoot().then(({ default: Root }) => {
 })
 ```
 
-- [ ] **Step 5: Add a working TV shell, not admin imports**
+- [ ] **Step 5: Add the independent TV root/shell**
 
-`KitchenTvRoot.jsx` imports only `./kitchen-tv.css` and `KitchenTvApp`. For this task, `KitchenTvApp` renders a real loading/start surface that later tasks enrich, e.g. `Carregando painel da cozinha…`; it must not import `App`, `ThemeProvider`, `src/api/client.js`, or any printing module.
+`KitchenTvRoot.jsx` imports only `./kitchen-tv.css` and `KitchenTvApp`. At this task boundary `KitchenTvApp` renders a real dark loading surface `Carregando painel da cozinha…`; later tasks replace its internals with live behavior. It must not import admin App/theme/printing modules.
 
-TV CSS must at minimum define the full-screen dark root (`html`, `body`, `#root`, `.kitchen-tv-app`) without importing admin theme styles.
-
-- [ ] **Step 6: Run tests and build GREEN**
+- [ ] **Step 6: Run GREEN + build**
 
 ```bash
 node --test src/appEntryMode.test.js src/mainKitchenTvEntry.test.js
 npm run build
 ```
-
-Expected: PASS and Vite produces separate dynamic chunks for the admin root and TV root.
 
 - [ ] **Step 7: Commit**
 
@@ -1023,71 +1068,94 @@ git commit -m "perf: split kitchen tv entry bundle"
 
 ---
 
-### Task 8: Implement pairing, start, polling, offline, revoke, sound, and fullscreen lifecycle
+### Task 8: Implement TV pairing/start/live-session lifecycle and sound/fullscreen
 
 **Files:**
 - Create: `src/tv/kitchenTvApi.js`
+- Create: `src/tv/kitchenTvSession.js`
+- Create: `src/tv/kitchenTvSession.test.js`
 - Create: `src/tv/kitchenTvAudio.js`
+- Create: `src/tv/kitchenTvAudio.test.js`
 - Modify: `src/tv/KitchenTvApp.jsx`
 - Create: `src/tv/KitchenTvApp.test.js`
-- Test: `src/utils/orderRealtime.test.js`
 
 **Interfaces:**
-- TV-only API exports:
-  - `pairKitchenTv(token)` -> POST `/api/kitchen-tv/pair`
-  - `getKitchenTvState()` -> GET `/api/kitchen-tv/state`
-- `kitchenTvApi.js` must not import `src/api/client.js`.
-- `ensureKitchenTvAudio(audioContextRef) -> Promise<boolean>` unlocks/creates audio context.
-- `playKitchenTvAlert(audioContextRef) -> Promise<boolean>` plays the existing-style two-tone alert and returns false if audio remains unavailable.
-- `KitchenTvApp` phases: `loading`, `ready`, `live`, `unauthorized`, `error`.
-- Polling interval: `2_000` ms; clock tick for timing/arrival detection: `1_000` ms.
-- Highlight duration: use a single constant `KITCHEN_TV_NEW_ORDER_HIGHLIGHT_MS = 6_000`.
+- TV network: `pairKitchenTv(token)`, `getKitchenTvState()`; no import from `src/api/client.js`.
+- Pure session helpers:
+  - `extractKitchenTvPairingToken(search)`
+  - `bootstrapKitchenTvSession({ search, pair, getState, replaceUrl }) -> Promise<{ orders }>`
+  - `refreshKitchenTvSession({ currentOrders, getState }) -> Promise<{ kind, orders, error? }>` where kind is `ok | stale | unauthorized`.
+- Audio: `ensureKitchenTvAudio(ref) -> Promise<boolean>`, `playKitchenTvAlert(ref) -> Promise<boolean>`.
+- App phases: `loading | ready | live | unauthorized | error`.
+- Poll interval `2_000`; clock interval `1_000`; highlight `6_000` ms.
 
-- [ ] **Step 1: Write TV API/lifecycle RED tests**
-
-Use `transformWithOxc` and a hook scheduler like existing component tests. Cover these exact behaviors:
+- [ ] **Step 1: Write concrete session-helper RED tests**
 
 ```js
-test('pairing token is consumed through the TV API and removed from the visible URL', async () => {
-  // window.location.search = '?token=secret'
-  // fake pair -> 200, fake state -> { orders: [] }
-  // settle component
-  // assert POST /api/kitchen-tv/pair body { token: 'secret' }
-  // assert history.replaceState ended at '/cozinha-tv'
-  // assert ready/start UI
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { bootstrapKitchenTvSession, extractKitchenTvPairingToken, refreshKitchenTvSession } from './kitchenTvSession.js'
+
+test('bootstrap pairs token, cleans URL and loads initial state', async () => {
+  const calls = []
+  const result = await bootstrapKitchenTvSession({
+    search: '?token=pair%2Bsecret',
+    pair: async (token) => { calls.push(['pair', token]) },
+    getState: async () => { calls.push(['state']); return { orders: [{ id: 'o1' }] } },
+    replaceUrl: (url) => { calls.push(['replace', url]) },
+  })
+  assert.equal(extractKitchenTvPairingToken('?token=pair%2Bsecret'), 'pair+secret')
+  assert.deepEqual(result.orders, [{ id: 'o1' }])
+  assert.deepEqual(calls, [['pair', 'pair+secret'], ['replace', '/cozinha-tv'], ['state']])
 })
 
-test('TV client never requests administrative bootstrap', async () => {
-  // run boot/start/poll with fake fetch
-  // assert every requested path is /api/kitchen-tv/pair or /api/kitchen-tv/state
-  // assert none equals /api/bootstrap
-})
-
-test('transient state failure preserves last orders but unauthorized clears them', async () => {
-  // first state success with order
-  // next state 500 -> stale warning + order still present
-  // next state 401 -> unauthorized phase and order removed
+test('refresh preserves stale data on 500 and clears it on 401', async () => {
+  const currentOrders = [{ id: 'o1' }]
+  const serverError = Object.assign(new Error('server'), { status: 500 })
+  const unauthorized = Object.assign(new Error('unauthorized'), { status: 401 })
+  assert.deepEqual(await refreshKitchenTvSession({ currentOrders, getState: async () => { throw serverError } }), { kind: 'stale', orders: currentOrders, error: serverError })
+  assert.deepEqual(await refreshKitchenTvSession({ currentOrders, getState: async () => { throw unauthorized } }), { kind: 'unauthorized', orders: [], error: unauthorized })
 })
 ```
 
-Also add a source guard:
+- [ ] **Step 2: Write TV audio RED test with a complete fake AudioContext**
 
 ```js
-assert.doesNotMatch(tvApiSource, /\.\.\/api\/client/)
-assert.doesNotMatch(tvApiSource, /\/api\/bootstrap/)
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { ensureKitchenTvAudio, playKitchenTvAlert } from './kitchenTvAudio.js'
+
+class FakeAudioContext {
+  constructor() { this.state = 'suspended'; this.currentTime = 1; this.started = 0 }
+  async resume() { this.state = 'running' }
+  createOscillator() {
+    return { type: '', frequency: { setValueAtTime() {} }, connect() {}, start: () => { this.started += 1 }, stop() {} }
+  }
+  createGain() {
+    return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }
+  }
+  get destination() { return {} }
+}
+
+test('audio helper unlocks and plays two tones without throwing', async () => {
+  const previousWindow = globalThis.window
+  globalThis.window = { AudioContext: FakeAudioContext }
+  const ref = { current: null }
+  try {
+    assert.equal(await ensureKitchenTvAudio(ref), true)
+    assert.equal(await playKitchenTvAlert(ref), true)
+    assert.equal(ref.current.started, 2)
+  } finally { globalThis.window = previousWindow }
+})
 ```
 
-- [ ] **Step 2: Run RED**
+- [ ] **Step 3: Run RED**
 
 ```bash
-node --test src/tv/KitchenTvApp.test.js
+node --test src/tv/kitchenTvSession.test.js src/tv/kitchenTvAudio.test.js
 ```
 
-Expected: FAIL because the TV API/audio/live lifecycle is not implemented.
-
-- [ ] **Step 3: Implement the tiny TV-only API client**
-
-Use same-origin credentials and the same error shape as admin client, but only two functions:
+- [ ] **Step 4: Implement the tiny TV-only API**
 
 ```js
 const request = async (path, options = {}) => {
@@ -1105,85 +1173,87 @@ const request = async (path, options = {}) => {
   }
   return payload
 }
-
-export const pairKitchenTv = (token) => request('/api/kitchen-tv/pair', {
-  method: 'POST', body: JSON.stringify({ token }),
-})
+export const pairKitchenTv = (token) => request('/api/kitchen-tv/pair', { method: 'POST', body: JSON.stringify({ token }) })
 export const getKitchenTvState = () => request('/api/kitchen-tv/state')
 ```
 
-- [ ] **Step 4: Implement `kitchenTvAudio.js`**
+- [ ] **Step 5: Implement pure session helpers to satisfy Step 1 exactly**
 
-Follow the current Cozinha two-tone shape (784 Hz then 988 Hz) using only Web Audio. `ensureKitchenTvAudio` must catch browser policy failures and return false rather than crashing the panel.
+`bootstrapKitchenTvSession` pairs only when token exists, calls `replaceUrl('/cozinha-tv')` immediately after successful pairing, then fetches state. `refreshKitchenTvSession` returns `{ kind:'ok', orders:payload.orders }` on success, stale current orders for non-401 errors, and empty orders for 401.
 
-- [ ] **Step 5: Implement boot and first-run interaction in `KitchenTvApp`**
+- [ ] **Step 6: Implement `kitchenTvAudio.js` to satisfy Step 2**
 
-Boot effect:
+Use `window.AudioContext || window.webkitAudioContext`, resume when suspended, and play 784 Hz then 988 Hz sine tones with the same short envelope as current Cozinha. Catch policy/unsupported errors and return `false`.
 
-1. Read `token` from `window.location.search`.
-2. If present, call `pairKitchenTv(token)`, then `history.replaceState(null, '', '/cozinha-tv')`.
-3. Call `getKitchenTvState()` to validate session and seed `orders`.
-4. Set `phase = 'ready'`.
-5. `401` becomes `unauthorized`; other boot failure becomes retryable `error`.
-
-`Iniciar painel da cozinha` action:
+- [ ] **Step 7: Write `KitchenTvApp` source-wiring RED test**
 
 ```js
-const startPanel = async () => {
-  const audioReady = await ensureKitchenTvAudio(audioContextRef)
-  setAudioNeedsInteraction(!audioReady)
-  try { await document.documentElement.requestFullscreen?.() } catch { /* fullscreen is optional */ }
-  setPhase('live')
-}
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { transformWithOxc } from 'vite'
+
+const source = await readFile(new URL('./KitchenTvApp.jsx', import.meta.url), 'utf8'
+test('TV app wires approved polling, arrival, fullscreen and audio behavior', async () => {
+  assert.match(source, /bootstrapKitchenTvSession/)
+  assert.match(source, /refreshKitchenTvSession/)
+  assert.match(source, /detectOperationalArrivals/)
+  assert.match(source, /2_000|2000/)
+  assert.match(source, /1_000|1000/)
+  assert.match(source, /6_000|6000/)
+  assert.match(source, /requestFullscreen/)
+  assert.match(source, /ensureKitchenTvAudio/)
+  assert.match(source, /playKitchenTvAlert/)
+  assert.match(source, /Iniciar painel da cozinha/)
+  await transformWithOxc(source, 'KitchenTvApp.jsx', { jsx: { runtime: 'automatic' } })
+})
 ```
 
-- [ ] **Step 6: Implement live polling and stale/unauthorized rules**
+Correct the missing closing parenthesis in the first `readFile(...)` line while creating the actual test file:
 
-When `phase === 'live'`:
-
-- fetch immediately;
-- poll every 2 seconds while document is visible;
-- refresh immediately on `online`, focus, or visibility becoming visible;
-- successful state sets `orders`, `lastUpdatedAt`, `stale=false`;
-- network/5xx sets `stale=true` and keeps previous orders;
-- 401 clears orders and sets `phase='unauthorized'`.
-
-Do not persist queue data to LocalStorage/IndexedDB.
-
-- [ ] **Step 7: Reuse existing operational-arrival detection with a clock tick**
-
-Maintain `now` every second while live and use the existing `detectOperationalArrivals(knownOperationalIdsRef.current, orders, now, alertedOrderIdsRef.current)`.
-
-On initial live evaluation, `knownOperationalIdsRef.current` is `undefined`, so existing logic seeds without false alerts.
-
-When `newIds.length > 0`:
-
-- add them to `alertedOrderIdsRef`;
-- set `highlightedOrderIds` to the new ids;
-- call `playKitchenTvAlert(audioContextRef)`;
-- if it returns false, set `audioNeedsInteraction=true`;
-- clear the highlight after 6 seconds.
-
-This same effect handles both immediate arrivals and scheduled orders crossing the 50-minute operational boundary.
-
-- [ ] **Step 8: Run lifecycle + realtime GREEN**
-
-```bash
-node --test src/tv/KitchenTvApp.test.js src/utils/orderRealtime.test.js src/utils/kitchenOperationalQueue.test.js
+```js
+const source = await readFile(new URL('./KitchenTvApp.jsx', import.meta.url), 'utf8')
 ```
 
-Expected: PASS.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Run app-wiring RED**
 
 ```bash
-git add src/tv/kitchenTvApi.js src/tv/kitchenTvAudio.js src/tv/KitchenTvApp.jsx src/tv/KitchenTvApp.test.js
+node --test src/tv/KitchenTvApp.test.js
+```
+
+- [ ] **Step 9: Implement `KitchenTvApp` lifecycle**
+
+Required behavior:
+
+1. Boot with `bootstrapKitchenTvSession({ search: window.location.search, pair: pairKitchenTv, getState: getKitchenTvState, replaceUrl: (url) => history.replaceState(null, '', url) })`.
+2. On boot success, seed orders and show phase `ready` with one `Iniciar painel da cozinha` button.
+3. Start button calls `ensureKitchenTvAudio(audioContextRef)`, attempts `document.documentElement.requestFullscreen?.()`, then enters `live` even if fullscreen fails.
+4. While live, update `now` every 1 second.
+5. While live and visible, refresh immediately and every 2 seconds; also refresh on browser `online`, focus, and visibility becoming visible.
+6. `ok` refresh updates orders/lastUpdated and clears stale state.
+7. `stale` preserves current orders and shows stale state.
+8. `unauthorized` clears orders and switches to unauthorized screen.
+9. Use `detectOperationalArrivals` with `knownOperationalIdsRef` initially `undefined`; first evaluation seeds without alert.
+10. New operational ids trigger `playKitchenTvAlert`, a 6-second highlight set, and `audioNeedsInteraction` if audio returns false.
+11. If audio needs interaction, expose a small action that calls `ensureKitchenTvAudio` again.
+12. Never persist queue data to LocalStorage/IndexedDB.
+
+- [ ] **Step 10: Run GREEN + realtime regressions**
+
+```bash
+node --test src/tv/kitchenTvSession.test.js src/tv/kitchenTvAudio.test.js src/tv/KitchenTvApp.test.js src/utils/orderRealtime.test.js src/utils/kitchenOperationalQueue.test.js
+```
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add src/tv/kitchenTvApi.js src/tv/kitchenTvSession.js src/tv/kitchenTvSession.test.js src/tv/kitchenTvAudio.js src/tv/kitchenTvAudio.test.js src/tv/KitchenTvApp.jsx src/tv/KitchenTvApp.test.js
 git commit -m "feat: run live kitchen tv session"
 ```
 
 ---
 
-### Task 9: Build the approved customer-first TV board with fixed capacity and no pagination
+### Task 9: Build the approved customer-first board with 4+3 capacity and no pagination
 
 **Files:**
 - Create: `src/tv/kitchenTvPresentation.js`
@@ -1195,35 +1265,46 @@ git commit -m "feat: run live kitchen tv session"
 - Modify: `src/tv/kitchen-tv.css`
 
 **Interfaces:**
-- Constants: `PREPARING_VISIBLE_LIMIT = 4`, `SCHEDULED_VISIBLE_LIMIT = 3`.
-- `buildKitchenTvPresentation(orders, now)` returns:
+- `PREPARING_VISIBLE_LIMIT = 4`, `SCHEDULED_VISIBLE_LIMIT = 3`.
+- `buildKitchenTvPresentation(orders, now) -> { preparing, scheduled, preparingOverflow, scheduledOverflow, counts }`.
+- `KitchenTvBoard({ orders, now, highlightedOrderIds, stale, lastUpdatedAt, audioNeedsInteraction, onEnableAudio })`.
+- `KitchenTvOrderCard({ entry, now, variant, highlighted })`.
+
+- [ ] **Step 1: Write complete presentation RED tests**
 
 ```js
-{
-  preparing: Entry[0..4],
-  scheduled: Entry[0..3],
-  preparingOverflow: number,
-  scheduledOverflow: number,
-  counts: { preparing, scheduled, late },
-}
-```
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { buildKitchenTvPresentation } from './kitchenTvPresentation.js'
 
-- `KitchenTvBoard` props: `{ orders, now, highlightedOrderIds, stale, lastUpdatedAt, audioNeedsInteraction, onEnableAudio }`.
-- `KitchenTvOrderCard` receives `{ entry, now, variant, highlighted }`, where variant is `preparing | scheduled`.
+const immediate = (id, minute) => ({
+  id, orderNumber: Number(id.slice(1)), client: `Cliente ${id}`, type: 'Local', status: 'Em preparo',
+  createdAt: `2026-09-09T10:${String(minute).padStart(2, '0')}:00.000Z`, scheduledFor: null, items: [],
+})
+const scheduled = (id, hour, minute) => ({
+  id, orderNumber: Number(id.slice(1)), client: `Cliente ${id}`, type: 'Entrega', status: 'Em preparo',
+  createdAt: '2026-09-09T10:00:00.000Z',
+  scheduledFor: `2026-09-09T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000Z`, items: [],
+})
+const now = new Date('2026-09-09T12:00:00.000Z')
+const orders = [
+  immediate('p1', 0), immediate('p2', 1), immediate('p3', 2), immediate('p4', 3), immediate('p5', 4), immediate('p6', 5),
+  scheduled('s1', 14, 0), scheduled('s2', 14, 15), scheduled('s3', 14, 30), scheduled('s4', 14, 45), scheduled('s5', 15, 0),
+]
 
-- [ ] **Step 1: Write presentation RED tests**
-
-```js
-test('TV presentation shows four preparing, three scheduled, and exact overflow without reordering', () => {
-  const model = buildKitchenTvPresentation(fixturesWithSixPreparingAndFiveScheduled, now)
-  assert.deepEqual(model.preparing.map(({ order }) => order.id), expectedFirstFourPreparingIds)
-  assert.deepEqual(model.scheduled.map(({ order }) => order.id), expectedFirstThreeScheduledIds)
+test('presentation caps at four preparing and three scheduled and reports overflow', () => {
+  const model = buildKitchenTvPresentation(orders, now)
+  assert.deepEqual(model.preparing.map(({ order }) => order.id), ['p1', 'p2', 'p3', 'p4'])
+  assert.deepEqual(model.scheduled.map(({ order }) => order.id), ['s1', 's2', 's3'])
   assert.equal(model.preparingOverflow, 2)
   assert.equal(model.scheduledOverflow, 2)
 })
-```
 
-Also assert removing the first visible preparing order makes the previous fifth entry become visible, proving natural slot refill without pagination state.
+test('removing a visible order naturally pulls the next priority into its slot', () => {
+  const model = buildKitchenTvPresentation(orders.filter(({ id }) => id !== 'p1'), now)
+  assert.deepEqual(model.preparing.map(({ order }) => order.id), ['p2', 'p3', 'p4', 'p5'])
+})
+```
 
 - [ ] **Step 2: Run RED**
 
@@ -1231,16 +1312,12 @@ Also assert removing the first visible preparing order makes the previous fifth 
 node --test src/tv/kitchenTvPresentation.test.js
 ```
 
-Expected: FAIL because selector does not exist.
-
-- [ ] **Step 3: Implement `kitchenTvPresentation.js` using Task 1 only**
+- [ ] **Step 3: Implement the pure presentation selector**
 
 ```js
 import { buildKitchenOperationalQueue } from '../utils/kitchenOperationalQueue.js'
-
 export const PREPARING_VISIBLE_LIMIT = 4
 export const SCHEDULED_VISIBLE_LIMIT = 3
-
 export const buildKitchenTvPresentation = (orders = [], now = new Date()) => {
   const model = buildKitchenOperationalQueue(orders, now)
   return {
@@ -1253,28 +1330,42 @@ export const buildKitchenTvPresentation = (orders = [], now = new Date()) => {
 }
 ```
 
-- [ ] **Step 4: Write board/card RED contract tests**
+- [ ] **Step 4: Write board/card source RED tests**
 
-`KitchenTvBoard.test.js` should use JSX transform/source assertions and prove visible semantics:
+```js
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { transformWithOxc } from 'vite'
 
-- customer name rendered in the card heading/primary class;
-- order reference is a secondary small element;
-- no action buttons for finalize/cancel/print/create;
-- header contains `Cozinha TV`, centered clock/date, `Modo acompanhamento`, `Apenas visualização`;
-- sections are only `Em preparo` and `Agendados`;
-- no `Novos`, carousel, page index, next-page timer, or pagination controls;
-- overflow messages appear when selector reports overflow;
-- stale banner text is explicit.
+const board = await readFile(new URL('./KitchenTvBoard.jsx', import.meta.url), 'utf8').catch(() => '')
+const card = await readFile(new URL('./KitchenTvOrderCard.jsx', import.meta.url), 'utf8').catch(() => '')
 
-- [ ] **Step 5: Implement `KitchenTvOrderCard.jsx` customer-first hierarchy**
+test('board uses approved two-section read-only customer-first hierarchy', async () => {
+  assert.match(board, /Cozinha TV/)
+  assert.match(board, /Modo acompanhamento/)
+  assert.match(board, /Apenas visualização/)
+  assert.match(board, /Em preparo/)
+  assert.match(board, /Agendados/)
+  assert.doesNotMatch(board, /Novos/)
+  assert.doesNotMatch(board + card, /Finalizar|Cancelar pedido|Imprimir|Novo pedido/)
+  assert.match(card, /<h3>\{entry\.order\.client/)
+  assert.match(card, /Acabou de entrar/)
+  assert.match(card, /<small>/)
+  await transformWithOxc(board, 'KitchenTvBoard.jsx', { jsx: { runtime: 'automatic' } })
+  await transformWithOxc(card, 'KitchenTvOrderCard.jsx', { jsx: { runtime: 'automatic' } })
+})
+```
 
-Use existing pure formatters where lightweight:
+- [ ] **Step 5: Run board RED**
 
-- `formatOrderDisplayNumber(order)` for the small reference;
-- `getOperationalElapsedMinutes(order, now)` + `formatElapsedDuration(...)` for preparing;
-- `formatOrderTime(order.scheduledFor)` for scheduled.
+```bash
+node --test src/tv/KitchenTvBoard.test.js
+```
 
-Structure must keep the customer name as the strongest element:
+- [ ] **Step 6: Implement `KitchenTvOrderCard.jsx` with name first**
+
+Use `formatOrderDisplayNumber`, `getOperationalElapsedMinutes`, `formatElapsedDuration`, and `formatOrderTime`. Required structure:
 
 ```jsx
 <article className={`kitchen-tv-card ${variant}${highlighted ? ' recent' : ''}`}>
@@ -1284,33 +1375,36 @@ Structure must keep the customer name as the strongest element:
   </div>
   <div className="kitchen-tv-card-meta">
     <strong>{variant === 'scheduled' ? formatOrderTime(entry.order.scheduledFor) : formatElapsedDuration(getOperationalElapsedMinutes(entry.order, now))}</strong>
-    <span className={`kitchen-tv-type ${String(entry.order.type).toLowerCase()}`}>{entry.order.type}</span>
+    <span className="kitchen-tv-type">{entry.order.type}</span>
     <small>{formatOrderDisplayNumber(entry.order)}</small>
   </div>
-  <ul>{entry.order.items.map((item) => <li key={`${entry.order.id}:${item.name}:${item.note}`}><b>{item.quantity}×</b> {item.name}{item.note && <em>{item.note}</em>}</li>)}</ul>
+  <ul>
+    {entry.order.items.map((item, index) => (
+      <li key={`${entry.order.id}:${index}`}><b>{item.quantity}×</b> {item.name}{item.note && <em>{item.note}</em>}</li>
+    ))}
+  </ul>
 </article>
 ```
 
-Do not put order number before the name.
+- [ ] **Step 7: Implement `KitchenTvBoard.jsx` + fixed dark CSS**
 
-- [ ] **Step 6: Implement `KitchenTvBoard.jsx` and fixed 16:9 dark CSS**
+Required layout:
 
-Board layout:
+- header: left `Cozinha TV`/Gestão Delivery identity; large current time centered with date below; right `Modo acompanhamento` + `Apenas visualização`;
+- body: CSS grid `minmax(0, 3fr) minmax(18rem, 1fr)` for the approved ~75/25 split;
+- preparing: stable 2×2 grid;
+- scheduled: three stacked compact cards;
+- preparing overflow text `+ N pedidos aguardando espaço`;
+- scheduled overflow text `+ N agendados aguardando espaço`;
+- stale banner exactly `Sem conexão — aguardando reconexão` for browser-offline state; for server transient failure use `Atualização interrompida — tentando reconectar`;
+- CSS-only border/glow for `.recent`; no animation library/canvas/video/images;
+- audio-reenable action only when `audioNeedsInteraction` is true.
 
-- top header with identity left, current time/date centered, read-only status right;
-- main grid `minmax(0, 3fr) minmax(18rem, 1fr)` or equivalent ~75/25 split;
-- preparing cards in a stable 2×2 grid;
-- scheduled cards stacked 3 high;
-- simple CSS glow/border for `.recent` only; no animation library;
-- overflow footer text under each queue when nonzero;
-- stale banner: `Sem conexão — aguardando reconexão` (or server-update equivalent for transient failures);
-- audio fallback control only when `audioNeedsInteraction` is true.
+- [ ] **Step 8: Wire live `KitchenTvApp` to the board**
 
-- [ ] **Step 7: Wire live app to the board**
+For `phase === 'live'`, render `KitchenTvBoard` with current state. `ready`, `unauthorized`, `loading`, `error` remain dedicated simple screens outside the board.
 
-When `phase === 'live'`, `KitchenTvApp` renders `KitchenTvBoard` with current orders/clock/highlights/stale state. `ready`, `unauthorized`, and boot/error states remain outside the board.
-
-- [ ] **Step 8: Run board + lifecycle GREEN**
+- [ ] **Step 9: Run GREEN + lint/build**
 
 ```bash
 node --test src/tv/kitchenTvPresentation.test.js src/tv/KitchenTvBoard.test.js src/tv/KitchenTvApp.test.js
@@ -1318,9 +1412,7 @@ npm run lint
 npm run build
 ```
 
-Expected: PASS.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add src/tv/kitchenTvPresentation.js src/tv/kitchenTvPresentation.test.js src/tv/KitchenTvBoard.jsx src/tv/KitchenTvOrderCard.jsx src/tv/KitchenTvBoard.test.js src/tv/KitchenTvApp.jsx src/tv/kitchen-tv.css
@@ -1334,41 +1426,53 @@ git commit -m "feat: render kitchen tv board"
 **Files:**
 - Create: `src/tv/kitchenTvBoundary.test.js`
 - Create: `worker/kitchenTvSecurityRegression.test.js`
-- Modify only if a failing acceptance test exposes a real defect in the implementation; do not add scope.
+- Modify only a responsible implementation file if a new acceptance test exposes a real defect; do not add product scope.
 
-**Interfaces:**
-- This task adds acceptance-level regression tests; it must not add new product behavior.
-
-- [ ] **Step 1: Write final boundary tests before declaring completion**
-
-`src/tv/kitchenTvBoundary.test.js` reads the TV/frontend entry sources and asserts:
+- [ ] **Step 1: Write frontend bundle-boundary test with all variables defined**
 
 ```js
-assert.doesNotMatch(tvRootAndApiSources, /\/api\/bootstrap/)
-assert.doesNotMatch(tvRootAndApiSources, /qz-tray|jspdf|usePrintingManager|PrintingSettings/)
-assert.doesNotMatch(mainSource, /import App from/)
-assert.match(mainSource, /import\('\.\/tv\/KitchenTvRoot\.jsx'\)/)
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+
+const read = (relative) => readFile(new URL(relative, import.meta.url), 'utf8')
+const [main, root, app, api] = await Promise.all([
+  read('../main.jsx'), read('./KitchenTvRoot.jsx'), read('./KitchenTvApp.jsx'), read('./kitchenTvApi.js'),
+])
+const tvSources = [root, app, api].join('\n')
+
+test('TV entry does not import admin bootstrap or printing stack', () => {
+  assert.doesNotMatch(tvSources, /\/api\/bootstrap/)
+  assert.doesNotMatch(tvSources, /qz-tray|jspdf|usePrintingManager|PrintingSettings|AdminRoot/)
+  assert.doesNotMatch(main, /import App from/)
+  assert.match(main, /import\('\.\/tv\/KitchenTvRoot\.jsx'\)/)
+})
 ```
 
-`worker/kitchenTvSecurityRegression.test.js` exercises `handleRequest` and proves:
+- [ ] **Step 2: Write Worker security regression test with real pairing flow**
 
-1. TV cookie can read only `/api/kitchen-tv/state`.
-2. TV cookie alone receives 401 from `/api/orders`, `/api/bootstrap`, `/api/printing/settings`, `/api/kitchen-tv/settings`.
-3. Admin cookie alone cannot read `/api/kitchen-tv/state`.
-4. State payload has no forbidden keys recursively (`phone`, `address`, `total`, `price`, `payment`, `refund`, `print`, `qz`).
-5. Revoke makes the next state request 401.
+Use `createMigratedD1`, `createSession`, and `handleRequest` exactly as in Task 5. After obtaining a valid `tvCookie`, assert:
 
-- [ ] **Step 2: Run final focused RED/GREEN cycle**
+```js
+for (const path of ['/api/orders', '/api/bootstrap', '/api/printing/settings', '/api/kitchen-tv/settings']) {
+  const response = await handleRequest(new Request(`${origin}${path}`, { headers: { cookie: tvCookie } }), env)
+  assert.equal(response.status, 401, path)
+}
+const state = await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: tvCookie } }), env)
+assert.equal(state.status, 200)
+```
 
-Run the new acceptance tests. If they expose a real defect, change only the responsible module and rerun until GREEN:
+Then revoke with the admin cookie and assert the next state call is 401. Do not duplicate sensitive-field mapping assertions here; Task 4 is the nonempty payload contract test.
+
+- [ ] **Step 3: Run acceptance tests RED/GREEN**
 
 ```bash
 node --test src/tv/kitchenTvBoundary.test.js worker/kitchenTvSecurityRegression.test.js
 ```
 
-Expected final state: PASS.
+If RED exposes a defect, edit only the responsible implementation file and rerun until PASS.
 
-- [ ] **Step 3: Run all Kitchen TV + Cozinha + printing regressions**
+- [ ] **Step 4: Run focused Kitchen TV + Cozinha + printing regressions**
 
 ```bash
 node --test \
@@ -1376,7 +1480,9 @@ node --test \
   src/utils/kitchenQueue.test.js \
   src/utils/orderRealtime.test.js \
   src/tv/*.test.js \
+  src/pages/kitchenTvSettingsModel.test.js \
   src/pages/Settings.test.js \
+  src/api/kitchenTvSettingsClient.test.js \
   worker/kitchenTv*.test.js \
   worker/auth.test.js \
   worker/orderPrintingHttp.test.js \
@@ -1384,9 +1490,7 @@ node --test \
   worker/orderPrintingReprintHttp.test.js
 ```
 
-Expected: PASS.
-
-- [ ] **Step 4: Run full repository verification**
+- [ ] **Step 5: Run full repository verification**
 
 ```bash
 npm test
@@ -1394,41 +1498,38 @@ npm run lint
 npm run build
 ```
 
-Expected: all PASS; build must still produce lazy admin/TV roots.
+Expected: all PASS; Vite still uses lazy AdminRoot/KitchenTvRoot chunks.
 
-- [ ] **Step 5: Apply all migrations locally and smoke the Worker locally**
+- [ ] **Step 6: Apply migrations locally and smoke locally**
 
 ```bash
 npm run d1:migrate:local
 npm run dev:worker
 ```
 
-Manual local smoke in a browser:
+Manual local checklist:
 
 1. Admin login still works.
-2. `Configurações > TV da Cozinha` loads without affecting printing settings.
+2. `Configurações > TV da Cozinha` opens; centralized printing settings/fila still work.
 3. Generate one access link.
-4. Open the link in a separate/incognito browser.
-5. Pair succeeds once and the URL becomes `/cozinha-tv` with no token.
-6. Reopening the consumed pairing link in another incognito context fails generically.
-7. Click `Iniciar painel da cozinha`; fullscreen is attempted and panel still works if denied.
-8. Create an immediate order in admin: it appears on TV within polling cadence, highlights and attempts sound.
-9. Finalize it in normal Cozinha: it disappears and the next queued order fills the slot.
-10. Temporarily take TV browser offline: last queue remains with stale warning; reconnect refreshes automatically.
-11. Revoke access in Configurações: TV clears order content on its next refresh and shows unauthorized state.
+4. Open it in a separate/incognito browser; pairing succeeds and URL becomes `/cozinha-tv` without token.
+5. Open the consumed link in another incognito context; pairing fails generically.
+6. Click `Iniciar painel da cozinha`; fullscreen is attempted; panel still works if denied.
+7. Create immediate order in normal app; TV displays it within polling cadence, highlights, and attempts sound.
+8. Finalize it in normal Cozinha; TV removes it and next queued card fills the space.
+9. Toggle browser offline; last queue remains visible with stale warning; reconnect refreshes.
+10. Revoke from Configurações; TV clears orders on next refresh and shows unauthorized state.
 
-Stop the local worker after the smoke test.
+Stop the local worker after smoke.
 
-- [ ] **Step 6: Commit final test hardening**
+- [ ] **Step 7: Commit final boundary tests**
 
 ```bash
 git add src/tv/kitchenTvBoundary.test.js worker/kitchenTvSecurityRegression.test.js
 git commit -m "test: harden kitchen tv boundaries"
 ```
 
-- [ ] **Step 7: Rebase/check the final feature branch against its intended staging base before deploy**
-
-Because the print queue and TV touch shared integration files (`App.jsx`, `src/api/client.js`, navigation, `worker/index.js`, migrations), verify no newer remote commits landed after implementation began:
+- [ ] **Step 8: Check final remote integration head before staging deploy**
 
 ```bash
 git fetch origin
@@ -1436,40 +1537,38 @@ git status --short
 git log --oneline --decorate -10
 ```
 
-If the intended staging base advanced, use the repository's normal rebase workflow in the isolated worktree, resolve conflicts by preserving both feature contracts, and rerun **Step 3 + Step 4** before any staging deploy.
+If the intended staging base advanced after implementation began, rebase in the isolated worktree using the project's normal workflow, preserve both print-queue and TV contracts while resolving shared files, then rerun Steps 4–5.
 
-- [ ] **Step 8: Apply migration and deploy to staging only**
+- [ ] **Step 9: Apply only staging migration/deploy**
 
 ```bash
 npm run d1:migrate:staging
 npm run deploy:staging
 ```
 
-Do **not** run `d1:migrate:production` or `deploy:production`.
+Do not run `d1:migrate:production` or `deploy:production`.
 
-- [ ] **Step 9: Staging homologation checklist**
+- [ ] **Step 10: Staging homologation checklist**
 
-On staging, verify all acceptance criteria with real browser network inspection:
+1. Admin app and centralized printing still behave normally.
+2. Configurações creates one one-time link.
+3. TV network never requests `/api/bootstrap`.
+4. TV initial/live network does not fetch QZ/printing/admin-page chunks.
+5. `/api/kitchen-tv/state` contains only active kitchen-safe fields.
+6. Immediate order appears, highlights and sounds once.
+7. Automated timing tests prove scheduled order crosses at the existing 50-minute boundary; manually confirm scheduled visual placement with a future scheduled order.
+8. Customer name is dominant; order number is secondary.
+9. Maximum visible cards are 4 preparing + 3 scheduled; overflow is correct; no pagination.
+10. Finalization in normal Cozinha removes card on next TV refresh.
+11. Offline/transient failure keeps stale queue with explicit warning.
+12. Revocation clears queue and blocks next state read.
+13. Re-pair requires a new generated link.
+14. Admin theme changes do not change fixed TV dark theme.
+15. No production deployment occurs until explicit user approval after staging.
 
-1. Admin app opens normally and centralized printing still initializes/operates as before.
-2. Configurações generates one one-time pairing link.
-3. TV page initial network does **not** request `/api/bootstrap`.
-4. TV page does **not** load QZ/printing/admin-page chunks before/while showing the TV panel.
-5. `/api/kitchen-tv/state` response contains only active kitchen-safe fields.
-6. Immediate order appears and highlights/sounds once.
-7. Scheduled order remains under `Agendados` until the shared operational boundary; use automated tests for exact 50-minute boundary if waiting is impractical during manual homologation.
-8. Customer name is visually dominant; order number is secondary.
-9. Maximum visible cards are 4 preparing + 3 scheduled; overflow count is correct; there is no pagination.
-10. Finalization in normal Cozinha removes the card from TV on next refresh.
-11. Offline/transient error keeps stale queue with explicit warning.
-12. Revocation clears queue and blocks state on next refresh.
-13. Re-pair requires generating a new access link.
-14. Fixed dark TV theme does not change when admin theme changes.
-15. No production deployment occurs until this staging homologation is explicitly approved.
+- [ ] **Step 11: Record homologation evidence**
 
-- [ ] **Step 10: Record homologation result in the PR/implementation ledger used by the project**
-
-Record exact staging URL, tested commit SHA, migration applied, automated test commands/results, and any observed browser/TV-box compatibility note. Do not mark the feature production-ready until the user approves the staging behavior.
+Record the staging URL, tested commit SHA, applied Kitchen TV migration filename, automated commands/results, and browser/TV-box compatibility observations in the project's implementation ledger/PR notes. Do not mark production-ready until the user approves staging behavior.
 
 ---
 
@@ -1480,31 +1579,33 @@ Record exact staging URL, tested commit SHA, migration applied, automated test c
 - One TV / monodispositivo: Tasks 2, 3, 6.
 - No normal PIN on TV: Tasks 3, 5, 8.
 - One-time pairing and clean URL: Tasks 3, 5, 8.
-- Persistent restricted session until revoke in normal use: Tasks 3, 5.
+- Persistent restricted TV session: Tasks 3, 5.
 - TV/admin auth separation: Tasks 3, 5, 10.
 - Minimal active-only payload: Task 4 + Task 10.
 - No admin bootstrap/full app load: Task 7 + Task 10.
-- Same Cozinha rules / 50-minute timing / ordering / late state: Task 1 + Tasks 8–9.
-- Immediate + scheduled operational arrival alerts: Task 8.
+- Same Cozinha timing/order/late rules: Task 1 + Tasks 8–9.
+- Immediate + scheduled operational arrival alert: Task 8.
 - No `Novos`: Tasks 8–9.
 - Customer-first cards: Task 9.
-- 4 + 3 capacity, no pagination, natural refill: Task 9.
-- Dark theme, large-screen layout: Task 9.
-- Audio/fullscreen first interaction and audio fallback: Task 8 + Task 9.
-- Offline stale state vs revoked clear state: Task 8 + Task 10.
-- Configurações minimal UI: Task 6.
-- Staging-only deployment/homologation: Task 10.
-- Print-queue conflict control: Global Constraints + Task 10 rebase gate.
+- 4 + 3 capacity/no pagination/natural refill: Task 9.
+- Dark large-screen layout: Task 9.
+- Audio/fullscreen interaction + audio fallback: Task 8 + Task 9.
+- Offline stale vs revoked clear state: Task 8 + Task 10.
+- Minimal Configurações UI: Task 6.
+- Staging-only deploy/homologation: Task 10.
+- Print-queue conflict control: Global Constraints + Task 10.
 
 ### Placeholder scan
 
-No `TBD`, `TODO`, “implement later”, “similar to”, or unspecified error-handling steps are permitted. Every planned module has a named interface, required behavior, concrete test command, and commit boundary.
+No `TBD`, `TODO`, “implement later”, “similar to”, comment-only test bodies, or undefined fixture/helper names remain. Test helpers used by later tasks are explicitly defined in Task 2 or in the same test snippet.
 
 ### Type/name consistency
 
-The plan consistently uses:
+Producer/consumer names are fixed across tasks:
 
 - `buildKitchenOperationalQueue`
+- `createMigratedD1`
+- `loadKitchenTvAccess`
 - `issueKitchenTvAccess`
 - `activateKitchenTvSession`
 - `loadKitchenTvSessionByHash`
@@ -1516,22 +1617,26 @@ The plan consistently uses:
 - `pairKitchenTvAccess`
 - `getKitchenTvSession`
 - `getKitchenTvSettings`
+- `revokeKitchenTvAccessSession`
 - `listKitchenTvOrders`
 - `handleKitchenTvPublicApi`
 - `handleKitchenTvAdminApi`
+- `getKitchenTvSettings` / `generateKitchenTvAccess` / `revokeKitchenTvAccess` in the **admin client module** (module-scoped names intentionally mirror HTTP actions; do not import them into Worker code)
 - `pairKitchenTv`
 - `getKitchenTvState`
+- `bootstrapKitchenTvSession`
+- `refreshKitchenTvSession`
 - `buildKitchenTvPresentation`
 
-Do not rename one side of an interface without updating the producing and consuming tasks together.
+Do not rename one side of an interface without updating its producing and consuming tasks together.
 
 ---
 
 ## Execution Handoff
 
-This plan is intentionally **ready but blocked** until the centralized print queue is finished/homologated. Do not start Kitchen TV implementation merely because the plan exists.
+This plan is **ready but intentionally blocked** until the centralized print queue is finished/homologated. Do not start Kitchen TV implementation merely because the plan exists.
 
-After the execution gate is cleared, use one of these modes:
+After the execution gate is cleared:
 
 1. **Subagent-Driven (recommended)** — use `superpowers:subagent-driven-development`; fresh subagent per task with review between tasks.
 2. **Inline Execution** — use `superpowers:executing-plans`; execute in batches with checkpoints.
