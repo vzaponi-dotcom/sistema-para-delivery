@@ -7,6 +7,7 @@ import {
   createManualOrderPrintJob,
   createTestPrintJob,
   discardPrintJob,
+  forcePrintJob,
   heartbeatPrintStation,
   listPrintJobs,
   listPrintStations,
@@ -186,6 +187,15 @@ export const handlePrintingApi = async (request, env, session, url) => {
   if (prioritizeMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
     const job = await prioritizePrintJob(env.DB, businessId, decodeURIComponent(prioritizeMatch[1]))
+    return json({ job })
+  }
+
+  const forcePrintMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/force-print$/)
+  if (forcePrintMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    const actorLabel = String(body.actorLabel ?? '').trim() || 'Sistema'
+    const job = await forcePrintJob(env.DB, businessId, decodeURIComponent(forcePrintMatch[1]), actorLabel)
     return json({ job })
   }
 

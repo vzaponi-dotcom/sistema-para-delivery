@@ -9,6 +9,7 @@ import {
   markPrintJobFailed,
   prepareAutomaticPrintJobStatement,
   retryPrintJob,
+  forcePrintJob,
   setPrimaryPrintStation,
   upsertPrintStation,
 } from './orderPrintingRepository.js'
@@ -157,7 +158,7 @@ test('cancelled automatic order pending in the queue is routed to attention inst
   const job = await loadPrintJob(db, businessId, 'cancelled-job')
   assert.equal(job.status, 'requires_attention')
   assert.deepEqual(job.lastError, {
-    code: 'ORDER_NOT_PRINTABLE',
+    code: 'ORDER_CANCELLED_BEFORE_PRINT',
     message: 'O pedido foi finalizado ou cancelado antes da impressão automática.',
   })
 })
@@ -191,4 +192,25 @@ test('retry does not resume an automatic job after its order becomes finalized',
   const job = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(job.status, 'requires_attention')
   assert.notEqual(job.status, 'pending')
+})
+
+test('force print authorizes only finalized-before-print attention and keeps the same job snapshot', async () => {
+  const db = await setup({ orderId: 'finalized-order', orderStatus: 'Finalizado' })
+  await addAutomaticJob(db, { id: 'finalized-job', orderId: 'finalized-order' })
+  const original = await loadPrintJob(db, businessId, 'finalized-job')
+  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'ORDER_FINALIZED_BEFORE_PRINT', last_error_message = 'Pedido finalizado antes da impressão.' WHERE id = ?`).bind('finalized-job').run()
+
+  const forced = await forcePrintJob(db, businessId, 'finalized-job', 'Caixa 1', new Date(now.getTime() + 1000))
+  assert.equal(forced.id, original.id)
+  assert.deepEqual(forced.document, original.document)
+  assert.equal(forced.status, 'pending')
+  assert.equal(forced.lastError.code, 'FORCE_PRINT_AUTHORIZED')
+  assert.equal(forced.actionActorLabel, 'Caixa 1')
+})
+
+test('retry rejects uncertain and special attention reasons', async () => {
+  const db = await setup()
+  await addAutomaticJob(db, { id: 'unknown-job' })
+  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'PROCESSING_OUTCOME_UNKNOWN' WHERE id = ?`).bind('unknown-job').run()
+  await assert.rejects(() => retryPrintJob(db, businessId, 'unknown-job', now), (error) => error.code === 'PRINT_JOB_RETRY_NOT_ALLOWED')
 })

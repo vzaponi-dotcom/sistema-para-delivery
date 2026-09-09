@@ -355,7 +355,7 @@ test('claim-next rejects a secondary station and accepts only the primary automa
   assert.equal((await claimed.json()).job.id, 'auto-1')
 })
 
-test('uncertain failure requires attention and retry preserves the same job id and snapshot', async () => {
+test('uncertain failure requires attention and rejects unsafe retry', async () => {
   currentEnv = await makeEnv()
   const cookie = await loginCookie(currentEnv)
   await jsonRequest('/api/printing/stations/s1', 'PUT', cookie, {
@@ -373,11 +373,8 @@ test('uncertain failure requires attention and retry preserves the same job id a
   assert.equal((await failed.json()).job.status, 'requires_attention')
 
   const retried = await jsonRequest(`/api/printing/jobs/${original.id}/retry`, 'POST', cookie, { stationId: 's1' })
-  assert.equal(retried.status, 200)
-  const retryJob = (await retried.json()).job
-  assert.equal(retryJob.id, original.id)
-  assert.deepEqual(retryJob.document, original.document)
-  assert.equal(retryJob.status, 'pending')
+  assert.equal(retried.status, 409)
+  assert.equal((await retried.json()).error.code, 'PRINT_JOB_RETRY_NOT_ALLOWED')
 })
 
 test('printing endpoints require authentication and never expose another business jobs', async () => {

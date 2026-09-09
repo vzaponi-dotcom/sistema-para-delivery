@@ -7,13 +7,16 @@ import {
   completePrintJob,
   createManualPrintJob,
   createTestPrintJob,
+  discardPrintJob,
   failPrintJob,
+  forcePrintJob as forcePrintJobApi,
   getOrderPrintDocument,
   getPrintJobs,
   getPrintStations,
   getQzCertificate,
   heartbeatPrintStation,
   makePrimaryPrintStation,
+  prioritizePrintJob,
   retryPrintJob,
   signQzPayload,
   upsertPrintStation,
@@ -521,6 +524,38 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
   }, [executeClaimedJob, getExplicitPort])
 
+  const requestPrintNow = useCallback(async (jobOrId) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    const response = await prioritizePrintJob(jobId)
+    await refresh()
+    return response
+  }, [refresh])
+
+  const requestRetry = useCallback(async (jobOrId) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    const response = await retryPrintJob(jobId)
+    await refresh()
+    return response
+  }, [refresh])
+
+  const requestDiscard = useCallback(async (jobOrId) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    const response = await discardPrintJob(jobId)
+    await refresh()
+    return response
+  }, [refresh])
+
+  const requestForcePrint = useCallback(async (jobOrId) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressÃ£o nÃ£o encontrado.')
+    const response = await forcePrintJobApi(jobId)
+    await refresh()
+    return response
+  }, [refresh])
+
   const getPreviewDocument = useCallback(async (orderId) => {
     const response = await getOrderPrintDocument(orderId)
     return response.document
@@ -746,6 +781,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     printSecondCopy,
     acknowledgeSecondCopyPrompt,
     retryJob,
+    requestPrintNow,
+    requestRetry,
+    requestDiscard,
+    requestForcePrint,
     getPreviewDocument,
   }
 }

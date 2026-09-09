@@ -109,6 +109,7 @@ export const failPrintJob = (jobId, stationId, failure) => apiRequest(`/api/prin
 export const retryPrintJob = (jobId, stationId) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/retry`, withJson('POST', { stationId }))
 export const discardPrintJob = (jobId, actorLabel = 'Sistema') => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/discard`, withJson('POST', { actorLabel }))
 export const prioritizePrintJob = (jobId) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/prioritize`, { method: 'POST' })
+export const forcePrintJob = (jobId, actorLabel = 'Sistema') => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/force-print`, withJson('POST', { actorLabel }))
 export const reprintPrintJob = (jobId, copies) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/reprint`, withJson('POST', { copies }))
 export const getOrderPrintDocument = (orderId) => apiRequest(`/api/orders/${encodeURIComponent(orderId)}/print-document`)
 export const getQzCertificate = () => apiTextRequest('/api/printing/qz/certificate')

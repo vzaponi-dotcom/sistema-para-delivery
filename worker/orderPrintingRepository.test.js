@@ -540,7 +540,7 @@ test('discard preserves the job history, is idempotent, and keeps the job out of
   assert.equal(repeated.actionActorLabel, 'Caixa 1')
 })
 
-test('discard rejects an in-flight or fully printed job but allows a pending second copy', async () => {
+test('discard rejects an in-flight, fully printed, or awaiting-second-copy job', async () => {
   assert.equal(typeof printingRepository.discardPrintJob, 'function')
   const db = makeDb()
   await addStation(db, 'station-a')
@@ -556,9 +556,10 @@ test('discard rejects an in-flight or fully printed job but allows a pending sec
   await addAutomaticJob(db, { id: 'partial-job', orderId: 'o2' })
   await claimPrintJob(db, businessA, 'partial-job', 'station-a', baseNow)
   await markPrintJobPrinted(db, businessA, 'partial-job', 'station-a', 1, baseNow)
-  const partialDiscarded = await printingRepository.discardPrintJob(db, businessA, 'partial-job', 'Sistema', baseNow)
-  assert.equal(partialDiscarded.status, 'discarded')
-  assert.equal(partialDiscarded.copiesPrinted, 1)
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'partial-job', 'Sistema', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
 
   await createManualOrderPrintJob(db, businessA, { id: 'printed-job', orderId: 'o1', copies: 1, document }, baseNow)
   await claimPrintJob(db, businessA, 'printed-job', 'station-a', baseNow)

@@ -324,11 +324,13 @@ test('print job details omit absent values instead of rendering undefined or nul
   assert.equal(JSON.stringify(details).includes('null'), true)
 })
 
-test('print queue opens details from desktop rows and mobile cards without print actions', async () => {
+test('print queue opens details from desktop rows and mobile cards, with actions confined to the modal', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
   assert.match(page, /onClick=\{\(\) => setSelectedJob\(filteredJobs\[index\]\)\}/)
   assert.match(page, /<Modal[\s\S]*selectedDetails\.title/)
   assert.match(page, /Fechar/)
-  assert.doesNotMatch(page, /printNow|printSecondCopy|retryJob|discardJob|onPrint/)
+  assert.match(page, /selectedDetails\.actions\.map/)
+  const queueRows = page.slice(page.indexOf('<tbody>'), page.indexOf('{selectedDetails &&'))
+  assert.doesNotMatch(queueRows, /<Button/)
 })

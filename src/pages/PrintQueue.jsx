@@ -3,6 +3,7 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Button from '../components/Button'
 import Modal from '../components/Modal'
+import ConfirmationDialog from '../components/ConfirmationDialog'
 import SystemSelect from '../components/SystemSelect'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
@@ -46,7 +47,7 @@ const getPrintJobView = (job, stationReady, order) => {
   }
 }
 
-function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
+function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) {
   const station = printing?.localStation ?? null
   const jobs = Array.isArray(printing?.jobs) ? printing.jobs : []
   const stationSummary = getPrintStationSummary(station)
@@ -56,6 +57,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
   const [status, setStatus] = useState('all')
   const [origin, setOrigin] = useState('all')
   const [selectedJob, setSelectedJob] = useState(null)
+  const [confirmation, setConfirmation] = useState(null)
+  const [actionPending, setActionPending] = useState(false)
   const ordersById = new Map(orders.map((order) => [String(order.id), order]))
   const filteredJobs = filterPrintQueueJobs(jobs, { search, status, origin, stationReady, orders })
   const jobRows = filteredJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
@@ -65,6 +68,30 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
     stations: printing?.stations,
     stationReady,
   }) : null
+
+  const closeDetails = () => setSelectedJob(null)
+  const runAction = async (action) => {
+    if (!selectedJob || actionPending) return
+    setActionPending(true)
+    try {
+      if (action === 'printNow') await printing?.requestPrintNow?.(selectedJob)
+      if (action === 'retry') await printing?.requestRetry?.(selectedJob)
+      if (action === 'discard') await printing?.requestDiscard?.(selectedJob)
+      if (action === 'forcePrint') await printing?.requestForcePrint?.(selectedJob)
+      onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressÃ£o descartado', forcePrint: 'ImpressÃ£o autorizada e enviada para a fila' }[action])
+      closeDetails()
+    } catch (error) {
+      onToast?.(error?.message || 'NÃ£o foi possÃ­vel concluir a operaÃ§Ã£o.')
+    } finally {
+      setActionPending(false)
+      setConfirmation(null)
+    }
+  }
+  const requestAction = (action) => {
+    if (action === 'discard' || action === 'forcePrint') setConfirmation(action)
+    else void runAction(action)
+  }
+  const orderNumber = selectedDetails?.title || 'este pedido'
 
   return (
     <div className="print-queue-page">
@@ -187,7 +214,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
         )}
       </section>
       {selectedDetails && (
-        <Modal title={selectedDetails.title} onClose={() => setSelectedJob(null)} footer={<Button type="button" variant="secondary" onClick={() => setSelectedJob(null)}>Fechar</Button>}>
+        <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions"><Button type="button" variant="secondary" onClick={closeDetails} disabled={actionPending}>Fechar</Button>{selectedDetails.actions.map((action) => <Button key={action.key} type="button" variant={action.key === 'discard' ? 'secondary' : undefined} onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}</div>}>
           {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
           <div className="print-queue-detail-sections">
             <section aria-labelledby="print-detail-status"><h3 id="print-detail-status">Status</h3><p>{selectedDetails.status}</p></section>
@@ -205,6 +232,16 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
           </div>
         </Modal>
       )}
+      {confirmation && <ConfirmationDialog
+        title={confirmation === 'discard' ? 'Descartar trabalho de impressÃ£o?' : 'Imprimir mesmo assim?'}
+        message={confirmation === 'discard' ? `O trabalho de impressÃ£o de ${orderNumber} serÃ¡ descartado.` : `${orderNumber} jÃ¡ foi finalizado ou cancelado. Autorizar a impressÃ£o original?`}
+        confirmLabel={confirmation === 'discard' ? 'Descartar' : 'Imprimir mesmo assim'}
+        cancelLabel="Cancelar"
+        confirmVariant={confirmation === 'discard' ? 'secondary' : undefined}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => void runAction(confirmation)}
+        disabled={actionPending}
+      />}
     </div>
   )
 }

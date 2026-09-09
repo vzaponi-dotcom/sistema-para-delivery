@@ -1,5 +1,6 @@
 import { createTestPrintDocument } from '../shared/orderPrintDocument.js'
 import { resolvePrintQueueState } from '../shared/printQueue.js'
+import { isForcePrintReason, isRetryablePrintJob } from '../shared/printQueueActions.js'
 
 export const PRINT_PENDING_MAX_AGE_MS = 10 * 60 * 1000
 export const PRINT_PROCESSING_MAX_AGE_MS = 2 * 60 * 1000
@@ -218,9 +219,10 @@ const routeIneligibleAutomaticJobsToAttention = async (db, businessId, now = new
   const at = timestamp(now)
   await db.prepare(`UPDATE print_jobs SET
       status = 'requires_attention', processed_at = ?,
-      last_error_code = 'ORDER_NOT_PRINTABLE',
+      last_error_code = CASE WHEN (SELECT status FROM orders WHERE orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id) = 'Finalizado' THEN 'ORDER_FINALIZED_BEFORE_PRINT' ELSE 'ORDER_CANCELLED_BEFORE_PRINT' END,
       last_error_message = 'O pedido foi finalizado ou cancelado antes da impressão automática.'
     WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending'
+      AND (last_error_code IS NULL OR last_error_code <> 'FORCE_PRINT_AUTHORIZED')
       AND NOT ${AUTOMATIC_ORDER_ELIGIBLE_SQL}`)
     .bind(at, businessId).run()
 }
@@ -338,7 +340,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
     WHERE id = (
       SELECT id FROM print_jobs
       WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
-        AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL}
+        AND (${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED')
       ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
     ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
     RETURNING *`)
@@ -356,7 +358,7 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
     WHERE id = ? AND business_id = ?
       AND ((status = 'pending' AND available_at <= ?)
         OR (status = 'awaiting_second_copy' AND copies_printed > 0 AND copies_printed < copies_requested))
-      AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+      AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED')
     RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
@@ -401,11 +403,7 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   if (existing.status === 'discarded') return existing
 
-  const partialPrinted = existing.status === 'printed'
-    && existing.copiesPrinted > 0
-    && existing.copiesPrinted < existing.copiesRequested
-  const discardable = ['pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy'].includes(existing.status)
-    || partialPrinted
+  const discardable = ['pending', 'queued', 'failed', 'requires_attention'].includes(existing.status)
   if (!discardable) {
     throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
   }
@@ -415,8 +413,7 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   const row = await db.prepare(`UPDATE print_jobs SET
       status = 'discarded', discarded_at = ?, action_actor_label = ?, action_at = ?
     WHERE id = ? AND business_id = ?
-      AND (status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
-        OR (status = 'printed' AND copies_printed > 0 AND copies_printed < copies_requested))
+      AND status IN ('pending', 'queued', 'failed', 'requires_attention')
     RETURNING *`).bind(at, actor, at, jobId, businessId).first()
   if (row) return mapJobRow(row)
 
@@ -460,7 +457,14 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, document, n
   throw repositoryError(409, 'PRINT_JOB_REPRINT_NOT_ALLOWED', 'Este trabalho de impressão ainda não pode ser reimpresso.')
 }
 
-export const retryPrintJob = async (db, businessId, jobId, now = new Date()) => {
+export const retryPrintJob = async (db, businessId, jobId, _now = new Date()) => {
+  const retryExisting = await loadPrintJob(db, businessId, jobId)
+  if (!retryExisting) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Print job not found.')
+  const orderEligible = retryExisting.trigger !== 'automatic'
+    || await db.prepare(`SELECT 1 FROM orders WHERE id = ? AND business_id = ? AND status NOT IN ('Cancelado', 'Finalizado') LIMIT 1`).bind(retryExisting.orderId, businessId).first()
+  if (!isRetryablePrintJob(retryExisting) || !orderEligible) {
+    throw repositoryError(409, 'PRINT_JOB_RETRY_NOT_ALLOWED', 'This print job cannot be retried in its current state.')
+  }
   const row = await db.prepare(`UPDATE print_jobs SET
       status = CASE
         WHEN copies_printed > 0 AND copies_printed < copies_requested THEN 'awaiting_second_copy'
@@ -488,4 +492,25 @@ export const acknowledgeSecondCopyPrompt = async (db, businessId, jobId, station
   const job = await loadPrintJob(db, businessId, jobId)
   if (!job) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   return { job, promptPresented: false }
+}
+
+export const forcePrintJob = async (db, businessId, jobId, actorLabel = 'Sistema', now = new Date()) => {
+  const existing = await loadPrintJob(db, businessId, jobId)
+  if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Print job not found.')
+  if (existing.status !== 'requires_attention' || !isForcePrintReason(existing)) {
+    throw repositoryError(409, 'PRINT_JOB_FORCE_PRINT_NOT_ALLOWED', 'This print job cannot be forced in its current state.')
+  }
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const row = await db.prepare(`UPDATE print_jobs SET
+      status = 'pending', station_id = NULL, processing_started_at = NULL, processed_at = NULL,
+      last_error_code = 'FORCE_PRINT_AUTHORIZED', last_error_message = 'Impressao autorizada manualmente.',
+      attention_reason = NULL, action_actor_label = ?, action_at = ?
+    WHERE id = ? AND business_id = ? AND status = 'requires_attention'
+      AND last_error_code IN ('ORDER_FINALIZED_BEFORE_PRINT', 'ORDER_CANCELLED_BEFORE_PRINT')
+    RETURNING *`).bind(actor, at, jobId, businessId).first()
+  if (row) return mapJobRow(row)
+  const current = await loadPrintJob(db, businessId, jobId)
+  if (current?.status === 'pending' && current.lastError?.code === 'FORCE_PRINT_AUTHORIZED') return current
+  throw repositoryError(409, 'PRINT_JOB_FORCE_PRINT_NOT_ALLOWED', 'This print job cannot be forced in its current state.')
 }

@@ -1,6 +1,7 @@
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../shared/printQueue.js'
+import { getPrintJobActions } from '../../shared/printQueueActions.js'
 
 const presentText = (value) => {
   const text = String(value ?? '').trim()
@@ -57,5 +58,6 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
       at: formatDateTime(job.actionAt),
       actor: presentText(job.actionActorLabel),
     } : null,
+    actions: getPrintJobActions(job),
   }
 }
