@@ -26,6 +26,15 @@
 .print-queue-attention-reason { display: block; margin: 5px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
 .print-queue-empty { margin: 0; padding: 28px 18px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-soft); color: var(--muted); text-align: center; }
 .print-queue-job-cards { display: none; }
+.print-queue-job-row { cursor: pointer; }
+.print-queue-job-row:hover td, .print-queue-job-row:focus-within td { background: var(--surface-soft); }
+.print-queue-job-card { cursor: pointer; }
+.print-queue-detail-identity { margin: -4px 0 18px; color: var(--text-soft); font-weight: 750; }
+.print-queue-detail-sections { display: grid; gap: 16px; }
+.print-queue-detail-sections section { padding-top: 14px; border-top: 1px solid var(--border); }
+.print-queue-detail-sections h3 { margin: 0 0 8px; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
+.print-queue-detail-sections p { display: flex; gap: 12px; justify-content: space-between; margin: 6px 0 0; color: var(--text-soft); }
+.print-queue-detail-sections p span { color: var(--muted); }
 
 .print-queue-station-card {
   display: flex;
@@ -64,4 +73,5 @@
   .print-queue-station-card { align-items: flex-start; flex-direction: column; }
   .print-queue-station-health { text-align: left; }
   .print-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .print-queue-detail-sections p { align-items: flex-start; flex-direction: column; gap: 2px; }
 }

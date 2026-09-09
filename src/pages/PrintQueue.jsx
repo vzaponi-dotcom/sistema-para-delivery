@@ -2,6 +2,7 @@ import { useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Button from '../components/Button'
+import Modal from '../components/Modal'
 import SystemSelect from '../components/SystemSelect'
 import '../print-queue.css'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
@@ -13,6 +14,7 @@ import {
   PRINT_QUEUE_ORIGIN_FILTERS,
   PRINT_QUEUE_STATUS_FILTERS,
 } from './printQueueFilters.js'
+import { getPrintJobDetails } from './printQueueDetails.js'
 
 const formatJobTime = (createdAt) => {
   if (!createdAt) return null
@@ -53,10 +55,16 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [origin, setOrigin] = useState('all')
+  const [selectedJob, setSelectedJob] = useState(null)
   const ordersById = new Map(orders.map((order) => [String(order.id), order]))
   const filteredJobs = filterPrintQueueJobs(jobs, { search, status, origin, stationReady, orders })
   const jobRows = filteredJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const hasActiveFilters = Boolean(search.trim()) || status !== 'all' || origin !== 'all'
+  const selectedDetails = selectedJob ? getPrintJobDetails(selectedJob, {
+    order: ordersById.get(String(selectedJob.orderId)),
+    stations: printing?.stations,
+    stationReady,
+  }) : null
 
   return (
     <div className="print-queue-page">
@@ -144,7 +152,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
                 </thead>
                 <tbody>
                   {jobRows.map((job, index) => (
-                    <tr key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-${index}`}>
+                    <tr key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-${index}`} onClick={() => setSelectedJob(filteredJobs[index])} className="print-queue-job-row">
                       <td>{job.orderNumber}</td>
                       <td>{job.customerOrTable || '—'}</td>
                       <td>{job.origin || '—'}</td>
@@ -159,7 +167,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
             </div>
             <div className="print-queue-job-cards" aria-label="Trabalhos de impressão em cards">
               {jobRows.map((job, index) => (
-                <article className="print-queue-job-card" key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-card-${index}`}>
+                <article className="print-queue-job-card" key={filteredJobs[index]?.id || `${job.orderNumber || 'job'}-card-${index}`} onClick={() => setSelectedJob(filteredJobs[index])}>
                   <div className="print-queue-job-card-header">
                     <strong>{job.orderNumber}</strong>
                     <span className={`print-queue-status print-queue-status-${job.state}`}>{job.status}</span>
@@ -178,6 +186,25 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings }) {
           </>
         )}
       </section>
+      {selectedDetails && (
+        <Modal title={selectedDetails.title} onClose={() => setSelectedJob(null)} footer={<Button type="button" variant="secondary" onClick={() => setSelectedJob(null)}>Fechar</Button>}>
+          {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
+          <div className="print-queue-detail-sections">
+            <section aria-labelledby="print-detail-status"><h3 id="print-detail-status">Status</h3><p>{selectedDetails.status}</p></section>
+            <section aria-labelledby="print-detail-print"><h3 id="print-detail-print">Impressão</h3>
+              {selectedDetails.origin && <p><span>Origem</span>{selectedDetails.origin}</p>}
+              {selectedDetails.copies && <p><span>Vias</span>{selectedDetails.copies}</p>}
+              {selectedDetails.priority && <p><span>Prioridade</span>{selectedDetails.priority}</p>}
+              {selectedDetails.station && <p><span>Estação responsável</span>{selectedDetails.station}</p>}
+              <p><span>Estado atual</span>{selectedDetails.status}</p>
+            </section>
+            {Object.keys(selectedDetails.times).length > 0 && <section aria-labelledby="print-detail-times"><h3 id="print-detail-times">Horários</h3>{Object.values(selectedDetails.times).map((time) => <p key={time.label}><span>{time.label}</span>{time.value}</p>)}</section>}
+            {(selectedDetails.attentionReason || selectedDetails.error) && <section aria-labelledby="print-detail-attention"><h3 id="print-detail-attention">Erro / atenção</h3>{selectedDetails.attentionReason && <p><span>Motivo</span>{selectedDetails.attentionReason}</p>}{selectedDetails.error?.code && <p><span>Código</span>{selectedDetails.error.code}</p>}{selectedDetails.error?.message && <p><span>Mensagem</span>{selectedDetails.error.message}</p>}</section>}
+            {selectedDetails.reprintOf && <section aria-labelledby="print-detail-link"><h3 id="print-detail-link">Vínculo</h3><p>{selectedDetails.reprintOf}</p></section>}
+            {selectedDetails.audit && <section aria-labelledby="print-detail-audit"><h3 id="print-detail-audit">Auditoria</h3><p><span>Ação</span>{selectedDetails.audit.action}</p>{selectedDetails.audit.at && <p><span>Horário</span>{selectedDetails.audit.at}</p>}{selectedDetails.audit.actor && <p><span>Ator/solicitante</span>{selectedDetails.audit.actor}</p>}</section>}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

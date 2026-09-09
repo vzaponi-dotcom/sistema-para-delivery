@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
+import { getPrintJobDetails } from './printQueueDetails.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -254,4 +255,80 @@ test('print queue receives orders for current operational identity lookup', asyn
   assert.match(page, /function PrintQueue\(\{[^}]*orders/)
   assert.match(page, /orderId/)
   assert.match(page, /orderNumber/)
+})
+
+test('print job details expose official identity, canonical status, origin, copies and station', () => {
+  const details = getPrintJobDetails({
+    orderId: 'order-1',
+    trigger: 'automatic',
+    status: 'pending',
+    priority: 1,
+    copiesRequested: 2,
+    copiesPrinted: 1,
+    stationId: 'station-1',
+    document: { customer: { name: 'Ana' }, tableIdentifier: 'Mesa 3' },
+  }, {
+    order: { id: 'order-1', orderNumber: 42 },
+    stations: [{ id: 'station-1', name: 'Cozinha PC' }],
+    stationReady: true,
+  })
+
+  assert.equal(details.title, 'Pedido #42')
+  assert.equal(details.identity, 'Mesa 3 · Ana')
+  assert.equal(details.status, 'Na fila')
+  assert.equal(details.origin, 'Automático')
+  assert.equal(details.copies, '1/2')
+  assert.equal(details.priority, 'Imprimir agora')
+  assert.equal(details.station, 'Cozinha PC')
+})
+
+test('print job details include available timestamps, attention, error, reprint link and audit', () => {
+  const details = getPrintJobDetails({
+    orderId: 'order-1',
+    parentJobId: 'job-previous-uuid',
+    trigger: 'manual',
+    status: 'requires_attention',
+    attentionReason: 'A estação não confirmou',
+    lastError: { code: 'QZ_PRINT_FAILED', message: 'Falha na impressora' },
+    createdAt: '2026-09-08T10:00:00.000Z',
+    availableAt: '2026-09-08T10:01:00.000Z',
+    processingStartedAt: '2026-09-08T10:02:00.000Z',
+    processedAt: null,
+    discardedAt: null,
+    actionActorLabel: 'Victor',
+    actionAt: '2026-09-08T10:03:00.000Z',
+    document: { customer: { name: 'Ana' }, tableIdentifier: 'Mesa 3' },
+  }, { order: { id: 'order-1', orderNumber: 42 }, stationReady: true })
+
+  assert.equal(details.status, 'Requer atenção')
+  assert.equal(details.origin, 'Manual/Reimpressão')
+  assert.equal(details.attentionReason, 'A estação não confirmou')
+  assert.deepEqual(details.error, { code: 'QZ_PRINT_FAILED', message: 'Falha na impressora' })
+  assert.equal(details.reprintOf, 'Reimpressão de trabalho anterior')
+  assert.equal(details.audit.actor, 'Victor')
+  assert.match(details.times.created.value, /08\/09\/2026/)
+  assert.doesNotMatch(JSON.stringify(details), /job-previous-uuid/)
+})
+
+test('print job details omit absent values instead of rendering undefined or null', () => {
+  const details = getPrintJobDetails({ status: 'printed', document: {} }, { stationReady: true })
+
+  assert.equal(details.identity, null)
+  assert.equal(details.station, null)
+  assert.equal(details.priority, null)
+  assert.deepEqual(details.times, {})
+  assert.equal(details.attentionReason, null)
+  assert.equal(details.error, null)
+  assert.equal(details.reprintOf, null)
+  assert.equal(JSON.stringify(details).includes('undefined'), false)
+  assert.equal(JSON.stringify(details).includes('null'), true)
+})
+
+test('print queue opens details from desktop rows and mobile cards without print actions', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /onClick=\{\(\) => setSelectedJob\(filteredJobs\[index\]\)\}/)
+  assert.match(page, /<Modal[\s\S]*selectedDetails\.title/)
+  assert.match(page, /Fechar/)
+  assert.doesNotMatch(page, /printNow|printSecondCopy|retryJob|discardJob|onPrint/)
 })
