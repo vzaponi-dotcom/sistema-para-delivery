@@ -64,3 +64,15 @@ test('QZ transport failure is surfaced as requires_attention to the caller', asy
     uncertain: false,
   })
 })
+
+test('automatic consumer contains only the primary QZ claim path, never legacy transports', () => {
+  const start = manager.indexOf('const consumeNext = async')
+  const end = manager.indexOf('const latestJobByOrderId', start)
+  assert.notEqual(start, -1)
+  assert.notEqual(end, -1)
+  const consumer = manager.slice(start, end)
+
+  assert.match(consumer, /canConsumeAutomaticPrintJob/)
+  assert.match(consumer, /claimNextPrintJob\(station\.id\)/)
+  assert.doesNotMatch(consumer, /findAuthorizedPrinterPort|writeSerialBytes|dispatchRawBtBytes|transportKind === 'rawbt'/)
+})

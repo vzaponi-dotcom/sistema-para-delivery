@@ -31,3 +31,9 @@ test('second-copy prompt eligibility reacts when local QZ readiness changes', ()
   assert.doesNotMatch(promptEffect, /\bprinting\./)
   assert.match(promptEffect, /\[printJobs,[^\]]*printTransportReady[^\]]*printerBlocked[^\]]*\]/)
 })
+
+test('an already-open second-copy prompt is revalidated before display and before physical confirmation', () => {
+  assert.match(appSource, /if \(!isSecondCopyPromptEligible\(current, currentOrder\) \|\| !canKeepSecondCopyPromptOpen\(/)
+  assert.match(appSource, /const handleGlobalSecondCopy = async \(\) => \{[\s\S]*canKeepSecondCopyPromptOpen\(/)
+  assert.match(appSource, /setSecondCopyPromptJobId\(null\)[\s\S]*return/)
+})

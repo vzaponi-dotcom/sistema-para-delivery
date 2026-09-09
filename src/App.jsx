@@ -33,7 +33,7 @@ import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { useKitchenClock } from './hooks/useKitchenClock.js'
-import { canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
+import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
@@ -141,10 +141,10 @@ function App() {
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
   const writesBlocked = !isOnline || requestKey !== null
-  const handlePrintingError = useCallback(() => {
+  const handlePhysicalJobFailure = useCallback(() => {
     setToastMessage('Impressão requer atenção na fila')
   }, [])
-  const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline, onError: handlePrintingError })
+  const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
   const {
     jobs: printJobs,
     transportKind: printTransportKind,
@@ -345,7 +345,13 @@ function App() {
     if (secondCopyPromptJobId) {
       const current = printJobs.find((job) => job.id === secondCopyPromptJobId)
       const currentOrder = orders.find((order) => order.id === current?.orderId)
-      if (!isSecondCopyPromptEligible(current, currentOrder)) setSecondCopyPromptJobId(null)
+      if (!isSecondCopyPromptEligible(current, currentOrder) || !canKeepSecondCopyPromptOpen({
+        isQz: printTransportKind === 'qz',
+        transportReady: printTransportReady,
+        printerBlocked,
+        station: localPrintStation,
+        job: current,
+      })) setSecondCopyPromptJobId(null)
       return
     }
     const next = printJobs.find((job) => {
@@ -387,6 +393,16 @@ function App() {
 
   const handleGlobalSecondCopy = async () => {
     if (!secondCopyPromptJob || secondCopyPromptBusy) return
+    if (!canKeepSecondCopyPromptOpen({
+      isQz: printTransportKind === 'qz',
+      transportReady: printTransportReady,
+      printerBlocked,
+      station: localPrintStation,
+      job: secondCopyPromptJob,
+    })) {
+      setSecondCopyPromptJobId(null)
+      return
+    }
     setSecondCopyPromptBusy(true)
     try {
       const result = await printing.printSecondCopy(secondCopyPromptJob)

@@ -134,8 +134,8 @@ test('remote order actions announce approved queue outcomes and never retain a l
   assert.doesNotMatch(detail, /useState\(''\).*printingError|setPrintingError|order-printing-error/)
 })
 
-test('physical print failures surface a human queue-attention toast without a global error modal', () => {
-  assert.match(app, /usePrintingManager\(\{[^}]*onError:/)
+test('only deduplicated physical job failures surface a human queue-attention toast without a global error modal', () => {
+  assert.match(app, /usePrintingManager\(\{[^}]*onPhysicalJobFailure:/)
   assert.match(app, /Impressão requer atenção na fila/)
   assert.doesNotMatch(app, /printErrorModal|pendingPrintError|showPrintError|printingError/)
 })
