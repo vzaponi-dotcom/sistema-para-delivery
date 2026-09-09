@@ -534,7 +534,8 @@ export const requestSecondCopy = async (db, businessId, jobId, actorLabel = 'Sis
   const row = await db.prepare(`UPDATE print_jobs SET status = 'pending', station_id = NULL, processing_started_at = NULL,
     second_copy_requested_at = ?, action_at = ?, action_actor_label = ?
     WHERE id = ? AND business_id = ? AND type = 'order' AND status = 'awaiting_second_copy'
-      AND copies_requested = 2 AND copies_printed = 1 AND second_copy_skipped_at IS NULL RETURNING *`)
+      AND copies_requested = 2 AND copies_printed = 1 AND second_copy_skipped_at IS NULL
+      AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL} RETURNING *`)
     .bind(at, at, actor, jobId, businessId).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)

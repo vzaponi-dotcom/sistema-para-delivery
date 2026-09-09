@@ -551,6 +551,30 @@ test('cancelled automatic order cannot claim its pending second copy', async () 
   assert.equal(preserved.copiesPrinted, 1)
 })
 
+test('a stale remote second-copy request cannot authorize a finalized or cancelled order', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'stale-finalized-second-copy' })
+  await addAutomaticJob(db, { id: 'stale-cancelled-second-copy', orderId: 'o2' })
+  for (const id of ['stale-finalized-second-copy', 'stale-cancelled-second-copy']) {
+    await claimPrintJob(db, businessA, id, 'station-a', baseNow)
+    await markPrintJobPrinted(db, businessA, id, 'station-a', 1, baseNow)
+  }
+  db.exec(`UPDATE orders SET status = 'Finalizado' WHERE id = 'o1' AND business_id = '${businessA}'`)
+  db.exec(`UPDATE orders SET status = 'Cancelado' WHERE id = 'o2' AND business_id = '${businessA}'`)
+
+  for (const id of ['stale-finalized-second-copy', 'stale-cancelled-second-copy']) {
+    await assert.rejects(
+      () => printingRepository.requestSecondCopy(db, businessA, id, 'Celular', baseNow),
+      (error) => error.code === 'PRINT_SECOND_COPY_NOT_AWAITING',
+    )
+    const preserved = await loadPrintJob(db, businessA, id)
+    assert.equal(preserved.status, 'awaiting_second_copy')
+    assert.equal(preserved.copiesPrinted, 1)
+  }
+})
+
 test('discard preserves the job history, is idempotent, and keeps the job out of automatic claiming', async () => {
   assert.equal(typeof printingRepository.discardPrintJob, 'function')
   const db = makeDb()

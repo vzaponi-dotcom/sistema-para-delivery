@@ -33,6 +33,7 @@ import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { useKitchenClock } from './hooks/useKitchenClock.js'
+import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
@@ -129,6 +130,9 @@ function App() {
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
   const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
+  const [originSecondCopyPromptJobId, setOriginSecondCopyPromptJobId] = useState(null)
+  const [originSecondCopyPromptBusy, setOriginSecondCopyPromptBusy] = useState(false)
+  const [originOrderIds, setOriginOrderIds] = useState(() => readOriginOrderIds(typeof window === 'undefined' ? null : window.localStorage))
   const [showPrintingSettings, setShowPrintingSettings] = useState(false)
   const knownOperationalOrderIdsRef = useRef(undefined)
   const alertedOrderIdsRef = useRef(new Set())
@@ -137,6 +141,7 @@ function App() {
   const syncGuardRef = useRef(createCollectionSyncGuard(DATA_COLLECTIONS))
   const bootstrapSyncInFlightRef = useRef(false)
   const ordersSyncInFlightRef = useRef(false)
+  const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
@@ -157,6 +162,9 @@ function App() {
   const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
   const secondCopyPromptOrderNumber = secondCopyPromptOrder ? formatOrderDisplayNumber(secondCopyPromptOrder) : 'Pedido'
+  const originSecondCopyPromptJob = printJobs.find((job) => job.id === originSecondCopyPromptJobId) ?? null
+  const originSecondCopyPromptOrder = orders.find((order) => order.id === originSecondCopyPromptJob?.orderId) ?? null
+  const originSecondCopyPromptOrderNumber = originSecondCopyPromptOrder ? formatOrderDisplayNumber(originSecondCopyPromptOrder) : 'Pedido'
 
   const resetSyncState = () => {
     syncGuardRef.current = createCollectionSyncGuard(DATA_COLLECTIONS)
@@ -365,12 +373,29 @@ function App() {
       })
     })
     if (!next?.id) return
-    let cancelled = false
-    void acknowledgeSecondCopyPrompt(next).then((result) => {
-      if (!cancelled && result?.promptPresented) setSecondCopyPromptJobId(next.id)
+    void acknowledgeAndOpenSecondCopyPrompt({
+      job: next,
+      acknowledge: acknowledgeSecondCopyPrompt,
+      openPrompt: setSecondCopyPromptJobId,
     }).catch(showApiError)
-    return () => { cancelled = true }
   }, [printJobs, printTransportKind, localPrintStation, acknowledgeSecondCopyPrompt, orders, secondCopyPromptJobId, printTransportReady, printerBlocked])
+
+  useEffect(() => {
+    if (printTransportKind === 'qz') return
+    if (originSecondCopyPromptJobId) {
+      const current = printJobs.find((job) => job.id === originSecondCopyPromptJobId)
+      const currentOrder = orders.find((order) => order.id === current?.orderId)
+      if (!isSecondCopyPromptEligible(current, currentOrder)) setOriginSecondCopyPromptJobId(null)
+      return
+    }
+    const next = findOriginSecondCopyPrompt({
+      jobs: printJobs,
+      orders,
+      originOrderIds,
+      dismissedJobIds: dismissedOriginSecondCopyJobIdsRef.current,
+    })
+    if (next?.id) setOriginSecondCopyPromptJobId(next.id)
+  }, [originOrderIds, originSecondCopyPromptJobId, orders, printJobs, printTransportKind])
 
   useEffect(() => () => { if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current); if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close() }, [])
   useEffect(() => { if (!toastMessage) return; const timer = window.setTimeout(() => setToastMessage(''), 2600); return () => window.clearTimeout(timer) }, [toastMessage])
@@ -420,6 +445,25 @@ function App() {
     }
   }
 
+  const dismissOriginSecondCopyPrompt = () => {
+    if (originSecondCopyPromptJob?.id) dismissedOriginSecondCopyJobIdsRef.current.add(originSecondCopyPromptJob.id)
+    setOriginSecondCopyPromptJobId(null)
+  }
+
+  const handleOriginSecondCopyRequest = async () => {
+    if (!originSecondCopyPromptJob || originSecondCopyPromptBusy) return
+    setOriginSecondCopyPromptBusy(true)
+    try {
+      await printing.requestSecondCopy(originSecondCopyPromptJob)
+      setOriginSecondCopyPromptJobId(null)
+      showSuccessMessage('2ª via enviada para a fila da cozinha')
+    } catch (error) {
+      showApiError(error)
+    } finally {
+      setOriginSecondCopyPromptBusy(false)
+    }
+  }
+
   const validateClientIdentity = (draft, excludeId = null, action = 'create') => {
     const duplicate = findClientDuplicates(clients, draft, excludeId)
     if (duplicate.phone) { setToastMessage(`Telefone já cadastrado para ${duplicate.phone.name}.`); return false }
@@ -464,7 +508,7 @@ function App() {
   const handleOrderCheckout = async (payload) => {
     if (writesBlocked) return false
     const key = checkoutKey || crypto.randomUUID(); if (!checkoutKey) setCheckoutKey(key); setRequestKey('order:create')
-    try { const { order, movement, tableTab } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab }); setCheckoutKey(null); setActiveTab('orders'); if (order.status === 'Finalizado') showSuccessMessage('Pedido anterior salvo no histórico'); else setToastMessage('Pedido enviado para a fila da cozinha'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+    try { const { order, movement, tableTab } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab }); setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage)); setCheckoutKey(null); setActiveTab('orders'); if (order.status === 'Finalizado') showSuccessMessage('Pedido anterior salvo no histórico'); else setToastMessage('Pedido enviado para a fila da cozinha'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleQuickCreateClient = async ({ name, phone }) => { if (writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
   const handleFinalizeOrder = async (orderId) => { if (writesBlocked) return; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
@@ -642,6 +686,17 @@ function App() {
           onClose={dismissSecondCopyPrompt}
           onConfirm={handleGlobalSecondCopy}
           disabled={secondCopyPromptBusy || Boolean(printing.busyJobId)}
+        />
+      )}
+      {originSecondCopyPromptJob && (
+        <ConfirmationDialog
+          title={`${originSecondCopyPromptOrderNumber} · 1ª via impressa`}
+          message="A segunda via será solicitada para a fila da cozinha."
+          confirmLabel="Solicitar 2ª via"
+          cancelLabel="Depois"
+          onClose={dismissOriginSecondCopyPrompt}
+          onConfirm={handleOriginSecondCopyRequest}
+          disabled={originSecondCopyPromptBusy}
         />
       )}
     </>

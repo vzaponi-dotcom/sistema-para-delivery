@@ -91,12 +91,21 @@ test('app globally prompts an unacknowledged waiting second copy and persists th
   assert.match(app, /import ConfirmationDialog from '\.\/components\/ConfirmationDialog'/)
   assert.match(app, /secondCopyPromptJobId/)
   assert.match(app, /canPresentSecondCopyPrompt/)
-  assert.match(app, /acknowledgeSecondCopyPrompt\(next\)/)
+  assert.match(app, /acknowledgeAndOpenSecondCopyPrompt\(\{[\s\S]*acknowledge: acknowledgeSecondCopyPrompt/)
   assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
   assert.match(app, /confirmLabel="Imprimir 2ª via"/)
   assert.match(app, /cancelLabel="Depois"/)
   assert.match(app, /Destaque o papel na serrilha antes de continuar\./)
   assert.doesNotMatch(app, /dismissedSecondCopyJobIdsRef/)
+})
+
+test('the originating non-QZ device can request, but never execute, its second copy', () => {
+  assert.match(app, /findOriginSecondCopyPrompt/)
+  assert.match(app, /rememberOriginOrderId\(order\.id/)
+  assert.match(app, /printTransportKind === 'qz'/)
+  assert.match(app, /confirmLabel="Solicitar 2ª via"/)
+  assert.match(app, /printing\.requestSecondCopy\(originSecondCopyPromptJob\)/)
+  assert.doesNotMatch(app, /printing\.printSecondCopy\(originSecondCopyPromptJob\)/)
 })
 
 test('physical popup remains separate from remote queue decisions', async () => {
