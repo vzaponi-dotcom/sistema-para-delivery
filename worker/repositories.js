@@ -307,6 +307,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   let clientPhoneSnapshot = ''
   let clientAddressSnapshot = ''
   let tableTabId = null
+  let tableIdentifier = null
   if (customerIdentity.type === 'registered_client') {
     const client = await db.prepare('SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
     if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
@@ -328,6 +329,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     const tableTab = await getOrCreateOpenTableTabByTableId(db, businessId, customerIdentity.tableId, now)
     if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
     tableTabId = tableTab.id
+    tableIdentifier = tableTab.tableIdentifier
   } else {
     throw repositoryError(400, 'INVALID_CUSTOMER_IDENTITY', 'Identificação do pedido inválida.')
   }
@@ -424,6 +426,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       orderDate: input.orderDate,
       createdAt,
       type: input.type,
+      customerIdentityType: customerIdentity.type,
+      tableIdentifier,
+      hasOptionalClient: Boolean(clientId),
       customer: {
         name: clientSnapshot,
         phone: clientPhoneSnapshot,

@@ -135,6 +135,27 @@ const input = (overrides = {}) => ({
   ...overrides,
 })
 
+const seedTableSeven = (db) => {
+  db.exec(`
+    INSERT INTO clients (id, business_id, name, phone, address)
+      VALUES ('c2', 'amor-e-sabor', 'Joao', '', '');
+    INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at)
+      VALUES ('table-7', 'amor-e-sabor', 'Mesa 7', 'MESA 7', 7, 1,
+        '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
+  `)
+}
+
+const automaticSnapshotCustomerName = async (overrides = {}) => {
+  const db = seed()
+  seedTableSeven(db)
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    paymentMethod: null,
+    ...overrides,
+  }), new Date('2026-09-03T23:31:00.000Z'))
+  const job = db.all(`SELECT snapshot_json FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+  return JSON.parse(job.snapshot_json).customer.name
+}
+
 test('current checkout snapshots customer contact and enqueues one paid automatic print job atomically', async () => {
   const db = seed()
   const now = new Date('2026-09-03T23:31:00.000Z')
@@ -154,6 +175,38 @@ test('current checkout snapshots customer contact and enqueues one paid automati
   assert.equal(snapshot.customer.address, 'Rua das Flores, 123')
   assert.equal(snapshot.items[0].note, 'sem cebola')
   assert.deepEqual(snapshot.payment, { status: 'Pago', method: 'Pix' })
+})
+
+test('automatic local print snapshot preserves table and optional customer identity', async () => {
+  assert.equal(await automaticSnapshotCustomerName({
+    customerIdentity: { type: 'table', tableId: 'table-7', clientId: 'c2' },
+    type: 'Local',
+    idempotencyKey: 'auto-table-with-client',
+  }), 'Mesa 7 · Joao')
+})
+
+test('automatic local print snapshot preserves a table without a customer', async () => {
+  assert.equal(await automaticSnapshotCustomerName({
+    customerIdentity: { type: 'table', tableId: 'table-7' },
+    type: 'Local',
+    idempotencyKey: 'auto-table-without-client',
+  }), 'Mesa 7')
+})
+
+test('automatic delivery print snapshot preserves the customer without a table', async () => {
+  assert.equal(await automaticSnapshotCustomerName({
+    customerIdentity: { type: 'registered_client', clientId: 'c2' },
+    type: 'Entrega',
+    idempotencyKey: 'auto-delivery-with-client',
+  }), 'Joao')
+})
+
+test('automatic local print snapshot does not duplicate the table identity', async () => {
+  assert.equal(await automaticSnapshotCustomerName({
+    customerIdentity: { type: 'table', tableId: 'table-7' },
+    type: 'Local',
+    idempotencyKey: 'auto-table-no-duplicate',
+  }), 'Mesa 7')
 })
 
 test('table checkout requests one automatic copy when the central default is two', async () => {
