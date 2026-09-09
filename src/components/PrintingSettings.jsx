@@ -141,8 +141,11 @@ function PrintingSettings({ printing, onClose }) {
   }
 
   const printerState = printing?.supported === false ? 'unsupported' : (printing?.printerState || 'unconfigured')
-  const connectionLabel = (isQz ? QZ_CONNECTION_LABELS : CONNECTION_LABELS)[printerState] || 'Desconectada'
+  const qzConnectionState = printing?.qzConnected ? 'connected' : (printerState === 'connecting' ? 'connecting' : 'disconnected')
+  const connectionLabel = (isQz ? QZ_CONNECTION_LABELS : CONNECTION_LABELS)[isQz ? qzConnectionState : printerState] || 'Desconectada'
   const configured = !['unconfigured', 'unsupported'].includes(printerState)
+  const queueConfigured = Boolean(String(printing?.configuredPrinterName || '').trim())
+  const queueFound = Boolean(printing?.printerQueueFound)
   const disabled = Boolean(pendingAction) || !station
   const qzPrinters = Array.isArray(printing?.availablePrinters) ? printing.availablePrinters : []
   const qzPrinterOptions = qzPrinters.map((printerName) => ({ value: printerName, label: printerName }))
@@ -153,10 +156,10 @@ function PrintingSettings({ printing, onClose }) {
         <div className="printing-settings form-stack">
           <div className="printing-status-card">
             <div>
-              <span className="printing-label">Impressora</span>
+              <span className="printing-label">{isQz ? 'QZ Tray' : 'Impressora'}</span>
               <strong>{connectionLabel}</strong>
             </div>
-            <span className={`printing-state printing-state-${printerState}`}>{connectionLabel}</span>
+            <span className={`printing-state printing-state-${isQz ? qzConnectionState : printerState}`}>{connectionLabel}</span>
           </div>
 
           {isRawBt && (
@@ -180,14 +183,14 @@ function PrintingSettings({ printing, onClose }) {
                   <h3>Impressora do Windows</h3>
                   <p>O QZ Tray deve permanecer aberto no Windows para impressão automática.</p>
                 </div>
-                <span className={`printing-state printing-state-${printing?.transportReady ? 'connected' : 'unconfigured'}`}>
-                  {printing?.transportReady ? 'Pronta' : 'Configuração necessária'}
+                <span className={`printing-state printing-state-${printing?.transportReady ? 'connected' : 'disconnected'}`}>
+                  {printing?.transportReady ? 'Pronta para enviar' : 'Indisponível para impressão'}
                 </span>
               </div>
 
               <div className="printing-inline-card">
-                <strong>{printing?.configuredPrinterName || 'Nenhuma fila configurada'}</strong>
-                <span>Fila local esperada: MPT-II. A escolha fica salva somente nesta estação.</span>
+                <strong>{queueFound ? 'Fila encontrada' : (queueConfigured ? 'Fila configurada' : 'Fila não configurada')}</strong>
+                <span>{printing?.configuredPrinterName || 'Nenhuma fila configurada'} · A descoberta da fila não confirma conexão física da impressora.</span>
               </div>
 
               {qzConfiguring ? (

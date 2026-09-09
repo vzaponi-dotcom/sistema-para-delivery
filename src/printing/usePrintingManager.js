@@ -40,6 +40,7 @@ import { runClaimedPrintJob } from './printJobRunner.js'
 import {
   configureQzSecurity,
   createQzReadinessController,
+  deriveQzOperationalState,
   ensureQzConnected,
   listQzPrinters,
   printQzRawBytes,
@@ -91,6 +92,7 @@ export const canConsumeAutomaticPrintJob = ({
   busyJobId,
   printerBlocked,
   transportReady,
+  qzConnected = true,
   isQz = true,
   allowManual = false,
   station,
@@ -103,6 +105,7 @@ export const canConsumeAutomaticPrintJob = ({
   && !busyJobId
   && !printerBlocked
   && transportReady
+  && (!isQz || qzConnected)
   && isQz
   && station?.isPrimary
   && (allowManual || station?.autoPrintEnabled)
@@ -218,10 +221,14 @@ export const buildPrintStationHeartbeatHealth = ({
   transportReady,
   configuredPrinterName,
 }) => {
-  const qzReady = Boolean(qzActive)
+  const state = deriveQzOperationalState({
+    qzConnected: qzActive,
+    printerQueueConfigured: Boolean(String(configuredPrinterName || '').trim()),
+    printerQueueFound: transportReady,
+  })
   return {
-    qzReady,
-    printerReady: Boolean(qzReady && transportReady && String(configuredPrinterName || '').trim()),
+    qzReady: state.qzConnected,
+    printerReady: state.operationalReady,
   }
 }
 
@@ -240,6 +247,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const [lastError, setLastError] = useState(null)
   const [availablePrinters, setAvailablePrinters] = useState([])
   const [configuredPrinterName, setConfiguredPrinterName] = useState(null)
+  const [qzConnected, setQzConnected] = useState(false)
+  const [printerQueueFound, setPrinterQueueFound] = useState(false)
   const [transportReady, setTransportReady] = useState(false)
 
   const portRef = useRef(null)
@@ -247,10 +256,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const busyJobIdRef = useRef(null)
   const printerBlockedRef = useRef(false)
   const configuredPrinterNameRef = useRef(null)
+  const qzConnectedRef = useRef(false)
+  const printerQueueFoundRef = useRef(false)
   const transportReadyRef = useRef(false)
   const qzSecurityConfiguredRef = useRef(false)
   const qzReadinessRef = useRef(createQzReadinessController())
   const initializationRef = useRef(0)
+  const heartbeatInFlightRef = useRef(false)
+  const heartbeatSequenceRef = useRef(0)
   const [physicalJobFailureNotifier] = useState(createPhysicalJobFailureNotifier)
 
   const updateLocalStation = useCallback((station) => {
@@ -276,6 +289,18 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     setConfiguredPrinterName(value)
   }, [])
 
+  const updateQzConnected = useCallback((connected) => {
+    const value = Boolean(connected)
+    qzConnectedRef.current = value
+    setQzConnected(value)
+  }, [])
+
+  const updatePrinterQueueFound = useCallback((found) => {
+    const value = Boolean(found)
+    printerQueueFoundRef.current = value
+    setPrinterQueueFound(value)
+  }, [])
+
   const updateTransportReady = useCallback((ready) => {
     const value = Boolean(ready)
     transportReadyRef.current = value
@@ -297,8 +322,17 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       getCertificate: getQzCertificate,
       signPayload: signQzPayload,
     })
+    qz.websocket?.setClosedCallbacks?.([
+      () => {
+        qzReadinessRef.current.invalidate()
+        updateQzConnected(false)
+        updatePrinterQueueFound(false)
+        updateTransportReady(false)
+        setPrinterState('disconnected')
+      },
+    ])
     qzSecurityConfiguredRef.current = true
-  }, [])
+  }, [updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const refresh = useCallback(async () => {
     if (!authenticated) return { stations: [], jobs: [] }
@@ -322,9 +356,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     if (!transportReadyRef.current) setPrinterState('connecting')
     try {
       await ensureQzConnected(qz)
+      updateQzConnected(Boolean(qz.websocket?.isActive?.()))
       const savedPrinterName = getQzPrinterName(globalThis.localStorage, stationId)
       updateConfiguredPrinterName(savedPrinterName)
       if (!savedPrinterName) {
+        updatePrinterQueueFound(false)
         updateTransportReady(false)
         setPrinterState('unconfigured')
         return null
@@ -333,19 +369,23 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         () => resolveQzPrinter(qz, savedPrinterName),
       )
       updateConfiguredPrinterName(resolvedPrinter)
+      updatePrinterQueueFound(true)
       updateTransportReady(true)
       updateBlocked(false)
       setPrinterState('connected')
       setLastError(null)
       return resolvedPrinter
     } catch (error) {
+      if (error?.code === 'QZ_STALE_PROBE') return null
+      updateQzConnected(Boolean(qz.websocket?.isActive?.()))
+      updatePrinterQueueFound(false)
       updateTransportReady(false)
       setPrinterState(error?.code === 'QZ_PRINTER_NOT_FOUND' ? 'unconfigured' : 'disconnected')
       if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
       reportError(error)
       return null
     }
-  }, [configureQz, isQz, reportError, updateBlocked, updateConfiguredPrinterName, updateTransportReady])
+  }, [configureQz, isQz, reportError, updateBlocked, updateConfiguredPrinterName, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const refreshPrinters = useCallback(async () => {
     if (!isQz) return []
@@ -353,19 +393,25 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     setPrinterState('connecting')
     try {
       await ensureQzConnected(qz)
+      updateQzConnected(Boolean(qz.websocket?.isActive?.()))
       const printers = await listQzPrinters(qz)
       setAvailablePrinters(printers)
-      setPrinterState(transportReadyRef.current ? 'connected' : 'unconfigured')
+      const savedPrinterName = configuredPrinterNameRef.current || getQzPrinterName(globalThis.localStorage, localStationRef.current?.id)
+      const found = Boolean(savedPrinterName && printers.includes(savedPrinterName))
+      updatePrinterQueueFound(found)
+      updateTransportReady(found)
+      setPrinterState(savedPrinterName ? 'connected' : 'unconfigured')
       setLastError(null)
       return printers
     } catch (error) {
+      updateQzConnected(Boolean(qz.websocket?.isActive?.()))
       updateTransportReady(false)
       setPrinterState('disconnected')
       if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
       reportError(error)
       throw error
     }
-  }, [configureQz, isQz, reportError, updateBlocked, updateTransportReady])
+  }, [configureQz, isQz, reportError, updateBlocked, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const selectPrinter = useCallback(async (printerName) => {
     if (!isQz) throw printerError('QZ_UNAVAILABLE', 'A seleção de fila QZ está disponível apenas no Windows.')
@@ -379,22 +425,26 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     setPrinterState('connecting')
     try {
       await ensureQzConnected(qz)
+      updateQzConnected(Boolean(qz.websocket?.isActive?.()))
       const selectedPrinter = await resolveQzPrinter(qz, requestedPrinter)
       saveQzPrinterName(globalThis.localStorage, stationId, selectedPrinter)
       updateConfiguredPrinterName(selectedPrinter)
+      updatePrinterQueueFound(true)
       updateTransportReady(true)
       updateBlocked(false)
       setPrinterState('connected')
       setLastError(null)
       return selectedPrinter
     } catch (error) {
+      updateQzConnected(Boolean(qz.websocket?.isActive?.()))
+      updatePrinterQueueFound(false)
       updateTransportReady(false)
       setPrinterState(error?.code === 'QZ_PRINTER_NOT_FOUND' ? 'unconfigured' : 'disconnected')
       if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
       reportError(error)
       throw error
     }
-  }, [configureQz, isQz, reportError, updateBlocked, updateConfiguredPrinterName, updateTransportReady])
+  }, [configureQz, isQz, reportError, updateBlocked, updateConfiguredPrinterName, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const resolveAuthorizedPort = useCallback(async ({ probe = false } = {}) => {
     if (isRawBt || isQz || !supported) return null
@@ -524,13 +574,18 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         },
       })
       if (result.status === 'printed') {
-        if (transportKind === 'qz') updateTransportReady(true)
+        if (transportKind === 'qz') {
+          updateQzConnected(Boolean(qz.websocket?.isActive?.()))
+          updatePrinterQueueFound(true)
+          updateTransportReady(true)
+        }
         if (transportKind === 'web-serial') updateTransportReady(true)
         setPrinterState(isRawBt ? 'driver-ready' : 'connected')
         setLastError(null)
         if (clearBlockOnSuccess) updateBlocked(false)
       } else {
         if (transportKind !== 'rawbt') updateTransportReady(false)
+        if (transportKind === 'qz') updateQzConnected(Boolean(qz.websocket?.isActive?.()))
         setPrinterState(isRawBt ? 'driver-ready' : 'disconnected')
         if (
           ['SERIAL_OPEN_FAILED', 'PRINTER_NOT_AUTHORIZED', 'RAWBT_LAUNCH_FAILED'].includes(result.error?.code)
@@ -544,7 +599,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       updateBusyJob(null)
       try { await refresh() } catch (error) { reportError(error) }
     }
-  }, [isRawBt, notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updateTransportReady])
+  }, [isRawBt, notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const saveStationSettings = useCallback(async (settings = {}) => {
     const current = localStationRef.current
@@ -696,6 +751,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       setAvailablePrinters([])
       portRef.current = null
       updateConfiguredPrinterName(null)
+      updateQzConnected(false)
+      updatePrinterQueueFound(false)
       updateTransportReady(false)
       updateBusyJob(null)
       updateBlocked(false)
@@ -738,7 +795,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     }
     void initialize()
     return () => { cancelled = true }
-  }, [authenticated, isOnline, isQz, platform, refresh, reportError, resolveConfiguredQzPrinter, supported, updateBlocked, updateBusyJob, updateConfiguredPrinterName, updateLocalStation, updateTransportReady])
+  }, [authenticated, isOnline, isQz, platform, refresh, reportError, resolveConfiguredQzPrinter, supported, updateBlocked, updateBusyJob, updateConfiguredPrinterName, updateLocalStation, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   useEffect(() => {
     if (!authenticated || !isOnline) return undefined
@@ -781,17 +838,21 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     let cancelled = false
     const heartbeat = async () => {
       const station = localStationRef.current
-      if (!station || !eligible()) return
+      if (!station || !eligible() || heartbeatInFlightRef.current) return
+      heartbeatInFlightRef.current = true
+      const sequence = ++heartbeatSequenceRef.current
       const health = buildPrintStationHeartbeatHealth({
-        qzActive: Boolean(qz.websocket?.isActive?.()),
+        qzActive: qzConnectedRef.current,
         transportReady: transportReadyRef.current,
         configuredPrinterName: configuredPrinterNameRef.current,
       })
       try {
         const response = await heartbeatPrintStation(station.id, health)
-        if (!cancelled && response?.station) updateLocalStation(response.station)
+        if (!cancelled && sequence === heartbeatSequenceRef.current && response?.station) updateLocalStation(response.station)
       } catch (error) {
-        if (!cancelled) reportError(error)
+        if (!cancelled && sequence === heartbeatSequenceRef.current) reportError(error)
+      } finally {
+        if (sequence === heartbeatSequenceRef.current) heartbeatInFlightRef.current = false
       }
     }
 
@@ -799,6 +860,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     const timer = globalThis.setInterval?.(() => { void heartbeat() }, STATION_HEARTBEAT_MS)
     return () => {
       cancelled = true
+      heartbeatSequenceRef.current += 1
+      heartbeatInFlightRef.current = false
       if (timer) globalThis.clearInterval?.(timer)
     }
   }, [authenticated, configuredPrinterName, isOnline, isQz, localStation?.id, localStation?.isPrimary, localStation?.platform, reportError, transportReady, updateLocalStation])
@@ -816,6 +879,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         busyJobId: busyJobIdRef.current,
         printerBlocked: printerBlockedRef.current,
         transportReady: transportReadyRef.current,
+        qzConnected: qzConnectedRef.current,
         isQz,
         allowManual: true,
         station,
@@ -857,6 +921,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     lastError,
     availablePrinters,
     configuredPrinterName,
+    qzConnected,
+    printerQueueFound,
     transportReady,
     refresh,
     refreshPrinters,

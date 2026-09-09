@@ -190,6 +190,15 @@ test('printing settings expose honest connection, station and transport states',
   assert.match(settings, /MPT-II/)
 })
 
+test('QZ copy separates Tray connection from queue discovery and send readiness', () => {
+  assert.match(settings, /QZ Tray conectado/)
+  assert.match(settings, /QZ Tray desconectado/)
+  assert.match(settings, /Fila encontrada/)
+  assert.match(settings, /Fila configurada/)
+  assert.match(settings, /Pronta para enviar/)
+  assert.doesNotMatch(settings, /Impressora disponÃ­vel/)
+})
+
 test('Android RawBT hides Web Serial connection chooser but preserves test and station controls', () => {
   assert.match(settings, /printing\?\.transportKind === 'rawbt'/)
   assert.match(settings, /!isRawBt && !isQz && \(/)

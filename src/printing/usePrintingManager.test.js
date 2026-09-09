@@ -53,6 +53,7 @@ test('Windows uses QZ, Android keeps RawBT, and only fallback platforms depend o
 
 test('automatic consumer does not claim while QZ or another local transport is not ready', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ transportReady: false })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ qzConnected: false })), false)
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
 })
 
@@ -70,6 +71,14 @@ test('transport support alone cannot bypass station and local-readiness guards',
     transportReady: true,
     station: { isPrimary: true, autoPrintEnabled: false },
   })), false)
+})
+
+test('QZ close invalidates readiness and heartbeat responses cannot overwrite newer state', () => {
+  assert.match(managerSource, /setClosedCallbacks/)
+  assert.match(managerSource, /qzReadinessRef\.current\.invalidate\(\)/)
+  assert.match(managerSource, /const heartbeatSequenceRef = useRef\(0\)/)
+  assert.match(managerSource, /heartbeatInFlightRef\.current/)
+  assert.match(managerSource, /sequence === heartbeatSequenceRef\.current/)
 })
 
 test('the primary QZ station can execute an awaiting second copy', () => {

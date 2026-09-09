@@ -20,7 +20,7 @@ export const getPrintStationSummary = (station) => {
   }
   return {
     onlineLabel: health.online ? 'Online' : 'Offline',
-    qzLabel: typeof health.qzReady === 'boolean' ? (health.qzReady ? 'QZ disponível' : 'QZ indisponível') : null,
-    printerLabel: typeof health.printerReady === 'boolean' ? (health.printerReady ? 'Impressora disponível' : 'Impressora indisponível') : null,
+    qzLabel: typeof health.qzReady === 'boolean' ? (health.qzReady ? 'QZ conectado' : 'QZ desconectado') : null,
+    printerLabel: typeof health.printerReady === 'boolean' ? (health.printerReady ? 'Fila encontrada' : 'Fila indisponível') : null,
   }
 }

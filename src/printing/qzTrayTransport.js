@@ -1,26 +1,49 @@
 const qzError = (code, message, cause) => Object.assign(new Error(message), { code, cause })
 
+export const deriveQzOperationalState = ({
+  qzConnected = false,
+  printerQueueConfigured = false,
+  printerQueueFound = false,
+} = {}) => ({
+  qzConnected: Boolean(qzConnected),
+  printerQueueConfigured: Boolean(printerQueueConfigured),
+  printerQueueFound: Boolean(printerQueueConfigured && printerQueueFound),
+  operationalReady: Boolean(qzConnected && printerQueueConfigured && printerQueueFound),
+})
+
 export const createQzReadinessController = () => {
   let ready = false
   let inFlight = null
+  let generation = 0
 
   return {
     isReady: () => ready,
+    invalidate: () => {
+      generation += 1
+      ready = false
+      inFlight = null
+    },
     probe: async (operation) => {
       if (inFlight) return inFlight
-      inFlight = Promise.resolve()
+      const probeGeneration = generation
+      let request
+      request = Promise.resolve()
         .then(operation)
         .then((result) => {
+          if (probeGeneration !== generation) {
+            throw qzError('QZ_STALE_PROBE', 'A resposta de prontidão do QZ Tray ficou obsoleta.')
+          }
           ready = true
           return result
         }, (error) => {
-          ready = false
+          if (probeGeneration === generation) ready = false
           throw error
         })
         .finally(() => {
-          inFlight = null
+          if (inFlight === request) inFlight = null
         })
-      return inFlight
+      inFlight = request
+      return request
     },
   }
 }

@@ -67,8 +67,8 @@ test('print station summary reports available health without inventing an online
     health: { online: true, qzReady: true, printerReady: false },
   }), {
     onlineLabel: 'Online',
-    qzLabel: 'QZ disponível',
-    printerLabel: 'Impressora indisponível',
+    qzLabel: 'QZ conectado',
+    printerLabel: 'Fila indisponível',
   })
   assert.deepEqual(getPrintStationSummary(null), {
     onlineLabel: 'Status indisponível',
