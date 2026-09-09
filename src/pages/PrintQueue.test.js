@@ -377,3 +377,12 @@ test('7F-B1 keeps reprint and ticket preview in the detail modal, using the immu
   assert.match(styles, /\.print-queue-detail-ticket \{ order: 3;/)
   assert.match(styles, /\.print-queue-detail-close \{ order: 4;/)
 })
+
+test('remote second-copy decisions use their approved toasts and confirmation variants', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /requestSecondCopy: '2ª via enviada para a fila'/)
+  assert.match(page, /skipSecondCopy: '2ª via dispensada'/)
+  assert.match(page, /confirmation === 'requestSecondCopy' \? 'primary'/)
+  assert.match(page, /confirmation === 'skipSecondCopy' \? 'danger'/)
+  assert.doesNotMatch(page, /printSecondCopy\(/)
+})

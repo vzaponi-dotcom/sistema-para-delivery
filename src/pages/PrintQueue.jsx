@@ -89,7 +89,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
       if (action === 'forcePrint') await printing?.requestForcePrint?.(selectedJob)
       if (action === 'requestSecondCopy') await printing?.requestSecondCopy?.(selectedJob)
       if (action === 'skipSecondCopy') await printing?.skipSecondCopy?.(selectedJob)
-      onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressão descartado', forcePrint: 'Impressão autorizada e enviada para a fila' }[action])
+      onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressão descartado', forcePrint: 'Impressão autorizada e enviada para a fila', requestSecondCopy: '2ª via enviada para a fila', skipSecondCopy: '2ª via dispensada' }[action])
       closeDetails()
     } catch (error) {
       onToast?.(error?.message || 'Não foi possível concluir a operação.')
@@ -283,7 +283,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
         message={confirmation === 'requestSecondCopy' ? `A 2ª via do ${orderNumber} será enviada para a fila da cozinha.` : confirmation === 'skipSecondCopy' ? `A pendência da 2ª via do ${orderNumber} será encerrada.` : confirmation === 'discard' ? `O trabalho de impressão de ${orderNumber} será descartado.` : `${orderNumber} já foi finalizado ou cancelado. Autorizar a impressão original?`}
         confirmLabel={confirmation === 'requestSecondCopy' ? 'Imprimir 2ª via' : confirmation === 'skipSecondCopy' ? 'Não imprimir 2ª via' : confirmation === 'discard' ? 'Descartar' : 'Imprimir mesmo assim'}
         cancelLabel="Cancelar"
-        confirmVariant={confirmation === 'discard' ? 'secondary' : undefined}
+        confirmVariant={confirmation === 'requestSecondCopy' ? 'primary' : confirmation === 'skipSecondCopy' ? 'danger' : confirmation === 'discard' ? 'secondary' : undefined}
         onClose={() => setConfirmation(null)}
         onConfirm={() => void runAction(confirmation)}
         disabled={actionPending}
