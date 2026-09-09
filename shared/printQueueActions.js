@@ -43,6 +43,9 @@ export const isReprintablePrintJob = (job, { order } = {}) => {
 
 export const getPrintJobActions = (job, options = {}) => {
   const state = resolvePrintQueueState(job?.queueState || job?.status)
+  if (state === 'waiting_second_copy' && Number(job?.copiesRequested) === 2 && Number(job?.copiesPrinted) === 1) {
+    return [{ key: 'requestSecondCopy', label: 'Imprimir 2ª via' }, { key: 'skipSecondCopy', label: 'Não imprimir 2ª via' }]
+  }
   if (state === 'queued' || state === 'waiting_station') {
     return [
       ...(Number(job?.priority) === 1 ? [] : [{ key: 'printNow', label: 'Imprimir agora' }]),

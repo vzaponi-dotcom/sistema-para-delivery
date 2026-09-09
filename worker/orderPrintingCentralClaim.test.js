@@ -53,6 +53,8 @@ class D1Sqlite {
         attention_reason TEXT,
         action_actor_label TEXT,
         action_at TEXT,
+        second_copy_requested_at TEXT,
+        second_copy_skipped_at TEXT,
         last_error_code TEXT,
         last_error_message TEXT
       );

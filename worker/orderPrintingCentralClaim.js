@@ -48,11 +48,14 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
       SELECT id FROM print_jobs
       WHERE business_id = ? AND type = 'order' AND status = 'pending' AND available_at <= ?
         AND (
+          (copies_requested = 2 AND copies_printed = 1 AND second_copy_requested_at IS NOT NULL AND second_copy_skipped_at IS NULL)
+          OR
           trigger = 'manual'
           OR last_error_code = 'FORCE_PRINT_AUTHORIZED'
           OR (trigger = 'automatic' AND ? = 1 AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
         )
-      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
+      ORDER BY CASE WHEN second_copy_requested_at IS NOT NULL AND copies_requested = 2 AND copies_printed = 1 THEN 1 ELSE 0 END DESC,
+        priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
     ) AND business_id = ? AND type = 'order' AND status = 'pending'
     RETURNING id`)
     .bind(stationId, at, businessId, at, automaticEnabled, businessId).first()

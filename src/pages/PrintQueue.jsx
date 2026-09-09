@@ -87,6 +87,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
       if (action === 'retry') await printing?.requestRetry?.(selectedJob)
       if (action === 'discard') await printing?.requestDiscard?.(selectedJob)
       if (action === 'forcePrint') await printing?.requestForcePrint?.(selectedJob)
+      if (action === 'requestSecondCopy') await printing?.requestSecondCopy?.(selectedJob)
+      if (action === 'skipSecondCopy') await printing?.skipSecondCopy?.(selectedJob)
       onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressão descartado', forcePrint: 'Impressão autorizada e enviada para a fila' }[action])
       closeDetails()
     } catch (error) {
@@ -97,7 +99,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
     }
   }
   const requestAction = (action) => {
-    if (action === 'discard' || action === 'forcePrint') setConfirmation(action)
+    if (action === 'discard' || action === 'forcePrint' || action === 'requestSecondCopy' || action === 'skipSecondCopy') setConfirmation(action)
     else if (action === 'reprint') {
       setReprintCopies(null)
       setShowReprint(true)
@@ -243,8 +245,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
           <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">
             <Button type="button" variant="secondary" className="print-queue-detail-close" onClick={closeDetails} disabled={actionPending}>Fechar</Button>
             {selectedJob?.type === 'order' && selectedJob?.document?.type === 'order' && <Button type="button" variant="secondary" className="print-queue-detail-ticket" onClick={() => setShowTicket(true)} disabled={actionPending}>Ver ticket</Button>}
-            {selectedDetails.actions.filter((action) => action.key === 'discard').map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
-            {selectedDetails.actions.filter((action) => action.key !== 'discard').map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => ['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => !['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
           </div>}>
           {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
           <div className="print-queue-detail-sections">
@@ -260,6 +262,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
             {(selectedDetails.attentionReason || selectedDetails.error) && <section aria-labelledby="print-detail-attention"><h3 id="print-detail-attention">Erro / atenção</h3>{selectedDetails.attentionReason && <p><span>Motivo</span>{selectedDetails.attentionReason}</p>}{selectedDetails.error?.code && <p><span>Código</span>{selectedDetails.error.code}</p>}{selectedDetails.error?.message && <p><span>Mensagem</span>{selectedDetails.error.message}</p>}</section>}
             {selectedDetails.reprintOf && <section aria-labelledby="print-detail-link"><h3 id="print-detail-link">Vínculo</h3><p>{selectedDetails.reprintOf}</p></section>}
             {selectedDetails.audit && <section aria-labelledby="print-detail-audit"><h3 id="print-detail-audit">Auditoria</h3><p><span>Ação</span>{selectedDetails.audit.action}</p>{selectedDetails.audit.at && <p><span>Horário</span>{selectedDetails.audit.at}</p>}{selectedDetails.audit.actor && <p><span>Ator/solicitante</span>{selectedDetails.audit.actor}</p>}</section>}
+            {selectedDetails.secondCopySkipped && <section aria-labelledby="print-detail-second-copy"><h3 id="print-detail-second-copy">{selectedDetails.secondCopySkipped.label}</h3><p>{selectedDetails.secondCopySkipped.message}</p>{selectedDetails.secondCopySkipped.at && <p>{selectedDetails.secondCopySkipped.at}</p>}</section>}
           </div>
         </Modal>
       )}
@@ -276,9 +279,9 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
         <OrderTicketPreview document={selectedJob.document} />
       </Modal>}
       {confirmation && <ConfirmationDialog
-        title={confirmation === 'discard' ? 'Descartar trabalho de impressão?' : 'Imprimir mesmo assim?'}
-        message={confirmation === 'discard' ? `O trabalho de impressão de ${orderNumber} será descartado.` : `${orderNumber} já foi finalizado ou cancelado. Autorizar a impressão original?`}
-        confirmLabel={confirmation === 'discard' ? 'Descartar' : 'Imprimir mesmo assim'}
+        title={confirmation === 'requestSecondCopy' ? 'Imprimir 2ª via?' : confirmation === 'skipSecondCopy' ? 'Não imprimir a 2ª via?' : confirmation === 'discard' ? 'Descartar trabalho de impressão?' : 'Imprimir mesmo assim?'}
+        message={confirmation === 'requestSecondCopy' ? `A 2ª via do ${orderNumber} será enviada para a fila da cozinha.` : confirmation === 'skipSecondCopy' ? `A pendência da 2ª via do ${orderNumber} será encerrada.` : confirmation === 'discard' ? `O trabalho de impressão de ${orderNumber} será descartado.` : `${orderNumber} já foi finalizado ou cancelado. Autorizar a impressão original?`}
+        confirmLabel={confirmation === 'requestSecondCopy' ? 'Imprimir 2ª via' : confirmation === 'skipSecondCopy' ? 'Não imprimir 2ª via' : confirmation === 'discard' ? 'Descartar' : 'Imprimir mesmo assim'}
         cancelLabel="Cancelar"
         confirmVariant={confirmation === 'discard' ? 'secondary' : undefined}
         onClose={() => setConfirmation(null)}

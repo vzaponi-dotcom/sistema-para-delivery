@@ -104,6 +104,8 @@ const mapJobRow = (row) => row ? ({
   actionActorLabel: row.action_actor_label ?? null,
   actionAt: row.action_at ?? null,
   secondCopyPromptedAt: row.second_copy_prompted_at ?? null,
+  secondCopyRequestedAt: row.second_copy_requested_at ?? null,
+  secondCopySkippedAt: row.second_copy_skipped_at ?? null,
   lastError: row.last_error_code
     ? { code: row.last_error_code, message: row.last_error_message || '' }
     : null,
@@ -239,6 +241,7 @@ const routeIneligibleAutomaticJobsToAttention = async (db, businessId, now = new
       last_error_message = 'O pedido foi finalizado ou cancelado antes da impressão automática.'
     WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending'
       AND (last_error_code IS NULL OR last_error_code <> 'FORCE_PRINT_AUTHORIZED')
+      AND NOT (copies_requested = 2 AND copies_printed = 1 AND second_copy_requested_at IS NOT NULL AND second_copy_skipped_at IS NULL)
       AND NOT ${AUTOMATIC_ORDER_ELIGIBLE_SQL}`)
     .bind(at, businessId).run()
 }
@@ -374,7 +377,8 @@ export const claimPrintJob = async (db, businessId, jobId, stationId, now = new 
     WHERE id = ? AND business_id = ?
       AND ((status = 'pending' AND available_at <= ?)
         OR (status = 'awaiting_second_copy' AND copies_printed > 0 AND copies_printed < copies_requested))
-      AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED')
+      AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED'
+        OR (copies_requested = 2 AND copies_printed = 1 AND second_copy_requested_at IS NOT NULL AND second_copy_skipped_at IS NULL))
     RETURNING *`).bind(stationId, at, jobId, businessId, at).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)
@@ -522,6 +526,34 @@ export const acknowledgeSecondCopyPrompt = async (db, businessId, jobId, station
   const job = await loadPrintJob(db, businessId, jobId)
   if (!job) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   return { job, promptPresented: false }
+}
+
+export const requestSecondCopy = async (db, businessId, jobId, actorLabel = 'Sistema', now = new Date()) => {
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const row = await db.prepare(`UPDATE print_jobs SET status = 'pending', station_id = NULL, processing_started_at = NULL,
+    second_copy_requested_at = ?, action_at = ?, action_actor_label = ?
+    WHERE id = ? AND business_id = ? AND type = 'order' AND status = 'awaiting_second_copy'
+      AND copies_requested = 2 AND copies_printed = 1 AND second_copy_skipped_at IS NULL RETURNING *`)
+    .bind(at, at, actor, jobId, businessId).first()
+  if (row) return mapJobRow(row)
+  const existing = await loadPrintJob(db, businessId, jobId)
+  if (existing?.status === 'pending' && existing.secondCopyRequestedAt && existing.copiesPrinted === 1) return existing
+  if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+  throw repositoryError(409, 'PRINT_SECOND_COPY_NOT_AWAITING', 'A segunda via não está disponível para este trabalho.')
+}
+
+export const skipSecondCopy = async (db, businessId, jobId, actorLabel = 'Sistema', now = new Date()) => {
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const row = await db.prepare(`UPDATE print_jobs SET status = 'discarded', second_copy_skipped_at = ?, discarded_at = ?, action_at = ?, action_actor_label = ?
+    WHERE id = ? AND business_id = ? AND status = 'awaiting_second_copy' AND copies_requested = 2 AND copies_printed = 1 RETURNING *`)
+    .bind(at, at, at, actor, jobId, businessId).first()
+  if (row) return mapJobRow(row)
+  const existing = await loadPrintJob(db, businessId, jobId)
+  if (existing?.status === 'discarded' && existing.secondCopySkippedAt) return existing
+  if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+  throw repositoryError(409, 'PRINT_SECOND_COPY_NOT_AWAITING', 'A segunda via não está disponível para este trabalho.')
 }
 
 export const forcePrintJob = async (db, businessId, jobId, actorLabel = 'Sistema', now = new Date()) => {

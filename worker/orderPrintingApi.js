@@ -18,9 +18,11 @@ import {
   prioritizePrintJob,
   reprintPrintJob,
   retryPrintJob,
+  requestSecondCopy,
   saveBusinessPrintSettings,
   setPrimaryPrintStation,
   upsertPrintStation,
+  skipSecondCopy,
 } from './orderPrintingRepository.js'
 import { getConfiguredQzCertificate, signQzPayload } from './qzSigning.js'
 
@@ -172,6 +174,19 @@ export const handlePrintingApi = async (request, env, session, url) => {
     assertSameOriginMutation(request)
     const body = await readJson(request)
     return json(await acknowledgeSecondCopyPrompt(env.DB, businessId, decodeURIComponent(secondCopyPromptMatch[1]), stationIdFromBody(body)))
+  }
+
+  const requestSecondCopyMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/request-second-copy$/)
+  if (requestSecondCopyMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ job: await requestSecondCopy(env.DB, businessId, decodeURIComponent(requestSecondCopyMatch[1]), body.actorLabel) })
+  }
+  const skipSecondCopyMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/skip-second-copy$/)
+  if (skipSecondCopyMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ job: await skipSecondCopy(env.DB, businessId, decodeURIComponent(skipSecondCopyMatch[1]), body.actorLabel) })
   }
 
   const discardMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/discard$/)

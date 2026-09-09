@@ -330,7 +330,7 @@ test('print queue opens details from desktop rows and mobile cards, with actions
   assert.match(page, /onClick=\{\(\) => setSelectedJob\(filteredJobs\[index\]\)\}/)
   assert.match(page, /<Modal[\s\S]*selectedDetails\.title/)
   assert.match(page, /Fechar/)
-  assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key !== 'discard'\)/)
+  assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
   const queueRows = page.slice(page.indexOf('<tbody>'), page.indexOf('{selectedDetails &&'))
   assert.doesNotMatch(queueRows, /<Button/)
 })
@@ -341,8 +341,8 @@ test('print queue modal orders actions by primary, destructive, ticket, close on
     readSource('../print-queue.css'),
   ])
 
-  assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key === 'discard'\)/)
-  assert.match(page, /selectedDetails\.actions\.filter\(\(action\) => action\.key !== 'discard'\)/)
+  assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
+  assert.match(page, /!\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
   assert.match(styles, /\.print-queue-detail-actions[\s\S]*\.print-queue-detail-close/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-detail-primary[\s\S]*order: 1[\s\S]*\.print-queue-detail-destructive[\s\S]*order: 2[\s\S]*\.print-queue-detail-ticket[\s\S]*order: 3[\s\S]*\.print-queue-detail-close[\s\S]*order: 4/)
 })

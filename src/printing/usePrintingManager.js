@@ -19,6 +19,8 @@ import {
   prioritizePrintJob,
   reprintPrintJob,
   retryPrintJob,
+  requestSecondCopy as requestSecondCopyApi,
+  skipSecondCopy as skipSecondCopyApi,
   signQzPayload,
   upsertPrintStation,
 } from '../api/client.js'
@@ -549,6 +551,22 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     return response
   }, [refresh])
 
+  const requestSecondCopy = useCallback(async (jobOrId) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    const response = await requestSecondCopyApi(jobId)
+    await refresh()
+    return response
+  }, [refresh])
+
+  const skipSecondCopy = useCallback(async (jobOrId) => {
+    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    const response = await skipSecondCopyApi(jobId)
+    await refresh()
+    return response
+  }, [refresh])
+
   const requestForcePrint = useCallback(async (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
@@ -795,6 +813,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     requestPrintNow,
     requestRetry,
     requestDiscard,
+    requestSecondCopy,
+    skipSecondCopy,
     requestForcePrint,
     requestReprint,
     getPreviewDocument,

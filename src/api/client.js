@@ -104,6 +104,8 @@ export const createTestPrintJob = (stationId) => apiRequest('/api/printing/test-
 export const claimNextPrintJob = (stationId) => apiRequest('/api/printing/jobs/claim-next', withJson('POST', { stationId }))
 export const claimPrintJob = (jobId, stationId) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/claim`, withJson('POST', { stationId }))
 export const acknowledgeSecondCopyPrompt = (jobId, stationId) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/second-copy-prompt`, withJson('POST', { stationId }))
+export const requestSecondCopy = (jobId, actorLabel = 'Sistema') => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/request-second-copy`, withJson('POST', { actorLabel }))
+export const skipSecondCopy = (jobId, actorLabel = 'Sistema') => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/skip-second-copy`, withJson('POST', { actorLabel }))
 export const completePrintJob = (jobId, stationId, copiesPrinted) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/complete`, withJson('POST', { stationId, copiesPrinted }))
 export const failPrintJob = (jobId, stationId, failure) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/fail`, withJson('POST', { stationId, ...failure }))
 export const retryPrintJob = (jobId, stationId) => apiRequest(`/api/printing/jobs/${encodeURIComponent(jobId)}/retry`, withJson('POST', { stationId }))

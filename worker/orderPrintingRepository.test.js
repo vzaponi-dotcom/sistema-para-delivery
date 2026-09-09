@@ -67,6 +67,8 @@ class D1Sqlite {
         action_actor_label TEXT,
         action_at TEXT,
         second_copy_prompted_at TEXT,
+        second_copy_requested_at TEXT,
+        second_copy_skipped_at TEXT,
         last_error_code TEXT,
         last_error_message TEXT
       );
@@ -124,6 +126,25 @@ const makeDb = () => {
   `)
   return db
 }
+
+test('remote second-copy decisions preserve the original job and snapshot', async () => {
+  assert.equal(typeof printingRepository.requestSecondCopy, 'function')
+  assert.equal(typeof printingRepository.skipSecondCopy, 'function')
+  const db = makeDb()
+  await addAutomaticJob(db, { id: 'remote-copy' })
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a')
+  await claimPrintJob(db, businessA, 'remote-copy', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'remote-copy', 'station-a', 1, baseNow)
+  const beforeDecision = await loadPrintJob(db, businessA, 'remote-copy')
+  const requested = await printingRepository.requestSecondCopy(db, businessA, 'remote-copy', 'Operador', baseNow)
+  assert.equal(requested.id, 'remote-copy')
+  assert.equal(requested.status, 'pending')
+  assert.equal(requested.copiesPrinted, 1)
+  assert.deepEqual(requested.document, beforeDecision.document)
+  assert.equal(requested.secondCopyRequestedAt, baseNow.toISOString())
+  await assert.rejects(() => printingRepository.skipSecondCopy(db, businessA, 'remote-copy', 'Operador', baseNow), { code: 'PRINT_SECOND_COPY_NOT_AWAITING' })
+})
 
 const addStation = async (db, id, overrides = {}) => upsertPrintStation(db, overrides.businessId || businessA, {
   id,

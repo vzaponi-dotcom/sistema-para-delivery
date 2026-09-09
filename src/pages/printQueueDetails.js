@@ -52,6 +52,11 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
     times,
     attentionReason: state === 'attention' ? presentText(job?.attentionReason) : null,
     error,
+    secondCopySkipped: job?.secondCopySkippedAt ? {
+      label: '2ª via',
+      message: 'Não impressa por decisão do operador',
+      at: formatDateTime(job.secondCopySkippedAt),
+    } : null,
     reprintOf: presentText(job?.parentJobId) ? 'Reimpressão de trabalho anterior' : null,
     audit: job?.actionAt || job?.actionActorLabel ? {
       action: 'Última ação registrada',
