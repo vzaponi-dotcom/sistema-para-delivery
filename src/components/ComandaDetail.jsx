@@ -1,6 +1,6 @@
 import Button from './Button'
 
-function ComandaDetail({ detail, currency, disabled = false, busyAction = false, onAddOrder, onPay, labelledBy }) {
+function ComandaDetail({ detail, currency, disabled = false, busyAction = false, printingDisabled = false, onAddOrder, onViewTicket, onPrint, onPay, labelledBy }) {
   const closed = detail.status !== 'open'
   const blocked = disabled || busyAction || closed
   const payable = detail.orderCount > 0 && detail.totalCents > 0
@@ -26,6 +26,8 @@ function ComandaDetail({ detail, currency, disabled = false, busyAction = false,
       {disabled && <p role="status">Somente consulta. As alterações estão indisponíveis.</p>}
       <div className="comanda-detail-actions">
         <Button type="button" disabled={blocked} onClick={() => { if (!blocked) onAddOrder?.() }}>Adicionar pedido</Button>
+        <Button type="button" variant="secondary" disabled={blocked || printingDisabled} onClick={() => { if (!blocked && !printingDisabled) onViewTicket?.() }}>Ver ticket</Button>
+        <Button type="button" variant="secondary" disabled={blocked || printingDisabled} onClick={() => { if (!blocked && !printingDisabled) onPrint?.() }}>Imprimir comanda</Button>
         <Button type="button" disabled={blocked || !payable} onClick={() => { if (!blocked && payable) onPay?.() }}>Registrar pagamento</Button>
       </div>
     </section>
