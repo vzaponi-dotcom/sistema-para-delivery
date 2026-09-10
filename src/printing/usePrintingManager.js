@@ -143,35 +143,41 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     setBusyJobId(value)
   }, [])
 
-  const acquireOperation = useCallback((busyKey) => {
+  const acquireOperation = useCallback((busyKey, stationId = localStationRef.current?.id) => {
     if (operationOwnerRef.current) return null
     const owner = {
       token: ++operationSequenceRef.current,
       generation: initializationRef.current,
       busyKey,
+      stationId,
     }
     operationOwnerRef.current = owner
     updateBusyJob(busyKey)
     return owner
   }, [updateBusyJob])
 
-  const ownsOperation = useCallback((owner) => (
-    operationOwnerRef.current === owner && initializationRef.current === owner?.generation
+  const ownsPhysicalOperation = useCallback((owner) => Boolean(
+    owner?.token && operationOwnerRef.current?.token === owner.token
   ), [])
 
+  const ownsOperationUi = useCallback((owner) => (
+    ownsPhysicalOperation(owner) && initializationRef.current === owner?.generation
+  ), [ownsPhysicalOperation])
+
   const updateOperationBusyJob = useCallback((owner, jobId) => {
-    if (!ownsOperation(owner)) return false
+    if (!ownsPhysicalOperation(owner)) return false
     owner.busyKey = jobId
-    updateBusyJob(jobId)
+    if (ownsOperationUi(owner)) updateBusyJob(jobId)
     return true
-  }, [ownsOperation, updateBusyJob])
+  }, [ownsOperationUi, ownsPhysicalOperation, updateBusyJob])
 
   const releaseOperation = useCallback((owner) => {
-    if (!ownsOperation(owner)) return false
+    if (!ownsPhysicalOperation(owner)) return false
+    const updateUi = ownsOperationUi(owner)
     operationOwnerRef.current = null
-    updateBusyJob(null)
+    if (updateUi) updateBusyJob(null)
     return true
-  }, [ownsOperation, updateBusyJob])
+  }, [ownsOperationUi, ownsPhysicalOperation, updateBusyJob])
 
   const updateConfiguredPrinterName = useCallback((printerName) => {
     const value = String(printerName || '').trim() || null
@@ -200,11 +206,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     qzSecurityConfiguredRef.current = true
   }, [])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ generation } = {}) => {
     if (!authenticated) return { stations: [], jobs: [] }
     const [stationPayload, jobPayload] = await Promise.all([getPrintStations(), getPrintJobs({ limit: 100 })])
     const nextStations = Array.isArray(stationPayload?.stations) ? stationPayload.stations : []
     const nextJobs = Array.isArray(jobPayload?.jobs) ? jobPayload.jobs : []
+    if (generation !== undefined && generation !== initializationRef.current) {
+      return { stations: nextStations, jobs: nextJobs }
+    }
     setStations(nextStations)
     setJobs(nextJobs)
     const stationId = localStationRef.current?.id
@@ -401,13 +410,12 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
 
   const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false, owner } = {}) => {
     if (!job) return null
-    const operationOwner = owner || acquireOperation(job.id)
-    if (!operationOwner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
-    if (!updateOperationBusyJob(operationOwner, job.id)) return null
+    if (!ownsPhysicalOperation(owner)) throw printerError('PRINT_OPERATION_LOST', 'A opera\u00e7\u00e3o de impress\u00e3o perdeu sua reserva local.')
+    updateOperationBusyJob(owner, job.id)
     try {
       const result = await runClaimedPrintJob({
         job,
-        stationId: localStationRef.current?.id,
+        stationId: owner.stationId,
         port,
         completeJob: completePrintJob,
         failJob: failPrintJob,
@@ -421,7 +429,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
             ? (_selectedPort, bytes) => printQzRawBytes(qz, configuredPrinterNameRef.current, bytes)
             : (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
       })
-      if (!ownsOperation(operationOwner)) return result
+      if (!ownsOperationUi(owner)) return result
       if (result.status === 'printed') {
         if (transportKind === 'qz') updateTransportReady(true)
         if (transportKind === 'web-serial') updateTransportReady(true)
@@ -438,12 +446,27 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         reportError(result.error)
       }
       return result
+    } catch (error) {
+      if (ownsOperationUi(owner)) {
+        if (transportKind !== 'rawbt') updateTransportReady(false)
+        setPrinterState(isRawBt ? 'driver-ready' : 'disconnected')
+        if (
+          ['SERIAL_OPEN_FAILED', 'PRINTER_NOT_AUTHORIZED', 'RAWBT_LAUNCH_FAILED'].includes(error?.code)
+          || QZ_BLOCKING_ERROR_CODES.has(error?.code)
+        ) updateBlocked(true)
+        reportError(error)
+      }
+      throw error
     } finally {
-      if (releaseOperation(operationOwner)) {
-        try { await refresh() } catch (error) { reportError(error) }
+      if (ownsOperationUi(owner)) {
+        try {
+          await refresh({ generation: owner.generation })
+        } catch (error) {
+          if (ownsOperationUi(owner)) reportError(error)
+        }
       }
     }
-  }, [acquireOperation, isRawBt, ownsOperation, refresh, releaseOperation, reportError, transportKind, updateBlocked, updateOperationBusyJob, updateTransportReady])
+  }, [isRawBt, ownsOperationUi, ownsPhysicalOperation, refresh, reportError, transportKind, updateBlocked, updateOperationBusyJob, updateTransportReady])
 
   const saveStationSettings = useCallback(async (settings = {}) => {
     const current = localStationRef.current
@@ -470,20 +493,32 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   const testPrint = useCallback(async () => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const port = await getExplicitPort()
-    const created = await createTestPrintJob(station.id)
-    const claimed = await claimPrintJob(created.job.id, station.id)
-    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
-  }, [executeClaimedJob, getExplicitPort])
+    const owner = acquireOperation('test-print', station.id)
+    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+    try {
+      const port = await getExplicitPort()
+      const created = await createTestPrintJob(station.id)
+      const claimed = await claimPrintJob(created.job.id, station.id)
+      return await executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true, owner })
+    } finally {
+      releaseOperation(owner)
+    }
+  }, [acquireOperation, executeClaimedJob, getExplicitPort, releaseOperation])
 
   const printOrder = useCallback(async (orderId, copies = localStationRef.current?.defaultCopies || 2) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const port = await getExplicitPort()
-    const created = await createManualPrintJob(orderId, copies)
-    const claimed = await claimPrintJob(created.job.id, station.id)
-    return executeClaimedJob(claimed.job, port)
-  }, [executeClaimedJob, getExplicitPort])
+    const owner = acquireOperation(`order:${orderId}`, station.id)
+    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+    try {
+      const port = await getExplicitPort()
+      const created = await createManualPrintJob(orderId, copies)
+      const claimed = await claimPrintJob(created.job.id, station.id)
+      return await executeClaimedJob(claimed.job, port, { owner })
+    } finally {
+      releaseOperation(owner)
+    }
+  }, [acquireOperation, executeClaimedJob, getExplicitPort, releaseOperation])
 
   const printSecondCopy = useCallback(async (job) => {
     const station = localStationRef.current
@@ -496,21 +531,33 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     ) {
       throw printerError('PRINT_SECOND_COPY_NOT_READY', 'A segunda via não está disponível para este trabalho.')
     }
-    const port = await getExplicitPort()
-    const claimed = await claimPrintJob(job.id, station.id)
-    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
-  }, [executeClaimedJob, getExplicitPort])
+    const owner = acquireOperation(job.id, station.id)
+    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+    try {
+      const port = await getExplicitPort()
+      const claimed = await claimPrintJob(job.id, station.id)
+      return await executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true, owner })
+    } finally {
+      releaseOperation(owner)
+    }
+  }, [acquireOperation, executeClaimedJob, getExplicitPort, releaseOperation])
 
   const retryJob = useCallback(async (jobOrId) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
-    const port = await getExplicitPort()
-    const reset = await retryPrintJob(jobId, station.id)
-    const claimed = await claimPrintJob(reset.job.id, station.id)
-    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
-  }, [executeClaimedJob, getExplicitPort])
+    const owner = acquireOperation(jobId, station.id)
+    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+    try {
+      const port = await getExplicitPort()
+      const reset = await retryPrintJob(jobId, station.id)
+      const claimed = await claimPrintJob(reset.job.id, station.id)
+      return await executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true, owner })
+    } finally {
+      releaseOperation(owner)
+    }
+  }, [acquireOperation, executeClaimedJob, getExplicitPort, releaseOperation])
 
   const getPreviewDocument = useCallback(async (orderId) => {
     const response = await getOrderPrintDocument(orderId)
@@ -525,7 +572,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   const printTableTab = useCallback(async (tableTabId) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A esta\u00e7\u00e3o de impress\u00e3o ainda n\u00e3o est\u00e1 pronta.')
-    const owner = acquireOperation(`table-tab:${tableTabId}`)
+    const owner = acquireOperation(`table-tab:${tableTabId}`, station.id)
     if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
 
     try {
@@ -547,14 +594,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
             ? (_selectedPort, bytes) => printQzRawBytes(qz, configuredPrinterNameRef.current, bytes)
             : (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
       })
-      if (ownsOperation(owner)) {
+      if (ownsOperationUi(owner)) {
         if (transportKind === 'qz' || transportKind === 'web-serial') updateTransportReady(true)
         setPrinterState(isRawBt ? 'driver-ready' : 'connected')
         setLastError(null)
       }
       return result
     } catch (error) {
-      if (ownsOperation(owner)) {
+      if (ownsOperationUi(owner)) {
         if (transportKind !== 'rawbt') updateTransportReady(false)
         setPrinterState(isRawBt ? 'driver-ready' : 'disconnected')
         if (
@@ -567,12 +614,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     } finally {
       releaseOperation(owner)
     }
-  }, [acquireOperation, getExplicitPort, getTableTabPreviewDocument, isRawBt, ownsOperation, releaseOperation, reportError, transportKind, updateBlocked, updateTransportReady])
+  }, [acquireOperation, getExplicitPort, getTableTabPreviewDocument, isRawBt, ownsOperationUi, releaseOperation, reportError, transportKind, updateBlocked, updateTransportReady])
 
   useEffect(() => {
     if (!authenticated) {
       initializationRef.current += 1
-      operationOwnerRef.current = null
       updateLocalStation(null)
       setStations([])
       setJobs([])
@@ -687,18 +733,20 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       })) return
 
       if (transportKind === 'rawbt' || transportKind === 'qz') {
-        const owner = acquireOperation('automatic:claim-next')
+        const owner = acquireOperation('automatic:claim-next', station.id)
         if (!owner) return
+        let claimed = false
         try {
           const response = await claimNextPrintJob(station.id)
           if (!response?.job) return
+          claimed = true
           await executeClaimedJob(response.job, null, { owner })
         } catch (error) {
-          if (ownsOperation(owner)) {
+          if (!claimed && ownsOperationUi(owner)) {
             if (error?.code === 'RAWBT_LAUNCH_FAILED' || QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
             if (transportKind === 'qz') updateTransportReady(false)
             reportError(error)
-            try { await refresh() } catch { /* next state poll will recover */ }
+            try { await refresh({ generation: owner.generation }) } catch { /* next state poll will recover */ }
           }
         } finally {
           releaseOperation(owner)
@@ -706,42 +754,52 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
         return
       }
 
-      if (!getPrinterFingerprint(globalThis.localStorage, station.id)) {
-        portRef.current = null
-        updateTransportReady(false)
-        setPrinterState('unconfigured')
-        return
-      }
-
-      let port
-      try {
-        port = await findAuthorizedPrinterPort(globalThis.navigator?.serial, globalThis.localStorage, station.id)
-      } catch (error) {
-        updateTransportReady(false)
-        reportError(error)
-        return
-      }
-      if (!port) {
-        portRef.current = null
-        updateTransportReady(false)
-        setPrinterState('disconnected')
-        return
-      }
-      portRef.current = port
-      updateTransportReady(true)
-
-      const owner = acquireOperation('automatic:claim-next')
+      const owner = acquireOperation('automatic:claim-next', station.id)
       if (!owner) return
+      let claimed = false
       try {
+        if (!getPrinterFingerprint(globalThis.localStorage, station.id)) {
+          if (ownsOperationUi(owner)) {
+            portRef.current = null
+            updateTransportReady(false)
+            setPrinterState('unconfigured')
+          }
+          return
+        }
+
+        let port
+        try {
+          port = await findAuthorizedPrinterPort(globalThis.navigator?.serial, globalThis.localStorage, station.id)
+        } catch (error) {
+          if (ownsOperationUi(owner)) {
+            updateTransportReady(false)
+            reportError(error)
+          }
+          return
+        }
+        if (!port) {
+          if (ownsOperationUi(owner)) {
+            portRef.current = null
+            updateTransportReady(false)
+            setPrinterState('disconnected')
+          }
+          return
+        }
+        if (ownsOperationUi(owner)) {
+          portRef.current = port
+          updateTransportReady(true)
+        }
+
         const response = await claimNextPrintJob(station.id)
         if (!response?.job) return
+        claimed = true
         await executeClaimedJob(response.job, port, { owner })
       } catch (error) {
-        if (ownsOperation(owner)) {
+        if (!claimed && ownsOperationUi(owner)) {
           if (error?.code === 'SERIAL_OPEN_FAILED') updateBlocked(true)
           updateTransportReady(false)
           reportError(error)
-          try { await refresh() } catch { /* next state poll will recover */ }
+          try { await refresh({ generation: owner.generation }) } catch { /* next state poll will recover */ }
         }
       } finally {
         releaseOperation(owner)
@@ -749,7 +807,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     }
     const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
     return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [acquireOperation, authenticated, executeClaimedJob, isOnline, ownsOperation, refresh, releaseOperation, reportError, supported, transportKind, updateBlocked, updateTransportReady])
+  }, [acquireOperation, authenticated, executeClaimedJob, isOnline, ownsOperationUi, refresh, releaseOperation, reportError, supported, transportKind, updateBlocked, updateTransportReady])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()

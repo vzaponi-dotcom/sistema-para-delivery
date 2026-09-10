@@ -132,57 +132,6 @@ test('table-tab preview and printing fetch the canonical endpoint, use one direc
   await act(async () => r.unmount())
 })
 
-test('an old-session manual print cannot clear a newer session operation or report its stale error', async (t) => {
-  const h = await workspaceHarness(t)
-  const writes = [deferred(), deferred()]
-  const reported = []
-  let writeIndex = 0
-  const port = {
-    getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
-    open: async () => {}, close: async () => {},
-    writable: { getWriter: () => ({ write: () => writes[writeIndex++].promise, releaseLock() {} }) },
-  }
-  globalThis.navigator.serial = { getPorts: async () => [port], requestPort: async () => port }
-  globalThis.fetch = async (path) => {
-    if (path === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false, defaultCopies: 2 }] }) }
-    if (String(path).startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
-    if (String(path).includes('/print-document')) {
-      const id = decodeURIComponent(String(path).split('/').at(-2))
-      return { ok: true, json: async () => ({ document: { type: 'table-tab', business: { name: 'Loja' }, tableTab: { id, number: 42, tableName: 'Mesa' }, items: [], financial: { totalCents: 0 }, message: '' } }) }
-    }
-    throw new Error(`Unexpected request: ${path}`)
-  }
-
-  const handleError = (error) => reported.push(error.message)
-  function Probe({ authenticated }) { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated, isOnline: true, onError: handleError }) }) }
-  const r = await h.render(Probe, { authenticated: true })
-  const currentPrinting = () => r.root.findByType('printing-probe').props.value
-  await act(async () => { await Promise.resolve(); await Promise.resolve() })
-  let oldPrint
-  await act(async () => { oldPrint = currentPrinting().printTableTab('old'); await Promise.resolve(); await Promise.resolve() })
-  const oldOutcome = oldPrint.then(() => null, (error) => error)
-  assert.equal(currentPrinting().busyJobId, 'table-tab:old')
-
-  await act(async () => r.update(React.createElement(Probe, { authenticated: false })))
-  await act(async () => r.update(React.createElement(Probe, { authenticated: true })))
-  await act(async () => { await Promise.resolve(); await Promise.resolve() })
-  let currentPrint
-  await act(async () => { currentPrint = currentPrinting().printTableTab('current'); await Promise.resolve(); await Promise.resolve() })
-  assert.equal(currentPrinting().busyJobId, 'table-tab:current')
-
-  const staleFailure = Object.assign(new Error('falha da sess\u00e3o antiga'), { code: 'SERIAL_WRITE_UNCERTAIN' })
-  await act(async () => writes[0].reject(staleFailure))
-  const oldError = await oldOutcome
-  assert.equal(oldError.code, 'SERIAL_WRITE_UNCERTAIN')
-  assert.equal(oldError.cause, staleFailure)
-  assert.equal(currentPrinting().busyJobId, 'table-tab:current')
-  assert.deepEqual(reported, [])
-
-  await act(async () => writes[1].resolve())
-  await currentPrint
-  assert.equal(currentPrinting().busyJobId, null)
-})
-
 test('a pending automatic claim owns printing until completion and blocks manual transport until retry', async (t) => {
   const h = await workspaceHarness(t)
   useControlledIntervals(t, h)
