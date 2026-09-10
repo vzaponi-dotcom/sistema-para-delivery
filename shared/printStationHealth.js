@@ -10,7 +10,7 @@ const ATTENTION_MARKERS = [
 ]
 
 const textOf = (status) => String(
-  typeof status === 'string' ? status : status?.text ?? status?.message ?? '',
+  typeof status === 'string' ? status : status?.text ?? status?.statusText ?? status?.message ?? '',
 ).trim().toUpperCase()
 
 const codeOf = (status) => {
@@ -43,7 +43,7 @@ export function normalizePrinterHealth(input = {}) {
   if (ATTENTION_MARKERS.some((marker) => text.includes(marker))) {
     return notReady('printer_attention')
   }
-  if (text === 'OK' || text === 'PRINTER OK' || (code === 0 && text.endsWith('OK'))) {
+  if (text === 'OK' || text === 'PRINTER OK') {
     return { state: 'ready', ready: true }
   }
   return notReady('verifying')

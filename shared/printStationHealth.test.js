@@ -16,6 +16,7 @@ test('physical OK is ready only with connected QZ and discovered configured queu
 test('known physical blocking statuses fail closed with normalized states', () => {
   assert.equal(normalizePrinterHealth({ ...base, physicalStatus: { text: 'PRINTER OFFLINE', code: 67108864 } }).state, 'printer_offline')
   assert.equal(normalizePrinterHealth({ ...base, physicalStatus: { text: 'PRINTER OK', code: 67108864 } }).state, 'printer_offline')
+  assert.equal(normalizePrinterHealth({ ...base, physicalStatus: { text: 'NOT OK', code: 0 } }).state, 'verifying')
   for (const text of ['PAPER OUT', 'PRINTER ERROR', 'INTERVENTION REQUIRED']) {
     assert.equal(normalizePrinterHealth({ ...base, physicalStatus: { text } }).state, 'printer_attention', text)
   }
@@ -23,6 +24,7 @@ test('known physical blocking statuses fail closed with normalized states', () =
 
 test('QZ statusText payloads use the same fail-closed classification', () => {
   assert.equal(normalizePrinterHealth({ ...base, statusText: 'PAPER OUT', statusCode: 12 }).state, 'printer_attention')
+  assert.equal(normalizePrinterHealth({ ...base, physicalStatus: { statusText: 'PAPER OUT', statusCode: 12 } }).state, 'printer_attention')
 })
 
 test('unknown and verifying physical states remain not ready', () => {
