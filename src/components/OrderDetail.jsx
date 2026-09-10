@@ -45,6 +45,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const adjustment = order.adjustment || { type: 'none' }
   const defaultCopies = printing?.localStation?.defaultCopies === 1 ? 1 : 2
   const reprintCopies = printJob?.copiesRequested === 1 ? 1 : defaultCopies
+  const isHistoricalOrder = ['Finalizado', 'Cancelado'].includes(order.status)
   const stationName = printing?.stations?.find((station) => station.id === printJob?.stationId)?.name || printJob?.stationId || '—'
   const printingDisabled = Boolean(printingAction)
   const now = new Date()
@@ -100,14 +101,18 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
     if (printed) setConfirmReprint(false)
   }
 
+  const handleHistoricalReprint = () => runPrintingAction('historical-reprint', () => printing?.printOrder?.(order.id, reprintCopies), 'Reimpressão adicionada à fila')
+  const reprintAction = printJob ? handleConfirmedReprint : handleHistoricalReprint
+
   const actionButton = (() => {
-    if (!printJob) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir pedido</Button>
+    if (!printJob && !isHistoricalOrder) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir pedido</Button>
     if (scheduledPrintPending) return <Button type="button" onClick={handlePrintNow} disabled={printingDisabled}>Imprimir agora</Button>
     if (awaitingSecondCopy) return <Button type="button" onClick={handleSecondCopy} disabled={printingDisabled}>Imprimir 2ª via</Button>
-    if (printJob.status === 'printed') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
+    if (printJob?.status === 'printed') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
     if (primaryQueueAction === 'retry') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Tentar novamente</Button>
     if (primaryQueueAction === 'reprint') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
     if (primaryQueueAction === 'forcePrint') return <Button type="button" onClick={handleForcePrint} disabled={printingDisabled}>Imprimir mesmo assim</Button>
+    if (!printJob && isHistoricalOrder) return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
     return null
   })()
 
@@ -225,7 +230,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
           confirmLabel="Reimprimir"
           confirmVariant="primary"
           onClose={() => setConfirmReprint(false)}
-          onConfirm={handleConfirmedReprint}
+          onConfirm={reprintAction}
           disabled={Boolean(printingAction)}
         />
       )}
