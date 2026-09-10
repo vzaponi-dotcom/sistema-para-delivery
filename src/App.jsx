@@ -162,6 +162,7 @@ function App() {
   }
 
   const clearBusinessData = () => {
+    setActiveTab('dashboard')
     setSelectedComandaTableId(null)
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
