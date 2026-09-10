@@ -27,7 +27,10 @@ class EffectsDb {
             if (sql.includes('FROM table_tabs')) {
               const [id, businessId] = values
               if (id !== 't1' || businessId !== 'biz') return null
-              return { id: 't1', table_id: 'table-1', table_identifier: '04', tab_number: 1042, status: 'closed', opened_at: '2026-09-03T14:00:00.000Z', closed_at: '2026-09-03T15:00:00.000Z' }
+              const row = { id: 't1', table_id: 'table-1', table_identifier: '04', tab_number: 1042, status: 'closed', opened_at: '2026-09-03T14:00:00.000Z', closed_at: '2026-09-03T15:00:00.000Z' }
+              if (sql.includes('tab_number')) return row
+              const { tab_number, ...projectedRow } = row
+              return projectedRow
             }
             return null
           },
