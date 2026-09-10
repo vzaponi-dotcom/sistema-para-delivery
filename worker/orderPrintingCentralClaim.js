@@ -23,6 +23,8 @@ const loadQzExecutor = async (db, businessId, stationId, now) => {
     lastSeenAt: row.last_seen_at ?? null,
     qzReady: Boolean(row.qz_ready),
     printerReady: Boolean(row.printer_ready),
+    physicalState: row.physical_state ?? 'ready',
+    recoveryState: row.recovery_state ?? 'normal',
   }
   if (!station.isPrimary) {
     throw repositoryError(409, 'PRINT_STATION_NOT_PRIMARY', 'Somente a estação principal pode executar trabalhos de impressão.')
@@ -39,6 +41,7 @@ const loadQzExecutor = async (db, businessId, stationId, now) => {
 
 export const claimNextPrintJob = async (db, businessId, stationId, now = new Date()) => {
   const station = await loadQzExecutor(db, businessId, stationId, now)
+  if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
   const automaticEnabled = station.autoPrintEnabled ? 1 : 0
   const row = await db.prepare(`UPDATE print_jobs SET

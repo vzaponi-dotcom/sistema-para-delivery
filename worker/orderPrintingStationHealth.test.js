@@ -15,6 +15,8 @@ class D1Sqlite {
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
         default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT,
         qz_ready INTEGER NOT NULL DEFAULT 0, printer_ready INTEGER NOT NULL DEFAULT 0, last_ready_at TEXT,
+        physical_state TEXT NOT NULL DEFAULT 'verifying', physical_status_text TEXT, physical_status_code INTEGER,
+        physical_status_at TEXT, last_offline_at TEXT, recovery_state TEXT NOT NULL DEFAULT 'normal',
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
@@ -28,6 +30,10 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
+      CREATE TABLE print_job_attempts (
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL,
+        submission_started_at TEXT
+      );
       INSERT INTO businesses (id) VALUES ('amor-e-sabor');
       INSERT INTO orders (id, business_id, status) VALUES ('o1', 'amor-e-sabor', 'Em preparo');
     `)
@@ -91,6 +97,7 @@ test('heartbeat records last seen and QZ/printer readiness while preserving the 
   await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
     qzReady: true,
     printerReady: false,
+    physicalState: 'ready',
   }, qzOnlyAt)
 
   let raw = db.sqlite.prepare('SELECT last_seen_at, qz_ready, printer_ready, last_ready_at FROM print_stations WHERE id = ?').get('kitchen')
@@ -103,6 +110,7 @@ test('heartbeat records last seen and QZ/printer readiness while preserving the 
   const station = await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
     qzReady: true,
     printerReady: true,
+    physicalState: 'ready',
   }, readyAt)
   raw = db.sqlite.prepare('SELECT last_seen_at, qz_ready, printer_ready, last_ready_at FROM print_stations WHERE id = ?').get('kitchen')
   assert.equal(raw.last_seen_at, readyAt.toISOString())
@@ -124,6 +132,7 @@ test('station health becomes offline after the heartbeat timeout', () => {
     lastSeenAt: baseNow.toISOString(),
     qzReady: true,
     printerReady: true,
+    physicalState: 'ready',
     lastReadyAt: baseNow.toISOString(),
   }
   const recentAt = new Date(baseNow.getTime() + printingRepository.PRINT_STATION_HEARTBEAT_TIMEOUT_MS - 1)
@@ -158,6 +167,7 @@ test('automatic claim requires a recent ready heartbeat from the primary Windows
   await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
     qzReady: true,
     printerReady: true,
+    physicalState: 'ready',
   }, baseNow)
   const claimed = await printingRepository.claimNextAutomaticPrintJob(db, businessId, 'kitchen', baseNow)
   assert.equal(claimed.id, 'job-1')
@@ -175,12 +185,13 @@ test('queued automatic jobs derive waiting_station until the primary station is 
   await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
     qzReady: true,
     printerReady: true,
+    physicalState: 'ready',
   }, baseNow)
   jobs = await printingRepository.listPrintJobs(db, businessId, { now: baseNow })
   assert.equal(jobs[0].queueState, 'queued')
 })
 
-test('active automatic jobs survive a long station outage and remain claimable after recovery', async () => {
+test('active automatic jobs survive a long station outage and are held for explicit recovery', async () => {
   const db = new D1Sqlite()
   await setupPrimaryWindowsStation(db)
   const oldAt = new Date(baseNow.getTime() - printingRepository.PRINT_PENDING_MAX_AGE_MS - 5 * 60 * 1000)
@@ -193,13 +204,19 @@ test('active automatic jobs survive a long station outage and remain claimable a
   await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
     qzReady: true,
     printerReady: true,
+    physicalState: 'printer_offline',
+  }, oldAt)
+  await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
+    qzReady: true,
+    printerReady: true,
+    physicalState: 'ready',
   }, baseNow)
   jobs = await printingRepository.listPrintJobs(db, businessId, { now: baseNow })
   assert.equal(jobs[0].status, 'pending')
   assert.equal(jobs[0].queueState, 'queued')
+  assert.equal(db.sqlite.prepare('SELECT recovery_state FROM print_stations WHERE id = ?').get('kitchen').recovery_state, 'pending')
 
-  const claimed = await printingRepository.claimNextAutomaticPrintJob(db, businessId, 'kitchen', baseNow)
-  assert.equal(claimed.id, 'offline-job')
+  assert.equal(await printingRepository.claimNextAutomaticPrintJob(db, businessId, 'kitchen', baseNow), null)
 })
 
 test('heartbeat HTTP endpoint accepts only health data and returns derived station health', async () => {
@@ -217,5 +234,28 @@ test('heartbeat HTTP endpoint accepts only health data and returns derived stati
   assert.equal(response.status, 200)
   const payload = await response.json()
   assert.equal(payload.station.id, 'kitchen')
-  assert.equal(payload.station.health.ready, true)
+  assert.equal(payload.station.health.ready, false)
+})
+
+test('printer_offline physical state is never ready even with a fresh QZ heartbeat', async () => {
+  const db = new D1Sqlite()
+  await setupPrimaryWindowsStation(db)
+
+  const station = await printingRepository.heartbeatPrintStation(db, businessId, 'kitchen', {
+    qzReady: true,
+    printerReady: true,
+    physicalState: 'printer_offline',
+    physicalStatusText: 'Offline',
+    physicalStatusCode: 7,
+  }, baseNow)
+
+  assert.equal(station.physicalState, 'printer_offline')
+  assert.equal(station.health.ready, false)
+  const raw = db.sqlite.prepare(`SELECT physical_state, physical_status_text, physical_status_code,
+    physical_status_at, last_offline_at FROM print_stations WHERE id = ?`).get('kitchen')
+  assert.equal(raw.physical_state, 'printer_offline')
+  assert.equal(raw.physical_status_text, 'Offline')
+  assert.equal(raw.physical_status_code, 7)
+  assert.equal(raw.physical_status_at, baseNow.toISOString())
+  assert.equal(raw.last_offline_at, baseNow.toISOString())
 })

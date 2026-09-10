@@ -6,6 +6,12 @@ export const PRINT_PENDING_MAX_AGE_MS = 10 * 60 * 1000
 export const PRINT_PROCESSING_MAX_AGE_MS = 2 * 60 * 1000
 export const PRINT_STATION_HEARTBEAT_TIMEOUT_MS = 60 * 1000
 
+const PRINT_STATION_PHYSICAL_STATES = new Set([
+  'ready', 'verifying', 'printer_offline', 'printer_attention', 'qz_unavailable',
+  'printer_not_found', 'unconfigured', 'unsupported',
+])
+const PRINT_RECOVERY_STATES = new Set(['normal', 'pending', 'active', 'deferred'])
+
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const timestamp = (value = new Date()) => value instanceof Date ? value.toISOString() : String(value)
@@ -48,12 +54,14 @@ export const resolvePrintStationHealth = (station, now = new Date()) => {
     && nowMs - seenMs <= PRINT_STATION_HEARTBEAT_TIMEOUT_MS
   const qzReady = online && Boolean(station?.qzReady)
   const printerReady = online && Boolean(station?.printerReady)
+  const physicalReady = (station?.physicalState ?? 'ready') === 'ready'
   const ready = Boolean(
     online
     && station?.isPrimary
     && station?.platform === 'windows'
     && qzReady
     && printerReady
+    && physicalReady
   )
   return {
     online,
@@ -77,6 +85,12 @@ const mapStationRow = (row, now = new Date()) => {
     qzReady: Boolean(row.qz_ready),
     printerReady: Boolean(row.printer_ready),
     lastReadyAt: row.last_ready_at ?? null,
+    physicalState: row.physical_state ?? 'ready',
+    physicalStatusText: row.physical_status_text ?? null,
+    physicalStatusCode: row.physical_status_code ?? null,
+    physicalStatusAt: row.physical_status_at ?? null,
+    lastOfflineAt: row.last_offline_at ?? null,
+    recoveryState: row.recovery_state ?? 'normal',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -327,20 +341,83 @@ const requirePrimaryQzPrintStation = async (db, businessId, stationId, now = new
 }
 
 export const heartbeatPrintStation = async (db, businessId, stationId, health = {}, now = new Date()) => {
-  await requirePrimaryQzPrintStation(db, businessId, stationId, now)
+  const previous = await requirePrimaryQzPrintStation(db, businessId, stationId, now)
   const at = timestamp(now)
   const qzReady = Boolean(health.qzReady)
   const printerReady = qzReady && Boolean(health.printerReady)
-  const row = await db.prepare(`UPDATE print_stations SET
-      last_seen_at = ?, qz_ready = ?, printer_ready = ?,
-      last_ready_at = CASE WHEN ? = 1 AND ? = 1 THEN ? ELSE last_ready_at END,
-      updated_at = ?
-    WHERE id = ? AND business_id = ?
-    RETURNING *`)
-    .bind(at, qzReady ? 1 : 0, printerReady ? 1 : 0, qzReady ? 1 : 0, printerReady ? 1 : 0, at, at, stationId, businessId)
-    .first()
+  const hasPhysicalState = Object.hasOwn(health, 'physicalState')
+  const physicalState = hasPhysicalState ? String(health.physicalState || '') : previous.physicalState
+  if (hasPhysicalState && !PRINT_STATION_PHYSICAL_STATES.has(physicalState)) {
+    throw repositoryError(400, 'INVALID_PRINT_STATION_PHYSICAL_STATE', 'Invalid printer physical state.')
+  }
+  const physicalStatusText = health.physicalStatusText == null ? null : String(health.physicalStatusText).slice(0, 500)
+  const physicalStatusCode = health.physicalStatusCode == null ? null : Number(health.physicalStatusCode)
+  if (physicalStatusCode != null && !Number.isInteger(physicalStatusCode)) {
+    throw repositoryError(400, 'INVALID_PRINT_STATION_PHYSICAL_STATUS_CODE', 'Invalid printer physical status code.')
+  }
+  const wasUnavailable = !previous.health.online
+    || (previous.physicalState !== 'ready' && previous.physicalState !== 'verifying')
+  const becameReady = wasUnavailable && resolvePrintStationHealth({
+    ...previous, lastSeenAt: at, qzReady, printerReady, physicalState,
+  }, now).ready
+  const row = hasPhysicalState
+    ? await db.prepare(`UPDATE print_stations SET
+        last_seen_at = ?, qz_ready = ?, printer_ready = ?,
+        physical_state = ?, physical_status_text = ?, physical_status_code = ?, physical_status_at = ?,
+        last_offline_at = CASE WHEN ? = 'printer_offline' THEN ? ELSE last_offline_at END,
+        last_ready_at = CASE WHEN ? = 1 AND ? = 1 AND ? = 'ready' THEN ? ELSE last_ready_at END,
+        updated_at = ?
+      WHERE id = ? AND business_id = ?
+      RETURNING *`)
+      .bind(at, qzReady ? 1 : 0, printerReady ? 1 : 0, physicalState, physicalStatusText, physicalStatusCode, at,
+        physicalState, at, qzReady ? 1 : 0, printerReady ? 1 : 0, physicalState, at, at, stationId, businessId)
+      .first()
+    : await db.prepare(`UPDATE print_stations SET
+        last_seen_at = ?, qz_ready = ?, printer_ready = ?,
+        last_ready_at = CASE WHEN ? = 1 AND ? = 1 THEN ? ELSE last_ready_at END,
+        updated_at = ?
+      WHERE id = ? AND business_id = ?
+      RETURNING *`)
+      .bind(at, qzReady ? 1 : 0, printerReady ? 1 : 0, qzReady ? 1 : 0, printerReady ? 1 : 0, at, at, stationId, businessId)
+      .first()
   if (!row) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Estação de impressão não encontrada.')
-  return mapStationRow(row, now)
+  const station = mapStationRow(row, now)
+  if (!hasPhysicalState || !becameReady || station.recoveryState !== 'normal') return station
+  const recovered = await db.prepare(`UPDATE print_stations SET recovery_state = 'pending', updated_at = ?
+    WHERE id = ? AND business_id = ? AND recovery_state = 'normal'
+      AND EXISTS (
+        SELECT 1 FROM print_jobs
+        WHERE print_jobs.business_id = print_stations.business_id
+          AND print_jobs.status = 'pending' AND print_jobs.copies_printed = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM print_job_attempts
+            WHERE print_job_attempts.business_id = print_jobs.business_id
+              AND print_job_attempts.job_id = print_jobs.id
+              AND print_job_attempts.submission_started_at IS NOT NULL
+          )
+      )
+    RETURNING *`).bind(at, stationId, businessId).first()
+  return mapStationRow(recovered || row, now)
+}
+
+export const setPrintRecoveryState = async (db, businessId, stationId, state, now = new Date()) => {
+  const nextState = String(state || '')
+  if (!PRINT_RECOVERY_STATES.has(nextState)) {
+    throw repositoryError(400, 'INVALID_PRINT_RECOVERY_STATE', 'Invalid print recovery state.')
+  }
+  const at = timestamp(now)
+  const row = await db.prepare(`UPDATE print_stations SET recovery_state = ?, updated_at = ?
+    WHERE id = ? AND business_id = ? AND (
+      (recovery_state = 'normal' AND ? = 'pending')
+      OR (recovery_state = 'pending' AND ? IN ('active', 'deferred', 'normal'))
+      OR (recovery_state = 'active' AND ? IN ('active', 'deferred', 'normal'))
+      OR (recovery_state = 'deferred' AND ? IN ('active', 'normal'))
+    ) RETURNING *`)
+    .bind(nextState, at, stationId, businessId, nextState, nextState, nextState, nextState).first()
+  if (row) return mapStationRow(row, now)
+  const station = await loadPrintStation(db, businessId, stationId, now)
+  if (!station) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Print station not found.')
+  throw repositoryError(409, 'PRINT_RECOVERY_TRANSITION_NOT_ALLOWED', 'Print recovery transition is not allowed.')
 }
 
 export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now = new Date()) => {
@@ -352,6 +429,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
   if (!station.health.ready) {
     throw repositoryError(409, 'PRINT_STATION_NOT_READY', 'A estação principal QZ não está pronta para imprimir.')
   }
+  if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
@@ -368,7 +446,10 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
 }
 
 export const claimPrintJob = async (db, businessId, jobId, stationId, now = new Date()) => {
-  await requirePrimaryQzPrintStation(db, businessId, stationId, now)
+  const station = await requirePrimaryQzPrintStation(db, businessId, stationId, now)
+  if (station.recoveryState !== 'normal') {
+    throw repositoryError(409, 'PRINT_RECOVERY_REQUIRED', 'Print recovery must be resolved before claiming jobs.')
+  }
   await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
   const at = timestamp(now)
   const row = await db.prepare(`UPDATE print_jobs SET
@@ -455,6 +536,60 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   const current = await loadPrintJob(db, businessId, jobId)
   if (current?.status === 'discarded') return current
   throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
+}
+
+export const discardPendingPrintJobs = async (db, businessId, actorLabel = 'Sistema', now = new Date()) => {
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const result = await db.prepare(`UPDATE print_jobs SET
+      status = 'discarded', discarded_at = ?, action_actor_label = ?, action_at = ?
+    WHERE business_id = ? AND status = 'pending' AND copies_printed = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+      )
+    RETURNING *`).bind(at, actor, at, businessId).all()
+  return rows(result).map(mapJobRow)
+}
+
+export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now = new Date()) => {
+  const station = await requirePrimaryQzPrintStation(db, businessId, stationId, now)
+  if (!station.health.ready || station.recoveryState !== 'active') return null
+  await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
+  const at = timestamp(now)
+  const candidate = await db.prepare(`SELECT id FROM print_jobs
+    WHERE business_id = ? AND type = 'order' AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+      )
+      AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+    ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`)
+    .bind(businessId, at).first()
+  if (!candidate?.id) return null
+
+  const lock = await db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', updated_at = ?
+    WHERE id = ? AND business_id = ? AND recovery_state = 'active' RETURNING id`)
+    .bind(at, stationId, businessId).first()
+  if (!lock) return null
+
+  const row = await db.prepare(`UPDATE print_jobs SET
+      status = 'processing', copies_requested = 1, station_id = ?, processing_started_at = ?, processed_at = NULL,
+      last_error_code = NULL, last_error_message = NULL
+    WHERE id = ? AND business_id = ? AND type = 'order' AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+      )
+      AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+    RETURNING *`).bind(stationId, at, candidate.id, businessId, at).first()
+  return mapJobRow(row)
 }
 
 export const prioritizePrintJob = async (db, businessId, jobId, now = new Date(), actorLabel = 'Sistema') => {
