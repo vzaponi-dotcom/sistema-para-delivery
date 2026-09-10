@@ -28,17 +28,17 @@ const useControlledIntervals = (t, harness) => {
   })
 }
 
-const tableTabDocument = (id = 'tab-42') => ({
+const tableTabDocument = () => ({
   type: 'table-tab',
   business: { name: 'Restaurante' },
-  tableTab: { id, number: 42, tableName: 'Mesa 7' },
+  tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' },
   items: [{ name: 'X-Bacon', presentation: '', note: '', quantity: 1, lineTotalCents: 2500 }],
   financial: { totalCents: 2500 },
   message: 'PR\u00c9-CONTA \u2014 N\u00c3O \u00c9 COMPROVANTE DE PAGAMENTO',
 })
 
-const automaticTestJob = (id = 'automatic-job') => ({
-  id,
+const automaticTestJob = () => ({
+  id: 'automatic-job',
   document: { type: 'test', business: { name: 'Restaurante' }, test: { title: 'TESTE', message: 'OK' } },
   copiesRequested: 1,
   copiesPrinted: 0,
@@ -132,109 +132,68 @@ test('table-tab preview and printing fetch the canonical endpoint, use one direc
   await act(async () => r.unmount())
 })
 
-test('a pending automatic claim owns printing until completion and blocks manual transport until retry', async (t) => {
+test('an old-session manual print cannot clear a newer session operation or report its stale error', async (t) => {
+  const h = await workspaceHarness(t)
+  const writes = [deferred(), deferred()]
+  const reported = []
+  let writeIndex = 0
+  const port = {
+    getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
+    open: async () => {}, close: async () => {},
+    writable: { getWriter: () => ({ write: () => writes[writeIndex++].promise, releaseLock() {} }) },
+  }
+  globalThis.navigator.serial = { getPorts: async () => [port], requestPort: async () => port }
+  globalThis.fetch = async (path) => {
+    if (path === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false, defaultCopies: 2 }] }) }
+    if (String(path).startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
+    if (String(path).includes('/print-document')) {
+      const id = decodeURIComponent(String(path).split('/').at(-2))
+      return { ok: true, json: async () => ({ document: { type: 'table-tab', business: { name: 'Loja' }, tableTab: { id, number: 42, tableName: 'Mesa' }, items: [], financial: { totalCents: 0 }, message: '' } }) }
+    }
+    throw new Error(`Unexpected request: ${path}`)
+  }
+
+  const handleError = (error) => reported.push(error.message)
+  function Probe({ authenticated }) { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated, isOnline: true, onError: handleError }) }) }
+  const r = await h.render(Probe, { authenticated: true })
+  const currentPrinting = () => r.root.findByType('printing-probe').props.value
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  let oldPrint
+  await act(async () => { oldPrint = currentPrinting().printTableTab('old'); await Promise.resolve(); await Promise.resolve() })
+  const oldOutcome = oldPrint.then(() => null, (error) => error)
+  assert.equal(currentPrinting().busyJobId, 'table-tab:old')
+
+  await act(async () => r.update(React.createElement(Probe, { authenticated: false })))
+  await act(async () => r.update(React.createElement(Probe, { authenticated: true })))
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  let currentPrint
+  await act(async () => { currentPrint = currentPrinting().printTableTab('current'); await Promise.resolve(); await Promise.resolve() })
+  assert.equal(currentPrinting().busyJobId, 'table-tab:current')
+
+  const staleFailure = Object.assign(new Error('falha da sess\u00e3o antiga'), { code: 'SERIAL_WRITE_UNCERTAIN' })
+  await act(async () => writes[0].reject(staleFailure))
+  const oldError = await oldOutcome
+  assert.equal(oldError.code, 'SERIAL_WRITE_UNCERTAIN')
+  assert.equal(oldError.cause, staleFailure)
+  assert.equal(currentPrinting().busyJobId, 'table-tab:current')
+  assert.deepEqual(reported, [])
+
+  await act(async () => writes[1].resolve())
+  await currentPrint
+  assert.equal(currentPrinting().busyJobId, null)
+})
+
+test('a deferred automatic claim blocks manual comanda printing until automatic execution releases', async (t) => {
   const h = await workspaceHarness(t)
   useControlledIntervals(t, h)
   globalThis.localStorage.setItem('delivery-printer-fingerprint:test-station', JSON.stringify({ usbVendorId: 1, usbProductId: 2 }))
   const pendingClaim = deferred()
   const automaticWrite = deferred()
   const automaticWriteStarted = deferred()
-  const automaticCompleted = deferred()
-  const automaticCompletionResponse = deferred()
-  let activeTransports = 0
-  let maximumTransportConcurrency = 0
-  let writeCount = 0
-  const port = {
-    getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
-    open: async () => {}, close: async () => {},
-    writable: { getWriter: () => ({
-      write: async () => {
-        writeCount += 1
-        activeTransports += 1
-        maximumTransportConcurrency = Math.max(maximumTransportConcurrency, activeTransports)
-        try {
-          if (writeCount === 1) {
-            automaticWriteStarted.resolve()
-            await automaticWrite.promise
-          }
-        } finally {
-          activeTransports -= 1
-        }
-      },
-      releaseLock() {},
-    }) },
-  }
-  globalThis.navigator.serial = { getPorts: async () => [port], requestPort: async () => port }
-  const requests = []
-  globalThis.fetch = async (path, options) => {
-    const url = String(path)
-    requests.push({ url, options })
-    if (url === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [{ id: 'test-station', platform: 'other', isPrimary: true, autoPrintEnabled: true, defaultCopies: 2 }] }) }
-    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
-    if (url === '/api/printing/jobs/claim-next') return pendingClaim.promise
-    if (url === '/api/printing/jobs/automatic-job/complete') {
-      automaticCompleted.resolve()
-      return automaticCompletionResponse.promise
-    }
-    if (url === '/api/table-tabs/tab-42/print-document') return { ok: true, json: async () => ({ document: tableTabDocument() }) }
-    throw new Error(`Unexpected request: ${url}`)
-  }
-
-  function Probe() { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated: true, isOnline: true }) }) }
-  const r = await h.render(Probe)
-  const currentPrinting = () => r.root.findByType('printing-probe').props.value
-  await act(flushMicrotasks)
-
-  await act(async () => { h.fireInterval(PRINT_JOB_POLL_MS); await flushMicrotasks() })
-  assert.ok(currentPrinting().busyJobId)
-  await assert.rejects(currentPrinting().printTableTab('tab-42'), { code: 'PRINT_BUSY' })
-  assert.equal(requests.filter(({ url }) => url === '/api/table-tabs/tab-42/print-document').length, 0)
-  assert.equal(writeCount, 0)
-
-  await act(async () => {
-    pendingClaim.resolve({ ok: true, json: async () => ({ job: automaticTestJob() }) })
-    await automaticWriteStarted.promise
-  })
-  assert.equal(currentPrinting().busyJobId, 'automatic-job')
-  assert.equal(activeTransports, 1)
-
-  await act(async () => {
+  t.after(() => {
+    pendingClaim.resolve({ ok: true, json: async () => ({ job: null }) })
     automaticWrite.resolve()
-    await automaticCompleted.promise
   })
-  assert.equal(currentPrinting().busyJobId, 'automatic-job')
-  assert.equal(activeTransports, 0)
-  await act(async () => {
-    automaticCompletionResponse.resolve({ ok: true, json: async () => ({ job: { ...automaticTestJob(), status: 'printed', copiesPrinted: 1 } }) })
-    await flushMicrotasks()
-  })
-  assert.equal(currentPrinting().busyJobId, null)
-  assert.equal(activeTransports, 0)
-
-  await act(async () => {
-    assert.deepEqual(await currentPrinting().printTableTab('tab-42'), { status: 'printed', copiesPrinted: 1 })
-  })
-  assert.equal(writeCount, 2)
-  assert.equal(maximumTransportConcurrency, 1)
-  assert.equal(requests.filter(({ url }) => url === '/api/printing/jobs/claim-next').length, 1)
-  assert.equal(requests.filter(({ url }) => url === '/api/printing/jobs/automatic-job/complete').length, 1)
-  assert.deepEqual(JSON.parse(requests.find(({ url }) => url === '/api/printing/jobs/automatic-job/complete').options.body), {
-    stationId: 'test-station', copiesPrinted: 1,
-  })
-  assert.equal(requests.some(({ url }) => /\/api\/orders\/.*\/print-jobs|\/fail$/.test(url)), false)
-})
-
-test('a pending manual document fetch owns printing so automatic polling waits and resumes after release', async (t) => {
-  const h = await workspaceHarness(t)
-  useControlledIntervals(t, h)
-  globalThis.localStorage.setItem('delivery-printer-fingerprint:test-station', JSON.stringify({ usbVendorId: 1, usbProductId: 2 }))
-  const pendingDocument = deferred()
-  const manualWrite = deferred()
-  const manualWriteStarted = deferred()
-  const automaticWrite = deferred()
-  const automaticWriteStarted = deferred()
-  const automaticCompleted = deferred()
-  const automaticCompletionResponse = deferred()
   let activeTransports = 0
   let maximumTransportConcurrency = 0
   let writeCount = 0
@@ -248,9 +207,6 @@ test('a pending manual document fetch owns printing so automatic polling waits a
         maximumTransportConcurrency = Math.max(maximumTransportConcurrency, activeTransports)
         try {
           if (writeCount === 1) {
-            manualWriteStarted.resolve()
-            await manualWrite.promise
-          } else {
             automaticWriteStarted.resolve()
             await automaticWrite.promise
           }
@@ -268,23 +224,95 @@ test('a pending manual document fetch owns printing so automatic polling waits a
     requests.push(url)
     if (url === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [{ id: 'test-station', platform: 'other', isPrimary: true, autoPrintEnabled: true, defaultCopies: 2 }] }) }
     if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
-    if (url === '/api/table-tabs/tab-42/print-document') return pendingDocument.promise
-    if (url === '/api/printing/jobs/claim-next') return { ok: true, json: async () => ({ job: automaticTestJob() }) }
-    if (url === '/api/printing/jobs/automatic-job/complete') {
-      automaticCompleted.resolve()
-      return automaticCompletionResponse.promise
-    }
+    if (url === '/api/printing/jobs/claim-next') return pendingClaim.promise
+    if (url === '/api/printing/jobs/automatic-job/complete') return { ok: true, json: async () => ({ job: { ...automaticTestJob(), status: 'printed', copiesPrinted: 1 } }) }
+    if (url === '/api/table-tabs/tab-42/print-document') return { ok: true, json: async () => ({ document: tableTabDocument() }) }
     throw new Error(`Unexpected request: ${url}`)
   }
 
   function Probe() { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated: true, isOnline: true }) }) }
-  const r = await h.render(Probe)
-  const currentPrinting = () => r.root.findByType('printing-probe').props.value
+  const renderer = await h.render(Probe)
+  const printing = () => renderer.root.findByType('printing-probe').props.value
+  await act(flushMicrotasks)
+
+  await act(async () => { h.fireInterval(PRINT_JOB_POLL_MS); await flushMicrotasks() })
+  const blockedManual = printing().printTableTab('tab-42').then(() => null, (error) => error)
+  await act(flushMicrotasks)
+  assert.equal(requests.filter((url) => url === '/api/table-tabs/tab-42/print-document').length, 0)
+  assert.equal((await blockedManual).code, 'PRINT_BUSY')
+
+  await act(async () => {
+    pendingClaim.resolve({ ok: true, json: async () => ({ job: automaticTestJob() }) })
+    await automaticWriteStarted.promise
+  })
+  assert.equal(activeTransports, 1)
+  await assert.rejects(printing().printTableTab('tab-42'), { code: 'PRINT_BUSY' })
+
+  await act(async () => { automaticWrite.resolve(); await flushMicrotasks() })
+  await act(async () => {
+    assert.deepEqual(await printing().printTableTab('tab-42'), { status: 'printed', copiesPrinted: 1 })
+  })
+
+  assert.equal(writeCount, 2)
+  assert.equal(maximumTransportConcurrency, 1)
+  assert.equal(requests.filter((url) => url === '/api/printing/jobs/claim-next').length, 1)
+  assert.equal(requests.some((url) => /\/api\/orders\/.*\/print-jobs|\/fail$|\/retry$/.test(url)), false)
+})
+
+test('a deferred manual comanda fetch blocks automatic claim until a later poll after release', async (t) => {
+  const h = await workspaceHarness(t)
+  useControlledIntervals(t, h)
+  globalThis.localStorage.setItem('delivery-printer-fingerprint:test-station', JSON.stringify({ usbVendorId: 1, usbProductId: 2 }))
+  const pendingDocument = deferred()
+  const manualWrite = deferred()
+  const manualWriteStarted = deferred()
+  t.after(() => {
+    pendingDocument.resolve({ ok: true, json: async () => ({ document: tableTabDocument() }) })
+    manualWrite.resolve()
+  })
+  let activeTransports = 0
+  let maximumTransportConcurrency = 0
+  let writeCount = 0
+  const port = {
+    getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
+    open: async () => {}, close: async () => {},
+    writable: { getWriter: () => ({
+      write: async () => {
+        writeCount += 1
+        activeTransports += 1
+        maximumTransportConcurrency = Math.max(maximumTransportConcurrency, activeTransports)
+        try {
+          if (writeCount === 1) {
+            manualWriteStarted.resolve()
+            await manualWrite.promise
+          }
+        } finally {
+          activeTransports -= 1
+        }
+      },
+      releaseLock() {},
+    }) },
+  }
+  globalThis.navigator.serial = { getPorts: async () => [port], requestPort: async () => port }
+  const requests = []
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    requests.push(url)
+    if (url === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [{ id: 'test-station', platform: 'other', isPrimary: true, autoPrintEnabled: true, defaultCopies: 2 }] }) }
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
+    if (url === '/api/table-tabs/tab-42/print-document') return pendingDocument.promise
+    if (url === '/api/printing/jobs/claim-next') return { ok: true, json: async () => ({ job: automaticTestJob() }) }
+    if (url === '/api/printing/jobs/automatic-job/complete') return { ok: true, json: async () => ({ job: { ...automaticTestJob(), status: 'printed', copiesPrinted: 1 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  function Probe() { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated: true, isOnline: true }) }) }
+  const renderer = await h.render(Probe)
+  const printing = () => renderer.root.findByType('printing-probe').props.value
   await act(flushMicrotasks)
 
   let manualPrint
-  await act(async () => { manualPrint = currentPrinting().printTableTab('tab-42'); await flushMicrotasks() })
-  assert.equal(currentPrinting().busyJobId, 'table-tab:tab-42')
+  await act(async () => { manualPrint = printing().printTableTab('tab-42'); await flushMicrotasks() })
   await act(async () => { h.fireInterval(PRINT_JOB_POLL_MS); await flushMicrotasks() })
   assert.equal(requests.filter((url) => url === '/api/printing/jobs/claim-next').length, 0)
 
@@ -292,30 +320,15 @@ test('a pending manual document fetch owns printing so automatic polling waits a
     pendingDocument.resolve({ ok: true, json: async () => ({ document: tableTabDocument() }) })
     await manualWriteStarted.promise
   })
-  assert.equal(currentPrinting().busyJobId, 'table-tab:tab-42')
   assert.equal(activeTransports, 1)
   await act(async () => { h.fireInterval(PRINT_JOB_POLL_MS); await flushMicrotasks() })
   assert.equal(requests.filter((url) => url === '/api/printing/jobs/claim-next').length, 0)
 
   await act(async () => { manualWrite.resolve(); await manualPrint })
-  assert.equal(currentPrinting().busyJobId, null)
-  await act(async () => { h.fireInterval(PRINT_JOB_POLL_MS); await automaticWriteStarted.promise })
-  assert.equal(currentPrinting().busyJobId, 'automatic-job')
-  assert.equal(activeTransports, 1)
+  await act(async () => { h.fireInterval(PRINT_JOB_POLL_MS); await flushMicrotasks() })
 
-  await act(async () => {
-    automaticWrite.resolve()
-    await automaticCompleted.promise
-  })
-  assert.equal(currentPrinting().busyJobId, 'automatic-job')
-  assert.equal(activeTransports, 0)
-  await act(async () => {
-    automaticCompletionResponse.resolve({ ok: true, json: async () => ({ job: { ...automaticTestJob(), status: 'printed', copiesPrinted: 1 } }) })
-    await flushMicrotasks()
-  })
-  assert.equal(currentPrinting().busyJobId, null)
-  assert.equal(maximumTransportConcurrency, 1)
   assert.equal(requests.filter((url) => url === '/api/printing/jobs/claim-next').length, 1)
-  assert.equal(requests.filter((url) => url === '/api/printing/jobs/automatic-job/complete').length, 1)
-  assert.equal(requests.some((url) => /\/api\/orders\/.*\/print-jobs|\/fail$/.test(url)), false)
+  assert.equal(writeCount, 2)
+  assert.equal(maximumTransportConcurrency, 1)
+  assert.equal(requests.some((url) => /\/api\/orders\/.*\/print-jobs|\/fail$|\/retry$/.test(url)), false)
 })

@@ -25,23 +25,11 @@ export const runClaimedPrintJob = async ({
     return { status: 'printed' }
   } catch (error) {
     const uncertain = error?.code === 'SERIAL_WRITE_UNCERTAIN'
-    try {
-      await failJob(job.id, stationId, {
-        code: error?.code || 'PRINT_FAILED',
-        message: error?.message || 'Não foi possível imprimir o pedido.',
-        uncertain,
-      })
-    } catch (reportingError) {
-      const combined = new AggregateError(
-        [error, reportingError],
-        error?.message || 'Não foi possível imprimir o pedido.',
-        { cause: error },
-      )
-      combined.code = error?.code || 'PRINT_FAILED'
-      combined.operationalError = error
-      combined.reportingError = reportingError
-      throw combined
-    }
+    await failJob(job.id, stationId, {
+      code: error?.code || 'PRINT_FAILED',
+      message: error?.message || 'Não foi possível imprimir o pedido.',
+      uncertain,
+    })
     return { status: uncertain ? 'requires_attention' : 'failed', error }
   }
 }
