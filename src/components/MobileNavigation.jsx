@@ -7,8 +7,8 @@ import { useTheme } from './themeContext.js'
 const directItems = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'orders', label: 'Pedidos', icon: 'orders' },
+  { id: 'comandas', label: 'Comandas', icon: 'clipboard' },
   { id: 'clients', label: 'Clientes', icon: 'clients' },
-  { id: 'products', label: 'Produtos', icon: 'products' },
 ]
 
 const themeOptions = [
@@ -22,7 +22,7 @@ const themeCycle = ['light', 'dark', 'system']
 function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = false }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const { themePreference, setThemePreference } = useTheme()
-  const moreActive = activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance' || activeTab === 'tables'
+  const moreActive = activeTab === 'products' || activeTab === 'history' || activeTab === 'receivables' || activeTab === 'finance' || activeTab === 'tables'
   const currentThemeOption = themeOptions.find((option) => option.value === themePreference) || themeOptions[2]
   const nextThemePreference = themeCycle[(themeCycle.indexOf(currentThemeOption.value) + 1) % themeCycle.length]
 
@@ -46,6 +46,9 @@ function MobileNavigation({ activeTab, onNavigate, onLogout, logoutDisabled = fa
 
       <BottomSheet open={moreOpen} title="Mais opções" onClose={() => setMoreOpen(false)}>
         <div className="mobile-more-links">
+          <button type="button" className={activeTab === 'products' ? 'mobile-more-action active' : 'mobile-more-action'} onClick={() => navigate('products')}>
+            <Icon name="products" size={20} /><span>Produtos</span>
+          </button>
           <button type="button" className={activeTab === 'history' ? 'mobile-more-action active' : 'mobile-more-action'} onClick={() => navigate('history')}>
             <Icon name="receipt" size={20} /><span>Histórico</span>
           </button>

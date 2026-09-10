@@ -27,6 +27,7 @@ import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
 import Tables from './pages/Tables'
+import Comandas from './pages/Comandas'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { useKitchenClock } from './hooks/useKitchenClock.js'
@@ -101,6 +102,7 @@ function App() {
   const [movements, setMovements] = useState([])
   const [financeSettings, setFinanceSettings] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [selectedComandaTableId, setSelectedComandaTableId] = useState(null)
   const [checkoutKey, setCheckoutKey] = useState(null)
   const [newOrderDirty, setNewOrderDirty] = useState(false)
   const [pendingNavigationTab, setPendingNavigationTab] = useState(null)
@@ -151,6 +153,7 @@ function App() {
   }
 
   const clearBusinessData = () => {
+    setSelectedComandaTableId(null)
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedSecondCopyJobIdsRef.current = new Set()
@@ -569,6 +572,7 @@ function App() {
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} onSelectTable={setSelectedComandaTableId} onAddOrder={(tableId) => handleNewOrder({ tableId, returnTab: 'comandas' })} currency={currency} disabled={writesBlocked} />}
 
         {pendingNavigationTab && (
           <Modal title="Descartar venda em andamento?" onClose={cancelDiscardNewOrder}>

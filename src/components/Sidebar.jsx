@@ -5,6 +5,7 @@ import { useTheme } from './themeContext.js'
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'orders', label: 'Pedidos', icon: 'orders' },
+  { id: 'comandas', label: 'Comandas', icon: 'clipboard' },
   { id: 'history', label: 'Histórico', icon: 'receipt' },
   { id: 'clients', label: 'Clientes', icon: 'clients' },
   { id: 'products', label: 'Produtos', icon: 'products' },
