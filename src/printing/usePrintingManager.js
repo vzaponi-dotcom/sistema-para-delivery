@@ -3,16 +3,19 @@ import qz from 'qz-tray'
 import {
   acknowledgeSecondCopyPrompt as acknowledgeSecondCopyPromptApi,
   claimNextPrintJob,
+  claimNextRecoveryPrintJob,
   claimPrintJob,
   completePrintJob,
   createPrintAttempt,
   createManualPrintJob,
   createTestPrintJob,
+  discardPendingPrintJobs,
   discardPrintJob,
   failPrintJob,
   forcePrintJob as forcePrintJobApi,
   getOrderPrintDocument,
   getPrintJobs,
+  getPrintQueueSummary,
   getPrintStations,
   getQzCertificate,
   heartbeatPrintStation,
@@ -22,9 +25,11 @@ import {
   reprintPrintJob,
   retryPrintJob,
   recordPrintAttemptEvent,
+  resolvePrintOutcome,
   requestSecondCopy as requestSecondCopyApi,
   skipSecondCopy as skipSecondCopyApi,
   signQzPayload,
+  setPrintStationRecovery,
   upsertPrintStation,
 } from '../api/client.js'
 import { renderEscPos58mm } from './escpos58mm.js'
@@ -36,6 +41,12 @@ import {
   saveQzPrinterName,
 } from './localPrintStation.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
+import {
+  canRunSingleRecoveryCopy,
+  deriveRecoveryView,
+  nextRecoveryState,
+  runSingleRecoveryCopy,
+} from './printRecoveryFlow.js'
 import {
   configureQzSecurity,
   createQzReadinessController,
@@ -116,6 +127,7 @@ export const canExecuteSecondCopy = ({ isQz, station, job }) => Boolean(
 export const canPresentSecondCopyPrompt = ({ isQz, transportReady, printerBlocked, station, job }) => (
   Boolean(transportReady)
   && !printerBlocked
+  && (station?.recoveryState ?? 'normal') === 'normal'
   && canExecuteSecondCopy({ isQz, station, job })
   && !job?.secondCopyPromptedAt
 )
@@ -123,6 +135,7 @@ export const canPresentSecondCopyPrompt = ({ isQz, transportReady, printerBlocke
 export const canKeepSecondCopyPromptOpen = ({ isQz, transportReady, printerBlocked, station, job }) => (
   Boolean(transportReady)
   && !printerBlocked
+  && (station?.recoveryState ?? 'normal') === 'normal'
   && canExecuteSecondCopy({ isQz, station, job })
 )
 
@@ -251,6 +264,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const [printerQueueFound, setPrinterQueueFound] = useState(false)
   const [transportReady, setTransportReady] = useState(false)
   const [printerHealth, setPrinterHealth] = useState({ state: 'verifying', ready: false, statusText: null, statusCode: null })
+  const [recoveryPendingCount, setRecoveryPendingCount] = useState(0)
 
   const portRef = useRef(null)
   const localStationRef = useRef(null)
@@ -270,6 +284,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const heartbeatInFlightRef = useRef(false)
   const heartbeatSequenceRef = useRef(0)
   const [physicalJobFailureNotifier] = useState(createPhysicalJobFailureNotifier)
+  const recoveryView = deriveRecoveryView({
+    recoveryState: localStation?.recoveryState,
+    physicalReady: printerHealth.state === 'ready',
+    safeBacklog: recoveryPendingCount,
+  })
 
   const updateLocalStation = useCallback((station) => {
     localStationRef.current = station || null
@@ -386,18 +405,19 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
 
   const refresh = useCallback(async () => {
     if (!authenticated) return { stations: [], jobs: [] }
-    const [stationPayload, jobPayload] = await Promise.all([getPrintStations(), getPrintJobs({ limit: 100 })])
+    const [stationPayload, jobPayload, summaryPayload] = await Promise.all([getPrintStations(), getPrintJobs({ limit: 100 }), getPrintQueueSummary()])
     const nextStations = Array.isArray(stationPayload?.stations) ? stationPayload.stations : []
     const nextJobs = Array.isArray(jobPayload?.jobs) ? jobPayload.jobs : []
     setStations(nextStations)
     setJobs(nextJobs)
+    setRecoveryPendingCount(Math.max(0, Number(summaryPayload?.summary?.safeBacklog) || 0))
     physicalJobFailureNotifier.synchronize(nextJobs)
     const stationId = localStationRef.current?.id
     if (stationId) {
       const serverStation = nextStations.find((station) => station.id === stationId)
       if (serverStation) updateLocalStation(serverStation)
     }
-    return { stations: nextStations, jobs: nextJobs }
+    return { stations: nextStations, jobs: nextJobs, summary: summaryPayload?.summary ?? {} }
   }, [authenticated, physicalJobFailureNotifier, updateLocalStation])
 
   const resolveConfiguredQzPrinter = useCallback(async (stationId) => {
@@ -642,6 +662,87 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     })
   }, [executeClaimedJob, getExplicitPort, isQz])
 
+  const transitionRecovery = useCallback(async (action) => {
+    const station = localStationRef.current
+    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+    const nextState = nextRecoveryState({ recoveryState: station.recoveryState, action })
+    if (nextState === (station.recoveryState ?? 'normal')) return station
+    const response = await setPrintStationRecovery(station.id, nextState)
+    if (response?.station) updateLocalStation(response.station)
+    return response?.station ?? station
+  }, [updateLocalStation])
+
+  const printNextRecovery = useCallback(async () => {
+    const station = localStationRef.current
+    const eligible = canRunSingleRecoveryCopy({
+      recoveryState: station?.recoveryState,
+      physicalReady: printerHealthRef.current.state === 'ready',
+      busyJobId: busyJobIdRef.current,
+    })
+    if (!eligible || !station?.id) return null
+    const result = await runSingleRecoveryCopy({
+      recoveryState: station.recoveryState,
+      physicalReady: printerHealthRef.current.state === 'ready',
+      busyJobId: busyJobIdRef.current,
+      claimNext: () => claimNextRecoveryPrintJob(station.id),
+      executeJob: (job) => executeClaimedJob(job, null, {
+        clearBlockOnSuccess: true,
+        preparePort: getExplicitPort,
+      }),
+    })
+    if (result) {
+      const refreshed = await refresh()
+      const current = localStationRef.current
+      if (result.status === 'printed' && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id && current.recoveryState === 'deferred') {
+        const response = await setPrintStationRecovery(current.id, 'normal')
+        if (response?.station) updateLocalStation(response.station)
+      }
+      return result
+    }
+
+    const current = localStationRef.current
+    if (current?.id && current.recoveryState === 'active') {
+      const response = await setPrintStationRecovery(current.id, 'normal')
+      if (response?.station) updateLocalStation(response.station)
+    }
+    await refresh()
+    return null
+  }, [executeClaimedJob, getExplicitPort, refresh, updateLocalStation])
+
+  const startRecovery = useCallback(async () => {
+    await transitionRecovery('start')
+    return printNextRecovery()
+  }, [printNextRecovery, transitionRecovery])
+
+  const deferRecovery = useCallback(() => transitionRecovery('defer'), [transitionRecovery])
+
+  const resumeRecovery = useCallback(() => transitionRecovery('resume'), [transitionRecovery])
+
+  const discardRecoveryBacklog = useCallback(async () => {
+    const station = localStationRef.current
+    const response = await discardPendingPrintJobs()
+    if (station?.id && (station.recoveryState ?? 'normal') !== 'normal') {
+      const recovered = await setPrintStationRecovery(station.id, 'normal')
+      if (recovered?.station) updateLocalStation(recovered.station)
+    }
+    await refresh()
+    return response
+  }, [refresh, updateLocalStation])
+
+  const confirmUnknownPrinted = useCallback(async (job, attempt) => {
+    if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
+    const response = await resolvePrintOutcome(job.id, attempt.id, 'manual_printed')
+    await refresh()
+    return response
+  }, [refresh])
+
+  const confirmUnknownNotPrinted = useCallback(async (job, attempt) => {
+    if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
+    const response = await resolvePrintOutcome(job.id, attempt.id, 'manual_not_printed')
+    await refresh()
+    return response
+  }, [refresh])
+
   const acknowledgeSecondCopyPrompt = useCallback(async (job) => {
     const station = localStationRef.current
     if (!station?.id || !canPresentSecondCopyPrompt({
@@ -741,6 +842,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       updatePrinterQueueFound(false)
       updateTransportReady(false)
       updatePrinterHealth({ state: 'verifying' })
+      setRecoveryPendingCount(0)
       updateBusyJob(null)
       updateBlocked(false)
       setPrinterState(supported ? 'unconfigured' : 'unsupported')
@@ -914,6 +1016,9 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     printerQueueFound,
     transportReady,
     printerHealth,
+    recoveryState: recoveryView.recoveryState,
+    recoveryPendingCount: recoveryView.recoveryPendingCount,
+    recoveryPromptEligible: recoveryView.recoveryPromptEligible,
     refresh,
     refreshPrinters,
     selectPrinter,
@@ -923,6 +1028,13 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     testPrint,
     printOrder,
     printSecondCopy,
+    startRecovery,
+    deferRecovery,
+    resumeRecovery,
+    printNextRecovery,
+    discardRecoveryBacklog,
+    confirmUnknownPrinted,
+    confirmUnknownNotPrinted,
     acknowledgeSecondCopyPrompt,
     retryJob,
     requestPrintNow,

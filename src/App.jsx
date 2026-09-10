@@ -132,6 +132,9 @@ function App() {
   const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
   const [originSecondCopyPromptJobId, setOriginSecondCopyPromptJobId] = useState(null)
   const [originSecondCopyPromptBusy, setOriginSecondCopyPromptBusy] = useState(false)
+  const [recoveryDialogMode, setRecoveryDialogMode] = useState(null)
+  const [recoveryBusy, setRecoveryBusy] = useState(false)
+  const [recoveryDiscardConfirmation, setRecoveryDiscardConfirmation] = useState(false)
   const [originOrderIds, setOriginOrderIds] = useState(() => readOriginOrderIds(typeof window === 'undefined' ? null : window.localStorage))
   const [showPrintingSettings, setShowPrintingSettings] = useState(false)
   const knownOperationalOrderIdsRef = useRef(undefined)
@@ -142,6 +145,7 @@ function App() {
   const bootstrapSyncInFlightRef = useRef(false)
   const ordersSyncInFlightRef = useRef(false)
   const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
+  const recoveryPromptSeenRef = useRef(false)
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
@@ -155,9 +159,14 @@ function App() {
     transportKind: printTransportKind,
     transportReady: printTransportReady,
     printerBlocked,
+    printerHealth,
+    recoveryState,
+    recoveryPendingCount,
+    recoveryPromptEligible,
     localStation: localPrintStation,
     acknowledgeSecondCopyPrompt,
   } = printing
+  const physicalPrinterReady = printerHealth?.state === 'ready'
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' })
   const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
@@ -176,7 +185,7 @@ function App() {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set()
-    setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false)
+    setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false
   }
 
   const applyBootstrapCollections = (data, token) => {
@@ -350,6 +359,10 @@ function App() {
   }, [activeTab, orders, kitchenNow, kitchenSoundEnabled])
 
   useEffect(() => {
+    if (recoveryState !== 'normal') {
+      if (secondCopyPromptJobId) setSecondCopyPromptJobId(null)
+      return
+    }
     if (secondCopyPromptJobId) {
       const current = printJobs.find((job) => job.id === secondCopyPromptJobId)
       const currentOrder = orders.find((order) => order.id === current?.orderId)
@@ -378,7 +391,24 @@ function App() {
       acknowledge: acknowledgeSecondCopyPrompt,
       openPrompt: setSecondCopyPromptJobId,
     }).catch(showApiError)
-  }, [printJobs, printTransportKind, localPrintStation, acknowledgeSecondCopyPrompt, orders, secondCopyPromptJobId, printTransportReady, printerBlocked])
+  }, [printJobs, printTransportKind, localPrintStation, acknowledgeSecondCopyPrompt, orders, recoveryState, secondCopyPromptJobId, printTransportReady, printerBlocked])
+
+  useEffect(() => {
+    if (!physicalPrinterReady) {
+      setRecoveryDialogMode(null)
+      setRecoveryDiscardConfirmation(false)
+      return
+    }
+    if (recoveryState === 'normal') {
+      recoveryPromptSeenRef.current = false
+      setRecoveryDialogMode(null)
+      return
+    }
+    if (recoveryPromptEligible && !recoveryPromptSeenRef.current) {
+      recoveryPromptSeenRef.current = true
+      setRecoveryDialogMode('prompt')
+    }
+  }, [physicalPrinterReady, recoveryPromptEligible, recoveryState])
 
   useEffect(() => {
     if (printTransportKind === 'qz') return
@@ -442,6 +472,62 @@ function App() {
       showApiError(error)
     } finally {
       setSecondCopyPromptBusy(false)
+    }
+  }
+
+  const handleStartRecovery = async () => {
+    if (recoveryBusy || !physicalPrinterReady) return
+    setRecoveryBusy(true)
+    try {
+      const result = await printing.startRecovery()
+      setRecoveryDialogMode(result?.status === 'printed' ? 'progress' : null)
+    } catch (error) {
+      setRecoveryDialogMode(null)
+      showApiError(error)
+    } finally {
+      setRecoveryBusy(false)
+    }
+  }
+
+  const handleDeferRecovery = async () => {
+    if (recoveryBusy) return
+    setRecoveryDialogMode(null)
+    setRecoveryBusy(true)
+    try {
+      await printing.deferRecovery()
+    } catch (error) {
+      showApiError(error)
+    } finally {
+      setRecoveryBusy(false)
+    }
+  }
+
+  const handleNextRecovery = async () => {
+    if (recoveryBusy || !physicalPrinterReady) return
+    setRecoveryBusy(true)
+    try {
+      await printing.resumeRecovery()
+      const result = await printing.printNextRecovery()
+      setRecoveryDialogMode(result?.status === 'printed' ? 'progress' : null)
+    } catch (error) {
+      setRecoveryDialogMode(null)
+      showApiError(error)
+    } finally {
+      setRecoveryBusy(false)
+    }
+  }
+
+  const handleDiscardRecoveryBacklog = async () => {
+    if (recoveryBusy || !physicalPrinterReady) return
+    setRecoveryBusy(true)
+    try {
+      await printing.discardRecoveryBacklog()
+      setRecoveryDiscardConfirmation(false)
+      setRecoveryDialogMode(null)
+    } catch (error) {
+      showApiError(error)
+    } finally {
+      setRecoveryBusy(false)
     }
   }
 
@@ -677,6 +763,42 @@ function App() {
         {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
       </AppShell>
 
+      {recoveryPromptEligible && physicalPrinterReady && recoveryDialogMode === 'prompt' && (
+        <Modal title="Impressora disponível novamente" onClose={() => { void handleDeferRecovery() }}>
+          <div className="form-stack">
+            <p>{`Há ${recoveryPendingCount} trabalhos aguardando impressão.`}</p>
+            <p>Como a impressora não possui corte automático, as vias serão impressas uma de cada vez.</p>
+            <div className="form-actions">
+              <Button type="button" variant="secondary" onClick={() => { void handleDeferRecovery() }} disabled={recoveryBusy}>Agora não</Button>
+              <Button type="button" variant="secondary" onClick={() => { setRecoveryDialogMode(null); setRecoveryDiscardConfirmation(true) }} disabled={recoveryBusy}>Descartar todas</Button>
+              <Button type="button" onClick={() => { void handleStartRecovery() }} disabled={recoveryBusy}>Imprimir agora</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {recoveryDialogMode === 'progress' && physicalPrinterReady && recoveryState === 'deferred' && recoveryPendingCount > 0 && (
+        <ConfirmationDialog
+          title="Via impressa"
+          message="Separe o papel antes de continuar."
+          confirmLabel="Imprimir próxima"
+          cancelLabel="Parar por agora"
+          confirmVariant="secondary"
+          onClose={() => { void handleDeferRecovery() }}
+          onConfirm={() => { void handleNextRecovery() }}
+          disabled={recoveryBusy || Boolean(printing.busyJobId)}
+        />
+      )}
+      {recoveryDiscardConfirmation && physicalPrinterReady && (
+        <ConfirmationDialog
+          title={`Descartar ${recoveryPendingCount} trabalhos?`}
+          message="Somente trabalhos pendentes sem envio físico serão descartados."
+          confirmLabel="Descartar todas"
+          cancelLabel="Voltar"
+          onClose={() => setRecoveryDiscardConfirmation(false)}
+          onConfirm={() => { void handleDiscardRecoveryBacklog() }}
+          disabled={recoveryBusy}
+        />
+      )}
       {secondCopyPromptJob && (
         <ConfirmationDialog
           title={`${secondCopyPromptOrderNumber} · 1ª via impressa`}

@@ -57,6 +57,18 @@ test('automatic consumer does not claim while QZ or another local transport is n
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
 })
 
+test('a non-normal recovery state pauses the normal consumer while the manager uses the dedicated one-copy recovery APIs', () => {
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'pending' } })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'active' } })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'deferred' } })), false)
+  assert.match(managerSource, /claimNextRecoveryPrintJob/)
+  assert.match(managerSource, /setPrintStationRecovery/)
+  assert.match(managerSource, /discardPendingPrintJobs/)
+  assert.match(managerSource, /resolvePrintOutcome/)
+  assert.match(managerSource, /startRecovery/)
+  assert.match(managerSource, /printNextRecovery/)
+})
+
 test('manager installs spooler monitoring before QZ jobs and routes QZ execution through persisted attempts', () => {
   assert.match(managerSource, /createQzStatusMonitor/)
   assert.match(managerSource, /executeQzPrintAttempt|qzAttempt/)
