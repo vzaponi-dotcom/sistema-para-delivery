@@ -46,6 +46,32 @@ test('successful first pass of a two-copy job renders and completes only copy 1/
   assert.deepEqual(calls, { renderer: 1, transport: 1, complete: 1, fail: 0 })
 })
 
+test('QZ runner never completes from send success and leaves an unknown submitted copy out of the retry path', async () => {
+  let completeCalls = 0
+  let failCalls = 0
+  const result = await runClaimedPrintJob({
+    job: baseJob,
+    stationId: 'station-1',
+    port: null,
+    completeJob: async () => { completeCalls += 1 },
+    failJob: async () => { failCalls += 1 },
+    renderer: () => new Uint8Array([1]),
+    transport: async () => assert.fail('QZ controller owns byte submission'),
+    qzAttempt: {
+      createAttempt: async () => ({ id: 'attempt-1', spoolJobName: 'GESTAO-DELIVERY:job-1:COPY:1:ATTEMPT:1' }),
+      markSubmitting: async () => {},
+      sendBytes: async () => {},
+      awaitOutcome: async () => { throw Object.assign(new Error('lost'), { code: 'QZ_OBSERVATION_LOST' }) },
+      recordEvent: async () => {},
+      markUnknown: async () => {},
+    },
+  })
+
+  assert.equal(result.status, 'requires_attention')
+  assert.equal(completeCalls, 0)
+  assert.equal(failCalls, 0)
+})
+
 test('second pass resumes a two-copy job at copy 2/2 without reprinting the first copy', async () => {
   const resumedJob = { ...baseJob, copiesPrinted: 1 }
   const bytes = new Uint8Array([4, 5, 6])

@@ -34,15 +34,22 @@ test('QZ heartbeat distinguishes QZ connectivity from configured printer readine
     qzActive: true,
     transportReady: false,
     configuredPrinterName: null,
-  }), { qzReady: true, printerReady: false })
+  }), { qzReady: true, printerReady: false, physicalState: 'verifying', physicalStatusText: null, physicalStatusCode: null })
   assert.deepEqual(printingManager.buildPrintStationHeartbeatHealth({
     qzActive: true,
     transportReady: true,
     configuredPrinterName: 'Impressora pedido',
-  }), { qzReady: true, printerReady: true })
+    printerHealth: { state: 'ready', statusText: 'OK', statusCode: 0 },
+  }), { qzReady: true, printerReady: true, physicalState: 'ready', physicalStatusText: 'OK', physicalStatusCode: 0 })
+  assert.equal(printingManager.buildPrintStationHeartbeatHealth({
+    qzActive: true,
+    transportReady: true,
+    configuredPrinterName: 'Impressora pedido',
+    printerHealth: { state: 'printer_offline', statusText: 'Offline', statusCode: 7 },
+  }).printerReady, false)
   assert.deepEqual(printingManager.buildPrintStationHeartbeatHealth({
     qzActive: false,
     transportReady: true,
     configuredPrinterName: 'Impressora pedido',
-  }), { qzReady: false, printerReady: false })
+  }), { qzReady: false, printerReady: false, physicalState: 'verifying', physicalStatusText: null, physicalStatusCode: null })
 })

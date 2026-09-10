@@ -57,6 +57,18 @@ test('automatic consumer does not claim while QZ or another local transport is n
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
 })
 
+test('manager installs spooler monitoring before QZ jobs and routes QZ execution through persisted attempts', () => {
+  assert.match(managerSource, /createQzStatusMonitor/)
+  assert.match(managerSource, /executeQzPrintAttempt|qzAttempt/)
+  assert.match(managerSource, /createPrintAttempt/)
+  assert.match(managerSource, /markPrintAttemptSubmitting/)
+  assert.match(managerSource, /recordPrintAttemptEvent/)
+  assert.match(managerSource, /onJobStatus/)
+  assert.match(managerSource, /qzAttemptByNameRef/)
+  assert.match(managerSource, /physicalReady: printerHealthRef\.current\.state === 'ready'/)
+  assert.match(managerSource, /station\?\.recoveryState/)
+})
+
 test('transport support alone cannot bypass station and local-readiness guards', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({
     supported: true,
