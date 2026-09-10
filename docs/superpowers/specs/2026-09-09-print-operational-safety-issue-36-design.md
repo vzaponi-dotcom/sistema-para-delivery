@@ -1,108 +1,108 @@
 # Gestão Delivery — Segurança operacional da impressão física e painel da fila (Issue #36)
 
 Data: 2026-09-09
-Status: design aprovado em conversa; documento consolidado para revisão final antes do plano de implementação
-Branch de design: `feature/print-operational-safety-issue-36`
+Status: design aprovado em conversa; consolidado e auto-revisado para revisão do usuário antes do plano de implementação
+Branch: `feature/print-operational-safety-issue-36`
 Issue incorporada: #36 — Transformar fila de impressão em painel operacional com paginação e ordenação
 
 ## 1. Contexto
 
-A fila centralizada de impressão com QZ Tray já está implementada como arquitetura oficial: qualquer dispositivo pode solicitar impressão, mas somente a estação Windows principal da cozinha executa a impressão física.
+A arquitetura oficial de impressão já é centralizada: qualquer dispositivo pode solicitar impressão, mas somente a estação Windows principal da cozinha executa fisicamente os jobs pelo QZ Tray.
 
-Durante a homologação física da MPT-II foi identificado um problema de semântica importante: a aplicação considera a fila pronta quando o QZ está conectado e a fila Windows existe, mas isso não garante que a impressora física esteja ligada ou disponível. Além disso, o fluxo atual conclui uma via depois que `qz.print()` resolve, o que prova apenas que o QZ/Windows aceitou o envio, não que o trabalho chegou a `COMPLETE` no spooler.
+Na homologação real da MPT-II foi identificado um problema importante: hoje a aplicação trata “QZ conectado + fila Windows encontrada” como suficiente para considerar a estação pronta, mas isso não garante que a impressora física esteja ligada. Além disso, o fluxo atual conclui a via quando `qz.print()` resolve, embora isso só prove que o envio foi aceito pelo QZ/Windows, não que o trabalho chegou a `COMPLETE` no spooler.
 
-Os testes reais feitos com a MPT-II mostraram que o driver atual expõe eventos de status confiáveis pelo QZ/Winspool:
+Os testes físicos realizados com a MPT-II confirmaram que o driver atual expõe eventos utilizáveis pelo QZ/Winspool:
 
-- impressora disponível: `EventType: PRINTER`, `OK`, `Code: 0`;
-- impressora desligada/desconectada: `EventType: PRINTER`, `OFFLINE`, `Code: 67108864`;
-- impressão normal: `JOB SPOOLING -> PRINTING -> RETAINED -> COMPLETE -> DELETING -> DELETED`;
-- impressão enviada com a impressora offline: o job fica em `SPOOLING`, permanece retido no Windows e imprime sozinho quando a MPT-II volta, concluindo depois com `JOB COMPLETE`.
+- `PRINTER OK`, `Code: 0` quando a impressora está disponível;
+- `PRINTER OFFLINE`, `Code: 67108864` quando está desligada/desconectada;
+- impressão normal: `SPOOLING -> PRINTING -> RETAINED -> COMPLETE -> DELETING -> DELETED`;
+- quando um job é enviado com a impressora offline, ele pode permanecer em `SPOOLING` e depois imprimir sozinho quando a MPT-II volta.
 
-Esse último comportamento é crítico: um trabalho já entregue ao spooler não pode ser reenviado automaticamente apenas porque a impressora ficou offline, pois isso pode gerar impressão duplicada.
+Esse último comportamento prova que um job já entregue ao spooler não pode ser reenviado automaticamente, pois isso pode gerar duplicidade.
 
-Ao mesmo tempo, a Issue #36 define que a tela de Impressão deve deixar de atuar como histórico infinito e passar a ser um painel operacional curto, paginado, ordenável e focado no estado atual da estação e dos jobs que exigem ação.
+Ao mesmo tempo, a Issue #36 define que a tela de Impressão deve virar um painel operacional curto e orientado à ação, deixando o Histórico responsável por pedidos antigos e reimpressões.
 
-Esta spec consolida as duas necessidades em uma única evolução do subsistema.
+Esta spec consolida as duas frentes em uma única evolução do subsistema.
 
 ## 2. Relação com a spec anterior
 
 Esta spec complementa e, quando houver conflito, substitui as regras correspondentes de `docs/superpowers/specs/2026-09-08-centralized-qz-print-queue-design.md`.
 
-Permanecem válidas da arquitetura anterior:
+Continuam válidos:
 
 - fila central de impressão;
-- único executor físico na estação Windows principal;
+- único executor físico: estação Windows principal;
 - QZ Tray como transporte físico oficial;
-- snapshot imutável de `OrderPrintDocument` por job;
+- snapshot imutável por job;
 - uma ou duas vias por job;
 - segunda via controlada pelo operador;
+- prioridade persistida no backend;
 - reimpressão como novo job;
-- prioridade persistida pelo backend;
-- nenhuma impressão física em celular/tablet;
-- homologação em staging antes de produção.
+- celulares/tablets não executam fisicamente;
+- staging antes de produção.
 
-São explicitamente substituídas nesta spec:
+São substituídos por esta spec:
 
-- a definição de sucesso físico baseada apenas em retorno de `qz.print()`;
-- a noção de que “fila QZ encontrada” equivale a “impressora pronta”;
-- a retomada automática indiscriminada de backlog após a estação voltar;
-- qualquer retry automático de uma via cujo resultado físico ficou incerto;
-- a ideia de manter a tela de Impressão como histórico navegável indefinidamente.
+- sucesso físico baseado apenas no retorno de `qz.print()`;
+- “fila QZ encontrada” como sinônimo de “impressora pronta”;
+- retomada automática indiscriminada do backlog quando a impressora volta;
+- retry automático de uma via cujo resultado ficou incerto;
+- uso da tela Impressão como histórico navegável indefinidamente.
 
 ## 3. Objetivos
 
 A entrega deve:
 
-1. impedir consumo automático quando a MPT-II estiver desligada, desconectada ou em estado físico bloqueante;
-2. distinguir claramente QZ conectado, fila Windows encontrada e impressora fisicamente pronta;
-3. considerar uma via concluída somente após confirmação `EventType: JOB` + `COMPLETE` correspondente àquela tentativa;
-4. impedir reenvio automático de tentativa já entregue ao spooler;
-5. tratar perda de confirmação como estado incerto e exigir decisão humana;
-6. recuperar backlog acumulado de forma controlada, uma via física por vez;
-7. impedir novos pedidos de furarem a recuperação enquanto existir backlog aguardando decisão/execução manual;
-8. melhorar mensagens de Configurações e Fila para mostrar o estado operacional real;
-9. transformar a tela de Impressão no painel operacional definido pela Issue #36;
-10. limitar concluídas recentes, paginar e ordenar no backend;
-11. manter reimpressão histórica centralizada na tela Histórico;
-12. aplicar retenção automática segura de 30 dias somente a jobs terminais elegíveis;
-13. preservar auditoria suficiente para diagnóstico e decisões manuais;
-14. manter TDD, staging e segurança de produção como requisitos da implementação.
+1. bloquear consumo quando a MPT-II estiver offline ou em estado físico não operacional;
+2. distinguir QZ conectado, fila encontrada, impressora pronta e via concluída;
+3. incrementar `copies_printed` somente após `JOB COMPLETE` correlacionado àquela tentativa, ou confirmação manual explícita em caso incerto;
+4. impedir reenvio automático de tentativa já submetida ao spooler;
+5. recuperar backlog uma via física por vez;
+6. pausar novos jobs enquanto existir recuperação pendente/ativa/deferida;
+7. melhorar mensagens de Configurações e Fila;
+8. transformar a tela de Impressão no painel operacional da Issue #36;
+9. mover paginação/ordenação para a fonte de dados/backend;
+10. mostrar no máximo 10 concluídas recentes;
+11. manter reimpressão histórica na tela Histórico;
+12. aplicar retenção automática segura de 30 dias a estados terminais elegíveis;
+13. preservar auditoria e diagnóstico;
+14. seguir TDD e homologação física em staging.
 
 ## 4. Fora de escopo
 
 Não fazem parte desta entrega:
 
-- sensor físico independente para comprovar mecanicamente que o papel saiu;
-- troca da MPT-II por impressora profissional;
-- múltiplas impressoras ou roteamento por setor;
+- sensor mecânico independente para comprovar fisicamente o papel;
+- nova impressora profissional;
+- múltiplas impressoras/setores;
 - segunda estação automática de failover;
-- corte automático de papel;
-- impressão automática de backlog inteiro após reconexão;
-- busca histórica completa de jobs na tela de Impressão;
-- RBAC/usuários/permissões granulares;
-- alteração do layout do ticket já homologado, salvo textos estritamente necessários ao diagnóstico;
-- deploy direto em produção sem homologação em staging.
+- corte automático;
+- impressão automática do backlog inteiro;
+- histórico completo de jobs dentro da tela Impressão;
+- RBAC/perfis;
+- mudança do conteúdo/layout do ticket já homologado, salvo identificador técnico do job enviado ao spooler;
+- deploy direto em produção.
 
 ## 5. Princípio central de segurança
 
-A aplicação deve separar quatro conceitos que hoje estão parcialmente misturados:
+A aplicação deve separar quatro conceitos:
 
-1. **QZ conectado** — existe comunicação WebSocket com o QZ Tray;
-2. **fila Windows encontrada** — a impressora configurada existe na lista do Windows/QZ;
-3. **impressora fisicamente pronta** — o listener de `PRINTER` confirmou estado não bloqueante, atualmente `OK` para a MPT-II;
-4. **via concluída** — o listener de `JOB` confirmou `COMPLETE` para a tentativa correspondente.
+1. **QZ conectado** — existe comunicação com o QZ Tray;
+2. **fila Windows encontrada** — a fila configurada existe;
+3. **impressora fisicamente pronta** — status `PRINTER` atual foi classificado como operacional;
+4. **via concluída** — status `JOB COMPLETE` foi correlacionado à tentativa física correta.
 
-Nenhum conceito implica automaticamente o próximo.
+Nenhum desses conceitos implica automaticamente o próximo.
 
 Regra oficial:
 
-> Uma estação só pode iniciar uma nova via quando QZ está conectado, a fila configurada foi encontrada e o último estado físico válido da impressora é operacional. Uma via só incrementa `copies_printed` depois de `JOB COMPLETE` correlacionado àquela tentativa.
+> Só se inicia uma nova via quando a estação está operacionalmente pronta. Só se contabiliza a via quando existe confirmação conclusiva daquela tentativa.
 
-## 6. Modelo de saúde da impressora
+## 6. Modelo único de saúde da impressora
 
-### 6.1 Estados amigáveis canônicos
+Configurações e Fila devem consumir o mesmo estado derivado.
 
-A UI deve trabalhar com um modelo único de saúde operacional, compartilhado por Configurações e Fila:
+Estados amigáveis canônicos:
 
 - `ready` -> **Pronta para imprimir**;
 - `verifying` -> **Verificando impressora…**;
@@ -113,82 +113,79 @@ A UI deve trabalhar com um modelo único de saúde operacional, compartilhado po
 - `unconfigured` -> **Impressora não configurada**;
 - `unsupported` -> plataforma sem execução física.
 
-### 6.2 Regra fail-closed
+### 6.1 Regra fail-closed
 
-Somente `ready` permite iniciar uma nova via automática ou manual.
+Somente `ready` permite iniciar nova via.
 
-`verifying` também bloqueia consumo. Ao conectar/reconectar o QZ ou trocar a fila configurada, o sistema deve invalidar qualquer status físico anterior e permanecer em `verifying` até receber/obter um estado físico válido da impressora selecionada.
+`verifying`, estados desconhecidos e qualquer status físico ainda não confirmado bloqueiam o consumo.
 
-Não existe fallback silencioso de “estado desconhecido = pronta”.
+Ao conectar/reconectar QZ ou trocar a fila:
 
-### 6.3 Eventos físicos bloqueantes
+- invalidar o status físico anterior;
+- registrar listeners novamente;
+- entrar em `verifying`;
+- solicitar o status atual da impressora;
+- liberar apenas depois de nova confirmação operacional.
 
-Para a MPT-II atual:
+Para a MPT-II atual, `OK` libera e `OFFLINE` bloqueia. Estados de papel, erro, pausa/intervenção e demais códigos bloqueantes conhecidos devem virar `printer_attention`. Estados desconhecidos permanecem não prontos até classificação segura.
 
-- `OK` libera a estação;
-- `OFFLINE` bloqueia imediatamente.
+## 7. Listener QZ
 
-A implementação deve classificar outros estados Winspool/QZ conhecidos como papel ausente, erro ou intervenção do usuário como `printer_attention` e bloquear consumo.
+A estação Windows principal deve registrar listeners para a fila selecionada.
 
-Estados desconhecidos devem ser tratados conservadoramente como não prontos até classificação segura.
+Há dois fluxos distintos:
 
-### 6.4 Heartbeat
+- `PRINTER`: saúde física da impressora;
+- `JOB`: ciclo de vida da tentativa física.
 
-O heartbeat da estação deve deixar de enviar apenas um booleano derivado da existência da fila. Ele deve refletir o estado físico real conhecido pela estação.
+A implementação deve registrar o listener de `JOB` **antes de iniciar qualquer chamada de impressão**, porque eventos como `SPOOLING`, `PRINTING` e `COMPLETE` podem ocorrer muito rapidamente.
+
+Ao perder o WebSocket QZ:
+
+- novas vias são bloqueadas imediatamente;
+- a estação deixa de ser `ready`;
+- tentativas que possam já ter sido submetidas nunca são reenviadas automaticamente.
+
+Ao reconectar:
+
+- resolver novamente a fila;
+- voltar a `verifying`;
+- reativar listeners;
+- obter status atual antes de permitir novo consumo.
+
+## 8. Heartbeat da estação
+
+O heartbeat deixa de refletir somente a existência da fila e passa a refletir a saúde física real conhecida localmente.
 
 O backend deve persistir, no mínimo:
 
 - `qz_ready`;
 - `printer_ready`;
-- código/estado físico normalizado;
-- timestamp do último evento físico válido;
-- último momento em que a impressora ficou offline;
-- estado do ciclo de recuperação de backlog.
+- estado/código físico normalizado;
+- timestamp do último status físico válido;
+- último instante em que a impressora ficou offline;
+- estado do ciclo de recuperação.
 
-O heartbeat continua servindo para outras telas conhecerem o estado resumido da estação, mas não substitui o listener local de QZ para decisão imediata de impressão.
+O heartbeat serve para outras telas conhecerem o estado resumido da estação, mas a decisão imediata de imprimir continua dependendo do listener local ativo.
 
-## 7. Listener QZ
+## 9. Estados persistidos de `print_jobs`
 
-A estação Windows principal deve registrar listeners de status QZ para a fila configurada.
+Estados canônicos após esta mudança:
 
-São necessários dois fluxos independentes:
-
-- listener de `PRINTER`, responsável por disponibilidade física;
-- listener de `JOB`, responsável por ciclo de vida de cada tentativa enviada ao spooler.
-
-Ao perder a conexão WebSocket do QZ:
-
-- `qz_ready = false`;
-- estado local deixa de ser `ready` imediatamente;
-- novas vias são bloqueadas;
-- tentativas já entregues ao spooler não são reenviadas.
-
-Ao reconectar:
-
-- a fila configurada é resolvida novamente;
-- o estado físico volta para `verifying`;
-- o consumo só é liberado depois de nova confirmação operacional.
-
-## 8. Estados persistidos do job
-
-Os estados canônicos de `print_jobs` passam a ser:
-
-- `pending` — ainda está apenas na fila do Gestão Delivery e pode ser descartado com segurança;
-- `processing` — claimado pela estação, mas ainda não existe confirmação persistida de que foi aceito pelo spooler;
-- `awaiting_confirmation` — uma via foi entregue ao spooler e aguarda resultado conclusivo; não pode ser reenviada automaticamente;
-- `awaiting_second_copy` — primeira de duas vias foi confirmada e aguarda decisão humana para a segunda;
+- `pending` — ainda está somente no Gestão Delivery e é seguro não enviar/descartar;
+- `processing` — claimado e preparando a tentativa, antes do ponto de risco de submissão;
+- `awaiting_confirmation` — a tentativa entrou no ponto de risco de submissão ao QZ/spooler e não pode ser reenviada automaticamente;
+- `awaiting_second_copy` — primeira de duas vias foi confirmada e aguarda decisão humana;
 - `printed` — todas as vias solicitadas foram confirmadas;
-- `failed` — falha conhecida em ponto no qual o sistema sabe que a tentativa não ficou pendurada no spooler;
-- `requires_attention` — resultado incerto ou condição que exige decisão humana;
-- `discarded` — necessidade de impressão cancelada conscientemente antes de execução insegura.
+- `failed` — falha conhecida em que é seguro afirmar que a tentativa não ficou pendurada no spooler;
+- `requires_attention` — resultado incerto ou regra de segurança exige decisão humana;
+- `discarded` — necessidade de impressão cancelada de forma segura.
 
-`copies_printed` continua representando apenas vias efetivamente confirmadas pelo fluxo oficial.
+`copies_printed` continua sendo o número de vias confirmadas, nunca o número de chamadas feitas ao QZ.
 
-## 9. Tentativas físicas por via
+## 10. Tentativas físicas por via
 
-Como um mesmo job pode possuir duas vias e pode sofrer retry controlado, o vínculo com o spooler não deve ficar espremido em um único conjunto de colunas no próprio `print_jobs`.
-
-A implementação deve introduzir uma entidade equivalente a `print_job_attempts`, com uma linha por tentativa física de uma via.
+Um mesmo job pode ter duas vias e uma via pode ganhar nova tentativa manual após resultado conhecido/incerto. Por isso, o vínculo físico com o spooler deve ser modelado em entidade própria, por exemplo `print_job_attempts`.
 
 Cada tentativa deve guardar pelo menos:
 
@@ -199,164 +196,197 @@ Cada tentativa deve guardar pelo menos:
 - `attempt_number`;
 - `station_id`;
 - `spool_job_name` único;
-- `spool_job_id` quando informado pelo QZ/Winspool;
-- último estado QZ/Winspool conhecido;
-- `submitted_at`;
+- `spool_job_id` quando informado pelo Winspool;
+- estado técnico atual;
+- `submission_started_at`;
+- `submitted_at` quando houver evidência de aceitação;
 - `last_event_at`;
-- `completed_at` quando houver `COMPLETE`;
-- resultado normalizado (`pending`, `spooling`, `printing`, `complete`, `failed`, `unknown` ou equivalente);
-- código/mensagem de erro quando houver.
+- `completed_at`;
+- resultado normalizado;
+- erro/código quando houver.
 
-Esse histórico permite responder sem ambiguidade se uma via nunca foi enviada, se está no spooler, se concluiu ou se ficou com resultado incerto.
+Resultados equivalentes:
 
-## 10. Correlação com o spooler
+- `prepared`;
+- `submitting`;
+- `spooling`;
+- `printing`;
+- `complete`;
+- `failed`;
+- `unknown`.
 
-Cada tentativa deve usar nome de trabalho único e determinístico o bastante para ser reconhecido nos eventos de `JOB`.
+A combinação `job_id + copy_number + attempt_number` deve ser única.
+
+## 11. Correlação com o spooler
+
+Cada tentativa usa nome de job único no QZ/Windows. O QZ suporta `jobName` na configuração de impressão; a implementação deve utilizá-lo.
 
 Formato de referência:
 
 `GESTAO-DELIVERY:<jobId>:COPY:<copyNumber>:ATTEMPT:<attemptNumber>`
 
-O valor exato pode ser normalizado para limites do QZ/Windows, mas deve permanecer único por tentativa.
+Pode haver normalização de tamanho/caracteres, mas a unicidade por tentativa deve ser preservada.
 
 Ao receber evento `JOB`:
 
-- correlacionar primeiro pelo nome exclusivo;
+- correlacionar pelo `jobName` exclusivo;
 - persistir `JobId` do Windows quando disponível;
-- atualizar a tentativa correspondente;
-- ignorar eventos que não pertencem aos nomes gerados pelo Gestão Delivery;
-- nunca completar um job por evento genérico de outra impressão da mesma fila.
+- atualizar apenas a tentativa correspondente;
+- ignorar jobs de outros aplicativos/testes;
+- nunca concluir um job por evento genérico da mesma impressora.
 
-## 11. Semântica de envio e conclusão
+## 12. Janela crítica de submissão — regra anti-duplicidade
 
-### 11.1 Antes do envio
+Existe uma corrida perigosa entre chamar `qz.print()` e receber o primeiro evento `SPOOLING`. Se o navegador fechar exatamente nesse intervalo, o spooler pode ter aceitado o job mesmo sem o frontend ter recebido o evento.
 
-Antes de fazer claim automático e imediatamente antes de enviar os bytes:
+Para eliminar retry inseguro, o fluxo deve persistir o **início da submissão antes de chamar `qz.print()`**.
 
-- estação precisa ser principal;
-- QZ precisa estar ativo;
-- fila configurada precisa existir;
-- estado físico precisa ser `ready`;
-- não pode existir outra tentativa física em execução pela estação;
-- não pode haver ciclo de recuperação bloqueando o consumo automático.
+Sequência obrigatória:
 
-### 11.2 `qz.print()` resolve
+1. validar estação, saúde e recuperação;
+2. registrar listener `JOB` ativo;
+3. criar a tentativa em `prepared`;
+4. imediatamente antes de `qz.print()`, persistir `submission_started_at`, mover a tentativa para `submitting` e o job para `awaiting_confirmation` (ou estado equivalente que bloqueie retry automático);
+5. chamar `qz.print()` com `jobName` único;
+6. processar `SPOOLING`/`PRINTING`/`COMPLETE`;
+7. só `COMPLETE` conclui a via.
+
+Depois do passo 4, o sistema age conservadoramente: qualquer perda de processo/conexão pode representar uma tentativa aceita e, portanto, nunca gera reenvio automático.
+
+Somente erros explicitamente classificados como **pré-submissão e comprovadamente não aceitos pelo QZ/spooler** podem retornar para `failed`/retry seguro. Erros durante ou depois de `submitting` que não provem ausência de aceitação viram resultado incerto.
+
+## 13. Semântica de `qz.print()`
 
 O retorno bem-sucedido de `qz.print()` não conclui a via.
 
-Depois que existe evidência de aceitação pelo spooler, por exemplo `SPOOLING` ou outro primeiro evento correlacionado, o job entra em `awaiting_confirmation` e a tentativa passa a registrar esse estado.
+Ele pode ser registrado como evidência adicional de envio, mas `copies_printed` permanece inalterado.
 
-Se `qz.print()` resolver antes de o primeiro evento de `JOB` chegar, a estação aguarda a confirmação do listener dentro do fluxo daquela tentativa. Não incrementa cópias nesse intervalo.
+Eventos:
 
-### 11.3 `JOB COMPLETE`
+- `SPOOLING` -> tentativa registrada como aceita/aguardando;
+- `PRINTING` -> tentativa em impressão;
+- `RETAINED` -> pode ser registrado para diagnóstico;
+- `COMPLETE` -> confirmação positiva;
+- `DELETING`/`DELETED` -> pós-conclusão, úteis para diagnóstico, mas não necessários para contabilizar.
 
-Somente `EventType: JOB` com estado `COMPLETE` correlacionado à tentativa permite:
+## 14. `JOB COMPLETE`
 
-- marcar a tentativa como concluída;
+Somente `EventType: JOB` + `COMPLETE` correlacionado à tentativa permite:
+
+- marcar a tentativa `complete`;
 - incrementar `copies_printed` em exatamente 1;
-- passar para `awaiting_second_copy` se `copies_requested = 2` e `copies_printed = 1`;
-- passar para `printed` se todas as vias foram concluídas.
+- ir para `awaiting_second_copy` quando ainda faltar a segunda via;
+- ir para `printed` quando todas as vias forem concluídas.
 
-Eventos posteriores `DELETING`/`DELETED` não são necessários para contabilizar a via, mas podem ser registrados para diagnóstico.
+A operação deve ser idempotente. Receber `COMPLETE` duas vezes para a mesma tentativa não pode incrementar duas vezes.
 
-### 11.4 O que `COMPLETE` significa
+`COMPLETE` é a confirmação operacional mais forte disponível no driver/Winspool atual e foi validado fisicamente com a MPT-II. Não é um sensor mecânico de papel, mas é a autoridade operacional desta arquitetura.
 
-`COMPLETE` é a confirmação mais forte disponível no driver/Winspool atual e foi comprovado empiricamente com a MPT-II.
+## 15. Impressora offline antes ou durante uma tentativa
 
-Ainda não é um sensor mecânico de papel. A spec considera `JOB COMPLETE` a autoridade operacional disponível para o sistema atual.
+### 15.1 Antes do ponto de submissão
 
-## 12. Impressora fica offline durante uma tentativa
+Se a impressora ficar `OFFLINE` antes de `submission_started_at`:
 
-Se o estado físico mudar para `OFFLINE` antes de qualquer envio ao spooler:
+- não chamar `qz.print()`;
+- não incrementar cópia;
+- manter o job recuperável sem risco de duplicidade.
 
-- abortar a tentativa antes do envio;
-- manter o job sem incremento de cópias;
-- não criar duplicidade.
+### 15.2 Depois do ponto de submissão
 
-Se a tentativa já chegou ao spooler:
+Se a impressora ficar offline depois de `submission_started_at`:
 
 - não reenviar;
-- manter `awaiting_confirmation`;
-- mostrar que a via está **Aguardando confirmação da impressora**;
-- permitir que o Windows conclua o trabalho quando a impressora voltar.
+- manter a via aguardando confirmação;
+- deixar o spooler/Windows concluir quando possível;
+- mostrar **Aguardando confirmação da impressora**.
 
-O teste real mostrou que esse cenário ocorre: o job pode ficar em `SPOOLING` e imprimir sozinho posteriormente.
+O teste real confirmou que o Windows pode reter o job e imprimi-lo automaticamente quando a impressora volta.
 
-## 13. Resultado não confirmado
+## 16. Resultado não confirmado
 
-Se a aplicação perder a capacidade de acompanhar uma tentativa depois que ela foi entregue ao spooler — por exemplo, navegador fechado, QZ desconectado, PC reiniciado ou lease antigo retomado sem prova conclusiva — o sistema nunca deve presumir que a via falhou.
+Se a aplicação perder a capacidade de provar o resultado depois de `submission_started_at` — navegador fechado, QZ desconectado, PC reiniciado, lease abandonado ou processo perdido — nunca presumir falha.
 
-A tentativa passa a `unknown` e o job a `requires_attention` com razão explícita, por exemplo:
+A tentativa vai para `unknown` e o job para `requires_attention`, com razão:
 
 `PRINT_OUTCOME_UNKNOWN`
 
-A UI mostra:
+Mensagem:
 
 **Não foi possível confirmar esta impressão**  
 Esta via pode ter sido impressa antes de a conexão ser interrompida.
 
-Ações disponíveis:
+Ações:
 
-- **A via foi impressa** — confirmação manual consciente; contabiliza a via e segue o fluxo normal;
-- **Não foi impressa — reenviar** — exige confirmação adicional sobre risco de duplicidade e cria uma nova tentativa controlada da mesma via.
+- **A via foi impressa** — confirmação manual explícita; contabiliza a via uma única vez;
+- **Não foi impressa — reenviar** — exige confirmação adicional sobre risco de duplicidade e cria nova tentativa para a mesma via.
 
-Não existe retry automático para `PRINT_OUTCOME_UNKNOWN`.
+Não existe retry automático de `PRINT_OUTCOME_UNKNOWN`.
 
-## 14. Lease/timeout de `processing`
+Se `COMPLETE` chegar depois e concorrer com uma confirmação manual, o backend deve garantir no máximo um incremento da via.
 
-A proteção atual contra jobs abandonados continua necessária, mas deve distinguir dois casos:
+## 17. Lease e jobs abandonados
 
-1. `processing` sem qualquer evidência de submissão ao spooler: pode expirar para falha conhecida/retry controlado conforme regra definida no backend;
-2. tentativa com evidência de submissão (`spool_job_name`, evento `SPOOLING`/equivalente ou estado persistido de aceitação): nunca volta automaticamente para `pending` e nunca é reenviada pelo timeout.
+A proteção atual contra `processing` abandonado continua necessária, mas passa a respeitar o ponto de risco.
 
-Se a estação deixar de acompanhar uma tentativa submetida, a recuperação leva o job a `requires_attention`, não a retry automático.
+- `processing` sem `submission_started_at`: pode expirar para falha conhecida/retry controlado;
+- tentativa com `submission_started_at`: nunca volta automaticamente a `pending`;
+- tentativa submetida sem resultado conclusivo e sem executor confiável: vai para `requires_attention`.
 
-## 15. Operação normal
+Tempo excedido não é prova de que o papel não saiu.
 
-No funcionamento normal, com a impressora sempre `ready`:
+## 18. Operação normal
 
-- novos jobs elegíveis continuam sendo consumidos automaticamente;
-- somente uma tentativa física é executada por vez;
-- a primeira via sai automaticamente;
-- o sistema aguarda `JOB COMPLETE` antes de contabilizar essa via;
-- jobs de duas vias continuam indo para `awaiting_second_copy` após a primeira confirmação;
-- a segunda via mantém decisão humana antes da execução, como já ocorre no modelo atual.
+Com a impressora `ready` e sem ciclo de recuperação:
 
-A confirmação “Imprimir próxima” entre todos os trabalhos não é aplicada ao fluxo normal.
+- novos jobs continuam sendo consumidos automaticamente;
+- uma tentativa física por vez;
+- primeira via sai automaticamente;
+- o sistema espera `JOB COMPLETE` antes de contabilizar;
+- se houver segunda via, o job vai para `awaiting_second_copy`;
+- a segunda via continua exigindo decisão humana.
 
-Essa decisão preserva agilidade operacional e evita transformar cada novo pedido em intervenção manual.
+A confirmação “Imprimir próxima” entre todos os jobs não é aplicada ao funcionamento normal.
 
-## 16. Detecção de backlog e ciclo de recuperação
+Essa foi a opção aprovada porque preserva agilidade da operação diária.
 
-Backlog de recuperação é o conjunto de jobs ainda não enviados fisicamente que se acumulou enquanto a impressora não estava pronta.
+## 19. Backlog e ciclo de recuperação
 
-Quando ocorre uma transição física real `não pronta -> ready` e existem jobs `pending` elegíveis:
+Backlog de recuperação é o conjunto de jobs ainda não submetidos fisicamente que se acumulou enquanto a impressora não estava pronta.
 
-- a estação entra em ciclo de recuperação;
-- o consumo automático fica pausado;
-- novos jobs continuam sendo criados normalmente no backend, mas também permanecem pendentes;
-- nenhum novo pedido fura a recuperação.
+Quando ocorre uma transição real `não pronta -> ready` e existe backlog elegível:
 
-A recuperação é persistida por estação/ciclo para sobreviver a reload sem reapresentar modal repetidamente.
+- a estação entra em recuperação;
+- o consumidor automático fica pausado;
+- novos pedidos continuam criando jobs, mas também permanecem aguardando;
+- nenhum job novo fura a recuperação.
 
-Estados de recuperação equivalentes:
+O estado de recuperação deve ser persistido e sobreviver a reload.
 
-- `none` — operação automática normal;
+Estados equivalentes:
+
+- `none` — automático normal;
 - `pending_decision` — impressora voltou e existe backlog aguardando decisão;
-- `active` — operador iniciou recuperação via por via;
-- `deferred` — operador escolheu “Agora não”.
+- `active` — recuperação via por via em andamento;
+- `deferred` — operador escolheu adiar.
 
-O estado exato pode ser implementado por enum/colunas equivalentes, mas deve ser persistente e não apenas memória React.
+O backend deve detectar/persistir o ciclo com base na saúde anterior da estação e no backlog, não apenas em memória React.
 
-## 17. Prompt ao voltar a impressora
+## 20. Comportamento enquanto offline
 
-Durante `OFFLINE`:
+Enquanto a impressora estiver offline:
 
-- não existe modal pedindo impressão imediata;
-- Configurações e Fila mostram a indisponibilidade e a quantidade pendente;
-- há acesso para **Ver fila**.
+- não mostrar modal de “imprimir agora”;
+- não fazer claim automático;
+- não chamar QZ;
+- mostrar estado persistente e contagem, por exemplo:
+  - **Impressora desligada ou desconectada**;
+  - **4 trabalhos aguardando impressão**;
+- oferecer **Ver fila**.
 
-Ao voltar para `ready` com backlog, mostrar uma única vez por ciclo:
+## 21. Prompt quando a impressora volta
+
+Na transição `offline/non-ready -> ready`, existindo backlog, mostrar uma única vez por ciclo:
 
 **Impressora disponível novamente**  
 Há X trabalhos aguardando impressão.  
@@ -368,21 +398,21 @@ Ações:
 - **Agora não**;
 - **Descartar todas**.
 
-Reload, polling, foco de aba ou sincronização não reapresentam o mesmo prompt depois de uma decisão já persistida.
+Reload, polling e foco de aba não reapresentam o mesmo prompt depois de uma decisão persistida.
 
-Um novo ciclo físico futuro `offline -> ready` pode gerar novo prompt se houver novo backlog.
+Um novo ciclo físico futuro pode gerar novo prompt.
 
-## 18. Recuperação via por via
+## 22. Recuperação via por via
 
 Ao escolher **Imprimir agora**:
 
-- estado de recuperação passa para `active`;
-- seleciona o próximo job elegível respeitando a prioridade oficial de execução do backend;
-- imprime exatamente uma via física;
+- recuperação vira `active`;
+- pega o próximo job segundo a prioridade oficial do backend;
+- imprime exatamente uma via;
 - aguarda `JOB COMPLETE`;
-- para antes de iniciar qualquer outra via.
+- para antes da próxima saída física.
 
-Depois de `COMPLETE`:
+Após conclusão:
 
 **Via impressa**  
 Separe o papel antes de continuar.  
@@ -393,58 +423,66 @@ Ações:
 - **Imprimir próxima**;
 - **Parar por agora**.
 
-Se o job atual possuir duas vias, a próxima via física desse mesmo job continua sujeita ao controle humano. A interface pode indicar claramente `2ª via do pedido #NNNN` antes de seguir para o próximo job.
+Se o job atual possui duas vias, a segunda via também é uma saída física separada e exige nova confirmação. A UI deve informar quando a próxima ação é `2ª via do pedido #NNNN`.
 
-Durante recuperação, uma via por vez significa uma única saída física por confirmação, independentemente de pertencer ao mesmo job ou ao job seguinte.
+Durante recuperação, novas solicitações entram na fila e não são impressas automaticamente.
 
-## 19. `Agora não`
+## 23. `Agora não` e `Parar por agora`
 
-Ao escolher **Agora não** ou **Parar por agora**:
+Ambas adiam a recuperação sem descartar nada.
 
-- estado de recuperação passa para `deferred`;
-- nenhum job é descartado;
-- nenhum `copies_printed` muda;
-- consumo automático continua pausado enquanto houver backlog do ciclo;
-- a UI mostra banner persistente com quantidade pendente;
-- ação **Retomar impressões** reabre/inicia o modo via por via.
+Comportamento:
 
-Não deve existir spam de modal em refresh.
+- recuperação vira `deferred`;
+- jobs permanecem no estado correto;
+- automático continua pausado enquanto houver backlog do ciclo;
+- aviso persistente continua visível;
+- botão **Retomar impressões** inicia/reabre o modo via por via;
+- modal não reaparece a cada refresh.
 
-## 20. `Descartar todas`
+## 24. `Descartar todas` — escopo seguro
 
-`Descartar todas` atinge apenas jobs/vias que ainda estão seguramente no Gestão Delivery e não foram enviados ao spooler.
+A ação em massa deve ser conservadora.
 
-A confirmação destrutiva deve informar a quantidade exata, por exemplo:
+Ela pode descartar somente jobs que:
+
+- estejam `pending`;
+- tenham `copies_printed = 0`;
+- não possuam tentativa com `submission_started_at`;
+- portanto ainda estejam seguramente apenas no Gestão Delivery.
+
+Ela **não** atinge:
+
+- `processing` com ponto de submissão iniciado;
+- `awaiting_confirmation`;
+- `requires_attention` por resultado incerto;
+- `awaiting_second_copy` de job que já teve a primeira via confirmada.
+
+Para `awaiting_second_copy`, permanece a ação própria de pular/não imprimir a segunda via, sem fingir que o job inteiro foi descartado.
+
+Confirmação exemplo:
 
 **Descartar 5 trabalhos pendentes?**  
 Eles ainda não foram enviados à impressora e não serão impressos.
 
-Se existir qualquer tentativa já submetida ao spooler:
-
-- ela fica fora do descarte em massa;
-- a UI informa isso explicitamente;
-- não é marcada como descartada só porque o usuário descartou o backlog seguro.
-
-Exemplo:
+Se existir algo fora do escopo seguro:
 
 `5 trabalhos pendentes serão descartados. 1 via já foi enviada à impressora e continuará aguardando confirmação por segurança.`
 
-A operação deve ser validada no backend; a UI não é a única barreira.
+A validação deve existir no backend.
 
-## 21. Configurações — nova UX operacional
+## 25. Configurações — UX operacional
 
-A área de Impressão nas Configurações deve mostrar o estado real da estação principal.
+O bloco de impressão em Configurações deve mostrar:
 
-Informações principais:
-
-- estado amigável da impressora;
-- nome da fila configurada;
-- QZ Tray conectado/desconectado;
-- indicação de estação principal;
-- quantidade de trabalhos pendentes;
-- quantidade de vias aguardando confirmação, quando houver;
-- ação de atualizar/verificar;
-- configurar/trocar impressora;
+- estado real da impressora;
+- QZ conectado/desconectado;
+- fila configurada;
+- estação principal;
+- trabalhos aguardando;
+- vias aguardando confirmação;
+- ação de verificar/atualizar;
+- configurar/trocar fila;
 - teste de impressão somente quando `ready`.
 
 Mensagens de referência:
@@ -458,144 +496,134 @@ Mensagens de referência:
 - **4 trabalhos aguardando impressão**;
 - **1 via enviada à impressora aguardando confirmação**.
 
-“Fila ativa”, “QZ configurado” ou equivalentes nunca devem ser usados como sinônimo de prontidão física.
+“Fila ativa” ou “QZ configurado” nunca deve ser exibido como sinônimo de prontidão física.
 
-## 22. Issue #36 — responsabilidade da tela de Impressão
+## 26. Issue #36 — responsabilidade da tela Impressão
 
-A tela de Impressão passa a ter responsabilidade oficial de **painel operacional da estação**, não de histórico completo.
+A tela Impressão passa a ser oficialmente um **painel operacional da estação**, não um histórico completo.
 
-Separação funcional:
+Responsabilidades:
 
-- **Cozinha** — operar pedidos ativos;
-- **Impressão** — acompanhar saúde da estação e jobs atuais;
-- **Histórico** — localizar pedidos antigos e solicitar reimpressão.
+- **Cozinha** — pedidos ativos;
+- **Impressão** — saúde da estação e jobs atuais;
+- **Histórico** — pedidos antigos e reimpressões.
 
-A tela de Impressão deve responder rapidamente:
+A tela Impressão deve responder rapidamente:
 
-- há algo parado?
 - a impressora está pronta?
-- qual job está aguardando ação?
-- a última impressão concluiu?
-- existe alguma tentativa com resultado incerto?
+- o que está aguardando?
+- há algo preso no spooler?
+- há resultado incerto?
+- qual foi a última impressão concluída?
 
-Ela não precisa servir para encontrar uma impressão de semanas atrás.
+## 27. Estrutura da tela Impressão
 
-## 23. Estrutura visual do painel operacional
+### 27.1 Operação atual
 
-A página deve ser dividida em duas áreas principais.
-
-### 23.1 Operação atual
-
-Prioriza jobs que ainda exigem execução, acompanhamento ou decisão:
+Prioriza:
 
 - `pending`;
 - `processing`;
 - `awaiting_confirmation`;
 - `awaiting_second_copy`;
 - `requires_attention`;
-- `failed` quando ainda houver ação de retry/diagnóstico.
+- `failed` quando ainda houver ação/diagnóstico.
 
-Esses jobs aparecem antes de qualquer bloco de concluídas recentes.
+Esses registros aparecem antes das concluídas.
 
-KPIs/resumo devem ser coerentes com o novo modelo, por exemplo:
+Resumo/KPIs sugeridos:
 
 - **Aguardando impressão**;
 - **Aguardando confirmação**;
 - **Requer atenção**;
 - **Concluídas recentes**.
 
-### 23.2 Impressões concluídas recentes
+### 27.2 Impressões concluídas recentes
 
-Mostrar no máximo as **10 impressões `printed` mais recentes**.
+Mostrar no máximo as **10 `printed` mais recentes**.
 
-Esse bloco é apenas para conferência rápida. Não existe paginação histórica infinita a partir dele.
+Objetivo: responder “acabou de imprimir?” ou “qual foi a última impressão?”.
 
-Jobs `discarded` e falhas terminais permanecem no banco durante a retenção, mas não competem com a operação principal. Quando necessário, continuam acessíveis por diagnóstico/ações contextualizadas, sem transformar a tela em arquivo histórico.
+Não existe paginação histórica infinita desse bloco.
 
-## 24. Ordenação
+`discarded` e falhas terminais permanecem no banco durante a retenção, mas não competem visualmente com a operação principal.
 
-A ordenação inicial da listagem operacional deve ser por `created_at DESC`: job mais recente primeiro, conforme Issue #36.
+## 28. Ordenação
 
-A ordenação visual não altera a ordem física de claim. A execução continua respeitando as regras do backend, incluindo prioridade persistida de `Imprimir agora`.
+A ordenação inicial da listagem operacional é `created_at DESC`: job mais recente primeiro, conforme Issue #36.
+
+Isso é **ordenação visual**, não ordem física de execução. O claim continua respeitando prioridade persistida (`Imprimir agora`) e regras operacionais do backend.
 
 Colunas ordenáveis no desktop, quando presentes:
 
-- Pedido — numérico;
+- Pedido — numérica;
 - Job — identificador/ordem apropriada;
 - Status — textual;
-- Destino/Impressora/Tipo — textual quando aplicável;
+- Destino/Impressora/Tipo — textual;
 - Data/Hora — temporal real.
 
 Regras:
 
-- primeiro clique seleciona a coluna;
-- novo clique na mesma coluna inverte `ASC/DESC`;
-- coluna ativa e direção ficam visíveis;
-- ao mudar ordenação, volta para página 1;
-- data é ordenada pelo valor temporal canônico, nunca pela string formatada;
-- pedido/identificadores numéricos devem usar ordem numérica quando houver representação numérica oficial.
+- clique seleciona coluna;
+- novo clique inverte `ASC/DESC`;
+- coluna e direção ativas ficam visíveis;
+- mudar sort volta para página 1;
+- datas usam valor temporal canônico;
+- números usam ordem numérica real.
 
-No mobile, a ordenação pode usar um controle compacto equivalente em vez de cabeçalho clicável, mantendo a mesma fonte de verdade.
+No mobile, usar controle compacto equivalente, com a mesma fonte de verdade.
 
-## 25. Paginação e fonte de verdade
+## 29. Paginação no backend
 
-A paginação e ordenação devem acontecer no backend para evitar o erro de carregar 10 itens e ordenar somente aquela página localmente.
+Paginação e ordenação devem ocorrer no backend. A UI não pode carregar uma página de 10 e ordenar apenas aqueles 10 localmente.
 
 Contrato de listagem deve aceitar parâmetros equivalentes a:
 
 - `scope=operational|recent`;
 - `page`;
-- `pageSize`, limitado a 10 para a tela;
+- `pageSize`;
 - `sortBy`;
 - `sortDirection`;
-- filtros/busca operacional já suportados pela interface.
-
-A resposta deve fornecer quantidade total necessária para controles de página.
+- filtros/busca já existentes.
 
 Regras:
 
-- no máximo 10 itens por página nas listas paginadas;
-- controles só aparecem quando há mais de uma página;
-- mudar filtro/ordenação volta à primeira página;
-- não duplicar nem omitir registros entre páginas;
-- a lista operacional e a lista de concluídas recentes não podem depender de `getPrintJobs({ limit: 100 })` seguido de filtragem local como fonte final.
+- máximo de 10 itens por página nas listas paginadas;
+- paginação só aparece quando necessária;
+- mudar filtro/sort volta à página 1;
+- resposta inclui total suficiente para navegação;
+- nenhuma duplicação/omissão entre páginas;
+- `getPrintJobs({ limit: 100 })` + filtro local deixa de ser a fonte final da página operacional.
 
-## 26. Reimpressão histórica
+## 30. Reimpressão histórica
 
-A reimpressão de pedido antigo permanece centralizada na tela Histórico.
+Reimpressão antiga permanece na tela Histórico.
 
-Fluxo oficial:
+Fluxo:
 
-1. operador abre Histórico;
-2. localiza o pedido;
-3. solicita reimpressão;
-4. backend cria um novo job manual com novo snapshot;
-5. o novo job aparece como trabalho atual na tela de Impressão;
-6. a execução física segue todas as novas regras de prontidão e confirmação.
+1. localizar pedido no Histórico;
+2. solicitar reimpressão;
+3. criar novo job manual;
+4. novo job aparece no painel operacional;
+5. execução segue as mesmas regras físicas e de confirmação.
 
-A existência do job original antigo na UI de Impressão não é requisito para reimprimir.
+Não é necessário manter o job original visível na tela Impressão para permitir reimpressão.
 
-## 27. Retenção técnica de 30 dias
+## 31. Retenção técnica de 30 dias
 
 Política aprovada:
 
-- reter jobs terminais elegíveis por pelo menos 30 dias para auditoria/diagnóstico;
-- remover automaticamente depois de 30 dias apenas estados seguros;
-- nunca remover automaticamente jobs que ainda fazem parte da operação ou exigem atenção.
+- reter jobs terminais elegíveis por pelo menos 30 dias;
+- remover automaticamente somente estados seguros;
+- nunca limpar estados ativos ou incertos por idade.
 
-### 27.1 Elegíveis à limpeza automática
-
-Podem ser removidos depois de 30 dias:
+Elegíveis depois de 30 dias:
 
 - `printed`;
 - `discarded`;
-- `failed` somente quando for terminal e não houver ação operacional pendente.
+- `failed` somente quando terminal e sem ação operacional pendente.
 
-Tentativas físicas e eventos associados podem ser removidos em cascata junto do job elegível.
-
-### 27.2 Nunca elegíveis por idade
-
-Não remover automaticamente:
+Nunca elegíveis automaticamente:
 
 - `pending`;
 - `processing`;
@@ -603,94 +631,87 @@ Não remover automaticamente:
 - `awaiting_second_copy`;
 - `requires_attention`.
 
-A idade nunca resolve sozinha um estado incerto.
+Tentativas/eventos associados podem ser removidos em cascata somente quando o job pai também for elegível.
 
-### 27.3 Mecanismo de housekeeping
+### 31.1 Housekeeping sem cron novo
 
-Para evitar introduzir infraestrutura de cron apenas para esta entrega, a limpeza será **oportunística e limitada por negócio**:
+Para não adicionar infraestrutura de scheduler nesta entrega, a limpeza será oportunística e limitada por negócio:
 
-- o backend mantém `last_print_retention_cleanup_at` ou marcador equivalente na configuração de impressão;
-- durante atividade normal do subsistema de impressão, se passaram pelo menos 24 horas desde a última limpeza daquele negócio, executa um `DELETE` limitado às condições seguras acima;
-- atualiza o marcador de limpeza;
-- se o negócio ficar sem uso, registros podem permanecer além de 30 dias até a próxima atividade; nunca são apagados antes de 30 dias.
+- persistir `last_print_retention_cleanup_at` ou equivalente na configuração central de impressão;
+- durante atividade normal do subsistema, se passaram pelo menos 24 horas desde a última limpeza daquele negócio, executar limpeza segura;
+- atualizar o marcador;
+- nunca apagar antes de 30 dias;
+- se o negócio ficar sem atividade, os dados podem permanecer mais tempo até o próximo uso.
 
-Assim a retenção é automática sem adicionar uma nova dependência operacional de scheduler nesta entrega.
+Isso preserva segurança e atende à retenção automática sem novo Cron Trigger.
 
-## 28. Limpeza manual
+## 32. Limpeza manual
 
-Se a UI expuser **Limpar histórico concluído**, ela é opcional nesta entrega. Caso seja implementada, deve:
+Uma ação como **Limpar histórico concluído** não é requisito para a primeira implementação desta spec.
 
-- atingir somente estados terminais seguros;
-- nunca tocar jobs ativos/incertos;
-- exigir confirmação explícita;
-- informar quantidade afetada;
+Se for adicionada futuramente ou durante a mesma entrega por baixo custo, deve:
+
+- atingir apenas estados terminais seguros;
+- nunca tocar ativos/incertos;
+- exigir confirmação;
+- informar quantidade;
 - ser validada no backend.
 
-A funcionalidade principal da Issue #36 não depende dessa ação manual.
+## 33. API e concorrência
 
-## 29. API necessária
+A API final deve suportar, reaproveitando endpoints quando fizer sentido:
 
-A implementação pode reaproveitar endpoints atuais, mas o contrato final deve cobrir:
-
-- listar jobs operacionais paginados/ordenados;
-- listar até 10 impressões concluídas recentes;
-- obter detalhes/timeline/tentativas;
-- claim atômico de job;
-- registrar submissão/tentativa ao spooler;
-- registrar eventos de tentativa;
-- completar uma via somente por confirmação válida ou confirmação manual explícita;
+- listar operação atual com paginação/ordenação;
+- listar até 10 concluídas recentes;
+- detalhes/timeline/tentativas;
+- claim atômico;
+- criar tentativa;
+- marcar início de submissão antes de `qz.print()`;
+- registrar eventos QZ/Winspool;
+- concluir via de forma idempotente;
 - marcar resultado incerto;
-- confirmar manualmente “a via foi impressa”;
-- reenviar conscientemente uma via incerta com nova tentativa;
-- iniciar/deferir/retomar/finalizar ciclo de recuperação;
+- confirmar manualmente resultado incerto;
+- criar nova tentativa manual de reenvio;
+- iniciar/deferir/retomar/finalizar recuperação;
 - descartar backlog seguro em lote;
-- heartbeat de saúde física detalhada;
+- heartbeat físico detalhado;
 - housekeeping de retenção.
 
-As mutações devem validar `business_id`, estação principal e estado atual para impedir transições concorrentes inválidas.
+Regras de concorrência:
 
-## 30. Concorrência
+- uma tentativa física ativa por estação;
+- `awaiting_confirmation` não pode ser claimado novamente;
+- `submission_started_at` bloqueia retry automático;
+- recuperação diferente de `none` bloqueia consumidor automático;
+- `COMPLETE` repetido é idempotente;
+- confirmação manual e `COMPLETE` concorrentes contabilizam no máximo uma vez;
+- mutações validam `business_id`, estação principal e estado atual.
 
-A estação principal continua sendo o único executor físico.
+## 34. Timeline e auditoria
 
-Regras adicionais:
+O detalhe do job deve permitir entender o que aconteceu sem expor toda telemetria na lista principal.
 
-- apenas uma tentativa física ativa por estação;
-- um job `awaiting_confirmation` não pode ser claimado novamente;
-- uma via com tentativa submetida não pode ganhar segunda tentativa automática;
-- recuperação `pending_decision`, `active` ou `deferred` bloqueia o consumidor automático;
-- ações manuais devem usar transições atômicas no backend;
-- `COMPLETE` repetido/idempotente para a mesma tentativa não incrementa `copies_printed` duas vezes;
-- confirmação manual e evento `COMPLETE` concorrentes devem resultar em no máximo um incremento daquela via.
+Eventos úteis:
 
-## 31. Timeline e auditoria
-
-O detalhe do job deve permitir explicar o que aconteceu.
-
-Eventos relevantes:
-
-- job criado;
-- priorizado;
-- claimado;
-- estado físico bloqueou execução;
+- job criado/priorizado/claimado;
+- bloqueio por saúde física;
 - tentativa criada;
+- submissão iniciada;
 - `SPOOLING`;
 - `PRINTING`;
+- `RETAINED`;
 - `COMPLETE`;
-- tentativa ficou incerta;
-- resultado confirmado manualmente;
+- resultado incerto;
+- confirmação manual;
 - reenvio manual autorizado;
-- primeira via concluída;
-- segunda via solicitada/concluída;
+- primeira/segunda via concluída;
 - recuperação iniciada/deferida/retomada;
-- job descartado;
+- descarte;
 - job concluído.
 
-Não é necessário expor todos os eventos técnicos na lista principal; eles pertencem ao detalhe/diagnóstico.
+## 35. Migração de dados
 
-## 32. Migração de dados
-
-A evolução deve ser aditiva e usar nova migration, sem editar migrations antigas já aplicadas.
+Usar nova migration, sem alterar migrations antigas já aplicadas.
 
 Nome esperado:
 
@@ -698,31 +719,31 @@ Nome esperado:
 
 Mudanças conceituais:
 
-- adicionar `awaiting_confirmation` ao CHECK de status de `print_jobs`;
+- adicionar `awaiting_confirmation` ao contrato de status;
 - criar `print_job_attempts`;
-- adicionar metadados detalhados de saúde/recuperação à `print_stations` ou estrutura equivalente;
-- adicionar marcador de housekeeping à configuração central de impressão;
-- criar índices para listagem operacional, recentes, retenção e tentativas;
-- preservar todos os jobs existentes.
+- adicionar metadados de saúde/recuperação à estação ou estrutura equivalente;
+- adicionar marcador de housekeeping à configuração de impressão;
+- criar índices para operação, recentes, retenção e tentativas;
+- preservar dados existentes.
 
 Compatibilidade:
 
-- jobs atuais `pending`, `awaiting_second_copy`, `printed`, `failed`, `requires_attention`, `discarded` permanecem legíveis;
-- jobs `processing` existentes no momento da migration não devem ser presumidos como impressos;
-- não criar tentativas fictícias retroativas para jobs históricos sem evidência;
-- migration não imprime, descarta nem reenvia nada.
+- jobs existentes continuam legíveis;
+- `processing` existente na migration não é presumido como impresso;
+- não criar tentativa fictícia retroativa sem evidência;
+- migration não imprime, reenvia nem descarta nada.
 
-## 33. Impacto nos componentes atuais
+## 36. Impacto esperado no código
 
-Áreas esperadas de mudança:
+Áreas principais:
 
 Frontend/printing:
 
-- `src/printing/qzTrayTransport.js` — listeners PRINTER/JOB, job name, confirmação;
-- `src/printing/usePrintingManager.js` — modelo de saúde, gating, recuperação e consumo;
-- `src/printing/printJobRunner.js` — separar submissão de conclusão;
-- novos módulos pequenos para saúde/attempt tracking/recovery, evitando concentrar tudo em `usePrintingManager.js`;
-- testes atuais de QZ/runner/manager.
+- `src/printing/qzTrayTransport.js`;
+- `src/printing/usePrintingManager.js`;
+- `src/printing/printJobRunner.js`;
+- novos módulos focados para saúde/attempts/recovery, evitando crescer ainda mais `usePrintingManager.js`;
+- testes desses módulos.
 
 UI:
 
@@ -740,114 +761,119 @@ API/Worker:
 - `worker/orderPrintingRepository.js`;
 - `worker/orderPrintingCentralClaim.js`;
 - rotas/validações/testes relacionados;
-- nova migration `0019`.
+- migration `0019`.
 
-O plano de implementação deve confirmar a lista final de arquivos antes de editar.
+O plano de implementação deve confirmar a lista final antes da edição.
 
-## 34. Testes obrigatórios — unidade e contrato
+## 37. TDD obrigatório
 
-A implementação deve seguir TDD estrito.
+A implementação deve começar cada mudança relevante com teste RED.
 
 Cenários mínimos:
 
-- fila QZ existe, mas `PRINTER OFFLINE` -> não faz claim automático;
-- estado físico desconhecido -> não imprime;
-- `PRINTER OK` -> elegível quando demais pré-condições passam;
-- `qz.print()` resolve sem `JOB COMPLETE` -> `copies_printed` não muda;
-- `SPOOLING` -> job passa a aguardar confirmação;
+- fila encontrada + `PRINTER OFFLINE` -> não faz claim;
+- status físico desconhecido -> não imprime;
+- `PRINTER OK` -> fica elegível se demais condições passarem;
+- listener `JOB` está ativo antes da impressão;
+- `submission_started_at` é persistido antes de `qz.print()`;
+- crash/perda exatamente após início da submissão -> nunca gera retry automático;
+- `qz.print()` resolve sem `COMPLETE` -> não incrementa cópia;
+- `SPOOLING` -> mantém aguardando confirmação;
 - `COMPLETE` -> incrementa exatamente uma via;
 - `COMPLETE` duplicado -> idempotente;
-- offline depois de `SPOOLING` -> não cria retry automático;
-- reconexão + `COMPLETE` posterior -> conclui a mesma tentativa;
-- perda do executor após submissão -> `PRINT_OUTCOME_UNKNOWN`, sem retry automático;
+- offline após submissão -> não reenviar;
+- reconexão + `COMPLETE` posterior -> conclui mesma tentativa;
+- perda definitiva após submissão -> `PRINT_OUTCOME_UNKNOWN`;
 - confirmação manual “foi impressa” -> conclui uma vez;
-- “não foi impressa — reenviar” -> nova tentativa com confirmação destrutiva/risco;
-- backlog + `offline -> ready` -> pausa automático e abre ciclo persistido;
-- `Agora não` -> mantém jobs e não reapresenta modal em refresh;
-- `Descartar todas` -> só descarta `pending` seguro;
-- tentativa no spooler fica fora do descarte em massa;
+- reenvio consciente -> nova tentativa;
+- `offline -> ready` + backlog -> pausa automático e cria ciclo persistido;
+- `Agora não` -> sem impressão e sem popup repetido;
+- `Descartar todas` -> só `pending` com zero cópias e nenhuma submissão;
+- `awaiting_second_copy` fica fora do descarte em massa;
 - recuperação imprime uma via por clique;
 - novos jobs durante recuperação não furam a fila;
-- término do backlog restaura operação automática;
-- segunda via normal continua controlada;
-- listagem padrão `created_at DESC`;
-- paginação 10 por página;
-- mudança de sort volta para página 1;
+- fim do backlog restaura automático;
+- operação normal continua automática;
+- segunda via continua manual;
+- sort padrão `created_at DESC`;
+- paginação de até 10;
+- mudança de sort volta à página 1;
 - ordenação numérica/textual/temporal correta;
-- backend não ordena apenas página já recortada;
+- backend ordena antes de paginar;
 - recentes retornam no máximo 10 `printed`;
-- reimpressão pelo Histórico cria novo job operacional;
+- reimpressão no Histórico cria novo job operacional;
 - retenção remove apenas terminais >30 dias;
-- retenção nunca apaga `requires_attention` ou estados ativos;
-- housekeeping não executa mais de uma vez por 24h por negócio;
-- mobile e desktop mantêm ações acessíveis.
+- retenção nunca apaga estados ativos/incertos;
+- housekeeping no máximo uma vez por 24h por negócio;
+- desktop e mobile continuam operáveis.
 
-## 35. Homologação física em staging
+## 38. Homologação física em staging
 
-Antes de produção, validar com a MPT-II real no Windows da cozinha.
+Antes de produção, testar na MPT-II real:
 
-Roteiro mínimo:
-
-1. staging com QZ e MPT-II ligada -> novo pedido imprime primeira via e só conclui após `COMPLETE`;
-2. desligar MPT-II -> novo pedido permanece `pending`, `copies_printed = 0`;
-3. religar -> aparece recuperação, não dispara backlog automaticamente;
-4. escolher `Agora não` -> nada imprime e aviso persiste sem spam;
-5. retomar -> imprime uma única via;
-6. clicar `Imprimir próxima` -> sai apenas a próxima via;
-7. durante tentativa submetida, desligar impressora -> job fica aguardando confirmação e não é reenviado;
-8. religar -> Windows conclui o mesmo job e sistema reconhece `COMPLETE` quando listener permanece ativo;
-9. simular perda do navegador/QZ após submissão -> resultado vai para atenção, não retry automático;
-10. validar decisão manual de resultado incerto;
-11. validar painel com >10 jobs e ordenação/paginação;
-12. validar layout mobile;
+1. impressora ligada -> pedido novo imprime e só conclui após `COMPLETE`;
+2. impressora desligada -> novo pedido fica pendente e `copies_printed = 0`;
+3. religar -> aparece recuperação sem disparar backlog;
+4. `Agora não` -> nada imprime e aviso permanece sem spam;
+5. `Retomar impressões` -> imprime uma única via;
+6. `Imprimir próxima` -> somente a próxima saída física;
+7. desligar após submissão -> não reenviar;
+8. religar com listener ativo -> reconhecer `COMPLETE` do mesmo job;
+9. simular perda do navegador/QZ depois de `submission_started_at` -> resultado incerto, sem retry automático;
+10. validar as duas decisões manuais do resultado incerto;
+11. validar tela com mais de 10 jobs, paginação e sort;
+12. validar mobile;
 13. validar reimpressão pelo Histórico;
-14. validar que concluídas antigas não dominam a tela.
+14. validar que concluídas antigas não dominam o painel.
 
-## 36. Critérios de aceite consolidados
+## 39. Critérios de aceite consolidados
 
 A entrega está aceita quando:
 
-- [ ] impressora fisicamente offline bloqueia consumo;
-- [ ] QZ conectado/fila encontrada não são mais sinônimo de pronta;
-- [ ] `copies_printed` só avança por `JOB COMPLETE` ou confirmação manual explícita de resultado incerto;
-- [ ] tentativa já submetida nunca é reenviada automaticamente;
-- [ ] resultado não confirmado exige ação humana;
-- [ ] backlog não imprime em rajada ao reconectar;
-- [ ] recuperação é uma via por vez;
-- [ ] `Agora não` e `Descartar todas` são ações distintas;
-- [ ] descarte em massa não toca tentativa já no spooler;
-- [ ] novos pedidos não furam recuperação ativa/deferida;
-- [ ] operação normal permanece automática para primeira via;
-- [ ] segunda via continua controlada pelo operador;
-- [ ] Configurações mostra estado físico real e contagens relevantes;
-- [ ] tela de Impressão funciona como painel operacional;
-- [ ] jobs ativos/atenção aparecem antes de concluídos;
+- [ ] impressora offline bloqueia consumo;
+- [ ] estado físico desconhecido falha fechado;
+- [ ] `qz.print()` sozinho não conclui uma via;
+- [ ] `copies_printed` avança apenas por `COMPLETE` ou confirmação manual explícita;
+- [ ] o ponto de submissão é persistido antes da chamada ao QZ;
+- [ ] uma tentativa potencialmente enviada nunca é reenviada automaticamente;
+- [ ] resultado incerto exige ação humana;
+- [ ] backlog não imprime em rajada na reconexão;
+- [ ] recuperação é uma via física por vez;
+- [ ] `Agora não` e `Descartar todas` são ações separadas;
+- [ ] descarte em massa atinge somente jobs comprovadamente não submetidos;
+- [ ] novos pedidos não furam recuperação;
+- [ ] operação normal mantém primeira via automática;
+- [ ] segunda via continua controlada;
+- [ ] Configurações e Fila usam o mesmo modelo de saúde;
+- [ ] tela Impressão é um painel operacional;
+- [ ] jobs ativos/atenção têm prioridade visual;
 - [ ] no máximo 10 concluídas recentes são mostradas;
-- [ ] listagens paginadas usam no máximo 10 itens por página;
+- [ ] paginação usa até 10 itens por página;
 - [ ] job mais recente aparece primeiro por padrão;
-- [ ] ordenação clicável/compacta altera backend e indica direção;
-- [ ] paginação e ordenação usam a mesma fonte de verdade;
+- [ ] ordenação é indicada e executada sobre a fonte completa no backend;
 - [ ] Histórico continua sendo o lugar de reimpressão antiga;
-- [ ] reimpressão cria novo job atual;
-- [ ] retenção técnica de 30 dias está implementada com limpeza segura;
-- [ ] nenhum estado ativo/incerto é limpo por idade;
-- [ ] testes automatizados cobrem regressões críticas;
-- [ ] staging é homologado fisicamente antes de qualquer deploy de produção.
+- [ ] reimpressão cria novo job operacional;
+- [ ] retenção de 30 dias remove apenas estados terminais seguros;
+- [ ] estados ativos/incertos nunca são apagados por idade;
+- [ ] testes automatizados cobrem os cenários críticos;
+- [ ] staging é homologado fisicamente antes de produção.
 
-## 37. Estratégia de entrega
+## 40. Estratégia de implementação
 
-Para reduzir risco e ainda permitir conclusão no mesmo ciclo de trabalho, o plano de implementação deve ordenar as mudanças por dependência:
+O plano deve seguir esta ordem de dependência:
 
-1. dados/estados/tentativas;
-2. API de confirmação e recuperação;
-3. listener QZ de PRINTER/JOB;
-4. gating físico e semântica `COMPLETE`;
-5. recuperação manual de backlog;
-6. painel operacional/paginação/ordenação da Issue #36;
-7. retenção;
-8. testes completos;
-9. deploy em staging;
-10. homologação física;
-11. somente após aprovação explícita, merge/deploy de produção.
+1. migration e modelo de tentativas/estados;
+2. API de tentativa, confirmação, resultado incerto e recuperação;
+3. listeners QZ `PRINTER` e `JOB`;
+4. gating físico e persistência do ponto de submissão;
+5. `JOB COMPLETE` como única confirmação automática;
+6. recuperação manual de backlog;
+7. UX de Configurações;
+8. painel operacional/paginação/ordenação da Issue #36;
+9. retenção;
+10. regressões completas;
+11. deploy em staging;
+12. homologação física;
+13. somente após aprovação explícita, merge/deploy de produção.
 
-Nenhuma etapa pode contornar a confirmação física apenas para acelerar a entrega.
+Nenhuma etapa pode relaxar a regra anti-duplicidade para acelerar a entrega.
