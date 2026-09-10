@@ -423,6 +423,13 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   if (existing.status === 'discarded') return existing
 
+  const unresolvedAttempt = await db.prepare(`SELECT 1 FROM print_job_attempts
+    WHERE business_id = ? AND job_id = ? AND submission_started_at IS NOT NULL
+      AND resolution IS NULL AND status <> 'complete' LIMIT 1`).bind(businessId, jobId).first()
+  if (unresolvedAttempt) {
+    throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho aguarda resolução de uma tentativa física.')
+  }
+
   const discardable = ['pending', 'queued', 'failed', 'requires_attention'].includes(existing.status)
   if (!discardable) {
     throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
@@ -434,6 +441,14 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
       status = 'discarded', discarded_at = ?, action_actor_label = ?, action_at = ?
     WHERE id = ? AND business_id = ?
       AND status IN ('pending', 'queued', 'failed', 'requires_attention')
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+          AND print_job_attempts.resolution IS NULL
+          AND print_job_attempts.status <> 'complete'
+      )
     RETURNING *`).bind(at, actor, at, jobId, businessId).first()
   if (row) return mapJobRow(row)
 
@@ -479,6 +494,14 @@ export const reprintPrintJob = async (db, businessId, jobId, copies, document, n
         (status = 'printed' AND copies_printed >= copies_requested)
         OR status = 'discarded'
         OR (status = 'requires_attention' AND last_error_code IN ('PROCESSING_OUTCOME_UNKNOWN', 'SERIAL_WRITE_UNCERTAIN'))
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+          AND print_job_attempts.resolution IS NULL
+          AND print_job_attempts.status <> 'complete'
       )
     RETURNING *`)
     .bind(id, requestedCopies, JSON.stringify(document), at, at, jobId, businessId).first()

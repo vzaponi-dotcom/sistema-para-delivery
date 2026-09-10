@@ -70,9 +70,27 @@ const eventName = (event) => String(
 ).trim().toUpperCase()
 
 const eventDetails = (event) => ({
+  jobName: typeof event?.jobName === 'string' ? event.jobName.trim() : '',
   spoolJobId: Number.isInteger(event?.spoolJobId) ? event.spoolJobId : null,
   message: typeof event?.message === 'string' ? event.message : null,
 })
+
+const requireCorrelatedEvent = (attempt, event) => {
+  const details = eventDetails(event)
+  if (!details.jobName) {
+    throw repositoryError(400, 'PRINT_ATTEMPT_JOB_NAME_REQUIRED', 'O evento QZ precisa identificar o trabalho do spooler.')
+  }
+  if (details.jobName !== attempt.spoolJobName) {
+    throw repositoryError(409, 'PRINT_ATTEMPT_JOB_NAME_MISMATCH', 'O evento QZ não pertence a esta tentativa.')
+  }
+  if (event?.spoolJobId != null && details.spoolJobId == null) {
+    throw repositoryError(400, 'PRINT_ATTEMPT_SPOOL_ID_INVALID', 'O identificador do spooler é inválido.')
+  }
+  if (details.spoolJobId != null && attempt.spoolJobId != null && details.spoolJobId !== attempt.spoolJobId) {
+    throw repositoryError(409, 'PRINT_ATTEMPT_SPOOL_ID_MISMATCH', 'O evento QZ conflita com o identificador do spooler.')
+  }
+  return details
+}
 
 export const createPrintJobAttempt = async (db, businessId, input, now = new Date()) => {
   const jobId = String(input?.jobId || '')
@@ -93,17 +111,25 @@ export const createPrintJobAttempt = async (db, businessId, input, now = new Dat
     throw repositoryError(409, 'PRINT_ATTEMPT_JOB_NOT_PROCESSING', 'O trabalho não está sendo processado por esta estação.')
   }
 
-  const previous = await db.prepare(`SELECT COALESCE(MAX(attempt_number), 0) AS attempt_number
-    FROM print_job_attempts WHERE job_id = ? AND copy_number = ?`).bind(jobId, copyNumber).first()
-  const attemptNumber = Number(previous?.attempt_number || 0) + 1
   const id = crypto.randomUUID()
   const at = timestamp(now)
-  const spoolJobName = `GESTAO-DELIVERY:${jobId}:COPY:${copyNumber}:ATTEMPT:${attemptNumber}`
-  await db.prepare(`INSERT INTO print_job_attempts (
+  const created = await db.prepare(`INSERT INTO print_job_attempts (
     id, business_id, job_id, copy_number, attempt_number, station_id, spool_job_name,
     status, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, 'prepared', ?, ?)`)
-    .bind(id, businessId, jobId, copyNumber, attemptNumber, stationId, spoolJobName, at, at).run()
+  ) SELECT ?, ?, ?, ?,
+    (SELECT COALESCE(MAX(attempt_number), 0) + 1 FROM print_job_attempts WHERE job_id = ? AND copy_number = ?),
+    ?, 'GESTAO-DELIVERY:' || ? || ':COPY:' || CAST(? AS INTEGER) || ':ATTEMPT:' ||
+      (SELECT COALESCE(MAX(attempt_number), 0) + 1 FROM print_job_attempts WHERE job_id = ? AND copy_number = ?),
+    'prepared', ?, ?
+  WHERE NOT EXISTS (
+    SELECT 1 FROM print_job_attempts
+    WHERE job_id = ? AND copy_number = ? AND resolution IS NULL
+  )`)
+    .bind(id, businessId, jobId, copyNumber, jobId, copyNumber, stationId, jobId, copyNumber,
+      jobId, copyNumber, at, at, jobId, copyNumber).run()
+  if (Number(created?.meta?.changes || 0) !== 1) {
+    throw repositoryError(409, 'PRINT_ATTEMPT_ACTIVE', 'Já existe uma tentativa física sem resolução para esta via.')
+  }
   return requireAttempt(db, businessId, id)
 }
 
@@ -128,13 +154,12 @@ export const markPrintAttemptSubmitting = async (db, businessId, attemptId, stat
   return requireAttempt(db, businessId, attemptId)
 }
 
-const markComplete = async (db, businessId, attempt, stationId, event, now) => {
+const markComplete = async (db, businessId, attempt, stationId, details, now) => {
   if (attempt.status === 'complete' || attempt.resolution) return attempt
   if (!attempt.submissionStartedAt) {
     throw repositoryError(409, 'PRINT_ATTEMPT_NOT_SUBMITTED', 'A confirmação exige uma submissão persistida.')
   }
   const at = timestamp(now)
-  const details = eventDetails(event)
   await db.batch([
     db.prepare(`UPDATE print_job_attempts SET
       status = 'complete', spool_job_id = COALESCE(?, spool_job_id),
@@ -148,6 +173,7 @@ const markComplete = async (db, businessId, attempt, stationId, event, now) => {
       processed_at = ?, last_error_code = NULL, last_error_message = NULL
       WHERE id = ? AND business_id = ? AND station_id = ?
         AND status IN ('awaiting_confirmation', 'requires_attention')
+        AND changes() = 1
         AND EXISTS (
           SELECT 1 FROM print_job_attempts
           WHERE id = ? AND business_id = ? AND status = 'complete'
@@ -184,8 +210,10 @@ export const markPrintAttemptUnknown = async (db, businessId, attemptId, station
 
 export const recordPrintAttemptEvent = async (db, businessId, attemptId, stationId, event, now = new Date()) => {
   const attempt = await requireAttemptStation(db, businessId, attemptId, stationId)
+  const details = requireCorrelatedEvent(attempt, event)
   const name = eventName(event)
-  if (name === 'COMPLETE') return markComplete(db, businessId, attempt, stationId, event, now)
+  if (attempt.status === 'unknown') return attempt
+  if (name === 'COMPLETE') return markComplete(db, businessId, attempt, stationId, details, now)
   if (['OFFLINE', 'DELETED', 'CANCELED', 'ABORTED', 'ERROR', 'FAILED', 'PAPER_OUT', 'INTERVENTION'].includes(name)) {
     return markPrintAttemptUnknown(db, businessId, attemptId, stationId, 'PRINT_OUTCOME_UNKNOWN', now)
   }
@@ -196,7 +224,6 @@ export const recordPrintAttemptEvent = async (db, businessId, attemptId, station
   if (attempt.status === 'complete' || attempt.resolution) return attempt
 
   const at = timestamp(now)
-  const details = eventDetails(event)
   const status = ['SCHEDULED', 'SENT', 'SPOOLING'].includes(name) ? 'spooling' : 'printing'
   await db.prepare(`UPDATE print_job_attempts SET
     status = ?, spool_job_id = COALESCE(?, spool_job_id),

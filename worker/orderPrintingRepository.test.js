@@ -3,6 +3,11 @@ import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
 import * as printingRepository from './orderPrintingRepository.js'
 import {
+  createPrintJobAttempt,
+  markPrintAttemptSubmitting,
+  markPrintAttemptUnknown,
+} from './printAttemptRepository.js'
+import {
   PRINT_PENDING_MAX_AGE_MS,
   PRINT_PROCESSING_MAX_AGE_MS,
   claimNextAutomaticPrintJob,
@@ -74,6 +79,29 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
+      CREATE TABLE print_job_attempts (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        job_id TEXT NOT NULL,
+        copy_number INTEGER NOT NULL,
+        attempt_number INTEGER NOT NULL,
+        station_id TEXT,
+        spool_job_name TEXT NOT NULL UNIQUE,
+        spool_job_id INTEGER,
+        status TEXT NOT NULL,
+        submission_started_at TEXT,
+        submitted_at TEXT,
+        last_event_at TEXT,
+        completed_at TEXT,
+        resolution TEXT,
+        resolution_actor_label TEXT,
+        resolved_at TEXT,
+        last_error_code TEXT,
+        last_error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (job_id, copy_number, attempt_number)
+      );
     `)
   }
 
@@ -652,5 +680,28 @@ test('discard rejects an in-flight, fully printed, or awaiting-second-copy job',
   await assert.rejects(
     () => printingRepository.discardPrintJob(db, businessA, 'printed-job', 'Sistema', baseNow),
     (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+})
+
+test('unresolved submitted attempts block discard and reprint even after a legacy discard', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'uncertain-job' })
+  await claimPrintJob(db, businessA, 'uncertain-job', 'station-a', baseNow)
+  const attempt = await createPrintJobAttempt(db, businessA, {
+    jobId: 'uncertain-job', stationId: 'station-a', copyNumber: 1,
+  }, baseNow)
+  await markPrintAttemptSubmitting(db, businessA, attempt.id, 'station-a', baseNow)
+  await markPrintAttemptUnknown(db, businessA, attempt.id, 'station-a', 'QZ_CONNECTION_LOST', baseNow)
+
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'uncertain-job', 'Caixa 1', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+  db.sqlite.prepare(`UPDATE print_jobs SET status = 'discarded' WHERE id = 'uncertain-job'`).run()
+  await assert.rejects(
+    () => printingRepository.reprintPrintJob(db, businessA, 'uncertain-job', 1, document, baseNow),
+    (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
   )
 })

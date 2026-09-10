@@ -104,6 +104,7 @@ class D1Sqlite {
 const businessId = 'amor-e-sabor'
 const now = new Date('2026-09-09T18:30:00.000Z')
 const document = JSON.stringify({ version: 1, type: 'order', order: { id: 'order-1', number: '0001' } })
+const qzEvent = (attempt, type, extra = {}) => ({ type, jobName: attempt.spoolJobName, ...extra })
 
 const setup = () => {
   const db = new D1Sqlite()
@@ -150,7 +151,7 @@ test('submission and non-complete QZ events do not count a physical copy', async
   assert.equal((await loadPrintJob(db, businessId, 'job-1')).copiesPrinted, 0)
 
   for (const event of ['SCHEDULED', 'SENT', 'SPOOLING', 'PRINTING', 'RETAINED']) {
-    await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', event, now)
+    await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, event), now)
     assert.equal((await loadPrintJob(db, businessId, 'job-1')).copiesPrinted, 0)
   }
 })
@@ -162,13 +163,13 @@ test('first correlated COMPLETE counts once and duplicate COMPLETE is idempotent
   }, now)
   await markPrintAttemptSubmitting(db, businessId, attempt.id, 'kitchen', now)
 
-  const complete = await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', { type: 'COMPLETE', spoolJobId: 41 }, now)
+  const complete = await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, 'COMPLETE', { spoolJobId: 41 }), now)
   const afterFirstComplete = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(complete.status, 'complete')
   assert.equal(afterFirstComplete.copiesPrinted, 1)
   assert.equal(afterFirstComplete.status, 'awaiting_second_copy')
 
-  await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', 'COMPLETE', new Date(now.getTime() + 1000))
+  await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, 'COMPLETE', { spoolJobId: 41 }), now)
   const afterDuplicate = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(afterDuplicate.copiesPrinted, 1)
   assert.equal(afterDuplicate.status, 'awaiting_second_copy')
@@ -181,7 +182,7 @@ test('COMPLETE without a persisted submission point cannot count a copy', async 
   }, now)
 
   await assert.rejects(
-    () => recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', 'COMPLETE', now),
+    () => recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, 'COMPLETE'), now),
     (error) => error.code === 'PRINT_ATTEMPT_NOT_SUBMITTED',
   )
   assert.equal((await loadPrintJob(db, businessId, 'job-1')).copiesPrinted, 0)
@@ -211,7 +212,7 @@ test('unknown submission outcomes require explicit one-time human resolution', a
     jobId: 'job-2', stationId: 'kitchen', copyNumber: 1,
   }, now)
   await markPrintAttemptSubmitting(db, businessId, retryAttempt.id, 'kitchen', now)
-  await recordPrintAttemptEvent(db, businessId, retryAttempt.id, 'kitchen', 'OFFLINE', now)
+  await recordPrintAttemptEvent(db, businessId, retryAttempt.id, 'kitchen', qzEvent(retryAttempt, 'OFFLINE'), now)
   await resolveUnknownPrintAttempt(db, businessId, 'job-2', retryAttempt.id, 'manual_not_printed', 'Caixa 1', now)
   assert.equal((await loadPrintJob(db, businessId, 'job-2')).status, 'pending')
   db.sqlite.prepare(`UPDATE print_jobs SET status = 'processing', station_id = 'kitchen' WHERE id = 'job-2'`).run()
@@ -219,4 +220,58 @@ test('unknown submission outcomes require explicit one-time human resolution', a
     jobId: 'job-2', stationId: 'kitchen', copyNumber: 1,
   }, new Date(now.getTime() + 1000))
   assert.equal(secondAttempt.attemptNumber, 2)
+})
+
+test('unknown attempts ignore late automatic progress and completion until manual resolution', async () => {
+  const db = setup()
+  const attempt = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 1,
+  }, now)
+  await markPrintAttemptSubmitting(db, businessId, attempt.id, 'kitchen', now)
+  await markPrintAttemptUnknown(db, businessId, attempt.id, 'kitchen', 'QZ_CONNECTION_LOST', now)
+
+  for (const type of ['SCHEDULED', 'SPOOLING', 'PRINTING', 'RETAINED', 'COMPLETE']) {
+    await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, type, { spoolJobId: 41 }), now)
+    assert.equal((await listPrintJobAttempts(db, businessId, 'job-1'))[0].status, 'unknown')
+    const job = await loadPrintJob(db, businessId, 'job-1')
+    assert.equal(job.status, 'requires_attention')
+    assert.equal(job.copiesPrinted, 0)
+  }
+
+  await resolveUnknownPrintAttempt(db, businessId, 'job-1', attempt.id, 'manual_printed', 'Caixa 1', now)
+  assert.equal((await loadPrintJob(db, businessId, 'job-1')).copiesPrinted, 1)
+})
+
+test('QZ events require the persisted job name and a stable spool id', async () => {
+  const db = setup()
+  const attempt = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 1,
+  }, now)
+  await markPrintAttemptSubmitting(db, businessId, attempt.id, 'kitchen', now)
+
+  await assert.rejects(
+    () => recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', { type: 'SPOOLING' }, now),
+    (error) => error.code === 'PRINT_ATTEMPT_JOB_NAME_REQUIRED',
+  )
+  await assert.rejects(
+    () => recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', { type: 'SPOOLING', jobName: 'GESTAO-DELIVERY:other:COPY:1:ATTEMPT:1' }, now),
+    (error) => error.code === 'PRINT_ATTEMPT_JOB_NAME_MISMATCH',
+  )
+  await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, 'SPOOLING', { spoolJobId: 41 }), now)
+  await assert.rejects(
+    () => recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, 'PRINTING', { spoolJobId: 42 }), now),
+    (error) => error.code === 'PRINT_ATTEMPT_SPOOL_ID_MISMATCH',
+  )
+})
+
+test('concurrent attempt creation produces one attempt and one deterministic conflict', async () => {
+  const db = setup()
+  const results = await Promise.allSettled([
+    createPrintJobAttempt(db, businessId, { jobId: 'job-1', stationId: 'kitchen', copyNumber: 1 }, now),
+    createPrintJobAttempt(db, businessId, { jobId: 'job-1', stationId: 'kitchen', copyNumber: 1 }, now),
+  ])
+
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1)
+  assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'PRINT_ATTEMPT_ACTIVE').length, 1)
+  assert.equal((await listPrintJobAttempts(db, businessId, 'job-1')).length, 1)
 })
