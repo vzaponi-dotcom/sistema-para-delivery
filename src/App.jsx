@@ -104,6 +104,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedComandaTableId, setSelectedComandaTableId] = useState(null)
   const [checkoutKey, setCheckoutKey] = useState(null)
+  const [newOrderContext, setNewOrderContext] = useState({ tableId: '', returnTab: 'orders' })
   const [newOrderDirty, setNewOrderDirty] = useState(false)
   const [pendingNavigationTab, setPendingNavigationTab] = useState(null)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
@@ -157,7 +158,7 @@ function App() {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedSecondCopyJobIdsRef.current = new Set()
-    setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false)
+    setCheckoutKey(null); setNewOrderContext({ tableId: '', returnTab: 'orders' }); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false)
   }
 
   const applyBootstrapCollections = (data, token) => {
@@ -400,6 +401,7 @@ function App() {
   const completeNavigation = (targetTab) => {
     if (activeTab === 'new-order' && targetTab !== 'new-order') {
       setCheckoutKey(null)
+      setNewOrderContext({ tableId: '', returnTab: 'orders' })
       setNewOrderDirty(false)
     }
     setActiveTab(targetTab)
@@ -422,12 +424,18 @@ function App() {
     if (targetTab) completeNavigation(targetTab)
   }
 
-  const handleNewOrder = () => { if (writesBlocked) return; setCheckoutKey(crypto.randomUUID()); completeNavigation('new-order') }
+  const handleNewOrder = ({ tableId = '', returnTab = 'orders' } = {}) => {
+    if (writesBlocked) return
+    setNewOrderContext({ tableId, returnTab })
+    if (tableId) setSelectedComandaTableId(tableId)
+    setCheckoutKey(crypto.randomUUID())
+    completeNavigation('new-order')
+  }
 
   const handleOrderCheckout = async (payload) => {
     if (writesBlocked) return false
     const key = checkoutKey || crypto.randomUUID(); if (!checkoutKey) setCheckoutKey(key); setRequestKey('order:create')
-    try { const { order, movement, tableTab } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab }); setCheckoutKey(null); setActiveTab('orders'); showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo')); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+    try { const { order, movement, tableTab, tables: nextTables } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab, tables: nextTables }); completeNavigation(newOrderContext.returnTab); showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido entrou em preparo')); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleQuickCreateClient = async ({ name, phone }) => { if (writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
   const handleFinalizeOrder = async (orderId) => { if (writesBlocked) return; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
@@ -566,7 +574,7 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
         {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} />}
-        {activeTab === 'new-order' && <NewOrderRoute clients={clients} products={products} tables={tables} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
+        {activeTab === 'new-order' && <NewOrderRoute clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}

@@ -34,14 +34,14 @@ import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/ord
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tables = [], currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
   const [currentStep, setCurrentStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [maxReachedStep, setMaxReachedStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
-  const [type, setType] = useState('Entrega')
-  const [selectedTableId, setSelectedTableId] = useState('')
+  const [type, setType] = useState(initialTableId ? 'Local' : initialType)
+  const [selectedTableId, setSelectedTableId] = useState(initialTableId)
   const [localClientId, setLocalClientId] = useState('')
   const [localClientSearch, setLocalClientSearch] = useState('')
   const [orderDate, setOrderDate] = useState(getBusinessDate())

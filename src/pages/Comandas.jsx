@@ -85,6 +85,7 @@ function Comandas({ tables = [], selectedTableId, onSelectTable, onAddOrder, cur
               <h2 ref={detailHeadingRef} tabIndex={-1}>{selectedTable.openTableTab ? `Comanda ${selectedTable.openTableTab.number}` : 'Comanda aberta'}</h2>
               <div className="comanda-table-heading"><strong>{selectedTable.name}</strong><span className="comanda-status occupied">Ocupada</span></div>
               {selectedTable.openTableTab ? <div className="comanda-summary"><span>{itemSummary(selectedTable.openTableTab.itemCount)}</span><strong>{currency(selectedTable.openTableTab.totalCents / 100)}</strong></div> : <p>Resumo indisponível</p>}
+              <Button type="button" onClick={() => onAddOrder?.(selectedTable.id)} disabled={disabled}>Adicionar pedido</Button>
             </>
           ) : <div className="empty-state"><Icon name="clipboard" size={28} /><strong>Selecione uma mesa ocupada.</strong><span>Confira aqui o resumo da comanda.</span></div>}
         </aside>
