@@ -35,7 +35,7 @@ export const getPendingReceivableOrders = (orders = []) => (Array.isArray(orders
   .filter((order) => !isOrderCancelled(order) && !isOrderPaid(order))
 
 export const getPaidReceivableOrders = (orders = []) => (Array.isArray(orders) ? orders : [])
-  .filter((order) => !isOrderCancelled(order) && isOrderPaid(order))
+  .filter((order) => !isOrderCancelled(order) && isOrderPaid(order) && !isTableTabOrder(order))
 
 export const getExpectedPaymentDate = (order) => order?.promisedPaymentDate || order?.orderDate || null
 
@@ -57,7 +57,7 @@ const emptyTotals = () => ({ amount: 0, count: 0 })
 
 export const calculateReceivableSummary = (orders, today) => {
   const summary = { today: emptyTotals(), upcoming: emptyTotals(), overdue: emptyTotals() }
-  for (const entry of buildPendingReceivableEntries(orders, [], today)) {
+  for (const entry of buildPendingReceivableEntries(orders, today)) {
     const bucket = summary[entry.timing.status]
     if (!bucket) continue
     bucket.amount += entry.total
@@ -72,7 +72,7 @@ export const buildReceivablesForecast = (orders, today, horizonDays = 7) => {
     date: todayDay == null ? null : isoFromDayNumber(todayDay + index + 1), amount: 0, count: 0,
   }))
   const result = { overdue: emptyTotals(), today: emptyTotals(), days, later: emptyTotals() }
-  for (const entry of buildPendingReceivableEntries(orders, [], today)) {
+  for (const entry of buildPendingReceivableEntries(orders, today)) {
     const { timing } = entry
     const amount = entry.total
     if (timing.status === 'overdue' || timing.status === 'today') {
@@ -88,61 +88,24 @@ export const buildReceivablesForecast = (orders, today, horizonDays = 7) => {
   return result
 }
 
-const newestOrderFirst = (orders) => [...orders].sort((left, right) => (
-  String(right.orderDate || '').localeCompare(String(left.orderDate || ''))
-  || String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
-))[0]
-
 export const formatTableIdentifierLabel = (value) => {
   const identifier = String(value ?? '').trim()
   return /^\d+$/.test(identifier) ? `Mesa ${identifier}` : identifier
 }
 
-export const buildPendingReceivableEntries = (orders = [], tableTabs = [], today) => {
-  const pendingOrders = getPendingReceivableOrders(orders)
-  const entries = []
-  const tableOrdersByTab = new Map()
-
-  for (const order of pendingOrders) {
-    if (!isTableTabOrder(order)) {
-      entries.push({
-        key: `order:${order.id}`,
-        kind: 'order',
-        order,
-        orders: [order],
-        label: order.client || 'Pedido sem identificação',
-        total: getPendingAmount(order),
-        expectedDate: getExpectedPaymentDate(order),
-        timing: getReceivableTiming(order, today),
-        createdAt: order.createdAt || '',
-      })
-      continue
-    }
-    const grouped = tableOrdersByTab.get(order.tableTabId) || []
-    grouped.push(order)
-    tableOrdersByTab.set(order.tableTabId, grouped)
-  }
-
-  for (const [tableTabId, tableOrders] of tableOrdersByTab) {
-    const newestOrder = newestOrderFirst(tableOrders)
-    const tableTab = (Array.isArray(tableTabs) ? tableTabs : []).find((item) => item.id === tableTabId)
-    const tableIdentifier = formatTableIdentifierLabel(tableTab?.tableIdentifier || newestOrder.client || tableTabId)
-    const referenceOrder = { ...newestOrder, promisedPaymentDate: null }
-    entries.push({
-      key: `table-tab:${tableTabId}`,
-      kind: 'table_tab',
-      tableTabId,
-      order: newestOrder,
-      orders: tableOrders,
-      label: tableIdentifier,
-      total: tableOrders.reduce((sum, order) => sum + getPendingAmount(order), 0),
-      expectedDate: newestOrder.orderDate || null,
-      timing: getReceivableTiming(referenceOrder, today),
-      createdAt: tableOrders.map((order) => order.createdAt || '').sort()[0] || '',
-    })
-  }
-  return entries
-}
+export const buildPendingReceivableEntries = (orders = [], today) => getPendingReceivableOrders(orders)
+  .filter((order) => !isTableTabOrder(order))
+  .map((order) => ({
+    key: `order:${order.id}`,
+    kind: 'order',
+    order,
+    orders: [order],
+    label: order.client || 'Pedido sem identificação',
+    total: getPendingAmount(order),
+    expectedDate: getExpectedPaymentDate(order),
+    timing: getReceivableTiming(order, today),
+    createdAt: order.createdAt || '',
+  }))
 
 export const sortReceivableEntries = (entries = [], sortMode = 'urgency') => [...(Array.isArray(entries) ? entries : [])]
   .sort((left, right) => {

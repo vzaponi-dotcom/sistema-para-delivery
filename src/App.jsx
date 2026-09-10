@@ -19,9 +19,10 @@ import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
 import PrintingSettings from './components/PrintingSettings'
 import SystemSelect from './components/SystemSelect'
+import { PAYMENT_METHOD_OPTIONS } from './utils/paymentMethodOptions.js'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
-import NewOrder from './pages/NewOrder'
+import { NewOrderRoute, tableTabsFromBootstrap } from './pages/NewOrderRoute'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
@@ -29,6 +30,7 @@ import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
 import PrintQueue from './pages/PrintQueue'
 import Tables from './pages/Tables'
+import Comandas from './pages/Comandas'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
@@ -74,9 +76,9 @@ import {
   transferTableTab as transferTableTabApi,
 } from './api/client'
 
-const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro'].map((value) => ({ value, label: value }))
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']
+const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -105,7 +107,10 @@ function App() {
   const [movements, setMovements] = useState([])
   const [financeSettings, setFinanceSettings] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [selectedComandaTableId, setSelectedComandaTableId] = useState(null)
+  const [selectedComandaGeneration, setSelectedComandaGeneration] = useState(0)
   const [checkoutKey, setCheckoutKey] = useState(null)
+  const [newOrderContext, setNewOrderContext] = useState({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
   const [newOrderDirty, setNewOrderDirty] = useState(false)
   const [pendingNavigationTab, setPendingNavigationTab] = useState(null)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
@@ -146,6 +151,16 @@ function App() {
   const ordersSyncInFlightRef = useRef(false)
   const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
   const recoveryPromptSeenRef = useRef(false)
+  const newOrderOwnerRef = useRef(0)
+  const tableTabPaymentRef = useRef(null)
+  const comandaSelectionRef = useRef(0)
+  const comandaIdentityRef = useRef({ tableId: null, tabId: null })
+  const officialRevisionRef = useRef(0)
+  const officialTablesRef = useRef([])
+  // Accepted financial obligations outlive dialog/selection ownership. More than
+  // one can exist when another comanda starts payment before the first responds.
+  const paymentSyncRef = useRef(new Set())
+  const [tableTabSync, setTableTabSync] = useState(null)
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
@@ -176,33 +191,120 @@ function App() {
   const originSecondCopyPromptOrderNumber = originSecondCopyPromptOrder ? formatOrderDisplayNumber(originSecondCopyPromptOrder) : 'Pedido'
 
   const resetSyncState = () => {
+    tableTabPaymentRef.current = null
+    paymentSyncRef.current = new Set()
+    setTableTabSync(null)
+    comandaIdentityRef.current = { tableId: null, tabId: null }
+    officialTablesRef.current = []
+    officialRevisionRef.current = 0
+    comandaSelectionRef.current += 1
+    setSelectedComandaGeneration(comandaSelectionRef.current)
     syncGuardRef.current = createCollectionSyncGuard(DATA_COLLECTIONS)
     bootstrapSyncInFlightRef.current = false
     ordersSyncInFlightRef.current = false
   }
 
-  const clearBusinessData = () => {
-    resetSyncState()
-    setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
-    knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set()
-    setCheckoutKey(null); setNewOrderDirty(false); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false
+  const invalidateNewOrderDraft = () => {
+    newOrderOwnerRef.current += 1
+    setCheckoutKey(null)
+    setNewOrderContext({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
+    setNewOrderDirty(false)
   }
 
-  const applyBootstrapCollections = (data, token) => {
+  const clearBusinessData = () => {
+    setActiveTab('dashboard')
+    setSelectedComandaTableId(null)
+    resetSyncState()
+    setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
+    knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
+    invalidateNewOrderDraft(); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false
+  }
+
+  const ownsPaymentSelection = (owner) => owner?.guard === syncGuardRef.current
+    && owner.selection === comandaSelectionRef.current
+    && owner.tableId === comandaIdentityRef.current.tableId
+    && owner.tabId === comandaIdentityRef.current.tabId
+
+  const retirePaymentUI = () => {
+    const owner = tableTabPaymentRef.current
+    if (owner) setRequestKey((current) => current === owner.requestKey ? null : current)
+    tableTabPaymentRef.current = null
+  }
+
+  const selectComandaTable = (tableId) => {
+    retirePaymentUI()
+    comandaSelectionRef.current += 1
+    setSelectedComandaGeneration(comandaSelectionRef.current)
+    comandaIdentityRef.current = { tableId, tabId: officialTablesRef.current.find((table) => table.id === tableId)?.openTableTab?.id ?? null }
+    setSelectedComandaTableId(tableId)
+  }
+
+  const publishPaymentSync = () => {
+    const pending = [...paymentSyncRef.current]
+    const owner = pending.find((item) => item.syncStatus === 'error') || pending[0]
+    setTableTabSync(owner ? { status: owner.syncStatus, tableId: owner.tableId, tabId: owner.tabId } : null)
+  }
+
+  const settleAcceptedPayment = (owner, receipt) => {
+    if (!owner?.paid || owner.guard !== syncGuardRef.current || !paymentSyncRef.current.has(owner)) return false
+    if (!PAYMENT_COLLECTIONS.every((key) => receipt?.applied.includes(key))) return false
+    const { orders: receiptOrders, movements: receiptMovements, tableTabs: receiptTabs } = receipt.data
+    if (!receiptTabs.some((tab) => tab.id === owner.tabId && tab.status === 'closed')
+      || !owner.result.orders.every((order) => receiptOrders.some((item) => item.id === order.id && isOrderPaid(item)))
+      || !owner.result.movements.every((movement) => receiptMovements.some((item) => item.id === movement.id))) return false
+    const nextTables = receipt.data.tables
+    const table = nextTables.find((item) => item.id === owner.tableId)
+    const replaced = table?.openTableTab?.id && table.openTableTab.id !== owner.tabId
+    if ((!replaced && table?.occupancy !== 'free') || nextTables.some((item) => item.openTableTab?.id === owner.tabId)) return false
+    owner.settled = true
+    paymentSyncRef.current.delete(owner)
+    publishPaymentSync()
+    if (ownsPaymentSelection(owner) && !replaced) {
+      selectComandaTable(null)
+      setSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(owner.tableIdentifier)} recebido via ${owner.method}`)
+    }
+    return true
+  }
+
+  const applyOfficialTables = (nextTables) => {
+    officialTablesRef.current = nextTables
+    const identity = comandaIdentityRef.current
+    const transferredTable = identity.tabId
+      ? nextTables.find((table) => table.id !== identity.tableId && table.openTableTab?.id === identity.tabId)
+      : null
+    const replacementTab = nextTables.find((table) => table.id === identity.tableId)?.openTableTab?.id
+    if (transferredTable) {
+      comandaIdentityRef.current = { tableId: transferredTable.id, tabId: identity.tabId }
+      setSelectedComandaTableId(transferredTable.id)
+    } else if (replacementTab && replacementTab !== identity.tabId) {
+      retirePaymentUI()
+      comandaSelectionRef.current += 1
+      setSelectedComandaGeneration(comandaSelectionRef.current)
+      comandaIdentityRef.current = { tableId: identity.tableId, tabId: replacementTab }
+    }
+    setTables(nextTables)
+  }
+
+  const applyBootstrapCollections = (data, token, paymentOwners) => {
     const guard = syncGuardRef.current
+    // A receipt describes this one snapshot, not the mixture left in React state.
+    const receipt = { data, applied: PAYMENT_COLLECTIONS.filter((key) => Array.isArray(data?.[key]) && guard.canApply(token, key)) }
+    if (PAYMENT_COLLECTIONS.some((key) => guard.canApply(token, key))) officialRevisionRef.current += 1
     if (guard.canApply(token, 'clients')) setClients(Array.isArray(data?.clients) ? data.clients : [])
     if (guard.canApply(token, 'products')) setProducts(Array.isArray(data?.products) ? data.products : [])
     if (guard.canApply(token, 'orders')) setOrders(Array.isArray(data?.orders) ? data.orders : [])
-    if (guard.canApply(token, 'tables')) setTables(Array.isArray(data?.tables) ? data.tables : [])
-    if (guard.canApply(token, 'tableTabs')) setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
+    if (guard.canApply(token, 'tables')) applyOfficialTables(Array.isArray(data?.tables) ? data.tables : [])
+    if (guard.canApply(token, 'tableTabs')) setTableTabs(tableTabsFromBootstrap(data))
     if (guard.canApply(token, 'movements')) setMovements(Array.isArray(data?.movements) ? data.movements : [])
     if (guard.canApply(token, 'financeSettings')) setFinanceSettings(data?.financeSettings ?? null)
+    paymentOwners.forEach((owner) => settleAcceptedPayment(owner, receipt))
+    return receipt
   }
 
   const applyOfficialEffects = ({ order, orders: nextOrders, movement, movements: nextMovements, deletedMovementId, financeSettings, table, tables: nextTables, tableTab, client, product }) => {
     const changed = []
-    if (order || (Array.isArray(nextOrders) && nextOrders.length)) changed.push('orders')
-    if (movement || deletedMovementId || (Array.isArray(nextMovements) && nextMovements.length)) changed.push('movements')
+    if (order || Array.isArray(nextOrders)) changed.push('orders')
+    if (movement || deletedMovementId || Array.isArray(nextMovements)) changed.push('movements')
     if (financeSettings !== undefined) changed.push('financeSettings')
     if (table) changed.push('tables')
     if (Array.isArray(nextTables)) changed.push('tables')
@@ -210,17 +312,19 @@ function App() {
     if (client) changed.push('clients')
     if (product) changed.push('products')
     syncGuardRef.current.markMutation(changed)
+    if (changed.some((key) => PAYMENT_COLLECTIONS.includes(key))) officialRevisionRef.current += 1
     if (order) setOrders((current) => upsertById(current, order))
     if (Array.isArray(nextOrders) && nextOrders.length) setOrders((current) => upsertManyById(current, nextOrders))
     if (movement) setMovements((current) => upsertById(current, movement))
     if (Array.isArray(nextMovements) && nextMovements.length) setMovements((current) => upsertManyById(current, nextMovements))
     if (deletedMovementId) setMovements((current) => removeById(current, deletedMovementId))
     if (financeSettings !== undefined) setFinanceSettings(financeSettings)
-    if (table) setTables((current) => upsertById(current, table))
-    if (Array.isArray(nextTables)) setTables(nextTables)
+    if (table) applyOfficialTables(upsertById(officialTablesRef.current, table))
+    if (Array.isArray(nextTables)) applyOfficialTables(nextTables)
     if (tableTab) setTableTabs((current) => upsertById(current, tableTab))
     if (client) setClients((current) => upsertById(current, client))
     if (product) setProducts((current) => upsertById(current, product))
+    return { applied: changed, data: { orders: nextOrders, movements: nextMovements, tableTabs: tableTab ? [tableTab] : undefined, tables: nextTables } }
   }
 
   const expireSession = () => {
@@ -231,21 +335,32 @@ function App() {
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
 
-  const refreshBootstrap = async ({ background = false } = {}) => {
-    if (bootstrapSyncInFlightRef.current) return false
-    bootstrapSyncInFlightRef.current = true
-    const token = syncGuardRef.current.beginRead(DATA_COLLECTIONS)
+  const refreshBootstrap = ({ background = false } = {}) => {
+    if (bootstrapSyncInFlightRef.current) return bootstrapSyncInFlightRef.current
+    const guard = syncGuardRef.current
+    const token = guard.beginRead(DATA_COLLECTIONS)
+    // Only obligations already accepted when this read starts can use its receipt.
+    const paymentOwners = [...paymentSyncRef.current]
     if (!background) setBootstrapState('loading')
-    try {
-      const data = await getBootstrapApi()
-      applyBootstrapCollections(data, token)
-      if (!background) setBootstrapState('ready')
-      return true
-    } catch (error) {
-      if (error?.status === 401) expireSession()
-      else if (!background) setBootstrapState('error')
-      return false
-    } finally { bootstrapSyncInFlightRef.current = false }
+    const read = async () => {
+      try {
+        const data = await getBootstrapApi()
+        if (guard !== syncGuardRef.current) return false
+        const receipt = applyBootstrapCollections(data, token, paymentOwners)
+        if (!background) setBootstrapState('ready')
+        return receipt
+      } catch (error) {
+        if (guard !== syncGuardRef.current) return false
+        if (error?.status === 401) expireSession()
+        else if (!background) setBootstrapState('error')
+        return false
+      } finally {
+        if (guard === syncGuardRef.current) bootstrapSyncInFlightRef.current = false
+      }
+    }
+    const pending = read()
+    bootstrapSyncInFlightRef.current = pending
+    return pending
   }
   const refreshBootstrapSilently = () => refreshBootstrap({ background: true })
 
@@ -325,6 +440,7 @@ function App() {
         const data = await getOrdersApi()
         if (cancelled || !Array.isArray(data?.orders) || !syncGuardRef.current.canApply(token, 'orders')) return
         const latestOrders = data.orders
+        officialRevisionRef.current += 1
         setOrders(latestOrders)
       } catch (error) { if (!cancelled && error?.status === 401) expireSession() } finally { ordersSyncInFlightRef.current = false }
     }
@@ -566,8 +682,7 @@ function App() {
 
   const completeNavigation = (targetTab) => {
     if (activeTab === 'new-order' && targetTab !== 'new-order') {
-      setCheckoutKey(null)
-      setNewOrderDirty(false)
+      invalidateNewOrderDraft()
     }
     setActiveTab(targetTab)
   }
@@ -589,12 +704,39 @@ function App() {
     if (targetTab) completeNavigation(targetTab)
   }
 
-  const handleNewOrder = () => { if (writesBlocked) return; setCheckoutKey(crypto.randomUUID()); completeNavigation('new-order') }
+  const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
+    if (writesBlocked) return
+    const owner = newOrderOwnerRef.current + 1
+    newOrderOwnerRef.current = owner
+    setNewOrderContext({ tableId, expectedTableTabId, returnTab, owner })
+    if (tableId) selectComandaTable(tableId)
+    setCheckoutKey(crypto.randomUUID())
+    setNewOrderDirty(false)
+    completeNavigation('new-order')
+  }
 
   const handleOrderCheckout = async (payload) => {
-    if (writesBlocked) return false
+    const owner = newOrderContext.owner
+    if (writesBlocked || !owner || owner !== newOrderOwnerRef.current) return false
     const key = checkoutKey || crypto.randomUUID(); if (!checkoutKey) setCheckoutKey(key); setRequestKey('order:create')
-    try { const { order, movement, tableTab } = await createOrderApi(payload, key); applyOfficialEffects({ order, movement, tableTab }); setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage)); setCheckoutKey(null); setActiveTab('orders'); if (order.status === 'Finalizado') showSuccessMessage('Pedido anterior salvo no histórico'); else setToastMessage('Pedido enviado para a fila da cozinha'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+    try {
+      const { order, movement, tableTab, tables: nextTables } = await createOrderApi(payload, key)
+      if (owner !== newOrderOwnerRef.current) return false
+      applyOfficialEffects({ order, movement, tableTab, tables: nextTables })
+      setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
+      setRequestKey(null)
+      showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido enviado para a fila da cozinha'))
+      completeNavigation(newOrderContext.returnTab)
+      return true
+    } catch (error) {
+      if (owner !== newOrderOwnerRef.current) return false
+      if (error?.status === 409 && newOrderContext.expectedTableTabId) await refreshBootstrapSilently()
+      if (owner !== newOrderOwnerRef.current) return false
+      showApiError(error)
+      return false
+    } finally {
+      if (owner === newOrderOwnerRef.current) setRequestKey(null)
+    }
   }
   const handleQuickCreateClient = async ({ name, phone }) => { if (writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
   const handleFinalizeOrder = async (orderId) => { if (writesBlocked) return; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
@@ -602,7 +744,60 @@ function App() {
   const openPaymentModal = (orderId) => { if (writesBlocked) return; const order = orders.find((item) => item.id === orderId); if (!order || isOrderPaid(order) || isOrderCancelled(order)) return; setPaymentOrderId(orderId); setPaymentMethod('Pix') }
   const closePaymentModal = () => { setPaymentOrderId(null); setPaymentMethod('Pix') }
   const handleRegisterPayment = async (event) => { event.preventDefault(); if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return; setRequestKey(`payment:${paymentOrder.id}`); try { const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod); applyOfficialEffects({ order, movement, tableTab }); closePaymentModal(); showSuccessMessage(`Pagamento recebido via ${paymentMethod}`) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(result.tableTab.tableIdentifier)} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const reconcileTableTabPayment = async (owner) => {
+    if (!owner) return Promise.all([...paymentSyncRef.current].map((pending) => reconcileTableTabPayment(pending)))
+    if (owner.guard !== syncGuardRef.current || !paymentSyncRef.current.has(owner)) return false
+    owner.syncStatus = 'syncing'
+    publishPaymentSync()
+    // Wait for any read already on the wire, then request post-payment authority.
+    if (bootstrapSyncInFlightRef.current) await bootstrapSyncInFlightRef.current
+    if (owner.settled) return true
+    if (owner.guard !== syncGuardRef.current || !paymentSyncRef.current.has(owner)) return false
+    await refreshBootstrapSilently()
+    if (owner.settled) return true
+    if (owner.guard !== syncGuardRef.current || !paymentSyncRef.current.has(owner)) return false
+    owner.syncStatus = 'error'
+    publishPaymentSync()
+    return false
+  }
+
+  const handleRegisterTableTabPayment = async (tableTabId, method) => {
+    const selected = tables.find((table) => table.id === selectedComandaTableId && table.isActive && table.openTableTab?.id === tableTabId)
+    if (writesBlocked || tableTabPaymentRef.current || paymentSyncRef.current.size || !selected) return false
+    const guard = syncGuardRef.current
+    const revision = officialRevisionRef.current
+    const owner = { guard, selection: comandaSelectionRef.current, tableId: selected.id, tabId: tableTabId, method, requestKey: `table-tab:payment:${tableTabId}` }
+    tableTabPaymentRef.current = owner
+    const ownsRequest = () => syncGuardRef.current === guard && tableTabPaymentRef.current === owner
+    setRequestKey(owner.requestKey)
+    try {
+      const result = await registerTableTabPaymentApi(tableTabId, method)
+      if (syncGuardRef.current !== guard) return false
+      owner.paid = true
+      owner.result = result
+      owner.tableIdentifier = result.tableTab.tableIdentifier
+      owner.syncStatus = 'syncing'
+      paymentSyncRef.current.add(owner)
+      if (revision === officialRevisionRef.current) {
+        const receipt = applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab, tables: result.tables })
+        settleAcceptedPayment(owner, receipt)
+      }
+      if (!owner.settled) await reconcileTableTabPayment(owner)
+      // Financial acceptance closes this dialog; pending synchronization remains
+      // explicit in Comandas and blocks another payment until official settlement.
+      return true
+    } catch (error) {
+      if (!ownsRequest() || !ownsPaymentSelection(owner)) return false
+      showApiError(error)
+      if (error.status === 409 && ownsRequest()) {
+        if (bootstrapSyncInFlightRef.current) await bootstrapSyncInFlightRef.current
+        if (ownsRequest()) await refreshBootstrapSilently()
+      }
+      return false
+    } finally {
+      if (ownsRequest()) { tableTabPaymentRef.current = null; setRequestKey((current) => current === owner.requestKey ? null : current) }
+    }
+  }
   const handleCreateTable = async (name) => {
     if (writesBlocked) return false
     setRequestKey('table:create')
@@ -733,13 +928,14 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
         {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} onToast={setToastMessage} />}
-        {activeTab === 'new-order' && <NewOrder clients={clients} products={products} tables={tables} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation('orders')} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => setShowPrintingSettings(true)} onToast={setToastMessage} />}
-        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} tableTabs={tableTabs} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onRegisterTableTabPayment={handleRegisterTableTabPayment} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
+        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} selectionGeneration={selectedComandaGeneration} onSelectTable={selectComandaTable} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
 
         {pendingNavigationTab && (
           <Modal title="Descartar venda em andamento?" onClose={cancelDiscardNewOrder}>

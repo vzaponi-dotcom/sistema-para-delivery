@@ -133,7 +133,7 @@ test('successful active order creation confirms queueing without invoking a loca
   const checkout = app.slice(start, end)
 
   assert.match(checkout, /Pedido enviado para a fila da cozinha/)
-  assert.match(checkout, /setToastMessage/)
+  assert.match(checkout, /showSuccessMessage/)
   assert.doesNotMatch(checkout, /\bprinting\.|printOrder|printSecondCopy|claimPrintJob|claimNextPrintJob|dispatchRawBt|writeSerialBytes|\bqz\./)
 })
 

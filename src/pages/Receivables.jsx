@@ -5,7 +5,6 @@ import '../receivables-forecast.css'
 import BottomSheet from '../components/BottomSheet'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
-import Modal from '../components/Modal'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import PaymentPromiseDialog from '../components/PaymentPromiseDialog'
@@ -34,9 +33,6 @@ const SORT_OPTIONS = [
   { value: 'recent', label: 'Mais recente' },
   { value: 'value-desc', label: 'Maior valor' },
 ]
-const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
-  .map((value) => ({ value, label: value }))
-
 const entrySearchText = (entry) => entry.orders.map((order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ')).join(' ').toLowerCase()
 const orderSearchText = (order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ').toLowerCase()
 
@@ -72,11 +68,9 @@ const paidEntry = (order) => ({
 function Receivables({
   orders,
   movements = [],
-  tableTabs = [],
   currency,
   disabled = false,
   onRegisterPayment,
-  onRegisterTableTabPayment,
   onUpdatePaymentPromise,
 }) {
   const [search, setSearch] = useState('')
@@ -88,8 +82,6 @@ function Receivables({
   const [today, setToday] = useState(() => getBusinessDate())
   const [detailOrder, setDetailOrder] = useState(null)
   const [promiseOrder, setPromiseOrder] = useState(null)
-  const [tableTabPaymentGroup, setTableTabPaymentGroup] = useState(null)
-  const [tableTabPaymentMethod, setTableTabPaymentMethod] = useState('Pix')
   const [quickPaymentOpen, setQuickPaymentOpen] = useState(false)
   const [forecastOpen, setForecastOpen] = useState(false)
   const [isMobileDetail, setIsMobileDetail] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 820px)').matches)
@@ -116,7 +108,7 @@ function Receivables({
   const summary = useMemo(() => calculateReceivableSummary(orders, today), [orders, today])
   const forecast = useMemo(() => buildReceivablesForecast(orders, today, 7), [orders, today])
   const receivedToday = useMemo(() => calculateReceivedToday(movements, today), [movements, today])
-  const pendingEntries = useMemo(() => buildPendingReceivableEntries(orders, tableTabs, today), [orders, tableTabs, today])
+  const pendingEntries = useMemo(() => buildPendingReceivableEntries(orders, today), [orders, today])
   const quickPaymentEntries = useMemo(() => pendingEntries.filter((entry) => entry.kind === 'order'), [pendingEntries])
   const allPaidOrders = useMemo(() => getPaidReceivableOrders(orders), [orders])
 
@@ -143,7 +135,7 @@ function Receivables({
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
   }, [allPaidOrders, pendingEntries, selectedEntryKey])
 
-  const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || tableTabPaymentGroup || quickPaymentOpen || forecastOpen)
+  const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || quickPaymentOpen || forecastOpen)
 
   useEffect(() => {
     if (selectedEntryKey && !selectedEntry) setSelectedEntryKey(null)
@@ -191,18 +183,6 @@ function Receivables({
     setDetailOrder(order)
   }
 
-  const openTableTabPayment = (group) => {
-    setSelectedEntryKey(null)
-    setTableTabPaymentMethod('Pix')
-    setTableTabPaymentGroup(group)
-  }
-  const closeTableTabPayment = () => { setTableTabPaymentGroup(null); setTableTabPaymentMethod('Pix') }
-  const confirmTableTabPayment = async () => {
-    if (!tableTabPaymentGroup || writeDisabled || !onRegisterTableTabPayment) return
-    const success = await onRegisterTableTabPayment(tableTabPaymentGroup.tableTabId, tableTabPaymentMethod)
-    if (success) { closeTableTabPayment(); setSelectedEntryKey(null) }
-  }
-
   const pendingIsGloballyEmpty = pendingEntries.length === 0
   const pendingHasActiveFilter = Boolean(normalizedSearch || timingFilter !== 'all' || exactDateFilter)
 
@@ -212,7 +192,6 @@ function Receivables({
       currency={currency}
       disabled={writeDisabled}
       onRegisterPayment={registerPaymentFromDetail}
-      onRegisterTableTabPayment={openTableTabPayment}
       onEditPaymentPromise={editPaymentPromiseFromDetail}
       onViewOrder={viewOrderFromDetail}
     />
@@ -282,10 +261,10 @@ function Receivables({
           {activeView === 'pending' ? (
             <div className="receivables-ledger" aria-label="Recebimentos pendentes">
               {visiblePendingEntries.map((entry) => (
-                <div className={`receivable-ledger-item${entry.kind === 'table_tab' ? ' receivable-ledger-item-table' : ''}`} key={entry.key}>
+                <div className="receivable-ledger-item" key={entry.key}>
                   <button type="button" className="receivable-ledger-row" aria-pressed={selectedEntryKey === entry.key} onClick={() => openOrderDetail(entry)}>
                     <span className="receivable-ledger-avatar">{entry.label.charAt(0).toUpperCase()}</span>
-                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{entry.kind === 'table_tab' ? `${entry.orders.length} pedido(s) nesta comanda` : `${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry)}</span></span>
+                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{`${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry)}</span></span>
                     <strong className="receivable-ledger-amount">{currency(entry.total)}</strong><Icon name="details" size={18} />
                   </button>
                 </div>
@@ -330,7 +309,6 @@ function Receivables({
           currency={currency}
           disabled={writeDisabled}
           onRegisterPayment={registerPaymentFromDetail}
-          onRegisterTableTabPayment={openTableTabPayment}
           onEditPaymentPromise={editPaymentPromiseFromDetail}
           onViewOrder={viewOrderFromDetail}
         />
@@ -360,17 +338,6 @@ function Receivables({
       {promiseOrder && <PaymentPromiseDialog order={promiseOrder} today={today} disabled={writeDisabled} onSave={onUpdatePaymentPromise} onClose={() => setPromiseOrder(null)} />}
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
 
-      {tableTabPaymentGroup && (
-        <Modal title="Registrar pagamento da comanda" onClose={closeTableTabPayment} footer={<><Button type="button" variant="secondary" onClick={closeTableTabPayment}>Cancelar</Button><Button type="button" onClick={confirmTableTabPayment} disabled={writeDisabled || !onRegisterTableTabPayment}>Confirmar pagamento</Button></>}>
-          <div className="table-tab-payment-summary">
-            <div><span>Comanda</span><strong>{tableTabPaymentGroup.label}</strong></div>
-            <div><span>Pedidos pendentes</span><strong>{tableTabPaymentGroup.orders.length}</strong></div>
-            <div><span>Total</span><strong>{currency(tableTabPaymentGroup.total)}</strong></div>
-          </div>
-          <p className="table-tab-payment-note">Todos os pedidos pendentes desta comanda serão quitados juntos.</p>
-          <label className="form-field"><span>Forma de pagamento</span><SystemSelect label="Forma de pagamento da comanda" value={tableTabPaymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setTableTabPaymentMethod} disabled={writeDisabled} /></label>
-        </Modal>
-      )}
     </>
   )
 }

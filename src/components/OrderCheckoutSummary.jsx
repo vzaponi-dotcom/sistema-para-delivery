@@ -21,6 +21,7 @@ function OrderCheckoutSummary({
   currency,
   disabled = false,
   canSubmit = false,
+  allowImmediatePayment = true,
   onDeliveryFeeChange,
   onAdjustmentChange,
   onSavePending,
@@ -138,7 +139,7 @@ function OrderCheckoutSummary({
         <div className="new-order-total-final"><span>Total</span><strong>{currency(preview.total)}</strong></div>
       </div>
 
-      {showPayment && (
+      {allowImmediatePayment && showPayment && (
         <div className="new-order-payment-choice">
           <div className="form-field">
             <span>Forma de pagamento</span>
@@ -160,7 +161,7 @@ function OrderCheckoutSummary({
       {!showPayment && (
         <div className="new-order-checkout-actions">
           <Button type="button" variant="secondary" onClick={onSavePending} disabled={disabled || !canSubmit}>Salvar pedido</Button>
-          <Button type="button" onClick={() => setShowPayment(true)} disabled={disabled || !canSubmit}>Salvar e receber</Button>
+          {allowImmediatePayment && <Button type="button" onClick={() => setShowPayment(true)} disabled={disabled || !canSubmit}>Salvar e receber</Button>}
         </div>
       )}
     </section>

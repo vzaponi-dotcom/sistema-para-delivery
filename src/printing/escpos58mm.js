@@ -188,6 +188,41 @@ const renderTestDocument = (document) => {
   return flattenBytes(parts)
 }
 
+const renderTableTabCopy = (document) => {
+  const parts = []
+  pushRaw(parts, selectFontA(), size(0x00), bold(false), align(1), bold(true))
+  pushLine(parts, document.business?.name || 'Amor & Sabor')
+  pushRaw(parts, size(0x11))
+  pushLine(parts, 'PR\u00c9-CONTA')
+  pushRaw(parts, size(0x00))
+  pushLine(parts, `COMANDA #${document.tableTab?.number || ''}`)
+  pushRaw(parts, bold(false))
+  pushLine(parts, document.tableTab?.tableName || '')
+  if (document.tableTab?.openedAt) pushLine(parts, `Abertura: ${formatDateTime(document.tableTab.openedAt)}`)
+  if (document.tableTab?.emittedAt) pushLine(parts, `Emiss\u00e3o: ${formatDateTime(document.tableTab.emittedAt)}`)
+  pushRaw(parts, align(0))
+  pushLine(parts, divider)
+  pushRaw(parts, bold(true))
+  pushLine(parts, 'ITENS')
+  pushRaw(parts, bold(false))
+
+  for (const item of document.items || []) {
+    const presentation = sanitizeText(item.presentation)
+    const title = `${Number(item.quantity) || 1}x ${sanitizeText(item.name)}${presentation ? ` ${presentation}` : ''}`
+    pushWrapped(parts, title)
+    if (item.note) pushWrapped(parts, item.note, { prefix: 'Obs: ' })
+    if (Number.isFinite(Number(item.lineTotalCents))) pushLine(parts, `  ${formatEscPosMoneyCents(item.lineTotalCents)}`)
+  }
+
+  pushLine(parts, divider)
+  pushRaw(parts, bold(true), size(0x11), align(1))
+  pushLine(parts, `TOTAL ${formatEscPosMoneyCents(document.financial?.totalCents || 0)}`)
+  pushRaw(parts, size(0x00), bold(false))
+  pushWrapped(parts, document.message || 'PR\u00c9-CONTA \u2014 N\u00c3O \u00c9 COMPROVANTE DE PAGAMENTO')
+  pushRaw(parts, align(0))
+  return flattenBytes(parts)
+}
+
 const defaultCanvasFactory = () => {
   const canvas = globalThis.document?.createElement?.('canvas')
   if (!canvas) throw new Error('Canvas is unavailable for MPT-II bitmap rendering')
@@ -344,11 +379,15 @@ export const renderEscPos58mm = (document, {
 } = {}) => {
   const count = Number(copies)
   if (count !== 1 && count !== 2) throw new RangeError('copies must be 1 or 2')
-  if (!document || !['order', 'test'].includes(document.type)) throw new TypeError('Unsupported print document')
+  if (!document || !['order', 'test', 'table-tab'].includes(document.type)) throw new TypeError('Unsupported print document')
 
   const selectedCopy = copyNumber == null && totalCopies == null
     ? null
     : { copyNumber: Number(copyNumber), totalCopies: Number(totalCopies) }
+
+  if (document.type === 'table-tab' && (count !== 1 || selectedCopy)) {
+    throw new RangeError('table-tab documents require exactly one copy')
+  }
 
   if (selectedCopy) {
     if (document.type !== 'order' || count !== 1) throw new RangeError('selected copy rendering requires one order copy')
@@ -363,6 +402,8 @@ export const renderEscPos58mm = (document, {
   const parts = [initialize(), cancelChineseMode(), selectCodePage(MTP5_PROFILE.codePage)]
   if (document.type === 'test') {
     parts.push(renderTestDocument(document))
+  } else if (document.type === 'table-tab') {
+    parts.push(renderTableTabCopy(document))
   } else if (selectedCopy) {
     parts.push(renderOrderCopy(document, selectedCopy.copyNumber, selectedCopy.totalCopies))
   } else {

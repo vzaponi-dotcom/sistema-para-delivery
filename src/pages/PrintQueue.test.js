@@ -39,7 +39,8 @@ test('desktop navigation and the kitchen printing shortcut open the print queue'
 test('mobile keeps five bottom tabs and exposes the print queue through Mais', async () => {
   const mobileNavigation = await readSource('../components/MobileNavigation.jsx')
 
-  assert.match(mobileNavigation, /const directItems = \[[\s\S]*?\{ id: 'products', label: 'Produtos', icon: 'products' \},\s*\]/)
+  assert.match(mobileNavigation, /const directItems = \[[\s\S]*?\{ id: 'comandas', label: 'Comandas', icon: 'clipboard' \},[\s\S]*?\{ id: 'clients', label: 'Clientes', icon: 'clients' \},\s*\]/)
+  assert.match(mobileNavigation, /onClick=\{\(\) => navigate\('products'\)\}/)
   assert.doesNotMatch(mobileNavigation, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
   assert.match(mobileNavigation, /activeTab === 'print-queue'/)
   assert.match(mobileNavigation, /onClick=\{\(\) => navigate\('print-queue'\)\}/)

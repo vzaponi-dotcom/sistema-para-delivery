@@ -1,28 +1,31 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { act } from 'react-test-renderer'
+import { workspaceHarness, buttonNamed, nodeText } from './test-support/renderWorkspace.js'
 
-const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+test('app keeps the dirty-order confirmation when navigating away from the wizard', async (t) => {
+  const harness = await workspaceHarness(t)
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (path) => {
+    const responses = {
+      '/api/auth/session': { authenticated: true },
+      '/api/bootstrap': { tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
+      '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
+      '/api/printing/jobs?limit=100': { jobs: [] },
+    }
+    assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
+    return { ok: true, json: async () => responses[path] }
+  }
+  t.after(() => { globalThis.fetch = originalFetch })
+  const { default: App } = await harness.load('/src/App.jsx')
+  const renderer = await harness.render(App)
+  const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
 
-test('app guards global navigation away from a dirty new order', () => {
-  const app = source('./App.jsx')
+  await act(async () => buttonNamed(renderer.root, 'Novo pedido').props.onClick())
+  await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Retirada').props.onClick())
+  await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
 
-  assert.match(app, /newOrderDirty/)
-  assert.match(app, /pendingNavigationTab/)
-  assert.match(app, /shouldConfirmNewOrderExit/)
-  assert.match(app, /onNavigate=\{requestNavigation\}/)
-  assert.match(app, /onDraftDirtyChange=\{setNewOrderDirty\}/)
-  assert.match(app, /Descartar venda em andamento\?/)
-  assert.match(app, /Continuar na venda/)
-  assert.match(app, /Descartar venda/)
-})
-
-test('new order reports dirty state without moving cart state to App', () => {
-  const page = source('./pages/NewOrder.jsx')
-  const app = source('./App.jsx')
-
-  assert.match(page, /createNewOrderDirtySnapshot/)
-  assert.match(page, /isNewOrderDraftDirty/)
-  assert.match(page, /onDraftDirtyChange/)
-  assert.doesNotMatch(app, /const \[items, setItems\] = useState/)
+  assert.equal(nodeText(renderer.root).includes('Descartar venda em andamento?'), true)
+  await act(async () => buttonNamed(renderer.root, 'Continuar na venda').props.onClick())
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Tipo do pedido' }).length, 1)
 })

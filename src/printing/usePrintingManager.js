@@ -14,6 +14,7 @@ import {
   failPrintJob,
   forcePrintJob as forcePrintJobApi,
   getOrderPrintDocument,
+  getTableTabPrintDocument,
   getPrintJobs,
   getPrintQueueSummary,
   getPrintStations,
@@ -41,6 +42,7 @@ import {
   saveQzPrinterName,
 } from './localPrintStation.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
+import { runManualPrintDocument } from './manualPrintDocument.js'
 import {
   canRunSingleRecoveryCopy,
   deriveRecoveryView,
@@ -289,6 +291,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     physicalReady: printerHealth.state === 'ready',
     safeBacklog: recoveryPendingCount,
   })
+  const printOperationRef = useRef(null)
+  const printOperationSequenceRef = useRef(0)
 
   const updateLocalStation = useCallback((station) => {
     localStationRef.current = station || null
@@ -306,6 +310,29 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     busyJobIdRef.current = value
     setBusyJobId(value)
   }, [])
+
+  const acquirePrintOperation = useCallback(({ busyKey = null } = {}) => {
+    if (printOperationRef.current) return null
+    const owner = {
+      token: ++printOperationSequenceRef.current,
+      generation: initializationRef.current,
+      busyKey,
+    }
+    printOperationRef.current = owner
+    if (busyKey) updateBusyJob(busyKey)
+    return owner
+  }, [updateBusyJob])
+
+  const ownsPrintOperation = useCallback((owner) => (
+    printOperationRef.current?.token === owner?.token
+    && initializationRef.current === owner?.generation
+  ), [])
+
+  const releasePrintOperation = useCallback((owner) => {
+    if (!ownsPrintOperation(owner)) return
+    printOperationRef.current = null
+    if (owner.busyKey) updateBusyJob(null)
+  }, [ownsPrintOperation, updateBusyJob])
 
   const updateConfiguredPrinterName = useCallback((printerName) => {
     const value = String(printerName || '').trim() || null
@@ -829,9 +856,60 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response.document
   }, [])
 
+  const getTableTabPreviewDocument = useCallback(async (tableTabId) => {
+    const response = await getTableTabPrintDocument(tableTabId)
+    return response.document
+  }, [])
+
+  const printTableTab = useCallback(async (tableTabId) => {
+    const station = localStationRef.current
+    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A esta\u00e7\u00e3o de impress\u00e3o ainda n\u00e3o est\u00e1 pronta.')
+    if (busyJobIdRef.current) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+    const owner = acquirePrintOperation({ busyKey: `table-tab:${tableTabId}` })
+    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+
+    try {
+      const port = await getExplicitPort()
+      const document = await getTableTabPreviewDocument(tableTabId)
+      if (document?.type !== 'table-tab' || document.tableTab?.id !== tableTabId) {
+        throw printerError('TABLE_TAB_PRINT_DOCUMENT_MISMATCH', 'O ticket recebido n\u00e3o corresponde \u00e0 comanda selecionada. Tente novamente.')
+      }
+      const result = await runManualPrintDocument({
+        document,
+        port,
+        renderer: (value, options) => renderEscPos58mm(value, {
+          ...options,
+          compatibilityMode: getRendererCompatibilityMode(transportKind),
+        }),
+        transport: (_selectedPort, bytes) => printQzRawBytes(qz, configuredPrinterNameRef.current, bytes),
+      })
+      if (ownsPrintOperation(owner)) {
+        updateTransportReady(true)
+        setPrinterState('connected')
+        setLastError(null)
+      }
+      return result
+    } catch (error) {
+      if (ownsPrintOperation(owner)) {
+        updateTransportReady(false)
+        setPrinterState('disconnected')
+        if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
+        reportError(error)
+      }
+      throw error
+    } finally {
+      releasePrintOperation(owner)
+    }
+  }, [acquirePrintOperation, getExplicitPort, getTableTabPreviewDocument, ownsPrintOperation, releasePrintOperation, reportError, transportKind, updateBlocked, updateTransportReady])
+
   useEffect(() => {
     if (!authenticated) {
       initializationRef.current += 1
+      printOperationRef.current = null
+      void qzStatusMonitorRef.current?.stop?.()
+      qzStatusMonitorRef.current = null
+      qzStatusMonitorPrinterRef.current = null
+      qzAttemptByNameRef.current.clear()
       updateLocalStation(null)
       setStations([])
       setJobs([])
@@ -976,6 +1054,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         station,
       })) return
 
+      const owner = acquirePrintOperation()
+      if (!owner) return
       try {
         const response = await claimNextPrintJob(station.id)
         if (!response?.job) return
@@ -985,11 +1065,13 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         updateTransportReady(false)
         reportError(error)
         try { await refresh() } catch { /* next state poll will recover */ }
+      } finally {
+        releasePrintOperation(owner)
       }
     }
     const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
     return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [authenticated, executeClaimedJob, isOnline, isQz, refresh, reportError, supported, updateBlocked, updateTransportReady])
+  }, [acquirePrintOperation, authenticated, executeClaimedJob, isOnline, isQz, refresh, releasePrintOperation, reportError, supported, updateBlocked, updateTransportReady])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()
@@ -1045,5 +1127,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     requestForcePrint,
     requestReprint,
     getPreviewDocument,
+    getTableTabPreviewDocument,
+    printTableTab,
   }
 }

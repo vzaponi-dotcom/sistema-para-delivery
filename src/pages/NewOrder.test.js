@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { workspaceHarness, buttonNamed, nodeText } from '../test-support/renderWorkspace.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -15,17 +16,29 @@ test('new order uses one searchable client picker without phone in the selected 
   assert.doesNotMatch(customerStep, /client\.name\}\{client\.phone/)
 })
 
-test('new local order builds table-first identity and summary with an optional separate client', () => {
-  const page = source('./NewOrder.jsx')
+test('new order starts Local with its requested table without marking the untouched draft dirty', async (t) => {
+  const harness = await workspaceHarness(t)
+  const dirtyStates = []
+  const { default: NewOrder } = await harness.load('/src/pages/NewOrder.jsx')
+  const renderer = await harness.render(NewOrder, {
+    clients: [],
+    products: [],
+    tables: [{ id: 'table-7', name: 'Mesa 7', isActive: true, occupancy: 'occupied' }],
+    initialType: 'Entrega',
+    initialTableId: 'table-7',
+    currency: (value) => `R$ ${value}`,
+    disabled: false,
+    onCancel: () => {},
+    onCreateClient: async () => null,
+    onSubmit: async () => false,
+    onDraftDirtyChange: (dirty) => dirtyStates.push(dirty),
+  })
 
-  assert.match(page, /function NewOrder\(\{ clients, products, tables = \[\]/)
-  assert.match(page, /const \[selectedTableId, setSelectedTableId\] = useState\(''\)/)
-  assert.match(page, /type: 'table', tableId: selectedTableId/)
-  assert.match(page, /\.\.\.\(localClientId \? \{ clientId: localClientId \} : \{\}\)/)
-  assert.match(page, /selectedTable\?\.name/)
-  assert.match(page, /selectedLocalClient\?\.name/)
-  assert.doesNotMatch(page, /localIdentityType/)
-  assert.doesNotMatch(page, /localIdentityValue/)
+  const typeOptions = renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' })
+  assert.equal(buttonNamed(typeOptions, 'Consumo no local').props['aria-pressed'], true)
+  const tableOptions = renderer.root.findByProps({ className: 'new-order-table-grid' })
+  assert.equal(tableOptions.findAllByType('button').find((button) => nodeText(button).includes('Mesa 7')).props['aria-pressed'], true)
+  assert.deepEqual(dirtyStates, [false])
 })
 
 test('quick client phone reuses the normal phone mask', () => {

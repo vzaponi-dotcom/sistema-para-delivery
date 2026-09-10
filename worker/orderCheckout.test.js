@@ -43,6 +43,26 @@ test('checkout rejects malformed percentage precision and invalid payment', () =
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], paymentMethod: 'Cheque' }, 'k'))
 })
 
+test('checkout carries an expected table tab only for table orders', () => {
+  const table = validateCheckoutInput({
+    customerIdentity: { type: 'table', tableId: 'table-1' }, type: 'Local', orderDate: '2026-09-01',
+    items: [{ productId: 'p1', quantity: 1 }], expectedTableTabId: ' tab-42 ',
+  }, 'table-expected')
+  assert.equal(table.expectedTableTabId, 'tab-42')
+
+  assert.throws(() => validateCheckoutInput({
+    clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01',
+    items: [{ productId: 'p1', quantity: 1 }], expectedTableTabId: 'tab-42',
+  }, 'delivery-expected'), (error) => error.status === 400 && error.field === 'expectedTableTabId')
+})
+
+test('checkout rejects immediate payment for table orders', () => {
+  assert.throws(() => validateCheckoutInput({
+    customerIdentity: { type: 'table', tableId: 'table-1' }, type: 'Local', orderDate: '2026-09-01',
+    items: [{ productId: 'p1', quantity: 1 }], paymentMethod: 'Pix',
+  }, 'paid-table'), (error) => error.status === 400 && error.field === 'paymentMethod')
+})
+
 test('discount percentage applies to products only and cannot consume fee', () => {
   assert.deepEqual(calculateCheckoutTotals(
     [{ quantity: 2, priceCents: 3200 }, { quantity: 1, priceCents: 800 }], 800,

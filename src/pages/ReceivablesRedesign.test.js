@@ -73,10 +73,3 @@ test('quick payment delegates to the existing App payment flow and excludes tabl
   assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect/)
   assert.doesNotMatch(quick, /registerPaymentApi|\/payment/)
 })
-
-test('table tabs keep aggregate payment and remain separate from quick payment', async () => {
-  const detail = await read('../components/ReceivableDetail.jsx')
-  assert.match(detail, /if \(entry\.kind === 'table_tab'\)/)
-  assert.match(detail, /Registrar pagamento da comanda/)
-  assert.match(detail, /onRegisterTableTabPayment/)
-})
