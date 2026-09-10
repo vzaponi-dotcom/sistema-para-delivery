@@ -123,8 +123,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   const transportReadyRef = useRef(isRawBt)
   const qzSecurityConfiguredRef = useRef(false)
   const initializationRef = useRef(0)
-  const manualOperationRef = useRef(null)
-  const manualOperationSequenceRef = useRef(0)
+  const operationOwnerRef = useRef(null)
+  const operationSequenceRef = useRef(0)
 
   const updateLocalStation = useCallback((station) => {
     localStationRef.current = station || null
@@ -142,6 +142,36 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     busyJobIdRef.current = value
     setBusyJobId(value)
   }, [])
+
+  const acquireOperation = useCallback((busyKey) => {
+    if (operationOwnerRef.current) return null
+    const owner = {
+      token: ++operationSequenceRef.current,
+      generation: initializationRef.current,
+      busyKey,
+    }
+    operationOwnerRef.current = owner
+    updateBusyJob(busyKey)
+    return owner
+  }, [updateBusyJob])
+
+  const ownsOperation = useCallback((owner) => (
+    operationOwnerRef.current === owner && initializationRef.current === owner?.generation
+  ), [])
+
+  const updateOperationBusyJob = useCallback((owner, jobId) => {
+    if (!ownsOperation(owner)) return false
+    owner.busyKey = jobId
+    updateBusyJob(jobId)
+    return true
+  }, [ownsOperation, updateBusyJob])
+
+  const releaseOperation = useCallback((owner) => {
+    if (!ownsOperation(owner)) return false
+    operationOwnerRef.current = null
+    updateBusyJob(null)
+    return true
+  }, [ownsOperation, updateBusyJob])
 
   const updateConfiguredPrinterName = useCallback((printerName) => {
     const value = String(printerName || '').trim() || null
@@ -369,9 +399,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
     }
   }, [connectPrinter, isRawBt, resolveAuthorizedPort, resolveConfiguredQzPrinter, transportKind])
 
-  const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false } = {}) => {
+  const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false, owner } = {}) => {
     if (!job) return null
-    updateBusyJob(job.id)
+    const operationOwner = owner || acquireOperation(job.id)
+    if (!operationOwner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
+    if (!updateOperationBusyJob(operationOwner, job.id)) return null
     try {
       const result = await runClaimedPrintJob({
         job,
@@ -389,6 +421,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
             ? (_selectedPort, bytes) => printQzRawBytes(qz, configuredPrinterNameRef.current, bytes)
             : (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
       })
+      if (!ownsOperation(operationOwner)) return result
       if (result.status === 'printed') {
         if (transportKind === 'qz') updateTransportReady(true)
         if (transportKind === 'web-serial') updateTransportReady(true)
@@ -406,10 +439,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       }
       return result
     } finally {
-      updateBusyJob(null)
-      try { await refresh() } catch (error) { reportError(error) }
+      if (releaseOperation(operationOwner)) {
+        try { await refresh() } catch (error) { reportError(error) }
+      }
     }
-  }, [isRawBt, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updateTransportReady])
+  }, [acquireOperation, isRawBt, ownsOperation, refresh, releaseOperation, reportError, transportKind, updateBlocked, updateOperationBusyJob, updateTransportReady])
 
   const saveStationSettings = useCallback(async (settings = {}) => {
     const current = localStationRef.current
@@ -491,16 +525,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
   const printTableTab = useCallback(async (tableTabId) => {
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A esta\u00e7\u00e3o de impress\u00e3o ainda n\u00e3o est\u00e1 pronta.')
-    if (busyJobIdRef.current) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
-
-    const owner = {
-      token: ++manualOperationSequenceRef.current,
-      generation: initializationRef.current,
-      busyKey: `table-tab:${tableTabId}`,
-    }
-    manualOperationRef.current = owner
-    updateBusyJob(owner.busyKey)
-    const ownsOperation = () => manualOperationRef.current === owner && initializationRef.current === owner.generation
+    const owner = acquireOperation(`table-tab:${tableTabId}`)
+    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
 
     try {
       const port = await getExplicitPort()
@@ -521,14 +547,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
             ? (_selectedPort, bytes) => printQzRawBytes(qz, configuredPrinterNameRef.current, bytes)
             : (selectedPort, bytes) => writeSerialBytes(selectedPort, bytes, MTP5_PROFILE.serial),
       })
-      if (ownsOperation()) {
+      if (ownsOperation(owner)) {
         if (transportKind === 'qz' || transportKind === 'web-serial') updateTransportReady(true)
         setPrinterState(isRawBt ? 'driver-ready' : 'connected')
         setLastError(null)
       }
       return result
     } catch (error) {
-      if (ownsOperation()) {
+      if (ownsOperation(owner)) {
         if (transportKind !== 'rawbt') updateTransportReady(false)
         setPrinterState(isRawBt ? 'driver-ready' : 'disconnected')
         if (
@@ -539,17 +565,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       }
       throw error
     } finally {
-      if (ownsOperation()) {
-        manualOperationRef.current = null
-        updateBusyJob(null)
-      }
+      releaseOperation(owner)
     }
-  }, [getExplicitPort, getTableTabPreviewDocument, isRawBt, reportError, transportKind, updateBlocked, updateBusyJob, updateTransportReady])
+  }, [acquireOperation, getExplicitPort, getTableTabPreviewDocument, isRawBt, ownsOperation, releaseOperation, reportError, transportKind, updateBlocked, updateTransportReady])
 
   useEffect(() => {
     if (!authenticated) {
       initializationRef.current += 1
-      manualOperationRef.current = null
+      operationOwnerRef.current = null
       updateLocalStation(null)
       setStations([])
       setJobs([])
@@ -664,15 +687,21 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       })) return
 
       if (transportKind === 'rawbt' || transportKind === 'qz') {
+        const owner = acquireOperation('automatic:claim-next')
+        if (!owner) return
         try {
           const response = await claimNextPrintJob(station.id)
           if (!response?.job) return
-          await executeClaimedJob(response.job, null)
+          await executeClaimedJob(response.job, null, { owner })
         } catch (error) {
-          if (error?.code === 'RAWBT_LAUNCH_FAILED' || QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
-          if (transportKind === 'qz') updateTransportReady(false)
-          reportError(error)
-          try { await refresh() } catch { /* next state poll will recover */ }
+          if (ownsOperation(owner)) {
+            if (error?.code === 'RAWBT_LAUNCH_FAILED' || QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
+            if (transportKind === 'qz') updateTransportReady(false)
+            reportError(error)
+            try { await refresh() } catch { /* next state poll will recover */ }
+          }
+        } finally {
+          releaseOperation(owner)
         }
         return
       }
@@ -701,20 +730,26 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onE
       portRef.current = port
       updateTransportReady(true)
 
+      const owner = acquireOperation('automatic:claim-next')
+      if (!owner) return
       try {
         const response = await claimNextPrintJob(station.id)
         if (!response?.job) return
-        await executeClaimedJob(response.job, port)
+        await executeClaimedJob(response.job, port, { owner })
       } catch (error) {
-        if (error?.code === 'SERIAL_OPEN_FAILED') updateBlocked(true)
-        updateTransportReady(false)
-        reportError(error)
-        try { await refresh() } catch { /* next state poll will recover */ }
+        if (ownsOperation(owner)) {
+          if (error?.code === 'SERIAL_OPEN_FAILED') updateBlocked(true)
+          updateTransportReady(false)
+          reportError(error)
+          try { await refresh() } catch { /* next state poll will recover */ }
+        }
+      } finally {
+        releaseOperation(owner)
       }
     }
     const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
     return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [authenticated, executeClaimedJob, isOnline, refresh, reportError, supported, transportKind, updateBlocked, updateTransportReady])
+  }, [acquireOperation, authenticated, executeClaimedJob, isOnline, ownsOperation, refresh, releaseOperation, reportError, supported, transportKind, updateBlocked, updateTransportReady])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()
