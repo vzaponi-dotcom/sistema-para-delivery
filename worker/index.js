@@ -129,7 +129,9 @@ const authenticatedApi = async (request, env) => {
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
     const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
-    return json({ order, movement, tableTab, printJob, tables: await listTables(env.DB, session.businessId) }, { status: 201 })
+    const response = { order, movement, tableTab, printJob }
+    if (order.tableTabId) response.tables = await listTables(env.DB, session.businessId)
+    return json(response, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
   if (statusMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const body = await readJson(request); if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.'); const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1])); if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ order }) }

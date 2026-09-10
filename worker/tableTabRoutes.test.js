@@ -15,6 +15,7 @@ class D1Sqlite {
       CREATE TABLE tables (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, name_key TEXT NOT NULL, sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE table_tabs (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_id TEXT, table_identifier TEXT NOT NULL, tab_number INTEGER NOT NULL, status TEXT NOT NULL, opened_at TEXT NOT NULL, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE table_tab_counters (business_id TEXT PRIMARY KEY, last_number INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL);
+      CREATE TABLE clients (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, phone TEXT, address TEXT);
       CREATE TABLE products (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, category TEXT NOT NULL, size TEXT NOT NULL, presentation_type TEXT, presentation_value TEXT, presentation_unit TEXT, name TEXT NOT NULL, price_cents INTEGER NOT NULL, active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE orders (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_id TEXT, client_name_snapshot TEXT NOT NULL, client_phone_snapshot TEXT NOT NULL DEFAULT '', client_address_snapshot TEXT NOT NULL DEFAULT '', customer_identity_type TEXT NOT NULL, table_tab_id TEXT, type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL, scheduled_for TEXT, promised_payment_date TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, subtotal_cents INTEGER NOT NULL, delivery_fee_cents INTEGER NOT NULL, adjustment_type TEXT NOT NULL, adjustment_mode TEXT NOT NULL, adjustment_value INTEGER NOT NULL, adjustment_amount_cents INTEGER NOT NULL, adjustment_reason TEXT NOT NULL, total_cents INTEGER NOT NULL, created_at TEXT NOT NULL, finished_at TEXT, cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, idempotency_key TEXT NOT NULL);
       CREATE TABLE order_items (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, product_id TEXT, name_snapshot TEXT NOT NULL, category_snapshot TEXT NOT NULL, size_snapshot TEXT NOT NULL, quantity INTEGER NOT NULL, catalog_price_cents INTEGER NOT NULL, unit_price_cents INTEGER NOT NULL, price_reason TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
@@ -61,6 +62,8 @@ const seed = (db) => {
       ('tab-1', 'amor-e-sabor', 'table-1', 'Mesa 1', 1042, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}'),
       ('tab-closed', 'amor-e-sabor', 'table-closed', 'Mesa fechada', 1041, 'closed', '${timestamp}', '${timestamp}', '${timestamp}', '${timestamp}'),
       ('tab-foreign', 'foreign-business', 'foreign-table', 'Mesa estrangeira', 1, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}');
+    INSERT INTO table_tab_counters VALUES ('amor-e-sabor', 1042, '${timestamp}');
+    INSERT INTO clients VALUES ('client-1', 'amor-e-sabor', 'Maria', '11999999999', 'Rua A');
     INSERT INTO products VALUES ('product-1', 'amor-e-sabor', 'Lanches', 'Un', 'unit', '', '', 'X-Burger', 2500, 1, '${timestamp}', '${timestamp}');
     INSERT INTO orders VALUES ('order-1', 'amor-e-sabor', NULL, 'Mesa 1', '', '', 'table', 'tab-1', 'Local', '2026-09-10', 'Em preparo', NULL, NULL, 0, 2500, 0, 'none', 'fixed', 0, 0, '', 2500, '${timestamp}', NULL, NULL, NULL, NULL, 'seed-order');
     INSERT INTO order_items VALUES ('item-1', 'amor-e-sabor', 'order-1', 'product-1', 'X-Burger', 'Lanches', 'Un', 1, 2500, 2500, '', 'sem cebola', '${timestamp}');
@@ -125,23 +128,62 @@ test('table tab reads require a session and do not leak closed, missing, or fore
   assert.equal((await request(env, cookie, 'GET', '/api/table-tabs/tab-1', { origin: false })).status, 200)
 })
 
-test('local order and table tab payment return the authoritative occupied then free table lists', async () => {
+test('delivery checkout retains its response contract without reading tables', async () => {
   const { env, cookie } = await authenticated()
+  env.DB.sqlite.exec('DROP TABLE tables')
   const orderDate = getBusinessDate(new Date())
   const created = await request(env, cookie, 'POST', '/api/orders', {
-    idempotencyKey: 'local-order-response',
+    idempotencyKey: 'delivery-order-response',
     body: {
-      customerIdentity: { type: 'table', tableId: 'table-1' },
-      type: 'Local', orderDate, items: [{ productId: 'product-1', quantity: 1, note: '' }],
+      customerIdentity: { type: 'registered_client', clientId: 'client-1' },
+      type: 'Entrega', orderDate, items: [{ productId: 'product-1', quantity: 1, note: '' }],
       deliveryFee: 0, adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
     },
   })
   assert.equal(created.status, 201)
   const createdPayload = await created.json()
-  assert.equal(createdPayload.tables.find((table) => table.id === 'table-1').occupancy, 'occupied')
+  assert.equal(Object.hasOwn(createdPayload, 'tables'), false)
+  assert.equal(createdPayload.order.type, 'Entrega')
+  assert.equal(createdPayload.movement, null)
+  assert.equal(createdPayload.tableTab, null)
+  assert.equal(createdPayload.printJob, null)
+})
 
-  const paid = await request(env, cookie, 'POST', '/api/table-tabs/tab-1/payment', { body: { method: 'Pix' } })
+test('a local order opens a fresh stable tab and returns its occupied pending summary before payment', async () => {
+  const { env, cookie } = await authenticated()
+  env.DB.sqlite.prepare(`INSERT INTO tables VALUES (
+    'table-2', 'amor-e-sabor', 'Mesa 2', 'MESA 2', 2, 1, ?, ?
+  )`).run(timestamp, timestamp)
+  const initialTable = (await (await import('./tableRepository.js')).listTables(env.DB, 'amor-e-sabor'))
+    .find((table) => table.id === 'table-2')
+  assert.deepEqual(initialTable, {
+    id: 'table-2', name: 'Mesa 2', sortOrder: 2, isActive: true,
+    occupancy: 'free', openTableTabId: null, openTableTab: null,
+  })
+
+  const created = await request(env, cookie, 'POST', '/api/orders', {
+    idempotencyKey: 'fresh-local-order',
+    body: {
+      customerIdentity: { type: 'table', tableId: 'table-2' },
+      type: 'Local', orderDate: getBusinessDate(new Date()),
+      items: [{ productId: 'product-1', quantity: 1, note: '' }],
+      deliveryFee: 0, adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    },
+  })
+  assert.equal(created.status, 201)
+  const createdPayload = await created.json()
+  assert.equal(createdPayload.tableTab.tableId, 'table-2')
+  assert.equal(createdPayload.tableTab.tabNumber, 1043)
+  const occupied = createdPayload.tables.find((table) => table.id === 'table-2')
+  assert.deepEqual(occupied.openTableTab, {
+    id: createdPayload.tableTab.id, number: 1043, openedAt: createdPayload.tableTab.openedAt,
+    orderCount: 1, itemCount: 1, totalCents: 2500,
+  })
+  assert.equal(occupied.occupancy, 'occupied')
+  assert.equal(occupied.openTableTabId, createdPayload.tableTab.id)
+
+  const paid = await request(env, cookie, 'POST', `/api/table-tabs/${createdPayload.tableTab.id}/payment`, { body: { method: 'Pix' } })
   assert.equal(paid.status, 201)
   const paidPayload = await paid.json()
-  assert.equal(paidPayload.tables.find((table) => table.id === 'table-1').occupancy, 'free')
+  assert.equal(paidPayload.tables.find((table) => table.id === 'table-2').occupancy, 'free')
 })
