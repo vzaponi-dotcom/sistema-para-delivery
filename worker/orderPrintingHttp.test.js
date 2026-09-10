@@ -45,6 +45,8 @@ class D1Sqlite {
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
         default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT,
         qz_ready INTEGER NOT NULL DEFAULT 0, printer_ready INTEGER NOT NULL DEFAULT 0, last_ready_at TEXT,
+        physical_state TEXT NOT NULL DEFAULT 'verifying', physical_status_text TEXT, physical_status_code TEXT,
+        physical_status_at TEXT, last_offline_at TEXT, recovery_state TEXT NOT NULL DEFAULT 'normal', recovery_pending_at TEXT,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
@@ -316,8 +318,10 @@ test('HTTP manual lifecycle preserves a future automatic job unchanged', async (
       const heartbeat = await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, {
         qzReady: true,
         printerReady: true,
+        physicalState: 'ready',
       })
       assert.equal(heartbeat.status, 200)
+      await jsonRequest('/api/printing/stations/primary/recovery', 'POST', cookie, { state: 'normal' })
       return await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'primary' })
     } finally {
       globalThis.Date = SystemDate
@@ -357,6 +361,7 @@ test('claim-next rejects a secondary station and accepts only the primary automa
   const heartbeat = await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, {
     qzReady: true,
     printerReady: true,
+    physicalState: 'ready',
   })
   assert.equal(heartbeat.status, 200)
 
@@ -372,7 +377,7 @@ test('force-print authorized finalized automatic job can be claimed by the QZ st
     name: 'PC', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
   })
   await jsonRequest('/api/printing/stations/primary/make-primary', 'POST', cookie)
-  await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true })
+  await jsonRequest('/api/printing/stations/primary/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true, physicalState: 'ready' })
   currentEnv.DB.sqlite.prepare(`UPDATE orders SET status = 'Finalizado' WHERE id = 'o1'`).run()
   currentEnv.DB.sqlite.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed, station_id,
@@ -504,7 +509,7 @@ test('HTTP second-copy request resumes and completes the same job without creati
   const cookie = await loginCookie(currentEnv)
   await jsonRequest('/api/printing/stations/qz', 'PUT', cookie, { name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2 })
   await jsonRequest('/api/printing/stations/qz/make-primary', 'POST', cookie)
-  await jsonRequest('/api/printing/stations/qz/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true })
+  await jsonRequest('/api/printing/stations/qz/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true, physicalState: 'ready' })
   const created = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })
   const original = (await created.json()).job
   await jsonRequest(`/api/printing/jobs/${original.id}/claim`, 'POST', cookie, { stationId: 'qz' })
@@ -532,7 +537,7 @@ test('HTTP second-copy skip is terminal, authenticated, and business isolated', 
   const cookie = await loginCookie(currentEnv)
   await jsonRequest('/api/printing/stations/qz', 'PUT', cookie, { name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2 })
   await jsonRequest('/api/printing/stations/qz/make-primary', 'POST', cookie)
-  await jsonRequest('/api/printing/stations/qz/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true })
+  await jsonRequest('/api/printing/stations/qz/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true, physicalState: 'ready' })
   const original = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })).json()).job
   await jsonRequest(`/api/printing/jobs/${original.id}/claim`, 'POST', cookie, { stationId: 'qz' })
   await jsonRequest(`/api/printing/jobs/${original.id}/complete`, 'POST', cookie, { stationId: 'qz', copiesPrinted: 1 })
@@ -551,4 +556,84 @@ test('HTTP second-copy skip is terminal, authenticated, and business isolated', 
   assert.equal(job.copiesPrinted, 1)
   assert.ok(job.secondCopySkippedAt)
   assert.equal((await (await jsonRequest('/api/printing/jobs/claim-next', 'POST', cookie, { stationId: 'qz' })).json()).job, null)
+})
+
+test('operational printing API exposes scoped views and physical attempt routes with correlation boundaries', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  await jsonRequest('/api/printing/stations/s1', 'PUT', cookie, { name: 'Cozinha', platform: 'windows', autoPrintEnabled: true, defaultCopies: 1 })
+  await jsonRequest('/api/printing/stations/s1/make-primary', 'POST', cookie)
+  const offline = await jsonRequest('/api/printing/stations/s1/heartbeat', 'POST', cookie, {
+    qzReady: true, printerReady: true, physicalState: 'printer_offline',
+  })
+  assert.equal((await offline.json()).station.health.ready, false)
+  const health = await jsonRequest('/api/printing/stations/s1/heartbeat', 'POST', cookie, {
+    qzReady: true, printerReady: true, physicalState: 'ready', physicalStatusText: 'online', physicalStatusCode: 200,
+  })
+  assert.equal(health.status, 200)
+  assert.equal((await health.json()).station.health.ready, true)
+  const invalidHealth = await jsonRequest('/api/printing/stations/s1/heartbeat', 'POST', cookie, { qzReady: true, printerReady: true, ignored: true })
+  assert.equal(invalidHealth.status, 400)
+
+  const created = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })
+  const job = (await created.json()).job
+  const jobs = await jsonRequest('/api/printing/jobs?scope=operational&page=0&pageSize=99&sortBy=invalid&sortDir=up&status=&trigger=&search=', 'GET', cookie)
+  const jobsBody = await jobs.json()
+  assert.equal(jobs.status, 200)
+  assert.deepEqual(Object.keys(jobsBody).sort(), ['jobs', 'pageInfo'])
+  assert.deepEqual(Object.keys(jobsBody.pageInfo).sort(), ['page', 'pageSize', 'totalItems', 'totalPages'])
+  assert.equal(jobsBody.pageInfo.page, 1)
+  assert.equal(jobsBody.pageInfo.pageSize, 10)
+  assert.ok(jobsBody.jobs.some((item) => item.id === job.id))
+  const summary = await jsonRequest('/api/printing/jobs/summary', 'GET', cookie)
+  assert.deepEqual(Object.keys((await summary.json()).summary).sort(), ['attention', 'awaitingConfirmation', 'awaitingSecondCopy', 'completedToday', 'pending', 'safeBacklog'].sort())
+
+  const forbidden = await handleRequest(new Request(`https://delivery.example/api/printing/jobs/${job.id}/attempts`, {
+    method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ stationId: 's1', copyNumber: 1 }),
+  }), currentEnv)
+  assert.equal(forbidden.status, 403)
+
+  await jsonRequest(`/api/printing/jobs/${job.id}/claim`, 'POST', cookie, { stationId: 's1' })
+  const attemptResponse = await jsonRequest(`/api/printing/jobs/${job.id}/attempts`, 'POST', cookie, { stationId: 's1', copyNumber: 1 })
+  assert.equal(attemptResponse.status, 201)
+  const attempt = (await attemptResponse.json()).attempt
+  const submitting = await jsonRequest(`/api/printing/attempts/${attempt.id}/submitting`, 'POST', cookie, { stationId: 's1' })
+  assert.equal((await submitting.json()).attempt.status, 'submitting')
+
+  await jsonRequest('/api/printing/stations/s2', 'PUT', cookie, { name: 'Caixa', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1 })
+  const wrongStation = await jsonRequest(`/api/printing/attempts/${attempt.id}/events`, 'POST', cookie, {
+    stationId: 's2', event: { type: 'SPOOLING', jobName: attempt.spoolJobName, spoolJobId: 1 },
+  })
+  assert.equal(wrongStation.status, 409)
+  assert.equal((await wrongStation.json()).error.code, 'PRINT_ATTEMPT_STATION_MISMATCH')
+  const otherSession = await createSession(currentEnv, 'other-business')
+  const otherCookie = sessionCookie(otherSession.token, 3600).split(';')[0]
+  const otherBusiness = await jsonRequest(`/api/printing/attempts/${attempt.id}/events`, 'POST', otherCookie, {
+    stationId: 's1', event: { type: 'SPOOLING', jobName: attempt.spoolJobName, spoolJobId: 1 },
+  })
+  assert.equal(otherBusiness.status, 404)
+
+  const badName = await jsonRequest(`/api/printing/attempts/${attempt.id}/events`, 'POST', cookie, {
+    stationId: 's1', event: { type: 'SPOOLING', jobName: 'other', spoolJobId: 1 },
+  })
+  assert.equal(badName.status, 409)
+  assert.equal((await badName.json()).error.code, 'PRINT_ATTEMPT_JOB_NAME_MISMATCH')
+  const unknown = await jsonRequest(`/api/printing/attempts/${attempt.id}/events`, 'POST', cookie, {
+    stationId: 's1', event: { type: 'OFFLINE', jobName: attempt.spoolJobName, spoolJobId: 1 },
+  })
+  assert.equal((await unknown.json()).attempt.status, 'unknown')
+  const resolved = await jsonRequest(`/api/printing/jobs/${job.id}/resolve-outcome`, 'POST', cookie, {
+    attemptId: attempt.id, resolution: 'manual_not_printed', actorLabel: 'Caixa 1',
+  })
+  assert.equal((await resolved.json()).attempt.resolution, 'manual_not_printed')
+
+  const recoveryJob = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })).json()).job
+  assert.equal((await jsonRequest('/api/printing/stations/s1/recovery', 'POST', cookie, { state: 'pending' })).status, 200)
+  assert.equal((await jsonRequest('/api/printing/stations/s1/recovery', 'POST', cookie, { state: 'active' })).status, 200)
+  const recovered = await jsonRequest('/api/printing/jobs/claim-recovery-next', 'POST', cookie, { stationId: 's1' })
+  assert.equal((await recovered.json()).job.id, recoveryJob.id)
+
+  const pending = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })).json()).job
+  const discarded = await jsonRequest('/api/printing/jobs/discard-pending', 'POST', cookie, { actorLabel: 'Caixa 1' })
+  assert.ok((await discarded.json()).jobs.some((item) => item.id === pending.id))
 })

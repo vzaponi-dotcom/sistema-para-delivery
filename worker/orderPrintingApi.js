@@ -8,6 +8,7 @@ import {
   createTestPrintJob,
   discardPrintJob,
   forcePrintJob,
+  getPrintQueueSummary,
   heartbeatPrintStation,
   listPrintJobs,
   listPrintStations,
@@ -20,10 +21,19 @@ import {
   retryPrintJob,
   requestSecondCopy,
   saveBusinessPrintSettings,
+  setPrintRecoveryState,
   setPrimaryPrintStation,
   upsertPrintStation,
   skipSecondCopy,
+  claimNextRecoveryPrintJob,
+  discardPendingPrintJobs,
 } from './orderPrintingRepository.js'
+import {
+  createPrintJobAttempt,
+  markPrintAttemptSubmitting,
+  recordPrintAttemptEvent,
+  resolveUnknownPrintAttempt,
+} from './printAttemptRepository.js'
 import { getConfiguredQzCertificate, signQzPayload } from './qzSigning.js'
 
 const requiredText = (value, field, message = `${field} é obrigatório.`) => {
@@ -96,14 +106,20 @@ export const handlePrintingApi = async (request, env, session, url) => {
     assertSameOriginMutation(request)
     const body = await readJson(request)
     const keys = Object.keys(body).sort()
-    if (keys.some((key) => !['printerReady', 'qzReady'].includes(key))) {
-      throw apiError(400, 'INVALID_PRINT_STATION_HEALTH', 'Informe somente qzReady e printerReady.')
+    if (keys.some((key) => !['physicalState', 'physicalStatusCode', 'physicalStatusText', 'printerReady', 'qzReady'].includes(key))) {
+      throw apiError(400, 'INVALID_PRINT_STATION_HEALTH', 'Informe somente os campos aprovados de saúde da impressora.')
     }
     const station = await heartbeatPrintStation(
       env.DB,
       businessId,
       decodeURIComponent(heartbeatMatch[1]),
-      { qzReady: Boolean(body.qzReady), printerReady: Boolean(body.printerReady) },
+      {
+        qzReady: Boolean(body.qzReady),
+        printerReady: Boolean(body.printerReady) && body.physicalState === 'ready',
+        ...(Object.hasOwn(body, 'physicalState') ? { physicalState: body.physicalState } : {}),
+        ...(Object.hasOwn(body, 'physicalStatusText') ? { physicalStatusText: body.physicalStatusText } : {}),
+        ...(Object.hasOwn(body, 'physicalStatusCode') ? { physicalStatusCode: body.physicalStatusCode } : {}),
+      },
     )
     return json({ station })
   }
@@ -131,8 +147,25 @@ export const handlePrintingApi = async (request, env, session, url) => {
 
   if (url.pathname === '/api/printing/jobs' && request.method === 'GET') {
     const orderId = url.searchParams.get('orderId') || ''
-    const limit = Number(url.searchParams.get('limit') || 100)
-    return json({ jobs: await listPrintJobs(env.DB, businessId, { orderId, limit }) })
+    if (orderId) {
+      const limit = Number(url.searchParams.get('limit') || 100)
+      const jobs = await listPrintJobs(env.DB, businessId, { orderId, limit })
+      return json({ jobs, pageInfo: { page: 1, pageSize: jobs.length, totalItems: jobs.length, totalPages: 1 } })
+    }
+    return json(await listPrintJobs(env.DB, businessId, {
+      scope: url.searchParams.get('scope') || 'operational',
+      page: url.searchParams.get('page'),
+      pageSize: url.searchParams.get('pageSize'),
+      sortBy: url.searchParams.get('sortBy') || '',
+      sortDir: url.searchParams.get('sortDir') || '',
+      status: url.searchParams.get('status') || '',
+      trigger: url.searchParams.get('trigger') || '',
+      search: url.searchParams.get('search') || '',
+    }))
+  }
+
+  if (url.pathname === '/api/printing/jobs/summary' && request.method === 'GET') {
+    return json({ summary: await getPrintQueueSummary(env.DB, businessId) })
   }
 
   const manualOrderMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/print-jobs$/)
@@ -167,6 +200,58 @@ export const handlePrintingApi = async (request, env, session, url) => {
     const body = await readJson(request)
     const job = await claimNextPrintJob(env.DB, businessId, stationIdFromBody(body))
     return json({ job })
+  }
+
+  if (url.pathname === '/api/printing/jobs/claim-recovery-next' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ job: await claimNextRecoveryPrintJob(env.DB, businessId, stationIdFromBody(body)) })
+  }
+
+  if (url.pathname === '/api/printing/jobs/discard-pending' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ jobs: await discardPendingPrintJobs(env.DB, businessId, body.actorLabel) })
+  }
+
+  const recoveryMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)\/recovery$/)
+  if (recoveryMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ station: await setPrintRecoveryState(env.DB, businessId, decodeURIComponent(recoveryMatch[1]), body.state) })
+  }
+
+  const createAttemptMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/attempts$/)
+  if (createAttemptMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    const attempt = await createPrintJobAttempt(env.DB, businessId, {
+      jobId: decodeURIComponent(createAttemptMatch[1]), stationId: stationIdFromBody(body), copyNumber: Number(body.copyNumber),
+    })
+    return json({ attempt }, { status: 201 })
+  }
+
+  const submittingAttemptMatch = url.pathname.match(/^\/api\/printing\/attempts\/([^/]+)\/submitting$/)
+  if (submittingAttemptMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ attempt: await markPrintAttemptSubmitting(env.DB, businessId, decodeURIComponent(submittingAttemptMatch[1]), stationIdFromBody(body)) })
+  }
+
+  const eventAttemptMatch = url.pathname.match(/^\/api\/printing\/attempts\/([^/]+)\/events$/)
+  if (eventAttemptMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ attempt: await recordPrintAttemptEvent(env.DB, businessId, decodeURIComponent(eventAttemptMatch[1]), stationIdFromBody(body), body.event) })
+  }
+
+  const resolveOutcomeMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/resolve-outcome$/)
+  if (resolveOutcomeMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json({ attempt: await resolveUnknownPrintAttempt(
+      env.DB, businessId, decodeURIComponent(resolveOutcomeMatch[1]), requiredText(body.attemptId, 'attemptId'), body.resolution, body.actorLabel,
+    ) })
   }
 
   const secondCopyPromptMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/second-copy-prompt$/)
