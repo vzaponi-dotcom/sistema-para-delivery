@@ -4,10 +4,68 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { getEventListeners } from 'node:events'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from '../test-support/renderWorkspace.js'
+import { comandaDetail, deferred, detailResponse } from '../test-support/comandaFixtures.js'
 
 const currency = (value) => `R$ ${value.toFixed(2)}`
 const list = (renderer) => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' })
 const detail = (renderer) => renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })
+
+test('detail loading, actionable error and retry never pass list totals off as payable detail', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const pending = deferred()
+  globalThis.fetch = () => pending.promise
+  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency })
+  assert.match(nodeText(detail(r)), /Carregando/)
+  assert.equal(buttonNamed(detail(r), 'Registrar pagamento'), undefined)
+  await act(async () => pending.reject(new Error('Falha de rede')))
+  assert.match(nodeText(detail(r)), /Falha de rede/)
+  assert.ok(detail(r).findByProps({ role: 'alert' }))
+  globalThis.fetch = async () => detailResponse()
+  await act(async () => buttonNamed(detail(r), 'Tentar novamente').props.onClick())
+  assert.match(nodeText(detail(r)), /Sem cebola/)
+})
+
+for (const mobile of [false, true]) test(`new selection and same-total official refresh ignore old detail success/error (${mobile})`, async (t) => {
+  const h = await workspaceHarness(t, { mobile })
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const pending = []
+  globalThis.fetch = (path) => { const p = deferred(); pending.push({ ...p, path }); return p.promise }
+  const tables = [...workspaceTables, { id: 'other', name: 'Terraço', isActive: true, occupancy: 'occupied', sortOrder: 4, openTableTab: { id: 'tab-43', number: 43, itemCount: 3, orderCount: 2, totalCents: 12345 } }]
+  function Workspace({ tables }) {
+    const [selectedTableId, onSelectTable] = React.useState('occupied')
+    return React.createElement(Comandas, { tables, selectedTableId, onSelectTable, currency })
+  }
+  const r = await h.render(Workspace, { tables })
+  assert.equal(pending[0]?.path, '/api/table-tabs/tab-42')
+  await act(async () => list(r).findAllByType('button').at(-1).props.onClick())
+  assert.equal(pending[1]?.path, '/api/table-tabs/tab-43')
+  const other = { ...comandaDetail, id: 'tab-43', number: 43, table: { id: 'other', name: 'Terraço' }, items: [{ ...comandaDetail.items[0], note: 'Sem sal' }] }
+  await act(async () => pending[1].resolve(detailResponse(other)))
+  await act(async () => pending[0].resolve(detailResponse()))
+  assert.match(nodeText(detail(r)), /Comanda 43.*Terraço.*Sem sal/)
+  assert.doesNotMatch(nodeText(detail(r)), /Sem cebola/)
+  await act(async () => r.update(React.createElement(Workspace, { tables: [...tables] })))
+  assert.equal(pending.length, 3, 'same-total official refresh must refresh notes/options too')
+  assert.ok(buttonNamed(detail(r), 'Registrar pagamento').props.disabled)
+  await act(async () => r.update(React.createElement(Workspace, { tables: [...tables] })))
+  await act(async () => pending[3].resolve(detailResponse({ ...other, items: [{ ...other.items[0], note: 'Molho separado' }] })))
+  await act(async () => pending[2].reject(new Error('Erro antigo')))
+  assert.match(nodeText(detail(r)), /Molho separado/)
+  assert.doesNotMatch(nodeText(detail(r)), /Erro antigo/)
+})
+
+for (const kind of ['closed', 'foreign', 'transferred', 'replaced']) test(`unavailable ${kind} detail cannot expose writes or overwrite current selection`, async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  globalThis.fetch = async () => kind === 'foreign'
+    ? { ok: false, status: 404, json: async () => ({ error: { message: 'Comanda aberta não encontrada.' } }) }
+    : detailResponse({ ...comandaDetail, ...(kind === 'closed' ? { status: 'closed' } : kind === 'transferred' ? { table: { id: 'other', name: 'Mesa externa' } } : { id: 'replacement' }) })
+  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency })
+  assert.ok(detail(r).findByProps({ role: 'alert' }))
+  assert.equal(buttonNamed(detail(r), 'Registrar pagamento'), undefined)
+  assert.doesNotMatch(nodeText(detail(r)), /Sem cebola|Mesa externa/)
+})
 
 test('active tables retain official ordering, textual occupancy and stable comanda summaries', async (t) => {
   const harness = await workspaceHarness(t)
@@ -74,6 +132,7 @@ test('official refresh updates totals and clears obsolete detail when a table be
   const props = { tables: workspaceTables, selectedTableId: 'occupied', currency }
   const renderer = await harness.render(Comandas, props)
   const updated = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { ...table.openTableTab, itemCount: 1, totalCents: 2500 } } : table)
+  globalThis.fetch = async () => detailResponse({ ...comandaDetail, itemCount: 1, totalCents: 2500 })
   await act(async () => renderer.update(React.createElement(Comandas, { ...props, tables: updated })))
   assert.match(nodeText(detail(renderer)), /Comanda 42.*1 item.*R\$ 25.00/)
   for (const change of [{ occupancy: 'free', openTableTab: null }, { isActive: false }]) {

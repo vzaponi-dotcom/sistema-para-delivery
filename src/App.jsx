@@ -18,6 +18,7 @@ import MovementDialog from './components/MovementDialog'
 import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
 import SystemSelect from './components/SystemSelect'
+import { PAYMENT_METHOD_OPTIONS } from './utils/paymentMethodOptions.js'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
 import { NewOrderRoute, tableTabsFromBootstrap } from './pages/NewOrderRoute'
@@ -71,7 +72,6 @@ import {
   transferTableTab as transferTableTabApi,
 } from './api/client'
 
-const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro'].map((value) => ({ value, label: value }))
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
@@ -138,6 +138,9 @@ function App() {
   const bootstrapSyncInFlightRef = useRef(false)
   const ordersSyncInFlightRef = useRef(false)
   const newOrderOwnerRef = useRef(0)
+  const tableTabPaymentRef = useRef(null)
+  const comandaSelectionRef = useRef(0)
+  const refreshAfterPaymentRef = useRef(false)
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
@@ -149,6 +152,9 @@ function App() {
   const secondCopyPromptOrderNumber = String(secondCopyPromptOrder?.id || secondCopyPromptJob?.orderId || '').slice(-4)
 
   const resetSyncState = () => {
+    tableTabPaymentRef.current = null
+    refreshAfterPaymentRef.current = false
+    comandaSelectionRef.current += 1
     syncGuardRef.current = createCollectionSyncGuard(DATA_COLLECTIONS)
     bootstrapSyncInFlightRef.current = false
     ordersSyncInFlightRef.current = false
@@ -216,18 +222,29 @@ function App() {
   const refreshBootstrap = async ({ background = false } = {}) => {
     if (bootstrapSyncInFlightRef.current) return false
     bootstrapSyncInFlightRef.current = true
-    const token = syncGuardRef.current.beginRead(DATA_COLLECTIONS)
+    const guard = syncGuardRef.current
+    const token = guard.beginRead(DATA_COLLECTIONS)
     if (!background) setBootstrapState('loading')
     try {
       const data = await getBootstrapApi()
+      if (guard !== syncGuardRef.current) return false
       applyBootstrapCollections(data, token)
       if (!background) setBootstrapState('ready')
       return true
     } catch (error) {
+      if (guard !== syncGuardRef.current) return false
       if (error?.status === 401) expireSession()
       else if (!background) setBootstrapState('error')
       return false
-    } finally { bootstrapSyncInFlightRef.current = false }
+    } finally {
+      if (guard === syncGuardRef.current) {
+        bootstrapSyncInFlightRef.current = false
+        if (refreshAfterPaymentRef.current) {
+          refreshAfterPaymentRef.current = false
+          void refreshBootstrapSilently()
+        }
+      }
+    }
   }
   const refreshBootstrapSilently = () => refreshBootstrap({ background: true })
 
@@ -468,7 +485,43 @@ function App() {
   const openPaymentModal = (orderId) => { if (writesBlocked) return; const order = orders.find((item) => item.id === orderId); if (!order || isOrderPaid(order) || isOrderCancelled(order)) return; setPaymentOrderId(orderId); setPaymentMethod('Pix') }
   const closePaymentModal = () => { setPaymentOrderId(null); setPaymentMethod('Pix') }
   const handleRegisterPayment = async (event) => { event.preventDefault(); if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return; setRequestKey(`payment:${paymentOrder.id}`); try { const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod); applyOfficialEffects({ order, movement, tableTab }); closePaymentModal(); showSuccessMessage(`Pagamento recebido via ${paymentMethod}`) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleRegisterTableTabPayment = async (tableTabId, method) => { if (writesBlocked) return false; setRequestKey(`table-tab:payment:${tableTabId}`); try { const result = await registerTableTabPaymentApi(tableTabId, method); applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab }); showSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(result.tableTab.tableIdentifier)} recebido via ${method}`); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleRegisterTableTabPayment = async (tableTabId, method) => {
+    const selected = tables.find((table) => table.id === selectedComandaTableId && table.isActive && table.openTableTab?.id === tableTabId)
+    if (writesBlocked || tableTabPaymentRef.current || !selected) return false
+    const guard = syncGuardRef.current
+    const collections = ['orders', 'movements', 'tableTabs', 'tables']
+    const token = guard.beginRead(collections)
+    const owner = { selection: comandaSelectionRef.current }
+    tableTabPaymentRef.current = owner
+    const ownsRequest = () => syncGuardRef.current === guard && tableTabPaymentRef.current === owner
+    const reconcile = async () => {
+      if (bootstrapSyncInFlightRef.current) refreshAfterPaymentRef.current = true
+      else await refreshBootstrapSilently()
+    }
+    setRequestKey(`table-tab:payment:${tableTabId}`)
+    try {
+      const result = await registerTableTabPaymentApi(tableTabId, method)
+      if (!ownsRequest()) return false
+      if (collections.every((key) => guard.canApply(token, key))) {
+        applyOfficialEffects({ orders: result.orders, movements: result.movements, tableTab: result.tableTab, tables: result.tables })
+        if (owner.selection === comandaSelectionRef.current) setSelectedComandaTableId(null)
+      } else {
+        // A newer official read/mutation owns the collections. Read again after
+        // settlement rather than replacing that snapshot with an older payment.
+        await reconcile()
+      }
+      if (!ownsRequest()) return false
+      if (owner.selection === comandaSelectionRef.current) showSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(result.tableTab.tableIdentifier)} recebido via ${method}`)
+      return true
+    } catch (error) {
+      if (!ownsRequest()) return false
+      if (owner.selection === comandaSelectionRef.current) showApiError(error)
+      if (error.status === 409 && ownsRequest()) await reconcile()
+      return false
+    } finally {
+      if (ownsRequest()) { tableTabPaymentRef.current = null; setRequestKey(null) }
+    }
+  }
   const handleCreateTable = async (name) => {
     if (writesBlocked) return false
     setRequestKey('table:create')
@@ -605,7 +658,7 @@ function App() {
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
-        {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} onSelectTable={setSelectedComandaTableId} onAddOrder={(tableId) => handleNewOrder({ tableId, returnTab: 'comandas' })} currency={currency} disabled={writesBlocked} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} onSelectTable={(id) => { comandaSelectionRef.current += 1; setSelectedComandaTableId(id) }} onAddOrder={(tableId) => handleNewOrder({ tableId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} currency={currency} disabled={writesBlocked} />}
 
         {pendingNavigationTab && (
           <Modal title="Descartar venda em andamento?" onClose={cancelDiscardNewOrder}>

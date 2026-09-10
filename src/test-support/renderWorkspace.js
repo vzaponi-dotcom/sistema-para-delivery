@@ -1,6 +1,7 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { createServer } from 'vite'
+import { detailResponse } from './comandaFixtures.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 export const nodeText = (node) => typeof node === 'string' ? node : (node.children || []).map(nodeText).join('')
@@ -14,12 +15,17 @@ export async function workspaceHarness(t, { mobile = false } = {}) {
   const localStorage = { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }
   const window = Object.assign(new EventTarget(), {
     matchMedia: () => media, localStorage, setInterval: () => 1, clearInterval: () => {},
-    setTimeout, clearTimeout, atob, btoa, scrollY: 0, scrollTo: () => {},
+    setTimeout, clearTimeout, atob, btoa, scrollY: 0, scrollTo: () => {}, requestAnimationFrame: (fn) => fn(),
   })
   const document = Object.assign(new EventTarget(), {
     visibilityState: 'visible', body: { style: {} }, querySelectorAll: () => [], activeElement: null,
   })
   const saved = new Map()
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (path) => {
+    if (path === '/api/table-tabs/tab-42') return detailResponse()
+    throw new Error(`Unexpected request: ${path}`)
+  }
   for (const [key, value] of Object.entries({ window, document, localStorage, navigator: { onLine: true, userAgent: 'test' } })) {
     saved.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
@@ -38,6 +44,7 @@ export async function workspaceHarness(t, { mobile = false } = {}) {
   t.after(async () => {
     for (const renderer of renderers) await act(async () => renderer.unmount())
     await vite.close()
+    globalThis.fetch = originalFetch
     for (const [key, descriptor] of saved) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor)
       else delete globalThis[key]

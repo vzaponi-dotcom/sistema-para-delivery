@@ -1,14 +1,59 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import '../comandas.css'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 import { useMediaQuery } from '../hooks/useMediaQuery.js'
+import ComandaDetail from '../components/ComandaDetail'
+import TableTabPaymentDialog from '../components/TableTabPaymentDialog'
+import { getTableTabDetail } from '../api/client.js'
 
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const itemSummary = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
 
-function Comandas({ tables = [], selectedTableId, onSelectTable, onAddOrder, currency = defaultCurrency, disabled = false }) {
+function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay, onApiError }) {
+  const [snapshot, setSnapshot] = useState(null)
+  const [retry, setRetry] = useState(0)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const errorHandler = useRef(onApiError)
+  useLayoutEffect(() => { errorHandler.current = onApiError }, [onApiError])
+  const tabId = table.openTableTab?.id
+  const tableId = table.id
+  useEffect(() => {
+    let cancelled = false
+    if (!tabId) return undefined
+    const load = async () => {
+      try {
+        const { tableTab } = await getTableTabDetail(tabId)
+        if (cancelled) return
+        if (!tableTab || tableTab.id !== tabId || tableTab.status !== 'open' || tableTab.table?.id !== tableId) {
+          throw new Error('Comanda indisponível, encerrada ou transferida. Atualize a consulta.')
+        }
+        setSnapshot({ tables, retry, detail: tableTab })
+      } catch (error) {
+        if (cancelled) return
+        setSnapshot({ tables, retry, error: error.message || 'Não foi possível carregar a comanda.' })
+        setPaymentOpen(false)
+        if (error.status === 401) errorHandler.current?.(error)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [tabId, tableId, tables, retry])
+  const current = snapshot?.tables === tables && snapshot?.retry === retry
+  const detail = snapshot?.detail
+  if (!tabId) return <p role="alert">Comanda indisponível. Aguarde a atualização das mesas.</p>
+  return (
+    <>
+      {!current && <p role="status">{detail ? 'Atualizando comanda…' : 'Carregando comanda…'}</p>}
+      {current && snapshot.error && <div role="alert"><p>{snapshot.error}</p><Button type="button" onClick={() => setRetry((value) => value + 1)}>Tentar novamente</Button></div>}
+      {detail && <ComandaDetail detail={detail} labelledBy="comanda-heading" currency={currency} disabled={disabled} busyAction={!current} onAddOrder={() => onAddOrder?.(tableId)} onPay={() => setPaymentOpen(true)} />}
+      <TableTabPaymentDialog open={paymentOpen} detail={detail} currency={currency} disabled={disabled || !current} onClose={() => setPaymentOpen(false)} onConfirm={onPay} />
+    </>
+  )
+}
+
+function Comandas({ tables = [], selectedTableId, onSelectTable, onAddOrder, onPay, onApiError, currency = defaultCurrency, disabled = false }) {
   const activeTables = tables.filter((table) => table.isActive).sort((left, right) => left.sortOrder - right.sortOrder)
   const selectedTable = activeTables.find((table) => table.id === selectedTableId && table.occupancy === 'occupied') || null
   const [mobileDetailOpen, setMobileDetailOpen] = useState(Boolean(selectedTable))
@@ -82,10 +127,8 @@ function Comandas({ tables = [], selectedTableId, onSelectTable, onAddOrder, cur
           {selectedTable ? (
             <>
               <Button type="button" variant="secondary" className="comandas-mobile-back" ref={backButtonRef} onClick={() => setMobileDetailOpen(false)}>Voltar para mesas</Button>
-              <h2 ref={detailHeadingRef} tabIndex={-1}>{selectedTable.openTableTab ? `Comanda ${selectedTable.openTableTab.number}` : 'Comanda aberta'}</h2>
-              <div className="comanda-table-heading"><strong>{selectedTable.name}</strong><span className="comanda-status occupied">Ocupada</span></div>
-              {selectedTable.openTableTab ? <div className="comanda-summary"><span>{itemSummary(selectedTable.openTableTab.itemCount)}</span><strong>{currency(selectedTable.openTableTab.totalCents / 100)}</strong></div> : <p>Resumo indisponível</p>}
-              <Button type="button" onClick={() => onAddOrder?.(selectedTable.id)} disabled={disabled}>Adicionar pedido</Button>
+              <h2 id="comanda-heading" ref={detailHeadingRef} tabIndex={-1}>{selectedTable.openTableTab ? `Comanda ${selectedTable.openTableTab.number}` : 'Comanda aberta'}</h2>
+              <SelectedComanda key={`${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} currency={currency} disabled={disabled} onAddOrder={onAddOrder} onPay={onPay} onApiError={onApiError} />
             </>
           ) : <div className="empty-state"><Icon name="clipboard" size={28} /><strong>Selecione uma mesa ocupada.</strong><span>Confira aqui o resumo da comanda.</span></div>}
         </aside>

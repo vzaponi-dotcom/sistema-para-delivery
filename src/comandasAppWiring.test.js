@@ -2,8 +2,211 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
+import { comandaDetail, deferred, detailResponse } from './test-support/comandaFixtures.js'
+
+async function paymentWorkspace(t, mobile = false) {
+  const h = await workspaceHarness(t, { mobile })
+  const state = { tables: workspaceTables, expired: false, pending: [], detail: comandaDetail, bootstrapCalls: 0 }
+  globalThis.fetch = async (path, options = {}) => {
+    if (path.endsWith('/payment')) {
+      const p = deferred(); state.pending.push({ ...p, path, options }); return p.promise
+    }
+    if (path.startsWith('/api/table-tabs/')) {
+      if (state.deferDetail) return state.deferDetail.promise
+      return detailResponse(state.details?.[path] || state.detail)
+    }
+    if (path === '/api/bootstrap') {
+      state.bootstrapCalls++
+      if (state.deferBootstrap) return state.deferBootstrap.promise
+      if (state.expired) return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }
+      return { ok: true, json: async () => ({ tables: state.tables, tableTabs: [], orders: [], movements: [], clients: [], products: [], financeSettings: null }) }
+    }
+    const responses = {
+      '/api/auth/session': { authenticated: true }, '/api/auth/login': {},
+      '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
+      '/api/printing/jobs?limit=100': { jobs: [] },
+    }
+    assert.ok(Object.hasOwn(responses, path), path)
+    return { ok: true, json: async () => responses[path] }
+  }
+  const { default: App } = await h.load('/src/App.jsx')
+  const r = await h.render(App)
+  const navigate = async (name) => act(async () => buttonNamed(r.root.findByProps({ 'aria-label': 'Menu principal' }), name).props.onClick())
+  const select = async () => act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
+  const pay = async () => {
+    const action = buttonNamed(r.root, 'Registrar pagamento')
+    assert.ok(action, 'occupied detail must expose full payment')
+    await act(async () => action.props.onClick())
+    await act(async () => { void r.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
+  }
+  await navigate('Comandas'); await select()
+  return { h, r, state, navigate, select, pay }
+}
+
+const paidResult = () => ({
+  orders: [{ id: 'paid-order', client: 'Mesa 7', total: 123.45, paymentStatus: 'Pago', status: 'Finalizado', type: 'Local' }],
+  movements: [{ id: 'paid-movement', description: 'Pagamento comanda', value: 123.45, type: 'entrada', date: '2026-09-10' }],
+  tableTab: { id: 'tab-42', number: 42, tableId: 'occupied', tableIdentifier: 'Mesa 7', status: 'closed' },
+  tables: workspaceTables.map((table) => table.id === 'occupied' ? { ...table, occupancy: 'free', openTableTab: null } : table),
+})
+const jsonResponse = (data) => ({ ok: true, json: async () => data })
+
+for (const outcome of ['success', 'error']) test(`payment reconciliation ignores old bootstrap ${outcome} after business reset`, async (t) => {
+  const { h, r, state, pay, navigate, select } = await paymentWorkspace(t)
+  await pay()
+  const oldRead = deferred()
+  state.deferBootstrap = oldRead
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  // The queued reconciliation belongs to the old session. A detail read can
+  // expire that session while bootstrap is still waiting on the network.
+  state.deferDetail = { promise: Promise.resolve({ ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }) }
+  await navigate('Clientes'); await navigate('Comandas')
+  state.deferBootstrap = null; state.deferDetail = null
+  await act(async () => r.root.findByProps({ placeholder: 'Digite o PIN' }).props.onChange({ target: { value: '1234' } }))
+  await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  await navigate('Comandas'); await select(); await pay()
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  await act(async () => oldRead.resolve(outcome === 'success'
+    ? jsonResponse({ tables: paidResult().tables, orders: paidResult().orders, movements: paidResult().movements, tableTabs: [paidResult().tableTab], clients: [], products: [] })
+    : { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão antiga' } }) }))
+  assert.ok(buttonNamed(r.root, 'Confirmar pagamento')?.props.disabled, 'old reconciliation cannot clear the new session or its payment')
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Ocupada/)
+  await act(async () => state.pending[1].reject(new Error('Pagamento não concluído')))
+})
+
+for (const mobile of [false, true]) test(`official full payment releases table and synchronizes all consumers (${mobile})`, async (t) => {
+  const { h, r, state, pay, navigate } = await paymentWorkspace(t, mobile)
+  await pay()
+  assert.equal(state.pending.length, 1)
+  assert.equal(state.pending[0].path, '/api/table-tabs/tab-42/payment')
+  assert.deepEqual(JSON.parse(state.pending[0].options.body), { method: 'Pix' })
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Ocupada/)
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Selecione/)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null)
+  assert.ok(!r.root.findByProps({ className: 'comandas-page' }).props.className.includes('has-mobile-detail'))
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
+  await navigate('Comandas')
+  await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
+  const { NewOrderRoute } = await h.load('/src/pages/NewOrderRoute.jsx')
+  assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab])
+})
+
+test('payment conflict refreshes official tables and removes the mobile closed selection', async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t, true)
+  await pay()
+  state.tables = paidResult().tables
+  const reads = state.bootstrapCalls
+  await act(async () => state.pending[0].resolve({ ok: false, status: 409, json: async () => ({ error: { message: 'Comanda já encerrada.' } }) }))
+  assert.ok(state.bootstrapCalls > reads)
+  assert.match(nodeText(r.root), /Comanda já encerrada/)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).findByType('div').props.className, 'comandas-page')
+})
+
+test('payment completion cannot replace newer official tables or clear a newer selected tab', async (t) => {
+  const { h, r, state, pay, select } = await paymentWorkspace(t)
+  await pay()
+  state.tables = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { id: 'tab-99', number: 99, itemCount: 1, totalCents: 2000 } } : table)
+  state.detail = { ...comandaDetail, id: 'tab-99', number: 99, totalCents: 2000 }
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  await select()
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 99/)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Comanda 99/)
+  assert.ok(!buttonNamed(r.root, 'Registrar pagamento').props.disabled)
+})
+
+for (const outcome of ['success', 'error']) test(`old-session payment ${outcome} cannot mutate or unlock a newer session payment`, async (t) => {
+  const { h, r, state, pay, navigate, select } = await paymentWorkspace(t)
+  await pay()
+  state.expired = true
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  state.expired = false
+  await act(async () => r.root.findByProps({ placeholder: 'Digite o PIN' }).props.onChange({ target: { value: '1234' } }))
+  await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  await navigate('Comandas'); await select(); await pay()
+  await act(async () => state.pending[0].resolve(outcome === 'success' ? jsonResponse(paidResult()) : { ok: false, status: 401, json: async () => ({ error: { message: 'Erro antigo' } }) }))
+  assert.ok(buttonNamed(r.root, 'Confirmar pagamento').props.disabled)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Ocupada/)
+  assert.doesNotMatch(nodeText(r.root), /Erro antigo|Pagamento de/)
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, [])
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, [])
+  await navigate('Comandas')
+  await act(async () => state.pending[1].resolve(jsonResponse(paidResult())))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+})
+
+test('payment settling after selection of another table keeps that detail and applies official effects', async (t) => {
+  const { h, r, state, pay, navigate } = await paymentWorkspace(t)
+  const other = { id: 'other', name: 'Terraço', isActive: true, occupancy: 'occupied', sortOrder: 3, openTableTab: { id: 'tab-43', number: 43, itemCount: 3, totalCents: 12345 } }
+  state.tables = [...workspaceTables, other]
+  state.details = { '/api/table-tabs/tab-43': { ...comandaDetail, id: 'tab-43', number: 43, table: { id: 'other', name: 'Terraço' } } }
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  await pay()
+  await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button').at(-1).props.onClick())
+  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
+  await act(async () => state.pending[0].resolve(jsonResponse({ ...paidResult(), tables: [...paidResult().tables, other] })))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 43.*Terraço/)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
+})
+
+for (const outcome of ['success', 'error']) test(`old detail ${outcome} cannot reach a relogged business using the same table identifiers`, async (t) => {
+  const { h, r, state, navigate, select } = await paymentWorkspace(t)
+  const oldDetail = deferred()
+  state.deferDetail = oldDetail
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  state.expired = true
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  state.expired = false
+  state.deferDetail = null
+  state.detail = { ...comandaDetail, businessName: 'Outro negócio', items: [{ ...comandaDetail.items[0], note: 'Nova consulta' }] }
+  await act(async () => r.root.findByProps({ placeholder: 'Digite o PIN' }).props.onChange({ target: { value: '1234' } }))
+  await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  await navigate('Comandas'); await select()
+  await act(async () => oldDetail.resolve(outcome === 'success' ? detailResponse() : { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão antiga' } }) }))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Nova consulta/)
+  assert.doesNotMatch(nodeText(r.root), /Sem cebola|Sessão antiga/)
+  assert.ok(!buttonNamed(r.root, 'Registrar pagamento').props.disabled)
+})
+
+test('payment failure retains the full dialog for retry and going offline blocks confirmation', async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t)
+  await pay()
+  await act(async () => state.pending[0].reject(new Error('Conexão interrompida')))
+  assert.match(nodeText(r.root), /Conexão interrompida/)
+  assert.ok(!buttonNamed(r.root, 'Confirmar pagamento').props.disabled)
+  await act(async () => h.window.dispatchEvent(new Event('offline')))
+  await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  assert.equal(state.pending.length, 1)
+  assert.ok(buttonNamed(r.root, 'Confirmar pagamento').props.disabled)
+  await act(async () => h.window.dispatchEvent(new Event('online')))
+  await act(async () => { void r.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
+  assert.equal(state.pending.length, 2)
+  await act(async () => state.pending[1].resolve(jsonResponse(paidResult())))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+})
 
 const lifecycleProduct = { id: 'product-1', name: 'Coxinha', category: 'Lanches', presentationType: 'unit', price: 20, isActive: true }
+const checkoutDetails = {
+  '/api/table-tabs/tab-42': { tableTab: comandaDetail },
+  ...Object.fromEntries([['tab-99', 99], ['tab-100', 100], ['new-tab-200', 200], ['new-tab-201', 201]].map(([id, number]) => [
+    `/api/table-tabs/${id}`, { tableTab: { ...comandaDetail, id, number, table: { id: 'free', name: 'Varanda' }, orderCount: 1, itemCount: 1, totalCents: 2000 } },
+  ])),
+}
 
 const buttonContaining = (root, text) => root.findAllByType('button').find((button) => nodeText(button).includes(text))
 const ids = (records = []) => records.map((record) => record.id)
@@ -23,6 +226,7 @@ test('App renders official Comandas, preserves selection across destinations and
   globalThis.fetch = async (path, options) => {
     requests.push([path, options.method || 'GET'])
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
@@ -74,7 +278,11 @@ test('an occupied comanda adds another order through the preselected wizard and 
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
     requests.push([path, options])
+    if (path === '/api/table-tabs/tab-42') return detailResponse(requests.some(([url]) => url === '/api/orders')
+      ? { ...comandaDetail, itemCount: 4, totalCents: 14345, items: [...comandaDetail.items, { productId: 'product-1', name: 'Coxinha', presentation: '', note: '', quantity: 1, unitPriceCents: 2000, lineTotalCents: 2000 }] }
+      : comandaDetail)
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
@@ -99,6 +307,8 @@ test('an occupied comanda adds another order through the preselected wizard and 
   await prepareLocalOrderForCheckout(renderer)
   await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*4 itens.*143,45/)
+  assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /1x Coxinha/)
+  assert.equal(requests.filter(([path]) => path === '/api/table-tabs/tab-42').length, 2)
   const orderRequest = requests.find(([path, options]) => path === '/api/orders' && options.method === 'POST')
   const orderPayload = JSON.parse(orderRequest[1].body)
   assert.equal(orderPayload.type, 'Local')
@@ -114,6 +324,7 @@ test('an occupied comanda can cancel its preselected wizard without creating an 
   globalThis.fetch = async (path, options = {}) => {
     requests.push([path, options])
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
@@ -145,6 +356,7 @@ test('a successful table checkout returns to Comandas with the authoritative occ
   globalThis.fetch = async (path, options = {}) => {
     requests.push([path, options])
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
@@ -188,6 +400,7 @@ test('an unavailable table rejection retains the real wizard draft and retries w
     }
     const bootstrapTables = tableUnavailable ? workspaceTables.map((table) => table.id === 'free' ? { ...table, isActive: false } : table) : workspaceTables
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/bootstrap': { tables: bootstrapTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
@@ -236,6 +449,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
       })
     }
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/auth/login': {},
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
@@ -333,6 +547,7 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
       })
     }
     const responses = {
+      ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
       '/api/auth/login': {},
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
