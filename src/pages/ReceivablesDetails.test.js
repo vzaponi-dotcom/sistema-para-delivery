@@ -17,8 +17,8 @@ test('order detail exposes payment promise and view-order actions only where all
   assert.match(detail, /Registrar recebimento/)
   assert.match(detail, /Definir data prometida|Alterar data prometida/)
   assert.match(detail, /Ver pedido/)
-  assert.match(detail, /entry\.kind === 'table_tab'/)
-  assert.match(detail, /Registrar pagamento da comanda/)
+  assert.doesNotMatch(detail, /table_tab/)
+  assert.doesNotMatch(detail, /Registrar pagamento da comanda/)
 })
 
 test('detail actions replace the current detail overlay before opening the next flow', () => {

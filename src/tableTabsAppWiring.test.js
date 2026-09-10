@@ -11,12 +11,14 @@ test('frontend exposes the consolidated table tab payment API helper', () => {
   assert.match(api, /withJson\('POST', \{ method \}\)/)
 })
 
-test('App owns table tabs from bootstrap and passes them to order and receivables flows', () => {
+test('App owns table tabs from bootstrap and passes them to the order flow only', () => {
   assert.match(app, /const \[tableTabs, setTableTabs\] = useState\(\[\]\)/)
   assert.match(app, /setTableTabs\(Array\.isArray\(data\?\.tableTabs\) \? data\.tableTabs : \[\]\)/)
   assert.match(app, /<NewOrder[\s\S]*?tableTabs=\{tableTabs\}/)
-  assert.match(app, /<Receivables[\s\S]*?tableTabs=\{tableTabs\}/)
-  assert.match(app, /onRegisterTableTabPayment=\{handleRegisterTableTabPayment\}/)
+  const receivables = app.match(/\{activeTab === 'receivables' && <Receivables[^>]*\/>\}/)?.[0] || ''
+  assert.doesNotMatch(receivables, /tableTabs/)
+  assert.doesNotMatch(receivables, /onRegisterTableTabPayment/)
+  assert.match(app, /const handleRegisterTableTabPayment = async/)
 })
 
 test('table transfer applies the returned table list and table tab in one official effect', () => {

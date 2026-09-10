@@ -115,60 +115,11 @@ test('summary and forecast partition pending amounts by expected payment date', 
   assert.deepEqual(forecast.later, { amount: 70, count: 1 })
 })
 
-test('table tabs stay aggregated by newest pending order and urgency orders entries', () => {
+test('pending receivable entries omit every table-tab order', () => {
   const entries = buildPendingReceivableEntries([
-    datedPending({ id: 'tab-old', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-04', total: 30 }),
-    datedPending({ id: 'tab-new', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-06', total: 40 }),
-    datedPending({ id: 'late', orderDate: '2026-09-02' }),
-    datedPending({ id: 'future', promisedPaymentDate: '2026-09-08' }),
-  ], [{ id: 'tab-4', tableIdentifier: '04', status: 'open' }], '2026-09-06')
-  const table = entries.find((entry) => entry.kind === 'table_tab')
-  assert.equal(table.label, 'Mesa 04')
-  assert.equal(table.total, 70)
-  assert.equal(table.expectedDate, '2026-09-06')
-  assert.equal(table.timing.status, 'today')
-  assert.deepEqual(sortReceivableEntries(entries, 'urgency').map((entry) => entry.key), [
-    'order:late', 'table-tab:tab-4', 'order:future',
-  ])
-})
+    datedPending({ id: 'delivery', customerIdentityType: 'registered_client' }),
+    datedPending({ id: 'tab-1', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-1' }),
+  ], '2026-09-06')
 
-test('table tab labels do not duplicate the Mesa prefix from registered identifiers', () => {
-  const entries = buildPendingReceivableEntries([
-    datedPending({
-      id: 'tab-registered-name',
-      client: 'Mesa 1',
-      clientId: null,
-      customerIdentityType: 'table',
-      tableTabId: 'tab-registered-name',
-    }),
-  ], [{ id: 'tab-registered-name', tableIdentifier: 'Mesa 1', status: 'open' }], '2026-09-06')
-
-  assert.equal(entries[0].label, 'Mesa 1')
-})
-
-test('table tab labels preserve custom registered table names', () => {
-  const entries = buildPendingReceivableEntries([
-    datedPending({
-      id: 'tab-custom-name',
-      client: 'Varanda 1',
-      clientId: null,
-      customerIdentityType: 'table',
-      tableTabId: 'tab-custom-name',
-    }),
-  ], [{ id: 'tab-custom-name', tableIdentifier: 'Varanda 1', status: 'open' }], '2026-09-06')
-
-  assert.equal(entries[0].label, 'Varanda 1')
-})
-
-test('an open table tab is counted once in today summary and forecast using its newest pending order', () => {
-  const tableOrders = [
-    datedPending({ id: 'tab-old', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-03', total: 30 }),
-    datedPending({ id: 'tab-today', client: 'Mesa 04', clientId: null, customerIdentityType: 'table', tableTabId: 'tab-4', orderDate: '2026-09-06', total: 40 }),
-  ]
-  assert.deepEqual(calculateReceivableSummary(tableOrders, '2026-09-06'), {
-    today: { amount: 70, count: 1 }, upcoming: { amount: 0, count: 0 }, overdue: { amount: 0, count: 0 },
-  })
-  const forecast = buildReceivablesForecast(tableOrders, '2026-09-06', 7)
-  assert.deepEqual(forecast.today, { amount: 70, count: 1 })
-  assert.deepEqual(forecast.overdue, { amount: 0, count: 0 })
+  assert.deepEqual(entries.map((entry) => entry.order.id), ['delivery'])
 })
