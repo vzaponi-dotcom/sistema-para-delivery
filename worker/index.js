@@ -8,10 +8,12 @@ import { handlePrintingApi } from './orderPrintingApi.js'
 import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
+import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
 import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
+import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -127,7 +129,7 @@ const authenticatedApi = async (request, env) => {
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
     const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
-    return json({ order, movement, tableTab, printJob }, { status: 201 })
+    return json({ order, movement, tableTab, printJob, tables: await listTables(env.DB, session.businessId) }, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
   if (statusMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const body = await readJson(request); if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.'); const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1])); if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ order }) }
@@ -160,12 +162,24 @@ const authenticatedApi = async (request, env) => {
     const result = await registerOrderRefund(env.DB, session.businessId, decodeURIComponent(refundMatch[1]), await readJson(request))
     return json(result, { status: 201 })
   }
+  const tableTabPrintMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/print-document$/)
+  if (tableTabPrintMatch && request.method === 'GET') {
+    const detail = await loadOpenTableTabDetail(env.DB, session.businessId, decodeURIComponent(tableTabPrintMatch[1]))
+    if (!detail) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta n\u00e3o encontrada.')
+    return json({ document: createTableTabPrintDocument(detail) })
+  }
+  const tableTabDetailMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)$/)
+  if (tableTabDetailMatch && request.method === 'GET') {
+    const tableTab = await loadOpenTableTabDetail(env.DB, session.businessId, decodeURIComponent(tableTabDetailMatch[1]))
+    if (!tableTab) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta n\u00e3o encontrada.')
+    return json({ tableTab })
+  }
   const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
   if (tableTabPaymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
     const { method } = await readJson(request)
     const result = await registerTableTabPayment(env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method))
-    return json(result, { status: 201 })
+    return json({ ...result, tables: await listTables(env.DB, session.businessId) }, { status: 201 })
   }
 
   if (url.pathname === '/api/movements' && request.method === 'POST') {

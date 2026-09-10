@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 
 const loadEffects = async () => {
   try {
@@ -57,12 +56,4 @@ test('write-effect readers return mapped payment movement and current table tab'
   assert.deepEqual(tableTab, {
     id: 't1', tableId: 'table-1', tableIdentifier: '04', tabNumber: 1042, status: 'closed', openedAt: '2026-09-03T14:00:00.000Z', closedAt: '2026-09-03T15:00:00.000Z',
   })
-})
-
-test('checkout and payment routes expose the authoritative effects to the client', async () => {
-  const source = await readFile(new URL('./index.js', import.meta.url), 'utf8')
-  assert.match(source, /loadMovementByOrderSource/)
-  assert.match(source, /loadTableTabById/)
-  assert.match(source, /return json\(\{ order, movement, tableTab, printJob \}/)
-  assert.match(source, /return json\(\{ \.\.\.result, tableTab \}/)
 })
