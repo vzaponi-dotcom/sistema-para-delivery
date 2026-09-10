@@ -15,7 +15,7 @@ import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import { PRINT_QUEUE_ORIGIN_FILTERS, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
 import { getPrintJobs, getPrintQueueSummary } from '../api/client.js'
-import { DEFAULT_PRINT_QUEUE_QUERY, togglePrintQueueSort, updatePrintQueueQuery } from './printQueueQuery.js'
+import { DEFAULT_PRINT_QUEUE_QUERY, sortPrintQueueJobsForDisplay, togglePrintQueueSort, updatePrintQueueQuery } from './printQueueQuery.js'
 
 const formatJobTime = (createdAt) => {
   if (!createdAt) return null
@@ -97,7 +97,10 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
     }
   }, [refreshPanel])
   const ordersById = new Map(orders.map((order) => [String(order.id), order]))
-  const operationalJobs = Array.isArray(operationalPage.jobs) ? operationalPage.jobs : []
+  const operationalJobs = sortPrintQueueJobsForDisplay(
+    Array.isArray(operationalPage.jobs) ? operationalPage.jobs : [],
+    { sortBy: query.sortBy, sortDir: query.sortDir, orders },
+  )
   const jobRows = operationalJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const recentRows = recentJobs.slice(0, 10).map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const pageInfo = operationalPage.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 }

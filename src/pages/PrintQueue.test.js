@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
+import { act } from 'react-test-renderer'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
+import { nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -96,7 +98,6 @@ test('print queue renders station health and a responsive four-card summary', as
 test('print queue renders the empty state from the backend operational page', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
-  assert.match(page, /const operationalJobs = Array\.isArray\(operationalPage\.jobs\) \? operationalPage\.jobs : \[\]/)
   assert.match(page, /operationalJobs\.length === 0/)
   assert.match(page, /Os trabalhos de impressão aparecerão aqui\./)
   assert.match(page, /operationalJobs\.map/)
@@ -420,6 +421,36 @@ test('operational panel exposes sortable backend columns, a secondary recent lis
   assert.match(page, /operationalJobs\.map/)
   assert.match(styles, /print-queue-recent-section/)
   assert.match(styles, /print-queue-pagination/)
+})
+
+test('clicking a column header immediately reorders the displayed jobs even when the backend response order is stale', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/pages/PrintQueue.jsx')
+  const jobs = [
+    { id: 'job-72', orderId: 'order-72', status: 'pending', trigger: 'automatic', copiesRequested: 1, copiesPrinted: 0, createdAt: '2026-09-10T22:42:00.000Z', document: { type: 'order', customer: {}, order: { id: 'order-72' } } },
+    { id: 'job-71', orderId: 'order-71', status: 'pending', trigger: 'automatic', copiesRequested: 1, copiesPrinted: 0, createdAt: '2026-09-10T22:41:00.000Z', document: { type: 'order', customer: {}, order: { id: 'order-71' } } },
+  ]
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?scope=operational')) return { ok: true, json: async () => ({ jobs, pageInfo: { page: 1, pageSize: 10, totalItems: 2, totalPages: 1 } }) }
+    if (url.startsWith('/api/printing/jobs?scope=recent')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 2, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  const renderer = await harness.render(PrintQueue, {
+    orders: [{ id: 'order-72', orderNumber: 72 }, { id: 'order-71', orderNumber: 71 }],
+    printing: { localStation: null, printerHealth: { state: 'verifying' }, stations: [] },
+  })
+  const displayedOrders = () => renderer.root.findAllByProps({ className: 'print-queue-job-row' })
+    .map((row) => nodeText(row).match(/Pedido #\d+/)?.[0])
+  assert.deepEqual(displayedOrders(), ['Pedido #72', 'Pedido #71'])
+
+  const orderHeader = renderer.root.findAllByProps({ className: 'print-queue-sort' })[0]
+  await act(async () => { orderHeader.props.onClick(); await Promise.resolve(); await Promise.resolve() })
+  await act(async () => { orderHeader.props.onClick(); await Promise.resolve(); await Promise.resolve() })
+
+  assert.deepEqual(displayedOrders(), ['Pedido #71', 'Pedido #72'])
 })
 
 test('operational summary and unknown physical outcome use the approved safety language', () => {
