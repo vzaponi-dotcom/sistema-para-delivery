@@ -63,6 +63,111 @@ const addItem = (db, {
 } = {}) => db.sqlite.prepare('INSERT INTO order_items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
   .run(id, businessId, orderId, productId, name, presentation, quantity, price, reason, note, createdAt)
 
+// Commit a competing write after a real SQL result is materialized, before the
+// caller can issue another read. This models the async D1 request boundary.
+const interleaveAfterRead = (db, commit, methods = ['first', 'all']) => {
+  let committed = false
+  return {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          const statement = db.prepare(sql).bind(...values)
+          return Object.fromEntries(['first', 'all'].map((method) => [method, async () => {
+            const result = await statement[method]()
+            if (!committed && methods.includes(method)) {
+              committed = true
+              db.sqlite.exec('BEGIN')
+              try {
+                commit()
+                db.sqlite.exec('COMMIT')
+              } catch (error) {
+                db.sqlite.exec('ROLLBACK')
+                throw error
+              }
+            }
+            return result
+          }]))
+        },
+      }
+    },
+  }
+}
+
+test('detail cannot mix an empty order snapshot with concurrently committed items', async (t) => {
+  const db = createDb(t)
+  const racingDb = interleaveAfterRead(db, () => {
+    addOrder(db, { total: 1800 })
+    addItem(db)
+  }, ['all'])
+
+  const detail = await loadOpenTableTabDetail(racingDb, 'biz-a', 'tab-1')
+  assert.deepEqual(detail, {
+    id: 'tab-1', number: 1042, status: 'open', openedAt, businessName: 'Restaurante A',
+    table: { id: 'table-1', name: 'Mesa 1' }, orderCount: 0, itemCount: 0, totalCents: 0, items: [],
+  })
+  // A fresh request sees the entire committed order, including its discounted total.
+  assert.deepEqual(await loadOpenTableTabDetail(db, 'biz-a', 'tab-1'), {
+    ...detail, orderCount: 1, itemCount: 1, totalCents: 1800,
+    items: [{ productId: 'burger', name: 'X-Bacon', presentation: '', note: '',
+      unitPriceCents: 2200, quantity: 1, lineTotalCents: 2200 }],
+  })
+})
+
+for (const settlement of ['payment', 'cancellation']) {
+  test(`detail keeps eligibility and pending content coherent during concurrent ${settlement}`, async (t) => {
+    const db = createDb(t)
+    addOrder(db, { total: 1800 })
+    addItem(db)
+    const racingDb = interleaveAfterRead(db, () => {
+      if (settlement === 'payment') {
+        db.sqlite.exec("INSERT INTO payments VALUES ('payment', 'biz-a', 'order-1')")
+      } else {
+        db.sqlite.exec("UPDATE orders SET status = 'Cancelado' WHERE id = 'order-1'")
+      }
+      db.sqlite.exec("UPDATE table_tabs SET status = 'closed' WHERE id = 'tab-1'")
+    })
+
+    assert.deepEqual(await loadOpenTableTabDetail(racingDb, 'biz-a', 'tab-1'), {
+      id: 'tab-1', number: 1042, status: 'open', openedAt, businessName: 'Restaurante A',
+      table: { id: 'table-1', name: 'Mesa 1' }, orderCount: 1, itemCount: 1, totalCents: 1800,
+      items: [{ productId: 'burger', name: 'X-Bacon', presentation: '', note: '',
+        unitPriceCents: 2200, quantity: 1, lineTotalCents: 2200 }],
+    })
+    assert.equal(await loadOpenTableTabDetail(db, 'biz-a', 'tab-1'), null)
+  })
+}
+
+test('detail counts each payable order once despite multiple lines, equal totals or no items', async (t) => {
+  const db = createDb(t)
+  addOrder(db, { total: 4000 })
+  addOrder(db, { id: 'order-2', total: 4000 })
+  addOrder(db, { id: 'order-empty', total: 500 })
+  addItem(db)
+  addItem(db, { id: 'item-2', note: 'Sem cebola' })
+  addItem(db, { id: 'item-3', orderId: 'order-2' })
+  const detail = await loadOpenTableTabDetail(db, 'biz-a', 'tab-1')
+  assert.equal(detail.orderCount, 3)
+  assert.equal(detail.totalCents, 8500)
+  assert.equal(detail.itemCount, 3)
+  assert.deepEqual(detail.items, [
+    { productId: 'burger', name: 'X-Bacon', presentation: '', note: '', unitPriceCents: 2200, quantity: 2, lineTotalCents: 4400 },
+    { productId: 'burger', name: 'X-Bacon', presentation: '', note: 'Sem cebola', unitPriceCents: 2200, quantity: 1, lineTotalCents: 2200 },
+  ])
+})
+
+test('open tab with only paid or cancelled orders returns an empty pending detail', async (t) => {
+  const db = createDb(t)
+  addOrder(db)
+  addItem(db)
+  addOrder(db, { id: 'cancelled', status: 'Cancelado' })
+  addItem(db, { id: 'cancelled-item', orderId: 'cancelled' })
+  db.sqlite.exec("INSERT INTO payments VALUES ('payment', 'biz-a', 'order-1')")
+  assert.deepEqual(await loadOpenTableTabDetail(db, 'biz-a', 'tab-1'), {
+    id: 'tab-1', number: 1042, status: 'open', openedAt, businessName: 'Restaurante A',
+    table: { id: 'table-1', name: 'Mesa 1' }, orderCount: 0, itemCount: 0, totalCents: 0, items: [],
+  })
+})
+
 test('detail consolidates quantities across pending orders and uses payable order totals', async (t) => {
   const db = createDb(t)
   addOrder(db, { total: 4000 }) // Discounted order: payable total differs from its lines.
