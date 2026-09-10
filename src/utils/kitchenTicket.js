@@ -1,5 +1,5 @@
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
-import { getOperationalStartAt, getScheduledLateAt } from '../../shared/orderTiming.js'
+import { getOperationalStartAt, getOrderMinutesLate } from '../../shared/orderTiming.js'
 import { getOrderItemDisplayName, getOrderItems } from './orderCart.js'
 import { getElapsedMinutes } from './orderWorkflow.js'
 
@@ -46,12 +46,7 @@ export const buildKitchenTimingCopy = (entry, now = new Date()) => {
   }
 
   if (entry?.timingState && entry.timingState !== 'on-time') {
-    const lateAt = order.scheduledFor ? getScheduledLateAt(order) : null
-    const threshold = entry.timingState === 'very-late' ? 40 : 30
-    const elapsed = lateAt
-      ? Math.max(0, Math.floor((new Date(now).getTime() - lateAt.getTime()) / 60_000))
-      : Math.max(0, getElapsedMinutes(order, now) - threshold)
-    return { primary: `Fora do prazo há ${elapsedLabel(elapsed)}`, secondary: desiredCopy }
+    return { primary: `Fora do prazo há ${elapsedLabel(getOrderMinutesLate(order, now))}`, secondary: desiredCopy }
   }
 
   return { primary: `Em preparo há ${elapsedLabel(getElapsedMinutes(order, now))}`, secondary: desiredCopy }
