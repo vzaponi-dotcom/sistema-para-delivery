@@ -40,6 +40,7 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
     order('ordinary-paid', 'Cliente quitado', { paymentStatus: 'Pago', paidAt: '2026-09-10T12:00:00.000Z', total: 30 }),
     order('table-paid', 'Mesa quitada', { clientId: null, customerIdentityType: 'table', tableTabId: 'tab-paid', paymentStatus: 'Pago', paidAt: '2026-09-10T13:00:00.000Z', total: 90 }),
   ]
+  const paymentRequests = []
   let renderer
 
   try {
@@ -47,7 +48,7 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
       renderer = create(React.createElement(Receivables, {
         orders,
         currency: (value) => `R$ ${value.toFixed(2)}`,
-        onRegisterPayment: () => {},
+        onRegisterPayment: (orderId) => paymentRequests.push(orderId),
         onUpdatePaymentPromise: async () => true,
       }))
     })
@@ -55,13 +56,20 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
     let rendered = textContent(renderer.toJSON())
     assert.match(rendered, /Cliente pendente/)
     assert.doesNotMatch(rendered, /Mesa pendente/)
-    assert.match(rendered, /R\$ 20\.00/)
+    const summary = renderer.root.findByProps({ className: 'receivables-summary-grid' })
+    const todaySummary = summary.findAllByType('button').find((card) => nodeText(card).includes('Receber hoje'))
+    assert.equal(nodeText(todaySummary), 'Receber hojeR$ 20.001 pedido(s)')
 
     const pendingRow = renderer.root.findAllByProps({ className: 'receivable-ledger-row' })[0]
     await act(async () => pendingRow.props.onClick())
-    rendered = textContent(renderer.toJSON())
-    assert.match(rendered, /Registrar recebimento/)
-    assert.match(rendered, /Definir data prometida/)
+    const detailPanel = renderer.root.findByProps({ className: 'receivables-detail-panel' })
+    const detailPaymentButton = detailPanel.findAllByType('button').find((button) => nodeText(button) === 'Registrar recebimento')
+    const promiseButton = detailPanel.findAllByType('button').find((button) => nodeText(button) === 'Definir data prometida')
+    assert.ok(detailPaymentButton)
+    assert.ok(promiseButton)
+    await act(async () => detailPaymentButton.props.onClick())
+    assert.deepEqual(paymentRequests, ['ordinary-pending'])
+
     const paidTab = renderer.root.findAll((node) => node.props.onClick && nodeText(node) === 'Quitados')[0]
     await act(async () => paidTab.props.onClick())
     rendered = textContent(renderer.toJSON())
