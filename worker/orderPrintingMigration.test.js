@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 
 const initialSql = await readFile(new URL('../migrations/0010_order_printing.sql', import.meta.url), 'utf8').catch(() => '')
 const centralizedQueueSql = await readFile(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8').catch(() => '')
+const operationalConfirmationSql = await readFile(new URL('../migrations/0019_print_operational_confirmation.sql', import.meta.url), 'utf8').catch(() => '')
 
 test('printing migration adds immutable ticket contact snapshots and station/job tables', () => {
   assert.match(initialSql, /ALTER TABLE orders ADD COLUMN client_phone_snapshot TEXT NOT NULL DEFAULT ''/)
@@ -112,4 +113,54 @@ test('print jobs schema persists second-copy prompt acknowledgments', async () =
     db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_jobs') WHERE name = 'second_copy_prompted_at'").get().count,
     1,
   )
+})
+
+test('operational confirmation migration declares durable attempt and recovery state', () => {
+  assert.match(operationalConfirmationSql, /awaiting_confirmation/)
+  assert.match(operationalConfirmationSql, /CREATE TABLE print_job_attempts/)
+  assert.match(operationalConfirmationSql, /spool_job_name TEXT NOT NULL UNIQUE/)
+  assert.match(operationalConfirmationSql, /submission_started_at TEXT/)
+  assert.match(operationalConfirmationSql, /recovery_state TEXT NOT NULL DEFAULT 'normal'/)
+  assert.match(operationalConfirmationSql, /physical_status_text TEXT/)
+})
+
+test('operational confirmation migration preserves 0018 data and adds durable attempt state', async () => {
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0019_print_operational_confirmation.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+
+  const createdAt = '2026-09-09T12:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('business-operational', 'operational', 'Operational', createdAt, createdAt)
+  db.prepare('INSERT INTO print_stations (id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('station-operational', 'business-operational', 'Kitchen', 'windows', 1, 1, 2, createdAt, createdAt)
+  db.prepare(`INSERT INTO print_jobs (
+    id, business_id, type, trigger, status, copies_requested, copies_printed, station_id, snapshot_json, created_at,
+    second_copy_requested_at, second_copy_skipped_at
+  ) VALUES (?, ?, 'test', 'manual', 'requires_attention', 2, 1, ?, '{}', ?, ?, ?)`)
+    .run('job-operational', 'business-operational', 'station-operational', createdAt, '2026-09-09T12:01:00.000Z', '2026-09-09T12:02:00.000Z')
+
+  db.exec(operationalConfirmationSql)
+
+  assert.deepEqual({ ...db.prepare('SELECT status, second_copy_requested_at, second_copy_skipped_at FROM print_jobs WHERE id = ?').get('job-operational') }, {
+    status: 'requires_attention',
+    second_copy_requested_at: '2026-09-09T12:01:00.000Z',
+    second_copy_skipped_at: '2026-09-09T12:02:00.000Z',
+  })
+  assert.equal(db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_stations') WHERE name = 'physical_state'").get().count, 1)
+  assert.equal(db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_stations') WHERE name = 'recovery_state'").get().count, 1)
+  assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'print_job_attempts'").get().count, 1)
+
+  db.prepare(`INSERT INTO print_job_attempts (
+    id, business_id, job_id, copy_number, attempt_number, spool_job_name, status, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run('attempt-operational', 'business-operational', 'job-operational', 1, 1, 'spool-operational', 'prepared', createdAt, createdAt)
+
+  assert.deepEqual({ ...db.prepare('SELECT job_id, copy_number, attempt_number, spool_job_name, status FROM print_job_attempts').get() }, {
+    job_id: 'job-operational',
+    copy_number: 1,
+    attempt_number: 1,
+    spool_job_name: 'spool-operational',
+    status: 'prepared',
+  })
 })
