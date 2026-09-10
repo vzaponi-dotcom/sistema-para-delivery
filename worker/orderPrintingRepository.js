@@ -29,6 +29,19 @@ const AUTOMATIC_ORDER_ELIGIBLE_SQL = `EXISTS (
     AND orders.status NOT IN ('Cancelado', 'Finalizado')
 )`
 
+const PRINT_JOB_SORT_SQL = Object.freeze({
+  orderNumber: 'orders.order_number',
+  jobId: 'print_jobs.id',
+  status: 'print_jobs.status',
+  trigger: 'print_jobs.trigger',
+  createdAt: 'print_jobs.created_at',
+})
+const OPERATIONAL_PRINT_JOB_STATUSES = Object.freeze([
+  'pending', 'processing', 'awaiting_confirmation', 'awaiting_second_copy', 'failed', 'requires_attention',
+])
+const RECENT_PRINT_JOB_STATUSES = Object.freeze(['printed', 'discarded'])
+const PRINT_JOB_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+
 const LEGACY_FORCE_PRINT_REASON = 'ORDER_NOT_PRINTABLE'
 
 const legacyForcePrintReason = async (db, businessId, job) => {
@@ -274,17 +287,7 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
     .bind(processedAt, businessId, processingCutoff).run()
 }
 
-export const listPrintJobs = async (db, businessId, options = {}) => {
-  const now = options.now || new Date()
-  await agePrintJobs(db, businessId, now)
-  const limit = clampLimit(options.limit)
-  const result = options.orderId
-    ? await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ? AND order_id = ?
-      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
-      LIMIT ?`).bind(businessId, options.orderId, limit).all()
-    : await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ?
-      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
-      LIMIT ?`).bind(businessId, limit).all()
+const mapPrintQueueJobs = async (db, businessId, result, now) => {
   const station = await loadPrimaryPrintStation(db, businessId, now)
   return Promise.all(rows(result).map(async (row) => {
     const job = await applyLegacyForcePrintReason(db, businessId, mapJobRow(row))
@@ -293,6 +296,111 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
       : Boolean(station?.health?.ready)
     return { ...job, queueState: resolvePrintQueueState(job.status, { stationReady }) }
   }))
+}
+
+const isLegacyPrintJobRead = (options) => options.orderId || ![
+  'scope', 'page', 'pageSize', 'sortBy', 'sortDir', 'status', 'trigger', 'search',
+].some((key) => Object.hasOwn(options, key))
+
+const normalizePage = (value) => Math.max(1, Math.floor(Number(value) || 1))
+const normalizePageSize = (value) => Math.min(10, Math.max(1, Math.floor(Number(value) || 10)))
+
+export const purgeExpiredTerminalPrintJobs = async (db, businessId, now = new Date()) => {
+  const at = now instanceof Date ? now : new Date(now)
+  const cutoff = new Date(at.getTime() - PRINT_JOB_RETENTION_MS).toISOString()
+  const result = await db.prepare(`DELETE FROM print_jobs
+    WHERE business_id = ? AND status IN ('printed', 'discarded')
+      AND COALESCE(processed_at, discarded_at, created_at) <= ?`)
+    .bind(businessId, cutoff).run()
+  return Number(result?.meta?.changes || 0)
+}
+
+export const getPrintQueueSummary = async (db, businessId, now = new Date()) => {
+  const at = now instanceof Date ? now : new Date(now)
+  await purgeExpiredTerminalPrintJobs(db, businessId, at)
+  const startOfToday = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate())).toISOString()
+  const row = await db.prepare(`SELECT
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+      SUM(CASE WHEN status = 'awaiting_confirmation' THEN 1 ELSE 0 END) AS awaiting_confirmation,
+      SUM(CASE WHEN status = 'awaiting_second_copy' THEN 1 ELSE 0 END) AS awaiting_second_copy,
+      SUM(CASE WHEN status IN ('failed', 'requires_attention') THEN 1 ELSE 0 END) AS attention,
+      SUM(CASE WHEN status = 'printed' AND COALESCE(processed_at, created_at) >= ? THEN 1 ELSE 0 END) AS completed_today,
+      SUM(CASE WHEN status = 'pending' AND copies_printed = 0 AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+      ) THEN 1 ELSE 0 END) AS safe_backlog
+    FROM print_jobs WHERE business_id = ?`).bind(startOfToday, businessId).first()
+  return {
+    pending: Number(row?.pending || 0),
+    awaitingConfirmation: Number(row?.awaiting_confirmation || 0),
+    awaitingSecondCopy: Number(row?.awaiting_second_copy || 0),
+    attention: Number(row?.attention || 0),
+    completedToday: Number(row?.completed_today || 0),
+    safeBacklog: Number(row?.safe_backlog || 0),
+  }
+}
+
+export const listPrintJobs = async (db, businessId, options = {}) => {
+  const now = options.now || new Date()
+  await purgeExpiredTerminalPrintJobs(db, businessId, now)
+  await agePrintJobs(db, businessId, now)
+
+  if (isLegacyPrintJobRead(options)) {
+    const limit = clampLimit(options.limit)
+    const result = options.orderId
+      ? await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ? AND order_id = ?
+        ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
+        LIMIT ?`).bind(businessId, options.orderId, limit).all()
+      : await db.prepare(`SELECT * FROM print_jobs WHERE business_id = ?
+        ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC
+        LIMIT ?`).bind(businessId, limit).all()
+    return mapPrintQueueJobs(db, businessId, result, now)
+  }
+
+  const scope = options.scope === 'recent' ? 'recent' : 'operational'
+  const statuses = scope === 'recent' ? RECENT_PRINT_JOB_STATUSES : OPERATIONAL_PRINT_JOB_STATUSES
+  const pageSize = scope === 'recent' ? 10 : normalizePageSize(options.pageSize)
+  const page = scope === 'recent' ? 1 : normalizePage(options.page)
+  const sortBy = scope === 'recent' ? 'createdAt' : (PRINT_JOB_SORT_SQL[options.sortBy] ? options.sortBy : 'createdAt')
+  const sortDir = scope === 'recent' ? 'desc' : (String(options.sortDir).toLowerCase() === 'asc' ? 'asc' : 'desc')
+  const filters = [`print_jobs.business_id = ?`, `print_jobs.status IN (${statuses.map(() => '?').join(', ')})`]
+  const bindings = [businessId, ...statuses]
+  if (options.status && statuses.includes(options.status)) {
+    filters.push('print_jobs.status = ?')
+    bindings.push(options.status)
+  }
+  if (options.trigger && ['automatic', 'manual'].includes(options.trigger)) {
+    filters.push('print_jobs.trigger = ?')
+    bindings.push(options.trigger)
+  }
+  const search = String(options.search || '').trim()
+  if (search) {
+    const pattern = `%${search}%`
+    filters.push(`(CAST(orders.order_number AS TEXT) LIKE ? COLLATE NOCASE
+      OR orders.client_name_snapshot LIKE ? COLLATE NOCASE
+      OR table_tabs.table_identifier LIKE ? COLLATE NOCASE)`)
+    bindings.push(pattern, pattern, pattern)
+  }
+  const joins = `FROM print_jobs
+    LEFT JOIN orders ON orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id
+    LEFT JOIN table_tabs ON table_tabs.id = orders.table_tab_id AND table_tabs.business_id = orders.business_id`
+  const where = `WHERE ${filters.join(' AND ')}`
+  const count = await db.prepare(`SELECT COUNT(*) AS count ${joins} ${where}`).bind(...bindings).first()
+  const totalItems = scope === 'recent'
+    ? Math.min(10, Number(count?.count || 0))
+    : Number(count?.count || 0)
+  const totalPages = scope === 'recent' ? 1 : Math.max(1, Math.ceil(totalItems / pageSize))
+  const offset = scope === 'recent' ? 0 : (Math.min(page, totalPages) - 1) * pageSize
+  const result = await db.prepare(`SELECT print_jobs.* ${joins} ${where}
+    ORDER BY ${PRINT_JOB_SORT_SQL[sortBy]} ${sortDir.toUpperCase()}, print_jobs.created_at DESC, print_jobs.id ASC
+    LIMIT ? OFFSET ?`).bind(...bindings, pageSize, offset).all()
+  const jobs = await mapPrintQueueJobs(db, businessId, result, now)
+  return {
+    jobs,
+    pageInfo: { page: scope === 'recent' ? 1 : Math.min(page, totalPages), pageSize, totalItems, totalPages },
+  }
 }
 
 export const createManualOrderPrintJob = async (db, businessId, input, now = new Date()) => {
