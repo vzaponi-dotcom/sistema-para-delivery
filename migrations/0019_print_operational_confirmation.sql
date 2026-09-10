@@ -1,4 +1,4 @@
-PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = ON;
 
 ALTER TABLE print_stations ADD COLUMN physical_state TEXT NOT NULL DEFAULT 'verifying'
   CHECK (physical_state IN ('ready','verifying','printer_offline','printer_attention','qz_unavailable','printer_not_found','unconfigured','unsupported'));
@@ -112,4 +112,11 @@ CREATE TABLE print_job_attempts (
   UNIQUE (job_id, copy_number, attempt_number)
 );
 
+CREATE INDEX print_job_attempts_business_idx
+  ON print_job_attempts (business_id, created_at);
+
+CREATE INDEX print_job_attempts_station_idx
+  ON print_job_attempts (station_id, created_at);
+
 PRAGMA foreign_keys = ON;
+PRAGMA defer_foreign_keys = OFF;
