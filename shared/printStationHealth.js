@@ -31,17 +31,20 @@ export function normalizePrinterHealth(input = {}) {
   if (!qzConnected) return notReady('qz_unavailable')
   if (!queueFound) return notReady('unconfigured')
 
-  const status = input.physicalStatus ?? input.physicalState ?? input.printerStatus
+  const status = input.physicalStatus ?? input.physicalState ?? input.printerStatus ?? {
+    text: input.statusText,
+    code: input.statusCode,
+  }
   const text = textOf(status)
   const code = codeOf(status)
-  if (text === 'OK' || text === 'PRINTER OK' || (code === 0 && text.endsWith('OK'))) {
-    return { state: 'ready', ready: true }
-  }
   if (OFFLINE_CODES.has(code) || OFFLINE_MARKERS.some((marker) => text.includes(marker))) {
     return notReady('printer_offline')
   }
   if (ATTENTION_MARKERS.some((marker) => text.includes(marker))) {
     return notReady('printer_attention')
+  }
+  if (text === 'OK' || text === 'PRINTER OK' || (code === 0 && text.endsWith('OK'))) {
+    return { state: 'ready', ready: true }
   }
   return notReady('verifying')
 }
