@@ -30,7 +30,7 @@ export async function workspaceHarness(t, { mobile = false } = {}) {
     if (path === '/api/table-tabs/tab-42') return detailResponse()
     throw new Error(`Unexpected request: ${path}`)
   }
-  for (const [key, value] of Object.entries({ window, document, localStorage, navigator: { onLine: true, userAgent: 'test' } })) {
+  for (const [key, value] of Object.entries({ window, document, localStorage, navigator: { onLine: true, userAgent: 'test' }, addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window) })) {
     saved.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
   }

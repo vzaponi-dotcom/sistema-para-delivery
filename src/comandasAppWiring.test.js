@@ -8,6 +8,8 @@ async function paymentWorkspace(t, mobile = false) {
   const h = await workspaceHarness(t, { mobile })
   const state = { tables: workspaceTables, expired: false, pending: [], detail: comandaDetail, bootstrapCalls: 0 }
   globalThis.fetch = async (path, options = {}) => {
+    if (path.endsWith('/cancel')) return state.deferCancellation.promise
+    if (path === '/api/orders') return state.deferOrders ? state.deferOrders.promise : jsonResponse({ orders: state.bootstrapData?.orders || [] })
     if (path.endsWith('/payment')) {
       const p = deferred(); state.pending.push({ ...p, path, options }); return p.promise
     }
@@ -52,6 +54,174 @@ const paidResult = () => ({
   tables: workspaceTables.map((table) => table.id === 'occupied' ? { ...table, occupancy: 'free', openTableTab: null } : table),
 })
 const jsonResponse = (data) => ({ ok: true, json: async () => data })
+
+for (const syncOutcome of ['success', 'failure']) test(`accepted payment reconciles after an applied snapshot and selection change (${syncOutcome})`, async (t) => {
+  const { h, r, state, pay, navigate } = await paymentWorkspace(t)
+  const other = { id: 'other', name: 'Terraço', isActive: true, occupancy: 'occupied', sortOrder: 3, openTableTab: { id: 'tab-43', number: 43, itemCount: 3, totalCents: 12345 } }
+  state.details = { '/api/table-tabs/tab-43': { ...comandaDetail, id: 'tab-43', number: 43, table: { id: 'other', name: 'Terraço' } } }
+  await pay()
+  state.tables = [...workspaceTables, other]
+  await act(async () => h.fireInterval(5000))
+  await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button').at(-1).props.onClick())
+  state.bootstrapData = { ...paidResult(), tables: [...paidResult().tables, other], tableTabs: [paidResult().tableTab] }
+  if (syncOutcome === 'failure') state.bootstrapError = 'Reconciliação indisponível'
+  const reads = state.bootstrapCalls
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.ok(state.bootstrapCalls > reads, 'accepted financial effects must reconcile even after the UI owner changes')
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 43.*Terraço/)
+  assert.doesNotMatch(nodeText(r.root), /recebido via/)
+  if (syncOutcome === 'failure') {
+    assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'financial sync failure must remain actionable on the replacement selection')
+    await navigate('Clientes'); await navigate('Comandas')
+    state.bootstrapError = null
+    await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  }
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, 'other')
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+  assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
+})
+
+for (const readState of ['started', 'failed']) test(`partial free-table reconciliation cannot settle while a newer orders read ${readState}`, async (t) => {
+  const { h, r, state, pay, navigate } = await paymentWorkspace(t)
+  const unpaid = [{ ...paidResult().orders[0], paymentStatus: 'Pendente' }]
+  state.bootstrapData = { orders: unpaid, tableTabs: [{ ...paidResult().tableTab, status: 'open' }], movements: [] }
+  await act(async () => h.fireInterval(5000))
+  await pay()
+  await act(async () => h.fireInterval(5000))
+  const partial = deferred()
+  state.deferBootstrap = partial
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  const newerOrders = deferred()
+  state.deferOrders = newerOrders
+  await navigate('Pedidos')
+  if (readState === 'failed') await act(async () => newerOrders.reject(new Error('Leitura mais recente falhou')))
+  state.deferBootstrap = null
+  state.bootstrapError = 'Sem reconciliação completa'
+  await act(async () => partial.resolve(jsonResponse({ ...paidResult(), tableTabs: [paidResult().tableTab] })))
+  await navigate('Comandas')
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, 'occupied', 'partial financial application must not clear the originating selection')
+  assert.doesNotMatch(nodeText(r.root), /recebido via Pix/)
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'free tables alone cannot discharge financial synchronization')
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, unpaid)
+  if (readState === 'started') await act(async () => newerOrders.reject(new Error('Leitura mais recente falhou')))
+  await navigate('Comandas')
+  state.bootstrapError = null
+  state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null)
+  assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
+  await navigate('A Receber')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
+  await navigate('Comandas')
+  await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
+  const { NewOrderRoute } = await h.load('/src/pages/NewOrderRoute.jsx')
+  assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab])
+})
+
+for (const stale of ['orders', 'movements', 'tableTabs']) test(`a fully applied reconciliation still requires accepted payment evidence in ${stale}`, async (t) => {
+  const { h, r, state, pay, navigate } = await paymentWorkspace(t)
+  await pay()
+  await act(async () => h.fireInterval(5000))
+  state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
+  if (stale === 'orders') state.bootstrapData.orders = [{ ...paidResult().orders[0], paymentStatus: 'Pendente' }]
+  if (stale === 'movements') state.bootstrapData.movements = []
+  if (stale === 'tableTabs') state.bootstrapData.tableTabs = [{ ...paidResult().tableTab, status: 'open' }]
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, 'occupied', `free tables cannot mask stale ${stale}`)
+  assert.doesNotMatch(nodeText(r.root), /recebido via/)
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'))
+  state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null)
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
+})
+
+test('a newer cancellation rejects three financial collections without free tables completing payment sync', async (t) => {
+  const { h, r, state, pay, navigate, select } = await paymentWorkspace(t)
+  const otherOrder = { ...paidResult().orders[0], id: 'order-77', client: 'Outro pedido', tableTabId: 'tab-77' }
+  const otherTab = { id: 'tab-77', number: 77, tableId: null, status: 'open' }
+  const refund = { id: 'refund-77', description: 'Estorno mais recente', value: 123.45, type: 'saida', date: '2026-09-10' }
+  state.bootstrapData = { orders: [{ ...paidResult().orders[0], paymentStatus: 'Pendente' }, otherOrder], movements: [], tableTabs: [{ ...paidResult().tableTab, status: 'open' }, otherTab] }
+  await act(async () => h.fireInterval(5000))
+  await pay()
+  await act(async () => h.fireInterval(5000))
+  await select() // retires only the old payment UI; its network response is pending
+  await navigate('Histórico')
+  const otherRow = r.root.findAllByType('article').find((row) => nodeText(row).includes('Outro pedido'))
+  await act(async () => buttonNamed(otherRow, 'Cancelar pedido').props.onClick())
+  const { default: SystemSelect } = await h.load('/src/components/SystemSelect.jsx')
+  await act(async () => r.root.findByType(SystemSelect).props.onChange('duplicate_order'))
+  await act(async () => buttonNamed(r.root, 'Sim').props.onClick())
+  await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  state.deferCancellation = deferred()
+  await act(async () => { void buttonNamed(r.root, 'Confirmar cancelamento definitivamente').props.onClick() })
+  await navigate('Comandas')
+  const read = deferred()
+  state.deferBootstrap = read
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  const cancelled = { ...otherOrder, status: 'Cancelado' }
+  const closedOtherTab = { ...otherTab, status: 'closed' }
+  await act(async () => state.deferCancellation.resolve(jsonResponse({ order: cancelled, movement: refund, tableTab: closedOtherTab })))
+  state.deferBootstrap = null
+  state.bootstrapError = 'Reconciliação pós-mudança indisponível'
+  await act(async () => read.resolve(jsonResponse({ ...paidResult(), orders: [...paidResult().orders, otherOrder], tableTabs: [paidResult().tableTab, otherTab] })))
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'tables applied alone must not complete accepted payment')
+  assert.doesNotMatch(nodeText(r.root), /recebido via/)
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.equal(r.root.findByType(Receivables).props.orders.find((order) => order.id === 'paid-order').paymentStatus, 'Pendente')
+  assert.equal(r.root.findByType(Receivables).props.orders.find((order) => order.id === 'order-77').status, 'Cancelado')
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, [refund])
+  await navigate('Comandas')
+  state.bootstrapError = null
+  state.bootstrapData = { tables: paidResult().tables, orders: [...paidResult().orders, cancelled], movements: [...paidResult().movements, refund], tableTabs: [paidResult().tableTab, closedOtherTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
+  await navigate('A Receber')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, [...paidResult().orders, cancelled])
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, [...paidResult().movements, refund])
+  await navigate('Comandas')
+  await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
+  const { NewOrderRoute } = await h.load('/src/pages/NewOrderRoute.jsx')
+  assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab, closedOtherTab])
+})
+
+test('two accepted payments retain independent reconciliation obligations after automatic replacement', async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t)
+  await pay()
+  state.tables = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { id: 'tab-99', number: 99, itemCount: 3, totalCents: 12345 } } : table)
+  state.detail = { ...comandaDetail, id: 'tab-99', number: 99 }
+  await act(async () => h.fireInterval(5000))
+  await pay()
+  await act(async () => h.fireInterval(5000))
+  state.bootstrapError = 'Sincronização indisponível'
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  const second = { ...paidResult(), orders: [{ ...paidResult().orders[0], id: 'order-99' }], movements: [{ ...paidResult().movements[0], id: 'movement-99' }], tableTab: { ...paidResult().tableTab, id: 'tab-99', number: 99 } }
+  await act(async () => state.pending[1].resolve(jsonResponse(second)))
+  state.bootstrapError = null
+  // This complete read confirms the replacement only; the first acceptance is
+  // still missing from the financial collections and cannot disappear with it.
+  state.bootstrapData = { ...second, tableTabs: [second.tableTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'settling one payment cannot erase the other accepted payment obligation')
+  state.bootstrapData = { tables: second.tables, orders: [...paidResult().orders, ...second.orders], movements: [...paidResult().movements, ...second.movements], tableTabs: [paidResult().tableTab, second.tableTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
+  assert.equal(state.pending.length, 2, 'reconciliation does not charge either comanda again')
+})
 
 for (const readState of ['started', 'failed']) test(`payment applies official effects when a newer bootstrap only ${readState}`, async (t) => {
   const { h, r, state, pay, navigate } = await paymentWorkspace(t)
@@ -224,6 +394,7 @@ test('payment completion cannot replace newer official tables or clear a newer s
   state.detail = { ...comandaDetail, id: 'tab-99', number: 99, totalCents: 2000 }
   await act(async () => h.window.dispatchEvent(new Event('focus')))
   await select()
+  state.bootstrapData = { orders: paidResult().orders, movements: paidResult().movements, tableTabs: [paidResult().tableTab, { id: 'tab-99', tableId: 'occupied', number: 99, status: 'open' }] }
   await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 99/)
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Comanda 99/)
