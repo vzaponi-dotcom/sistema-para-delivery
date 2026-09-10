@@ -154,6 +154,35 @@ test('mid-write failure reports uncertain physical outcome once and never retrie
   assert.equal(completeCalls, 0)
 })
 
+test('fail reporting rejection preserves the uncertain physical failure as the primary error', async () => {
+  const physicalError = Object.assign(new Error('physical outcome is uncertain'), { code: 'SERIAL_WRITE_UNCERTAIN' })
+  const reportingError = new Error('failed to persist print failure')
+
+  const outcome = await runClaimedPrintJob({
+    job: baseJob,
+    stationId: 'station-1',
+    port: 'port-1',
+    completeJob: async () => assert.fail('an uncertain transport must not complete'),
+    failJob: async (_jobId, _stationId, payload) => {
+      assert.deepEqual(payload, {
+        code: 'SERIAL_WRITE_UNCERTAIN',
+        message: 'physical outcome is uncertain',
+        uncertain: true,
+      })
+      throw reportingError
+    },
+    renderer: () => new Uint8Array([1]),
+    transport: async () => { throw physicalError },
+  }).then(() => null, (error) => error)
+
+  assert.equal(outcome.code, 'SERIAL_WRITE_UNCERTAIN')
+  assert.equal(outcome.message, 'physical outcome is uncertain')
+  assert.equal(outcome.cause, physicalError)
+  assert.equal(outcome.operationalError, physicalError)
+  assert.equal(outcome.reportingError, reportingError)
+  assert.deepEqual(outcome.errors, [physicalError, reportingError])
+})
+
 test('unexpected errors are normalized without scheduling hidden retries', async () => {
   const originalSetTimeout = globalThis.setTimeout
   let timerCalls = 0

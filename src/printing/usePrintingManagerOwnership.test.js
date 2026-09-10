@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
+import qz from 'qz-tray'
 import { workspaceHarness } from '../test-support/renderWorkspace.js'
 import { deferred } from '../test-support/comandaFixtures.js'
 import { PRINT_JOB_POLL_MS, usePrintingManager } from './usePrintingManager.js'
@@ -28,8 +29,17 @@ const queueJob = (id, overrides = {}) => ({
 })
 const jsonResponse = (payload) => ({ ok: true, json: async () => payload })
 
-async function mountManager(t, { fetch, getPorts, write, onError } = {}) {
+async function mountManager(t, { fetch, getPorts, requestPort, open, close, write, onError, userAgent = 'test', qzPrinterName } = {}) {
   const h = await workspaceHarness(t)
+  globalThis.document.createElement = (tagName) => {
+    if (tagName !== 'canvas') return {}
+    const canvas = { width: 0, height: 0 }
+    canvas.getContext = () => ({
+      fillRect() {}, fillText() {},
+      getImageData: () => ({ data: new Uint8ClampedArray(canvas.width * canvas.height * 4).fill(255) }),
+    })
+    return canvas
+  }
   const originalSetInterval = globalThis.setInterval
   const originalClearInterval = globalThis.clearInterval
   globalThis.setInterval = h.window.setInterval
@@ -38,13 +48,18 @@ async function mountManager(t, { fetch, getPorts, write, onError } = {}) {
     globalThis.setInterval = originalSetInterval
     globalThis.clearInterval = originalClearInterval
   })
+  globalThis.navigator.userAgent = userAgent
   globalThis.localStorage.setItem('delivery-printer-fingerprint:test-station', JSON.stringify({ usbVendorId: 1, usbProductId: 2 }))
+  if (qzPrinterName) globalThis.localStorage.setItem('delivery-qz-printer-name:test-station', qzPrinterName)
   const port = {
     getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
-    open: async () => {}, close: async () => {},
+    open: open || (async () => {}), close: close || (async () => {}),
     writable: { getWriter: () => ({ write: write || (async () => {}), releaseLock() {} }) },
   }
-  globalThis.navigator.serial = { getPorts: async () => (getPorts ? getPorts(port) : [port]), requestPort: async () => port }
+  globalThis.navigator.serial = {
+    getPorts: async () => (getPorts ? getPorts(port) : [port]),
+    requestPort: async () => (requestPort ? requestPort(port) : port),
+  }
   globalThis.fetch = fetch
   function Probe({ authenticated = true }) {
     return React.createElement('printing-probe', { value: usePrintingManager({ authenticated, isOnline: true, onError }) })
@@ -54,6 +69,250 @@ async function mountManager(t, { fetch, getPorts, write, onError } = {}) {
   await act(flushMicrotasks)
   return { h, port, renderer, Probe, current }
 }
+
+const installQzFake = (t, { find, print } = {}) => {
+  const originals = {
+    isActive: qz.websocket.isActive,
+    connect: qz.websocket.connect,
+    find: qz.printers.find,
+    create: qz.configs.create,
+    print: qz.print,
+    setCertificatePromise: qz.security.setCertificatePromise,
+    setSignatureAlgorithm: qz.security.setSignatureAlgorithm,
+    setSignaturePromise: qz.security.setSignaturePromise,
+  }
+  qz.websocket.isActive = () => true
+  qz.websocket.connect = async () => {}
+  qz.printers.find = find || (async () => [])
+  qz.configs.create = (printer) => ({ printer })
+  qz.print = print || (async () => {})
+  qz.security.setCertificatePromise = () => {}
+  qz.security.setSignatureAlgorithm = () => {}
+  qz.security.setSignaturePromise = () => {}
+  t.after(() => {
+    qz.websocket.isActive = originals.isActive
+    qz.websocket.connect = originals.connect
+    qz.printers.find = originals.find
+    qz.configs.create = originals.create
+    qz.print = originals.print
+    qz.security.setCertificatePromise = originals.setCertificatePromise
+    qz.security.setSignatureAlgorithm = originals.setSignatureAlgorithm
+    qz.security.setSignaturePromise = originals.setSignaturePromise
+  })
+}
+
+test('replacement session ignores stale Web Serial discovery and cannot probe until its physical owner releases', async (t) => {
+  const discovery = deferred()
+  const probe = deferred()
+  t.after(() => { discovery.resolve([]); probe.resolve() })
+  const reported = []
+  const requests = []
+  let getPortsCalls = 0
+  let activeDiscovery = 0
+  let maximumDiscovery = 0
+  let openCalls = 0
+  const manager = await mountManager(t, {
+    onError: (error) => reported.push(error.message),
+    getPorts: async (port) => {
+      getPortsCalls += 1
+      if (getPortsCalls === 1) return []
+      activeDiscovery += 1
+      maximumDiscovery = Math.max(maximumDiscovery, activeDiscovery)
+      try {
+        if (getPortsCalls === 2) { await discovery.promise; return [port] }
+        return []
+      } finally {
+        activeDiscovery -= 1
+      }
+    },
+    open: async () => {
+      openCalls += 1
+      if (openCalls === 1) await probe.promise
+    },
+    fetch: async (path) => {
+      const url = String(path); requests.push(url)
+      if (url === '/api/printing/stations') return jsonResponse({ stations: [{ ...station, isPrimary: false, autoPrintEnabled: false }] })
+      if (url.startsWith('/api/printing/jobs?')) return jsonResponse({ jobs: [] })
+      if (url === '/api/table-tabs/old/print-document') return jsonResponse({ document: tableDocument('old') })
+      if (url === '/api/table-tabs/new/print-document') return jsonResponse({ document: tableDocument('new') })
+      throw new Error(`Unexpected request: ${url}`)
+    },
+  })
+
+  let oldPrint
+  await act(async () => { oldPrint = manager.current().printTableTab('old'); await flushMicrotasks() })
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: false })))
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: true })))
+  await act(flushMicrotasks)
+  await assert.rejects(manager.current().printTableTab('new'), { code: 'PRINT_BUSY' })
+  assert.equal(requests.some((url) => url.includes('/table-tabs/new/')), false)
+
+  await act(async () => { discovery.resolve(); await flushMicrotasks() })
+  assert.equal(openCalls, 1)
+  assert.equal(maximumDiscovery, 1)
+  await act(async () => { probe.resolve(); await oldPrint })
+  assert.equal(manager.current().transportReady, false)
+  assert.equal(manager.current().printerState, 'unconfigured')
+  assert.equal(manager.current().lastError, null)
+  assert.deepEqual(reported, [])
+
+  assert.deepEqual(await runInAct(() => manager.current().printTableTab('new')), { status: 'printed', copiesPrinted: 1 })
+  assert.equal(requests.some((url) => url.includes('/table-tabs/new/')), true)
+})
+
+test('replacement session ignores stale QZ discovery and waits for its discovery owner before retrying', async (t) => {
+  const oldDiscovery = deferred()
+  t.after(() => oldDiscovery.resolve(['Old Printer', 'New Printer']))
+  let findCalls = 0
+  let activeDiscovery = 0
+  let maximumDiscovery = 0
+  const printedTo = []
+  installQzFake(t, {
+    find: async () => {
+      findCalls += 1
+      if (findCalls === 1) return ['Old Printer', 'New Printer']
+      activeDiscovery += 1
+      maximumDiscovery = Math.max(maximumDiscovery, activeDiscovery)
+      try {
+        if (findCalls === 2) return await oldDiscovery.promise
+        return ['Old Printer', 'New Printer']
+      } finally {
+        activeDiscovery -= 1
+      }
+    },
+    print: async (config) => { printedTo.push(config.printer) },
+  })
+  const reported = []
+  const requests = []
+  const manager = await mountManager(t, {
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    qzPrinterName: 'Old Printer',
+    onError: (error) => reported.push(error.message),
+    fetch: async (path) => {
+      const url = String(path); requests.push(url)
+      if (url === '/api/printing/stations') return jsonResponse({ stations: [{ ...station, platform: 'windows', isPrimary: false, autoPrintEnabled: false }] })
+      if (url.startsWith('/api/printing/jobs?')) return jsonResponse({ jobs: [] })
+      if (url === '/api/table-tabs/new/print-document') return jsonResponse({ document: tableDocument('new') })
+      throw new Error(`Unexpected request: ${url}`)
+    },
+  })
+
+  let oldConnect
+  await act(async () => { oldConnect = manager.current().connectPrinter(); await flushMicrotasks() })
+  globalThis.localStorage.setItem('delivery-qz-printer-name:test-station', 'New Printer')
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: false })))
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: true })))
+  await act(flushMicrotasks)
+  await assert.rejects(manager.current().printTableTab('new'), { code: 'PRINT_BUSY' })
+  assert.equal(maximumDiscovery, 1)
+
+  await act(async () => { oldDiscovery.resolve(['Old Printer', 'New Printer']); await oldConnect })
+  assert.equal(manager.current().configuredPrinterName, null)
+  assert.equal(manager.current().transportReady, false)
+  assert.equal(manager.current().lastError, null)
+  assert.deepEqual(reported, [])
+
+  assert.deepEqual(await runInAct(() => manager.current().printTableTab('new')), { status: 'printed', copiesPrinted: 1 })
+  assert.deepEqual(printedTo, ['New Printer'])
+  assert.equal(requests.some((url) => url === '/api/printing/test-jobs' || /\/api\/printing\/jobs\/(?:claim-next|[^/?]+\/(?:claim|complete|fail|retry))$/.test(url)), false)
+})
+
+test('QZ operation keeps its resolved printer immutable across authentication and station replacement', async (t) => {
+  const oldDocument = deferred()
+  const oldWrite = deferred()
+  const oldWriteStarted = deferred()
+  t.after(() => { oldDocument.resolve(jsonResponse({ document: tableDocument('old') })); oldWrite.resolve() })
+  const printedTo = []
+  let activeWrites = 0
+  let maximumWrites = 0
+  installQzFake(t, {
+    find: async () => ['Old Printer', 'New Printer'],
+    print: async (config) => {
+      printedTo.push(config.printer)
+      activeWrites += 1
+      maximumWrites = Math.max(maximumWrites, activeWrites)
+      try {
+        if (printedTo.length === 1) { oldWriteStarted.resolve(); await oldWrite.promise }
+      } finally {
+        activeWrites -= 1
+      }
+    },
+  })
+  const requests = []
+  const manager = await mountManager(t, {
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    qzPrinterName: 'Old Printer',
+    fetch: async (path) => {
+      const url = String(path); requests.push(url)
+      if (url === '/api/printing/stations') return jsonResponse({ stations: [{ ...station, platform: 'windows', isPrimary: false, autoPrintEnabled: false }] })
+      if (url.startsWith('/api/printing/jobs?')) return jsonResponse({ jobs: [] })
+      if (url === '/api/table-tabs/old/print-document') return oldDocument.promise
+      if (url === '/api/table-tabs/new/print-document') return jsonResponse({ document: tableDocument('new') })
+      throw new Error(`Unexpected request: ${url}`)
+    },
+  })
+
+  let oldPrint
+  await act(async () => { oldPrint = manager.current().printTableTab('old'); await flushMicrotasks() })
+  globalThis.localStorage.setItem('delivery-qz-printer-name:test-station', 'New Printer')
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: false })))
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: true })))
+  await act(flushMicrotasks)
+  await assert.rejects(manager.current().printTableTab('new'), { code: 'PRINT_BUSY' })
+
+  await act(async () => { oldDocument.resolve(jsonResponse({ document: tableDocument('old') })); await oldWriteStarted.promise })
+  assert.deepEqual(printedTo, ['Old Printer'])
+  await assert.rejects(manager.current().printTableTab('new'), { code: 'PRINT_BUSY' })
+  await act(async () => { oldWrite.resolve(); await oldPrint })
+
+  assert.deepEqual(await runInAct(() => manager.current().printTableTab('new')), { status: 'printed', copiesPrinted: 1 })
+  assert.deepEqual(printedTo, ['Old Printer', 'New Printer'])
+  assert.equal(maximumWrites, 1)
+  assert.equal(requests.some((url) => url === '/api/printing/test-jobs' || /\/api\/printing\/jobs\/(?:claim-next|[^/?]+\/(?:claim|complete|fail|retry))$/.test(url)), false)
+})
+
+test('queued QZ operation also keeps its resolved printer immutable across authentication replacement', async (t) => {
+  const createJob = deferred()
+  t.after(() => createJob.resolve(jsonResponse({ job: queueJob('queued-old') })))
+  const printedTo = []
+  installQzFake(t, {
+    find: async () => ['Old Printer', 'New Printer'],
+    print: async (config) => { printedTo.push(config.printer) },
+  })
+  const manager = await mountManager(t, {
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    qzPrinterName: 'Old Printer',
+    fetch: async (path) => {
+      const url = String(path)
+      if (url === '/api/printing/stations') return jsonResponse({ stations: [{ ...station, platform: 'windows', isPrimary: false, autoPrintEnabled: false }] })
+      if (url.startsWith('/api/printing/jobs?')) return jsonResponse({ jobs: [] })
+      if (url === '/api/orders/order-1/print-jobs') return createJob.promise
+      if (url === '/api/printing/jobs/queued-old/claim') return jsonResponse({ job: queueJob('queued-old') })
+      if (url === '/api/printing/jobs/queued-old/complete') return jsonResponse({ job: queueJob('queued-old', { status: 'printed', copiesPrinted: 1 }) })
+      if (url === '/api/table-tabs/new/print-document') return jsonResponse({ document: tableDocument('new') })
+      throw new Error(`Unexpected request: ${url}`)
+    },
+  })
+
+  let oldPrint
+  await act(async () => { oldPrint = manager.current().printOrder('order-1', 1); await flushMicrotasks() })
+  globalThis.localStorage.setItem('delivery-qz-printer-name:test-station', 'New Printer')
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: false })))
+  await act(async () => manager.renderer.update(React.createElement(manager.Probe, { authenticated: true })))
+  await act(flushMicrotasks)
+  await assert.rejects(manager.current().printTableTab('new'), { code: 'PRINT_BUSY' })
+
+  let oldResult
+  await act(async () => {
+    createJob.resolve(jsonResponse({ job: queueJob('queued-old') }))
+    oldResult = await oldPrint
+  })
+  assert.deepEqual(oldResult, { status: 'printed' })
+  assert.deepEqual(printedTo, ['Old Printer'])
+
+  assert.deepEqual(await runInAct(() => manager.current().printTableTab('new')), { status: 'printed', copiesPrinted: 1 })
+  assert.deepEqual(printedTo, ['Old Printer', 'New Printer'])
+})
 
 test('Web Serial automatic discovery owns physical printing before deferred getPorts', async (t) => {
   const discovery = deferred()
@@ -268,7 +527,11 @@ test('rejected fail reporting releases physically but cannot report into a repla
   const failError = new Error('fail reporting rejected')
   let oldError
   await act(async () => { failResponse.reject(failError); oldError = await oldOutcome })
-  assert.equal(oldError, failError)
+  assert.equal(oldError.code, 'SERIAL_WRITE_UNCERTAIN')
+  assert.equal(oldError.message, 'A conexão caiu durante a impressão. O resultado físico é incerto.')
+  assert.equal(oldError.cause, oldError.operationalError)
+  assert.equal(oldError.operationalError.code, 'SERIAL_WRITE_UNCERTAIN')
+  assert.equal(oldError.reportingError, failError)
   assert.deepEqual(reported, [])
   assert.equal(manager.current().lastError, null)
   assert.deepEqual(await runInAct(() => manager.current().printTableTab('new')), { status: 'printed', copiesPrinted: 1 })
@@ -283,7 +546,12 @@ test('rejected fail reporting updates the current UI while its physical owner is
   let manager
   let writes = 0
   manager = await mountManager(t, {
-    onError: (error) => observations.push({ message: error.message, busyJobId: manager.current().busyJobId }),
+    onError: (error) => observations.push({
+      message: error.message,
+      code: error.code,
+      reportingError: error.reportingError,
+      busyJobId: manager.current().busyJobId,
+    }),
     write: async () => {
       writes += 1
       if (writes === 1) throw Object.assign(new Error('transport failed'), { code: 'SERIAL_WRITE_UNCERTAIN' })
@@ -305,8 +573,17 @@ test('rejected fail reporting updates the current UI while its physical owner is
   assert.equal(manager.current().busyJobId, 'current-failed-job')
   let outcome
   await act(async () => { failResponse.reject(failError); outcome = await print.then(() => null, (error) => error) })
-  assert.equal(outcome, failError)
-  assert.deepEqual(observations, [{ message: 'current fail reporting rejected', busyJobId: 'current-failed-job' }])
+  assert.equal(outcome.code, 'SERIAL_WRITE_UNCERTAIN')
+  assert.equal(outcome.message, 'A conexão caiu durante a impressão. O resultado físico é incerto.')
+  assert.equal(outcome.cause, outcome.operationalError)
+  assert.equal(outcome.operationalError.code, 'SERIAL_WRITE_UNCERTAIN')
+  assert.equal(outcome.reportingError, failError)
+  assert.deepEqual(observations, [{
+    message: 'A conexão caiu durante a impressão. O resultado físico é incerto.',
+    code: 'SERIAL_WRITE_UNCERTAIN',
+    reportingError: failError,
+    busyJobId: 'current-failed-job',
+  }])
   assert.equal(manager.current().busyJobId, null)
   assert.deepEqual(await runInAct(() => manager.current().printTableTab('tab-42')), { status: 'printed', copiesPrinted: 1 })
 })

@@ -67,7 +67,7 @@ test('QZ and RawBT use MPT-II bitmap rendering while Web Serial keeps native tex
   const block = manager.slice(start, end)
 
   assert.match(block, /compatibilityMode:\s*getRendererCompatibilityMode\(transportKind\)/)
-  assert.match(block, /printQzRawBytes\(qz, configuredPrinterNameRef\.current, bytes\)/)
+  assert.match(block, /printQzRawBytes\(qz, destination\?\.qzPrinterName, bytes\)/)
   assert.match(block, /dispatchRawBtBytes\(bytes\)/)
   assert.match(block, /writeSerialBytes\(selectedPort, bytes, MTP5_PROFILE\.serial\)/)
 })
@@ -96,7 +96,7 @@ test('Windows QZ lifecycle configures signed security and exposes explicit local
   assert.match(manager, /resolveQzPrinter\(qz, savedPrinterName\)/)
   assert.match(manager, /saveQzPrinterName\(globalThis\.localStorage, stationId, selectedPrinter\)/)
 
-  const explicitPortStart = manager.indexOf('const getExplicitPort = useCallback')
+  const explicitPortStart = manager.indexOf('const getExplicitDestination = useCallback')
   assert.notEqual(explicitPortStart, -1)
   const explicitPortEnd = manager.indexOf('const executeClaimedJob = useCallback', explicitPortStart)
   assert.notEqual(explicitPortEnd, -1)
@@ -146,7 +146,7 @@ test('second copy resumes the existing partial job explicitly without creating a
   assert.match(block, /copiesRequested\) !== 2|copiesRequested !== 2/)
   assert.match(block, /copiesPrinted\) !== 1|copiesPrinted !== 1/)
   assert.match(block, /claimPrintJob\(job\.id, station\.id\)/)
-  assert.match(block, /executeClaimedJob\(claimed\.job, port/)
+  assert.match(block, /executeClaimedJob\(claimed\.job, destination/)
   assert.doesNotMatch(block, /createManualPrintJob/)
   assert.match(manager, /\bprintSecondCopy,\s*\n/)
 })
