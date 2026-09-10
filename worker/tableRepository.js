@@ -195,6 +195,29 @@ export const getOrCreateOpenTableTabByTableId = async (db, businessId, tableId, 
   return mapOpenTableTabRow(row)
 }
 
+export const requireExpectedOpenTableTab = async (db, businessId, tableId, expectedTableTabId) => {
+  const row = await db.prepare(`SELECT
+      table_tabs.id,
+      table_tabs.table_id,
+      table_tabs.table_identifier,
+      table_tabs.tab_number,
+      table_tabs.status,
+      table_tabs.opened_at,
+      table_tabs.closed_at
+    FROM table_tabs
+    JOIN tables ON tables.id = table_tabs.table_id AND tables.business_id = table_tabs.business_id
+    WHERE table_tabs.id = ?
+      AND table_tabs.business_id = ?
+      AND table_tabs.table_id = ?
+      AND table_tabs.status = 'open'
+      AND tables.is_active = 1
+    LIMIT 1`).bind(expectedTableTabId, businessId, tableId).first()
+  if (!row) {
+    throw domainError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
+  }
+  return mapOpenTableTabRow(row)
+}
+
 export const transferOpenTableTab = async (
   db,
   businessId,

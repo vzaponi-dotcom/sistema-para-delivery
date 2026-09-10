@@ -643,6 +643,7 @@ test('an occupied comanda adds another order through the preselected wizard and 
   assert.equal(buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Consumo no local').props['aria-pressed'], true)
   assert.equal(renderer.root.findByProps({ className: 'new-order-table-grid' }).findAllByType('button').find((button) => nodeText(button).includes('Mesa 7')).props['aria-pressed'], true)
   await prepareLocalOrderForCheckout(renderer)
+  assert.equal(buttonNamed(renderer.root, 'Salvar e receber'), undefined, 'table checkout must only be settled through the comanda')
   await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*4 itens.*143,45/)
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /1x Coxinha/)
@@ -651,6 +652,7 @@ test('an occupied comanda adds another order through the preselected wizard and 
   const orderPayload = JSON.parse(orderRequest[1].body)
   assert.equal(orderPayload.type, 'Local')
   assert.deepEqual(orderPayload.customerIdentity, { type: 'table', tableId: 'occupied' })
+  assert.equal(orderPayload.expectedTableTabId, 'tab-42')
   assert.equal(orderPayload.items[0].productId, lifecycleProduct.id)
   assert.match(orderRequest[1].headers['idempotency-key'], /.+/)
 })
@@ -682,6 +684,52 @@ test('an occupied comanda can cancel its preselected wizard without creating an 
   await act(async () => buttonNamed(renderer.root, 'Cancelar venda').props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*3 itens.*123,45/)
   assert.equal(requests.filter(([path, options]) => path === '/api/orders' && options.method === 'POST').length, 0)
+})
+
+test('a stale occupied-comanda checkout keeps the wizard and refreshes authoritative tables for retry', async (t) => {
+  const harness = await workspaceHarness(t)
+  let bootstrapCalls = 0
+  let checkoutAttempted = false
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (path, options = {}) => {
+    if (path === '/api/bootstrap') {
+      bootstrapCalls++
+      const currentTables = checkoutAttempted
+        ? workspaceTables.map((table) => table.id === 'occupied' ? { ...table, occupancy: 'free', openTableTab: null } : table)
+        : workspaceTables
+      return { ok: true, status: 200, json: async () => ({ tables: currentTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null }) }
+    }
+    if (path === '/api/table-tabs/tab-42') return detailResponse(comandaDetail)
+    if (path === '/api/orders' && options.method === 'POST') {
+      checkoutAttempted = true
+      return { ok: false, status: 409, json: async () => ({ error: { code: 'TABLE_TAB_CHANGED', message: 'A comanda mudou ou foi encerrada.' } }) }
+    }
+    const responses = {
+      ...checkoutDetails,
+      '/api/auth/session': { authenticated: true },
+      '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
+      '/api/printing/jobs?limit=100': { jobs: [] },
+    }
+    assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
+    return { ok: true, status: 200, json: async () => responses[path] }
+  }
+  t.after(() => { globalThis.fetch = originalFetch })
+
+  const { default: App } = await harness.load('/src/App.jsx')
+  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const renderer = await harness.render(App)
+  const navigation = renderer.root.findByProps({ 'aria-label': 'Menu principal' })
+  await act(async () => buttonNamed(navigation, 'Comandas').props.onClick())
+  await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Adicionar pedido').props.onClick())
+  await prepareLocalOrderForCheckout(renderer)
+  const beforeSubmitReads = bootstrapCalls
+  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
+
+  assert.equal(renderer.root.findAllByType(NewOrderRoute).length, 1, '409 must retain the prepared wizard')
+  assert.ok(bootstrapCalls > beforeSubmitReads, '409 must refresh authoritative tables before retry')
+  assert.match(nodeText(renderer.root), /A comanda mudou ou foi encerrada/)
+  assert.equal(buttonNamed(renderer.root, 'Salvar pedido').props.disabled, false)
 })
 
 test('a successful table checkout returns to Comandas with the authoritative occupied summary selected', async (t) => {

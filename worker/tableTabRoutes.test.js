@@ -187,3 +187,40 @@ test('a local order opens a fresh stable tab and returns its occupied pending su
   const paidPayload = await paid.json()
   assert.equal(paidPayload.tables.find((table) => table.id === 'table-2').occupancy, 'free')
 })
+
+test('direct API rejects immediate payment for a table order', async () => {
+  const { env, cookie } = await authenticated()
+  const response = await request(env, cookie, 'POST', '/api/orders', {
+    idempotencyKey: 'paid-table-api',
+    body: {
+      customerIdentity: { type: 'table', tableId: 'table-1' }, expectedTableTabId: 'tab-1',
+      type: 'Local', orderDate: getBusinessDate(new Date()), paymentMethod: 'Pix',
+      items: [{ productId: 'product-1', quantity: 1, note: '' }],
+      deliveryFee: 0, adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    },
+  })
+  assert.equal(response.status, 400)
+  const payload = await response.json()
+  assert.equal(payload.error.code, 'VALIDATION_ERROR')
+  assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) AS count FROM orders WHERE idempotency_key = 'paid-table-api'").get().count, 0)
+})
+
+test('direct API returns a stable conflict when the expected comanda was replaced', async () => {
+  const { env, cookie } = await authenticated()
+  env.DB.sqlite.exec(`
+    UPDATE table_tabs SET status = 'closed', closed_at = '${timestamp}' WHERE id = 'tab-1';
+    INSERT INTO table_tabs VALUES ('tab-2', 'amor-e-sabor', 'table-1', 'Mesa 1', 1043, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}');
+  `)
+  const response = await request(env, cookie, 'POST', '/api/orders', {
+    idempotencyKey: 'stale-tab-api',
+    body: {
+      customerIdentity: { type: 'table', tableId: 'table-1' }, expectedTableTabId: 'tab-1',
+      type: 'Local', orderDate: getBusinessDate(new Date()),
+      items: [{ productId: 'product-1', quantity: 1, note: '' }],
+      deliveryFee: 0, adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    },
+  })
+  assert.equal(response.status, 409)
+  assert.equal((await response.json()).error.code, 'TABLE_TAB_CHANGED')
+  assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) AS count FROM orders WHERE idempotency_key = 'stale-tab-api'").get().count, 0)
+})

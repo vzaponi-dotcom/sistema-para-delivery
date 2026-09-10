@@ -106,7 +106,7 @@ function App() {
   const [selectedComandaTableId, setSelectedComandaTableId] = useState(null)
   const [selectedComandaGeneration, setSelectedComandaGeneration] = useState(0)
   const [checkoutKey, setCheckoutKey] = useState(null)
-  const [newOrderContext, setNewOrderContext] = useState({ tableId: '', returnTab: 'orders', owner: null })
+  const [newOrderContext, setNewOrderContext] = useState({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
   const [newOrderDirty, setNewOrderDirty] = useState(false)
   const [pendingNavigationTab, setPendingNavigationTab] = useState(null)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
@@ -176,7 +176,7 @@ function App() {
   const invalidateNewOrderDraft = () => {
     newOrderOwnerRef.current += 1
     setCheckoutKey(null)
-    setNewOrderContext({ tableId: '', returnTab: 'orders', owner: null })
+    setNewOrderContext({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
     setNewOrderDirty(false)
   }
 
@@ -534,11 +534,11 @@ function App() {
     if (targetTab) completeNavigation(targetTab)
   }
 
-  const handleNewOrder = ({ tableId = '', returnTab = 'orders' } = {}) => {
+  const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
     if (writesBlocked) return
     const owner = newOrderOwnerRef.current + 1
     newOrderOwnerRef.current = owner
-    setNewOrderContext({ tableId, returnTab, owner })
+    setNewOrderContext({ tableId, expectedTableTabId, returnTab, owner })
     if (tableId) selectComandaTable(tableId)
     setCheckoutKey(crypto.randomUUID())
     setNewOrderDirty(false)
@@ -558,6 +558,8 @@ function App() {
       completeNavigation(newOrderContext.returnTab)
       return true
     } catch (error) {
+      if (owner !== newOrderOwnerRef.current) return false
+      if (error?.status === 409 && newOrderContext.expectedTableTabId) await refreshBootstrapSilently()
       if (owner !== newOrderOwnerRef.current) return false
       showApiError(error)
       return false
@@ -755,13 +757,13 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
         {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
-        {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} selectionGeneration={selectedComandaGeneration} onSelectTable={selectComandaTable} onAddOrder={(tableId) => handleNewOrder({ tableId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} selectionGeneration={selectedComandaGeneration} onSelectTable={selectComandaTable} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
 
         {pendingNavigationTab && (
           <Modal title="Descartar venda em andamento?" onClose={cancelDiscardNewOrder}>

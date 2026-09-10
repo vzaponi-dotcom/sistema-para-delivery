@@ -5,7 +5,7 @@ import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { loadPrimaryAutomaticPrintStation, prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
-import { getOrCreateOpenTableTabByTableId, listTables } from './tableRepository.js'
+import { getOrCreateOpenTableTabByTableId, listTables, requireExpectedOpenTableTab } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
@@ -303,6 +303,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (existing?.id) return loadOrderById(db, businessId, existing.id)
 
   const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
+  if (customerIdentity.type === 'table' && input.paymentMethod) {
+    throw repositoryError(400, 'TABLE_ORDER_PAYMENT_NOT_ALLOWED', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
+  }
   let clientId = null
   let clientSnapshot = ''
   let clientPhoneSnapshot = ''
@@ -326,7 +329,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       clientPhoneSnapshot = formatClientPhone(client.phone)
       clientAddressSnapshot = client.address || ''
     }
-    const tableTab = await getOrCreateOpenTableTabByTableId(db, businessId, customerIdentity.tableId, now)
+    const tableTab = input.expectedTableTabId
+      ? await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
+      : await getOrCreateOpenTableTabByTableId(db, businessId, customerIdentity.tableId, now)
     if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
     tableTabId = tableTab.id
   } else {
@@ -460,6 +465,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   } catch (error) {
     const collided = await db.prepare('SELECT id FROM orders WHERE business_id = ? AND idempotency_key = ? LIMIT 1').bind(businessId, idempotencyKey).first()
     if (collided?.id) return loadOrderById(db, businessId, collided.id)
+    if (/TABLE_TAB_NOT_OPEN/i.test(String(error?.message || ''))) {
+      throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
+    }
     throw error
   }
 
@@ -534,7 +542,20 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
       WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId),
   )
-  await db.batch(statements)
+  let batchResults
+  try {
+    batchResults = await db.batch(statements)
+  } catch (error) {
+    const message = String(error?.message || '')
+    if (/TABLE_TAB_HAS_UNPAID_ORDERS|TABLE_TAB_NOT_OPEN|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {
+      throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
+    }
+    throw error
+  }
+  const closeResult = batchResults?.at?.(-1)
+  if (closeResult?.meta && Number(closeResult.meta.changes || 0) !== 1) {
+    throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
+  }
 
   return {
     tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: paidAt }),
