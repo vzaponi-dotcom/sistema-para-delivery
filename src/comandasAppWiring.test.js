@@ -3,6 +3,18 @@ import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
 
+const lifecycleProduct = { id: 'product-1', name: 'Coxinha', category: 'Lanches', presentationType: 'unit', price: 20, isActive: true }
+
+const buttonContaining = (root, text) => root.findAllByType('button').find((button) => nodeText(button).includes(text))
+
+async function prepareLocalOrderForCheckout(renderer) {
+  await act(async () => buttonContaining(renderer.root, 'Continuar').props.onClick())
+  const search = renderer.root.findAllByType('input').find((input) => input.props.placeholder === 'Nome, categoria ou apresentação')
+  await act(async () => search.props.onChange({ target: { value: lifecycleProduct.name } }))
+  await act(async () => renderer.root.findByProps({ 'aria-label': `Adicionar ${lifecycleProduct.name}` }).props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Revisar pedido').props.onClick())
+}
+
 test('App renders official Comandas, preserves selection across destinations and blocks offline launches', async (t) => {
   const harness = await workspaceHarness(t)
   const requests = []
@@ -45,20 +57,26 @@ test('App renders official Comandas, preserves selection across destinations and
   await act(async () => buttonNamed(renderer.root, 'Cancelar venda').props.onClick())
   assert.match(nodeText(tableList()), /Varanda.*Livre/)
   await act(async () => buttonNamed(desktop(), 'Dashboard').props.onClick())
-  await act(async () => buttonNamed(renderer.root, 'Novo pedido').props.onClick())
+  const newOrder = renderer.root.findAllByProps({ 'aria-label': 'Novo pedido' })[0]
+  assert.ok(newOrder, nodeText(renderer.root))
+  await act(async () => newOrder.props.onClick())
   assert.equal(buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Entrega').props['aria-pressed'], true)
   assert.equal(renderer.root.findAllByProps({ className: 'new-order-table-grid' }).length, 0)
 })
 
-test('an occupied comanda adds another order with that table already selected', async (t) => {
+test('an occupied comanda adds another order through the preselected wizard and returns to its summary', async (t) => {
   const harness = await workspaceHarness(t)
+  const afterCheckoutTables = workspaceTables.map((table) => table.id === 'occupied'
+    ? { ...table, openTableTab: { ...table.openTableTab, itemCount: 4, totalCents: 14345 } }
+    : table)
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path) => {
     const responses = {
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/orders': { order: { id: 'order-43', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-42', tableId: 'occupied', number: 42, status: 'open' }, tables: afterCheckoutTables },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }
@@ -75,6 +93,9 @@ test('an occupied comanda adds another order with that table already selected', 
   await act(async () => addOrder.props.onClick())
   assert.equal(buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Consumo no local').props['aria-pressed'], true)
   assert.equal(renderer.root.findByProps({ className: 'new-order-table-grid' }).findAllByType('button').find((button) => nodeText(button).includes('Mesa 7')).props['aria-pressed'], true)
+  await prepareLocalOrderForCheckout(renderer)
+  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
+  assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*4 itens.*143,45/)
 })
 
 test('a successful table checkout returns to Comandas with the authoritative occupied summary selected', async (t) => {
@@ -85,10 +106,10 @@ test('a successful table checkout returns to Comandas with the authoritative occ
     : table)
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
-    requests.push([path, options.method || 'GET'])
+    requests.push([path, options])
     const responses = {
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
       '/api/orders': { order: { id: 'order-99', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-99', tableId: 'free', number: 99, status: 'open' }, tables: createdTables },
@@ -98,24 +119,117 @@ test('a successful table checkout returns to Comandas with the authoritative occ
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
   const renderer = await harness.render(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
-  const route = renderer.root.findByType(NewOrderRoute)
-  await act(async () => {
-    assert.equal(await route.props.onSubmit({
-      type: 'Local',
-      orderDate: '2026-09-10',
-      customerIdentity: { type: 'table', tableId: 'free' },
-      items: [{ productId: 'product-1', quantity: 1, price: 20 }],
-    }), true)
-  })
+  await prepareLocalOrderForCheckout(renderer)
+  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
 
   const tableList = renderer.root.findByProps({ 'aria-label': 'Mesas ativas' })
   const varanda = tableList.findAllByType('button').find((button) => nodeText(button).includes('Varanda'))
   assert.equal(varanda.props['aria-pressed'], true)
   assert.match(nodeText(tableList), /Varanda.*Comanda 99.*20,00/)
-  assert.ok(requests.some(([path, method]) => path === '/api/orders' && method === 'POST'))
+  const orderRequest = requests.find(([path, options]) => path === '/api/orders' && options.method === 'POST')
+  assert.deepEqual(JSON.parse(orderRequest[1].body).customerIdentity, { type: 'table', tableId: 'free' })
+  assert.equal(JSON.parse(orderRequest[1].body).items[0].productId, lifecycleProduct.id)
+})
+
+test('an unavailable table rejection retains the real wizard draft and retries with its idempotency key', async (t) => {
+  const harness = await workspaceHarness(t)
+  let tableUnavailable = false
+  const orderRequests = []
+  const retryTables = workspaceTables.map((table) => table.id === 'free'
+    ? { ...table, occupancy: 'occupied', openTableTab: { id: 'tab-100', number: 100, itemCount: 1, totalCents: 2000 } }
+    : table)
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (path, options = {}) => {
+    if (path === '/api/orders' && options.method === 'POST') {
+      orderRequests.push(options)
+      if (orderRequests.length === 1) return { ok: false, status: 409, json: async () => ({ error: { message: 'A mesa não está disponível.' } }) }
+      return { ok: true, json: async () => ({ order: { id: 'order-100', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-100', tableId: 'free', number: 100, status: 'open' }, tables: retryTables }) }
+    }
+    const bootstrapTables = tableUnavailable ? workspaceTables.map((table) => table.id === 'free' ? { ...table, isActive: false } : table) : workspaceTables
+    const responses = {
+      '/api/auth/session': { authenticated: true },
+      '/api/bootstrap': { tables: bootstrapTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
+      '/api/printing/jobs?limit=100': { jobs: [] },
+    }
+    assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
+    return { ok: true, json: async () => responses[path] }
+  }
+  t.after(() => { globalThis.fetch = originalFetch })
+  const { default: App } = await harness.load('/src/App.jsx')
+  const renderer = await harness.render(App)
+  const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
+  await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
+  await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
+  await prepareLocalOrderForCheckout(renderer)
+  tableUnavailable = true
+  await act(async () => harness.window.dispatchEvent(new Event('focus')))
+  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
+  assert.match(nodeText(renderer.root), /A mesa não está disponível/)
+  assert.match(nodeText(renderer.root), /Coxinha/)
+
+  tableUnavailable = false
+  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
+  assert.equal(orderRequests.length, 2)
+  assert.equal(orderRequests[0].headers['idempotency-key'], orderRequests[1].headers['idempotency-key'])
+  assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Varanda.*Comanda 100/)
+})
+
+test('a deferred old wizard checkout cannot replace a relogged dirty draft', async (t) => {
+  const harness = await workspaceHarness(t)
+  let sessionExpired = false
+  let resolveOrder
+  let orderStarted
+  const deferredOrder = new Promise((resolve) => { resolveOrder = resolve })
+  const orderStartedPromise = new Promise((resolve) => { orderStarted = resolve })
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (path, options = {}) => {
+    if (path === '/api/bootstrap' && sessionExpired) {
+      return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada.' } }) }
+    }
+    if (path === '/api/orders' && options.method === 'POST') {
+      orderStarted()
+      return deferredOrder
+    }
+    const responses = {
+      '/api/auth/session': { authenticated: true },
+      '/api/auth/login': {},
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
+      '/api/printing/jobs?limit=100': { jobs: [] },
+    }
+    assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
+    return { ok: true, json: async () => responses[path] }
+  }
+  t.after(() => { globalThis.fetch = originalFetch })
+  const { default: App } = await harness.load('/src/App.jsx')
+  const renderer = await harness.render(App)
+  const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
+  await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
+  await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
+  await prepareLocalOrderForCheckout(renderer)
+  await act(async () => {
+    void buttonNamed(renderer.root, 'Salvar pedido').props.onClick()
+    await orderStartedPromise
+  })
+
+  sessionExpired = true
+  await act(async () => harness.window.dispatchEvent(new Event('focus')))
+  assert.equal(renderer.root.findAllByType('form').length, 1)
+  sessionExpired = false
+  const loginInput = renderer.root.findByProps({ placeholder: 'Digite o PIN' })
+  await act(async () => loginInput.props.onChange({ target: { value: '1234' } }))
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Retirada').props.onClick())
+
+  await act(async () => {
+    resolveOrder({ ok: true, json: async () => ({ order: { id: 'stale-order', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: null, tables: workspaceTables }) })
+    await Promise.resolve()
+  })
+  assert.equal(buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Retirada').props['aria-pressed'], true)
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Mesas ativas' }).length, 0)
 })
