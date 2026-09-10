@@ -30,6 +30,17 @@ test('eligible physically-uncertain attention exposes reprint and discard, while
   assert.deepEqual(actions({ status: 'requires_attention', lastError: { code: 'ORDER_NOT_PRINTABLE' } }), ['discard'])
 })
 
+test('unknown physical outcome exposes only explicit manual confirmation actions', () => {
+  assert.deepEqual(getPrintJobActions({
+    status: 'requires_attention',
+    type: 'order',
+    lastError: { code: 'PRINT_OUTCOME_UNKNOWN' },
+  }), [
+    { key: 'confirmPrinted', label: 'A via foi impressa' },
+    { key: 'confirmNotPrinted', label: 'N\u00e3o foi impressa \u2014 reenviar' },
+  ])
+})
+
 test('completed and discarded order jobs expose reprint unless the official order is cancelled', () => {
   assert.deepEqual(actions({ type: 'order', status: 'printed' }), ['reprint'])
   assert.deepEqual(actions({ type: 'order', status: 'printed' }, { order: { status: 'Finalizado' } }), ['reprint'])

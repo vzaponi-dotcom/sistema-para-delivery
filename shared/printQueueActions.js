@@ -17,6 +17,8 @@ const REPRINTABLE_UNCERTAIN_ATTENTION_CODES = new Set([
   'SERIAL_WRITE_UNCERTAIN',
 ])
 
+const PRINT_OUTCOME_UNKNOWN = 'PRINT_OUTCOME_UNKNOWN'
+
 const errorCode = (job) => String(job?.lastError?.code || job?.attentionReason || '').trim().toUpperCase()
 
 export const isForcePrintReason = (jobOrReason) => {
@@ -53,6 +55,12 @@ export const getPrintJobActions = (job, options = {}) => {
     ]
   }
   if (state === 'attention') {
+    if (errorCode(job) === PRINT_OUTCOME_UNKNOWN) {
+      return [
+        { key: 'confirmPrinted', label: 'A via foi impressa' },
+        { key: 'confirmNotPrinted', label: 'N\u00e3o foi impressa \u2014 reenviar' },
+      ]
+    }
     if (isForcePrintReason(job)) return [{ key: 'forcePrint', label: 'Imprimir mesmo assim' }, { key: 'discard', label: 'Descartar' }]
     if (isRetryablePrintJob(job)) return [{ key: 'retry', label: 'Tentar novamente' }, { key: 'discard', label: 'Descartar' }]
     if (isReprintablePrintJob(job, options)) return [{ key: 'reprint', label: 'Reimprimir' }, { key: 'discard', label: 'Descartar' }]
