@@ -54,6 +54,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
         order_id TEXT,
+        table_tab_id TEXT,
         type TEXT NOT NULL,
         trigger TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -488,6 +489,24 @@ test('manual printing leaves a future automatic job pending until its exact avai
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'primary', before), null)
   await heartbeatPrintStation(db, businessA, 'primary', { qzReady: true, printerReady: true }, future)
   assert.equal((await claimNextAutomaticPrintJob(db, businessA, 'primary', future)).id, automatic.id)
+})
+
+test('manual table-tab printing stores one immutable consolidated snapshot', async () => {
+  assert.equal(typeof printingRepository.createManualTableTabPrintJob, 'function')
+  const db = makeDb()
+  const tableTabDocument = { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } }
+  const job = await printingRepository.createManualTableTabPrintJob(db, businessA, {
+    id: 'manual-tab',
+    tableTabId: 'tab-42',
+    document: tableTabDocument,
+  }, baseNow)
+
+  tableTabDocument.tableTab.number = 99
+  assert.equal(job.type, 'table-tab')
+  assert.equal(job.tableTabId, 'tab-42')
+  assert.equal(job.orderId, null)
+  assert.equal(job.copiesRequested, 1)
+  assert.equal((await loadPrintJob(db, businessA, job.id)).document.tableTab.number, 42)
 })
 
 test('job and station reads are isolated by business id', async () => {

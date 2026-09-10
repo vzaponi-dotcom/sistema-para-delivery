@@ -40,7 +40,7 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
     const load = async () => {
       if (inFlight) { queued = true; return }
       inFlight = true
-      setSnapshot((current) => ({ ...current, loading: true }))
+      setSnapshot((current) => current.detail ? { ...current, error: undefined } : { ...current, loading: true })
       try {
         const { tableTab } = await getTableTabDetail(tabId)
         if (cancelled) return
@@ -50,7 +50,9 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
         setSnapshot({ detail: tableTab, loading: false })
       } catch (error) {
         if (cancelled) return
-        setSnapshot({ loading: false, error: error.message || 'Não foi possível carregar a comanda.' })
+        setSnapshot((current) => current.detail
+          ? { ...current, loading: false }
+          : { loading: false, error: error.message || 'Não foi possível carregar a comanda.' })
         setPaymentOpen(false)
         if (error.status === 401) errorHandler.current?.(error)
       } finally {
@@ -78,7 +80,7 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
         }
         setPreviewDocument(result)
       } else {
-        setPrintingFeedback({ type: 'success', message: 'Comanda enviada para impress\u00e3o' })
+        setPrintingFeedback({ type: 'success', message: 'Comanda enviada para a fila de impress\u00e3o' })
       }
     } catch (error) {
       if (!ownsAction()) return
@@ -96,7 +98,7 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
   if (!tabId) return <p role="alert">Comanda indisponível. Aguarde a atualização das mesas.</p>
   return (
     <>
-      {!current && <p role="status">{detail ? 'Atualizando comanda…' : 'Carregando comanda…'}</p>}
+      {!current && <p role="status">Carregando comanda…</p>}
       {current && snapshot.error && <div role="alert"><p>{snapshot.error}</p><Button type="button" onClick={() => refreshRef.current?.()}>Tentar novamente</Button></div>}
       {printingFeedback && <p role={printingFeedback.type === 'error' ? 'alert' : 'status'}>{printingFeedback.message}</p>}
       {detail && <ComandaDetail detail={detail} labelledBy="comanda-heading" currency={currency} disabled={disabled} busyAction={!current || Boolean(activeAction)} printingDisabled={!printing?.getTableTabPreviewDocument || !printing?.printTableTab} onAddOrder={() => onAddOrder?.(tableId, tabId)} onViewTicket={() => runPrintingAction('preview', () => printing.getTableTabPreviewDocument(tabId))} onPrint={() => runPrintingAction('print', () => printing.printTableTab(tabId))} onPay={() => setPaymentOpen(true)} />}

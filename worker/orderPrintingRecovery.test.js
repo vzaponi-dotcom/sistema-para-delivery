@@ -3,6 +3,7 @@ import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
 import {
   claimNextRecoveryPrintJob,
+  createManualTableTabPrintJob,
   discardPendingPrintJobs,
   heartbeatPrintStation,
   loadPrintJob,
@@ -29,7 +30,7 @@ class D1Sqlite {
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE print_jobs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, table_tab_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
         status TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0, parent_job_id TEXT,
         copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0, station_id TEXT,
         snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT, processing_started_at TEXT,
@@ -152,6 +153,23 @@ test('recovery claim requires active, claims one safe first copy, then defers th
   assert.equal(await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now), null)
   assert.equal((await loadPrintJob(db, businessId, 'second')).status, 'pending')
   assert.equal(db.sqlite.prepare('SELECT recovery_state FROM print_stations WHERE id = ?').get('kitchen').recovery_state, 'deferred')
+})
+
+test('recovery safely claims an unsubmitted consolidated comanda job', async () => {
+  const db = new D1Sqlite()
+  await addReadyPrimary(db)
+  const job = await createManualTableTabPrintJob(db, businessId, {
+    id: 'recover-tab', tableTabId: 'tab-42',
+    document: { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } },
+  }, now)
+  await heartbeatPrintStation(db, businessId, 'kitchen', { qzReady: true, printerReady: true, physicalState: 'ready' }, now)
+  await setPrintRecoveryState(db, businessId, 'kitchen', 'pending', now)
+  await setPrintRecoveryState(db, businessId, 'kitchen', 'active', now)
+
+  const claimed = await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now)
+  assert.ok(claimed, 'the safe consolidated comanda job must be recoverable')
+  assert.equal(claimed.id, job.id)
+  assert.equal(claimed.type, 'table-tab')
 })
 
 test('recovery state transitions accept only the recovery state machine', async () => {

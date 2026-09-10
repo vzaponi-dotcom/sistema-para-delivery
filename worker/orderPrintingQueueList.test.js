@@ -12,7 +12,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_number INTEGER,
         client_name_snapshot TEXT, table_tab_id TEXT, status TEXT NOT NULL DEFAULT 'Em preparo'
       );
-      CREATE TABLE table_tabs (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_identifier TEXT NOT NULL);
+      CREATE TABLE table_tabs (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_identifier TEXT NOT NULL, tab_number INTEGER);
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
@@ -22,7 +22,7 @@ class D1Sqlite {
         recovery_state TEXT NOT NULL DEFAULT 'normal', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE print_jobs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, table_tab_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
         status TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0, parent_job_id TEXT,
         copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0, station_id TEXT,
         snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT, processing_started_at TEXT,
@@ -74,6 +74,15 @@ const addJob = async (db, {
     .bind(id, orderId, trigger, status, copiesPrinted, doc(orderId), createdAt.toISOString(), createdAt.toISOString(), processedAt?.toISOString() ?? null).run()
 }
 
+const addTableTabJob = async (db, { id = 'comanda-job', number = 42, table = 'Mesa 7', createdAt = now } = {}) => {
+  const tabId = `tab-${id}`
+  await db.prepare('INSERT INTO table_tabs (id, business_id, table_identifier, tab_number) VALUES (?, ?, ?, ?)').bind(tabId, 'biz', table, number).run()
+  await db.prepare(`INSERT INTO print_jobs (
+    id, business_id, table_tab_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at, available_at
+  ) VALUES (?, 'biz', ?, 'table-tab', 'manual', 'pending', 1, 0, ?, ?, ?)`)
+    .bind(id, tabId, JSON.stringify({ type: 'table-tab', tableTab: { id: tabId, number, tableName: table }, items: [], financial: { totalCents: 2500 } }), createdAt.toISOString(), createdAt.toISOString()).run()
+}
+
 test('operational list paginates active statuses with numeric stable sorting and exact metadata', async () => {
   const db = new D1Sqlite()
   for (const [id, orderNumber, status] of [
@@ -115,6 +124,18 @@ test('operational filters and search run before pagination and invalid sort fall
   assert.deepEqual(filtered.jobs.map((job) => job.id), ['mesa'])
   assert.deepEqual(filtered.pageInfo, { page: 1, pageSize: 1, totalItems: 1, totalPages: 1 })
   assert.deepEqual(fallback.jobs.map((job) => job.id), ['mesa', 'ana', 'other'])
+})
+
+test('operational list searches and sorts consolidated comandas by tab number and table', async () => {
+  const db = new D1Sqlite()
+  await addTableTabJob(db, { id: 'tab-42', number: 42, table: 'Mesa Azul' })
+  await addTableTabJob(db, { id: 'tab-7', number: 7, table: 'Varanda' })
+
+  const sorted = await listPrintJobs(db, 'biz', { scope: 'operational', sortBy: 'orderNumber', sortDir: 'asc', page: 1, pageSize: 10, now })
+  assert.deepEqual(sorted.jobs.map((job) => job.id), ['tab-7', 'tab-42'])
+  assert.equal(sorted.jobs[0].tableTabId, 'tab-tab-7')
+  assert.deepEqual((await listPrintJobs(db, 'biz', { scope: 'operational', search: 'Mesa Azul', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['tab-42'])
+  assert.deepEqual((await listPrintJobs(db, 'biz', { scope: 'operational', search: '42', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['tab-42'])
 })
 
 test('recent list contains only ten newest terminal rows and keeps orderId lookup compatibility', async () => {

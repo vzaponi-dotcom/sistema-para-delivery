@@ -55,7 +55,8 @@ for (const mobile of [false, true]) test(`new selection and same-total official 
   assert.doesNotMatch(nodeText(detail(r)), /Sem cebola/)
   await act(async () => r.update(React.createElement(Workspace, { tables: [...tables] })))
   assert.equal(pending.length, 3, 'same-total official refresh must refresh notes/options too')
-  assert.ok(buttonNamed(detail(r), 'Registrar pagamento').props.disabled)
+  assert.doesNotMatch(nodeText(detail(r)), /Atualizando comanda/)
+  assert.equal(buttonNamed(detail(r), 'Registrar pagamento').props.disabled, false)
   await act(async () => r.update(React.createElement(Workspace, { tables: [...tables] })))
   assert.equal(pending.length, 3, 'same-comanda refresh signals coalesce while a request is pending')
   await act(async () => pending[2].reject(new Error('Erro antigo')))
@@ -229,7 +230,7 @@ test('manual print suppresses duplicates, preserves the open tab on failure, and
 
   await act(async () => buttonNamed(detail(r), 'Imprimir comanda').props.onClick())
   assert.equal(attempts, 2)
-  assert.match(nodeText(detail(r)), /Comanda enviada para impress\u00e3o/)
+  assert.match(nodeText(detail(r)), /Comanda enviada para a fila de impress\u00e3o/)
   assert.match(nodeText(detail(r)), /Comanda 42.*Mesa 7/)
 })
 
@@ -262,7 +263,7 @@ test('late preview and print results cannot affect a newer selected tab or clear
   assert.ok(buttonNamed(detail(r), 'Imprimir comanda').props.disabled, 'late old result must not release the newer action')
   await act(async () => prints[0].resolve({ status: 'printed', copiesPrinted: 1 }))
   await currentPrint
-  assert.match(nodeText(detail(r)), /Comanda enviada para impress\u00e3o/)
+  assert.match(nodeText(detail(r)), /Comanda enviada para a fila de impress\u00e3o/)
   assert.match(nodeText(detail(r)), /Comanda 43.*Terra\u00e7o/)
 })
 

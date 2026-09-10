@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { workspaceHarness, buttonNamed, nodeText } from '../test-support/renderWorkspace.js'
+import { workspaceHarness, nodeText } from '../test-support/renderWorkspace.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -16,7 +16,7 @@ test('new order uses one searchable client picker without phone in the selected 
   assert.doesNotMatch(customerStep, /client\.name\}\{client\.phone/)
 })
 
-test('new order starts Local with its requested table without marking the untouched draft dirty', async (t) => {
+test('new order from a selected table starts at products without marking the untouched draft dirty', async (t) => {
   const harness = await workspaceHarness(t)
   const dirtyStates = []
   const { default: NewOrder } = await harness.load('/src/pages/NewOrder.jsx')
@@ -34,10 +34,10 @@ test('new order starts Local with its requested table without marking the untouc
     onDraftDirtyChange: (dirty) => dirtyStates.push(dirty),
   })
 
-  const typeOptions = renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' })
-  assert.equal(buttonNamed(typeOptions, 'Consumo no local').props['aria-pressed'], true)
-  const tableOptions = renderer.root.findByProps({ className: 'new-order-table-grid' })
-  assert.equal(tableOptions.findAllByType('button').find((button) => nodeText(button).includes('Mesa 7')).props['aria-pressed'], true)
+  const steps = renderer.root.findByProps({ 'aria-label': 'Etapas da nova venda' })
+  assert.match(nodeText(steps.findByProps({ 'aria-current': 'step' })), /Produtos/)
+  assert.match(nodeText(renderer.root), /Mesa 7/)
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Tipo do pedido' }).length, 0)
   assert.deepEqual(dirtyStates, [false])
 })
 

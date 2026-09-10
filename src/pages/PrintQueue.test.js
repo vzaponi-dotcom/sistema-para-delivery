@@ -6,6 +6,7 @@ import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSumm
 import { filterPrintQueueJobs, getPrintQueueSearchText } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
+import { sortPrintQueueJobsForDisplay } from './printQueueQuery.js'
 import { nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -421,6 +422,21 @@ test('operational panel exposes sortable backend columns, a secondary recent lis
   assert.match(page, /operationalJobs\.map/)
   assert.match(styles, /print-queue-recent-section/)
   assert.match(styles, /print-queue-pagination/)
+})
+
+test('print queue identifies and sorts consolidated comandas from their immutable document', () => {
+  const comanda = {
+    id: 'comanda-42', type: 'table-tab', tableTabId: 'tab-42', trigger: 'manual', status: 'pending',
+    copiesRequested: 1, copiesPrinted: 0,
+    document: { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' } },
+  }
+  const details = getPrintJobDetails(comanda)
+  assert.equal(details.title, 'Comanda #42')
+  assert.equal(details.identity, 'Mesa 7')
+  assert.deepEqual(sortPrintQueueJobsForDisplay([
+    comanda,
+    { ...comanda, id: 'comanda-7', document: { type: 'table-tab', tableTab: { id: 'tab-7', number: 7, tableName: 'Varanda' } } },
+  ], { sortBy: 'orderNumber', sortDir: 'asc' }).map((job) => job.id), ['comanda-7', 'comanda-42'])
 })
 
 test('clicking a column header immediately reorders the displayed jobs even when the backend response order is stale', async (t) => {

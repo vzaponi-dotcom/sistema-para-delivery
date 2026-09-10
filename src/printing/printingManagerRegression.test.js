@@ -148,19 +148,15 @@ test('second copy resumes the existing partial job explicitly without creating a
   assert.match(manager, /\bprintSecondCopy,\s*\n/)
 })
 
-test('consolidated table-tab printing uses the canonical read and direct executor without queue mutations', () => {
+test('consolidated table-tab printing creates a centralized manual queue job', () => {
   const start = manager.indexOf('const printTableTab = useCallback')
   assert.notEqual(start, -1)
   const end = manager.indexOf('useEffect(() => {', start)
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
-  assert.match(block, /getTableTabPreviewDocument\(tableTabId\)/)
-  assert.match(block, /runManualPrintDocument/)
-  assert.match(block, /busyKey:\s*`table-tab:\$\{tableTabId\}`/)
-  for (const queueMutation of ['createManualPrintJob', 'claimPrintJob', 'completePrintJob', 'failPrintJob']) {
-    assert.doesNotMatch(block, new RegExp(`\\b${queueMutation}\\b`))
-  }
+  assert.match(block, /createManualTableTabPrintJob\(tableTabId\)/)
+  assert.doesNotMatch(block, /getTableTabPreviewDocument|runManualPrintDocument/)
 })
 
 test('printing manager centralizes approved poll and heartbeat cadences', () => {

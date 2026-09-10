@@ -52,7 +52,8 @@ class D1Sqlite {
 }
 
 const timestamp = '2026-09-10T18:00:00.000Z'
-const centralizedPrintingSql = () => fs.readFileSync(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8')
+const printingMigrationSql = () => ['0014_centralized_print_queue.sql', '0015_print_job_awaiting_second_copy.sql', '0016_second_copy_prompt_acknowledgment.sql', '0018_second_copy_decisions.sql', '0019_print_operational_confirmation.sql', '0022_table_tab_print_jobs.sql']
+  .map((file) => { try { return fs.readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8') } catch { return '' } })
 const orderNumbersSql = () => fs.readFileSync(new URL('../migrations/0017_order_numbers.sql', import.meta.url), 'utf8')
 
 const seed = (db) => {
@@ -76,7 +77,7 @@ const seed = (db) => {
 const authenticated = async () => {
   const db = new D1Sqlite()
   seed(db)
-  db.sqlite.exec(centralizedPrintingSql())
+  for (const sql of printingMigrationSql()) db.sqlite.exec(sql)
   db.sqlite.exec(orderNumbersSql())
   db.sqlite.prepare('INSERT INTO auth_credentials VALUES (?, ?)').run(
     'amor-e-sabor',
@@ -120,6 +121,28 @@ test('authenticated operator can load one open tab detail and its canonical prin
   assert.equal(document.tableTab.number, 1042)
   assert.equal(document.financial.totalCents, tableTab.totalCents)
   assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS count FROM print_jobs').get().count, 0)
+})
+
+test('authenticated operator queues one canonical consolidated comanda without local printer state', async () => {
+  const { env, cookie } = await authenticated()
+  const response = await request(env, cookie, 'POST', '/api/table-tabs/tab-1/print-jobs', { body: {} })
+  assert.equal(response.status, 201)
+  const { job } = await response.json()
+  assert.equal(job.type, 'table-tab')
+  assert.equal(job.tableTabId, 'tab-1')
+  assert.equal(job.orderId, null)
+  assert.equal(job.copiesRequested, 1)
+  assert.equal(job.status, 'pending')
+  assert.equal(job.document.type, 'table-tab')
+  assert.equal(job.document.tableTab.number, 1042)
+  assert.equal(job.document.financial.totalCents, 2500)
+
+  for (const id of ['tab-closed', 'tab-foreign', 'missing']) {
+    const rejected = await request(env, cookie, 'POST', `/api/table-tabs/${id}/print-jobs`, { body: {} })
+    assert.equal(rejected.status, 404)
+    assert.equal((await rejected.json()).error.code, 'TABLE_TAB_NOT_FOUND')
+  }
+  assert.equal((await request(env, cookie, 'POST', '/api/table-tabs/tab-1/print-jobs', { body: {}, origin: false })).status, 403)
 })
 
 test('table tab reads require a session and do not leak closed, missing, or foreign tabs', async () => {

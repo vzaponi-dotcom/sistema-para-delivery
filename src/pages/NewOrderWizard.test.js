@@ -17,11 +17,12 @@ test('new order exposes an accessible three-step indicator with reached-state aw
   assert.match(indicator, /onNavigate\(step\.id\)/)
 })
 
-test('new order starts on customer step and customer step contains only attendance data', async () => {
+test('new order starts on the context-appropriate step and customer step contains only attendance data', async () => {
   const page = await read('./NewOrder.jsx')
   const customerStep = await read('../components/NewOrderCustomerStep.jsx')
 
-  assert.match(page, /useState\(NEW_ORDER_STEPS\.CUSTOMER\)/)
+  assert.match(page, /initialTableId \? NEW_ORDER_STEPS\.PRODUCTS : NEW_ORDER_STEPS\.CUSTOMER/)
+  assert.match(page, /useState\(initialStep\)/)
   assert.match(page, /maxReachedStep/)
   assert.match(page, /NewOrderCustomerStep/)
   assert.match(customerStep, /Tipo do pedido/)

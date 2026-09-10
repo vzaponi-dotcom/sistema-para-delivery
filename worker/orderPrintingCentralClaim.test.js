@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { claimNextPrintJob } from './orderPrintingCentralClaim.js'
 import {
   createManualOrderPrintJob,
+  createManualTableTabPrintJob,
   heartbeatPrintStation,
   prepareAutomaticPrintJobStatement,
   setPrimaryPrintStation,
@@ -42,6 +43,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
         order_id TEXT,
+        table_tab_id TEXT,
         type TEXT NOT NULL,
         trigger TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -148,6 +150,23 @@ test('primary QZ station consumes a manual queued job even when automatic printi
   assert.equal(claimed.trigger, 'manual')
   assert.equal(claimed.status, 'processing')
   assert.equal(claimed.stationId, 'kitchen-qz')
+})
+
+test('primary QZ station consumes a queued consolidated comanda without automatic printing', async () => {
+  const db = new D1Sqlite()
+  db.sqlite.exec(`INSERT INTO businesses (id) VALUES ('${businessId}')`)
+  await addReadyPrimary(db, { autoPrintEnabled: false })
+  const job = await createManualTableTabPrintJob(db, businessId, {
+    id: 'table-tab-job',
+    tableTabId: 'tab-42',
+    document: { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } },
+  }, now)
+
+  const claimed = await claimNextPrintJob(db, businessId, 'kitchen-qz', now)
+  assert.ok(claimed, 'the consolidated comanda job must be claimable')
+  assert.equal(claimed.id, job.id)
+  assert.equal(claimed.type, 'table-tab')
+  assert.equal(claimed.status, 'processing')
 })
 
 test('primary QZ station claims authorized finalized and cancelled automatic jobs', async (t) => {

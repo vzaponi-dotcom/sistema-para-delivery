@@ -30,7 +30,7 @@ const AUTOMATIC_ORDER_ELIGIBLE_SQL = `EXISTS (
 )`
 
 const PRINT_JOB_SORT_SQL = Object.freeze({
-  orderNumber: 'orders.order_number',
+  orderNumber: 'COALESCE(orders.order_number, table_tabs.tab_number)',
   jobId: 'print_jobs.id',
   status: 'print_jobs.status',
   trigger: 'print_jobs.trigger',
@@ -113,6 +113,7 @@ const mapStationRow = (row, now = new Date()) => {
 const mapJobRow = (row) => row ? ({
   id: row.id,
   orderId: row.order_id ?? null,
+  tableTabId: row.table_tab_id ?? null,
   type: row.type,
   trigger: row.trigger,
   status: row.status,
@@ -379,13 +380,14 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
   if (search) {
     const pattern = `%${search}%`
     filters.push(`(CAST(orders.order_number AS TEXT) LIKE ? COLLATE NOCASE
+      OR CAST(table_tabs.tab_number AS TEXT) LIKE ? COLLATE NOCASE
       OR orders.client_name_snapshot LIKE ? COLLATE NOCASE
       OR table_tabs.table_identifier LIKE ? COLLATE NOCASE)`)
-    bindings.push(pattern, pattern, pattern)
+    bindings.push(pattern, pattern, pattern, pattern)
   }
   const joins = `FROM print_jobs
     LEFT JOIN orders ON orders.id = print_jobs.order_id AND orders.business_id = print_jobs.business_id
-    LEFT JOIN table_tabs ON table_tabs.id = orders.table_tab_id AND table_tabs.business_id = orders.business_id`
+    LEFT JOIN table_tabs ON table_tabs.id = COALESCE(print_jobs.table_tab_id, orders.table_tab_id) AND table_tabs.business_id = print_jobs.business_id`
   const where = `WHERE ${filters.join(' AND ')}`
   const count = await db.prepare(`SELECT COUNT(*) AS count ${joins} ${where}`).bind(...bindings).first()
   const totalItems = scope === 'recent'
@@ -413,6 +415,18 @@ export const createManualOrderPrintJob = async (db, businessId, input, now = new
       last_error_code, last_error_message
     ) VALUES (?, ?, ?, 'order', 'manual', 'pending', ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
     .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), at, at).run()
+  return loadPrintJob(db, businessId, id)
+}
+
+export const createManualTableTabPrintJob = async (db, businessId, input, now = new Date()) => {
+  const at = timestamp(now)
+  const id = String(input.id || crypto.randomUUID())
+  await db.prepare(`INSERT INTO print_jobs (
+      id, business_id, order_id, table_tab_id, type, trigger, status, copies_requested, copies_printed,
+      station_id, snapshot_json, created_at, available_at, processing_started_at, processed_at,
+      last_error_code, last_error_message
+    ) VALUES (?, ?, NULL, ?, 'table-tab', 'manual', 'pending', 1, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .bind(id, businessId, input.tableTabId, JSON.stringify(input.document), at, at).run()
   return loadPrintJob(db, businessId, id)
 }
 
@@ -668,14 +682,15 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
   await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
   const at = timestamp(now)
   const candidate = await db.prepare(`SELECT id FROM print_jobs
-    WHERE business_id = ? AND type = 'order' AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
+    WHERE business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
       AND NOT EXISTS (
         SELECT 1 FROM print_job_attempts
         WHERE print_job_attempts.business_id = print_jobs.business_id
           AND print_job_attempts.job_id = print_jobs.id
           AND print_job_attempts.submission_started_at IS NOT NULL
       )
-      AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+      AND ((type = 'table-tab' AND trigger = 'manual')
+        OR (type = 'order' AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})))
     ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`)
     .bind(businessId, at).first()
   if (!candidate?.id) return null
@@ -688,14 +703,15 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
   const row = await db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
-    WHERE id = ? AND business_id = ? AND type = 'order' AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
+    WHERE id = ? AND business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
       AND NOT EXISTS (
         SELECT 1 FROM print_job_attempts
         WHERE print_job_attempts.business_id = print_jobs.business_id
           AND print_job_attempts.job_id = print_jobs.id
           AND print_job_attempts.submission_started_at IS NOT NULL
       )
-      AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+      AND ((type = 'table-tab' AND trigger = 'manual')
+        OR (type = 'order' AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})))
     RETURNING *`).bind(stationId, at, candidate.id, businessId, at).first()
   return mapJobRow(row)
 }

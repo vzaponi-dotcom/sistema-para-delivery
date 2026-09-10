@@ -22,7 +22,7 @@ const formatDateTime = (value) => {
 }
 
 const getIdentity = (document) => formatOrderCustomerIdentity({
-  tableIdentifier: document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier,
+  tableIdentifier: document?.tableTab?.tableName || document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier,
   customerName: document?.customer?.name,
 })
 
@@ -49,7 +49,9 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
     : null
 
   return {
-    title: formatOrderDisplayNumber(order),
+    title: job?.type === 'table-tab' && job?.document?.tableTab?.number
+      ? `Comanda #${job.document.tableTab.number}`
+      : formatOrderDisplayNumber(order),
     identity: getIdentity(job?.document),
     status: getPrintQueueLabel(state),
     origin: job?.trigger === 'automatic' ? 'Automático' : ['manual', 'reprint'].includes(job?.trigger) ? 'Manual/Reimpressão' : null,

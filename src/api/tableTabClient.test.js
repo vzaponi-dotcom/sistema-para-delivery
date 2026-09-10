@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getTableTabDetail, getTableTabPrintDocument } from './client.js'
+import { createManualTableTabPrintJob, getTableTabDetail, getTableTabPrintDocument } from './client.js'
 
 const withFetch = async (implementation, callback) => {
   const original = globalThis.fetch
@@ -39,4 +39,19 @@ test('table tab read helpers preserve structured API errors', async () => {
       return true
     })
   })
+})
+
+test('table tab print helper queues one consolidated comanda through an encoded same-origin mutation', async () => {
+  const calls = []
+  await withFetch(async (...args) => {
+    calls.push(args)
+    return new Response(JSON.stringify({ job: { id: 'job-42', type: 'table-tab' } }), { status: 201, headers: { 'content-type': 'application/json' } })
+  }, async () => {
+    assert.deepEqual(await createManualTableTabPrintJob('tab / one'), { job: { id: 'job-42', type: 'table-tab' } })
+  })
+
+  assert.equal(calls[0][0], '/api/table-tabs/tab%20%2F%20one/print-jobs')
+  assert.equal(calls[0][1].method, 'POST')
+  assert.equal(calls[0][1].credentials, 'same-origin')
+  assert.deepEqual(JSON.parse(calls[0][1].body), {})
 })

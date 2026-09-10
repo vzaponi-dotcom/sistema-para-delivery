@@ -8,6 +8,7 @@ import {
   completePrintJob,
   createPrintAttempt,
   createManualPrintJob,
+  createManualTableTabPrintJob,
   createTestPrintJob,
   discardPendingPrintJobs,
   discardPrintJob,
@@ -42,7 +43,6 @@ import {
   saveQzPrinterName,
 } from './localPrintStation.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
-import { runManualPrintDocument } from './manualPrintDocument.js'
 import {
   canRunSingleRecoveryCopy,
   deriveRecoveryView,
@@ -861,46 +861,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response.document
   }, [])
 
-  const printTableTab = useCallback(async (tableTabId) => {
-    const station = localStationRef.current
-    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A esta\u00e7\u00e3o de impress\u00e3o ainda n\u00e3o est\u00e1 pronta.')
-    if (busyJobIdRef.current) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
-    const owner = acquirePrintOperation({ busyKey: `table-tab:${tableTabId}` })
-    if (!owner) throw printerError('PRINT_BUSY', 'Aguarde a impress\u00e3o atual terminar e tente novamente.')
-
-    try {
-      const port = await getExplicitPort()
-      const document = await getTableTabPreviewDocument(tableTabId)
-      if (document?.type !== 'table-tab' || document.tableTab?.id !== tableTabId) {
-        throw printerError('TABLE_TAB_PRINT_DOCUMENT_MISMATCH', 'O ticket recebido n\u00e3o corresponde \u00e0 comanda selecionada. Tente novamente.')
-      }
-      const result = await runManualPrintDocument({
-        document,
-        port,
-        renderer: (value, options) => renderEscPos58mm(value, {
-          ...options,
-          compatibilityMode: getRendererCompatibilityMode(transportKind),
-        }),
-        transport: (_selectedPort, bytes) => printQzRawBytes(qz, configuredPrinterNameRef.current, bytes),
-      })
-      if (ownsPrintOperation(owner)) {
-        updateTransportReady(true)
-        setPrinterState('connected')
-        setLastError(null)
-      }
-      return result
-    } catch (error) {
-      if (ownsPrintOperation(owner)) {
-        updateTransportReady(false)
-        setPrinterState('disconnected')
-        if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
-        reportError(error)
-      }
-      throw error
-    } finally {
-      releasePrintOperation(owner)
-    }
-  }, [acquirePrintOperation, getExplicitPort, getTableTabPreviewDocument, ownsPrintOperation, releasePrintOperation, reportError, transportKind, updateBlocked, updateTransportReady])
+  const printTableTab = useCallback((tableTabId) => createManualTableTabPrintJob(tableTabId), [])
 
   useEffect(() => {
     if (!authenticated) {

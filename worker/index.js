@@ -5,7 +5,7 @@ import { apiError, assertSameOriginMutation, handleError, json, readJson } from 
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { handlePrintingApi } from './orderPrintingApi.js'
-import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
+import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
@@ -169,6 +169,18 @@ const authenticatedApi = async (request, env) => {
     const detail = await loadOpenTableTabDetail(env.DB, session.businessId, decodeURIComponent(tableTabPrintMatch[1]))
     if (!detail) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta n\u00e3o encontrada.')
     return json({ document: createTableTabPrintDocument(detail) })
+  }
+  const tableTabPrintJobMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/print-jobs$/)
+  if (tableTabPrintJobMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const tableTabId = decodeURIComponent(tableTabPrintJobMatch[1])
+    const detail = await loadOpenTableTabDetail(env.DB, session.businessId, tableTabId)
+    if (!detail) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta não encontrada.')
+    const job = await createManualTableTabPrintJob(env.DB, session.businessId, {
+      tableTabId,
+      document: createTableTabPrintDocument(detail),
+    })
+    return json({ job }, { status: 201 })
   }
   const tableTabDetailMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)$/)
   if (tableTabDetailMatch && request.method === 'GET') {

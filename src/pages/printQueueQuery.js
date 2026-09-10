@@ -23,6 +23,10 @@ export const togglePrintQueueSort = (query = DEFAULT_PRINT_QUEUE_QUERY, sortBy) 
 
 const sortValue = (job, sortBy, ordersById) => {
   if (sortBy === 'orderNumber') {
+    if (job?.type === 'table-tab') {
+      const number = Number(job?.document?.tableTab?.number)
+      return Number.isInteger(number) && number > 0 ? number : null
+    }
     const value = Number(ordersById.get(String(job?.orderId))?.orderNumber)
     return Number.isInteger(value) && value > 0 ? value : null
   }

@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite'
 const initialSql = await readFile(new URL('../migrations/0010_order_printing.sql', import.meta.url), 'utf8').catch(() => '')
 const centralizedQueueSql = await readFile(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8').catch(() => '')
 const operationalConfirmationSql = await readFile(new URL('../migrations/0019_print_operational_confirmation.sql', import.meta.url), 'utf8').catch(() => '')
+const tableTabPrintJobsSql = await readFile(new URL('../migrations/0022_table_tab_print_jobs.sql', import.meta.url), 'utf8').catch(() => '')
 
 test('printing migration adds immutable ticket contact snapshots and station/job tables', () => {
   assert.match(initialSql, /ALTER TABLE orders ADD COLUMN client_phone_snapshot TEXT NOT NULL DEFAULT ''/)
@@ -163,4 +164,24 @@ test('operational confirmation migration preserves 0018 data and adds durable at
     spool_job_name: 'spool-operational',
     status: 'prepared',
   })
+})
+
+test('table-tab print job migration preserves existing jobs and enforces one-copy tab identity', async () => {
+  assert.match(tableTabPrintJobsSql, /table-tab/)
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0022_table_tab_print_jobs.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+  const at = '2026-09-10T18:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run('b-tab-print', 'b-tab-print', 'Tab print', at, at)
+  db.prepare('INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run('table-1', 'b-tab-print', 'Mesa 1', 'MESA 1', 1, 1, at, at)
+  db.prepare('INSERT INTO table_tabs (id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run('tab-1', 'b-tab-print', 'table-1', 'Mesa 1', 42, 'open', at, at, at)
+  db.prepare("INSERT INTO print_jobs (id, business_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('old-test', 'b-tab-print', 'test', 'manual', 'pending', 1, 0, '{}', ?)").run(at)
+
+  db.exec(tableTabPrintJobsSql)
+
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE id = 'old-test'").get().count, 1)
+  db.prepare("INSERT INTO print_jobs (id, business_id, table_tab_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('tab-job', 'b-tab-print', 'tab-1', 'table-tab', 'manual', 'pending', 1, 0, '{}', ?)").run(at)
+  assert.deepEqual({ ...db.prepare("SELECT table_tab_id, type, copies_requested FROM print_jobs WHERE id = 'tab-job'").get() }, { table_tab_id: 'tab-1', type: 'table-tab', copies_requested: 1 })
+  assert.throws(() => db.prepare("INSERT INTO print_jobs (id, business_id, table_tab_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('bad-copies', 'b-tab-print', 'tab-1', 'table-tab', 'manual', 'pending', 2, 0, '{}', ?)").run(at), /CHECK constraint failed/)
+  assert.throws(() => db.prepare("INSERT INTO print_jobs (id, business_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('bad-identity', 'b-tab-print', 'table-tab', 'manual', 'pending', 1, 0, '{}', ?)").run(at), /CHECK constraint failed/)
 })

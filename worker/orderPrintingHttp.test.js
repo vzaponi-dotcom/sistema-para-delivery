@@ -38,7 +38,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, method TEXT NOT NULL, paid_at TEXT NOT NULL
       );
       CREATE TABLE table_tabs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_identifier TEXT NOT NULL
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_identifier TEXT NOT NULL, tab_number INTEGER
       );
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
@@ -51,7 +51,7 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, table_tab_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
         status TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0, parent_job_id TEXT,
         copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0,
         station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT, processing_started_at TEXT,

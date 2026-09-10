@@ -26,7 +26,7 @@ const formatJobTime = (createdAt) => {
 
 const getCustomerOrTable = (document) => {
   const customer = String(document?.customer?.name || '').trim()
-  const table = String(document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier || '').trim()
+  const table = String(document?.tableTab?.tableName || document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier || '').trim()
   return formatOrderCustomerIdentity({ tableIdentifier: table, customerName: customer })
 }
 
@@ -35,7 +35,9 @@ const getPrintJobView = (job, stationReady, order) => {
     ? resolvePrintQueueState(job.queueState)
     : resolvePrintQueueState(job?.status, { stationReady })
   return {
-    orderNumber: order ? formatOrderDisplayNumber(order) : 'Pedido',
+    orderNumber: job?.type === 'table-tab' && job?.document?.tableTab?.number
+      ? `Comanda #${job.document.tableTab.number}`
+      : order ? formatOrderDisplayNumber(order) : 'Pedido',
     jobId: job?.id || '—',
     customerOrTable: getCustomerOrTable(job?.document),
     origin: job?.trigger === 'automatic' ? 'Automático' : job?.trigger === 'manual' ? 'Manual/Reimpressão' : null,

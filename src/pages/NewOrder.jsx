@@ -35,8 +35,9 @@ import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/ord
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
 function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
-  const [currentStep, setCurrentStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
-  const [maxReachedStep, setMaxReachedStep] = useState(NEW_ORDER_STEPS.CUSTOMER)
+  const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
+  const [currentStep, setCurrentStep] = useState(initialStep)
+  const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
