@@ -13,8 +13,12 @@ export async function workspaceHarness(t, { mobile = false } = {}) {
   const media = Object.assign(new EventTarget(), { matches: mobile })
   const storage = new Map([['delivery-print-station-id', 'test-station']])
   const localStorage = { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }
+  const intervals = new Map()
+  let intervalId = 0
   const window = Object.assign(new EventTarget(), {
-    matchMedia: () => media, localStorage, setInterval: () => 1, clearInterval: () => {},
+    matchMedia: () => media, localStorage,
+    setInterval: (callback, delay) => { const id = ++intervalId; intervals.set(id, { callback, delay }); return id },
+    clearInterval: (id) => intervals.delete(id),
     setTimeout, clearTimeout, atob, btoa, scrollY: 0, scrollTo: () => {}, requestAnimationFrame: (fn) => fn(),
   })
   const document = Object.assign(new EventTarget(), {
@@ -52,6 +56,7 @@ export async function workspaceHarness(t, { mobile = false } = {}) {
   })
   return {
     window, document, media, load: (path) => vite.ssrLoadModule(path),
+    fireInterval(delay) { for (const interval of [...intervals.values()]) if (interval.delay === delay) interval.callback() },
     setMobile(matches) {
       if (media.matches === matches) return
       media.matches = matches

@@ -1,16 +1,33 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import React from 'react'
+import { act } from 'react-test-renderer'
+import { workspaceHarness } from './test-support/renderWorkspace.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('modal and bottom sheet lock background scroll and restore focus', async () => {
-  const modal = await read('./components/Modal.jsx')
-  const sheet = await read('./components/BottomSheet.jsx')
-  for (const source of [modal, sheet]) {
-    assert.match(source, /document\.body\.style\.overflow/)
-    assert.match(source, /previousFocus/)
-    assert.match(source, /event\.key === 'Escape'/)
+test('modal and bottom sheet lock background scroll and restore focus on Escape', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  for (const path of ['/src/components/Modal.jsx', '/src/components/BottomSheet.jsx']) {
+    const { default: Overlay } = await h.load(path)
+    const launcher = { focus() { h.document.activeElement = this } }
+    const control = { focus() { h.document.activeElement = this } }
+    const host = { querySelectorAll: () => [control] }
+    h.document.body.style.overflow = 'auto'
+    launcher.focus()
+    function OpenOverlay() {
+      const [open, setOpen] = React.useState(true)
+      return open ? React.createElement(Overlay, { open, title: 'Teste', onClose: () => setOpen(false) }) : null
+    }
+    const r = await h.render(OpenOverlay, {}, { createNodeMock: (node) => node.props.role === 'dialog' ? host : null })
+    h.document.querySelectorAll = () => r.root.findAllByProps({ role: 'dialog' }).map(() => host)
+    assert.equal(h.document.body.style.overflow, 'hidden')
+    assert.equal(h.document.activeElement, control)
+    await act(async () => h.document.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' })))
+    assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
+    assert.equal(h.document.body.style.overflow, 'auto')
+    assert.equal(h.document.activeElement, launcher)
   }
 })
 

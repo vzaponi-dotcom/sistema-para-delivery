@@ -12,14 +12,16 @@ async function paymentWorkspace(t, mobile = false) {
       const p = deferred(); state.pending.push({ ...p, path, options }); return p.promise
     }
     if (path.startsWith('/api/table-tabs/')) {
+      if (state.queueDetails) { const p = deferred(); state.queueDetails.push({ ...p, path }); return p.promise }
       if (state.deferDetail) return state.deferDetail.promise
       return detailResponse(state.details?.[path] || state.detail)
     }
     if (path === '/api/bootstrap') {
       state.bootstrapCalls++
       if (state.deferBootstrap) return state.deferBootstrap.promise
+      if (state.bootstrapError) throw new Error(state.bootstrapError)
       if (state.expired) return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }
-      return { ok: true, json: async () => ({ tables: state.tables, tableTabs: [], orders: [], movements: [], clients: [], products: [], financeSettings: null }) }
+      return { ok: true, json: async () => structuredClone({ tables: state.tables, tableTabs: [], orders: [], movements: [], clients: [], products: [], financeSettings: null, ...state.bootstrapData }) }
     }
     const responses = {
       '/api/auth/session': { authenticated: true }, '/api/auth/login': {},
@@ -51,9 +53,112 @@ const paidResult = () => ({
 })
 const jsonResponse = (data) => ({ ok: true, json: async () => data })
 
+for (const readState of ['started', 'failed']) test(`payment applies official effects when a newer bootstrap only ${readState}`, async (t) => {
+  const { h, r, state, pay, navigate } = await paymentWorkspace(t)
+  await pay()
+  const read = deferred()
+  state.deferBootstrap = read
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  if (readState === 'failed') await act(async () => read.reject(new Error('Refresh falhou')))
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/, 'starting a read is not applying authority')
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null)
+  if (readState === 'started') await act(async () => read.resolve(jsonResponse({ tables: workspaceTables, orders: [], tableTabs: [], movements: [] })))
+  await navigate('A Receber')
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
+  assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
+})
+
+test('successful reconciled payment clears only the originating selection and uses applied authority', async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t)
+  await pay()
+  state.tables = workspaceTables.map((table) => ({ ...table, name: `${table.name} atual` }))
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  const sync = deferred()
+  state.deferBootstrap = sync
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7 atual/, 'payment must not roll back the applied snapshot')
+  await act(async () => sync.resolve(jsonResponse({ ...paidResult(), tableTabs: [paidResult().tableTab] })))
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null, 'reconciliation must finish the originating selection too')
+})
+
+test('failed reconciliation after accepted payment exposes retry and blocks paying that tab again', async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t)
+  await pay()
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  state.bootstrapError = 'Sem conexão para sincronizar'
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.match(nodeText(r.root), /Pagamento registrado.*sincroniza/i)
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'accepted payment needs an actionable sync state')
+  assert.ok(!buttonNamed(r.root, 'Registrar pagamento') || buttonNamed(r.root, 'Registrar pagamento').props.disabled)
+  assert.doesNotMatch(nodeText(r.root), /recebido via Pix/)
+  state.bootstrapError = null
+  state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null)
+  assert.equal(state.pending.length, 1, 'sync retry never resubmits the payment')
+})
+
+test('unresolved accepted payment survives leaving and reselecting its table without clearing the new selection', async (t) => {
+  const { h, r, state, pay, navigate, select } = await paymentWorkspace(t)
+  await pay()
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  state.bootstrapError = 'Sincronização indisponível'
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  await navigate('Clientes'); await navigate('Comandas'); await select()
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'selection changes cannot erase accepted-but-unsynchronized payment state')
+  assert.ok(buttonNamed(r.root, 'Registrar pagamento').props.disabled)
+  state.bootstrapError = null
+  state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, 'occupied', 'late sync must not clear a newer explicit selection generation')
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
+  assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
+  assert.doesNotMatch(nodeText(r.root), /recebido via Pix/)
+})
+
+test('periodic applied settlement resolves an earlier failed payment reconciliation', async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t)
+  await pay()
+  await act(async () => h.fireInterval(5000))
+  state.bootstrapError = 'Refresh falhou'
+  await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'))
+  state.bootstrapError = null
+  state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
+  await act(async () => h.fireInterval(5000))
+  assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, null)
+})
+
+for (const outcome of ['success', 'error', '401']) test(`automatic tab replacement retires payment ${outcome} without explicit reselection`, async (t) => {
+  const { h, r, state, pay } = await paymentWorkspace(t)
+  await pay()
+  state.tables = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { id: 'tab-99', number: 99, itemCount: 3, totalCents: 12345 } } : table)
+  state.detail = { ...comandaDetail, id: 'tab-99', number: 99 }
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.ok(!buttonNamed(r.root, 'Registrar pagamento').props.disabled, 'replacement cannot inherit the old request lock')
+  await pay()
+  assert.equal(state.pending[1].path, '/api/table-tabs/tab-99/payment')
+  await act(async () => state.pending[0].resolve(outcome === 'success' ? jsonResponse(paidResult()) : { ok: false, status: outcome === '401' ? 401 : 500, json: async () => ({ error: { message: 'Erro da comanda antiga' } }) }))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 99/)
+  assert.doesNotMatch(nodeText(r.root), /Erro da comanda antiga|recebido via/)
+  assert.ok(buttonNamed(r.root, 'Confirmar pagamento').props.disabled, 'old finally cannot unlock the replacement payment')
+  await act(async () => state.pending[1].reject(new Error('Falha atual')))
+})
+
 for (const outcome of ['success', 'error']) test(`payment reconciliation ignores old bootstrap ${outcome} after business reset`, async (t) => {
   const { h, r, state, pay, navigate, select } = await paymentWorkspace(t)
   await pay()
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
   const oldRead = deferred()
   state.deferBootstrap = oldRead
   await act(async () => h.window.dispatchEvent(new Event('focus')))
@@ -201,6 +306,51 @@ test('payment failure retains the full dialog for retry and going offline blocks
 })
 
 const lifecycleProduct = { id: 'product-1', name: 'Coxinha', category: 'Lanches', presentationType: 'unit', price: 20, isActive: true }
+
+for (const mobile of [false, true]) test(`slow detail coalesces real polling and change events and publishes before one follow-up (${mobile})`, async (t) => {
+  const { h, r, state, navigate } = await paymentWorkspace(t, mobile)
+  await navigate('Clientes')
+  state.queueDetails = []
+  await navigate('Comandas')
+  assert.equal(state.queueDetails.length, 1)
+  for (let tick = 0; tick < 4; tick++) await act(async () => h.fireInterval(5000))
+  await act(async () => h.document.dispatchEvent(new Event('visibilitychange')))
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  assert.equal(state.queueDetails.length, 1, '20 seconds of polling must not replace a slower in-flight detail')
+  await act(async () => state.queueDetails[0].resolve(detailResponse({ ...comandaDetail, items: [{ ...comandaDetail.items[0], note: 'Primeiro snapshot lento' }] })))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Primeiro snapshot lento/)
+  assert.equal(state.queueDetails.length, 2, 'all signals coalesce into one follow-up')
+  await act(async () => state.queueDetails[1].resolve(detailResponse({ ...comandaDetail, items: [{ ...comandaDetail.items[0], note: 'Snapshot atualizado' }] })))
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Snapshot atualizado/)
+  assert.ok(!buttonNamed(r.root, 'Registrar pagamento').props.disabled)
+  assert.equal(state.queueDetails.length, 2)
+})
+
+test('explicit reselection of the same table retires the old payment dialog generation', async (t) => {
+  const { r, state, pay, select } = await paymentWorkspace(t)
+  await pay()
+  await select()
+  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0, 'a new selection intent must not inherit the old modal')
+  await act(async () => state.pending[0].resolve({ ok: false, status: 500, json: async () => ({ error: { message: 'Erro de outra seleção' } }) }))
+  assert.doesNotMatch(nodeText(r.root), /Erro de outra seleção/)
+})
+
+for (const change of ['replacement', 'session']) test(`mobile payment-sheet teardown releases body after official ${change}`, async (t) => {
+  const { h, r, state } = await paymentWorkspace(t, true)
+  h.document.body.style.overflow = 'scroll'
+  await act(async () => buttonNamed(r.root, 'Registrar pagamento').props.onClick())
+  await act(async () => r.root.findByProps({ role: 'combobox' }).props.onClick())
+  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 2)
+  assert.equal(h.document.body.style.overflow, 'hidden')
+  if (change === 'session') state.expired = true
+  else {
+    state.tables = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { id: 'tab-99', number: 99, itemCount: 3, totalCents: 12345 } } : table)
+    state.detail = { ...comandaDetail, id: 'tab-99', number: 99 }
+  }
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.equal(h.document.body.style.overflow, 'scroll')
+})
 const checkoutDetails = {
   '/api/table-tabs/tab-42': { tableTab: comandaDetail },
   ...Object.fromEntries([['tab-99', 99], ['tab-100', 100], ['new-tab-200', 200], ['new-tab-201', 201]].map(([id, number]) => [

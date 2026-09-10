@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Icon from './Icon'
+import { acquireBodyScrollLock } from '../utils/bodyScrollLock.js'
 
 const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const dialogSelector = '[role="dialog"][aria-modal="true"]'
@@ -19,8 +20,7 @@ function Modal({ title, onClose, children, footer }) {
     if (typeof document === 'undefined') return undefined
 
     previousFocus.current = document.activeElement
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock(document.body)
 
     const controls = () => Array.from(cardRef.current?.querySelectorAll(focusable) || [])
     controls()[0]?.focus()
@@ -51,7 +51,7 @@ function Modal({ title, onClose, children, footer }) {
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       previousFocus.current?.focus?.()
     }
   }, [])
