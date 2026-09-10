@@ -69,6 +69,13 @@ const mountSettings = (printing) => {
 const copiesField = (view) => view.nodes((node) => node.type === 'fieldset')[0]
 const radio = (view, copies) => view.nodes((node) => node.type === 'input' && node.props.value === copies)[0]
 const viewText = (view) => JSON.stringify(view.tree)
+const renderedText = (node) => {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (!node || typeof node !== 'object') return ''
+  return (node.children || []).map(renderedText).join('')
+}
+const visibleText = (view) => renderedText(view.tree)
+const testPrintButton = (view) => view.nodes((node) => node.type === 'Button' && JSON.stringify(node.children).includes('Testar impressão'))[0]
 
 test('copies load from the business and save centrally while local station changes preserve the central value', async () => {
   const originalFetch = globalThis.fetch
@@ -191,13 +198,63 @@ test('printing settings expose honest connection, station and transport states',
   assert.doesNotMatch(settings, /MPT-II/)
 })
 
-test('QZ copy separates Tray connection from queue discovery and send readiness', () => {
+test('QZ copy keeps queue diagnostics distinct from physical readiness', () => {
   assert.match(settings, /QZ Tray conectado/)
   assert.match(settings, /QZ Tray desconectado/)
   assert.match(settings, /Fila encontrada/)
   assert.match(settings, /Fila configurada/)
-  assert.match(settings, /Pronta para enviar/)
+  assert.match(settings, /Pronta para imprimir/)
+  assert.doesNotMatch(settings, /Pronta para enviar/)
   assert.doesNotMatch(settings, /Impressora disponÃ­vel/)
+})
+
+test('shared physical health is the primary operational state and gates the physical test control', () => {
+  const printing = {
+    transportKind: 'qz',
+    supported: true,
+    localStation: { id: 'kitchen', name: 'Cozinha', platform: 'windows', isPrimary: true, autoPrintEnabled: true },
+    qzConnected: true,
+    configuredPrinterName: 'MPT-II',
+    printerQueueFound: true,
+    transportReady: true,
+    jobs: [{ id: 'p1', status: 'pending' }, { id: 'p2', status: 'pending' }, { id: 'p3', status: 'pending' }, { id: 'p4', status: 'pending' }, { id: 'wait', status: 'awaiting_confirmation' }],
+    printerHealth: { state: 'printer_offline', statusText: 'Offline', statusCode: 7 },
+  }
+  const view = mountSettings(printing)
+  try {
+    assert.match(visibleText(view), /Impressora desligada ou desconectada/)
+    assert.match(visibleText(view), /Há 4 trabalhos aguardando impressão/)
+    assert.match(visibleText(view), /1 via enviada à impressora aguardando confirmação/)
+    assert.equal(testPrintButton(view).props.disabled, true)
+
+    view.render({ ...printing, printerHealth: { state: 'ready', statusText: 'OK', statusCode: 0 } })
+    assert.match(visibleText(view), /Pronta para imprimir/)
+    assert.equal(testPrintButton(view).props.disabled, false)
+  } finally { view.unmount() }
+})
+
+test('physical health labels fail closed while QZ and queue diagnostics remain secondary', () => {
+  const base = {
+    transportKind: 'qz', localStation: { id: 'kitchen', platform: 'windows' },
+    qzConnected: true, printerQueueFound: true, configuredPrinterName: 'MPT-II', transportReady: true,
+  }
+  const view = mountSettings(base)
+  try {
+    for (const [state, label] of [
+      ['verifying', 'Verificando impressora…'],
+      ['printer_attention', 'Atenção necessária na impressora'],
+      ['ready', 'Pronta para imprimir'],
+    ]) {
+      view.render({ ...base, printerHealth: { state } })
+      assert.match(viewText(view), new RegExp(label))
+    }
+    view.render({ ...base, printerHealth: { state: 'ready' }, qzConnected: false })
+    assert.match(viewText(view), /QZ Tray indisponível/)
+    view.render({ ...base, printerHealth: { state: 'ready' }, printerQueueFound: false })
+    assert.match(viewText(view), /Impressora não encontrada/)
+    view.render({ ...base, printerHealth: { state: 'ready' }, configuredPrinterName: '' })
+    assert.match(viewText(view), /Impressora não configurada/)
+  } finally { view.unmount() }
 })
 
 test('Android is queue-only and does not expose a physical printer control', () => {
@@ -274,4 +331,6 @@ test('printing settings styling uses semantic tokens and complete interaction st
   assert.match(css, /\.printing-settings[\s\S]*:disabled/)
   assert.match(css, /cursor:\s*not-allowed/)
   assert.match(css, /@media\s*\(max-width:\s*480px\)[\s\S]*\.printing-actions-row[\s\S]*width:\s*100%/)
+  assert.match(css, /\.printing-health-card[\s\S]*background:\s*var\(--surface-soft\)/)
+  assert.match(css, /\.printing-health-card[\s\S]*\.printing-state/)
 })
