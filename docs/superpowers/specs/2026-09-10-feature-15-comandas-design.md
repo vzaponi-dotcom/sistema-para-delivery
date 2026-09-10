@@ -1,9 +1,9 @@
 # Feature 15 — Tela Operacional de Comandas
 
-**Status:** design aprovado em conversa; aguardando revisão deste documento  
-**Data:** 2026-09-10  
-**Issue:** [#15 — Feature: tela própria de Comandas separada de A Receber](https://github.com/vzaponi-dotcom/sistema-para-delivery/issues/15)  
-**Branch:** `feature/issue-15-comandas`  
+**Status:** aprovado
+**Data:** 2026-09-10
+**Issue:** [#15 — Feature: tela própria de Comandas separada de A Receber](https://github.com/vzaponi-dotcom/sistema-para-delivery/issues/15)
+**Branch:** `feature/issue-15-comandas`
 **Base:** `origin/master` @ `8ddfd95f850d1e0903818409f225378d4d909a04`
 
 ## 1. Objetivo
