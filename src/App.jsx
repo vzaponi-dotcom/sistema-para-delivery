@@ -238,8 +238,14 @@ function App() {
   const applyOfficialTables = (nextTables) => {
     officialTablesRef.current = nextTables
     const identity = comandaIdentityRef.current
+    const transferredTable = identity.tabId
+      ? nextTables.find((table) => table.id !== identity.tableId && table.openTableTab?.id === identity.tabId)
+      : null
     const replacementTab = nextTables.find((table) => table.id === identity.tableId)?.openTableTab?.id
-    if (replacementTab && replacementTab !== identity.tabId) {
+    if (transferredTable) {
+      comandaIdentityRef.current = { tableId: transferredTable.id, tabId: identity.tabId }
+      setSelectedComandaTableId(transferredTable.id)
+    } else if (replacementTab && replacementTab !== identity.tabId) {
       retirePaymentUI()
       comandaSelectionRef.current += 1
       setSelectedComandaGeneration(comandaSelectionRef.current)

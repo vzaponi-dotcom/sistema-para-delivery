@@ -387,6 +387,23 @@ test('payment conflict refreshes official tables and removes the mobile closed s
   assert.equal(r.root.findByType(Comandas).findByType('div').props.className, 'comandas-page')
 })
 
+test('official transfer keeps the selected tab and follows its authoritative table identity', async (t) => {
+  const { h, r, state } = await paymentWorkspace(t)
+  const transferredTables = workspaceTables.map((table) => {
+    if (table.id === 'occupied') return { ...table, occupancy: 'free', openTableTab: null }
+    if (table.id === 'free') return { ...table, occupancy: 'occupied', openTableTab: { ...workspaceTables[1].openTableTab } }
+    return table
+  })
+  state.tables = transferredTables
+  state.detail = { ...comandaDetail, table: { id: 'free', name: 'Varanda' } }
+
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  assert.equal(r.root.findByType(Comandas).props.selectedTableId, 'free')
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*Varanda/)
+})
+
 test('payment completion cannot replace newer official tables or clear a newer selected tab', async (t) => {
   const { h, r, state, pay, select } = await paymentWorkspace(t)
   await pay()
