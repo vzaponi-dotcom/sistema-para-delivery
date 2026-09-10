@@ -6,8 +6,8 @@ import { listTables } from './tableRepository.js'
 class TableTabPaymentDb {
   constructor() {
     this.tableTabs = [
-      { id: 'tab-1', business_id: 'amor-e-sabor', table_id: 'table-4', table_identifier: '04', status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null },
-      { id: 'tab-closed', business_id: 'amor-e-sabor', table_id: 'table-5', table_identifier: '05', status: 'closed', opened_at: '2026-09-02T16:00:00.000Z', closed_at: '2026-09-02T17:00:00.000Z' },
+      { id: 'tab-1', business_id: 'amor-e-sabor', table_id: 'table-4', table_identifier: '04', tab_number: 37, status: 'open', opened_at: '2026-09-02T18:00:00.000Z', closed_at: null },
+      { id: 'tab-closed', business_id: 'amor-e-sabor', table_id: 'table-5', table_identifier: '05', tab_number: 36, status: 'closed', opened_at: '2026-09-02T16:00:00.000Z', closed_at: '2026-09-02T17:00:00.000Z' },
     ]
     this.tables = [
       { id: 'table-4', business_id: 'amor-e-sabor', name: 'Mesa 4', sort_order: 4, is_active: 1 },
@@ -111,6 +111,7 @@ test('table tab payment settles every pending order once and closes the tab', as
   assert.equal(result.orders.length, 2)
   assert.equal(result.movements.length, 2)
   assert.equal(result.tableTab.status, 'closed')
+  assert.equal(result.tableTab.tabNumber, 37)
   assert.equal(db.payments.length, 3)
   assert.equal(db.movements.filter((item) => item.source === 'order-payment').length, 3)
   assert.deepEqual(result.orders.map((order) => order.paymentStatus), ['Pago', 'Pago'])
@@ -141,6 +142,7 @@ test('table tab payment keeps the transferred tab id and releases the destinatio
 
   assert.equal(result.tableTab.id, 'tab-1')
   assert.equal(result.tableTab.tableId, 'table-5')
+  assert.equal(result.tableTab.tabNumber, 37)
   assert.equal(result.tableTab.status, 'closed')
   assert.equal((await listTables(db, 'amor-e-sabor')).find((table) => table.id === 'table-5').occupancy, 'free')
   assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 0)

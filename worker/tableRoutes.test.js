@@ -36,6 +36,7 @@ class D1Sqlite {
         business_id TEXT NOT NULL,
         table_id TEXT,
         table_identifier TEXT NOT NULL,
+        tab_number INTEGER,
         status TEXT NOT NULL,
         opened_at TEXT NOT NULL,
         closed_at TEXT,
@@ -44,6 +45,16 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX idx_table_tabs_one_open_per_table_id
         ON table_tabs (business_id, table_id) WHERE status = 'open';
+      CREATE UNIQUE INDEX idx_table_tabs_business_number
+        ON table_tabs (business_id, tab_number);
+      CREATE TABLE table_tab_counters (
+        business_id TEXT PRIMARY KEY REFERENCES businesses(id),
+        last_number INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE orders (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_tab_id TEXT, status TEXT NOT NULL, total_cents INTEGER NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE payments (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL);
+      CREATE TABLE order_items (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, quantity INTEGER NOT NULL);
       INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');
     `)
   }
@@ -158,14 +169,15 @@ test('authenticated transfer route returns the official tables and transferred t
   insertTable(env.DB, { id: 'destination', name: 'Mesa 2', sortOrder: 2 })
   const timestamp = '2026-09-07T15:00:00.000Z'
   env.DB.sqlite.prepare(`INSERT INTO table_tabs (
-    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
-  ) VALUES ('tab-1', 'amor-e-sabor', 'source', 'Mesa 1', 'open', ?, ?, ?)`).run(timestamp, timestamp, timestamp)
+    id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at
+  ) VALUES ('tab-1', 'amor-e-sabor', 'source', 'Mesa 1', 37, 'open', ?, ?, ?)`).run(timestamp, timestamp, timestamp)
 
   const response = await mutation(env, cookie, 'POST', '/api/tables/source/transfer', { destinationTableId: 'destination' })
   assert.equal(response.status, 200)
   const payload = await response.json()
   assert.equal(payload.tableTab.id, 'tab-1')
   assert.equal(payload.tableTab.tableId, 'destination')
+  assert.equal(payload.tableTab.tabNumber, 37)
   assert.deepEqual(payload.tables.map(({ id, occupancy }) => [id, occupancy]), [
     ['source', 'free'],
     ['destination', 'occupied'],

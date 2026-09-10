@@ -69,6 +69,14 @@ export const mapTableRow = (row) => row ? ({
   isActive: Boolean(row.is_active),
   occupancy: row.open_table_tab_id ? 'occupied' : 'free',
   openTableTabId: row.open_table_tab_id ?? null,
+  openTableTab: row.open_table_tab_id ? {
+    id: row.open_table_tab_id,
+    number: Number(row.open_table_tab_number),
+    openedAt: row.open_table_tab_opened_at,
+    orderCount: Number(row.open_table_tab_order_count || 0),
+    itemCount: Number(row.open_table_tab_item_count || 0),
+    totalCents: Number(row.open_table_tab_total_cents || 0),
+  } : null,
 }) : null
 
 const tableSelect = `SELECT
@@ -76,12 +84,40 @@ const tableSelect = `SELECT
   tables.name,
   tables.sort_order,
   tables.is_active,
-  open_tabs.id AS open_table_tab_id
+  open_tabs.id AS open_table_tab_id,
+  open_tabs.tab_number AS open_table_tab_number,
+  open_tabs.opened_at AS open_table_tab_opened_at,
+  COALESCE(tab_summary.order_count, 0) AS open_table_tab_order_count,
+  COALESCE(tab_summary.item_count, 0) AS open_table_tab_item_count,
+  COALESCE(tab_summary.total_cents, 0) AS open_table_tab_total_cents
 FROM tables
 LEFT JOIN table_tabs open_tabs
   ON open_tabs.business_id = tables.business_id
  AND open_tabs.table_id = tables.id
- AND open_tabs.status = 'open'`
+ AND open_tabs.status = 'open'
+LEFT JOIN (
+  SELECT
+    orders.business_id,
+    orders.table_tab_id,
+    COUNT(*) AS order_count,
+    COALESCE(SUM(order_item_totals.item_count), 0) AS item_count,
+    COALESCE(SUM(orders.total_cents), 0) AS total_cents
+  FROM orders
+  LEFT JOIN payments
+    ON payments.order_id = orders.id
+   AND payments.business_id = orders.business_id
+  LEFT JOIN (
+    SELECT business_id, order_id, COALESCE(SUM(quantity), 0) AS item_count
+    FROM order_items
+    GROUP BY business_id, order_id
+  ) order_item_totals
+    ON order_item_totals.business_id = orders.business_id
+   AND order_item_totals.order_id = orders.id
+  WHERE orders.status <> 'Cancelado' AND payments.id IS NULL
+  GROUP BY orders.business_id, orders.table_tab_id
+) tab_summary
+  ON tab_summary.business_id = open_tabs.business_id
+ AND tab_summary.table_tab_id = open_tabs.id`
 
 export const listTables = async (db, businessId) => {
   const result = await db.prepare(`${tableSelect}
@@ -101,10 +137,26 @@ const mapOpenTableTabRow = (row) => ({
   id: row.id,
   tableId: row.table_id,
   tableIdentifier: row.table_identifier,
+  tabNumber: Number(row.tab_number),
   status: row.status,
   openedAt: row.opened_at,
   closedAt: row.closed_at ?? null,
 })
+
+export const reserveNextTableTabNumber = async (db, businessId, now = new Date()) => {
+  const timestamp = now.toISOString()
+  await db.prepare(`INSERT OR IGNORE INTO table_tab_counters (
+    business_id, last_number, updated_at
+  ) VALUES (?, 0, ?)`).bind(businessId, timestamp).run()
+  const row = await db.prepare(`UPDATE table_tab_counters
+    SET last_number = last_number + 1, updated_at = ?
+    WHERE business_id = ?
+    RETURNING last_number`).bind(timestamp, businessId).first()
+  if (!Number.isInteger(Number(row?.last_number))) {
+    throw domainError(500, 'TABLE_TAB_NUMBER_FAILED', 'N\u00e3o foi poss\u00edvel numerar a comanda.')
+  }
+  return Number(row.last_number)
+}
 
 export const getOrCreateOpenTableTabByTableId = async (db, businessId, tableId, now = new Date()) => {
   const table = await db.prepare(`SELECT id, name, is_active
@@ -114,7 +166,7 @@ export const getOrCreateOpenTableTabByTableId = async (db, businessId, tableId, 
   if (!table) throw domainError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
   if (!table.is_active) throw domainError(409, 'TABLE_INACTIVE', 'A mesa está inativa.')
 
-  const selectOpen = () => db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
+  const selectOpen = () => db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
     FROM table_tabs
     WHERE business_id = ? AND table_id = ? AND status = 'open'
     LIMIT 1`).bind(businessId, table.id).first()
@@ -124,13 +176,15 @@ export const getOrCreateOpenTableTabByTableId = async (db, businessId, tableId, 
 
   const id = crypto.randomUUID()
   const timestamp = now.toISOString()
+  const tabNumber = await reserveNextTableTabNumber(db, businessId, now)
   await db.prepare(`INSERT OR IGNORE INTO table_tabs (
-    id, business_id, table_id, table_identifier, status, opened_at, closed_at, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, 'open', ?, NULL, ?, ?)`).bind(
+    id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, 'open', ?, NULL, ?, ?)`).bind(
     id,
     businessId,
     table.id,
     table.name,
+    tabNumber,
     timestamp,
     timestamp,
     timestamp,
@@ -221,7 +275,7 @@ export const transferOpenTableTab = async (
     throw domainError(409, 'TABLE_TRANSFER_CONFLICT', 'Não foi possível transferir a comanda.')
   }
 
-  const transferred = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
+  const transferred = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
     FROM table_tabs
     WHERE id = ? AND business_id = ?
     LIMIT 1`).bind(sourceTab.id, businessId).first()

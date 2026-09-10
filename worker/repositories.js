@@ -35,6 +35,7 @@ export const mapTableTabRow = (row) => ({
   id: row.id,
   tableId: row.table_id ?? null,
   tableIdentifier: row.table_identifier,
+  tabNumber: Number(row.tab_number),
   status: row.status,
   openedAt: row.opened_at,
   closedAt: row.closed_at ?? null,
@@ -127,7 +128,7 @@ export const loadBootstrap = async (db, businessId) => {
   const productsResult = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
   const itemsResult = await db.prepare(`${itemSelect} WHERE business_id = ? ORDER BY created_at ASC`).bind(businessId).all()
-  const tableTabsResult = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
+  const tableTabsResult = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
   const tables = await listTables(db, businessId)
   const movementsResult = await db.prepare(`SELECT m.id, m.type, m.category, m.description, m.value_cents, m.source, m.order_id, m.payment_id,
     CASE WHEN m.source = 'order-payment' THEN COALESCE(m.payment_method, p.method) ELSE m.payment_method END AS payment_method,
@@ -484,13 +485,13 @@ export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = n
   const timestamp = now.toISOString()
   await db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = COALESCE(closed_at, ?), updated_at = ?
     WHERE id = ? AND business_id = ? AND status = 'open'`).bind(timestamp, timestamp, tableTabId, businessId).run()
-  const row = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at FROM table_tabs
+  const row = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at FROM table_tabs
     WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
   return row ? mapTableTabRow(row) : null
 }
 
 export const registerTableTabPayment = async (db, businessId, tableTabId, method, now = new Date()) => {
-  const tabRow = await db.prepare(`SELECT id, table_id, table_identifier, status, opened_at, closed_at
+  const tabRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
     FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
   if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
   if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')

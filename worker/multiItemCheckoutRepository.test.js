@@ -22,6 +22,7 @@ class CheckoutDb {
       ['other-table', { id: 'other-table', business_id: 'outro-negocio', name: 'Mesa 6', is_active: 1 }],
     ])
     this.tableTabs = []
+    this.tableTabCounters = new Map()
     this.failNextBatch = false
   }
 
@@ -33,6 +34,12 @@ class CheckoutDb {
           sql,
           values,
           async first() {
+            if (sql.includes('UPDATE table_tab_counters')) {
+              const [, businessId] = values
+              const lastNumber = (db.tableTabCounters.get(businessId) ?? 0) + 1
+              db.tableTabCounters.set(businessId, lastNumber)
+              return { last_number: lastNumber }
+            }
             if (sql.includes('FROM tables')) {
               const [tableId, businessId] = values
               const row = db.tables.get(tableId)
@@ -111,12 +118,15 @@ class CheckoutDb {
   }
 
   async _run(sql, values) {
-    if (sql.includes('INSERT OR IGNORE INTO table_tabs')) {
-      const [id, businessId, tableId, tableIdentifier, openedAt, createdAt, updatedAt] = values
+    if (sql.includes('INSERT OR IGNORE INTO table_tab_counters')) {
+      const [businessId] = values
+      if (!this.tableTabCounters.has(businessId)) this.tableTabCounters.set(businessId, 0)
+    } else if (sql.includes('INSERT OR IGNORE INTO table_tabs')) {
+      const [id, businessId, tableId, tableIdentifier, tabNumber, openedAt, createdAt, updatedAt] = values
       const existing = this.tableTabs.find((row) => row.business_id === businessId && row.table_id === tableId && row.status === 'open')
       if (!existing) {
         this.tableTabs.push({
-          id, business_id: businessId, table_id: tableId, table_identifier: tableIdentifier, status: 'open', opened_at: openedAt,
+          id, business_id: businessId, table_id: tableId, table_identifier: tableIdentifier, tab_number: tabNumber, status: 'open', opened_at: openedAt,
           closed_at: null, created_at: createdAt, updated_at: updatedAt,
         })
       }
@@ -240,6 +250,7 @@ test('local orders without a client reuse the persistent table tab and its exact
   assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 1)
   assert.equal(db.tableTabs[0].table_id, 'table-1')
   assert.equal(db.tableTabs[0].table_identifier, 'Mesa 4')
+  assert.equal(db.tableTabs[0].tab_number, 1)
   assert.equal(first.clientId, null)
   assert.equal(first.client, 'Mesa 4')
   assert.equal(first.customerIdentityType, 'table')
@@ -258,6 +269,7 @@ test('local order persists an optional same-business client snapshot', async () 
   assert.equal(order.client, 'Maria')
   assert.equal(order.customerIdentityType, 'table')
   assert.equal(order.tableTabId, db.tableTabs[0].id)
+  assert.equal(db.tableTabs[0].tab_number, 1)
 })
 
 test('local order rejects an optional client from another business', async () => {

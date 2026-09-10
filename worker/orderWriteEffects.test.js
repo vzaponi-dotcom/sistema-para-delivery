@@ -27,7 +27,7 @@ class EffectsDb {
             if (sql.includes('FROM table_tabs')) {
               const [id, businessId] = values
               if (id !== 't1' || businessId !== 'biz') return null
-              return { id: 't1', table_id: 'table-1', table_identifier: '04', status: 'closed', opened_at: '2026-09-03T14:00:00.000Z', closed_at: '2026-09-03T15:00:00.000Z' }
+              return { id: 't1', table_id: 'table-1', table_identifier: '04', tab_number: 1042, status: 'closed', opened_at: '2026-09-03T14:00:00.000Z', closed_at: '2026-09-03T15:00:00.000Z' }
             }
             return null
           },
@@ -52,7 +52,7 @@ test('write-effect readers return mapped payment movement and current table tab'
     movementDate: '2026-09-03', date: '2026-09-03', createdAt: '2026-09-03T15:00:00.000Z', updatedAt: '2026-09-03T15:00:00.000Z',
   })
   assert.deepEqual(tableTab, {
-    id: 't1', tableId: 'table-1', tableIdentifier: '04', status: 'closed', openedAt: '2026-09-03T14:00:00.000Z', closedAt: '2026-09-03T15:00:00.000Z',
+    id: 't1', tableId: 'table-1', tableIdentifier: '04', tabNumber: 1042, status: 'closed', openedAt: '2026-09-03T14:00:00.000Z', closedAt: '2026-09-03T15:00:00.000Z',
   })
 })
 
