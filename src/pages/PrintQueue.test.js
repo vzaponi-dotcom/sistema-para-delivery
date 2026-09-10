@@ -45,18 +45,18 @@ test('mobile keeps five bottom tabs and exposes the print queue through Mais', a
   assert.match(mobileNavigation, /onClick=\{\(\) => navigate\('print-queue'\)\}/)
 })
 
-test('print queue summary counts only the four operational queue states', () => {
+test('print queue summary uses the four server operational counters', () => {
   assert.deepEqual(buildPrintQueueSummary([
     { status: 'pending' },
-    { queueState: 'waiting_station' },
+    { status: 'awaiting_confirmation' },
     { status: 'awaiting_second_copy' },
     { status: 'requires_attention' },
     { status: 'processing' },
     { status: 'printed' },
     { status: 'discarded' },
-  ], { stationReady: true }), {
-    queued: 1,
-    waitingStation: 1,
+  ]), {
+    pending: 1,
+    awaitingConfirmation: 1,
     waitingSecondCopy: 1,
     attention: 1,
   })
@@ -84,7 +84,7 @@ test('print queue renders station health and a responsive four-card summary', as
     readSource('../print-queue.css'),
   ])
 
-  for (const label of ['Cozinha PC', 'Na fila', 'Aguardando estação', 'Aguardando 2ª via', 'Requer atenção']) {
+  for (const label of ['Cozinha PC', 'Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
     assert.match(page, new RegExp(label))
   }
   assert.match(app, /<PrintQueue orders=\{orders\} printing=\{printing\}/)
@@ -92,13 +92,13 @@ test('print queue renders station health and a responsive four-card summary', as
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
 })
 
-test('print queue renders the empty state only when jobs are absent', async () => {
+test('print queue renders the empty state from the backend operational page', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
-  assert.match(page, /const jobs = Array\.isArray\(printing\?\.jobs\) \? printing\.jobs : \[\]/)
-  assert.match(page, /jobs\.length === 0/)
+  assert.match(page, /const operationalJobs = Array\.isArray\(operationalPage\.jobs\) \? operationalPage\.jobs : \[\]/)
+  assert.match(page, /operationalJobs\.length === 0/)
   assert.match(page, /Os trabalhos de impressão aparecerão aqui\./)
-  assert.match(page, /filteredJobs\.map/)
+  assert.match(page, /operationalJobs\.map/)
 })
 
 test('print queue job rows expose identity, origin, copies, status, time and station', async () => {
@@ -327,12 +327,12 @@ test('print job details omit absent values instead of rendering undefined or nul
 test('print queue opens details from desktop rows and mobile cards, with actions confined to the modal', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
-  assert.match(page, /onClick=\{\(\) => setSelectedJob\(filteredJobs\[index\]\)\}/)
+  assert.match(page, /onClick=\{\(\) => setSelectedJob\(operationalJobs\[index\]\)\}/)
   assert.match(page, /<Modal[\s\S]*selectedDetails\.title/)
   assert.match(page, /Fechar/)
   assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
-  const queueRows = page.slice(page.indexOf('<tbody>'), page.indexOf('{selectedDetails &&'))
-  assert.doesNotMatch(queueRows, /<Button/)
+  const tableRows = page.slice(page.indexOf('<tbody>'), page.indexOf('</tbody>') + '</tbody>'.length)
+  assert.doesNotMatch(tableRows, /<Button/)
 })
 
 test('print queue modal orders actions by primary, destructive, ticket, close on mobile and close, ticket, destructive, primary on desktop', async () => {
@@ -394,4 +394,53 @@ test('print queue remains central-API-only for every operational action', async 
     assert.match(page, new RegExp(`printing\\?\\.${command}`))
   }
   assert.doesNotMatch(page, /printSecondCopy\(|claimPrintJob\(|claimNextPrintJob\(|dispatchRawBt|writeSerialBytes|\bqz\./)
+})
+
+test('operational panel reads backend operational and recent pages independently without client pagination', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /getPrintJobs\(\{ scope: 'operational', \.\.\.query \}\)/)
+  assert.match(page, /getPrintJobs\(\{ scope: 'recent', page: 1, pageSize: 10, sortBy: 'createdAt', sortDir: 'desc' \}\)/)
+  assert.match(page, /getPrintQueueSummary\(\)/)
+  assert.match(page, /pageInfo/)
+  assert.doesNotMatch(page, /filterPrintQueueJobs\(jobs/)
+})
+
+test('operational panel exposes sortable backend columns, a secondary recent list, and page-aware mobile cards', async () => {
+  const [page, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('../print-queue.css'),
+  ])
+
+  for (const label of ['Pedido', 'Job', 'Status', 'Origem', 'Data/Hora', 'Impressões recentes']) assert.match(page, new RegExp(label))
+  assert.match(page, /aria-sort/)
+  assert.match(page, /togglePrintQueueSort/)
+  assert.match(page, /recentJobs\.slice\(0, 10\)/)
+  assert.match(page, /operationalJobs\.map/)
+  assert.match(styles, /print-queue-recent-section/)
+  assert.match(styles, /print-queue-pagination/)
+})
+
+test('operational summary and unknown physical outcome use the approved safety language', () => {
+  assert.deepEqual(buildPrintQueueSummary([
+    { status: 'pending' },
+    { status: 'awaiting_confirmation' },
+    { status: 'awaiting_second_copy' },
+    { status: 'requires_attention' },
+  ]), {
+    pending: 1,
+    awaitingConfirmation: 1,
+    waitingSecondCopy: 1,
+    attention: 1,
+  })
+
+  const details = getPrintJobDetails({
+    status: 'requires_attention',
+    lastError: { code: 'PRINT_OUTCOME_UNKNOWN' },
+  })
+  assert.deepEqual(details.unknownOutcome, {
+    title: 'Não foi possível confirmar esta impressão',
+    message: 'Esta via pode ter sido impressa antes de a conexão ser interrompida.',
+    duplicateRisk: 'Reenviar pode gerar uma impressão duplicada.',
+  })
 })

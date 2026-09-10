@@ -9,15 +9,16 @@ const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
 
 test('print status badge exposes all friendly persisted job states', () => {
   for (const label of [
-    'Pendente de impressão',
+    'Aguardando impressão',
     'Imprimindo',
-    'Enviado para impressão',
+    'Aguardando confirmação',
+    'Impresso',
     'Aguardando 2ª via',
     'Falha na impressão',
     'Requer atenção',
   ]) assert.match(badge, new RegExp(label))
-  assert.match(badge, /printed:\s*'Enviado para impressão'/)
-  assert.doesNotMatch(badge, /printed:\s*'Impresso'/)
+  assert.match(badge, /printed:\s*'Impresso'/)
+  assert.doesNotMatch(badge, /printed:\s*'Enviado para impressão'/)
 })
 
 test('kitchen preserves the shared printing manager in details without moving printing into tickets', async () => {
