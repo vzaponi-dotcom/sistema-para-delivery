@@ -6,6 +6,7 @@ import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test
 const lifecycleProduct = { id: 'product-1', name: 'Coxinha', category: 'Lanches', presentationType: 'unit', price: 20, isActive: true }
 
 const buttonContaining = (root, text) => root.findAllByType('button').find((button) => nodeText(button).includes(text))
+const ids = (records = []) => records.map((record) => record.id)
 
 async function prepareLocalOrderForCheckout(renderer) {
   await act(async () => buttonContaining(renderer.root, 'Continuar').props.onClick())
@@ -217,6 +218,9 @@ test('an unavailable table rejection retains the real wizard draft and retries w
 
 test('a deferred old checkout cannot mutate or leave an ownerless wizard after reset and relogin', async (t) => {
   const harness = await workspaceHarness(t)
+  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
   const orderResolvers = []
   const orderStarted = []
@@ -272,23 +276,48 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
     await secondOrderStarted
   })
 
+  const replacementRoute = renderer.root.findByType(NewOrderRoute)
+  assert.deepEqual(ids(replacementRoute.props.tables), ids(workspaceTables), 'replacement route still receives only the relogged bootstrap tables')
+  assert.deepEqual(ids(replacementRoute.props.tableTabs), [], 'replacement route receives no old-session tab')
+  assert.deepEqual(ids(replacementRoute.props.products), [lifecycleProduct.id])
+  assert.doesNotMatch(JSON.stringify(replacementRoute.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
+
   await act(async () => {
-    orderResolvers[0]({ ok: true, json: async () => ({ order: { id: 'stale-order', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'stale-movement' }, tableTab: { id: 'stale-tab', tableId: 'stale', number: 501 }, tables: [{ id: 'stale', name: 'Mesa Stale', isActive: true, occupancy: 'occupied', sortOrder: 1, openTableTab: { id: 'stale-tab', number: 501, itemCount: 1, totalCents: 2000 } }] }) })
+    orderResolvers[0]({ ok: true, json: async () => ({ order: { id: 'stale-order-9999', client: 'Cliente Stale Exclusivo', type: 'Local', total: 7777, paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'stale-movement-9999', description: 'Movimento Stale Exclusivo', type: 'entrada', value: 7777, category: 'Vendas', date: '2026-09-10' }, tableTab: { id: 'stale-tab-501', tableId: 'stale-table-501', number: 501 }, tables: [{ id: 'stale-table-501', name: 'Mesa Stale Exclusiva', isActive: true, occupancy: 'occupied', sortOrder: 1, openTableTab: { id: 'stale-tab-501', number: 501, itemCount: 1, totalCents: 7777 } }] }) })
     await Promise.resolve()
   })
+  assert.equal(renderer.root.findAllByType(NewOrderRoute).length, 1, 'stale success cannot replace the newer wizard')
   assert.equal(buttonNamed(renderer.root, 'Salvar pedido').props.disabled, true, 'old finally cannot clear the newer checkout loading state')
   assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Mesas ativas' }).length, 0)
-  assert.doesNotMatch(nodeText(renderer.root), /Mesa Stale|Pedido entrou em preparo/)
+  const stillOwnedRoute = renderer.root.findByType(NewOrderRoute)
+  assert.deepEqual(ids(stillOwnedRoute.props.tables), ids(workspaceTables), 'stale tables never reach the replacement route')
+  assert.deepEqual(ids(stillOwnedRoute.props.tableTabs), [], 'stale table tab never reaches the replacement route')
+  assert.doesNotMatch(JSON.stringify(stillOwnedRoute.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
+  assert.doesNotMatch(nodeText(renderer.root), /Mesa Stale Exclusiva|Cliente Stale Exclusivo|Movimento Stale Exclusivo|Pedido entrou em preparo/)
   await act(async () => {
-    orderResolvers[1]({ ok: true, json: async () => ({ order: { id: 'order-200', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'movement-200' }, tableTab: { id: 'tab-200', tableId: 'free', number: 200, status: 'open' }, tables: workspaceTables.map((table) => table.id === 'free' ? { ...table, occupancy: 'occupied', openTableTab: { id: 'tab-200', number: 200, itemCount: 1, totalCents: 2000 } } : table) }) })
+    orderResolvers[1]({ ok: true, json: async () => ({ order: { id: 'new-order-200', client: 'Cliente Novo 200', type: 'Local', total: 2000, paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'new-movement-200', description: 'Movimento Novo 200', type: 'entrada', value: 2000, category: 'Vendas', date: '2026-09-10' }, tableTab: { id: 'new-tab-200', tableId: 'free', number: 200, status: 'open' }, tables: workspaceTables.map((table) => table.id === 'free' ? { ...table, occupancy: 'occupied', openTableTab: { id: 'new-tab-200', number: 200, itemCount: 1, totalCents: 2000 } } : table) }) })
     await Promise.resolve()
   })
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 200.*20,00/)
-  assert.doesNotMatch(nodeText(renderer.root), /Mesa Stale/)
+  const comandas = renderer.root.findByType(Comandas)
+  assert.equal(comandas.props.selectedTableId, 'free')
+  assert.deepEqual(ids(comandas.props.tables), ids(workspaceTables), 'Comandas consumes only the newer returned tables')
+  assert.doesNotMatch(JSON.stringify(comandas.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
+  await act(async () => buttonNamed(navigation(), 'A Receber').props.onClick())
+  const receivables = renderer.root.findByType(Receivables)
+  assert.deepEqual(ids(receivables.props.orders), ['new-order-200'], 'A Receber receives the newer order, not the stale order')
+  assert.deepEqual(ids(receivables.props.movements), ['new-movement-200'], 'A Receber receives the newer movement, not the stale movement')
+  await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
+  await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' }), 'Adicionar pedido').props.onClick())
+  const postCheckoutRoute = renderer.root.findByType(NewOrderRoute)
+  assert.deepEqual(ids(postCheckoutRoute.props.tableTabs), ['new-tab-200'], 'a normal new-order route consumes only the newer table tab')
+  assert.doesNotMatch(JSON.stringify(postCheckoutRoute.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
 })
 
 test('a deferred stale checkout rejection cannot clear or report over a newer relogged checkout', async (t) => {
   const harness = await workspaceHarness(t)
+  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
   const orderResolvers = []
   const orderStarted = []
@@ -340,6 +369,9 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
     void buttonNamed(renderer.root, 'Salvar pedido').props.onClick()
     await newerOrderStarted
   })
+  const replacementRoute = renderer.root.findByType(NewOrderRoute)
+  assert.deepEqual(ids(replacementRoute.props.tables), ids(workspaceTables))
+  assert.deepEqual(ids(replacementRoute.props.tableTabs), [])
 
   await act(async () => {
     orderResolvers[0]({ ok: false, status: 500, json: async () => ({ error: { message: 'Falha antiga.' } }) })
@@ -347,10 +379,17 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
   })
   assert.equal(buttonNamed(renderer.root, 'Salvar pedido').props.disabled, true, 'stale finally cannot clear the newer checkout loading state')
   assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Mesas ativas' }).length, 0)
-  assert.doesNotMatch(nodeText(renderer.root), /Falha antiga|Mesa Stale|Pedido entrou em preparo/)
+  const stillOwnedRoute = renderer.root.findByType(NewOrderRoute)
+  assert.deepEqual(ids(stillOwnedRoute.props.tables), ids(workspaceTables), 'stale rejection leaves bootstrap tables intact')
+  assert.deepEqual(ids(stillOwnedRoute.props.tableTabs), [], 'stale rejection leaves bootstrap tabs intact')
+  assert.doesNotMatch(nodeText(renderer.root), /Falha antiga|Mesa Stale Exclusiva|Pedido entrou em preparo/)
   await act(async () => {
-    orderResolvers[1]({ ok: true, json: async () => ({ order: { id: 'order-201', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'movement-201' }, tableTab: { id: 'tab-201', tableId: 'free', number: 201, status: 'open' }, tables: workspaceTables.map((table) => table.id === 'free' ? { ...table, occupancy: 'occupied', openTableTab: { id: 'tab-201', number: 201, itemCount: 1, totalCents: 2000 } } : table) }) })
+    orderResolvers[1]({ ok: true, json: async () => ({ order: { id: 'new-order-201', client: 'Cliente Novo 201', type: 'Local', total: 2000, paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'new-movement-201', description: 'Movimento Novo 201', type: 'entrada', value: 2000, category: 'Vendas', date: '2026-09-10' }, tableTab: { id: 'new-tab-201', tableId: 'free', number: 201, status: 'open' }, tables: workspaceTables.map((table) => table.id === 'free' ? { ...table, occupancy: 'occupied', openTableTab: { id: 'new-tab-201', number: 201, itemCount: 1, totalCents: 2000 } } : table) }) })
     await Promise.resolve()
   })
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 201.*20,00/)
+  await act(async () => buttonNamed(navigation(), 'A Receber').props.onClick())
+  const receivables = renderer.root.findByType(Receivables)
+  assert.deepEqual(ids(receivables.props.orders), ['new-order-201'])
+  assert.deepEqual(ids(receivables.props.movements), ['new-movement-201'])
 })
