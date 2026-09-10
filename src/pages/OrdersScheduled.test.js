@@ -27,13 +27,14 @@ test('orders page composes the approved kitchen heading, actions, counters, and 
     'Agendados',
     'Fora do prazo',
     'Finalizados hoje',
-    'Mais antigos primeiro',
+    'Prioridade por prazo',
     'Mais próximos primeiro',
     'Nenhum pedido em preparo agora.',
     'Nenhum pedido agendado aguardando preparo.',
   ]
 
   for (const text of requiredCopy) assert.match(source, new RegExp(text))
+  assert.doesNotMatch(source, /Mais antigos primeiro/)
   assert.doesNotMatch(source, />Ver histórico</)
   assert.match(source, /buildKitchenQueueModel\(orders, now, search\)/)
   assert.match(source, /className="kitchen-page"/)

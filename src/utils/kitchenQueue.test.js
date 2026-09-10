@@ -42,7 +42,7 @@ test('late is an additional flag and never creates a third queue', () => {
   assert.equal(Object.hasOwn(model, 'late'), false)
 })
 
-test('orders queues by operational start and desired time with stable identifier tie-breakers', () => {
+test('keeps stable identifier tie-breakers and desired-time ordering for scheduled queue', () => {
   const model = buildKitchenQueueModel([
     { id: 'preparing-b', status: 'Em preparo', type: 'Local', createdAt: '2026-09-04T09:00:00.000Z' },
     { id: 'preparing-a', status: 'Em preparo', type: 'Local', createdAt: '2026-09-04T09:00:00.000Z' },
@@ -53,6 +53,66 @@ test('orders queues by operational start and desired time with stable identifier
 
   assert.deepEqual(ids(model.preparing), ['preparing-a', 'preparing-b'])
   assert.deepEqual(ids(model.scheduled), ['scheduled-first', 'scheduled-a', 'scheduled-b'])
+})
+
+test('prioritizes the most overdue deadline even when its operational start is newer', () => {
+  const model = buildKitchenQueueModel([
+    {
+      id: 'scheduled-25-late',
+      status: 'Em preparo',
+      type: 'Entrega',
+      createdAt: '2026-09-04T12:00:00.000Z',
+      scheduledFor: '2026-09-04T14:50:00.000Z',
+    },
+    {
+      id: 'immediate-40-late',
+      status: 'Em preparo',
+      type: 'Local',
+      createdAt: '2026-09-04T14:20:00.000Z',
+    },
+  ], new Date('2026-09-04T15:30:00.000Z'), '')
+
+  assert.deepEqual(ids(model.preparing), ['immediate-40-late', 'scheduled-25-late'])
+})
+
+test('places overdue orders before orders that are still within deadline', () => {
+  const model = buildKitchenQueueModel([
+    {
+      id: 'scheduled-on-time',
+      status: 'Em preparo',
+      type: 'Entrega',
+      createdAt: '2026-09-04T12:00:00.000Z',
+      scheduledFor: '2026-09-04T14:50:00.000Z',
+    },
+    {
+      id: 'immediate-late',
+      status: 'Em preparo',
+      type: 'Local',
+      createdAt: '2026-09-04T14:20:00.000Z',
+    },
+  ], new Date('2026-09-04T15:00:00.000Z'), '')
+
+  assert.deepEqual(ids(model.preparing), ['immediate-late', 'scheduled-on-time'])
+})
+
+test('among on-time orders, places the nearest deadline first', () => {
+  const model = buildKitchenQueueModel([
+    {
+      id: 'scheduled-later-deadline',
+      status: 'Em preparo',
+      type: 'Entrega',
+      createdAt: '2026-09-04T12:00:00.000Z',
+      scheduledFor: '2026-09-04T14:50:00.000Z',
+    },
+    {
+      id: 'immediate-earlier-deadline',
+      status: 'Em preparo',
+      type: 'Local',
+      createdAt: '2026-09-04T14:20:00.000Z',
+    },
+  ], new Date('2026-09-04T14:40:00.000Z'), '')
+
+  assert.deepEqual(ids(model.preparing), ['immediate-earlier-deadline', 'scheduled-later-deadline'])
 })
 
 test('excludes final and cancelled orders from active queues', () => {
@@ -66,7 +126,7 @@ test('search filters visible queues without changing global indicators', () => {
   const globalModel = buildKitchenQueueModel(fixtures, now, '')
   const searchModel = buildKitchenQueueModel(fixtures, now, 'pudim')
 
-  assert.deepEqual(ids(globalModel.preparing), ['old-operational', 'order-1048'])
+  assert.deepEqual(ids(globalModel.preparing), ['order-1048', 'old-operational'])
   assert.deepEqual(ids(globalModel.scheduled), ['desired-1200', 'desired-1230'])
   assert.deepEqual(ids(searchModel.preparing), ['order-1048'])
   assert.deepEqual(ids(searchModel.scheduled), [])

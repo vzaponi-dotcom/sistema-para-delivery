@@ -61,6 +61,23 @@ test('builds scheduled, preparing, and overdue timing copy in the business timez
   }, new Date('2026-09-04T14:47:00.000Z')), { primary: 'Fora do prazo há 12 min', secondary: 'Desejado 11:20' })
 })
 
+test('keeps immediate overdue copy continuous when timing state becomes very-late', () => {
+  const immediate = { createdAt: '2026-09-04T14:00:00.000Z' }
+
+  assert.deepEqual(buildKitchenTimingCopy({ phase: 'preparing', timingState: 'late', order: immediate }, new Date('2026-09-04T14:39:00.000Z')), {
+    primary: 'Fora do prazo há 9 min',
+    secondary: '',
+  })
+  assert.deepEqual(buildKitchenTimingCopy({ phase: 'preparing', timingState: 'late', order: immediate }, new Date('2026-09-04T14:40:00.000Z')), {
+    primary: 'Fora do prazo há 10 min',
+    secondary: '',
+  })
+  assert.deepEqual(buildKitchenTimingCopy({ phase: 'preparing', timingState: 'very-late', order: immediate }, new Date('2026-09-04T14:41:00.000Z')), {
+    primary: 'Fora do prazo há 11 min',
+    secondary: '',
+  })
+})
+
 test('formats kitchen elapsed durations as hours after 60 minutes', () => {
   const now = new Date('2026-09-05T18:00:00.000Z')
   const primaryFor = (minutes) => buildKitchenTimingCopy({

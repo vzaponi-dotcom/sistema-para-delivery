@@ -90,7 +90,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
         <section className="kitchen-queue-section" aria-labelledby="kitchen-preparing-heading">
           <div className="kitchen-queue-heading">
             <div><Icon name="preparation" size={18} /><h2 id="kitchen-preparing-heading">Em preparo <span>({queueModel.preparing.length})</span></h2></div>
-            <span className="kitchen-queue-help">Mais antigos primeiro</span>
+            <span className="kitchen-queue-help">Prioridade por prazo</span>
           </div>
           <div className="kitchen-ticket-list">
             {queueModel.preparing.map((entry) => (

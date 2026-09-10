@@ -1,4 +1,4 @@
-import { getOperationalStartAt, isScheduledWaiting } from '../../shared/orderTiming.js'
+import { getOperationalStartAt, getOrderLateAt, isScheduledWaiting } from '../../shared/orderTiming.js'
 import { getOrderItemsSearchText } from './orderCart.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import { isOrderActive } from './orderLifecycle.js'
@@ -8,7 +8,9 @@ const normalizeSearch = (value) => String(value ?? '').trim().toLocaleLowerCase(
 const compareIds = (first, second) => String(first.order.id).localeCompare(String(second.order.id), 'pt-BR')
 const getTimestamp = (value) => value instanceof Date && !Number.isNaN(value.getTime()) ? value.getTime() : Number.POSITIVE_INFINITY
 
-const compareOperationalStart = (first, second) => getTimestamp(first.operationalStartAt) - getTimestamp(second.operationalStartAt) || compareIds(first, second)
+const compareDeadlinePriority = (first, second) => getTimestamp(first.lateAt) - getTimestamp(second.lateAt)
+  || getTimestamp(first.operationalStartAt) - getTimestamp(second.operationalStartAt)
+  || compareIds(first, second)
 const compareScheduledFor = (first, second) => getTimestamp(new Date(first.order.scheduledFor)) - getTimestamp(new Date(second.order.scheduledFor)) || compareIds(first, second)
 
 const matchesKitchenSearch = (order, normalizedSearch) => !normalizedSearch || [
@@ -24,10 +26,17 @@ export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '
   const allActive = orders.filter(isOrderActive).map((order) => {
     const phase = isScheduledWaiting(order, now) ? 'scheduled' : 'preparing'
     const timingState = getOrderTimingState(order, now)
-    return { order, phase, operationalStartAt: getOperationalStartAt(order), timingState, isLate: timingState !== 'on-time' }
+    return {
+      order,
+      phase,
+      operationalStartAt: getOperationalStartAt(order),
+      lateAt: getOrderLateAt(order),
+      timingState,
+      isLate: timingState !== 'on-time',
+    }
   })
   const visible = allActive.filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
-  const preparing = visible.filter(({ phase }) => phase === 'preparing').sort(compareOperationalStart)
+  const preparing = visible.filter(({ phase }) => phase === 'preparing').sort(compareDeadlinePriority)
   const scheduled = visible.filter(({ phase }) => phase === 'scheduled').sort(compareScheduledFor)
 
   return {

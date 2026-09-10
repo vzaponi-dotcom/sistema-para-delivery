@@ -2,6 +2,7 @@ import { FINANCE_TIME_ZONE, getBusinessDate } from './finance.js'
 
 export const SCHEDULED_PREP_LEAD_MINUTES = 50
 export const SCHEDULED_LATE_GRACE_MINUTES = 15
+export const IMMEDIATE_LATE_AFTER_MINUTES = 30
 
 const validDate = (value) => {
   if (!value) return null
@@ -52,6 +53,20 @@ export const getOperationalStartAt = (order) => {
 export const getScheduledLateAt = (order) => {
   const scheduled = validDate(order?.scheduledFor)
   return scheduled ? new Date(scheduled.getTime() + SCHEDULED_LATE_GRACE_MINUTES * 60_000) : null
+}
+
+export const getOrderLateAt = (order) => {
+  const scheduledLateAt = getScheduledLateAt(order)
+  if (scheduledLateAt) return scheduledLateAt
+  const start = getOperationalStartAt(order)
+  return start ? new Date(start.getTime() + IMMEDIATE_LATE_AFTER_MINUTES * 60_000) : null
+}
+
+export const getOrderMinutesLate = (order, now = new Date()) => {
+  const lateAt = getOrderLateAt(order)
+  const reference = validDate(now)
+  if (!lateAt || !reference) return 0
+  return Math.max(0, Math.floor((reference.getTime() - lateAt.getTime()) / 60_000))
 }
 
 export const isScheduledWaiting = (order, now = new Date()) => {
