@@ -547,7 +547,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     batchResults = await db.batch(statements)
   } catch (error) {
     const message = String(error?.message || '')
-    if (/TABLE_TAB_HAS_UNPAID_ORDERS|TABLE_TAB_NOT_OPEN|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {
+    if (/TABLE_TAB_HAS_UNPAID_ORDERS|TABLE_TAB_PAYMENT_INVALID|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {
       throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
     }
     throw error

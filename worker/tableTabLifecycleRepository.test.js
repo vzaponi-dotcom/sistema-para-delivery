@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
+import { cancelOrder } from './orderCancellation.js'
 import { createOrder, registerTableTabPayment } from './repositories.js'
 
 const lifecycleSql = () => fs.readFileSync(new URL('../migrations/0021_table_tab_lifecycle_guards.sql', import.meta.url), 'utf8')
@@ -52,6 +53,26 @@ class D1Sqlite {
     } } }
   }
 
+  async executeBatch(statements) {
+    this.sqlite.exec('BEGIN')
+    try {
+      const results = []
+      for (const statement of statements) results.push(await statement.run())
+      this.sqlite.exec('COMMIT')
+      return results
+    } catch (error) {
+      this.sqlite.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  concurrentAdapter() {
+    return {
+      prepare: (sql) => this.prepare(sql),
+      batch: (statements) => this.executeBatch(statements),
+    }
+  }
+
   async batch(statements) {
     const execute = async () => {
       if (this.beforeBatch) {
@@ -59,16 +80,7 @@ class D1Sqlite {
         this.beforeBatch = null
         await hook()
       }
-      this.sqlite.exec('BEGIN')
-      try {
-        const results = []
-        for (const statement of statements) results.push(await statement.run())
-        this.sqlite.exec('COMMIT')
-        return results
-      } catch (error) {
-        this.sqlite.exec('ROLLBACK')
-        throw error
-      }
+      return this.executeBatch(statements)
     }
     const pending = this.batchTail.then(execute, execute)
     this.batchTail = pending.catch(() => {})
@@ -110,6 +122,65 @@ test('two full payments produce one settlement and one stable conflict', async (
   assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS count FROM payments').get().count, 1)
   assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS count FROM movements').get().count, 1)
   assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'closed')
+})
+
+test('cancellation that commits after the payment pre-read makes the whole payment batch fail', async () => {
+  const db = new D1Sqlite()
+  db.beforeBatch = () => cancelOrder(
+    db.concurrentAdapter(),
+    'amor-e-sabor',
+    'order-1',
+    { reason: 'client_changed_mind', refundNow: false },
+    new Date(timestamp),
+  )
+
+  await assert.rejects(
+    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp)),
+    (error) => error.status === 409 && error.code === 'TABLE_TAB_PAYMENT_CONFLICT',
+  )
+  assert.equal(db.sqlite.prepare("SELECT status FROM orders WHERE id = 'order-1'").get().status, 'Cancelado')
+  assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'closed')
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM payments WHERE order_id = 'order-1'").get().count, 0)
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE order_id = 'order-1'").get().count, 0)
+})
+
+test('payment that commits first preserves existing paid cancellation and deferred-refund behavior', async () => {
+  const db = new D1Sqlite()
+  await registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp))
+
+  const cancelled = await cancelOrder(
+    db,
+    'amor-e-sabor',
+    'order-1',
+    { reason: 'client_changed_mind', refundNow: false },
+    new Date(timestamp),
+  )
+
+  assert.equal(cancelled.order.status, 'Cancelado')
+  assert.equal(cancelled.order.paymentStatus, 'Pago')
+  assert.equal(cancelled.order.refundState, 'pending')
+  assert.equal(cancelled.movement, null)
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM payments WHERE order_id = 'order-1'").get().count, 1)
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE order_id = 'order-1' AND source = 'order-payment'").get().count, 1)
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE order_id = 'order-1' AND source = 'order-refund'").get().count, 0)
+  assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'closed')
+})
+
+test('a stale full-tab batch cannot pay an unpaid order after its tab closes', async () => {
+  const db = new D1Sqlite()
+  db.beforeBatch = async () => {
+    db.sqlite.prepare("UPDATE orders SET status = 'Cancelado' WHERE id = 'order-1'").run()
+    db.sqlite.prepare("UPDATE table_tabs SET status = 'closed' WHERE id = 'tab-1'").run()
+    db.sqlite.prepare("UPDATE orders SET status = 'Em preparo' WHERE id = 'order-1'").run()
+  }
+
+  await assert.rejects(
+    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp)),
+    (error) => error.status === 409 && error.code === 'TABLE_TAB_PAYMENT_CONFLICT',
+  )
+  assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'closed')
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM payments WHERE order_id = 'order-1'").get().count, 0)
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE order_id = 'order-1'").get().count, 0)
 })
 
 test('expected table tab identity allows same-tab reuse and rejects close transfer or replacement', async () => {

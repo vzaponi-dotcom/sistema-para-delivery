@@ -44,7 +44,7 @@ test('0021 is independent from printing migrations and applies to production-lik
     try {
       createSchema(database, staging)
       database.exec(sql)
-      assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'table_tab_%_guard'").get().count, 2)
+      assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'table_tab_%_guard'").get().count, 3)
     } finally {
       database.close()
     }
@@ -67,6 +67,35 @@ test('0021 prevents orders on closed tabs and prevents closing a tab with an unp
       () => database.prepare("INSERT INTO orders VALUES ('late-order', 'biz', 'tab-open', 'Em preparo')").run(),
       /TABLE_TAB_NOT_OPEN/,
     )
+  } finally {
+    database.close()
+  }
+})
+
+test('0021 only permits a table payment while its order is payable and its tab is open', () => {
+  const database = new DatabaseSync(':memory:')
+  try {
+    createSchema(database)
+    database.exec(fs.readFileSync(migrationUrl, 'utf8'))
+
+    database.prepare("UPDATE orders SET status = 'Cancelado' WHERE id = 'order-unpaid'").run()
+    assert.throws(
+      () => database.prepare("INSERT INTO payments VALUES ('pay-cancelled', 'biz', 'order-unpaid', 1000, 'Pix', 'now', 'now')").run(),
+      /TABLE_TAB_PAYMENT_INVALID/,
+    )
+
+    database.prepare("UPDATE orders SET status = 'Em preparo' WHERE id = 'order-unpaid'").run()
+    database.prepare("UPDATE orders SET status = 'Cancelado' WHERE id = 'order-unpaid'").run()
+    database.prepare("UPDATE table_tabs SET status = 'closed' WHERE id = 'tab-open'").run()
+    database.prepare("UPDATE orders SET status = 'Em preparo' WHERE id = 'order-unpaid'").run()
+    assert.throws(
+      () => database.prepare("INSERT INTO payments VALUES ('pay-closed', 'biz', 'order-unpaid', 1000, 'Pix', 'now', 'now')").run(),
+      /TABLE_TAB_PAYMENT_INVALID/,
+    )
+
+    database.prepare("INSERT INTO orders VALUES ('delivery-order', 'biz', NULL, 'Em preparo')").run()
+    database.prepare("INSERT INTO payments VALUES ('pay-delivery', 'biz', 'delivery-order', 1000, 'Pix', 'now', 'now')").run()
+    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM payments WHERE order_id = 'delivery-order'").get().count, 1)
   } finally {
     database.close()
   }
