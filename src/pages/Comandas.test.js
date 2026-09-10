@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
+import { getEventListeners } from 'node:events'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from '../test-support/renderWorkspace.js'
 
 const currency = (value) => `R$ ${value.toFixed(2)}`
@@ -87,4 +88,143 @@ test('empty workspace announces absence of active tables', async (t) => {
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
   const renderer = await harness.render(Comandas)
   assert.match(nodeText(renderer.root.findByProps({ role: 'status' })), /Nenhuma mesa ativa/)
+})
+
+// DOM boundary for focus/containment. Targets are derived from rendered host nodes;
+// no component state or handlers are replaced.
+function focusDOM(harness) {
+  let renderer
+  const nodes = new Map()
+  const text = (children) => React.Children.toArray(children).map((child) => typeof child === 'object' ? text(child.props.children) : child).join('')
+  const keyFor = (type, props) => `${type}:${props['aria-label'] || workspaceTables.find((table) => text(props.children).startsWith(table.name))?.name || text(props.children)}`
+  const host = (type, props) => {
+    const key = keyFor(type, props)
+    if (!nodes.has(key)) nodes.set(key, {
+      key, scrollTop: 0, focus() {
+        harness.document.activeElement = this
+        renderer?.root.findAll((element) => element.type === 'div' && element.props.onFocusCapture)[0]?.props.onFocusCapture({ target: this })
+      },
+      get disabled() {
+        const current = renderer?.root.findAllByType(type).find((element) => keyFor(type, element.props) === key)
+        return Boolean((current?.props || props).disabled)
+      },
+    })
+    const node = nodes.get(key)
+    node.contains = (target) => type === 'section' && renderer && list(renderer).findAllByType('button').some((button) => host(button.type, button.props) === target)
+    node.querySelector = () => {
+      const button = list(renderer).findAllByType('button').find((button) => !button.props.disabled)
+      return button ? host(button.type, button.props) : null
+    }
+    return node
+  }
+  return {
+    options: { createNodeMock: (element) => host(element.type, element.props) },
+    attach(value) { renderer = value },
+    node: (element) => host(element.type, element.props),
+    active: () => harness.document.activeElement,
+  }
+}
+
+for (const invalidation of ['free', 'inactive', 'missing', 'blocked-free', 'empty']) {
+  test(`mobile refresh ${invalidation} restores available list focus and never reopens on reoccupation`, async (t) => {
+    const harness = await workspaceHarness(t, { mobile: true })
+    const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+    const dom = focusDOM(harness)
+    const selections = []
+    function Workspace({ tables, disabled }) {
+      const [selectedTableId, setSelectedTableId] = React.useState(null)
+      return React.createElement(Comandas, { tables, currency, disabled, selectedTableId, onSelectTable: (id) => { selections.push(id); setSelectedTableId(id) } })
+    }
+    const renderer = await harness.render(Workspace, { tables: workspaceTables }, dom.options)
+    dom.attach(renderer)
+    const listElement = dom.node(list(renderer))
+    listElement.scrollTop = 240
+    await act(async () => list(renderer).findAllByType('button')[0].props.onClick())
+    assert.equal(dom.active(), dom.node(detail(renderer).findByType('h2')))
+    const tables = invalidation === 'empty' ? [] : workspaceTables.flatMap((table) => {
+      if (table.id !== 'occupied') return [table]
+      if (invalidation === 'missing') return []
+      return [{ ...table, ...(invalidation === 'inactive' ? { isActive: false } : { occupancy: 'free', openTableTab: null }) }]
+    })
+    listElement.scrollTop = 0
+    await act(async () => renderer.update(React.createElement(Workspace, { tables, disabled: invalidation === 'blocked-free' })))
+    assert.ok(!renderer.toJSON().props.className.includes('has-mobile-detail'))
+    const available = list(renderer).findAllByType('button').find((button) => !button.props.disabled)
+    assert.equal(dom.active()?.key, dom.node(available || list(renderer)).key, 'focus must return to a visible enabled card, or the list when none are available')
+    assert.equal(listElement.scrollTop, 240)
+    if (!available) assert.equal(list(renderer).props.tabIndex, -1)
+    const focusAfterInvalidation = dom.active()
+    await act(async () => renderer.update(React.createElement(Workspace, { tables: workspaceTables })))
+    assert.ok(!renderer.toJSON().props.className.includes('has-mobile-detail'), 'reoccupation must wait for a fresh user selection')
+    assert.equal(dom.active(), focusAfterInvalidation, 'refresh must not steal focus')
+    assert.deepEqual(selections, ['occupied'], 'controlled selection is preserved')
+    await act(async () => list(renderer).findAllByType('button')[0].props.onClick())
+    assert.ok(renderer.toJSON().props.className.includes('has-mobile-detail'))
+    assert.equal(dom.active(), dom.node(detail(renderer).findByType('h2')))
+  })
+}
+
+test('reoccupation cannot resurrect a mobile detail invalidated by refresh', async (t) => {
+  const harness = await workspaceHarness(t, { mobile: true })
+  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const props = { tables: workspaceTables, currency, selectedTableId: 'occupied' }
+  const renderer = await harness.render(Comandas, props)
+  await act(async () => renderer.update(React.createElement(Comandas, { ...props, tables: [] })))
+  await act(async () => renderer.update(React.createElement(Comandas, props)))
+  assert.ok(!renderer.toJSON().props.className.includes('has-mobile-detail'))
+})
+
+test('mobile to desktop moves focus off the now-hidden back button', async (t) => {
+  const harness = await workspaceHarness(t, { mobile: true })
+  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const dom = focusDOM(harness)
+  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selectedTableId: 'occupied' }, dom.options)
+  dom.attach(renderer)
+  dom.node(buttonNamed(renderer.root, 'Voltar para mesas')).focus()
+  await act(async () => harness.setMobile(false))
+  assert.equal(dom.active()?.key, dom.node(detail(renderer).findByType('h2')).key)
+})
+
+for (const mobile of [false, true]) {
+  test(`breakpoint ${mobile ? 'mobile to desktop' : 'desktop to mobile'} restores focus even when CSS blurs before the media event`, async (t) => {
+    const harness = await workspaceHarness(t, { mobile })
+    const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+    const dom = focusDOM(harness)
+    const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selectedTableId: 'occupied' }, dom.options)
+    dom.attach(renderer)
+    dom.node(mobile ? buttonNamed(renderer.root, 'Voltar para mesas') : list(renderer).findAllByType('button')[1]).focus()
+    harness.document.activeElement = harness.document.body
+    await act(async () => harness.setMobile(!mobile))
+    assert.equal(dom.active()?.key, dom.node(detail(renderer).findByType('h2')).key)
+  })
+}
+
+test('breakpoint changes move focus out of the hidden list/back button and preserve back scroll', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const dom = focusDOM(harness)
+  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selectedTableId: 'occupied' }, dom.options)
+  dom.attach(renderer)
+  const card = list(renderer).findAllByType('button')[1] // A different table may have keyboard focus.
+  dom.node(card).focus()
+  const listElement = dom.node(list(renderer))
+  listElement.scrollTop = 180
+  await act(async () => list(renderer).props.onScroll({ currentTarget: listElement }))
+  await act(async () => harness.setMobile(true)) // 821 -> 820
+  assert.equal(dom.active()?.key, dom.node(detail(renderer).findByType('h2')).key, 'the desktop table is hidden; focus must enter visible mobile detail')
+  const back = buttonNamed(renderer.root, 'Voltar para mesas')
+  dom.node(back).focus()
+  await act(async () => harness.setMobile(false)) // 820 -> 821
+  assert.equal(dom.active()?.key, dom.node(detail(renderer).findByType('h2')).key, 'the back button is hidden; focus must land on the visible detail heading')
+  const outside = { key: 'external navigation' }
+  harness.document.activeElement = outside
+  await act(async () => harness.setMobile(true))
+  assert.equal(dom.active(), outside, 'breakpoint changes must not steal unrelated visible focus')
+  listElement.scrollTop = 0
+  await act(async () => buttonNamed(renderer.root, 'Voltar para mesas').props.onClick())
+  assert.equal(listElement.scrollTop, 180)
+  assert.equal(dom.active(), dom.node(list(renderer).findAllByType('button')[0]))
+  assert.equal(list(renderer).findAllByType('button')[0].props['aria-pressed'], true)
+  await act(async () => renderer.unmount())
+  assert.equal(getEventListeners(harness.media, 'change').length, 0, 'media subscription must be cleaned up')
 })

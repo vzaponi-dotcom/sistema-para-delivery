@@ -45,6 +45,11 @@ export async function workspaceHarness(t, { mobile = false } = {}) {
   })
   return {
     window, document, media, load: (path) => vite.ssrLoadModule(path),
+    setMobile(matches) {
+      if (media.matches === matches) return
+      media.matches = matches
+      media.dispatchEvent(Object.assign(new Event('change'), { matches, media: '(max-width: 820px)' }))
+    },
     async render(Component, props = {}, options = {}) {
       let renderer
       await act(async () => { renderer = create(React.createElement(Component, props), options) })

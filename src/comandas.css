@@ -4,7 +4,7 @@
 .comanda-table-button { display: grid; gap: 10px; width: 100%; min-width: 0; min-height: 88px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); text-align: left; box-shadow: var(--shadow-sm); overflow-wrap: anywhere; }
 .comanda-table-button:hover:not(:disabled) { border-color: var(--primary); }
 .comanda-table-button[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-soft); }
-.comanda-table-button:focus-visible, .comandas-detail-panel h2:focus-visible, .comandas-mobile-back:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.comanda-table-button:focus-visible, .comandas-list-panel:focus-visible, .comandas-detail-panel h2:focus-visible, .comandas-mobile-back:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .comanda-table-button:disabled { cursor: not-allowed; opacity: .65; }
 .comanda-table-heading, .comanda-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .comanda-table-heading > strong { min-width: 0; flex: 1 1 120px; }
