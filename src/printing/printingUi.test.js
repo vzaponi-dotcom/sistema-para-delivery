@@ -28,6 +28,11 @@ test('kitchen preserves the shared printing manager in details without moving pr
   assert.doesNotMatch(ticket, /printing|PrintStatusBadge|apiRequest|fetch\(/)
 })
 
+test('kitchen communicates deadline-based priority instead of age-based ordering', () => {
+  assert.match(orders, /Prioridade por prazo/)
+  assert.doesNotMatch(orders, /Mais antigos primeiro/)
+})
+
 test('order detail keeps print actions separate and uses the central queue commands', () => {
   for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Imprimir 2ª via', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
