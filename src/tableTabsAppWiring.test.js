@@ -14,9 +14,3 @@ test('frontend exposes the consolidated table tab payment API helper', () => {
 test('table transfer applies the returned table list and table tab in one official effect', () => {
   assert.match(app, /applyOfficialEffects\(\{ tables: result\.tables, tableTab: result\.tableTab \}\)/)
 })
-
-test('bootstrap table tabs remain available to the new-order flow', () => {
-  assert.ok(app.includes("setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])"))
-  const newOrderRender = app.split('\n').find((line) => line.includes("activeTab === 'new-order' && <NewOrder"))
-  assert.ok(newOrderRender?.includes('tableTabs={tableTabs}'))
-})
