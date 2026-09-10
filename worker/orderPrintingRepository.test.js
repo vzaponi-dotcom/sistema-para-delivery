@@ -419,6 +419,22 @@ test('automatic print waits for availableAt before aging or claim', async () => 
   assert.equal(claimed.id, 'future-available')
 })
 
+test('stale processing becomes canonical physical-outcome attention', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'stale-processing' })
+  await claimPrintJob(db, businessA, 'stale-processing', 'station-a', baseNow)
+
+  await listPrintJobs(db, businessA, {
+    now: new Date(baseNow.getTime() + PRINT_PROCESSING_MAX_AGE_MS + 1),
+  })
+
+  const stale = await loadPrintJob(db, businessA, 'stale-processing')
+  assert.equal(stale.status, 'requires_attention')
+  assert.equal(stale.lastError.code, 'PRINT_OUTCOME_UNKNOWN')
+})
+
 test('manual printing leaves a future automatic job pending until its exact availableAt', async () => {
   const future = new Date(baseNow.getTime() + 5 * 60 * 1000)
   const before = new Date(future.getTime() - 1)

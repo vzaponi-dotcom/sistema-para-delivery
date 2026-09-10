@@ -254,8 +254,8 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
   await routeIneligibleAutomaticJobsToAttention(db, businessId, at)
   await db.prepare(`UPDATE print_jobs SET
       status = 'requires_attention', processed_at = ?,
-      last_error_code = 'PROCESSING_OUTCOME_UNKNOWN',
-      last_error_message = 'A estação não confirmou o resultado da impressão.'
+      last_error_code = 'PRINT_OUTCOME_UNKNOWN',
+      last_error_message = 'O resultado físico da impressão não foi confirmado.'
       WHERE business_id = ? AND status = 'processing' AND processing_started_at <= ?`)
     .bind(processedAt, businessId, processingCutoff).run()
 }
