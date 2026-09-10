@@ -578,7 +578,7 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
   if (!lock) return null
 
   const row = await db.prepare(`UPDATE print_jobs SET
-      status = 'processing', copies_requested = 1, station_id = ?, processing_started_at = ?, processed_at = NULL,
+      status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
     WHERE id = ? AND business_id = ? AND type = 'order' AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
       AND NOT EXISTS (

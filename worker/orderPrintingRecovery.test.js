@@ -147,7 +147,7 @@ test('recovery claim requires active, claims one safe first copy, then defers th
 
   const claimed = await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now)
   assert.equal(claimed.id, 'first')
-  assert.equal(claimed.copiesRequested, 1)
+  assert.equal(claimed.copiesRequested, 2)
   assert.equal(claimed.copiesPrinted, 0)
   assert.equal(await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now), null)
   assert.equal((await loadPrintJob(db, businessId, 'second')).status, 'pending')
