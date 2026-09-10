@@ -35,7 +35,7 @@ export const getPendingReceivableOrders = (orders = []) => (Array.isArray(orders
   .filter((order) => !isOrderCancelled(order) && !isOrderPaid(order))
 
 export const getPaidReceivableOrders = (orders = []) => (Array.isArray(orders) ? orders : [])
-  .filter((order) => !isOrderCancelled(order) && isOrderPaid(order))
+  .filter((order) => !isOrderCancelled(order) && isOrderPaid(order) && !isTableTabOrder(order))
 
 export const getExpectedPaymentDate = (order) => order?.promisedPaymentDate || order?.orderDate || null
 

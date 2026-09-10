@@ -123,3 +123,12 @@ test('pending receivable entries omit every table-tab order', () => {
 
   assert.deepEqual(entries.map((entry) => entry.order.id), ['delivery'])
 })
+
+test('paid receivable orders omit every table-tab order', () => {
+  const paid = getPaidReceivableOrders([
+    order('ordinary-paid', { paymentStatus: 'Pago' }),
+    order('table-tab-paid', { clientId: null, client: 'Mesa 04', customerIdentityType: 'table', tableTabId: 'tab-4', paymentStatus: 'Pago' }),
+  ])
+
+  assert.deepEqual(paid.map((item) => item.id), ['ordinary-paid'])
+})

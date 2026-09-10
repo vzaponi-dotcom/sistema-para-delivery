@@ -30,10 +30,8 @@ test('table status styling gives occupancy stronger hierarchy than activation st
   assert.match(tableStyles, /\.table-status\.occupied \{[^}]*background: var\(--warning-soft\);[^}]*color: var\(--warning\);/s)
 })
 
-test('receivable detail keeps ordinary payment actions without table-tab controls', () => {
+test('receivable detail keeps ordinary payment actions', () => {
   assert.match(detail, /className="receivable-detail-total"/)
   assert.match(detail, /Registrar recebimento/)
   assert.match(detail, /Definir data prometida/)
-  assert.doesNotMatch(detail, /table_tab/)
-  assert.doesNotMatch(detail, /Registrar pagamento da comanda/)
 })

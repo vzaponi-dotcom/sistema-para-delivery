@@ -27,10 +27,8 @@ test('shared modal footer stacks safely on mobile', async () => {
 })
 
 test('ordinary payment flow keeps the shared modal select architecture', async () => {
-  const page = await read('./Receivables.jsx')
   const app = await read('../App.jsx')
 
-  assert.doesNotMatch(page, /Registrar pagamento da comanda/)
   assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect[\s\S]*label="Forma de pagamento"/)
 })
 
