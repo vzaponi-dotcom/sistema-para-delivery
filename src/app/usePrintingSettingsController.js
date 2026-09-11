@@ -196,7 +196,11 @@ export function usePrintingSettingsController({
   const selectPrinter = useCallback((name) => saveResource(
     'local-printer',
     () => printingRef.current?.selectPrinter?.(name),
-    (printerName) => String(printerName || name).trim(),
+    (printerName) => {
+      const confirmedName = String(printerName ?? '').trim()
+      if (!confirmedName) throw new Error('A gravação da impressora não pôde ser confirmada.')
+      return confirmedName
+    },
     `Impressora ${String(name || '').trim()} configurada nesta estação.`,
     { allowNull: true },
   ), [saveResource])

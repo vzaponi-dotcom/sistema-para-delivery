@@ -294,8 +294,22 @@ function PrintingSettingsContent({ printing, settings, granted }) {
           </div>
 
           {printing?.lastError?.message && <p className="printing-feedback printing-feedback-error">{printing.lastError.message}</p>}
-          {stationResource.error && <p className="printing-feedback printing-feedback-error" role="alert">{stationResource.error}</p>}
-          {printerResource.error && <p className="printing-feedback printing-feedback-error" role="alert">{printerResource.error}</p>}
+          {stationResource.error && (
+            <div className="printing-feedback printing-feedback-error" role="alert">
+              <p>{stationResource.error}</p>
+              <Button type="button" variant="secondary" onClick={() => settings.reload('station-config')} disabled={stationResource.status === 'loading' || stationResource.status === 'saving'}>
+                {stationResource.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}
+              </Button>
+            </div>
+          )}
+          {printerResource.error && (
+            <div className="printing-feedback printing-feedback-error" role="alert">
+              <p>{printerResource.error}</p>
+              <Button type="button" variant="secondary" onClick={() => settings.reload('local-printer')} disabled={printerResource.status === 'loading' || printerResource.status === 'saving'}>
+                {printerResource.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}
+              </Button>
+            </div>
+          )}
           {feedback && <p className="printing-feedback" role="status">{feedback}</p>}
         </div>
 

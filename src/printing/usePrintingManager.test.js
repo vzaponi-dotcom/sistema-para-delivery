@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { act } from 'react-test-renderer'
+import qz from 'qz-tray'
 import { workspaceHarness } from '../test-support/renderWorkspace.js'
 import {
   canExecuteSecondCopy,
@@ -293,6 +294,48 @@ test('only the online primary Windows QZ station initializes its background tran
     initializeQz: async (stationId) => { calls.push(stationId) },
   }), true)
   assert.deepEqual(calls, ['kitchen-primary'])
+})
+
+test('printer selection returns stale without persisting when manager generation changes before the write', async (t) => {
+  const h = await workspaceHarness(t, { userAgent: 'Windows NT 10.0' })
+  let releaseConnection
+  const connection = new Promise((resolve) => { releaseConnection = resolve })
+  const originalIsActive = qz.websocket.isActive
+  const originalConnect = qz.websocket.connect
+  qz.websocket.isActive = () => false
+  qz.websocket.connect = () => connection
+  t.after(() => {
+    qz.websocket.isActive = originalIsActive
+    qz.websocket.connect = originalConnect
+  })
+  const station = { id: 'test-station', name: 'Cozinha', platform: 'windows', isPrimary: false, autoPrintEnabled: false }
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [station] }) }
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { safeBacklog: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  const Probe = React.forwardRef(function Probe({ authenticated }, ref) {
+    const printing = usePrintingManager({ authenticated, isOnline: true })
+    React.useImperativeHandle(ref, () => printing, [printing])
+    return React.createElement('output', null, printing.configuredPrinterName || '')
+  })
+  const api = React.createRef()
+  const renderer = await h.render(Probe, { ref: api, authenticated: true })
+  await act(flushMicrotasks)
+
+  let pending
+  await act(async () => { pending = api.current.selectPrinter('Fila B'); await Promise.resolve() })
+  await act(async () => renderer.update(React.createElement(Probe, { ref: api, authenticated: false })))
+  releaseConnection()
+  let result
+  await act(async () => { result = await pending; await flushMicrotasks() })
+
+  assert.equal(result, null)
+  assert.equal(h.window.localStorage.getItem('delivery-qz-printer:test-station'), null)
+  assert.equal(api.current.configuredPrinterName, null)
 })
 
 test('an open physical second-copy prompt loses eligibility with readiness, block, or primary changes', () => {

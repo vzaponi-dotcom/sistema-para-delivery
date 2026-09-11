@@ -239,6 +239,59 @@ test('estação e impressora local têm bloqueios independentes por recurso', as
   assert.equal(api.current.resources['local-printer'].confirmedValue, 'Fila B')
 })
 
+test('falha de reconsulta da estação mantém bloqueio e reconsulta manual não repete a escrita', async (t) => {
+  let writes = 0
+  let reads = 0
+  const originalStation = { id: 'test-station', name: 'Cozinha', platform: 'windows', autoPrintEnabled: false }
+  const confirmedStation = { ...originalStation, autoPrintEnabled: true }
+  globalThis.fetch = async () => response({ settings: { defaultCopies: 1 } })
+  const printing = {
+    localStation: originalStation,
+    saveStationSettings: async () => { writes += 1; throw new TypeError('network') },
+    refresh: async () => {
+      reads += 1
+      if (reads === 1) throw new TypeError('offline')
+      return { stations: [confirmedStation] }
+    },
+  }
+  const { api } = await mountController(t, { printing })
+
+  await act(async () => api.current.saveStation({ autoPrintEnabled: true }))
+  assert.equal(api.current.resources['station-config'].status, 'unconfirmed')
+  await act(async () => api.current.saveStation({ autoPrintEnabled: false }))
+  assert.equal(writes, 1)
+
+  await act(async () => api.current.reload('station-config'))
+  assert.equal(writes, 1)
+  assert.equal(reads, 2)
+  assert.equal(api.current.resources['station-config'].status, 'idle')
+  assert.deepEqual(api.current.resources['station-config'].confirmedValue, confirmedStation)
+})
+
+test('retorno stale da seleção reconcilia somente a impressora local oficial e não publica sucesso falso', async (t) => {
+  let writes = 0
+  let reads = 0
+  const feedback = []
+  globalThis.fetch = async () => response({ settings: { defaultCopies: 1 } })
+  const printing = {
+    localStation: { id: 'test-station', name: 'Cozinha', platform: 'windows' },
+    configuredPrinterName: 'Fila A',
+    selectPrinter: async () => { writes += 1; return null },
+    refreshPrinters: async () => { reads += 1 },
+    readConfiguredPrinter: () => 'Fila A',
+  }
+  const { api } = await mountController(t, { printing, onFeedback: (value) => feedback.push(value) })
+
+  let saved
+  await act(async () => { saved = await api.current.selectPrinter('Fila B') })
+
+  assert.equal(saved, false)
+  assert.equal(writes, 1)
+  assert.equal(reads, 1)
+  assert.equal(api.current.resources['local-printer'].confirmedValue, 'Fila A')
+  assert.equal(feedback.some((value) => /Fila B configurada/.test(String(value))), false)
+})
+
 test('teste físico ou job pendente não bloqueia navegação', async (t) => {
   const h = await workspaceHarness(t)
   const { useNavigationController } = await h.load('/src/app/useNavigationController.js')

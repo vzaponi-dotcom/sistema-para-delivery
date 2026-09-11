@@ -163,6 +163,30 @@ test('an unconfirmed result remains blocked and offers an explicit requery', asy
   } finally { view.unmount() }
 })
 
+test('uncertain station and printer errors expose resource-specific read-only requery actions', async () => {
+  const reloads = []
+  const view = mountSettings({
+    transportKind: 'qz',
+    supported: true,
+    localStation: { id: 's1', name: 'PC', platform: 'windows', autoPrintEnabled: false },
+    configuredPrinterName: 'Fila A',
+  }, {
+    resources: {
+      'business-copies': { status: 'idle', confirmedValue: 1, error: '' },
+      'station-config': { status: 'unconfirmed', confirmedValue: { id: 's1', name: 'PC', platform: 'windows' }, error: 'Estação não confirmada' },
+      'local-printer': { status: 'unconfirmed', confirmedValue: 'Fila A', error: 'Impressora não confirmada' },
+    },
+    reload: async (resource) => { reloads.push(resource); return true },
+  })
+  try {
+    const retries = view.nodes((node) => node.type === 'Button' && renderedText(node) === 'Reconsultar')
+    assert.equal(retries.length, 2)
+    await retries[0].props.onClick()
+    await retries[1].props.onClick()
+    assert.deepEqual(reloads, ['station-config', 'local-printer'])
+  } finally { view.unmount() }
+})
+
 test('Orders header keeps only the focused kitchen actions', () => {
   assert.doesNotMatch(orders, />Configurações</)
   assert.match(orders, />Impressão</)
