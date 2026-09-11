@@ -82,6 +82,7 @@ function Receivables({
   const [promiseOrder, setPromiseOrder] = useState(null)
   const [quickPaymentOpen, setQuickPaymentOpen] = useState(false)
   const [forecastOpen, setForecastOpen] = useState(false)
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [isMobileDetail, setIsMobileDetail] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 820px)').matches)
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = disabled || (typeof navigator !== 'undefined' && !navigator.onLine)
@@ -133,7 +134,7 @@ function Receivables({
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
   }, [allPaidOrders, pendingEntries, selectedEntryKey])
 
-  const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || quickPaymentOpen || forecastOpen)
+  const overlayOpen = Boolean((selectedEntry && mobileDetailOpen && isMobileDetail) || detailOrder || promiseOrder || quickPaymentOpen || forecastOpen)
 
   useEffect(() => {
     if (selectedEntryKey && !selectedEntry) onQueryChange({ selectedEntryKey: null })
@@ -154,20 +155,34 @@ function Receivables({
     setForecastOpen(false)
   }
 
-  const openOrderDetail = (entry) => patchQuery({ selectedEntryKey: entry.key })
-  const openPaidOrderDetail = (order) => patchQuery({ selectedEntryKey: `paid:${order.id}` })
+  const openOrderDetail = (entry) => {
+    patchQuery({ selectedEntryKey: entry.key })
+    setMobileDetailOpen(isMobileDetail)
+  }
+  const openPaidOrderDetail = (order) => {
+    patchQuery({ selectedEntryKey: `paid:${order.id}` })
+    setMobileDetailOpen(isMobileDetail)
+  }
+
+  const closeMobileDetail = () => {
+    setMobileDetailOpen(false)
+    patchQuery({ selectedEntryKey: null })
+  }
 
   const registerPaymentFromDetail = (orderId) => {
+    setMobileDetailOpen(false)
     patchQuery({ selectedEntryKey: null })
     onRegisterPayment?.(orderId)
   }
 
   const editPaymentPromiseFromDetail = (order) => {
+    setMobileDetailOpen(false)
     patchQuery({ selectedEntryKey: null })
     setPromiseOrder(order)
   }
 
   const viewOrderFromDetail = (order) => {
+    setMobileDetailOpen(false)
     patchQuery({ selectedEntryKey: null })
     setDetailOrder(order)
   }
@@ -292,7 +307,7 @@ function Receivables({
         </button>
       )}
 
-      <BottomSheet open={Boolean(selectedEntry) && isMobileDetail} title="Detalhes do recebimento" onClose={() => patchQuery({ selectedEntryKey: null })}>
+      <BottomSheet open={Boolean(selectedEntry) && mobileDetailOpen && isMobileDetail} title="Detalhes do recebimento" onClose={closeMobileDetail}>
         <ReceivableDetail
           entry={selectedEntry}
           currency={currency}

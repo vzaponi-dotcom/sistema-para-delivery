@@ -4,6 +4,7 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { createServer } from 'vite'
 import { getBusinessDate } from '../../shared/finance.js'
+import { workspaceHarness } from '../test-support/renderWorkspace.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -93,4 +94,47 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
     else delete globalThis.window
     await vite.close()
   }
+})
+
+test('A Receber preserva a seleção mobile sem reabrir o detalhe ao retornar', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const api = React.createRef()
+
+  const Workspace = React.forwardRef(function Workspace(_props, ref) {
+    const [activePage, setActivePage] = React.useState('receivables')
+    const [queryState, setQueryState] = React.useState({
+      search: '',
+      activeView: 'pending',
+      timingFilter: 'all',
+      sortMode: 'urgency',
+      exactDateFilter: null,
+      selectedEntryKey: null,
+    })
+    React.useImperativeHandle(ref, () => ({ activePage, queryState, setActivePage }), [activePage, queryState])
+    if (activePage !== 'receivables') return React.createElement('div', null, 'Outra página')
+    return React.createElement(Receivables, {
+      orders: [order('mobile-pending', 'Cliente mobile')],
+      currency: (value) => `R$ ${value.toFixed(2)}`,
+      queryState,
+      onQueryChange: (patch) => setQueryState((current) => ({ ...current, ...patch })),
+    })
+  })
+
+  const renderer = await h.render(Workspace, { ref: api })
+
+  const row = renderer.root.findByProps({ className: 'receivable-ledger-row' })
+  await act(async () => row.props.onClick())
+  assert.equal(api.current.queryState.selectedEntryKey, 'order:mobile-pending')
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
+
+  await act(async () => api.current.setActivePage('other'))
+  await act(async () => api.current.setActivePage('receivables'))
+
+  assert.equal(api.current.queryState.selectedEntryKey, 'order:mobile-pending')
+  assert.equal(renderer.root.findByProps({ className: 'receivable-ledger-row' }).props['aria-pressed'], true)
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+
+  await act(async () => renderer.root.findByProps({ className: 'receivable-ledger-row' }).props.onClick())
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
 })
