@@ -4,8 +4,8 @@
 **Repositório:** `vzaponi-dotcom/sistema-para-delivery`  
 **Data:** 11/09/2026  
 **Base inspecionada:** `master` em `99c1f04677b54243a43d470b743cdd16ac499154`  
-**Revisão:** 2 — incorpora os seis ajustes da segunda revisão, autorizados em conversa.  
-**Estado:** desenho e correções aprovados em conversa; redação revisada para conferência final antes do plano.  
+**Revisão:** 2.1 — consolida os ajustes aprovados e preserva a revisão 2 publicada em `45e6565e7be34c3c07d905f562e8f69dcc85f948`, com a decisão mais recente de permitir navegação durante gravação de configuração.  
+**Estado:** desenho e correções aprovados em conversa; redação reconciliada para conferência final antes do plano.  
 **Natureza desta entrega:** documentação. Não autoriza implementação, merge ou deploy.
 
 ## 1. Objetivo e limite da mudança
@@ -28,6 +28,18 @@ O sucesso não será medido por redução de linhas do `App.jsx`, mas por destin
 | **Fora de A** | Políticas dinâmicas, cadastros novos, perfis reais, refatoração ampla, pesquisa nova no Histórico e filtros novos em Movimentações. |
 
 Uma garantia nova não deve ser descrita no plano como mera extração de código. A matriz acima evita confundir alteração de interface com regra já garantida pela base.
+
+### 1.2 Vocabulário
+
+| Termo | Uso nesta spec |
+|---|---|
+| Área | Agrupamento reconhecido pelo usuário, como Pedidos ou Financeiro. |
+| Destino | Página ou seção identificável que pode ser aberta pela navegação. |
+| Capacidade | Permissão semântica de consulta ou ação; não é o nome de um cargo. |
+| Contexto de consulta | Busca, filtro, período ou seleção em memória, sem cópia das coleções oficiais. |
+| Identidade do atendimento | ID do pedido ou da comanda; uma mesa pode receber vários atendimentos ao longo do tempo. |
+| Operação pendente | Solicitação enviada cuja conclusão/reconciliação não depende da página aberta. |
+| Pré-requisito | Mudança separada que precisa de evidência antes do aceite da parte dependente de A. |
 
 ## 2. Relação com as outras frentes
 
@@ -114,13 +126,13 @@ Mais abre um painel com acesso direto à Fila de impressão, Clientes, Produtos 
 
 Abrir e fechar Mais sem escolher destino não muda a página. Ao escolher um destino, a sequência é determinística:
 
-1. Validar destino/capacidade e bloqueios de envio ou gravação. Intenção bloqueada mostra o motivo e não fica enfileirada para execução posterior.
+1. Validar destino/capacidade e os bloqueios de envio do atendimento. Intenção bloqueada mostra o motivo e não fica enfileirada para execução posterior. Gravação pendente de configuração não bloqueia por si só a navegação; segue 8.3.
 2. Para um destino válido sem bloqueio, fechar Mais. Se não houver rascunho a descartar, concluir a navegação uma única vez.
 3. Se houver rascunho, depois do fechamento abrir a confirmação, mantendo a página e o preenchimento de fundo. Não manter duas armadilhas de foco ativas.
 4. “Continuar na venda” ou Escape na confirmação cancela a intenção, mantém o rascunho e devolve foco a um controle válido do atendimento. Não reabrir Mais automaticamente.
-5. “Descartar venda” limpa apenas o rascunho e conclui aquela intenção uma vez. Nenhum destino pendente pode reaparecer numa ação posterior.
+5. “Descartar venda” revalida o destino, limpa apenas o rascunho e conclui aquela intenção uma vez. Se o destino deixou de estar disponível, cancelar a intenção com feedback sem descartar o pedido. Nenhum destino pendente pode reaparecer numa ação posterior.
 
-Escape apenas em Mais fecha o painel e devolve foco ao botão Mais. Enquanto a confirmação está aberta, existe no máximo uma intenção de navegação, sem substituição silenciosa por outro clique. Expiração de sessão prevalece, cancela a intenção e limpa o contexto. O comportamento de gravações está em 8.3.
+Escape apenas em Mais fecha o painel e devolve foco ao botão Mais. Enquanto a confirmação está aberta, existe no máximo uma intenção de navegação, sem substituição silenciosa por outro clique. Expiração de sessão prevalece, cancela a intenção e limpa o contexto. O comportamento de gravações está em 8.3. O objetivo de dois toques vale para navegação sem bloqueios de atendimento; confirmação obrigatória de descarte não viola esse objetivo.
 
 A distribuição deve aceitar menos de quatro itens quando permissões forem integradas. Financeiro não autorizado desaparece, sem lacuna, sem botão permanentemente bloqueado e sem promover outro destino automaticamente para sua posição:
 
@@ -222,7 +234,7 @@ Abrir uma mesa livre para lançar pedido, consultar conta, imprimir e registrar 
 
 ### 7.1 Pré-requisito T1 — identidade esperada na transferência
 
-**Estado: pendente de implementação e testes, fora da alteração visual de A.** A segunda revisão verificou que o contrato atual informa apenas mesas de origem/destino e que a escrita procura a comanda aberta por mesa. Se A foi encerrada e B ocupa a mesma mesa, uma intenção antiga pode atingir B. Isto descreve um risco confirmado por leitura do código e simulação reduzida na revisão, não um incidente verificado em produção. [R16, R17]
+**Estado: pendente de implementação e testes, fora da alteração visual de A.** A segunda revisão verificou que o contrato atual informa apenas mesas de origem/destino e que a escrita procura a comanda aberta por mesa. Se A foi encerrada e B ocupa a mesma mesa, uma intenção antiga pode atingir B. Isto descreve um risco identificado pela leitura do código, não um incidente verificado em produção. [R16, R17]
 
 T1 deve ser tratado em tarefa/PR separado, antes da integração e homologação da nova entrada de transferência. Seu contrato mínimo exige:
 
@@ -252,7 +264,7 @@ Identificar explicitamente os escopos:
 | Impressora selecionada no QZ | Vínculo local do navegador/estação com a fila do Windows. |
 | Diagnóstico, atualização da lista e teste | Ações sobre a estação/dispositivo elegível; não comprovam impressão física apenas por localizar a fila. |
 
-Preservar confirmações, mensagens de erro, carregamento e reversão visual quando uma gravação falhar. Não mudar salvamento imediato para formulário global “Salvar tudo” nesta etapa.
+Preservar confirmações, mensagens de erro, carregamento e reversão visual para uma falha conclusiva. Gravação pendente ou resultado não confirmado seguem 8.3. Não mudar salvamento imediato para formulário global “Salvar tudo” nesta etapa.
 
 Não alterar a política atual de uma via para pedidos de mesa, o limite de duas vias, a confirmação física, a recuperação, a ordem de execução ou os gatilhos automáticos. A descrição das vias deve evitar sugerir que a regra global se aplica indistintamente a todos os documentos. A revisão dessa política pertence a B.
 
@@ -270,13 +282,19 @@ Logout limpa contexto de atendimento, não as preferências locais de tema/som o
 
 ### 8.3 Navegação durante gravação de configuração
 
-Enquanto uma gravação curta de configuração estiver pendente, bloquear somente as intenções de navegação interna que desmontariam o contexto responsável por essa gravação, incluindo troca de seção. Exibir “Salvando…” e manter a página. Descartar a intenção bloqueada, sem executá-la automaticamente quando a resposta chegar; o usuário pode navegar novamente depois. Aplicar a mesma guarda a menu, abas, atalhos e `app:navigate`.
+**Decisão reconciliada: permitir a navegação sem tratar a saída da página como cancelamento da gravação.** Esta regra substitui a alternativa de bloquear a saída descrita na revisão 2. Uma gravação de configuração e um job de impressão são operações diferentes; nenhuma delas deve transformar Configurações na página obrigatória para continuar atendendo.
 
-Preservar salvamento imediato, serialização de escritas da própria configuração e confirmações existentes. Em sucesso, usar o valor confirmado. Em falha, mostrar erro, restaurar o último valor confirmado e liberar a navegação; nova tentativa exige ação explícita. Na reentrada, carregar o estado oficial. Falha de comunicação não comprova que o servidor deixou de gravar: não repetir a mutação automaticamente nem tratar o default como confirmação. [R8]
+Manter a pendência e a identificação da operação, da sessão/negócio e do recurso afetado acima da região remontada pela navegação. Reaproveitar a coordenação existente quando possível. O recurso é a configuração de vias do negócio, a configuração da estação ou seu vínculo local de impressora, conforme o controle. Isso não autoriza um gerenciador universal de transações, outro motor de impressão ou cópias paralelas das coleções oficiais.
 
-Este bloqueio termina na conclusão da requisição de gravação; não espera a conclusão física de teste/job de impressão, não pausa o consumidor global da fila e não transforma recuperação em bloqueio de navegação. Tema/som locais continuam com seu comportamento atual. Operações de diagnóstico não viram uma gravação pendente artificial.
+Na mesma sessão/dispositivo, não iniciar outra gravação conflitante no mesmo recurso enquanto a primeira estiver pendente. Se o usuário sair e voltar antes da resposta, mostrar “Salvando…” e manter a edição conflitante bloqueada, mas permitir navegar novamente. Uma leitura iniciada antes da gravação não pode sobrescrever seu resultado mais recente. Recursos não conflitantes continuam disponíveis, respeitados os bloqueios existentes de atendimento.
 
-Logout solicitado pelo usuário preserva os bloqueios de operação existentes e não abandona silenciosamente uma gravação protegida. Expiração/invalidação forçada de sessão prevalece: encerra o contexto, limpa a guarda e ignora sucesso/erro tardio da sessão anterior. Não prometer impedir fechamento da aba, recarga ou falha de energia. Não adicionar um gerenciador universal de transações nesta spec.
+Em sucesso, usar o valor confirmado pelo servidor ou uma leitura posterior apropriada, atualizar o estado compartilhado e liberar a edição. Em falha conclusiva, mostrar o erro e recuperar o último valor confirmado. Falha de comunicação não prova que o servidor deixou de gravar: marcar resultado não confirmado, reconsultar o recurso e não repetir a mutação automaticamente. Enquanto essa revalidação não for possível, oferecer nova consulta e manter bloqueada a edição conflitante; não exibir um default como confirmação. A reconsulta não promete cancelamento da escrita no servidor nem ordenação global entre dispositivos.
+
+Se a página estiver fechada ao concluir, publicar feedback identificado da configuração na sessão atual sem forçar retorno ou roubar foco. Reentrar exibe a pendência ou o estado oficial mais recente; não restaura valor antigo, reenvia a gravação ou duplica confirmação de sucesso. Reversão visual, feedback e leitura oficial seguem a mesma coordenação, não uma cópia local por montagem. [R8]
+
+A impressão física e a recuperação continuam independentes da página, com as regras atuais. Não esperar a conclusão física de teste/job para liberar navegação. Tema/som locais conservam o mecanismo existente; diagnóstico não vira uma gravação pendente artificial.
+
+Logout/expiração invalida callbacks e mensagens da sessão antiga, respeitando os bloqueios de atendimento já existentes. Isso não desfaz uma gravação já aceita no servidor: nova sessão carrega o estado oficial. Não prometer impedir fechamento da aba, recarga ou falha de energia. Concorrência entre editores em dispositivos diferentes e recuperação persistente de gravações pertencem à Spec B, não a esta coordenação de navegação.
 
 ## 9. Preservação de contexto e continuidade
 
@@ -313,15 +331,15 @@ Tentativa de sair de pedido com preenchimento relevante deve respeitar a confirm
 
 Não alterar o bloqueio atual de saída durante o envio do checkout. Não adicionar recuperação de rascunho após recarregar ou fechar o navegador. A garantia de contexto desta spec vale para navegação interna, não para falha de energia ou persistência offline.
 
-Uma navegação permitida não interrompe a reconciliação de um pagamento já aceito. Voltar à página não pode reenviar cobrança/pagamento. Mensagens de sucesso de um atendimento anterior não devem ser atribuídas à nova mesa selecionada.
+Uma navegação permitida não interrompe a reconciliação de um pagamento já aceito. Voltar à página não pode reenviar cobrança/pagamento. Mensagens de sucesso de um atendimento anterior não devem ser atribuídas à nova mesa selecionada. Não duplicar pagamento ou movimento não significa proibir leituras repetidas necessárias à reconciliação oficial.
 
-Modais, menus de ação, confirmações, seleção em lote e formulários de edição não são filtros a restaurar: não reabrir automaticamente ao voltar à página. IDs de consulta preservados não carregam uma intenção antiga de mutação. Estados de operações aceitas permanecem sob a coordenação existente até reconciliar; não são apagados só porque a confirmação fechou. A sequência de Mais está em 5.2 e a guarda de gravação em 8.3.
+Modais, menus de ação, confirmações, seleção em lote e formulários de edição não são filtros a restaurar: não reabrir automaticamente ao voltar à página. IDs de consulta preservados não carregam uma intenção antiga de mutação. Estados de operações aceitas permanecem sob a coordenação existente até reconciliar; não são apagados só porque a confirmação fechou. A sequência de Mais está em 5.2 e a coordenação de gravação em 8.3.
 
 ### 9.3 Sessão e impressão
 
 Logout ou expiração limpam dados oficiais e contexto de atendimento, invalidam respostas assíncronas antigas e não restauram filtros sensíveis em outra sessão. Nova entrada começa em Cozinha, quando autorizada.
 
-Navegar entre páginas não pode remontar o motor de impressão, duplicar timers, reiniciar recuperação ou criar outro consumidor da fila. Prompts globais e feedback operacional continuam associados aos jobs corretos, independentemente da página aberta.
+Navegar entre páginas não pode remontar o motor de impressão, reiniciar recuperação ou acumular consumidores/timers duplicados. Efeitos legítimos da página ativa podem iniciar e devem limpar ao sair; o requisito é não acumular assinaturas nem iniciar outra execução física por remontagem. Prompts globais e feedback operacional continuam associados aos jobs corretos, independentemente da página aberta.
 
 Preservar as condições atuais de autenticação, rede, visibilidade e estação elegível. Esta spec não promete impressão com o aplicativo fechado, nem altera regras do navegador ou de execução em segundo plano.
 
@@ -365,7 +383,7 @@ Os limites são: o shell compõe; a navegação escolhe destinos; a página exib
 
 O contexto persistente fica acima da região remontada por `activeTab`. Não manter todas as páginas escondidas e montadas apenas para preservar filtros, pois isso pode criar assinaturas e consultas extras. Preservar valores de interface sem duplicar consumidores operacionais.
 
-Pequenas extrações de JSX/controllers para reutilizar Configurações, recebimento e transferência protegida são permitidas, com testes próprios. A decomposição ampla de autenticação, bootstrap, sincronização, repositories, cálculo monetário e `App.jsx` permanece na Spec C ou em outra mudança específica.
+Pequenas extrações de JSX/controllers para reutilizar Configurações, recebimento e transferência protegida são permitidas, com testes próprios. A coordenação mínima da gravação em 8.3 deve sobreviver à página sem criar um store genérico. A decomposição ampla de autenticação, bootstrap, sincronização, repositories, cálculo monetário e `App.jsx` permanece na Spec C ou em outra mudança específica.
 
 Não adicionar Redux, Zustand, React Router, migração para TypeScript, nova API, migrations ou atualização de dependências como requisito incidental de A. A alteração de contrato estritamente necessária a T1 é uma dependência externa explícita, com PR/testes próprios, e não uma exceção implícita no PR de navegação.
 
@@ -381,7 +399,7 @@ Abrir/fechar o painel Mais e os diálogos deve administrar foco e devolver foco 
 
 Não encobrir Novo pedido, ações de formulários ou conteúdo pela barra inferior. Testar rótulos longos, zoom, telas estreitas, scroll e redução de movimento. Não acrescentar outra camada de animações.
 
-Sem conexão ou com requisição bloqueada, preservar os bloqueios atuais de gravação. Permitir navegação compatível com dados carregados quando não houver guarda ativa de checkout ou gravação de configuração; tentativas bloqueadas não viram navegação diferida. Em falha de configuração, mostrar erro e possibilidade de nova tentativa; não exibir um default como se uma gravação tivesse sido confirmada. Não repetir automaticamente ações sensíveis.
+Sem conexão ou com requisição bloqueada, preservar os bloqueios atuais de gravação. Permitir navegação compatível com dados carregados, respeitando a guarda de checkout e a confirmação de descarte; tentativas bloqueadas não viram navegação diferida. A gravação pendente de Configurações segue 8.3 e não bloqueia a troca de página. Em falha de configuração, mostrar erro e possibilidade de reconsulta/nova tentativa conforme seu resultado; não exibir um default como se uma gravação tivesse sido confirmada. Não repetir automaticamente ações sensíveis.
 
 ## 13. Critérios de aceitação
 
@@ -391,7 +409,7 @@ Sem conexão ou com requisição bloqueada, preservar os bloqueios atuais de gra
 | A02 | Desktop | Grupos abertos; acesso direto aos cadastros e páginas financeiras; sidebar utilizável com pouca altura. |
 | A03 | Mobile completo | Pedidos, Comandas, Financeiro e Mais, nessa ordem, sem quinta entrada para Novo pedido. |
 | A04 | Abrir Histórico / subpágina financeira | Área principal e subdestino destacados corretamente. |
-| A05 | Mais → Clientes / Produtos / Mesas | Apenas dois toques; nenhuma landing page intermediária. |
+| A05 | Mais → Clientes / Produtos / Mesas | Dois toques sem bloqueio de atendimento; nenhuma landing page intermediária; descarte obrigatório segue 5.2. |
 | A06 | Nova Configurações | Só Impressão e Preferências funcionais; nenhuma política futura editável. |
 | A07 | Vias, automação, estação e impressora | Mesma persistência, validação, alcance, erros e confirmações; jobs existentes não são reinterpretados. |
 | A08 | Tema / som | Uma origem de preferência; som reflete entre Cozinha e Configurações sem reload. |
@@ -400,7 +418,7 @@ Sem conexão ou com requisição bloqueada, preservar os bloqueios atuais de gra
 | A11 | Mesa/comanda transferida, encerrada ou substituída | Seleção acompanha a identidade válida ou é limpa; nunca passa silenciosamente a outro atendimento. |
 | A12 | Novo pedido iniciado em comanda | Retorno à origem válida; saída com rascunho exige confirmação; envio não é duplicado. |
 | A13 | Transferência operacional | Depois de T1 validado/incorporado, Comandas reutiliza fluxo protegido e confirmação; Cadastros mantém administração e atalho Abrir comanda. |
-| A14 | Pagamento e mudança de seleção/navegação | Resposta aceita é reconciliada uma vez; sucesso não é atribuído a outra mesa; retorno não repete pagamento. |
+| A14 | Pagamento e mudança de seleção/navegação | Retorno não duplica pagamento/movimento; leituras de reconciliação podem repetir; sucesso e efeitos permanecem associados ao atendimento correto. |
 | A15 | Navegar durante impressão/recuperação | Não reinicia manager, não duplica consumidores, não troca job do prompt nem altera ordem das vias. |
 | A16 | Capacidades simuladas reduzidas | Financeiro desaparece; espaço redistribuído; grupos vazios somem; links diretos internos não contornam o resolvedor. |
 | A17 | Destino inválido/sem disponibilidade | Feedback e destino seguro; sem montagem de página indevida, liberação genérica ou loop. |
@@ -411,8 +429,8 @@ Sem conexão ou com requisição bloqueada, preservar os bloqueios atuais de gra
 | A22 | Elegibilidade e duplicidade do recebimento | Pago, cancelado ou vinculado a mesa/comanda não recebe o atalho individual; ausência de capacidade retira a ação; rede/envio bloqueados desabilitam; dois cliques/retorno não duplicam pagamento. |
 | A23 | Evidência de T1 sob concorrência | Testes separados cobrem comanda A substituída por B antes da leitura e antes da escrita; B não é movida; conflito atualiza contexto sem retry automático. Sem evidência, não homologar transferência nem A integralmente. |
 | A24 | Independência dos relatórios | Filtro Cancelados da lista não modifica a análise; período operacional/comercial não se contaminam; mesma entrada, instante e período mantêm resultados anteriores. |
-| A25 | Gravação de configuração adiada/falha | Navegação que desmontaria a gravação é recusada, inclusive troca de seção; sucesso/falha libera sem executar intenção antiga; erro não confirma valor; reentrada lê estado oficial; expiração ignora retorno antigo. |
-| A26 | Mais durante novo pedido preenchido | Fechar Mais antes de confirmar descarte; Continuar/Escape mantém rascunho e limpa intenção; confirmar navega uma vez; foco não fica oculto e não há duas armadilhas ativas. |
+| A25 | Gravação de configuração adiada/falha | Navegar e voltar conserva pendência; não permite gravação conflitante nem aplica leitura anterior; sucesso/erro são reconciliados e identificados. Resultado incerto exige reconsulta; não repete escrita automaticamente. Expiração invalida retorno antigo. |
+| A26 | Mais durante novo pedido preenchido | Fechar Mais antes de confirmar descarte; Continuar/Escape mantém rascunho e limpa intenção; confirmar revalida destino e navega uma vez; foco não fica oculto e não há duas armadilhas ativas. |
 | A27 | Contexto inventariado e identidade obsoleta | Não surgem pesquisa no Histórico nem filtros novos em Movimentações; seleção de comanda substituída é limpa sem apagar reconciliação aceita; confirmação/menu/seleção em lote não reaparecem ao retornar. |
 | A28 | Navegação interna por teclado | Semântica única de navegação com aparência de abas; Tab/Shift+Tab e Enter/Espaço; foco sozinho não navega; `aria-current` correto; recusa/descarte respeitam foco. |
 | A29 | Combinações de capacidades | Leitura sem edição, preferências locais sem políticas, área sem página padrão, capacidade desconhecida e conjunto vazio respeitam 10.2; sem concessão implícita ou alegação de proteção da API. |
@@ -424,7 +442,7 @@ O plano de implementação deve relacionar cada critério aos testes existentes 
 
 Aplicar TDD às mudanças de comportamento: demonstrar a falha antes da correção e o sucesso depois. Para extrações neutras, preservar testes de caracterização e verificar equivalência. Durante desenvolvimento, usar testes focados; antes de integrar, executar os gates completos do repositório. Não misturar migração do framework de testes ou atualização de React nesta entrega.
 
-Homologar em staging: pedido imediato/agendado, histórico e análise, comanda e transferência protegida, recebimento avulso/comanda, falha de sincronização, configuração com resposta adiada, impressão de uma/duas vias e recuperação durante trocas de página. Usar respostas controladas nos testes de interface para cobrir trocas de estado e sessão, não apenas o caminho de sucesso.
+Homologar em staging: pedido imediato/agendado, histórico e análise, comanda e transferência protegida, recebimento avulso/comanda, falha de sincronização, configuração com resposta adiada, impressão de uma/duas vias e recuperação durante trocas de página. Usar respostas controladas nos testes de interface para cobrir trocas de estado e sessão, não apenas o caminho de sucesso. Para A25, incluir retorno antes da resposta, conclusão com a página fechada, falha conclusiva, resultado não confirmado e expiração, sem bloquear a navegação por causa do salvamento.
 
 Após ciclos de navegação, cada consumidor global autorizado mantém uma única instância; efeitos de página são limpos ao sair, sem acumular timers, listeners ou requisições que sobrevivam indevidamente. Um timer legítimo da página ativa é permitido. Medir chamadas por função e ações não duplicadas, não impor que todas as páginas façam a mesma quantidade de requisições. Executar a homologação física de impressão na estação de testes, sem consumir a fila da produção.
 
@@ -479,7 +497,7 @@ Todos os links abaixo apontam para a base `99c1f04677b54243a43d470b743cdd16ac499
 
 ### 17.1 Registro desta revisão
 
-Esta revisão 2 substitui a redação consolidada em `029f2b7f4d97f20e24f515d96f5fa2f51ae4ff5f`. O responsável pelo produto aprovou incorporar as recomendações da segunda revisão. Os códigos REV abaixo correspondem, na mesma ordem, aos achados R1–R6 daquele parecer; não se confundem com as referências de arquivos da seção 16.
+A revisão 2 substituiu a redação consolidada em `029f2b7f4d97f20e24f515d96f5fa2f51ae4ff5f`. Esta revisão 2.1 preserva os ajustes publicados em `45e6565e7be34c3c07d905f562e8f69dcc85f948` e os concilia com a última re-revisão autorizada: a decisão de salvamento é permitir navegação, com pendência fora da página, e não bloquear sua saída. Os códigos REV abaixo mantêm a rastreabilidade documental da revisão 2; não se confundem com as referências de arquivos da seção 16.
 
 | Achado tratado | Decisão incorporada | Critérios principais |
 |---|---|---|
@@ -487,15 +505,15 @@ Esta revisão 2 substitui a redação consolidada em `029f2b7f4d97f20e24f515d96f
 | **REV-02 — Recebimento avulso** | Nova entrada explícita nos detalhes de Cozinha/Histórico, com pagamento central reutilizado e exclusão de mesa/comanda. | A14, A21, A22 |
 | **REV-03 — Contexto real** | Matriz de campos/defaults; sem controles inventados; seleção obsoleta não assume outra comanda; obrigação de pagamento aceita sobrevive. | A10, A11, A18, A27 |
 | **REV-04 — Períodos** | Comercial e operacional independentes em 30 dias; lista não filtra análise; equivalência de entradas/resultados. | A09, A24 |
-| **REV-05 — Salvamento** | Guarda local de navegação durante gravação curta; feedback e reentrada oficial; expiração prevalece. | A07, A18, A25 |
+| **REV-05 — Salvamento** | Navegação permitida; pendência por sessão/recurso acima da página; proteção contra edição conflitante/leitura obsoleta; reconsulta de resultado incerto e expiração invalidando callbacks. | A07, A18, A25 |
 | **REV-06 — Mais/descarte** | Fechamento do painel antes da confirmação, uma intenção, foco válido e execução única. | A12, A19, A26 |
 
-Os complementos de revisão também foram incorporados: natureza das mudanças em 1.1; semântica única de navegação em 12; cenários de capacidades em 10.2/A29; teste mensurável de consumidores em 14/A30. A matriz de contexto foi confrontada com os controles reais, inclusive a ausência de filtros em `Finance.jsx`; não exige funcionalidades que não existem apenas para preservá-las.
+Os complementos de revisão também foram incorporados: natureza das mudanças em 1.1; glossário em 1.2; semântica única de navegação em 12; cenários de capacidades em 10.2/A29; teste mensurável de consumidores em 14/A30; não duplicar pagamento sem impedir leituras de reconciliação em A14. A matriz de contexto foi confrontada com os controles reais, inclusive a ausência de filtros em `Finance.jsx`; não exige funcionalidades que não existem apenas para preservá-las.
 
 ### 17.2 Limites da verificação e condições para avançar
 
 A revisão documental confronta requisitos, evidências fixadas e critérios de aceitação. A01–A30 são obrigações de teste para a implementação, não testes de aplicação executados nesta entrega. Nenhum achado de runtime é declarado corrigido por atualizar este texto. Não foram executados migrations, D1 de produção, homologação física ou deploy nesta revisão documental.
 
-As seis decisões de produto deste parecer estão incorporadas. A dependência T1 continua pendente e bloqueia o aceite integral da transferência; ela não precisa estar executada para escrever o plano, mas deve constar expressamente de sua ordem de execução. Ajustes de API, segurança real por perfis e políticas dinâmicas não ficam implicitamente aprovados.
+As decisões de produto deste parecer estão incorporadas. A dependência T1 continua pendente e bloqueia o aceite integral da transferência; ela não precisa estar executada para escrever o plano, mas deve constar expressamente de sua ordem de execução. Ajustes de API, segurança real por perfis e políticas dinâmicas não ficam implicitamente aprovados.
 
 O próximo gate é a conferência desta versão escrita pelo responsável pelo produto. Depois da aprovação, criar o plano detalhado em etapa separada, com rastreabilidade A01–A30 e T1; aprovação do plano precede implementação. Sem alterações diretamente em master, sem merge ou deploy automático.
