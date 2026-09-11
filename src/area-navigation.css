@@ -1,0 +1,120 @@
+.settings-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.area-navigation {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface-soft);
+}
+
+.area-navigation-item {
+  flex: 0 0 auto;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.7rem;
+  color: var(--text-muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.area-navigation-item:hover,
+.area-navigation-item:focus-visible {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.area-navigation-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.area-navigation-item.active {
+  color: var(--primary-contrast);
+  background: var(--primary);
+}
+
+.device-preferences {
+  display: grid;
+  gap: 1rem;
+}
+
+.device-preferences h2,
+.device-preferences p {
+  margin: 0;
+}
+
+.device-preference-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.device-theme-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.device-theme-options button {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  color: var(--text);
+  background: var(--surface-soft);
+  font: inherit;
+  cursor: pointer;
+}
+
+.device-theme-options button.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.device-theme-options button:focus-visible,
+.device-sound-preference input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.device-sound-preference span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.device-sound-preference small {
+  color: var(--text-muted);
+}
+
+.device-sound-preference input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--primary);
+}
+
+@media (max-width: 600px) {
+  .device-preference-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .device-sound-preference {
+    flex-direction: row;
+    align-items: center;
+  }
+}

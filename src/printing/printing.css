@@ -3,6 +3,11 @@
   color: var(--text);
 }
 
+.settings-page > .printing-settings {
+  width: 100%;
+  max-width: 880px;
+}
+
 .printing-status-card,
 .printing-health-card,
 .printing-primary-card,

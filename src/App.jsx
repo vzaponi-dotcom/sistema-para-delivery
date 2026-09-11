@@ -29,11 +29,13 @@ import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
 import PrintQueue from './pages/PrintQueue'
+import Settings from './pages/Settings'
 import Tables from './pages/Tables'
 import Comandas from './pages/Comandas'
 import { legacyCapabilities } from './app/access.js'
 import { useNavigationController } from './app/useNavigationController.js'
 import { useQueryContext } from './app/useQueryContext.js'
+import { usePrintingSettingsController } from './app/usePrintingSettingsController.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
@@ -83,7 +85,7 @@ const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs'
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
-const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables'])
+const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-printing', 'settings-device'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const isAwaitingSecondCopyJob = (job) => job?.status === 'awaiting_second_copy' && Number(job?.copiesRequested) === 2 && Number(job?.copiesPrinted) === 1
 const isSecondCopyPromptEligible = (job, order) => isAwaitingSecondCopyJob(job) && isOrderActive(order)
@@ -98,6 +100,7 @@ const emptyProduct = () => ({ category: 'Refeições', presentationType: 'size',
 
 function App({ capabilities } = {}) {
   const [authState, setAuthState] = useState('checking')
+  const [sessionKey, setSessionKey] = useState(0)
   const [bootstrapState, setBootstrapState] = useState('idle')
   const [requestKey, setRequestKey] = useState(null)
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine)
@@ -241,7 +244,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    invalidateNewOrderDraft(); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
 
   const ownsPaymentSelection = (owner) => owner?.guard === syncGuardRef.current
@@ -352,7 +355,7 @@ function App({ capabilities } = {}) {
   }
 
   const expireSession = () => {
-    clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setRequestKey(null); setLoginError('Sua sessão expirou. Entre novamente.')
+    setSessionKey((current) => current + 1); clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setRequestKey(null); setLoginError('Sua sessão expirou. Entre novamente.')
   }
   const showApiError = (error) => {
     if (error?.status === 401) return expireSession()
@@ -387,6 +390,16 @@ function App({ capabilities } = {}) {
     return pending
   }
   const refreshBootstrapSilently = () => refreshBootstrap({ background: true })
+  const printingSettings = usePrintingSettingsController({
+    authenticated: authState === 'authenticated' && bootstrapState === 'ready',
+    sessionKey,
+    printing,
+    granted,
+    onFeedback: (feedback) => {
+      if (feedback?.status === 401) showApiError(feedback)
+      else setToastMessage(typeof feedback === 'string' ? feedback : (feedback?.message || 'Não foi possível concluir a configuração de impressão.'))
+    },
+  })
 
   const playKitchenNewOrderSound = async () => {
     if (typeof window === 'undefined') return
@@ -418,7 +431,7 @@ function App({ capabilities } = {}) {
         const session = await getSessionApi()
         if (cancelled) return
         if (!session?.authenticated) return setAuthState('anonymous')
-        setAuthState('authenticated')
+        setSessionKey((current) => current + 1); setAuthState('authenticated')
         if (!cancelled) await refreshBootstrap()
       } catch { if (!cancelled) { setAuthState('anonymous'); setBootstrapState('idle') } }
     }
@@ -714,9 +727,9 @@ function App({ capabilities } = {}) {
   const handleLogin = async (pin) => {
     if (!isOnline || requestKey) return
     setRequestKey('auth:login'); setLoginError('')
-    try { await loginApi(pin); resetSyncState(); setAuthState('authenticated'); await refreshBootstrap() } catch (error) { clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setLoginError(error?.code === 'INVALID_PIN' ? 'PIN inválido. Confira e tente novamente.' : (error?.message || 'Não foi possível entrar no sistema.')) } finally { setRequestKey(null) }
+    try { await loginApi(pin); resetSyncState(); setSessionKey((current) => current + 1); setAuthState('authenticated'); await refreshBootstrap() } catch (error) { clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setLoginError(error?.code === 'INVALID_PIN' ? 'PIN inválido. Confira e tente novamente.' : (error?.message || 'Não foi possível entrar no sistema.')) } finally { setRequestKey(null) }
   }
-  const handleLogout = async () => { if (writesBlocked) return; setRequestKey('auth:logout'); try { await logoutApi(); clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setLoginError('') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
+  const handleLogout = async () => { if (writesBlocked) return; setRequestKey('auth:logout'); try { await logoutApi(); setSessionKey((current) => current + 1); clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setLoginError('') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
 
   const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
     if (writesBlocked) return
@@ -950,11 +963,12 @@ function App({ capabilities } = {}) {
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} />}
-        {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => setShowPrintingSettings(true)} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} />}
+        {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
         {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} selectionGeneration={selectedComandaGeneration} onSelectTable={selectComandaTable} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
+        {(activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
 
         {pendingDestination && (
           <Modal title="Descartar venda em andamento?" onClose={cancelDiscard}>
@@ -975,7 +989,7 @@ function App({ capabilities } = {}) {
         {showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
         <MovementDialog open={movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
         <OpeningBalanceDialog open={openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
-        {showPrintingSettings && <PrintingSettings printing={printing} onClose={() => setShowPrintingSettings(false)} />}
+        {showPrintingSettings && <PrintingSettings printing={printing} settings={printingSettings} granted={granted} onClose={() => setShowPrintingSettings(false)} />}
       </AppShell>
 
       {recoveryPromptEligible && physicalPrinterReady && recoveryDialogMode === 'prompt' && (

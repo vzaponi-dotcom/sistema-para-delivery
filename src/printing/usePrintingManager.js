@@ -446,11 +446,14 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     qzSecurityConfiguredRef.current = true
   }, [updatePrinterHealth, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ generation: expectedGeneration } = {}) => {
     if (!authenticated) return { stations: [], jobs: [] }
     const [stationPayload, jobPayload, summaryPayload] = await Promise.all([getPrintStations(), getPrintJobs({ limit: 100 }), getPrintQueueSummary()])
     const nextStations = Array.isArray(stationPayload?.stations) ? stationPayload.stations : []
     const nextJobs = Array.isArray(jobPayload?.jobs) ? jobPayload.jobs : []
+    if (expectedGeneration !== undefined && expectedGeneration !== initializationRef.current) {
+      return { stations: nextStations, jobs: nextJobs, summary: summaryPayload?.summary ?? {}, stale: true }
+    }
     setStations(nextStations)
     setJobs(nextJobs)
     setRecoveryPendingCount(Math.max(0, Number(summaryPayload?.summary?.safeBacklog) || 0))
@@ -526,6 +529,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     }
   }, [configureQz, isQz, reportError, updateBlocked, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
+  const readConfiguredPrinter = useCallback(() => {
+    const stationId = localStationRef.current?.id
+    return stationId ? getQzPrinterName(globalThis.localStorage, stationId) : null
+  }, [])
+
   const selectPrinter = useCallback(async (printerName) => {
     if (!isQz) throw printerError('QZ_UNAVAILABLE', 'A seleção de fila QZ está disponível apenas no Windows.')
     const stationId = localStationRef.current?.id
@@ -533,22 +541,34 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     const requestedPrinter = String(printerName || '').trim()
     if (!requestedPrinter) throw printerError('QZ_PRINTER_NOT_CONFIGURED', 'Selecione a impressora desta estação.')
 
+    const generation = initializationRef.current
     configureQz()
     updateTransportReady(false)
     setPrinterState('connecting')
     try {
       await ensureQzConnected(qz)
+      if (generation !== initializationRef.current) return null
       updateQzConnected(Boolean(qz.websocket?.isActive?.()))
       const selectedPrinter = await resolveQzPrinter(qz, requestedPrinter)
+      if (generation !== initializationRef.current) return null
       saveQzPrinterName(globalThis.localStorage, stationId, selectedPrinter)
       updateConfiguredPrinterName(selectedPrinter)
       updatePrinterQueueFound(true)
-      await ensureQzStatusMonitor(selectedPrinter)
+      try {
+        await ensureQzStatusMonitor(selectedPrinter)
+      } catch (error) {
+        if (generation !== initializationRef.current) return null
+        updateTransportReady(false)
+        setPrinterState('disconnected')
+        reportError(error)
+        return selectedPrinter
+      }
       updateBlocked(false)
       setPrinterState(printerHealthRef.current.state === 'ready' ? 'connected' : 'verifying')
       setLastError(null)
       return selectedPrinter
     } catch (error) {
+      if (generation !== initializationRef.current) throw error
       updateQzConnected(Boolean(qz.websocket?.isActive?.()))
       updatePrinterQueueFound(false)
       updateTransportReady(false)
@@ -659,16 +679,20 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       autoPrintEnabled: settings.autoPrintEnabled ?? current.autoPrintEnabled ?? false,
       defaultCopies: settings.defaultCopies ?? current.defaultCopies ?? 2,
     }
+    const generation = initializationRef.current
     const response = await upsertPrintStation(current.id, payload)
+    if (generation !== initializationRef.current) return response.station
     updateLocalStation(response.station)
-    await refresh()
+    await refresh({ generation })
     return response.station
   }, [refresh, updateLocalStation])
 
   const makePrimary = useCallback(async (stationId = localStationRef.current?.id) => {
     if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+    const generation = initializationRef.current
     const response = await makePrimaryPrintStation(stationId)
-    await refresh()
+    if (generation !== initializationRef.current) return response.station
+    await refresh({ generation })
     return response.station
   }, [refresh])
 
@@ -1099,6 +1123,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     recoveryPromptEligible: recoveryView.recoveryPromptEligible,
     refresh,
     refreshPrinters,
+    readConfiguredPrinter,
     selectPrinter,
     connectPrinter,
     saveStationSettings,

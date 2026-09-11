@@ -1,0 +1,317 @@
+import { useState } from 'react'
+import Button from './Button'
+import ConfirmationDialog from './ConfirmationDialog'
+import SystemSelect from './SystemSelect'
+import '../printing/printing.css'
+
+const QZ_CONNECTION_LABELS = {
+  connected: 'QZ Tray conectado',
+  disconnected: 'QZ Tray desconectado',
+  unconfigured: 'Impressora QZ não configurada',
+  unsupported: 'QZ Tray indisponível',
+  connecting: 'Conectando ao QZ Tray…',
+}
+
+const PLATFORM_LABELS = {
+  windows: 'Windows',
+  android: 'Android',
+  other: 'Outro',
+}
+
+const PHYSICAL_HEALTH_LABELS = {
+  ready: 'Pronta para imprimir',
+  verifying: 'Verificando impressora…',
+  printer_offline: 'Impressora desligada ou desconectada',
+  printer_attention: 'Atenção necessária na impressora',
+}
+
+const countLabel = (count, singular, plural) => `${count} ${count === 1 ? singular : plural}`
+
+function PrintingSettingsContent({ printing, settings, granted }) {
+  const copiesResource = settings.resources['business-copies']
+  const stationResource = settings.resources['station-config']
+  const printerResource = settings.resources['local-printer']
+  const canEditCopies = granted?.has('printing.settings')
+  const canConfigureStation = granted?.has('printing.station.configure')
+  const station = stationResource.confirmedValue || printing?.localStation || null
+  const isQz = printing?.transportKind === 'qz'
+  const defaultCopies = copiesResource.confirmedValue
+  const settingsLoading = copiesResource.status === 'loading'
+  const settingsError = copiesResource.error
+  const [autoPrintOverride, setAutoPrintOverride] = useState(null)
+  const autoPrintEnabled = autoPrintOverride ?? Boolean(station?.autoPrintEnabled)
+  const [pendingAction, setPendingAction] = useState(null)
+  const [confirmPrimary, setConfirmPrimary] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const [qzConfiguring, setQzConfiguring] = useState(false)
+  const [qzPrinterSelection, setQzPrinterSelection] = useState('')
+
+  const run = async (key, action, successMessage = '') => {
+    if (pendingAction) return false
+    setPendingAction(key)
+    setFeedback('')
+    try {
+      await action()
+      if (successMessage) setFeedback(successMessage)
+      return true
+    } catch (error) {
+      setFeedback(error?.message || 'Não foi possível concluir a ação de impressão.')
+      return false
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  const testPrint = () => run('test', () => printing.testPrint(), 'Teste enviado para a impressora.')
+
+  const openQzConfiguration = async () => {
+    setQzConfiguring(true)
+    setQzPrinterSelection(printing?.configuredPrinterName || '')
+    await run('qz-discover', () => printing.refreshPrinters())
+  }
+
+  const refreshQzPrinters = () => run('qz-discover', () => printing.refreshPrinters())
+
+  const saveQzPrinter = async () => {
+    const printerName = String(qzPrinterSelection || '').trim()
+    if (!printerName) {
+      setFeedback('Selecione uma impressora antes de salvar.')
+      return
+    }
+    const saved = await settings.selectPrinter(printerName)
+    if (saved) setQzConfiguring(false)
+  }
+
+  const saveStationSettings = async (next = {}) => {
+    const nextAuto = next.autoPrintEnabled ?? autoPrintEnabled
+    return settings.saveStation({
+      name: station?.name,
+      platform: station?.platform,
+      autoPrintEnabled: nextAuto,
+    })
+  }
+
+  const handleAutoPrintChange = async (event) => {
+    const next = event.target.checked
+    setAutoPrintOverride(next)
+    await saveStationSettings({ autoPrintEnabled: next })
+    setAutoPrintOverride(null)
+  }
+
+  const handleCopiesChange = async (event) => {
+    const next = Number(event.target.value)
+    if (pendingAction || settingsLoading || defaultCopies === null || (next !== 1 && next !== 2)) return
+    await settings.saveCopies(next)
+  }
+
+  const makePrimary = async () => {
+    const saved = await settings.makePrimary(station?.id)
+    if (saved) setConfirmPrimary(false)
+  }
+
+  const printerState = printing?.printerState || 'unconfigured'
+  const qzConnectionState = printing?.qzConnected ? 'connected' : (printerState === 'connecting' ? 'connecting' : 'disconnected')
+  const connectionLabel = isQz ? (QZ_CONNECTION_LABELS[qzConnectionState] || 'Desconectada') : 'Somente solicitações'
+  const queueConfigured = Boolean(String(printing?.configuredPrinterName || '').trim())
+  const queueFound = Boolean(printing?.printerQueueFound)
+  const printerHealth = printing?.printerHealth || { state: 'verifying', statusText: null, statusCode: null }
+  const physicalState = printerHealth.state || 'verifying'
+  const physicalReady = physicalState === 'ready'
+  const physicalLabel = PHYSICAL_HEALTH_LABELS[physicalState] || PHYSICAL_HEALTH_LABELS.verifying
+  const operationalState = !isQz
+    ? 'queue-only'
+    : !printing?.qzConnected
+      ? 'qz-unavailable'
+      : !queueConfigured
+        ? 'queue-unconfigured'
+        : !queueFound
+          ? 'queue-missing'
+          : physicalState
+  const operationalLabel = !isQz
+    ? 'Fila central'
+    : !printing?.qzConnected
+      ? 'QZ Tray indisponível'
+      : !queueConfigured
+        ? 'Impressora não configurada'
+        : !queueFound
+          ? 'Impressora não encontrada'
+          : physicalLabel
+  const jobs = Array.isArray(printing?.jobs) ? printing.jobs : []
+  const pendingCount = jobs.filter((job) => job?.status === 'pending').length
+  const awaitingConfirmationCount = jobs.filter((job) => job?.status === 'awaiting_confirmation').length
+  const stationBusy = ['loading', 'saving', 'unconfirmed'].includes(stationResource.status)
+  const printerBusy = ['loading', 'saving', 'unconfirmed'].includes(printerResource.status)
+  const copiesBusy = ['loading', 'saving', 'unconfirmed'].includes(copiesResource.status)
+  const disabled = Boolean(pendingAction) || stationBusy || !station
+  const qzPrinters = Array.isArray(printing?.availablePrinters) ? printing.availablePrinters : []
+  const qzPrinterOptions = qzPrinters.map((printerName) => ({ value: printerName, label: printerName }))
+
+  return (
+    <>
+      <div className="printing-settings form-stack">
+          <div className={`printing-health-card printing-health-${operationalState}`}>
+            <div>
+              <span className="printing-label">Estado operacional</span>
+              <strong>{operationalLabel}</strong>
+              {isQz && printerHealth.statusText && <small>{printerHealth.statusText}</small>}
+            </div>
+            <span className={`printing-state printing-state-${operationalState}`}>{operationalLabel}</span>
+          </div>
+
+          <div className="printing-status-card">
+            <div>
+              <span className="printing-label">{isQz ? 'Diagnóstico QZ Tray' : 'Fila central'}</span>
+              <strong>{connectionLabel}</strong>
+            </div>
+            <span className={`printing-state printing-state-${isQz ? qzConnectionState : printerState}`}>{connectionLabel}</span>
+          </div>
+
+          {!isQz && (
+            <p className="printing-feedback">
+              Esta estação usa a fila central; a impressão física ocorre somente no Windows com QZ Tray.
+            </p>
+          )}
+
+          {(pendingCount > 0 || awaitingConfirmationCount > 0) && (
+            <div className="printing-queue-summary" aria-live="polite">
+              {pendingCount > 0 && <span>Há {countLabel(pendingCount, 'trabalho aguardando impressão', 'trabalhos aguardando impressão')}</span>}
+              {awaitingConfirmationCount > 0 && <span>{countLabel(awaitingConfirmationCount, 'via enviada à impressora aguardando confirmação', 'vias enviadas à impressora aguardando confirmação')}</span>}
+            </div>
+          )}
+
+          <div className="printing-info-grid">
+            <div className="printing-info-card"><span>Estação</span><strong>{station?.name || 'Preparando estação…'}</strong></div>
+            <div className="printing-info-card"><span>Plataforma</span><strong>{PLATFORM_LABELS[station?.platform] || 'Outro'}</strong></div>
+            <div className="printing-info-card"><span>Driver</span><strong>{isQz ? 'QZ Tray' : 'Fila central'}</strong></div>
+            <div className="printing-info-card"><span>Estação principal</span><strong>{station?.isPrimary ? 'Sim' : 'Não'}</strong></div>
+            <div className="printing-info-card"><span>Impressão automática</span><strong>{autoPrintEnabled ? 'Ligada' : 'Desligada'}</strong></div>
+          </div>
+
+          {isQz && canConfigureStation && (
+            <div className="printing-settings-section">
+              <div className="printing-settings-heading">
+                <div>
+                  <h3>Impressora do Windows</h3>
+                  <p>O QZ Tray deve permanecer aberto no Windows para impressão automática.</p>
+                </div>
+                <span className={`printing-state printing-state-${operationalState}`}>
+                  {operationalLabel}
+                </span>
+              </div>
+
+              <div className="printing-inline-card">
+                <strong>{queueFound ? 'Fila encontrada' : (queueConfigured ? 'Fila configurada' : 'Fila não configurada')}</strong>
+                <span>{printing?.configuredPrinterName || 'Nenhuma fila configurada'} · A descoberta da fila não confirma conexão física da impressora.</span>
+              </div>
+
+              {qzConfiguring ? (
+                <div className="form-stack">
+                  <SystemSelect
+                    value={qzPrinterSelection}
+                    onChange={setQzPrinterSelection}
+                    options={qzPrinterOptions}
+                    placeholder={pendingAction === 'qz-discover' ? 'Buscando impressoras…' : 'Selecione a impressora'}
+                    ariaLabel="Impressora QZ"
+                    disabled={disabled || printerBusy || pendingAction === 'qz-discover'}
+                  />
+                  {pendingAction !== 'qz-discover' && qzPrinters.length === 0 && (
+                    <p className="printing-feedback">Nenhuma fila foi encontrada. Confirme que o QZ Tray está aberto e atualize a lista.</p>
+                  )}
+                  <div className="printing-actions-row">
+                    <Button type="button" variant="secondary" onClick={refreshQzPrinters} disabled={disabled}>
+                      Atualizar lista
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => setQzConfiguring(false)} disabled={disabled}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" onClick={saveQzPrinter} disabled={disabled || printerBusy || !qzPrinterSelection}>
+                      Salvar impressora
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="printing-actions-row">
+                  <Button type="button" variant="secondary" onClick={openQzConfiguration} disabled={disabled || printing?.supported === false}>
+                    {printing?.configuredPrinterName ? 'Trocar impressora' : 'Configurar impressora'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isQz && canConfigureStation && (
+            <div className="printing-actions-row">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={testPrint}
+                disabled={disabled || !physicalReady || !printing?.transportReady}
+              >
+                Testar impressão
+              </Button>
+            </div>
+          )}
+
+          {isQz && canConfigureStation && (
+            <label className="printing-toggle-row">
+              <span><strong>Imprimir novos pedidos automaticamente</strong><small>Somente a estação principal consome a fila automática.</small></span>
+              <input type="checkbox" checked={autoPrintEnabled} onChange={handleAutoPrintChange} disabled={disabled} />
+            </label>
+          )}
+
+          {canEditCopies && <fieldset className="printing-copy-options" disabled={copiesBusy || defaultCopies === null}>
+            <legend>Cópias por pedido do negócio</legend>
+            <label><input type="radio" name="defaultCopies" value={1} checked={defaultCopies === 1} onChange={handleCopiesChange} />1 cópia</label>
+            <label><input type="radio" name="defaultCopies" value={2} checked={defaultCopies === 2} onChange={handleCopiesChange} />2 cópias</label>
+          </fieldset>}
+          {canEditCopies && <p className="printing-feedback">
+            Regra central do negócio para novos pedidos de Entrega/Retirada, compartilhada entre todos os dispositivos.
+            Mesa/consumo local automático usa sempre 1 via. Pedidos já criados mantêm a quantidade de vias original.
+          </p>}
+          {canEditCopies && copiesResource.status === 'saving' && <p className="printing-feedback" role="status">Salvando vias do negócio…</p>}
+          {canEditCopies && settingsLoading && <p className="printing-feedback" role="status">Carregando vias do negócio…</p>}
+          {canEditCopies && settingsError && (
+            <div className="printing-feedback printing-feedback-error" role="alert">
+              <p>{settingsError}</p>
+              <Button type="button" variant="secondary" onClick={() => settings.reload('business-copies')} disabled={settingsLoading || copiesResource.status === 'saving'}>
+                {copiesResource.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}
+              </Button>
+            </div>
+          )}
+
+          {isQz && canConfigureStation && !station?.isPrimary && (
+            <div className="printing-primary-card">
+              <div><strong>Tornar estação principal</strong><span>Necessário para receber automaticamente os novos pedidos.</span></div>
+              <Button type="button" variant="secondary" onClick={() => setConfirmPrimary(true)} disabled={disabled}>Tornar estação principal</Button>
+            </div>
+          )}
+
+          <div className="printing-compatibility">
+            <strong>Compatibilidade</strong>
+            <span>Windows usa o QZ Tray para enviar o mesmo ticket ESC/POS diretamente à fila configurada.</span>
+            <span>Android cria e acompanha trabalhos na fila; a impressão física ocorre somente na estação principal Windows.</span>
+            <span>Outras plataformas criam e acompanham trabalhos na fila; somente o Windows executa a impressão física.</span>
+          </div>
+
+          {printing?.lastError?.message && <p className="printing-feedback printing-feedback-error">{printing.lastError.message}</p>}
+          {stationResource.error && <p className="printing-feedback printing-feedback-error" role="alert">{stationResource.error}</p>}
+          {printerResource.error && <p className="printing-feedback printing-feedback-error" role="alert">{printerResource.error}</p>}
+          {feedback && <p className="printing-feedback" role="status">{feedback}</p>}
+        </div>
+
+      {isQz && confirmPrimary && (
+        <ConfirmationDialog
+          title="Tornar estação principal"
+          message="Esta será a única estação responsável pela impressão automática. As outras estações continuam disponíveis para ações manuais."
+          confirmLabel="Tornar principal"
+          confirmVariant="primary"
+          onClose={() => setConfirmPrimary(false)}
+          onConfirm={makePrimary}
+          disabled={stationBusy}
+        />
+      )}
+    </>
+  )
+}
+
+export default PrintingSettingsContent

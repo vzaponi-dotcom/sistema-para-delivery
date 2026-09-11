@@ -191,11 +191,11 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
             variant="secondary"
             icon="settings"
             className="print-queue-settings-button"
-            aria-label="Configurações de impressão"
-            title="Configurações de impressão"
+            aria-label="Configurações, Impressão"
+            title="Abrir Configurações > Impressão"
             onClick={onOpenPrintingSettings}
           >
-            Configurações
+            Configurações &gt; Impressão
           </Button>
         )}
       />
