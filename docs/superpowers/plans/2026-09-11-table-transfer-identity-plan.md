@@ -1,74 +1,85 @@
 # T1 — Plano isolado de identidade da transferência de comanda
 
-> **For agentic workers:** Use `superpowers:executing-plans`. Execute somente T1, com os checkboxes abaixo; não iniciar a reorganização visual. Uma conferência final e uma revisão do PR, sem rodadas adicionais preventivas.
+> **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:executing-plans`. Executar somente T1. Uma conferência do diff e uma revisão do PR; sem rodadas preventivas adicionais. Não iniciar A1 automaticamente.
 
-**Goal:** Uma confirmação de transferência só pode mover a comanda originalmente apresentada; nunca outra comanda que ocupe depois a mesma mesa.
-**Architecture:** Capturar identidade na abertura do diálogo, transportá-la pelo callback/API e validá-la na escrita condicionada por negócio, origem, ID e situação aberta. Manter a resposta e as demais validações existentes.
-**Tech Stack:** Stack/lockfile atuais; Node 22, `node:test`, SQLite em memória do teste existente e harness React atual.
-**Spec:** seção 7.1 e A23 da `docs/superpowers/specs/2026-09-11-information-architecture-navigation-design.md`, revisão 2, commit `45e6565e7be34c3c07d905f562e8f69dcc85f948`.
-**Base de código:** `99c1f04677b54243a43d470b743cdd16ac499154`. **Estado:** planejado; não implementado.
+**Goal:** Transferir somente a comanda originalmente confirmada, nunca a substituta que passou a ocupar a mesma mesa.
+**Architecture:** Capturar o ID ao abrir o diálogo, transportá-lo na API existente e condicionar a escrita por identidade, negócio, origem aberta e destino ativo/livre. Preservar a resposta atual.
+**Tech Stack:** Stack/lockfile atuais; Node 22, `node:test`, `D1Sqlite` em memória e harness React existentes.
+**Spec:** seção 7.1 e A23 de `docs/superpowers/specs/2026-09-11-information-architecture-navigation-design.md`, revisão **2.1**, commit `cc43a6914f92a8af722d413d7e06c256ba68b88d`.
+**Base:** `99c1f04677b54243a43d470b743cdd16ac499154`. **Estado:** plano para aprovação; não implementado.
 
-## Restrições globais
+## 1. Limites
 
-- PR exclusivo `fix/table-transfer-identity` → `integration/spec-a-navigation`. Preparação/worktree isolada conforme plano principal; nunca master ou worktree antiga.
-- Somente transferência. Não alterar pagamento, fechamento de conta, cadastro, nomes/números, impressão, políticas ou navegação.
-- Sem nova tabela, migration, biblioteca, rota ou serviço. Ajustar apenas o payload da rota existente. Sem merge/deploy automático.
-- Falha externa é registrada, não corrigida incidentalmente. Testes de mudança de assinatura podem ser atualizados, mantendo as asserções originais.
+- PR exclusivo `fix/table-transfer-identity` → `integration/spec-a-navigation`; worktree nova conforme plano principal. Nunca master ou worktree antiga suja.
+- Somente identidade da transferência. Não mudar pagamento, fechamento, cadastro, números, itens, impressão ou navegação.
+- Sem migration, tabela, biblioteca, rota ou serviço novo. A única alteração externa é o payload da rota existente. Sem merge/deploy automático.
+- Testes de assinatura podem ser adaptados sem remover cenários. Descoberta fora do escopo: registrar evidência/impacto e parar o dependente, sem correção oportunista.
 
-## Contrato fechado para esta tarefa
+## 2. Contrato fechado
 
-| Camada | Contrato |
+| Camada / resultado | Contrato |
 |---|---|
-| Diálogo / App | `onTransfer(sourceTableId, destinationTableId, expectedTableTabId)`; ID capturado ao abrir a confirmação de A, não substituído por B num refresh. |
-| Cliente HTTP | `transferTableTab(sourceTableId, destinationTableId, expectedTableTabId)` no endpoint existente `POST /api/tables/:sourceTableId/transfer`. |
-| Payload | `{destinationTableId, expectedTableTabId}`. Ambos obrigatórios e não vazios. |
-| Repositório | `transferOpenTableTab(db, businessId, sourceTableId, destinationTableId, now = new Date(), expectedTableTabId)`; preserva a posição atual do relógio para os testes. O novo argumento é obrigatório em comportamento. |
-| Ausente/vazio | HTTP 400, `EXPECTED_TABLE_TAB_REQUIRED`, mensagem para atualizar a página e selecionar novamente; nenhuma mutação. Clientes antigos não recebem fallback inseguro. |
-| Identidade obsoleta | HTTP 409, `TABLE_TAB_CHANGED`; não mover outra comanda nem recriar o atendimento. Atualizar a leitura na UI, sem repetir o POST. |
-| Sucesso | Resposta atual `{tables, tableTab}`; `tableTab.id` igual ao esperado; mesma numeração/itens, nova mesa. |
+| Diálogo/App | `onTransfer(sourceTableId,destinationTableId,expectedTableTabId)`; ID capturado ao abrir o diálogo, não descoberto no clique final. |
+| Cliente HTTP | `transferTableTab(sourceTableId,destinationTableId,expectedTableTabId)`. |
+| Rota existente | `POST /api/tables/:sourceTableId/transfer`, body `{destinationTableId,expectedTableTabId}`. Strings não vazias obrigatórias. |
+| Repositório | `transferOpenTableTab(db,businessId,sourceTableId,destinationTableId,now = new Date(),expectedTableTabId)`. Preservar a posição do relógio, mas exigir o novo argumento em runtime. |
+| Identidade ausente/vazia/tipo inválido | HTTP 400, `EXPECTED_TABLE_TAB_REQUIRED`; orientar recarregar a página e selecionar novamente. Não escrever. |
+| Comanda não corresponde à origem/negócio/estado aberto | HTTP 409, `TABLE_TAB_CHANGED`; não revelar outro negócio nem procurar substituta. |
+| Destino inválido | Manter os códigos atuais de destino ocupado, inativo, inexistente ou igual à origem; revalidar condições na escrita. |
+| Sucesso | `{tables,tableTab}`, com `tableTab.id` igual ao esperado; mesmos número, itens e vínculos. |
 
-Compatibilidade: entregar cliente e servidor juntos na mesma versão de teste. Navegador antigo que omite o ID recebe erro com instrução de recarregar; não inferir a intenção consultando a mesa no servidor. Isso é rejeição segura de cliente antigo, não compatibilidade transparente.
+Entregar cliente e servidor juntos em staging. Cliente antigo sem ID recebe recusa com instrução de recarregar; não usar fallback inseguro. Não implementar modo de compatibilidade que transfira “a comanda atual”. Atualizar todos os callers existentes, não só o botão novo da futura Spec A.
 
-## Única tarefa T1
+## 3. Única tarefa T1
 
-**Alterar:** `worker/tableRepository.js`, `worker/index.js`, `src/api/client.js`, `src/App.jsx`, `src/components/TableTransferDialog.jsx`, `worker/tableRepository.test.js`, `worker/index.test.js`.
+**Alterar produção:** `worker/tableRepository.js`, `worker/index.js`, `src/api/client.js`, `src/App.jsx`, `src/components/TableTransferDialog.jsx`.
+**Alterar testes:** `worker/tableRepository.test.js`, `worker/index.test.js`, `src/api/tableTabClient.test.js`.
 **Criar:** `src/tableTransferIdentityUi.test.js`.
-**Ajustes limitados de testes:** testes que chamam diretamente a assinatura alterada, localizados por `git grep -n -E 'transferOpenTableTab|transferTableTab|onTransfer' -- '*.test.js'`; somente fixture/payload/assinatura, sem remoção de cenários. Nenhum outro arquivo de produção.
-**Consome:** `sourceTable.openTableTab.id`, sessão/negócio e SQL existentes. **Produz:** contrato acima protegido e evidência exigida por A23; nada de menu novo.
+**Exceção de testes:** localizar callers com `git grep -n -E 'transferOpenTableTab|transferTableTab|onTransfer' -- '*.test.js'`; ajustar somente fixtures, assinatura e expectativas do novo contrato. Nenhum outro arquivo de produção.
 
-- [ ] Na nova worktree, executar a preparação e a linha de base do plano principal. Registrar HEAD; ler somente transferência, callers e seus testes.
-- [ ] Acrescentar RED em `worker/tableRepository.test.js`, reutilizando `D1Sqlite`, `insertTable`, `insertOpenTableTab` e `now` já definidos nesse arquivo. Exemplo que falha por transferir B na implementação anterior:
+- [ ] Fazer preparação da worktree/linha de base do plano principal. Registrar HEAD e ler transferência/callers/testes. Não fazer outra auditoria do sistema.
+- [ ] RED em `worker/tableRepository.test.js`, reutilizando `D1Sqlite`, `insertTable`, `insertOpenTableTab` e `now` já definidos:
 ```js
 test('confirmação de A não transfere B que a substituiu', async () => {
   const db = new D1Sqlite()
   try {
-    insertTable(db, {id:'s', name:'Mesa 1', sortOrder:1})
-    insertTable(db, {id:'d', name:'Mesa 2', sortOrder:2})
-    insertOpenTableTab(db, {id:'A', tableId:'s', tableIdentifier:'Mesa 1', tabNumber:37})
+    insertTable(db, {id:'s',name:'Mesa 1',sortOrder:1})
+    insertTable(db, {id:'d',name:'Mesa 2',sortOrder:2})
+    insertOpenTableTab(db, {id:'A',tableId:'s',tableIdentifier:'Mesa 1',tabNumber:37})
     db.exec("UPDATE table_tabs SET status='closed' WHERE id='A'")
-    insertOpenTableTab(db, {id:'B', tableId:'s', tableIdentifier:'Mesa 1', tabNumber:38})
+    insertOpenTableTab(db, {id:'B',tableId:'s',tableIdentifier:'Mesa 1',tabNumber:38})
     await assert.rejects(
-      transferOpenTableTab(db, 'biz-a', 's', 'd', now, 'A'),
+      transferOpenTableTab(db,'biz-a','s','d',now,'A'),
       error => error.status === 409 && error.code === 'TABLE_TAB_CHANGED',
     )
-    assert.equal(db.sqlite.prepare('SELECT table_id FROM table_tabs WHERE id=?').get('B').table_id, 's')
+    assert.equal(db.sqlite.prepare('SELECT table_id FROM table_tabs WHERE id=?').get('B').table_id,'s')
   } finally { db.sqlite.close() }
 })
 ```
-- [ ] Cobrir também a troca A→B **entre SELECT e UPDATE**, com interceptação apenas no adapter SQLite de teste antes do `.run()` da transferência. Não introduzir hooks de teste em produção. Acrescentar HTTP sem ID/vazio/ID de outro negócio e UI com prop de mesa atualizada após abrir o diálogo.
-- [ ] Executar `node --test worker/tableRepository.test.js worker/index.test.js src/tableTransferIdentityUi.test.js`; guardar os casos RED. Infraestrutura que não inicia não vale como evidência do bug.
-- [ ] Implementar captura estável de `expectedTableTabId` no diálogo e transportar pela mesma cadeia de callbacks, sem consultar “a comanda atual” no clique final. Desabilitar confirmação obsoleta; mesmo que escape do cliente, o servidor rejeita. Evitar duplo envio; exibir conflito e exigir nova intenção explícita.
-- [ ] Validar payload e identidade na rota/repositório. Na escrita, conservar condições atuais e acrescentar vínculo ao ID esperado; condições de mesa de destino ativa/livre devem valer na escrita, usando a proteção existente e predicado quando necessário. Predicado obrigatório de origem:
+- [ ] Cobrir a substituição também entre SELECT e UPDATE: interceptar somente o adapter SQLite de teste antes do `.run()` da transferência. Nenhum hook de teste no código de produção. Teste de UI atualiza props para B depois de abrir A e verifica que não é enviada uma intenção de B. Teste HTTP cobre ID ausente/vazio/incorreto; cliente envia exatamente o ID capturado.
+- [ ] Rodar `node --test worker/tableRepository.test.js worker/index.test.js src/api/tableTabClient.test.js src/tableTransferIdentityUi.test.js`; registrar os novos casos RED. Falha de ambiente não é demonstração do bug.
+- [ ] Capturar identidade estável no diálogo e transportar pela cadeia atual. Verificar se ainda é a comanda exibida antes de confirmar; invalidar intenção obsoleta, sem retarget. Bloquear clique duplo por ref enquanto envia. Erro 409 atualiza leitura existente no App e exige nova intenção; não reenviar POST.
+- [ ] Validar payload na rota e argumento no repositório. Manter validações atuais; a própria escrita acrescenta vínculo ao esperado:
 ```sql
 WHERE business_id = ? AND table_id = ? AND id = ? AND status = 'open'
 ```
-  Os binds são negócio autenticado, origem confirmada e `expectedTableTabId`. Não basta usar o ID encontrado por um SELECT tardio. Ausência do esperado/alteração de origem não tenta outra comanda. Retornar a identidade escrita; zero linhas é conflito, não sucesso.
-- [ ] GREEN dos mesmos testes, cobrindo sucesso, encerramento, substituição em ambos os momentos, já transferida, origem/destino iguais, destino ocupado/inativo inclusive alteração concorrente e negócio incorreto. A UI envia exatamente o ID mostrado e não faz retry automático em 409.
-- [ ] Executar `npm test`, `npm run lint`, `npm run build`, ambos os dry-runs do Worker e `npm run d1:migrate:local`, como no gate final do plano principal. Nenhuma chamada ao D1 remoto. Conferir uma vez o diff e os arquivos permitidos.
-- [ ] Commit `fix: bind table transfer to expected tab identity`; push e abrir PR draft para integração. Reportar HEAD, testes e quebra segura de compatibilidade. Após uma revisão de código satisfatória, pedir autorização para integrar; não iniciar A1 nem fazer merge por conta própria.
+  Esses binds são negócio da sessão, mesa de origem e **ID recebido da intenção**. Somar predicado de destino existente, pertencente ao mesmo negócio e ativo na escrita; conservar `NOT EXISTS`/índice de comanda aberta para destino livre. Um SELECT prévio ou ID consultado tardiamente não basta.
+- [ ] Zero linhas alteradas é conflito/condição inválida, não sucesso. Carregar a resposta pelo ID esperado, nunca pela nova ocupante da origem. Não alterar comanda/itens/número para compensar erro. GREEN nos mesmos testes e em callers adaptados.
 
-## Evidência de conclusão
+## 4. Casos obrigatórios de aceite
 
-T1 só está concluído quando os testes demonstram a preservação de identidade e o PR/commit está disponível. Registrar no handoff o SHA incorporado à integração; A6/A23 não podem ser aprovados apenas porque o plano existe. Um teste de SQLite em memória não substitui a verificação HTTP nem a homologação de duas sessões em staging antes da liberação da funcionalidade.
+| Caso | Resultado necessário |
+|---|---|
+| Comanda A válida, destino livre/ativo | A transferida; ID/número/itens preservados; resposta identifica A. |
+| A substituída por B antes da requisição | 409; B continua na origem; nenhum efeito em outro atendimento. |
+| Substituição entre leitura e escrita | B não se move; nenhum sucesso falso. |
+| Origem encerrada, transferida ou ID de outro negócio | Recusa; não inferir alvo alternativo. |
+| Destino ocupado ou inativado antes da escrita | Recusa sem mover A; manter códigos correspondentes. |
+| ID ausente/vazio/inválido e cliente antigo | 400 explicativo; zero mutações. |
+| UI recebe refresh após abrir diálogo; clique duplo | Não troca identidade capturada; no máximo uma solicitação por intenção. |
 
-Fora desta tarefa: implementar a Spec A, reformular auth, reescrever repositories, modificar políticas de comanda ou adicionar fila de transferências. Sem uma dessas mudanças como pré-condição, concluir e parar.
+- [ ] Rodar gates: `npm test`, `npm run lint`, `npm run build`, ambos os dry-runs do Worker e `npm run d1:migrate:local`, nos comandos da A9. Nenhum D1 remoto. Uma conferência do diff/arquivos permitidos.
+- [ ] Commit `fix: bind table transfer to expected tab identity`; push. Abrir PR draft para integração e reportar HEAD, RED/GREEN e quebra segura do cliente antigo. CI não dispara automaticamente em todo PR para integração: registrar gates locais ou dispatch autorizado existente, nunca presumir CI verde.
+- [ ] Uma revisão do PR; corrigir somente falha concreta. Pedir autorização para incorporar à integração. Registrar o SHA incorporado no handoff. Não iniciar A1 nem publicar em produção.
+
+**Concluído** exige testes e commit disponíveis; **incorporado** exige commit na base de A; **homologado** exige duas sessões de staging na A9. Esses estados não são intercambiáveis. A23 não é aceito apenas com mocks de UI ou este documento. Fora de T1: engine nova, fila de transferências, auth, perfis, refatoração de repositories e Spec A visual.
