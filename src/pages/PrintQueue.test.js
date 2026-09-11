@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { act } from 'react-test-renderer'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
-import { filterPrintQueueJobs, getPrintQueueSearchText } from './printQueueFilters.js'
+import { filterPrintQueueJobs, getPrintQueueSearchText, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
 import { sortPrintQueueJobsForDisplay } from './printQueueQuery.js'
@@ -407,6 +407,18 @@ test('print queue reads only the paginated main list and summary', async () => {
   assert.match(page, /getPrintQueueSummary\(\)/)
   assert.match(page, /pageInfo/)
   assert.doesNotMatch(page, /filterPrintQueueJobs\(jobs/)
+})
+
+test('print queue status filter exposes only jobs that still require operational follow-up', () => {
+  assert.deepEqual(PRINT_QUEUE_STATUS_FILTERS.map(({ value, label }) => ({ value, label })), [
+    { value: 'all', label: 'Todos' },
+    { value: 'queued', label: 'Na fila' },
+    { value: 'waiting_station', label: 'Aguardando estação' },
+    { value: 'printing', label: 'Imprimindo' },
+    { value: 'waiting_confirmation', label: 'Aguardando confirmação' },
+    { value: 'waiting_second_copy', label: 'Aguardando 2ª via' },
+    { value: 'attention', label: 'Requer atenção' },
+  ])
 })
 
 test('main panel exposes sortable backend columns and page-aware mobile cards without a recent section', async () => {
