@@ -126,18 +126,24 @@ export const canExecuteSecondCopy = ({ isQz, station, job }) => Boolean(
   && Number(job?.copiesPrinted) === 1
 )
 
+const isRecoveryAffinityJob = (station, job) => (
+  ['active', 'deferred'].includes(station?.recoveryState)
+  && Boolean(station?.recoveryJobId)
+  && station.recoveryJobId === job?.id
+)
+
 export const canPresentSecondCopyPrompt = ({ isQz, transportReady, printerBlocked, station, job }) => (
   Boolean(transportReady)
   && !printerBlocked
-  && (station?.recoveryState ?? 'normal') === 'normal'
+  && ((station?.recoveryState ?? 'normal') === 'normal' || isRecoveryAffinityJob(station, job))
   && canExecuteSecondCopy({ isQz, station, job })
-  && !job?.secondCopyPromptedAt
+  && (!job?.secondCopyPromptedAt || isRecoveryAffinityJob(station, job))
 )
 
 export const canKeepSecondCopyPromptOpen = ({ isQz, transportReady, printerBlocked, station, job }) => (
   Boolean(transportReady)
   && !printerBlocked
-  && (station?.recoveryState ?? 'normal') === 'normal'
+  && ((station?.recoveryState ?? 'normal') === 'normal' || isRecoveryAffinityJob(station, job))
   && canExecuteSecondCopy({ isQz, station, job })
 )
 
@@ -719,16 +725,19 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     })
     if (result) {
       const refreshed = await refresh()
+      const recoveredJob = refreshed?.jobs?.find((job) => job.id === result.jobId) ?? null
       const current = localStationRef.current
-      if (result.status === 'printed' && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id && current.recoveryState === 'deferred') {
+      if (result.status === 'printed' && ['printed', 'discarded'].includes(recoveredJob?.status)
+        && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id
+        && current.recoveryState === 'deferred' && !current?.recoveryJobId) {
         const response = await setPrintStationRecovery(current.id, 'normal')
         if (response?.station) updateLocalStation(response.station)
       }
-      return result
+      return { ...result, job: recoveredJob }
     }
 
     const current = localStationRef.current
-    if (current?.id && current.recoveryState === 'active') {
+    if (current?.id && current.recoveryState === 'active' && !current.recoveryJobId) {
       const response = await setPrintStationRecovery(current.id, 'normal')
       if (response?.station) updateLocalStation(response.station)
     }

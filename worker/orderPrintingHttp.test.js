@@ -47,6 +47,7 @@ class D1Sqlite {
         qz_ready INTEGER NOT NULL DEFAULT 0, printer_ready INTEGER NOT NULL DEFAULT 0, last_ready_at TEXT,
         physical_state TEXT NOT NULL DEFAULT 'verifying', physical_status_text TEXT, physical_status_code TEXT,
         physical_status_at TEXT, last_offline_at TEXT, recovery_state TEXT NOT NULL DEFAULT 'normal', recovery_pending_at TEXT,
+        recovery_job_id TEXT,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;

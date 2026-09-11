@@ -17,7 +17,12 @@ class D1Sqlite {
     this.sqlite.exec(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE businesses (id TEXT PRIMARY KEY);
-      CREATE TABLE print_stations (id TEXT PRIMARY KEY, business_id TEXT NOT NULL);
+      CREATE TABLE print_stations (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        recovery_job_id TEXT,
+        updated_at TEXT
+      );
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,

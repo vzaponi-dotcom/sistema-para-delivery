@@ -23,6 +23,7 @@ import { runClaimedPrintJob } from './printJobRunner.js'
 const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 
 const awaitingSecondCopyJob = {
+  id: 'job-second-copy',
   status: 'awaiting_second_copy',
   copiesRequested: 2,
   copiesPrinted: 1,
@@ -84,6 +85,8 @@ test('a non-normal recovery state pauses the normal consumer while the manager u
   assert.match(managerSource, /resolvePrintOutcome/)
   assert.match(managerSource, /startRecovery/)
   assert.match(managerSource, /printNextRecovery/)
+  assert.match(managerSource, /\['printed', 'discarded'\]\.includes\(recoveredJob\?\.status\)/)
+  assert.match(managerSource, /!current\?\.recoveryJobId/)
 })
 
 test('manager installs spooler monitoring before QZ jobs and routes QZ execution through persisted attempts', () => {
@@ -158,6 +161,50 @@ test('only an unacknowledged awaiting copy can present the second-copy prompt on
     station: { isPrimary: false, platform: 'windows' },
     job: awaitingSecondCopyJob,
   }), false)
+})
+
+test('deferred recovery presents only its durable affinity job again after reload', () => {
+  const job = { ...awaitingSecondCopyJob, secondCopyPromptedAt: '2026-09-10T12:00:00.000Z' }
+  const station = {
+    id: 'kitchen-primary', isPrimary: true, platform: 'windows',
+    recoveryState: 'deferred', recoveryJobId: job.id,
+  }
+  const input = { isQz: true, transportReady: true, printerBlocked: false, station }
+
+  assert.equal(canPresentSecondCopyPrompt({ ...input, job }), true)
+  assert.equal(canKeepSecondCopyPromptOpen({ ...input, job }), true)
+  assert.equal(canPresentSecondCopyPrompt({ ...input, job: { ...job, id: 'other-job' } }), false)
+})
+
+test('deferred recovery executes copy two by explicitly reclaiming the same affinity job', async () => {
+  const sequence = []
+  const job = { ...awaitingSecondCopyJob }
+  const station = {
+    id: 'kitchen-primary', isPrimary: true, platform: 'windows',
+    recoveryState: 'deferred', recoveryJobId: job.id,
+  }
+
+  const result = await claimAndExecuteSecondCopy({
+    isQz: true,
+    transportReady: true,
+    printerBlocked: false,
+    station,
+    job,
+    claimJob: async (jobId, stationId) => {
+      sequence.push(`claim:${jobId}:${stationId}`)
+      return { job: { ...job, status: 'processing' } }
+    },
+    executeJob: async (claimedJob) => {
+      sequence.push(`execute:${claimedJob.id}:${claimedJob.copiesPrinted + 1}`)
+      return { status: 'printed' }
+    },
+  })
+
+  assert.equal(result.status, 'printed')
+  assert.deepEqual(sequence, [
+    'claim:job-second-copy:kitchen-primary',
+    'execute:job-second-copy:2',
+  ])
 })
 
 test('an unready or blocked primary QZ station cannot present the physical second-copy prompt', () => {

@@ -7,6 +7,7 @@ const initialSql = await readFile(new URL('../migrations/0010_order_printing.sql
 const centralizedQueueSql = await readFile(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8').catch(() => '')
 const operationalConfirmationSql = await readFile(new URL('../migrations/0019_print_operational_confirmation.sql', import.meta.url), 'utf8').catch(() => '')
 const tableTabPrintJobsSql = await readFile(new URL('../migrations/0022_table_tab_print_jobs.sql', import.meta.url), 'utf8').catch(() => '')
+const recoveryAffinitySql = await readFile(new URL('../migrations/0023_print_recovery_job_affinity.sql', import.meta.url), 'utf8').catch(() => '')
 
 test('printing migration adds immutable ticket contact snapshots and station/job tables', () => {
   assert.match(initialSql, /ALTER TABLE orders ADD COLUMN client_phone_snapshot TEXT NOT NULL DEFAULT ''/)
@@ -184,4 +185,23 @@ test('table-tab print job migration preserves existing jobs and enforces one-cop
   assert.deepEqual({ ...db.prepare("SELECT table_tab_id, type, copies_requested FROM print_jobs WHERE id = 'tab-job'").get() }, { table_tab_id: 'tab-1', type: 'table-tab', copies_requested: 1 })
   assert.throws(() => db.prepare("INSERT INTO print_jobs (id, business_id, table_tab_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('bad-copies', 'b-tab-print', 'tab-1', 'table-tab', 'manual', 'pending', 2, 0, '{}', ?)").run(at), /CHECK constraint failed/)
   assert.throws(() => db.prepare("INSERT INTO print_jobs (id, business_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('bad-identity', 'b-tab-print', 'table-tab', 'manual', 'pending', 1, 0, '{}', ?)").run(at), /CHECK constraint failed/)
+})
+
+test('recovery affinity migration preserves stations and adds a nullable current job', async () => {
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0023_print_recovery_job_affinity.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+
+  const createdAt = '2026-09-10T12:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('business-affinity', 'affinity', 'Affinity', createdAt, createdAt)
+  db.prepare('INSERT INTO print_stations (id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('station-affinity', 'business-affinity', 'Kitchen', 'windows', 1, 1, 2, createdAt, createdAt)
+
+  db.exec(recoveryAffinitySql)
+
+  assert.deepEqual({ ...db.prepare('SELECT id, recovery_job_id FROM print_stations WHERE id = ?').get('station-affinity') }, {
+    id: 'station-affinity',
+    recovery_job_id: null,
+  })
 })

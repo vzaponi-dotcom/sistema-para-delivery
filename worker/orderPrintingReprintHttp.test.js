@@ -40,7 +40,8 @@ class D1Sqlite {
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
-        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, recovery_job_id TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (

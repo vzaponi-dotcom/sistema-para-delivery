@@ -161,6 +161,8 @@ function App() {
   // one can exist when another comanda starts payment before the first responds.
   const paymentSyncRef = useRef(new Set())
   const [tableTabSync, setTableTabSync] = useState(null)
+  const pausedRecoverySecondCopyJobIdRef = useRef(null)
+  const previousRecoveryStateRef = useRef(null)
 
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
@@ -217,7 +219,7 @@ function App() {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false
+    invalidateNewOrderDraft(); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
 
   const ownsPaymentSelection = (owner) => owner?.guard === syncGuardRef.current
@@ -475,10 +477,12 @@ function App() {
   }, [activeTab, orders, kitchenNow, kitchenSoundEnabled])
 
   useEffect(() => {
-    if (recoveryState !== 'normal') {
-      if (secondCopyPromptJobId) setSecondCopyPromptJobId(null)
-      return
-    }
+    const recoveryJobId = localPrintStation?.recoveryJobId ?? null
+    const hasRecoveryAffinity = recoveryState !== 'normal' && Boolean(recoveryJobId)
+    const resumedRecovery = previousRecoveryStateRef.current === 'deferred' && recoveryState === 'active'
+    previousRecoveryStateRef.current = recoveryState
+    if (resumedRecovery) pausedRecoverySecondCopyJobIdRef.current = null
+    if (recoveryState === 'normal') pausedRecoverySecondCopyJobIdRef.current = null
     if (secondCopyPromptJobId) {
       const current = printJobs.find((job) => job.id === secondCopyPromptJobId)
       const currentOrder = orders.find((order) => order.id === current?.orderId)
@@ -491,7 +495,10 @@ function App() {
       })) setSecondCopyPromptJobId(null)
       return
     }
-    const next = printJobs.find((job) => {
+    if (hasRecoveryAffinity && pausedRecoverySecondCopyJobIdRef.current === recoveryJobId) return
+    if (recoveryState !== 'normal' && !hasRecoveryAffinity) return
+    const candidates = hasRecoveryAffinity ? printJobs.filter((job) => job.id === recoveryJobId) : printJobs
+    const next = candidates.find((job) => {
       const order = orders.find((candidate) => candidate.id === job.orderId)
       return isSecondCopyPromptEligible(job, order) && canPresentSecondCopyPrompt({
         isQz: printTransportKind === 'qz',
@@ -506,6 +513,7 @@ function App() {
       job: next,
       acknowledge: acknowledgeSecondCopyPrompt,
       openPrompt: setSecondCopyPromptJobId,
+      reopenAcknowledged: hasRecoveryAffinity,
     }).catch(showApiError)
   }, [printJobs, printTransportKind, localPrintStation, acknowledgeSecondCopyPrompt, orders, recoveryState, secondCopyPromptJobId, printTransportReady, printerBlocked])
 
@@ -559,6 +567,10 @@ function App() {
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setSuccessMessage(message)
 
   const dismissSecondCopyPrompt = () => {
+    if (recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob?.id) {
+      pausedRecoverySecondCopyJobIdRef.current = secondCopyPromptJob.id
+      if (recoveryState === 'active') void printing.deferRecovery()
+    }
     setSecondCopyPromptJobId(null)
   }
 
@@ -574,6 +586,7 @@ function App() {
       setSecondCopyPromptJobId(null)
       return
     }
+    const isRecoverySecondCopy = recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob.id
     setSecondCopyPromptBusy(true)
     try {
       const result = await printing.printSecondCopy(secondCopyPromptJob)
@@ -581,7 +594,9 @@ function App() {
         setSecondCopyPromptJobId(null)
         return
       }
+      pausedRecoverySecondCopyJobIdRef.current = null
       setSecondCopyPromptJobId(null)
+      if (isRecoverySecondCopy) setRecoveryDialogMode('progress')
       showSuccessMessage('2ª via enviada para impressão')
     } catch (error) {
       setSecondCopyPromptJobId(null)
@@ -596,7 +611,7 @@ function App() {
     setRecoveryBusy(true)
     try {
       const result = await printing.startRecovery()
-      setRecoveryDialogMode(result?.status === 'printed' ? 'progress' : null)
+      setRecoveryDialogMode(result?.status === 'printed' && result?.job?.status !== 'awaiting_second_copy' ? 'progress' : null)
     } catch (error) {
       setRecoveryDialogMode(null)
       showApiError(error)
@@ -622,9 +637,10 @@ function App() {
     if (recoveryBusy || !physicalPrinterReady) return
     setRecoveryBusy(true)
     try {
+      pausedRecoverySecondCopyJobIdRef.current = null
       await printing.resumeRecovery()
       const result = await printing.printNextRecovery()
-      setRecoveryDialogMode(result?.status === 'printed' ? 'progress' : null)
+      setRecoveryDialogMode(result?.status === 'printed' && result?.job?.status !== 'awaiting_second_copy' ? 'progress' : null)
     } catch (error) {
       setRecoveryDialogMode(null)
       showApiError(error)
@@ -1000,7 +1016,7 @@ function App() {
           title={`${secondCopyPromptOrderNumber} · 1ª via impressa`}
           message="Destaque o papel na serrilha antes de continuar."
           confirmLabel="Imprimir 2ª via"
-          cancelLabel="Depois"
+          cancelLabel={recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob.id ? 'Parar por agora' : 'Depois'}
           onClose={dismissSecondCopyPrompt}
           onConfirm={handleGlobalSecondCopy}
           disabled={secondCopyPromptBusy || Boolean(printing.busyJobId)}

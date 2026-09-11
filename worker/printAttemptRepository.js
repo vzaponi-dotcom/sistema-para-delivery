@@ -180,6 +180,10 @@ const markComplete = async (db, businessId, attempt, stationId, details, now) =>
             AND completed_at = ? AND resolution IS NULL
         )`)
       .bind(at, attempt.jobId, businessId, stationId, attempt.id, businessId, at),
+    db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE id = ? AND business_id = ? AND recovery_job_id = ?
+        AND EXISTS (SELECT 1 FROM print_jobs WHERE id = ? AND business_id = ? AND status IN ('printed', 'discarded'))`)
+      .bind(at, stationId, businessId, attempt.jobId, attempt.jobId, businessId),
   ])
   return requireAttempt(db, businessId, attempt.id)
 }
@@ -276,6 +280,10 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
         )`)
       .bind(nextStatus, nextCopies, resolution, resolution, at, resolution, at, actor, at,
         jobId, businessId, attemptId, businessId, resolution, at),
+    db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE business_id = ? AND recovery_job_id = ?
+        AND EXISTS (SELECT 1 FROM print_jobs WHERE id = ? AND business_id = ? AND status IN ('printed', 'discarded'))`)
+      .bind(at, businessId, jobId, jobId, businessId),
   ])
   return requireAttempt(db, businessId, attemptId)
 }
