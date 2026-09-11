@@ -31,6 +31,9 @@ import OrderHistory from './pages/OrderHistory'
 import PrintQueue from './pages/PrintQueue'
 import Tables from './pages/Tables'
 import Comandas from './pages/Comandas'
+import { legacyCapabilities } from './app/access.js'
+import { useNavigationController } from './app/useNavigationController.js'
+import { useQueryContext } from './app/useQueryContext.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
@@ -40,7 +43,6 @@ import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingMan
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import { shouldConfirmNewOrderExit } from './utils/newOrderStepFlow.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
 import { detectOperationalArrivals } from './utils/orderRealtime.js'
@@ -81,6 +83,7 @@ const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs'
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
+const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const isAwaitingSecondCopyJob = (job) => job?.status === 'awaiting_second_copy' && Number(job?.copiesRequested) === 2 && Number(job?.copiesPrinted) === 1
 const isSecondCopyPromptEligible = (job, order) => isAwaitingSecondCopyJob(job) && isOrderActive(order)
@@ -93,7 +96,7 @@ const readKitchenSoundPreference = () => {
 }
 const emptyProduct = () => ({ category: 'Refeições', presentationType: 'size', presentationValue: 'P', presentationUnit: '', name: '', price: formatBRLCurrencyValue(32) })
 
-function App() {
+function App({ capabilities } = {}) {
   const [authState, setAuthState] = useState('checking')
   const [bootstrapState, setBootstrapState] = useState('idle')
   const [requestKey, setRequestKey] = useState(null)
@@ -106,21 +109,15 @@ function App() {
   const [tableTabs, setTableTabs] = useState([])
   const [movements, setMovements] = useState([])
   const [financeSettings, setFinanceSettings] = useState(null)
-  const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedComandaTableId, setSelectedComandaTableId] = useState(null)
   const [selectedComandaGeneration, setSelectedComandaGeneration] = useState(0)
   const [checkoutKey, setCheckoutKey] = useState(null)
   const [newOrderContext, setNewOrderContext] = useState({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
   const [newOrderDirty, setNewOrderDirty] = useState(false)
-  const [pendingNavigationTab, setPendingNavigationTab] = useState(null)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
   const [editingClientId, setEditingClientId] = useState(null)
   const [showClientForm, setShowClientForm] = useState(false)
   const [duplicateClientDialog, setDuplicateClientDialog] = useState(null)
-  const [clientSearch, setClientSearch] = useState('')
-  const [orderSearch, setOrderSearch] = useState('')
-  const [productSearch, setProductSearch] = useState('')
-  const [clientSort, setClientSort] = useState('name-asc')
   const [editingProductId, setEditingProductId] = useState(null)
   const [showProductForm, setShowProductForm] = useState(false)
   const [newProduct, setNewProduct] = useState(emptyProduct)
@@ -164,6 +161,37 @@ function App() {
   const pausedRecoverySecondCopyJobIdRef = useRef(null)
   const previousRecoveryStateRef = useRef(null)
 
+  const invalidateNewOrderDraft = useCallback(() => {
+    newOrderOwnerRef.current += 1
+    setCheckoutKey(null)
+    setNewOrderContext({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
+    setNewOrderDirty(false)
+  }, [])
+
+  const granted = useMemo(
+    () => capabilities === undefined
+      ? legacyCapabilities(authState === 'authenticated')
+      : capabilities,
+    [authState, capabilities],
+  )
+  const { query, patchQuery, resetQueries } = useQueryContext()
+  const {
+    activeTab,
+    pendingDestination,
+    requestNavigation,
+    confirmDiscard,
+    cancelDiscard,
+    resetNavigation,
+    completeNavigation,
+  } = useNavigationController({
+    granted,
+    implemented: IMPLEMENTED_DESTINATIONS,
+    checkoutPending: requestKey === 'order:create',
+    dirtyOrder: newOrderDirty,
+    onDiscardOrder: invalidateNewOrderDraft,
+    onFeedback: setToastMessage,
+  })
+
   const todayValue = toLocalDateValue()
   const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
   const writesBlocked = !isOnline || requestKey !== null
@@ -206,20 +234,14 @@ function App() {
     ordersSyncInFlightRef.current = false
   }
 
-  const invalidateNewOrderDraft = () => {
-    newOrderOwnerRef.current += 1
-    setCheckoutKey(null)
-    setNewOrderContext({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
-    setNewOrderDirty(false)
-  }
-
   const clearBusinessData = () => {
-    setActiveTab('dashboard')
+    resetNavigation()
+    resetQueries()
     setSelectedComandaTableId(null)
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPendingNavigationTab(null); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    invalidateNewOrderDraft(); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
 
   const ownsPaymentSelection = (owner) => owner?.guard === syncGuardRef.current
@@ -562,8 +584,8 @@ function App() {
   const financialTotals = useMemo(() => { const entries = movements.filter((movement) => movement.type === 'entrada').reduce((total, movement) => total + Number(movement.value), 0); const exits = movements.filter((movement) => movement.type === 'saida').reduce((total, movement) => total + Number(movement.value), 0); return { entries, exits, balance: entries - exits } }, [movements])
   const currentFinanceBalance = useMemo(() => calculateCurrentBalance(movements, financeSettings), [financeSettings, movements])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
-  const filteredClients = useMemo(() => { const normalizedSearch = clientSearch.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => clientSort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clientSearch, clientSort, clients])
-  const filteredOrders = useMemo(() => { const normalizedSearch = orderSearch.trim().toLowerCase(); return orders.filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)) }, [orderSearch, orders])
+  const filteredClients = useMemo(() => { const normalizedSearch = query.clients.search.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => query.clients.sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clients, query.clients.search, query.clients.sort])
+  const filteredOrders = useMemo(() => { const normalizedSearch = query.orders.search.trim().toLowerCase(); return orders.filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)) }, [orders, query.orders.search])
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setSuccessMessage(message)
 
   const dismissSecondCopyPrompt = () => {
@@ -696,30 +718,6 @@ function App() {
   }
   const handleLogout = async () => { if (writesBlocked) return; setRequestKey('auth:logout'); try { await logoutApi(); clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setLoginError('') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
 
-  const completeNavigation = (targetTab) => {
-    if (activeTab === 'new-order' && targetTab !== 'new-order') {
-      invalidateNewOrderDraft()
-    }
-    setActiveTab(targetTab)
-  }
-
-  const requestNavigation = (targetTab) => {
-    if (activeTab === 'new-order' && requestKey === 'order:create') return
-    if (shouldConfirmNewOrderExit({ activeTab, targetTab, draftDirty: newOrderDirty })) {
-      setPendingNavigationTab(targetTab)
-      return
-    }
-    completeNavigation(targetTab)
-  }
-
-  const cancelDiscardNewOrder = () => setPendingNavigationTab(null)
-
-  const confirmDiscardNewOrder = () => {
-    const targetTab = pendingNavigationTab
-    setPendingNavigationTab(null)
-    if (targetTab) completeNavigation(targetTab)
-  }
-
   const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
     if (writesBlocked) return
     const owner = newOrderOwnerRef.current + 1
@@ -742,6 +740,7 @@ function App() {
       setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
       setRequestKey(null)
       showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido enviado para a fila da cozinha'))
+      invalidateNewOrderDraft()
       completeNavigation(newOrderContext.returnTab)
       return true
     } catch (error) {
@@ -887,7 +886,7 @@ function App() {
   const persistClientUpdate = async () => { if (writesBlocked || !editingClientId || !newClient.name.trim()) return; const id = editingClientId; setRequestKey(`client:update:${id}`); try { const { client } = await updateClientApi(id, clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente atualizado com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
   const handleAddClient = async () => { if (writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient, null, 'create')) return; await persistNewClient() }
   const handleSaveClient = async () => { if (writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId, 'update')) return; await persistClientUpdate() }
-  const handleUseExistingClient = () => { const existing = duplicateClientDialog?.client; setDuplicateClientDialog(null); if (existing?.name) setClientSearch(existing.name); resetClientForm() }
+  const handleUseExistingClient = () => { const existing = duplicateClientDialog?.client; setDuplicateClientDialog(null); if (existing?.name) patchQuery('clients', { search: existing.name }); resetClientForm() }
   const handleConfirmDuplicateClient = async () => { const action = duplicateClientDialog?.action; setDuplicateClientDialog(null); if (action === 'update') await persistClientUpdate(); else if (action === 'create') await persistNewClient() }
   const handleDeleteClient = async (clientId) => { if (writesBlocked) return; setRequestKey(`client:delete:${clientId}`); try { await deleteClientApi(clientId); syncGuardRef.current.markMutation(['clients']); setClients((current) => removeById(current, clientId)); if (editingClientId === clientId) resetClientForm(); showSuccessMessage('Cliente excluído com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
   const handleCancelClientEdit = () => { setDuplicateClientDialog(null); resetClientForm() }
@@ -944,26 +943,26 @@ function App() {
       {!isOnline && <ConnectionBanner />}
       {toastMessage && (typeof document === 'undefined' ? <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div> : createPortal(<div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>, document.body))}
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
-      <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked}>
-        {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={orderSearch} onSearchChange={setOrderSearch} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} onToast={setToastMessage} />}
+      <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
+        {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
-        {activeTab === 'clients' && <Clients clients={filteredClients} search={clientSearch} sort={clientSort} onSearchChange={setClientSearch} onSortChange={setClientSort} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
-        {activeTab === 'products' && <Products products={products} search={productSearch} currency={currency} onSearchChange={setProductSearch} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} />}
-        {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => setShowPrintingSettings(true)} onToast={setToastMessage} />}
-        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} />}
+        {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
+        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} />}
+        {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => setShowPrintingSettings(true)} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} />}
+        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
         {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} selectionGeneration={selectedComandaGeneration} onSelectTable={selectComandaTable} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
 
-        {pendingNavigationTab && (
-          <Modal title="Descartar venda em andamento?" onClose={cancelDiscardNewOrder}>
+        {pendingDestination && (
+          <Modal title="Descartar venda em andamento?" onClose={cancelDiscard}>
             <div className="form-stack">
               <p>As informações preenchidas e os produtos adicionados serão descartados.</p>
               <div className="form-actions">
-                <Button type="button" variant="secondary" onClick={cancelDiscardNewOrder}>Continuar na venda</Button>
-                <Button type="button" onClick={confirmDiscardNewOrder}>Descartar venda</Button>
+                <Button type="button" variant="secondary" onClick={cancelDiscard}>Continuar na venda</Button>
+                <Button type="button" onClick={confirmDiscard}>Descartar venda</Button>
               </div>
             </div>
           </Modal>

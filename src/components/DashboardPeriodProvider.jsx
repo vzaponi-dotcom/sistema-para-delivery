@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import { DashboardPeriodContext } from './dashboardPeriodContext.js'
 
-export function DashboardPeriodProvider({ children }) {
-  const [period, setPeriod] = useState('30d')
-
+export function DashboardPeriodProvider({ period, onPeriodChange, children }) {
   return (
-    <DashboardPeriodContext.Provider value={{ period, setPeriod }}>
+    <DashboardPeriodContext.Provider value={{ period, setPeriod: onPeriodChange }}>
       {children}
     </DashboardPeriodContext.Provider>
   )

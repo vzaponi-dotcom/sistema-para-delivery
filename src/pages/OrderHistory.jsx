@@ -17,8 +17,8 @@ const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order:
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast }) {
-  const [filter, setFilter] = useState('all')
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast, queryState, onQueryChange }) {
+  const filter = queryState.filter
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -36,9 +36,9 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
       <section className="surface-card order-history-surface">
         <div className="history-toolbar">
           <div className="history-filter" role="group" aria-label="Filtrar histórico">
-            <button type="button" className={filter === 'all' ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todos</button>
-            <button type="button" className={filter === 'finalized' ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={filter === 'finalized'} onClick={() => setFilter('finalized')}>Finalizados</button>
-            <button type="button" className={filter === 'cancelled' ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={filter === 'cancelled'} onClick={() => setFilter('cancelled')}>Cancelados</button>
+            <button type="button" className={filter === 'all' ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={filter === 'all'} onClick={() => onQueryChange({ filter: 'all' })}>Todos</button>
+            <button type="button" className={filter === 'finalized' ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={filter === 'finalized'} onClick={() => onQueryChange({ filter: 'finalized' })}>Finalizados</button>
+            <button type="button" className={filter === 'cancelled' ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={filter === 'cancelled'} onClick={() => onQueryChange({ filter: 'cancelled' })}>Cancelados</button>
           </div>
           <span className="toolbar-count">{terminalOrders.length} registro(s)</span>
         </div>

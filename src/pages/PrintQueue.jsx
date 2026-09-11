@@ -15,7 +15,7 @@ import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import { PRINT_QUEUE_ORIGIN_FILTERS, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
 import { getPrintJobs, getPrintQueueSummary } from '../api/client.js'
-import { DEFAULT_PRINT_QUEUE_QUERY, sortPrintQueueJobsForDisplay, togglePrintQueueSort, updatePrintQueueQuery } from './printQueueQuery.js'
+import { sortPrintQueueJobsForDisplay, togglePrintQueueSort, updatePrintQueueQuery } from './printQueueQuery.js'
 
 const formatJobTime = (createdAt) => {
   if (!createdAt) return null
@@ -50,11 +50,11 @@ const getPrintJobView = (job, stationReady, order) => {
   }
 }
 
-function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) {
+function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange }) {
   const station = printing?.localStation ?? null
   const stationSummary = getPrintStationSummary(station)
   const stationReady = Boolean(station?.health?.ready)
-  const [query, setQuery] = useState(DEFAULT_PRINT_QUEUE_QUERY)
+  const query = queryState
   const [operationalPage, setOperationalPage] = useState({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } })
   const [summary, setSummary] = useState(() => buildPrintQueueSummary())
   const [panelLoading, setPanelLoading] = useState(true)
@@ -105,7 +105,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
   const hasActiveFilters = Boolean(query.search.trim()) || Boolean(query.status) || Boolean(query.trigger)
   const physicalReady = printing?.printerHealth?.state === 'ready'
   const recoveryState = printing?.recoveryState || station?.recoveryState || 'normal'
-  const updateQuery = (changes) => setQuery((current) => updatePrintQueueQuery(current, changes))
+  const updateQuery = (changes) => onQueryChange(updatePrintQueueQuery(query, changes))
   const selectedDetails = selectedJob ? getPrintJobDetails(selectedJob, {
     order: ordersById.get(String(selectedJob.orderId)),
     stations: printing?.stations,
@@ -274,7 +274,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
                     ['Pedido', 'orderNumber'], ['Job', 'jobId'], ['Status', 'status'], ['Origem', 'trigger'], ['Data/Hora', 'createdAt'],
                   ].map(([label, sortBy]) => {
                     const active = query.sortBy === sortBy
-                    return <th key={sortBy} aria-sort={active ? (query.sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}><button type="button" className="print-queue-sort" onClick={() => setQuery((current) => togglePrintQueueSort(current, sortBy))}>{label} <span aria-hidden="true">{active ? (query.sortDir === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                    return <th key={sortBy} aria-sort={active ? (query.sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}><button type="button" className="print-queue-sort" onClick={() => onQueryChange(togglePrintQueueSort(query, sortBy))}>{label} <span aria-hidden="true">{active ? (query.sortDir === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                   })}
                   <th>Vias</th>
                 </tr></thead>

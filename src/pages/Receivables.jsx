@@ -72,13 +72,11 @@ function Receivables({
   disabled = false,
   onRegisterPayment,
   onUpdatePaymentPromise,
+  queryState,
+  onQueryChange,
 }) {
-  const [search, setSearch] = useState('')
-  const [activeView, setActiveView] = useState('pending')
-  const [timingFilter, setTimingFilter] = useState('all')
-  const [sortMode, setSortMode] = useState('urgency')
-  const [exactDateFilter, setExactDateFilter] = useState(null)
-  const [selectedEntryKey, setSelectedEntryKey] = useState(null)
+  const { search, activeView, timingFilter, sortMode, exactDateFilter, selectedEntryKey } = queryState
+  const patchQuery = (patch) => onQueryChange(patch)
   const [today, setToday] = useState(() => getBusinessDate())
   const [detailOrder, setDetailOrder] = useState(null)
   const [promiseOrder, setPromiseOrder] = useState(null)
@@ -138,48 +136,39 @@ function Receivables({
   const overlayOpen = Boolean(selectedEntry || detailOrder || promiseOrder || quickPaymentOpen || forecastOpen)
 
   useEffect(() => {
-    if (selectedEntryKey && !selectedEntry) setSelectedEntryKey(null)
-  }, [selectedEntry, selectedEntryKey])
+    if (selectedEntryKey && !selectedEntry) onQueryChange({ selectedEntryKey: null })
+  }, [onQueryChange, selectedEntry, selectedEntryKey])
 
   const selectPrimaryView = (view) => {
     if (!PRIMARY_VIEWS.includes(view)) return
-    setActiveView(view)
-    setTimingFilter('all')
-    setExactDateFilter(null)
-    setSelectedEntryKey(null)
+    patchQuery({ activeView: view, timingFilter: 'all', exactDateFilter: null, selectedEntryKey: null })
   }
 
   const applyTimingFilter = (filter) => {
     if (!TIMING_FILTERS.includes(filter)) return
-    setActiveView('pending')
-    setTimingFilter(filter)
-    setExactDateFilter(null)
-    setSelectedEntryKey(null)
+    patchQuery({ activeView: 'pending', timingFilter: filter, exactDateFilter: null, selectedEntryKey: null })
   }
 
   const applyForecastDate = (date) => {
-    setActiveView('pending')
-    setTimingFilter('all')
-    setExactDateFilter(date)
-    setSelectedEntryKey(null)
+    patchQuery({ activeView: 'pending', timingFilter: 'all', exactDateFilter: date, selectedEntryKey: null })
     setForecastOpen(false)
   }
 
-  const openOrderDetail = (entry) => setSelectedEntryKey(entry.key)
-  const openPaidOrderDetail = (order) => setSelectedEntryKey(`paid:${order.id}`)
+  const openOrderDetail = (entry) => patchQuery({ selectedEntryKey: entry.key })
+  const openPaidOrderDetail = (order) => patchQuery({ selectedEntryKey: `paid:${order.id}` })
 
   const registerPaymentFromDetail = (orderId) => {
-    setSelectedEntryKey(null)
+    patchQuery({ selectedEntryKey: null })
     onRegisterPayment?.(orderId)
   }
 
   const editPaymentPromiseFromDetail = (order) => {
-    setSelectedEntryKey(null)
+    patchQuery({ selectedEntryKey: null })
     setPromiseOrder(order)
   }
 
   const viewOrderFromDetail = (order) => {
-    setSelectedEntryKey(null)
+    patchQuery({ selectedEntryKey: null })
     setDetailOrder(order)
   }
 
@@ -234,7 +223,7 @@ function Receivables({
           {activeView === 'pending' && (
             <div className="receivables-filter-strip" aria-label="Filtrar pendências por prazo">
               {TIMING_FILTERS.map((filter) => <button key={filter} type="button" aria-pressed={timingFilter === filter && !exactDateFilter} onClick={() => applyTimingFilter(filter)}>{TIMING_FILTER_LABELS[filter]}</button>)}
-              {exactDateFilter && <button type="button" aria-pressed="true" onClick={() => setExactDateFilter(null)}>Data {formatOrderDate(exactDateFilter)} ×</button>}
+              {exactDateFilter && <button type="button" aria-pressed="true" onClick={() => patchQuery({ exactDateFilter: null })}>Data {formatOrderDate(exactDateFilter)} ×</button>}
             </div>
           )}
 
@@ -253,8 +242,8 @@ function Receivables({
           )}
 
           <div className="receivables-controls">
-            <label className="search-control"><Icon name="search" size={18} /><input type="search" placeholder="Buscar identificação, pedido ou produto" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-            {activeView === 'pending' && <div className="receivables-sort-control"><span>Ordenar</span><SystemSelect label="Ordenar recebimentos" value={sortMode} options={SORT_OPTIONS} onChange={setSortMode} /></div>}
+            <label className="search-control"><Icon name="search" size={18} /><input type="search" placeholder="Buscar identificação, pedido ou produto" value={search} onChange={(event) => patchQuery({ search: event.target.value })} /></label>
+            {activeView === 'pending' && <div className="receivables-sort-control"><span>Ordenar</span><SystemSelect label="Ordenar recebimentos" value={sortMode} options={SORT_OPTIONS} onChange={(value) => patchQuery({ sortMode: value })} /></div>}
             <span className="toolbar-count">{activeView === 'pending' ? visiblePendingEntries.length : visiblePaidOrders.length} item(ns)</span>
           </div>
 
@@ -303,7 +292,7 @@ function Receivables({
         </button>
       )}
 
-      <BottomSheet open={Boolean(selectedEntry) && isMobileDetail} title="Detalhes do recebimento" onClose={() => setSelectedEntryKey(null)}>
+      <BottomSheet open={Boolean(selectedEntry) && isMobileDetail} title="Detalhes do recebimento" onClose={() => patchQuery({ selectedEntryKey: null })}>
         <ReceivableDetail
           entry={selectedEntry}
           currency={currency}

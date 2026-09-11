@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import '../dashboard.css'
 import DashboardBarChart from '../components/DashboardBarChart'
@@ -40,9 +40,9 @@ const formatOperationalMinutes = (value) => Number.isFinite(value)
   ? `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} min`
   : '—'
 
-function Dashboard({ totals, orders, currency, onNewOrder }) {
+function Dashboard({ totals, orders, currency, onNewOrder, queryState, onQueryChange }) {
   const { period, setPeriod } = useDashboardPeriod()
-  const [valuesVisible, setValuesVisible] = useState(true)
+  const valuesVisible = queryState.valuesVisible
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const todayValue = toLocalDateValue()
 
@@ -87,7 +87,7 @@ function Dashboard({ totals, orders, currency, onNewOrder }) {
             className="icon-button icon-button-neutral dashboard-privacy-toggle"
             aria-label={privacyLabel}
             title={privacyLabel}
-            onClick={() => setValuesVisible((current) => !current)}
+            onClick={() => onQueryChange({ valuesVisible: !valuesVisible })}
           >
             <Icon name={valuesVisible ? 'eye' : 'eye-off'} size={20} />
           </button>

@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
+import React, { useState } from 'react'
 import { act } from 'react-test-renderer'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
-import { sortPrintQueueJobsForDisplay } from './printQueueQuery.js'
+import { DEFAULT_PRINT_QUEUE_QUERY, sortPrintQueueJobsForDisplay } from './printQueueQuery.js'
 import { nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
@@ -466,7 +467,12 @@ test('clicking a column header immediately reorders the displayed jobs even when
     throw new Error(`Unexpected request: ${url}`)
   }
 
-  const renderer = await harness.render(PrintQueue, {
+  function ControlledPrintQueue(props) {
+    const [queryState, setQueryState] = useState(() => ({ ...DEFAULT_PRINT_QUEUE_QUERY }))
+    return React.createElement(PrintQueue, { ...props, queryState, onQueryChange: setQueryState })
+  }
+
+  const renderer = await harness.render(ControlledPrintQueue, {
     orders: [{ id: 'order-72', orderNumber: 72 }, { id: 'order-71', orderNumber: 71 }],
     printing: { localStation: null, printerHealth: { state: 'verifying' }, stations: [] },
   })

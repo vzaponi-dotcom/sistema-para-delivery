@@ -15,11 +15,11 @@ import {
 const CATEGORY_FILTER_OPTIONS = [{ value: 'Todos', label: 'Todos' }, ...PRODUCT_CATEGORY_OPTIONS]
 const LONG_PRESS_MS = 550
 
-function Products({ products, search, currency, onSearchChange, onAdd, onEdit, onDelete }) {
+function Products({ products, search, currency, onSearchChange, onAdd, onEdit, onDelete, queryState, onQueryChange }) {
   const [pendingId, setPendingId] = useState(null)
   const [deleteCandidate, setDeleteCandidate] = useState(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState('Todos')
+  const categoryFilter = queryState.categoryFilter
   const [expandedCategories, setExpandedCategories] = useState(() => new Set())
   const [actionMenuProductId, setActionMenuProductId] = useState(null)
   const [selectionMode, setSelectionMode] = useState(false)
@@ -150,7 +150,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
             <Icon name="search" size={18} />
             <input type="search" placeholder="Buscar produto, categoria, apresentação ou preço" value={search} onChange={(event) => onSearchChange(event.target.value)} />
           </label>
-          <div className="product-category-filter"><SystemSelect value={categoryFilter} options={CATEGORY_FILTER_OPTIONS} onChange={setCategoryFilter} label="Filtrar categoria" /></div>
+          <div className="product-category-filter"><SystemSelect value={categoryFilter} options={CATEGORY_FILTER_OPTIONS} onChange={(value) => onQueryChange({ categoryFilter: value })} label="Filtrar categoria" /></div>
           <div className="product-toolbar-meta">
             <span className="toolbar-count">{visibleProducts.length} produto(s)</span>
             {!selectionMode && <button type="button" className="product-select-mode-button" onClick={() => enterSelectionMode()} disabled={actionsDisabled || !visibleProducts.length}>Selecionar</button>}

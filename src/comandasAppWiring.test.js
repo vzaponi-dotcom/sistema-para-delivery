@@ -876,7 +876,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   await act(async () => loginInput.props.onChange({ target: { value: '1234' } }))
   await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
   assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Tipo do pedido' }).length, 0, 'relogin exits the ownerless wizard')
-  assert.ok(renderer.root.findAllByProps({ 'aria-label': 'Novo pedido' }).length, 'relogin returns to the authenticated landing')
+  assert.ok(renderer.root.findAllByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' }).length, 'relogin returns to the authenticated kitchen landing')
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
   await prepareLocalOrderForCheckout(renderer)

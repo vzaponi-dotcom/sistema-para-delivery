@@ -43,9 +43,22 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
   const paymentRequests = []
   let renderer
 
+  function ControlledReceivables(props) {
+    const [queryState, setQueryState] = React.useState({
+      search: '',
+      activeView: 'pending',
+      timingFilter: 'all',
+      sortMode: 'urgency',
+      exactDateFilter: null,
+      selectedEntryKey: null,
+    })
+    const onQueryChange = (patch) => setQueryState((current) => ({ ...current, ...patch }))
+    return React.createElement(Receivables, { ...props, queryState, onQueryChange })
+  }
+
   try {
     await act(async () => {
-      renderer = create(React.createElement(Receivables, {
+      renderer = create(React.createElement(ControlledReceivables, {
         orders,
         currency: (value) => `R$ ${value.toFixed(2)}`,
         onRegisterPayment: (orderId) => paymentRequests.push(orderId),

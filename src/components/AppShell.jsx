@@ -5,7 +5,7 @@ import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
 import { MOBILE_SECTION_IDS } from '../utils/mobileNavigation.js'
 
-function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, children }) {
+function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, dashboardPeriod, onDashboardPeriodChange, children }) {
   const previousTab = useRef(activeTab)
   const [pageDirection, setPageDirection] = useState('none')
 
@@ -28,7 +28,7 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, chi
   }, [onNavigate])
 
   return (
-    <DashboardPeriodProvider>
+    <DashboardPeriodProvider period={dashboardPeriod} onPeriodChange={onDashboardPeriodChange}>
       <div className="app-shell">
         <Sidebar activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
         <main className="app-main">
