@@ -13,6 +13,10 @@
   background: var(--surface-soft);
 }
 
+.app-content > .area-navigation {
+  margin-bottom: 1.25rem;
+}
+
 .area-navigation-item {
   flex: 0 0 auto;
   min-height: 2.75rem;

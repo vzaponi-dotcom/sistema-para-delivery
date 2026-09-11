@@ -9,11 +9,12 @@ import KitchenTicket from '../components/KitchenTicket'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
+import AreaNavigation from '../components/AreaNavigation'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigateHistory, onNavigatePrintQueue, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
+function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -36,11 +37,6 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
       await onFinalizeOrder(order.id)
       setFinalizeCandidate(null)
     })
-  }
-
-  const navigateHistory = () => {
-    if (onNavigateHistory) onNavigateHistory()
-    else if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('app:navigate', { detail: 'history' }))
   }
 
   const confirmCancellation = async (payload) => {
@@ -67,12 +63,13 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
               <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
               <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
             </button>
-            <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Impressão</Button>
-            <Button type="button" variant="secondary" onClick={navigateHistory}>Histórico</Button>
+            <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Fila de impressão</Button>
             <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
           </div>
         )}
       />
+
+      <AreaNavigation area="orders" activeTab="orders" granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       <section className="stats-grid stats-grid-four order-ops-stats kitchen-stats" aria-label="Resumo dos pedidos">
         <StatCard className="kitchen-stat-card kitchen-stat-preparing" label="Em preparo" value={queueModel.counts.preparing} helper="Pedidos ativos agora" icon="preparation" />

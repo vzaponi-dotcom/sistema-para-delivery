@@ -7,6 +7,7 @@ import './client-duplicate.css'
 import './product-form.css'
 import './finance-mobile.css'
 import AppShell from './components/AppShell'
+import AreaNavigation from './components/AreaNavigation'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
 import ConfirmationDialog from './components/ConfirmationDialog'
@@ -182,8 +183,11 @@ function App({ capabilities } = {}) {
   const { query, patchQuery, resetQueries } = useQueryContext()
   const {
     activeTab,
+    moreOpen,
     pendingDestination,
     requestNavigation,
+    openMore,
+    closeMore,
     confirmDiscard,
     cancelDiscard,
     resetNavigation,
@@ -203,6 +207,10 @@ function App({ capabilities } = {}) {
   const handlePhysicalJobFailure = useCallback(() => {
     setToastMessage('Impressão requer atenção na fila')
   }, [])
+  const handleCancelDiscard = useCallback(() => {
+    cancelDiscard()
+    window.requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())
+  }, [cancelDiscard])
   const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
   const {
     jobs: printJobs,
@@ -958,9 +966,11 @@ function App({ capabilities } = {}) {
       {!isOnline && <ConnectionBanner />}
       {toastMessage && (typeof document === 'undefined' ? <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div> : createPortal(<div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>, document.body))}
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
-      <AppShell activeTab={activeTab} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
+      <AppShell activeTab={activeTab} activeMobileEntry={activeTab === 'new-order' ? newOrderContext.returnTab : undefined} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} onOpenMore={openMore} onCloseMore={closeMore} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
+        {activeTab === 'history' && <AreaNavigation area="orders" activeTab={activeTab} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} />}
+        {(activeTab === 'dashboard' || activeTab === 'receivables' || activeTab === 'finance') && <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} />}
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigateHistory={() => requestNavigation('history')} onNavigatePrintQueue={() => requestNavigation('print-queue')} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} canViewAnalysis={canViewOperationalAnalysis} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
@@ -970,14 +980,14 @@ function App({ capabilities } = {}) {
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onTransfer={handleTransferTableTab} />}
         {activeTab === 'comandas' && <Comandas tables={tables} selectedTableId={selectedComandaTableId} selectionGeneration={selectedComandaGeneration} onSelectTable={selectComandaTable} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
-        {(activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
+        {(activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
 
         {pendingDestination && (
-          <Modal title="Descartar venda em andamento?" onClose={cancelDiscard}>
+          <Modal title="Descartar venda em andamento?" onClose={handleCancelDiscard}>
             <div className="form-stack">
               <p>As informações preenchidas e os produtos adicionados serão descartados.</p>
               <div className="form-actions">
-                <Button type="button" variant="secondary" onClick={cancelDiscard}>Continuar na venda</Button>
+                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>Continuar na venda</Button>
                 <Button type="button" onClick={confirmDiscard}>Descartar venda</Button>
               </div>
             </div>

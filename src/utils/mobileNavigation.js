@@ -1,8 +1,14 @@
 export const MOBILE_SECTION_IDS = Object.freeze([
-  'dashboard',
   'orders',
-  'clients',
-  'products',
+  'history',
+  'comandas',
+  'dashboard',
   'receivables',
   'finance',
+  'print-queue',
+  'clients',
+  'products',
+  'tables',
+  'settings-printing',
+  'settings-device',
 ])

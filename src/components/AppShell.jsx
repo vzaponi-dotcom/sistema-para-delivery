@@ -5,8 +5,9 @@ import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
 import { MOBILE_SECTION_IDS } from '../utils/mobileNavigation.js'
 
-function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, dashboardPeriod, onDashboardPeriodChange, children }) {
+function AppShell({ activeTab, activeMobileEntry, granted, implemented, moreOpen, onOpenMore, onCloseMore, onNavigate, onLogout, logoutDisabled = false, dashboardPeriod, onDashboardPeriodChange, children }) {
   const previousTab = useRef(activeTab)
+  const contentRef = useRef(null)
   const [pageDirection, setPageDirection] = useState('none')
 
   useEffect(() => {
@@ -16,6 +17,7 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, das
       ? (activeIndex > previousIndex ? 'forward' : 'backward')
       : 'none'
     setPageDirection(nextDirection)
+    if (previousTab.current !== activeTab) contentRef.current?.focus?.()
     previousTab.current = activeTab
   }, [activeTab])
 
@@ -30,13 +32,13 @@ function AppShell({ activeTab, onNavigate, onLogout, logoutDisabled = false, das
   return (
     <DashboardPeriodProvider period={dashboardPeriod} onPeriodChange={onDashboardPeriodChange}>
       <div className="app-shell">
-        <Sidebar activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+        <Sidebar activeTab={activeTab} activeNavigationEntry={activeMobileEntry} granted={granted} implemented={implemented} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
         <main className="app-main">
-          <div key={activeTab} className="app-content page-transition" data-direction={pageDirection}>
+          <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>
             {children}
           </div>
         </main>
-        <MobileNavigation activeTab={activeTab} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+        <MobileNavigation activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={implemented} moreOpen={moreOpen} onOpenMore={onOpenMore} onCloseMore={onCloseMore} onNavigate={onNavigate} onLogout={onLogout} logoutDisabled={logoutDisabled} />
       </div>
     </DashboardPeriodProvider>
   )

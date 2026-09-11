@@ -60,8 +60,24 @@
 }
 
 .sidebar-nav {
+  min-height: 0;
+  flex: 1;
   display: grid;
-  gap: 6px;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.sidebar-group {
+  display: grid;
+  gap: 5px;
+}
+
+.sidebar-group-label {
+  padding: 0 12px 3px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
 }
 
 .sidebar-link {

@@ -1,5 +1,6 @@
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
+import AreaNavigation from '../components/AreaNavigation'
 import { useTheme } from '../components/themeContext.js'
 import '../area-navigation.css'
 
@@ -9,13 +10,8 @@ const themeOptions = [
   { value: 'system', label: 'Automático' },
 ]
 
-function Settings({ section, settings, printing, granted, onNavigate, soundEnabled, onSoundEnabledChange }) {
+function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange }) {
   const { themePreference, setThemePreference } = useTheme()
-  const destinations = [
-    (granted?.has('printing.settings') || granted?.has('printing.station.configure')) && { id: 'settings-printing', label: 'Impressão' },
-    granted?.has('preferences.local') && { id: 'settings-device', label: 'Preferências deste dispositivo' },
-  ].filter(Boolean)
-
   return (
     <div className="settings-page">
       <PageHeader
@@ -26,19 +22,7 @@ function Settings({ section, settings, printing, granted, onNavigate, soundEnabl
           : 'Regras do negócio, estação e impressora local'}
       />
 
-      <nav className="area-navigation" aria-label="Seções de Configurações">
-        {destinations.map((destination) => (
-          <button
-            key={destination.id}
-            type="button"
-            aria-current={section === destination.id ? 'page' : undefined}
-            className={section === destination.id ? 'area-navigation-item active' : 'area-navigation-item'}
-            onClick={() => onNavigate(destination.id)}
-          >
-            {destination.label}
-          </button>
-        ))}
-      </nav>
+      <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       {section === 'settings-printing' && (
         <PrintingSettingsContent printing={printing} settings={settings} granted={granted} />
