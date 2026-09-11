@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { workspaceHarness, nodeText } from '../test-support/renderWorkspace.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -15,17 +16,29 @@ test('new order uses one searchable client picker without phone in the selected 
   assert.doesNotMatch(customerStep, /client\.name\}\{client\.phone/)
 })
 
-test('new local order builds table-first identity and summary with an optional separate client', () => {
-  const page = source('./NewOrder.jsx')
+test('new order from a selected table starts at products without marking the untouched draft dirty', async (t) => {
+  const harness = await workspaceHarness(t)
+  const dirtyStates = []
+  const { default: NewOrder } = await harness.load('/src/pages/NewOrder.jsx')
+  const renderer = await harness.render(NewOrder, {
+    clients: [],
+    products: [],
+    tables: [{ id: 'table-7', name: 'Mesa 7', isActive: true, occupancy: 'occupied' }],
+    initialType: 'Entrega',
+    initialTableId: 'table-7',
+    currency: (value) => `R$ ${value}`,
+    disabled: false,
+    onCancel: () => {},
+    onCreateClient: async () => null,
+    onSubmit: async () => false,
+    onDraftDirtyChange: (dirty) => dirtyStates.push(dirty),
+  })
 
-  assert.match(page, /function NewOrder\(\{ clients, products, tables = \[\]/)
-  assert.match(page, /const \[selectedTableId, setSelectedTableId\] = useState\(''\)/)
-  assert.match(page, /type: 'table', tableId: selectedTableId/)
-  assert.match(page, /\.\.\.\(localClientId \? \{ clientId: localClientId \} : \{\}\)/)
-  assert.match(page, /selectedTable\?\.name/)
-  assert.match(page, /selectedLocalClient\?\.name/)
-  assert.doesNotMatch(page, /localIdentityType/)
-  assert.doesNotMatch(page, /localIdentityValue/)
+  const steps = renderer.root.findByProps({ 'aria-label': 'Etapas da nova venda' })
+  assert.match(nodeText(steps.findByProps({ 'aria-current': 'step' })), /Produtos/)
+  assert.match(nodeText(renderer.root), /Mesa 7/)
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Tipo do pedido' }).length, 0)
+  assert.deepEqual(dirtyStates, [false])
 })
 
 test('quick client phone reuses the normal phone mask', () => {

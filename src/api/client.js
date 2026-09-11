@@ -77,6 +77,9 @@ export const deleteOrder = async () => {
 }
 export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
+export const getTableTabDetail = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}`)
+export const getTableTabPrintDocument = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-document`)
+export const createManualTableTabPrintJob = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-jobs`, withJson('POST', {}))
 
 export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
 export const updateMovement = (id, movement) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, withJson('PATCH', movement))
@@ -92,13 +95,37 @@ export const heartbeatPrintStation = (id, health = {}) => apiRequest(
   withJson('POST', {
     qzReady: Boolean(health.qzReady),
     printerReady: Boolean(health.printerReady),
+    ...(health.physicalState ? { physicalState: health.physicalState } : {}),
+    ...(health.physicalStatusText ? { physicalStatusText: health.physicalStatusText } : {}),
+    ...(health.physicalStatusCode != null ? { physicalStatusCode: health.physicalStatusCode } : {}),
   }),
 )
 export const makePrimaryPrintStation = (id) => apiRequest(`/api/printing/stations/${encodeURIComponent(id)}/make-primary`, { method: 'POST' })
-export const getPrintJobs = ({ orderId = '', limit = 100 } = {}) => {
-  const params = new URLSearchParams({ ...(orderId ? { orderId } : {}), limit: String(limit) })
-  return apiRequest(`/api/printing/jobs?${params}`)
+export const getPrintJobs = (options = {}) => {
+  const params = new URLSearchParams()
+  for (const key of ['orderId', 'limit', 'scope', 'page', 'pageSize', 'sortBy', 'sortDir', 'status', 'trigger', 'search']) {
+    if (options[key] != null && String(options[key]).trim() !== '') params.set(key, String(options[key]))
+  }
+  return apiRequest(`/api/printing/jobs${params.size ? `?${params}` : ''}`)
 }
+export const getPrintQueueSummary = () => apiRequest('/api/printing/jobs/summary')
+export const createPrintAttempt = (jobId, stationId, copyNumber) => apiRequest(
+  `/api/printing/jobs/${encodeURIComponent(jobId)}/attempts`, withJson('POST', { stationId, copyNumber }),
+)
+export const markPrintAttemptSubmitting = (attemptId, stationId) => apiRequest(
+  `/api/printing/attempts/${encodeURIComponent(attemptId)}/submitting`, withJson('POST', { stationId }),
+)
+export const recordPrintAttemptEvent = (attemptId, stationId, event) => apiRequest(
+  `/api/printing/attempts/${encodeURIComponent(attemptId)}/events`, withJson('POST', { stationId, event }),
+)
+export const resolvePrintOutcome = (jobId, attemptId, resolution, actorLabel = 'Operador') => apiRequest(
+  `/api/printing/jobs/${encodeURIComponent(jobId)}/resolve-outcome`, withJson('POST', { attemptId, resolution, actorLabel }),
+)
+export const setPrintStationRecovery = (stationId, state) => apiRequest(
+  `/api/printing/stations/${encodeURIComponent(stationId)}/recovery`, withJson('POST', { state }),
+)
+export const claimNextRecoveryPrintJob = (stationId) => apiRequest('/api/printing/jobs/claim-recovery-next', withJson('POST', { stationId }))
+export const discardPendingPrintJobs = (actorLabel = 'Sistema') => apiRequest('/api/printing/jobs/discard-pending', withJson('POST', { actorLabel }))
 export const createManualPrintJob = (orderId, copies) => apiRequest(`/api/orders/${encodeURIComponent(orderId)}/print-jobs`, withJson('POST', { copies }))
 export const createTestPrintJob = (stationId) => apiRequest('/api/printing/test-jobs', withJson('POST', { stationId }))
 export const claimNextPrintJob = (stationId) => apiRequest('/api/printing/jobs/claim-next', withJson('POST', { stationId }))

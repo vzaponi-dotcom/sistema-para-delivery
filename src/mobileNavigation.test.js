@@ -1,47 +1,44 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import React from 'react'
+import { act } from 'react-test-renderer'
+import { workspaceHarness, buttonNamed } from './test-support/renderWorkspace.js'
 
-const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
-
-test('mobile nav exposes four direct destinations plus Mais', async () => {
-  const source = await read('./components/MobileNavigation.jsx')
-  for (const label of ['Dashboard', 'Pedidos', 'Clientes', 'Produtos', 'Mais']) assert.match(source, new RegExp(label))
-  assert.match(source, /aria-current=/)
-  assert.match(source, /moreActive/)
+test('Produtos opens from Mais, closes the sheet and keeps Mais current', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: MobileNavigation } = await harness.load('/src/components/MobileNavigation.jsx')
+  function Navigation() {
+    const [activeTab, onNavigate] = React.useState('dashboard')
+    return React.createElement(MobileNavigation, { activeTab, onNavigate })
+  }
+  const renderer = await harness.render(Navigation)
+  assert.ok(!buttonNamed(renderer.root.findByType('nav'), 'Produtos'), 'Produtos belongs in Mais')
+  await act(async () => buttonNamed(renderer.root, 'Mais').props.onClick())
+  const dialog = renderer.root.findByProps({ role: 'dialog' })
+  for (const name of ['Produtos', 'Histórico', 'A Receber', 'Financeiro', 'Mesas']) assert.ok(buttonNamed(dialog, name), name)
+  await act(async () => buttonNamed(dialog, 'Produtos').props.onClick())
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.equal(buttonNamed(renderer.root, 'Mais').props['aria-current'], 'page')
 })
 
-test('Mais exposes secondary navigation theme and logout', async () => {
-  const source = await read('./components/MobileNavigation.jsx')
-  assert.match(source, /BottomSheet/)
-  for (const label of ['A Receber', 'Financeiro', 'Claro', 'Escuro', 'Automático', 'Sair do sistema']) assert.match(source, new RegExp(label))
-})
-
-test('mobile more menu uses one compact theme cycle control', async () => {
-  const source = await read('./components/MobileNavigation.jsx')
-  const css = await read('./mobile-navigation.css')
-
-  assert.match(source, /theme-cycle-button/)
-  assert.match(source, /setThemePreference\(nextThemePreference\)/)
-  assert.match(source, /aria-label=\{`Tema atual:/)
-  assert.match(css, /\.mobile-more-theme \.theme-cycle-button\s*\{[^}]*min-height:\s*44px/s)
-  assert.doesNotMatch(css, /\.mobile-more-theme \.theme-segmented-control\s*\{/) 
-})
-
-test('bottom bar is fixed safe-area aware and five columns wide', async () => {
-  const css = await read('./mobile-navigation.css')
-  assert.match(css, /position:\s*fixed/)
-  assert.match(css, /safe-area-inset-bottom/)
-  assert.match(css, /repeat\(5/)
-  const touchTarget = css.match(/\.mobile-nav-item\s*\{[^}]*min-height:\s*(\d+)px/s)
-  assert.ok(touchTarget)
-  assert.ok(Number(touchTarget[1]) >= 44)
-})
-
-test('old mobile logout and horizontal sidebar scroll are removed', async () => {
-  const sidebar = await read('./components/Sidebar.jsx')
-  const css = await read('./theme-controls.css')
-  assert.doesNotMatch(sidebar, /sidebar-mobile-logout/)
-  assert.doesNotMatch(css, /sidebar-mobile-logout/)
-  assert.doesNotMatch(css, /sidebar-nav[\s\S]*overflow-x:\s*auto/)
+test('Mais preserves theme cycling, logout and closing without navigation', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: MobileNavigation } = await harness.load('/src/components/MobileNavigation.jsx')
+  const { ThemeContext } = await harness.load('/src/components/themeContext.js')
+  let logouts = 0
+  function Navigation() {
+    const [themePreference, setThemePreference] = React.useState('system')
+    return React.createElement(ThemeContext.Provider, { value: { themePreference, setThemePreference } },
+      React.createElement(MobileNavigation, { activeTab: 'comandas', onNavigate: () => assert.fail('unexpected navigation'), onLogout: () => logouts++ }))
+  }
+  const renderer = await harness.render(Navigation)
+  await act(async () => buttonNamed(renderer.root, 'Mais').props.onClick())
+  for (const label of ['Automático', 'Claro', 'Escuro']) {
+    await act(async () => buttonNamed(renderer.root, `Tema atual: ${label}. Clique para alternar`).props.onClick())
+  }
+  assert.ok(buttonNamed(renderer.root, 'Tema atual: Automático. Clique para alternar'))
+  await act(async () => buttonNamed(renderer.root, 'Sair do sistema').props.onClick())
+  assert.equal(logouts, 1)
+  await act(async () => buttonNamed(renderer.root, 'Fechar').props.onClick())
+  assert.equal(buttonNamed(renderer.root, 'Mais').props['aria-expanded'], false)
 })

@@ -15,6 +15,7 @@ test('QZ operational state separates connection, configured queue, queue discove
     qzConnected: true,
     printerQueueConfigured: true,
     printerQueueFound: true,
+    physicalState: 'ready',
   }), {
     qzConnected: true,
     printerQueueConfigured: true,
@@ -25,6 +26,12 @@ test('QZ operational state separates connection, configured queue, queue discove
     qzConnected: true,
     printerQueueConfigured: true,
     printerQueueFound: false,
+  }).operationalReady, false)
+  assert.equal(deriveQzOperationalState({
+    qzConnected: true,
+    printerQueueConfigured: true,
+    printerQueueFound: true,
+    physicalState: 'printer_offline',
   }).operationalReady, false)
   assert.equal(deriveQzOperationalState({
     qzConnected: false,
@@ -173,16 +180,16 @@ test('QZ RAW transport preserves Uint8Array bytes as base64 without mutating pay
   const qzApi = {
     websocket: { isActive: () => true },
     printers: { find: async () => ['MPT-II'] },
-    configs: { create: (printer) => ({ printer }) },
+    configs: { create: (printer, options) => ({ printer, ...options }) },
     print: async (config, data) => { captured = { config, data } },
   }
   const bytes = Uint8Array.from([0x1b, 0x40, 0x00, 0xff, 0x0a])
   const original = Uint8Array.from(bytes)
 
-  await printQzRawBytes(qzApi, 'MPT-II', bytes)
+  await printQzRawBytes(qzApi, 'MPT-II', bytes, { jobName: 'GESTAO-DELIVERY:job-1:COPY:1:ATTEMPT:1' })
 
   assert.deepEqual(bytes, original)
-  assert.equal(captured.config.printer, 'MPT-II')
+  assert.deepEqual(captured.config, { printer: 'MPT-II', jobName: 'GESTAO-DELIVERY:job-1:COPY:1:ATTEMPT:1' })
   assert.deepEqual(captured.data, [{
     type: 'raw',
     format: 'command',

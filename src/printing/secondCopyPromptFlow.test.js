@@ -30,6 +30,19 @@ test('opens the primary-station prompt after acknowledgement refreshes the print
   assert.deepEqual(opened, ['job-2'])
 })
 
+test('reopens a durable recovery prompt when its acknowledgement already exists', async () => {
+  const opened = []
+  const result = await acknowledgeAndOpenSecondCopyPrompt({
+    job: awaitingSecondCopy,
+    acknowledge: async () => ({ promptPresented: false }),
+    openPrompt: (jobId) => opened.push(jobId),
+    reopenAcknowledged: true,
+  })
+
+  assert.deepEqual(result, { promptPresented: false })
+  assert.deepEqual(opened, ['job-2'])
+})
+
 test('finds an awaiting second-copy prompt only for an order created by this device', () => {
   const orders = [
     { id: 'order-origin', status: 'Em preparo' },

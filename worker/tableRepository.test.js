@@ -37,6 +37,7 @@ class D1Sqlite {
         business_id TEXT NOT NULL,
         table_id TEXT REFERENCES tables(id),
         table_identifier TEXT NOT NULL,
+        tab_number INTEGER,
         status TEXT NOT NULL,
         opened_at TEXT NOT NULL,
         closed_at TEXT,
@@ -45,10 +46,23 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX idx_table_tabs_one_open_per_table_id
         ON table_tabs (business_id, table_id) WHERE status = 'open';
+      CREATE UNIQUE INDEX idx_table_tabs_business_number
+        ON table_tabs (business_id, tab_number);
+      CREATE TABLE table_tab_counters (
+        business_id TEXT PRIMARY KEY REFERENCES businesses(id),
+        last_number INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      );
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
-        table_tab_id TEXT REFERENCES table_tabs(id)
+        business_id TEXT NOT NULL,
+        table_tab_id TEXT REFERENCES table_tabs(id),
+        status TEXT NOT NULL,
+        total_cents INTEGER NOT NULL,
+        created_at TEXT NOT NULL
       );
+      CREATE TABLE payments (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL);
+      CREATE TABLE order_items (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, quantity INTEGER NOT NULL);
       INSERT INTO businesses (id) VALUES ('biz-a'), ('biz-b');
     `)
   }
@@ -108,14 +122,15 @@ const insertTable = (db, { id, businessId = 'biz-a', name, nameKey = name.toUppe
   )
 }
 
-const insertOpenTableTab = (db, { id, tableId, businessId = 'biz-a', tableIdentifier }) => {
+const insertOpenTableTab = (db, { id, tableId, businessId = 'biz-a', tableIdentifier, tabNumber = 37 }) => {
   db.sqlite.prepare(`INSERT INTO table_tabs (
-    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, 'open', ?, ?, ?)`).run(
+    id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`).run(
     id,
     businessId,
     tableId,
     tableIdentifier,
+    tabNumber,
     now.toISOString(),
     now.toISOString(),
     now.toISOString(),
@@ -129,17 +144,31 @@ test('normalizeTableName collapses spaces, builds a case-insensitive key, and en
   assert.throws(() => normalizeTableName('x'.repeat(61)), (error) => error.status === 400 && error.code === 'VALIDATION_ERROR')
 })
 
-test('listTables orders tables and derives occupancy from an open table tab', async () => {
+test('listTables returns the official pending summary for an occupied table tab', async () => {
   const db = new D1Sqlite()
   insertTable(db, { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: 0 })
   insertTable(db, { id: 'first', name: 'Mesa 1', sortOrder: 1 })
   db.exec(`INSERT INTO table_tabs (
-    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
-  ) VALUES ('tab-1', 'biz-a', 'first', 'Mesa 1', 'open', '${now.toISOString()}', '${now.toISOString()}', '${now.toISOString()}')`)
+    id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at
+  ) VALUES ('tab-1', 'biz-a', 'first', 'Mesa 1', 1042, 'open', '${now.toISOString()}', '${now.toISOString()}', '${now.toISOString()}');
+  INSERT INTO orders (id, business_id, table_tab_id, status, total_cents, created_at) VALUES
+    ('pending-1', 'biz-a', 'tab-1', 'Em preparo', 3600, '${now.toISOString()}'),
+    ('pending-2', 'biz-a', 'tab-1', 'Finalizado', 5000, '${now.toISOString()}'),
+    ('paid', 'biz-a', 'tab-1', 'Em preparo', 2000, '${now.toISOString()}'),
+    ('cancelled', 'biz-a', 'tab-1', 'Cancelado', 700, '${now.toISOString()}');
+  INSERT INTO payments (id, business_id, order_id) VALUES ('payment-1', 'biz-a', 'paid');
+  INSERT INTO order_items (id, business_id, order_id, quantity) VALUES
+    ('item-1', 'biz-a', 'pending-1', 2),
+    ('item-2', 'biz-a', 'pending-2', 4),
+    ('item-paid', 'biz-a', 'paid', 9),
+    ('item-cancelled', 'biz-a', 'cancelled', 7);`)
 
   assert.deepEqual(await listTables(db, 'biz-a'), [
-    { id: 'first', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1' },
-    { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: false, occupancy: 'free', openTableTabId: null },
+    {
+      id: 'first', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1',
+      openTableTab: { id: 'tab-1', number: 1042, openedAt: now.toISOString(), orderCount: 2, itemCount: 6, totalCents: 8600 },
+    },
+    { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: false, occupancy: 'free', openTableTabId: null, openTableTab: null },
   ])
 })
 
@@ -174,8 +203,8 @@ test('occupied tables cannot be renamed or deactivated', async () => {
   const db = new D1Sqlite()
   insertTable(db, { id: 'occupied', name: 'Mesa 1', sortOrder: 1 })
   db.exec(`INSERT INTO table_tabs (
-    id, business_id, table_id, table_identifier, status, opened_at, created_at, updated_at
-  ) VALUES ('tab-open', 'biz-a', 'occupied', 'Mesa 1', 'open', '${now.toISOString()}', '${now.toISOString()}', '${now.toISOString()}')`)
+    id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at
+  ) VALUES ('tab-open', 'biz-a', 'occupied', 'Mesa 1', 37, 'open', '${now.toISOString()}', '${now.toISOString()}', '${now.toISOString()}')`)
 
   await assert.rejects(
     () => renameTable(db, 'biz-a', 'occupied', 'Novo nome', now),
@@ -212,17 +241,44 @@ test('table repository exposes no hard-delete operation', () => {
   assert.equal(Object.hasOwn(tableRepository, 'deleteTable'), false)
 })
 
-test('active table opens one tab with the exact table name snapshot and reuses it', async () => {
+test('new tabs reserve unique increasing business numbers and reuse the open tab', async () => {
   const db = new D1Sqlite()
   insertTable(db, { id: 'table-1', name: 'Varanda', sortOrder: 1 })
+  insertTable(db, { id: 'table-2', name: 'Sal\u00e3o', sortOrder: 2 })
 
   const first = await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', now)
-  const second = await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', new Date('2026-09-07T15:01:00.000Z'))
+  const reused = await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', new Date('2026-09-07T15:01:00.000Z'))
+  const second = await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-2', now)
 
-  assert.equal(first.id, second.id)
+  assert.equal(first.id, reused.id)
   assert.equal(first.tableId, 'table-1')
   assert.equal(first.tableIdentifier, 'Varanda')
-  assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 1)
+  assert.equal(first.tabNumber, 1)
+  assert.equal(reused.tabNumber, 1)
+  assert.equal(second.tabNumber, 2)
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 2)
+})
+
+test('tab number allocation is isolated per business', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'table-a', businessId: 'biz-a', name: 'Mesa A', sortOrder: 1 })
+  insertTable(db, { id: 'table-b', businessId: 'biz-b', name: 'Mesa B', sortOrder: 1 })
+
+  assert.equal((await getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-a', now)).tabNumber, 1)
+  assert.equal((await getOrCreateOpenTableTabByTableId(db, 'biz-b', 'table-b', now)).tabNumber, 1)
+})
+
+test('concurrent new tabs receive distinct allocated numbers', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'table-1', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'table-2', name: 'Mesa 2', sortOrder: 2 })
+
+  const tabs = await Promise.all([
+    getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-1', now),
+    getOrCreateOpenTableTabByTableId(db, 'biz-a', 'table-2', now),
+  ])
+
+  assert.deepEqual(tabs.map((tab) => tab.tabNumber).sort((a, b) => a - b), [1, 2])
 })
 
 test('missing, cross-business, and inactive tables are rejected by the domain', async () => {
@@ -252,15 +308,18 @@ test('concurrent attempts cannot create two open tabs for the same table', async
   ])
 
   assert.equal(first.id, second.id)
+  assert.equal(first.tabNumber, 1)
+  assert.equal(second.tabNumber, 1)
   assert.equal(db.sqlite.prepare("SELECT count(*) AS count FROM table_tabs WHERE status = 'open'").get().count, 1)
 })
 
-test('transferOpenTableTab moves the same tab and its orders to the active free destination', async () => {
+test('transferring a tab preserves its number', async () => {
   const db = new D1Sqlite()
   insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
   insertTable(db, { id: 'destination', name: 'Varanda', sortOrder: 2 })
   insertOpenTableTab(db, { id: 'tab-1', tableId: 'source', tableIdentifier: 'Mesa 1' })
-  db.sqlite.prepare('INSERT INTO orders (id, table_tab_id) VALUES (?, ?)').run('order-1', 'tab-1')
+  db.sqlite.prepare(`INSERT INTO orders (id, business_id, table_tab_id, status, total_cents, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)`).run('order-1', 'biz-a', 'tab-1', 'Em preparo', 1000, now.toISOString())
 
   const transferred = await transferOpenTableTab(db, 'biz-a', 'source', 'destination', now)
 
@@ -268,6 +327,7 @@ test('transferOpenTableTab moves the same tab and its orders to the active free 
     id: 'tab-1',
     tableId: 'destination',
     tableIdentifier: 'Varanda',
+    tabNumber: 37,
     status: 'open',
     openedAt: now.toISOString(),
     closedAt: null,
@@ -319,7 +379,7 @@ test('transferOpenTableTab rejects an occupied destination without merging tabs'
   insertTable(db, { id: 'source', name: 'Mesa 1', sortOrder: 1 })
   insertTable(db, { id: 'destination', name: 'Mesa 2', sortOrder: 2 })
   insertOpenTableTab(db, { id: 'source-tab', tableId: 'source', tableIdentifier: 'Mesa 1' })
-  insertOpenTableTab(db, { id: 'destination-tab', tableId: 'destination', tableIdentifier: 'Mesa 2' })
+  insertOpenTableTab(db, { id: 'destination-tab', tableId: 'destination', tableIdentifier: 'Mesa 2', tabNumber: 38 })
 
   await assert.rejects(
     () => transferOpenTableTab(db, 'biz-a', 'source', 'destination', now),
@@ -345,7 +405,7 @@ test('concurrent transfers to one destination cannot create two open tabs there'
   insertTable(db, { id: 'source-2', name: 'Mesa 2', sortOrder: 2 })
   insertTable(db, { id: 'destination', name: 'Mesa 3', sortOrder: 3 })
   insertOpenTableTab(db, { id: 'tab-1', tableId: 'source-1', tableIdentifier: 'Mesa 1' })
-  insertOpenTableTab(db, { id: 'tab-2', tableId: 'source-2', tableIdentifier: 'Mesa 2' })
+  insertOpenTableTab(db, { id: 'tab-2', tableId: 'source-2', tableIdentifier: 'Mesa 2', tabNumber: 38 })
 
   const results = await Promise.allSettled([
     transferOpenTableTab(db, 'biz-a', 'source-1', 'destination', now),

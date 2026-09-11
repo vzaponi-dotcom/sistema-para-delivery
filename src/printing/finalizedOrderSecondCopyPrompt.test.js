@@ -34,7 +34,7 @@ test('second-copy acknowledgement returns before queue refresh can cancel the po
 })
 
 test('second-copy prompt eligibility reacts when local QZ readiness changes', () => {
-  const promptStart = appSource.indexOf('const next = printJobs.find')
+  const promptStart = appSource.indexOf('const candidates =')
   const promptEnd = appSource.indexOf('useEffect(() => () =>', promptStart)
   assert.notEqual(promptStart, -1)
   assert.notEqual(promptEnd, -1)

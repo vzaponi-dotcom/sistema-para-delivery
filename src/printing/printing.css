@@ -4,6 +4,7 @@
 }
 
 .printing-status-card,
+.printing-health-card,
 .printing-primary-card,
 .printing-toggle-row,
 .printing-compatibility {
@@ -15,6 +16,7 @@
 }
 
 .printing-status-card,
+.printing-health-card,
 .printing-primary-card,
 .printing-toggle-row {
   display: flex;
@@ -24,6 +26,7 @@
 }
 
 .printing-status-card > div,
+.printing-health-card > div,
 .printing-primary-card > div,
 .printing-toggle-row > span,
 .printing-compatibility {
@@ -34,6 +37,7 @@
 }
 
 .printing-label,
+.printing-health-card small,
 .printing-info-card span,
 .printing-primary-card span,
 .printing-toggle-row small,
@@ -55,6 +59,7 @@
 }
 
 .printing-state-connected,
+.printing-state-ready,
 .print-status-printed {
   border-color: var(--success);
   background: var(--success-soft);
@@ -64,6 +69,12 @@
 .printing-state-disconnected,
 .printing-state-unconfigured,
 .printing-state-unsupported,
+.printing-state-verifying,
+.printing-state-printer_offline,
+.printing-state-printer_attention,
+.printing-state-qz-unavailable,
+.printing-state-queue-unconfigured,
+.printing-state-queue-missing,
 .print-status-pending {
   border-color: var(--border-strong);
   background: var(--surface-strong);
@@ -87,6 +98,18 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.printing-queue-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.88rem;
 }
 
 .printing-info-card {
@@ -324,6 +347,7 @@
 
 @media (max-width: 480px) {
   .printing-status-card,
+  .printing-health-card,
   .printing-primary-card,
   .printing-toggle-row {
     align-items: stretch;

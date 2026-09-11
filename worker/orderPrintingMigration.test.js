@@ -5,6 +5,9 @@ import { DatabaseSync } from 'node:sqlite'
 
 const initialSql = await readFile(new URL('../migrations/0010_order_printing.sql', import.meta.url), 'utf8').catch(() => '')
 const centralizedQueueSql = await readFile(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8').catch(() => '')
+const operationalConfirmationSql = await readFile(new URL('../migrations/0019_print_operational_confirmation.sql', import.meta.url), 'utf8').catch(() => '')
+const tableTabPrintJobsSql = await readFile(new URL('../migrations/0022_table_tab_print_jobs.sql', import.meta.url), 'utf8').catch(() => '')
+const recoveryAffinitySql = await readFile(new URL('../migrations/0023_print_recovery_job_affinity.sql', import.meta.url), 'utf8').catch(() => '')
 
 test('printing migration adds immutable ticket contact snapshots and station/job tables', () => {
   assert.match(initialSql, /ALTER TABLE orders ADD COLUMN client_phone_snapshot TEXT NOT NULL DEFAULT ''/)
@@ -112,4 +115,93 @@ test('print jobs schema persists second-copy prompt acknowledgments', async () =
     db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_jobs') WHERE name = 'second_copy_prompted_at'").get().count,
     1,
   )
+})
+
+test('operational confirmation migration declares durable attempt and recovery state', () => {
+  assert.match(operationalConfirmationSql, /awaiting_confirmation/)
+  assert.match(operationalConfirmationSql, /CREATE TABLE print_job_attempts/)
+  assert.match(operationalConfirmationSql, /spool_job_name TEXT NOT NULL UNIQUE/)
+  assert.match(operationalConfirmationSql, /submission_started_at TEXT/)
+  assert.match(operationalConfirmationSql, /recovery_state TEXT NOT NULL DEFAULT 'normal'/)
+  assert.match(operationalConfirmationSql, /physical_status_text TEXT/)
+})
+
+test('operational confirmation migration preserves 0018 data and adds durable attempt state', async () => {
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0019_print_operational_confirmation.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+
+  const createdAt = '2026-09-09T12:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('business-operational', 'operational', 'Operational', createdAt, createdAt)
+  db.prepare('INSERT INTO print_stations (id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('station-operational', 'business-operational', 'Kitchen', 'windows', 1, 1, 2, createdAt, createdAt)
+  db.prepare(`INSERT INTO print_jobs (
+    id, business_id, type, trigger, status, copies_requested, copies_printed, station_id, snapshot_json, created_at,
+    second_copy_requested_at, second_copy_skipped_at
+  ) VALUES (?, ?, 'test', 'manual', 'requires_attention', 2, 1, ?, '{}', ?, ?, ?)`)
+    .run('job-operational', 'business-operational', 'station-operational', createdAt, '2026-09-09T12:01:00.000Z', '2026-09-09T12:02:00.000Z')
+
+  db.exec(operationalConfirmationSql)
+
+  assert.deepEqual({ ...db.prepare('SELECT status, second_copy_requested_at, second_copy_skipped_at FROM print_jobs WHERE id = ?').get('job-operational') }, {
+    status: 'requires_attention',
+    second_copy_requested_at: '2026-09-09T12:01:00.000Z',
+    second_copy_skipped_at: '2026-09-09T12:02:00.000Z',
+  })
+  assert.equal(db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_stations') WHERE name = 'physical_state'").get().count, 1)
+  assert.equal(db.prepare("SELECT count(*) AS count FROM pragma_table_info('print_stations') WHERE name = 'recovery_state'").get().count, 1)
+  assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'print_job_attempts'").get().count, 1)
+
+  db.prepare(`INSERT INTO print_job_attempts (
+    id, business_id, job_id, copy_number, attempt_number, spool_job_name, status, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run('attempt-operational', 'business-operational', 'job-operational', 1, 1, 'spool-operational', 'prepared', createdAt, createdAt)
+
+  assert.deepEqual({ ...db.prepare('SELECT job_id, copy_number, attempt_number, spool_job_name, status FROM print_job_attempts').get() }, {
+    job_id: 'job-operational',
+    copy_number: 1,
+    attempt_number: 1,
+    spool_job_name: 'spool-operational',
+    status: 'prepared',
+  })
+})
+
+test('table-tab print job migration preserves existing jobs and enforces one-copy tab identity', async () => {
+  assert.match(tableTabPrintJobsSql, /table-tab/)
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0022_table_tab_print_jobs.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+  const at = '2026-09-10T18:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run('b-tab-print', 'b-tab-print', 'Tab print', at, at)
+  db.prepare('INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run('table-1', 'b-tab-print', 'Mesa 1', 'MESA 1', 1, 1, at, at)
+  db.prepare('INSERT INTO table_tabs (id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run('tab-1', 'b-tab-print', 'table-1', 'Mesa 1', 42, 'open', at, at, at)
+  db.prepare("INSERT INTO print_jobs (id, business_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('old-test', 'b-tab-print', 'test', 'manual', 'pending', 1, 0, '{}', ?)").run(at)
+
+  db.exec(tableTabPrintJobsSql)
+
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE id = 'old-test'").get().count, 1)
+  db.prepare("INSERT INTO print_jobs (id, business_id, table_tab_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('tab-job', 'b-tab-print', 'tab-1', 'table-tab', 'manual', 'pending', 1, 0, '{}', ?)").run(at)
+  assert.deepEqual({ ...db.prepare("SELECT table_tab_id, type, copies_requested FROM print_jobs WHERE id = 'tab-job'").get() }, { table_tab_id: 'tab-1', type: 'table-tab', copies_requested: 1 })
+  assert.throws(() => db.prepare("INSERT INTO print_jobs (id, business_id, table_tab_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('bad-copies', 'b-tab-print', 'tab-1', 'table-tab', 'manual', 'pending', 2, 0, '{}', ?)").run(at), /CHECK constraint failed/)
+  assert.throws(() => db.prepare("INSERT INTO print_jobs (id, business_id, type, trigger, status, copies_requested, copies_printed, snapshot_json, created_at) VALUES ('bad-identity', 'b-tab-print', 'table-tab', 'manual', 'pending', 1, 0, '{}', ?)").run(at), /CHECK constraint failed/)
+})
+
+test('recovery affinity migration preserves stations and adds a nullable current job', async () => {
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0023_print_recovery_job_affinity.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+
+  const createdAt = '2026-09-10T12:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('business-affinity', 'affinity', 'Affinity', createdAt, createdAt)
+  db.prepare('INSERT INTO print_stations (id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('station-affinity', 'business-affinity', 'Kitchen', 'windows', 1, 1, 2, createdAt, createdAt)
+
+  db.exec(recoveryAffinitySql)
+
+  assert.deepEqual({ ...db.prepare('SELECT id, recovery_job_id FROM print_stations WHERE id = ?').get('station-affinity') }, {
+    id: 'station-affinity',
+    recovery_job_id: null,
+  })
 })

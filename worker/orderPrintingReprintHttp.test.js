@@ -40,7 +40,8 @@ class D1Sqlite {
       CREATE TABLE print_stations (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
         is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
-        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, recovery_job_id TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE print_jobs (
@@ -53,6 +54,15 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
+      CREATE TABLE print_job_attempts (
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL,
+        copy_number INTEGER NOT NULL, attempt_number INTEGER NOT NULL, station_id TEXT,
+        spool_job_name TEXT NOT NULL UNIQUE, spool_job_id INTEGER, status TEXT NOT NULL,
+        submission_started_at TEXT, submitted_at TEXT, last_event_at TEXT, completed_at TEXT,
+        resolution TEXT, resolution_actor_label TEXT, resolved_at TEXT,
+        last_error_code TEXT, last_error_message TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        UNIQUE (job_id, copy_number, attempt_number)
+      );
     `)
   }
 

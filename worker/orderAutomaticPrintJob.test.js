@@ -48,7 +48,11 @@ class D1Sqlite {
       );
       CREATE TABLE table_tabs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_id TEXT, table_identifier TEXT NOT NULL,
-        status TEXT NOT NULL, opened_at TEXT NOT NULL, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        tab_number INTEGER, status TEXT NOT NULL, opened_at TEXT NOT NULL, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_table_tabs_business_number ON table_tabs (business_id, tab_number);
+      CREATE TABLE table_tab_counters (
+        business_id TEXT PRIMARY KEY, last_number INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL
       );
       CREATE TABLE tables (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, name_key TEXT NOT NULL,
@@ -219,6 +223,7 @@ test('table checkout requests one automatic copy when the central default is two
   const order = await createOrder(db, 'amor-e-sabor', input({
     customerIdentity: { type: 'table', tableId: 'table-1' },
     type: 'Local',
+    paymentMethod: null,
     idempotencyKey: 'table-one-copy',
   }), new Date('2026-09-03T23:31:00.000Z'))
 

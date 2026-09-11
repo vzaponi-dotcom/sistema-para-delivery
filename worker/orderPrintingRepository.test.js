@@ -3,6 +3,11 @@ import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
 import * as printingRepository from './orderPrintingRepository.js'
 import {
+  createPrintJobAttempt,
+  markPrintAttemptSubmitting,
+  markPrintAttemptUnknown,
+} from './printAttemptRepository.js'
+import {
   PRINT_PENDING_MAX_AGE_MS,
   PRINT_PROCESSING_MAX_AGE_MS,
   claimNextAutomaticPrintJob,
@@ -41,6 +46,7 @@ class D1Sqlite {
         qz_ready INTEGER NOT NULL DEFAULT 0,
         printer_ready INTEGER NOT NULL DEFAULT 0,
         last_ready_at TEXT,
+        recovery_job_id TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -49,6 +55,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
         order_id TEXT,
+        table_tab_id TEXT,
         type TEXT NOT NULL,
         trigger TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -74,6 +81,29 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
+      CREATE TABLE print_job_attempts (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        job_id TEXT NOT NULL,
+        copy_number INTEGER NOT NULL,
+        attempt_number INTEGER NOT NULL,
+        station_id TEXT,
+        spool_job_name TEXT NOT NULL UNIQUE,
+        spool_job_id INTEGER,
+        status TEXT NOT NULL,
+        submission_started_at TEXT,
+        submitted_at TEXT,
+        last_event_at TEXT,
+        completed_at TEXT,
+        resolution TEXT,
+        resolution_actor_label TEXT,
+        resolved_at TEXT,
+        last_error_code TEXT,
+        last_error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (job_id, copy_number, attempt_number)
+      );
     `)
   }
 
@@ -419,6 +449,22 @@ test('automatic print waits for availableAt before aging or claim', async () => 
   assert.equal(claimed.id, 'future-available')
 })
 
+test('stale processing becomes canonical physical-outcome attention', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'stale-processing' })
+  await claimPrintJob(db, businessA, 'stale-processing', 'station-a', baseNow)
+
+  await listPrintJobs(db, businessA, {
+    now: new Date(baseNow.getTime() + PRINT_PROCESSING_MAX_AGE_MS + 1),
+  })
+
+  const stale = await loadPrintJob(db, businessA, 'stale-processing')
+  assert.equal(stale.status, 'requires_attention')
+  assert.equal(stale.lastError.code, 'PRINT_OUTCOME_UNKNOWN')
+})
+
 test('manual printing leaves a future automatic job pending until its exact availableAt', async () => {
   const future = new Date(baseNow.getTime() + 5 * 60 * 1000)
   const before = new Date(future.getTime() - 1)
@@ -444,6 +490,24 @@ test('manual printing leaves a future automatic job pending until its exact avai
   assert.equal(await claimNextAutomaticPrintJob(db, businessA, 'primary', before), null)
   await heartbeatPrintStation(db, businessA, 'primary', { qzReady: true, printerReady: true }, future)
   assert.equal((await claimNextAutomaticPrintJob(db, businessA, 'primary', future)).id, automatic.id)
+})
+
+test('manual table-tab printing stores one immutable consolidated snapshot', async () => {
+  assert.equal(typeof printingRepository.createManualTableTabPrintJob, 'function')
+  const db = makeDb()
+  const tableTabDocument = { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } }
+  const job = await printingRepository.createManualTableTabPrintJob(db, businessA, {
+    id: 'manual-tab',
+    tableTabId: 'tab-42',
+    document: tableTabDocument,
+  }, baseNow)
+
+  tableTabDocument.tableTab.number = 99
+  assert.equal(job.type, 'table-tab')
+  assert.equal(job.tableTabId, 'tab-42')
+  assert.equal(job.orderId, null)
+  assert.equal(job.copiesRequested, 1)
+  assert.equal((await loadPrintJob(db, businessA, job.id)).document.tableTab.number, 42)
 })
 
 test('job and station reads are isolated by business id', async () => {
@@ -636,5 +700,28 @@ test('discard rejects an in-flight, fully printed, or awaiting-second-copy job',
   await assert.rejects(
     () => printingRepository.discardPrintJob(db, businessA, 'printed-job', 'Sistema', baseNow),
     (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+})
+
+test('unresolved submitted attempts block discard and reprint even after a legacy discard', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'uncertain-job' })
+  await claimPrintJob(db, businessA, 'uncertain-job', 'station-a', baseNow)
+  const attempt = await createPrintJobAttempt(db, businessA, {
+    jobId: 'uncertain-job', stationId: 'station-a', copyNumber: 1,
+  }, baseNow)
+  await markPrintAttemptSubmitting(db, businessA, attempt.id, 'station-a', baseNow)
+  await markPrintAttemptUnknown(db, businessA, attempt.id, 'station-a', 'QZ_CONNECTION_LOST', baseNow)
+
+  await assert.rejects(
+    () => printingRepository.discardPrintJob(db, businessA, 'uncertain-job', 'Caixa 1', baseNow),
+    (error) => error.code === 'PRINT_JOB_DISCARD_NOT_ALLOWED',
+  )
+  db.sqlite.prepare(`UPDATE print_jobs SET status = 'discarded' WHERE id = 'uncertain-job'`).run()
+  await assert.rejects(
+    () => printingRepository.reprintPrintJob(db, businessA, 'uncertain-job', 1, document, baseNow),
+    (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
   )
 })

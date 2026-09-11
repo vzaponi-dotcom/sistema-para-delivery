@@ -1,3 +1,5 @@
+import { executeQzPrintAttempt } from './qzPrintAttemptController.js'
+
 export const runClaimedPrintJob = async ({
   job,
   stationId,
@@ -6,6 +8,7 @@ export const runClaimedPrintJob = async ({
   failJob,
   renderer,
   transport,
+  qzAttempt,
 }) => {
   try {
     const totalCopies = Number(job?.copiesRequested)
@@ -19,6 +22,13 @@ export const runClaimedPrintJob = async ({
     const renderOptions = job?.document?.type === 'order'
       ? { copies: 1, copyNumber, totalCopies }
       : { copies: 1 }
+    if (qzAttempt) {
+      const result = await executeQzPrintAttempt({ job, stationId, renderer, ...qzAttempt })
+      if (result.status === 'confirmed') return { status: 'printed', attempt: result.attempt }
+      if (result.status === 'unknown') return { status: 'requires_attention', attempt: result.attempt, error: result.error }
+      throw result.error
+    }
+
     const bytes = renderer(job.document, renderOptions)
     await transport(port, bytes)
     await completeJob(job.id, stationId, copyNumber)

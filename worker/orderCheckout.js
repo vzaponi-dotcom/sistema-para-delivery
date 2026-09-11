@@ -105,6 +105,16 @@ export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date(
   const paymentMethod = body.paymentMethod === undefined || body.paymentMethod === null || body.paymentMethod === ''
     ? null
     : validatePaymentMethod(body.paymentMethod)
+  if (customerIdentity.type === 'table' && paymentMethod) {
+    throw checkoutError('paymentMethod', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
+  }
+
+  const expectedTableTabId = body.expectedTableTabId === undefined || body.expectedTableTabId === null || body.expectedTableTabId === ''
+    ? null
+    : requireNonEmpty(body.expectedTableTabId, 'expectedTableTabId')
+  if (expectedTableTabId && customerIdentity.type !== 'table') {
+    throw checkoutError('expectedTableTabId', 'A comanda esperada só pode ser usada em pedidos de mesa.')
+  }
 
   return {
     customerIdentity,
@@ -114,6 +124,7 @@ export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date(
     deliveryFeeCents: type === 'Entrega' ? deliveryFeeCents : 0,
     adjustment,
     paymentMethod,
+    expectedTableTabId,
     scheduledFor,
     idempotencyKey: stableKey,
   }

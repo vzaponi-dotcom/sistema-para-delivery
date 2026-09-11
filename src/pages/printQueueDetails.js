@@ -22,7 +22,7 @@ const formatDateTime = (value) => {
 }
 
 const getIdentity = (document) => formatOrderCustomerIdentity({
-  tableIdentifier: document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier,
+  tableIdentifier: document?.tableTab?.tableName || document?.tableIdentifier || document?.order?.tableIdentifier || document?.table?.identifier,
   customerName: document?.customer?.name,
 })
 
@@ -40,9 +40,18 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
   const error = job?.lastError && (presentText(job.lastError.code) || presentText(job.lastError.message))
     ? { code: presentText(job.lastError.code), message: presentText(job.lastError.message) }
     : null
+  const unknownOutcome = error?.code === 'PRINT_OUTCOME_UNKNOWN'
+    ? {
+        title: 'Não foi possível confirmar esta impressão',
+        message: 'Esta via pode ter sido impressa antes de a conexão ser interrompida.',
+        duplicateRisk: 'Reenviar pode gerar uma impressão duplicada.',
+      }
+    : null
 
   return {
-    title: formatOrderDisplayNumber(order),
+    title: job?.type === 'table-tab' && job?.document?.tableTab?.number
+      ? `Comanda #${job.document.tableTab.number}`
+      : formatOrderDisplayNumber(order),
     identity: getIdentity(job?.document),
     status: getPrintQueueLabel(state),
     origin: job?.trigger === 'automatic' ? 'Automático' : ['manual', 'reprint'].includes(job?.trigger) ? 'Manual/Reimpressão' : null,
@@ -52,6 +61,7 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
     times,
     attentionReason: state === 'attention' ? presentText(job?.attentionReason) : null,
     error,
+    unknownOutcome,
     secondCopySkipped: job?.secondCopySkippedAt ? {
       label: '2ª via',
       message: 'Não impressa por decisão do operador',

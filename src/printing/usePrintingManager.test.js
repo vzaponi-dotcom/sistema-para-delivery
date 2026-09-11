@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import React from 'react'
+import { act } from 'react-test-renderer'
+import { workspaceHarness } from '../test-support/renderWorkspace.js'
 import {
   canExecuteSecondCopy,
   canInitializeBackgroundPhysicalTransport,
@@ -13,16 +16,32 @@ import {
   getRendererCompatibilityMode,
   initializeBackgroundPhysicalTransport,
   isPrintingTransportSupported,
+  usePrintingManager,
 } from './usePrintingManager.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 
 const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+const managerModule = await import('./usePrintingManager.js')
 
 const awaitingSecondCopyJob = {
+  id: 'job-second-copy',
   status: 'awaiting_second_copy',
   copiesRequested: 2,
   copiesPrinted: 1,
 }
+
+const flushMicrotasks = async () => {
+  for (let index = 0; index < 20; index += 1) await Promise.resolve()
+}
+
+const tableTabDocument = () => ({
+  type: 'table-tab',
+  business: { name: 'Restaurante' },
+  tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' },
+  items: [{ name: 'X-Bacon', presentation: '', note: '', quantity: 1, lineTotalCents: 2500 }],
+  financial: { totalCents: 2500 },
+  message: 'PR\u00c9-CONTA \u2014 N\u00c3O \u00c9 COMPROVANTE DE PAGAMENTO',
+})
 
 const readyAutomaticConsumer = (overrides = {}) => ({
   authenticated: true,
@@ -55,6 +74,71 @@ test('automatic consumer does not claim while QZ or another local transport is n
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ transportReady: false })), false)
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ qzConnected: false })), false)
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
+})
+
+test('a non-normal recovery state pauses the normal consumer while the manager uses the dedicated one-copy recovery APIs', () => {
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'pending' } })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'active' } })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'deferred' } })), false)
+  assert.match(managerSource, /claimNextRecoveryPrintJob/)
+  assert.match(managerSource, /setPrintStationRecovery/)
+  assert.match(managerSource, /discardPendingPrintJobs/)
+  assert.match(managerSource, /resolvePrintOutcome/)
+  assert.match(managerSource, /startRecovery/)
+  assert.match(managerSource, /printNextRecovery/)
+  assert.match(managerSource, /\['printed', 'discarded'\]\.includes\(recoveredJob\?\.status\)/)
+  assert.match(managerSource, /!current\?\.recoveryJobId/)
+})
+
+test('manager installs spooler monitoring before QZ jobs and routes QZ execution through persisted attempts', () => {
+  assert.match(managerSource, /createQzStatusMonitor/)
+  assert.match(managerSource, /executeQzPrintAttempt|qzAttempt/)
+  assert.match(managerSource, /createPrintAttempt/)
+  assert.match(managerSource, /markPrintAttemptSubmitting/)
+  assert.match(managerSource, /recordPrintAttemptEvent/)
+  assert.match(managerSource, /onJobStatus/)
+  assert.match(managerSource, /qzAttemptByNameRef/)
+  assert.match(managerSource, /physicalReady: printerHealthRef\.current\.state === 'ready'/)
+  assert.match(managerSource, /station\?\.recoveryState/)
+})
+
+test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {
+  assert.equal(typeof managerModule.runExclusivePrintOperation, 'function')
+  let activeOwner = null
+  let releaseFirst
+  const firstPending = new Promise((resolve) => { releaseFirst = resolve })
+  const acquire = () => {
+    if (activeOwner) return null
+    activeOwner = { id: 1 }
+    return activeOwner
+  }
+  const release = (owner) => {
+    if (activeOwner === owner) activeOwner = null
+  }
+
+  const first = managerModule.runExclusivePrintOperation({ acquire, release, operation: () => firstPending })
+  await assert.rejects(
+    () => managerModule.runExclusivePrintOperation({ acquire, release, operation: async () => 'overlap' }),
+    (error) => error.code === 'PRINT_OPERATION_BUSY',
+  )
+  releaseFirst('first')
+  assert.equal(await first, 'first')
+  assert.equal(await managerModule.runExclusivePrintOperation({ acquire, release, operation: async () => 'next' }), 'next')
+})
+
+test('every manual physical workflow acquires the shared operation gate before claiming', () => {
+  for (const [startMarker, endMarker] of [
+    ['const testPrint = useCallback', 'const printOrder = useCallback'],
+    ['const printSecondCopy = useCallback', 'const transitionRecovery = useCallback'],
+    ['const printNextRecovery = useCallback', 'const startRecovery = useCallback'],
+    ['const retryJob = useCallback', 'const requestPrintNow = useCallback'],
+  ]) {
+    const start = managerSource.indexOf(startMarker)
+    const end = managerSource.indexOf(endMarker, start)
+    assert.notEqual(start, -1)
+    assert.notEqual(end, -1)
+    assert.match(managerSource.slice(start, end), /runExclusivePrintOperation/)
+  }
 })
 
 test('transport support alone cannot bypass station and local-readiness guards', () => {
@@ -117,6 +201,50 @@ test('only an unacknowledged awaiting copy can present the second-copy prompt on
     station: { isPrimary: false, platform: 'windows' },
     job: awaitingSecondCopyJob,
   }), false)
+})
+
+test('deferred recovery presents only its durable affinity job again after reload', () => {
+  const job = { ...awaitingSecondCopyJob, secondCopyPromptedAt: '2026-09-10T12:00:00.000Z' }
+  const station = {
+    id: 'kitchen-primary', isPrimary: true, platform: 'windows',
+    recoveryState: 'deferred', recoveryJobId: job.id,
+  }
+  const input = { isQz: true, transportReady: true, printerBlocked: false, station }
+
+  assert.equal(canPresentSecondCopyPrompt({ ...input, job }), true)
+  assert.equal(canKeepSecondCopyPromptOpen({ ...input, job }), true)
+  assert.equal(canPresentSecondCopyPrompt({ ...input, job: { ...job, id: 'other-job' } }), false)
+})
+
+test('deferred recovery executes copy two by explicitly reclaiming the same affinity job', async () => {
+  const sequence = []
+  const job = { ...awaitingSecondCopyJob }
+  const station = {
+    id: 'kitchen-primary', isPrimary: true, platform: 'windows',
+    recoveryState: 'deferred', recoveryJobId: job.id,
+  }
+
+  const result = await claimAndExecuteSecondCopy({
+    isQz: true,
+    transportReady: true,
+    printerBlocked: false,
+    station,
+    job,
+    claimJob: async (jobId, stationId) => {
+      sequence.push(`claim:${jobId}:${stationId}`)
+      return { job: { ...job, status: 'processing' } }
+    },
+    executeJob: async (claimedJob) => {
+      sequence.push(`execute:${claimedJob.id}:${claimedJob.copiesPrinted + 1}`)
+      return { status: 'printed' }
+    },
+  })
+
+  assert.equal(result.status, 'printed')
+  assert.deepEqual(sequence, [
+    'claim:job-second-copy:kitchen-primary',
+    'execute:job-second-copy:2',
+  ])
 })
 
 test('an unready or blocked primary QZ station cannot present the physical second-copy prompt', () => {
@@ -257,4 +385,35 @@ test('second-copy prompt acknowledgement revalidates readiness and block at the 
   const acknowledgement = managerSource.slice(start, end)
 
   assert.match(acknowledgement, /canPresentSecondCopyPrompt\(\{[\s\S]*transportReady: transportReadyRef\.current[\s\S]*printerBlocked: printerBlockedRef\.current/)
+})
+
+test('table-tab preview remains a read while printing queues one job without local QZ or transport', async (t) => {
+  const h = await workspaceHarness(t, { userAgent: 'Android' })
+  const requests = []
+  const document = tableTabDocument()
+  const queued = { id: 'queued-tab-42', type: 'table-tab', tableTabId: 'tab-42', status: 'pending', copiesRequested: 1, document }
+  globalThis.fetch = async (path, options = {}) => {
+    const url = String(path)
+    requests.push([url, options.method || 'GET'])
+    if (url === '/api/printing/stations') return { ok: true, json: async () => ({ stations: [] }) }
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [] }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { safeBacklog: 0 } }) }
+    if (url === '/api/table-tabs/tab-42/print-document') return { ok: true, json: async () => ({ document }) }
+    if (url === '/api/table-tabs/tab-42/print-jobs') return { ok: true, json: async () => ({ job: queued }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  function Probe() { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated: true, isOnline: true }) }) }
+  const renderer = await h.render(Probe)
+  const printing = () => renderer.root.findByType('printing-probe').props.value
+  await act(flushMicrotasks)
+
+  assert.equal(await printing().getTableTabPreviewDocument('tab-42'), document)
+  assert.deepEqual(await printing().printTableTab('tab-42'), { job: queued })
+  assert.deepEqual(requests.filter(([url]) => url.includes('/api/table-tabs/tab-42/')), [
+    ['/api/table-tabs/tab-42/print-document', 'GET'],
+    ['/api/table-tabs/tab-42/print-jobs', 'POST'],
+  ])
+  assert.equal(printing().busyJobId, null)
+  await act(async () => renderer.unmount())
 })

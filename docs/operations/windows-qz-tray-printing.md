@@ -1,52 +1,70 @@
-# Runbook operacional — fila centralizada Windows/QZ
+# Runbook operacional — impressão Windows/QZ confirmada
 
-## Arquitetura oficial
+## Arquitetura e responsabilidade
 
-`Dispositivo solicitante → Cloudflare/fila → PC da cozinha → QZ Tray → Windows → USB → MPT-II`
+`Dispositivo solicitante → Cloudflare/fila → PC da cozinha → QZ Tray → fila Windows → USB → MPT-II`
 
-Celular, tablet e outras plataformas apenas criam/acompanham jobs e solicitam ações remotas. Somente a estação principal Windows executa impressão física.
+Celular, tablet e demais dispositivos apenas solicitam ou acompanham jobs. Somente a estação principal Windows envia uma via física. A fila central preserva jobs, tentativas, vias e decisões operacionais; não existe impressão física direta no dispositivo solicitante.
 
-## Pré-requisitos e instalação
+## Pré-requisitos e configuração
 
-- PC Windows dedicado, autenticado, online e acessando o sistema por HTTPS.
-- QZ Tray 2.2.6 instalado, aberto e confiado para o ambiente autorizado.
-- MPT-II ligada, com papel térmico de 58 mm e USB conectado.
-- Fila Windows `MPT-II`, driver `Generic / Text Only` e porta USB correta.
-- Certificado público e chave privada QZ provisionados nos segredos apropriados; a chave privada nunca fica no navegador, D1, bundle, Git ou logs.
+- Use um PC Windows dedicado, autenticado, online e conectado ao sistema por HTTPS.
+- Instale, abra e autorize o QZ Tray 2.2.6 para o ambiente configurado.
+- Conecte a MPT-II, com papel térmico de 58 mm, pela porta USB correta.
+- Configure a fila Windows `MPT-II` com o driver `Generic / Text Only` e valide uma impressão direta pelo Windows.
+- Mantenha o certificado público e a chave privada QZ nos segredos apropriados. A chave privada nunca fica no navegador, D1, bundle, Git ou logs.
 
-No Windows, confirme a fila em **Configurações > Bluetooth e dispositivos > Impressoras e scanners**, valide driver/porta e faça um teste direto pela fila. Abra o QZ Tray e confirme o ícone ativo.
+Em **Pedidos > Impressão**, atualize a lista de impressoras e selecione explicitamente `MPT-II`. A fila encontrada identifica a configuração salva; ela não demonstra que a impressora está ligada, conectada ou com papel.
 
-## Configurar a estação principal
+## Verdade operacional observável
 
-Em **Pedidos > Impressão**, confirme **Windows** e **QZ Tray**, use **Configurar impressora**, atualize a lista e selecione explicitamente `MPT-II`. Torne a estação principal e ative a impressão automática somente após o teste manual. A fila escolhida é salva localmente; jobs, estados, vias e ações são centralizados.
+Os quatro sinais abaixo governam a operação:
 
-Estados:
+```text
+PRINTER OK -> pode iniciar uma via
+PRINTER OFFLINE -> não fazer claim nem enviar nova via
+JOB COMPLETE -> contar uma via
+SPOOLING sem COMPLETE -> pode ainda imprimir; nunca reenviar automaticamente
+```
 
-- **Estação Online:** comunica com o serviço e envia heartbeat.
-- **QZ conectado:** sessão local QZ ativa.
-- **Fila encontrada:** fila salva localizada pelo QZ.
-- **Pronta para enviar:** QZ, fila e prontidão local válidos; só então há claim automático.
+`PRINTER OK` vem do estado físico observado pela estação principal e libera uma via por vez. A descoberta da fila e uma sessão QZ conectada são pré-requisitos técnicos, mas não são prontidão física. `PRINTER OFFLINE`, ausência de observação, papel/intervenção ou estado desconhecido bloqueiam claims e envios novos.
 
-Limitação conhecida: o Windows pode manter a fila MPT-II encontrada mesmo sem USB físico. Isso não prova papel, alimentação ou saída física.
+`JOB COMPLETE` correlacionado ao job é a confirmação operacional mais forte disponível: somente ele incrementa a contagem de cópias. É uma confirmação do spooler Winspool, não um sensor independente de papel nem uma prova absoluta de que a pessoa retirou o ticket.
 
-## Vias e pedidos
+A resolução de `qz.print()` apenas informa que a chamada de transporte terminou; ela não é sucesso final da via. Depois do início da submissão, aguarde o evento do spooler. Um evento `SPOOLING` sem `COMPLETE` pode anteceder uma impressão tardia e, por isso, não autoriza retry ou reenvio automático.
 
-Pedido Mesa/consumo local automático sempre usa 1 via. Delivery/Retirada seguem a regra central ou a quantidade explícita do job. Com 2 vias, o primeiro passe imprime `CÓPIA 1/2`, registra uma via e aguarda; **Imprimir 2ª via** imprime somente `CÓPIA 2/2` no mesmo job. Cancelar o aviso não descarta a segunda via.
+## Estados que exigem ação humana
 
-“Impresso” significa envio aceito/concluído pelo QZ/Windows, não confirmação de papel.
+- **Aguardando confirmação:** a via foi submetida e a estação aguarda `JOB COMPLETE`. Não crie outra via enquanto a confirmação não chegar.
+- **Resultado desconhecido:** a observação foi perdida ou não foi possível correlacionar o resultado após a submissão. Eventos automáticos tardios não alteram esse estado. A pessoa responsável escolhe uma vez: **A via foi impressa** para contabilizar a via, ou **Não foi impressa — reenviar** depois de confirmar o risco de duplicidade para criar um reenvio explícito.
+- **Requer atenção por falha conhecida:** use somente a ação explícita disponibilizada para o job. Não há retry silencioso.
+- **Aguardando 2ª via:** em jobs de duas vias, a primeira `COMPLETE` conta apenas a primeira. **Imprimir 2ª via** envia exatamente a segunda via no mesmo job; cancelar o aviso não a descarta.
 
-## Offline, retry, descarte e reprint
+Pedido Mesa/consumo local automático usa uma via. Delivery e Retirada seguem a regra central ou a quantidade expressa do job. Uma reimpressão manual de histórico pode escolher uma ou duas vias, inclusive para Mesa.
 
-Se PC/QZ/fila estiver indisponível, o pedido e o job continuam salvos. Não faça claims paralelos. Após o retorno, abra QZ, atualize a tela, confirme a fila, faça teste controlado e só então retome a operação.
+## Impressora offline e recuperação segura
 
-Falha conhecida usa **Tentar novamente**; resultado incerto exige atenção e decisão explícita. Nunca há retry silencioso. **Descartar** preserva histórico. **Reimprimir** cria um job manual vinculado ao histórico. A segunda via pode ser solicitada pelo PC ou remotamente pelo celular.
+Enquanto a impressora estiver offline, stale ou em verificação, o consumidor automático normal fica pausado: jobs permanecem na fila, sem claim paralelo e sem reenvio. Verifique energia, papel, cabo USB, driver, porta e uma impressão direta pelo Windows antes de prosseguir.
 
-## Troubleshooting
+Quando uma transição real de `OFFLINE`/stale para `OK` encontra backlog seguro, o sistema abre uma recuperação pendente uma única vez. O operador decide:
 
-- **QZ desconectado:** abra QZ, confirme certificado/confiança e recarregue; não desative a segurança.
-- **Fila não encontrada:** confira nome, driver, porta USB e teste do Windows; depois atualize a descoberta.
-- **Pronta, mas sem papel:** verifique alimentação, papel, cabo e impressão direta; prontidão não é confirmação física.
-- **Job parado:** confira estação principal, conectividade, `availableAt` e o estado; use apenas a ação explícita correspondente.
+1. **Imprimir agora** inicia a recuperação e reclama/envia exatamente uma via segura.
+2. Depois do resultado dessa via, **Imprimir próxima** processa somente mais uma via.
+3. **Parar por agora** deixa a recuperação como adiada; atualizar, focar a página ou receber heartbeat não reabre nem dispara a recuperação.
+
+Não use o retorno da conexão para despejar backlog. Jobs submetidos, em `SPOOLING`, aguardando confirmação ou com resultado desconhecido não são descartados nem reimpressos pela recuperação automática. Uma nova transição offline→OK pode criar um novo ciclo somente quando houver novo backlog seguro.
+
+## Operação diária e troubleshooting
+
+- **QZ desconectado:** abra o QZ, confirme certificado/confiança e recarregue. Não desative a segurança.
+- **Fila não encontrada:** confira o nome, driver, porta USB e teste do Windows; depois atualize a descoberta. Isso ainda não torna a impressora pronta.
+- **Impressora offline ou com atenção:** corrija o problema físico e espere `PRINTER OK`; não use claim, retry ou reenvio para testar.
+- **Job em SPOOLING/aguardando confirmação:** aguarde o evento correlacionado. Se a observação se perder, resolva manualmente o resultado desconhecido; não reenvie automaticamente.
+- **Job parado:** confira estação principal, conectividade, `availableAt`, estado de recuperação e a ação explícita correspondente.
 - **Acentos/largura:** valide papel 58 mm, 384 pontos e caracteres portugueses.
 
-Este runbook não autoriza deploy de produção. A homologação física aprovada da Fase 9 permanece o checkpoint operacional.
+## Retenção e histórico
+
+Jobs terminais podem ser consultados pelos filtros **Impresso** e **Descartado** da tabela principal e são removidos com segurança após 30 dias. O pedido histórico permanece a fonte para reimpressão: se o job antigo já tiver sido removido, **Reimprimir** cria um novo job manual a partir do pedido; se existir, o novo job mantém o vínculo de auditoria com ele.
+
+Este runbook não autoriza deploy de produção. A homologação física aprovada permanece o checkpoint operacional antes de qualquer liberação.

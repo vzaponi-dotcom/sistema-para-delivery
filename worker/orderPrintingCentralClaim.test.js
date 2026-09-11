@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { claimNextPrintJob } from './orderPrintingCentralClaim.js'
 import {
   createManualOrderPrintJob,
+  createManualTableTabPrintJob,
   heartbeatPrintStation,
   prepareAutomaticPrintJobStatement,
   setPrimaryPrintStation,
@@ -28,6 +29,12 @@ class D1Sqlite {
         qz_ready INTEGER NOT NULL DEFAULT 0,
         printer_ready INTEGER NOT NULL DEFAULT 0,
         last_ready_at TEXT,
+        physical_state TEXT NOT NULL DEFAULT 'verifying',
+        physical_status_text TEXT,
+        physical_status_code INTEGER,
+        physical_status_at TEXT,
+        last_offline_at TEXT,
+        recovery_state TEXT NOT NULL DEFAULT 'normal',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -36,6 +43,7 @@ class D1Sqlite {
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
         order_id TEXT,
+        table_tab_id TEXT,
         type TEXT NOT NULL,
         trigger TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -110,7 +118,7 @@ const addReadyPrimary = async (db, { autoPrintEnabled = true } = {}) => {
     defaultCopies: 2,
   }, now)
   await setPrimaryPrintStation(db, businessId, 'kitchen-qz', now)
-  await heartbeatPrintStation(db, businessId, 'kitchen-qz', { qzReady: true, printerReady: true }, now)
+  await heartbeatPrintStation(db, businessId, 'kitchen-qz', { qzReady: true, printerReady: true, physicalState: 'ready' }, now)
 }
 
 test('primary QZ station consumes a manual queued job even when automatic printing is disabled', async () => {
@@ -128,7 +136,7 @@ test('primary QZ station consumes a manual queued job even when automatic printi
     defaultCopies: 2,
   }, now)
   await setPrimaryPrintStation(db, businessId, 'kitchen-qz', now)
-  await heartbeatPrintStation(db, businessId, 'kitchen-qz', { qzReady: true, printerReady: true }, now)
+  await heartbeatPrintStation(db, businessId, 'kitchen-qz', { qzReady: true, printerReady: true, physicalState: 'ready' }, now)
 
   const manual = await createManualOrderPrintJob(db, businessId, {
     id: 'manual-job',
@@ -142,6 +150,23 @@ test('primary QZ station consumes a manual queued job even when automatic printi
   assert.equal(claimed.trigger, 'manual')
   assert.equal(claimed.status, 'processing')
   assert.equal(claimed.stationId, 'kitchen-qz')
+})
+
+test('primary QZ station consumes a queued consolidated comanda without automatic printing', async () => {
+  const db = new D1Sqlite()
+  db.sqlite.exec(`INSERT INTO businesses (id) VALUES ('${businessId}')`)
+  await addReadyPrimary(db, { autoPrintEnabled: false })
+  const job = await createManualTableTabPrintJob(db, businessId, {
+    id: 'table-tab-job',
+    tableTabId: 'tab-42',
+    document: { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } },
+  }, now)
+
+  const claimed = await claimNextPrintJob(db, businessId, 'kitchen-qz', now)
+  assert.ok(claimed, 'the consolidated comanda job must be claimable')
+  assert.equal(claimed.id, job.id)
+  assert.equal(claimed.type, 'table-tab')
+  assert.equal(claimed.status, 'processing')
 })
 
 test('primary QZ station claims authorized finalized and cancelled automatic jobs', async (t) => {
@@ -267,6 +292,23 @@ test('finalized and cancelled orders allow only an explicitly requested second-c
         second_copy_requested_at = ? WHERE id = ?`).bind(now.toISOString(), `second-copy-${status}`).run()
 
       assert.equal((await claimNextPrintJob(db, businessId, 'kitchen-qz', now)).id, `second-copy-${status}`)
+      assert.equal(await claimNextPrintJob(db, businessId, 'kitchen-qz', now), null)
+    })
+  }
+})
+
+test('normal central claims return no job while recovery is pending, active, or deferred', async (t) => {
+  for (const recoveryState of ['pending', 'active', 'deferred']) {
+    await t.test(recoveryState, async () => {
+      const db = new D1Sqlite()
+      db.sqlite.exec(`
+        INSERT INTO businesses (id) VALUES ('${businessId}');
+        INSERT INTO orders (id, business_id, status) VALUES ('order-${recoveryState}', '${businessId}', 'Em preparo');
+      `)
+      await addReadyPrimary(db)
+      await addAutomaticJob(db, { id: `job-${recoveryState}`, orderId: `order-${recoveryState}` })
+      await db.prepare('UPDATE print_stations SET recovery_state = ? WHERE id = ?').bind(recoveryState, 'kitchen-qz').run()
+
       assert.equal(await claimNextPrintJob(db, businessId, 'kitchen-qz', now), null)
     })
   }

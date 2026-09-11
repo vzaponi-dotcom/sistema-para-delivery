@@ -23,6 +23,8 @@ const loadQzExecutor = async (db, businessId, stationId, now) => {
     lastSeenAt: row.last_seen_at ?? null,
     qzReady: Boolean(row.qz_ready),
     printerReady: Boolean(row.printer_ready),
+    physicalState: row.physical_state ?? 'ready',
+    recoveryState: row.recovery_state ?? 'normal',
   }
   if (!station.isPrimary) {
     throw repositoryError(409, 'PRINT_STATION_NOT_PRIMARY', 'Somente a estação principal pode executar trabalhos de impressão.')
@@ -39,6 +41,7 @@ const loadQzExecutor = async (db, businessId, stationId, now) => {
 
 export const claimNextPrintJob = async (db, businessId, stationId, now = new Date()) => {
   const station = await loadQzExecutor(db, businessId, stationId, now)
+  if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
   const automaticEnabled = station.autoPrintEnabled ? 1 : 0
   const row = await db.prepare(`UPDATE print_jobs SET
@@ -46,17 +49,19 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
       last_error_code = NULL, last_error_message = NULL
     WHERE id = (
       SELECT id FROM print_jobs
-      WHERE business_id = ? AND type = 'order' AND status = 'pending' AND available_at <= ?
+      WHERE business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND available_at <= ?
         AND (
-          (copies_requested = 2 AND copies_printed = 1 AND second_copy_requested_at IS NOT NULL AND second_copy_skipped_at IS NULL)
-          OR
-          trigger = 'manual'
-          OR last_error_code = 'FORCE_PRINT_AUTHORIZED'
-          OR (trigger = 'automatic' AND ? = 1 AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+          (type = 'table-tab' AND trigger = 'manual')
+          OR (type = 'order' AND (
+            (copies_requested = 2 AND copies_printed = 1 AND second_copy_requested_at IS NOT NULL AND second_copy_skipped_at IS NULL)
+            OR trigger = 'manual'
+            OR last_error_code = 'FORCE_PRINT_AUTHORIZED'
+            OR (trigger = 'automatic' AND ? = 1 AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+          ))
         )
       ORDER BY CASE WHEN second_copy_requested_at IS NOT NULL AND copies_requested = 2 AND copies_printed = 1 THEN 1 ELSE 0 END DESC,
         priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
-    ) AND business_id = ? AND type = 'order' AND status = 'pending'
+    ) AND business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending'
     RETURNING id`)
     .bind(stationId, at, businessId, at, automaticEnabled, businessId).first()
 

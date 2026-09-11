@@ -12,6 +12,7 @@ const {
   QUEUED,
   WAITING_STATION,
   PRINTING,
+  WAITING_CONFIRMATION,
   WAITING_SECOND_COPY,
   PRINTED,
   ATTENTION,
@@ -25,6 +26,7 @@ test('canonical UI states translate current and target backend statuses explicit
   assert.equal(resolvePrintQueueState('queued', { stationReady: false }), WAITING_STATION)
   assert.equal(resolvePrintQueueState('waiting_station'), WAITING_STATION)
   assert.equal(resolvePrintQueueState('processing'), PRINTING)
+  assert.equal(resolvePrintQueueState('awaiting_confirmation'), WAITING_CONFIRMATION)
   assert.equal(resolvePrintQueueState('printing'), PRINTING)
   assert.equal(resolvePrintQueueState('awaiting_second_copy'), WAITING_SECOND_COPY)
   assert.equal(resolvePrintQueueState('waiting_second_copy'), WAITING_SECOND_COPY)
@@ -33,6 +35,14 @@ test('canonical UI states translate current and target backend statuses explicit
   assert.equal(resolvePrintQueueState('attention'), ATTENTION)
   assert.equal(resolvePrintQueueState('printed'), PRINTED)
   assert.equal(resolvePrintQueueState('discarded'), DISCARDED)
+})
+
+test('confirmation-waiting state uses the approved label and transitions', () => {
+  assert.equal(getPrintQueueLabel('awaiting_confirmation'), 'Aguardando confirma\u00e7\u00e3o')
+  assert.equal(canTransitionPrintQueueState('processing', 'awaiting_confirmation'), true)
+  assert.equal(canTransitionPrintQueueState('awaiting_confirmation', 'waiting_second_copy'), true)
+  assert.equal(canTransitionPrintQueueState('awaiting_confirmation', 'printed'), true)
+  assert.equal(canTransitionPrintQueueState('awaiting_confirmation', 'requires_attention'), true)
 })
 
 test('unknown or missing backend states fail safe to attention', () => {
@@ -53,7 +63,7 @@ test('queue labels match the approved operational language', () => {
 test('only printed and discarded jobs are terminal', () => {
   assert.equal(isPrintQueueTerminal(PRINTED), true)
   assert.equal(isPrintQueueTerminal(DISCARDED), true)
-  for (const state of [QUEUED, WAITING_STATION, PRINTING, WAITING_SECOND_COPY, ATTENTION, 'failed', 'requires_attention']) {
+  for (const state of [QUEUED, WAITING_STATION, PRINTING, WAITING_CONFIRMATION, WAITING_SECOND_COPY, ATTENTION, 'failed', 'requires_attention']) {
     assert.equal(isPrintQueueTerminal(state), false, state)
   }
 })

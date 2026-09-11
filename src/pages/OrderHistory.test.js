@@ -32,3 +32,11 @@ test('history reuses the single printing manager for terminal order details', ()
   assert.match(source, /printJob=\{printing\?\.latestJobByOrderId\?\.get\(detailOrder\.id\)/)
   assert.match(appSource, /<OrderHistory[\s\S]*printing=\{printing\}/)
 })
+
+test('history keeps terminal reprint available even when retention removes the latest print job', async () => {
+  const detail = await readFile(new URL('../components/OrderDetail.jsx', import.meta.url), 'utf8')
+
+  assert.match(source, /printJob=\{printing\?\.latestJobByOrderId\?\.get\(detailOrder\.id\)/)
+  assert.match(detail, /!printJob && isHistoricalOrder/)
+  assert.match(detail, /printing\?\.printOrder\?\.\(order\.id, reprintCopies\)/)
+})

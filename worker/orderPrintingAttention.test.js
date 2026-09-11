@@ -68,6 +68,12 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
+      CREATE TABLE print_job_attempts (
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL,
+        attempt_number INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'prepared',
+        resolution TEXT, submission_started_at TEXT, last_event_at TEXT,
+        last_error_code TEXT, last_error_message TEXT, updated_at TEXT
+      );
     `)
   }
 
@@ -241,9 +247,9 @@ test('legacy not-printable attention stays discard-only for an active order', as
   )
 })
 
-test('retry rejects uncertain and special attention reasons', async () => {
+test('retry rejects canonical uncertain and special attention reasons', async () => {
   const db = await setup()
   await addAutomaticJob(db, { id: 'unknown-job' })
-  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'PROCESSING_OUTCOME_UNKNOWN' WHERE id = ?`).bind('unknown-job').run()
+  await db.prepare(`UPDATE print_jobs SET status = 'requires_attention', last_error_code = 'PRINT_OUTCOME_UNKNOWN' WHERE id = ?`).bind('unknown-job').run()
   await assert.rejects(() => retryPrintJob(db, businessId, 'unknown-job', now), (error) => error.code === 'PRINT_JOB_RETRY_NOT_ALLOWED')
 })

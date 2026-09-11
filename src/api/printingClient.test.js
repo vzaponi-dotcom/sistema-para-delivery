@@ -91,3 +91,39 @@ test('printing client helpers use stable authenticated same-origin routes and en
     assert.deepEqual(JSON.parse(calls[11][1].body), { actorLabel: 'Caixa 1' })
   })
 })
+
+test('operational print helpers build scoped URLs with URLSearchParams and preserve same-origin mutations', async () => {
+  await withFetch(async (calls) => {
+    await client.getPrintJobs({
+      scope: 'operational', page: 2, pageSize: 25, sortBy: 'createdAt', sortDir: 'desc',
+      status: '', trigger: '', search: 'mesa 7',
+    })
+    await client.getPrintQueueSummary()
+    await client.createPrintAttempt('job 1', 'station 1', 1)
+    await client.markPrintAttemptSubmitting('attempt 1', 'station 1')
+    await client.recordPrintAttemptEvent('attempt 1', 'station 1', { type: 'SPOOLING', jobName: 'GESTAO 1', spoolJobId: 7 })
+    await client.resolvePrintOutcome('job 1', 'attempt 1', 'manual_not_printed', 'Caixa 1')
+    await client.setPrintStationRecovery('station 1', 'active')
+    await client.claimNextRecoveryPrintJob('station 1')
+    await client.discardPendingPrintJobs('Caixa 1')
+
+    assert.deepEqual(calls.map(([path, options]) => [path, options?.method || 'GET', options?.credentials]), [
+      ['/api/printing/jobs?scope=operational&page=2&pageSize=25&sortBy=createdAt&sortDir=desc&search=mesa+7', 'GET', 'same-origin'],
+      ['/api/printing/jobs/summary', 'GET', 'same-origin'],
+      ['/api/printing/jobs/job%201/attempts', 'POST', 'same-origin'],
+      ['/api/printing/attempts/attempt%201/submitting', 'POST', 'same-origin'],
+      ['/api/printing/attempts/attempt%201/events', 'POST', 'same-origin'],
+      ['/api/printing/jobs/job%201/resolve-outcome', 'POST', 'same-origin'],
+      ['/api/printing/stations/station%201/recovery', 'POST', 'same-origin'],
+      ['/api/printing/jobs/claim-recovery-next', 'POST', 'same-origin'],
+      ['/api/printing/jobs/discard-pending', 'POST', 'same-origin'],
+    ])
+    assert.deepEqual(JSON.parse(calls[2][1].body), { stationId: 'station 1', copyNumber: 1 })
+    assert.deepEqual(JSON.parse(calls[3][1].body), { stationId: 'station 1' })
+    assert.deepEqual(JSON.parse(calls[4][1].body), { stationId: 'station 1', event: { type: 'SPOOLING', jobName: 'GESTAO 1', spoolJobId: 7 } })
+    assert.deepEqual(JSON.parse(calls[5][1].body), { attemptId: 'attempt 1', resolution: 'manual_not_printed', actorLabel: 'Caixa 1' })
+    assert.deepEqual(JSON.parse(calls[6][1].body), { state: 'active' })
+    assert.deepEqual(JSON.parse(calls[7][1].body), { stationId: 'station 1' })
+    assert.deepEqual(JSON.parse(calls[8][1].body), { actorLabel: 'Caixa 1' })
+  })
+})

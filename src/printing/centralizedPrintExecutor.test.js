@@ -23,6 +23,8 @@ const readyConsumer = (overrides = {}) => ({
 test('only the primary QZ station may consume automatic jobs locally', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyConsumer()), true)
   assert.equal(canConsumeAutomaticPrintJob(readyConsumer({ isQz: false })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyConsumer({ physicalReady: false })), false)
+  assert.equal(canConsumeAutomaticPrintJob(readyConsumer({ station: { isPrimary: true, autoPrintEnabled: true, platform: 'windows', recoveryState: 'pending' } })), false)
 })
 
 test('manual print request only enqueues and never opens or executes local transport', () => {

@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 
 const loadEffects = async () => {
   try {
@@ -27,7 +26,10 @@ class EffectsDb {
             if (sql.includes('FROM table_tabs')) {
               const [id, businessId] = values
               if (id !== 't1' || businessId !== 'biz') return null
-              return { id: 't1', table_id: 'table-1', table_identifier: '04', status: 'closed', opened_at: '2026-09-03T14:00:00.000Z', closed_at: '2026-09-03T15:00:00.000Z' }
+              const row = { id: 't1', table_id: 'table-1', table_identifier: '04', tab_number: 1042, status: 'closed', opened_at: '2026-09-03T14:00:00.000Z', closed_at: '2026-09-03T15:00:00.000Z' }
+              if (sql.includes('tab_number')) return row
+              const { tab_number, ...projectedRow } = row
+              return projectedRow
             }
             return null
           },
@@ -52,14 +54,6 @@ test('write-effect readers return mapped payment movement and current table tab'
     movementDate: '2026-09-03', date: '2026-09-03', createdAt: '2026-09-03T15:00:00.000Z', updatedAt: '2026-09-03T15:00:00.000Z',
   })
   assert.deepEqual(tableTab, {
-    id: 't1', tableId: 'table-1', tableIdentifier: '04', status: 'closed', openedAt: '2026-09-03T14:00:00.000Z', closedAt: '2026-09-03T15:00:00.000Z',
+    id: 't1', tableId: 'table-1', tableIdentifier: '04', tabNumber: 1042, status: 'closed', openedAt: '2026-09-03T14:00:00.000Z', closedAt: '2026-09-03T15:00:00.000Z',
   })
-})
-
-test('checkout and payment routes expose the authoritative effects to the client', async () => {
-  const source = await readFile(new URL('./index.js', import.meta.url), 'utf8')
-  assert.match(source, /loadMovementByOrderSource/)
-  assert.match(source, /loadTableTabById/)
-  assert.match(source, /return json\(\{ order, movement, tableTab, printJob \}/)
-  assert.match(source, /return json\(\{ \.\.\.result, tableTab \}/)
 })

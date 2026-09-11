@@ -4,11 +4,12 @@ export const deriveQzOperationalState = ({
   qzConnected = false,
   printerQueueConfigured = false,
   printerQueueFound = false,
+  physicalState = 'ready',
 } = {}) => ({
   qzConnected: Boolean(qzConnected),
   printerQueueConfigured: Boolean(printerQueueConfigured),
   printerQueueFound: Boolean(printerQueueConfigured && printerQueueFound),
-  operationalReady: Boolean(qzConnected && printerQueueConfigured && printerQueueFound),
+  operationalReady: Boolean(qzConnected && printerQueueConfigured && printerQueueFound && physicalState === 'ready'),
 })
 
 export const createQzReadinessController = () => {
@@ -107,10 +108,10 @@ export const resolveQzPrinter = async (qzApi, printerName) => {
   return selectedName
 }
 
-export const printQzRawBytes = async (qzApi, printerName, bytes) => {
+export const printQzRawBytes = async (qzApi, printerName, bytes, { jobName } = {}) => {
   const selectedPrinter = await resolveQzPrinter(qzApi, printerName)
   try {
-    const config = qzApi.configs.create(selectedPrinter)
+    const config = qzApi.configs.create(selectedPrinter, jobName ? { jobName } : undefined)
     await qzApi.print(config, [{
       type: 'raw',
       format: 'command',

@@ -20,6 +20,15 @@ const PLATFORM_LABELS = {
   other: 'Outro',
 }
 
+const PHYSICAL_HEALTH_LABELS = {
+  ready: 'Pronta para imprimir',
+  verifying: 'Verificando impressora…',
+  printer_offline: 'Impressora desligada ou desconectada',
+  printer_attention: 'Atenção necessária na impressora',
+}
+
+const countLabel = (count, singular, plural) => `${count} ${count === 1 ? singular : plural}`
+
 function PrintingSettings({ printing, onClose }) {
   const station = printing?.localStation || null
   const isQz = printing?.transportKind === 'qz'
@@ -135,6 +144,31 @@ function PrintingSettings({ printing, onClose }) {
   const connectionLabel = isQz ? (QZ_CONNECTION_LABELS[qzConnectionState] || 'Desconectada') : 'Somente solicitações'
   const queueConfigured = Boolean(String(printing?.configuredPrinterName || '').trim())
   const queueFound = Boolean(printing?.printerQueueFound)
+  const printerHealth = printing?.printerHealth || { state: 'verifying', statusText: null, statusCode: null }
+  const physicalState = printerHealth.state || 'verifying'
+  const physicalReady = physicalState === 'ready'
+  const physicalLabel = PHYSICAL_HEALTH_LABELS[physicalState] || PHYSICAL_HEALTH_LABELS.verifying
+  const operationalState = !isQz
+    ? 'queue-only'
+    : !printing?.qzConnected
+      ? 'qz-unavailable'
+      : !queueConfigured
+        ? 'queue-unconfigured'
+        : !queueFound
+          ? 'queue-missing'
+          : physicalState
+  const operationalLabel = !isQz
+    ? 'Fila central'
+    : !printing?.qzConnected
+      ? 'QZ Tray indisponível'
+      : !queueConfigured
+        ? 'Impressora não configurada'
+        : !queueFound
+          ? 'Impressora não encontrada'
+          : physicalLabel
+  const jobs = Array.isArray(printing?.jobs) ? printing.jobs : []
+  const pendingCount = jobs.filter((job) => job?.status === 'pending').length
+  const awaitingConfirmationCount = jobs.filter((job) => job?.status === 'awaiting_confirmation').length
   const disabled = Boolean(pendingAction) || !station
   const qzPrinters = Array.isArray(printing?.availablePrinters) ? printing.availablePrinters : []
   const qzPrinterOptions = qzPrinters.map((printerName) => ({ value: printerName, label: printerName }))
@@ -143,9 +177,18 @@ function PrintingSettings({ printing, onClose }) {
     <>
       <Modal title="Impressão" onClose={onClose}>
         <div className="printing-settings form-stack">
+          <div className={`printing-health-card printing-health-${operationalState}`}>
+            <div>
+              <span className="printing-label">Estado operacional</span>
+              <strong>{operationalLabel}</strong>
+              {isQz && printerHealth.statusText && <small>{printerHealth.statusText}</small>}
+            </div>
+            <span className={`printing-state printing-state-${operationalState}`}>{operationalLabel}</span>
+          </div>
+
           <div className="printing-status-card">
             <div>
-              <span className="printing-label">{isQz ? 'QZ Tray' : 'Fila central'}</span>
+              <span className="printing-label">{isQz ? 'Diagnóstico QZ Tray' : 'Fila central'}</span>
               <strong>{connectionLabel}</strong>
             </div>
             <span className={`printing-state printing-state-${isQz ? qzConnectionState : printerState}`}>{connectionLabel}</span>
@@ -155,6 +198,13 @@ function PrintingSettings({ printing, onClose }) {
             <p className="printing-feedback">
               Esta estação usa a fila central; a impressão física ocorre somente no Windows com QZ Tray.
             </p>
+          )}
+
+          {(pendingCount > 0 || awaitingConfirmationCount > 0) && (
+            <div className="printing-queue-summary" aria-live="polite">
+              {pendingCount > 0 && <span>Há {countLabel(pendingCount, 'trabalho aguardando impressão', 'trabalhos aguardando impressão')}</span>}
+              {awaitingConfirmationCount > 0 && <span>{countLabel(awaitingConfirmationCount, 'via enviada à impressora aguardando confirmação', 'vias enviadas à impressora aguardando confirmação')}</span>}
+            </div>
           )}
 
           <div className="printing-info-grid">
@@ -172,8 +222,8 @@ function PrintingSettings({ printing, onClose }) {
                   <h3>Impressora do Windows</h3>
                   <p>O QZ Tray deve permanecer aberto no Windows para impressão automática.</p>
                 </div>
-                <span className={`printing-state printing-state-${printing?.transportReady ? 'connected' : 'disconnected'}`}>
-                  {printing?.transportReady ? 'Pronta para enviar' : 'Indisponível para impressão'}
+                <span className={`printing-state printing-state-${operationalState}`}>
+                  {operationalLabel}
                 </span>
               </div>
 
@@ -223,7 +273,7 @@ function PrintingSettings({ printing, onClose }) {
                 type="button"
                 variant="secondary"
                 onClick={testPrint}
-                disabled={disabled || !printing?.transportReady}
+                disabled={disabled || !physicalReady || !printing?.transportReady}
               >
                 Testar impressão
               </Button>

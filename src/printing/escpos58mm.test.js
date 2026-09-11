@@ -5,6 +5,26 @@ import { encodeCp860 } from './cp860.js'
 import { renderEscPos58mm, wrapPrintText } from './escpos58mm.js'
 import { MTP5_PROFILE } from './mtp5Profile.js'
 
+const tableTabFixture = {
+  version: 1,
+  type: 'table-tab',
+  business: { name: 'Restaurante A' },
+  tableTab: {
+    id: 'tab-1042',
+    number: 1042,
+    tableName: 'Mesa 1',
+    openedAt: '2026-09-10T18:00:00.000Z',
+    emittedAt: '2026-09-10T20:00:00.000Z',
+  },
+  items: [
+    { name: 'X-Bacon', presentation: 'Grande', note: '', quantity: 2, lineTotalCents: 4400 },
+    { name: 'X-Bacon', presentation: 'Grande', note: 'Sem cebola', quantity: 1, lineTotalCents: 2200 },
+    { name: 'Suco', presentation: '500 ml', note: 'Sem gelo', quantity: 1, lineTotalCents: 2000 },
+  ],
+  financial: { totalCents: 8600 },
+  message: 'PR\u00c9-CONTA \u2014 N\u00c3O \u00c9 COMPROVANTE DE PAGAMENTO',
+}
+
 const includesBytes = (haystack, needle) => {
   const source = [...haystack]
   const target = [...needle]
@@ -270,4 +290,39 @@ test('one-copy pending pickup ticket omits empty delivery contact fields but kee
   assert.equal(includesBytes(bytes, encodeCp860('PENDENTE')), true)
   assert.equal(includesBytes(bytes, encodeCp860('Endereço:')), false)
   assert.equal(includesBytes(bytes, encodeCp860('Taxa de entrega')), false)
+})
+
+test('one consolidated pre-account renders canonical lines and total without order copy labels', () => {
+  const bytes = renderEscPos58mm(tableTabFixture, { copies: 1 })
+
+  for (const value of [
+    'Restaurante A',
+    'PR\u00c9-CONTA',
+    'COMANDA #1042',
+    'Mesa 1',
+    '2x X-Bacon Grande',
+    '1x X-Bacon Grande',
+    'Sem cebola',
+    '1x Suco 500 ml',
+    'Sem gelo',
+    'TOTAL R$ 86,00',
+    'N\u00c3O \u00c9 COMPROVANTE DE',
+    'PAGAMENTO',
+  ]) assert.equal(includesBytes(bytes, encodeCp860(value)), true, value)
+
+  assert.equal(countBytes(bytes, encodeCp860('PR\u00c9-CONTA')), 2, 'title and warning each contain PRE-CONTA once')
+  assert.equal(includesBytes(bytes, encodeCp860('PEDIDO #')), false)
+  assert.equal(includesBytes(bytes, encodeCp860('C\u00d3PIA')), false)
+})
+
+test('table-tab rendering is exactly one copy while order and test contracts stay unchanged', () => {
+  assert.throws(() => renderEscPos58mm(tableTabFixture, { copies: 2 }), /one copy/i)
+
+  const orderBytes = renderEscPos58mm(fixture(), { copies: 2 })
+  assert.equal(countBytes(orderBytes, encodeCp860('C\u00d3PIA 1/2')), 1)
+  assert.equal(countBytes(orderBytes, encodeCp860('C\u00d3PIA 2/2')), 1)
+
+  const testBytes = renderEscPos58mm({ type: 'test', business: { name: 'Loja' }, test: { title: 'TESTE', message: 'OK' } }, { copies: 1 })
+  assert.equal(includesBytes(testBytes, encodeCp860('TESTE')), true)
+  assert.equal(includesBytes(testBytes, encodeCp860('COMANDA')), false)
 })

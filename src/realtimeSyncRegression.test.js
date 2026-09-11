@@ -33,7 +33,7 @@ test('orders keep the faster cadence and stale order reads cannot overwrite newe
 })
 
 test('paid checkout applies authoritative effects locally instead of awaiting full bootstrap', () => {
-  assert.match(app, /const \{ order, movement, tableTab \} = await createOrderApi/)
+  assert.match(app, /const \{ order, movement, tableTab, tables: nextTables \} = await createOrderApi/)
   assert.doesNotMatch(app, /if \(order\.paymentStatus === 'Pago'\) await refreshBootstrap\(\)/)
   assert.match(app, /markMutation/)
   assert.match(app, /upsertById/)

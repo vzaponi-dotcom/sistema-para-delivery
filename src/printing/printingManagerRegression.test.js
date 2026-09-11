@@ -24,6 +24,7 @@ test('printing manager is driven by official job APIs and never by new-order det
     'failPrintJob',
     'retryPrintJob',
     'getOrderPrintDocument',
+    'getTableTabPrintDocument',
   ]) assert.match(manager, new RegExp(`\\b${apiName}\\b`))
 
   assert.match(manager, /runClaimedPrintJob/)
@@ -147,6 +148,17 @@ test('second copy resumes the existing partial job explicitly without creating a
   assert.match(manager, /\bprintSecondCopy,\s*\n/)
 })
 
+test('consolidated table-tab printing creates a centralized manual queue job', () => {
+  const start = manager.indexOf('const printTableTab = useCallback')
+  assert.notEqual(start, -1)
+  const end = manager.indexOf('useEffect(() => {', start)
+  assert.notEqual(end, -1)
+  const block = manager.slice(start, end)
+
+  assert.match(block, /createManualTableTabPrintJob\(tableTabId\)/)
+  assert.doesNotMatch(block, /getTableTabPreviewDocument|runManualPrintDocument/)
+})
+
 test('printing manager centralizes approved poll and heartbeat cadences', () => {
   assert.match(manager, /export const PRINT_JOB_POLL_MS = 2_000/)
   assert.match(manager, /export const PRINT_STATE_POLL_MS = 5_000/)
@@ -161,6 +173,7 @@ test('App mounts one printing manager and passes it to Orders without changing o
   assert.equal(hookCalls.length, 1)
   assert.match(app, /const printing = usePrintingManager\(/)
   assert.match(app, /<Orders[\s\S]*printing=\{printing\}/)
+  assert.match(app, /<Comandas[\s\S]*printing=\{printing\}/)
 
   assert.match(app, /getNew(?:Active|Operational)OrderIds/)
   assert.match(app, /detectedIds/)
