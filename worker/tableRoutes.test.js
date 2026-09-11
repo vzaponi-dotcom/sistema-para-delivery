@@ -172,7 +172,9 @@ test('authenticated transfer route returns the official tables and transferred t
     id, business_id, table_id, table_identifier, tab_number, status, opened_at, created_at, updated_at
   ) VALUES ('tab-1', 'amor-e-sabor', 'source', 'Mesa 1', 37, 'open', ?, ?, ?)`).run(timestamp, timestamp, timestamp)
 
-  const response = await mutation(env, cookie, 'POST', '/api/tables/source/transfer', { destinationTableId: 'destination' })
+  const response = await mutation(env, cookie, 'POST', '/api/tables/source/transfer', {
+    destinationTableId: 'destination', expectedTableTabId: 'tab-1',
+  })
   assert.equal(response.status, 200)
   const payload = await response.json()
   assert.equal(payload.tableTab.id, 'tab-1')

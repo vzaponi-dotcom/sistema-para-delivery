@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Button from './Button'
 import ConfirmationDialog from './ConfirmationDialog'
 import Modal from './Modal'
@@ -6,6 +6,8 @@ import Modal from './Modal'
 function TableTransferDialog({ sourceTable, tables, disabled, onClose, onTransfer }) {
   const [destinationId, setDestinationId] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [expectedTableTabId] = useState(() => sourceTable.openTableTab?.id ?? sourceTable.openTableTabId ?? '')
+  const submittingRef = useRef(false)
   const destinations = useMemo(
     () => tables.filter((table) => table.isActive && table.occupancy === 'free' && table.id !== sourceTable.id),
     [sourceTable.id, tables],
@@ -13,9 +15,20 @@ function TableTransferDialog({ sourceTable, tables, disabled, onClose, onTransfe
   const destination = destinations.find((table) => table.id === destinationId) ?? null
 
   const confirmTransfer = async () => {
-    if (!destination || disabled) return
-    const transferred = await onTransfer(sourceTable.id, destination.id)
-    if (transferred) onClose()
+    const currentSource = tables.find((table) => table.id === sourceTable.id)
+    const currentTableTabId = currentSource?.openTableTab?.id ?? currentSource?.openTableTabId ?? ''
+    if (!destination || disabled || submittingRef.current) return
+    if (!expectedTableTabId || currentTableTabId !== expectedTableTabId) {
+      onClose()
+      return
+    }
+    submittingRef.current = true
+    try {
+      const transferred = await onTransfer(sourceTable.id, destination.id, expectedTableTabId)
+      if (transferred) onClose()
+    } finally {
+      submittingRef.current = false
+    }
   }
 
   if (confirming && destination) {

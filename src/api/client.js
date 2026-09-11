@@ -44,9 +44,9 @@ export const getOrders = () => apiRequest('/api/orders')
 export const createTable = (table) => apiRequest('/api/tables', withJson('POST', table))
 export const updateTable = (id, patch) => apiRequest(`/api/tables/${encodeURIComponent(id)}`, withJson('PATCH', patch))
 export const reorderTables = (tableIds) => apiRequest('/api/tables/order', withJson('PUT', { tableIds }))
-export const transferTableTab = (sourceTableId, destinationTableId) => apiRequest(
+export const transferTableTab = (sourceTableId, destinationTableId, expectedTableTabId) => apiRequest(
   `/api/tables/${encodeURIComponent(sourceTableId)}/transfer`,
-  withJson('POST', { destinationTableId }),
+  withJson('POST', { destinationTableId, expectedTableTabId }),
 )
 
 export const createClient = (client) => apiRequest('/api/clients', withJson('POST', client))

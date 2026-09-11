@@ -853,15 +853,19 @@ function App() {
       return true
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
-  const handleTransferTableTab = async (sourceTableId, destinationTableId) => {
+  const handleTransferTableTab = async (sourceTableId, destinationTableId, expectedTableTabId) => {
     if (writesBlocked) return false
     setRequestKey(`table:transfer:${sourceTableId}`)
     try {
-      const result = await transferTableTabApi(sourceTableId, destinationTableId)
+      const result = await transferTableTabApi(sourceTableId, destinationTableId, expectedTableTabId)
       applyOfficialEffects({ tables: result.tables, tableTab: result.tableTab })
       showSuccessMessage('Comanda transferida com sucesso')
       return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
+    } catch (error) {
+      if (error?.status === 409) await refreshBootstrapSilently()
+      showApiError(error)
+      return false
+    } finally { setRequestKey(null) }
   }
   const handleUpdatePaymentPromise = async (orderId, promisedPaymentDate) => {
     if (writesBlocked) return false

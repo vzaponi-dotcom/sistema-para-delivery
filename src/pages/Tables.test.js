@@ -43,7 +43,7 @@ test('occupied tables explain their restrictions and use a single confirmed tran
   assert.match(page, /Transferir comanda/)
   assert.match(transferDialog, /table\.isActive && table\.occupancy === 'free' && table\.id !== sourceTable\.id/)
   assert.match(transferDialog, /Transferir \$\{sourceTable\.name\} → \$\{destination\.name\}\?/)
-  assert.match(transferDialog, /onTransfer\(sourceTable\.id, destination\.id\)/)
+  assert.match(transferDialog, /onTransfer\(sourceTable\.id, destination\.id, expectedTableTabId\)/)
 })
 
 test('table management styling remains theme-token based and mobile-safe', async () => {

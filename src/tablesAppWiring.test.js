@@ -65,7 +65,7 @@ test('App prepares table mutation handlers using official API responses and requ
   for (const handler of ['handleCreateTable', 'handleRenameTable', 'handleSetTableActive', 'handleReorderTables', 'handleTransferTableTab']) {
     assert.match(app, new RegExp(`const ${handler} = async`))
   }
-  assert.match(app, /transferTableTabApi\(sourceTableId, destinationTableId\)[\s\S]*?applyOfficialEffects\(\{ tables: result\.tables, tableTab: result\.tableTab \}\)/)
+  assert.match(app, /transferTableTabApi\(sourceTableId, destinationTableId, expectedTableTabId\)[\s\S]*?applyOfficialEffects\(\{ tables: result\.tables, tableTab: result\.tableTab \}\)/)
 })
 
 test('NewOrder receives the official tables collection for registered table selection', () => {

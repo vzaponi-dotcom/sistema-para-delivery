@@ -91,12 +91,18 @@ const authenticatedApi = async (request, env) => {
   const tableTransferMatch = url.pathname.match(/^\/api\/tables\/([^/]+)\/transfer$/)
   if (tableTransferMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const { destinationTableId } = await readJson(request)
+    const { destinationTableId, expectedTableTabId } = await readJson(request)
+    if (typeof expectedTableTabId !== 'string' || !expectedTableTabId.trim()) {
+      throw apiError(400, 'EXPECTED_TABLE_TAB_REQUIRED', 'A comanda confirmada não foi informada. Recarregue a página e selecione novamente.')
+    }
+    const normalizedDestinationTableId = requireNonEmpty(destinationTableId, 'destinationTableId')
     const tableTab = await transferOpenTableTab(
       env.DB,
       session.businessId,
       decodeURIComponent(tableTransferMatch[1]),
-      destinationTableId,
+      normalizedDestinationTableId,
+      new Date(),
+      expectedTableTabId.trim(),
     )
     return json({ tables: await listTables(env.DB, session.businessId), tableTab })
   }
