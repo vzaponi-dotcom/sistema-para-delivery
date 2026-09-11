@@ -43,23 +43,25 @@ test('App derives pending refunds and applies the authoritative deferred refund 
   assert.doesNotMatch(app, /refundStatus/)
 })
 
-test('more menu actions including theme and logout stay touch friendly', async () => {
+test('more menu keeps only approved direct destinations and touch-friendly actions', async () => {
   const nav = await read('../components/MobileNavigation.jsx')
   const navCss = await read('../mobile-navigation.css')
 
   assert.match(nav, /<BottomSheet[^>]*title="Mais opções"/)
-  assert.match(nav, />A Receber</)
-  assert.match(nav, />Financeiro</)
-  assert.match(nav, /Sair do sistema/)
+  const moreEntries = nav.match(/const moreEntries = \[(.*?)\]\n/s)?.[1] || ''
+  for (const id of ['print-queue', 'clients', 'products', 'tables']) assert.match(moreEntries, new RegExp(`id: '${id}'`))
+  assert.match(moreEntries, /area: 'settings'/)
+  assert.doesNotMatch(moreEntries, /history|dashboard|receivables|finance/)
+  assert.match(nav, />Sair</)
+  assert.doesNotMatch(nav, /theme-cycle-button|mobile-more-theme/)
   assert.match(navCss, /\.mobile-more-action,\s*\.mobile-more-logout\s*\{[\s\S]*?min-height:\s*48px/s)
-  assert.match(navCss, /\.mobile-more-theme \.theme-cycle-button\s*\{[^}]*min-height:\s*44px/s)
 })
 
 test('more menu remains safe at 320px without horizontal label clipping', async () => {
   const navCss = await read('../mobile-navigation.css')
   const sheetCss = await read('../bottom-sheet.css')
 
-  assert.match(navCss, /\.mobile-more-theme \.theme-cycle-button\s*\{[^}]*width:\s*100%/s)
-  assert.match(navCss, /\.mobile-more-theme \.theme-cycle-button:focus-visible/)
+  assert.match(navCss, /\.mobile-more-action,\s*\.mobile-more-logout\s*\{[^}]*width:\s*100%/s)
+  assert.match(navCss, /\.mobile-nav-item span\s*\{[^}]*text-overflow:\s*ellipsis/s)
   assert.match(sheetCss, /env\(safe-area-inset-bottom/)
 })

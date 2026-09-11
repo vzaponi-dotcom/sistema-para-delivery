@@ -32,27 +32,26 @@ test('active kitchen ticket actions use two readable columns and full touch targ
   assert.match(source, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*normal/s)
 })
 
-test('sidebar theme picker is a visual three-option segmented control with icons', async () => {
+test('theme is absent from Sidebar and remains available in Settings device preferences', async () => {
   const sidebar = await read('./components/Sidebar.jsx')
-  assert.doesNotMatch(sidebar, /<select/)
-  assert.match(sidebar, /theme-segmented-control/)
-  assert.match(sidebar, /aria-pressed=/)
-  assert.match(sidebar, /icon:\s*'sun'/)
-  assert.match(sidebar, /icon:\s*'moon'/)
-  assert.match(sidebar, /icon:\s*'system'/)
-  assert.match(sidebar, /<Icon name=\{option\.icon\}/)
+  const settings = await read('./pages/Settings.jsx')
+  assert.doesNotMatch(sidebar, /theme-segmented-control|themePreference|setThemePreference/)
+  assert.match(settings, /Preferências deste dispositivo/)
+  assert.match(settings, /const themeOptions =/)
+  assert.match(settings, /aria-pressed=\{themePreference === option\.value\}/)
+  assert.match(settings, /setThemePreference\(option\.value\)/)
 })
 
-test('desktop theme remains compact while mobile navigation owns logout and avoids horizontal menu scrolling', async () => {
+test('mobile navigation owns logout, omits theme controls and avoids horizontal menu scrolling', async () => {
   const themeCss = await read('./theme-controls.css')
   const sidebar = await read('./components/Sidebar.jsx')
   const mobileNavigation = await read('./components/MobileNavigation.jsx')
   const mobileCss = await read('./mobile-navigation.css')
 
-  assert.match(themeCss, /\.theme-option\s*\{[^}]*flex-direction:\s*column/s)
   assert.doesNotMatch(sidebar, /sidebar-mobile-logout/)
   assert.doesNotMatch(themeCss, /overflow-x:\s*auto/)
-  assert.match(mobileNavigation, /Sair do sistema/)
+  assert.match(mobileNavigation, />Sair</)
+  assert.doesNotMatch(mobileNavigation, /theme-cycle-button|themePreference/)
   assert.match(mobileNavigation, /BottomSheet/)
   assert.match(mobileCss, /\.app-shell\s*>\s*\.sidebar\s*\{[^}]*display:\s*none/s)
   assert.match(mobileCss, /\.mobile-bottom-nav[\s\S]*position:\s*fixed/s)
