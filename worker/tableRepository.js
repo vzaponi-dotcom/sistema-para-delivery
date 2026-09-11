@@ -224,17 +224,21 @@ export const transferOpenTableTab = async (
   sourceTableId,
   destinationTableId,
   now = new Date(),
+  expectedTableTabId,
 ) => {
+  if (typeof expectedTableTabId !== 'string' || !expectedTableTabId.trim()) {
+    throw domainError(400, 'EXPECTED_TABLE_TAB_REQUIRED', 'A comanda confirmada não foi informada. Recarregue a página e selecione novamente.')
+  }
   if (sourceTableId === destinationTableId) {
     throw domainError(409, 'TABLE_TRANSFER_SAME_TABLE', 'A mesa de destino deve ser diferente da origem.')
   }
 
   const sourceTab = await db.prepare(`SELECT id
     FROM table_tabs
-    WHERE business_id = ? AND table_id = ? AND status = 'open'
-    LIMIT 1`).bind(businessId, sourceTableId).first()
+    WHERE business_id = ? AND table_id = ? AND id = ? AND status = 'open'
+    LIMIT 1`).bind(businessId, sourceTableId, expectedTableTabId.trim()).first()
   if (!sourceTab) {
-    throw domainError(409, 'TABLE_SOURCE_FREE', 'A mesa de origem não possui comanda aberta.')
+    throw domainError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
   }
 
   const destination = await db.prepare(`SELECT
@@ -260,19 +264,33 @@ export const transferOpenTableTab = async (
   let result
   try {
     result = await db.prepare(`UPDATE table_tabs
-      SET table_id = ?, table_identifier = ?, updated_at = ?
+      SET table_id = ?,
+        table_identifier = (
+          SELECT name FROM tables
+          WHERE business_id = ? AND id = ? AND is_active = 1
+        ),
+        updated_at = ?
       WHERE business_id = ?
         AND table_id = ?
+        AND id = ?
         AND status = 'open'
+        AND EXISTS (
+          SELECT 1 FROM tables
+          WHERE business_id = ? AND id = ? AND is_active = 1
+        )
         AND NOT EXISTS (
           SELECT 1 FROM table_tabs
           WHERE business_id = ? AND table_id = ? AND status = 'open'
         )`).bind(
       destination.id,
-      destination.name,
+      businessId,
+      destination.id,
       now.toISOString(),
       businessId,
       sourceTableId,
+      expectedTableTabId.trim(),
+      businessId,
+      destination.id,
       businessId,
       destination.id,
     ).run()
@@ -282,18 +300,31 @@ export const transferOpenTableTab = async (
   }
 
   if (result?.meta?.changes !== 1) {
-    const occupiedDestination = await db.prepare(`SELECT id
-      FROM table_tabs
-      WHERE business_id = ? AND table_id = ? AND status = 'open'
+    const currentDestination = await db.prepare(`SELECT
+        tables.is_active,
+        open_tabs.id AS open_table_tab_id
+      FROM tables
+      LEFT JOIN table_tabs open_tabs
+        ON open_tabs.business_id = tables.business_id
+       AND open_tabs.table_id = tables.id
+       AND open_tabs.status = 'open'
+      WHERE tables.business_id = ? AND tables.id = ?
       LIMIT 1`).bind(businessId, destination.id).first()
+    if (!currentDestination) {
+      throw domainError(404, 'TABLE_DESTINATION_NOT_FOUND', 'Mesa de destino não encontrada.')
+    }
+    if (!currentDestination.is_active) {
+      throw domainError(409, 'TABLE_DESTINATION_INACTIVE', 'A mesa de destino está inativa.')
+    }
+    const occupiedDestination = currentDestination.open_table_tab_id
     if (occupiedDestination) throw tableDestinationOccupiedError()
 
-    const currentSource = await db.prepare(`SELECT id
+    const expectedSource = await db.prepare(`SELECT id
       FROM table_tabs
-      WHERE business_id = ? AND table_id = ? AND status = 'open'
-      LIMIT 1`).bind(businessId, sourceTableId).first()
-    if (!currentSource) {
-      throw domainError(409, 'TABLE_SOURCE_FREE', 'A mesa de origem não possui comanda aberta.')
+      WHERE business_id = ? AND table_id = ? AND id = ? AND status = 'open'
+      LIMIT 1`).bind(businessId, sourceTableId, expectedTableTabId.trim()).first()
+    if (!expectedSource) {
+      throw domainError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
     }
     throw domainError(409, 'TABLE_TRANSFER_CONFLICT', 'Não foi possível transferir a comanda.')
   }

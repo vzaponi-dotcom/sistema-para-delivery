@@ -133,13 +133,13 @@ test('table management helpers use encoded authenticated API routes and exact pa
     await tableClient.createTable({ name: 'Varanda' })
     await tableClient.updateTable('mesa 1', { isActive: false })
     await tableClient.reorderTables(['mesa-2', 'mesa-1'])
-    await tableClient.transferTableTab('mesa 1', 'mesa-2')
+    await tableClient.transferTableTab('mesa 1', 'mesa-2', 'tab-37')
   })
 
   assert.deepEqual(calls.map(([path, options]) => [path, options.method, JSON.parse(options.body)]), [
     ['/api/tables', 'POST', { name: 'Varanda' }],
     ['/api/tables/mesa%201', 'PATCH', { isActive: false }],
     ['/api/tables/order', 'PUT', { tableIds: ['mesa-2', 'mesa-1'] }],
-    ['/api/tables/mesa%201/transfer', 'POST', { destinationTableId: 'mesa-2' }],
+    ['/api/tables/mesa%201/transfer', 'POST', { destinationTableId: 'mesa-2', expectedTableTabId: 'tab-37' }],
   ])
 })

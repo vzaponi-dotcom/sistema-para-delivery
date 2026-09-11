@@ -209,6 +209,55 @@ test('mutations reject a missing or cross-origin Origin header', async () => {
   assert.equal((await response.json()).error.code, 'ORIGIN_NOT_ALLOWED')
 })
 
+test('table transfer requires a non-empty string expectedTableTabId without mutating state', async () => {
+  const env = await makeEnv()
+  const loginResponse = await login(env)
+  const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
+  const before = [...env.DB.tableTabs.entries()]
+
+  for (const body of [
+    {},
+    { destinationTableId: 'destination' },
+    { destinationTableId: 'destination', expectedTableTabId: '' },
+    { destinationTableId: 'destination', expectedTableTabId: '   ' },
+    { destinationTableId: 'destination', expectedTableTabId: 37 },
+  ]) {
+    const response = await handleRequest(new Request('https://delivery.example/api/tables/source/transfer', {
+      method: 'POST', headers, body: JSON.stringify(body),
+    }), env)
+    assert.equal(response.status, 400)
+    assert.equal((await response.json()).error.code, 'EXPECTED_TABLE_TAB_REQUIRED')
+  }
+  assert.deepEqual([...env.DB.tableTabs.entries()], before)
+})
+
+test('table transfer rejects an expected identity that is not the open tab at the source', async () => {
+  const env = await makeEnv()
+  const loginResponse = await login(env)
+  const response = await handleRequest(new Request('https://delivery.example/api/tables/source/transfer', {
+    method: 'POST',
+    headers: mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] }),
+    body: JSON.stringify({ destinationTableId: 'destination', expectedTableTabId: 'closed-A' }),
+  }), env)
+
+  assert.equal(response.status, 409)
+  assert.equal((await response.json()).error.code, 'TABLE_TAB_CHANGED')
+})
+
+test('table transfer requires a non-empty destination identity', async () => {
+  const env = await makeEnv()
+  const loginResponse = await login(env)
+  const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
+
+  for (const destinationTableId of [undefined, '', '   ', 2]) {
+    const response = await handleRequest(new Request('https://delivery.example/api/tables/source/transfer', {
+      method: 'POST', headers, body: JSON.stringify({ destinationTableId, expectedTableTabId: 'A' }),
+    }), env)
+    assert.equal(response.status, 400)
+    assert.equal((await response.json()).error.code, 'VALIDATION_ERROR')
+  }
+})
+
 test('authenticated bootstrap returns the shared clean business dataset', async () => {
   const env = await makeEnv()
   env.DB.tables.set('table-2', { id: 'table-2', business_id: 'amor-e-sabor', name: 'Mesa 2', sort_order: 2, is_active: 1 })

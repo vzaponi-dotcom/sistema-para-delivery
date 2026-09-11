@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createManualTableTabPrintJob, getTableTabDetail, getTableTabPrintDocument } from './client.js'
+import { createManualTableTabPrintJob, getTableTabDetail, getTableTabPrintDocument, transferTableTab } from './client.js'
 
 const withFetch = async (implementation, callback) => {
   const original = globalThis.fetch
@@ -54,4 +54,18 @@ test('table tab print helper queues one consolidated comanda through an encoded 
   assert.equal(calls[0][1].method, 'POST')
   assert.equal(calls[0][1].credentials, 'same-origin')
   assert.deepEqual(JSON.parse(calls[0][1].body), {})
+})
+
+test('table transfer sends exactly the captured tab identity', async () => {
+  const calls = []
+  await withFetch(async (...args) => {
+    calls.push(args)
+    return new Response(JSON.stringify({ tableTab: { id: 'tab-A' }, tables: [] }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }, async () => {
+    await transferTableTab('mesa / 1', 'mesa-2', 'tab-A')
+  })
+
+  assert.equal(calls[0][0], '/api/tables/mesa%20%2F%201/transfer')
+  assert.equal(calls[0][1].method, 'POST')
+  assert.deepEqual(JSON.parse(calls[0][1].body), { destinationTableId: 'mesa-2', expectedTableTabId: 'tab-A' })
 })
