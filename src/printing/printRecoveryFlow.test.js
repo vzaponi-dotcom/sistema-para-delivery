@@ -41,7 +41,23 @@ test('a recovery action claims and executes exactly one first copy without firin
   })
 
   assert.equal(result.status, 'printed')
+  assert.equal(result.jobId, 'first')
   assert.deepEqual(calls, ['claim', 'execute:first:0'])
+})
+
+test('recovery delegates durable affinity scheduling to the server and executes nothing when it stays blocked', async () => {
+  let claims = 0
+  const result = await runSingleRecoveryCopy({
+    recoveryState: 'active',
+    recoveryJobId: 'first',
+    physicalReady: true,
+    busyJobId: null,
+    claimNext: async () => { claims += 1; return null },
+    executeJob: async () => assert.fail('an unresolved affinity must not execute another job'),
+  })
+
+  assert.equal(result, null)
+  assert.equal(claims, 1)
 })
 
 test('recovery never claims while it is deferred, offline, or already printing', async () => {

@@ -6,9 +6,9 @@ const isAwaitingSecondCopy = (job) => job?.status === 'awaiting_second_copy'
 
 const isActiveOrder = (order) => !['Finalizado', 'Cancelado'].includes(order?.status)
 
-export const acknowledgeAndOpenSecondCopyPrompt = async ({ job, acknowledge, openPrompt }) => {
+export const acknowledgeAndOpenSecondCopyPrompt = async ({ job, acknowledge, openPrompt, reopenAcknowledged = false }) => {
   const result = await acknowledge(job)
-  if (result?.promptPresented) openPrompt(job.id)
+  if (result?.promptPresented || reopenAcknowledged) openPrompt(job.id)
   return result
 }
 

@@ -20,10 +20,17 @@ test('recovery UI only becomes actionable for a physically ready printer and inc
   assert.match(app, /recoveryPendingCount/)
 })
 
-test('bulk discard requires a count-specific confirmation and recovery never auto-opens a second-copy prompt', () => {
+test('bulk discard stays explicit while recovery reopens only its affinity second-copy prompt', () => {
   assert.match(app, /Descartar \$\{recoveryPendingCount\} trabalhos\?/)
   assert.match(app, /printing\.discardRecoveryBacklog\(\)/)
-  assert.match(app, /if \(recoveryState !== 'normal'\)[\s\S]*canPresentSecondCopyPrompt/)
+  assert.match(app, /recoveryJobId/)
+  assert.match(app, /pausedRecoverySecondCopyJobIdRef/)
+  assert.match(app, /secondCopyPromptJob[\s\S]*cancelLabel="Parar por agora"/)
+  assert.match(app, /if \(recoveryState === 'active'\) void printing\.deferRecovery\(\)/)
+  assert.match(app, /if \(hasRecoveryAffinity && pausedRecoverySecondCopyJobIdRef\.current === recoveryJobId\) return/)
+  assert.doesNotMatch(app, /recoveryState === 'active' && pausedRecoverySecondCopyJobIdRef\.current === recoveryJobId/)
+  assert.match(app, /previousRecoveryStateRef\.current === 'deferred' && recoveryState === 'active'/)
+  assert.match(app, /pausedRecoverySecondCopyJobIdRef\.current = null[\s\S]*printing\.resumeRecovery\(\)/)
   assert.match(app, /printing\.startRecovery\(\)/)
   assert.match(app, /printing\.resumeRecovery\(\)[\s\S]*printing\.printNextRecovery\(\)/)
 })

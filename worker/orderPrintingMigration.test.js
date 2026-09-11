@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite'
 const initialSql = await readFile(new URL('../migrations/0010_order_printing.sql', import.meta.url), 'utf8').catch(() => '')
 const centralizedQueueSql = await readFile(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8').catch(() => '')
 const operationalConfirmationSql = await readFile(new URL('../migrations/0019_print_operational_confirmation.sql', import.meta.url), 'utf8').catch(() => '')
+const recoveryAffinitySql = await readFile(new URL('../migrations/0023_print_recovery_job_affinity.sql', import.meta.url), 'utf8').catch(() => '')
 
 test('printing migration adds immutable ticket contact snapshots and station/job tables', () => {
   assert.match(initialSql, /ALTER TABLE orders ADD COLUMN client_phone_snapshot TEXT NOT NULL DEFAULT ''/)
@@ -162,5 +163,24 @@ test('operational confirmation migration preserves 0018 data and adds durable at
     attempt_number: 1,
     spool_job_name: 'spool-operational',
     status: 'prepared',
+  })
+})
+
+test('recovery affinity migration preserves stations and adds a nullable current job', async () => {
+  const db = new DatabaseSync(':memory:')
+  const migrationFiles = (await readdir(migrationsUrl)).filter((file) => file < '0023_print_recovery_job_affinity.sql').sort()
+  for (const file of migrationFiles) db.exec(await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8'))
+
+  const createdAt = '2026-09-10T12:00:00.000Z'
+  db.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('business-affinity', 'affinity', 'Affinity', createdAt, createdAt)
+  db.prepare('INSERT INTO print_stations (id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('station-affinity', 'business-affinity', 'Kitchen', 'windows', 1, 1, 2, createdAt, createdAt)
+
+  db.exec(recoveryAffinitySql)
+
+  assert.deepEqual({ ...db.prepare('SELECT id, recovery_job_id FROM print_stations WHERE id = ?').get('station-affinity') }, {
+    id: 'station-affinity',
+    recovery_job_id: null,
   })
 })

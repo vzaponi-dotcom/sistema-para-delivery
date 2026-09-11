@@ -46,6 +46,7 @@ class D1Sqlite {
         qz_ready INTEGER NOT NULL DEFAULT 0,
         printer_ready INTEGER NOT NULL DEFAULT 0,
         last_ready_at TEXT,
+        recovery_job_id TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );

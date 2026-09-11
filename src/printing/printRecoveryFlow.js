@@ -33,5 +33,6 @@ export const runSingleRecoveryCopy = async ({ recoveryState, physicalReady, busy
   if (!canRunSingleRecoveryCopy({ recoveryState, physicalReady, busyJobId })) return null
   const claimed = await claimNext()
   if (!claimed?.job) return null
-  return executeJob(claimed.job)
+  const result = await executeJob(claimed.job)
+  return result && typeof result === 'object' ? { ...result, jobId: claimed.job.id } : result
 }

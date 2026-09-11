@@ -1,5 +1,5 @@
 import { createTestPrintDocument } from '../shared/orderPrintDocument.js'
-import { resolvePrintQueueState } from '../shared/printQueue.js'
+import { isPrintQueueTerminal, resolvePrintQueueState } from '../shared/printQueue.js'
 import { isForcePrintReason, isRetryablePrintJob } from '../shared/printQueueActions.js'
 
 export const PRINT_PENDING_MAX_AGE_MS = 10 * 60 * 1000
@@ -104,6 +104,7 @@ const mapStationRow = (row, now = new Date()) => {
     physicalStatusAt: row.physical_status_at ?? null,
     lastOfflineAt: row.last_offline_at ?? null,
     recoveryState: row.recovery_state ?? 'normal',
+    recoveryJobId: row.recovery_job_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -514,17 +515,31 @@ export const setPrintRecoveryState = async (db, businessId, stationId, state, no
     throw repositoryError(400, 'INVALID_PRINT_RECOVERY_STATE', 'Invalid print recovery state.')
   }
   const at = timestamp(now)
-  const row = await db.prepare(`UPDATE print_stations SET recovery_state = ?, updated_at = ?
+  const row = await db.prepare(`UPDATE print_stations SET recovery_state = ?,
+      recovery_job_id = CASE WHEN ? = 'normal' THEN NULL ELSE recovery_job_id END, updated_at = ?
     WHERE id = ? AND business_id = ? AND (
       (recovery_state = 'normal' AND ? = 'pending')
       OR (recovery_state = 'pending' AND ? IN ('active', 'deferred', 'normal'))
       OR (recovery_state = 'active' AND ? IN ('active', 'deferred', 'normal'))
       OR (recovery_state = 'deferred' AND ? IN ('active', 'normal'))
+    ) AND (
+      ? <> 'normal' OR recovery_job_id IS NULL OR NOT EXISTS (
+        SELECT 1 FROM print_jobs
+        WHERE id = print_stations.recovery_job_id AND business_id = print_stations.business_id
+          AND status NOT IN ('printed', 'discarded')
+      )
     ) RETURNING *`)
-    .bind(nextState, at, stationId, businessId, nextState, nextState, nextState, nextState).first()
+    .bind(nextState, nextState, at, stationId, businessId,
+      nextState, nextState, nextState, nextState, nextState).first()
   if (row) return mapStationRow(row, now)
   const station = await loadPrintStation(db, businessId, stationId, now)
   if (!station) throw repositoryError(404, 'PRINT_STATION_NOT_FOUND', 'Print station not found.')
+  if (nextState === 'normal' && station.recoveryJobId) {
+    const recoveryJob = await loadPrintJob(db, businessId, station.recoveryJobId)
+    if (recoveryJob && !isPrintQueueTerminal(recoveryJob.status)) {
+      throw repositoryError(409, 'PRINT_RECOVERY_JOB_UNRESOLVED', 'O trabalho atual da recuperação ainda não foi resolvido.')
+    }
+  }
   throw repositoryError(409, 'PRINT_RECOVERY_TRANSITION_NOT_ALLOWED', 'Print recovery transition is not allowed.')
 }
 
@@ -555,7 +570,7 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
 
 export const claimPrintJob = async (db, businessId, jobId, stationId, now = new Date()) => {
   const station = await requirePrimaryQzPrintStation(db, businessId, stationId, now)
-  if (station.recoveryState !== 'normal') {
+  if (station.recoveryState !== 'normal' && station.recoveryJobId !== jobId) {
     throw repositoryError(409, 'PRINT_RECOVERY_REQUIRED', 'Print recovery must be resolved before claiming jobs.')
   }
   await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
@@ -585,7 +600,15 @@ export const markPrintJobPrinted = async (db, businessId, jobId, stationId, copi
     WHERE id = ? AND business_id = ? AND status = 'processing' AND station_id = ?
       AND ? > copies_printed AND ? <= copies_requested
     RETURNING *`).bind(copies, copies, at, jobId, businessId, stationId, copies, copies).first()
-  if (row) return mapJobRow(row)
+  if (row) {
+    const job = mapJobRow(row)
+    if (isPrintQueueTerminal(job.status)) {
+      await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+        WHERE id = ? AND business_id = ? AND recovery_job_id = ?`)
+        .bind(at, stationId, businessId, jobId).run()
+    }
+    return job
+  }
   const existing = await loadPrintJob(db, businessId, jobId)
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   throw repositoryError(409, 'PRINT_JOB_NOT_PROCESSING', 'Este trabalho não está sendo processado por esta estação.')
@@ -639,7 +662,11 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
           AND print_job_attempts.status <> 'complete'
       )
     RETURNING *`).bind(at, actor, at, jobId, businessId).first()
-  if (row) return mapJobRow(row)
+  if (row) {
+    await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE business_id = ? AND recovery_job_id = ?`).bind(at, businessId, jobId).run()
+    return mapJobRow(row)
+  }
 
   const current = await loadPrintJob(db, businessId, jobId)
   if (current?.status === 'discarded') return current
@@ -666,6 +693,25 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
   const station = await requirePrimaryQzPrintStation(db, businessId, stationId, now)
   if (!station.health.ready || station.recoveryState !== 'active') return null
   await routeIneligibleAutomaticJobsToAttention(db, businessId, now)
+  if (station.recoveryJobId) {
+    const recoveryJob = await loadPrintJob(db, businessId, station.recoveryJobId)
+    if (recoveryJob && !isPrintQueueTerminal(recoveryJob.status)) {
+      if (recoveryJob.status !== 'pending') return null
+      const at = timestamp(now)
+      const lock = await db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', updated_at = ?
+        WHERE id = ? AND business_id = ? AND recovery_state = 'active' AND recovery_job_id = ? RETURNING id`)
+        .bind(at, stationId, businessId, recoveryJob.id).first()
+      if (!lock) return null
+      const row = await db.prepare(`UPDATE print_jobs SET
+          status = 'processing', station_id = ?, processing_started_at = ?, last_error_code = NULL, last_error_message = NULL
+        WHERE id = ? AND business_id = ? AND status = 'pending' AND (available_at IS NULL OR available_at <= ?)
+        RETURNING *`).bind(stationId, at, recoveryJob.id, businessId, at).first()
+      return mapJobRow(row)
+    }
+    await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE id = ? AND business_id = ? AND recovery_job_id = ?`)
+      .bind(timestamp(now), stationId, businessId, station.recoveryJobId).run()
+  }
   const at = timestamp(now)
   const candidate = await db.prepare(`SELECT id FROM print_jobs
     WHERE business_id = ? AND type = 'order' AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
@@ -680,9 +726,9 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
     .bind(businessId, at).first()
   if (!candidate?.id) return null
 
-  const lock = await db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', updated_at = ?
+  const lock = await db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', recovery_job_id = ?, updated_at = ?
     WHERE id = ? AND business_id = ? AND recovery_state = 'active' RETURNING id`)
-    .bind(at, stationId, businessId).first()
+    .bind(candidate.id, at, stationId, businessId).first()
   if (!lock) return null
 
   const row = await db.prepare(`UPDATE print_jobs SET
@@ -816,7 +862,11 @@ export const skipSecondCopy = async (db, businessId, jobId, actorLabel = 'Sistem
   const row = await db.prepare(`UPDATE print_jobs SET status = 'discarded', second_copy_skipped_at = ?, discarded_at = ?, action_at = ?, action_actor_label = ?
     WHERE id = ? AND business_id = ? AND status = 'awaiting_second_copy' AND copies_requested = 2 AND copies_printed = 1 RETURNING *`)
     .bind(at, at, at, actor, jobId, businessId).first()
-  if (row) return mapJobRow(row)
+  if (row) {
+    await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE business_id = ? AND recovery_job_id = ?`).bind(at, businessId, jobId).run()
+    return mapJobRow(row)
+  }
   const existing = await loadPrintJob(db, businessId, jobId)
   if (existing?.status === 'discarded' && existing.secondCopySkippedAt) return existing
   if (!existing) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
