@@ -57,3 +57,27 @@ test('QZ attempt never retries a post-submission failure and persists it as unkn
   assert.equal(sends, 1)
   assert.deepEqual(unknown, { receivedAttempt: attempt, stationId: 'station-1', error: failure })
 })
+
+test('QZ attempt resumes the same durable attempt when submitting committed but its response was lost', async () => {
+  let submittingCalls = 0
+  let sends = 0
+  const result = await executeQzPrintAttempt({
+    job,
+    stationId: 'station-1',
+    renderer: () => new Uint8Array([1]),
+    createAttempt: async () => attempt,
+    markSubmitting: async () => {
+      submittingCalls += 1
+      if (submittingCalls === 1) throw Object.assign(new Error('response lost'), { code: 'NETWORK_ERROR' })
+      return { ...attempt, status: 'submitting', submissionStartedAt: '2026-09-10T12:00:00.000Z' }
+    },
+    awaitOutcome: async () => ({ statusText: 'COMPLETE', jobName: attempt.spoolJobName, jobId: 45 }),
+    sendBytes: async () => { sends += 1 },
+    recordEvent: async () => ({ ...attempt, status: 'complete' }),
+    markUnknown: async () => assert.fail('a resumed submission must complete normally'),
+  })
+
+  assert.equal(result.status, 'confirmed')
+  assert.equal(submittingCalls, 2)
+  assert.equal(sends, 1)
+})

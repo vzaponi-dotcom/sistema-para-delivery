@@ -26,7 +26,11 @@ export const executeQzPrintAttempt = async ({
     const bytes = renderer(job.document, renderOptions)
     attempt = attemptValue(await createAttempt(job.id, stationId, copyNumber))
     trackAttempt?.(attempt, stationId)
-    attempt = attemptValue(await markSubmitting(attempt.id, stationId)) || attempt
+    try {
+      attempt = attemptValue(await markSubmitting(attempt.id, stationId)) || attempt
+    } catch {
+      attempt = attemptValue(await markSubmitting(attempt.id, stationId)) || attempt
+    }
     riskPersisted = true
     const outcome = awaitOutcome(attempt.spoolJobName)
     await sendBytes(bytes, { jobName: attempt.spoolJobName })

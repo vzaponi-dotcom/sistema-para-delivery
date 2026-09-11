@@ -33,6 +33,12 @@ class D1Sqlite {
       );
       CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
         WHERE type = 'order' AND trigger = 'automatic';
+      CREATE TABLE print_job_attempts (
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL,
+        attempt_number INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'prepared',
+        resolution TEXT, submission_started_at TEXT, last_event_at TEXT,
+        last_error_code TEXT, last_error_message TEXT, updated_at TEXT
+      );
     `)
   }
 

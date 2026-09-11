@@ -21,6 +21,7 @@ import {
 import { runClaimedPrintJob } from './printJobRunner.js'
 
 const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+const managerModule = await import('./usePrintingManager.js')
 
 const awaitingSecondCopyJob = {
   id: 'job-second-copy',
@@ -99,6 +100,45 @@ test('manager installs spooler monitoring before QZ jobs and routes QZ execution
   assert.match(managerSource, /qzAttemptByNameRef/)
   assert.match(managerSource, /physicalReady: printerHealthRef\.current\.state === 'ready'/)
   assert.match(managerSource, /station\?\.recoveryState/)
+})
+
+test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {
+  assert.equal(typeof managerModule.runExclusivePrintOperation, 'function')
+  let activeOwner = null
+  let releaseFirst
+  const firstPending = new Promise((resolve) => { releaseFirst = resolve })
+  const acquire = () => {
+    if (activeOwner) return null
+    activeOwner = { id: 1 }
+    return activeOwner
+  }
+  const release = (owner) => {
+    if (activeOwner === owner) activeOwner = null
+  }
+
+  const first = managerModule.runExclusivePrintOperation({ acquire, release, operation: () => firstPending })
+  await assert.rejects(
+    () => managerModule.runExclusivePrintOperation({ acquire, release, operation: async () => 'overlap' }),
+    (error) => error.code === 'PRINT_OPERATION_BUSY',
+  )
+  releaseFirst('first')
+  assert.equal(await first, 'first')
+  assert.equal(await managerModule.runExclusivePrintOperation({ acquire, release, operation: async () => 'next' }), 'next')
+})
+
+test('every manual physical workflow acquires the shared operation gate before claiming', () => {
+  for (const [startMarker, endMarker] of [
+    ['const testPrint = useCallback', 'const printOrder = useCallback'],
+    ['const printSecondCopy = useCallback', 'const transitionRecovery = useCallback'],
+    ['const printNextRecovery = useCallback', 'const startRecovery = useCallback'],
+    ['const retryJob = useCallback', 'const requestPrintNow = useCallback'],
+  ]) {
+    const start = managerSource.indexOf(startMarker)
+    const end = managerSource.indexOf(endMarker, start)
+    assert.notEqual(start, -1)
+    assert.notEqual(end, -1)
+    assert.match(managerSource.slice(start, end), /runExclusivePrintOperation/)
+  }
 })
 
 test('transport support alone cannot bypass station and local-readiness guards', () => {

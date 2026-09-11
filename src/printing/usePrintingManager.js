@@ -172,6 +172,16 @@ export const initializeBackgroundPhysicalTransport = async ({
   return true
 }
 
+export const runExclusivePrintOperation = async ({ acquire, release, operation }) => {
+  const owner = acquire()
+  if (!owner) throw printerError('PRINT_OPERATION_BUSY', 'Outra impressão física já está em andamento.')
+  try {
+    return await operation()
+  } finally {
+    release(owner)
+  }
+}
+
 const PHYSICAL_JOB_FAILURE_STATES = new Set(['failed', 'requires_attention'])
 
 export const createPhysicalJobFailureNotifier = () => {
@@ -662,14 +672,18 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response.station
   }, [refresh])
 
-  const testPrint = useCallback(async () => {
-    const station = localStationRef.current
-    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const port = await getExplicitPort()
-    const created = await createTestPrintJob(station.id)
-    const claimed = await claimPrintJob(created.job.id, station.id)
-    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
-  }, [executeClaimedJob, getExplicitPort])
+  const testPrint = useCallback(() => runExclusivePrintOperation({
+    acquire: acquirePrintOperation,
+    release: releasePrintOperation,
+    operation: async () => {
+      const station = localStationRef.current
+      if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+      const port = await getExplicitPort()
+      const created = await createTestPrintJob(station.id)
+      const claimed = await claimPrintJob(created.job.id, station.id)
+      return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
+    },
+  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
   const printOrder = useCallback(async (orderId, copies = localStationRef.current?.defaultCopies || 2) => {
     const created = await createManualPrintJob(orderId, copies)
@@ -677,23 +691,27 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return created
   }, [refresh, reportError])
 
-  const printSecondCopy = useCallback(async (job) => {
-    const station = localStationRef.current
-    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
-    return claimAndExecuteSecondCopy({
-      isQz,
-      transportReady: transportReadyRef.current,
-      printerBlocked: printerBlockedRef.current,
-      station,
-      job,
-      claimJob: claimPrintJob,
-      executeJob: (claimedJob) => executeClaimedJob(claimedJob, null, {
-        clearBlockOnSuccess: true,
-        preparePort: getExplicitPort,
-      }),
-    })
-  }, [executeClaimedJob, getExplicitPort, isQz])
+  const printSecondCopy = useCallback((job) => runExclusivePrintOperation({
+    acquire: acquirePrintOperation,
+    release: releasePrintOperation,
+    operation: async () => {
+      const station = localStationRef.current
+      if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+      if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+      return claimAndExecuteSecondCopy({
+        isQz,
+        transportReady: transportReadyRef.current,
+        printerBlocked: printerBlockedRef.current,
+        station,
+        job,
+        claimJob: claimPrintJob,
+        executeJob: (claimedJob) => executeClaimedJob(claimedJob, null, {
+          clearBlockOnSuccess: true,
+          preparePort: getExplicitPort,
+        }),
+      })
+    },
+  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, isQz, releasePrintOperation])
 
   const transitionRecovery = useCallback(async (action) => {
     const station = localStationRef.current
@@ -705,45 +723,49 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response?.station ?? station
   }, [updateLocalStation])
 
-  const printNextRecovery = useCallback(async () => {
-    const station = localStationRef.current
-    const eligible = canRunSingleRecoveryCopy({
-      recoveryState: station?.recoveryState,
-      physicalReady: printerHealthRef.current.state === 'ready',
-      busyJobId: busyJobIdRef.current,
-    })
-    if (!eligible || !station?.id) return null
-    const result = await runSingleRecoveryCopy({
-      recoveryState: station.recoveryState,
-      physicalReady: printerHealthRef.current.state === 'ready',
-      busyJobId: busyJobIdRef.current,
-      claimNext: () => claimNextRecoveryPrintJob(station.id),
-      executeJob: (job) => executeClaimedJob(job, null, {
-        clearBlockOnSuccess: true,
-        preparePort: getExplicitPort,
-      }),
-    })
-    if (result) {
-      const refreshed = await refresh()
-      const recoveredJob = refreshed?.jobs?.find((job) => job.id === result.jobId) ?? null
+  const printNextRecovery = useCallback(() => runExclusivePrintOperation({
+    acquire: acquirePrintOperation,
+    release: releasePrintOperation,
+    operation: async () => {
+      const station = localStationRef.current
+      const eligible = canRunSingleRecoveryCopy({
+        recoveryState: station?.recoveryState,
+        physicalReady: printerHealthRef.current.state === 'ready',
+        busyJobId: busyJobIdRef.current,
+      })
+      if (!eligible || !station?.id) return null
+      const result = await runSingleRecoveryCopy({
+        recoveryState: station.recoveryState,
+        physicalReady: printerHealthRef.current.state === 'ready',
+        busyJobId: busyJobIdRef.current,
+        claimNext: () => claimNextRecoveryPrintJob(station.id),
+        executeJob: (job) => executeClaimedJob(job, null, {
+          clearBlockOnSuccess: true,
+          preparePort: getExplicitPort,
+        }),
+      })
+      if (result) {
+        const refreshed = await refresh()
+        const recoveredJob = refreshed?.jobs?.find((job) => job.id === result.jobId) ?? null
+        const current = localStationRef.current
+        if (result.status === 'printed' && ['printed', 'discarded'].includes(recoveredJob?.status)
+          && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id
+          && current.recoveryState === 'deferred' && !current?.recoveryJobId) {
+          const response = await setPrintStationRecovery(current.id, 'normal')
+          if (response?.station) updateLocalStation(response.station)
+        }
+        return { ...result, job: recoveredJob }
+      }
+
       const current = localStationRef.current
-      if (result.status === 'printed' && ['printed', 'discarded'].includes(recoveredJob?.status)
-        && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id
-        && current.recoveryState === 'deferred' && !current?.recoveryJobId) {
+      if (current?.id && current.recoveryState === 'active' && !current.recoveryJobId) {
         const response = await setPrintStationRecovery(current.id, 'normal')
         if (response?.station) updateLocalStation(response.station)
       }
-      return { ...result, job: recoveredJob }
-    }
-
-    const current = localStationRef.current
-    if (current?.id && current.recoveryState === 'active' && !current.recoveryJobId) {
-      const response = await setPrintStationRecovery(current.id, 'normal')
-      if (response?.station) updateLocalStation(response.station)
-    }
-    await refresh()
-    return null
-  }, [executeClaimedJob, getExplicitPort, refresh, updateLocalStation])
+      await refresh()
+      return null
+    },
+  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, refresh, releasePrintOperation, updateLocalStation])
 
   const startRecovery = useCallback(async () => {
     await transitionRecovery('start')
@@ -791,16 +813,20 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return acknowledgeSecondCopyPromptApi(job.id, station.id)
   }, [isQz])
 
-  const retryJob = useCallback(async (jobOrId) => {
-    const station = localStationRef.current
-    if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
-    if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
-    const port = await getExplicitPort()
-    const reset = await retryPrintJob(jobId, station.id)
-    const claimed = await claimPrintJob(reset.job.id, station.id)
-    return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
-  }, [executeClaimedJob, getExplicitPort])
+  const retryJob = useCallback((jobOrId) => runExclusivePrintOperation({
+    acquire: acquirePrintOperation,
+    release: releasePrintOperation,
+    operation: async () => {
+      const station = localStationRef.current
+      if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
+      const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
+      if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+      const port = await getExplicitPort()
+      const reset = await retryPrintJob(jobId, station.id)
+      const claimed = await claimPrintJob(reset.job.id, station.id)
+      return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
+    },
+  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
   const requestPrintNow = useCallback(async (jobOrId) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id

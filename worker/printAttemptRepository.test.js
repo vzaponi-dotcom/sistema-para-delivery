@@ -280,3 +280,40 @@ test('concurrent attempt creation produces one attempt and one deterministic con
   assert.equal(results.filter((result) => result.status === 'rejected' && result.reason.code === 'PRINT_ATTEMPT_ACTIVE').length, 1)
   assert.equal((await listPrintJobAttempts(db, businessId, 'job-1')).length, 1)
 })
+
+test('real QZ terminal event names leave the physical result unknown', async () => {
+  for (const type of ['PAPEROUT', 'USER_INTERVENTION', 'UNMAPPED']) {
+    const db = setup()
+    const attempt = await createPrintJobAttempt(db, businessId, {
+      jobId: 'job-1', stationId: 'kitchen', copyNumber: 1,
+    }, now)
+    await markPrintAttemptSubmitting(db, businessId, attempt.id, 'kitchen', now)
+
+    const result = await recordPrintAttemptEvent(
+      db,
+      businessId,
+      attempt.id,
+      'kitchen',
+      qzEvent(attempt, type),
+      now,
+    )
+
+    assert.equal(result.status, 'unknown')
+    assert.equal((await loadPrintJob(db, businessId, 'job-1')).status, 'requires_attention')
+  }
+})
+
+test('a retry reuses the same prepared attempt after submission failed before physical risk', async () => {
+  const db = setup()
+  const prepared = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 1,
+  }, now)
+
+  const resumed = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 1,
+  }, new Date(now.getTime() + 1000))
+
+  assert.equal(resumed.id, prepared.id)
+  assert.equal(resumed.status, 'prepared')
+  assert.equal((await listPrintJobAttempts(db, businessId, 'job-1')).length, 1)
+})

@@ -31,7 +31,10 @@ class D1Sqlite {
         last_error_code TEXT, last_error_message TEXT
       );
       CREATE TABLE print_job_attempts (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL, submission_started_at TEXT
+        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL,
+        attempt_number INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'prepared',
+        resolution TEXT, submission_started_at TEXT,
+        last_event_at TEXT, last_error_code TEXT, last_error_message TEXT, updated_at TEXT
       );
       INSERT INTO businesses (id) VALUES ('biz');
     `)
@@ -186,5 +189,46 @@ test('queue summary is independent from pagination and counts only safely untouc
     attention: 2,
     completedToday: 1,
     safeBacklog: 1,
+  })
+})
+
+test('operational queue exposes the unresolved unknown attempt needed for manual resolution', async () => {
+  const db = new D1Sqlite()
+  await addJob(db, { id: 'uncertain', orderNumber: 8, status: 'requires_attention' })
+  await db.prepare(`UPDATE print_jobs SET last_error_code = 'PRINT_OUTCOME_UNKNOWN' WHERE id = 'uncertain'`).bind().run()
+  await db.prepare(`INSERT INTO print_job_attempts (
+    id, business_id, job_id, status, submission_started_at
+  ) VALUES (?, ?, ?, 'unknown', ?)`)
+    .bind('attempt-uncertain', 'biz', 'uncertain', now.toISOString()).run()
+
+  const page = await listPrintJobs(db, 'biz', { scope: 'operational', page: 1, pageSize: 10, now })
+
+  assert.deepEqual(page.jobs[0].attempt, {
+    id: 'attempt-uncertain',
+    status: 'unknown',
+    resolution: null,
+  })
+})
+
+test('stale awaiting confirmation becomes an explicit unknown outcome instead of remaining stuck', async () => {
+  const db = new D1Sqlite()
+  await addJob(db, {
+    id: 'lost-response', orderNumber: 9, status: 'awaiting_confirmation',
+    createdAt: new Date(now.getTime() - 5 * 60 * 1000),
+  })
+  const staleAt = new Date(now.getTime() - 3 * 60 * 1000).toISOString()
+  await db.prepare(`INSERT INTO print_job_attempts (
+    id, business_id, job_id, status, submission_started_at, updated_at
+  ) VALUES (?, ?, ?, 'submitting', ?, ?)`)
+    .bind('attempt-lost-response', 'biz', 'lost-response', staleAt, staleAt).run()
+
+  const page = await listPrintJobs(db, 'biz', { scope: 'operational', page: 1, pageSize: 10, now })
+
+  assert.equal(page.jobs[0].status, 'requires_attention')
+  assert.equal(page.jobs[0].lastError.code, 'PRINT_OUTCOME_UNKNOWN')
+  assert.deepEqual(page.jobs[0].attempt, {
+    id: 'attempt-lost-response',
+    status: 'unknown',
+    resolution: null,
   })
 })

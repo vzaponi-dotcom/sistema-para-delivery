@@ -75,3 +75,23 @@ test('QZ status monitor rejects pending outcomes when stopped or when its connec
   disconnected.emit({ printerName: 'MPT-II', eventType: 'CONNECTION_LOST', statusText: 'CLOSED' })
   await assert.rejects(disconnectedOutcome, (error) => error.code === 'QZ_OBSERVATION_LOST')
 })
+
+test('QZ terminal job failures reject only their matching pending outcome', async () => {
+  for (const statusText of ['ERROR', 'PAPER_OUT', 'PAPEROUT', 'INTERVENTION', 'USER_INTERVENTION', 'UNMAPPED', 'CANCELED', 'ABORTED']) {
+    const fake = makeQzApi()
+    const monitor = createQzStatusMonitor({ qzApi: fake.api, printerName: 'MPT-II' })
+    await monitor.start()
+    const jobName = `GESTAO-DELIVERY:job-${statusText}:COPY:1:ATTEMPT:1`
+    const outcome = monitor.awaitJobOutcome(jobName)
+    let rejection = null
+    const observed = outcome.catch((error) => { rejection = error })
+
+    fake.emit({ printerName: 'MPT-II', eventType: 'JOB', statusText, jobName })
+
+    await Promise.resolve()
+    await monitor.stop()
+    await observed
+    assert.equal(rejection?.code, 'QZ_JOB_TERMINAL')
+    assert.equal(rejection?.statusText, statusText)
+  }
+})

@@ -3,6 +3,11 @@ const qzObservationError = (cause) => Object.assign(
   { code: 'QZ_OBSERVATION_LOST', cause },
 )
 
+const qzJobTerminalError = (event) => Object.assign(
+  new Error(`O QZ encerrou o trabalho de impressão com o status ${event.statusText}.`),
+  { code: 'QZ_JOB_TERMINAL', statusText: event.statusText, event },
+)
+
 const text = (value) => {
   const normalized = String(value ?? '').trim()
   return normalized || null
@@ -45,6 +50,12 @@ const printerKey = (printerName) => text(printerName)?.toLocaleLowerCase() ?? ''
 const isGestaoDeliveryJob = (jobName) => /^GESTAO[\s_-]+DELIVERY:/i.test(String(jobName ?? '').trim())
 const isConnectionLoss = (event) => event.eventType?.includes('CONNECTION')
   && (event.eventType.includes('LOST') || /(CLOSED|DISCONNECT|OFFLINE|LOST)/.test(event.statusText?.toUpperCase() ?? ''))
+const TERMINAL_JOB_FAILURES = new Set([
+  'ERROR', 'FAILED',
+  'PAPER_OUT', 'PAPEROUT',
+  'INTERVENTION', 'USER_INTERVENTION',
+  'UNMAPPED', 'CANCELED', 'ABORTED', 'DELETED', 'OFFLINE',
+])
 
 export const createQzStatusMonitor = ({ qzApi, printerName, onPrinterStatus, onJobStatus } = {}) => {
   const selectedPrinter = text(printerName)
@@ -67,6 +78,14 @@ export const createQzStatusMonitor = ({ qzApi, printerName, onPrinterStatus, onJ
     for (const waiter of pending) waiter.resolve(event)
   }
 
+  const reject = (event) => {
+    const pending = waiters.get(event.jobName)
+    if (!pending) return
+    waiters.delete(event.jobName)
+    const error = qzJobTerminalError(event)
+    for (const waiter of pending) waiter.reject(error)
+  }
+
   const receive = (rawEvent) => {
     const event = normalizeQzStatusEvent(rawEvent)
     if (!event.printerName || printerKey(event.printerName) !== selectedKey) return
@@ -80,7 +99,9 @@ export const createQzStatusMonitor = ({ qzApi, printerName, onPrinterStatus, onJ
     }
     if (event.eventType !== 'JOB' || !isGestaoDeliveryJob(event.jobName)) return
     onJobStatus?.(event)
-    if (event.statusText?.toUpperCase() === 'COMPLETE') settle(event)
+    const jobStatus = event.statusText?.toUpperCase()
+    if (jobStatus === 'COMPLETE') settle(event)
+    else if (TERMINAL_JOB_FAILURES.has(jobStatus)) reject(event)
   }
 
   return {

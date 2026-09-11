@@ -296,6 +296,25 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
   const processingCutoff = new Date(at.getTime() - PRINT_PROCESSING_MAX_AGE_MS).toISOString()
 
   await routeIneligibleAutomaticJobsToAttention(db, businessId, at)
+  await db.prepare(`UPDATE print_job_attempts SET
+      status = 'unknown', last_event_at = ?, last_error_code = 'PRINT_OUTCOME_UNKNOWN',
+      last_error_message = 'O resultado físico da impressão não foi confirmado.', updated_at = ?
+    WHERE business_id = ? AND status IN ('submitting', 'spooling', 'printing')
+      AND resolution IS NULL AND submission_started_at <= ?`)
+    .bind(processedAt, processedAt, businessId, processingCutoff).run()
+  await db.prepare(`UPDATE print_jobs SET
+      status = 'requires_attention', processed_at = ?,
+      last_error_code = 'PRINT_OUTCOME_UNKNOWN',
+      last_error_message = 'O resultado físico da impressão não foi confirmado.'
+    WHERE business_id = ? AND status = 'awaiting_confirmation'
+      AND EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.status = 'unknown'
+          AND print_job_attempts.resolution IS NULL
+      )`)
+    .bind(processedAt, businessId).run()
   await db.prepare(`UPDATE print_jobs SET
       status = 'requires_attention', processed_at = ?,
       last_error_code = 'PRINT_OUTCOME_UNKNOWN',
@@ -308,10 +327,17 @@ const mapPrintQueueJobs = async (db, businessId, result, now) => {
   const station = await loadPrimaryPrintStation(db, businessId, now)
   return Promise.all(rows(result).map(async (row) => {
     const job = await applyLegacyForcePrintReason(db, businessId, mapJobRow(row))
+    const attempt = await db.prepare(`SELECT id, status, resolution FROM print_job_attempts
+      WHERE business_id = ? AND job_id = ? AND status = 'unknown' AND resolution IS NULL
+      ORDER BY attempt_number DESC LIMIT 1`).bind(businessId, job.id).first()
     const stationReady = job?.trigger === 'automatic'
       ? Boolean(station?.health?.automaticReady)
       : Boolean(station?.health?.ready)
-    return { ...job, queueState: resolvePrintQueueState(job.status, { stationReady }) }
+    return {
+      ...job,
+      attempt: attempt ? { id: attempt.id, status: attempt.status, resolution: attempt.resolution ?? null } : null,
+      queueState: resolvePrintQueueState(job.status, { stationReady }),
+    }
   }))
 }
 

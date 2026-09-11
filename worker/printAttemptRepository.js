@@ -111,6 +111,15 @@ export const createPrintJobAttempt = async (db, businessId, input, now = new Dat
     throw repositoryError(409, 'PRINT_ATTEMPT_JOB_NOT_PROCESSING', 'O trabalho não está sendo processado por esta estação.')
   }
 
+  const existingRow = await db.prepare(`SELECT * FROM print_job_attempts
+    WHERE business_id = ? AND job_id = ? AND copy_number = ? AND resolution IS NULL
+    ORDER BY attempt_number DESC LIMIT 1`).bind(businessId, jobId, copyNumber).first()
+  const existing = mapAttemptRow(existingRow)
+  if (existing?.status === 'prepared' && existing.stationId === stationId) return existing
+  if (existing) {
+    throw repositoryError(409, 'PRINT_ATTEMPT_ACTIVE', 'Já existe uma tentativa física sem resolução para esta via.')
+  }
+
   const id = crypto.randomUUID()
   const at = timestamp(now)
   const created = await db.prepare(`INSERT INTO print_job_attempts (
@@ -218,7 +227,10 @@ export const recordPrintAttemptEvent = async (db, businessId, attemptId, station
   const name = eventName(event)
   if (attempt.status === 'unknown') return attempt
   if (name === 'COMPLETE') return markComplete(db, businessId, attempt, stationId, details, now)
-  if (['OFFLINE', 'DELETED', 'CANCELED', 'ABORTED', 'ERROR', 'FAILED', 'PAPER_OUT', 'INTERVENTION'].includes(name)) {
+  if ([
+    'OFFLINE', 'DELETED', 'CANCELED', 'ABORTED', 'ERROR', 'FAILED',
+    'PAPER_OUT', 'PAPEROUT', 'INTERVENTION', 'USER_INTERVENTION', 'UNMAPPED',
+  ].includes(name)) {
     return markPrintAttemptUnknown(db, businessId, attemptId, stationId, 'PRINT_OUTCOME_UNKNOWN', now)
   }
   if (!['SCHEDULED', 'SENT', 'SPOOLING', 'PRINTING', 'RETAINED'].includes(name)) {
