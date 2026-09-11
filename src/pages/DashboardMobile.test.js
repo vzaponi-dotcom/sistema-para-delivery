@@ -4,13 +4,13 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('dashboard period selector and FAB remain touch friendly and viewport anchored', async () => {
+test('dashboard period selector remains touch friendly without a financial FAB', async () => {
   const css = await read('../dashboard.css')
   const page = await read('./Dashboard.jsx')
 
   assert.match(css, /\.dashboard-period-option\s*\{[^}]*min-height:\s*44px/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.dashboard-period-selector\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
-  assert.match(page, /createPortal\(newOrderFab,\s*document\.body\)/)
+  assert.doesNotMatch(page, /newOrderFab|createPortal/)
 })
 
 test('dashboard charts use compact sales-axis labels and compensate for SVG scaling on small screens', async () => {
@@ -26,11 +26,10 @@ test('dashboard charts use compact sales-axis labels and compensate for SVG scal
   assert.match(css, /@media\s*\(max-width:\s*390px\)[\s\S]*\.dashboard-chart-axis\s*\{[^}]*font-size:\s*20px/s)
 })
 
-test('recent dashboard orders stack statuses and values without a fourth narrow column', async () => {
+test('dashboard removes recent operational orders and their dedicated responsive rules', async () => {
   const css = await read('../dashboard.css')
+  const page = await read('./Dashboard.jsx')
 
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.dashboard-recent-section \.recent-order\s*\{[^}]*grid-template-columns:\s*38px\s+minmax\(0,\s*1fr\)/s)
-  assert.match(css, /\.dashboard-recent-section \.recent-order-statuses\s*\{[^}]*grid-column:\s*2[^}]*flex-wrap:\s*wrap/s)
-  assert.match(css, /\.dashboard-recent-section \.recent-order-value\s*\{[^}]*grid-column:\s*2[^}]*grid-row:\s*auto[^}]*align-items:\s*flex-start/s)
-  assert.match(css, /\.dashboard-recent-section \.recent-order-main span\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
+  assert.doesNotMatch(page, /Pedidos recentes|recent-orders/)
+  assert.doesNotMatch(css, /dashboard-recent-section/)
 })

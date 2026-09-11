@@ -5,6 +5,7 @@ import Button from '../components/Button'
 import CancelOrderDialog from '../components/CancelOrderDialog'
 import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
+import OperationalHistoryAnalysis from '../components/OperationalHistoryAnalysis'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -17,7 +18,7 @@ const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order:
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast, queryState, onQueryChange }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast, queryState, onQueryChange, canViewAnalysis = false, now = new Date() }) {
   const filter = queryState.filter
   const [detailOrder, setDetailOrder] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -33,6 +34,14 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
   return (
     <>
       <PageHeader eyebrow="Pedidos" title="Histórico" description="Consulte pedidos finalizados e cancelados sem apagar o registro original da operação." />
+      {canViewAnalysis && (
+        <OperationalHistoryAnalysis
+          orders={orders}
+          period={queryState.analysisPeriod}
+          onPeriodChange={(analysisPeriod) => onQueryChange({ analysisPeriod })}
+          now={now}
+        />
+      )}
       <section className="surface-card order-history-surface">
         <div className="history-toolbar">
           <div className="history-filter" role="group" aria-label="Filtrar histórico">

@@ -1,25 +1,20 @@
 import { useMemo } from 'react'
-import { createPortal } from 'react-dom'
 import '../dashboard.css'
 import DashboardBarChart from '../components/DashboardBarChart'
 import DashboardLineChart from '../components/DashboardLineChart'
 import DashboardPaymentMix from '../components/DashboardPaymentMix'
 import DashboardPeriodSelector from '../components/DashboardPeriodSelector'
 import PageHeader from '../components/PageHeader'
-import PaymentBadge from '../components/PaymentBadge'
 import StatCard from '../components/StatCard'
-import StatusBadge from '../components/StatusBadge'
 import Icon from '../components/Icon'
 import { useDashboardPeriod } from '../components/dashboardPeriodContext.js'
 import {
   buildDailySeries,
-  calculateOperationalMetrics,
   calculatePeriodMetrics,
   getPaymentMix,
   getTopProducts,
 } from '../utils/dashboardAnalytics.js'
-import { getOrderItemsSummary } from '../utils/orderCart.js'
-import { formatOrderDate, toLocalDateValue } from '../utils/orderWorkflow'
+import { toLocalDateValue } from '../utils/orderWorkflow'
 
 const MONEY_MASK = '••••••'
 const PERIOD_HELPERS = {
@@ -36,21 +31,15 @@ const compactMoneyFormatter = new Intl.NumberFormat('pt-BR', {
 })
 
 const formatCompactAxisValue = (value) => compactMoneyFormatter.format(Number(value) || 0)
-const formatOperationalMinutes = (value) => Number.isFinite(value)
-  ? `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} min`
-  : '—'
-
-function Dashboard({ totals, orders, currency, onNewOrder, queryState, onQueryChange }) {
+function Dashboard({ totals, orders, currency, queryState, onQueryChange }) {
   const { period, setPeriod } = useDashboardPeriod()
   const valuesVisible = queryState.valuesVisible
-  const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const todayValue = toLocalDateValue()
 
   const analytics = useMemo(() => {
     const now = new Date(`${todayValue}T12:00:00`)
     return {
       metrics: calculatePeriodMetrics(orders, period, now),
-      operational: calculateOperationalMetrics(orders, period, now),
       daily: buildDailySeries(orders, period, now),
       topProducts: getTopProducts(orders, period, now),
       paymentMix: getPaymentMix(orders, period, now),
@@ -59,28 +48,14 @@ function Dashboard({ totals, orders, currency, onNewOrder, queryState, onQueryCh
 
   const displayMoney = (value) => valuesVisible ? currency(value) : MONEY_MASK
   const privacyLabel = valuesVisible ? 'Ocultar valores' : 'Mostrar valores'
-  const { metrics, operational, daily, topProducts, paymentMix } = analytics
-  const operationalBands = operational.bands.map((value, index) => ({ label: ['≤20 min', '21–30 min', '31–40 min', '>40 min'][index], value }))
-  const operationalTypes = Object.entries(operational.byType).map(([label, value]) => ({ label, value }))
-  const newOrderFab = (
-    <button
-      type="button"
-      className="button button-primary dashboard-new-order-fab"
-      aria-label="Novo pedido"
-      title="Novo pedido"
-      onClick={onNewOrder}
-      disabled={writeDisabled}
-    >
-      <Icon name="plus" size={24} />
-    </button>
-  )
+  const { metrics, daily, topProducts, paymentMix } = analytics
 
   return (
     <>
       <PageHeader
         eyebrow="Resumo do dia"
-        title="Visão geral da operação"
-        description="Acompanhe a operação de hoje e a evolução recente do negócio."
+        title="Visão geral financeira"
+        description="Acompanhe os resultados de hoje e a evolução recente do negócio."
         actions={(
           <button
             type="button"
@@ -94,11 +69,10 @@ function Dashboard({ totals, orders, currency, onNewOrder, queryState, onQueryCh
         )}
       />
 
-      <section className="stats-grid" aria-label="Indicadores principais">
+      <section className="stats-grid stats-grid-three" aria-label="Indicadores principais">
         <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" />
         <StatCard label="Recebido hoje" value={displayMoney(totals.receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
         <StatCard label="A receber" value={displayMoney(totals.receivables)} helper="Pagamentos pendentes" icon="wallet" tone="warning" />
-        <StatCard label="Pedidos ativos" value={totals.activeOrders} helper="Em preparo e agendados" icon="orders" />
       </section>
 
       <section className="dashboard-performance-section" aria-labelledby="dashboard-performance-title">
@@ -116,34 +90,6 @@ function Dashboard({ totals, orders, currency, onNewOrder, queryState, onQueryCh
           <StatCard label="Pedidos no período" value={metrics.orderCount} helper="Quantidade de pedidos" icon="orders" />
           <StatCard label="Ticket médio" value={displayMoney(metrics.averageTicket)} helper="Venda média por pedido" icon="ticket" />
         </div>
-      </section>
-
-      <section className="dashboard-operational-metrics surface-card dashboard-section" aria-labelledby="dashboard-operational-title">
-        <div className="section-heading">
-          <div><span className="section-kicker">Operação</span><h2 id="dashboard-operational-title">Tempo operacional</h2></div>
-          <div className="section-meta">Pedidos finalizados elegíveis</div>
-        </div>
-        {!operational.sampleSize ? (
-          <div className="dashboard-chart-empty">Sem pedidos concluídos elegíveis neste período</div>
-        ) : (
-          <>
-            <div className="stats-grid stats-grid-three dashboard-operational-summary">
-              <StatCard label="Tempo médio" value={formatOperationalMinutes(operational.averageMinutes)} helper="Média do período" icon="clock" />
-              <StatCard label="Mais rápido" value={formatOperationalMinutes(operational.fastestMinutes)} helper="Menor duração" icon="arrow-down" />
-              <StatCard label="Mais demorado" value={formatOperationalMinutes(operational.slowestMinutes)} helper="Maior duração" icon="arrow-up" />
-            </div>
-            <div className="dashboard-operational-charts">
-              <article className="dashboard-chart-card">
-                <div className="section-heading"><h3>Por faixa de tempo</h3></div>
-                <DashboardBarChart data={operationalBands} valueKey="value" labelKey="label" formatValue={(value) => `${value} pedido(s)`} ariaLabel="Pedidos por faixa de tempo operacional" />
-              </article>
-              <article className="dashboard-chart-card">
-                <div className="section-heading"><h3>Por tipo de atendimento</h3></div>
-                <DashboardBarChart data={operationalTypes} valueKey="value" labelKey="label" formatValue={formatOperationalMinutes} orientation="horizontal" ariaLabel="Tempo operacional médio por tipo de atendimento" />
-              </article>
-            </div>
-          </>
-        )}
       </section>
 
       <section className="dashboard-analytics-grid" aria-label="Gráficos de desempenho">
@@ -180,45 +126,6 @@ function Dashboard({ totals, orders, currency, onNewOrder, queryState, onQueryCh
         </article>
       </section>
 
-      <section className="surface-card dashboard-section dashboard-recent-section">
-        <div className="section-heading">
-          <div>
-            <span className="section-kicker">Operação</span>
-            <h2>Pedidos recentes</h2>
-          </div>
-          <div className="section-meta"><Icon name="orders" size={18} /> Últimos registros</div>
-        </div>
-
-        <div className="recent-orders">
-          {orders.slice(0, 6).map((order) => (
-            <article className="recent-order" key={order.id}>
-              <div className="recent-order-avatar">{order.client.charAt(0).toUpperCase()}</div>
-              <div className="recent-order-main">
-                <strong>{order.client}</strong>
-                <span>{getOrderItemsSummary(order)} · {order.type}</span>
-              </div>
-              <div className="recent-order-statuses">
-                <StatusBadge status={order.status} />
-                <PaymentBadge order={order} />
-              </div>
-              <div className="recent-order-value">
-                <strong>{displayMoney(order.total)}</strong>
-                <span>{formatOrderDate(order.orderDate)}</span>
-              </div>
-            </article>
-          ))}
-
-          {!orders.length && (
-            <div className="empty-state">
-              <Icon name="orders" size={28} />
-              <strong>Nenhum pedido registrado</strong>
-              <span>Crie o primeiro pedido para começar a acompanhar a operação.</span>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {typeof document !== 'undefined' ? createPortal(newOrderFab, document.body) : newOrderFab}
     </>
   )
 }

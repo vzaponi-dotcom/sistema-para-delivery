@@ -107,6 +107,43 @@
   accent-color: var(--primary);
 }
 
+.operational-history-analysis {
+  margin-bottom: 1.25rem;
+}
+
+.operational-history-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.operational-history-heading h2,
+.operational-history-heading p,
+.operational-history-charts h3 {
+  margin: 0;
+}
+
+.operational-history-heading p {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.operational-history-analysis > .section-meta {
+  margin-top: 0.75rem;
+}
+
+.operational-history-summary {
+  margin: 1rem 0 1.4rem;
+}
+
+.operational-history-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
 @media (max-width: 600px) {
   .device-preference-card {
     align-items: flex-start;
@@ -116,5 +153,18 @@
   .device-sound-preference {
     flex-direction: row;
     align-items: center;
+  }
+
+  .operational-history-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .operational-history-heading .dashboard-period-selector {
+    width: 100%;
+  }
+
+  .operational-history-charts {
+    grid-template-columns: 1fr;
   }
 }

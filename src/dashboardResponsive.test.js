@@ -49,9 +49,10 @@ test('dashboard KPI cards reserve enough copy width at 320px', () => {
   assert.match(compactValueRule[1], /font-size:\s*0\.9rem/)
 })
 
-test('operational timing cards reuse responsive analytics grid', () => {
-  const css = source('./dashboard.css')
-  assert.match(css, /dashboard-operational-metrics/)
+test('operational history analysis keeps a responsive two-to-one-column layout', () => {
+  const css = source('./area-navigation.css')
+  assert.match(css, /\.operational-history-charts[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
+  assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.operational-history-charts[\s\S]*grid-template-columns:\s*1fr/)
 })
 
 test('dashboard chart styling uses theme variables instead of hard-coded chart colors', () => {
