@@ -113,7 +113,7 @@ test('operational filters and search run before pagination and invalid sort fall
   const searchNumber = await listPrintJobs(db, 'biz', { scope: 'operational', search: '42', page: 1, pageSize: 10, now })
   const searchCustomer = await listPrintJobs(db, 'biz', { scope: 'operational', search: 'ana silva', page: 1, pageSize: 10, now })
   const filtered = await listPrintJobs(db, 'biz', {
-    scope: 'operational', search: 'mesa azul', trigger: 'manual', status: 'pending', page: 1, pageSize: 1, now,
+    search: 'mesa azul', trigger: 'manual', status: 'waiting_station', page: 1, pageSize: 1, now,
   })
   const fallback = await listPrintJobs(db, 'biz', {
     scope: 'operational', sortBy: 'unsafe SQL', sortDir: 'sideways', page: 1, pageSize: 10, now,
@@ -138,24 +138,33 @@ test('operational list searches and sorts consolidated comandas by tab number an
   assert.deepEqual((await listPrintJobs(db, 'biz', { scope: 'operational', search: '42', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['tab-42'])
 })
 
-test('recent list contains only ten newest terminal rows and keeps orderId lookup compatibility', async () => {
+test('canonical status filters select persisted jobs and terminal history through the main list', async () => {
   const db = new D1Sqlite()
-  for (let index = 0; index < 12; index += 1) {
-    await addJob(db, {
-      id: `terminal-${index}`, orderNumber: index, status: index % 2 ? 'printed' : 'discarded',
-      createdAt: new Date(now.getTime() - index * 1000), processedAt: now,
-    })
-  }
-  await addJob(db, { id: 'active', orderNumber: 99, status: 'pending' })
+  for (const [id, status] of [
+    ['pending', 'pending'], ['processing', 'processing'], ['confirmation', 'awaiting_confirmation'],
+    ['second-copy', 'awaiting_second_copy'], ['failed', 'failed'], ['attention', 'requires_attention'],
+    ['printed', 'printed'], ['discarded', 'discarded'],
+  ]) await addJob(db, { id, orderNumber: id.length, status, processedAt: ['printed', 'discarded'].includes(status) ? now : null })
 
-  const recent = await listPrintJobs(db, 'biz', { scope: 'recent', page: 2, pageSize: 10, now })
-  const legacy = await listPrintJobs(db, 'biz', { orderId: 'order-terminal-0', now })
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'waiting_station', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['pending'])
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'printing', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['processing'])
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'waiting_confirmation', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['confirmation'])
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'waiting_second_copy', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['second-copy'])
+  assert.deepEqual(new Set((await listPrintJobs(db, 'biz', { status: 'attention', page: 1, pageSize: 10, now })).jobs.map((job) => job.id)), new Set(['failed', 'attention']))
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'printed', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['printed'])
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'discarded', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['discarded'])
 
-  assert.equal(recent.jobs.length, 10)
-  assert.deepEqual(recent.jobs.map((job) => job.id), Array.from({ length: 10 }, (_, index) => `terminal-${index}`))
-  assert.deepEqual(recent.pageInfo, { page: 1, pageSize: 10, totalItems: 10, totalPages: 1 })
+  await db.prepare(`INSERT INTO print_stations (
+    id, business_id, name, platform, is_primary, auto_print_enabled, default_copies,
+    last_seen_at, qz_ready, printer_ready, physical_state, created_at, updated_at
+  ) VALUES ('primary', 'biz', 'Cozinha', 'windows', 1, 1, 1, ?, 1, 1, 'ready', ?, ?)`)
+    .bind(now.toISOString(), now.toISOString(), now.toISOString()).run()
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'queued', page: 1, pageSize: 10, now })).jobs.map((job) => job.id), ['pending'])
+  assert.deepEqual((await listPrintJobs(db, 'biz', { status: 'waiting_station', page: 1, pageSize: 10, now })).jobs, [])
+
+  const legacy = await listPrintJobs(db, 'biz', { orderId: 'order-printed', now })
   assert.ok(Array.isArray(legacy))
-  assert.deepEqual(legacy.map((job) => job.id), ['terminal-0'])
+  assert.deepEqual(legacy.map((job) => job.id), ['printed'])
 })
 
 test('queue summary is independent from pagination and counts only safely untouched backlog', async () => {

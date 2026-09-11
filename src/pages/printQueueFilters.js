@@ -42,6 +42,7 @@ export const PRINT_QUEUE_STATUS_FILTERS = Object.freeze([
   { value: PRINT_QUEUE_STATES.QUEUED, label: 'Na fila' },
   { value: PRINT_QUEUE_STATES.WAITING_STATION, label: 'Aguardando estação' },
   { value: PRINT_QUEUE_STATES.PRINTING, label: 'Imprimindo' },
+  { value: PRINT_QUEUE_STATES.WAITING_CONFIRMATION, label: 'Aguardando confirmação' },
   { value: PRINT_QUEUE_STATES.WAITING_SECOND_COPY, label: 'Aguardando 2ª via' },
   { value: PRINT_QUEUE_STATES.ATTENTION, label: 'Requer atenção' },
   { value: PRINT_QUEUE_STATES.PRINTED, label: 'Impresso' },

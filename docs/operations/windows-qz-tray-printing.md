@@ -65,6 +65,6 @@ Não use o retorno da conexão para despejar backlog. Jobs submetidos, em `SPOOL
 
 ## Retenção e histórico
 
-Jobs terminais ficam nas impressões recentes por no máximo 10 itens e são removidos com segurança após 30 dias. O pedido histórico permanece a fonte para reimpressão: se o job antigo já tiver sido removido, **Reimprimir** cria um novo job manual a partir do pedido; se existir, o novo job mantém o vínculo de auditoria com ele.
+Jobs terminais podem ser consultados pelos filtros **Impresso** e **Descartado** da tabela principal e são removidos com segurança após 30 dias. O pedido histórico permanece a fonte para reimpressão: se o job antigo já tiver sido removido, **Reimprimir** cria um novo job manual a partir do pedido; se existir, o novo job mantém o vínculo de auditoria com ele.
 
 Este runbook não autoriza deploy de produção. A homologação física aprovada permanece o checkpoint operacional antes de qualquer liberação.

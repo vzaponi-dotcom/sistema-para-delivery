@@ -55,6 +55,14 @@ const paidResult = () => ({
 })
 const jsonResponse = (data) => ({ ok: true, json: async () => data })
 
+test('Comandas can publish printing confirmation through the global toast', async (t) => {
+  const { h, r } = await paymentWorkspace(t)
+  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const comandas = r.root.findByType(Comandas)
+  await act(async () => comandas.props.onToast('Impress\u00e3o enviada para a fila'))
+  assert.match(nodeText(r.root), /Impress\u00e3o enviada para a fila/)
+})
+
 for (const syncOutcome of ['success', 'failure']) test(`accepted payment reconciles after an applied snapshot and selection change (${syncOutcome})`, async (t) => {
   const { h, r, state, pay, navigate } = await paymentWorkspace(t)
   const other = { id: 'other', name: 'Terraço', isActive: true, occupancy: 'occupied', sortOrder: 3, openTableTab: { id: 'tab-43', number: 43, itemCount: 3, totalCents: 12345 } }

@@ -239,6 +239,7 @@ test('print queue exposes responsive filter controls without structural horizont
 
   assert.match(page, /Buscar pedido, cliente ou mesa/)
   assert.match(filters, /Todos/)
+  assert.match(filters, /WAITING_CONFIRMATION/)
   assert.match(filters, /Manual\/Reimpressão/)
   assert.match(styles, /\.print-queue-filters/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-filters[\s\S]*flex-direction: column/)
@@ -399,28 +400,28 @@ test('print queue remains central-API-only for every operational action', async 
   assert.doesNotMatch(page, /printSecondCopy\(|claimPrintJob\(|claimNextPrintJob\(|dispatchRawBt|writeSerialBytes|\bqz\./)
 })
 
-test('operational panel reads backend operational and recent pages independently without client pagination', async () => {
+test('print queue reads only the paginated main list and summary', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
-  assert.match(page, /getPrintJobs\(\{ scope: 'operational', \.\.\.query \}\)/)
-  assert.match(page, /getPrintJobs\(\{ scope: 'recent', page: 1, pageSize: 10, sortBy: 'createdAt', sortDir: 'desc' \}\)/)
+  assert.match(page, /getPrintJobs\(query\)/)
   assert.match(page, /getPrintQueueSummary\(\)/)
   assert.match(page, /pageInfo/)
   assert.doesNotMatch(page, /filterPrintQueueJobs\(jobs/)
 })
 
-test('operational panel exposes sortable backend columns, a secondary recent list, and page-aware mobile cards', async () => {
+test('main panel exposes sortable backend columns and page-aware mobile cards without a recent section', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
     readSource('../print-queue.css'),
   ])
 
-  for (const label of ['Pedido', 'Job', 'Status', 'Origem', 'Data/Hora', 'Impressões recentes']) assert.match(page, new RegExp(label))
+  for (const label of ['Pedido', 'Job', 'Status', 'Origem', 'Data/Hora']) assert.match(page, new RegExp(label))
+  assert.doesNotMatch(page, /Impressões recentes/)
   assert.match(page, /aria-sort/)
   assert.match(page, /togglePrintQueueSort/)
-  assert.match(page, /recentJobs\.slice\(0, 10\)/)
   assert.match(page, /operationalJobs\.map/)
-  assert.match(styles, /print-queue-recent-section/)
+  assert.doesNotMatch(page, /recentJobs/)
+  assert.doesNotMatch(styles, /print-queue-recent-section|print-queue-recent-row/)
   assert.match(styles, /print-queue-pagination/)
 })
 
@@ -448,8 +449,7 @@ test('clicking a column header immediately reorders the displayed jobs even when
   ]
   globalThis.fetch = async (path) => {
     const url = String(path)
-    if (url.startsWith('/api/printing/jobs?scope=operational')) return { ok: true, json: async () => ({ jobs, pageInfo: { page: 1, pageSize: 10, totalItems: 2, totalPages: 1 } }) }
-    if (url.startsWith('/api/printing/jobs?scope=recent')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs, pageInfo: { page: 1, pageSize: 10, totalItems: 2, totalPages: 1 } }) }
     if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 2, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 0 } }) }
     throw new Error(`Unexpected request: ${url}`)
   }

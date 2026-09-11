@@ -661,7 +661,7 @@ Reject old implication that “Fila encontrada” means ready.
 
 - [ ] **11.3 RED:** sortable desktop headers Pedido, Job, Status, Origem, Data/Hora with visible indicator and correct `aria-sort`. Pedido sorts by numeric order number; date by real `createdAt`.
 
-- [ ] **11.4 RED:** main operational section contains active/action jobs; secondary **Impressões recentes** contains at most 10 terminal rows and exposes no historical pager.
+- [ ] **11.4 RED:** a tabela principal contém jobs ativos por padrão e consulta jobs terminais pelos filtros **Impresso** e **Descartado**; não existe painel separado de impressões recentes.
 
 - [ ] **11.5 RED:** summary displays `Aguardando impressão`, `Aguardando confirmação`, `Aguardando 2ª via`, `Requer atenção`. `awaiting_confirmation` badge/detail is `Aguardando confirmação`.
 
@@ -688,19 +688,18 @@ Reenviar opens a second warning explicitly mentioning duplicate risk before `con
 node --test src/pages/printQueueQuery.test.js src/pages/PrintQueue.test.js src/components/PrintStatusBadge.test.js
 ```
 
-- [ ] **11.11 GREEN:** independent server reads:
+- [ ] **11.11 GREEN:** leitura paginada principal e resumo independente:
 
 ```js
-getPrintJobs({ scope: 'operational', ...query })
-getPrintJobs({ scope: 'recent', page: 1, pageSize: 10, sortBy: 'createdAt', sortDir: 'desc' })
+getPrintJobs(query)
 getPrintQueueSummary()
 ```
 
 Refresh after actions and on existing page-open polling cadence; use a generation/ref guard against stale responses.
 
-- [ ] **11.12 GREEN:** preserve ticket, force-print, second-copy and reprint detail actions. Do not add old-job archive/search responsibility to Print Queue.
+- [ ] **11.12 GREEN:** preserve ticket, force-print, second-copy and reprint detail actions. Jobs terminais permanecem pesquisáveis apenas durante a retenção segura de 30 dias.
 
-- [ ] **11.13 GREEN:** responsive desktop table / <=640px cards; recent is visually secondary; active/attention is stronger; existing design tokens only.
+- [ ] **11.13 GREEN:** responsive desktop table / <=640px cards; active/attention remains visually strong; existing design tokens only.
 
 - [ ] **11.14 Verify GREEN:** same focused command.
 - [ ] **11.15 Commit:** `feat: turn print queue into operational panel`

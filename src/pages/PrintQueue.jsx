@@ -56,7 +56,6 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
   const stationReady = Boolean(station?.health?.ready)
   const [query, setQuery] = useState(DEFAULT_PRINT_QUEUE_QUERY)
   const [operationalPage, setOperationalPage] = useState({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } })
-  const [recentJobs, setRecentJobs] = useState([])
   const [summary, setSummary] = useState(() => buildPrintQueueSummary())
   const [panelLoading, setPanelLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState(null)
@@ -72,9 +71,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
     const generation = ++generationRef.current
     setPanelLoading(true)
     try {
-      const [operationalPayload, recentPayload, summaryPayload] = await Promise.all([
-        getPrintJobs({ scope: 'operational', ...query }),
-        getPrintJobs({ scope: 'recent', page: 1, pageSize: 10, sortBy: 'createdAt', sortDir: 'desc' }),
+      const [operationalPayload, summaryPayload] = await Promise.all([
+        getPrintJobs(query),
         getPrintQueueSummary(),
       ])
       if (generation !== generationRef.current) return
@@ -82,7 +80,6 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
         jobs: Array.isArray(operationalPayload?.jobs) ? operationalPayload.jobs : [],
         pageInfo: operationalPayload?.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 },
       })
-      setRecentJobs(Array.isArray(recentPayload?.jobs) ? recentPayload.jobs.slice(0, 10) : [])
       setSummary(summaryPayload?.summary || buildPrintQueueSummary(operationalPayload?.jobs))
     } catch (error) {
       if (generation === generationRef.current) onToast?.(error?.message || 'Não foi possível atualizar a fila de impressão.')
@@ -104,7 +101,6 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
     { sortBy: query.sortBy, sortDir: query.sortDir, orders },
   )
   const jobRows = operationalJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
-  const recentRows = recentJobs.slice(0, 10).map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const pageInfo = operationalPage.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 }
   const hasActiveFilters = Boolean(query.search.trim()) || Boolean(query.status) || Boolean(query.trigger)
   const physicalReady = printing?.printerHealth?.state === 'ready'
@@ -313,10 +309,6 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast }) 
             </nav>}
           </>
         )}
-      </section>
-      <section className="print-queue-recent-section" aria-label="Impressões recentes">
-        <div className="print-queue-jobs-heading"><div><p className="section-kicker">Concluídas</p><h2>Impressões recentes</h2></div></div>
-        {recentRows.length === 0 ? <p className="print-queue-empty">Nenhuma impressão recente.</p> : <div className="print-queue-recent-list">{recentRows.slice(0, 10).map((job, index) => <button type="button" className="print-queue-recent-row" key={recentJobs[index]?.id || index} onClick={() => setSelectedJob(recentJobs[index])}><span>{job.orderNumber}</span><PrintStatusBadge job={recentJobs[index]} /><span>{job.time || '—'}</span></button>)}</div>}
       </section>
       {selectedDetails && (
           <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">

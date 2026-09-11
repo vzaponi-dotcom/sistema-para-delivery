@@ -62,7 +62,7 @@ A entrega deve:
 7. melhorar mensagens de Configurações e Fila;
 8. transformar a tela de Impressão no painel operacional da Issue #36;
 9. mover paginação/ordenação para a fonte de dados/backend;
-10. mostrar no máximo 10 concluídas recentes;
+10. consultar jobs concluídos pelos filtros da tabela principal, sem painel separado;
 11. manter reimpressão histórica na tela Histórico;
 12. aplicar retenção automática segura de 30 dias a estados terminais elegíveis;
 13. preservar auditoria e diagnóstico;
@@ -529,24 +529,20 @@ Prioriza:
 - `requires_attention`;
 - `failed` quando ainda houver ação/diagnóstico.
 
-Esses registros aparecem antes das concluídas.
+Esses registros compõem a visualização padrão; jobs terminais aparecem apenas quando seus filtros forem selecionados.
 
 Resumo/KPIs sugeridos:
 
 - **Aguardando impressão**;
 - **Aguardando confirmação**;
 - **Requer atenção**;
-- **Concluídas recentes**.
+- **Concluídas hoje**.
 
-### 27.2 Impressões concluídas recentes
+### 27.2 Consulta de impressões concluídas
 
-Mostrar no máximo as **10 `printed` mais recentes**.
+Não existe um painel separado de impressões recentes. Os estados `printed` e `discarded` são consultados pelos filtros **Impresso** e **Descartado** da tabela principal, com a mesma paginação, busca e ordenação dos demais estados.
 
-Objetivo: responder “acabou de imprimir?” ou “qual foi a última impressão?”.
-
-Não existe paginação histórica infinita desse bloco.
-
-`discarded` e falhas terminais permanecem no banco durante a retenção, mas não competem visualmente com a operação principal.
+Esses estados permanecem no banco durante a retenção, mas não competem visualmente com a operação principal enquanto nenhum filtro terminal estiver ativo.
 
 ## 28. Ordenação
 
@@ -662,7 +658,7 @@ Se for adicionada futuramente ou durante a mesma entrega por baixo custo, deve:
 A API final deve suportar, reaproveitando endpoints quando fizer sentido:
 
 - listar operação atual com paginação/ordenação;
-- listar até 10 concluídas recentes;
+- listar jobs terminais quando solicitado pelos filtros da tabela principal;
 - detalhes/timeline/tentativas;
 - claim atômico;
 - criar tentativa;
@@ -824,7 +820,7 @@ Antes de produção, testar na MPT-II real:
 11. validar tela com mais de 10 jobs, paginação e sort;
 12. validar mobile;
 13. validar reimpressão pelo Histórico;
-14. validar que concluídas antigas não dominam o painel.
+14. validar que jobs concluídos não aparecem na visualização padrão e são acessíveis pelos filtros.
 
 ## 39. Critérios de aceite consolidados
 
@@ -847,7 +843,8 @@ A entrega está aceita quando:
 - [ ] Configurações e Fila usam o mesmo modelo de saúde;
 - [ ] tela Impressão é um painel operacional;
 - [ ] jobs ativos/atenção têm prioridade visual;
-- [ ] no máximo 10 concluídas recentes são mostradas;
+- [ ] não existe painel separado de impressões recentes;
+- [ ] jobs impressos e descartados são consultáveis pelos filtros da tabela principal;
 - [ ] paginação usa até 10 itens por página;
 - [ ] job mais recente aparece primeiro por padrão;
 - [ ] ordenação é indicada e executada sobre a fonte completa no backend;

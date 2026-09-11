@@ -44,7 +44,7 @@ Dispositivos móveis apenas solicitam e acompanham jobs. A estação principal W
 ## Painel operacional, retenção e responsividade
 
 - [ ] PASS / FAIL — A fila operacional pagina 10 jobs por página e mantém ordenação estável ao trocar página, filtro, busca ou coluna.
-- [ ] PASS / FAIL — **Impressões recentes** mostra no máximo 10 jobs terminais e não oferece paginação histórica nesse painel.
+- [ ] PASS / FAIL — Os filtros **Impresso** e **Descartado** mostram jobs terminais na tabela principal com paginação, busca e ordenação; não existe painel separado de impressões recentes.
 - [ ] PASS / FAIL — Cleanup após 30 dias remove somente jobs terminais seguros, preserva pedidos históricos e não remove jobs submetidos, desconhecidos ou ainda ativos.
 - [ ] PASS / FAIL — Em desktop, tabela e indicadores de ordenação mostram pedido, job, estado, origem e horário corretamente.
 - [ ] PASS / FAIL — Em mobile, os cards mostram a mesma página/identidade/estado/origem/vias/horário e todas as ações continuam utilizáveis.

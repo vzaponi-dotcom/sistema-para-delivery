@@ -66,13 +66,9 @@
 .print-queue-recovery-banner span { color: var(--text-soft); font-size: .82rem; font-weight: 650; }
 .print-queue-recovery-actions, .print-queue-pagination { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .print-queue-sort { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
-.print-queue-sort:focus-visible, .print-queue-recent-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.print-queue-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .print-queue-jobs-table td small { display: block; margin-top: 3px; color: var(--muted); font-weight: 650; }
 .print-queue-pagination { justify-content: flex-end; margin-top: 12px; color: var(--muted); font-size: .82rem; }
-.print-queue-recent-section { margin-top: 24px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-soft); }
-.print-queue-recent-section .print-queue-jobs-heading { margin-bottom: 10px; }
-.print-queue-recent-list { display: grid; gap: 7px; }
-.print-queue-recent-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-soft); font: inherit; text-align: left; cursor: pointer; }
 .print-queue-unknown-outcome { border-color: var(--warning) !important; background: var(--warning-soft); padding: 12px; border-radius: var(--radius-md); }
 
 @media (max-width: 640px) {
@@ -97,8 +93,6 @@
   .print-queue-offline-banner, .print-queue-recovery-banner { align-items: stretch; flex-direction: column; }
   .print-queue-recovery-actions, .print-queue-pagination { justify-content: stretch; }
   .print-queue-recovery-actions .button, .print-queue-pagination .button { flex: 1; }
-  .print-queue-recent-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .print-queue-recent-row > :last-child { grid-column: 1 / -1; }
   .print-queue-detail-actions { align-items: stretch; flex-direction: column; flex-wrap: nowrap; }
   .print-queue-detail-actions .button { width: 100%; }
   .print-queue-detail-primary { order: 1; }

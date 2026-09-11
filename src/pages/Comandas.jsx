@@ -13,7 +13,7 @@ import { getTableTabDetail } from '../api/client.js'
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const itemSummary = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
 
-function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay, onApiError, printing }) {
+function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay, onApiError, onToast, printing }) {
   const [snapshot, setSnapshot] = useState({ loading: true })
   const refreshRef = useRef(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
@@ -80,7 +80,8 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
         }
         setPreviewDocument(result)
       } else {
-        setPrintingFeedback({ type: 'success', message: 'Comanda enviada para a fila de impress\u00e3o' })
+        setPrintingFeedback(null)
+        onToast?.('Impress\u00e3o enviada para a fila')
       }
     } catch (error) {
       if (!ownsAction()) return
@@ -108,7 +109,7 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
   )
 }
 
-function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSelectTable, onAddOrder, onPay, onApiError, paymentSync, onRetryPaymentSync, printing, currency = defaultCurrency, disabled = false }) {
+function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSelectTable, onAddOrder, onPay, onApiError, onToast, paymentSync, onRetryPaymentSync, printing, currency = defaultCurrency, disabled = false }) {
   const activeTables = tables.filter((table) => table.isActive).sort((left, right) => left.sortOrder - right.sortOrder)
   const selectedTable = activeTables.find((table) => table.id === selectedTableId && table.occupancy === 'occupied') || null
   const [mobileDetailOpen, setMobileDetailOpen] = useState(Boolean(selectedTable))
@@ -187,7 +188,7 @@ function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSel
             <>
               <Button type="button" variant="secondary" className="comandas-mobile-back" ref={backButtonRef} onClick={() => setMobileDetailOpen(false)}>Voltar para mesas</Button>
               <h2 id="comanda-heading" ref={detailHeadingRef} tabIndex={-1}>{selectedTable.openTableTab ? `Comanda ${selectedTable.openTableTab.number}` : 'Comanda aberta'}</h2>
-              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} currency={currency} disabled={disabled || Boolean(paymentSync)} onAddOrder={onAddOrder} onPay={onPay} onApiError={onApiError} printing={printing} />
+              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} currency={currency} disabled={disabled || Boolean(paymentSync)} onAddOrder={onAddOrder} onPay={onPay} onApiError={onApiError} onToast={onToast} printing={printing} />
             </>
           ) : <div className="empty-state"><Icon name="clipboard" size={28} /><strong>Selecione uma mesa ocupada.</strong><span>Confira aqui o resumo da comanda.</span></div>}
         </aside>

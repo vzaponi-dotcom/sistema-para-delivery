@@ -216,7 +216,8 @@ test('manual print suppresses duplicates, preserves the open tab on failure, and
       return attempts === 1 ? first.promise : Promise.resolve({ status: 'printed', copiesPrinted: 1 })
     },
   }
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency, printing })
+  const toasts = []
+  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency, printing, onToast: (message) => toasts.push(message) })
   const print = buttonNamed(detail(r), 'Imprimir comanda')
   await act(async () => {
     const pending = print.props.onClick()
@@ -230,7 +231,8 @@ test('manual print suppresses duplicates, preserves the open tab on failure, and
 
   await act(async () => buttonNamed(detail(r), 'Imprimir comanda').props.onClick())
   assert.equal(attempts, 2)
-  assert.match(nodeText(detail(r)), /Comanda enviada para a fila de impress\u00e3o/)
+  assert.deepEqual(toasts, ['Impress\u00e3o enviada para a fila'])
+  assert.doesNotMatch(nodeText(detail(r)), /enviada para a fila/)
   assert.match(nodeText(detail(r)), /Comanda 42.*Mesa 7/)
 })
 
@@ -247,9 +249,10 @@ test('late preview and print results cannot affect a newer selected tab or clear
     getTableTabPreviewDocument: () => previews[previewIndex++].promise,
     printTableTab: () => prints[printIndex++].promise,
   }
+  const toasts = []
   function Workspace() {
     const [selectedTableId, onSelectTable] = React.useState('occupied')
-    return React.createElement(Comandas, { tables, selectedTableId, onSelectTable, currency, printing })
+    return React.createElement(Comandas, { tables, selectedTableId, onSelectTable, currency, printing, onToast: (message) => toasts.push(message) })
   }
   const r = await h.render(Workspace)
   let oldPreview
@@ -263,7 +266,7 @@ test('late preview and print results cannot affect a newer selected tab or clear
   assert.ok(buttonNamed(detail(r), 'Imprimir comanda').props.disabled, 'late old result must not release the newer action')
   await act(async () => prints[0].resolve({ status: 'printed', copiesPrinted: 1 }))
   await currentPrint
-  assert.match(nodeText(detail(r)), /Comanda enviada para a fila de impress\u00e3o/)
+  assert.deepEqual(toasts, ['Impress\u00e3o enviada para a fila'])
   assert.match(nodeText(detail(r)), /Comanda 43.*Terra\u00e7o/)
 })
 

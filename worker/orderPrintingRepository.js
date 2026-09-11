@@ -39,7 +39,22 @@ const PRINT_JOB_SORT_SQL = Object.freeze({
 const OPERATIONAL_PRINT_JOB_STATUSES = Object.freeze([
   'pending', 'processing', 'awaiting_confirmation', 'awaiting_second_copy', 'failed', 'requires_attention',
 ])
-const RECENT_PRINT_JOB_STATUSES = Object.freeze(['printed', 'discarded'])
+const PRINT_JOB_STATUS_FILTERS = Object.freeze({
+  queued: ['pending'],
+  waiting_station: ['pending'],
+  printing: ['processing'],
+  waiting_confirmation: ['awaiting_confirmation'],
+  waiting_second_copy: ['awaiting_second_copy'],
+  attention: ['failed', 'requires_attention'],
+  printed: ['printed'],
+  discarded: ['discarded'],
+  pending: ['pending'],
+  processing: ['processing'],
+  awaiting_confirmation: ['awaiting_confirmation'],
+  awaiting_second_copy: ['awaiting_second_copy'],
+  failed: ['failed'],
+  requires_attention: ['requires_attention'],
+})
 const PRINT_JOB_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 const LEGACY_FORCE_PRINT_REASON = 'ORDER_NOT_PRINTABLE'
@@ -360,17 +375,25 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
     return mapPrintQueueJobs(db, businessId, result, now)
   }
 
-  const scope = options.scope === 'recent' ? 'recent' : 'operational'
-  const statuses = scope === 'recent' ? RECENT_PRINT_JOB_STATUSES : OPERATIONAL_PRINT_JOB_STATUSES
-  const pageSize = scope === 'recent' ? 10 : normalizePageSize(options.pageSize)
-  const page = scope === 'recent' ? 1 : normalizePage(options.page)
-  const sortBy = scope === 'recent' ? 'createdAt' : (PRINT_JOB_SORT_SQL[options.sortBy] ? options.sortBy : 'createdAt')
-  const sortDir = scope === 'recent' ? 'desc' : (String(options.sortDir).toLowerCase() === 'asc' ? 'asc' : 'desc')
+  const statusFilter = String(options.status || '').trim().toLowerCase()
+  const statuses = PRINT_JOB_STATUS_FILTERS[statusFilter] || OPERATIONAL_PRINT_JOB_STATUSES
+  const pageSize = normalizePageSize(options.pageSize)
+  const page = normalizePage(options.page)
+  const sortBy = PRINT_JOB_SORT_SQL[options.sortBy] ? options.sortBy : 'createdAt'
+  const sortDir = String(options.sortDir).toLowerCase() === 'asc' ? 'asc' : 'desc'
   const filters = [`print_jobs.business_id = ?`, `print_jobs.status IN (${statuses.map(() => '?').join(', ')})`]
   const bindings = [businessId, ...statuses]
-  if (options.status && statuses.includes(options.status)) {
-    filters.push('print_jobs.status = ?')
-    bindings.push(options.status)
+  if (statusFilter === 'queued' || statusFilter === 'waiting_station') {
+    const station = await loadPrimaryPrintStation(db, businessId, now)
+    const wantsReady = statusFilter === 'queued'
+    const matchingTriggers = []
+    if (Boolean(station?.health?.automaticReady) === wantsReady) matchingTriggers.push('automatic')
+    if (Boolean(station?.health?.ready) === wantsReady) matchingTriggers.push('manual')
+    if (matchingTriggers.length === 0) filters.push('1 = 0')
+    else {
+      filters.push(`print_jobs.trigger IN (${matchingTriggers.map(() => '?').join(', ')})`)
+      bindings.push(...matchingTriggers)
+    }
   }
   if (options.trigger && ['automatic', 'manual'].includes(options.trigger)) {
     filters.push('print_jobs.trigger = ?')
@@ -390,18 +413,16 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
     LEFT JOIN table_tabs ON table_tabs.id = COALESCE(print_jobs.table_tab_id, orders.table_tab_id) AND table_tabs.business_id = print_jobs.business_id`
   const where = `WHERE ${filters.join(' AND ')}`
   const count = await db.prepare(`SELECT COUNT(*) AS count ${joins} ${where}`).bind(...bindings).first()
-  const totalItems = scope === 'recent'
-    ? Math.min(10, Number(count?.count || 0))
-    : Number(count?.count || 0)
-  const totalPages = scope === 'recent' ? 1 : Math.max(1, Math.ceil(totalItems / pageSize))
-  const offset = scope === 'recent' ? 0 : (Math.min(page, totalPages) - 1) * pageSize
+  const totalItems = Number(count?.count || 0)
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const offset = (Math.min(page, totalPages) - 1) * pageSize
   const result = await db.prepare(`SELECT print_jobs.* ${joins} ${where}
     ORDER BY ${PRINT_JOB_SORT_SQL[sortBy]} ${sortDir.toUpperCase()}, print_jobs.created_at DESC, print_jobs.id ASC
     LIMIT ? OFFSET ?`).bind(...bindings, pageSize, offset).all()
   const jobs = await mapPrintQueueJobs(db, businessId, result, now)
   return {
     jobs,
-    pageInfo: { page: scope === 'recent' ? 1 : Math.min(page, totalPages), pageSize, totalItems, totalPages },
+    pageInfo: { page: Math.min(page, totalPages), pageSize, totalItems, totalPages },
   }
 }
 
