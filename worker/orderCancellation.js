@@ -3,6 +3,8 @@ import { mapMovementRow } from './financeRepository.js'
 import { closeTableTabIfSettled } from './repositories.js'
 import { centsToMoney, validatePaymentMethod } from './validation.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
+import { prepareCancellationUse } from './cancellationSettingsRepository.js'
+import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
 
 export const CANCEL_REASONS = ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
 
@@ -10,7 +12,7 @@ const domainError = (status, code, message) => Object.assign(new Error(message),
 
 const normalizeReason = (value) => {
   const reason = typeof value === 'string' ? value.trim() : ''
-  if (!CANCEL_REASONS.includes(reason)) {
+  if (!reason || reason.length > 120) {
     throw domainError(400, 'ORDER_CANCEL_REASON_REQUIRED', 'Selecione um motivo válido para cancelar o pedido.')
   }
   return reason
@@ -21,8 +23,16 @@ const normalizeNote = (reason, value) => {
   if (reason === 'other' && !note) {
     throw domainError(400, 'ORDER_CANCEL_REASON_NOTE_REQUIRED', 'Descreva o motivo do cancelamento.')
   }
+  if (note.length > 240) {
+    throw domainError(400, 'ORDER_CANCEL_REASON_NOTE_TOO_LONG', 'A descrição do motivo deve ter no máximo 240 caracteres.')
+  }
   return note
 }
+
+const readCancellationPolicy = (db, businessId, reason) => db.prepare(`SELECT h.revision, r.active, r.requires_note
+  FROM business_cancellation_settings h
+  LEFT JOIN business_cancel_reasons r ON r.business_id = h.business_id AND r.id = ?
+  WHERE h.business_id = ? LIMIT 1`).bind(reason, businessId).first()
 
 const normalizeRefundMethod = (value) => {
   const method = typeof value === 'string' ? value.trim() : ''
@@ -110,6 +120,15 @@ const createRefundStatement = (db, businessId, row, refundMethod, now) => {
 export const cancelOrder = async (db, businessId, orderId, input = {}, now = new Date()) => {
   const reason = normalizeReason(input.reason)
   const note = normalizeNote(reason, input.note)
+  const policy = await readCancellationPolicy(db, businessId, reason)
+  if (!policy || policy.active !== 1) {
+    if (policy?.active === 0) throw domainError(409, 'POLICY_CHANGED', 'O motivo de cancelamento não está mais ativo.')
+    throw domainError(400, 'ORDER_CANCEL_REASON_REQUIRED', 'Selecione um motivo válido para cancelar o pedido.')
+  }
+  const expectedRevision = input.expectedRevision ?? policy.revision
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+    throw domainError(400, 'ORDER_CANCEL_REASON_REVISION_REQUIRED', 'Atualize os motivos de cancelamento e tente novamente.')
+  }
   const existing = await readContext(db, businessId, orderId)
   if (!existing) throw domainError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
   if (existing.status === 'Cancelado') throw domainError(409, 'ORDER_ALREADY_CANCELLED', 'Este pedido já foi cancelado.')
@@ -127,15 +146,41 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
   )
   const deletePendingAutomaticPrint = db.prepare(`DELETE FROM print_jobs
     WHERE business_id = ? AND order_id = ? AND trigger = 'automatic' AND status = 'pending'`).bind(businessId, orderId)
+  const txId = crypto.randomUUID()
+  const [policyGuard, markReasonUsed] = prepareCancellationUse(db, businessId, reason, expectedRevision, txId, now)
+  const orderGuard = prepareSettingsAssertion(db, txId, 'state',
+    "EXISTS (SELECT 1 FROM orders WHERE id = ? AND business_id = ? AND status IN ('Em preparo', 'Finalizado'))",
+    [orderId, businessId])
+  const classifyCommitFailure = async (error) => {
+    if (String(error?.message).includes('POLICY_CHANGED')) {
+      throw domainError(409, 'POLICY_CHANGED', 'Os motivos de cancelamento foram alterados. Atualize e tente novamente.')
+    }
+    if (String(error?.message).includes('SETTINGS_INVALID')) {
+      const refreshed = await readContext(db, businessId, orderId)
+      if (refreshed?.status === 'Cancelado') throw domainError(409, 'ORDER_ALREADY_CANCELLED', 'Este pedido já foi cancelado.')
+      if (refreshed && !['Em preparo', 'Finalizado'].includes(refreshed.status)) {
+        throw domainError(409, 'ORDER_CANCEL_NOT_ALLOWED', 'Este pedido não pode ser cancelado.')
+      }
+    }
+    throw error
+  }
 
   let refund = null
   if (existing.payment_id && input.refundNow) {
     const refundMethod = normalizeRefundMethod(input.refundMethod)
     if (existing.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
     refund = createRefundStatement(db, businessId, existing, refundMethod, now)
-    await db.batch([update, deletePendingAutomaticPrint, refund.statement])
+    try {
+      await db.batch([policyGuard, orderGuard, markReasonUsed, update, deletePendingAutomaticPrint, refund.statement, clearSettingsAssertions(db, txId)])
+    } catch (error) {
+      await classifyCommitFailure(error)
+    }
   } else {
-    await db.batch([update, deletePendingAutomaticPrint])
+    try {
+      await db.batch([policyGuard, orderGuard, markReasonUsed, update, deletePendingAutomaticPrint, clearSettingsAssertions(db, txId)])
+    } catch (error) {
+      await classifyCommitFailure(error)
+    }
   }
 
   const tableTab = await closeTableTabIfSettled(db, businessId, existing.table_tab_id, now)

@@ -9,6 +9,8 @@ class CancellationDb {
     this.movements = []
     this.printJobs = []
     this.tableTabClosed = false
+    this.cancelReasons = new Map(['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
+      .map((id) => [id, { active: 1, first_used_at: null }]))
   }
 
   prepare(sql) {
@@ -19,6 +21,11 @@ class CancellationDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM business_cancellation_settings')) {
+              const [reason, businessId] = values
+              const policy = businessId === db.order.business_id ? db.cancelReasons.get(reason) : null
+              return policy ? { revision: 1, active: policy.active, requires_note: Number(reason === 'other') } : null
+            }
             if (sql.includes('COUNT(*) AS count')) return { count: 0 }
             if (sql.includes('FROM table_tabs')) return null
             if (sql.includes('FROM orders o') && sql.includes('refund_movement_id')) {
@@ -40,6 +47,11 @@ class CancellationDb {
             if (sql.includes('DELETE FROM print_jobs')) {
               const [businessId, orderId] = values
               db.printJobs = db.printJobs.filter((job) => !(job.business_id === businessId && job.order_id === orderId && job.trigger === 'automatic' && job.status === 'pending'))
+            }
+            if (sql.includes('UPDATE business_cancel_reasons SET first_used_at')) {
+              const [firstUsedAt, businessId, reason] = values
+              const policy = businessId === db.order.business_id ? db.cancelReasons.get(reason) : null
+              if (policy && policy.first_used_at === null) policy.first_used_at = firstUsedAt
             }
             if (sql.includes("UPDATE orders SET status = 'Cancelado'")) {
               const [cancelledAt, reason, note] = values
