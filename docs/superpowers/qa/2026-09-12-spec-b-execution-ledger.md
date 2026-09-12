@@ -308,3 +308,36 @@ Base: published HEAD `018b2201ed63fad396e2e5fa8d6cd84deaf696ef` on `feature/spec
 The first sandboxed full-suite run and sandboxed build were invalidated by `EPERM` writes to `node_modules/.vite-temp`; both commands were rerun outside that restriction. The first sandboxed local migration attempt stalled before Wrangler output and was interrupted after 60 seconds; the authorized `--local` rerun completed. Two later aggregate-suite attempts were interrupted after pre-existing Vite tests stopped producing output for several minutes; process inspection isolated the waits outside `FinanceMoreMobile`, and no repository code was changed for them.
 
 This closure performs no T04 work, UI implementation, application navigation change, merge, deploy or remote migration. The worktree is preserved for review.
+
+## TEST-INFRA-01 — open: intermittent cooperative-shutdown assertion
+
+Status: **OPEN / cause unconfirmed**. Resume in the test stability/organization workstream **before merge or release**. This item is not resolved, dismissed, or demonstrated harmless. Publication of the diagnostic instrumentation is for review only; the aggregate suite remains **not approved**.
+
+The observed failure is `assert.equal(result.forced, false)` in the case `cooperative shutdown is awaited and does not require force`. The preceding assertion confirmed that the fixture process was dead after `stop()` returned. The earlier shorthand `forceAttempted` in this ledger refers to the actual `result.forced` field; that field indicates the manager took the escalation branch, not proof that the supervisor executed a native force call. The last completed aggregate run remains 1,240/1,241 passed with this failure.
+
+### Instrumentation checkpoint
+
+Base: published commit `e2c91dd04c44979189b3cea1db190201745264e5`, branch `feature/spec-b-settings-policies`. The completed instrumentation round performed exactly one idle capture, one controlled-load capture, and one execution of the existing six supervision tests. No reproduction was repeated for this publication.
+
+| Prior execution | Recorded result |
+|---|---|
+| `node scripts/infra/spec-b-process-capture.mjs idle` | Exit 0; cooperative child exited 0; no force request or execution. Manager stop-to-close: 32.872 ms. Supervisor stdin-close-to-exit-observation: 15.642 ms. |
+| `node scripts/infra/spec-b-process-capture.mjs load` | Exit 0; four owned CPU threads, each bounded to 3 seconds; all terminated with exit 0 and were awaited. Cooperative child exited 0; no force request or execution. Manager stop-to-close: 50.564 ms. Supervisor stdin-close-to-exit-observation: 15.349 ms. |
+| `node scripts/infra/spec-b-process-capture.mjs regression` | Exit 0; runs the existing six supervision tests with instrumentation enabled. 6/6 passed, zero failures/skips/cancellations; TAP duration 4,916.8522 ms. All seven supervised-tree traces were complete. |
+
+The noncooperative/descendant cases recorded six manager force requests and six successful `TerminateJobObject` calls, with active processes observed immediately before each call. The orphan case had root exit code 0 but one active descendant, so root exit alone did not establish an empty tree. Neither cooperative capture reproduced the intermittency. These results do not establish whether the original failure was actual forced termination, delayed confirmation, or a request the supervisor never executed.
+
+Occurrence/observation events in the supervisor and receipt events in the manager use separate monotonic clocks and explicit execution/tree/process identities. Durations above use only timestamps from the same clock origin. Native pre-force state queries and the termination call are adjacent observations, not an atomic snapshot.
+
+Possible measurement interference remains unmeasured: events are buffered, but the supervisor's single final sidecar write occurs before its process closes and can add latency to `close`. Instrumentation overhead has not been isolated. No behavioral correction or timeout increase is justified by this checkpoint, and no claim of harmlessness is made.
+
+### Diff review and publication checks
+
+- Reviewed all four instrumentation/support files. Diagnostics default to `null`; test opt-in requires the diagnostic environment variables. Default manager deadlines remain 300/5000 ms and test deadlines remain 120/3000 ms. Shutdown order, escalation policy, `result.forced`, all 12 existing assertion lines, and Windows `drained && closed` / native ActiveProcesses=0 confirmation are preserved. Existing protocol frames and test stdout are unchanged.
+- Only the four local test-infrastructure files plus this ledger belong in the publication commit. No application, dependency, migration, workflow, T01–T03 implementation or LF/CRLF correction changes are included.
+- Compared SHA-256 hashes of all four files with the local capture checkpoint: all matched. No code changed during this publication step, so the prior capture/test evidence remains applicable and was not rerun.
+- Static checks: `node --check` passed for the three JavaScript files; PowerShell AST parsing reported zero errors; installed Oxlint passed on the three JavaScript files with no diagnostics. `git diff --check` passed after the ledger update. The exact five-file staging scope is checked immediately before the isolated commit.
+- Workflow review: staging push deployment is limited to `feature/centralized-qz-print-queue`; production deployment is manual and master-only. The two TDD push workflows target their own unrelated branches. `validate.yml` targets master pushes, pull requests to master, or manual execution and contains no real deployment. Publishing `feature/spec-b-settings-policies` does not trigger a deploy workflow. No workflow definition was changed or manually dispatched.
+- Complete raw logs and the detailed checkpoint remain local under the ignored `logs/spec-b-process-diagnostic/` directory. They are excluded from staging/publication; this ledger contains only the reviewed summary.
+
+Next action for TEST-INFRA-01 is a separately authorized stability investigation before merge/release, using the preserved evidence to distinguish process liveness from confirmation delivery and to measure instrumentation interference. The current diagnostic round is closed; the issue remains open. No full-suite rerun, build, migration, D1 gate, behavioral fix or test reorganization is part of this publication. T04 remains **not authorized** until the next handoff. No merge, deployment or remote migration is authorized by this review publication.

@@ -10,7 +10,10 @@ async function line(stream) {
 }
 const stubborn = "process.stdin.resume(); process.on('SIGTERM',()=>{}); console.log(JSON.stringify({pid:process.pid})); setInterval(()=>{},1000)"
 function fixture(t, script) {
-  const manager = createProbeProcessManager({ graceMs: 120, forceMs: 3000 })
+  const diagnostics = process.env.SPEC_B_PROCESS_TRACE_DIR
+    ? { directory: process.env.SPEC_B_PROCESS_TRACE_DIR, runId: process.env.SPEC_B_PROCESS_TRACE_RUN_ID }
+    : null
+  const manager = createProbeProcessManager({ graceMs: 120, forceMs: 3000, diagnostics })
   const tree = manager.spawn(process.execPath, ['-e', script])
   const known = []
   t.after(async () => {
@@ -19,6 +22,7 @@ function fixture(t, script) {
       // Emergency cleanup only of exact fixture PIDs, even if the manager rejects.
       for (const pid of [...known, tree.pid, tree.child.pid]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL')
       manager.dispose()
+      await manager.flushDiagnostics()
     }
   })
   return { manager, tree, known }

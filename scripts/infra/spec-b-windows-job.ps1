@@ -8,11 +8,23 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 public static class SpecBJob {
+  // Opt-in, memory-only events during shutdown; one sidecar write after cleanup.
+  sealed class DiagnosticTrace {
+    readonly Stopwatch clock = Stopwatch.StartNew();
+    readonly ConcurrentQueue<string> events = new ConcurrentQueue<string>();
+    public double Now { get { return clock.Elapsed.TotalMilliseconds; } }
+    public void Record(string name, string fields = "") {
+      events.Enqueue("{\"event\":\"" + name + "\",\"elapsedMs\":" + Now.ToString("R", CultureInfo.InvariantCulture) + fields + "}");
+    }
+    public void Flush(string path) { File.WriteAllLines(path, events.ToArray()); }
+  }
   [StructLayout(LayoutKind.Sequential)] struct Limits {
     public long ProcessTime, JobTime; public uint Flags;
     public UIntPtr MinWorkingSet, MaxWorkingSet; public uint ProcessLimit;
@@ -55,7 +67,9 @@ public static class SpecBJob {
     }
     result.Append('\\', slashes * 2); return result.Append('"').ToString();
   }
-  public static int Run(string command, string[] args, string marker) {
+  public static int Run(string command, string[] args, string marker, string tracePath, string runId, string treeId) {
+    var trace = String.IsNullOrEmpty(tracePath) ? null : new DiagnosticTrace();
+    if (trace != null) trace.Record("identity", ",\"runId\":\"" + runId + "\",\"treeId\":\"" + treeId + "\",\"source\":\"supervisor\",\"supervisorPid\":" + Process.GetCurrentProcess().Id + ",\"clock\":\"Stopwatch since Run; not comparable to manager clock\"");
     IntPtr job = IntPtr.Zero, inputRead = IntPtr.Zero, inputWrite = IntPtr.Zero;
     ProcessInfo child = new ProcessInfo(); bool drained = false;
     try {
@@ -76,36 +90,72 @@ public static class SpecBJob {
       CloseHandle(child.Thread); child.Thread = IntPtr.Zero; CloseHandle(inputRead); inputRead = IntPtr.Zero;
       var commands = new ConcurrentQueue<string>();
       var reader = new Thread(() => {
-        try { string line; while ((line = Console.ReadLine()) != null) commands.Enqueue(line); }
-        finally { commands.Enqueue("force"); } // The owning runner disappeared.
+        try { string line; while ((line = Console.ReadLine()) != null) {
+          if (trace != null && (line == "stop" || line == "force")) trace.Record(line + "_received");
+          commands.Enqueue(line);
+        } }
+        finally {
+          if (trace != null) trace.Record("owner_stdin_closed_force_enqueued");
+          commands.Enqueue("force");
+        } // The owning runner disappeared.
       }); reader.IsBackground = true; reader.Start();
       uint code = 259; bool exitReported = false;
+      if (trace != null) trace.Record("ready", ",\"pid\":" + child.Pid);
       Console.Error.WriteLine(marker + "{\"type\":\"ready\",\"pid\":" + child.Pid + "}");
       while (true) {
         string action;
         while (commands.TryDequeue(out action)) {
-          if (action == "stop" && inputWrite != IntPtr.Zero) { CloseHandle(inputWrite); inputWrite = IntPtr.Zero; }
-          if (action == "force") Check(TerminateJobObject(job, 1));
+          if (trace != null && (action == "stop" || action == "force")) trace.Record(action + "_dequeued");
+          if (action == "stop" && inputWrite != IntPtr.Zero) {
+            bool inputClosed = CloseHandle(inputWrite); inputWrite = IntPtr.Zero;
+            if (trace != null) trace.Record("stdin_closed", ",\"success\":" + (inputClosed ? "true" : "false"));
+          }
+          if (action == "force") {
+            if (trace == null) Check(TerminateJobObject(job, 1));
+            else {
+              uint rootCode;
+              bool rootObserved = GetExitCodeProcess(child.Process, out rootCode);
+              Accounting before;
+              bool activeObserved = QueryInformationJobObject(job, 1, out before, (uint)Marshal.SizeOf(typeof(Accounting)), IntPtr.Zero);
+              double beforeCall = trace.Now;
+              bool terminated = TerminateJobObject(job, 1);
+              int error = terminated ? 0 : Marshal.GetLastWin32Error();
+              trace.Record("force_executed", ",\"beforeCallMs\":" + beforeCall.ToString("R", CultureInfo.InvariantCulture)
+                + ",\"activeObserved\":" + (activeObserved ? "true" : "false") + ",\"activeBefore\":" + before.Active
+                + ",\"rootObserved\":" + (rootObserved ? "true" : "false") + ",\"rootExitCodeBefore\":" + rootCode
+                + ",\"success\":" + (terminated ? "true" : "false") + ",\"win32Error\":" + error);
+              if (!terminated) throw new Win32Exception(error);
+            }
+          }
         }
         Check(GetExitCodeProcess(child.Process, out code));
         if (code != 259 && !exitReported) {
+          if (trace != null) trace.Record("exit_observed", ",\"pid\":" + child.Pid + ",\"code\":" + code);
           Console.Error.WriteLine(marker + "{\"type\":\"exit\",\"code\":" + code + "}"); exitReported = true;
         }
         Accounting state; Check(QueryInformationJobObject(job, 1, out state, (uint)Marshal.SizeOf(typeof(Accounting)), IntPtr.Zero));
         if (state.Active == 0) {
+          if (trace != null) trace.Record("tree_empty", ",\"active\":0");
           drained = true; Console.Error.WriteLine(marker + "{\"type\":\"drained\"}"); return 0;
         }
         Thread.Sleep(15);
       }
     } finally {
+      if (trace != null) trace.Record("control_loop_finished", ",\"drained\":" + (drained ? "true" : "false"));
       if (!drained && child.Process != IntPtr.Zero) TerminateProcess(child.Process, 1);
       if (job != IntPtr.Zero) CloseHandle(job); // Kernel terminates all descendants on errors too.
       if (child.Process != IntPtr.Zero) CloseHandle(child.Process);
       if (child.Thread != IntPtr.Zero) CloseHandle(child.Thread);
       if (inputRead != IntPtr.Zero) CloseHandle(inputRead);
       if (inputWrite != IntPtr.Zero) CloseHandle(inputWrite);
+      if (trace != null) {
+        trace.Record("handles_closed", ",\"pid\":" + child.Pid);
+        trace.Record("trace_complete");
+        // A logging failure must not replace the process cleanup result.
+        try { trace.Flush(tracePath); } catch (Exception) { }
+      }
     }
   }
 }
 '@
-exit [SpecBJob]::Run($request.command, [string[]]$request.args, $request.marker)
+exit [SpecBJob]::Run($request.command, [string[]]$request.args, $request.marker, $request.tracePath, $request.runId, $request.treeId)
