@@ -107,6 +107,29 @@ test('AreaNavigation filtra capacidades e usa semântica de navegação por bot�
   assert.deepEqual(calls, ['orders'])
 })
 
+test('AreaNavigation aplica a variante visual compacta somente aos tabs de Pedidos', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: AreaNavigation } = await h.load('/src/components/AreaNavigation.jsx')
+  const calls = []
+  const orders = await h.render(AreaNavigation, {
+    area: 'orders', activeTab: 'history', granted, implemented, onNavigate: (id) => calls.push(id),
+  })
+  const ordersNav = orders.root.findByProps({ 'aria-label': 'Navegação de Pedidos' })
+  assert.match(ordersNav.props.className, /area-navigation-orders/)
+  assert.equal(buttonNamed(ordersNav, 'Histórico').props['aria-current'], 'page')
+  assert.ok(buttonNamed(ordersNav, 'Cozinha'))
+  await act(async () => buttonNamed(ordersNav, 'Cozinha').props.onClick())
+  assert.deepEqual(calls, ['orders'])
+
+  for (const [area, ariaLabel] of [
+    ['finance', 'Navegação de Financeiro'],
+    ['settings', 'Navegação de Configurações'],
+  ]) {
+    const renderer = await h.render(AreaNavigation, { area, activeTab: area === 'finance' ? 'finance' : 'settings-device', granted, implemented, onNavigate() {} })
+    assert.doesNotMatch(renderer.root.findByProps({ 'aria-label': ariaLabel }).props.className, /area-navigation-orders/)
+  }
+})
+
 test('AreaNavigation destaca Histórico, Financeiro e Configurações corretamente', async (t) => {
   const h = await workspaceHarness(t)
   const { default: AreaNavigation } = await h.load('/src/components/AreaNavigation.jsx')
