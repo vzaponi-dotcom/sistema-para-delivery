@@ -8,7 +8,8 @@
 - Branch: `feature/spec-b-settings-policies`.
 - Round 1 authorization is limited to T01, T02 and T03.
 - T04 is not authorized and remains the next unauthorized task.
-- No push, merge or deploy is authorized in this round.
+- Commits and push are authorized only on `feature/spec-b-settings-policies`; no push was performed in T01 or its correction round.
+- Merge, staging/production deploy and remote migrations remain unauthorized.
 
 ## Preparation baseline
 
@@ -80,3 +81,37 @@ Result: exit 0; 10/10 passed. A later fresh run after boundary additions also ex
 - [ ] T02 — migrations and compatible seeds (authorized, not started here).
 - [ ] T03 — atomic operations repository (authorized, not started here).
 - [ ] T04 — payment policy repository (not authorized; do not start).
+
+## T01 correction — Fix round 1
+
+Base commit: `a681e0a3ad195f52593668e3b956a1e70ff2ad56` (`feat: define typed business policy contracts`). The correction is the commit containing this ledger, with subject `fix: preserve settings catalog invariants`.
+
+Scope was limited to review findings in the shared catalog contract and this authorization record. No migration, endpoint, UI, operational consumer or later task was changed.
+
+### RED
+
+Command:
+
+```text
+node --test shared/settingsCatalogs.test.js
+```
+
+Result before the correction: exit 1; 4/10 passed and 6/10 failed. The failures proved that native cancellation items lacked immutable `requiresNote` metadata, trusted `existing` usage/tombstone metadata did not preserve custom identities for either catalog kind, and the automatic finance IDs `sales`/`refunds` were not reserved.
+
+Each added assertion detects a concrete weakening: removal/change of native `requiresNote`, acceptance of forged editable metadata, rename or omission after use, tombstone ID/name recreation, or reuse of either automatic identity.
+
+### GREEN and regression evidence
+
+| Gate | Result |
+|---|---|
+| `node --test shared/settingsCatalogs.test.js` | Exit 0; 10/10 passed. |
+| Contracts plus selected characterizations | Exit 0; 69/69 passed. |
+| `npm.cmd run lint` | Exit 0; only the pre-existing warnings outside T01 paths. |
+| `git diff --check` | Exit 0; no whitespace errors. |
+| Staged diff review | Exactly the ledger, catalog contract and catalog test; `git diff --cached --check` exited 0. |
+
+### Review state
+
+- Self-review: source, tests, ledger and final staged patch reviewed against all four findings; no out-of-scope path is staged.
+- Independent review: pending controller review.
+- T02/T03 were not started; T04 remains unauthorized.

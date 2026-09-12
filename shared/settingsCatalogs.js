@@ -1,15 +1,16 @@
 import { MANUAL_MOVEMENT_CATEGORIES } from './finance.js'
 
 const SETTINGS_ERROR = 'SETTINGS_INVALID'
+const AUTOMATIC_FINANCE_IDS = new Set(['sales', 'refunds'])
 const AUTOMATIC_FINANCE_NAMES = new Set(['vendas', 'estornos'])
 const FINANCE_TYPES = new Set(['entrada', 'saida'])
 
 const CANCELLATION_NATIVE_ITEMS = [
-  { id: 'client_changed_mind', label: 'Cliente desistiu', active: true, sortOrder: 0 },
-  { id: 'duplicate_order', label: 'Pedido duplicado', active: true, sortOrder: 1 },
-  { id: 'product_unavailable', label: 'Produto indisponível', active: true, sortOrder: 2 },
-  { id: 'entry_error', label: 'Erro no lançamento', active: true, sortOrder: 3 },
-  { id: 'other', label: 'Outro', active: true, sortOrder: 4 },
+  { id: 'client_changed_mind', label: 'Cliente desistiu', active: true, sortOrder: 0, requiresNote: false },
+  { id: 'duplicate_order', label: 'Pedido duplicado', active: true, sortOrder: 1, requiresNote: false },
+  { id: 'product_unavailable', label: 'Produto indisponível', active: true, sortOrder: 2, requiresNote: false },
+  { id: 'entry_error', label: 'Erro no lançamento', active: true, sortOrder: 3, requiresNote: false },
+  { id: 'other', label: 'Outro', active: true, sortOrder: 4, requiresNote: true },
 ]
 
 const FINANCE_NATIVE_ITEMS = Object.entries(MANUAL_MOVEMENT_CATEGORIES).flatMap(([type, entries]) => (
@@ -69,6 +70,11 @@ export const parseCatalog = (data, { kind, existing } = {}) => {
   const previous = new Map(existingItems(existing).map((item) => [item.id, item]))
   const nativeItems = finance ? FINANCE_NATIVE_ITEMS : CANCELLATION_NATIVE_ITEMS
   const nativeById = new Map(nativeItems.map((item) => [item.id, item]))
+  const tombstones = [...previous.values()].filter((item) => item.tombstone === true)
+  const tombstoneIds = new Set(tombstones.map((item) => item.id))
+  const tombstoneNames = new Set(tombstones.map((item) => (
+    `${finance ? item.type : 'cancellation'}:${normalizedName(item.label)}`
+  )))
   const seenIds = new Set()
   const seenPositions = new Set()
   const seenNames = new Set()
@@ -77,6 +83,8 @@ export const parseCatalog = (data, { kind, existing } = {}) => {
     const path = `items.${index}`
     exactKeys(item, finance ? ['id', 'type', 'label', 'active', 'sortOrder'] : ['id', 'label', 'active', 'sortOrder'], path)
     const id = cleanText(item.id, `${path}.id`, 120)
+    if (finance && AUTOMATIC_FINANCE_IDS.has(id)) invalid(`${path}.id`)
+    if (tombstoneIds.has(id)) invalid(`${path}.id`)
     if (seenIds.has(id)) invalid('items')
     seenIds.add(id)
 
@@ -91,6 +99,7 @@ export const parseCatalog = (data, { kind, existing } = {}) => {
 
     const label = cleanText(item.label, `${path}.label`, 80)
     const nameKey = `${type}:${normalizedName(label)}`
+    if (tombstoneNames.has(nameKey)) invalid(`${path}.label`)
     if (seenNames.has(nameKey)) invalid(`${path}.label`)
     seenNames.add(nameKey)
 
@@ -103,6 +112,7 @@ export const parseCatalog = (data, { kind, existing } = {}) => {
 
     const old = previous.get(id)
     if (finance && old && old.type !== type) invalid(`${path}.type`)
+    if (old?.usedEver === true && cleanText(old.label, `existing.${id}.label`, 80) !== label) invalid(`${path}.label`)
 
     return finance
       ? { id, type, label, active: item.active, sortOrder: item.sortOrder }
@@ -110,5 +120,6 @@ export const parseCatalog = (data, { kind, existing } = {}) => {
   })
 
   if (nativeItems.some(({ id }) => !seenIds.has(id))) invalid('items')
+  if ([...previous.values()].some((item) => item.usedEver === true && item.tombstone !== true && !seenIds.has(item.id))) invalid('items')
   return deepFreeze({ items })
 }
