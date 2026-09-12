@@ -7,6 +7,7 @@
   display: flex;
   gap: 1.25rem;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -16,6 +17,10 @@
 
 .app-content > .area-navigation {
   margin-bottom: 1.25rem;
+}
+
+.kitchen-page > .area-navigation {
+  margin-bottom: 1.125rem;
 }
 
 .area-navigation-item {

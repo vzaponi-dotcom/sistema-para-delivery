@@ -55,6 +55,19 @@ test('operational history analysis keeps a responsive two-to-one-column layout',
   assert.match(css, /@media \(max-width: 600px\)[\s\S]*\.operational-history-charts[\s\S]*grid-template-columns:\s*1fr/)
 })
 
+test('area navigation hides vertical overflow and reserves extra space only for Kitchen', () => {
+  const css = source('./area-navigation.css')
+  const navigation = css.match(/\.area-navigation\s*\{([^}]*)\}/)
+  const kitchen = css.match(/\.kitchen-page > \.area-navigation\s*\{([^}]*)\}/)
+
+  assert.ok(navigation)
+  assert.match(navigation[1], /overflow-x:\s*auto/)
+  assert.match(navigation[1], /overflow-y:\s*hidden/)
+  assert.ok(kitchen)
+  assert.match(kitchen[1], /margin-bottom:\s*1\.125rem/)
+  assert.doesNotMatch(css, /\.(?:settings-page|finance-page|receivables-page) > \.area-navigation\s*\{[^}]*margin-bottom/)
+})
+
 test('dashboard chart styling uses theme variables instead of hard-coded chart colors', () => {
   const css = source('./dashboard.css')
 
