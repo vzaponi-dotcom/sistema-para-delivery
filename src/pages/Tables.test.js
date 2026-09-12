@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 test('Tables is an App-controlled workspace with no direct API access', async () => {
   const page = await read('./Tables.jsx')
 
-  assert.match(page, /function Tables\(\{ tables, disabled, onCreate, onRename, onSetActive, onReorder, onTransfer \}\)/)
+  assert.match(page, /function Tables\(\{ tables, disabled, canOpenComanda = false, onCreate, onRename, onSetActive, onReorder, onOpenComanda \}\)/)
   assert.doesNotMatch(page, /fetch\s*\(/)
   assert.doesNotMatch(page, /\/api\/tables/)
 })
@@ -35,15 +35,13 @@ test('Tables provides creation, free-table rename, accessible reordering and con
   assert.doesNotMatch(page, /Excluir mesa/)
 })
 
-test('occupied tables explain their restrictions and use a single confirmed transfer flow', async () => {
+test('occupied tables explain their restrictions and link to the exact comanda identity', async () => {
   const page = await read('./Tables.jsx')
-  const transferDialog = await read('../components/TableTransferDialog.jsx')
 
-  assert.match(page, /Feche ou transfira a comanda antes de renomear\/desativar\./)
-  assert.match(page, /Transferir comanda/)
-  assert.match(transferDialog, /table\.isActive && table\.occupancy === 'free' && table\.id !== sourceTable\.id/)
-  assert.match(transferDialog, /Transferir \$\{sourceTable\.name\} → \$\{destination\.name\}\?/)
-  assert.match(transferDialog, /onTransfer\(sourceTable\.id, destination\.id, expectedTableTabId\)/)
+  assert.match(page, /Feche a comanda antes de renomear\/desativar\./)
+  assert.match(page, /Ver comanda/)
+  assert.match(page, /onOpenComanda\?\.\(\{ tableId: table\.id, tableTabId: table\.openTableTab\.id \}\)/)
+  assert.doesNotMatch(page, /TableTransferDialog|Transferir comanda/)
 })
 
 test('table management styling remains theme-token based and mobile-safe', async () => {

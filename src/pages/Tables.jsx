@@ -4,14 +4,12 @@ import Button from '../components/Button'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
-import TableTransferDialog from '../components/TableTransferDialog'
 
-function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, onTransfer }) {
+function Tables({ tables, disabled, canOpenComanda = false, onCreate, onRename, onSetActive, onReorder, onOpenComanda }) {
   const [newName, setNewName] = useState('')
   const [editingTableId, setEditingTableId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [deactivatingTable, setDeactivatingTable] = useState(null)
-  const [transferSource, setTransferSource] = useState(null)
   const orderedTables = useMemo(() => [...tables].sort((left, right) => left.sortOrder - right.sortOrder), [tables])
 
   const createTable = async (event) => {
@@ -50,7 +48,7 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
 
   return (
     <div className="tables-page">
-      <PageHeader title="Mesas" description="Organize as mesas e transfira comandas abertas com segurança." />
+      <PageHeader title="Mesas" description="Organize as mesas e acompanhe os atendimentos em Comandas." />
 
       <section className="surface-card table-create-card table-create-card-compact">
         <form className="table-create-form" onSubmit={createTable}>
@@ -77,7 +75,7 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
               </div>
 
               {occupied ? (
-                <div className="table-occupied-actions"><p className="table-occupied-note">Feche ou transfira a comanda antes de renomear/desativar.</p><Button type="button" className="table-transfer-primary" onClick={() => setTransferSource(table)} disabled={disabled}>Transferir comanda</Button></div>
+                <div className="table-occupied-actions"><p className="table-occupied-note">Feche a comanda antes de renomear/desativar.</p>{canOpenComanda && table.openTableTab?.id && <Button type="button" className="table-transfer-primary" onClick={() => onOpenComanda?.({ tableId: table.id, tableTabId: table.openTableTab.id })}>Ver comanda</Button>}</div>
               ) : (
                 <div className="table-management-actions">
                   <Button type="button" variant="secondary" icon="edit" onClick={() => beginRename(table)} disabled={disabled}>Renomear</Button>
@@ -95,7 +93,6 @@ function Tables({ tables, disabled, onCreate, onRename, onSetActive, onReorder, 
       </section>
 
       {deactivatingTable && <ConfirmationDialog title="Confirmar desativação" message={`Desativar ${deactivatingTable.name}? Ela continuará disponível para reativação e no histórico.`} confirmLabel="Desativar mesa" onClose={() => setDeactivatingTable(null)} onConfirm={deactivateTable} disabled={disabled} />}
-      {transferSource && <TableTransferDialog sourceTable={transferSource} tables={tables} disabled={disabled} onClose={() => setTransferSource(null)} onTransfer={onTransfer} />}
     </div>
   )
 }

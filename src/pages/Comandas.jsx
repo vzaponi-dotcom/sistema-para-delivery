@@ -8,18 +8,20 @@ import ComandaDetail from '../components/ComandaDetail'
 import Modal from '../components/Modal'
 import TableTabPaymentDialog from '../components/TableTabPaymentDialog'
 import TableTabTicketPreview from '../components/TableTabTicketPreview'
+import TableTransferDialog from '../components/TableTransferDialog'
 import { getTableTabDetail } from '../api/client.js'
 
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const itemSummary = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
 
-function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay, onApiError, onToast, printing }) {
+function SelectedComanda({ table, tables, currency, disabled, canTransfer, onAddOrder, onPay, onTransfer, onApiError, onToast, printing }) {
   const [snapshot, setSnapshot] = useState({ loading: true })
   const refreshRef = useRef(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [previewDocument, setPreviewDocument] = useState(null)
   const [printingFeedback, setPrintingFeedback] = useState(null)
   const [activeAction, setActiveAction] = useState(null)
+  const [transferSource, setTransferSource] = useState(null)
   const actionRef = useRef(null)
   const actionSequenceRef = useRef(0)
   const mountedRef = useRef(true)
@@ -102,16 +104,17 @@ function SelectedComanda({ table, tables, currency, disabled, onAddOrder, onPay,
       {!current && <p role="status">Carregando comanda…</p>}
       {current && snapshot.error && <div role="alert"><p>{snapshot.error}</p><Button type="button" onClick={() => refreshRef.current?.()}>Tentar novamente</Button></div>}
       {printingFeedback && <p role={printingFeedback.type === 'error' ? 'alert' : 'status'}>{printingFeedback.message}</p>}
-      {detail && <ComandaDetail detail={detail} labelledBy="comanda-heading" currency={currency} disabled={disabled} busyAction={!current || Boolean(activeAction)} printingDisabled={!printing?.getTableTabPreviewDocument || !printing?.printTableTab} onAddOrder={() => onAddOrder?.(tableId, tabId)} onViewTicket={() => runPrintingAction('preview', () => printing.getTableTabPreviewDocument(tabId))} onPrint={() => runPrintingAction('print', () => printing.printTableTab(tabId))} onPay={() => setPaymentOpen(true)} />}
+      {detail && <ComandaDetail detail={detail} labelledBy="comanda-heading" currency={currency} disabled={disabled} busyAction={!current || Boolean(activeAction)} printingDisabled={!printing?.getTableTabPreviewDocument || !printing?.printTableTab} canTransfer={canTransfer} onAddOrder={() => onAddOrder?.(tableId, tabId)} onTransfer={() => setTransferSource({ ...table, openTableTab: { ...table.openTableTab, id: tabId } })} onViewTicket={() => runPrintingAction('preview', () => printing.getTableTabPreviewDocument(tabId))} onPrint={() => runPrintingAction('print', () => printing.printTableTab(tabId))} onPay={() => setPaymentOpen(true)} />}
       <TableTabPaymentDialog open={paymentOpen} detail={detail} currency={currency} disabled={disabled || !current} onClose={() => setPaymentOpen(false)} onConfirm={onPay} />
+      {transferSource && <TableTransferDialog sourceTable={transferSource} tables={tables} disabled={disabled} onClose={() => setTransferSource(null)} onTransfer={onTransfer} />}
       {previewDocument && <Modal title={`Visualiza\u00e7\u00e3o da comanda ${previewDocument.tableTab.number}`} onClose={() => setPreviewDocument(null)}><TableTabTicketPreview document={previewDocument} /></Modal>}
     </>
   )
 }
 
-function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSelectTable, onAddOrder, onPay, onApiError, onToast, paymentSync, onRetryPaymentSync, printing, currency = defaultCurrency, disabled = false }) {
+function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectComanda, onAddOrder, onPay, canTransfer = false, onTransfer, onApiError, onToast, paymentSync, onRetryPaymentSync, printing, currency = defaultCurrency, disabled = false }) {
   const activeTables = tables.filter((table) => table.isActive).sort((left, right) => left.sortOrder - right.sortOrder)
-  const selectedTable = activeTables.find((table) => table.id === selectedTableId && table.occupancy === 'occupied') || null
+  const selectedTable = activeTables.find((table) => table.id === selection?.tableId && table.occupancy === 'occupied' && table.openTableTab?.id === selection.tableTabId) || null
   const [mobileDetailOpen, setMobileDetailOpen] = useState(Boolean(selectedTable))
   // Invalidate the opening intent as well as the visible detail. A later refresh
   // may reuse this table ID, but only another user selection should reopen it.
@@ -131,7 +134,7 @@ function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSel
     // CSS can blur a newly hidden element before the media-query notification.
     const focused = document.activeElement === document.body ? lastFocusedRef.current : document.activeElement
     if (isMobile && showMobileDetail) {
-      const openedDetail = previous.isMobile && (!previous.showMobileDetail || previous.selectedTableId !== selectedTableId)
+      const openedDetail = previous.isMobile && (!previous.showMobileDetail || previous.selectedTableId !== selection?.tableId)
       const hidFocusedList = !previous.isMobile && listRef.current?.contains(focused)
       if (openedDetail || hidFocusedList) detailHeadingRef.current?.focus({ preventScroll: true })
     } else if (previous.isMobile && previous.showMobileDetail && !showMobileDetail) {
@@ -144,8 +147,8 @@ function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSel
     } else if (!isMobile && previous.isMobile && focused && focused === backButtonRef.current) {
       detailHeadingRef.current?.focus({ preventScroll: true })
     }
-    previousLayoutRef.current = { isMobile, showMobileDetail, selectedTableId }
-  }, [isMobile, showMobileDetail, selectedTableId])
+    previousLayoutRef.current = { isMobile, showMobileDetail, selectedTableId: selection?.tableId ?? null }
+  }, [isMobile, showMobileDetail, selection?.tableId])
 
   const selectTable = (table) => {
     if (table.occupancy === 'free') {
@@ -153,7 +156,8 @@ function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSel
       return
     }
     listScrollRef.current = listRef.current?.scrollTop || 0
-    onSelectTable?.(table.id)
+    if (!table.openTableTab?.id) return
+    onSelectComanda?.({ tableId: table.id, tableTabId: table.openTableTab.id })
     setMobileDetailOpen(true)
   }
 
@@ -175,7 +179,7 @@ function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSel
             const selected = selectedTable?.id === table.id
             const tab = table.openTableTab
             return (
-              <button key={table.id} type="button" className="comanda-table-button" aria-pressed={selected} aria-controls={occupied ? 'comandas-detail' : undefined} disabled={!occupied && disabled} ref={table.id === selectedTableId ? selectedButtonRef : undefined} onClick={() => selectTable(table)}>
+              <button key={table.id} type="button" className="comanda-table-button" aria-pressed={selected} aria-controls={occupied ? 'comandas-detail' : undefined} disabled={!occupied && disabled} ref={table.id === selection?.tableId ? selectedButtonRef : undefined} onClick={() => selectTable(table)}>
                 <span className="comanda-table-heading"><strong>{table.name}</strong><span className={`comanda-status ${occupied ? 'occupied' : 'free'}`}>{occupied ? 'Ocupada' : 'Livre'}</span></span>
                 {occupied ? (tab ? <><span className="comanda-number">Comanda {tab.number}</span><span className="comanda-summary"><span>{itemSummary(tab.itemCount)}</span><strong>{currency(tab.totalCents / 100)}</strong></span></> : <span>Resumo indisponível</span>) : <span className="comanda-free-hint">Toque para lançar pedido</span>}
               </button>
@@ -188,7 +192,7 @@ function Comandas({ tables = [], selectedTableId, selectionGeneration = 0, onSel
             <>
               <Button type="button" variant="secondary" className="comandas-mobile-back" ref={backButtonRef} onClick={() => setMobileDetailOpen(false)}>Voltar para mesas</Button>
               <h2 id="comanda-heading" ref={detailHeadingRef} tabIndex={-1}>{selectedTable.openTableTab ? `Comanda ${selectedTable.openTableTab.number}` : 'Comanda aberta'}</h2>
-              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} currency={currency} disabled={disabled || Boolean(paymentSync)} onAddOrder={onAddOrder} onPay={onPay} onApiError={onApiError} onToast={onToast} printing={printing} />
+              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} currency={currency} disabled={disabled || Boolean(paymentSync)} canTransfer={canTransfer} onAddOrder={onAddOrder} onPay={onPay} onTransfer={onTransfer} onApiError={onApiError} onToast={onToast} printing={printing} />
             </>
           ) : <div className="empty-state"><Icon name="clipboard" size={28} /><strong>Selecione uma mesa ocupada.</strong><span>Confira aqui o resumo da comanda.</span></div>}
         </aside>

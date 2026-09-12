@@ -68,6 +68,7 @@ test('App refreshes official data after an identity conflict without retrying th
     }
     if (path === '/api/printing/stations') return new Response(JSON.stringify({ stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] }), { status: 200 })
     if (path === '/api/printing/jobs?limit=100') return new Response(JSON.stringify({ jobs: [] }), { status: 200 })
+    if (path === '/api/table-tabs/A') return new Response(JSON.stringify({ tableTab: { id: 'A', number: 37, status: 'open', table: { id: 'source', name: 'Mesa 1' }, orders: [], items: [], orderCount: 0, itemCount: 0, totalCents: 0 } }), { status: 200 })
     if (path === '/api/tables/source/transfer' && options.method === 'POST') {
       transferBodies.push(JSON.parse(options.body))
       return new Response(JSON.stringify({ error: { code: 'TABLE_TAB_CHANGED', message: 'A comanda mudou.' } }), { status: 409 })
@@ -76,7 +77,8 @@ test('App refreshes official data after an identity conflict without retrying th
   }
   const { default: App } = await h.load('/src/App.jsx')
   const renderer = await h.render(App)
-  await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Menu principal' }), 'Mesas').props.onClick())
+  await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Menu principal' }), 'Comandas').props.onClick())
+  await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
   await act(async () => buttonNamed(renderer.root, 'Transferir comanda').props.onClick())
   await openConfirmation(renderer)
   const bootstrapCallsBeforeConflict = bootstrapCalls

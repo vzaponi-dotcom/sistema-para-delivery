@@ -7,6 +7,7 @@ import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from '../tes
 import { comandaDetail, deferred, detailResponse } from '../test-support/comandaFixtures.js'
 
 const currency = (value) => `R$ ${value.toFixed(2)}`
+const occupiedSelection = { tableId: 'occupied', tableTabId: 'tab-42' }
 const list = (renderer) => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' })
 const detail = (renderer) => renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })
 const tableTabDocument = (overrides = {}) => ({
@@ -23,7 +24,7 @@ test('detail loading, actionable error and retry never pass list totals off as p
   const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
   const pending = deferred()
   globalThis.fetch = () => pending.promise
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency })
+  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency })
   assert.match(nodeText(detail(r)), /Carregando/)
   assert.equal(buttonNamed(detail(r), 'Registrar pagamento'), undefined)
   await act(async () => pending.reject(new Error('Falha de rede')))
@@ -41,8 +42,8 @@ for (const mobile of [false, true]) test(`new selection and same-total official 
   globalThis.fetch = (path) => { const p = deferred(); pending.push({ ...p, path }); return p.promise }
   const tables = [...workspaceTables, { id: 'other', name: 'Terraço', isActive: true, occupancy: 'occupied', sortOrder: 4, openTableTab: { id: 'tab-43', number: 43, itemCount: 3, orderCount: 2, totalCents: 12345 } }]
   function Workspace({ tables }) {
-    const [selectedTableId, onSelectTable] = React.useState('occupied')
-    return React.createElement(Comandas, { tables, selectedTableId, onSelectTable, currency })
+    const [selection, onSelectComanda] = React.useState(occupiedSelection)
+    return React.createElement(Comandas, { tables, selection, onSelectComanda, currency })
   }
   const r = await h.render(Workspace, { tables })
   assert.equal(pending[0]?.path, '/api/table-tabs/tab-42')
@@ -72,7 +73,7 @@ for (const kind of ['closed', 'foreign', 'transferred', 'replaced']) test(`unava
   globalThis.fetch = async () => kind === 'foreign'
     ? { ok: false, status: 404, json: async () => ({ error: { message: 'Comanda aberta não encontrada.' } }) }
     : detailResponse({ ...comandaDetail, ...(kind === 'closed' ? { status: 'closed' } : kind === 'transferred' ? { table: { id: 'other', name: 'Mesa externa' } } : { id: 'replacement' }) })
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency })
+  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency })
   assert.ok(detail(r).findByProps({ role: 'alert' }))
   assert.equal(buttonNamed(detail(r), 'Registrar pagamento'), undefined)
   assert.doesNotMatch(nodeText(detail(r)), /Sem cebola|Mesa externa/)
@@ -94,7 +95,7 @@ test('free tables request an order; blocked writes still allow occupied-table co
   const harness = await workspaceHarness(t)
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
   const orders = [], selections = []
-  const props = { tables: workspaceTables, currency, onAddOrder: (id) => orders.push(id), onSelectTable: (id) => selections.push(id) }
+  const props = { tables: workspaceTables, currency, onAddOrder: (id) => orders.push(id), onSelectComanda: (identity) => selections.push(identity) }
   const renderer = await harness.render(Comandas, props)
   await act(async () => list(renderer).findAllByType('button')[1].props.onClick())
   assert.deepEqual(orders, ['free'])
@@ -105,7 +106,7 @@ test('free tables request an order; blocked writes still allow occupied-table co
   assert.ok(!occupied.props.disabled)
   await act(async () => { free.props.onClick(); occupied.props.onClick() })
   assert.deepEqual(orders, ['free'])
-  assert.deepEqual(selections, ['occupied'])
+  assert.deepEqual(selections, [occupiedSelection])
 })
 
 test('mobile back restores list scroll and focus without clearing selection; the same table reopens', async (t) => {
@@ -114,8 +115,8 @@ test('mobile back restores list scroll and focus without clearing selection; the
   const listElement = { scrollTop: 0 }
   let focus = ''
   function Workspace() {
-    const [selectedTableId, onSelectTable] = React.useState(null)
-    return React.createElement(Comandas, { tables: workspaceTables, selectedTableId, onSelectTable, currency })
+    const [selection, onSelectComanda] = React.useState(null)
+    return React.createElement(Comandas, { tables: workspaceTables, selection, onSelectComanda, currency })
   }
   const renderer = await harness.render(Workspace, {}, { createNodeMock: (element) => {
     if (element.props['aria-label'] === 'Mesas ativas') return listElement
@@ -140,7 +141,7 @@ test('mobile back restores list scroll and focus without clearing selection; the
 test('official refresh updates totals and clears obsolete detail when a table becomes free or inactive', async (t) => {
   const harness = await workspaceHarness(t)
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
-  const props = { tables: workspaceTables, selectedTableId: 'occupied', currency }
+  const props = { tables: workspaceTables, selection: occupiedSelection, currency }
   const renderer = await harness.render(Comandas, props)
   const updated = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { ...table.openTableTab, itemCount: 1, totalCents: 2500 } } : table)
   globalThis.fetch = async () => detailResponse({ ...comandaDetail, itemCount: 1, totalCents: 2500 })
@@ -169,7 +170,7 @@ test('ticket preview uses the canonical document and closes without changing the
     printTableTab: async () => assert.fail('preview must not print'),
   }
   h.document.body.style.overflow = 'scroll'
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency, printing })
+  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing })
 
   await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
   assert.deepEqual(calls, ['tab-42'])
@@ -193,7 +194,7 @@ test('preview failure is actionable and retry opens only the successful canonica
     },
     printTableTab: async () => {},
   }
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency, printing })
+  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing })
 
   await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
   assert.match(nodeText(detail(r)), /N\u00e3o foi poss\u00edvel atualizar o ticket/)
@@ -217,7 +218,7 @@ test('manual print suppresses duplicates, preserves the open tab on failure, and
     },
   }
   const toasts = []
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency, printing, onToast: (message) => toasts.push(message) })
+  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing, onToast: (message) => toasts.push(message) })
   const print = buttonNamed(detail(r), 'Imprimir comanda')
   await act(async () => {
     const pending = print.props.onClick()
@@ -251,8 +252,8 @@ test('late preview and print results cannot affect a newer selected tab or clear
   }
   const toasts = []
   function Workspace() {
-    const [selectedTableId, onSelectTable] = React.useState('occupied')
-    return React.createElement(Comandas, { tables, selectedTableId, onSelectTable, currency, printing, onToast: (message) => toasts.push(message) })
+    const [selection, onSelectComanda] = React.useState(occupiedSelection)
+    return React.createElement(Comandas, { tables, selection, onSelectComanda, currency, printing, onToast: (message) => toasts.push(message) })
   }
   const r = await h.render(Workspace)
   let oldPreview
@@ -279,8 +280,8 @@ test('late preview rejection after selection replacement cannot show an error or
   globalThis.fetch = async (path) => detailResponse(path.endsWith('tab-43') ? { ...comandaDetail, id: 'tab-43', number: 43, table: { id: 'other', name: 'Terra\u00e7o' } } : comandaDetail)
   const printing = { getTableTabPreviewDocument: () => pending.promise, printTableTab: async () => ({ status: 'printed' }) }
   function Workspace() {
-    const [selectedTableId, onSelectTable] = React.useState('occupied')
-    return React.createElement(Comandas, { tables, selectedTableId, onSelectTable, currency, printing, onApiError: (error) => sessionErrors.push(error) })
+    const [selection, onSelectComanda] = React.useState(occupiedSelection)
+    return React.createElement(Comandas, { tables, selection, onSelectComanda, currency, printing, onApiError: (error) => sessionErrors.push(error) })
   }
   const r = await h.render(Workspace)
   let oldPreview
@@ -300,7 +301,7 @@ test('tab replacement closes its old preview and releases that overlay lock', as
   const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
   const printing = { getTableTabPreviewDocument: async () => tableTabDocument(), printTableTab: async () => ({ status: 'printed' }) }
   h.document.body.style.overflow = 'scroll'
-  const props = { tables: workspaceTables, selectedTableId: 'occupied', currency, printing }
+  const props = { tables: workspaceTables, selection: occupiedSelection, currency, printing }
   const r = await h.render(Comandas, props)
   await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
   assert.equal(h.document.body.style.overflow, 'hidden')
@@ -318,7 +319,7 @@ test('preview and payment overlays release only their own shared scroll locks', 
   const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
   const printing = { getTableTabPreviewDocument: async () => tableTabDocument(), printTableTab: async () => ({ status: 'printed' }) }
   h.document.body.style.overflow = 'auto'
-  const r = await h.render(Comandas, { tables: workspaceTables, selectedTableId: 'occupied', currency, printing, onPay: async () => true })
+  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing, onPay: async () => true })
   await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
   await act(async () => buttonNamed(detail(r), 'Registrar pagamento').props.onClick())
   assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 2)
@@ -372,8 +373,8 @@ for (const invalidation of ['free', 'inactive', 'missing', 'blocked-free', 'empt
     const dom = focusDOM(harness)
     const selections = []
     function Workspace({ tables, disabled }) {
-      const [selectedTableId, setSelectedTableId] = React.useState(null)
-      return React.createElement(Comandas, { tables, currency, disabled, selectedTableId, onSelectTable: (id) => { selections.push(id); setSelectedTableId(id) } })
+      const [selection, setSelection] = React.useState(null)
+      return React.createElement(Comandas, { tables, currency, disabled, selection, onSelectComanda: (identity) => { selections.push(identity); setSelection(identity) } })
     }
     const renderer = await harness.render(Workspace, { tables: workspaceTables }, dom.options)
     dom.attach(renderer)
@@ -397,7 +398,7 @@ for (const invalidation of ['free', 'inactive', 'missing', 'blocked-free', 'empt
     await act(async () => renderer.update(React.createElement(Workspace, { tables: workspaceTables })))
     assert.ok(!renderer.toJSON().props.className.includes('has-mobile-detail'), 'reoccupation must wait for a fresh user selection')
     assert.equal(dom.active(), focusAfterInvalidation, 'refresh must not steal focus')
-    assert.deepEqual(selections, ['occupied'], 'controlled selection is preserved')
+    assert.deepEqual(selections, [occupiedSelection], 'controlled selection is preserved')
     await act(async () => list(renderer).findAllByType('button')[0].props.onClick())
     assert.ok(renderer.toJSON().props.className.includes('has-mobile-detail'))
     assert.equal(dom.active(), dom.node(detail(renderer).findByType('h2')))
@@ -407,7 +408,7 @@ for (const invalidation of ['free', 'inactive', 'missing', 'blocked-free', 'empt
 test('reoccupation cannot resurrect a mobile detail invalidated by refresh', async (t) => {
   const harness = await workspaceHarness(t, { mobile: true })
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
-  const props = { tables: workspaceTables, currency, selectedTableId: 'occupied' }
+  const props = { tables: workspaceTables, currency, selection: occupiedSelection }
   const renderer = await harness.render(Comandas, props)
   await act(async () => renderer.update(React.createElement(Comandas, { ...props, tables: [] })))
   await act(async () => renderer.update(React.createElement(Comandas, props)))
@@ -418,7 +419,7 @@ test('mobile to desktop moves focus off the now-hidden back button', async (t) =
   const harness = await workspaceHarness(t, { mobile: true })
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
   const dom = focusDOM(harness)
-  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selectedTableId: 'occupied' }, dom.options)
+  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selection: occupiedSelection }, dom.options)
   dom.attach(renderer)
   dom.node(buttonNamed(renderer.root, 'Voltar para mesas')).focus()
   await act(async () => harness.setMobile(false))
@@ -430,7 +431,7 @@ for (const mobile of [false, true]) {
     const harness = await workspaceHarness(t, { mobile })
     const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
     const dom = focusDOM(harness)
-    const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selectedTableId: 'occupied' }, dom.options)
+    const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selection: occupiedSelection }, dom.options)
     dom.attach(renderer)
     dom.node(mobile ? buttonNamed(renderer.root, 'Voltar para mesas') : list(renderer).findAllByType('button')[1]).focus()
     harness.document.activeElement = harness.document.body
@@ -443,7 +444,7 @@ test('breakpoint changes move focus out of the hidden list/back button and prese
   const harness = await workspaceHarness(t)
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
   const dom = focusDOM(harness)
-  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selectedTableId: 'occupied' }, dom.options)
+  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selection: occupiedSelection }, dom.options)
   dom.attach(renderer)
   const card = list(renderer).findAllByType('button')[1] // A different table may have keyboard focus.
   dom.node(card).focus()
