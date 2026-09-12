@@ -14,7 +14,7 @@ const SELECT_OPERATIONS = `SELECT h.business_id, h.revision, h.created_at, h.upd
   (SELECT json_group_array(json_object('code', code, 'active', active)) FROM business_order_modalities WHERE business_id = b.id) AS modalities,
   (SELECT count(*) FROM (SELECT mutation_id, payload_hash, committed_revision, committed_at, resource_created_at, resource_updated_at
     FROM settings_mutation_receipts WHERE business_id = b.id AND resource_key = 'operations')) AS receipt_count,
-  (SELECT count(*) FROM settings_tx_assertions WHERE tx_id = '') AS assertion_check,
+  (SELECT count(*) FROM (SELECT tx_id, check_key, valid FROM settings_tx_assertions WHERE tx_id = '')) AS assertion_check,
   (SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name IN ('settings_tx_assertions_insert_guard', 'settings_tx_assertions_update_guard')) AS guards
   FROM businesses b LEFT JOIN business_operation_settings h ON h.business_id = b.id WHERE b.id = ?`
 

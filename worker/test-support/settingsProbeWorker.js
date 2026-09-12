@@ -127,6 +127,12 @@ export async function runSettingsProbe(db) {
   checks.partialState = true
   equal((await db.prepare('SELECT count(*) AS n FROM settings_tx_assertions').first()).n, 0, 'assertion cleanup')
   equal((await db.prepare('PRAGMA foreign_key_check').all()).results, [], 'foreign keys valid')
+  for (const column of ['check_key', 'valid']) {
+    await db.prepare(`ALTER TABLE settings_tx_assertions RENAME COLUMN ${column} TO missing`).run()
+    await rejects(() => loadOperations(db, 'probe-race'), 'SETTINGS_UNAVAILABLE', 503)
+    await rejects(() => saveOperations(db, 'probe-race', firstInputs[winnerIndex], now), 'SETTINGS_UNAVAILABLE', 503)
+    await db.prepare(`ALTER TABLE settings_tx_assertions RENAME COLUMN missing TO ${column}`).run()
+  }
   await db.prepare('DROP TABLE settings_tx_assertions').run()
   await rejects(() => loadOperations(db, 'probe-race'), 'SETTINGS_UNAVAILABLE', 503)
   await rejects(() => saveOperations(db, 'probe-race', input('schema', 2), now), 'SETTINGS_UNAVAILABLE', 503)

@@ -178,3 +178,15 @@ test('concurrent mutation ID reuse with differing payload rejects the loser with
   assert.equal(sqlite.prepare('SELECT revision FROM business_operation_settings').get().revision, 2)
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM settings_mutation_receipts').get().n, 1)
 })
+
+for (const column of ['check_key', 'valid']) {
+  for (const operation of ['load', 'replay']) {
+    test(`missing assertion ${column} rejects ${operation} with 503`, async (t) => {
+      const { db, sqlite } = setup(t)
+      await saveOperations(db, BUSINESS, input(), NOW)
+      sqlite.exec(`ALTER TABLE settings_tx_assertions RENAME COLUMN ${column} TO missing`)
+      await assert.rejects(operation === 'load' ? loadOperations(db, BUSINESS) : saveOperations(db, BUSINESS, input(), NOW),
+        { code: 'SETTINGS_UNAVAILABLE', status: 503 })
+    })
+  }
+}

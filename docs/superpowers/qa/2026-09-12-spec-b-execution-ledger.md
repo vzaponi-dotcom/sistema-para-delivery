@@ -223,3 +223,29 @@ Gate startup troubleshooting was recorded, not accepted as behavior RED: the san
 - T04: next task, **not authorized**. No T04 code, API endpoint, consumer, effective config, UI, print-job rebuild, push, merge, deployment or remote migration was started.
 - Full `npm test` remains the controller's final R1 gate. This task did not change or attempt to fix the pre-existing `FinanceMoreMobile.test.js` failure.
 - Full local report: `.superpowers/sdd/2026-09-12-business-settings-policies-plan/task-3-report.md` (execution artifact, intentionally not staged).
+
+## T03 correction — Fix round 1
+
+Base: `8747f5ae90b66069abdae691eb52e805d52b1cfd`. Both Important review findings have been corrected; controller re-review is pending. Correction commit is the commit containing this ledger update, subject `fix: validate settings schema and supervise local probe processes`.
+
+- The aggregate health query now explicitly references all three assertion columns (`tx_id`, `check_key`, `valid`). Four new real-SQL cases cover renamed `check_key`/`valid` on load/replay; the same cases execute in the real D1 probe. No migration changed in this correction.
+- The gate now uses one idempotent process manager for migrations and dev. SIGINT/SIGTERM abort pending waits and enter the same cleanup path; final JSON is emitted only after cleanup. Windows commands launch suspended inside a native Job Object before they can spawn children; no breakaway is enabled. The supervisor persists after main-process exit, supports cooperative stdin closure, uses `TerminateJobObject` after the deadline, and confirms ActiveProcesses=0 plus stream/process closure. POSIX owns a process group, waits after graceful shutdown/SIGTERM, escalates to SIGKILL and waits again. Unconfirmed termination fails the gate.
+- Native job control is confined to `scripts/infra/spec-b-windows-job.ps1`; no npm dependency, application Worker route, deployment configuration or global policy was added. Only trees created by the manager are terminated.
+
+### RED / GREEN and verification
+
+| Evidence | Result |
+|---|---|
+| Schema RED: `node --test worker/operationSettingsRepository.test.js` | Exit 1; 14/18 passed, four new missing-column load/replay cases failed with missing expected 503. |
+| Schema GREEN | All 18 repository tests passed after the single projection change. |
+| Process RED | Five initial missing-cleanup/interrupt behaviors failed; the Windows orphan fixture was corrected to survive its parent, then its focused RED failed because the descendant survived cleanup. No fixture-precondition failure was counted as accepted RED. |
+| `node --test scripts/infra/spec-b-processes.test.js` | Exit 0; 6/6 real-process tests: exited main/live descendant, cooperative exit, deadline/force fallback, idempotent cleanup of two trees, SIGINT and SIGTERM. |
+| Focused T03 + migration + process and infra regressions | Exit 0; 43/43. |
+| Extended selected regressions | Exit 0; 97/97. Exact command is in the appended task report. |
+| `node scripts/infra/spec-b-d1-gate.mjs` | Exit 0 twice after process supervision; final run includes renamed assertion columns on D1. All nine scenario groups true, all 24 migrations local. |
+| `node scripts/infra/spec-b-d1-interruption-check.mjs SIGTERM` and `... SIGINT` | Both exit 0; each verifies the real gate returned failure for that signal and its temporary state was already absent at the instant of JSON publication. |
+| `npm.cmd run lint` / `git diff --check` | Both exit 0; no warnings in correction paths, only pre-existing warnings elsewhere; no whitespace errors. |
+
+Self-review covers the complete manager/native helper, signal paths, process ownership, termination deadlines, all touched repository/probe paths and explicit stage list. Native Windows behavior was executed; POSIX logic is implemented but not runtime-verified on this Windows machine. The signal checks invoke the installed Node signal handlers with `process.emit`, because Windows `kill(SIGTERM)` is forceful and cannot deliver a catchable POSIX signal. The first one-line interruption-check attempt failed in PowerShell argument quoting before any work; a dedicated checked-in integration-check script removed that ambiguity.
+
+T01/T02 statuses and the deferred T01 Minor remain unchanged. T03 awaits re-review. T04 remains unauthorized. No push, merge, deploy, remote migration or full-suite success is claimed.
