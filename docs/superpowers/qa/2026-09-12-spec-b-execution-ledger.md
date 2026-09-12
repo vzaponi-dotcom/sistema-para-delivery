@@ -407,3 +407,41 @@ The independent read-only re-review of `c69e048..b4dab34` confirmed all three Im
 Workflow triggers were checked before publication: staging deploy watches only `feature/centralized-qz-print-queue`; production deploy is manual; push validation watches only `master`; the two TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
 
 Per the task authorization, `npm test`, build, migrations, the D1 gate, remote migrations, merge, deploy and release were not run. The aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and still blocks merge/release; T05 neither resumes nor resolves that investigation. T06 is **not authorized and not started**.
+
+## T06 — manual finance categories and historical references
+
+Authorization was limited to T06 on clean published base `d6e011ae9295455c88cf1d07537341c06c89f038`; `git ls-remote` confirmed the same SHA on `origin/feature/spec-b-settings-policies` before changes. Functional commit: `9f387e1` (`feat: manage manual finance categories without rewriting history`). No T01–T05 work was redone, no T07/API/UI/audit work was started, and no dependency, migration, workflow or monetary/opening-balance rule changed.
+
+### Delivered behavior
+
+- Added typed `loadFinanceCategories` / `saveFinanceCategories` for the complete per-business manual Entrada/Saída catalog. Activation/deactivation and contiguous per-type ordering are supported; normalized names are unique within a type, while the same label may exist in different types. Loads fail closed on corrupt/incomplete typed state.
+- Preserved all 13 native manual IDs, labels and types. Native identities cannot be renamed, deleted or moved between types; automatic `sales`/`refunds` (Vendas/Estornos) remain outside the editable/manual catalog. Custom IDs have immutable types and can be renamed/deleted only before first use.
+- Reused the T03 atomic revision/no-op/replay/receipt protocol. Multi-item edits share one `unused` guard, temporary name keys permit valid swaps without transient uniqueness failures, and confirmed receipts are reconciled before later usage restrictions.
+- Added `prepareFinanceCategoryUse(db,businessId,categoryId,expectedRevision,txId,at)`. Manual movement creation and changed-category updates batch the policy assertion, permanent `first_used_at`, movement write and assertion cleanup together. A failed movement write or concurrent policy change leaves neither first-use metadata nor a partial movement.
+- Update reads the existing movement by authenticated business scope. Keeping its original category is allowed while inactive and retains the stored legacy bytes; changing the reference requires an active category of the matching type. First use remains permanent after category changes and soft deletion.
+- A manual type may have zero active categories, which blocks new manual movements of that type with `POLICY_CHANGED`; automatic Vendas/Estornos history is untouched. `getMovementCategoryLabel` now accepts a complete historical ID-to-label map, including inactive custom categories.
+- Replaced the old always-success finance CRUD double with the existing real SQLite/D1-subset fixture, retaining its CRUD, system-movement and opening-balance assertions while exercising the actual catalog and transaction SQL.
+
+### TDD and verification
+
+| Evidence | Result |
+|---|---|
+| Preparation discovery | The first focused run exited 1 with `ERR_MODULE_NOT_FOUND`; this was recorded only as preparation, not accepted as behavioral RED. |
+| Catalog behavioral RED | With an export-only interface, `node --test worker/financeCategoryRepository.test.js` exited 1; 0/5 passed. Failures covered the empty catalog, missing lifecycle/validation, absent revision race and absent rollback behavior. |
+| Catalog GREEN | Initial implementation reached 4/5; the remaining failure was an invalid mojibake test fixture for case/whitespace normalization. Correcting that fixture without weakening the assertion produced 5/5. Review-hardening cases for transient name swaps, legitimate revision-0 initialization and receipt replay after later first use also passed. |
+| Usage behavioral RED | Focused catalog+usage run exited 1; 6/12 passed. The existing movement code did not mark first use, reject inactive selections, preserve inactive originals or guard revision/delete races. |
+| Usage GREEN | The first transactional implementation reached 10/12; both remaining failures were fixture-only (`node:sqlite` null prototype and a missing foreign-key parent). After correcting those fixtures, 12/12 passed. |
+| Shared/validation RED | `node --test worker/financeValidation.test.js shared/finance.test.js` exited 1; 6/8 passed because custom IDs and the historical label map were not yet supported. |
+| Final focused selection | Exit 0; 14/14 passed across `worker/financeCategoryRepository.test.js` and `worker/financeCategoryUsage.test.js`, with zero failures/skips/cancellations. |
+| Required related regressions | Exit 0; 21/21 passed across `worker/financeRepositoryCrud.test.js`, `worker/financeValidation.test.js`, `shared/finance.test.js` and `shared/settingsCatalogs.test.js`. The first run exposed the obsolete fake DB and exited 1 at 20/21; the test was moved to the real fixture, preserving assertions. |
+| Additional related regressions | Exit 0; 12/12 passed across `worker/financeRoutesRegression.test.js`, `worker/settingsTransactions.test.js` and `worker/settingsMigration.test.js`. |
+| Static gates | `node --check` passed on all nine implementation/test files; installed Oxlint reported no diagnostics; mojibake scan found no match; `git diff --check` passed. |
+| Build | The sandboxed attempt failed only with `EPERM` writing `node_modules/.vite-temp`. The authorized rerun outside that restriction exited 0; Vite transformed 370 modules with only the existing large-chunk warning. A final fresh rerun after the text correction also exited 0. |
+
+### Review closure and limits
+
+Direct spec/diff review checked the T06 files against section 6.3, the plan contract and the T05 lessons. It found and corrected one textual mojibake regression before commit; the final targeted scan is clean. No Critical, Important or Minor issue remains from the direct review. Subagent review was not used because this session explicitly disallows delegation unless requested by the user.
+
+Workflow triggers were rechecked before publication: staging deploy watches only `feature/centralized-qz-print-queue`; production deploy is manual; validate push watches only `master`; both TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
+
+Per the T06 authorization, the full `npm test` suite, migrations and the D1 gate were deliberately not run. Therefore the aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release; T06 neither resumes nor resolves it. T07 is **not authorized and not started**. No merge, deployment, release or remote migration is authorized by this checkpoint.
