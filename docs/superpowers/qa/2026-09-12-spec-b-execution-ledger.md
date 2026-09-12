@@ -71,14 +71,14 @@ Result: exit 0; 10/10 passed. A later fresh run after boundary additions also ex
 ### Review and blockers
 
 - Self-review: contracts and tests checked against the T01 brief and canonical shapes 3.1; no operational consumer, endpoint, migration or UI file changed.
-- Independent review: pending controller review.
+- Independent review: completed after fix round 1; see the final T01 re-review verdict below.
 - Blocker for T01: none.
 - Known repository concern: one unrelated pre-existing full-suite assertion failure described above.
 
 ## Task progression
 
 - [x] T01 — typed contracts, defaults and characterization.
-- [ ] T02 — migrations and compatible seeds (authorized, not started here).
+- [x] T02 — migrations and compatible seeds (implemented; independent review pending).
 - [ ] T03 — atomic operations repository (authorized, not started here).
 - [ ] T04 — payment policy repository (not authorized; do not start).
 
@@ -120,8 +120,61 @@ Each added assertion detects a concrete weakening: removal/change of native `req
 - T01 status: completed, review clean for Critical/Important severity.
 - T02/T03 were not started; T04 remains unauthorized.
 
-### Next authorized task
+### Next authorized task at T01 closure
 
 - T02 is the next authorized task and has not been started.
 - T04 remains unauthorized.
 - No push was performed as part of this bookkeeping closure.
+
+## T02 — migrations and compatible seeds
+
+Status: implemented in the commit containing this entry, with subject `feat: persist typed business settings with compatible seeds`; independent review pending.
+
+Base: `cdd81df31c4257140a11a048ffdfb296e55322fb`. Read all historical migrations 0001–0023 before writing the tests. Migration 0024 was free and no historical migration was changed.
+
+### Implementation and preservation
+
+- Added `migrations/0024_business_settings_policies.sql`: typed operation/payment settings, native modalities/methods, cancellation/finance catalog headers and items, print topology, receipts and SQL assertion guards.
+- Added only the requested print-policy, station-revision and nullable order-snapshot columns. `print_jobs` and `print_job_attempts` were not rebuilt or altered.
+- Seeded every existing business at revision 1 using the T01 defaults and native catalogs. Existing `business_print_settings.default_copies = 1` and all existing header timestamps remain unchanged; missing headers fall back to 2, while the new table-tab count defaults to 1.
+- Inferred earliest first use from payments, cancellation references and movements, including soft-deleted movements and legacy finance/payment values. Native/used identities and first-use evidence have SQL guards. Existing operational references are never rewritten, and historical timing snapshots stay null.
+- Deferred composite FKs enforce an active default within the same business while allowing an aggregate to change its default and active entries in either order inside one transaction. Print topology references a station of the same business and is seeded from the real primary station.
+- Added `worker/test-support/settingsDb.js`: `createSettingsDb({ beforeSpecB }) -> { db, sqlite, close }`, executing real migration files with the callback between legacy and B; its D1 subset uses bound real SQLite statements and atomic batches, including `RETURNING` and rollback on a failed deferred FK commit.
+
+### RED / GREEN
+
+Command: `node --test worker/settingsMigration.test.js`.
+
+- Initial RED: exit 1, 0/6 passed. Tests executed 0001–0023 with a temporary inline harness and failed on explicit assertions for missing B tables/seeds and missing migration 0024. No missing import or SQL-text regex was used as behavioral evidence. The schema and reusable helper had not been added yet.
+- Initial GREEN: exit 0, 6/6 passed after adding 0024.
+- Additional RED: exit 1, 6/8 passed; the new catalog-identity test observed a missing rejection and the helper test reported `missing D1 adapter`.
+- Final GREEN: exit 0, 8/8 passed after identity guards and extraction of the harness into the reusable helper. A duplicated trigger declaration introduced while patching was found by the test run and removed before this final GREEN.
+
+The upgrade fixture contains three businesses, cancelled/finalized orders, item prices, payments, soft-deleted and active movements, closed table tabs, parent/retry/table-tab jobs, second-copy timestamps, attempts and recovery affinity. Tests compare every pre-B column in all populated historical tables and compare the full stored schema/index records for jobs and attempts. They also exercise bounds, enum failures, cross-business FKs, permanent usage, native identity, valid aggregate replacement, receipt identity, assertion rollback and rollback after the full migration has executed. `PRAGMA foreign_key_check` is empty in empty, upgrade and rollback scenarios.
+
+### Gates
+
+| Gate | Result |
+|---|---|
+| Focused migration tests | Exit 0; 8/8 passed. |
+| Contracts and selected migration/printing/history regressions | Exit 0; 62/62 passed. Exact command below. |
+| `npm.cmd run lint` | Exit 0; pre-existing warnings outside T02 paths. |
+| `npm.cmd run d1:migrate:local` | Exit 0 using Wrangler 4.128.0; all 24 migrations applied to `.wrangler/state/v3/d1`, explicitly reported `Resource location: local`. |
+| Post-migration D1 local query | Exit 0; `PRAGMA foreign_key_check` returned `[]`; latest migration is `0024_business_settings_policies.sql`; print defaults are 2/1 with revision 1. |
+| `git diff --check` | Exit 0; no whitespace errors. |
+
+Regression command:
+
+```text
+node --test worker/settingsMigration.test.js shared/businessPolicies.test.js shared/settingsCatalogs.test.js worker/orderPrintingMigration.test.js worker/orderCancellationMigration.test.js worker/financeMigration.test.js worker/orderSchedulingMigration.test.js worker/tableTabLifecycleMigration.test.js worker/orderPrintingRecovery.test.js worker/orderAutomaticPrintJob.test.js worker/orderWriteEffects.test.js
+```
+
+The first sandboxed npm migration attempt stalled before Wrangler started and was interrupted. An offline retry exited 1 with `ENOTCACHED` and inability to write npm logs. The same authorized local command then succeeded outside the sandbox. This was an execution-environment limitation, not a migration failure; no remote database command was issued.
+
+### Review and next task
+
+- Self-review: checked the full new SQL, helper and tests against the brief, inspected legacy consumers for compatibility, and limited staged paths to the three T02 files plus this ledger.
+- Independent review: pending controller review of the T02 commit.
+- T03 is the next authorized task after review; no T03 repository, transaction module or D1 probe was implemented here. The helper is a SQLite test adapter, not proof of all D1 runtime transaction semantics; that probe remains T03 work.
+- T04 remains unauthorized. No endpoint, UI, operational consumer, push, merge or deployment changed in T02.
+- Known repository concern remains the unrelated full-suite failure recorded under T01; T02 did not rerun the full frontend suite because the change is limited to migration/test infrastructure.
