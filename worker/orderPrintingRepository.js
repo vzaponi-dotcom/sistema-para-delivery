@@ -109,6 +109,7 @@ const mapStationRow = (row, now = new Date()) => {
     isPrimary: Boolean(row.is_primary),
     autoPrintEnabled: Boolean(row.auto_print_enabled),
     defaultCopies: Number(row.default_copies) || 2,
+    configRevision: Number(row.config_revision) || 1,
     lastSeenAt: row.last_seen_at ?? null,
     qzReady: Boolean(row.qz_ready),
     printerReady: Boolean(row.printer_ready),
@@ -175,26 +176,6 @@ export const listPrintStations = async (db, businessId, now = new Date()) => {
   return rows(result).map((row) => mapStationRow(row, now))
 }
 
-export const loadBusinessPrintSettings = async (db, businessId) => {
-  const row = await db.prepare(`SELECT default_copies FROM business_print_settings
-    WHERE business_id = ? LIMIT 1`).bind(businessId).first()
-  return { defaultCopies: row?.default_copies ?? 2 }
-}
-
-export const saveBusinessPrintSettings = async (db, businessId, input, now = new Date()) => {
-  const copies = input.defaultCopies
-  if (copies !== 1 && copies !== 2) {
-    throw repositoryError(400, 'INVALID_PRINT_COPIES', 'defaultCopies deve ser 1 ou 2.')
-  }
-  const at = timestamp(now)
-  await db.prepare(`INSERT INTO business_print_settings (business_id, default_copies, created_at, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(business_id) DO UPDATE SET
-      default_copies = excluded.default_copies, updated_at = excluded.updated_at`)
-    .bind(businessId, copies, at, at).run()
-  return loadBusinessPrintSettings(db, businessId)
-}
-
 export const upsertPrintStation = async (db, businessId, input, now = new Date()) => {
   const id = String(input.id || '')
   if (!id) throw repositoryError(400, 'PRINT_STATION_ID_REQUIRED', 'Identificador da estação é obrigatório.')
@@ -208,14 +189,7 @@ export const upsertPrintStation = async (db, businessId, input, now = new Date()
       id, business_id, name, platform, is_primary, auto_print_enabled, default_copies,
       last_seen_at, created_at, updated_at
     ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      name = excluded.name,
-      platform = excluded.platform,
-      auto_print_enabled = excluded.auto_print_enabled,
-      default_copies = excluded.default_copies,
-      last_seen_at = excluded.last_seen_at,
-      updated_at = excluded.updated_at
-    WHERE print_stations.business_id = excluded.business_id`)
+    ON CONFLICT(id) DO NOTHING`)
     .bind(id, businessId, name, platform, input.autoPrintEnabled ? 1 : 0, copies, at, at, at).run()
 
   const station = await loadPrintStation(db, businessId, id, now)

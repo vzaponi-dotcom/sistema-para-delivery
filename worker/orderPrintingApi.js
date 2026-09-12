@@ -12,7 +12,6 @@ import {
   heartbeatPrintStation,
   listPrintJobs,
   listPrintStations,
-  loadBusinessPrintSettings,
   loadPrintJob,
   markPrintJobFailed,
   markPrintJobPrinted,
@@ -20,9 +19,7 @@ import {
   reprintPrintJob,
   retryPrintJob,
   requestSecondCopy,
-  saveBusinessPrintSettings,
   setPrintRecoveryState,
-  setPrimaryPrintStation,
   upsertPrintStation,
   skipSecondCopy,
   claimNextRecoveryPrintJob,
@@ -35,6 +32,13 @@ import {
   resolveUnknownPrintAttempt,
 } from './printAttemptRepository.js'
 import { getConfiguredQzCertificate, signQzPayload } from './qzSigning.js'
+import {
+  loadPrintingPolicy,
+  loadStationPrimary,
+  savePrintingPolicy,
+  saveStationConfiguration,
+  saveStationPrimary,
+} from './printSettingsRepository.js'
 
 const requiredText = (value, field, message = `${field} é obrigatório.`) => {
   const text = String(value ?? '').trim()
@@ -64,16 +68,17 @@ export const handlePrintingApi = async (request, env, session, url) => {
     // TODO: apply role-based authorization here when roles exist. Today every
     // authenticated device may view/update its business settings, without a station requirement.
     if (request.method === 'GET') {
-      return json({ settings: await loadBusinessPrintSettings(env.DB, businessId) })
+      const settings = await loadPrintingPolicy(env.DB, businessId)
+      return json({ settings: { ...settings, defaultCopies: settings.data.orderDefaultCopies } })
     }
     if (request.method === 'PUT') {
       assertSameOriginMutation(request)
       const body = await readJson(request)
-      const keys = Object.keys(body)
-      if (keys.length !== 1 || keys[0] !== 'defaultCopies') {
-        throw apiError(400, 'INVALID_PRINT_SETTINGS', 'Informe somente defaultCopies.')
+      if (!Object.hasOwn(body, 'expectedRevision') || !Object.hasOwn(body, 'mutationId')) {
+        throw apiError(400, 'SETTINGS_CLIENT_UPDATE_REQUIRED', 'Atualize o cliente para salvar configurações com revisão.')
       }
-      return json({ settings: await saveBusinessPrintSettings(env.DB, businessId, body) })
+      const saved = await savePrintingPolicy(env.DB, businessId, body)
+      return json({ settings: { ...saved.resource, defaultCopies: saved.resource.data.orderDefaultCopies }, receipt: saved.receipt })
     }
   }
 
@@ -98,7 +103,11 @@ export const handlePrintingApi = async (request, env, session, url) => {
   }
 
   if (url.pathname === '/api/printing/stations' && request.method === 'GET') {
-    return json({ stations: await listPrintStations(env.DB, businessId) })
+    const [stations, primary] = await Promise.all([
+      listPrintStations(env.DB, businessId),
+      loadStationPrimary(env.DB, businessId),
+    ])
+    return json({ stations, primary })
   }
 
   const heartbeatMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)\/heartbeat$/)
@@ -128,8 +137,23 @@ export const handlePrintingApi = async (request, env, session, url) => {
   if (stationMatch && request.method === 'PUT') {
     assertSameOriginMutation(request)
     const body = await readJson(request)
+    const stationId = decodeURIComponent(stationMatch[1])
+    if (Object.hasOwn(body, 'expectedRevision') || Object.hasOwn(body, 'mutationId') || Object.hasOwn(body, 'data')) {
+      if (!Object.hasOwn(body, 'expectedRevision') || !Object.hasOwn(body, 'mutationId')) {
+        throw apiError(400, 'SETTINGS_CLIENT_UPDATE_REQUIRED', 'Atualize o cliente para salvar a estação com revisão.')
+      }
+      const saved = await saveStationConfiguration(env.DB, businessId, stationId, body)
+      return json({ station: saved.resource, receipt: saved.receipt })
+    }
+    if (Object.keys(body).some((key) => !['name', 'platform', 'autoPrintEnabled', 'defaultCopies'].includes(key))) {
+      throw apiError(400, 'INVALID_PRINT_STATION', 'Informe somente os campos de registro da estação.')
+    }
+    const existing = (await listPrintStations(env.DB, businessId)).find(({ id }) => id === stationId)
+    if (existing) {
+      throw apiError(400, 'SETTINGS_CLIENT_UPDATE_REQUIRED', 'Atualize o cliente para salvar a estação com revisão.')
+    }
     const station = await upsertPrintStation(env.DB, businessId, {
-      id: decodeURIComponent(stationMatch[1]),
+      id: stationId,
       name: requiredText(body.name, 'name', 'Nome da estação é obrigatório.'),
       platform: stationPlatform(body.platform),
       autoPrintEnabled: Boolean(body.autoPrintEnabled),
@@ -141,8 +165,20 @@ export const handlePrintingApi = async (request, env, session, url) => {
   const primaryMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)\/make-primary$/)
   if (primaryMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const station = await setPrimaryPrintStation(env.DB, businessId, decodeURIComponent(primaryMatch[1]))
-    return json({ station })
+    const body = await readJson(request)
+    if (!Object.hasOwn(body, 'expectedRevision') || !Object.hasOwn(body, 'mutationId')) {
+      throw apiError(400, 'SETTINGS_CLIENT_UPDATE_REQUIRED', 'Atualize o cliente para eleger a estação principal com revisão.')
+    }
+    if (Object.keys(body).some((key) => !['expectedRevision', 'mutationId', 'data'].includes(key)) ||
+        (Object.hasOwn(body, 'data') && (body.data?.primaryStationId !== decodeURIComponent(primaryMatch[1]) || Object.keys(body.data).length !== 1))) {
+      throw apiError(400, 'SETTINGS_INVALID', 'A eleição deve usar somente a estação indicada na rota.')
+    }
+    const saved = await saveStationPrimary(env.DB, businessId, {
+      expectedRevision: body.expectedRevision,
+      mutationId: body.mutationId,
+      data: { primaryStationId: decodeURIComponent(primaryMatch[1]) },
+    })
+    return json({ station: saved.resource, receipt: saved.receipt })
   }
 
   if (url.pathname === '/api/printing/jobs' && request.method === 'GET') {
