@@ -72,12 +72,16 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
         description="Acompanhe os pedidos em preparo e agendados"
         actions={(
           <div className="kitchen-header-actions">
-            {canUseLocalPreferences && <button type="button" className="button button-secondary kitchen-sound-toggle" aria-pressed={soundEnabled} title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'} onClick={() => { if (canUseLocalPreferences) onSoundEnabledChange?.(!soundEnabled) }}>
-              <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
-              <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
-            </button>}
-            {canViewPrintQueue && <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Fila de impressão</Button>}
-            {canCreateOrders && <Button icon="plus" onClick={() => { if (canCreateOrders) onNewOrder?.() }} disabled={actionsDisabled}>Novo pedido</Button>}
+            {canCreateOrders && <div className="kitchen-header-primary-action">
+              <Button icon="plus" onClick={() => { if (canCreateOrders) onNewOrder?.() }} disabled={actionsDisabled}>Novo pedido</Button>
+            </div>}
+            {(canUseLocalPreferences || canViewPrintQueue) && <div className="kitchen-header-secondary-actions">
+              {canUseLocalPreferences && <button type="button" className="button button-secondary kitchen-sound-toggle" aria-pressed={soundEnabled} title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'} onClick={() => { if (canUseLocalPreferences) onSoundEnabledChange?.(!soundEnabled) }}>
+                <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
+                <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
+              </button>}
+              {canViewPrintQueue && <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Fila de impressão</Button>}
+            </div>}
           </div>
         )}
       />

@@ -28,13 +28,14 @@ test('registered table choices stay readable and tappable on mobile', async () =
   assert.match(selector, /aria-pressed/)
 })
 
-test('kitchen header actions fill the mobile width with four controls and a very-narrow fallback', async () => {
+test('kitchen header actions prioritize new order above the secondary controls on mobile', async () => {
   const css = await read('./mobile-compact-controls.css')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.kitchen-page \.page-actions\s*\{[^}]*width:\s*100%/s)
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.kitchen-page \.kitchen-header-actions\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.kitchen-page \.kitchen-header-actions\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s)
+  assert.match(css, /\.kitchen-page \.kitchen-header-primary-action \.button\s*\{[^}]*width:\s*100%[^}]*min-height:\s*48px/s)
+  assert.match(css, /\.kitchen-page \.kitchen-header-secondary-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
   assert.match(css, /\.kitchen-page \.kitchen-header-actions \.button\s*\{[^}]*min-width:\s*0[^}]*white-space:\s*normal/s)
-  assert.match(css, /@media\s*\(max-width:\s*340px\)[\s\S]*\.kitchen-page \.kitchen-header-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
 })
 
 test('mobile cart matches the approved compact icon-and-pill layout without changing cart actions', async () => {

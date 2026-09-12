@@ -19,8 +19,16 @@
   }
 
   .kitchen-page .page-header {
-    gap: 12px;
-    margin-bottom: 12px;
+    align-items: stretch;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .kitchen-page .page-header-copy {
+    width: 100%;
+    align-self: stretch;
+    padding: 0;
+    text-align: left;
   }
 
   .kitchen-page .page-header h1 {
@@ -35,8 +43,19 @@
   .kitchen-header-actions {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
     justify-content: stretch;
+  }
+
+  .kitchen-header-primary-action {
+    display: block;
+  }
+
+  .kitchen-header-secondary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .kitchen-header-actions .button {
@@ -46,6 +65,12 @@
     padding-inline: 7px;
     font-size: 0.69rem;
     white-space: normal;
+  }
+
+  .kitchen-header-primary-action .button {
+    width: 100%;
+    min-height: 48px;
+    font-size: 0.78rem;
   }
 
   .kitchen-stats {

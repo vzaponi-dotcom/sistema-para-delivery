@@ -35,6 +35,11 @@
   flex-wrap: wrap;
 }
 
+.kitchen-header-primary-action,
+.kitchen-header-secondary-actions {
+  display: contents;
+}
+
 .kitchen-header-actions .button {
   min-height: 38px;
   padding-inline: 12px;
