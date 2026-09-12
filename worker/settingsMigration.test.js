@@ -243,7 +243,7 @@ test('settings test helper provides real bound D1 reads and atomic batches with 
   await assert.rejects(db.batch([
     db.prepare('UPDATE business_operation_settings SET revision = 3'),
     db.prepare("INSERT INTO settings_tx_assertions (tx_id, check_key, valid) VALUES ('batch-fail', 'revision', 0)"),
-  ]), /SETTINGS_TX_ASSERTION_FAILED/)
+  ]), /SETTINGS_REVISION_CONFLICT/)
   assert.equal(one(sqlite, 'SELECT revision FROM business_operation_settings').revision, 2)
   await assert.rejects(db.batch([db.prepare("UPDATE business_order_modalities SET active = 0 WHERE code = 'Entrega'")]), /FOREIGN KEY constraint/)
   assert.equal(one(sqlite, "SELECT active FROM business_order_modalities WHERE code = 'Entrega'").active, 1)
@@ -263,7 +263,7 @@ test('mutation receipts isolate business/resource identities and SQL assertions 
   sqlite.exec('BEGIN')
   try {
     sqlite.exec('UPDATE business_operation_settings SET revision = 2')
-    assert.throws(() => sqlite.exec("INSERT INTO settings_tx_assertions (tx_id, check_key, valid) VALUES ('tx', 'revision', 0)"), /SETTINGS_TX_ASSERTION_FAILED/)
+    assert.throws(() => sqlite.exec("INSERT INTO settings_tx_assertions (tx_id, check_key, valid) VALUES ('tx', 'revision', 0)"), /SETTINGS_REVISION_CONFLICT/)
   } finally { sqlite.exec('ROLLBACK') }
   assert.equal(one(sqlite, 'SELECT revision FROM business_operation_settings').revision, 1)
   assert.equal(one(sqlite, 'SELECT count(*) AS n FROM settings_tx_assertions').n, 0)
@@ -290,7 +290,7 @@ test('a late migration failure rolls back all new tables, columns, seeds and his
       sqlite.exec("INSERT INTO settings_tx_assertions (tx_id, check_key, valid) VALUES ('migration', 'injected-failure', 0)")
       assert.fail('invalid assertion must abort')
     } catch (error) {
-      assert.match(error.message, /SETTINGS_TX_ASSERTION_FAILED/)
+      assert.match(error.message, /SETTINGS_INVALID/)
       sqlite.exec('ROLLBACK')
     }
     for (const table of settingsTables) assert.equal(names(sqlite).includes(table), false, table)

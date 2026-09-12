@@ -121,6 +121,9 @@ CREATE TABLE settings_mutation_receipts (
   payload_hash TEXT NOT NULL CHECK (length(payload_hash) > 0),
   committed_revision INTEGER NOT NULL CHECK (typeof(committed_revision) = 'integer' AND committed_revision >= 1),
   committed_at TEXT NOT NULL,
+  -- Metadata only, to reconstruct replay timestamps without reading a newer resource.
+  resource_created_at TEXT,
+  resource_updated_at TEXT,
   PRIMARY KEY (business_id, resource_key, mutation_id)
 );
 
@@ -133,7 +136,13 @@ CREATE TABLE settings_tx_assertions (
 
 CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions
 WHEN NEW.valid IS NOT 1
-BEGIN SELECT RAISE(ABORT, 'SETTINGS_TX_ASSERTION_FAILED'); END;
+BEGIN
+  SELECT CASE NEW.check_key
+    WHEN 'revision' THEN RAISE(ABORT, 'SETTINGS_REVISION_CONFLICT')
+    WHEN 'unused' THEN RAISE(ABORT, 'SETTINGS_ITEM_USED')
+    WHEN 'policy' THEN RAISE(ABORT, 'POLICY_CHANGED')
+    ELSE RAISE(ABORT, 'SETTINGS_INVALID') END;
+END;
 CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions
 WHEN NEW.valid IS NOT 1
 BEGIN SELECT RAISE(ABORT, 'SETTINGS_TX_ASSERTION_FAILED'); END;
