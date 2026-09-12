@@ -79,7 +79,7 @@ Result: exit 0; 10/10 passed. A later fresh run after boundary additions also ex
 
 - [x] T01 — typed contracts, defaults and characterization.
 - [x] T02 — migrations and compatible seeds (completed; review clean).
-- [x] T03 — atomic operations repository (implemented; independent review pending).
+- [x] T03 — atomic operations repository (completed; review clean).
 - [ ] T04 — payment policy repository (not authorized; do not start).
 
 ## T01 correction — Fix round 1
@@ -182,7 +182,7 @@ The first sandboxed npm migration attempt stalled before Wrangler started and wa
 
 ## T03 — atomic operations, revision and receipts
 
-Status: implemented; self-review complete; independent review pending. Implementation commit is the commit containing this ledger update, subject `feat: save operations atomically with revisions and receipts`. Base: `e32cfa26658189a03ff2c5c1a0fabac78e091acc`.
+Status: completed; self-review and independent re-review clean. Implementation commit: `8747f5ae90b66069abdae691eb52e805d52b1cfd` (`feat: save operations atomically with revisions and receipts`). Base: `e32cfa26658189a03ff2c5c1a0fabac78e091acc`.
 
 ### Implementation
 
@@ -218,15 +218,15 @@ Gate startup troubleshooting was recorded, not accepted as behavior RED: the san
 ### R1 checkpoint / review
 
 - T01: completed; review clean for Critical/Important, known `settingsGrants` mutable-Set Minor deferred.
-- T02: completed; prior review clean; T03's limited 0024/expected-error changes passed all migration regressions and await T03 review.
-- T03: implemented and committed with this record; independent spec/quality review pending with the controller.
+- T02: completed; prior review clean; T03's limited 0024/expected-error changes passed all migration regressions and were included in the clean T03 re-review.
+- T03: completed; independent spec/quality re-review clean after fix round 1. R1 still awaits broad final review, final gates and push.
 - T04: next task, **not authorized**. No T04 code, API endpoint, consumer, effective config, UI, print-job rebuild, push, merge, deployment or remote migration was started.
 - Full `npm test` remains the controller's final R1 gate. This task did not change or attempt to fix the pre-existing `FinanceMoreMobile.test.js` failure.
 - Full local report: `.superpowers/sdd/2026-09-12-business-settings-policies-plan/task-3-report.md` (execution artifact, intentionally not staged).
 
 ## T03 correction — Fix round 1
 
-Base: `8747f5ae90b66069abdae691eb52e805d52b1cfd`. Both Important review findings have been corrected; controller re-review is pending. Correction commit is the commit containing this ledger update, subject `fix: validate settings schema and supervise local probe processes`.
+Base: `8747f5ae90b66069abdae691eb52e805d52b1cfd`. Both Important review findings have been corrected and independently re-reviewed. Correction commit: `b1b92be68a85a9c9455fad0e0f67d16041d17bd1` (`fix: validate settings schema and supervise local probe processes`).
 
 - The aggregate health query now explicitly references all three assertion columns (`tx_id`, `check_key`, `valid`). Four new real-SQL cases cover renamed `check_key`/`valid` on load/replay; the same cases execute in the real D1 probe. No migration changed in this correction.
 - The gate now uses one idempotent process manager for migrations and dev. SIGINT/SIGTERM abort pending waits and enter the same cleanup path; final JSON is emitted only after cleanup. Windows commands launch suspended inside a native Job Object before they can spawn children; no breakaway is enabled. The supervisor persists after main-process exit, supports cooperative stdin closure, uses `TerminateJobObject` after the deadline, and confirms ActiveProcesses=0 plus stream/process closure. POSIX owns a process group, waits after graceful shutdown/SIGTERM, escalates to SIGKILL and waits again. Unconfirmed termination fails the gate.
@@ -248,4 +248,13 @@ Base: `8747f5ae90b66069abdae691eb52e805d52b1cfd`. Both Important review findings
 
 Self-review covers the complete manager/native helper, signal paths, process ownership, termination deadlines, all touched repository/probe paths and explicit stage list. Native Windows behavior was executed; POSIX logic is implemented but not runtime-verified on this Windows machine. The signal checks invoke the installed Node signal handlers with `process.emit`, because Windows `kill(SIGTERM)` is forceful and cannot deliver a catchable POSIX signal. The first one-line interruption-check attempt failed in PowerShell argument quoting before any work; a dedicated checked-in integration-check script removed that ambiguity.
 
-T01/T02 statuses and the deferred T01 Minor remain unchanged. T03 awaits re-review. T04 remains unauthorized. No push, merge, deploy, remote migration or full-suite success is claimed.
+T01/T02 statuses and the deferred T01 Minor remain unchanged. T03 is completed with review clean. T04 remains unauthorized. No push, merge, deploy, remote migration or full-suite success is claimed.
+
+### Final T03 review closure
+
+- Initial review: two Important findings — incomplete assertion-schema validation and incomplete process-tree cleanup/signal handling in the local D1 runner.
+- Fix round 1: `b1b92be68a85a9c9455fad0e0f67d16041d17bd1` addressed both findings; RED/GREEN and real D1/process evidence are recorded above.
+- Independent re-review: all findings addressed; no new Critical or Important findings. T03 is completed and review clean.
+- Non-blocking verification limitation: POSIX runtime behavior was not executed on this Windows machine. Native Windows behavior and the real local D1 gate were executed; this limitation does not block T03 closure.
+- The T01 `settingsGrants` mutable-Set Minor remains deferred to the final broad review; this bookkeeping change does not resolve or expand it.
+- R1 awaits broad final review, final gates and push by the controller. No push occurred during this closure. T04 remains the next task and is **not authorized**.
