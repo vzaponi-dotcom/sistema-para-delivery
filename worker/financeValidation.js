@@ -1,4 +1,4 @@
-import { getBusinessDate, isManualMovementCategory } from '../shared/finance.js'
+import { getBusinessDate, getManualMovementCategoryOptions } from '../shared/finance.js'
 import {
   moneyToCents,
   requireNonEmpty,
@@ -22,13 +22,15 @@ const validateNotFuture = (date, field, now) => {
 export const parseManualMovementInput = (body = {}, now = new Date()) => {
   const type = validateMovementType(body.type)
   const category = requireNonEmpty(body.category, 'category')
-  if (!isManualMovementCategory(type, category)) {
+  const nativeType = ['entrada', 'saida'].find((candidate) => getManualMovementCategoryOptions(candidate)
+    .some((option) => option.value === category))
+  if (['sales', 'refunds'].includes(category) || (nativeType && nativeType !== type)) {
     throw financeValidationError('category', 'Selecione uma categoria manual compatível com o tipo do movimento.')
   }
   const valueCents = moneyToCents(body.value, 'value')
   if (valueCents <= 0) throw financeValidationError('value', 'O valor deve ser maior que zero.')
   const movementDate = validateNotFuture(validateIsoDate(body.movementDate, 'movementDate'), 'movementDate', now)
-  return {
+  const parsed = {
     type,
     category,
     description: requireNonEmpty(body.description, 'description'),
@@ -36,6 +38,13 @@ export const parseManualMovementInput = (body = {}, now = new Date()) => {
     movementDate,
     paymentMethod: validatePaymentMethod(body.paymentMethod, 'paymentMethod'),
   }
+  if (body.expectedRevision !== undefined) {
+    if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 1) {
+      throw financeValidationError('expectedRevision', 'Atualize as categorias financeiras e tente novamente.')
+    }
+    parsed.expectedRevision = body.expectedRevision
+  }
+  return parsed
 }
 
 export const parseFinanceSettingsInput = (body = {}, now = new Date()) => ({

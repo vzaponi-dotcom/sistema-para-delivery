@@ -22,6 +22,12 @@ test('legacy categories normalize without rewriting the stored row', () => {
   assert.equal(normalizeMovementCategory({ type: 'saida', category: 'Insumos', source: 'manual' }), 'supplies')
   assert.equal(normalizeMovementCategory({ type: 'entrada', category: 'Outros', source: 'manual' }), 'other_income')
   assert.equal(getMovementCategoryLabel({ type: 'saida', category: 'packaging', source: 'manual' }), 'Embalagens')
+  const completeHistoricalLabels = new Map([
+    ['inactive-custom', 'Eventos antigos'],
+    ['active-custom', 'Eventos atuais'],
+  ])
+  assert.equal(getMovementCategoryLabel({ type: 'entrada', category: 'inactive-custom', source: 'manual' }, completeHistoricalLabels),
+    'Eventos antigos')
 })
 
 test('finance business date uses America/Sao_Paulo', () => {

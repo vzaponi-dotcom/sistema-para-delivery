@@ -16,6 +16,20 @@ test('manual movement input normalizes the full finance contract', () => {
   })
 })
 
+test('manual movement input accepts a custom category id and preserves an optional server policy revision', () => {
+  assert.deepEqual(parseManualMovementInput({
+    type: 'entrada', category: 'event-income', description: ' Evento ', value: 90,
+    movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: 4,
+  }, now), {
+    type: 'entrada', category: 'event-income', description: 'Evento', valueCents: 9000,
+    movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: 4,
+  })
+  expectValidation(() => parseManualMovementInput({
+    type: 'entrada', category: 'event-income', description: 'Evento', value: 90,
+    movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: 0,
+  }, now), 'expectedRevision')
+})
+
 test('manual movement validation rejects system categories, cross-type categories, invalid values, dates and methods', () => {
   expectValidation(() => parseManualMovementInput({ type: 'entrada', category: 'sales', description: 'Venda', value: 10, movementDate: '2026-09-03', paymentMethod: 'Pix' }, now), 'category')
   expectValidation(() => parseManualMovementInput({ type: 'entrada', category: 'packaging', description: 'Caixas', value: 10, movementDate: '2026-09-03', paymentMethod: 'Pix' }, now), 'category')

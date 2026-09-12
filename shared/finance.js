@@ -56,9 +56,10 @@ export const normalizeMovementCategory = (movement = {}) => {
   return legacyCategoryCodes[category] ?? category
 }
 
-export const getMovementCategoryLabel = (movement = {}) => {
+export const getMovementCategoryLabel = (movement = {}, categoryLabels = new Map()) => {
   const normalized = normalizeMovementCategory(movement)
-  return categoryLabelByCode.get(normalized) ?? String(movement.category ?? '')
+  const historicalLabel = categoryLabels instanceof Map ? categoryLabels.get(normalized) : categoryLabels?.[normalized]
+  return historicalLabel ?? categoryLabelByCode.get(normalized) ?? String(movement.category ?? '')
 }
 
 export const getBusinessDate = (date = new Date()) => {
