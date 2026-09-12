@@ -368,3 +368,42 @@ Authorization was limited to T04 on published base `b25d59e986b56afe555ec402f9c0
 An independent read-only review of the complete T04 diff found no Critical, Important or Minor issues and judged it ready for this task checkpoint. Its non-blocking suggestion was payment-specific duplication of expired-receipt and transport-failure cases; those protocol behaviors remain directly covered in the shared T03 transaction/operation regression set and were not used to expand T04.
 
 The full `npm test` suite, migrations and the D1 gate were deliberately not run in this task. Therefore the aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and must be resumed in the test-stability workstream before merge or release; this T04 result neither resolves nor dismisses it. T05 remains **not authorized**. No merge, deployment, release or remote migration is authorized by this checkpoint.
+
+## T05 — cancellation reasons and first-use race
+
+Authorization was limited to T05 on clean published base `c69e048881402738af648a74d4e93379a7ab2bbd`; `git ls-remote` confirmed the same SHA on `origin/feature/spec-b-settings-policies` before changes. Functional commit: `ebdb090844ed92b5b2ab045763eaa4db027466f7` (`feat: manage cancellation reasons preserving first use`). Review-fix commit: `b4dab34f2d7eb00595a8dfc63a141a3d0732f86b` (`fix: preserve cancellation catalog atomicity`). No T01–T04 work was redone, no T06/API/UI work was started, and no dependency, migration or workflow was changed.
+
+### Delivered behavior
+
+- Added typed `loadCancellationReasons` / `saveCancellationReasons` with the T03 revision, atomic batch, no-op, replay and receipt protocol. Loads fail closed on incomplete/corrupt typed state and return server-owned `isSystem`, `requiresNote`, `usedEver`, `canRename` and `canDelete` metadata.
+- Preserved the five native IDs and labels. Native identities cannot be renamed or deleted; `other` remains active and requires a non-empty cancellation description of at most 240 characters.
+- Custom reasons support creation, activation/deactivation, contiguous ordering and normalized unique names up to 80 characters. Rename/delete is limited to never-used custom identities. Multiple guarded edits share one aggregate `unused` assertion; collision-safe temporary name keys allow swaps and reuse of a name released by deletion without exposing an intermediate state.
+- Added `prepareCancellationUse(db,businessId,reasonId,expectedRevision,txId,at)`, which returns the revision/activity guard and permanent first-use update without executing early. `orderCancellation` commits those statements with the order transition, pending automatic-print deletion and optional existing refund movement. A concurrent order-state change aborts before first-use marking.
+- Delete/rename versus first cancellation has one valid winner. If use wins, admin mutation returns `SETTINGS_ITEM_USED`; if deletion wins, cancellation returns `POLICY_CHANGED`. In neither order is there a lost reference or partial write. Cross-business, absent and inactive reasons are rejected from the authenticated business scope.
+- Confirmed receipts are reconciled before current usage restrictions, including a commit occurring between the first receipt read and current-catalog load. The same mutation/payload remains replayable after later custom creation and use; a different payload keeps the existing mutation-reuse rejection.
+- Existing cancellation eligibility, order history fields, deferred/immediate refund behavior and automatic-print cleanup remain in place. No new automatic refund was introduced.
+
+### TDD and verification
+
+| Evidence | Result |
+|---|---|
+| Behavioral RED after creating only the minimal module interface | Exit 1; 0/14 passed. Assertions failed on missing catalog behavior and the existing cancellation path failed the new 240-character rule; this was not an `ERR_MODULE_NOT_FOUND` preparation failure. |
+| First implementation run | Exit 1; 4/14 passed. Failures separated product behavior from fixture-shape defects (`requiresNote` belongs to metadata), a cross-business LEFT JOIN expectation and `node:sqlite` null-prototype comparison. |
+| Focused GREEN after fixture corrections and minimal implementation | Exit 0; 14/14 passed. |
+| Direct related regressions before updating legacy doubles | Exit 1; 26/33 passed. The seven failures were confined to old fake DBs returning null for the newly required seeded-policy read. |
+| Direct related regressions after aligning doubles with the real seeded catalog | Exit 0; 33/33 passed. Existing order/refund/printing assertions were retained. |
+| Additional transactional RED | Exit 1; 13/15 passed. Out-of-range ordering could reach SQL and a concurrent already-cancelled order could mark another reason as used. |
+| Additional transactional GREEN | Exit 0; 15/15 passed after pre-SQL contiguous-order validation and an order-state assertion before first-use marking. |
+| Independent initial review | Three Important findings reproduced: duplicate `unused` assertion keys for multiple edits, transient unique-name collisions during valid swaps/delete-and-reuse, and receipt replay rejected after later first use. No Critical findings. |
+| Review regression RED | Exit 1; 8/11 repository tests passed; all three reproduced review cases failed for the expected reasons. |
+| Review-fix GREEN | Exit 0; 11/11 repository tests passed after aggregate guarding, collision-safe staging and receipt-first reconciliation. A further focused RED reproduced the receipt-confirmation window between first read and load; the second reconciliation made it GREEN. |
+| Final authorized selection | Exit 0; 51/51 passed across `worker/cancellationSettingsRepository.test.js`, `worker/cancellationPolicyUsage.test.js`, `shared/settingsCatalogs.test.js`, `worker/settingsTransactions.test.js`, `worker/orderCancellation.test.js`, `worker/orderCancellationHttp.test.js` and `worker/settingsMigration.test.js`. Zero failures/skips/cancellations. |
+| Targeted installed Oxlint, `node --check` on all six implementation/test files, and `git diff --check` | Exit 0; no diagnostics or whitespace errors. The Git EOL notices describe the existing Windows checkout policy and are not lint/whitespace failures. |
+
+### Review closure and limits
+
+The independent read-only re-review of `c69e048..b4dab34` confirmed all three Important findings resolved and found no new Critical, Important or Minor issues. Its own four-file selection passed 30/30; additional real-SQL probes confirmed rollback after temporary name staging and rejection before edits when either swapped identity becomes used. Verdict: ready for the T05 checkpoint.
+
+Workflow triggers were checked before publication: staging deploy watches only `feature/centralized-qz-print-queue`; production deploy is manual; push validation watches only `master`; the two TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
+
+Per the task authorization, `npm test`, build, migrations, the D1 gate, remote migrations, merge, deploy and release were not run. The aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and still blocks merge/release; T05 neither resumes nor resolves that investigation. T06 is **not authorized and not started**.
