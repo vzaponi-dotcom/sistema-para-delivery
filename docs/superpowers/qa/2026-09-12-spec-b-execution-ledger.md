@@ -113,5 +113,15 @@ Each added assertion detects a concrete weakening: removal/change of native `req
 ### Review state
 
 - Self-review: source, tests, ledger and final staged patch reviewed against all four findings; no out-of-scope path is staged.
-- Independent review: pending controller review.
+- Initial independent review: three Important findings, covering native `requiresNote`, custom-item permanence from trusted `existing` metadata, and reservation of automatic finance IDs.
+- Fix round 1: committed as `a18e5650f9155c18f8b169720feb4819215cf642` (`fix: preserve settings catalog invariants`).
+- Independent re-review: all three Important findings addressed; no new Critical or Important findings.
+- Deferred Minor: the mutable `Set` returned by `settingsGrants` remains intentionally deferred to the final review and was not expanded into this correction.
+- T01 status: completed, review clean for Critical/Important severity.
 - T02/T03 were not started; T04 remains unauthorized.
+
+### Next authorized task
+
+- T02 is the next authorized task and has not been started.
+- T04 remains unauthorized.
+- No push was performed as part of this bookkeeping closure.
