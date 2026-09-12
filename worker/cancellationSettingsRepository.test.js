@@ -25,6 +25,15 @@ function withCustom(data = editableNatives(), overrides = {}) {
   return result
 }
 
+function withTwoCustom(data = editableNatives()) {
+  const result = structuredClone(data)
+  result.items.push(
+    { id: 'custom-alpha', label: 'Alpha', active: true, sortOrder: result.items.length },
+    { id: 'custom-beta', label: 'Beta', active: true, sortOrder: result.items.length + 1 },
+  )
+  return result
+}
+
 const state = (sqlite) => ['business_cancellation_settings', 'business_cancel_reasons', 'settings_mutation_receipts', 'settings_tx_assertions']
   .map((table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY 1, 2`).all().map((row) => ({ ...row })))
 
@@ -123,12 +132,12 @@ test('used custom reason cannot be renamed or deleted but can be deactivated', a
   const renamed = structuredClone(used.data)
   renamed.items.find(({ id }) => id === 'weather-delay').label = 'Temporal'
   await assert.rejects(saveCancellationReasons(db, BUSINESS, input('rename-used', renamed, created.resource.revision), NOW), {
-    status: 400, code: 'SETTINGS_INVALID',
+    status: 409, code: 'SETTINGS_ITEM_USED',
   })
   const removed = structuredClone(used.data)
   removed.items = removed.items.filter(({ id }) => id !== 'weather-delay')
   await assert.rejects(saveCancellationReasons(db, BUSINESS, input('delete-used', removed, created.resource.revision), NOW), {
-    status: 400, code: 'SETTINGS_INVALID',
+    status: 409, code: 'SETTINGS_ITEM_USED',
   })
 
   const disabled = structuredClone(used.data)
@@ -160,6 +169,78 @@ test('unused custom deletion is atomic and a late first use rejects rename/delet
     status: 409, code: 'SETTINGS_ITEM_USED',
   })
   assert.equal(sqlite.prepare("SELECT label FROM business_cancel_reasons WHERE id = 'weather-delay'").get().label, 'Chuva forte')
+})
+
+test('one save can rename or delete multiple unused custom reasons', async (t) => {
+  const { db, sqlite } = setup(t)
+  const created = await saveCancellationReasons(db, BUSINESS, input('create-two', withTwoCustom()), NOW)
+  const renamed = structuredClone(created.resource.data)
+  renamed.items.find(({ id }) => id === 'custom-alpha').label = 'Alpha novo'
+  renamed.items.find(({ id }) => id === 'custom-beta').label = 'Beta novo'
+  const renamedResult = await saveCancellationReasons(db, BUSINESS, input('rename-two', renamed, 2), new Date(+NOW + 1000))
+  assert.deepEqual(renamedResult.resource.data.items.slice(-2).map(({ label }) => label), ['Alpha novo', 'Beta novo'])
+
+  const removed = structuredClone(renamedResult.resource.data)
+  removed.items = removed.items.filter(({ id }) => !['custom-alpha', 'custom-beta'].includes(id))
+  const deletedResult = await saveCancellationReasons(db, BUSINESS, input('delete-two', removed, 3), new Date(+NOW + 2000))
+  assert.equal(deletedResult.resource.data.items.length, 5)
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM business_cancel_reasons WHERE id IN ('custom-alpha', 'custom-beta')").get().n, 0)
+})
+
+test('one atomic save can swap custom names or reuse a name released by deletion', async (t) => {
+  const { db } = setup(t)
+  const created = await saveCancellationReasons(db, BUSINESS, input('create-name-pair', withTwoCustom()), NOW)
+  const swapped = structuredClone(created.resource.data)
+  swapped.items.find(({ id }) => id === 'custom-alpha').label = 'Beta'
+  swapped.items.find(({ id }) => id === 'custom-beta').label = 'Alpha'
+  const swappedResult = await saveCancellationReasons(db, BUSINESS, input('swap-names', swapped, 2), new Date(+NOW + 1000))
+  assert.equal(swappedResult.resource.data.items.find(({ id }) => id === 'custom-alpha').label, 'Beta')
+  assert.equal(swappedResult.resource.data.items.find(({ id }) => id === 'custom-beta').label, 'Alpha')
+
+  const reused = structuredClone(swappedResult.resource.data)
+  reused.items.find(({ id }) => id === 'custom-alpha').label = 'Alpha'
+  reused.items = reused.items.filter(({ id }) => id !== 'custom-beta')
+  const reusedResult = await saveCancellationReasons(db, BUSINESS, input('reuse-deleted-name', reused, 3), new Date(+NOW + 2000))
+  assert.equal(reusedResult.resource.data.items.find(({ id }) => id === 'custom-alpha').label, 'Alpha')
+  assert.equal(reusedResult.resource.data.items.some(({ id }) => id === 'custom-beta'), false)
+})
+
+test('receipt replay remains recoverable after later custom creation and first use', async (t) => {
+  const { db, sqlite } = setup(t)
+  const originalData = editableNatives()
+  const original = await saveCancellationReasons(db, BUSINESS, input('historical-replay', originalData), NOW)
+  assert.equal(original.resource.revision, 1)
+  await saveCancellationReasons(db, BUSINESS, input('later-custom', withCustom(), 1), new Date(+NOW + 1000))
+  sqlite.prepare("UPDATE business_cancel_reasons SET first_used_at = ? WHERE id = 'weather-delay'")
+    .run(new Date(+NOW + 2000).toISOString())
+
+  let receiptReads = 0
+  const delayedReceiptDb = {
+    prepare(sql) {
+      const statement = db.prepare(sql)
+      if (!sql.startsWith('SELECT payload_hash')) return statement
+      return {
+        bind(...values) {
+          const bound = statement.bind(...values)
+          return {
+            ...bound,
+            async first(column) {
+              receiptReads += 1
+              if (receiptReads === 1) return null
+              return bound.first(column)
+            },
+          }
+        },
+      }
+    },
+    batch: db.batch,
+  }
+  const replay = await saveCancellationReasons(delayedReceiptDb, BUSINESS,
+    input('historical-replay', originalData), new Date(+NOW + 3000))
+  assert.equal(receiptReads, 2)
+  assert.equal(replay.receipt.replayed, true)
+  assert.equal(replay.resource.revision, 1)
+  assert.deepEqual(replay.resource.data, originalData)
 })
 
 test('rollback, competing revisions, no-op and receipt replay preserve the T03 protocol', async (t) => {

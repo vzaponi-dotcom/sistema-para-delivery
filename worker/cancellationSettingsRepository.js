@@ -107,14 +107,19 @@ function parseCancellationData(data, existing) {
 
 export async function saveCancellationReasons(db, businessId, input, now = new Date()) {
   validateInput(input)
-  parseCancellationData(input.data)
+  const preliminaryData = parseCancellationData(input.data)
+  const { expectedRevision, mutationId } = input
+  const payloadHash = await hashSettingsPayload({ businessId, resource: RESOURCE, expectedRevision, data: preliminaryData })
+  const existingReceipt = await readSettingsReceipt(db, businessId, RESOURCE, mutationId, now)
   const current = await loadCancellationReasons(db, businessId)
+  if (existingReceipt) return savedFromReceipt(existingReceipt, payloadHash, preliminaryData, current.meta.items)
+  const receiptAfterLoad = await readSettingsReceipt(db, businessId, RESOURCE, mutationId, now)
+  if (receiptAfterLoad) return savedFromReceipt(receiptAfterLoad, payloadHash, preliminaryData, current.meta.items)
+  const submittedById = new Map(preliminaryData.items.map((item) => [item.id, item]))
+  if (current.data.items.some((item) => current.meta.items[item.id].usedEver &&
+      (!submittedById.has(item.id) || submittedById.get(item.id).label !== item.label))) throw itemUsed()
   const existing = current.data.items.map((item) => ({ ...item, ...current.meta.items[item.id] }))
   const data = parseCancellationData(input.data, existing)
-  const { expectedRevision, mutationId } = input
-  const payloadHash = await hashSettingsPayload({ businessId, resource: RESOURCE, expectedRevision, data })
-  const existingReceipt = await readSettingsReceipt(db, businessId, RESOURCE, mutationId, now)
-  if (existingReceipt) return savedFromReceipt(existingReceipt, payloadHash, data, current.meta.items)
   if (current.revision !== expectedRevision) {
     const racedReceipt = await readSettingsReceipt(db, businessId, RESOURCE, mutationId, now)
     if (racedReceipt) return savedFromReceipt(racedReceipt, payloadHash, data, current.meta.items)
@@ -147,18 +152,31 @@ export async function saveCancellationReasons(db, businessId, input, now = new D
     }
   } else if (changed) {
     const nextById = new Map(data.items.map((item) => [item.id, item]))
+    const protectedIds = current.data.items.filter((previous) => {
+      const next = nextById.get(previous.id)
+      return !next || next.label !== previous.label
+    }).map(({ id }) => id)
+    if (protectedIds.length) {
+      const placeholders = protectedIds.map(() => '?').join(', ')
+      statements.push(prepareSettingsAssertion(db, txId, 'unused',
+        `(SELECT count(*) FROM business_cancel_reasons
+          WHERE business_id = ? AND id IN (${placeholders}) AND is_system = 0 AND first_used_at IS NULL) = ?`,
+        [businessId, ...protectedIds, protectedIds.length]))
+    }
+    const renamed = current.data.items.filter((previous) => {
+      const next = nextById.get(previous.id)
+      return next && next.label !== previous.label
+    })
+    renamed.forEach((previous, index) => {
+      statements.push(db.prepare('UPDATE business_cancel_reasons SET name_key = ? WHERE business_id = ? AND id = ?')
+        .bind(`__pending__${txId}-${index}`, businessId, previous.id))
+    })
+    for (const previous of current.data.items.filter(({ id }) => !nextById.has(id))) {
+      statements.push(db.prepare('DELETE FROM business_cancel_reasons WHERE business_id = ? AND id = ?').bind(businessId, previous.id))
+    }
     for (const previous of current.data.items) {
       const next = nextById.get(previous.id)
-      const renamed = next && next.label !== previous.label
-      if (!next || renamed) {
-        statements.push(prepareSettingsAssertion(db, txId, 'unused',
-          `EXISTS (SELECT 1 FROM business_cancel_reasons
-            WHERE business_id = ? AND id = ? AND is_system = 0 AND first_used_at IS NULL)`,
-          [businessId, previous.id]))
-      }
-      if (!next) {
-        statements.push(db.prepare('DELETE FROM business_cancel_reasons WHERE business_id = ? AND id = ?').bind(businessId, previous.id))
-      } else if (next.label !== previous.label || next.active !== previous.active || next.sortOrder !== previous.sortOrder) {
+      if (next && (next.label !== previous.label || next.active !== previous.active || next.sortOrder !== previous.sortOrder)) {
         statements.push(db.prepare(`UPDATE business_cancel_reasons SET label = ?, name_key = ?, active = ?, sort_order = ?
           WHERE business_id = ? AND id = ?`)
           .bind(next.label, nameKey(next.label), Number(next.active), next.sortOrder, businessId, next.id))
