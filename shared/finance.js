@@ -1,13 +1,10 @@
+import { DEFAULT_PAYMENT_METHODS, paymentLabel } from './businessPolicies.js'
+
 export const FINANCE_TIME_ZONE = 'America/Sao_Paulo'
 
-export const PAYMENT_METHODS = [
-  'Dinheiro',
-  'Pix',
-  'Cartão de débito',
-  'Cartão de crédito',
-  'Transferência',
-  'Outro',
-]
+// Preserve the legacy UI order while sourcing labels from the canonical payment mapping.
+export const PAYMENT_METHODS = ['cash', ...DEFAULT_PAYMENT_METHODS.methods
+  .map(({ code }) => code).filter((code) => code !== 'cash')].map(paymentLabel)
 
 export const MANUAL_MOVEMENT_CATEGORIES = {
   entrada: [
