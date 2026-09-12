@@ -7,6 +7,7 @@ import Button from '../components/Button'
 import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
+import AreaNavigation from '../components/AreaNavigation'
 import PaymentPromiseDialog from '../components/PaymentPromiseDialog'
 import ReceivableDetail from '../components/ReceivableDetail'
 import ReceivablesForecastDialog from '../components/ReceivablesForecastDialog'
@@ -77,6 +78,10 @@ function Receivables({
   onUpdatePaymentPromise,
   queryState,
   onQueryChange,
+  granted,
+  implemented,
+  onNavigate,
+  activeTab,
 }) {
   const { search, activeView, timingFilter, sortMode, exactDateFilter, selectedEntryKey } = queryState
   const patchQuery = (patch) => onQueryChange(patch)
@@ -230,6 +235,7 @@ function Receivables({
           <span>Previsão</span>
         </button>
       </div>
+      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       <section className="receivables-summary-grid" aria-label="Resumo de recebimentos">
         <button type="button" className="receivables-summary-card" onClick={() => applyTimingFilter('today')}>

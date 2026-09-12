@@ -5,6 +5,7 @@ import DashboardLineChart from '../components/DashboardLineChart'
 import DashboardPaymentMix from '../components/DashboardPaymentMix'
 import DashboardPeriodSelector from '../components/DashboardPeriodSelector'
 import PageHeader from '../components/PageHeader'
+import AreaNavigation from '../components/AreaNavigation'
 import StatCard from '../components/StatCard'
 import Icon from '../components/Icon'
 import { useDashboardPeriod } from '../components/dashboardPeriodContext.js'
@@ -31,7 +32,7 @@ const compactMoneyFormatter = new Intl.NumberFormat('pt-BR', {
 })
 
 const formatCompactAxisValue = (value) => compactMoneyFormatter.format(Number(value) || 0)
-function Dashboard({ totals, orders, currency, queryState, onQueryChange }) {
+function Dashboard({ totals, orders, currency, queryState, onQueryChange, granted, implemented, onNavigate, activeTab }) {
   const { period, setPeriod } = useDashboardPeriod()
   const valuesVisible = queryState.valuesVisible
   const todayValue = toLocalDateValue()
@@ -68,6 +69,7 @@ function Dashboard({ totals, orders, currency, queryState, onQueryChange }) {
           </button>
         )}
       />
+      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       <section className="stats-grid stats-grid-three" aria-label="Indicadores principais">
         <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" />
