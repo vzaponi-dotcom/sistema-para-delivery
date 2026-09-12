@@ -53,6 +53,7 @@ function Dashboard({ totals, orders, currency, queryState, onQueryChange, grante
 
   return (
     <>
+      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
       <PageHeader
         eyebrow="Resumo do dia"
         title="Visão geral financeira"
@@ -69,8 +70,6 @@ function Dashboard({ totals, orders, currency, queryState, onQueryChange, grante
           </button>
         )}
       />
-      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
-
       <section className="stats-grid stats-grid-three" aria-label="Indicadores principais">
         <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" />
         <StatCard label="Recebido hoje" value={displayMoney(totals.receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />

@@ -223,6 +223,7 @@ function Receivables({
 
   return (
     <>
+      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
       <div className="receivables-page-header">
         <PageHeader eyebrow="Financeiro" title="A receber" description="Acompanhe o que entra hoje, os próximos recebimentos e os atrasos." />
         <button
@@ -235,8 +236,6 @@ function Receivables({
           <span>Previsão</span>
         </button>
       </div>
-      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
-
       <section className="receivables-summary-grid" aria-label="Resumo de recebimentos">
         <button type="button" className="receivables-summary-card" onClick={() => applyTimingFilter('today')}>
           <span className="receivables-summary-icon"><Icon name="clock" size={18} /></span><span>Receber hoje</span><strong>{currency(summary.today.amount)}</strong><small>{summary.today.count} pedido(s)</small>

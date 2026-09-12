@@ -45,8 +45,8 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
 
   return (
     <>
-      <PageHeader eyebrow="Pedidos" title="Histórico" description="Consulte pedidos finalizados e cancelados sem apagar o registro original da operação." />
       <AreaNavigation area="orders" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <PageHeader eyebrow="Pedidos" title="Histórico" description="Consulte pedidos finalizados e cancelados sem apagar o registro original da operação." />
       {canViewAnalysis && (
         <OperationalHistoryAnalysis
           orders={orders}

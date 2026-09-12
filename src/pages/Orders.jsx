@@ -64,6 +64,8 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
 
   return (
     <div className="kitchen-page">
+      <AreaNavigation area="orders" activeTab="orders" granted={granted} implemented={implemented} onNavigate={onNavigate} />
+
       <PageHeader
         eyebrow="Operação"
         title="Cozinha"
@@ -79,8 +81,6 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
           </div>
         )}
       />
-
-      <AreaNavigation area="orders" activeTab="orders" granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       <section className="stats-grid stats-grid-four order-ops-stats kitchen-stats" aria-label="Resumo dos pedidos">
         <StatCard className="kitchen-stat-card kitchen-stat-preparing" label="Em preparo" value={queueModel.counts.preparing} helper="Pedidos ativos agora" icon="preparation" />

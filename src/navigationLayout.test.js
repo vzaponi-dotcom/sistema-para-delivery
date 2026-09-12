@@ -32,12 +32,14 @@ const renderedPosition = (output, predicate) => {
   return match
 }
 
-const assertSubnavigationFollowsHeader = (renderer, label) => {
+const assertSingleSubnavigationPrecedesHeader = (renderer, label) => {
   const output = renderer.toJSON()
   const header = renderedPosition(output, (node) => node.type === 'header')
   const navigation = renderedPosition(output, (node) => node.type === 'nav' && node.props['aria-label'] === label)
   assert.ok(header >= 0, `PageHeader ausente para ${label}`)
-  assert.ok(navigation > header, `${label} deve seguir o PageHeader`)
+  assert.ok(navigation >= 0, `${label} ausente`)
+  assert.ok(navigation < header, `${label} deve aparecer antes do PageHeader`)
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': label }).length, 1, `${label} deve aparecer uma unica vez`)
 }
 
 test('sidebar exibe somente grupos e destinos aprovados, omitindo grupos vazios', async (t) => {
@@ -153,7 +155,7 @@ test('AreaNavigation usa a barra leve comum em Pedidos, Financeiro e Configuraç
   }
 })
 
-test('subnavegação segue o PageHeader em todas as áreas com subtabs', async (t) => {
+test('uma única subnavegação precede o PageHeader em todas as áreas com subtabs', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: OrderHistory }, { default: Dashboard }, { default: Receivables }, { default: Finance }, { default: Settings }, { DashboardPeriodContext }] = await Promise.all([
     h.load('/src/pages/Orders.jsx'), h.load('/src/pages/OrderHistory.jsx'), h.load('/src/pages/Dashboard.jsx'), h.load('/src/pages/Receivables.jsx'), h.load('/src/pages/Finance.jsx'), h.load('/src/pages/Settings.jsx'), h.load('/src/components/dashboardPeriodContext.js'),
@@ -163,27 +165,47 @@ test('subnavegação segue o PageHeader em todas as áreas com subtabs', async (
   const queryState = { search: '', activeView: 'pending', timingFilter: 'all', sortMode: 'urgency', exactDateFilter: null, selectedEntryKey: null }
   const DashboardWithPeriod = (props) => React.createElement(DashboardPeriodContext.Provider, { value: { period: '30d', setPeriod() {} } }, React.createElement(Dashboard, props))
 
-  assertSubnavigationFollowsHeader(await h.render(Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos')
-  assertSubnavigationFollowsHeader(await h.render(OrderHistory, { orders: [], queryState: { filter: 'all', analysisPeriod: '30d' }, onQueryChange() {}, ...navigationProps }), 'Navegação de Pedidos')
-  assertSubnavigationFollowsHeader(await h.render(DashboardWithPeriod, { totals: { salesToday: 0, receivedToday: 0, receivables: 0 }, orders: [], currency, queryState: { valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
-  assertSubnavigationFollowsHeader(await h.render(Receivables, { orders: [], currency, queryState, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
-  assertSubnavigationFollowsHeader(await h.render(Finance, { totals: { entries: 0, exits: 0, balance: 0 }, movements: [], currency, onAddMovement() {}, ...navigationProps }), 'Navegação de Financeiro')
-  assertSubnavigationFollowsHeader(await h.render(Settings, { section: 'settings-device', settings: {}, printing: {}, soundEnabled: true, onSoundEnabledChange() {}, ...navigationProps }), 'Navegação de Configurações')
+  assertSingleSubnavigationPrecedesHeader(await h.render(Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos')
+  assertSingleSubnavigationPrecedesHeader(await h.render(OrderHistory, { orders: [], queryState: { filter: 'all', analysisPeriod: '30d' }, onQueryChange() {}, ...navigationProps }), 'Navegação de Pedidos')
+  assertSingleSubnavigationPrecedesHeader(await h.render(DashboardWithPeriod, { totals: { salesToday: 0, receivedToday: 0, receivables: 0 }, orders: [], currency, queryState: { valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await h.render(Receivables, { orders: [], currency, queryState, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await h.render(Finance, { totals: { entries: 0, exits: 0, balance: 0 }, movements: [], currency, onAddMovement() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await h.render(Settings, { section: 'settings-device', settings: {}, printing: {}, soundEnabled: true, onSoundEnabledChange() {}, ...navigationProps }), 'Navegação de Configurações')
 })
 
-test('AreaNavigation destaca Histórico, Financeiro e Configurações corretamente', async (t) => {
+test('AreaNavigation preserva labels, callbacks e aria-current de todos os destinos', async (t) => {
   const h = await workspaceHarness(t)
   const { default: AreaNavigation } = await h.load('/src/components/AreaNavigation.jsx')
-  for (const [area, activeTab, label, ariaLabel] of [
-    ['orders', 'history', 'Histórico', 'Navegação de Pedidos'],
-    ['finance', 'finance', 'Movimentações', 'Navegação de Financeiro'],
-    ['settings', 'settings-device', 'Preferências deste dispositivo', 'Navegação de Configurações'],
+  for (const [area, ariaLabel, destinations] of [
+    ['orders', 'Navegação de Pedidos', [['orders', 'Cozinha'], ['history', 'Histórico']]],
+    ['finance', 'Navegação de Financeiro', [['dashboard', 'Visão geral'], ['receivables', 'A receber'], ['finance', 'Movimentações']]],
+    ['settings', 'Navegação de Configurações', [['settings-printing', 'Impressão'], ['settings-device', 'Preferências deste dispositivo']]],
   ]) {
-    const renderer = await h.render(AreaNavigation, { area, activeTab, granted, implemented, onNavigate() {} })
-    const nav = renderer.root.findByProps({ 'aria-label': ariaLabel })
-    assert.equal(buttonNamed(nav, label).props['aria-current'], 'page')
-    assert.equal(nav.findAllByProps({ 'aria-current': 'page' }).length, 1)
+    for (const [activeTab, activeLabel] of destinations) {
+      const calls = []
+      const renderer = await h.render(AreaNavigation, { area, activeTab, granted, implemented, onNavigate: (id) => calls.push(id) })
+      const nav = renderer.root.findByProps({ 'aria-label': ariaLabel })
+      assert.deepEqual(nav.findAllByType('button').map(nodeText), destinations.map(([, label]) => label))
+      assert.equal(buttonNamed(nav, activeLabel).props['aria-current'], 'page')
+      assert.equal(nav.findAllByProps({ 'aria-current': 'page' }).length, 1)
+      await act(async () => buttonNamed(nav, activeLabel).props.onClick())
+      assert.deepEqual(calls, [activeTab])
+    }
   }
+})
+
+test('Cadastros permanece sem AreaNavigation', async (t) => {
+  const h = await workspaceHarness(t)
+  const [{ default: Clients }, { default: Products }, { default: Tables }] = await Promise.all([
+    h.load('/src/pages/Clients.jsx'), h.load('/src/pages/Products.jsx'), h.load('/src/pages/Tables.jsx'),
+  ])
+  const callbacks = { onAdd() {}, onEdit() {}, onDelete() {} }
+  const renderers = [
+    await h.render(Clients, { clients: [], search: '', sort: 'name-asc', onSearchChange() {}, onSortChange() {}, ...callbacks }),
+    await h.render(Products, { products: [], search: '', currency: String, onSearchChange() {}, queryState: { categoryFilter: 'Todos' }, onQueryChange() {}, ...callbacks }),
+    await h.render(Tables, { tables: [], disabled: false, onCreate() {}, onRename() {}, onSetActive() {}, onReorder() {}, onOpenComanda() {} }),
+  ]
+  for (const renderer of renderers) assert.equal(renderer.root.findAllByProps({ className: 'area-navigation' }).length, 0)
 })
 
 test('Mais contém somente destinos aprovados e fecha antes de confirmar descarte', async (t) => {

@@ -26,8 +26,8 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
 
   return (
     <>
-      <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={canManageMovements ? <Button icon="plus" onClick={() => { if (canManageMovements) onAddMovement?.() }} disabled={writeDisabled}>Novo movimento</Button> : null} />
       <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={canManageMovements ? <Button icon="plus" onClick={() => { if (canManageMovements) onAddMovement?.() }} disabled={writeDisabled}>Novo movimento</Button> : null} />
       <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">
         <StatCard label="Entradas" value={currency(totals.entries)} helper="Receita registrada" icon="arrow-up" tone="success" />
         <StatCard label="Saídas" value={currency(totals.exits)} helper="Despesas registradas" icon="arrow-down" tone="danger" />

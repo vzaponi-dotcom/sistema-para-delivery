@@ -14,6 +14,8 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   const { themePreference, setThemePreference } = useTheme()
   return (
     <div className="settings-page">
+      <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+
       <PageHeader
         eyebrow="Configurações"
         title={section === 'settings-device' ? 'Preferências deste dispositivo' : 'Impressão'}
@@ -21,8 +23,6 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
           ? 'Ajustes locais deste navegador e dispositivo'
           : 'Regras do negócio, estação e impressora local'}
       />
-
-      <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       {section === 'settings-printing' && (
         <PrintingSettingsContent printing={printing} settings={settings} granted={granted} />
