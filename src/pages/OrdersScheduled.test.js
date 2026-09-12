@@ -51,9 +51,11 @@ test('orders page wires ticket actions by phase and keeps global counts independ
   const preparingBlock = source.slice(source.indexOf('queueModel.preparing.map'), source.indexOf('kitchen-scheduled-heading'))
   const scheduledBlock = source.slice(source.indexOf('queueModel.scheduled.map'), source.indexOf('!queueModel.scheduled.length'))
   assert.match(source, /onDetails=\{\(order\) => setDetailOrderId\(order\.id\)\}/)
-  assert.match(preparingBlock, /onFinalize=\{setFinalizeCandidate\}/)
+  assert.match(preparingBlock, /disabled=\{actionsDisabled \|\| !canFinalizeOrders\}/)
+  assert.match(preparingBlock, /onFinalize=\{\(order\) => \{ if \(!canFinalizeOrders\) return false; setFinalizeCandidate\(order\); return true \}\}/)
   assert.doesNotMatch(preparingBlock, /onCancel=/)
-  assert.match(scheduledBlock, /onCancel=\{setCancelOrder\}/)
+  assert.match(scheduledBlock, /disabled=\{actionsDisabled \|\| !canCancelOrders\}/)
+  assert.match(scheduledBlock, /onCancel=\{\(order\) => \{ if \(!canCancelOrders\) return false; setCancelOrder\(order\); return true \}\}/)
   assert.doesNotMatch(scheduledBlock, /onFinalize=/)
   assert.doesNotMatch(source, /(?:preparing|scheduled)\.length[^\n]*StatCard/)
 })
@@ -61,7 +63,7 @@ test('orders page wires ticket actions by phase and keeps global counts independ
 test('scheduled order details keep cancellation available and do not introduce editing', async () => {
   const source = await read('./Orders.jsx')
 
-  assert.match(source, /<OrderDetail[\s\S]*onRequestCancel=\{\(\) =>/)
+  assert.match(source, /<OrderDetail[\s\S]*onRequestCancel=\{canCancelOrders \? \(\) =>/)
   assert.doesNotMatch(source, /isScheduledWaiting\(detailOrder, now\)\s*\?\s*undefined/)
   assert.doesNotMatch(source, /Editar pedido/)
   assert.doesNotMatch(source, /onEditOrder/)

@@ -8,7 +8,7 @@ test('terminal history without a retained job reprints from the order with eithe
   assert.match(source, /const isHistoricalOrder = \['Finalizado', 'Cancelado'\]\.includes\(order\.status\)/)
   assert.match(source, /const reprintCopies = printJob\?\.copiesRequested === 1 \? 1 : defaultCopies/)
   assert.match(source, /const handleHistoricalReprint = \(\) => runPrintingAction\('historical-reprint', \(\) => printing\?\.printOrder\?\.\(order\.id, reprintCopies\)/)
-  assert.match(source, /if \(!printJob && isHistoricalOrder\) return <Button[^>]*onClick=\{\(\) => setConfirmReprint\(true\)\}[^>]*>Reimprimir<\/Button>/)
+  assert.match(source, /if \(!printJob && isHistoricalOrder\) return <Button[^>]*onClick=\{\(\) => \{ if \(canExecutePrinting\) setConfirmReprint\(true\) \}\}[^>]*disabled=\{printingDisabled \|\| !canExecutePrinting\}[^>]*>Reimprimir<\/Button>/)
 })
 
 test('retained historical job keeps the linked requestReprint path', () => {

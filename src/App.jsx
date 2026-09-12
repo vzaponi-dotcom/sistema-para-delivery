@@ -185,7 +185,22 @@ function App({ capabilities } = {}) {
   )
   const canViewOperationalAnalysis = hasCapability(granted, 'orders.history')
     && hasCapability(granted, 'orders.analysis')
+  const canCreateOrders = hasCapability(granted, 'orders.create')
+  const canFinalizeOrders = hasCapability(granted, 'orders.finalize')
+  const canCancelOrders = hasCapability(granted, 'orders.cancel')
+  const canAdjustOrders = hasCapability(granted, 'orders.discount')
+  const canReceivePayments = hasCapability(granted, 'payments.receive')
+  const canRefundPayments = hasCapability(granted, 'payments.refund')
   const canTransferComanda = hasCapability(granted, 'comandas.transfer')
+  const canManageClients = hasCapability(granted, 'clients.manage')
+  const canManageProducts = hasCapability(granted, 'products.manage')
+  const canManageTables = hasCapability(granted, 'tables.manage')
+  const canManageMovements = hasCapability(granted, 'finance.movements.manage')
+  const canManagePaymentPromises = hasCapability(granted, 'finance.promises.manage')
+  const canExecutePrinting = hasCapability(granted, 'printing.execute')
+  const canDiscardPrinting = hasCapability(granted, 'printing.discard')
+  const canUseLocalPreferences = hasCapability(granted, 'preferences.local')
+  const canViewPrintQueue = hasCapability(granted, 'printing.queue')
   const canOpenComanda = resolveDestination('comandas', granted, IMPLEMENTED_DESTINATIONS).status === 'allowed'
   const { query, patchQuery, resetQueries } = useQueryContext()
   const {
@@ -463,9 +478,11 @@ function App({ capabilities } = {}) {
   }
 
   const handleKitchenSoundEnabledChange = (enabled) => {
+    if (!canUseLocalPreferences) return false
     const nextEnabled = Boolean(enabled); setKitchenSoundEnabled(nextEnabled)
     try { window.localStorage.setItem(KITCHEN_SOUND_STORAGE_KEY, String(nextEnabled)) } catch { /* optional */ }
     if (nextEnabled) void playKitchenNewOrderSound()
+    return true
   }
 
   useEffect(() => {
@@ -686,7 +703,7 @@ function App({ capabilities } = {}) {
   }
 
   const handleStartRecovery = async () => {
-    if (recoveryBusy || !physicalPrinterReady) return
+    if (!canExecutePrinting || recoveryBusy || !physicalPrinterReady) return false
     setRecoveryBusy(true)
     try {
       const result = await printing.startRecovery()
@@ -729,7 +746,7 @@ function App({ capabilities } = {}) {
   }
 
   const handleDiscardRecoveryBacklog = async () => {
-    if (recoveryBusy || !physicalPrinterReady) return
+    if (!canDiscardPrinting || recoveryBusy || !physicalPrinterReady) return false
     setRecoveryBusy(true)
     try {
       await printing.discardRecoveryBacklog()
@@ -748,7 +765,7 @@ function App({ capabilities } = {}) {
   }
 
   const handleOriginSecondCopyRequest = async () => {
-    if (!originSecondCopyPromptJob || originSecondCopyPromptBusy) return
+    if (!canExecutePrinting || !originSecondCopyPromptJob || originSecondCopyPromptBusy) return false
     setOriginSecondCopyPromptBusy(true)
     try {
       await printing.requestSecondCopy(originSecondCopyPromptJob)
@@ -776,7 +793,7 @@ function App({ capabilities } = {}) {
   const handleLogout = async () => { if (writesBlocked) return; setRequestKey('auth:logout'); try { await logoutApi(); setSessionKey((current) => current + 1); clearBusinessData(); setAuthState('anonymous'); setBootstrapState('idle'); setLoginError('') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
 
   const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
-    if (writesBlocked) return
+    if (!canCreateOrders || writesBlocked) return false
     let currentTableId = tableId
     if (expectedTableTabId) {
       const currentTable = officialTablesRef.current.find((table) => table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === expectedTableTabId)
@@ -795,12 +812,12 @@ function App({ capabilities } = {}) {
     setNewOrderContext({ tableId: currentTableId, expectedTableTabId, returnTab, owner })
     setCheckoutKey(crypto.randomUUID())
     setNewOrderDirty(false)
-    completeNavigation('new-order')
+    return completeNavigation('new-order')
   }
 
   const handleOrderCheckout = async (payload) => {
     const owner = newOrderContext.owner
-    if (writesBlocked || !owner || owner !== newOrderOwnerRef.current) return false
+    if (!canCreateOrders || (!canAdjustOrders && payload?.adjustment && payload.adjustment.type !== 'none') || writesBlocked || !owner || owner !== newOrderOwnerRef.current) return false
     const key = checkoutKey || crypto.randomUUID(); if (!checkoutKey) setCheckoutKey(key); setRequestKey('order:create')
     try {
       const { order, movement, tableTab, tables: nextTables } = await createOrderApi(payload, key)
@@ -826,11 +843,11 @@ function App({ capabilities } = {}) {
       if (owner === newOrderOwnerRef.current) setRequestKey(null)
     }
   }
-  const handleQuickCreateClient = async ({ name, phone }) => { if (writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
-  const handleFinalizeOrder = async (orderId) => { if (writesBlocked) return; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleCancelOrder = async (orderId, payload) => { if (writesBlocked) return false; setRequestKey(`order:cancel:${orderId}`); try { const { order, movement, tableTab } = await cancelOrderApi(orderId, payload); applyOfficialEffects({ order, movement, tableTab }); showSuccessMessage(payload.refundNow ? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleQuickCreateClient = async ({ name, phone }) => { if (!canManageClients || writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
+  const handleFinalizeOrder = async (orderId) => { if (!canFinalizeOrders || writesBlocked) return false; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return false; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleCancelOrder = async (orderId, payload) => { if (!canCancelOrders || (payload?.refundNow && !canRefundPayments) || writesBlocked) return false; setRequestKey(`order:cancel:${orderId}`); try { const { order, movement, tableTab } = await cancelOrderApi(orderId, payload); applyOfficialEffects({ order, movement, tableTab }); showSuccessMessage(payload.refundNow ? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
   const openPaymentModal = (orderId, source) => {
-    if (writesBlocked) return false
+    if (!canReceivePayments || writesBlocked) return false
     const order = orders.find((item) => item.id === orderId)
     const operational = source === 'orders' || source === 'history'
     if (!order || (operational ? !canReceiveStandaloneOrder(order, granted, source) : isOrderPaid(order) || isOrderCancelled(order))) return false
@@ -856,7 +873,7 @@ function App({ capabilities } = {}) {
     const eligible = currentOrder && (owner.source
       ? canReceiveStandaloneOrder(currentOrder, granted, owner.source)
       : !isOrderPaid(currentOrder) && !isOrderCancelled(currentOrder))
-    if (!owner || owner.guard !== syncGuardRef.current || owner.submitting || writesBlocked || !eligible) return false
+    if (!canReceivePayments || !owner || owner.guard !== syncGuardRef.current || owner.submitting || writesBlocked || !eligible) return false
     owner.submitting = true
     owner.method = paymentMethod
     owner.requestKey = `payment:${owner.orderId}:${owner.token}`
@@ -938,7 +955,7 @@ function App({ capabilities } = {}) {
     }
   }
   const handleCreateTable = async (name) => {
-    if (writesBlocked) return false
+    if (!canManageTables || writesBlocked) return false
     setRequestKey('table:create')
     try {
       const result = await createTableApi({ name })
@@ -948,7 +965,7 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleRenameTable = async (tableId, name) => {
-    if (writesBlocked) return false
+    if (!canManageTables || writesBlocked) return false
     setRequestKey(`table:rename:${tableId}`)
     try {
       const result = await updateTableApi(tableId, { name })
@@ -958,7 +975,7 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleSetTableActive = async (tableId, isActive) => {
-    if (writesBlocked) return false
+    if (!canManageTables || writesBlocked) return false
     setRequestKey(`table:active:${tableId}`)
     try {
       const result = await updateTableApi(tableId, { isActive })
@@ -968,7 +985,7 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleReorderTables = async (tableIds) => {
-    if (writesBlocked) return false
+    if (!canManageTables || writesBlocked) return false
     setRequestKey('table:reorder')
     try {
       const result = await reorderTablesApi(tableIds)
@@ -1010,7 +1027,7 @@ function App({ capabilities } = {}) {
     return true
   }
   const handleUpdatePaymentPromise = async (orderId, promisedPaymentDate) => {
-    if (writesBlocked) return false
+    if (!canManagePaymentPromises || writesBlocked) return false
     setRequestKey(`payment-promise:${orderId}`)
     try {
       const { order } = await updateOrderPaymentPromiseApi(orderId, promisedPaymentDate)
@@ -1019,33 +1036,33 @@ function App({ capabilities } = {}) {
       return true
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
-  const handleRegisterRefund = async (orderId, payload) => { if (writesBlocked) return false; setRequestKey(`order:refund:${orderId}`); try { const { order, movement } = await refundOrderApi(orderId, payload); applyOfficialEffects({ order, movement }); showSuccessMessage('Estorno registrado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleRegisterRefund = async (orderId, payload) => { if (!canRefundPayments || writesBlocked) return false; setRequestKey(`order:refund:${orderId}`); try { const { order, movement } = await refundOrderApi(orderId, payload); applyOfficialEffects({ order, movement }); showSuccessMessage('Estorno registrado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
 
   const resetClientForm = () => { setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(false) }
-  const openNewClient = () => { if (writesBlocked) return; setDuplicateClientDialog(null); setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(true) }
-  const handleEditClient = (client) => { if (writesBlocked) return; setDuplicateClientDialog(null); setEditingClientId(client.id); setShowClientForm(true); setNewClient({ name: client.name, phone: client.phone, address: client.address }) }
+  const openNewClient = () => { if (!canManageClients || writesBlocked) return false; setDuplicateClientDialog(null); setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(true); return true }
+  const handleEditClient = (client) => { if (!canManageClients || writesBlocked) return false; setDuplicateClientDialog(null); setEditingClientId(client.id); setShowClientForm(true); setNewClient({ name: client.name, phone: client.phone, address: client.address }); return true }
   const clientPayload = () => ({ name: newClient.name.trim(), phone: newClient.phone || '', address: newClient.address || 'Sem endereço' })
-  const persistNewClient = async () => { if (writesBlocked || !newClient.name.trim()) return; setRequestKey('client:create'); try { const { client } = await createClientApi(clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente adicionado com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const persistClientUpdate = async () => { if (writesBlocked || !editingClientId || !newClient.name.trim()) return; const id = editingClientId; setRequestKey(`client:update:${id}`); try { const { client } = await updateClientApi(id, clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente atualizado com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleAddClient = async () => { if (writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient, null, 'create')) return; await persistNewClient() }
-  const handleSaveClient = async () => { if (writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId, 'update')) return; await persistClientUpdate() }
+  const persistNewClient = async () => { if (!canManageClients || writesBlocked || !newClient.name.trim()) return false; setRequestKey('client:create'); try { const { client } = await createClientApi(clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente adicionado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const persistClientUpdate = async () => { if (!canManageClients || writesBlocked || !editingClientId || !newClient.name.trim()) return false; const id = editingClientId; setRequestKey(`client:update:${id}`); try { const { client } = await updateClientApi(id, clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente atualizado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleAddClient = async () => { if (!canManageClients || writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient, null, 'create')) return false; return persistNewClient() }
+  const handleSaveClient = async () => { if (!canManageClients || writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId, 'update')) return false; return persistClientUpdate() }
   const handleUseExistingClient = () => { const existing = duplicateClientDialog?.client; setDuplicateClientDialog(null); if (existing?.name) patchQuery('clients', { search: existing.name }); resetClientForm() }
-  const handleConfirmDuplicateClient = async () => { const action = duplicateClientDialog?.action; setDuplicateClientDialog(null); if (action === 'update') await persistClientUpdate(); else if (action === 'create') await persistNewClient() }
-  const handleDeleteClient = async (clientId) => { if (writesBlocked) return; setRequestKey(`client:delete:${clientId}`); try { await deleteClientApi(clientId); syncGuardRef.current.markMutation(['clients']); setClients((current) => removeById(current, clientId)); if (editingClientId === clientId) resetClientForm(); showSuccessMessage('Cliente excluído com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
+  const handleConfirmDuplicateClient = async () => { if (!canManageClients) return false; const action = duplicateClientDialog?.action; setDuplicateClientDialog(null); if (action === 'update') return persistClientUpdate(); if (action === 'create') return persistNewClient(); return false }
+  const handleDeleteClient = async (clientId) => { if (!canManageClients || writesBlocked) return false; setRequestKey(`client:delete:${clientId}`); try { await deleteClientApi(clientId); syncGuardRef.current.markMutation(['clients']); setClients((current) => removeById(current, clientId)); if (editingClientId === clientId) resetClientForm(); showSuccessMessage('Cliente excluído com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
   const handleCancelClientEdit = () => { setDuplicateClientDialog(null); resetClientForm() }
 
-  const openNewProduct = () => { if (writesBlocked) return; setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(true) }
-  const handleEditProduct = (product) => { if (writesBlocked) return; setEditingProductId(product.id); setShowProductForm(true); const legacySized = Boolean(product.size && !['Un', 'Unidade'].includes(product.size)); setNewProduct({ category: categoryForUi(product.category), presentationType: product.presentationType || (legacySized ? 'size' : 'unit'), presentationValue: product.presentationValue ?? (legacySized ? product.size : ''), presentationUnit: product.presentationUnit || '', name: product.name, price: formatBRLCurrencyValue(product.price) }) }
+  const openNewProduct = () => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(true); return true }
+  const handleEditProduct = (product) => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(product.id); setShowProductForm(true); const legacySized = Boolean(product.size && !['Un', 'Unidade'].includes(product.size)); setNewProduct({ category: categoryForUi(product.category), presentationType: product.presentationType || (legacySized ? 'size' : 'unit'), presentationValue: product.presentationValue ?? (legacySized ? product.size : ''), presentationUnit: product.presentationUnit || '', name: product.name, price: formatBRLCurrencyValue(product.price) }); return true }
   const productPayload = () => ({ category: newProduct.category, presentationType: newProduct.presentationType, presentationValue: newProduct.presentationValue, presentationUnit: newProduct.presentationUnit, name: newProduct.name.trim(), price: parseBRLCurrencyInput(newProduct.price) })
-  const handleAddProduct = async () => { if (writesBlocked || !newProduct.name.trim()) return; const editing = editingProductId; setRequestKey(editing ? `product:update:${editing}` : 'product:create'); try { if (editing) { const { product } = await updateProductApi(editing, productPayload()); applyOfficialEffects({ product }); setEditingProductId(null); showSuccessMessage('Produto atualizado com sucesso') } else { const { product } = await createProductApi(productPayload()); applyOfficialEffects({ product }); showSuccessMessage('Produto adicionado com sucesso') } setNewProduct(emptyProduct()); setShowProductForm(false) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
-  const handleDeleteProduct = async (productId) => { if (writesBlocked) return; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); syncGuardRef.current.markMutation(['products']); setProducts((current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
+  const handleAddProduct = async () => { if (!canManageProducts || writesBlocked || !newProduct.name.trim()) return false; const editing = editingProductId; setRequestKey(editing ? `product:update:${editing}` : 'product:create'); try { if (editing) { const { product } = await updateProductApi(editing, productPayload()); applyOfficialEffects({ product }); setEditingProductId(null); showSuccessMessage('Produto atualizado com sucesso') } else { const { product } = await createProductApi(productPayload()); applyOfficialEffects({ product }); showSuccessMessage('Produto adicionado com sucesso') } setNewProduct(emptyProduct()); setShowProductForm(false); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleDeleteProduct = async (productId) => { if (!canManageProducts || writesBlocked) return false; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); syncGuardRef.current.markMutation(['products']); setProducts((current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
   const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
 
-  const openNewMovement = () => { if (writesBlocked) return; setEditingMovement(null); setMovementDialogOpen(true) }
-  const openEditMovement = (movement) => { if (writesBlocked || movement?.source !== 'manual') return; setEditingMovement(movement); setMovementDialogOpen(true) }
+  const openNewMovement = () => { if (!canManageMovements || writesBlocked) return false; setEditingMovement(null); setMovementDialogOpen(true); return true }
+  const openEditMovement = (movement) => { if (!canManageMovements || writesBlocked || movement?.source !== 'manual') return false; setEditingMovement(movement); setMovementDialogOpen(true); return true }
   const closeMovementDialog = () => { setMovementDialogOpen(false); setEditingMovement(null) }
   const handleSaveMovement = async (payload) => {
-    if (writesBlocked) return false
+    if (!canManageMovements || writesBlocked) return false
     const movementId = editingMovement?.id ?? null
     setRequestKey(movementId ? `movement:update:${movementId}` : 'movement:create')
     try {
@@ -1056,7 +1073,7 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleDeleteMovement = async (movementId) => {
-    if (writesBlocked) return false
+    if (!canManageMovements || writesBlocked) return false
     setRequestKey(`movement:delete:${movementId}`)
     try {
       const { deletedMovementId } = await deleteMovementApi(movementId)
@@ -1065,9 +1082,9 @@ function App({ capabilities } = {}) {
       return true
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
-  const openOpeningBalanceDialog = () => { if (!writesBlocked) setOpeningBalanceDialogOpen(true) }
+  const openOpeningBalanceDialog = () => { if (!canManageMovements || writesBlocked) return false; setOpeningBalanceDialogOpen(true); return true }
   const handleSaveFinanceSettings = async (payload) => {
-    if (writesBlocked) return false
+    if (!canManageMovements || writesBlocked) return false
     setRequestKey('finance-settings:save')
     try {
       const { financeSettings } = await saveFinanceSettingsApi(payload)
@@ -1090,16 +1107,16 @@ function App({ capabilities } = {}) {
         {activeTab === 'history' && <AreaNavigation area="orders" activeTab={activeTab} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} />}
         {(activeTab === 'dashboard' || activeTab === 'receivables' || activeTab === 'finance') && <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} />}
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
-        {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
-        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} />}
-        {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} />}
-        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} />}
-        {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onOpenComanda={handleOpenComanda} />}
-        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} canTransfer={canTransferComanda} onTransfer={handleTransferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
+        {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} canManageClients={canManageClients} />}
+        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
+        {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
+        {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
+        {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} canTransfer={canTransferComanda} onTransfer={handleTransferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
         {(activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
 
         {pendingDestination && (
@@ -1116,11 +1133,11 @@ function App({ capabilities } = {}) {
 
         {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
 
-        {showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
-        {duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
-        {showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
-        <MovementDialog open={movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
-        <OpeningBalanceDialog open={openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
+        {canManageClients && showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
+        {canManageClients && duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
+        {canManageProducts && showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
+        <MovementDialog open={canManageMovements && movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
+        <OpeningBalanceDialog open={canManageMovements && openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
         {showPrintingSettings && <PrintingSettings printing={printing} settings={printingSettings} granted={granted} onClose={() => setShowPrintingSettings(false)} />}
       </AppShell>
 
@@ -1131,8 +1148,8 @@ function App({ capabilities } = {}) {
             <p>Como a impressora não possui corte automático, as vias serão impressas uma de cada vez.</p>
             <div className="form-actions">
               <Button type="button" variant="secondary" onClick={() => { void handleDeferRecovery() }} disabled={recoveryBusy}>Agora não</Button>
-              <Button type="button" variant="secondary" onClick={() => { setRecoveryDialogMode(null); setRecoveryDiscardConfirmation(true) }} disabled={recoveryBusy}>Descartar todas</Button>
-              <Button type="button" onClick={() => { void handleStartRecovery() }} disabled={recoveryBusy}>Imprimir agora</Button>
+              <Button type="button" variant="secondary" onClick={() => { if (!canDiscardPrinting) return; setRecoveryDialogMode(null); setRecoveryDiscardConfirmation(true) }} disabled={recoveryBusy || !canDiscardPrinting}>Descartar todas</Button>
+              <Button type="button" onClick={() => { void handleStartRecovery() }} disabled={recoveryBusy || !canExecutePrinting}>Imprimir agora</Button>
             </div>
           </div>
         </Modal>
@@ -1157,7 +1174,7 @@ function App({ capabilities } = {}) {
           cancelLabel="Voltar"
           onClose={() => setRecoveryDiscardConfirmation(false)}
           onConfirm={() => { void handleDiscardRecoveryBacklog() }}
-          disabled={recoveryBusy}
+          disabled={recoveryBusy || !canDiscardPrinting}
         />
       )}
       {secondCopyPromptJob && (
@@ -1179,7 +1196,7 @@ function App({ capabilities } = {}) {
           cancelLabel="Depois"
           onClose={dismissOriginSecondCopyPrompt}
           onConfirm={handleOriginSecondCopyRequest}
-          disabled={originSecondCopyPromptBusy}
+          disabled={originSecondCopyPromptBusy || !canExecutePrinting}
         />
       )}
     </>

@@ -13,7 +13,7 @@ const REASON_OPTIONS = [
 ]
 const PAYMENT_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro'].map((value) => ({ value, label: value }))
 
-function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false }) {
+function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false, canRefundPayments = true }) {
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
   const [refundNow, setRefundNow] = useState(false)
@@ -34,13 +34,13 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
     event.preventDefault()
     if (!reason) return setError('Selecione um motivo para cancelar o pedido.')
     if (reason === 'other' && !note.trim()) return setError('Descreva o motivo do cancelamento.')
-    if (isPaid && refundNow && !refundMethod) return setError('Selecione a forma usada no estorno.')
+    if (isPaid && canRefundPayments && refundNow && !refundMethod) return setError('Selecione a forma usada no estorno.')
     setError('')
-    setReviewPayload({ reason, note: reason === 'other' ? note.trim() : '', refundNow: isPaid ? refundNow : false, refundMethod: isPaid && refundNow ? refundMethod : '' })
+    setReviewPayload({ reason, note: reason === 'other' ? note.trim() : '', refundNow: isPaid && canRefundPayments ? refundNow : false, refundMethod: isPaid && canRefundPayments && refundNow ? refundMethod : '' })
   }
 
   const handleFinalConfirm = async () => {
-    if (!reviewPayload) return
+    if (!reviewPayload || (reviewPayload.refundNow && !canRefundPayments)) return false
     await onConfirm?.(reviewPayload)
   }
 
@@ -68,7 +68,7 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
           <div className="cancel-order-warning"><strong>{formatOrderDisplayNumber(order)} · {order.client}</strong><span>O pedido continuará no histórico e deixará de participar das vendas e da operação.</span></div>
         <div className="form-field"><span>Motivo do cancelamento</span><SystemSelect value={reason} options={REASON_OPTIONS} onChange={(value) => { setReason(value); setError('') }} placeholder="Selecione um motivo" label="Motivo do cancelamento" disabled={submitting} /></div>
         {reason === 'other' && <label className="form-field"><span>Descreva o motivo</span><textarea value={note} maxLength={240} onChange={(event) => { setNote(event.target.value); setError('') }} placeholder="Explique brevemente o motivo" disabled={submitting} /></label>}
-        {isPaid && (
+        {isPaid && canRefundPayments && (
           <div className="cancel-refund-panel">
             <div><strong>Este pedido já foi pago.</strong><span>O valor já foi devolvido ao cliente?</span></div>
             <div className="cancel-refund-choice" role="group" aria-label="Situação do estorno">

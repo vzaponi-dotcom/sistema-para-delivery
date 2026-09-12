@@ -26,6 +26,7 @@ function NewOrderCustomerStep({
   quickClient,
   quickClientError,
   disabled,
+  canManageClients = true,
   canContinue,
   onTypeChange,
   onOrderDateChange,
@@ -118,12 +119,14 @@ function NewOrderCustomerStep({
             </div>
           </div>
 
-          <button type="button" className="new-order-quick-client-toggle" onClick={onQuickClientToggle} disabled={disabled}>
-            + Novo cliente
-          </button>
+          {canManageClients && (
+            <button type="button" className="new-order-quick-client-toggle" onClick={() => { if (canManageClients) onQuickClientToggle?.() }} disabled={disabled}>
+              + Novo cliente
+            </button>
+          )}
 
-          {quickClient.open && (
-            <form className="new-order-quick-client" onSubmit={onQuickClientSubmit}>
+          {canManageClients && quickClient.open && (
+            <form className="new-order-quick-client" onSubmit={(event) => { if (!canManageClients) { event.preventDefault(); return }; onQuickClientSubmit?.(event) }}>
               {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
               <label className="form-field">
                 <span>Nome</span>

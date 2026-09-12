@@ -3,6 +3,7 @@ import Button from './Button'
 import ConfirmationDialog from './ConfirmationDialog'
 import SystemSelect from './SystemSelect'
 import '../printing/printing.css'
+import { hasCapability } from '../app/access.js'
 
 const QZ_CONNECTION_LABELS = {
   connected: 'QZ Tray conectado',
@@ -31,8 +32,9 @@ function PrintingSettingsContent({ printing, settings, granted }) {
   const copiesResource = settings.resources['business-copies']
   const stationResource = settings.resources['station-config']
   const printerResource = settings.resources['local-printer']
-  const canEditCopies = granted?.has('printing.settings')
-  const canConfigureStation = granted?.has('printing.station.configure')
+  const canEditCopies = hasCapability(granted, 'printing.settings')
+  const canConfigureStation = hasCapability(granted, 'printing.station.configure')
+  const canExecutePrinting = hasCapability(granted, 'printing.execute')
   const station = stationResource.confirmedValue || printing?.localStation || null
   const isQz = printing?.transportKind === 'qz'
   const defaultCopies = copiesResource.confirmedValue
@@ -62,17 +64,19 @@ function PrintingSettingsContent({ printing, settings, granted }) {
     }
   }
 
-  const testPrint = () => run('test', () => printing.testPrint(), 'Teste enviado para a impressora.')
+  const testPrint = () => canExecutePrinting ? run('test', () => printing.testPrint(), 'Teste enviado para a impressora.') : false
 
   const openQzConfiguration = async () => {
+    if (!canConfigureStation) return false
     setQzConfiguring(true)
     setQzPrinterSelection(printing?.configuredPrinterName || '')
     await run('qz-discover', () => printing.refreshPrinters())
   }
 
-  const refreshQzPrinters = () => run('qz-discover', () => printing.refreshPrinters())
+  const refreshQzPrinters = () => canConfigureStation ? run('qz-discover', () => printing.refreshPrinters()) : false
 
   const saveQzPrinter = async () => {
+    if (!canConfigureStation) return false
     const printerName = String(qzPrinterSelection || '').trim()
     if (!printerName) {
       setFeedback('Selecione uma impressora antes de salvar.')
@@ -83,6 +87,7 @@ function PrintingSettingsContent({ printing, settings, granted }) {
   }
 
   const saveStationSettings = async (next = {}) => {
+    if (!canConfigureStation) return false
     const nextAuto = next.autoPrintEnabled ?? autoPrintEnabled
     return settings.saveStation({
       name: station?.name,
@@ -92,6 +97,7 @@ function PrintingSettingsContent({ printing, settings, granted }) {
   }
 
   const handleAutoPrintChange = async (event) => {
+    if (!canConfigureStation) return false
     const next = event.target.checked
     setAutoPrintOverride(next)
     await saveStationSettings({ autoPrintEnabled: next })
@@ -99,12 +105,14 @@ function PrintingSettingsContent({ printing, settings, granted }) {
   }
 
   const handleCopiesChange = async (event) => {
+    if (!canEditCopies) return false
     const next = Number(event.target.value)
     if (pendingAction || settingsLoading || defaultCopies === null || (next !== 1 && next !== 2)) return
     await settings.saveCopies(next)
   }
 
   const makePrimary = async () => {
+    if (!canConfigureStation) return false
     const saved = await settings.makePrimary(station?.id)
     if (saved) setConfirmPrimary(false)
   }
@@ -239,7 +247,7 @@ function PrintingSettingsContent({ printing, settings, granted }) {
             </div>
           )}
 
-          {isQz && canConfigureStation && (
+          {isQz && canExecutePrinting && (
             <div className="printing-actions-row">
               <Button
                 type="button"
@@ -313,7 +321,7 @@ function PrintingSettingsContent({ printing, settings, granted }) {
           {feedback && <p className="printing-feedback" role="status">{feedback}</p>}
         </div>
 
-      {isQz && confirmPrimary && (
+      {isQz && canConfigureStation && confirmPrimary && (
         <ConfirmationDialog
           title="Tornar estação principal"
           message="Esta será a única estação responsável pela impressão automática. As outras estações continuam disponíveis para ações manuais."

@@ -79,7 +79,7 @@ test('active order cancellation is available in details while scheduled tickets 
 
   assert.match(detail, /onRequestCancel/)
   assert.match(detail, />Cancelar pedido</)
-  assert.match(orders, /onRequestCancel=\{\(\) => \{\s*setDetailOrderId\(null\);?\s*setCancelOrder\(detailOrder\)\s*\}\}/s)
+  assert.match(orders, /onRequestCancel=\{canCancelOrders \? \(\) => \{ if \(!canCancelOrders\) return; setDetailOrderId\(null\); setCancelOrder\(detailOrder\) \} : undefined\}/s)
   assert.doesNotMatch(orders, /isScheduledWaiting\(detailOrder, now\)/)
   assert.match(ticket, /scheduled\s*\?\s*<Button[^>]*onClick=\{\(\) => onCancel\?\.\(order\)\}/s)
   assert.match(ticket, /:\s*<Button[^>]*onClick=\{\(\) => onFinalize\?\.\(order\)\}[^>]*>\{getFinalActionLabel\(order\)\}/s)

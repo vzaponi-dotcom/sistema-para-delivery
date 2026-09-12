@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 test('Tables is an App-controlled workspace with no direct API access', async () => {
   const page = await read('./Tables.jsx')
 
-  assert.match(page, /function Tables\(\{ tables, disabled, canOpenComanda = false, onCreate, onRename, onSetActive, onReorder, onOpenComanda \}\)/)
+  assert.match(page, /function Tables\(\{ tables, disabled, canOpenComanda = false, canManageTables = true, onCreate, onRename, onSetActive, onReorder, onOpenComanda \}\)/)
   assert.doesNotMatch(page, /fetch\s*\(/)
   assert.doesNotMatch(page, /\/api\/tables/)
 })

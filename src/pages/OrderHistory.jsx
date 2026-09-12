@@ -19,7 +19,7 @@ const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order:
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, now = new Date() }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
   const filter = queryState.filter
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -32,7 +32,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
   }, [detailOrder, detailOrderId])
 
   const confirmCancellation = async (payload) => {
-    if (!cancelOrder || submitting || !onCancelOrder) return
+    if (!canCancelOrders || (payload?.refundNow && !canRefundPayments) || !cancelOrder || submitting || !onCancelOrder) return false
     setSubmitting(true)
     try { const saved = await onCancelOrder(cancelOrder.id, payload); if (saved !== false) setCancelOrder(null) } finally { setSubmitting(false) }
   }
@@ -76,15 +76,15 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
                 </div>
                 <div className="order-history-badges"><StatusBadge status={order.status} /><PaymentBadge order={order} />{refundState === 'pending' && <span className="status-badge status-warning">Estorno pendente</span>}{refundState === 'refunded' && <span className="status-badge status-success">Estornado</span>}</div>
                 <div className="order-history-value"><strong>{currency(order.total)}</strong></div>
-                <div className="order-history-actions"><Button type="button" variant="secondary" onClick={() => setDetailOrderId(order.id)}>Ver detalhes</Button>{order.status === 'Finalizado' && <Button type="button" variant="secondary" className="button-danger-outline" disabled={Boolean(actionKey) || submitting} onClick={() => setCancelOrder(order)}>Cancelar pedido</Button>}</div>
+                <div className="order-history-actions"><Button type="button" variant="secondary" onClick={() => setDetailOrderId(order.id)}>Ver detalhes</Button>{canCancelOrders && order.status === 'Finalizado' && <Button type="button" variant="secondary" className="button-danger-outline" disabled={Boolean(actionKey) || submitting} onClick={() => { if (canCancelOrders) setCancelOrder(order) }}>Cancelar pedido</Button>}</div>
               </article>
             )
           })}
           {!terminalOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>Nenhum pedido neste filtro</strong><span>Os pedidos finalizados e cancelados aparecerão aqui.</span></div>}
         </div>
       </section>
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
-      <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} />
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
+      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} canRefundPayments={canRefundPayments} />
     </>
   )
 }

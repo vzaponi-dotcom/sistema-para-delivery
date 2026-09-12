@@ -15,7 +15,7 @@ import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, officialOrders = orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
+function Orders({ orders, officialOrders = orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -37,7 +37,7 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
   }
 
   const confirmFinalize = async () => {
-    if (!finalizeCandidate || actionsDisabled) return
+    if (!canFinalizeOrders || !finalizeCandidate || actionsDisabled) return false
     const order = finalizeCandidate
     await runAction(`finish:${order.id}`, async () => {
       await onFinalizeOrder(order.id)
@@ -46,7 +46,7 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
   }
 
   const confirmCancellation = async (payload) => {
-    if (!cancelOrder || actionsDisabled || !onCancelOrder) return
+    if (!canCancelOrders || (payload?.refundNow && !canRefundPayments) || !cancelOrder || actionsDisabled || !onCancelOrder) return false
     const id = cancelOrder.id
     setPendingAction(`cancel:${id}`)
     try {
@@ -70,12 +70,12 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
         description="Acompanhe os pedidos em preparo e agendados"
         actions={(
           <div className="kitchen-header-actions">
-            <button type="button" className="button button-secondary kitchen-sound-toggle" aria-pressed={soundEnabled} title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'} onClick={() => onSoundEnabledChange?.(!soundEnabled)}>
+            {canUseLocalPreferences && <button type="button" className="button button-secondary kitchen-sound-toggle" aria-pressed={soundEnabled} title={soundEnabled ? 'Desativar som de novos pedidos' : 'Ativar som de novos pedidos'} onClick={() => { if (canUseLocalPreferences) onSoundEnabledChange?.(!soundEnabled) }}>
               <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
               <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
-            </button>
-            <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Fila de impressão</Button>
-            <Button icon="plus" onClick={onNewOrder} disabled={actionsDisabled}>Novo pedido</Button>
+            </button>}
+            {canViewPrintQueue && <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Fila de impressão</Button>}
+            {canCreateOrders && <Button icon="plus" onClick={() => { if (canCreateOrders) onNewOrder?.() }} disabled={actionsDisabled}>Novo pedido</Button>}
           </div>
         )}
       />
@@ -106,10 +106,10 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
                 <KitchenTicket
                   entry={entry}
                   now={now}
-                  disabled={actionsDisabled}
+                  disabled={actionsDisabled || !canFinalizeOrders}
                   highlighted={newOrderIds.has(String(entry.order.id))}
                   onDetails={(order) => setDetailOrderId(order.id)}
-                  onFinalize={setFinalizeCandidate}
+                  onFinalize={(order) => { if (!canFinalizeOrders) return false; setFinalizeCandidate(order); return true }}
                 />
               </div>
             ))}
@@ -128,10 +128,10 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
                 <KitchenTicket
                   entry={entry}
                   now={now}
-                  disabled={actionsDisabled}
+                  disabled={actionsDisabled || !canCancelOrders}
                   highlighted={newOrderIds.has(String(entry.order.id))}
                   onDetails={(order) => setDetailOrderId(order.id)}
-                  onCancel={setCancelOrder}
+                  onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
                 />
               </div>
             ))}
@@ -140,8 +140,8 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
         </section>
       </section>
 
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrderId(null)} onRequestCancel={() => { setDetailOrderId(null); setCancelOrder(detailOrder) }} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'orders')} registerPaymentDisabled={paymentDisabled || actionsDisabled} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
-      {finalizeCandidate && (
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'orders')} registerPaymentDisabled={paymentDisabled || actionsDisabled} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
+      {canFinalizeOrders && finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"
           message={`${formatOrderDisplayNumber(finalizeCandidate)} de ${finalizeCandidate.client} sairá da fila de preparo. Confirme antes de continuar.`}
@@ -152,7 +152,7 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
           disabled={actionsDisabled}
         />
       )}
-      <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={Boolean(cancelOrder && pendingAction === `cancel:${cancelOrder.id}`)} />
+      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={Boolean(cancelOrder && pendingAction === `cancel:${cancelOrder.id}`)} canRefundPayments={canRefundPayments} />
     </div>
   )
 }

@@ -15,7 +15,7 @@ import {
 const CATEGORY_FILTER_OPTIONS = [{ value: 'Todos', label: 'Todos' }, ...PRODUCT_CATEGORY_OPTIONS]
 const LONG_PRESS_MS = 550
 
-function Products({ products, search, currency, onSearchChange, onAdd, onEdit, onDelete, queryState, onQueryChange }) {
+function Products({ products, search, currency, onSearchChange, onAdd, onEdit, onDelete, queryState, onQueryChange, canManageProducts = true }) {
   const [pendingId, setPendingId] = useState(null)
   const [deleteCandidate, setDeleteCandidate] = useState(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
@@ -63,6 +63,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
   }
 
   const toggleProductSelection = (productId) => {
+    if (!canManageProducts) return false
     setSelectedProductIds((current) => {
       const next = new Set(current)
       if (next.has(productId)) next.delete(productId)
@@ -72,6 +73,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
   }
 
   const enterSelectionMode = (productId = null) => {
+    if (!canManageProducts) return false
     setSelectionMode(true)
     setActionMenuProductId(null)
     if (productId !== null) setSelectedProductIds((current) => new Set([...current, productId]))
@@ -84,7 +86,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
   }
 
   const handleLongPressStart = (productId, event) => {
-    if (actionsDisabled || selectionMode || event.pointerType === 'mouse') return
+    if (!canManageProducts || actionsDisabled || selectionMode || event.pointerType === 'mouse') return
     clearLongPress()
     longPressTriggeredRef.current = false
     longPressTimerRef.current = setTimeout(() => {
@@ -103,7 +105,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
   }
 
   const handleDelete = async () => {
-    if (actionsDisabled || !deleteCandidate) return
+    if (!canManageProducts || actionsDisabled || !deleteCandidate) return false
     const productId = deleteCandidate.id
     setPendingId(productId)
     try {
@@ -115,7 +117,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
   }
 
   const handleBulkDelete = async () => {
-    if (actionsDisabled || !selectedProductIds.size) return
+    if (!canManageProducts || actionsDisabled || !selectedProductIds.size) return false
     setPendingId('bulk')
     try {
       for (const productId of selectedProductIds) await onDelete(productId)
@@ -141,7 +143,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
         eyebrow="Cardápio"
         title="Produtos e preços"
         description="Mantenha seu cardápio organizado e os valores sempre atualizados."
-        actions={<Button icon="plus" onClick={onAdd} disabled={actionsDisabled}>Adicionar produto</Button>}
+        actions={canManageProducts ? <Button icon="plus" onClick={() => { if (canManageProducts) onAdd?.() }} disabled={actionsDisabled}>Adicionar produto</Button> : null}
       />
 
       <section className="surface-card">
@@ -153,7 +155,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
           <div className="product-category-filter"><SystemSelect value={categoryFilter} options={CATEGORY_FILTER_OPTIONS} onChange={(value) => onQueryChange({ categoryFilter: value })} label="Filtrar categoria" /></div>
           <div className="product-toolbar-meta">
             <span className="toolbar-count">{visibleProducts.length} produto(s)</span>
-            {!selectionMode && <button type="button" className="product-select-mode-button" onClick={() => enterSelectionMode()} disabled={actionsDisabled || !visibleProducts.length}>Selecionar</button>}
+            {canManageProducts && !selectionMode && <button type="button" className="product-select-mode-button" onClick={() => enterSelectionMode()} disabled={actionsDisabled || !visibleProducts.length}>Selecionar</button>}
           </div>
         </div>
 
@@ -208,7 +210,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
                           </div>
                           <strong className="product-compact-price">{currency(product.price)}</strong>
 
-                          {!selectionMode && (
+                          {canManageProducts && !selectionMode && (
                             <button
                               type="button"
                               className="product-overflow-button"
@@ -247,7 +249,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
         document.body,
       )}
 
-      {deleteCandidate && (
+      {canManageProducts && deleteCandidate && (
         <ConfirmationDialog
           title="Confirmar exclusão"
           message={`Excluir ${deleteCandidate.name}? Esta ação remove o produto do cardápio e não pode ser desfeita.`}
@@ -258,7 +260,7 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
         />
       )}
 
-      {bulkDeleteOpen && (
+      {canManageProducts && bulkDeleteOpen && (
         <ConfirmationDialog
           title="Excluir produtos selecionados?"
           message={`Excluir ${selectedProductIds.size} produto(s)? Esta ação remove os itens do cardápio e não pode ser desfeita.`}

@@ -34,7 +34,9 @@ const formatPrintTimestamp = (value) => {
   }).format(date)
 }
 
-function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast }) {
+const PHYSICAL_PRINT_ACTIONS = new Set(['print', 'print-now', 'second-copy', 'retry', 'force-print', 'reprint', 'historical-reprint'])
+
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canCancelOrders = true, canExecutePrinting = true, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
@@ -56,7 +58,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const primaryQueueAction = getPrintJobActions(printJob, { order })[0]?.key || null
 
   const runPrintingAction = async (key, action, successMessage) => {
-    if (printingAction || typeof action !== 'function') return false
+    if ((PHYSICAL_PRINT_ACTIONS.has(key) && !canExecutePrinting) || printingAction || typeof action !== 'function') return false
     setPrintingAction(key)
     try {
       await action()
@@ -97,6 +99,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const handleForcePrint = () => runPrintingAction('force-print', () => printing?.requestForcePrint?.(printJob), 'Impressão autorizada e enviada para a fila')
 
   const handleConfirmedReprint = async () => {
+    if (!canExecutePrinting) return false
     const printed = await runPrintingAction('reprint', () => printing?.requestReprint?.(printJob, reprintCopies), 'Reimpressão adicionada à fila')
     if (printed) setConfirmReprint(false)
   }
@@ -105,14 +108,14 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const reprintAction = printJob ? handleConfirmedReprint : handleHistoricalReprint
 
   const actionButton = (() => {
-    if (!printJob && !isHistoricalOrder) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled}>Imprimir pedido</Button>
-    if (scheduledPrintPending) return <Button type="button" onClick={handlePrintNow} disabled={printingDisabled}>Imprimir agora</Button>
-    if (awaitingSecondCopy) return <Button type="button" onClick={handleSecondCopy} disabled={printingDisabled}>Imprimir 2ª via</Button>
-    if (printJob?.status === 'printed') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
-    if (primaryQueueAction === 'retry') return <Button type="button" onClick={handleRetry} disabled={printingDisabled}>Tentar novamente</Button>
-    if (primaryQueueAction === 'reprint') return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
-    if (primaryQueueAction === 'forcePrint') return <Button type="button" onClick={handleForcePrint} disabled={printingDisabled}>Imprimir mesmo assim</Button>
-    if (!printJob && isHistoricalOrder) return <Button type="button" onClick={() => setConfirmReprint(true)} disabled={printingDisabled}>Reimprimir</Button>
+    if (!printJob && !isHistoricalOrder) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled || !canExecutePrinting}>Imprimir pedido</Button>
+    if (scheduledPrintPending) return <Button type="button" onClick={handlePrintNow} disabled={printingDisabled || !canExecutePrinting}>Imprimir agora</Button>
+    if (awaitingSecondCopy) return <Button type="button" onClick={handleSecondCopy} disabled={printingDisabled || !canExecutePrinting}>Imprimir 2ª via</Button>
+    if (printJob?.status === 'printed') return <Button type="button" onClick={() => { if (canExecutePrinting) setConfirmReprint(true) }} disabled={printingDisabled || !canExecutePrinting}>Reimprimir</Button>
+    if (primaryQueueAction === 'retry') return <Button type="button" onClick={handleRetry} disabled={printingDisabled || !canExecutePrinting}>Tentar novamente</Button>
+    if (primaryQueueAction === 'reprint') return <Button type="button" onClick={() => { if (canExecutePrinting) setConfirmReprint(true) }} disabled={printingDisabled || !canExecutePrinting}>Reimprimir</Button>
+    if (primaryQueueAction === 'forcePrint') return <Button type="button" onClick={handleForcePrint} disabled={printingDisabled || !canExecutePrinting}>Imprimir mesmo assim</Button>
+    if (!printJob && isHistoricalOrder) return <Button type="button" onClick={() => { if (canExecutePrinting) setConfirmReprint(true) }} disabled={printingDisabled || !canExecutePrinting}>Reimprimir</Button>
     return null
   })()
 
@@ -184,7 +187,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
             <div className="order-detail-total-final"><span>Total</span><strong>{currency(order.total)}</strong></div>
             </div>
             {canRegisterPayment && <div className="order-detail-cancel-action"><Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button></div>}
-            {onRequestCancel && <div className="order-detail-cancel-action"><Button type="button" variant="secondary" onClick={onRequestCancel}>Cancelar pedido</Button></div>}
+            {canCancelOrders && onRequestCancel && <div className="order-detail-cancel-action"><Button type="button" variant="secondary" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button></div>}
           </section>
 
           <section className="order-detail-section order-printing-section">
@@ -224,7 +227,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
         </Modal>
       )}
 
-      {confirmReprint && (
+      {canExecutePrinting && confirmReprint && (
         <ConfirmationDialog
           title="Confirmar reimpressão"
           message={`Este pedido já foi enviado para impressão. Deseja imprimir mais ${reprintCopies} ${reprintCopies === 1 ? 'cópia' : 'cópias'}?`}
@@ -232,7 +235,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
           confirmVariant="primary"
           onClose={() => setConfirmReprint(false)}
           onConfirm={reprintAction}
-          disabled={Boolean(printingAction)}
+          disabled={Boolean(printingAction) || !canExecutePrinting}
         />
       )}
     </>

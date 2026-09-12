@@ -50,7 +50,10 @@ const getPrintJobView = (job, stationReady, order) => {
   }
 }
 
-function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange }) {
+const EXECUTE_ACTIONS = new Set(['printNow', 'retry', 'forcePrint', 'requestSecondCopy', 'reprint'])
+const DISCARD_ACTIONS = new Set(['discard', 'skipSecondCopy'])
+
+function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true }) {
   const station = printing?.localStation ?? null
   const stationSummary = getPrintStationSummary(station)
   const stationReady = Boolean(station?.health?.ready)
@@ -120,7 +123,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   }
   const getUnknownAttempt = (job) => job?.attempt || job?.attempts?.find((attempt) => attempt?.status === 'unknown' && !attempt?.resolution) || null
   const runAction = async (action) => {
-    if (!selectedJob || actionPending) return
+    if ((EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting) || !selectedJob || actionPending) return false
     setActionPending(true)
     try {
       if (action === 'printNow') await printing?.requestPrintNow?.(selectedJob)
@@ -142,6 +145,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
     }
   }
   const requestAction = (action) => {
+    if ((EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting)) return false
     if (action === 'discard' || action === 'forcePrint' || action === 'requestSecondCopy' || action === 'skipSecondCopy') setConfirmation(action)
     else if (action === 'confirmNotPrinted') setUnknownConfirmation(action)
     else if (action === 'reprint') {
@@ -151,7 +155,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
     else void runAction(action)
   }
   const confirmReprint = async () => {
-    if (!selectedJob || !reprintCopies || actionPending) return
+    if (!canExecutePrinting || !selectedJob || !reprintCopies || actionPending) return false
     setActionPending(true)
     try {
       await printing?.requestReprint?.(selectedJob, reprintCopies)
@@ -314,8 +318,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
           <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">
             <Button type="button" variant="secondary" className="print-queue-detail-close" onClick={closeDetails} disabled={actionPending}>Fechar</Button>
             {selectedJob?.type === 'order' && selectedJob?.document?.type === 'order' && <Button type="button" variant="secondary" className="print-queue-detail-ticket" onClick={() => setShowTicket(true)} disabled={actionPending}>Ver ticket</Button>}
-            {selectedDetails.actions.filter((action) => ['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
-            {selectedDetails.actions.filter((action) => !['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => ['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending || !canDiscardPrinting}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => !['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending || (EXECUTE_ACTIONS.has(action.key) && !canExecutePrinting)}>{action.label}</Button>)}
           </div>}>
           {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
           <div className="print-queue-detail-sections">
@@ -336,7 +340,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
           </div>
         </Modal>
       )}
-      {showReprint && selectedDetails && <Modal title={`Reimprimir ${selectedDetails.title}`} onClose={() => setShowReprint(false)} footer={<div className="print-queue-reprint-actions">
+      {canExecutePrinting && showReprint && selectedDetails && <Modal title={`Reimprimir ${selectedDetails.title}`} onClose={() => setShowReprint(false)} footer={<div className="print-queue-reprint-actions">
         <Button type="button" variant="secondary" onClick={() => setShowReprint(false)} disabled={actionPending}>Cancelar</Button>
         <Button type="button" onClick={() => void confirmReprint()} disabled={!reprintCopies || actionPending}>Confirmar reimpressão</Button>
       </div>}>
@@ -356,7 +360,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
         confirmVariant={confirmation === 'requestSecondCopy' ? 'primary' : confirmation === 'skipSecondCopy' ? 'danger' : confirmation === 'discard' ? 'secondary' : undefined}
         onClose={() => setConfirmation(null)}
         onConfirm={() => void runAction(confirmation)}
-        disabled={actionPending}
+        disabled={actionPending || (EXECUTE_ACTIONS.has(confirmation) && !canExecutePrinting) || (DISCARD_ACTIONS.has(confirmation) && !canDiscardPrinting)}
       />}
       {unknownConfirmation === 'confirmNotPrinted' && selectedDetails?.unknownOutcome && <ConfirmationDialog
         title="Reenviar esta via?"

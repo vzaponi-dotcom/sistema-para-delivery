@@ -21,6 +21,7 @@ function OrderCheckoutSummary({
   currency,
   disabled = false,
   canSubmit = false,
+  canAdjustOrders = true,
   allowImmediatePayment = true,
   onDeliveryFeeChange,
   onAdjustmentChange,
@@ -30,13 +31,18 @@ function OrderCheckoutSummary({
   const [showPayment, setShowPayment] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const adjustment = draft.adjustment
+  const changeAdjustment = (patch) => {
+    if (!canAdjustOrders) return false
+    onAdjustmentChange?.(patch)
+    return true
+  }
   const adjustmentTypeField = (
     <div className="form-field">
       <span>Ajuste do pedido</span>
       <SystemSelect
         value={adjustment.type}
         options={ADJUSTMENT_OPTIONS}
-        onChange={(type) => onAdjustmentChange({ type })}
+        onChange={(type) => changeAdjustment({ type })}
         disabled={disabled}
         label="Ajuste do pedido"
       />
@@ -66,21 +72,21 @@ function OrderCheckoutSummary({
           />
           <small className="form-hint">Deixe R$ 0,00 quando não houver taxa.</small>
           </label>
-          {adjustmentTypeField}
+          {canAdjustOrders && adjustmentTypeField}
         </div>
       )}
 
       <div className="new-order-adjustment">
-        {draft.type !== 'Entrega' && adjustmentTypeField}
+        {canAdjustOrders && draft.type !== 'Entrega' && adjustmentTypeField}
 
-        {adjustment.type !== 'none' && (
+        {canAdjustOrders && adjustment.type !== 'none' && (
           <div className="new-order-adjustment-fields">
             <div className="form-field">
               <span>Modo</span>
               <SystemSelect
                 value={adjustment.mode}
                 options={ADJUSTMENT_MODE_OPTIONS}
-                onChange={(mode) => onAdjustmentChange({ mode })}
+                onChange={(mode) => changeAdjustment({ mode })}
                 disabled={disabled}
                 label="Modo"
               />
@@ -93,7 +99,7 @@ function OrderCheckoutSummary({
                   inputMode="decimal"
                   placeholder="R$ 0,00"
                   value={adjustment.value}
-                  onChange={(event) => onAdjustmentChange({ value: formatBRLCurrencyInput(event.target.value) })}
+                  onChange={(event) => changeAdjustment({ value: formatBRLCurrencyInput(event.target.value) })}
                   disabled={disabled}
                 />
               ) : (
@@ -104,7 +110,7 @@ function OrderCheckoutSummary({
                   max="100"
                   step="0.01"
                   value={adjustment.value}
-                  onChange={(event) => onAdjustmentChange({ value: event.target.value })}
+                  onChange={(event) => changeAdjustment({ value: event.target.value })}
                   disabled={disabled}
                 />
               )}
@@ -112,7 +118,7 @@ function OrderCheckoutSummary({
           </div>
         )}
 
-        {adjustment.type !== 'none' && (
+        {canAdjustOrders && adjustment.type !== 'none' && (
           <label className="form-field">
             <span>Motivo (opcional)</span>
             <input
@@ -120,7 +126,7 @@ function OrderCheckoutSummary({
               maxLength={200}
               value={adjustment.reason}
               placeholder="Ex: cliente fidelidade"
-              onChange={(event) => onAdjustmentChange({ reason: event.target.value })}
+              onChange={(event) => changeAdjustment({ reason: event.target.value })}
               disabled={disabled}
             />
           </label>

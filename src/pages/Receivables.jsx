@@ -70,6 +70,9 @@ function Receivables({
   movements = [],
   currency,
   disabled = false,
+  canReceivePayments = true,
+  canManagePaymentPromises = true,
+  canExecutePrinting = true,
   onRegisterPayment,
   onUpdatePaymentPromise,
   queryState,
@@ -170,15 +173,25 @@ function Receivables({
   }
 
   const registerPaymentFromDetail = (orderId) => {
+    if (!canReceivePayments) return false
     setMobileDetailOpen(false)
     patchQuery({ selectedEntryKey: null })
     onRegisterPayment?.(orderId)
+    return true
   }
 
   const editPaymentPromiseFromDetail = (order) => {
+    if (!canManagePaymentPromises) return false
     setMobileDetailOpen(false)
     patchQuery({ selectedEntryKey: null })
     setPromiseOrder(order)
+    return true
+  }
+
+  const registerQuickPayment = (orderId) => {
+    if (!canReceivePayments) return false
+    onRegisterPayment?.(orderId)
+    return true
   }
 
   const viewOrderFromDetail = (order) => {
@@ -195,6 +208,8 @@ function Receivables({
       entry={selectedEntry}
       currency={currency}
       disabled={writeDisabled}
+      canReceivePayments={canReceivePayments}
+      canManagePaymentPromises={canManagePaymentPromises}
       onRegisterPayment={registerPaymentFromDetail}
       onEditPaymentPromise={editPaymentPromiseFromDetail}
       onViewOrder={viewOrderFromDetail}
@@ -242,7 +257,7 @@ function Receivables({
             </div>
           )}
 
-          {activeView === 'pending' && (
+          {canReceivePayments && activeView === 'pending' && (
             <div className="receivables-header-actions">
               <Button
                 type="button"
@@ -294,7 +309,7 @@ function Receivables({
         </aside>
       </div>
 
-      {activeView === 'pending' && !overlayOpen && (
+      {canReceivePayments && activeView === 'pending' && !overlayOpen && (
         <button
           type="button"
           className="receivables-payment-fab"
@@ -312,6 +327,8 @@ function Receivables({
           entry={selectedEntry}
           currency={currency}
           disabled={writeDisabled}
+          canReceivePayments={canReceivePayments}
+          canManagePaymentPromises={canManagePaymentPromises}
           onRegisterPayment={registerPaymentFromDetail}
           onEditPaymentPromise={editPaymentPromiseFromDetail}
           onViewOrder={viewOrderFromDetail}
@@ -328,19 +345,19 @@ function Receivables({
         />
       )}
 
-      {quickPaymentOpen && (
+      {canReceivePayments && quickPaymentOpen && (
         <ReceivablesQuickPaymentDialog
           open={quickPaymentOpen}
           entries={quickPaymentEntries}
           currency={currency}
           disabled={writeDisabled}
           onClose={() => setQuickPaymentOpen(false)}
-          onSelect={onRegisterPayment}
+          onSelect={registerQuickPayment}
         />
       )}
 
-      {promiseOrder && <PaymentPromiseDialog order={promiseOrder} today={today} disabled={writeDisabled} onSave={onUpdatePaymentPromise} onClose={() => setPromiseOrder(null)} />}
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} onClose={() => setDetailOrder(null)} />}
+      {canManagePaymentPromises && promiseOrder && <PaymentPromiseDialog order={promiseOrder} today={today} disabled={writeDisabled} onSave={(...args) => canManagePaymentPromises ? onUpdatePaymentPromise?.(...args) : false} onClose={() => setPromiseOrder(null)} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} canExecutePrinting={canExecutePrinting} onClose={() => setDetailOrder(null)} />}
 
     </>
   )

@@ -12,7 +12,7 @@ const css = await readFile(new URL('../printing/printing.css', import.meta.url),
 const compiled = await transformWithOxc(settings.replace(/^import .*\r?\n/gm, '').replace('export default PrintingSettingsContent', 'return PrintingSettingsContent'), 'PrintingSettingsContent.jsx', {
   jsx: { runtime: 'classic', pragma: 'element', pragmaFrag: 'Fragment' },
 })
-const makeSettings = new Function('useState', 'useEffect', 'element', 'Fragment', 'Button', 'ConfirmationDialog', 'SystemSelect', compiled.code)
+const makeSettings = new Function('useState', 'useEffect', 'element', 'Fragment', 'Button', 'ConfirmationDialog', 'SystemSelect', 'hasCapability', compiled.code)
 const mountSettings = (printing, controller = {}) => {
   const resources = controller.resources || {
     'business-copies': { status: 'idle', confirmedValue: 1, error: '' },
@@ -46,13 +46,13 @@ const mountSettings = (printing, controller = {}) => {
     }
   }
   const element = (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) })
-  const Component = makeSettings(useState, useEffect, element, 'Fragment', 'Button', 'ConfirmationDialog', 'SystemSelect')
+  const Component = makeSettings(useState, useEffect, element, 'Fragment', 'Button', 'ConfirmationDialog', 'SystemSelect', (granted, key) => granted instanceof Set && granted.has(key))
   const view = {
     tree: null,
     render(nextPrinting = printing) {
       printing = nextPrinting
       cursor = 0
-      view.tree = Component({ printing, settings: settingsController, granted: new Set(['printing.settings', 'printing.station.configure']) })
+      view.tree = Component({ printing, settings: settingsController, granted: new Set(['printing.settings', 'printing.station.configure', 'printing.execute']) })
       const pending = queuedEffects
       queuedEffects = []
       pending.forEach((effect) => effect())
@@ -189,8 +189,9 @@ test('uncertain station and printer errors expose resource-specific read-only re
 
 test('Orders header keeps only the focused kitchen actions', () => {
   assert.doesNotMatch(orders, />Configurações</)
-  assert.match(orders, />Impressão</)
-  assert.match(orders, /onNavigateHistory/)
+  assert.match(orders, />Fila de impressão</)
+  assert.match(orders, /canViewPrintQueue && <Button[^>]*onClick=\{onNavigatePrintQueue\}/)
+  assert.match(orders, /<AreaNavigation area="orders"/)
   assert.match(orders, />Novo pedido</)
 })
 

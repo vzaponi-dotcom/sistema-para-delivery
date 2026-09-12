@@ -7,13 +7,13 @@ import StatCard from '../components/StatCard'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund }) {
+function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund, canManageMovements = true, canRefundPayments = true }) {
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
 
   const confirmRefund = async (payload) => {
-    if (!refundOrder || refundSubmitting || !onRegisterRefund) return
+    if (!canRefundPayments || !refundOrder || refundSubmitting || !onRegisterRefund) return false
     setRefundSubmitting(true)
     try {
       const saved = await onRegisterRefund(refundOrder.id, payload)
@@ -25,7 +25,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
 
   return (
     <>
-      <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={<Button icon="plus" onClick={onAddMovement} disabled={writeDisabled}>Novo movimento</Button>} />
+      <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={canManageMovements ? <Button icon="plus" onClick={() => { if (canManageMovements) onAddMovement?.() }} disabled={writeDisabled}>Novo movimento</Button> : null} />
       <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">
         <StatCard label="Entradas" value={currency(totals.entries)} helper="Receita registrada" icon="arrow-up" tone="success" />
         <StatCard label="Saídas" value={currency(totals.exits)} helper="Despesas registradas" icon="arrow-down" tone="danger" />
@@ -39,7 +39,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
               <article className="pending-refund-row" key={order.id}>
                 <div className="pending-refund-main"><strong>{formatOrderDisplayNumber(order)} · {order.client}</strong><span>Cancelado em {formatCancellationDate(order.cancelledAt)}</span></div>
                 <strong className="pending-refund-value">{currency(order.paidAmount || order.total || 0)}</strong>
-                <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => setRefundOrder(order)} disabled={writeDisabled || refundSubmitting}>Registrar estorno</Button>
+                {canRefundPayments && <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => { if (canRefundPayments) setRefundOrder(order) }} disabled={writeDisabled || refundSubmitting}>Registrar estorno</Button>}
               </article>
             ))}
           </div>
@@ -58,7 +58,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
         </div>
         {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
       </section>
-      <RegisterRefundDialog open={Boolean(refundOrder)} order={refundOrder} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
+      <RegisterRefundDialog open={canRefundPayments && Boolean(refundOrder)} order={refundOrder} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
     </>
   )
 }

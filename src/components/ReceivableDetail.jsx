@@ -14,6 +14,8 @@ function ReceivableDetail({
   entry,
   currency,
   disabled = false,
+  canReceivePayments = true,
+  canManagePaymentPromises = true,
   onRegisterPayment,
   onEditPaymentPromise,
   onViewOrder,
@@ -49,12 +51,12 @@ function ReceivableDetail({
       <div className="receivable-detail-actions">
         {!paid && (
           <>
-            <Button type="button" onClick={() => onRegisterPayment?.(order.id)} disabled={disabled || !onRegisterPayment}>
+            {canReceivePayments && <Button type="button" onClick={() => { if (canReceivePayments) onRegisterPayment?.(order.id) }} disabled={disabled || !onRegisterPayment}>
               Registrar recebimento
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => onEditPaymentPromise?.(order)} disabled={disabled || !onEditPaymentPromise}>
+            </Button>}
+            {canManagePaymentPromises && <Button type="button" variant="secondary" onClick={() => { if (canManagePaymentPromises) onEditPaymentPromise?.(order) }} disabled={disabled || !onEditPaymentPromise}>
               {promise ? 'Alterar data prometida' : 'Definir data prometida'}
-            </Button>
+            </Button>}
           </>
         )}
         <Button type="button" variant="secondary" onClick={() => onViewOrder?.(order)} disabled={!onViewOrder}>

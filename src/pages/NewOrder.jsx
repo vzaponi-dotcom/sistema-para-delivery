@@ -34,7 +34,7 @@ import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/ord
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
   const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
@@ -191,6 +191,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   }
 
   const handleAdjustmentChange = (patch) => {
+    if (!canAdjustOrders) return false
     setAdjustment((current) => {
       if (patch.type === 'none') return emptyAdjustment()
       const next = { ...current, ...patch }
@@ -202,6 +203,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
       }
       return next
     })
+    return true
   }
 
   const handleClientSearchChange = (value) => {
@@ -236,14 +238,16 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   }
 
   const createQuickClient = async () => {
+    if (!canManageClients) return false
     const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
-    if (!client) return
+    if (!client) return false
     finishQuickClient(client)
+    return true
   }
 
   const handleQuickClientSubmit = async (event) => {
     event.preventDefault()
-    if (disabled || !quickClient.name.trim()) return
+    if (!canManageClients || disabled || !quickClient.name.trim()) return false
     setQuickClientError('')
 
     const duplicate = findClientDuplicates(clients, quickClient)
@@ -265,18 +269,21 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   }
 
   const handleConfirmDuplicate = async () => {
+    if (!canManageClients) return false
     setDuplicateClient(null)
-    await createQuickClient()
+    return createQuickClient()
   }
 
   const toggleQuickClient = () => {
+    if (!canManageClients) return false
     if (quickClient.open) {
       closeQuickClient()
-      return
+      return true
     }
     setQuickClientError('')
     setDuplicateClient(null)
     setQuickClient((current) => ({ ...current, open: true }))
+    return true
   }
 
   const updateQuickClient = (patch) => {
@@ -333,6 +340,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             quickClient={quickClient}
             quickClientError={quickClientError}
             disabled={disabled}
+            canManageClients={canManageClients}
             canContinue={canContinueCustomer}
             onTypeChange={changeType}
             onOrderDateChange={changeOrderDate}
@@ -372,6 +380,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             customerSummary={customerSummary}
             itemCount={itemCount}
             disabled={disabled}
+            canAdjustOrders={canAdjustOrders}
             onBack={() => navigateStep(NEW_ORDER_STEPS.PRODUCTS)}
             cartProps={{
               items,
@@ -398,7 +407,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
         )}
       </div>
 
-      {duplicateClient && (
+      {canManageClients && duplicateClient && (
         <ClientDuplicateModal
           client={duplicateClient}
           onCancel={() => setDuplicateClient(null)}

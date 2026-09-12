@@ -11,7 +11,7 @@ const SORT_OPTIONS = [
   { value: 'name-desc', label: 'Nome Z–A' },
 ]
 
-function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete }) {
+function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete, canManageClients = true }) {
   const [pendingId, setPendingId] = useState(null)
   const [selectedClient, setSelectedClient] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -30,7 +30,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
   }
 
   const handleDelete = async (clientId) => {
-    if (actionsDisabled) return
+    if (!canManageClients || actionsDisabled) return false
     setPendingId(clientId)
     try {
       await onDelete(clientId)
@@ -40,14 +40,14 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
   }
 
   const handleEditSelected = () => {
-    if (!selectedClient || actionsDisabled) return
+    if (!canManageClients || !selectedClient || actionsDisabled) return false
     const client = selectedClient
     closeActionSheet()
     onEdit(client)
   }
 
   const handleConfirmedDelete = async () => {
-    if (!selectedClient || actionsDisabled) return
+    if (!canManageClients || !selectedClient || actionsDisabled) return false
     const clientId = selectedClient.id
     await handleDelete(clientId)
     closeActionSheet()
@@ -59,7 +59,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
         eyebrow="Relacionamento"
         title="Clientes"
         description="Organize seus contatos e encontre rapidamente quem já compra com você."
-        actions={<Button icon="plus" onClick={onAdd} disabled={actionsDisabled}>Novo cliente</Button>}
+        actions={canManageClients ? <Button icon="plus" onClick={() => { if (canManageClients) onAdd?.() }} disabled={actionsDisabled}>Novo cliente</Button> : null}
       />
 
       <section className="surface-card">
@@ -118,7 +118,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
               <small>{selectedClient.address || 'Sem endereço'}</small>
             </div>
 
-            {!deleteConfirm ? (
+            {canManageClients && (!deleteConfirm ? (
               <div className="client-action-buttons">
                 <Button type="button" variant="secondary" icon="edit" onClick={handleEditSelected} disabled={actionsDisabled}>Editar cliente</Button>
                 <Button type="button" variant="danger" icon="trash" onClick={() => setDeleteConfirm(true)} disabled={actionsDisabled}>Excluir cliente</Button>
@@ -132,7 +132,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
                   <Button type="button" variant="danger" onClick={handleConfirmedDelete} disabled={actionsDisabled}>Excluir cliente</Button>
                 </div>
               </div>
-            )}
+            ))}
           </>
         )}
       </BottomSheet>
