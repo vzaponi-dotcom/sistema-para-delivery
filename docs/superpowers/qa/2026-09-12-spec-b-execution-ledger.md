@@ -258,3 +258,22 @@ T01/T02 statuses and the deferred T01 Minor remain unchanged. T03 is completed w
 - Non-blocking verification limitation: POSIX runtime behavior was not executed on this Windows machine. Native Windows behavior and the real local D1 gate were executed; this limitation does not block T03 closure.
 - The T01 `settingsGrants` mutable-Set Minor remains deferred to the final broad review; this bookkeeping change does not resolve or expand it.
 - R1 awaits broad final review, final gates and push by the controller. No push occurred during this closure. T04 remains the next task and is **not authorized**.
+
+## Final R1 review and pre-publication gates
+
+Review range: application base `8d2f897` through HEAD `44c2c9f`. The controller completed the broad final review with verdict **Ready for R1 review publication: Yes**. There are zero Critical or Important findings. The `settingsGrants` mutable `Set` singleton Minor is accepted as deferred; POSIX process supervision was reviewed in code, but its runtime was not executed on this Windows machine.
+
+T01–T03 implementation is complete and reviewed. The aggregate `npm test` gate is **not fully green**: its sole failure is a pre-existing regression outside this patch. The following results were supplied by the controller for HEAD `44c2c9f`; they do not claim that all gates passed.
+
+| Gate at `44c2c9f` | Result |
+|---|---|
+| `npm test` | Exit 1; 1,239/1,240 passed; the only failure is the pre-existing `FinanceMoreMobile.test.js` assertion. |
+| `node --test src/pages/FinanceMoreMobile.test.js` | Exit 1; 5/6 passed; failure at line 52 in the `print-queue` regexp assertion. |
+| `git diff --exit-code origin/master -- src/pages/FinanceMoreMobile.test.js src/components/MobileNavigation.jsx` | Exit 0; both files are identical to the application base, confirming that the failing assertion and its navigation source are outside the R1 patch. |
+| `npm run lint` | Exit 0; pre-existing warnings outside R1 only. |
+| `npm run build` | Exit 0; 369 modules transformed; existing chunk warning. |
+| `npm run d1:migrate:local` | Exit 0; no migrations to apply; resource location explicitly local. |
+| `node scripts/infra/spec-b-d1-gate.mjs` | Exit 0; all nine checks true; 24 local migrations. |
+| `git diff --check` | Exit 0; no whitespace errors. |
+
+Publication of `feature/spec-b-settings-policies` for review is authorized despite the documented pre-existing aggregate-test failure. The next step after this documentation commit is for the controller to repeat the gates on the final documentation HEAD and, if the results remain stable, push only that feature branch. No push is performed by this bookkeeping task. T04 remains **not authorized and not started**; merge, deploy and remote migrations remain unauthorized.
