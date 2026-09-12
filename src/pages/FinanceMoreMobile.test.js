@@ -4,6 +4,14 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
+const extractMoreEntries = (source) => source.match(/const moreEntries = \[(.*?)\]\r?\n/s)?.[1] || ''
+const assertApprovedMoreEntries = (source) => {
+  const moreEntries = extractMoreEntries(source)
+  for (const id of ['print-queue', 'clients', 'products', 'tables']) assert.match(moreEntries, new RegExp(`id: '${id}'`))
+  assert.match(moreEntries, /area: 'settings'/)
+  assert.doesNotMatch(moreEntries, /history|dashboard|receivables|finance/)
+}
+
 test('finance rows keep long movement copy readable at 320px', async () => {
   const appCss = await read('../App.css')
   const financeCss = await read('../finance-mobile.css')
@@ -48,13 +56,20 @@ test('more menu keeps only approved direct destinations and touch-friendly actio
   const navCss = await read('../mobile-navigation.css')
 
   assert.match(nav, /<BottomSheet[^>]*title="Mais opções"/)
-  const moreEntries = nav.match(/const moreEntries = \[(.*?)\]\n/s)?.[1] || ''
-  for (const id of ['print-queue', 'clients', 'products', 'tables']) assert.match(moreEntries, new RegExp(`id: '${id}'`))
-  assert.match(moreEntries, /area: 'settings'/)
-  assert.doesNotMatch(moreEntries, /history|dashboard|receivables|finance/)
+  assertApprovedMoreEntries(nav)
   assert.match(nav, />Sair</)
   assert.doesNotMatch(nav, /theme-cycle-button|mobile-more-theme/)
   assert.match(navCss, /\.mobile-more-action,\s*\.mobile-more-logout\s*\{[\s\S]*?min-height:\s*48px/s)
+})
+
+test('more menu extraction accepts LF and CRLF while rejecting missing print queue', () => {
+  const validLf = "const moreEntries = [{ id: 'print-queue' }, { id: 'clients' }, { id: 'products' }, { id: 'tables' }, { area: 'settings' }]\nconst destinationById = new Map()"
+  const validCrlf = validLf.replaceAll('\n', '\r\n')
+  const missingPrintQueue = validLf.replace("{ id: 'print-queue' }, ", '')
+
+  assert.doesNotThrow(() => assertApprovedMoreEntries(validLf))
+  assert.doesNotThrow(() => assertApprovedMoreEntries(validCrlf))
+  assert.throws(() => assertApprovedMoreEntries(missingPrintQueue), /print-queue/)
 })
 
 test('more menu remains safe at 320px without horizontal label clipping', async () => {

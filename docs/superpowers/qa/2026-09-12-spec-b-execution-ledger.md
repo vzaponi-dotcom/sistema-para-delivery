@@ -277,3 +277,34 @@ T01–T03 implementation is complete and reviewed. The aggregate `npm test` gate
 | `git diff --check` | Exit 0; no whitespace errors. |
 
 Publication of `feature/spec-b-settings-policies` for review is authorized despite the documented pre-existing aggregate-test failure. The next step after this documentation commit is for the controller to repeat the gates on the final documentation HEAD and, if the results remain stable, push only that feature branch. No push is performed by this bookkeeping task. T04 remains **not authorized and not started**; merge, deploy and remote migrations remain unauthorized.
+
+## R1 punctual closure — `FinanceMoreMobile` EOL portability
+
+Base: published HEAD `018b2201ed63fad396e2e5fa8d6cd84deaf696ef` on `feature/spec-b-settings-policies`. The worktree was clean and tracking the remote branch before this correction. Scope is limited to the source-reading assertion in `src/pages/FinanceMoreMobile.test.js` and this ledger; T01–T03 were not redone and T04 remains unauthorized.
+
+### Root cause and correction
+
+- `git ls-files --eol -- src/components/MobileNavigation.jsx src/pages/FinanceMoreMobile.test.js` reported `i/lf w/crlf` for both files. The checked-out `MobileNavigation.jsx` contained 34 CRLF sequences and zero lone LF sequences.
+- The original extraction expression `/const moreEntries = \[(.*?)\]\n/s` did not match the checked-out component because `]` was followed by `\r\n`; the portable form with `\r?\n` matched the same bytes.
+- Initial focused RED: `node --test src/pages/FinanceMoreMobile.test.js` exited 1; 5/6 passed. The approved-destinations test failed at the `print-queue` assertion because extraction returned an empty string.
+- Regression RED before the fix: 5/7 passed. Both the real CRLF component and the explicit CRLF fixture failed for the same empty-extraction reason; the LF fixture reached the destination assertions.
+- Minimal fix: the test-local extractor now accepts `\r?\n`. The existing destination allow-list, settings-area, forbidden-destination and touch/accessibility assertions remain active. A regression fixture proves valid LF and CRLF lists pass and removal of `print-queue` still throws the expected assertion.
+- `src/components/MobileNavigation.jsx` was not changed. No repository-wide normalization or Git configuration was changed.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| `node --test src/pages/FinanceMoreMobile.test.js` | Exit 0; 7/7 passed, including LF, CRLF and missing-`print-queue` coverage. |
+| First complete `npm test` after the minimal fix | Exit 0 outside the write-restricted sandbox; 1,241/1,241 passed. |
+| Final fresh `npm test` | Exit 1; 1,240/1,241 passed. The only failure was the unchanged `scripts/infra/spec-b-processes.test.js` case `cooperative shutdown is awaited and does not require force` (`forceAttempted` was `true` rather than `false`). The corrected `FinanceMoreMobile` tests passed. The aggregate suite is therefore **not declared approved**. |
+| `node --test scripts/infra/spec-b-processes.test.js` after the aggregate failure | Exit 0; 6/6 passed, confirming the observed infrastructure failure is intermittent; no out-of-scope correction was made. |
+| `npm run lint` | Exit 0; existing warnings remain outside the changed test, with no warning in `FinanceMoreMobile.test.js`. |
+| `npm run build` | Exit 0; Vite transformed 369 modules; existing chunk-size warning only. |
+| `npm run d1:migrate:local` | Exit 0; Wrangler 4.128.0, resource explicitly local, no migrations to apply. |
+| `node scripts/infra/spec-b-d1-gate.mjs` | Exit 0; all nine checks true; 24 local migrations. |
+| `git diff --check` | Exit 0 after the ledger update; no whitespace errors. |
+
+The first sandboxed full-suite run and sandboxed build were invalidated by `EPERM` writes to `node_modules/.vite-temp`; both commands were rerun outside that restriction. The first sandboxed local migration attempt stalled before Wrangler output and was interrupted after 60 seconds; the authorized `--local` rerun completed. Two later aggregate-suite attempts were interrupted after pre-existing Vite tests stopped producing output for several minutes; process inspection isolated the waits outside `FinanceMoreMobile`, and no repository code was changed for them.
+
+This closure performs no T04 work, UI implementation, application navigation change, merge, deploy or remote migration. The worktree is preserved for review.
