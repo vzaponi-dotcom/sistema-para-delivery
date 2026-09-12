@@ -341,3 +341,30 @@ Possible measurement interference remains unmeasured: events are buffered, but t
 - Complete raw logs and the detailed checkpoint remain local under the ignored `logs/spec-b-process-diagnostic/` directory. They are excluded from staging/publication; this ledger contains only the reviewed summary.
 
 Next action for TEST-INFRA-01 is a separately authorized stability investigation before merge/release, using the preserved evidence to distinguish process liveness from confirmation delivery and to measure instrumentation interference. The current diagnostic round is closed; the issue remains open. No full-suite rerun, build, migration, D1 gate, behavioral fix or test reorganization is part of this publication. T04 remains **not authorized** until the next handoff. No merge, deployment or remote migration is authorized by this review publication.
+
+## T04 — native payment methods without free CRUD
+
+Authorization was limited to T04 on published base `b25d59e986b56afe555ec402f9c013bb6cd7e7cf`. Functional commit: `8d980f58188d2b4a0f25855cfa7a791d8c1cf19e` (`feat: manage native payment method policy`). No T01–T03 work was redone, no process diagnostic was resumed, and no T05, endpoint, UI or operational policy enforcement was started.
+
+### Delivered behavior
+
+- Added typed `loadPaymentMethods` / `savePaymentMethods` for the six native codes. Only activation, complete unique ordering and active default are accepted; omission, creation, rename metadata, duplicate order and an inactive default fail validation before mutation SQL.
+- A default can be replaced while the former default is disabled in the same atomic batch. The payment header, changed children, revision, assertion cleanup, receipt and final read use the T03 transaction protocol. Concurrent same-revision writes have one winner; no-op and replay retain receipt semantics; payment and operation revisions are independent.
+- Loads fail closed for incomplete/corrupt typed state and expose server-owned native restrictions and first-use status under `meta.items`. Legitimate absence in a valid schema reads revision 0 and initializes all six native rows atomically on save.
+- `shared/finance.js` keeps the existing `PAYMENT_METHODS` export and legacy UI order, but obtains its labels from the canonical payment mapping. Saving settings does not update historical `payments.method` or `movements.payment_method`; the test preserves `Dinheiro`, `Pix`, `debito`, `credito`, `Transferência` and `Outro` byte-for-byte.
+
+### Proportional TDD and verification
+
+| Evidence | Result |
+|---|---|
+| RED — `node --test worker/paymentSettingsRepository.test.js` before production file creation | Exit 1 with `ERR_MODULE_NOT_FOUND` for `worker/paymentSettingsRepository.js`, demonstrating the authorized repository did not exist. |
+| First implementation run | 7/10 passed. The three failures exposed test-fixture defects (noncanonical expected array order, obsolete historical INSERT columns and a corruption setup blocked by the existing identity guard); these were corrected without weakening product assertions. |
+| Final focused run after the last test refinement | Exit 0; 10/10 passed, zero failures/skips/cancellations. |
+| `node --test shared/businessPolicies.test.js shared/finance.test.js worker/settingsTransactions.test.js worker/operationSettingsRepository.test.js worker/settingsMigration.test.js` | Exit 0; 38/38 directly related regressions passed. |
+| Installed Oxlint on `shared/finance.js`, `worker/paymentSettingsRepository.js` and its test; `node --check` on the same files | Exit 0; no diagnostics. |
+| `npm.cmd run build` | Initial sandbox attempt was invalid (`EPERM` creating Vite's `.vite-temp` file). The single authorized rerun outside that write restriction exited 0; Vite completed the production build with only its existing large-chunk warning. |
+| `git diff --check` | Exit 0 before the functional commit; repeated after this ledger update before publication. |
+
+An independent read-only review of the complete T04 diff found no Critical, Important or Minor issues and judged it ready for this task checkpoint. Its non-blocking suggestion was payment-specific duplication of expired-receipt and transport-failure cases; those protocol behaviors remain directly covered in the shared T03 transaction/operation regression set and were not used to expand T04.
+
+The full `npm test` suite, migrations and the D1 gate were deliberately not run in this task. Therefore the aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and must be resumed in the test-stability workstream before merge or release; this T04 result neither resolves nor dismisses it. T05 remains **not authorized**. No merge, deployment, release or remote migration is authorized by this checkpoint.
