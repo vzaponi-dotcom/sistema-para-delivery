@@ -4,11 +4,17 @@ import { MOBILE_SECTION_IDS } from './mobileNavigation.js'
 
 test('mobile sections keep the approved navigation order for page transitions', () => {
   assert.deepEqual(MOBILE_SECTION_IDS, [
-    'dashboard',
     'orders',
-    'clients',
-    'products',
+    'history',
+    'comandas',
+    'dashboard',
     'receivables',
     'finance',
+    'print-queue',
+    'clients',
+    'products',
+    'tables',
+    'settings-printing',
+    'settings-device',
   ])
 })

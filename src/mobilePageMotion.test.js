@@ -19,15 +19,9 @@ test('mobile page transition is smooth and disabled for reduced motion', () => {
   assert.match(css, /prefers-reduced-motion:\s*reduce/)
 })
 
-test('dashboard new-order fab sits above the fixed mobile navigation', () => {
-  const foundationCss = read('src/mobile-foundation.css')
+test('dashboard no longer retains the removed new-order FAB', () => {
+  const dashboard = read('src/pages/Dashboard.jsx')
   const dashboardCss = read('src/dashboard.css')
-  assert.match(foundationCss, /--mobile-bottom-nav-height:\s*65px/)
-  assert.match(foundationCss, /--mobile-floating-gap:\s*16px/)
-  assert.match(foundationCss, /--layer-floating-action:\s*70/)
-  assert.match(
-    dashboardCss,
-    /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-floating-gap\)\s*\+\s*var\(--mobile-safe-bottom\)\)/s,
-  )
-  assert.match(dashboardCss, /\.dashboard-new-order-fab\s*\{[^}]*z-index:\s*var\(--layer-floating-action\)/s)
+  assert.doesNotMatch(dashboard, /dashboard-new-order-fab/)
+  assert.doesNotMatch(dashboardCss, /dashboard-new-order-fab/)
 })

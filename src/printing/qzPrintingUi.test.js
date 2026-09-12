@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-const settings = await readFile(new URL('../components/PrintingSettings.jsx', import.meta.url), 'utf8')
+const settings = await readFile(new URL('../components/PrintingSettingsContent.jsx', import.meta.url), 'utf8')
 
 test('Windows printing settings expose QZ Tray queue configuration without legacy Android transport', () => {
   assert.match(settings, /QZ Tray/)

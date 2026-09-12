@@ -32,23 +32,19 @@ test('desktop navigation opens the queue and its settings shortcut opens the pri
   ])
 
   assert.match(app, /import PrintQueue from '\.\/pages\/PrintQueue'/)
-  assert.match(app, /import PrintingSettings from '\.\/components\/PrintingSettings'/)
   assert.match(app, /activeTab === 'print-queue' && <PrintQueue/)
   assert.match(app, /onOpenPrintingSettings=\{\(\) => requestNavigation\('settings-printing'\)\}/)
-  assert.match(app, /showPrintingSettings && <PrintingSettings printing=\{printing\} settings=\{printingSettings\} granted=\{granted\}/)
   assert.match(sidebar, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
   assert.match(orders, /onNavigatePrintQueue/)
-  assert.match(orders, /onClick=\{onNavigatePrintQueue\}>Impressão<\/Button>/)
+  assert.match(orders, /onClick=\{onNavigatePrintQueue\}>Fila de impressão<\/Button>/)
 })
 
 test('mobile keeps five bottom tabs and exposes the print queue through Mais', async () => {
   const mobileNavigation = await readSource('../components/MobileNavigation.jsx')
 
-  assert.match(mobileNavigation, /const directItems = \[[\s\S]*?\{ id: 'comandas', label: 'Comandas', icon: 'clipboard' \},[\s\S]*?\{ id: 'clients', label: 'Clientes', icon: 'clients' \},\s*\]/)
-  assert.match(mobileNavigation, /onClick=\{\(\) => navigate\('products'\)\}/)
-  assert.doesNotMatch(mobileNavigation, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
-  assert.match(mobileNavigation, /activeTab === 'print-queue'/)
-  assert.match(mobileNavigation, /onClick=\{\(\) => navigate\('print-queue'\)\}/)
+  assert.match(mobileNavigation, /const directEntries = \[[\s\S]*?\{ id: 'comandas', label: 'Comandas', icon: 'clipboard' \},[\s\S]*?\{ area: 'finance', label: 'Financeiro', icon: 'finance' \}\]/)
+  assert.match(mobileNavigation, /const moreEntries = \[[\s\S]*?\{ id: 'print-queue', icon: 'printer' \},[\s\S]*?\{ id: 'clients', icon: 'clients' \},[\s\S]*?\{ id: 'products', icon: 'products' \}/)
+  assert.match(mobileNavigation, /onClick=\{\(\) => onNavigate\(item\.id\)\}/)
 })
 
 test('print queue summary uses the four server operational counters', () => {

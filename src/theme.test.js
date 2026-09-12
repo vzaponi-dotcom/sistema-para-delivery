@@ -77,15 +77,15 @@ test('theme is initialized before the React app renders', () => {
 
 test('global provider exposes persistent Claro Escuro and Automático controls', () => {
   const provider = optionalSource('./components/ThemeProvider.jsx')
-  const sidebar = source('./components/Sidebar.jsx')
+  const settings = source('./pages/Settings.jsx')
 
   assert.match(provider, /themePreference/)
   assert.match(provider, /saveThemePreference/)
   assert.match(provider, /matchMedia\(['"]\(prefers-color-scheme: dark\)['"]\)/)
-  assert.match(sidebar, /Claro/)
-  assert.match(sidebar, /Escuro/)
-  assert.match(sidebar, /Automático/)
-  assert.match(sidebar, /aria-label=['"]Tema/)
+  assert.match(settings, /Claro/)
+  assert.match(settings, /Escuro/)
+  assert.match(settings, /Automático/)
+  assert.match(settings, /aria-label="Tema do sistema"/)
 })
 
 test('dark theme defines a complete global palette', () => {

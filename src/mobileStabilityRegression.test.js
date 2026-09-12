@@ -15,20 +15,16 @@ test('mobile shell prevents horizontal viewport drift without blocking horizonta
   assert.match(foundationCss, /@media\s*\(max-width:\s*820px\)[\s\S]*overflow-x:\s*clip/)
 })
 
-test('dashboard FAB is viewport anchored and consumes shared mobile clearance tokens', async () => {
+test('dashboard removes the FAB while preserving shared mobile clearance tokens', async () => {
   const dashboard = await read('./pages/Dashboard.jsx')
   const dashboardCss = await read('./dashboard.css')
   const foundationCss = await read('./mobile-foundation.css')
   const mobileCss = await read('./mobile-navigation.css')
 
-  assert.match(dashboard, /createPortal/)
-  assert.match(dashboard, /document\.body/)
+  assert.doesNotMatch(dashboard, /dashboard-new-order-fab|createPortal/)
   assert.match(foundationCss, /--mobile-bottom-nav-height:\s*65px/)
   assert.match(foundationCss, /--mobile-floating-gap:\s*16px/)
-  assert.match(
-    dashboardCss,
-    /@media\s*\(max-width:\s*820px\)[\s\S]*\.dashboard-new-order-fab\s*\{[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-floating-gap\)\s*\+\s*var\(--mobile-safe-bottom\)\)/s,
-  )
+  assert.doesNotMatch(dashboardCss, /dashboard-new-order-fab/)
   assert.doesNotMatch(mobileCss, /\.dashboard-new-order-fab\s*\{[^}]*bottom:/s)
 })
 

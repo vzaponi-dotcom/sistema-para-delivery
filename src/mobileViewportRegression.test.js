@@ -29,7 +29,7 @@ test('navigation overlays floating action and toast use one shared layer scale',
   assert.match(foundationCss, /--layer-toast:\s*120/)
   assert.match(navCss, /z-index:\s*var\(--layer-mobile-nav\)/)
   assert.match(sheetCss, /z-index:\s*var\(--layer-overlay-raised\)/)
-  assert.match(dashboardCss, /\.dashboard-new-order-fab\s*\{[^}]*z-index:\s*var\(--layer-floating-action\)/s)
+  assert.doesNotMatch(dashboardCss, /dashboard-new-order-fab/)
 })
 
 test('shared overlays remain dynamic-viewport sized and safe-area aware', async () => {

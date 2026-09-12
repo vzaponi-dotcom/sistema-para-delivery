@@ -15,10 +15,9 @@ test('mobile foundation owns viewport safe-area and shared tokens', async () => 
   assert.match(css, /html,\s*body,\s*#root\s*\{[^}]*overflow-x:\s*clip/s)
 })
 
-test('navigation no longer owns shared structural tokens', async () => {
+test('navigation owns shared structural tokens without retaining the removed Dashboard FAB', async () => {
   const nav = await read('./mobile-navigation.css')
   const dashboard = await read('./dashboard.css')
   assert.doesNotMatch(nav, /--mobile-bottom-nav-height:\s*65px/)
-  assert.match(dashboard, /var\(--mobile-bottom-nav-height\)/)
-  assert.match(dashboard, /var\(--mobile-floating-gap\)/)
+  assert.doesNotMatch(dashboard, /dashboard-new-order-fab/)
 })

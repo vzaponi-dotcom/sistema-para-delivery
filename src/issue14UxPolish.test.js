@@ -6,11 +6,11 @@ const tables = fs.readFileSync(new URL('./pages/Tables.jsx', import.meta.url), '
 const tableStyles = fs.readFileSync(new URL('./table-management.css', import.meta.url), 'utf8')
 const detail = fs.readFileSync(new URL('./components/ReceivableDetail.jsx', import.meta.url), 'utf8')
 
-test('tables keeps occupied-table transfer as the primary operational action', () => {
+test('tables routes occupied-table work to the protected Comandas flow', () => {
   const occupiedActions = tables.match(/<div className="table-occupied-actions">([\s\S]*?)<\/div>/)?.[1] ?? ''
 
   assert.match(occupiedActions, /className="table-transfer-primary"/)
-  assert.match(occupiedActions, />Transferir comanda<\/Button>/)
+  assert.match(occupiedActions, />Ver comanda<\/Button>/)
   assert.doesNotMatch(occupiedActions, /variant="secondary"/)
   assert.match(tables, /className="table-deactivate-action"[^>]*variant="secondary"/)
 })

@@ -55,7 +55,7 @@ test('table creation applies the returned official list without predicting name 
   const list = r.root.findByProps({ 'aria-label': 'Lista de mesas' })
   assert.match(nodeText(list), /Nome oficialAtivaOcupada/)
   assert.doesNotMatch(nodeText(list), /Mesa 7|Varanda|Nome solicitado/)
-  assert.ok(buttonNamed(list, 'Transferir comanda'))
+  assert.ok(buttonNamed(list, 'Ver comanda'))
 })
 
 test('App prepares table mutation handlers using official API responses and request keys', () => {
