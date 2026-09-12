@@ -445,3 +445,39 @@ Direct spec/diff review checked the T06 files against section 6.3, the plan cont
 Workflow triggers were rechecked before publication: staging deploy watches only `feature/centralized-qz-print-queue`; production deploy is manual; validate push watches only `master`; both TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
 
 Per the T06 authorization, the full `npm test` suite, migrations and the D1 gate were deliberately not run. Therefore the aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release; T06 neither resumes nor resolves it. T07 is **not authorized and not started**. No merge, deployment, release or remote migration is authorized by this checkpoint.
+
+## T07 — print-copy policy, station administration and primary topology
+
+Authorization was limited to T07 on clean published base `c13cc41f3760c1a27defa59cf4cbcb22b8bb575e`; `git ls-remote` confirmed the same SHA on `origin/feature/spec-b-settings-policies` before changes. Functional commit: `757ee70` (`feat: separate print policy station configuration and topology`). No T01–T06 work was redone, no T08/API settings framework/UI/job-policy adaptation was started, and no dependency, migration, workflow, print job, attempt, snapshot, recovery or physical-printing behavior changed.
+
+### Delivered behavior
+
+- Added `loadPrintingPolicy` / `savePrintingPolicy`, `loadStationConfiguration` / `saveStationConfiguration` and `loadStationPrimary` / `saveStationPrimary` using the T03 optimistic-revision, atomic-batch and mutation-receipt protocol. Receipt identities are distinct: `printingPolicy`, `stationConfiguration:<stationId>` and `stationPrimary`; station payload hashes also include `scopeId`.
+- `business_print_settings` remains the only authority for business copy policy. Both context values accept only integer 1 or 2; the existing order override, including 1, is retained; the table/comanda value remains independent; and station `default_copies` is neither read as a policy fallback nor changed by policy/configuration saves.
+- Station administration edits only name, platform and automatic-printing state. Effective changes advance `config_revision`; no-ops retain it. Heartbeat and physical-health writes do not change that revision, and the administrative UPDATE excludes all health fields so it cannot restore stale readiness over a newer heartbeat.
+- Bootstrap registration is insert-only. Repeating it returns the persisted station and cannot overwrite administrative values with client defaults. The legacy station copy field is retained only for compatibility.
+- Primary election uses `business_print_topology_settings.revision`. Clearing the old flag, setting the new flag, updating the topology header and writing the receipt occur in one batch. Same-revision concurrent elections have one winner; loads fail closed if the pointer and flags diverge.
+- Existing printing endpoints now expose the canonical resources while preserving `defaultCopies` as the GET-only alias. `GET /api/printing/stations` retains `stations` and adds the `stationPrimary` resource so a later client can obtain the topology revision. Administrative PUT/POST calls require `expectedRevision` and `mutationId`; legacy administrative writes return `SETTINGS_CLIENT_UPDATE_REQUIRED`. Session `businessId` remains authoritative, same-origin mutation protection remains in place, and extra client-supplied business/capability fields are rejected.
+- Transitional contract: the existing frontend is intentionally not adapted in T07. Bootstrap may register an absent station with the exact legacy registration shape, but an existing station cannot be administratively overwritten through that shape. T21 remains responsible for sending canonical revisioned policy/station/election writes.
+
+### TDD and verification
+
+| Evidence | Result |
+|---|---|
+| Preparation discovery | The first focused run exited 1 with `ERR_MODULE_NOT_FOUND` for `worker/printSettingsRepository.js`; recorded only as preparation, not as behavioral RED. |
+| Behavioral RED | With an export-only interface, the focused command exited 1; 0/11 passed. Failures were `SETTINGS_NOT_IMPLEMENTED` across policy, station revision/heartbeat, topology race/rollback, bootstrap and HTTP contracts. |
+| Initial GREEN | The first implementation run reached 8/11. The three failures were fixture-only: `node:sqlite` null-prototype comparison, heartbeat setup without the required primary station, and an isolation case using a nonexistent business. Correcting those fixtures without weakening assertions produced 11/11. |
+| Related regression RED/GREEN | The first 82-test selection exposed 13 failures confined to the pre-T02 HTTP fixture and old unrevisioned expectations. The fixture was aligned with the already-published 0024 schema and operational elections were given revisions/IDs; the same selection then passed 82/82. |
+| Boundary review RED/GREEN | Direct review found that bootstrap/election handlers ignored extra client fields. A focused RED exited 1 at 5/6; strict key validation made it 6/6. A second focused RED proved topology revision was absent from the station GET; adding the read resource made the combined endpoint selection pass 22/22. |
+| Final focused + related selection | `node --test worker/settingsTransactions.test.js worker/settingsMigration.test.js worker/orderPrintingRepository.test.js worker/orderPrintingHttp.test.js worker/orderPrintingStationHealth.test.js worker/orderPrintingQzStationEligibility.test.js worker/orderPrintingRecovery.test.js worker/printSettingsRepository.test.js worker/stationSettingsRevision.test.js` exited 0; 82/82 passed, zero failures/skips/cancellations. |
+| Static gates | `node --check` passed on all six changed JavaScript files; installed Oxlint reported no diagnostics on the same files; `git diff --check` passed. Git emitted only the checkout's existing LF-to-CRLF notices. |
+
+The selected regressions cover the shared transaction/receipt protocol, real migration/schema behavior, authenticated and same-origin printing endpoints, registration/bootstrap, station-primary eligibility, heartbeat/physical health, centralized job lifecycle and recovery. They were chosen because T07 changes those persistence and API boundaries; the operational consumers themselves were not changed.
+
+### Review, publication and limits
+
+Direct spec/diff review was used; no subagent or independent reviewer was used because this session disallows delegation unless explicitly requested. The review found and corrected the two demonstrable HTTP-boundary gaps recorded above. Final review found no remaining Critical, Important or Minor issue in the T07 diff.
+
+Workflow triggers were rechecked before publication: staging deployment watches only `feature/centralized-qz-print-queue`; production deployment is manual; validation push watches `master`; the two TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
+
+Per the T07 authorization, the full `npm test` suite, frontend build, migrations and D1 gate were deliberately not run. No schema guarantee introduced by T07 required a new D1 runtime scenario because all SQL uses the existing 0024 schema and the real SQLite/D1-subset transactional fixture. Therefore the aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release; T07 neither resumes nor resolves it. T08 is **not authorized and not started**. No merge, staging/production deployment, release or remote migration is authorized by this checkpoint.
