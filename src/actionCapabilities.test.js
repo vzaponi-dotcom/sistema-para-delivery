@@ -2,6 +2,7 @@ import test, { describe } from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
+import { createServer } from 'vite'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const flush = () => new Promise((resolve) => setImmediate(resolve))
@@ -367,5 +368,67 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
   await act(async () => { assert.equal(page.props.onNewOrder(), false) })
   assert.equal(renderer.root.findAllByType(modules.NewOrderRoute).length, 0)
   assert.equal(mutations(requests).length, before)
+})
+
+test('21. printing.execute protege a entrada manual global de segunda via na UI e no callback', async (t) => {
+  const h = await workspaceHarness(t, { userAgent: 'Windows test' })
+  const job = {
+    id: 'second-copy-job', orderId: preparingOrder.id, status: 'awaiting_second_copy',
+    copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic',
+  }
+  const calls = { secondCopy: 0 }
+  globalThis.__actionCapabilitiesPrinting = {
+    jobs: [job], transportKind: 'qz', transportReady: true, printerBlocked: false,
+    printerHealth: { state: 'ready' }, recoveryState: 'normal', recoveryPendingCount: 0,
+    recoveryPromptEligible: false, localStation: { id: 'test-station', isPrimary: true, platform: 'windows', recoveryState: 'normal' },
+    busyJobId: null, acknowledgeSecondCopyPrompt: async () => ({ promptPresented: true }),
+    printSecondCopy: async () => { calls.secondCopy += 1; return { status: 'printed' } },
+  }
+  t.after(() => { delete globalThis.__actionCapabilitiesPrinting })
+  globalThis.fetch = async (path, options = {}) => {
+    const url = String(path)
+    const method = options.method || 'GET'
+    if (url === '/api/auth/session') return response({ authenticated: true })
+    if (url === '/api/bootstrap') return response(bootstrap)
+    if (url === '/api/orders' && method === 'GET') return response({ orders: bootstrap.orders })
+    throw new Error(`Unexpected request: ${url} ${method}`)
+  }
+
+  const vite = await createServer({
+    server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom',
+    optimizeDeps: { noDiscovery: true, include: [] }, ssr: { noExternal: ['react-dom'] },
+    plugins: [
+      {
+        name: 'action-capabilities-printing-boundary', enforce: 'pre',
+        resolveId: (id) => id.endsWith('/printing/usePrintingManager') || id === './printing/usePrintingManager' ? '\0action-capabilities-printing' : null,
+        load: (id) => id === '\0action-capabilities-printing' ? `
+          export const usePrintingManager = () => globalThis.__actionCapabilitiesPrinting
+          export const canPresentSecondCopyPrompt = () => true
+          export const canKeepSecondCopyPromptOpen = () => true
+        ` : null,
+      },
+      {
+        name: 'inline-action-capabilities-portals', enforce: 'pre',
+        resolveId: (id) => id === 'react-dom' ? '\0inline-action-capabilities-portals' : null,
+        load: (id) => id === '\0inline-action-capabilities-portals' ? 'export const createPortal = (children) => children' : null,
+      },
+    ],
+  })
+  t.after(() => vite.close())
+  const { default: App } = await vite.ssrLoadModule('/src/App.jsx')
+  const renderer = await h.render(App, { capabilities: new Set(['orders.history']) })
+  await act(async () => { await flush(); await flush(); await flush() })
+
+  let action = buttonNamed(renderer.root, 'Imprimir 2ª via')
+  assert.ok(action, nodeText(renderer.root))
+  await act(async () => action.props.onClick())
+  assert.equal(calls.secondCopy, 0)
+  assert.equal(action.props.disabled, true)
+
+  await act(async () => renderer.update(React.createElement(App, { capabilities: new Set(['orders.history', 'printing.execute']) })))
+  action = buttonNamed(renderer.root, 'Imprimir 2ª via')
+  assert.equal(action.props.disabled, false)
+  await act(async () => action.props.onClick())
+  assert.equal(calls.secondCopy, 1)
 })
 })

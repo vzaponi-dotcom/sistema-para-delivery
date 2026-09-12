@@ -671,7 +671,7 @@ function App({ capabilities } = {}) {
   }
 
   const handleGlobalSecondCopy = async () => {
-    if (!secondCopyPromptJob || secondCopyPromptBusy) return
+    if (!canExecutePrinting || !secondCopyPromptJob || secondCopyPromptBusy) return false
     if (!canKeepSecondCopyPromptOpen({
       isQz: printTransportKind === 'qz',
       transportReady: printTransportReady,
@@ -1185,7 +1185,7 @@ function App({ capabilities } = {}) {
           cancelLabel={recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob.id ? 'Parar por agora' : 'Depois'}
           onClose={dismissSecondCopyPrompt}
           onConfirm={handleGlobalSecondCopy}
-          disabled={secondCopyPromptBusy || Boolean(printing.busyJobId)}
+          disabled={secondCopyPromptBusy || Boolean(printing.busyJobId) || !canExecutePrinting}
         />
       )}
       {originSecondCopyPromptJob && (
