@@ -49,6 +49,7 @@ import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import { getOrderItemsSearchText } from './utils/orderCart'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
+import { canReceiveStandaloneOrder } from './utils/orderPaymentEligibility.js'
 import { detectOperationalArrivals } from './utils/orderRealtime.js'
 import { toLocalDateValue } from './utils/orderWorkflow'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
@@ -131,7 +132,7 @@ function App({ capabilities } = {}) {
   const [openingBalanceDialogOpen, setOpeningBalanceDialogOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-  const [paymentOrderId, setPaymentOrderId] = useState(null)
+  const [paymentTarget, setPaymentTarget] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
@@ -155,6 +156,9 @@ function App({ capabilities } = {}) {
   const recoveryPromptSeenRef = useRef(false)
   const newOrderOwnerRef = useRef(0)
   const tableTabPaymentRef = useRef(null)
+  const paymentDialogRef = useRef(null)
+  const paymentAttemptRef = useRef(null)
+  const paymentSequenceRef = useRef(0)
   const comandaSelectionRef = useRef(0)
   const comandaIdentityRef = useRef(null)
   const officialRevisionRef = useRef(0)
@@ -205,7 +209,10 @@ function App({ capabilities } = {}) {
   })
 
   const todayValue = toLocalDateValue()
-  const paymentOrder = orders.find((order) => order.id === paymentOrderId) ?? null
+  const paymentOrder = orders.find((order) => order.id === paymentTarget?.orderId) ?? null
+  const paymentOrderEligible = paymentOrder && (paymentTarget?.source
+    ? canReceiveStandaloneOrder(paymentOrder, granted, paymentTarget.source)
+    : !isOrderPaid(paymentOrder) && !isOrderCancelled(paymentOrder))
   const writesBlocked = !isOnline || requestKey !== null
   const handlePhysicalJobFailure = useCallback(() => {
     setToastMessage('Impressão requer atenção na fila')
@@ -238,6 +245,8 @@ function App({ capabilities } = {}) {
 
   const resetSyncState = () => {
     tableTabPaymentRef.current = null
+    paymentDialogRef.current = null
+    paymentAttemptRef.current = null
     paymentSyncRef.current = new Set()
     setTableTabSync(null)
     comandaIdentityRef.current = null
@@ -257,7 +266,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPaymentOrderId(null); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod('Pix'); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
 
   const ownsPaymentSelection = (owner) => owner?.guard === syncGuardRef.current
@@ -632,8 +641,8 @@ function App({ capabilities } = {}) {
   const financialTotals = useMemo(() => { const entries = movements.filter((movement) => movement.type === 'entrada').reduce((total, movement) => total + Number(movement.value), 0); const exits = movements.filter((movement) => movement.type === 'saida').reduce((total, movement) => total + Number(movement.value), 0); return { entries, exits, balance: entries - exits } }, [movements])
   const currentFinanceBalance = useMemo(() => calculateCurrentBalance(movements, financeSettings), [financeSettings, movements])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
-  const filteredClients = useMemo(() => { const normalizedSearch = query.clients.search.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => query.clients.sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clients, query.clients.search, query.clients.sort])
   const filteredOrders = useMemo(() => { const normalizedSearch = query.orders.search.trim().toLowerCase(); return orders.filter((order) => !normalizedSearch || [order.client, order.type, order.orderDate, getOrderItemsSearchText(order), order.status, order.paymentStatus, order.paymentMethod].join(' ').toLowerCase().includes(normalizedSearch)) }, [orders, query.orders.search])
+  const filteredClients = useMemo(() => { const normalizedSearch = query.clients.search.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => query.clients.sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clients, query.clients.search, query.clients.sort])
   const showSuccessMessage = (message = 'Ação salva com sucesso') => setSuccessMessage(message)
 
   const dismissSecondCopyPrompt = () => {
@@ -820,9 +829,60 @@ function App({ capabilities } = {}) {
   const handleQuickCreateClient = async ({ name, phone }) => { if (writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
   const handleFinalizeOrder = async (orderId) => { if (writesBlocked) return; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
   const handleCancelOrder = async (orderId, payload) => { if (writesBlocked) return false; setRequestKey(`order:cancel:${orderId}`); try { const { order, movement, tableTab } = await cancelOrderApi(orderId, payload); applyOfficialEffects({ order, movement, tableTab }); showSuccessMessage(payload.refundNow ? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
-  const openPaymentModal = (orderId) => { if (writesBlocked) return; const order = orders.find((item) => item.id === orderId); if (!order || isOrderPaid(order) || isOrderCancelled(order)) return; setPaymentOrderId(orderId); setPaymentMethod('Pix') }
-  const closePaymentModal = () => { setPaymentOrderId(null); setPaymentMethod('Pix') }
-  const handleRegisterPayment = async (event) => { event.preventDefault(); if (writesBlocked || !paymentOrder || isOrderPaid(paymentOrder) || isOrderCancelled(paymentOrder)) return; setRequestKey(`payment:${paymentOrder.id}`); try { const { order, movement, tableTab } = await registerPaymentApi(paymentOrder.id, paymentMethod); applyOfficialEffects({ order, movement, tableTab }); closePaymentModal(); showSuccessMessage(`Pagamento recebido via ${paymentMethod}`) } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
+  const openPaymentModal = (orderId, source) => {
+    if (writesBlocked) return false
+    const order = orders.find((item) => item.id === orderId)
+    const operational = source === 'orders' || source === 'history'
+    if (!order || (operational ? !canReceiveStandaloneOrder(order, granted, source) : isOrderPaid(order) || isOrderCancelled(order))) return false
+    const owner = { token: ++paymentSequenceRef.current, guard: syncGuardRef.current, orderId, source: operational ? source : null, submitting: false, requestKey: null, method: null }
+    paymentDialogRef.current = owner
+    setPaymentTarget({ orderId, source: owner.source, token: owner.token })
+    setPaymentMethod('Pix')
+    return true
+  }
+  const closePaymentModal = (expectedOwner = paymentDialogRef.current) => {
+    if (expectedOwner && paymentDialogRef.current !== expectedOwner) return false
+    paymentDialogRef.current = null
+    if (paymentAttemptRef.current === expectedOwner) paymentAttemptRef.current = null
+    setPaymentTarget(null)
+    setPaymentMethod('Pix')
+    if (expectedOwner?.requestKey) setRequestKey((current) => current === expectedOwner.requestKey ? null : current)
+    return true
+  }
+  const handleRegisterPayment = async (event) => {
+    event.preventDefault()
+    const owner = paymentDialogRef.current
+    const currentOrder = owner ? orders.find((order) => order.id === owner.orderId) : null
+    const eligible = currentOrder && (owner.source
+      ? canReceiveStandaloneOrder(currentOrder, granted, owner.source)
+      : !isOrderPaid(currentOrder) && !isOrderCancelled(currentOrder))
+    if (!owner || owner.guard !== syncGuardRef.current || owner.submitting || writesBlocked || !eligible) return false
+    owner.submitting = true
+    owner.method = paymentMethod
+    owner.requestKey = `payment:${owner.orderId}:${owner.token}`
+    paymentAttemptRef.current = owner
+    setRequestKey(owner.requestKey)
+    try {
+      const { order, movement, tableTab } = await registerPaymentApi(owner.orderId, owner.method)
+      if (owner.guard !== syncGuardRef.current) return false
+      applyOfficialEffects({ order, movement, tableTab })
+      if (paymentDialogRef.current === owner) {
+        closePaymentModal(owner)
+        showSuccessMessage(`Pagamento recebido via ${owner.method}`)
+      }
+      return true
+    } catch (error) {
+      if (owner.guard !== syncGuardRef.current) return false
+      if (error?.status === 409 || !Number.isInteger(error?.status) || error.status >= 500) await refreshBootstrapSilently()
+      if (owner.guard !== syncGuardRef.current) return false
+      if (paymentDialogRef.current === owner) showApiError(error)
+      return false
+    } finally {
+      owner.submitting = false
+      if (paymentAttemptRef.current === owner) paymentAttemptRef.current = null
+      setRequestKey((current) => current === owner.requestKey ? null : current)
+    }
+  }
   const reconcileTableTabPayment = async (owner) => {
     if (!owner) return Promise.all([...paymentSyncRef.current].map((pending) => reconcileTableTabPayment(pending)))
     if (owner.guard !== syncGuardRef.current || !paymentSyncRef.current.has(owner)) return false
@@ -1030,8 +1090,8 @@ function App({ capabilities } = {}) {
         {activeTab === 'history' && <AreaNavigation area="orders" activeTab={activeTab} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} />}
         {(activeTab === 'dashboard' || activeTab === 'receivables' || activeTab === 'finance') && <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} />}
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} canViewAnalysis={canViewOperationalAnalysis} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} />}
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} />}
@@ -1054,7 +1114,7 @@ function App({ capabilities } = {}) {
           </Modal>
         )}
 
-        {paymentOrder && <Modal title="Registrar pagamento" onClose={closePaymentModal}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={closePaymentModal}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
+        {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
 
         {showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
         {duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}

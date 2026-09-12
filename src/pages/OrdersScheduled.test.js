@@ -50,7 +50,7 @@ test('orders page wires ticket actions by phase and keeps global counts independ
   const source = await read('./Orders.jsx')
   const preparingBlock = source.slice(source.indexOf('queueModel.preparing.map'), source.indexOf('kitchen-scheduled-heading'))
   const scheduledBlock = source.slice(source.indexOf('queueModel.scheduled.map'), source.indexOf('!queueModel.scheduled.length'))
-  assert.match(source, /onDetails=\{setDetailOrder\}/)
+  assert.match(source, /onDetails=\{\(order\) => setDetailOrderId\(order\.id\)\}/)
   assert.match(preparingBlock, /onFinalize=\{setFinalizeCandidate\}/)
   assert.doesNotMatch(preparingBlock, /onCancel=/)
   assert.match(scheduledBlock, /onCancel=\{setCancelOrder\}/)

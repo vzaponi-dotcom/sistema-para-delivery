@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import '../order-operations.css'
 import '../order-operations-compact.css'
 import Button from '../components/Button'
@@ -11,18 +11,24 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import AreaNavigation from '../components/AreaNavigation'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
+import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
+function Orders({ orders, officialOrders = orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast }) {
   const [pendingAction, setPendingAction] = useState(null)
-  const [detailOrder, setDetailOrder] = useState(null)
+  const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
   const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search), [orders, now, search])
+  const detailOrder = detailOrderId ? officialOrders.find((order) => order.id === detailOrderId) ?? null : null
   const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
+
+  useEffect(() => {
+    if (detailOrderId && !detailOrder) setDetailOrderId(null)
+  }, [detailOrder, detailOrderId])
 
   const runAction = async (key, action) => {
     if (actionsDisabled) return
@@ -49,6 +55,11 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
     } finally {
       setPendingAction(null)
     }
+  }
+
+  const registerPaymentFromDetail = () => {
+    if (!canReceiveStandaloneOrder(detailOrder, granted, 'orders')) return
+    if (onRegisterPayment?.(detailOrder.id, 'orders')) setDetailOrderId(null)
   }
 
   return (
@@ -97,7 +108,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
                   now={now}
                   disabled={actionsDisabled}
                   highlighted={newOrderIds.has(String(entry.order.id))}
-                  onDetails={setDetailOrder}
+                  onDetails={(order) => setDetailOrderId(order.id)}
                   onFinalize={setFinalizeCandidate}
                 />
               </div>
@@ -119,7 +130,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
                   now={now}
                   disabled={actionsDisabled}
                   highlighted={newOrderIds.has(String(entry.order.id))}
-                  onDetails={setDetailOrder}
+                  onDetails={(order) => setDetailOrderId(order.id)}
                   onCancel={setCancelOrder}
                 />
               </div>
@@ -129,7 +140,7 @@ function Orders({ orders, now, search, onSearchChange, currency, onNewOrder, onF
         </section>
       </section>
 
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrder(null)} onRequestCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }} onToast={onToast} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrderId(null)} onRequestCancel={() => { setDetailOrderId(null); setCancelOrder(detailOrder) }} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'orders')} registerPaymentDisabled={paymentDisabled || actionsDisabled} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
       {finalizeCandidate && (
         <ConfirmationDialog
           title="Confirmar finalização"

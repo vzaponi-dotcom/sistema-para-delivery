@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import '../order-operations.css'
 import '../order-operations-compact.css'
 import Button from '../components/Button'
@@ -11,6 +11,7 @@ import PaymentBadge from '../components/PaymentBadge'
 import StatusBadge from '../components/StatusBadge'
 import { getOrderItemsSummary } from '../utils/orderCart.js'
 import { getOrderRefundState, isOrderFinished } from '../utils/orderLifecycle.js'
+import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatCancellationDate, formatOrderDate } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
@@ -18,17 +19,27 @@ const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order:
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, actionKey = null, printing, onToast, queryState, onQueryChange, canViewAnalysis = false, now = new Date() }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, now = new Date() }) {
   const filter = queryState.filter
-  const [detailOrder, setDetailOrder] = useState(null)
+  const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const terminalOrders = useMemo(() => orders.filter(isOrderFinished).filter((order) => filter === 'all' || (filter === 'finalized' ? order.status === 'Finalizado' : order.status === 'Cancelado')).sort((a, b) => new Date(timestamp(b)).getTime() - new Date(timestamp(a)).getTime()), [filter, orders])
+  const detailOrder = detailOrderId ? orders.find((order) => order.id === detailOrderId) ?? null : null
+
+  useEffect(() => {
+    if (detailOrderId && !detailOrder) setDetailOrderId(null)
+  }, [detailOrder, detailOrderId])
 
   const confirmCancellation = async (payload) => {
     if (!cancelOrder || submitting || !onCancelOrder) return
     setSubmitting(true)
     try { const saved = await onCancelOrder(cancelOrder.id, payload); if (saved !== false) setCancelOrder(null) } finally { setSubmitting(false) }
+  }
+
+  const registerPaymentFromDetail = () => {
+    if (!canReceiveStandaloneOrder(detailOrder, granted, 'history')) return
+    if (onRegisterPayment?.(detailOrder.id, 'history')) setDetailOrderId(null)
   }
 
   return (
@@ -65,14 +76,14 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
                 </div>
                 <div className="order-history-badges"><StatusBadge status={order.status} /><PaymentBadge order={order} />{refundState === 'pending' && <span className="status-badge status-warning">Estorno pendente</span>}{refundState === 'refunded' && <span className="status-badge status-success">Estornado</span>}</div>
                 <div className="order-history-value"><strong>{currency(order.total)}</strong></div>
-                <div className="order-history-actions"><Button type="button" variant="secondary" onClick={() => setDetailOrder(order)}>Ver detalhes</Button>{order.status === 'Finalizado' && <Button type="button" variant="secondary" className="button-danger-outline" disabled={Boolean(actionKey) || submitting} onClick={() => setCancelOrder(order)}>Cancelar pedido</Button>}</div>
+                <div className="order-history-actions"><Button type="button" variant="secondary" onClick={() => setDetailOrderId(order.id)}>Ver detalhes</Button>{order.status === 'Finalizado' && <Button type="button" variant="secondary" className="button-danger-outline" disabled={Boolean(actionKey) || submitting} onClick={() => setCancelOrder(order)}>Cancelar pedido</Button>}</div>
               </article>
             )
           })}
           {!terminalOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>Nenhum pedido neste filtro</strong><span>Os pedidos finalizados e cancelados aparecerão aqui.</span></div>}
         </div>
       </section>
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrder(null)} onToast={onToast} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
       <CancelOrderDialog open={Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} />
     </>
   )

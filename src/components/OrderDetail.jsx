@@ -34,7 +34,7 @@ const formatPrintTimestamp = (value) => {
   }).format(date)
 }
 
-function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, onToast }) {
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
@@ -183,6 +183,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
             )}
             <div className="order-detail-total-final"><span>Total</span><strong>{currency(order.total)}</strong></div>
             </div>
+            {canRegisterPayment && <div className="order-detail-cancel-action"><Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button></div>}
             {onRequestCancel && <div className="order-detail-cancel-action"><Button type="button" variant="secondary" onClick={onRequestCancel}>Cancelar pedido</Button></div>}
           </section>
 
