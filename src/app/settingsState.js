@@ -14,6 +14,11 @@ export function settingsReducer(state, event) {
       return { ...state, status: 'loading', error: null }
     case 'loaded': {
       const value = clone(event.value)
+      const currentRevision = state.confirmed?.revision
+      const incomingRevision = value?.revision
+      if (Number.isSafeInteger(currentRevision) && Number.isSafeInteger(incomingRevision) && incomingRevision < currentRevision) return state
+      const preservesIntent = state.dirty || Boolean(state.submitted) || ['saving', 'unconfirmed', 'conflict'].includes(state.status)
+      if (preservesIntent) return { ...state, confirmed: value }
       return { status: 'ready', confirmed: value, base: clone(value), draft: clone(value?.data), submitted: null, dirty: false, error: null }
     }
     case 'loadFailed':
@@ -48,6 +53,12 @@ export function settingsReducer(state, event) {
       }
     case 'saveUnconfirmed':
       return { ...state, status: 'unconfirmed', error: event.error?.message || 'Resultado da gravação não confirmado.' }
+    case 'expiredRefreshed': {
+      const value = clone(event.value)
+      const hasInMemoryDraft = Object.hasOwn(state.submitted || {}, 'data')
+      const draft = hasInMemoryDraft ? clone(state.draft) : clone(value?.data)
+      return { status: 'ready', confirmed: value, base: clone(value), draft, submitted: null, dirty: !same(draft, value?.data), error: null }
+    }
     case 'saveConflict':
       return { ...state, status: 'conflict', error: event.error?.message || 'As configurações foram alteradas em outro dispositivo.' }
     case 'saveFailed':

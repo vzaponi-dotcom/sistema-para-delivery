@@ -94,6 +94,133 @@ test('preparation failure releases the synchronous reservation for a later expli
   assert.equal(writes, 1)
 })
 
+test('refresh after editing advances confirmed without discarding the original base or draft', async () => {
+  let reads = 0
+  const remote = { ...adminFixture, revision: 2, data: { ...adminFixture.data, defaultModality: 'Local' } }
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(),
+    api: {
+      getSettings: async () => ++reads === 1 ? adminFixture : remote,
+      putSettings: async () => assert.fail('refresh must not save'),
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  await controller.load('operations')
+
+  const state = controller.getResources().operations
+  assert.deepEqual(state.confirmed, remote)
+  assert.deepEqual(state.base, adminFixture)
+  assert.deepEqual(state.draft, draftFixture)
+  assert.equal(state.dirty, true)
+})
+
+test('refresh during saving preserves submitted ownership and the PUT confirmation still wins', async () => {
+  const write = deferred()
+  const writeStarted = deferred()
+  let reads = 0
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
+    api: {
+      getSettings: async () => { reads += 1; return adminFixture },
+      putSettings: async () => { writeStarted.resolve(); return write.promise },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  const saving = controller.save('operations')
+  await writeStarted.promise
+  await controller.load('operations')
+
+  assert.equal(controller.getResources().operations.status, 'saving')
+  assert.deepEqual(controller.getResources().operations.submitted.data, draftFixture)
+  write.resolve({ resource: savedResource, receipt: {} })
+  assert.equal(await saving, true)
+  assert.deepEqual(controller.getResources().operations.confirmed, savedResource)
+  assert.equal(reads, 2)
+})
+
+test('blocked storage does not let refresh abandon an in-memory save or admit another PUT', async () => {
+  const write = deferred()
+  const writeStarted = deferred()
+  let writes = 0
+  const blockedStorage = {
+    get length() { throw new Error('blocked') }, key() { throw new Error('blocked') },
+    getItem() { throw new Error('blocked') }, setItem() { throw new Error('blocked') }, removeItem() { throw new Error('blocked') },
+  }
+  const controller = createBusinessSettingsController({
+    context, storage: blockedStorage, createMutationId: () => 'mutation-1',
+    api: {
+      getSettings: async () => adminFixture,
+      putSettings: async () => { writes += 1; writeStarted.resolve(); return write.promise },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  const saving = controller.save('operations')
+  await writeStarted.promise
+  await controller.load('operations')
+
+  assert.equal(await controller.save('operations'), false)
+  assert.equal(writes, 1)
+  write.resolve({ resource: savedResource, receipt: {} })
+  assert.equal(await saving, true)
+})
+
+test('an older refresh cannot regress a newer save confirmation', async () => {
+  const staleRead = deferred()
+  let reads = 0
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
+    api: {
+      getSettings: async () => ++reads === 1 ? adminFixture : staleRead.promise,
+      putSettings: async () => ({ resource: savedResource, receipt: {} }),
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  const refresh = controller.load('operations')
+  controller.edit('operations', draftFixture)
+  assert.equal(await controller.save('operations'), true)
+  staleRead.resolve(adminFixture)
+  assert.equal(await refresh, true)
+
+  const state = controller.getResources().operations
+  assert.deepEqual(state.confirmed, savedResource)
+  assert.deepEqual(state.base, savedResource)
+  assert.equal(state.dirty, false)
+})
+
+test('refresh after conflict or unknown result preserves the submitted intention', async () => {
+  for (const outcome of ['conflict', 'unknown']) {
+    const error = outcome === 'conflict'
+      ? Object.assign(new Error('changed'), { status: 409, code: 'SETTINGS_REVISION_CONFLICT' })
+      : new TypeError('network lost')
+    let reads = 0
+    const controller = createBusinessSettingsController({
+      context, storage: memoryStorage(), createMutationId: () => `mutation-${outcome}`,
+      api: {
+        getSettings: async () => { reads += 1; return reads === 1 ? adminFixture : savedResource },
+        putSettings: async () => { throw error },
+        getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+      },
+    })
+    await controller.load('operations')
+    controller.edit('operations', draftFixture)
+    await controller.save('operations')
+    await controller.load('operations')
+
+    const state = controller.getResources().operations
+    assert.equal(state.status, outcome === 'unknown' ? 'unconfirmed' : outcome)
+    assert.deepEqual(state.base, adminFixture)
+    assert.deepEqual(state.draft, draftFixture)
+    assert.deepEqual(state.submitted.data, draftFixture)
+  }
+})
+
 test('editing is local and confirmed save uses revision plus one stable mutation id', async () => {
   const calls = []
   const controller = createBusinessSettingsController({

@@ -37,19 +37,20 @@ export function createBusinessSettingsController({
   let generation = 0
   let resources = {}
   let operationSequence = 0
-  const owners = new Map()
+  const readOwners = new Map()
+  const writeOwners = new Map()
   const savePreparations = new Map()
   const publish = (key, event) => {
     resources = { ...resources, [key]: settingsReducer(resources[key] || createSettingsState(), event) }
     onChange(resources)
     return resources[key]
   }
-  const begin = (key) => {
+  const begin = (owners, key) => {
     const owner = { generation, operationId: ++operationSequence }
     owners.set(key, owner)
     return owner
   }
-  const owns = (key, owner) => generation === owner.generation && owners.get(key)?.operationId === owner.operationId
+  const owns = (owners, key, owner) => generation === owner.generation && owners.get(key)?.operationId === owner.operationId
   const contextId = () => activeContext?.settingsContextId || ''
   const validContext = () => Boolean(activeContext?.businessId && contextId())
   const controller = {
@@ -65,7 +66,8 @@ export function createBusinessSettingsController({
       if (activeContext?.settingsContextId) clearPendingContext(storage, activeContext.settingsContextId)
       activeContext = nextContext
       generation += 1
-      owners.clear()
+      readOwners.clear()
+      writeOwners.clear()
       savePreparations.clear()
       resources = {}
       onChange(resources)
@@ -74,19 +76,20 @@ export function createBusinessSettingsController({
     async load(resource, scopeId) {
       if (!validContext()) return false
       const key = settingsResourceKey(resource, scopeId)
-      const owner = begin(key)
-      publish(key, { type: 'loading' })
+      const owner = begin(readOwners, key)
+      const initialLoad = !resources[key]?.confirmed && !resources[key]?.submitted
+      if (initialLoad) publish(key, { type: 'loading' })
       try {
         const value = await api.getSettings(resource, scopeId)
-        if (!owns(key, owner)) return false
+        if (!owns(readOwners, key, owner)) return false
         publish(key, { type: 'loaded', value })
-        const pointer = readPending(storage, contextId(), key, now())
+        const pointer = resources[key]?.submitted ? null : readPending(storage, contextId(), key, now())
         if (pointer) publish(key, { type: 'pendingRecovered', pointer })
         return true
       } catch (error) {
-        if (!owns(key, owner)) return false
+        if (!owns(readOwners, key, owner)) return false
         if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
-        publish(key, { type: 'loadFailed', error })
+        if (initialLoad) publish(key, { type: 'loadFailed', error })
         return false
       }
     },
@@ -125,20 +128,20 @@ export function createBusinessSettingsController({
         throw error
       }
       if (savePreparations.get(key) !== reservation || generation !== saveGeneration || contextSignature(activeContext) !== saveContext || !validContext()) return false
-      const owner = begin(key)
+      const owner = begin(writeOwners, key)
       publish(key, { type: 'saveStarted', mutationId, payloadHash, startedAt, expectedRevision: input.expectedRevision, data: input.data })
       savePreparations.delete(key)
       const persisted = writePending(storage, contextId(), key, { resource, scopeId, mutationId, payloadHash, startedAt, contextId: contextId() })
       if (!persisted.ok) onFeedback({ code: 'SETTINGS_PENDING_STORAGE_UNAVAILABLE', message: 'A recuperação após recarregar não está disponível neste navegador.', cause: persisted.error })
       try {
         const result = await api.putSettings(resource, input, scopeId)
-        if (!owns(key, owner)) return false
+        if (!owns(writeOwners, key, owner)) return false
         clearPending(storage, contextId(), key)
         publish(key, { type: 'saveConfirmed', value: result.resource })
         onFeedback({ status: 'confirmed', resource, scopeId, receipt: result.receipt })
         return true
       } catch (error) {
-        if (!owns(key, owner)) return false
+        if (!owns(writeOwners, key, owner)) return false
         if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
         if (error?.status === 409) {
           clearPending(storage, contextId(), key)
@@ -158,28 +161,28 @@ export function createBusinessSettingsController({
       const key = settingsResourceKey(resource, scopeId)
       const submitted = resources[key]?.submitted
       if (!submitted || resources[key].status !== 'unconfirmed') return false
-      const owner = begin(key)
+      const owner = begin(writeOwners, key)
       if (submitted.expired) {
         try {
           const current = await api.getSettings(resource, scopeId)
-          if (!owns(key, owner)) return false
+          if (!owns(writeOwners, key, owner)) return false
           clearPending(storage, contextId(), key)
-          publish(key, { type: 'loaded', value: current })
+          publish(key, { type: 'expiredRefreshed', value: current })
           onFeedback({ status: 'expired', resource, scopeId, message: 'A gravação pendente expirou. Revise o estado atual antes de salvar novamente.' })
         } catch (error) {
-          if (owns(key, owner)) publish(key, { type: 'saveUnconfirmed', error })
+          if (owns(writeOwners, key, owner)) publish(key, { type: 'saveUnconfirmed', error })
         }
         return false
       }
       try {
         const result = await api.getSettingsReceipt(resource, submitted.mutationId, scopeId)
-        if (!owns(key, owner)) return false
+        if (!owns(writeOwners, key, owner)) return false
         if (result?.status !== 'confirmed') {
           publish(key, { type: 'saveUnconfirmed' })
           return false
         }
         const current = await api.getSettings(resource, scopeId)
-        if (!owns(key, owner)) return false
+        if (!owns(writeOwners, key, owner)) return false
         if (!Number.isSafeInteger(current?.revision) || current.revision < result.receipt.committedRevision) {
           publish(key, { type: 'saveUnconfirmed' })
           return false
@@ -189,7 +192,7 @@ export function createBusinessSettingsController({
         onFeedback({ status: 'confirmed', resource, scopeId, receipt: result.receipt })
         return true
       } catch (error) {
-        if (!owns(key, owner)) return false
+        if (!owns(writeOwners, key, owner)) return false
         if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
         publish(key, { type: 'saveUnconfirmed', error })
         return false
@@ -198,7 +201,8 @@ export function createBusinessSettingsController({
     reset() {
       if (activeContext?.settingsContextId) clearPendingContext(storage, activeContext.settingsContextId)
       generation += 1
-      owners.clear()
+      readOwners.clear()
+      writeOwners.clear()
       savePreparations.clear()
       resources = {}
       activeContext = null
