@@ -209,8 +209,26 @@ export async function saveFinanceCategories(db, businessId, input, now = new Dat
 
 export function prepareFinanceCategoryUse(db, businessId, categoryId, expectedRevision, txId, at) {
   if (typeof businessId !== 'string' || !businessId || typeof categoryId !== 'string' || !categoryId || categoryId.length > 120 ||
-      !Number.isSafeInteger(expectedRevision) || expectedRevision < 1 || typeof txId !== 'string' || !txId ||
+      !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || typeof txId !== 'string' || !txId ||
       !(at instanceof Date) || !Number.isFinite(+at)) throw settingsError('SETTINGS_INVALID', 400)
+  if (expectedRevision === 0) {
+    if (!NATIVE_BY_ID.has(categoryId)) throw settingsError('SETTINGS_INVALID', 400)
+    const statements = [
+      prepareSettingsAssertion(db, txId, 'policy',
+        `coalesce((SELECT revision FROM business_finance_category_settings WHERE business_id = ?), 0) = 0
+         AND NOT EXISTS (SELECT 1 FROM business_finance_categories WHERE business_id = ?)`, [businessId, businessId]),
+      db.prepare(`INSERT INTO business_finance_category_settings
+        (business_id, created_at, updated_at) VALUES (?, ?, ?)`).bind(businessId, at.toISOString(), at.toISOString()),
+    ]
+    for (const item of NATIVE.items) {
+      statements.push(db.prepare(`INSERT INTO business_finance_categories
+        (business_id, id, type, label, name_key, active, is_system, sort_order, first_used_at)
+        VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)`)
+        .bind(businessId, item.id, item.type, item.label, nameKey(item.label), item.sortOrder,
+          item.id === categoryId ? at.toISOString() : null))
+    }
+    return statements
+  }
   return [prepareSettingsAssertion(db, txId, 'policy',
     `EXISTS (SELECT 1 FROM business_finance_category_settings h
       JOIN business_finance_categories c ON c.business_id = h.business_id

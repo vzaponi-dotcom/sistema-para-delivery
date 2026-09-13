@@ -39,7 +39,7 @@ export const parseManualMovementInput = (body = {}, now = new Date()) => {
     paymentMethod: validatePaymentMethod(body.paymentMethod, 'paymentMethod'),
   }
   if (body.expectedRevision !== undefined) {
-    if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 1) {
+    if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0) {
       throw financeValidationError('expectedRevision', 'Atualize as categorias financeiras e tente novamente.')
     }
     parsed.expectedRevision = body.expectedRevision

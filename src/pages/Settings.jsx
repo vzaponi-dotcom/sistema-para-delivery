@@ -6,6 +6,7 @@ import SettingsHome from './SettingsHome'
 import OperationSettings from './OperationSettings'
 import PaymentSettings from './PaymentSettings'
 import CancellationSettings from './CancellationSettings'
+import FinanceCategorySettings from './FinanceCategorySettings'
 import { useTheme } from '../components/themeContext.js'
 import '../area-navigation.css'
 
@@ -21,6 +22,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   const operationLoad = operationSettings?.load
   const paymentRoute = section === 'settings-payments'
   const cancellationRoute = section === 'settings-cancellations'
+  const financeCategoryRoute = section === 'settings-finance-categories'
   const paymentLoad = businessSettings?.load
   useEffect(() => {
     if (operationRoute) void operationLoad?.('operations')
@@ -31,6 +33,9 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   useEffect(() => {
     if (cancellationRoute) void paymentLoad?.('cancellationReasons')
   }, [cancellationRoute, paymentLoad])
+  useEffect(() => {
+    if (financeCategoryRoute) void paymentLoad?.('financeCategories')
+  }, [financeCategoryRoute, paymentLoad])
   const reviewOperationConflict = async () => {
     const review = await operationSettings?.reviewConflict?.('operations')
     if (review) onSettingsConflictReview?.(review)
@@ -43,6 +48,11 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   }
   const reviewCancellationConflict = async () => {
     const review = await businessSettings?.reviewConflict?.('cancellationReasons')
+    if (review) onSettingsConflictReview?.(review)
+    return review
+  }
+  const reviewFinanceCategoryConflict = async () => {
+    const review = await businessSettings?.reviewConflict?.('financeCategories')
     if (review) onSettingsConflictReview?.(review)
     return review
   }
@@ -85,6 +95,19 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       onReconcile={() => businessSettings?.reconcile?.('cancellationReasons')}
       onReload={() => businessSettings?.load?.('cancellationReasons')}
       onReviewConflict={reviewCancellationConflict}
+    />
+  </div>
+  if (financeCategoryRoute) return <div className="settings-page">
+    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+    <FinanceCategorySettings
+      resourceState={businessSettings?.resources?.financeCategories}
+      readOnly={!(granted instanceof Set && granted.has('finance.categories.manage'))}
+      onEdit={(draft) => businessSettings?.edit?.('financeCategories', draft)}
+      onSave={() => businessSettings?.save?.('financeCategories')}
+      onDiscard={() => businessSettings?.discard?.('financeCategories')}
+      onReconcile={() => businessSettings?.reconcile?.('financeCategories')}
+      onReload={() => businessSettings?.load?.('financeCategories')}
+      onReviewConflict={reviewFinanceCategoryConflict}
     />
   </div>
   return (

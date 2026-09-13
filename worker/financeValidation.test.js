@@ -16,7 +16,7 @@ test('manual movement input normalizes the full finance contract', () => {
   })
 })
 
-test('manual movement input accepts a custom category id and preserves an optional server policy revision', () => {
+test('manual movement input accepts a custom category id and preserves revision zero or later', () => {
   assert.deepEqual(parseManualMovementInput({
     type: 'entrada', category: 'event-income', description: ' Evento ', value: 90,
     movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: 4,
@@ -24,9 +24,13 @@ test('manual movement input accepts a custom category id and preserves an option
     type: 'entrada', category: 'event-income', description: 'Evento', valueCents: 9000,
     movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: 4,
   })
-  expectValidation(() => parseManualMovementInput({
+  assert.equal(parseManualMovementInput({
     type: 'entrada', category: 'event-income', description: 'Evento', value: 90,
     movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: 0,
+  }, now).expectedRevision, 0)
+  expectValidation(() => parseManualMovementInput({
+    type: 'entrada', category: 'event-income', description: 'Evento', value: 90,
+    movementDate: '2026-09-03', paymentMethod: 'Pix', expectedRevision: -1,
   }, now), 'expectedRevision')
 })
 

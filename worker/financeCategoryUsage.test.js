@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createSettingsDb } from './test-support/settingsDb.js'
 import { createManualMovement, softDeleteManualMovement, updateManualMovement } from './financeRepository.js'
 import { loadFinanceCategories, saveFinanceCategories } from './financeCategoryRepository.js'
+import { loadPaymentMethods, savePaymentMethods } from './paymentSettingsRepository.js'
 
 const BUSINESS = 'amor-e-sabor'
 const NOW = new Date('2026-09-12T17:00:00.000Z')
@@ -49,6 +50,25 @@ test('creates a manual movement and permanently marks category first use in one 
   assert.equal(after.meta.items.marketing.usedEver, true)
   assert.equal(after.meta.items.marketing.canRename, false)
   assert.equal(after.meta.items.marketing.canDelete, false)
+})
+
+test('revision-zero defaults initialize atomically with the first manual movement for a new business', async (t) => {
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('new-business', 'new-business', 'New', NOW.toISOString(), NOW.toISOString())
+  const paymentMethods = await loadPaymentMethods(db, 'new-business')
+  await savePaymentMethods(db, 'new-business', {
+    expectedRevision: 0, mutationId: 'initialize-payment-methods', data: paymentMethods.data,
+  }, NOW)
+
+  const movement = await createManualMovement(db, 'new-business', baseInput({ expectedRevision: 0 }), LATER)
+
+  assert.equal(movement.category, 'supplies')
+  assert.equal(movement.categoryLabel, 'Insumos')
+  assert.equal(sqlite.prepare("SELECT revision FROM business_finance_category_settings WHERE business_id = 'new-business'").get().revision, 1)
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM business_finance_categories WHERE business_id = 'new-business'").get().n, 13)
+  assert.equal(sqlite.prepare("SELECT first_used_at FROM business_finance_categories WHERE business_id = 'new-business' AND id = 'supplies'").get().first_used_at, LATER.toISOString())
 })
 
 test('rolls back first use when movement insertion fails', async (t) => {
@@ -102,6 +122,20 @@ test('editing keeps the server-loaded inactive reference but rejects a different
     'Privado', 1000, 'manual', '2026-09-12', ?, ?)`).run(NOW.toISOString(), NOW.toISOString())
   assert.equal(await updateManualMovement(db, BUSINESS, 'other-business-movement',
     baseInput({ category: 'marketing' }), LATER), null)
+})
+
+test('editing preserves a legacy Portuguese category value without treating it as a new selection', async (t) => {
+  const { db, sqlite } = setup(t)
+  sqlite.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source,
+    payment_method, movement_date, created_at, updated_at) VALUES ('legacy-supplies', ?, 'saida', 'Insumos',
+    'Compra antiga', 1000, 'manual', 'Pix', '2026-09-12', ?, ?)`).run(BUSINESS, NOW.toISOString(), NOW.toISOString())
+
+  const updated = await updateManualMovement(db, BUSINESS, 'legacy-supplies',
+    baseInput({ category: 'Insumos', description: 'Compra antiga revisada' }), LATER)
+
+  assert.equal(updated.category, 'Insumos')
+  assert.equal(updated.description, 'Compra antiga revisada')
+  assert.equal(sqlite.prepare("SELECT category FROM movements WHERE id = 'legacy-supplies'").get().category, 'Insumos')
 })
 
 test('first use survives category changes and soft deletion of the movement', async (t) => {

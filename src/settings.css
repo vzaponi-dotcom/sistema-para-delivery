@@ -83,6 +83,10 @@
 .payment-method-badge.is-default { background: var(--primary-soft); color: var(--primary); }
 
 .cancellation-settings { display: grid; gap: 12px; min-width: 0; }
+.finance-category-settings { display: grid; gap: 18px; min-width: 0; }
+.finance-category-group { display: grid; min-width: 0; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.finance-category-group.is-entrada .compact-section-heading h2 { color: var(--success); }
+.finance-category-group.is-saida .compact-section-heading h2 { color: var(--danger); }
 .settings-catalog-toolbar { display: flex; justify-content: flex-end; }
 .settings-catalog-copy { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .settings-catalog-copy > span:first-child { color: var(--text); }
@@ -106,4 +110,6 @@
   .payment-method-badges { flex-direction: column; }
   .settings-catalog-toolbar .button { width: 100%; }
   .settings-catalog-copy { align-items: flex-start; flex-direction: column; }
+  .finance-category-settings { grid-template-columns: minmax(0, 1fr); }
+  .finance-category-group { padding: 12px; }
 }

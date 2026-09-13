@@ -6,7 +6,8 @@ const readSource = async () => readFile(new URL('./MovementDialog.jsx', import.m
 
 test('movement dialog uses finance categories, BRL mask, date, payment method and review confirmation', async () => {
   const source = await readSource()
-  assert.match(source, /getManualMovementCategoryOptions/)
+  assert.match(source, /financeCategoryOptionsWithSelection/)
+  assert.doesNotMatch(source, /getManualMovementCategoryOptions/)
   assert.match(source, /formatBRLCurrencyInput/)
   assert.match(source, /parseBRLCurrencyInput/)
   assert.match(source, /paymentMethod/)
@@ -22,6 +23,6 @@ test('new movement defaults are neutral and changing type clears an incompatible
   assert.match(source, /category:\s*movement\?\.source\s*===\s*'manual'\s*\?\s*movement\.category\s*\|\|\s*''\s*:\s*''/)
   assert.match(source, /paymentMethod:\s*movement\?\.paymentMethod\s*\|\|\s*''/)
   assert.match(source, /formatBRLCurrencyValue\(movement\?\.value\s*\?\?\s*0\)/)
-  assert.match(source, /isManualMovementCategory/)
-  assert.match(source, /category:\s*isManualMovementCategory\(nextType, current\.category\)\s*\?\s*current\.category\s*:\s*''/s)
+  assert.match(source, /categoryOptions\.some\(\(option\) => option\.type === nextType && option\.value === current\.category\)/)
+  assert.match(source, /category:\s*categoryOptions\.some[\s\S]*\? current\.category : ''/)
 })

@@ -3,14 +3,16 @@ import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 import AreaNavigation from '../components/AreaNavigation'
+import ConfirmationDialog from '../components/ConfirmationDialog'
 import RegisterRefundDialog from '../components/RegisterRefundDialog'
 import StatCard from '../components/StatCard'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, granted, implemented, onNavigate, activeTab, canManageMovements = true, canRefundPayments = true }) {
+function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, granted, implemented, onNavigate, activeTab, canManageMovements = true, canRefundPayments = true }) {
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
+  const [movementPendingDelete, setMovementPendingDelete] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
 
   const confirmRefund = async (payload) => {
@@ -53,7 +55,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
           {movements.map((movement) => (
             <article className="movement-row" key={movement.id}>
               <div className={movement.type === 'entrada' ? 'movement-icon incoming' : 'movement-icon outgoing'}><Icon name={movement.type === 'entrada' ? 'arrow-up' : 'arrow-down'} size={18} /></div>
-              <div className="movement-main"><div className="movement-title-line"><strong>{movement.description}</strong><span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>{movement.type === 'entrada' ? 'Entrada' : 'Saída'}</span>{movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}{movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}</div><span>{movement.category} · {movement.date}{movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}</span></div>
+              <div className="movement-main"><div className="movement-title-line"><strong>{movement.description}</strong><span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>{movement.type === 'entrada' ? 'Entrada' : 'Saída'}</span>{movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}{movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}</div><span>{movement.categoryLabel || movement.category} · {movement.date}{movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}</span>{canManageMovements && movement.source === 'manual' && <div className="entity-actions movement-actions"><Button type="button" variant="secondary" aria-label={`Editar ${movement.description}`} disabled={writeDisabled} onClick={() => onEditMovement?.(movement)}>Editar</Button><Button type="button" variant="secondary" className="button-danger-outline" aria-label={`Excluir ${movement.description}`} disabled={writeDisabled} onClick={() => setMovementPendingDelete(movement)}>Excluir</Button></div>}</div>
               <strong className={movement.type === 'entrada' ? 'movement-value positive' : 'movement-value negative'}>{movement.type === 'entrada' ? '+' : '-'}{currency(movement.value)}</strong>
             </article>
           ))}
@@ -61,6 +63,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
         {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
       </section>
       <RegisterRefundDialog open={canRefundPayments && Boolean(refundOrder)} order={refundOrder} paymentOptions={paymentOptions} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
+      {movementPendingDelete && <ConfirmationDialog title="Excluir movimentação?" message={`A movimentação “${movementPendingDelete.description}” será removida do histórico visível.`} confirmLabel="Excluir movimentação" onConfirm={async () => { const deleted = await onDeleteMovement?.(movementPendingDelete.id); if (deleted !== false) setMovementPendingDelete(null) }} onClose={() => setMovementPendingDelete(null)} disabled={writeDisabled} />}
     </>
   )
 }

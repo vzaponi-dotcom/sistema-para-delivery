@@ -1,4 +1,4 @@
-import { normalizeMovementCategory } from '../shared/finance.js'
+import { getMovementCategoryLabel, normalizeMovementCategory } from '../shared/finance.js'
 import { loadFinanceCategories, prepareFinanceCategoryUse } from './financeCategoryRepository.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
 import { centsToMoney } from './validation.js'
@@ -12,6 +12,7 @@ export const mapMovementRow = (row) => ({
   id: row.id,
   type: row.type,
   category: row.category,
+  categoryLabel: row.category_label ?? getMovementCategoryLabel(row),
   description: row.description,
   value: centsToMoney(row.value_cents),
   source: row.source || 'manual',
@@ -37,8 +38,10 @@ export const loadFinanceSettings = async (db, businessId) => {
   return mapFinanceSettingsRow(row)
 }
 
-const MOVEMENT_COLUMNS = `id, business_id, type, category, description, value_cents, source, order_id, payment_id,
-  payment_method, movement_date, created_at, updated_at`
+const MOVEMENT_COLUMNS = `id, business_id, type, category,
+  (SELECT label FROM business_finance_categories fc
+    WHERE fc.business_id = movements.business_id AND fc.id = movements.category) AS category_label,
+  description, value_cents, source, order_id, payment_id, payment_method, movement_date, created_at, updated_at`
 const loadActiveMovementRow = (db, businessId, id) => db.prepare(`SELECT ${MOVEMENT_COLUMNS}
   FROM movements WHERE id = ? AND business_id = ? AND deleted_at IS NULL LIMIT 1`).bind(id, businessId).first()
 
@@ -51,7 +54,7 @@ const assertManualMovement = (row) => {
 async function activeCategoryContext(db, businessId, input) {
   const policy = await loadFinanceCategories(db, businessId)
   const expectedRevision = input.expectedRevision ?? policy.revision
-  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw policyChanged()
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw policyChanged()
   const category = policy.data.items.find((item) => item.id === input.category)
   if (!category || category.type !== input.type || !category.active) throw policyChanged()
   return { expectedRevision }
@@ -75,7 +78,7 @@ export const createManualMovement = async (db, businessId, input, now = new Date
   const timestamp = now.toISOString()
   const txId = crypto.randomUUID()
   const paymentTxId = crypto.randomUUID()
-  const [policyGuard, markCategoryUsed] = prepareFinanceCategoryUse(
+  const categoryPolicyStatements = prepareFinanceCategoryUse(
     db, businessId, input.category, expectedRevision, txId, now,
   )
   const insert = db.prepare(`INSERT INTO movements (
@@ -88,7 +91,7 @@ export const createManualMovement = async (db, businessId, input, now = new Date
   const select = db.prepare(`SELECT ${MOVEMENT_COLUMNS} FROM movements
     WHERE id = ? AND business_id = ? AND deleted_at IS NULL`).bind(id, businessId)
   return commitMovement(db, [...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
-    policyGuard, markCategoryUsed, insert, clearSettingsAssertions(db, txId), clearSettingsAssertions(db, paymentTxId), select])
+    ...categoryPolicyStatements, insert, clearSettingsAssertions(db, txId), clearSettingsAssertions(db, paymentTxId), select])
 }
 
 export const updateManualMovement = async (db, businessId, id, input, now = new Date()) => {
@@ -96,7 +99,7 @@ export const updateManualMovement = async (db, businessId, id, input, now = new 
   if (!current) return null
   assertManualMovement(current)
   const retainingExistingReference = current.type === input.type &&
-    normalizeMovementCategory(current) === input.category
+    normalizeMovementCategory(current) === normalizeMovementCategory(input)
   const retainingPaymentMethod = current.payment_method === input.paymentMethod
   const storedCategory = retainingExistingReference ? current.category : input.category
   const updatedAt = now.toISOString()
@@ -123,10 +126,10 @@ export const updateManualMovement = async (db, businessId, id, input, now = new 
       ...(paymentGuards.length ? [clearSettingsAssertions(db, paymentTxId)] : []), select]
   } else {
     const { expectedRevision } = await activeCategoryContext(db, businessId, input)
-    const [policyGuard, markCategoryUsed] = prepareFinanceCategoryUse(
+    const categoryPolicyStatements = prepareFinanceCategoryUse(
       db, businessId, input.category, expectedRevision, txId, now,
     )
-    statements = [...paymentGuards, policyGuard, stateGuard, markCategoryUsed, update, clearSettingsAssertions(db, txId),
+    statements = [...paymentGuards, ...categoryPolicyStatements, stateGuard, update, clearSettingsAssertions(db, txId),
       ...(paymentGuards.length ? [clearSettingsAssertions(db, paymentTxId)] : []), select]
   }
   return commitMovement(db, statements)
