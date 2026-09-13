@@ -28,6 +28,7 @@ export function createBusinessSettingsController({
   storage = globalThis.sessionStorage,
   now = () => new Date(),
   createMutationId = () => crypto.randomUUID(),
+  hash = hashPayload,
   onChange = () => {},
   onFeedback = () => {},
   onSessionExpired = () => {},
@@ -37,6 +38,7 @@ export function createBusinessSettingsController({
   let resources = {}
   let operationSequence = 0
   const owners = new Map()
+  const savePreparations = new Map()
   const publish = (key, event) => {
     resources = { ...resources, [key]: settingsReducer(resources[key] || createSettingsState(), event) }
     onChange(resources)
@@ -64,6 +66,7 @@ export function createBusinessSettingsController({
       activeContext = nextContext
       generation += 1
       owners.clear()
+      savePreparations.clear()
       resources = {}
       onChange(resources)
       return true
@@ -103,16 +106,28 @@ export function createBusinessSettingsController({
       if (!validContext()) return false
       const key = settingsResourceKey(resource, scopeId)
       const current = resources[key]
-      if (!current?.dirty || ['saving', 'unconfirmed', 'conflict'].includes(current.status)) return false
-      const mutationId = createMutationId()
-      const startedAt = now().toISOString()
-      const input = { expectedRevision: current.base.revision, mutationId, data: structuredClone(current.draft) }
+      if (!current?.dirty || savePreparations.has(key) || ['saving', 'unconfirmed', 'conflict'].includes(current.status)) return false
+      const reservation = {}
+      savePreparations.set(key, reservation)
       const saveGeneration = generation
       const saveContext = contextSignature(activeContext)
-      const payloadHash = await hashPayload({ resource, scopeId: scopeId || null, ...input })
-      if (generation !== saveGeneration || contextSignature(activeContext) !== saveContext || !validContext()) return false
+      let mutationId
+      let startedAt
+      let input
+      let payloadHash
+      try {
+        mutationId = createMutationId()
+        startedAt = now().toISOString()
+        input = { expectedRevision: current.base.revision, mutationId, data: structuredClone(current.draft) }
+        payloadHash = await hash({ resource, scopeId: scopeId || null, ...input })
+      } catch (error) {
+        if (savePreparations.get(key) === reservation) savePreparations.delete(key)
+        throw error
+      }
+      if (savePreparations.get(key) !== reservation || generation !== saveGeneration || contextSignature(activeContext) !== saveContext || !validContext()) return false
       const owner = begin(key)
-      publish(key, { type: 'saveStarted', mutationId, payloadHash, startedAt })
+      publish(key, { type: 'saveStarted', mutationId, payloadHash, startedAt, expectedRevision: input.expectedRevision, data: input.data })
+      savePreparations.delete(key)
       const persisted = writePending(storage, contextId(), key, { resource, scopeId, mutationId, payloadHash, startedAt, contextId: contextId() })
       if (!persisted.ok) onFeedback({ code: 'SETTINGS_PENDING_STORAGE_UNAVAILABLE', message: 'A recuperação após recarregar não está disponível neste navegador.', cause: persisted.error })
       try {
@@ -184,6 +199,7 @@ export function createBusinessSettingsController({
       if (activeContext?.settingsContextId) clearPendingContext(storage, activeContext.settingsContextId)
       generation += 1
       owners.clear()
+      savePreparations.clear()
       resources = {}
       activeContext = null
       onChange(resources)

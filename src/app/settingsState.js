@@ -32,8 +32,8 @@ export function settingsReducer(state, event) {
           mutationId: event.mutationId,
           payloadHash: event.payloadHash,
           startedAt: event.startedAt,
-          expectedRevision: state.base?.revision,
-          data: clone(state.draft),
+          expectedRevision: event.expectedRevision ?? state.base?.revision,
+          data: clone(Object.hasOwn(event, 'data') ? event.data : state.draft),
         },
         error: null,
       }

@@ -19,6 +19,81 @@ const memoryStorage = () => {
 const context = { businessId: 'business-1', generation: 1, settingsContextId: 'context-1', capabilities: ['operations.settings.manage'] }
 const savedResource = { ...adminFixture, revision: 2, data: draftFixture }
 
+test('two immediate saves reserve one resource before hashing and issue at most one PUT', async () => {
+  const write = deferred()
+  let writes = 0
+  let mutation = 0
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => `mutation-${++mutation}`,
+    api: {
+      getSettings: async () => adminFixture,
+      putSettings: () => { writes += 1; return write.promise },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+
+  const first = controller.save('operations')
+  const second = controller.save('operations')
+  write.resolve({ resource: savedResource, receipt: {} })
+
+  assert.deepEqual(await Promise.all([first, second]), [true, false])
+  assert.equal(writes, 1)
+})
+
+test('save carries draft A unchanged through hash submitted state and PUT while later draft B stays dirty', async () => {
+  const write = deferred()
+  const started = deferred()
+  const sent = []
+  const laterDraft = { ...draftFixture, defaultModality: 'Retirada' }
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
+    api: {
+      getSettings: async () => adminFixture,
+      putSettings: async (_resource, input) => { sent.push(input); started.resolve(); return write.promise },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+
+  const pending = controller.save('operations')
+  controller.edit('operations', laterDraft)
+  await started.promise
+
+  assert.deepEqual(sent[0].data, draftFixture)
+  assert.deepEqual(controller.getResources().operations.submitted.data, draftFixture)
+  assert.deepEqual(controller.getResources().operations.draft, laterDraft)
+  write.resolve({ resource: savedResource, receipt: {} })
+  assert.equal(await pending, true)
+  assert.deepEqual(controller.getResources().operations.draft, laterDraft)
+  assert.equal(controller.getResources().operations.dirty, true)
+})
+
+test('preparation failure releases the synchronous reservation for a later explicit attempt', async () => {
+  let writes = 0
+  let failHash = true
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
+    hash: async () => {
+      if (failHash) { failHash = false; throw new Error('digest unavailable') }
+      return 'payload-hash'
+    },
+    api: {
+      getSettings: async () => adminFixture,
+      putSettings: async (_resource, input) => { writes += 1; return { resource: { ...savedResource, data: input.data }, receipt: {} } },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  await assert.rejects(controller.save('operations'), /digest unavailable/)
+
+  assert.equal(await controller.save('operations'), true)
+  assert.equal(writes, 1)
+})
+
 test('editing is local and confirmed save uses revision plus one stable mutation id', async () => {
   const calls = []
   const controller = createBusinessSettingsController({
