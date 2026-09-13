@@ -596,7 +596,7 @@ Origin, branch scope and workflow triggers were reconfirmed before publication. 
 
 `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release. T11 and T12 remain **not authorized and not started**.
 
-## T11 — migration de vias por contexto (em andamento)
+## T11 — migration de vias por contexto
 
 T11 iniciou na worktree isolada limpa, em `331855b5df74c02edf998238c3d20e6264126328`; `git ls-remote` confirmou o mesmo SHA em `origin/feature/spec-b-settings-policies`. A numeração real termina em `0024`, portanto `0025_print_context_copies.sql` não colide.
 
@@ -613,3 +613,21 @@ Antes da implementação, o schema final aplicado foi inspecionado por `sqlite_s
 - Revisão direta do schema, migration, probe e diff — não independente e sem subagente, pois esta sessão não autoriza delegação — não encontrou item Critical, Important ou Minor restante no escopo T11. Commit funcional: `f40662a` (`feat: allow two-copy table-tab jobs preserving print history`).
 
 O `npm test` agregado e build não foram executados na T11; o handoff os reserva ao fechamento da T12. Homologação física continua pendente e nenhuma impressão real foi disparada. `TEST-INFRA-01` permanece **OPEN / cause unconfirmed** e bloqueia merge/release. T12 está autorizada a seguir somente após este checkpoint; T13 permanece não autorizada.
+
+## T12 — vias por contexto e segunda via de comanda
+
+T12 iniciou somente após o checkpoint e os commits da T11, sobre `e5628d2`. O escopo ficou limitado ao resolvedor de vias, consumidores de criação de jobs, segunda via/recovery já existentes, testes afetados e ao guia para homologação física posterior. `src/printing/printRecoveryFlow.js` e `src/pages/PrintQueue.jsx` foram caracterizados, mas não precisaram de alteração: o recovery já conserva a afinidade do job até decisão terminal e as ações/identidade de segunda via na fila já eram neutras ao tipo. Nenhum trabalho de T13 foi iniciado.
+
+- RED comportamental: após o scaffold mínimo do novo módulo, `node --test shared/printContextPolicy.test.js worker/printContextPolicy.test.js src/printing/tableTabSecondCopy.test.js` falhou pelo código explícito `PRINT_CONTEXT_POLICY_NOT_IMPLEMENTED`; o runner/prompt também não possuía o contrato de comanda. Erros iniciais de fixture foram corrigidos antes de contar o GREEN e ausência de módulo não foi tratada como evidência suficiente.
+- O resolvedor `resolvePrintCopies` valida a policy canônica, mantém teste sempre em uma via, aceita somente escolha explícita numérica 1/2 e distingue comanda por `jobType`, `customerIdentityType === 'table'` ou vínculo durável `tableTabId`. O texto legado `Local` sozinho não participa da decisão.
+- Criação automática e criação manual sem escolha leem a policy revisionada do negócio e gravam `copies_requested` no mesmo compromisso protegido por assertion. Corridas de revisão retornam `409 POLICY_CHANGED` e deixam zero pedido/job parcial. Escolha explícita válida dispensa reconsulta de default; retry, continuação e jobs já enfileirados preservam seu snapshot de cópias.
+- O executor agora fornece `copyNumber/totalCopies` também ao documento `table-tab`; o prompt global aceita comanda sem `orderId` fictício e mostra `Comanda #N`. O popup de origem continua exclusivo a pedidos. `requestSecondCopy` aceita table-tab e preserva o mesmo job/documento; fechamento posterior da comanda não troca a identidade. Reprint de pedido continua criando novo job manual com `parentJobId` e sem reescrever o original.
+- Fixtures antigas diretamente afetadas foram atualizadas apenas com o schema mínimo das policies revisionadas. Nenhum fallback de produção para schema ausente foi criado. O teste nominal `worker/tableTabLifecycle.test.js` continua inexistente; o caminho real `worker/tableTabLifecycleRepository.test.js` foi executado e passou 8/8 após sua fixture receber as dependências já obrigatórias de T09/T10/T12.
+- GREEN focado final: `node --test shared/printContextPolicy.test.js worker/printContextPolicy.test.js src/printing/tableTabSecondCopy.test.js` passou 12/12, sem falhas/skips/cancelamentos.
+- Regressão completa focada: a seleção de arquivos cujo nome contém `printing`, `print` ou `comandas` passou com reporter dot e exit 0; o subconjunto complementar de arquivos `tabletab` passou 60/60 e exit 0. As primeiras tentativas sandboxed dos testes React falharam somente com o `EPERM` já conhecido ao criar `node_modules/.vite-temp`; a repetição autorizada fora dessa restrição passou. O `npm test` agregado não foi executado.
+- Build: `npm.cmd run build` passou fora da restrição de escrita do sandbox (371 módulos; exit 0), com apenas o aviso não bloqueante já conhecido de chunk maior que 500 kB.
+- Estática: Oxlint direcionado a todos os JavaScript/JSX alterados saiu 0, mantendo somente warnings preexistentes de hooks/set-state em `App.jsx`/`usePrintingManager.js`; `node --check` passou em todos os `.js` alterados e `git diff --check` saiu 0.
+- Revisão direta — sem subagente por restrição desta sessão — conferiu fronteiras de policy, SQL/bindings, fail-closed, snapshots, afinidade, UI e diff; não encontrou item Critical, Important ou Minor restante. Commit funcional: `05edb2a` (`feat: apply print copies by context including table-tab recovery`).
+- O guia `docs/superpowers/qa/2026-09-12-spec-b-physical-printing-guide.md` foi criado com status explícito PENDENTE, matriz para avulso/mesa/comanda 1–2 vias, teste, retry, resultado desconhecido, reprint, mudança de policy, fechamento/transferência, recovery e solicitação remota. Nenhuma impressão real, staging, deploy ou migration remota foi executada.
+
+Checkpoint R3 concluído localmente. `TEST-INFRA-01` permanece **OPEN / cause unconfirmed**, o agregado continua não aprovado e merge/release seguem bloqueados. T13 permanece **não autorizada e não iniciada**.
