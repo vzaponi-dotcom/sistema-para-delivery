@@ -354,6 +354,74 @@ test('revision conflict is conclusive but preserves base draft and submitted int
   assert.deepEqual(state.submitted.data, draftFixture)
 })
 
+test('accepted conflict review updates the base and draft without saving until a new explicit click', async () => {
+  const conflict = Object.assign(new Error('changed elsewhere'), { status: 409, code: 'SETTINGS_REVISION_CONFLICT' })
+  const current = { ...adminFixture, revision: 2, data: { ...adminFixture.data, defaultModality: 'Local' } }
+  let reads = 0
+  let writes = 0
+  let mutation = 0
+  let openedReview = null
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => `mutation-${++mutation}`,
+    onConflictReview: (review) => { openedReview = review },
+    api: {
+      getSettings: async () => ++reads === 1 ? adminFixture : current,
+      putSettings: async (_resource, input) => {
+        writes += 1
+        if (writes === 1) throw conflict
+        return { resource: { ...current, revision: 3, data: input.data }, receipt: { mutationId: input.mutationId } }
+      },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  assert.equal(await controller.save('operations'), false)
+
+  const review = openedReview
+  assert.ok(review)
+  assert.equal(reads, 2)
+  assert.equal(writes, 1)
+  assert.equal(controller.acceptConflictReview(review, review.candidate), true)
+  let state = controller.getResources().operations
+  assert.equal(state.status, 'ready')
+  assert.equal(state.base.revision, 2)
+  assert.deepEqual(state.draft, review.candidate)
+  assert.equal(state.dirty, true)
+  assert.equal(writes, 1)
+
+  assert.equal(await controller.save('operations'), true)
+  state = controller.getResources().operations
+  assert.equal(writes, 2)
+  assert.equal(state.confirmed.revision, 3)
+  assert.equal(mutation, 2)
+})
+
+test('logout invalidates an open conflict review and its late decision', async () => {
+  const conflict = Object.assign(new Error('changed elsewhere'), { status: 409, code: 'SETTINGS_REVISION_CONFLICT' })
+  const current = { ...adminFixture, revision: 2 }
+  let reads = 0
+  let openedReview = null
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
+    onConflictReview: (review) => { openedReview = review },
+    api: {
+      getSettings: async () => ++reads === 1 ? adminFixture : current,
+      putSettings: async () => { throw conflict },
+      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  await controller.save('operations')
+  const review = openedReview
+  assert.ok(review)
+  controller.reset()
+
+  assert.equal(controller.acceptConflictReview(review, review.candidate), false)
+  assert.deepEqual(controller.getResources(), {})
+})
+
 test('a 24-hour pointer requires an explicit current read and is never replayed', async () => {
   const storage = memoryStorage()
   storage.setItem('settings-pending:context-1:operations', JSON.stringify({

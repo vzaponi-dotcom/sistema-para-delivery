@@ -61,6 +61,8 @@ export function settingsReducer(state, event) {
     }
     case 'saveConflict':
       return { ...state, status: 'conflict', error: event.error?.message || 'As configurações foram alteradas em outro dispositivo.' }
+    case 'conflictReviewAccepted':
+      return { ...state, status: 'ready', base: clone(state.confirmed), submitted: null, error: null }
     case 'saveFailed':
       return { ...state, status: 'error', submitted: null, error: event.error?.message || 'Não foi possível salvar esta configuração.' }
     case 'saveConfirmed': {

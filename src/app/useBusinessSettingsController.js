@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getSettings, getSettingsReceipt, putSettings } from '../api/settingsClient.js'
 import { clearPending, clearPendingContext, readPending, SETTINGS_PENDING_TTL_MS, writePending } from './settingsPendingStorage.js'
 import { createSettingsState, settingsReducer } from './settingsState.js'
+import { buildSettingsConflict } from './settingsConflict.js'
 
 export const settingsResourceKey = (resource, scopeId) => scopeId ? `${resource}:${scopeId}` : resource
 const contextSignature = (context) => context ? [
@@ -32,6 +33,7 @@ export function createBusinessSettingsController({
   onChange = () => {},
   onFeedback = () => {},
   onSessionExpired = () => {},
+  onConflictReview = () => {},
 } = {}) {
   let activeContext = context
   let generation = 0
@@ -40,6 +42,7 @@ export function createBusinessSettingsController({
   const readOwners = new Map()
   const writeOwners = new Map()
   const savePreparations = new Map()
+  const conflictReviews = new Map()
   const publish = (key, event) => {
     resources = { ...resources, [key]: settingsReducer(resources[key] || createSettingsState(), event) }
     onChange(resources)
@@ -60,6 +63,7 @@ export function createBusinessSettingsController({
       if (Object.hasOwn(next, 'storage')) storage = next.storage
       if (next.onFeedback) onFeedback = next.onFeedback
       if (next.onSessionExpired) onSessionExpired = next.onSessionExpired
+      if (next.onConflictReview) onConflictReview = next.onConflictReview
     },
     setContext(nextContext) {
       if (contextSignature(nextContext) === contextSignature(activeContext)) return false
@@ -69,6 +73,7 @@ export function createBusinessSettingsController({
       readOwners.clear()
       writeOwners.clear()
       savePreparations.clear()
+      conflictReviews.clear()
       resources = {}
       onChange(resources)
       return true
@@ -96,14 +101,54 @@ export function createBusinessSettingsController({
     edit(resource, data, scopeId) {
       const key = settingsResourceKey(resource, scopeId)
       if (!resources[key]?.confirmed) return false
+      conflictReviews.delete(key)
       publish(key, { type: 'edited', data })
       return true
     },
     discard(resource, scopeId) {
       const key = settingsResourceKey(resource, scopeId)
       if (!resources[key] || ['saving', 'unconfirmed'].includes(resources[key].status)) return false
+      conflictReviews.delete(key)
       publish(key, { type: 'discarded' })
       return true
+    },
+    async reviewConflict(resource, scopeId) {
+      if (!validContext()) return null
+      const key = settingsResourceKey(resource, scopeId)
+      const original = resources[key]
+      if (original?.status !== 'conflict' || !original.base || !original.draft) return null
+      const owner = begin(readOwners, key)
+      try {
+        const current = await api.getSettings(resource, scopeId)
+        if (!owns(readOwners, key, owner) || resources[key]?.status !== 'conflict') return null
+        publish(key, { type: 'loaded', value: current })
+        const state = resources[key]
+        const review = {
+          ...buildSettingsConflict({ base: state.base, draft: state.draft, current: state.confirmed }),
+          reviewId: `${generation}:${owner.operationId}`,
+          resource,
+          scopeId: scopeId || null,
+          resourceKey: key,
+          generation,
+        }
+        conflictReviews.set(key, review)
+        return review
+      } catch (error) {
+        if (!owns(readOwners, key, owner)) return null
+        if (error?.status === 401) { onSessionExpired(error); controller.reset(); return null }
+        onFeedback({ status: 'conflict-review-unavailable', resource, scopeId, message: error?.message || 'Não foi possível carregar o estado atual para revisão.' })
+        return null
+      }
+    },
+    acceptConflictReview(review, candidate) {
+      if (!validContext() || !review?.resourceKey) return false
+      const activeReview = conflictReviews.get(review.resourceKey)
+      const state = resources[review.resourceKey]
+      if (!activeReview || activeReview.reviewId !== review.reviewId || review.generation !== generation
+        || state?.status !== 'conflict' || state.confirmed?.revision !== review.currentRevision) return false
+      conflictReviews.delete(review.resourceKey)
+      publish(review.resourceKey, { type: 'conflictReviewAccepted' })
+      return controller.edit(review.resource, candidate, review.scopeId || undefined)
     },
     async save(resource, scopeId) {
       if (!validContext()) return false
@@ -146,6 +191,8 @@ export function createBusinessSettingsController({
         if (error?.status === 409) {
           clearPending(storage, contextId(), key)
           publish(key, { type: 'saveConflict', error })
+          const review = await controller.reviewConflict(resource, scopeId)
+          if (review) onConflictReview(review)
         } else if (isUnknownResult(error)) {
           publish(key, { type: 'saveUnconfirmed', error })
           onFeedback({ status: 'unconfirmed', resource, scopeId, message: 'Resultado da gravação não confirmado.' })
@@ -215,6 +262,7 @@ export function createBusinessSettingsController({
       readOwners.clear()
       writeOwners.clear()
       savePreparations.clear()
+      conflictReviews.clear()
       resources = {}
       activeContext = null
       onChange(resources)
@@ -223,10 +271,10 @@ export function createBusinessSettingsController({
   return controller
 }
 
-export function useBusinessSettingsController({ context, storage = globalThis.sessionStorage, api, onFeedback, onSessionExpired } = {}) {
+export function useBusinessSettingsController({ context, storage = globalThis.sessionStorage, api, onFeedback, onSessionExpired, onConflictReview } = {}) {
   const [resources, setResources] = useState({})
-  const [controller] = useState(() => createBusinessSettingsController({ context, storage, api, onFeedback, onSessionExpired, onChange: setResources }))
-  useEffect(() => { controller.configure({ api, storage, onFeedback, onSessionExpired }) }, [api, controller, onFeedback, onSessionExpired, storage])
+  const [controller] = useState(() => createBusinessSettingsController({ context, storage, api, onFeedback, onSessionExpired, onConflictReview, onChange: setResources }))
+  useEffect(() => { controller.configure({ api, storage, onFeedback, onSessionExpired, onConflictReview }) }, [api, controller, onConflictReview, onFeedback, onSessionExpired, storage])
   useEffect(() => { controller.setContext(context) }, [context, controller])
   return {
     resources,
@@ -234,6 +282,8 @@ export function useBusinessSettingsController({ context, storage = globalThis.se
     edit: controller.edit,
     save: controller.save,
     discard: controller.discard,
+    reviewConflict: controller.reviewConflict,
+    acceptConflictReview: controller.acceptConflictReview,
     reconcile: controller.reconcile,
     reset: controller.reset,
   }

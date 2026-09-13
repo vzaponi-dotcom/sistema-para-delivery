@@ -10,6 +10,7 @@ import AppShell from './components/AppShell'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
 import ConfirmationDialog from './components/ConfirmationDialog'
+import SettingsConflictReview from './components/SettingsConflictReview'
 import ConnectionBanner from './components/ConnectionBanner'
 import Icon from './components/Icon'
 import LoginScreen from './components/LoginScreen'
@@ -34,7 +35,7 @@ import Tables from './pages/Tables'
 import Comandas from './pages/Comandas'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation.js'
-import { useNavigationController } from './app/useNavigationController.js'
+import { hasSettingsUnloadRisk, useNavigationController } from './app/useNavigationController.js'
 import { useQueryContext } from './app/useQueryContext.js'
 import { usePrintingSettingsController } from './app/usePrintingSettingsController.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
@@ -90,6 +91,19 @@ const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-printing', 'settings-device'])
+const SETTINGS_DRAFT_ROUTES = Object.freeze({
+  'settings-operations': Object.freeze({ resource: 'operations', destinations: new Set(['settings-operations', 'settings-modalities']) }),
+  'settings-modalities': Object.freeze({ resource: 'operations', destinations: new Set(['settings-operations', 'settings-modalities']) }),
+  'settings-payments': Object.freeze({ resource: 'paymentMethods', destinations: new Set(['settings-payments']) }),
+  'settings-cancellations': Object.freeze({ resource: 'cancellationReasons', destinations: new Set(['settings-cancellations']) }),
+  'settings-finance-categories': Object.freeze({ resource: 'financeCategories', destinations: new Set(['settings-finance-categories']) }),
+  'settings-printing': Object.freeze({ resource: 'printingPolicy', destinations: new Set(['settings-printing']) }),
+})
+const settingsDraftAt = (resources, destination) => {
+  const route = SETTINGS_DRAFT_ROUTES[destination]
+  const state = route ? resources?.[route.resource] : null
+  return state ? { ...route, resourceKey: route.resource, dirty: state.dirty, status: state.status } : null
+}
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 // Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
@@ -145,6 +159,7 @@ function App({ capabilities } = {}) {
   const [recoveryDiscardConfirmation, setRecoveryDiscardConfirmation] = useState(false)
   const [originOrderIds, setOriginOrderIds] = useState(() => readOriginOrderIds(typeof window === 'undefined' ? null : window.localStorage))
   const [showPrintingSettings, setShowPrintingSettings] = useState(false)
+  const [settingsConflictReview, setSettingsConflictReview] = useState(null)
   const knownOperationalOrderIdsRef = useRef(undefined)
   const alertedOrderIdsRef = useRef(new Set())
   const kitchenAudioContextRef = useRef(null)
@@ -170,6 +185,7 @@ function App({ capabilities } = {}) {
   const pausedRecoverySecondCopyJobIdRef = useRef(null)
   const previousRecoveryStateRef = useRef(null)
   const effectiveConfigVersionRef = useRef(null)
+  const businessSettingsRef = useRef(null)
 
   const invalidateNewOrderDraft = useCallback(() => {
     newOrderOwnerRef.current += 1
@@ -225,6 +241,7 @@ function App({ capabilities } = {}) {
     activeTab,
     moreOpen,
     pendingDestination,
+    pendingDiscardKind,
     requestNavigation,
     openMore,
     closeMore,
@@ -238,6 +255,8 @@ function App({ capabilities } = {}) {
     checkoutPending: requestKey === 'order:create',
     dirtyOrder: newOrderDirty,
     onDiscardOrder: invalidateNewOrderDraft,
+    getSettingsDraft: (destination) => settingsDraftAt(businessSettingsRef.current?.resources, destination),
+    onDiscardSettings: (_resourceKey, draft) => businessSettingsRef.current?.discard(draft.resource, draft.scopeId),
     onFeedback: setToastMessage,
   })
 
@@ -303,6 +322,7 @@ function App({ capabilities } = {}) {
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
     invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod('Pix'); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
     setSessionContext(null)
+    setSettingsConflictReview(null)
   }
 
   const ownsPaymentSelection = (owner) => owner?.guard === syncGuardRef.current
@@ -481,7 +501,7 @@ function App({ capabilities } = {}) {
       else setToastMessage(typeof feedback === 'string' ? feedback : (feedback?.message || 'Não foi possível concluir a configuração de impressão.'))
     },
   })
-  useBusinessSettingsController({
+  const businessSettings = useBusinessSettingsController({
     context: effectiveConfigOwner,
     storage: typeof window === 'undefined' ? undefined : window.sessionStorage,
     onFeedback: (feedback) => {
@@ -489,7 +509,25 @@ function App({ capabilities } = {}) {
       else if (feedback?.message) setToastMessage(feedback.message)
     },
     onSessionExpired: expireSession,
+    onConflictReview: setSettingsConflictReview,
   })
+  useEffect(() => { businessSettingsRef.current = businessSettings }, [businessSettings])
+  const settingsUnloadRisk = hasSettingsUnloadRisk(businessSettings.resources)
+  useEffect(() => {
+    if (!settingsUnloadRisk || typeof window === 'undefined') return undefined
+    const warnBeforeUnload = (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [settingsUnloadRisk])
+  const acceptSettingsConflict = useCallback((choices) => {
+    if (!settingsConflictReview) return false
+    const accepted = businessSettings.acceptConflictReview(settingsConflictReview, choices)
+    if (accepted) setSettingsConflictReview(null)
+    return accepted
+  }, [businessSettings, settingsConflictReview])
 
   const playKitchenNewOrderSound = async () => {
     if (typeof window === 'undefined') return
@@ -1149,15 +1187,26 @@ function App({ capabilities } = {}) {
         {(activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} />}
 
         {pendingDestination && (
-          <Modal title="Descartar venda em andamento?" onClose={handleCancelDiscard}>
+          <Modal title={pendingDiscardKind === 'settings' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>
             <div className="form-stack">
-              <p>As informações preenchidas e os produtos adicionados serão descartados.</p>
+              <p>{pendingDiscardKind === 'settings'
+                ? 'As alterações ainda não salvas serão descartadas.'
+                : 'As informações preenchidas e os produtos adicionados serão descartados.'}</p>
               <div className="form-actions">
-                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>Continuar na venda</Button>
-                <Button type="button" onClick={confirmDiscard}>Descartar venda</Button>
+                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>{pendingDiscardKind === 'settings' ? 'Continuar editando' : 'Continuar na venda'}</Button>
+                <Button type="button" onClick={confirmDiscard}>{pendingDiscardKind === 'settings' ? 'Descartar alterações' : 'Descartar venda'}</Button>
               </div>
             </div>
           </Modal>
+        )}
+
+        {settingsConflictReview && (
+          <SettingsConflictReview
+            key={settingsConflictReview.reviewId || settingsConflictReview.currentRevision}
+            review={settingsConflictReview}
+            onAccept={acceptSettingsConflict}
+            onClose={() => setSettingsConflictReview(null)}
+          />
         )}
 
         {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}

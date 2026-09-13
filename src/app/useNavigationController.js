@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   NAVIGATION_DESTINATIONS,
   decideNavigation,
@@ -22,17 +22,35 @@ function resolveHome(granted, implemented) {
   return null
 }
 
+export function hasSettingsUnloadRisk(resources) {
+  return Object.values(resources || {}).some((resource) => (
+    resource?.dirty === true || ['saving', 'unconfirmed'].includes(resource?.status)
+  ))
+}
+
+const shouldConfirmSettingsExit = (draft, active, destination) => Boolean(
+  draft?.dirty
+  && !['saving', 'unconfirmed'].includes(draft.status)
+  && draft.destinations instanceof Set
+  && draft.destinations.has(active)
+  && !draft.destinations.has(destination),
+)
+
 export function useNavigationController({
   granted,
   implemented,
   checkoutPending,
   dirtyOrder,
   onDiscardOrder,
+  getSettingsDraft,
+  onDiscardSettings,
   onFeedback,
 }) {
   const [activeTab, setActiveTab] = useState(() => resolveHome(granted, implemented))
   const [moreOpen, setMoreOpen] = useState(false)
-  const [pendingDestination, setPendingDestination] = useState(null)
+  const [pendingNavigation, setPendingNavigation] = useState(null)
+  const pendingNavigationRef = useRef(null)
+  const pendingDestination = pendingNavigation?.destination || null
   const resolvedActiveTab = activeTab && resolveDestination(activeTab, granted, implemented).status === 'allowed'
     ? activeTab
     : resolveHome(granted, implemented)
@@ -57,6 +75,7 @@ export function useNavigationController({
   }, [onFeedback])
 
   const requestNavigation = useCallback((target) => {
+    if (pendingNavigationRef.current) return false
     const resolution = resolveTarget(target)
     const allowed = resolution.status === 'allowed'
     const leavingOrder = resolvedActiveTab === 'new-order' && resolution.id !== 'new-order'
@@ -72,41 +91,66 @@ export function useNavigationController({
 
     setMoreOpen(false)
     if (decision === 'confirm') {
-      setPendingDestination(resolution.id)
+      const pending = { kind: 'order', destination: resolution.id }
+      pendingNavigationRef.current = pending
+      setPendingNavigation(pending)
+      return false
+    }
+
+    const settingsDraft = getSettingsDraft?.(resolvedActiveTab)
+    if (shouldConfirmSettingsExit(settingsDraft, resolvedActiveTab, resolution.id)) {
+      const pending = { kind: 'settings', destination: resolution.id, settingsDraft }
+      pendingNavigationRef.current = pending
+      setPendingNavigation(pending)
       return false
     }
 
     if (leavingOrder) onDiscardOrder?.()
     setActiveTab(resolution.id)
     return true
-  }, [checkoutPending, dirtyOrder, onDiscardOrder, reject, resolveTarget, resolvedActiveTab])
+  }, [checkoutPending, dirtyOrder, getSettingsDraft, onDiscardOrder, reject, resolveTarget, resolvedActiveTab])
 
   const completeNavigation = useCallback((id) => {
     const resolution = resolveDestination(id, granted, implemented)
     if (resolution.status !== 'allowed') return reject(resolution.status)
-    setPendingDestination(null)
+    pendingNavigationRef.current = null
+    setPendingNavigation(null)
     setMoreOpen(false)
     setActiveTab(resolution.id)
     return true
   }, [granted, implemented, reject])
 
   const confirmDiscard = useCallback(() => {
-    if (!pendingDestination) return false
-    const resolution = resolveDestination(pendingDestination, granted, implemented)
-    setPendingDestination(null)
+    const pending = pendingNavigationRef.current
+    if (!pending) return false
+    pendingNavigationRef.current = null
+    setPendingNavigation(null)
+    const resolution = resolveDestination(pending.destination, granted, implemented)
     if (resolution.status !== 'allowed') return reject(resolution.status)
-    if (checkoutPending) return reject('blocked')
-    onDiscardOrder?.()
+    if (pending.kind === 'order') {
+      if (checkoutPending) return reject('blocked')
+      onDiscardOrder?.()
+    } else {
+      const currentDraft = getSettingsDraft?.(resolvedActiveTab)
+      if (shouldConfirmSettingsExit(currentDraft, resolvedActiveTab, resolution.id)) {
+        const discarded = onDiscardSettings?.(currentDraft.resourceKey, currentDraft)
+        if (discarded === false) return false
+      }
+    }
     setActiveTab(resolution.id)
     return true
-  }, [checkoutPending, granted, implemented, onDiscardOrder, pendingDestination, reject])
+  }, [checkoutPending, getSettingsDraft, granted, implemented, onDiscardOrder, onDiscardSettings, reject, resolvedActiveTab])
 
-  const cancelDiscard = useCallback(() => setPendingDestination(null), [])
+  const cancelDiscard = useCallback(() => {
+    pendingNavigationRef.current = null
+    setPendingNavigation(null)
+  }, [])
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
   const resetNavigation = useCallback(() => {
     setMoreOpen(false)
-    setPendingDestination(null)
+    pendingNavigationRef.current = null
+    setPendingNavigation(null)
     setActiveTab(resolveHome(granted, implemented))
   }, [granted, implemented])
 
@@ -114,6 +158,7 @@ export function useNavigationController({
     activeTab: resolvedActiveTab,
     moreOpen,
     pendingDestination,
+    pendingDiscardKind: pendingNavigation?.kind || null,
     requestNavigation,
     openMore,
     closeMore,
