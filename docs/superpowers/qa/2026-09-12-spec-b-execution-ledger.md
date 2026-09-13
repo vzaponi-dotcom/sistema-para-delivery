@@ -481,3 +481,57 @@ Direct spec/diff review was used; no subagent or independent reviewer was used b
 Workflow triggers were rechecked before publication: staging deployment watches only `feature/centralized-qz-print-queue`; production deployment is manual; validation push watches `master`; the two TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
 
 Per the T07 authorization, the full `npm test` suite, frontend build, migrations and D1 gate were deliberately not run. No schema guarantee introduced by T07 required a new D1 runtime scenario because all SQL uses the existing 0024 schema and the real SQLite/D1-subset transactional fixture. Therefore the aggregate suite remains **not approved**. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release; T07 neither resumes nor resolves it. T08 is **not authorized and not started**. No merge, staging/production deployment, release or remote migration is authorized by this checkpoint.
+
+## T08 — internal checkpoint: scoped administration and effective configuration
+
+T08 started from clean, synchronized `a33839d3f9905120c676e2d93df4bc738bf4ea28`; `git ls-remote` confirmed the same SHA on `origin/feature/spec-b-settings-policies`. Functional commit: `26d6a04` (`feat: expose scoped settings APIs and effective configuration`). T01–T07 were not redone and T09 did not start before this checkpoint.
+
+### Delivered behavior
+
+- Added one shared capability catalog, explicit Worker-side grant resolution with a fail-closed trusted-resolver path, domain-specific view/manage checks and a legacy-wide grant only when no resolver is installed for an authenticated session.
+- Added typed administrative settings routes, scoped receipt lookup, same-origin mutation enforcement and strict rejection of browser-supplied authority fields. Every repository call receives `businessId` only from the authenticated context.
+- Added the minimal effective operational projection for operations, payments, cancellations, finance and printing. Inactive/admin metadata/receipts are excluded; revision vectors and capability identity produce deterministic versions.
+- Reads bracket the resource projections with consistent batched revision reads and retry once on change, so a new version is not paired with stale data. Legitimate revision-zero resources retain defensive defaults.
+- Bootstrap preserves all legacy datasets and adds `effectiveBusinessConfig`; session status exposes the server-derived capability set and non-authenticating `settingsContextId`. Printing policy/station administration now uses the same resolved context.
+
+### TDD, verification and review
+
+| Evidence | Result |
+|---|---|
+| Preparation | First focused run exited 1 with `ERR_MODULE_NOT_FOUND`; recorded only as preparation. |
+| Behavioral RED | Export-only interfaces produced 0/7 passing with `SETTINGS_NOT_IMPLEMENTED`, proving the missing behaviors. Later REDs reproduced bootstrap projection omission, print-administration bypass, trusted-resolver fail-open and revision-zero 503. |
+| Focused GREEN | `node --test worker/settingsApi.test.js worker/effectiveBusinessConfig.test.js` passed 11/11 after review fixes. |
+| Final T08 selection | `node --test worker/settingsApi.test.js worker/effectiveBusinessConfig.test.js worker/index.test.js worker/auth.test.js src/app/navigation.test.js worker/orderPrintingHttp.test.js worker/stationSettingsRevision.test.js` passed 66/66, zero failures/skips/cancellations. `orderPrintingHttp` and `stationSettingsRevision` were included because T08 changed the printing authorization context. |
+| Static gates | Installed Oxlint, `node --check` on every changed JavaScript file and `git diff --check` exited 0. |
+| Independent review | Initial review found three Important issues (resolver fail-open, revision-zero bootstrap failure and stale station integration test) plus one Minor mojibake issue. Dedicated RED/GREEN fixed all four; independent rereview reported no remaining Critical, Important or Minor findings. |
+
+`TEST-INFRA-01` remains **OPEN / cause unconfirmed**, the aggregate suite remains unapproved, and merge/release remain blocked. No full `npm test`, build, migration, D1 gate, deploy, merge or release was performed by the implementing session at this checkpoint. T09 is authorized next; T10 remains **not authorized**.
+
+## T09 — operational policy enforcement
+
+T09 started only after the T08 internal checkpoint passed and was committed. Functional commit: `8449d3f` (`feat: enforce current business policies at operational commit`). No T10 timing/snapshot work, later printing work, settings frontend, broad modularization, user/profile model or full audit was started.
+
+### Delivered behavior
+
+- Added server-read payment-method and order-modality expectations plus same-batch revision/activity assertions. Inactive selections now block new paid checkout, standalone order payment, whole-tab payment, refund and manual movement without trusting client projection state.
+- New order creation validates every modality, including `Local` table orders. Accepted idempotency keys are resolved before current policy checks, so replay remains stable after later deactivation while a genuinely new order is rejected.
+- A newly required table tab is now inserted in the same atomic batch as its order, items, optional payment/movement and automatic print job. Structural table races remain `TABLE_TAB_CHANGED`; policy races remain `POLICY_CHANGED`. Sequence gaps remain preferable to identity reuse.
+- Cancellation reason and finance-category first-use protocols from T05/T06 remain in their original batches. Immediate/deferred refunds now additionally require an active chosen payment method through commit; no silent method substitution occurs.
+- A historical manual movement may retain its exact inactive method/category references. A changed reference requires active policy, and a state assertion including the original payment method prevents a stale edit from restoring an inactive method after a concurrent update; that conflict returns `409 MOVEMENT_CHANGED`.
+
+### TDD, verification and final review
+
+| Evidence | Result |
+|---|---|
+| Preparation | Initial focused discovery exited 1 with `ERR_MODULE_NOT_FOUND`; recorded only as preparation. |
+| Behavioral RED | Export-only `operationalPolicyGuards` produced 0/6 passing with `POLICY_NOT_IMPLEMENTED`. Later deterministic REDs demonstrated inactive policies, checkout policy race, orphan table-tab creation (`1 !== 0`), table `Local` bypass, stale historical-method restoration and wrong conflict classification. |
+| Focused GREEN | Final `node --test worker/operationalPolicyGuards.test.js worker/businessPolicyIntegration.test.js` passed 14/14. |
+| Required T09 regressions | `node --test worker/orderRepositories.test.js worker/tableTabPayment.test.js worker/orderCancellation.test.js worker/financeRepositoryCrud.test.js` passed 22/22 after directly related fake DBs were taught to return the new server policy reads. |
+| Additional T05/T06 integrity selection | Cancellation/finance usage and settings repository tests passed 35/35, covering first-use rollback, policy races and delete/rename races because T09 composes those guards with payment policy assertions. |
+| Final joint T08+T09 selection | The explicit 17-file affected selection passed 133/133, zero failures/skips/cancellations. It included T08 auth/index/navigation/printing gates, T09 focused/required regressions and the T05/T06 integrity selection; this was not the aggregate `npm test` suite. |
+| Static gates | Targeted installed Oxlint, `node --check` on all changed T09 JavaScript and `git diff --check` exited 0. |
+| Independent review | The first pass found two Important integrity gaps: table orders bypassed the `Local` modality and a stale historical movement edit could restore an inactive method. Rereview found an Important policy-conflict misclassification and a Minor generic-500 conflict. Each received a deterministic RED/GREEN correction. Final rereview reported no remaining Critical, Important or Minor findings. |
+
+The real SQLite/D1-subset fixture demonstrated atomic rollback for every T09 race, including the entire order/table-tab/item/payment/job batch, so no additional D1-local probe was required. Workflow triggers were rechecked: staging deploy watches only `feature/centralized-qz-print-queue`; production deploy is manual; validate push watches only `master`; TDD workflows watch unrelated branches. A normal push of this branch does not trigger deployment.
+
+Per authorization, full `npm test`, build, migrations, the legacy D1 gate, remote migrations, staging, production, merge and release were not run. `TEST-INFRA-01` remains **OPEN / cause unconfirmed**, the aggregate suite remains unapproved, and merge/release remain blocked. T10 remains **not authorized and was not started**.
