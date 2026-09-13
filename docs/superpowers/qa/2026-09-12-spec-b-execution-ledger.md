@@ -535,3 +535,15 @@ T09 started only after the T08 internal checkpoint passed and was committed. Fun
 The real SQLite/D1-subset fixture demonstrated atomic rollback for every T09 race, including the entire order/table-tab/item/payment/job batch, so no additional D1-local probe was required. Workflow triggers were rechecked: staging deploy watches only `feature/centralized-qz-print-queue`; production deploy is manual; validate push watches only `master`; TDD workflows watch unrelated branches. A normal push of this branch does not trigger deployment.
 
 Per authorization, full `npm test`, build, migrations, the legacy D1 gate, remote migrations, staging, production, merge and release were not run. `TEST-INFRA-01` remains **OPEN / cause unconfirmed**, the aggregate suite remains unapproved, and merge/release remain blocked. T10 remains **not authorized and was not started**.
+
+## T09 follow-up — table-tab close result association
+
+Starting from clean, synchronized `389e187a824752e23031c4f3cd06def6266a03d8`, the published-head review found that `registerTableTabPayment` appended `clearSettingsAssertions` after the table-tab close UPDATE but still inspected `batchResults.at(-1)`. A zero-change close followed by one assertion cleanup therefore inspected the cleanup result and missed `TABLE_TAB_PAYMENT_CONFLICT`.
+
+- Behavioral RED: a deterministic real-SQLite test read an open empty tab, closed it immediately before the batch, then let the close UPDATE affect zero rows and assertion cleanup affect one. The affected test exited 1 with `Missing expected rejection.`
+- GREEN: functional commit `78fa9a3` (`fix: associate table tab close result with its statement`) retains an explicit reference to the close statement and obtains its corresponding ordered batch result through that reference. The `meta.changes` check, policy guard, atomic batch and assertion cleanup remain intact.
+- Directly affected paths: the concurrency regression now returns `409 TABLE_TAB_PAYMENT_CONFLICT`; the normal real-database path still closes the tab and both paths leave zero `settings_tx_assertions` rows.
+- Proportional final selection: `node --test worker/tableTabPayment.test.js worker/businessPolicyIntegration.test.js worker/operationalPolicyGuards.test.js` passed 18/18, zero failures/skips/cancellations. Targeted Oxlint, `node --check` for both changed JavaScript files and `git diff --check` exited 0.
+- Independent read-only review reported no Critical, Important or Minor findings. No additional dependency was affected and the 133-test selection was not repeated.
+
+The full `npm test`, build, migrations and D1 gate were not run. No merge, deploy, release or remote migration was performed. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release. T10 remains **not authorized and was not started**.
