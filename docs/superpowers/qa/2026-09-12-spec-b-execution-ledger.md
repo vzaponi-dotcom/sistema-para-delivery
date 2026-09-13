@@ -631,3 +631,15 @@ T12 iniciou somente após o checkpoint e os commits da T11, sobre `e5628d2`. O e
 - O guia `docs/superpowers/qa/2026-09-12-spec-b-physical-printing-guide.md` foi criado com status explícito PENDENTE, matriz para avulso/mesa/comanda 1–2 vias, teste, retry, resultado desconhecido, reprint, mudança de policy, fechamento/transferência, recovery e solicitação remota. Nenhuma impressão real, staging, deploy ou migration remota foi executada.
 
 Checkpoint R3 concluído localmente. `TEST-INFRA-01` permanece **OPEN / cause unconfirmed**, o agregado continua não aprovado e merge/release seguem bloqueados. T13 permanece **não autorizada e não iniciada**.
+
+## T12-COMPAT-01 — contrato de vias da comanda no runner/renderer
+
+O ajuste autorizado iniciou na worktree isolada limpa e sincronizada em `f068f30d133699f3421cd7c207a984409b6dbd13`. `origin` e `git ls-remote` confirmaram o repositório e a branch autorizados no mesmo SHA. A incompatibilidade ficou limitada ao ramo sem `qzAttempt`: `printJobRunner` enviava `copyNumber/totalCopies` para `table-tab`, embora o renderer real aceite a pré-conta como uma via por execução. O caminho QZ já enviava somente `{ copies: 1 }`; isso não demonstrava falha de hardware, perda de dados ou impressão Windows homologada.
+
+- RED comportamental: `node --test src/printing/tableTabSecondCopy.test.js src/printing/escpos58mm.test.js src/printing/printJobRunner.test.js src/printing/qzPrintAttemptController.test.js` terminou 28/31. As três falhas esperadas foram comanda 1/1, 1/2 e 2/2 no runner alternativo usando o renderer real; todas retornaram `failed` antes do transporte. Os três cenários QZ reais passaram, confirmando uma chamada de transporte e o número de tentativa correspondente.
+- Correção mínima: apenas documentos `order` recebem seleção explícita de via no renderer; `table-tab` e `test` continuam com `{ copies: 1 }`. `copiesPrinted + 1` continua determinando conclusão/tentativa, sem transporte novo, lote, layout adicional, reenvio ou relaxamento indiscriminado do renderer.
+- GREEN e regressões: o mesmo comando passou 31/31, zero falhas/skips/cancelamentos. Os testes reais cobrem comanda 1/1, 1/2 e 2/2 nos dois caminhos, uma chamada física por execução, contador correto e preservação dos contratos de pedido/teste e valores inválidos do renderer.
+- Estática: `node --check` passou nos três JavaScript alterados; Oxlint direcionado e `git diff --check` saíram 0. A revisão direta do patch confirmou impacto limitado e nenhum item Critical, Important ou Minor restante. A revisão não foi independente e não usou subagente, pois esta sessão não autoriza delegação.
+- Commit funcional: `64765fcd903103ca16686316a20aa4d04d6ae1e3` (`fix: align table tab copy rendering contracts`).
+
+Nenhum `npm test` agregado, build, migration, gate D1, impressão física, deploy ou migration remota foi executado neste checkpoint. `TEST-INFRA-01` permanece **OPEN / cause unconfirmed**, o agregado continua não aprovado e a homologação física segue pendente. T13 está autorizada a iniciar após este checkpoint; T15 permanece não autorizada.
