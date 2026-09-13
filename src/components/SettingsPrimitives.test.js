@@ -118,7 +118,7 @@ test('item dialog changes the draft through onAdd and never calls save itself', 
     open: true, kind: 'cancellation', initialValue: '', onAdd: (value) => additions.push(value),
     onClose() {}, onSave() { saves += 1 },
   })
-  const input = screen.root.findByType('input')
+  const input = screen.root.findAllByType('input').find((node) => node.props.type === 'text')
   await act(async () => input.props.onChange({ target: { value: 'Endereço incompleto' } }))
   await act(async () => buttonNamed(screen.root, 'Adicionar à lista').props.onClick())
 
@@ -174,7 +174,8 @@ test('item dialog keeps validation failures open and announces the duplicate', a
     onAdd: () => 'Já existe um item com esse nome.', onClose: () => { closed += 1 },
   })
 
-  await act(async () => screen.root.findByType('input').props.onChange({ target: { value: 'Cliente desistiu' } }))
+  const input = screen.root.findAllByType('input').find((node) => node.props.type === 'text')
+  await act(async () => input.props.onChange({ target: { value: 'Cliente desistiu' } }))
   await act(async () => buttonNamed(screen.root, 'Adicionar à lista').props.onClick())
 
   assert.equal(closed, 0)
@@ -194,7 +195,7 @@ test('item dialog associates validation errors and returns focus to the invalid 
       : { querySelectorAll: () => [] },
   })
 
-  const input = screen.root.findByType('input')
+  const input = screen.root.findAllByType('input').find((node) => node.props.type === 'text')
   await act(async () => input.props.onChange({ target: { value: 'Cliente desistiu' } }))
   await act(async () => buttonNamed(screen.root, 'Adicionar à lista').props.onClick())
 

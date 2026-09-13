@@ -82,6 +82,16 @@
 .payment-method-badge.is-active { background: var(--success-soft); color: var(--success); }
 .payment-method-badge.is-default { background: var(--primary-soft); color: var(--primary); }
 
+.cancellation-settings { display: grid; gap: 12px; min-width: 0; }
+.settings-catalog-toolbar { display: flex; justify-content: flex-end; }
+.settings-catalog-copy { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.settings-catalog-copy > span:first-child { color: var(--text); }
+.settings-catalog-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.settings-catalog-badge { padding: 4px 7px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); font-size: .74rem; font-weight: 700; }
+.settings-catalog-badge.is-active { background: var(--success-soft); color: var(--success); }
+.settings-catalog-badge.is-note, .settings-catalog-badge.is-pending { background: var(--primary-soft); color: var(--primary); }
+.settings-dialog-active { display: flex; align-items: center; gap: 8px; color: var(--text); }
+
 @media (max-width: 640px) {
   .settings-home-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-home-card { min-height: 96px; padding: 16px; }
@@ -94,4 +104,6 @@
   .operation-modality-actions .button, .operation-section-jump { width: 100%; }
   .payment-method-copy { align-items: flex-start; justify-content: space-between; }
   .payment-method-badges { flex-direction: column; }
+  .settings-catalog-toolbar .button { width: 100%; }
+  .settings-catalog-copy { align-items: flex-start; flex-direction: column; }
 }

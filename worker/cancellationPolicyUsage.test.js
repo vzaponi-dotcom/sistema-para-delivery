@@ -35,6 +35,25 @@ test('cancellation accepts an active custom reason and marks first use in the sa
   assert.equal(sqlite.prepare("SELECT first_used_at FROM business_cancel_reasons WHERE id = 'weather-delay'").get().first_used_at, new Date(+NOW + 1000).toISOString())
 })
 
+test('revision-zero defaults initialize atomically on first cancellation for a new business', async (t) => {
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+    .run('new-business', 'new-business', 'New', NOW.toISOString(), NOW.toISOString())
+  sqlite.prepare(`INSERT INTO orders (id, business_id, client_name_snapshot, type, order_date, status,
+    subtotal_cents, total_cents, created_at) VALUES (?, ?, 'Cliente', 'Retirada', '2026-09-12',
+    'Finalizado', 1000, 1000, ?)`).run('new-order', 'new-business', NOW.toISOString())
+
+  const result = await cancelOrder(db, 'new-business', 'new-order', {
+    reason: 'client_changed_mind', expectedRevision: 0, refundNow: false,
+  }, new Date(+NOW + 1000))
+
+  assert.equal(result.order.cancelReason, 'client_changed_mind')
+  assert.equal(sqlite.prepare("SELECT revision FROM business_cancellation_settings WHERE business_id = 'new-business'").get().revision, 1)
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM business_cancel_reasons WHERE business_id = 'new-business'").get().n, 5)
+  assert.equal(sqlite.prepare("SELECT first_used_at FROM business_cancel_reasons WHERE business_id = 'new-business' AND id = 'client_changed_mind'").get().first_used_at, new Date(+NOW + 1000).toISOString())
+})
+
 test('Other requires a non-empty note of at most 240 characters', async (t) => {
   const { db } = setup(t)
   await assert.rejects(cancelOrder(db, BUSINESS, 'order-1', { reason: 'other', note: '   ', expectedRevision: 1 }), {

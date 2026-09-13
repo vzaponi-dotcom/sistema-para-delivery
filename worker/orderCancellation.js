@@ -8,8 +8,10 @@ import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTra
 import { preparePolicyGuards, readPaymentMethodExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 import { loadOperations } from './operationSettingsRepository.js'
 import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
+import { nativeCancellationReasons } from '../shared/settingsCatalogs.js'
 
-export const CANCEL_REASONS = ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
+const DEFAULT_CANCELLATION_REASONS = new Map(nativeCancellationReasons().items.map((item) => [item.id, item]))
+export const CANCEL_REASONS = [...DEFAULT_CANCELLATION_REASONS.keys()]
 
 const domainError = (status, code, message) => Object.assign(new Error(message), { status, code })
 
@@ -21,9 +23,9 @@ const normalizeReason = (value) => {
   return reason
 }
 
-const normalizeNote = (reason, value) => {
+const normalizeNote = (requiresNote, value) => {
   const note = typeof value === 'string' ? value.trim() : ''
-  if (reason === 'other' && !note) {
+  if (requiresNote && !note) {
     throw domainError(400, 'ORDER_CANCEL_REASON_NOTE_REQUIRED', 'Descreva o motivo do cancelamento.')
   }
   if (note.length > 240) {
@@ -45,11 +47,13 @@ const normalizeRefundMethod = (value) => {
 
 const orderContextSql = `SELECT o.id, o.order_number, o.status, o.table_tab_id, o.client_name_snapshot,
   o.cancelled_at, o.cancel_reason, o.cancel_reason_note, o.timing_policy_snapshot_json,
+  cr.label AS cancel_reason_label,
   p.id AS payment_id, p.method AS payment_method, p.amount_cents AS paid_amount_cents, p.paid_at,
   r.id AS refund_movement_id, r.created_at AS refund_created_at
   FROM orders o
   LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
   LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund'
+  LEFT JOIN business_cancel_reasons cr ON cr.business_id = o.business_id AND cr.id = o.cancel_reason
   WHERE o.id = ? AND o.business_id = ? LIMIT 1`
 
 const readContext = (db, businessId, orderId) => db.prepare(orderContextSql).bind(orderId, businessId).first()
@@ -64,6 +68,7 @@ const mapContext = (row) => {
     status: row.status,
     cancelledAt: row.cancelled_at ?? null,
     cancelReason: row.cancel_reason ?? null,
+    cancelReasonLabel: row.cancel_reason_label ?? row.cancel_reason ?? null,
     cancelReasonNote: row.cancel_reason_note ?? '',
     timingPolicySnapshot: parseOrderTimingPolicySnapshot(row.timing_policy_snapshot_json),
     paymentStatus: row.payment_id ? 'Pago' : 'Pendente',
@@ -123,16 +128,20 @@ const createRefundStatement = (db, businessId, row, refundMethod, now) => {
 
 export const cancelOrder = async (db, businessId, orderId, input = {}, now = new Date()) => {
   const reason = normalizeReason(input.reason)
-  const note = normalizeNote(reason, input.note)
-  const policy = await readCancellationPolicy(db, businessId, reason)
+  const storedPolicy = await readCancellationPolicy(db, businessId, reason)
+  const defaultReason = input.expectedRevision === 0 ? DEFAULT_CANCELLATION_REASONS.get(reason) : null
+  const policy = storedPolicy || (defaultReason
+    ? { revision: 0, active: 1, requires_note: Number(defaultReason.requiresNote) }
+    : null)
   if (!policy || policy.active !== 1) {
     if (policy?.active === 0) throw domainError(409, 'POLICY_CHANGED', 'O motivo de cancelamento não está mais ativo.')
     throw domainError(400, 'ORDER_CANCEL_REASON_REQUIRED', 'Selecione um motivo válido para cancelar o pedido.')
   }
   const expectedRevision = input.expectedRevision ?? policy.revision
-  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
     throw domainError(400, 'ORDER_CANCEL_REASON_REVISION_REQUIRED', 'Atualize os motivos de cancelamento e tente novamente.')
   }
+  const note = normalizeNote(policy.requires_note === 1, input.note)
   const existing = await readContext(db, businessId, orderId)
   if (!existing) throw domainError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
   if (existing.status === 'Cancelado') throw domainError(409, 'ORDER_ALREADY_CANCELLED', 'Este pedido já foi cancelado.')
@@ -160,7 +169,7 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
   const deletePendingAutomaticPrint = db.prepare(`DELETE FROM print_jobs
     WHERE business_id = ? AND order_id = ? AND trigger = 'automatic' AND status = 'pending'`).bind(businessId, orderId)
   const txId = crypto.randomUUID()
-  const [policyGuard, markReasonUsed] = prepareCancellationUse(db, businessId, reason, expectedRevision, txId, now)
+  const cancellationPolicyStatements = prepareCancellationUse(db, businessId, reason, expectedRevision, txId, now)
   const orderGuard = prepareSettingsAssertion(db, txId, 'state',
     "EXISTS (SELECT 1 FROM orders WHERE id = ? AND business_id = ? AND status IN ('Em preparo', 'Finalizado'))",
     [orderId, businessId])
@@ -192,14 +201,14 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
     refund = createRefundStatement(db, businessId, existing, refundMethod, now)
     try {
       await db.batch([...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
-        ...timingGuards, policyGuard, orderGuard, markReasonUsed, update, deletePendingAutomaticPrint, refund.statement,
+        ...timingGuards, ...cancellationPolicyStatements, orderGuard, update, deletePendingAutomaticPrint, refund.statement,
         clearSettingsAssertions(db, txId), ...timingCleanup, clearSettingsAssertions(db, paymentTxId)])
     } catch (error) {
       await classifyCommitFailure(error)
     }
   } else {
     try {
-      await db.batch([...timingGuards, policyGuard, orderGuard, markReasonUsed, update, deletePendingAutomaticPrint,
+      await db.batch([...timingGuards, ...cancellationPolicyStatements, orderGuard, update, deletePendingAutomaticPrint,
         clearSettingsAssertions(db, txId), ...timingCleanup])
     } catch (error) {
       await classifyCommitFailure(error)

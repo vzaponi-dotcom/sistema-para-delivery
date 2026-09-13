@@ -214,8 +214,26 @@ export async function saveCancellationReasons(db, businessId, input, now = new D
 
 export function prepareCancellationUse(db, businessId, reasonId, expectedRevision, txId, at) {
   if (typeof businessId !== 'string' || !businessId || typeof reasonId !== 'string' || !reasonId || reasonId.length > 120 ||
-      !Number.isSafeInteger(expectedRevision) || expectedRevision < 1 || typeof txId !== 'string' || !txId ||
+      !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || typeof txId !== 'string' || !txId ||
       !(at instanceof Date) || !Number.isFinite(+at)) throw settingsError('SETTINGS_INVALID', 400)
+  if (expectedRevision === 0) {
+    if (!NATIVE_BY_ID.has(reasonId)) throw settingsError('SETTINGS_INVALID', 400)
+    const statements = [
+      prepareSettingsAssertion(db, txId, 'policy',
+        `coalesce((SELECT revision FROM business_cancellation_settings WHERE business_id = ?), 0) = 0
+         AND NOT EXISTS (SELECT 1 FROM business_cancel_reasons WHERE business_id = ?)`, [businessId, businessId]),
+      db.prepare('INSERT INTO business_cancellation_settings (business_id, created_at, updated_at) VALUES (?, ?, ?)')
+        .bind(businessId, at.toISOString(), at.toISOString()),
+    ]
+    for (const item of NATIVE.items) {
+      statements.push(db.prepare(`INSERT INTO business_cancel_reasons
+        (business_id, id, label, name_key, active, is_system, requires_note, sort_order, first_used_at)
+        VALUES (?, ?, ?, ?, 1, 1, ?, ?, ?)`)
+        .bind(businessId, item.id, item.label, nameKey(item.label), Number(item.requiresNote), item.sortOrder,
+          item.id === reasonId ? at.toISOString() : null))
+    }
+    return statements
+  }
   return [
     prepareSettingsAssertion(db, txId, 'policy',
       `EXISTS (SELECT 1 FROM business_cancellation_settings h

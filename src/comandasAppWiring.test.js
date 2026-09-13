@@ -5,7 +5,7 @@ import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test
 import { comandaDetail, deferred, detailResponse } from './test-support/comandaFixtures.js'
 
 const effectivePaymentConfig = {
-  version: 'payment-test-v1', revisions: { paymentMethods: 1 },
+  version: 'payment-test-v1', revisions: { paymentMethods: 1, cancellationReasons: 1 },
   paymentMethods: { methods: [
     { code: 'pix', label: 'Pix', value: 'Pix' },
     { code: 'cash', label: 'Dinheiro', value: 'Dinheiro' },
@@ -14,6 +14,9 @@ const effectivePaymentConfig = {
     { code: 'transfer', label: 'Transferência', value: 'Transferência' },
     { code: 'other', label: 'Outro', value: 'Outro' },
   ], defaultMethod: 'pix' },
+  cancellationReasons: { items: [
+    { id: 'duplicate_order', label: 'Pedido duplicado', requiresNote: false },
+  ] },
 }
 async function paymentWorkspace(t, mobile = false) {
   const h = await workspaceHarness(t, { mobile })

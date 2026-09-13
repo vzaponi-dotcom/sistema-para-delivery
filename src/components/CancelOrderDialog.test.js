@@ -4,17 +4,15 @@ import { readFile } from 'node:fs/promises'
 
 const source = await readFile(new URL('./CancelOrderDialog.jsx', import.meta.url), 'utf8').catch(() => '')
 
-test('cancellation dialog requires a reason and supports the approved reason set', () => {
-  assert.match(source, /client_changed_mind/)
-  assert.match(source, /duplicate_order/)
-  assert.match(source, /product_unavailable/)
-  assert.match(source, /entry_error/)
-  assert.match(source, /other/)
+test('cancellation dialog requires a reason and consumes the effective approved reason set', () => {
+  assert.match(source, /reasonOptions/)
+  assert.match(source, /visibleReasonOptions/)
+  assert.doesNotMatch(source, /client_changed_mind/)
   assert.match(source, /Selecione um motivo/)
 })
 
-test('other reason requires descriptive note', () => {
-  assert.match(source, /reason === 'other'/)
+test('descriptive note follows effective requiresNote metadata', () => {
+  assert.match(source, /requiresNote/)
   assert.match(source, /Descreva o motivo/)
 })
 

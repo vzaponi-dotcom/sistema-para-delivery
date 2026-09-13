@@ -16,11 +16,10 @@ import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatCancellationDate, formatOrderDate } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order: 'Pedido duplicado', product_unavailable: 'Produto indisponível', entry_error: 'Erro no lançamento', other: 'Outro' }
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, actionKey = null, printing, onToast, queryState, onQueryChange, granted, implemented, onNavigate, activeTab, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, implemented, onNavigate, activeTab, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
   const filter = queryState.filter
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -67,7 +66,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
         <div className="order-history-list">
           {terminalOrders.map((order) => {
             const refundState = getOrderRefundState(order)
-            const cancelReason = reasonLabels[order.cancelReason] || order.cancelReason || ''
+            const cancelReason = order.cancelReasonLabel || order.cancelReason || ''
             return (
               <article className="order-history-row" key={order.id}>
                 <div className="order-history-number">{formatOrderDisplayNumber(order)}</div>
@@ -86,7 +85,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
         </div>
       </section>
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
-      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} paymentOptions={paymentOptions} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} canRefundPayments={canRefundPayments} />
+      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} paymentOptions={paymentOptions} reasonOptions={cancellationOptions} reasonRevision={cancellationRevision} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} canRefundPayments={canRefundPayments} />
     </>
   )
 }

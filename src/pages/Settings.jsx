@@ -5,6 +5,7 @@ import AreaNavigation from '../components/AreaNavigation'
 import SettingsHome from './SettingsHome'
 import OperationSettings from './OperationSettings'
 import PaymentSettings from './PaymentSettings'
+import CancellationSettings from './CancellationSettings'
 import { useTheme } from '../components/themeContext.js'
 import '../area-navigation.css'
 
@@ -19,6 +20,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   const operationRoute = section === 'settings-operations' || section === 'settings-modalities'
   const operationLoad = operationSettings?.load
   const paymentRoute = section === 'settings-payments'
+  const cancellationRoute = section === 'settings-cancellations'
   const paymentLoad = businessSettings?.load
   useEffect(() => {
     if (operationRoute) void operationLoad?.('operations')
@@ -26,6 +28,9 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   useEffect(() => {
     if (paymentRoute) void paymentLoad?.('paymentMethods')
   }, [paymentLoad, paymentRoute])
+  useEffect(() => {
+    if (cancellationRoute) void paymentLoad?.('cancellationReasons')
+  }, [cancellationRoute, paymentLoad])
   const reviewOperationConflict = async () => {
     const review = await operationSettings?.reviewConflict?.('operations')
     if (review) onSettingsConflictReview?.(review)
@@ -33,6 +38,11 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   }
   const reviewPaymentConflict = async () => {
     const review = await businessSettings?.reviewConflict?.('paymentMethods')
+    if (review) onSettingsConflictReview?.(review)
+    return review
+  }
+  const reviewCancellationConflict = async () => {
+    const review = await businessSettings?.reviewConflict?.('cancellationReasons')
     if (review) onSettingsConflictReview?.(review)
     return review
   }
@@ -62,6 +72,19 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       onReconcile={() => businessSettings?.reconcile?.('paymentMethods')}
       onReload={() => businessSettings?.load?.('paymentMethods')}
       onReviewConflict={reviewPaymentConflict}
+    />
+  </div>
+  if (cancellationRoute) return <div className="settings-page">
+    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+    <CancellationSettings
+      resourceState={businessSettings?.resources?.cancellationReasons}
+      readOnly={!(granted instanceof Set && granted.has('orders.settings.manage'))}
+      onEdit={(draft) => businessSettings?.edit?.('cancellationReasons', draft)}
+      onSave={() => businessSettings?.save?.('cancellationReasons')}
+      onDiscard={() => businessSettings?.discard?.('cancellationReasons')}
+      onReconcile={() => businessSettings?.reconcile?.('cancellationReasons')}
+      onReload={() => businessSettings?.load?.('cancellationReasons')}
+      onReviewConflict={reviewCancellationConflict}
     />
   </div>
   return (

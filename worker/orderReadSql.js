@@ -4,6 +4,7 @@ export const ORDER_SELECT = `SELECT o.id, o.order_number, o.client_id, o.client_
   o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode,
   o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents,
   o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note,
+  cr.label AS cancel_reason_label,
   o.timing_policy_snapshot_json,
   p.id AS payment_id, p.method AS payment_method, p.paid_at,
   p.amount_cents AS paid_amount_cents,
@@ -13,6 +14,7 @@ export const ORDER_SELECT = `SELECT o.id, o.order_number, o.client_id, o.client_
   LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
   LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id
     AND r.source = 'order-refund'
+  LEFT JOIN business_cancel_reasons cr ON cr.business_id = o.business_id AND cr.id = o.cancel_reason
   LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
 
 export const ORDER_ITEM_SELECT = `SELECT id, order_id, product_id, name_snapshot,
