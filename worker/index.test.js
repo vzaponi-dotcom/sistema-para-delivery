@@ -127,6 +127,7 @@ const makeEnv = async ({ rateLimitSuccess = true } = {}) => ({
   DB: new FakeDb(await hashPin('4827', new Uint8Array(16).fill(7))),
   LOGIN_RATE_LIMITER: { limit: async ({ key }) => ({ success: key === 'amor-e-sabor:auth-login' && rateLimitSuccess }) },
   ASSETS: { fetch: async () => new Response('asset') },
+  resolveCapabilities: async () => new Set(),
 })
 
 const mutationHeaders = (extra = {}) => ({ origin: 'https://delivery.example', 'content-type': 'application/json', ...extra })
@@ -165,7 +166,11 @@ test('valid PIN creates a cookie-only session', async () => {
   const sessionResponse = await handleRequest(new Request('https://delivery.example/api/auth/session', {
     headers: { cookie: cookie.split(';')[0] },
   }), env)
-  assert.deepEqual(await sessionResponse.json(), { authenticated: true, businessId: 'amor-e-sabor' })
+  const sessionBody = await sessionResponse.json()
+  assert.equal(sessionBody.authenticated, true)
+  assert.equal(sessionBody.businessId, 'amor-e-sabor')
+  assert.deepEqual(sessionBody.capabilities, [])
+  assert.match(sessionBody.settingsContextId, /^[0-9a-f]{24}$/)
 })
 
 test('business API route rejects requests without a valid session', async () => {
@@ -273,7 +278,12 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
   }), env)
 
   assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), {
+  const body = await response.json()
+  assert.match(body.effectiveBusinessConfig.version, /^v1-[0-9a-f]{24}$/)
+  assert.deepEqual(body.effectiveBusinessConfig.revisions, {})
+  const { effectiveBusinessConfig, ...legacy } = body
+  assert.ok(effectiveBusinessConfig)
+  assert.deepEqual(legacy, {
     business: { id: 'amor-e-sabor', name: 'Amor & Sabor' },
     clients: [],
     products: [],

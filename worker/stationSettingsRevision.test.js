@@ -9,6 +9,7 @@ import {
 } from './printSettingsRepository.js'
 import { heartbeatPrintStation, upsertPrintStation } from './orderPrintingRepository.js'
 import { handlePrintingApi } from './orderPrintingApi.js'
+import { resolveSettingsAccess } from './settingsAccess.js'
 
 const BUSINESS = 'amor-e-sabor'
 const NOW = new Date('2026-09-12T16:00:00.000Z')
@@ -97,10 +98,11 @@ test('repeated bootstrap registration returns the stored station without overwri
 test('printing endpoints expose canonical resources, retain the GET alias and reject legacy administrative overwrite', async (t) => {
   const { db, sqlite } = setup(t)
   addStation(sqlite, 'kitchen')
+  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'station-test' })
   const call = (path, method = 'GET', body) => handlePrintingApi(new Request(`https://delivery.example${path}`, {
     method, headers: { origin: 'https://delivery.example', 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-  }), { DB: db }, { businessId: BUSINESS }, new URL(`https://delivery.example${path}`))
+  }), { DB: db }, context, new URL(`https://delivery.example${path}`))
 
   const getPolicy = await call('/api/printing/settings')
   const policy = (await getPolicy.json()).settings

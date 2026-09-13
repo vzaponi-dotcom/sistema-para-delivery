@@ -5,6 +5,9 @@ import { apiError, assertSameOriginMutation, handleError, json, readJson } from 
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { handlePrintingApi } from './orderPrintingApi.js'
+import { handleSettingsApi } from './settingsApi.js'
+import { resolveSettingsAccess } from './settingsAccess.js'
+import { loadEffectiveBusinessConfig } from './effectiveBusinessConfig.js'
 import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
@@ -43,7 +46,16 @@ const login = async (request, env) => {
 }
 
 const logout = async (request, env) => { assertSameOriginMutation(request); await revokeSession(request, env); return json({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
-const sessionStatus = async (request, env) => { const session = await getAuthenticatedSession(request, env); return session ? json({ authenticated: true, businessId: session.businessId }) : json({ authenticated: false }) }
+const resolveRequestContext = async (env, session) => typeof env.resolveCapabilities === 'function'
+  ? resolveSettingsAccess(session, await env.resolveCapabilities(session))
+  : resolveSettingsAccess(session)
+const sessionStatus = async (request, env) => {
+  const session = await getAuthenticatedSession(request, env)
+  if (!session) return json({ authenticated: false })
+  const context = await resolveRequestContext(env, session)
+  return json({ authenticated: true, businessId: session.businessId, settingsContextId: context.settingsContextId,
+    capabilities: [...context.granted] })
+}
 const clientInput = (body) => ({ name: requireNonEmpty(body.name, 'name'), phone: optionalText(body.phone), address: optionalText(body.address) })
 const productInput = (body) => {
   const category = validateProductCategory(LEGACY_PRODUCT_CATEGORIES[body.category] || body.category)
@@ -73,11 +85,18 @@ const authenticatedApi = async (request, env) => {
   const session = await getAuthenticatedSession(request, env)
   if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
   const url = new URL(request.url)
+  const context = await resolveRequestContext(env, session)
 
-  const printingResponse = await handlePrintingApi(request, env, session, url)
+  const settingsResponse = await handleSettingsApi(request, env, context, url)
+  if (settingsResponse) return settingsResponse
+
+  const printingResponse = await handlePrintingApi(request, env, context, url)
   if (printingResponse) return printingResponse
 
-  if (url.pathname === '/api/bootstrap' && request.method === 'GET') return json(await loadBootstrap(env.DB, session.businessId))
+  if (url.pathname === '/api/bootstrap' && request.method === 'GET') {
+    const effectiveBusinessConfig = await loadEffectiveBusinessConfig(env.DB, session.businessId, context.granted)
+    return json(await loadBootstrap(env.DB, session.businessId, effectiveBusinessConfig))
+  }
   if (url.pathname === '/api/tables' && request.method === 'POST') {
     assertSameOriginMutation(request)
     await createTable(env.DB, session.businessId, await readJson(request))

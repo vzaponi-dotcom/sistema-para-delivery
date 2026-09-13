@@ -39,6 +39,7 @@ import {
   saveStationConfiguration,
   saveStationPrimary,
 } from './printSettingsRepository.js'
+import { requireCapability } from './settingsAccess.js'
 
 const requiredText = (value, field, message = `${field} é obrigatório.`) => {
   const text = String(value ?? '').trim()
@@ -61,17 +62,17 @@ const stationPlatform = (value) => {
 
 const stationIdFromBody = (body) => requiredText(body.stationId, 'stationId', 'Identificador da estação é obrigatório.')
 
-export const handlePrintingApi = async (request, env, session, url) => {
-  const businessId = session.businessId
+export const handlePrintingApi = async (request, env, context, url) => {
+  const businessId = context.businessId
 
   if (url.pathname === '/api/printing/settings') {
-    // TODO: apply role-based authorization here when roles exist. Today every
-    // authenticated device may view/update its business settings, without a station requirement.
     if (request.method === 'GET') {
+      requireCapability(context, 'printing.settings.view')
       const settings = await loadPrintingPolicy(env.DB, businessId)
       return json({ settings: { ...settings, defaultCopies: settings.data.orderDefaultCopies } })
     }
     if (request.method === 'PUT') {
+      requireCapability(context, 'printing.settings')
       assertSameOriginMutation(request)
       const body = await readJson(request)
       if (!Object.hasOwn(body, 'expectedRevision') || !Object.hasOwn(body, 'mutationId')) {
@@ -103,6 +104,7 @@ export const handlePrintingApi = async (request, env, session, url) => {
   }
 
   if (url.pathname === '/api/printing/stations' && request.method === 'GET') {
+    requireCapability(context, 'printing.station.view')
     const [stations, primary] = await Promise.all([
       listPrintStations(env.DB, businessId),
       loadStationPrimary(env.DB, businessId),
@@ -135,6 +137,7 @@ export const handlePrintingApi = async (request, env, session, url) => {
 
   const stationMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)$/)
   if (stationMatch && request.method === 'PUT') {
+    requireCapability(context, 'printing.station.configure')
     assertSameOriginMutation(request)
     const body = await readJson(request)
     const stationId = decodeURIComponent(stationMatch[1])
@@ -164,6 +167,7 @@ export const handlePrintingApi = async (request, env, session, url) => {
 
   const primaryMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)\/make-primary$/)
   if (primaryMatch && request.method === 'POST') {
+    requireCapability(context, 'printing.station.configure')
     assertSameOriginMutation(request)
     const body = await readJson(request)
     if (!Object.hasOwn(body, 'expectedRevision') || !Object.hasOwn(body, 'mutationId')) {

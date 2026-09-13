@@ -124,7 +124,7 @@ const productSnapshotSize = (row) => {
   return presentation === 'Unidade' ? 'Un' : presentation
 }
 
-export const loadBootstrap = async (db, businessId) => {
+export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => {
   const business = await db.prepare('SELECT id, name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
   const clientsResult = await db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const productsResult = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
@@ -155,6 +155,7 @@ export const loadBootstrap = async (db, businessId) => {
     tableTabs: rows(tableTabsResult).map(mapTableTabRow),
     movements: rows(movementsResult).map(mapMovementRow),
     financeSettings,
+    ...(effectiveBusinessConfig ? { effectiveBusinessConfig } : {}),
   }
 }
 
