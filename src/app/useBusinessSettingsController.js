@@ -168,6 +168,11 @@ export function createBusinessSettingsController({
         try {
           const current = await api.getSettings(resource, scopeId)
           if (!owns(writeOwners, key, owner)) return false
+          const confirmedRevision = resources[key]?.confirmed?.revision
+          if (Number.isSafeInteger(confirmedRevision) && (!Number.isSafeInteger(current?.revision) || current.revision < confirmedRevision)) {
+            publish(key, { type: 'saveUnconfirmed' })
+            return false
+          }
           clearPending(storage, contextId(), key)
           publish(key, { type: 'expiredRefreshed', value: current })
           onFeedback({ status: 'expired', resource, scopeId, message: 'A gravação pendente expirou. Revise o estado atual antes de salvar novamente.' })
@@ -187,7 +192,9 @@ export function createBusinessSettingsController({
         }
         const current = await api.getSettings(resource, scopeId)
         if (!owns(writeOwners, key, owner)) return false
-        if (!Number.isSafeInteger(current?.revision) || current.revision < result.receipt.committedRevision) {
+        const confirmedRevision = resources[key]?.confirmed?.revision
+        if (!Number.isSafeInteger(current?.revision) || current.revision < result.receipt.committedRevision
+          || (Number.isSafeInteger(confirmedRevision) && current.revision < confirmedRevision)) {
           publish(key, { type: 'saveUnconfirmed' })
           return false
         }

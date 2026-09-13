@@ -221,6 +221,29 @@ test('refresh after conflict or unknown result preserves the submitted intention
   }
 })
 
+test('receipt reconciliation cannot regress a newer confirmed revision from refresh', async () => {
+  const revisionThree = { ...savedResource, revision: 3, data: { ...draftFixture, defaultModality: 'Local' } }
+  let reads = 0
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
+    api: {
+      getSettings: async () => [adminFixture, revisionThree, savedResource][reads++],
+      putSettings: async () => { throw new TypeError('response lost') },
+      getSettingsReceipt: async () => ({ status: 'confirmed', receipt: { mutationId: 'mutation-1', committedRevision: 2 } }),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  await controller.save('operations')
+  await controller.load('operations')
+
+  assert.equal(await controller.reconcile('operations'), false)
+  const state = controller.getResources().operations
+  assert.equal(state.status, 'unconfirmed')
+  assert.equal(state.confirmed.revision, 3)
+  assert.deepEqual(state.submitted.data, draftFixture)
+})
+
 test('editing is local and confirmed save uses revision plus one stable mutation id', async () => {
   const calls = []
   const controller = createBusinessSettingsController({
