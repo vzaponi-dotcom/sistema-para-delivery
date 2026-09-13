@@ -198,6 +198,14 @@ const findList = (root, segments) => {
   return cursor
 }
 
+const applyListOrder = (list, order) => {
+  const byId = new Map(list.map((item) => [item.id, item]))
+  const ordered = [...order, ...list.map(({ id }) => id)]
+    .filter((id, index, values) => values.indexOf(id) === index && byId.has(id))
+    .map((id) => byId.get(id))
+  list.splice(0, list.length, ...ordered)
+}
+
 const applyValue = (root, segments, value, exists) => {
   let cursor = root
   for (let index = 0; index < segments.length - 1; index += 1) {
@@ -238,14 +246,13 @@ export function resolveSettingsConflict(review, choices = {}) {
       const index = list.findIndex((item) => item.id === target.itemId)
       if (!exists && index >= 0) list.splice(index, 1)
       else if (exists && index >= 0) list[index] = clone(value)
-      else if (exists) list.push(clone(value))
+      else if (exists) {
+        list.push(clone(value))
+        applyListOrder(list, findList(review[choice], target.listSegments).map(({ id }) => id))
+      }
     } else if (target.type === 'order') {
       const list = findList(candidate, target.listSegments)
-      const byId = new Map(list.map((item) => [item.id, item]))
-      const ordered = [...value, ...list.map(({ id }) => id)]
-        .filter((id, index, values) => values.indexOf(id) === index && byId.has(id))
-        .map((id) => byId.get(id))
-      list.splice(0, list.length, ...ordered)
+      applyListOrder(list, value)
     }
   }
   const normalizeOrder = (value) => {

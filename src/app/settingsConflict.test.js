@@ -74,7 +74,58 @@ test('delete versus edit is a conflict resolved by stable item id', () => {
 
   assert.equal(conflict.itemId, 'a')
   assert.equal(review.candidate.items.some(({ id }) => id === 'a'), true)
+  assert.deepEqual(resolveSettingsConflict(review, { [conflict.id]: 'current' }).items, [
+    { ...a, label: 'A atual', sortOrder: 0 },
+    { ...b, sortOrder: 1 },
+  ])
   assert.equal(resolveSettingsConflict(review, { [conflict.id]: 'draft' }).items.some(({ id }) => id === 'a'), false)
+})
+
+test('restoring a remotely deleted local edit preserves the complete draft order', () => {
+  const a = { id: 'a', label: 'A', sortOrder: 0 }
+  const b = { id: 'b', label: 'B', sortOrder: 1 }
+  const c = { id: 'c', label: 'C', sortOrder: 2 }
+  const editedB = { ...b, label: 'B editado' }
+  const review = buildSettingsConflict({
+    base: { items: [a, b, c] },
+    draft: { items: [a, editedB, c] },
+    current: { items: [a, c] },
+  })
+  const conflict = review.conflicts.find(({ kind }) => kind === 'delete-edit')
+
+  assert.ok(conflict)
+  assert.equal(conflict.itemId, 'b')
+  assert.equal(conflict.currentExists, false)
+  assert.equal(conflict.draftExists, true)
+  assert.deepEqual(resolveSettingsConflict(review, { [conflict.id]: 'current' }).items, [
+    { ...a, sortOrder: 0 },
+    { ...c, sortOrder: 1 },
+  ])
+  assert.deepEqual(resolveSettingsConflict(review, { [conflict.id]: 'draft' }).items, [
+    { ...a, sortOrder: 0 },
+    { ...editedB, sortOrder: 1 },
+    { ...c, sortOrder: 2 },
+  ])
+})
+
+test('restoring a remotely deleted edited item honors its moved draft position', () => {
+  const a = { id: 'a', label: 'A', sortOrder: 0 }
+  const b = { id: 'b', label: 'B', sortOrder: 1 }
+  const c = { id: 'c', label: 'C', sortOrder: 2 }
+  const editedB = { ...b, label: 'B editado' }
+  const review = buildSettingsConflict({
+    base: { items: [a, b, c] },
+    draft: { items: [editedB, c, a] },
+    current: { items: [a, c] },
+  })
+  const conflict = review.conflicts.find(({ kind }) => kind === 'delete-edit')
+
+  assert.ok(conflict)
+  assert.deepEqual(resolveSettingsConflict(review, { [conflict.id]: 'draft' }).items, [
+    { ...editedB, sortOrder: 0 },
+    { ...c, sortOrder: 1 },
+    { ...a, sortOrder: 2 },
+  ])
 })
 
 test('independent deletion and remote addition do not become a false reorder conflict', () => {
