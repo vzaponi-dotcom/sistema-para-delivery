@@ -48,7 +48,7 @@ test('áreas usam fallbacks estáveis de Pedidos, Financeiro e Configurações',
   )
   assert.equal(
     resolveArea('settings', new Set(['preferences.local']), implemented),
-    'settings-device',
+    'settings-home',
   )
 })
 

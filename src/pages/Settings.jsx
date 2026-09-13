@@ -1,6 +1,7 @@
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
 import AreaNavigation from '../components/AreaNavigation'
+import SettingsHome from './SettingsHome'
 import { useTheme } from '../components/themeContext.js'
 import '../area-navigation.css'
 
@@ -12,6 +13,7 @@ const themeOptions = [
 
 function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange }) {
   const { themePreference, setThemePreference } = useTheme()
+  if (section === 'settings-home') return <SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} />
   return (
     <div className="settings-page">
       <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
