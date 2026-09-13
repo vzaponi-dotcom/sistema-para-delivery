@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getSettings, getSettingsReceipt, putSettings } from '../api/settingsClient.js'
-import { clearPending, clearPendingContext, readPending, writePending } from './settingsPendingStorage.js'
+import { clearPending, clearPendingContext, readPending, SETTINGS_PENDING_TTL_MS, writePending } from './settingsPendingStorage.js'
 import { createSettingsState, settingsReducer } from './settingsState.js'
 
 export const settingsResourceKey = (resource, scopeId) => scopeId ? `${resource}:${scopeId}` : resource
@@ -162,7 +162,9 @@ export function createBusinessSettingsController({
       const submitted = resources[key]?.submitted
       if (!submitted || resources[key].status !== 'unconfirmed') return false
       const owner = begin(writeOwners, key)
-      if (submitted.expired) {
+      const startedAt = Date.parse(submitted.startedAt)
+      const expired = submitted.expired || (Number.isFinite(startedAt) && now().getTime() - startedAt >= SETTINGS_PENDING_TTL_MS)
+      if (expired) {
         try {
           const current = await api.getSettings(resource, scopeId)
           if (!owns(writeOwners, key, owner)) return false
@@ -170,7 +172,9 @@ export function createBusinessSettingsController({
           publish(key, { type: 'expiredRefreshed', value: current })
           onFeedback({ status: 'expired', resource, scopeId, message: 'A gravação pendente expirou. Revise o estado atual antes de salvar novamente.' })
         } catch (error) {
-          if (owns(writeOwners, key, owner)) publish(key, { type: 'saveUnconfirmed', error })
+          if (!owns(writeOwners, key, owner)) return false
+          if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
+          publish(key, { type: 'saveUnconfirmed', error })
         }
         return false
       }

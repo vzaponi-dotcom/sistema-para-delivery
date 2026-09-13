@@ -356,6 +356,65 @@ test('a 24-hour pointer requires an explicit current read and is never replayed'
   assert.equal(writes, 0)
 })
 
+test('an in-memory uncertain save expires at exactly 24 hours and preserves a later draft for review', async () => {
+  let clock = new Date('2026-09-13T10:00:00.000Z')
+  let reads = 0
+  let receiptReads = 0
+  let writes = 0
+  const current = { ...savedResource, data: draftFixture }
+  const laterDraft = { ...draftFixture, defaultModality: 'Retirada' }
+  const controller = createBusinessSettingsController({
+    context, storage: memoryStorage(), now: () => clock, createMutationId: () => 'mutation-1',
+    api: {
+      getSettings: async () => { reads += 1; return reads === 1 ? adminFixture : current },
+      putSettings: async () => { writes += 1; throw new TypeError('response lost') },
+      getSettingsReceipt: async () => { receiptReads += 1; return { status: 'confirmed' } },
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  await controller.save('operations')
+  controller.edit('operations', laterDraft)
+  clock = new Date('2026-09-14T10:00:00.000Z')
+
+  assert.equal(await controller.reconcile('operations'), false)
+  const state = controller.getResources().operations
+  assert.equal(receiptReads, 0)
+  assert.equal(writes, 1)
+  assert.equal(reads, 2)
+  assert.equal(state.status, 'ready')
+  assert.deepEqual(state.confirmed, current)
+  assert.deepEqual(state.base, current)
+  assert.deepEqual(state.draft, laterDraft)
+  assert.equal(state.dirty, true)
+  assert.equal(state.submitted, null)
+})
+
+test('401 while reviewing an in-memory expired save invalidates the session and pending context', async () => {
+  let clock = new Date('2026-09-13T10:00:00.000Z')
+  let reads = 0
+  let expirations = 0
+  const storage = memoryStorage()
+  const unauthorized = Object.assign(new Error('expired session'), { status: 401 })
+  const controller = createBusinessSettingsController({
+    context, storage, now: () => clock, createMutationId: () => 'mutation-1', onSessionExpired: () => { expirations += 1 },
+    api: {
+      getSettings: async () => { reads += 1; if (reads > 1) throw unauthorized; return adminFixture },
+      putSettings: async () => { throw new TypeError('response lost') },
+      getSettingsReceipt: async () => assert.fail('expired attempts must read current state first'),
+    },
+  })
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  await controller.save('operations')
+  clock = new Date('2026-09-14T10:00:00.000Z')
+
+  assert.equal(await controller.reconcile('operations'), false)
+  assert.equal(expirations, 1)
+  assert.deepEqual(controller.getResources(), {})
+  assert.equal(storage.length, 0)
+})
+
 test('logout/reset invalidates late responses and clears session pointers', async () => {
   const save = deferred()
   const storage = memoryStorage()
