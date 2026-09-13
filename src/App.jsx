@@ -186,11 +186,14 @@ function App({ capabilities } = {}) {
       : capabilities,
     [authState, capabilities, sessionContext],
   )
-  const effectiveConfigOwner = useMemo(() => authState === 'authenticated' && sessionContext
+  const effectiveConfigOwner = useMemo(() => authState === 'authenticated'
+    && sessionContext?.businessId
+    && sessionContext?.settingsContextId
+    && Array.isArray(sessionContext.capabilities)
     ? {
-        businessId: sessionContext.businessId || 'legacy-business',
+        businessId: sessionContext.businessId,
         generation: sessionKey,
-        settingsContextId: sessionContext.settingsContextId || `legacy:${sessionContext.businessId || 'business'}`,
+        settingsContextId: sessionContext.settingsContextId,
         capabilities: [...granted],
       }
     : null, [authState, granted, sessionContext, sessionKey])

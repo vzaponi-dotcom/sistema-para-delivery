@@ -132,9 +132,14 @@ test('completeNavigation valida destino e não descarta pedido já salvo', async
 
 test('App preserva consulta ao navegar e nova sessão rejeita callback da sessão anterior', async (t) => {
   const h = await workspaceHarness(t)
+  let settingsContextId = 'context-1'
   globalThis.fetch = async (path) => {
+    if (path === '/api/auth/login') settingsContextId = 'context-2'
     const responses = {
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': {
+        authenticated: true, businessId: 'business-1', settingsContextId,
+        capabilities: ['orders.view', 'clients.view'],
+      },
       '/api/auth/logout': {},
       '/api/auth/login': {},
       '/api/bootstrap': { tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },

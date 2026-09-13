@@ -36,7 +36,16 @@ const apiTextRequest = async (path, options = {}) => {
 export const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
 
 export const getSession = () => apiRequest('/api/auth/session')
-export const login = (pin) => apiRequest('/api/auth/login', withJson('POST', { pin }))
+export const login = async (pin) => {
+  await apiRequest('/api/auth/login', withJson('POST', { pin }))
+  const session = await getSession()
+  if (!session?.authenticated || typeof session.businessId !== 'string' || !session.businessId
+    || typeof session.settingsContextId !== 'string' || !session.settingsContextId
+    || !Array.isArray(session.capabilities)) {
+    throw Object.assign(new Error('Não foi possível confirmar o contexto da sessão.'), { code: 'SESSION_CONTEXT_UNAVAILABLE' })
+  }
+  return session
+}
 export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' })
 export const getBootstrap = (knownEffectiveConfigVersion) => {
   const params = new URLSearchParams()

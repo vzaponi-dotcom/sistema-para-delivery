@@ -50,7 +50,10 @@ test('auth and CRUD endpoint helpers use the expected routes and methods', async
   const calls = []
   await withFetch(async (...args) => {
     calls.push(args)
-    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+    const payload = args[0] === '/api/auth/session'
+      ? { authenticated: true, businessId: 'business-1', settingsContextId: 'context-1', capabilities: [] }
+      : {}
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } })
   }, async () => {
     await getSession()
     await login('4827')
@@ -66,6 +69,7 @@ test('auth and CRUD endpoint helpers use the expected routes and methods', async
   assert.deepEqual(calls.map(([path, options]) => [path, options?.method || 'GET']), [
     ['/api/auth/session', 'GET'],
     ['/api/auth/login', 'POST'],
+    ['/api/auth/session', 'GET'],
     ['/api/auth/logout', 'POST'],
     ['/api/bootstrap', 'GET'],
     ['/api/clients/c1', 'PATCH'],
@@ -74,6 +78,22 @@ test('auth and CRUD endpoint helpers use the expected routes and methods', async
     ['/api/products/p1', 'PATCH'],
     ['/api/products/p1', 'DELETE'],
   ])
+})
+
+test('login resolves the server session context before returning', async () => {
+  const calls = []
+  const trusted = {
+    authenticated: true, businessId: 'business-1', settingsContextId: 'session-context-1',
+    capabilities: ['operations.settings.manage'],
+  }
+  await withFetch(async (path, options = {}) => {
+    calls.push([path, options.method || 'GET'])
+    const payload = path === '/api/auth/login' ? { authenticated: true, businessId: 'business-1' } : trusted
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } })
+  }, async () => {
+    assert.deepEqual(await login('4827'), trusted)
+  })
+  assert.deepEqual(calls, [['/api/auth/login', 'POST'], ['/api/auth/session', 'GET']])
 })
 
 test('order helper sends the cart unchanged with one stable idempotency key', async () => {
