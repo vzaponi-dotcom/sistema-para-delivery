@@ -222,6 +222,7 @@ export const registerOrderRefund = async (db, businessId, orderId, input = {}, n
     throw domainError(409, 'ORDER_REFUND_NOT_ALLOWED', 'O estorno só pode ser registrado para um pedido cancelado e pago.')
   }
   if (existing.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
+  parseOrderTimingPolicySnapshot(existing.timing_policy_snapshot_json)
 
   const paymentExpectation = await readPaymentMethodExpectation(db, businessId, refundMethod)
   const paymentTxId = crypto.randomUUID()

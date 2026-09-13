@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { LEGACY_TIMING } from '../shared/businessPolicies.js'
 import { createSettingsDb } from './test-support/settingsDb.js'
 import { loadOperations, saveOperations } from './operationSettingsRepository.js'
-import { cancelOrder } from './orderCancellation.js'
+import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { listOrders } from './orderReadRepository.js'
 import { createOrder, loadBootstrap, loadOrderById, updateOrderStatus } from './repositories.js'
 
@@ -42,6 +42,17 @@ const saveTiming = async (db, timing, mutationId, now = NOW) => {
     mutationId,
     data: { ...structuredClone(current.data), timing },
   }, now)
+}
+
+const createPaidCancelledOrder = async (t, idempotencyKey) => {
+  const fixture = setup(t)
+  const order = await createOrder(fixture.db, BUSINESS, {
+    ...orderInput(idempotencyKey), paymentMethod: 'Pix',
+  }, NOW)
+  await cancelOrder(fixture.db, BUSINESS, order.id, {
+    reason: 'entry_error', expectedRevision: 1, refundNow: false,
+  }, new Date(+NOW + 30_000))
+  return { ...fixture, order }
 }
 
 test('finalization snapshots server timing once and all order read paths expose it', async (t) => {
@@ -255,4 +266,56 @@ test('finalized cancellation rejects a malformed snapshot before changing histor
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM movements WHERE order_id = ? AND source = 'order-refund'").get(order.id).n, 0)
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM print_jobs WHERE order_id = ? AND trigger = 'automatic' AND status = 'pending'").get(order.id).n, 1)
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM settings_tx_assertions').get().n, 0)
+})
+
+for (const [label, invalidSnapshot] of [
+  ['malformed JSON', '{invalid'],
+  ['invalid object shape', JSON.stringify({ immediateLateAfterMinutes: 30 })],
+]) {
+  test(`deferred refund rejects ${label} before persisting any effect`, async (t) => {
+    const { db, sqlite, order } = await createPaidCancelledOrder(t, `refund-invalid-${label}`)
+    sqlite.prepare('UPDATE orders SET timing_policy_snapshot_json = ? WHERE id = ?').run(invalidSnapshot, order.id)
+    const orderBefore = sqlite.prepare(`SELECT status, cancelled_at, cancel_reason, total_cents, timing_policy_snapshot_json
+      FROM orders WHERE id = ?`).get(order.id)
+    const paymentBefore = sqlite.prepare(`SELECT id, amount_cents, method, paid_at, created_at
+      FROM payments WHERE order_id = ?`).get(order.id)
+
+    await assert.rejects(registerOrderRefund(db, BUSINESS, order.id, {
+      refundMethod: 'Dinheiro',
+    }, new Date(+NOW + 60_000)), { code: 'ORDER_TIMING_SNAPSHOT_INVALID', status: 503 })
+
+    assert.equal(sqlite.prepare("SELECT count(*) AS n FROM movements WHERE order_id = ? AND source = 'order-refund'").get(order.id).n, 0)
+    assert.deepEqual({ ...sqlite.prepare(`SELECT status, cancelled_at, cancel_reason, total_cents, timing_policy_snapshot_json
+      FROM orders WHERE id = ?`).get(order.id) }, { ...orderBefore })
+    assert.deepEqual({ ...sqlite.prepare(`SELECT id, amount_cents, method, paid_at, created_at
+      FROM payments WHERE order_id = ?`).get(order.id) }, { ...paymentBefore })
+    assert.equal(sqlite.prepare('SELECT count(*) AS n FROM settings_tx_assertions').get().n, 0)
+  })
+}
+
+test('deferred refund accepts a complete timing snapshot', async (t) => {
+  const { db, sqlite, order } = await createPaidCancelledOrder(t, 'refund-valid-snapshot')
+
+  const result = await registerOrderRefund(db, BUSINESS, order.id, {
+    refundMethod: 'Dinheiro',
+  }, new Date(+NOW + 60_000))
+
+  assert.deepEqual(result.order.timingPolicySnapshot, LEGACY_TIMING)
+  assert.equal(result.order.refundState, 'refunded')
+  assert.equal(result.movement.source, 'order-refund')
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM movements WHERE order_id = ? AND source = 'order-refund'").get(order.id).n, 1)
+})
+
+test('deferred refund accepts an absent legacy snapshot without backfill', async (t) => {
+  const { db, sqlite, order } = await createPaidCancelledOrder(t, 'refund-legacy-snapshot')
+  sqlite.prepare('UPDATE orders SET timing_policy_snapshot_json = NULL WHERE id = ?').run(order.id)
+
+  const result = await registerOrderRefund(db, BUSINESS, order.id, {
+    refundMethod: 'Dinheiro',
+  }, new Date(+NOW + 60_000))
+
+  assert.equal(result.order.timingPolicySnapshot, null)
+  assert.equal(result.order.refundState, 'refunded')
+  assert.equal(sqlite.prepare('SELECT timing_policy_snapshot_json FROM orders WHERE id = ?').get(order.id).timing_policy_snapshot_json, null)
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM movements WHERE order_id = ? AND source = 'order-refund'").get(order.id).n, 1)
 })
