@@ -614,10 +614,9 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     })
   }
 
-  statements.push(
-    db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
-      WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId),
-  )
+  const closeTableTabStatement = db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
+    WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId)
+  statements.push(closeTableTabStatement)
   statements.push(clearSettingsAssertions(db, policyTxId))
   let batchResults
   try {
@@ -630,7 +629,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     if (message.includes('POLICY_CHANGED')) rethrowPolicyChange(error)
     throw error
   }
-  const closeResult = batchResults?.at?.(-1)
+  const closeResult = batchResults?.[statements.indexOf(closeTableTabStatement)]
   if (closeResult?.meta && Number(closeResult.meta.changes || 0) !== 1) {
     throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
   }
