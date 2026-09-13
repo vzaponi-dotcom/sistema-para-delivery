@@ -772,3 +772,35 @@ T17 iniciou em worktree temporária isolada, limpa e detached exatamente na base
 - Commit funcional: o commit contendo este ledger usa o subject `feat: implement operation and modality settings layouts`.
 
 O `npm test` agregado e os conjuntos antigos 55/94/39/62/77/73/121 não foram executados. Migrations, gate D1, impressão física, QZ, supervisor, deploy, migration remota, merge e release não foram executados. A suíte agregada permanece **não aprovada**, `TEST-INFRA-01` permanece **OPEN / cause unconfirmed** e a homologação física continua pendente. T18 não foi iniciada. Parada obrigatória após a publicação da T17.
+
+## T18 — Tela de Pagamentos e consumidores operacionais
+
+T18 iniciou em worktree temporária isolada e detached exatamente em `1a282eb3796be34d55b594ff710ab9079948f168`, depois de confirmar o mesmo SHA em `origin/feature/spec-b-settings-policies`. A worktree local divergente não foi reutilizada e nenhum commit antigo foi incorporado. O escopo ficou restrito à tela de pagamentos, à projeção efetiva e aos consumidores operacionais que realmente escolhem ou exibem formas de pagamento; T19 não foi iniciada.
+
+- Tela: `PaymentSettings` usa o shell e a lista responsiva de T16, expõe somente os seis métodos nativos, permite ativar/desativar, definir padrão e reordenar por ação ou Alt+seta. Não há criar, renomear, excluir ou autosave. A UI impede draft sem método ativo ou com padrão inativo, mantém estados do controlador/read-only e usa linhas compactas no desktop e cartões empilhados no mobile.
+- Fonte operacional: `paymentOptionsFromEffective(config)` projeta somente métodos ativos, na ordem efetiva, como `{ value, label, code }`, usando valor em português e código estável. A lista canônica compartilhada é apenas compatibilidade para harness sem configuração; quando existe configuração efetiva, ela é autoritativa para novas escolhas.
+- Sem substituição silenciosa: o padrão efetivo é aplicado somente ao abrir uma nova seleção. Uma seleção já aberta não muda quando padrão/ativos mudam. Se ficar inativa, permanece visível com aviso e confirmação bloqueada até revisão explícita. Não existe fallback silencioso para Pix. Movimento novo começa vazio; cancelamento pago sem método persistido exige escolha explícita.
+- Histórico: estorno, cancelamento e edição de movimento preservam o método persistido mesmo que hoje esteja inativo. Os consumidores de Pedidos, Histórico, Financeiro, Novo Pedido e Comandas recebem a mesma projeção efetiva, sem segunda lista divergente.
+- RED/GREEN: os testes comportamentais começaram 1/10 e falharam pela ausência da projeção/tela/integrações. A suíte focada final `node --test src/pages/PaymentSettings.test.js src/businessPaymentOptions.test.js` passou 18/18 e alcançou pagamentos reais no `App`, com default efetivo, ausência de fallback enquanto a configuração está indisponível, preservação de seleção aberta/inativa, checkout, comanda, estorno, cancelamento, movimento sem fallback e bloqueio dos controles nos estados do controlador.
+- Regressão operacional: os cenários alcançáveis de reconciliação, proteção contra duplicidade, ownership A/B, 409, resultado incerto, A Receber e Comandas passaram 34/34. Na seleção de 103 testes, um teste legado de cancelamento inicialmente expôs a remoção intencional do fallback Pix; sua fixture passou a selecionar Pix explicitamente e o cenário voltou a passar, sem alterar produção para acomodá-lo.
+- As fixtures operacionais antigas passaram a declarar explicitamente a projeção efetiva dos seis métodos. Isso preserva o alcance real dos POSTs sem reintroduzir fallback em produção; com a configuração efetiva indisponível, o `App` mantém opções/padrão vazios e bloqueia a confirmação.
+- Gates finais: a seleção focada passou 18/18; `node --check` passou nos JavaScript aplicáveis; Oxlint direcionado saiu 0, mantendo apenas warnings preexistentes de hooks/set-state/ref nos arquivos antigos; `git diff --check` saiu 0. `npm.cmd run build` passou com 384 módulos e somente o aviso conhecido de chunk acima de 500 kB.
+- Revisão independente: a primeira passagem encontrou três itens Important — fallback Pix durante indisponibilidade da configuração, envio de estorno com método inativo e ausência de revalidação de movimento após mudança remota. Todos receberam correção e regressão comportamental. A reavaliação terminou Ready, sem Critical ou Important; os dois ajustes Minor posteriores corrigiram o texto contextual do método original e a contagem final do ledger.
+
+### TEST-INFRA-02 — reset/relogin harness
+
+Esta ocorrência é separada de `TEST-INFRA-01` e permanece **OPEN / causa não confirmada**. Na baseline limpa `1a282eb3796be34d55b594ff710ab9079948f168`, a seleção acordada de 103 testes terminou 94/103, inclusive com reprodução isolada/sequencial 0/9. Depois da T18, a mesma seleção foi executada uma vez e terminou novamente 94/103: exatamente os mesmos nove nomes, cenários e fases de sessão, sem falha nova e sem entrada na lógica de pagamento modificada.
+
+1. `payment reconciliation ignores old bootstrap success after business reset`
+2. `payment reconciliation ignores old bootstrap error after business reset`
+3. `old-session payment success cannot mutate or unlock a newer session payment`
+4. `old-session payment error cannot mutate or unlock a newer session payment`
+5. `old detail success cannot reach a relogged business using the same table identifiers`
+6. `old detail error cannot reach a relogged business using the same table identifiers`
+7. `a deferred old checkout cannot mutate or leave an ownerless wizard after reset and relogin`
+8. `a deferred stale checkout rejection cannot clear or report over a newer relogged checkout`
+9. `resposta de pagamento da sessão antiga não altera nem desbloqueia o alvo da nova sessão`
+
+Nos casos 1–6 e 8, a assinatura é `No instances found with props: {"aria-label":"Menu principal"}` no helper de navegação após reset/relogin (`comandasAppWiring.test.js`). No caso 7, a assertion `relogin returns to the authenticated kitchen landing` recebe `actual: 0`, ainda antes do fluxo posterior. No caso 9, `openKitchenDetail` encontra `undefined` e lança `TypeError: Cannot read properties of undefined (reading 'props')` (`operationalPayment.test.js:80`, chamada do teste na linha 208). A única diferença de linhas no arquivo de Comandas é o deslocamento de uma linha causado pela escolha explícita adicionada ao teste legado; erro, stack principal, cenário e fase permanecem iguais à baseline.
+
+T18 está aprovada apenas como checkpoint isolado pelos testes focados e regressões operacionais que alcançam o fluxo real. Estes nove testes continuam bloqueando aprovação agregada, merge e release. O problema de sessão não foi corrigido dentro da T18. Nenhum `npm test` agregado, migration, gate D1, impressão física, QZ, supervisor, deploy, migration remota, merge, release ou force-push foi executado. T19 permanece **não autorizada e não iniciada**; parada obrigatória após a publicação da T18.

@@ -15,7 +15,7 @@ import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, officialOrders = orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
+function Orders({ orders, officialOrders = orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -156,7 +156,7 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
           disabled={actionsDisabled}
         />
       )}
-      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={Boolean(cancelOrder && pendingAction === `cancel:${cancelOrder.id}`)} canRefundPayments={canRefundPayments} />
+      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} paymentOptions={paymentOptions} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={Boolean(cancelOrder && pendingAction === `cancel:${cancelOrder.id}`)} canRefundPayments={canRefundPayments} />
     </div>
   )
 }

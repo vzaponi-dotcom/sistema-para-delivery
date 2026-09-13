@@ -34,7 +34,7 @@ import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/ord
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, paymentOptions, defaultPaymentMethod, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
   const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
@@ -401,8 +401,10 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
               onAdjustmentChange: handleAdjustmentChange,
               onSavePending: () => save(),
               onSavePaid: (method) => save(method),
-              allowImmediatePayment: type !== 'Local',
-            }}
+               allowImmediatePayment: type !== 'Local',
+               paymentOptions,
+               defaultPaymentMethod,
+             }}
           />
         )}
       </div>

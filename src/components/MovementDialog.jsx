@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  PAYMENT_METHODS,
   getManualMovementCategoryOptions,
   getMovementCategoryLabel,
   isManualMovementCategory,
@@ -14,12 +13,12 @@ import Button from './Button'
 import ConfirmationDialog from './ConfirmationDialog'
 import Modal from './Modal'
 import SystemSelect from './SystemSelect'
+import { PAYMENT_METHOD_OPTIONS, paymentOptionsWithSelection, paymentSelectionNeedsReview } from '../utils/paymentMethodOptions.js'
 
 const TYPE_OPTIONS = [
   { value: 'entrada', label: 'Entrada' },
   { value: 'saida', label: 'Saída' },
 ]
-const PAYMENT_OPTIONS = PAYMENT_METHODS.map((value) => ({ value, label: value }))
 
 const buildDraft = (movement, today) => ({
   type: movement?.type || 'entrada',
@@ -30,12 +29,16 @@ const buildDraft = (movement, today) => ({
   paymentMethod: movement?.paymentMethod || '',
 })
 
-function MovementDialogContent({ movement, today, disabled, onClose, onSubmit }) {
+function MovementDialogContent({ movement, today, disabled, onClose, onSubmit, paymentOptions }) {
   const [draft, setDraft] = useState(() => buildDraft(movement, today))
   const [review, setReview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const editing = Boolean(movement?.id)
   const locked = disabled || submitting
+  const paymentNeedsReview = paymentSelectionNeedsReview(paymentOptions, draft.paymentMethod)
+  const retainingPersistedPayment = editing && draft.paymentMethod === (movement?.paymentMethod || '')
+  const paymentRequiresReview = paymentNeedsReview && !retainingPersistedPayment
+  const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, draft.paymentMethod)
   const categoryOptions = getManualMovementCategoryOptions(draft.type)
   const parsedValue = parseBRLCurrencyInput(draft.value)
   const canReview = Boolean(
@@ -43,7 +46,8 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
     && draft.description.trim()
     && parsedValue > 0
     && draft.movementDate
-    && draft.paymentMethod,
+    && draft.paymentMethod
+    && !paymentRequiresReview,
   )
 
   const updateField = (field, value) => setDraft((current) => ({ ...current, [field]: value }))
@@ -68,6 +72,8 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
 
   const handleConfirm = async () => {
     if (!review || locked) return
+    const retainingReviewedPayment = editing && review.paymentMethod === (movement?.paymentMethod || '')
+    if (paymentSelectionNeedsReview(paymentOptions, review.paymentMethod) && !retainingReviewedPayment) return
     setSubmitting(true)
     try {
       const result = await onSubmit?.(review)
@@ -80,6 +86,8 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
   }
 
   if (review) {
+    const retainingReviewedPayment = editing && review.paymentMethod === (movement?.paymentMethod || '')
+    const reviewedPaymentRequiresReview = paymentSelectionNeedsReview(paymentOptions, review.paymentMethod) && !retainingReviewedPayment
     return (
       <ConfirmationDialog
         title={editing ? 'Confirmar alterações' : 'Confirmar movimentação'}
@@ -90,13 +98,14 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
             <span>{formatBRLCurrencyValue(review.value)}</span>
             <small>{review.description}</small>
             <small>{review.movementDate} · {review.paymentMethod}</small>
+            {reviewedPaymentRequiresReview && <small className="form-error" role="alert">A forma escolhida não está mais ativa. Volte e escolha uma forma ativa.</small>}
           </div>
         )}
         confirmLabel={editing ? 'Salvar alterações' : 'Salvar movimento'}
         confirmVariant="primary"
         onConfirm={handleConfirm}
         onClose={() => setReview(null)}
-        disabled={locked}
+        disabled={locked || reviewedPaymentRequiresReview}
       />
     )
   }
@@ -163,12 +172,15 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
           <span>Forma / Meio</span>
           <SystemSelect
             value={draft.paymentMethod}
-            options={PAYMENT_OPTIONS}
+            options={visiblePaymentOptions}
             onChange={(value) => updateField('paymentMethod', value)}
             placeholder="Selecione a forma / meio"
             label="Forma ou meio"
             disabled={locked}
           />
+          {paymentNeedsReview && <small className="form-error" role="alert">{retainingPersistedPayment
+            ? 'A forma registrada está inativa hoje e será preservada enquanto não for alterada.'
+            : 'A forma escolhida não está mais ativa. Escolha uma forma ativa antes de continuar.'}</small>}
         </label>
 
         <div className="form-actions">
@@ -182,7 +194,7 @@ function MovementDialogContent({ movement, today, disabled, onClose, onSubmit })
   )
 }
 
-function MovementDialog({ open, movement = null, today, disabled = false, onClose, onSubmit }) {
+function MovementDialog({ open, movement = null, today, disabled = false, onClose, onSubmit, paymentOptions = PAYMENT_METHOD_OPTIONS }) {
   if (!open) return null
   return (
     <MovementDialogContent
@@ -192,6 +204,7 @@ function MovementDialog({ open, movement = null, today, disabled = false, onClos
       disabled={disabled}
       onClose={onClose}
       onSubmit={onSubmit}
+      paymentOptions={paymentOptions}
     />
   )
 }

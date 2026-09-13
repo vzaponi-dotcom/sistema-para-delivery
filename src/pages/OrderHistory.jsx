@@ -20,7 +20,7 @@ const reasonLabels = { client_changed_mind: 'Cliente desistiu', duplicate_order:
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, actionKey = null, printing, onToast, queryState, onQueryChange, granted, implemented, onNavigate, activeTab, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, actionKey = null, printing, onToast, queryState, onQueryChange, granted, implemented, onNavigate, activeTab, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
   const filter = queryState.filter
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -86,7 +86,7 @@ function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, 
         </div>
       </section>
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
-      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} canRefundPayments={canRefundPayments} />
+      <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} paymentOptions={paymentOptions} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} canRefundPayments={canRefundPayments} />
     </>
   )
 }

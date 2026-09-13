@@ -4,6 +4,7 @@ import PrintingSettingsContent from '../components/PrintingSettingsContent'
 import AreaNavigation from '../components/AreaNavigation'
 import SettingsHome from './SettingsHome'
 import OperationSettings from './OperationSettings'
+import PaymentSettings from './PaymentSettings'
 import { useTheme } from '../components/themeContext.js'
 import '../area-navigation.css'
 
@@ -13,15 +14,25 @@ const themeOptions = [
   { value: 'system', label: 'Automático' },
 ]
 
-function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, onSettingsConflictReview }) {
+function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, businessSettings = operationSettings, onSettingsConflictReview }) {
   const { themePreference, setThemePreference } = useTheme()
   const operationRoute = section === 'settings-operations' || section === 'settings-modalities'
   const operationLoad = operationSettings?.load
+  const paymentRoute = section === 'settings-payments'
+  const paymentLoad = businessSettings?.load
   useEffect(() => {
     if (operationRoute) void operationLoad?.('operations')
   }, [operationLoad, operationRoute])
+  useEffect(() => {
+    if (paymentRoute) void paymentLoad?.('paymentMethods')
+  }, [paymentLoad, paymentRoute])
   const reviewOperationConflict = async () => {
     const review = await operationSettings?.reviewConflict?.('operations')
+    if (review) onSettingsConflictReview?.(review)
+    return review
+  }
+  const reviewPaymentConflict = async () => {
+    const review = await businessSettings?.reviewConflict?.('paymentMethods')
     if (review) onSettingsConflictReview?.(review)
     return review
   }
@@ -38,6 +49,19 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       onReconcile={() => operationSettings?.reconcile?.('operations')}
       onReload={() => operationSettings?.load?.('operations')}
       onReviewConflict={reviewOperationConflict}
+    />
+  </div>
+  if (paymentRoute) return <div className="settings-page">
+    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+    <PaymentSettings
+      resourceState={businessSettings?.resources?.paymentMethods}
+      readOnly={!(granted instanceof Set && granted.has('payments.settings.manage'))}
+      onEdit={(draft) => businessSettings?.edit?.('paymentMethods', draft)}
+      onSave={() => businessSettings?.save?.('paymentMethods')}
+      onDiscard={() => businessSettings?.discard?.('paymentMethods')}
+      onReconcile={() => businessSettings?.reconcile?.('paymentMethods')}
+      onReload={() => businessSettings?.load?.('paymentMethods')}
+      onReviewConflict={reviewPaymentConflict}
     />
   </div>
   return (

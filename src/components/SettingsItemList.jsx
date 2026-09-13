@@ -7,7 +7,13 @@ function SettingsItemList({ items, getActions, onAction, label }) {
   return <section className="settings-item-list" aria-label={label}>
     {items.map((item) => {
       const actions = getActions(item) || []
-      return <article key={item.id} className="settings-item-row">
+      return <article
+        key={item.id}
+        className="settings-item-row"
+        {...(item.dataAttributes || {})}
+        tabIndex={item.onKeyDown ? 0 : undefined}
+        onKeyDown={item.onKeyDown}
+      >
         <div className="settings-item-copy"><strong>{item.label}</strong>{item.active === false && <small>Inativo</small>}</div>
         {actions.length > 0 && <div className="settings-item-actions">{actions.map((action) => {
           const reasonId = action.disabledReason ? `${listId}-${item.id}-${action.id}-reason` : undefined

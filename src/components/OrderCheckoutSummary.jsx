@@ -2,6 +2,11 @@ import { useState } from 'react'
 import Button from './Button'
 import SystemSelect from './SystemSelect'
 import { formatBRLCurrencyInput } from '../utils/formFormatting.js'
+import {
+  PAYMENT_METHOD_OPTIONS,
+  paymentOptionsWithSelection,
+  paymentSelectionNeedsReview,
+} from '../utils/paymentMethodOptions.js'
 
 const ADJUSTMENT_OPTIONS = [
   { value: 'none', label: 'Nenhum' },
@@ -12,9 +17,6 @@ const ADJUSTMENT_MODE_OPTIONS = [
   { value: 'fixed', label: 'R$' },
   { value: 'percentage', label: '%' },
 ]
-const PAYMENT_METHOD_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
-  .map((method) => ({ value: method, label: method }))
-
 function OrderCheckoutSummary({
   draft,
   preview,
@@ -27,9 +29,13 @@ function OrderCheckoutSummary({
   onAdjustmentChange,
   onSavePending,
   onSavePaid,
+  paymentOptions = PAYMENT_METHOD_OPTIONS,
+  defaultPaymentMethod = paymentOptions[0]?.value || '',
 }) {
   const [showPayment, setShowPayment] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState('Pix')
+  const [paymentMethod, setPaymentMethod] = useState('')
+  const paymentNeedsReview = paymentSelectionNeedsReview(paymentOptions, paymentMethod)
+  const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, paymentMethod)
   const adjustment = draft.adjustment
   const changeAdjustment = (patch) => {
     if (!canAdjustOrders) return false
@@ -151,15 +157,16 @@ function OrderCheckoutSummary({
             <span>Forma de pagamento</span>
             <SystemSelect
               value={paymentMethod}
-              options={PAYMENT_METHOD_OPTIONS}
+              options={visiblePaymentOptions}
               onChange={setPaymentMethod}
               disabled={disabled}
               label="Forma de pagamento"
             />
+            {paymentNeedsReview && <small className="form-error" role="alert">A forma escolhida não está mais ativa. Revise a seleção antes de confirmar.</small>}
           </div>
           <div className="form-actions">
             <Button type="button" variant="secondary" onClick={() => setShowPayment(false)} disabled={disabled}>Voltar</Button>
-            <Button type="button" onClick={() => onSavePaid(paymentMethod)} disabled={disabled || !canSubmit}>Confirmar recebimento</Button>
+            <Button type="button" onClick={() => onSavePaid(paymentMethod)} disabled={disabled || !canSubmit || !paymentMethod || paymentNeedsReview}>Confirmar recebimento</Button>
           </div>
         </div>
       )}
@@ -167,7 +174,7 @@ function OrderCheckoutSummary({
       {!showPayment && (
         <div className="new-order-checkout-actions">
           <Button type="button" variant="secondary" onClick={onSavePending} disabled={disabled || !canSubmit}>Salvar pedido</Button>
-          {allowImmediatePayment && <Button type="button" onClick={() => setShowPayment(true)} disabled={disabled || !canSubmit}>Salvar e receber</Button>}
+          {allowImmediatePayment && <Button type="button" onClick={() => { setPaymentMethod(defaultPaymentMethod); setShowPayment(true) }} disabled={disabled || !canSubmit}>Salvar e receber</Button>}
         </div>
       )}
     </section>

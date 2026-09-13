@@ -8,7 +8,7 @@ import StatCard from '../components/StatCard'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund, granted, implemented, onNavigate, activeTab, canManageMovements = true, canRefundPayments = true }) {
+function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, granted, implemented, onNavigate, activeTab, canManageMovements = true, canRefundPayments = true }) {
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
@@ -60,7 +60,7 @@ function Finance({ totals, movements, currency, onAddMovement, pendingRefundOrde
         </div>
         {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
       </section>
-      <RegisterRefundDialog open={canRefundPayments && Boolean(refundOrder)} order={refundOrder} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
+      <RegisterRefundDialog open={canRefundPayments && Boolean(refundOrder)} order={refundOrder} paymentOptions={paymentOptions} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
     </>
   )
 }

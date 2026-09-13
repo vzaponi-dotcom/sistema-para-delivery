@@ -3,6 +3,11 @@ import Button from './Button'
 import Modal from './Modal'
 import SystemSelect from './SystemSelect'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import {
+  PAYMENT_METHOD_OPTIONS,
+  paymentOptionsWithSelection,
+  paymentSelectionNeedsReview,
+} from '../utils/paymentMethodOptions.js'
 
 const REASON_OPTIONS = [
   { value: 'client_changed_mind', label: 'Cliente desistiu' },
@@ -11,23 +16,27 @@ const REASON_OPTIONS = [
   { value: 'entry_error', label: 'Erro no lançamento' },
   { value: 'other', label: 'Outro' },
 ]
-const PAYMENT_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro'].map((value) => ({ value, label: value }))
 
-function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false, canRefundPayments = true }) {
+function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false, canRefundPayments = true, paymentOptions = PAYMENT_METHOD_OPTIONS }) {
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
   const [refundNow, setRefundNow] = useState(false)
-  const [refundMethod, setRefundMethod] = useState('Pix')
+  const [refundMethod, setRefundMethod] = useState('')
   const [error, setError] = useState('')
   const [reviewPayload, setReviewPayload] = useState(null)
 
   useEffect(() => {
     if (!open || !order) return
-    setReason(''); setNote(''); setRefundNow(false); setRefundMethod(order.paymentMethod || 'Pix'); setError(''); setReviewPayload(null)
+    setReason(''); setNote(''); setRefundNow(false); setRefundMethod(order.paymentMethod || ''); setError(''); setReviewPayload(null)
   }, [open, order])
 
   if (!open || !order) return null
   const isPaid = order.paymentStatus === 'Pago'
+  const originalMethodInactive = paymentSelectionNeedsReview(paymentOptions, refundMethod)
+  const preservingOriginalMethod = refundMethod === (order.paymentMethod || '')
+  const reviewedMethodInactive = Boolean(reviewPayload?.refundNow
+    && paymentSelectionNeedsReview(paymentOptions, reviewPayload.refundMethod))
+  const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, refundMethod)
   const reasonLabel = REASON_OPTIONS.find((option) => option.value === reviewPayload?.reason)?.label
 
   const handleSubmit = (event) => {
@@ -35,12 +44,18 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
     if (!reason) return setError('Selecione um motivo para cancelar o pedido.')
     if (reason === 'other' && !note.trim()) return setError('Descreva o motivo do cancelamento.')
     if (isPaid && canRefundPayments && refundNow && !refundMethod) return setError('Selecione a forma usada no estorno.')
+    if (isPaid && canRefundPayments && refundNow && originalMethodInactive) return setError('Escolha uma forma de estorno ativa antes de continuar.')
     setError('')
     setReviewPayload({ reason, note: reason === 'other' ? note.trim() : '', refundNow: isPaid && canRefundPayments ? refundNow : false, refundMethod: isPaid && canRefundPayments && refundNow ? refundMethod : '' })
   }
 
   const handleFinalConfirm = async () => {
     if (!reviewPayload || (reviewPayload.refundNow && !canRefundPayments)) return false
+    if (reviewPayload.refundNow && paymentSelectionNeedsReview(paymentOptions, reviewPayload.refundMethod)) {
+      setReviewPayload(null)
+      setError('A forma de estorno ficou inativa. Escolha outra forma ativa para continuar.')
+      return false
+    }
     await onConfirm?.(reviewPayload)
   }
 
@@ -52,10 +67,11 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
           <div className="payment-summary-card">
             <span>Motivo: {reasonLabel}{reviewPayload.note ? ` · ${reviewPayload.note}` : ''}</span>
             {isPaid && <span>{reviewPayload.refundNow ? `Estorno já realizado via ${reviewPayload.refundMethod}` : 'Estorno ficará pendente no Financeiro'}</span>}
+            {reviewedMethodInactive && <small className="form-error" role="alert">A forma de estorno ficou inativa. Volte e escolha outra forma ativa.</small>}
           </div>
           <div className="form-actions">
             <Button type="button" variant="secondary" onClick={() => setReviewPayload(null)} disabled={submitting}>Voltar e revisar</Button>
-            <Button type="button" variant="danger" onClick={handleFinalConfirm} disabled={submitting}>{submitting ? 'Cancelando…' : 'Confirmar cancelamento definitivamente'}</Button>
+            <Button type="button" variant="danger" onClick={handleFinalConfirm} disabled={submitting || reviewedMethodInactive}>{submitting ? 'Cancelando…' : 'Confirmar cancelamento definitivamente'}</Button>
           </div>
         </div>
       </Modal>
@@ -75,12 +91,14 @@ function CancelOrderDialog({ open, order, onClose, onConfirm, submitting = false
               <button type="button" className={!refundNow ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={!refundNow} onClick={() => { setRefundNow(false); setError('') }} disabled={submitting}>Ainda não</button>
               <button type="button" className={refundNow ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={refundNow} onClick={() => { setRefundNow(true); setError('') }} disabled={submitting}>Sim</button>
             </div>
-            {refundNow && <div className="form-field"><span>Forma do estorno</span><SystemSelect value={refundMethod} options={PAYMENT_OPTIONS} onChange={(value) => { setRefundMethod(value); setError('') }} label="Forma do estorno" disabled={submitting} /></div>}
+            {refundNow && <div className="form-field"><span>Forma do estorno</span><SystemSelect value={refundMethod} options={visiblePaymentOptions} onChange={(value) => { setRefundMethod(value); setError('') }} label="Forma do estorno" disabled={submitting} />{originalMethodInactive && <small className="form-error" role="alert">{preservingOriginalMethod
+              ? 'O método original está inativo hoje e foi preservado como referência. Escolha uma forma ativa para continuar.'
+              : 'A forma escolhida ficou inativa. Escolha outra forma ativa para continuar.'}</small>}</div>}
             {!refundNow && <small>O cancelamento ficará com estorno pendente para ser registrado no Financeiro depois.</small>}
           </div>
         )}
         {error && <div className="form-error" role="alert">{error}</div>}
-        <div className="form-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>Voltar</Button><Button type="submit" disabled={submitting}>Revisar cancelamento</Button></div>
+        <div className="form-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>Voltar</Button><Button type="submit" disabled={submitting || (isPaid && canRefundPayments && refundNow && (!refundMethod || originalMethodInactive))}>Revisar cancelamento</Button></div>
       </form>
     </Modal>
   )

@@ -41,6 +41,17 @@ const operationalCapabilities = new Set([
   'payments.receive', 'clients.view', 'finance.receivables', 'finance.overview', 'finance.movements',
   'printing.queue', 'preferences.local',
 ])
+const effectivePaymentConfig = {
+  version: 'payment-test-v1', revisions: { paymentMethods: 1 },
+  paymentMethods: { methods: [
+    { code: 'pix', label: 'Pix', value: 'Pix' },
+    { code: 'cash', label: 'Dinheiro', value: 'Dinheiro' },
+    { code: 'debit_card', label: 'Cartão de débito', value: 'Cartão de débito' },
+    { code: 'credit_card', label: 'Cartão de crédito', value: 'Cartão de crédito' },
+    { code: 'transfer', label: 'Transferência', value: 'Transferência' },
+    { code: 'other', label: 'Outro', value: 'Outro' },
+  ], defaultMethod: 'pix' },
+}
 
 async function operationalWorkspace(t, { orders, capabilities = operationalCapabilities } = {}) {
   const h = await workspaceHarness(t)
@@ -59,7 +70,7 @@ async function operationalWorkspace(t, { orders, capabilities = operationalCapab
     if (url === '/api/auth/logout' && method === 'POST') return response({})
     if (url === '/api/bootstrap') {
       state.bootstrapCalls += 1
-      return response({ tables: [], tableTabs: [], orders: structuredClone(state.bootstrapOrders), movements: [], clients: [], products: [], financeSettings: null })
+      return response({ tables: [], tableTabs: [], orders: structuredClone(state.bootstrapOrders), movements: [], clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig })
     }
     if (url === '/api/orders' && method === 'GET') return response({ orders: structuredClone(state.orders) })
     if (/^\/api\/orders\/[^/]+\/payment$/.test(url) && method === 'POST') {

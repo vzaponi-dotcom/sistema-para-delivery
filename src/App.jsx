@@ -20,7 +20,12 @@ import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
 import PrintingSettings from './components/PrintingSettings'
 import SystemSelect from './components/SystemSelect'
-import { PAYMENT_METHOD_OPTIONS } from './utils/paymentMethodOptions.js'
+import {
+  paymentDefaultFromEffective,
+  paymentOptionsFromEffective,
+  paymentOptionsWithSelection,
+  paymentSelectionNeedsReview,
+} from './utils/paymentMethodOptions.js'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
 import { NewOrderRoute, tableTabsFromBootstrap } from './pages/NewOrderRoute'
@@ -90,7 +95,7 @@ const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs'
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
-const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-printing', 'settings-device'])
+const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-printing', 'settings-device'])
 const SETTINGS_DRAFT_ROUTES = Object.freeze({
   'settings-operations': Object.freeze({ resource: 'operations', destinations: new Set(['settings-operations', 'settings-modalities']) }),
   'settings-modalities': Object.freeze({ resource: 'operations', destinations: new Set(['settings-operations', 'settings-modalities']) }),
@@ -147,7 +152,7 @@ function App({ capabilities } = {}) {
   const [toastMessage, setToastMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [paymentTarget, setPaymentTarget] = useState(null)
-  const [paymentMethod, setPaymentMethod] = useState('Pix')
+  const [paymentMethod, setPaymentMethod] = useState('')
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
@@ -214,6 +219,11 @@ function App({ capabilities } = {}) {
       }
     : null, [authState, granted, sessionContext, sessionKey])
   const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig })
+  const paymentConfig = effectiveConfig.config || bootstrapEffectiveConfig
+  const paymentOptions = useMemo(() => paymentConfig ? paymentOptionsFromEffective(paymentConfig) : [], [paymentConfig])
+  const defaultPaymentMethod = useMemo(() => paymentConfig ? paymentDefaultFromEffective(paymentConfig) : '', [paymentConfig])
+  const paymentMethodNeedsReview = paymentSelectionNeedsReview(paymentOptions, paymentMethod)
+  const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, paymentMethod)
   useEffect(() => {
     effectiveConfigVersionRef.current = effectiveConfig.config?.version || null
   }, [effectiveConfig.config])
@@ -320,7 +330,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     setProducts([]); setClients([]); setOrders([]); setTables([]); setTableTabs([]); setMovements([]); setFinanceSettings(null); setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod('Pix'); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
     setSessionContext(null)
     setSettingsConflictReview(null)
   }
@@ -923,7 +933,7 @@ function App({ capabilities } = {}) {
     const owner = { token: ++paymentSequenceRef.current, guard: syncGuardRef.current, orderId, source: operational ? source : null, submitting: false, requestKey: null, method: null }
     paymentDialogRef.current = owner
     setPaymentTarget({ orderId, source: owner.source, token: owner.token })
-    setPaymentMethod('Pix')
+    setPaymentMethod(defaultPaymentMethod)
     return true
   }
   const closePaymentModal = (expectedOwner = paymentDialogRef.current) => {
@@ -931,7 +941,7 @@ function App({ capabilities } = {}) {
     paymentDialogRef.current = null
     if (paymentAttemptRef.current === expectedOwner) paymentAttemptRef.current = null
     setPaymentTarget(null)
-    setPaymentMethod('Pix')
+    setPaymentMethod('')
     if (expectedOwner?.requestKey) setRequestKey((current) => current === expectedOwner.requestKey ? null : current)
     return true
   }
@@ -942,7 +952,7 @@ function App({ capabilities } = {}) {
     const eligible = currentOrder && (owner.source
       ? canReceiveStandaloneOrder(currentOrder, granted, owner.source)
       : !isOrderPaid(currentOrder) && !isOrderCancelled(currentOrder))
-    if (!canReceivePayments || !owner || owner.guard !== syncGuardRef.current || owner.submitting || writesBlocked || !eligible) return false
+    if (!canReceivePayments || !owner || owner.guard !== syncGuardRef.current || owner.submitting || writesBlocked || !eligible || !paymentMethod || paymentMethodNeedsReview) return false
     owner.submitting = true
     owner.method = paymentMethod
     owner.requestKey = `payment:${owner.orderId}:${owner.token}`
@@ -1174,17 +1184,17 @@ function App({ capabilities } = {}) {
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
       <AppShell activeTab={activeTab} activeMobileEntry={activeTab === 'new-order' ? newOrderContext.returnTab : undefined} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} onOpenMore={openMore} onCloseMore={closeMore} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} canManageClients={canManageClients} />}
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
+        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} paymentOptions={paymentOptions} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
-        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} canTransfer={canTransferComanda} onTransfer={handleTransferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
-        {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} operationSettings={businessSettings} onSettingsConflictReview={setSettingsConflictReview} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransferComanda} onTransfer={handleTransferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
+        {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} operationSettings={businessSettings} businessSettings={businessSettings} onSettingsConflictReview={setSettingsConflictReview} />}
 
         {pendingDestination && (
           <Modal title={pendingDiscardKind === 'settings' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>
@@ -1209,12 +1219,12 @@ function App({ capabilities } = {}) {
           />
         )}
 
-        {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={PAYMENT_METHOD_OPTIONS} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div><div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked}>Confirmar pagamento</Button></div></form></Modal>}
+        {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={visiblePaymentOptions} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div>{paymentMethodNeedsReview && <p className="form-error" role="alert">A forma escolhida não está mais ativa. Revise a seleção antes de confirmar.</p>}<div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked || !paymentMethod || paymentMethodNeedsReview}>Confirmar pagamento</Button></div></form></Modal>}
 
         {canManageClients && showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
         {canManageClients && duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
         {canManageProducts && showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
-        <MovementDialog open={canManageMovements && movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
+        <MovementDialog open={canManageMovements && movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} paymentOptions={paymentOptions} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
         <OpeningBalanceDialog open={canManageMovements && openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
         {showPrintingSettings && <PrintingSettings printing={printing} settings={printingSettings} granted={granted} onClose={() => setShowPrintingSettings(false)} />}
       </AppShell>

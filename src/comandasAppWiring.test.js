@@ -4,6 +4,17 @@ import { act } from 'react-test-renderer'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
 import { comandaDetail, deferred, detailResponse } from './test-support/comandaFixtures.js'
 
+const effectivePaymentConfig = {
+  version: 'payment-test-v1', revisions: { paymentMethods: 1 },
+  paymentMethods: { methods: [
+    { code: 'pix', label: 'Pix', value: 'Pix' },
+    { code: 'cash', label: 'Dinheiro', value: 'Dinheiro' },
+    { code: 'debit_card', label: 'Cartão de débito', value: 'Cartão de débito' },
+    { code: 'credit_card', label: 'Cartão de crédito', value: 'Cartão de crédito' },
+    { code: 'transfer', label: 'Transferência', value: 'Transferência' },
+    { code: 'other', label: 'Outro', value: 'Outro' },
+  ], defaultMethod: 'pix' },
+}
 async function paymentWorkspace(t, mobile = false) {
   const h = await workspaceHarness(t, { mobile })
   const state = { tables: workspaceTables, expired: false, pending: [], detail: comandaDetail, bootstrapCalls: 0 }
@@ -23,7 +34,7 @@ async function paymentWorkspace(t, mobile = false) {
       if (state.deferBootstrap) return state.deferBootstrap.promise
       if (state.bootstrapError) throw new Error(state.bootstrapError)
       if (state.expired) return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }
-      return { ok: true, json: async () => structuredClone({ tables: state.tables, tableTabs: [], orders: [], movements: [], clients: [], products: [], financeSettings: null, ...state.bootstrapData }) }
+      return { ok: true, json: async () => structuredClone({ tables: state.tables, tableTabs: [], orders: [], movements: [], clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig, ...state.bootstrapData }) }
     }
     const responses = {
       '/api/auth/session': { authenticated: true }, '/api/auth/login': {},
@@ -174,6 +185,7 @@ test('a newer cancellation rejects three financial collections without free tabl
   const { default: SystemSelect } = await h.load('/src/components/SystemSelect.jsx')
   await act(async () => r.root.findByType(SystemSelect).props.onChange('duplicate_order'))
   await act(async () => buttonNamed(r.root, 'Sim').props.onClick())
+  await act(async () => r.root.findAllByType(SystemSelect).find((select) => select.props.label === 'Forma do estorno').props.onChange('Pix'))
   await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
   state.deferCancellation = deferred()
   await act(async () => { void buttonNamed(r.root, 'Confirmar cancelamento definitivamente').props.onClick() })

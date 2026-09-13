@@ -73,6 +73,15 @@
 .operation-section-jump { justify-self: start; }
 .settings-empty-state { margin: 0; color: var(--muted); }
 
+.payment-settings-list { display: grid; gap: 10px; }
+.payment-settings-help { margin: 0; color: var(--muted); font-size: .86rem; }
+.payment-method-copy { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.payment-method-copy > span:first-child { color: var(--text); }
+.payment-method-badges { display: flex; align-items: flex-start; gap: 6px; }
+.payment-method-badge { padding: 4px 7px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); font-size: .74rem; font-weight: 700; }
+.payment-method-badge.is-active { background: var(--success-soft); color: var(--success); }
+.payment-method-badge.is-default { background: var(--primary-soft); color: var(--primary); }
+
 @media (max-width: 640px) {
   .settings-home-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-home-card { min-height: 96px; padding: 16px; }
@@ -83,4 +92,6 @@
   .operation-section-heading, .operation-modality-row { align-items: stretch; flex-direction: column; }
   .operation-modality-actions { align-items: stretch; flex-direction: column; }
   .operation-modality-actions .button, .operation-section-jump { width: 100%; }
+  .payment-method-copy { align-items: flex-start; justify-content: space-between; }
+  .payment-method-badges { flex-direction: column; }
 }
