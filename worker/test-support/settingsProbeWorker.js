@@ -11,6 +11,172 @@ async function rejects(action, code, status) {
 }
 const value = (modality = 'Local') => ({ timing: { ...DEFAULT_OPERATIONS.timing, scheduledPrepLeadMinutes: 60 }, enabledModalities: [modality], defaultModality: modality })
 const input = (mutationId, expectedRevision, data = value()) => ({ mutationId, expectedRevision, data })
+const PRINT_BUSINESS = 'amor-e-sabor'
+const PRINT_EARLY = '2026-01-01T10:00:00.000Z'
+const PRINT_LATE = '2026-01-02T11:12:13.000Z'
+
+const printStatement = (db, sql, ...values) => db.prepare(sql).bind(...values)
+
+function printJob(status, index) {
+  return {
+    id: `probe-print-job-${status}`,
+    orderId: `probe-print-order-${status}`,
+    status,
+    trigger: index === 0 ? 'automatic' : 'manual',
+    priority: index % 2,
+    parentJobId: index === 1 ? 'probe-print-job-pending' : null,
+    copiesRequested: status === 'awaiting_second_copy' ? 2 : 1,
+    copiesPrinted: status === 'awaiting_second_copy' ? 1 : status === 'printed' ? 1 : 0,
+    snapshot: JSON.stringify({ status, document: `probe-snapshot-${index}` }),
+    processingStartedAt: index > 0 ? PRINT_LATE : null,
+    processedAt: ['printed', 'failed', 'discarded'].includes(status) ? PRINT_LATE : null,
+    discardedAt: status === 'discarded' ? PRINT_LATE : null,
+    attentionReason: status === 'requires_attention' ? 'paper-out' : null,
+    actor: index % 2 ? 'Operador sintético' : null,
+    actionAt: index % 2 ? PRINT_LATE : null,
+    errorCode: ['failed', 'requires_attention'].includes(status) ? 'SYNTHETIC_ERROR' : null,
+    errorMessage: ['failed', 'requires_attention'].includes(status) ? 'Synthetic failure' : null,
+    promptedAt: status === 'awaiting_second_copy' ? PRINT_LATE : null,
+    requestedAt: status === 'awaiting_second_copy' ? PRINT_LATE : null,
+    skippedAt: status === 'discarded' ? PRINT_LATE : null,
+  }
+}
+
+function insertPrintJob(db, job, overrides = {}) {
+  const row = { ...job, tableTabId: null, type: 'order', stationId: 'probe-print-station-primary', ...overrides }
+  return printStatement(db, `INSERT INTO print_jobs (
+    id, business_id, order_id, table_tab_id, type, trigger, status, priority, parent_job_id,
+    copies_requested, copies_printed, station_id, snapshot_json, created_at, available_at,
+    processing_started_at, processed_at, discarded_at, attention_reason, action_actor_label,
+    action_at, last_error_code, last_error_message, second_copy_prompted_at,
+    second_copy_requested_at, second_copy_skipped_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  row.id, PRINT_BUSINESS, row.orderId, row.tableTabId, row.type, row.trigger, row.status, row.priority,
+  row.parentJobId, row.copiesRequested, row.copiesPrinted, row.stationId, row.snapshot, PRINT_EARLY,
+  PRINT_EARLY, row.processingStartedAt, row.processedAt, row.discardedAt, row.attentionReason,
+  row.actor, row.actionAt, row.errorCode, row.errorMessage, row.promptedAt, row.requestedAt, row.skippedAt)
+}
+
+async function snapshotPrintContext(db) {
+  const queries = [
+    "SELECT * FROM print_jobs WHERE id LIKE 'probe-print-%' ORDER BY id",
+    "SELECT * FROM print_job_attempts WHERE id LIKE 'probe-print-%' ORDER BY id",
+    "SELECT * FROM print_stations WHERE id LIKE 'probe-print-%' ORDER BY id",
+    'SELECT * FROM business_print_topology_settings WHERE business_id = ? ORDER BY business_id',
+    `SELECT type, name, tbl_name, sql FROM sqlite_schema
+      WHERE type IN ('index', 'trigger') AND tbl_name IN ('print_jobs', 'print_job_attempts', 'print_stations')
+        AND sql IS NOT NULL ORDER BY type, name`,
+  ]
+  const results = await db.batch(queries.map((sql, index) => index === 3
+    ? db.prepare(sql).bind(PRINT_BUSINESS) : db.prepare(sql)))
+  return results.map(({ results: resultRows }) => resultRows)
+}
+
+async function seedPrintContextHistory(db) {
+  const statuses = ['pending', 'processing', 'awaiting_confirmation', 'awaiting_second_copy', 'printed', 'failed', 'requires_attention', 'discarded']
+  const statements = []
+  statuses.forEach((status, index) => statements.push(printStatement(db, `INSERT INTO orders (
+    id, business_id, client_name_snapshot, type, order_date, status, subtotal_cents,
+    total_cents, delivery_fee_cents, created_at
+  ) VALUES (?, ?, ?, 'Entrega', '2026-01-01', 'Finalizado', ?, ?, 0, ?)`,
+  `probe-print-order-${status}`, PRINT_BUSINESS, `Cliente ${status}`, 1000 + index, 1000 + index, PRINT_EARLY)))
+  statements.push(printStatement(db, `INSERT INTO table_tabs (
+    id, business_id, table_identifier, status, opened_at, closed_at, created_at, updated_at, tab_number
+  ) VALUES (?, ?, ?, 'closed', ?, ?, ?, ?, 17)`,
+  'probe-print-tab-17', PRINT_BUSINESS, 'Mesa 17', PRINT_EARLY, PRINT_LATE, PRINT_EARLY, PRINT_LATE))
+  statements.push(printStatement(db, `INSERT INTO print_stations (
+    id, business_id, name, platform, is_primary, auto_print_enabled, default_copies,
+    last_seen_at, created_at, updated_at, qz_ready, printer_ready, last_ready_at,
+    physical_state, physical_status_text, physical_status_code, physical_status_at,
+    last_offline_at, recovery_state, config_revision
+  ) VALUES (?, ?, ?, 'windows', 1, 1, 2, ?, ?, ?, 1, 1, ?, 'ready', 'Ready', 200, ?, ?, 'active', 4)`,
+  'probe-print-station-primary', PRINT_BUSINESS, 'Caixa sintético', PRINT_LATE, PRINT_EARLY,
+  PRINT_LATE, PRINT_LATE, PRINT_LATE, PRINT_EARLY))
+  statements.push(printStatement(db, `INSERT INTO print_stations (
+    id, business_id, name, platform, is_primary, auto_print_enabled, default_copies,
+    created_at, updated_at, qz_ready, printer_ready, physical_state, recovery_state, config_revision
+  ) VALUES (?, ?, ?, 'windows', 0, 0, 1, ?, ?, 0, 0, 'printer_offline', 'deferred', 2)`,
+  'probe-print-station-secondary', PRINT_BUSINESS, 'Cozinha sintética', PRINT_EARLY, PRINT_LATE))
+  statements.push(printStatement(db, `UPDATE business_print_topology_settings
+    SET primary_station_id = ?, revision = 3 WHERE business_id = ?`, 'probe-print-station-primary', PRINT_BUSINESS))
+  statuses.forEach((status, index) => statements.push(insertPrintJob(db, printJob(status, index))))
+  statements.push(insertPrintJob(db, printJob('printed', 8), {
+    id: 'probe-print-job-table-tab', orderId: null, tableTabId: 'probe-print-tab-17',
+    type: 'table-tab', trigger: 'manual', copiesRequested: 1, copiesPrinted: 1,
+    snapshot: JSON.stringify({ type: 'table-tab', tableTab: { id: 'probe-print-tab-17', number: 17 } }),
+  }))
+  statements.push(insertPrintJob(db, printJob('printed', 9), {
+    id: 'probe-print-job-test', orderId: null, tableTabId: null, type: 'test', trigger: 'manual',
+    copiesRequested: 1, copiesPrinted: 1, snapshot: JSON.stringify({ type: 'test' }),
+  }))
+  const attemptStatuses = ['prepared', 'submitting', 'spooling', 'printing', 'complete', 'failed', 'unknown']
+  attemptStatuses.forEach((status, index) => statements.push(printStatement(db, `INSERT INTO print_job_attempts (
+    id, business_id, job_id, copy_number, attempt_number, station_id, spool_job_name,
+    spool_job_id, status, submission_started_at, submitted_at, last_event_at, completed_at,
+    resolution, resolution_actor_label, resolved_at, last_error_code, last_error_message,
+    created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  `probe-print-attempt-${status}`, PRINT_BUSINESS, printJob(statuses[index], index).id,
+  index === 4 ? 2 : 1, index + 1, index === 6 ? 'probe-print-station-secondary' : 'probe-print-station-primary',
+  `probe-spool-${status}`, 700 + index, status, index > 0 ? PRINT_EARLY : null,
+  index > 1 ? PRINT_EARLY : null, index > 2 ? PRINT_LATE : null, status === 'complete' ? PRINT_LATE : null,
+  status === 'unknown' ? 'manual_not_printed' : null, status === 'unknown' ? 'Operador sintético' : null,
+  status === 'unknown' ? PRINT_LATE : null, status === 'failed' ? 'SPOOL_FAILED' : null,
+  status === 'failed' ? 'Synthetic spool failure' : null, PRINT_EARLY, PRINT_LATE)))
+  statements.push(printStatement(db, 'UPDATE print_stations SET recovery_job_id = ? WHERE id = ?',
+    'probe-print-job-awaiting_second_copy', 'probe-print-station-primary'))
+  await db.batch(statements)
+}
+
+async function rejectsPrintJob(db, overrides) {
+  try { await insertPrintJob(db, printJob('pending', 20), { id: `probe-print-invalid-${crypto.randomUUID()}`, ...overrides }).run() }
+  catch { return }
+  throw new Error(`Invalid print job was accepted: ${JSON.stringify(overrides)}`)
+}
+
+async function insertTwoCopyTableTab(db, id) {
+  return insertPrintJob(db, printJob('pending', 21), {
+    id, orderId: null, tableTabId: 'probe-print-tab-17', type: 'table-tab', trigger: 'manual',
+    copiesRequested: 2, copiesPrinted: 0,
+    snapshot: JSON.stringify({ type: 'table-tab', tableTab: { id: 'probe-print-tab-17', number: 17 }, copies: 2 }),
+  }).run()
+}
+
+async function verifyPrintContextConstraints(db, id) {
+  await insertTwoCopyTableTab(db, id)
+  equal(await db.prepare('SELECT copies_requested FROM print_jobs WHERE id = ?').bind(id).first('copies_requested'), 2, 'two-copy table-tab')
+  await rejectsPrintJob(db, { orderId: null, type: 'order' })
+  await rejectsPrintJob(db, { tableTabId: 'probe-print-tab-17', type: 'order' })
+  await rejectsPrintJob(db, { orderId: null, tableTabId: null, type: 'table-tab', trigger: 'manual' })
+  await rejectsPrintJob(db, { orderId: null, tableTabId: 'probe-print-tab-17', type: 'table-tab', trigger: 'automatic' })
+  await rejectsPrintJob(db, { orderId: 'probe-print-order-pending', tableTabId: 'probe-print-tab-17', type: 'table-tab', trigger: 'manual' })
+  await rejectsPrintJob(db, { orderId: 'probe-print-order-pending', tableTabId: null, type: 'test' })
+  await rejectsPrintJob(db, { orderId: null, tableTabId: 'probe-print-tab-17', type: 'test' })
+  await rejectsPrintJob(db, { copiesRequested: 0 })
+  await rejectsPrintJob(db, { copiesRequested: 3 })
+  equal((await db.prepare('PRAGMA foreign_key_check').all()).results, [], 'print foreign keys')
+}
+
+async function runLegacyPrintContextSeed(db) {
+  await seedPrintContextHistory(db)
+  try { await insertTwoCopyTableTab(db, 'probe-print-legacy-two-copy') }
+  catch {
+    return { ok: true, legacyRejectsTwoCopies: true, snapshot: await snapshotPrintContext(db) }
+  }
+  throw new Error('Pre-0025 schema accepted a two-copy table-tab job')
+}
+
+async function runUpgradedPrintContextProbe(db) {
+  const preservedSnapshot = await snapshotPrintContext(db)
+  await verifyPrintContextConstraints(db, 'probe-print-upgraded-two-copy')
+  return { ok: true, runtime: 'D1 local Worker', preservedSnapshot, constraints: true }
+}
+
+async function runCleanPrintContextProbe(db) {
+  await seedPrintContextHistory(db)
+  await verifyPrintContextConstraints(db, 'probe-print-clean-two-copy')
+  return { ok: true, runtime: 'D1 local Worker', cleanInstall: true }
+}
 
 async function snapshot(db, businessId) {
   const queries = [
@@ -145,8 +311,15 @@ export default {
     const url = new URL(request.url)
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) return new Response('Local only', { status: 403 })
     if (url.pathname === '/health' && request.method === 'GET') return Response.json({ probe: env.PROBE_RUN_ID })
-    if (url.pathname !== '/probe' || request.method !== 'POST') return new Response('Not found', { status: 404 })
-    try { return Response.json(await runSettingsProbe(env.DB)) }
+    if (request.method !== 'POST') return new Response('Not found', { status: 404 })
+    const probes = {
+      '/probe': runSettingsProbe,
+      '/print-context/seed-legacy': runLegacyPrintContextSeed,
+      '/print-context/verify-upgrade': runUpgradedPrintContextProbe,
+      '/print-context/verify-clean': runCleanPrintContextProbe,
+    }
+    if (!probes[url.pathname]) return new Response('Not found', { status: 404 })
+    try { return Response.json(await probes[url.pathname](env.DB)) }
     catch (error) { return Response.json({ ok: false, error: error.message, stack: error.stack }, { status: 500 }) }
   },
 }

@@ -15,6 +15,9 @@ const rows = (sqlite, sql, ...values) => sqlite.prepare(sql).all(...values).map(
 const one = (sqlite, sql, ...values) => rows(sqlite, sql, ...values)[0]
 const names = (sqlite) => rows(sqlite, "SELECT name FROM sqlite_master WHERE type = 'table'").map(({ name }) => name)
 const normalized = (label) => label.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('pt-BR')
+const normalizedSchema = (schemaRows) => schemaRows.map(({ type, name, tbl_name, sql }) => ({
+  type, name, tbl_name, sql: sql?.replaceAll('"', '').replace(/\s+/g, ' ').trim() ?? null,
+}))
 const settingsTables = ['business_operation_settings', 'business_order_modalities', 'business_payment_settings',
   'business_payment_methods', 'business_cancellation_settings', 'business_cancel_reasons',
   'business_finance_category_settings', 'business_finance_categories', 'business_print_topology_settings',
@@ -131,7 +134,11 @@ test('upgrade seeds each business and retains overrides, earliest usage and ever
     const columns = Object.keys(historical[table][0]).join(',')
     assert.deepEqual(rows(sqlite, `SELECT ${columns} FROM ${table} ${table === 'business_print_settings' ? "WHERE business_id = 'amor-e-sabor'" : ''} ORDER BY rowid`), historical[table], table)
   }
-  assert.deepEqual(rows(sqlite, "SELECT * FROM sqlite_master WHERE tbl_name IN ('print_jobs', 'print_job_attempts') ORDER BY name"), jobSchema)
+  const schemaAfter = rows(sqlite, "SELECT * FROM sqlite_master WHERE tbl_name IN ('print_jobs', 'print_job_attempts') ORDER BY name")
+  assert.deepEqual(normalizedSchema(schemaAfter.filter(({ name }) => name !== 'print_jobs')),
+    normalizedSchema(jobSchema.filter(({ name }) => name !== 'print_jobs')))
+  assert.match(schemaAfter.find(({ name }) => name === 'print_jobs').sql,
+    /type = 'table-tab'.*copies_requested IN \(1, 2\)/s)
   assert.ok(rows(sqlite, 'SELECT timing_policy_snapshot_json FROM orders').every((row) => row.timing_policy_snapshot_json === null))
   assert.ok(rows(sqlite, 'SELECT config_revision FROM print_stations').every((row) => row.config_revision === 1))
   for (const business of [BUSINESS, 'second', 'third']) {
