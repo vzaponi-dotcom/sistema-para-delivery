@@ -52,6 +52,7 @@ test('table tab print helper queues one consolidated comanda through an encoded 
 
   assert.equal(calls[0][0], '/api/table-tabs/tab%20%2F%20one/print-jobs')
   assert.equal(calls[0][1].method, 'POST')
+  assert.equal(calls[0][1].body, '{}')
   assert.equal(calls[0][1].credentials, 'same-origin')
   assert.deepEqual(JSON.parse(calls[0][1].body), {})
 })

@@ -38,8 +38,32 @@ class D1Sqlite {
       INSERT INTO table_tab_counters VALUES ('amor-e-sabor', 1, '${timestamp}');
       INSERT INTO products VALUES ('product-1', 'amor-e-sabor', 'Lanches', 'Un', 'unit', '', '', 'X-Burger', 2500, 1, '${timestamp}', '${timestamp}');
     `)
+    this.sqlite.exec(`
+      ALTER TABLE orders ADD COLUMN timing_policy_snapshot_json TEXT;
+      CREATE TABLE business_operation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL,
+        scheduled_prep_lead_minutes INTEGER NOT NULL, scheduled_late_grace_minutes INTEGER NOT NULL,
+        immediate_late_after_minutes INTEGER NOT NULL, immediate_very_late_after_minutes INTEGER NOT NULL,
+        default_modality TEXT NOT NULL, default_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE TABLE business_order_modalities (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
+      CREATE TABLE business_payment_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+      CREATE TABLE business_payment_methods (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
+      CREATE TABLE business_cancellation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+      CREATE TABLE business_cancel_reasons (business_id TEXT NOT NULL, id TEXT NOT NULL, active INTEGER NOT NULL, requires_note INTEGER NOT NULL, first_used_at TEXT);
+      CREATE TABLE settings_mutation_receipts (business_id TEXT, resource_key TEXT, mutation_id TEXT, payload_hash TEXT, committed_revision INTEGER, committed_at TEXT, resource_created_at TEXT, resource_updated_at TEXT);
+      CREATE TABLE settings_tx_assertions (tx_id TEXT, check_key TEXT, valid INTEGER);
+      CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
+      CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
+      INSERT INTO business_operation_settings VALUES ('amor-e-sabor', 1, 50, 15, 30, 40, 'Entrega', 1, '${timestamp}', '${timestamp}');
+      INSERT INTO business_order_modalities VALUES ('amor-e-sabor', 'Entrega', 1), ('amor-e-sabor', 'Retirada', 1), ('amor-e-sabor', 'Local', 1);
+      INSERT INTO business_payment_settings VALUES ('amor-e-sabor', 1);
+      INSERT INTO business_payment_methods VALUES ('amor-e-sabor', 'pix', 1), ('amor-e-sabor', 'cash', 1), ('amor-e-sabor', 'debit_card', 1), ('amor-e-sabor', 'credit_card', 1), ('amor-e-sabor', 'transfer', 1), ('amor-e-sabor', 'other', 1);
+      INSERT INTO business_cancellation_settings VALUES ('amor-e-sabor', 1);
+      INSERT INTO business_cancel_reasons VALUES ('amor-e-sabor', 'client_changed_mind', 1, 0, NULL);
+    `)
     if (withOrder) this.insertOrder('order-1', 'tab-1', 'seed-order')
     this.sqlite.exec(centralizedPrintingSql())
+    this.sqlite.exec(`ALTER TABLE business_print_settings ADD COLUMN table_tab_default_copies INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE business_print_settings ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;`)
     this.sqlite.exec(orderNumbersSql())
     this.sqlite.exec(lifecycleSql())
   }

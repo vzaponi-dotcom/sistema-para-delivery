@@ -24,7 +24,19 @@ class D1Sqlite {
       CREATE TABLE movements (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL, value_cents INTEGER NOT NULL, source TEXT NOT NULL, order_id TEXT, payment_id TEXT, payment_method TEXT, movement_date TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT, deleted_at TEXT);
       CREATE TABLE print_stations (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL, is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0, default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE print_jobs (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL DEFAULT 0, station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT, last_error_code TEXT, last_error_message TEXT);
+      CREATE TABLE business_operation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+      CREATE TABLE business_order_modalities (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
+      CREATE TABLE business_payment_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+      CREATE TABLE business_payment_methods (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
+      CREATE TABLE settings_mutation_receipts (business_id TEXT, resource_key TEXT, mutation_id TEXT, payload_hash TEXT, committed_revision INTEGER, committed_at TEXT, resource_created_at TEXT, resource_updated_at TEXT);
+      CREATE TABLE settings_tx_assertions (tx_id TEXT, check_key TEXT, valid INTEGER);
+      CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
+      CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
       INSERT INTO businesses VALUES ('amor-e-sabor', 'Amor & Sabor'), ('foreign-business', 'Foreign');
+      INSERT INTO business_operation_settings VALUES ('amor-e-sabor', 1);
+      INSERT INTO business_order_modalities VALUES ('amor-e-sabor', 'Entrega', 1), ('amor-e-sabor', 'Retirada', 1), ('amor-e-sabor', 'Local', 1);
+      INSERT INTO business_payment_settings VALUES ('amor-e-sabor', 1);
+      INSERT INTO business_payment_methods VALUES ('amor-e-sabor', 'pix', 1), ('amor-e-sabor', 'cash', 1), ('amor-e-sabor', 'debit_card', 1), ('amor-e-sabor', 'credit_card', 1), ('amor-e-sabor', 'transfer', 1), ('amor-e-sabor', 'other', 1);
     `)
   }
 
@@ -77,7 +89,10 @@ const seed = (db) => {
 const authenticated = async () => {
   const db = new D1Sqlite()
   seed(db)
+  db.sqlite.exec('ALTER TABLE orders ADD COLUMN timing_policy_snapshot_json TEXT')
   for (const sql of printingMigrationSql()) db.sqlite.exec(sql)
+  db.sqlite.exec(`ALTER TABLE business_print_settings ADD COLUMN table_tab_default_copies INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE business_print_settings ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;`)
   db.sqlite.exec(orderNumbersSql())
   db.sqlite.prepare('INSERT INTO auth_credentials VALUES (?, ?)').run(
     'amor-e-sabor',

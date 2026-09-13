@@ -1,5 +1,6 @@
 import { paymentCode } from '../shared/businessPolicies.js'
 import { prepareSettingsAssertion } from './settingsTransactions.js'
+import { loadPrintingPolicy } from './printSettingsRepository.js'
 
 const policyChanged = () => Object.assign(new Error('As configura\u00e7\u00f5es operacionais foram alteradas. Atualize e tente novamente.'), {
   status: 409, code: 'POLICY_CHANGED',
@@ -25,6 +26,11 @@ export async function readOrderModalityExpectation(db, businessId, modality) {
   return { revision: row.revision, modality }
 }
 
+export async function readPrintingPolicyExpectation(db, businessId) {
+  const policy = await loadPrintingPolicy(db, businessId)
+  return { revision: policy.revision, policy: policy.data }
+}
+
 export function preparePolicyGuards(db, businessId, expectations, txId) {
   const predicates = []
   const bindings = []
@@ -39,6 +45,10 @@ export function preparePolicyGuards(db, businessId, expectations, txId) {
       JOIN business_order_modalities m ON m.business_id = h.business_id
       WHERE h.business_id = ? AND h.revision = ? AND m.code = ? AND m.active = 1)`)
     bindings.push(businessId, expectations.operations.revision, expectations.operations.modality)
+  }
+  if (expectations?.printing) {
+    predicates.push(`coalesce((SELECT revision FROM business_print_settings WHERE business_id = ?), 0) = ?`)
+    bindings.push(businessId, expectations.printing.revision)
   }
   return predicates.length
     ? [prepareSettingsAssertion(db, txId, 'policy', predicates.map((predicate) => `(${predicate})`).join(' AND '), bindings)]

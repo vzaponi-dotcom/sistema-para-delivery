@@ -131,15 +131,11 @@ test('reprint API creates a linked pending manual job from the current official 
   const env = await makeEnv()
   const cookie = await loginCookie(env)
 
-  await requestJson(env, cookie, '/api/printing/stations/kitchen', 'PUT', {
-    name: 'Cozinha', platform: 'windows', autoPrintEnabled: false, defaultCopies: 1,
-  })
-  await requestJson(env, cookie, '/api/printing/stations/kitchen/make-primary', 'POST')
   const created = await requestJson(env, cookie, '/api/orders/o1/print-jobs', 'POST', { copies: 1 })
   assert.equal(created.status, 201)
   const original = (await created.json()).job
-  await requestJson(env, cookie, `/api/printing/jobs/${original.id}/claim`, 'POST', { stationId: 'kitchen' })
-  await requestJson(env, cookie, `/api/printing/jobs/${original.id}/complete`, 'POST', { stationId: 'kitchen', copiesPrinted: 1 })
+  env.DB.sqlite.prepare("UPDATE print_jobs SET status = 'printed', copies_printed = 1, processed_at = ? WHERE id = ?")
+    .run('2026-09-08T19:01:00.000Z', original.id)
   const countBefore = env.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
 
   env.DB.sqlite.prepare(`UPDATE orders SET client_name_snapshot = ?, client_address_snapshot = ?

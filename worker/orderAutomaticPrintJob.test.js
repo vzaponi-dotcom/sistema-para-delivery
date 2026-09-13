@@ -24,7 +24,8 @@ class D1Sqlite {
         adjustment_type TEXT NOT NULL, adjustment_mode TEXT NOT NULL, adjustment_value INTEGER NOT NULL,
         adjustment_amount_cents INTEGER NOT NULL, adjustment_reason TEXT NOT NULL,
         total_cents INTEGER NOT NULL, created_at TEXT NOT NULL, finished_at TEXT,
-        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, scheduled_for TEXT, promised_payment_date TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, idempotency_key TEXT NOT NULL
+        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, scheduled_for TEXT, promised_payment_date TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, idempotency_key TEXT NOT NULL,
+        timing_policy_snapshot_json TEXT
       );
       CREATE UNIQUE INDEX orders_idempotency_idx ON orders (business_id, idempotency_key);
       CREATE TABLE order_sequences (
@@ -67,8 +68,17 @@ class D1Sqlite {
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
       CREATE TABLE business_print_settings (
         business_id TEXT PRIMARY KEY, default_copies INTEGER NOT NULL,
+        table_tab_default_copies INTEGER NOT NULL DEFAULT 1, revision INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
+      CREATE TABLE business_operation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+      CREATE TABLE business_order_modalities (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
+      CREATE TABLE business_payment_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+      CREATE TABLE business_payment_methods (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
+      CREATE TABLE settings_mutation_receipts (business_id TEXT, resource_key TEXT, mutation_id TEXT, payload_hash TEXT, committed_revision INTEGER, committed_at TEXT, resource_created_at TEXT, resource_updated_at TEXT);
+      CREATE TABLE settings_tx_assertions (tx_id TEXT, check_key TEXT, valid INTEGER);
+      CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
+      CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL,
         trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL,
@@ -108,6 +118,10 @@ const seed = ({ auto = true, primary = true, centralCopies = 2 } = {}) => {
   const db = new D1Sqlite()
   db.exec(`
     INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');
+    INSERT INTO business_operation_settings VALUES ('amor-e-sabor', 1);
+    INSERT INTO business_order_modalities VALUES ('amor-e-sabor', 'Entrega', 1), ('amor-e-sabor', 'Retirada', 1), ('amor-e-sabor', 'Local', 1);
+    INSERT INTO business_payment_settings VALUES ('amor-e-sabor', 1);
+    INSERT INTO business_payment_methods VALUES ('amor-e-sabor', 'pix', 1), ('amor-e-sabor', 'cash', 1), ('amor-e-sabor', 'debit_card', 1), ('amor-e-sabor', 'credit_card', 1), ('amor-e-sabor', 'transfer', 1), ('amor-e-sabor', 'other', 1);
     INSERT INTO clients (id, business_id, name, phone, address)
       VALUES ('c1', 'amor-e-sabor', 'Maria', '11998765432', 'Rua das Flores, 123');
     INSERT INTO products (
@@ -119,8 +133,8 @@ const seed = ({ auto = true, primary = true, centralCopies = 2 } = {}) => {
       id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at
     ) VALUES ('station-a', 'amor-e-sabor', 'Tablet da cozinha', 'android', ${primary ? 1 : 0}, ${auto ? 1 : 0}, 2,
       '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
-    INSERT INTO business_print_settings (business_id, default_copies, created_at, updated_at)
-      VALUES ('amor-e-sabor', ${centralCopies}, '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
+    INSERT INTO business_print_settings (business_id, default_copies, table_tab_default_copies, revision, created_at, updated_at)
+      VALUES ('amor-e-sabor', ${centralCopies}, 1, 1, '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
     INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at)
       VALUES ('table-1', 'amor-e-sabor', 'Mesa 1', 'MESA 1', 1, 1,
         '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');

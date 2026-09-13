@@ -159,6 +159,7 @@ test('primary QZ station consumes a queued consolidated comanda without automati
   const job = await createManualTableTabPrintJob(db, businessId, {
     id: 'table-tab-job',
     tableTabId: 'tab-42',
+    copies: 1,
     document: { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } },
   }, now)
 

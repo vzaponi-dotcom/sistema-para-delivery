@@ -48,10 +48,11 @@ const requiredText = (value, field, message = `${field} é obrigatório.`) => {
 }
 
 const printCopies = (value, field = 'copies') => {
-  const copies = Number(value)
-  if (copies !== 1 && copies !== 2) throw apiError(400, 'INVALID_PRINT_COPIES', `${field} deve ser 1 ou 2.`)
-  return copies
+  if (!Number.isInteger(value) || ![1, 2].includes(value)) throw apiError(400, 'INVALID_PRINT_COPIES', `${field} deve ser 1 ou 2.`)
+  return value
 }
+
+const optionalPrintCopies = (value) => value === undefined ? undefined : printCopies(value)
 
 const stationPlatform = (value) => {
   if (!['windows', 'android', 'other'].includes(value)) {
@@ -217,7 +218,7 @@ export const handlePrintingApi = async (request, env, context, url) => {
     if (!document) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
     const job = await createManualOrderPrintJob(env.DB, businessId, {
       orderId,
-      copies: printCopies(body.copies),
+      copies: optionalPrintCopies(body.copies),
       document,
     })
     return json({ job }, { status: 201 })

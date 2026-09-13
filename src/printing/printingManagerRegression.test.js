@@ -155,7 +155,7 @@ test('consolidated table-tab printing creates a centralized manual queue job', (
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
-  assert.match(block, /createManualTableTabPrintJob\(tableTabId\)/)
+  assert.match(block, /createManualTableTabPrintJob\(tableTabId, copies\)/)
   assert.doesNotMatch(block, /getTableTabPreviewDocument|runManualPrintDocument/)
 })
 

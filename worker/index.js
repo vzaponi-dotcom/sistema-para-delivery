@@ -198,11 +198,13 @@ const authenticatedApi = async (request, env) => {
   const tableTabPrintJobMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/print-jobs$/)
   if (tableTabPrintJobMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
+    const body = await readJson(request)
     const tableTabId = decodeURIComponent(tableTabPrintJobMatch[1])
     const detail = await loadOpenTableTabDetail(env.DB, session.businessId, tableTabId)
     if (!detail) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta não encontrada.')
     const job = await createManualTableTabPrintJob(env.DB, session.businessId, {
       tableTabId,
+      copies: body.copies,
       document: createTableTabPrintDocument(detail),
     })
     return json({ job }, { status: 201 })

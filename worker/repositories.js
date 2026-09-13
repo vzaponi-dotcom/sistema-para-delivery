@@ -1,6 +1,7 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
+import { resolvePrintCopies } from '../shared/printContextPolicy.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
@@ -9,7 +10,7 @@ import { prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { listTables, requireExpectedOpenTableTab, reserveNextTableTabNumber } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
-import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
+import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectation, readPrintingPolicyExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 import { loadOperations } from './operationSettingsRepository.js'
 import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
 
@@ -387,6 +388,14 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const createdAt = historical ? backdatedOperationalTimestamp(input.orderDate) : now.toISOString()
   const finishedAt = historical ? createdAt : null
   const status = historical ? 'Finalizado' : 'Em preparo'
+  let automaticCopies = null
+  if (status === 'Em preparo') {
+    policyExpectations.printing = await readPrintingPolicyExpectation(db, businessId)
+    automaticCopies = resolvePrintCopies({
+      jobType: 'order', customerIdentityType: customerIdentity.type, tableTabId,
+      policy: policyExpectations.printing.policy,
+    })
+  }
   const deliveryFeeCents = Number(input.deliveryFeeCents) || 0
   const adjustment = input.adjustment || { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
@@ -477,13 +486,6 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   }
 
   if (status === 'Em preparo') {
-    const printSettings = await db.prepare(`SELECT default_copies
-      FROM business_print_settings
-      WHERE business_id = ?
-      LIMIT 1`).bind(businessId).first()
-    const automaticCopies = customerIdentity.type === 'table' || tableTabId
-      ? 1
-      : Number(printSettings?.default_copies) || 2
     const business = await db.prepare('SELECT name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
     const printDocument = createOrderPrintDocument({
       businessName: business?.name || 'Amor & Sabor',

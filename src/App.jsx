@@ -41,7 +41,7 @@ import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { useKitchenClock } from './hooks/useKitchenClock.js'
-import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
+import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
@@ -89,9 +89,6 @@ const GLOBAL_SYNC_INTERVAL_MS = 5_000
 const ORDER_SYNC_INTERVAL_MS = 2_000
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-printing', 'settings-device'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-const isAwaitingSecondCopyJob = (job) => job?.status === 'awaiting_second_copy' && Number(job?.copiesRequested) === 2 && Number(job?.copiesPrinted) === 1
-const isSecondCopyPromptEligible = (job, order) => isAwaitingSecondCopyJob(job) && isOrderActive(order)
-
 // Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
 const readKitchenSoundPreference = () => {
@@ -252,7 +249,7 @@ function App({ capabilities } = {}) {
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' })
   const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
-  const secondCopyPromptOrderNumber = secondCopyPromptOrder ? formatOrderDisplayNumber(secondCopyPromptOrder) : 'Pedido'
+  const secondCopyPromptOrderNumber = getSecondCopyPromptTitle(secondCopyPromptJob, secondCopyPromptOrder)
   const originSecondCopyPromptJob = printJobs.find((job) => job.id === originSecondCopyPromptJobId) ?? null
   const originSecondCopyPromptOrder = orders.find((order) => order.id === originSecondCopyPromptJob?.orderId) ?? null
   const originSecondCopyPromptOrderNumber = originSecondCopyPromptOrder ? formatOrderDisplayNumber(originSecondCopyPromptOrder) : 'Pedido'

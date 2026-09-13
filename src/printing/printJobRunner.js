@@ -19,7 +19,7 @@ export const runClaimedPrintJob = async ({
     }
 
     const copyNumber = copiesPrinted + 1
-    const renderOptions = job?.document?.type === 'order'
+    const renderOptions = ['order', 'table-tab'].includes(job?.document?.type)
       ? { copies: 1, copyNumber, totalCopies }
       : { copies: 1 }
     if (qzAttempt) {

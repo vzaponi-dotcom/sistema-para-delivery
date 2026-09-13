@@ -709,7 +709,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     },
   }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
-  const printOrder = useCallback(async (orderId, copies = localStationRef.current?.defaultCopies || 2) => {
+  const printOrder = useCallback(async (orderId, copies) => {
     const created = await createManualPrintJob(orderId, copies)
     try { await refresh() } catch (error) { reportError(error) }
     return created
@@ -920,7 +920,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response.document
   }, [])
 
-  const printTableTab = useCallback((tableTabId) => createManualTableTabPrintJob(tableTabId), [])
+  const printTableTab = useCallback((tableTabId, copies) => createManualTableTabPrintJob(tableTabId, copies), [])
 
   useEffect(() => {
     if (!authenticated) {

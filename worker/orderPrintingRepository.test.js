@@ -499,6 +499,7 @@ test('manual table-tab printing stores one immutable consolidated snapshot', asy
   const job = await printingRepository.createManualTableTabPrintJob(db, businessA, {
     id: 'manual-tab',
     tableTabId: 'tab-42',
+    copies: 1,
     document: tableTabDocument,
   }, baseNow)
 
