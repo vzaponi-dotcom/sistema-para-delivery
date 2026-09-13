@@ -1,9 +1,60 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { executeQzPrintAttempt } from './qzPrintAttemptController.js'
+import { renderEscPos58mm } from './escpos58mm.js'
 
 const job = { id: 'job-1', document: { type: 'order' }, copiesRequested: 2, copiesPrinted: 0 }
 const attempt = { id: 'attempt-1', spoolJobName: 'GESTAO-DELIVERY:job-1:COPY:1:ATTEMPT:1' }
+
+const tableTabDocument = {
+  version: 1,
+  type: 'table-tab',
+  business: { name: 'Restaurante A' },
+  tableTab: { id: 'tab-17', number: 17, tableName: 'Mesa 7' },
+  items: [],
+  financial: { totalCents: 0 },
+}
+
+for (const scenario of [
+  { name: '1/1', copiesRequested: 1, copiesPrinted: 0, expectedCopy: 1 },
+  { name: '1/2', copiesRequested: 2, copiesPrinted: 0, expectedCopy: 1 },
+  { name: '2/2', copiesRequested: 2, copiesPrinted: 1, expectedCopy: 2 },
+]) {
+  test(`QZ renders comanda ${scenario.name} once and records the matching attempt`, async () => {
+    const calls = []
+    const tableTabJob = {
+      id: 'job-tab',
+      document: tableTabDocument,
+      copiesRequested: scenario.copiesRequested,
+      copiesPrinted: scenario.copiesPrinted,
+    }
+    const tableTabAttempt = {
+      id: `attempt-${scenario.expectedCopy}`,
+      spoolJobName: `GESTAO-DELIVERY:job-tab:COPY:${scenario.expectedCopy}:ATTEMPT:1`,
+    }
+
+    const result = await executeQzPrintAttempt({
+      job: tableTabJob,
+      stationId: 'station-1',
+      renderer: renderEscPos58mm,
+      createAttempt: async (jobId, stationId, copyNumber) => {
+        calls.push(['attempt', jobId, stationId, copyNumber])
+        return tableTabAttempt
+      },
+      markSubmitting: async () => tableTabAttempt,
+      awaitOutcome: async () => ({ statusText: 'COMPLETE', jobName: tableTabAttempt.spoolJobName }),
+      sendBytes: async (bytes) => calls.push(['transport', bytes.length > 0]),
+      recordEvent: async () => ({ ...tableTabAttempt, status: 'complete' }),
+      markUnknown: async () => assert.fail('confirmed comanda must not become unknown'),
+    })
+
+    assert.equal(result.status, 'confirmed')
+    assert.deepEqual(calls, [
+      ['attempt', 'job-tab', 'station-1', scenario.expectedCopy],
+      ['transport', true],
+    ])
+  })
+}
 
 test('QZ attempt persists submission risk before sending and confirms only from a persisted COMPLETE event', async () => {
   const calls = []

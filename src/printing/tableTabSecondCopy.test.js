@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { getSecondCopyPromptTitle, isSecondCopyPromptEligible } from './secondCopyPromptFlow.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
+import { renderEscPos58mm } from './escpos58mm.js'
 
 const tabDocument = { version: 1, type: 'table-tab', tableTab: { id: 'tab-17', number: 17, tableName: 'Mesa 7' }, items: [] }
 const awaitingTab = {
@@ -16,22 +17,27 @@ test('the executor prompt recognizes a comanda without inventing an order', () =
   assert.equal(isSecondCopyPromptEligible({ ...awaitingTab, status: 'printed' }, null), false)
 })
 
-test('the second physical pass renders and completes the same comanda job as copy two', async () => {
-  const events = []
-  const result = await runClaimedPrintJob({
-    job: awaitingTab,
-    stationId: 'kitchen',
-    port: 'COM1',
-    renderer(document, options) { events.push(['render', document, options]); return new Uint8Array([1]) },
-    transport: async (port) => events.push(['transport', port]),
-    completeJob: async (...args) => events.push(['complete', ...args]),
-    failJob: async (...args) => events.push(['fail', ...args]),
-  })
+for (const scenario of [
+  { name: '1/1', copiesRequested: 1, copiesPrinted: 0, expectedCopy: 1 },
+  { name: '1/2', copiesRequested: 2, copiesPrinted: 0, expectedCopy: 1 },
+  { name: '2/2', copiesRequested: 2, copiesPrinted: 1, expectedCopy: 2 },
+]) {
+  test(`the alternate runner renders comanda ${scenario.name} once through the real renderer`, async () => {
+    const events = []
+    const result = await runClaimedPrintJob({
+      job: { ...awaitingTab, copiesRequested: scenario.copiesRequested, copiesPrinted: scenario.copiesPrinted },
+      stationId: 'kitchen',
+      port: 'COM1',
+      renderer: renderEscPos58mm,
+      transport: async (port, bytes) => events.push(['transport', port, bytes.length > 0]),
+      completeJob: async (...args) => events.push(['complete', ...args]),
+      failJob: async (...args) => events.push(['fail', ...args]),
+    })
 
-  assert.equal(result.status, 'printed')
-  assert.deepEqual(events, [
-    ['render', tabDocument, { copies: 1, copyNumber: 2, totalCopies: 2 }],
-    ['transport', 'COM1'],
-    ['complete', 'job-tab', 'kitchen', 2],
-  ])
-})
+    assert.equal(result.status, 'printed')
+    assert.deepEqual(events, [
+      ['transport', 'COM1', true],
+      ['complete', 'job-tab', 'kitchen', scenario.expectedCopy],
+    ])
+  })
+}
