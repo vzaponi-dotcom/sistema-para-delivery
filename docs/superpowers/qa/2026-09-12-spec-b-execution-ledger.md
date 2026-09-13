@@ -580,3 +580,18 @@ The legacy `worker/tableTabLifecycle.test.js` was not included in the final affe
 Workflow triggers were rechecked: staging deployment watches only `feature/centralized-qz-print-queue`; production deployment is manual; validation push watches `master`; TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
 
 `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release. T10 neither resumes nor resolves that investigation. T11 is **not authorized and not started**.
+
+## T10 follow-up — deferred refund snapshot validation
+
+Starting from clean, synchronized `02e6571e9e95b9770716e09d8b6e35a42289b430`, the review follow-up confirmed one narrowly scoped post-commit validation gap in `registerOrderRefund`. The function read the raw order context, committed the refund batch and only then called `mapContext`, where T10 snapshot validation could reject the response. Functional fix commit: `cf64ad12a21ab7d1aec2fbe79cfa700fe4562ee2` (`fix: validate timing snapshot before deferred refund`).
+
+- Real-SQLite behavioral RED: `node --test worker/orderTimingSnapshot.test.js` exited 1 at 14/16 passed. Both malformed JSON and a valid JSON object with an invalid timing shape returned `ORDER_TIMING_SNAPSHOT_INVALID`, but the post-rejection query found one persisted `order-refund` movement (`1 !== 0`). The test also captures the order and payment rows so response rejection alone cannot satisfy it.
+- Minimal correction: `registerOrderRefund` reuses `parseOrderTimingPolicySnapshot(existing.timing_policy_snapshot_json)` after the existing eligibility and duplicate-refund checks and before payment-policy lookup, guard preparation or refund INSERT. `mapContext` validation remains in place; invalid snapshots receive no defaults or backfill.
+- Focused GREEN: the same file passed 16/16. Both invalid representations now leave zero refund movements, and order, payment and original snapshot bytes remain unchanged. A complete four-field snapshot permits the refund; an absent legacy snapshot also permits it and remains `NULL`.
+- Proportional final selection: `node --test worker/orderTimingSnapshot.test.js worker/orderCancellation.test.js worker/orderCancellationHttp.test.js worker/businessPolicyIntegration.test.js` passed 38/38, with zero failures/skips/cancellations. No complementary consumer was added because the diff changes only the repository function already exercised by the requested domain, HTTP and payment-policy integration paths.
+- Targeted installed Oxlint, `node --check` on both changed JavaScript/test files and `git diff --check` exited 0. Git emitted only the checkout's existing LF-to-CRLF notices.
+- Direct review of the two-file diff confirmed that eligibility, duplicate prevention, active payment-method policy and guards, refund values/history, response contracts and error codes are preserved. The review was direct, not delegated or independent, and found no remaining issue in this follow-up scope.
+
+Origin, branch scope and workflow triggers were reconfirmed before publication. A normal push of `feature/spec-b-settings-policies` does not trigger deployment. Per authorization, the 120-test T10 selection was not repeated, and aggregate `npm test`, build, migrations and the D1 gate were not run. No merge, force-push, deploy, release or remote migration is part of this follow-up.
+
+`TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release. T11 and T12 remain **not authorized and not started**.
