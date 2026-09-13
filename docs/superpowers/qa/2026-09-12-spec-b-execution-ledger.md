@@ -673,3 +673,41 @@ T14 iniciou somente após os commits funcional e documental de T13. Foram criado
 - Commit funcional: `d0d908f8316c3e49b3da56a9b378ae102f489b74` (`feat: coordinate business settings edits safely`).
 
 O `npm test` agregado, migrations, gate D1, impressão física, deploy e migration remota não foram executados. A suíte agregada permanece **não aprovada**, `TEST-INFRA-01` permanece **OPEN / cause unconfirmed** e a homologação física continua pendente. T15 permanece **não autorizada e não iniciada**. Este é o ponto de parada obrigatório após T14.
+
+## Fechamento corretivo F1–F4 após T14
+
+O fechamento iniciou na worktree isolada limpa, em `54a57521f51f6fc90ba964e562e06b0891aebd07`, com `origin/feature/spec-b-settings-policies` confirmado no mesmo SHA. O escopo ficou restrito aos quatro achados do handoff corretivo e a uma regressão de revisão encontrada no fechamento. T13/T14 não foram refeitas e T15 não foi iniciada.
+
+### F1 — reserva síncrona e snapshot imutável da gravação
+
+- RED: os testes demonstraram duas gravações imediatas da mesma chave produzindo dois PUTs e uma edição durante o hash substituindo indevidamente o payload submetido; a rodada terminou 7/10. Um digest injetado também verificou a liberação da reserva em erro de preparação.
+- GREEN: a reserva por chave passa a existir antes do primeiro `await`; revisão esperada e dados são capturados uma única vez para hash, `saveStarted` e PUT. Erro, reset e mudança de contexto liberam a reserva. Reducer e controlador passaram 14/14.
+- Commit: `64f1863fb21745510def01b65329a9cc5eeccd42` (`fix: reserve settings save intent before hashing`).
+
+### F2 — refresh não destrutivo e revisão monotônica
+
+- RED: cinco cenários reproduziram perda/regressão durante refresh após edição, durante saving, com storage bloqueado, após confirmação mais nova e após conflito/resultado desconhecido; a rodada terminou 10/15.
+- GREEN: reads e writes receberam ownership separado; refresh estabelecido deixou de publicar loading/falha destrutivos e `loaded` preserva `base`, `draft`, `submitted` e status quando existe intenção local. Revisões inferiores são ignoradas. A seleção focada passou 23/23.
+- Commit: `316aaacaa0af8820e2d2a004fc2385a94c5c8763` (`fix: preserve settings intent across refreshes`).
+- Revisão adicional: receipt confirmado em revisão 2 ainda podia regredir uma confirmação 3 recebida por refresh. O RED terminou 17/18; a reconciliação agora exige revisão não inferior ao receipt nem ao confirmado corrente, e o GREEN conjunto passou 26/26. Commit: `db03b601d1d2a51c950cbfc1fe75a210cfaa2e1d` (`fix: prevent settings reconciliation revision regression`).
+
+### F3 — contexto de settings estabelecido pelo servidor
+
+- RED: cliente e integração terminaram 5/8 porque o login encerrava no POST e não obtinha `settingsContextId`/capabilities do endpoint real de sessão.
+- GREEN: após o POST de login, o cliente consulta a sessão e valida identidade, contexto e capabilities; `App.jsx` deixou de inventar identidade `legacy:*`. A integração cobre resposta perdida, reload na mesma sessão sem segundo PUT e isolamento após logout/nova sessão. Cliente+integração passaram 8/8, a seleção com Worker 23/23 e navegação 5/5.
+- Commit: `2c0eb29aeb77ebd7044e111f7287dd2bb3811d87` (`fix: establish trusted settings context after login`).
+
+### F4 — expiração em memória e 401 na leitura obrigatória
+
+- RED: a tentativa desconhecida apenas em memória não expirava no limite exato de 24 horas e um 401 durante a leitura corrente pós-expiração não encerrava o contexto; a rodada terminou 15/17.
+- GREEN: a reconciliação calcula TTL para ponteiro persistido e tentativa em memória, no limite exato, sem receipt ou reenvio. O 401 da leitura obrigatória executa o encerramento seguro da sessão. A seleção focada passou 25/25.
+- Commit: `9985fde1e04de51b6196513ffb75e17016e5bffd` (`fix: expire in-memory settings attempts consistently`).
+
+### Verificação proporcional e revisão final
+
+- Seleção final: `node --test --test-concurrency=1 --test-reporter=dot src/app/settingsState.test.js src/app/settingsPendingStorage.test.js src/app/useBusinessSettingsController.test.js src/api/client.test.js src/api/settingsClient.test.js src/app/effectiveBusinessConfig.test.js src/settingsSessionRecovery.test.js src/navigationContext.test.js src/settingsNavigation.test.js worker/index.test.js` passou 73/73 (exit 0).
+- Build final: `npm.cmd run build` passou (376 módulos; exit 0), mantendo apenas o aviso conhecido de chunk acima de 500 kB.
+- Estática: `node --check` passou; Oxlint direcionado saiu 0 com os mesmos sete warnings preexistentes de hooks/set-state em `App.jsx`; `git diff --check 54a57521f51f6fc90ba964e562e06b0891aebd07..HEAD` saiu 0.
+- A revisão direta identificou e fechou a regressão suplementar de F2 acima; depois dela, não encontrou item Critical, Important ou Minor restante no escopo. Não houve revisão independente/subagente nesta sessão.
+
+O conjunto agregado de 121 testes não foi repetido e `npm test` não foi executado. Migrations, gate D1, impressão física, deploy, migration remota, merge e release não foram executados. A suíte agregada permanece **não aprovada**, `TEST-INFRA-01` permanece **OPEN / cause unconfirmed** e a homologação física continua pendente. T15 permanece **não autorizada e não iniciada**.
