@@ -6,8 +6,10 @@ import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
 import { prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
-import { getOrCreateOpenTableTabByTableId, listTables, requireExpectedOpenTableTab } from './tableRepository.js'
+import { listTables, requireExpectedOpenTableTab, reserveNextTableTabNumber } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
+import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
+import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
@@ -309,12 +311,16 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (customerIdentity.type === 'table' && input.paymentMethod) {
     throw repositoryError(400, 'TABLE_ORDER_PAYMENT_NOT_ALLOWED', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
   }
+  const policyExpectations = {}
+  policyExpectations.operations = await readOrderModalityExpectation(db, businessId, input.type)
+  if (input.paymentMethod) policyExpectations.paymentMethods = await readPaymentMethodExpectation(db, businessId, input.paymentMethod)
   let clientId = null
   let clientSnapshot = ''
   let clientPhoneSnapshot = ''
   let clientAddressSnapshot = ''
   let tableTabId = null
   let tableIdentifier = null
+  let pendingTableTab = null
   if (customerIdentity.type === 'registered_client') {
     const client = await db.prepare('SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
     if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
@@ -333,9 +339,28 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       clientPhoneSnapshot = formatClientPhone(client.phone)
       clientAddressSnapshot = client.address || ''
     }
-    const tableTab = input.expectedTableTabId
-      ? await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
-      : await getOrCreateOpenTableTabByTableId(db, businessId, customerIdentity.tableId, now)
+    let tableTab
+    if (input.expectedTableTabId) {
+      tableTab = await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
+    } else {
+      const table = await db.prepare(`SELECT id, name, is_active
+        FROM tables WHERE id = ? AND business_id = ? LIMIT 1`).bind(customerIdentity.tableId, businessId).first()
+      if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa n\u00e3o encontrada.')
+      if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa est\u00e1 inativa.')
+      const openRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
+        FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open' LIMIT 1`).bind(businessId, table.id).first()
+      if (openRow) {
+        tableTab = mapTableTabRow(openRow)
+      } else {
+        const timestamp = now.toISOString()
+        tableTab = {
+          id: crypto.randomUUID(), tableId: table.id, tableIdentifier: table.name,
+          tabNumber: await reserveNextTableTabNumber(db, businessId, now), status: 'open',
+          openedAt: timestamp, closedAt: null,
+        }
+        pendingTableTab = tableTab
+      }
+    }
     if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
     tableTabId = tableTab.id
     tableIdentifier = tableTab.tableIdentifier
@@ -398,7 +423,28 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
 
   const contactSnapshotStatement = db.prepare(`UPDATE orders SET client_phone_snapshot = ?, client_address_snapshot = ?
     WHERE id = ? AND business_id = ?`).bind(clientPhoneSnapshot, clientAddressSnapshot, orderId, businessId)
-  const statements = [orderStatement, contactSnapshotStatement]
+  const policyTxId = crypto.randomUUID()
+  const policyGuards = preparePolicyGuards(db, businessId, policyExpectations, policyTxId)
+  const tableTabGuard = pendingTableTab
+    ? prepareSettingsAssertion(db, policyTxId, 'state', `
+      EXISTS (SELECT 1 FROM tables WHERE id = ? AND business_id = ? AND is_active = 1)
+      AND NOT EXISTS (SELECT 1 FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open')`,
+    [pendingTableTab.tableId, businessId, businessId, pendingTableTab.tableId])
+    : null
+  const tableTabStatement = pendingTableTab
+    ? db.prepare(`INSERT INTO table_tabs (
+      id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 'open', ?, NULL, ?, ?)`).bind(
+      pendingTableTab.id, businessId, pendingTableTab.tableId, pendingTableTab.tableIdentifier,
+      pendingTableTab.tabNumber, pendingTableTab.openedAt, pendingTableTab.openedAt, pendingTableTab.openedAt,
+    )
+    : null
+  const statements = [
+    ...policyGuards,
+    ...(tableTabGuard ? [tableTabGuard, tableTabStatement] : []),
+    orderStatement,
+    contactSnapshotStatement,
+  ]
   for (const item of pricedItems) {
     statements.push(db.prepare(`INSERT INTO order_items (id, business_id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
       crypto.randomUUID(),
@@ -480,6 +526,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     }))
   }
 
+  if (policyGuards.length || tableTabGuard) statements.push(clearSettingsAssertions(db, policyTxId))
+
   try {
     await db.batch(statements)
   } catch (error) {
@@ -487,6 +535,12 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     if (collided?.id) return loadOrderById(db, businessId, collided.id)
     if (/TABLE_TAB_NOT_OPEN/i.test(String(error?.message || ''))) {
       throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
+    }
+    if (pendingTableTab && String(error?.message || '').includes('SETTINGS_INVALID')) {
+      throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
+    }
+    if (String(error?.message || '').includes('POLICY_CHANGED')) {
+      rethrowPolicyChange(error)
     }
     throw error
   }
@@ -524,6 +578,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
   if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
   if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
 
+  const paymentExpectation = await readPaymentMethodExpectation(db, businessId, method)
   const pendingResult = await db.prepare(`SELECT o.id, o.order_number, o.client_name_snapshot, o.total_cents
     FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
     WHERE o.business_id = ? AND o.table_tab_id = ? AND o.status <> 'Cancelado' AND p.id IS NULL
@@ -531,7 +586,8 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
   const pending = rows(pendingResult)
   const paidAt = now.toISOString()
   const movementDate = getBusinessDate(now)
-  const statements = []
+  const policyTxId = crypto.randomUUID()
+  const statements = preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId)
   const movementRows = []
 
   for (const orderRow of pending) {
@@ -562,6 +618,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
       WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId),
   )
+  statements.push(clearSettingsAssertions(db, policyTxId))
   let batchResults
   try {
     batchResults = await db.batch(statements)
@@ -570,6 +627,7 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
     if (/TABLE_TAB_HAS_UNPAID_ORDERS|TABLE_TAB_PAYMENT_INVALID|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {
       throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
     }
+    if (message.includes('POLICY_CHANGED')) rethrowPolicyChange(error)
     throw error
   }
   const closeResult = batchResults?.at?.(-1)
@@ -590,20 +648,25 @@ export const registerOrderPayment = async (db, businessId, orderId, method, now 
   if (orderRow.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode receber pagamento.')
   if (orderRow.payment_id) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
 
+  const paymentExpectation = await readPaymentMethodExpectation(db, businessId, method)
   const paymentId = crypto.randomUUID()
   const movementId = crypto.randomUUID()
   const paidAt = now.toISOString()
   const movementDate = getBusinessDate(now)
   const description = `${formatOrderDisplayNumber(orderRow).replace('Pedido', 'Pagamento pedido')} · ${orderRow.client_name_snapshot}`
 
+  const policyTxId = crypto.randomUUID()
   try {
     await db.batch([
+      ...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId),
       db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, orderRow.total_cents, method, paidAt, paidAt),
       db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderId, paymentId, movementDate, paidAt, method, paidAt),
+      clearSettingsAssertions(db, policyTxId),
     ])
   } catch (error) {
     const existingPayment = await db.prepare('SELECT id FROM payments WHERE order_id = ? AND business_id = ? LIMIT 1').bind(orderId, businessId).first()
     if (existingPayment) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
+    if (String(error?.message || '').includes('POLICY_CHANGED')) rethrowPolicyChange(error)
     throw error
   }
 

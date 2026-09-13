@@ -21,6 +21,7 @@ class CancellationDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
             if (sql.includes('FROM business_cancellation_settings')) {
               const [reason, businessId] = values
               const policy = businessId === db.order.business_id ? db.cancelReasons.get(reason) : null

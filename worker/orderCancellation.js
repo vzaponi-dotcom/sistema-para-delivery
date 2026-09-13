@@ -5,6 +5,7 @@ import { centsToMoney, validatePaymentMethod } from './validation.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { prepareCancellationUse } from './cancellationSettingsRepository.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
+import { preparePolicyGuards, readPaymentMethodExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 
 export const CANCEL_REASONS = ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
 
@@ -168,10 +169,14 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
   let refund = null
   if (existing.payment_id && input.refundNow) {
     const refundMethod = normalizeRefundMethod(input.refundMethod)
+    const paymentExpectation = await readPaymentMethodExpectation(db, businessId, refundMethod)
+    const paymentTxId = crypto.randomUUID()
     if (existing.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
     refund = createRefundStatement(db, businessId, existing, refundMethod, now)
     try {
-      await db.batch([policyGuard, orderGuard, markReasonUsed, update, deletePendingAutomaticPrint, refund.statement, clearSettingsAssertions(db, txId)])
+      await db.batch([...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
+        policyGuard, orderGuard, markReasonUsed, update, deletePendingAutomaticPrint, refund.statement,
+        clearSettingsAssertions(db, txId), clearSettingsAssertions(db, paymentTxId)])
     } catch (error) {
       await classifyCommitFailure(error)
     }
@@ -200,12 +205,16 @@ export const registerOrderRefund = async (db, businessId, orderId, input = {}, n
   }
   if (existing.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
 
+  const paymentExpectation = await readPaymentMethodExpectation(db, businessId, refundMethod)
+  const paymentTxId = crypto.randomUUID()
   const refund = createRefundStatement(db, businessId, existing, refundMethod, now)
   try {
-    await refund.statement.run()
+    await db.batch([...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
+      refund.statement, clearSettingsAssertions(db, paymentTxId)])
   } catch (error) {
     const refreshed = await readContext(db, businessId, orderId)
     if (refreshed?.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')
+    if (String(error?.message || '').includes('POLICY_CHANGED')) rethrowPolicyChange(error)
     throw error
   }
 

@@ -29,6 +29,8 @@ class OrderDb {
         return {
           sql, values,
           async first() {
+            if (sql.includes('FROM business_operation_settings')) return { revision: 1, active: 1 }
+            if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
             if (sql.includes('INSERT INTO order_sequences')) {
               const [businessId] = values
               const next = (db.orderSequences.get(businessId) ?? 0) + 1
@@ -103,7 +105,7 @@ class OrderDb {
 test('createOrder calculates server cents and writes order contact snapshot and item in one batch', async () => {
   const db = new OrderDb()
   const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 2, orderDate: '2026-09-01', idempotencyKey: 'request-1' }, new Date('2026-09-01T20:00:00.000Z'))
-  assert.equal(order.orderNumber, 1); assert.equal(order.total, 64); assert.equal(order.items[0].quantity, 2); assert.equal(order.items[0].catalogPrice, 32); assert.equal(db.batchCalls[0].length, 4); assert.equal([...db.orders.values()][0].total_cents, 6400)
+  assert.equal(order.orderNumber, 1); assert.equal(order.total, 64); assert.equal(order.items[0].quantity, 2); assert.equal(order.items[0].catalogPrice, 32); assert.equal(db.batchCalls[0].length, 6); assert.equal([...db.orders.values()][0].total_cents, 6400)
 })
 
 test('new orders use independent business sequences and never reuse cancelled or finalized numbers', async () => {

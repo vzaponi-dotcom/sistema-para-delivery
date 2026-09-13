@@ -30,6 +30,7 @@ class TableTabPaymentDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
             if (sql.includes('FROM table_tabs')) {
               const [tabId, businessId] = values
               return db.tableTabs.find((tab) => tab.id === tabId && tab.business_id === businessId) ?? null
