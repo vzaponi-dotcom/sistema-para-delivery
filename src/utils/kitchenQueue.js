@@ -21,16 +21,16 @@ const matchesKitchenSearch = (order, normalizedSearch) => !normalizedSearch || [
   order.type,
 ].join(' ').toLocaleLowerCase('pt-BR').includes(normalizedSearch)
 
-export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '') => {
+export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '', currentTiming) => {
   const normalizedSearch = normalizeSearch(search)
   const allActive = orders.filter(isOrderActive).map((order) => {
-    const phase = isScheduledWaiting(order, now) ? 'scheduled' : 'preparing'
-    const timingState = getOrderTimingState(order, now)
+    const phase = isScheduledWaiting(order, now, currentTiming) ? 'scheduled' : 'preparing'
+    const timingState = getOrderTimingState(order, now, currentTiming)
     return {
       order,
       phase,
-      operationalStartAt: getOperationalStartAt(order),
-      lateAt: getOrderLateAt(order),
+      operationalStartAt: getOperationalStartAt(order, currentTiming),
+      lateAt: getOrderLateAt(order, currentTiming),
       timingState,
       isLate: timingState !== 'on-time',
     }

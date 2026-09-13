@@ -29,6 +29,15 @@ class OrderDb {
         return {
           sql, values,
           async first() {
+            if (sql.includes('FROM businesses b LEFT JOIN business_operation_settings')) return {
+              business_id: values[0], revision: 1,
+              created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
+              scheduled_prep_lead_minutes: 50, scheduled_late_grace_minutes: 15,
+              immediate_late_after_minutes: 30, immediate_very_late_after_minutes: 40,
+              default_modality: 'Entrega', default_active: 1,
+              modalities: JSON.stringify([{ code: 'Entrega', active: 1 }, { code: 'Retirada', active: 1 }, { code: 'Local', active: 1 }]),
+              receipt_count: 0, assertion_check: 0, guards: 2,
+            }
             if (sql.includes('FROM business_operation_settings')) return { revision: 1, active: 1 }
             if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
             if (sql.includes('INSERT INTO order_sequences')) {
@@ -88,7 +97,7 @@ class OrderDb {
       const [id, businessId, orderId, productId, name, category, size, quantity, catalogPrice, unitPrice, priceReason, note, createdAt] = values
       this.items.set(id, { id, business_id: businessId, order_id: orderId, product_id: productId, name_snapshot: name, category_snapshot: category, size_snapshot: size, quantity, catalog_price_cents: catalogPrice, unit_price_cents: unitPrice, price_reason: priceReason, note, created_at: createdAt })
     } else if (sql.includes('UPDATE orders SET status')) {
-      const [finishedAt, id, businessId] = values; const row = this.orders.get(id); if (row?.business_id === businessId) Object.assign(row, { status: 'Finalizado', finished_at: row.finished_at || finishedAt })
+      const [finishedAt, timingSnapshot, id, businessId] = values; const row = this.orders.get(id); if (row?.business_id === businessId) Object.assign(row, { status: 'Finalizado', finished_at: row.finished_at || finishedAt, timing_policy_snapshot_json: row.timing_policy_snapshot_json || timingSnapshot })
     } else if (sql.includes('INSERT INTO payments')) {
       const [id, businessId, orderId, amount, method, paidAt, createdAt] = values; if ([...this.payments.values()].some((row) => row.order_id === orderId)) throw new Error('UNIQUE constraint failed'); this.payments.set(id, { id, business_id: businessId, order_id: orderId, amount_cents: amount, method, paid_at: paidAt, created_at: createdAt })
     } else if (sql.includes('INSERT INTO movements')) {

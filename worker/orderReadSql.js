@@ -4,6 +4,7 @@ export const ORDER_SELECT = `SELECT o.id, o.order_number, o.client_id, o.client_
   o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode,
   o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents,
   o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note,
+  o.timing_policy_snapshot_json,
   p.id AS payment_id, p.method AS payment_method, p.paid_at,
   p.amount_cents AS paid_amount_cents,
   r.id AS refund_movement_id, r.created_at AS refund_created_at,

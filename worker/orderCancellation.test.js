@@ -21,6 +21,15 @@ class CancellationDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM businesses b LEFT JOIN business_operation_settings')) return {
+              business_id: db.order.business_id, revision: 1,
+              created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
+              scheduled_prep_lead_minutes: 50, scheduled_late_grace_minutes: 15,
+              immediate_late_after_minutes: 30, immediate_very_late_after_minutes: 40,
+              default_modality: 'Entrega', default_active: 1,
+              modalities: JSON.stringify([{ code: 'Entrega', active: 1 }, { code: 'Retirada', active: 1 }, { code: 'Local', active: 1 }]),
+              receipt_count: 0, assertion_check: 0, guards: 2,
+            }
             if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
             if (sql.includes('FROM business_cancellation_settings')) {
               const [reason, businessId] = values
@@ -55,11 +64,12 @@ class CancellationDb {
               if (policy && policy.first_used_at === null) policy.first_used_at = firstUsedAt
             }
             if (sql.includes("UPDATE orders SET status = 'Cancelado'")) {
-              const [cancelledAt, reason, note] = values
+              const [cancelledAt, reason, note, timingSnapshot] = values
               db.order.status = 'Cancelado'
               db.order.cancelled_at = cancelledAt
               db.order.cancel_reason = reason
               db.order.cancel_reason_note = note || null
+              db.order.timing_policy_snapshot_json ||= timingSnapshot
             }
             if (sql.includes('UPDATE table_tabs SET')) db.tableTabClosed = true
             if (sql.includes('INSERT INTO movements')) {

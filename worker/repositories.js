@@ -10,6 +10,8 @@ import { listTables, requireExpectedOpenTableTab, reserveNextTableTabNumber } fr
 import { centsToMoney } from './validation.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
 import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
+import { loadOperations } from './operationSettingsRepository.js'
+import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
@@ -106,6 +108,7 @@ export const mapOrderRow = (row, items = []) => {
     cancelledAt: row.cancelled_at ?? null,
     cancelReason: row.cancel_reason ?? null,
     cancelReasonNote: row.cancel_reason_note ?? '',
+    timingPolicySnapshot: parseOrderTimingPolicySnapshot(row.timing_policy_snapshot_json),
     paymentStatus: paid ? 'Pago' : 'Pendente',
     paymentId: paid ? row.payment_id : null,
     paymentMethod: paid ? row.payment_method : null,
@@ -119,7 +122,7 @@ export const mapOrderRow = (row, items = []) => {
 }
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, o.timing_policy_snapshot_json, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -553,7 +556,30 @@ export const updateOrderStatus = async (db, businessId, id, now = new Date()) =>
   if (!order) return null
   if (order.status === 'Finalizado') return order
   if (order.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode ser reaberto ou finalizado novamente.')
-  await db.prepare(`UPDATE orders SET status = 'Finalizado', finished_at = COALESCE(finished_at, ?) WHERE id = ? AND business_id = ?`).bind(now.toISOString(), id, businessId).run()
+  if (order.status !== 'Em preparo') throw repositoryError(409, 'ORDER_STATUS_CHANGED', 'O estado do pedido mudou. Atualize os dados e tente novamente.')
+  const operations = await loadOperations(db, businessId)
+  const txId = crypto.randomUUID()
+  const policyGuard = prepareSettingsAssertion(db, txId, 'policy',
+    'coalesce((SELECT revision FROM business_operation_settings WHERE business_id = ?), 0) = ?',
+    [businessId, operations.revision])
+  const stateGuard = prepareSettingsAssertion(db, txId, 'state',
+    "EXISTS (SELECT 1 FROM orders WHERE id = ? AND business_id = ? AND status = 'Em preparo')", [id, businessId])
+  const update = db.prepare(`UPDATE orders SET status = 'Finalizado', finished_at = COALESCE(finished_at, ?),
+    timing_policy_snapshot_json = COALESCE(timing_policy_snapshot_json, ?)
+    WHERE id = ? AND business_id = ? AND status = 'Em preparo'`).bind(
+    now.toISOString(), serializeOrderTimingPolicySnapshot(operations.data.timing), id, businessId)
+  try {
+    await db.batch([policyGuard, stateGuard, update, clearSettingsAssertions(db, txId)])
+  } catch (error) {
+    const refreshed = await loadOrderById(db, businessId, id)
+    if (refreshed?.status === 'Finalizado') return refreshed
+    if (refreshed?.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode ser reaberto ou finalizado novamente.')
+    if (String(error?.message || '').includes('POLICY_CHANGED')) rethrowPolicyChange(error)
+    if (String(error?.message || '').includes('SETTINGS_INVALID')) {
+      throw repositoryError(409, 'ORDER_STATUS_CHANGED', 'O estado do pedido mudou. Atualize os dados e tente novamente.')
+    }
+    throw error
+  }
   return loadOrderById(db, businessId, id)
 }
 
