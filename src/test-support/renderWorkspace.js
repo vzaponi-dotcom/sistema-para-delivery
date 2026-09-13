@@ -11,8 +11,19 @@ export const buttonNamed = (root, name) => root.findAllByType('button').find((no
 // Render portals inline because react-test-renderer has no DOM portal container.
 export async function workspaceHarness(t, { mobile = false, userAgent = 'test' } = {}) {
   const media = Object.assign(new EventTarget(), { matches: mobile })
-  const storage = new Map([['delivery-print-station-id', 'test-station']])
-  const localStorage = { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }
+  const createStorage = (entries = []) => {
+    const values = new Map(entries)
+    return {
+      get length() { return values.size },
+      key: (index) => [...values.keys()][index] ?? null,
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, String(value)),
+      removeItem: (key) => values.delete(key),
+      clear: () => values.clear(),
+    }
+  }
+  const localStorage = createStorage([['delivery-print-station-id', 'test-station']])
+  const sessionStorage = createStorage()
   const intervals = new Map()
   const timeouts = new Map()
   const listeners = new Map()
@@ -39,7 +50,7 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
     timeouts.delete(id)
   }
   const window = Object.assign(new EventTarget(), {
-    matchMedia: () => media, localStorage,
+    matchMedia: () => media, localStorage, sessionStorage,
     setInterval: (callback, delay) => { const id = ++intervalId; intervals.set(id, { callback, delay }); return id },
     clearInterval: (id) => intervals.delete(id),
     setTimeout: setTrackedTimeout, clearTimeout: clearTrackedTimeout, atob, btoa, scrollY: 0, scrollTo: () => {}, requestAnimationFrame: (fn) => fn(),
@@ -78,7 +89,7 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
     }],
   })
   const saved = new Map()
-  for (const [key, value] of Object.entries({ window, document, localStorage, navigator: { onLine: true, userAgent }, addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window), setInterval: window.setInterval, clearInterval: window.clearInterval, setTimeout: setTrackedTimeout, clearTimeout: clearTrackedTimeout })) {
+  for (const [key, value] of Object.entries({ window, document, localStorage, sessionStorage, navigator: { onLine: true, userAgent }, addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window), setInterval: window.setInterval, clearInterval: window.clearInterval, setTimeout: setTrackedTimeout, clearTimeout: clearTrackedTimeout })) {
     saved.set(key, Object.getOwnPropertyDescriptor(globalThis, key))
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
   }
@@ -93,7 +104,7 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
     }
   })
   return {
-    window, document, media, load: (path) => vite.ssrLoadModule(path),
+    window, document, localStorage, sessionStorage, media, load: (path) => vite.ssrLoadModule(path),
     fireInterval(delay) { for (const interval of [...intervals.values()]) if (interval.delay === delay) interval.callback() },
     fireAllIntervals() { for (const interval of [...intervals.values()]) interval.callback() },
     setVisibility(visibilityState) { document.visibilityState = visibilityState },

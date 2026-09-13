@@ -373,7 +373,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
 test('21. printing.execute protege a entrada manual global de segunda via na UI e no callback', async (t) => {
   const h = await workspaceHarness(t, { userAgent: 'Windows test' })
   const job = {
-    id: 'second-copy-job', orderId: preparingOrder.id, status: 'awaiting_second_copy',
+    id: 'second-copy-job', type: 'order', orderId: preparingOrder.id, status: 'awaiting_second_copy',
     copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic',
   }
   const calls = { secondCopy: 0 }

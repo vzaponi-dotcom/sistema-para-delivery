@@ -1,0 +1,209 @@
+import { useEffect, useState } from 'react'
+import { getSettings, getSettingsReceipt, putSettings } from '../api/settingsClient.js'
+import { clearPending, clearPendingContext, readPending, writePending } from './settingsPendingStorage.js'
+import { createSettingsState, settingsReducer } from './settingsState.js'
+
+export const settingsResourceKey = (resource, scopeId) => scopeId ? `${resource}:${scopeId}` : resource
+const contextSignature = (context) => context ? [
+  context.businessId,
+  context.generation,
+  context.settingsContextId,
+  [...new Set(context.capabilities || [])].sort().join('\u001f'),
+].join('\u001e') : ''
+const isUnknownResult = (error) => !Number.isInteger(error?.status) || error.status === 408 || error.status >= 500
+const canonical = (value) => {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
+  return value
+}
+const hashPayload = async (value) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(canonical(value)))
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export function createBusinessSettingsController({
+  api = { getSettings, putSettings, getSettingsReceipt },
+  context = null,
+  storage = globalThis.sessionStorage,
+  now = () => new Date(),
+  createMutationId = () => crypto.randomUUID(),
+  onChange = () => {},
+  onFeedback = () => {},
+  onSessionExpired = () => {},
+} = {}) {
+  let activeContext = context
+  let generation = 0
+  let resources = {}
+  let operationSequence = 0
+  const owners = new Map()
+  const publish = (key, event) => {
+    resources = { ...resources, [key]: settingsReducer(resources[key] || createSettingsState(), event) }
+    onChange(resources)
+    return resources[key]
+  }
+  const begin = (key) => {
+    const owner = { generation, operationId: ++operationSequence }
+    owners.set(key, owner)
+    return owner
+  }
+  const owns = (key, owner) => generation === owner.generation && owners.get(key)?.operationId === owner.operationId
+  const contextId = () => activeContext?.settingsContextId || ''
+  const validContext = () => Boolean(activeContext?.businessId && contextId())
+  const controller = {
+    getResources: () => resources,
+    configure(next = {}) {
+      if (next.api) api = next.api
+      if (Object.hasOwn(next, 'storage')) storage = next.storage
+      if (next.onFeedback) onFeedback = next.onFeedback
+      if (next.onSessionExpired) onSessionExpired = next.onSessionExpired
+    },
+    setContext(nextContext) {
+      if (contextSignature(nextContext) === contextSignature(activeContext)) return false
+      if (activeContext?.settingsContextId) clearPendingContext(storage, activeContext.settingsContextId)
+      activeContext = nextContext
+      generation += 1
+      owners.clear()
+      resources = {}
+      onChange(resources)
+      return true
+    },
+    async load(resource, scopeId) {
+      if (!validContext()) return false
+      const key = settingsResourceKey(resource, scopeId)
+      const owner = begin(key)
+      publish(key, { type: 'loading' })
+      try {
+        const value = await api.getSettings(resource, scopeId)
+        if (!owns(key, owner)) return false
+        publish(key, { type: 'loaded', value })
+        const pointer = readPending(storage, contextId(), key, now())
+        if (pointer) publish(key, { type: 'pendingRecovered', pointer })
+        return true
+      } catch (error) {
+        if (!owns(key, owner)) return false
+        if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
+        publish(key, { type: 'loadFailed', error })
+        return false
+      }
+    },
+    edit(resource, data, scopeId) {
+      const key = settingsResourceKey(resource, scopeId)
+      if (!resources[key]?.confirmed) return false
+      publish(key, { type: 'edited', data })
+      return true
+    },
+    discard(resource, scopeId) {
+      const key = settingsResourceKey(resource, scopeId)
+      if (!resources[key] || ['saving', 'unconfirmed'].includes(resources[key].status)) return false
+      publish(key, { type: 'discarded' })
+      return true
+    },
+    async save(resource, scopeId) {
+      if (!validContext()) return false
+      const key = settingsResourceKey(resource, scopeId)
+      const current = resources[key]
+      if (!current?.dirty || ['saving', 'unconfirmed', 'conflict'].includes(current.status)) return false
+      const mutationId = createMutationId()
+      const startedAt = now().toISOString()
+      const input = { expectedRevision: current.base.revision, mutationId, data: structuredClone(current.draft) }
+      const saveGeneration = generation
+      const saveContext = contextSignature(activeContext)
+      const payloadHash = await hashPayload({ resource, scopeId: scopeId || null, ...input })
+      if (generation !== saveGeneration || contextSignature(activeContext) !== saveContext || !validContext()) return false
+      const owner = begin(key)
+      publish(key, { type: 'saveStarted', mutationId, payloadHash, startedAt })
+      const persisted = writePending(storage, contextId(), key, { resource, scopeId, mutationId, payloadHash, startedAt, contextId: contextId() })
+      if (!persisted.ok) onFeedback({ code: 'SETTINGS_PENDING_STORAGE_UNAVAILABLE', message: 'A recuperação após recarregar não está disponível neste navegador.', cause: persisted.error })
+      try {
+        const result = await api.putSettings(resource, input, scopeId)
+        if (!owns(key, owner)) return false
+        clearPending(storage, contextId(), key)
+        publish(key, { type: 'saveConfirmed', value: result.resource })
+        onFeedback({ status: 'confirmed', resource, scopeId, receipt: result.receipt })
+        return true
+      } catch (error) {
+        if (!owns(key, owner)) return false
+        if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
+        if (error?.status === 409) {
+          clearPending(storage, contextId(), key)
+          publish(key, { type: 'saveConflict', error })
+        } else if (isUnknownResult(error)) {
+          publish(key, { type: 'saveUnconfirmed', error })
+          onFeedback({ status: 'unconfirmed', resource, scopeId, message: 'Resultado da gravação não confirmado.' })
+        } else {
+          clearPending(storage, contextId(), key)
+          publish(key, { type: 'saveFailed', error })
+        }
+        return false
+      }
+    },
+    async reconcile(resource, scopeId) {
+      if (!validContext()) return false
+      const key = settingsResourceKey(resource, scopeId)
+      const submitted = resources[key]?.submitted
+      if (!submitted || resources[key].status !== 'unconfirmed') return false
+      const owner = begin(key)
+      if (submitted.expired) {
+        try {
+          const current = await api.getSettings(resource, scopeId)
+          if (!owns(key, owner)) return false
+          clearPending(storage, contextId(), key)
+          publish(key, { type: 'loaded', value: current })
+          onFeedback({ status: 'expired', resource, scopeId, message: 'A gravação pendente expirou. Revise o estado atual antes de salvar novamente.' })
+        } catch (error) {
+          if (owns(key, owner)) publish(key, { type: 'saveUnconfirmed', error })
+        }
+        return false
+      }
+      try {
+        const result = await api.getSettingsReceipt(resource, submitted.mutationId, scopeId)
+        if (!owns(key, owner)) return false
+        if (result?.status !== 'confirmed') {
+          publish(key, { type: 'saveUnconfirmed' })
+          return false
+        }
+        const current = await api.getSettings(resource, scopeId)
+        if (!owns(key, owner)) return false
+        if (!Number.isSafeInteger(current?.revision) || current.revision < result.receipt.committedRevision) {
+          publish(key, { type: 'saveUnconfirmed' })
+          return false
+        }
+        clearPending(storage, contextId(), key)
+        publish(key, { type: 'saveConfirmed', value: current })
+        onFeedback({ status: 'confirmed', resource, scopeId, receipt: result.receipt })
+        return true
+      } catch (error) {
+        if (!owns(key, owner)) return false
+        if (error?.status === 401) { onSessionExpired(error); controller.reset(); return false }
+        publish(key, { type: 'saveUnconfirmed', error })
+        return false
+      }
+    },
+    reset() {
+      if (activeContext?.settingsContextId) clearPendingContext(storage, activeContext.settingsContextId)
+      generation += 1
+      owners.clear()
+      resources = {}
+      activeContext = null
+      onChange(resources)
+    },
+  }
+  return controller
+}
+
+export function useBusinessSettingsController({ context, storage = globalThis.sessionStorage, api, onFeedback, onSessionExpired } = {}) {
+  const [resources, setResources] = useState({})
+  const [controller] = useState(() => createBusinessSettingsController({ context, storage, api, onFeedback, onSessionExpired, onChange: setResources }))
+  useEffect(() => { controller.configure({ api, storage, onFeedback, onSessionExpired }) }, [api, controller, onFeedback, onSessionExpired, storage])
+  useEffect(() => { controller.setContext(context) }, [context, controller])
+  return {
+    resources,
+    load: controller.load,
+    edit: controller.edit,
+    save: controller.save,
+    discard: controller.discard,
+    reconcile: controller.reconcile,
+    reset: controller.reset,
+  }
+}

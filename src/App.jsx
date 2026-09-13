@@ -38,6 +38,7 @@ import { useNavigationController } from './app/useNavigationController.js'
 import { useQueryContext } from './app/useQueryContext.js'
 import { usePrintingSettingsController } from './app/usePrintingSettingsController.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
+import { useBusinessSettingsController } from './app/useBusinessSettingsController.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
@@ -476,6 +477,15 @@ function App({ capabilities } = {}) {
       if (feedback?.status === 401) showApiError(feedback)
       else setToastMessage(typeof feedback === 'string' ? feedback : (feedback?.message || 'Não foi possível concluir a configuração de impressão.'))
     },
+  })
+  useBusinessSettingsController({
+    context: effectiveConfigOwner,
+    storage: typeof window === 'undefined' ? undefined : window.sessionStorage,
+    onFeedback: (feedback) => {
+      if (feedback?.status === 401) showApiError(feedback)
+      else if (feedback?.message) setToastMessage(feedback.message)
+    },
+    onSessionExpired: expireSession,
   })
 
   const playKitchenNewOrderSound = async () => {
