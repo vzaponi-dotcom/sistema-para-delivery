@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
 import AreaNavigation from '../components/AreaNavigation'
 import SettingsHome from './SettingsHome'
+import OperationSettings from './OperationSettings'
 import { useTheme } from '../components/themeContext.js'
 import '../area-navigation.css'
 
@@ -11,9 +13,33 @@ const themeOptions = [
   { value: 'system', label: 'Automático' },
 ]
 
-function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange }) {
+function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, onSettingsConflictReview }) {
   const { themePreference, setThemePreference } = useTheme()
+  const operationRoute = section === 'settings-operations' || section === 'settings-modalities'
+  const operationLoad = operationSettings?.load
+  useEffect(() => {
+    if (operationRoute) void operationLoad?.('operations')
+  }, [operationLoad, operationRoute])
+  const reviewOperationConflict = async () => {
+    const review = await operationSettings?.reviewConflict?.('operations')
+    if (review) onSettingsConflictReview?.(review)
+    return review
+  }
   if (section === 'settings-home') return <SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} />
+  if (operationRoute) return <div className="settings-page">
+    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+    <OperationSettings
+      resourceState={operationSettings?.resources?.operations}
+      readOnly={!(granted instanceof Set && granted.has('operations.settings.manage'))}
+      initialSection={section === 'settings-modalities' ? 'modalities' : 'timing'}
+      onEdit={(draft) => operationSettings?.edit?.('operations', draft)}
+      onSave={() => operationSettings?.save?.('operations')}
+      onDiscard={() => operationSettings?.discard?.('operations')}
+      onReconcile={() => operationSettings?.reconcile?.('operations')}
+      onReload={() => operationSettings?.load?.('operations')}
+      onReviewConflict={reviewOperationConflict}
+    />
+  </div>
   return (
     <div className="settings-page">
       <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
