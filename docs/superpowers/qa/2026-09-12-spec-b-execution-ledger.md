@@ -547,3 +547,36 @@ Starting from clean, synchronized `389e187a824752e23031c4f3cd06def6266a03d8`, th
 - Independent read-only review reported no Critical, Important or Minor findings. No additional dependency was affected and the 133-test selection was not repeated.
 
 The full `npm test`, build, migrations and D1 gate were not run. No merge, deploy, release or remote migration was performed. `TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release. T10 remains **not authorized and was not started**.
+
+## T10 — active timing and terminal snapshot
+
+Authorization was limited to T10 on clean, synchronized base `12d2aae91c936ad195e6d3def0f0502cdf7589b8`; `git ls-remote` confirmed the same SHA on `origin/feature/spec-b-settings-policies` before changes. Functional commit: `a1bbaee0df7253920ad6317606ed4729b5bb866f` (`feat: apply live timing policies without rewriting history`). No T11 work, dependency, migration, workflow, settings UI, print-policy adaptation or broad modularization was started.
+
+### Delivered behavior
+
+- Centralized exact validation, serialization, parsing and selection of the four-field timing policy. Active orders accept the current operations policy; terminal orders use their validated snapshot, while terminal/backdated legacy rows without a snapshot retain the 50/15/30/40 legacy behavior. A malformed non-null snapshot is distinguished from absence and fails closed.
+- Existing optional call signatures remain compatible. Scheduled preparation/grace, immediate late/very-late states, queue ordering/classification, kitchen timing copy and dashboard operational durations can consume the effective timing policy without changing strict `>` boundaries or floor rounding.
+- Finalization loads the current operations policy on the server and commits status, `finished_at` and the complete timing snapshot in one guarded batch. Policy/state races cannot leave partial history; repeated finalization preserves the first timestamp and snapshot.
+- Cancellation snapshots only an active `Em preparo` order. A legacy `Finalizado` order is not backfilled, and a snapshot written by concurrent finalization is preserved. Timing revision, cancellation reason, state, print cleanup and optional refund effects share the atomic commit.
+- Cancellation validates any existing snapshot before loading policy or creating effects. Malformed snapshots on active or finalized orders return `ORDER_TIMING_SNAPSHOT_INVALID` without changing order history, first-use state, pending printing or refund state. Policy conflicts use a neutral operational-settings message.
+- All official order read paths expose `timingPolicySnapshot`. The T09 table-tab close-result association remains unchanged.
+
+### TDD, verification and review
+
+| Evidence | Result |
+|---|---|
+| Baseline affected selection before implementation | Exit 0; 88/88 passed. |
+| Shared behavioral RED | `node --test shared/businessTiming.test.js` exited 1; 0/5 passed because policy selection and current-limit behavior were absent. After implementation, one expectation was corrected to retain required floor rounding; the shared file then passed 5/5. |
+| Worker behavioral RED | `node --test shared/businessTiming.test.js worker/orderTimingSnapshot.test.js` exited 1; 6/12 passed. The six failures demonstrated missing persistence/read/concurrency behavior. The first worker GREEN passed 12/12. |
+| Review-hardening RED/GREEN | Independent review identified one Important fail-closed issue and one Minor misleading conflict message. Three deterministic assertions failed before the fix: both malformed-snapshot cancellations had already committed and the timing-race message named cancellation reasons. After pre-mutation validation and a neutral message, `worker/orderTimingSnapshot.test.js` passed 12/12. |
+| Final affected selection | Exit 0; 120/120 passed across shared timing, workflow, queue, ticket, analytics, kitchen clocks, order snapshot/finalization, cancellation HTTP/domain/repository, official read mapping and T09 business-policy integration. Zero failures/skips/cancellations. |
+| Static gates | Installed Oxlint and `node --check` passed on all 13 changed JavaScript/test files. `git diff --check` passed; Git emitted only the checkout's existing LF-to-CRLF notices. |
+| Build | The sandboxed attempt failed only with `EPERM` writing Vite's `node_modules/.vite-temp`. The authorized rerun outside that restriction exited 0; Vite transformed 371 modules and completed the production build with only the existing large-chunk warning. |
+
+The independent read-only rereview confirmed both findings resolved and reported no remaining issue in that scope; its focused snapshot test also passed 12/12. Direct diff review found no additional T10 contract deviation.
+
+The legacy `worker/tableTabLifecycle.test.js` was not included in the final affected selection because its fixture still lacks the already-published T09 `business_*` schema; correcting that unrelated obsolete fixture is outside T10. The aggregate `npm test` suite was deliberately not run, so this checkpoint does not approve it. Migrations, the D1 gate, remote migrations, merge, deploy and release were not run.
+
+Workflow triggers were rechecked: staging deployment watches only `feature/centralized-qz-print-queue`; production deployment is manual; validation push watches `master`; TDD workflows watch unrelated branches. A normal push of `feature/spec-b-settings-policies` does not trigger deployment.
+
+`TEST-INFRA-01` remains **OPEN / cause unconfirmed** and continues to block merge/release. T10 neither resumes nor resolves that investigation. T11 is **not authorized and not started**.
