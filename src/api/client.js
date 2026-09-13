@@ -11,7 +11,7 @@ const requestError = (response, payload) => {
   return error
 }
 
-const apiRequest = async (path, options = {}) => {
+export const apiRequest = async (path, options = {}) => {
   const response = await fetch(path, buildRequestOptions(options))
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw requestError(response, payload)
@@ -33,12 +33,16 @@ const apiTextRequest = async (path, options = {}) => {
   return text
 }
 
-const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
+export const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
 
 export const getSession = () => apiRequest('/api/auth/session')
 export const login = (pin) => apiRequest('/api/auth/login', withJson('POST', { pin }))
 export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' })
-export const getBootstrap = () => apiRequest('/api/bootstrap')
+export const getBootstrap = (knownEffectiveConfigVersion) => {
+  const params = new URLSearchParams()
+  if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
+  return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
+}
 export const getOrders = () => apiRequest('/api/orders')
 
 export const createTable = (table) => apiRequest('/api/tables', withJson('POST', table))

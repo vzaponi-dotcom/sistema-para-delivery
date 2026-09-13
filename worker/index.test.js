@@ -281,7 +281,9 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
   const body = await response.json()
   assert.match(body.effectiveBusinessConfig.version, /^v1-[0-9a-f]{24}$/)
   assert.deepEqual(body.effectiveBusinessConfig.revisions, {})
-  const { effectiveBusinessConfig, ...legacy } = body
+  const knownVersion = body.effectiveBusinessConfig.version
+  assert.equal(body.effectiveConfigVersion, knownVersion)
+  const { effectiveBusinessConfig, effectiveConfigVersion: _effectiveConfigVersion, ...legacy } = body
   assert.ok(effectiveBusinessConfig)
   assert.deepEqual(legacy, {
     business: { id: 'amor-e-sabor', name: 'Amor & Sabor' },
@@ -302,6 +304,23 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
     movements: [],
     financeSettings: null,
   })
+
+  const unchangedResponse = await handleRequest(new Request(
+    `https://delivery.example/api/bootstrap?knownEffectiveConfigVersion=${encodeURIComponent(knownVersion)}`,
+    { headers: { cookie: cookiePair } },
+  ), env)
+  const unchanged = await unchangedResponse.json()
+  assert.equal(unchanged.effectiveConfigVersion, knownVersion)
+  assert.equal(Object.hasOwn(unchanged, 'effectiveBusinessConfig'), false)
+  assert.deepEqual(unchanged.orders, [])
+
+  const changedResponse = await handleRequest(new Request(
+    'https://delivery.example/api/bootstrap?knownEffectiveConfigVersion=opaque-old',
+    { headers: { cookie: cookiePair } },
+  ), env)
+  const changed = await changedResponse.json()
+  assert.equal(changed.effectiveConfigVersion, knownVersion)
+  assert.equal(changed.effectiveBusinessConfig.version, knownVersion)
 })
 
 test('authenticated client CRUD validates and uses the session business', async () => {

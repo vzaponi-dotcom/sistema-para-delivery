@@ -95,7 +95,13 @@ const authenticatedApi = async (request, env) => {
 
   if (url.pathname === '/api/bootstrap' && request.method === 'GET') {
     const effectiveBusinessConfig = await loadEffectiveBusinessConfig(env.DB, session.businessId, context.granted)
-    return json(await loadBootstrap(env.DB, session.businessId, effectiveBusinessConfig))
+    const knownVersion = url.searchParams.get('knownEffectiveConfigVersion')
+    const bootstrap = await loadBootstrap(
+      env.DB,
+      session.businessId,
+      knownVersion === effectiveBusinessConfig.version ? undefined : effectiveBusinessConfig,
+    )
+    return json({ ...bootstrap, effectiveConfigVersion: effectiveBusinessConfig.version })
   }
   if (url.pathname === '/api/tables' && request.method === 'POST') {
     assertSameOriginMutation(request)
