@@ -59,7 +59,8 @@ test('Operation and Modalities routes open one shared operations resource', asyn
 
   const Timing = () => React.createElement(ThemeProvider, null, React.createElement(Settings, { ...props, section: 'settings-operations' }))
   const timing = await h.render(Timing)
-  assert.match(nodeText(timing.root), /Tempos da cozinha/)
+  assert.match(nodeText(timing.root), /Tempos e regras operacionais/)
+  assert.equal(timing.root.findAllByProps({ className: 'area-navigation' }).length, 0)
 
   const Modalities = () => React.createElement(ThemeProvider, null, React.createElement(Settings, { ...props, section: 'settings-modalities' }))
   const modalities = await h.render(Modalities)
@@ -81,7 +82,10 @@ test('switching between Operation and Modalities preserves one draft in both dir
       resources: { operations: operationsState }, load() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
       edit: (_resource, draft) => setOperationsState((current) => ({ ...current, draft, dirty: true })),
     }
-    return React.createElement(ThemeProvider, null, React.createElement(Settings, {
+    return React.createElement(ThemeProvider, null,
+      React.createElement('button', { onClick: () => setSection('settings-modalities') }, 'Abrir modalidades'),
+      React.createElement('button', { onClick: () => setSection('settings-operations') }, 'Abrir operação'),
+      React.createElement(Settings, {
       section, settings: {}, printing: {},
       granted: new Set(['operations.settings.view', 'operations.settings.manage']),
       implemented: new Set(['settings-home', 'settings-operations', 'settings-modalities']),
@@ -91,10 +95,10 @@ test('switching between Operation and Modalities preserves one draft in both dir
   const screen = await h.render(RoutedSettings)
 
   await act(async () => timingInput(screen.root, 'scheduledPrepLeadMinutes').props.onChange({ target: { value: '40' } }))
-  await act(async () => buttonNamed(screen.root, 'Modalidades de pedido').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Abrir modalidades').props.onClick())
   assert.equal(timingInput(screen.root, 'scheduledPrepLeadMinutes').props.value, '40')
-  await act(async () => buttonNamed(modalityRow(screen.root, 'Retirada'), 'Definir como padrão').props.onClick())
-  await act(async () => buttonNamed(screen.root, 'Operação').props.onClick())
+  await act(async () => buttonNamed(modalityRow(screen.root, 'Retirada'), 'Definir como padrão').props.onClick({ currentTarget: { closest: () => null } }))
+  await act(async () => buttonNamed(screen.root, 'Abrir operação').props.onClick())
   assert.equal(timingInput(screen.root, 'scheduledPrepLeadMinutes').props.value, '40')
   assert.match(nodeText(modalityRow(screen.root, 'Retirada')), /Padrão/)
 })
@@ -119,7 +123,7 @@ test('timing entry renders four bounded minute fields and edits only the shared 
     assert.equal(input.props.max, max)
     assert.equal(input.props.step, 1)
   }
-  assert.match(nodeText(fixture.screen.root), /não altera o horário de impressão já definido/i)
+  assert.match(nodeText(fixture.screen.root), /Essas configurações organizam a fila da cozinha/)
 
   await act(async () => timingInput(fixture.screen.root, 'scheduledPrepLeadMinutes').props.onChange({ target: { value: '40' } }))
   assert.equal(fixture.edits.at(-1).timing.scheduledPrepLeadMinutes, 40)
@@ -139,7 +143,7 @@ test('timing validation keeps invalid values in the draft, links errors and bloc
   let input = timingInput(fixture.screen.root, 'scheduledPrepLeadMinutes')
   assert.equal(input.props['aria-invalid'], true)
   assert.ok(input.props['aria-describedby'])
-  assert.match(nodeText(fixture.screen.root.findByProps({ id: input.props['aria-describedby'] })), /0 e 240/)
+  assert.match(nodeText(fixture.screen.root.findByProps({ id: input.props['aria-describedby'].split(' ').at(-1) })), /0 e 240/)
   await act(async () => buttonNamed(fixture.screen.root, 'Salvar alterações').props.onClick())
   assert.equal(fixture.saved(), 0)
   assert.equal(focused.at(-1), 'scheduledPrepLeadMinutes')
@@ -148,7 +152,7 @@ test('timing validation keeps invalid values in the draft, links errors and bloc
   await act(async () => timingInput(fixture.screen.root, 'immediateVeryLateAfterMinutes').props.onChange({ target: { value: '30' } }))
   input = timingInput(fixture.screen.root, 'immediateVeryLateAfterMinutes')
   assert.equal(input.props['aria-invalid'], true)
-  assert.match(nodeText(fixture.screen.root.findByProps({ id: input.props['aria-describedby'] })), /maior que/i)
+  assert.match(nodeText(fixture.screen.root.findByProps({ id: input.props['aria-describedby'].split(' ').at(-1) })), /maior que/i)
   assert.equal(fixture.saved(), 0)
 
   for (const [name, invalid] of [
@@ -176,14 +180,14 @@ test('modality entry focuses its block and preserves timing while default and ac
   assert.deepEqual(focused, ['settings-modalities'])
   assert.deepEqual(scrolled, ['settings-modalities'])
   assert.deepEqual(fixture.screen.root.findAll((node) => typeof node.props?.['data-modality'] === 'string').map((row) => row.props['data-modality']), ['Entrega', 'Retirada', 'Local'])
-  assert.equal(buttonNamed(modalityRow(fixture.screen.root, 'Entrega'), 'Desativar').props.disabled, true)
+  assert.equal(modalityRow(fixture.screen.root, 'Entrega').findByProps({ role: 'switch' }).props.disabled, true)
 
-  await act(async () => buttonNamed(modalityRow(fixture.screen.root, 'Retirada'), 'Definir como padrão').props.onClick())
+  await act(async () => buttonNamed(modalityRow(fixture.screen.root, 'Retirada'), 'Definir como padrão').props.onClick({ currentTarget: { closest: () => null } }))
   assert.equal(fixture.edits.at(-1).defaultModality, 'Retirada')
   assert.deepEqual(fixture.edits.at(-1).enabledModalities, ['Entrega', 'Retirada', 'Local'])
   assert.equal(fixture.edits.at(-1).timing.scheduledPrepLeadMinutes, 40)
 
-  await act(async () => buttonNamed(modalityRow(fixture.screen.root, 'Entrega'), 'Desativar').props.onClick())
+  await act(async () => modalityRow(fixture.screen.root, 'Entrega').findByProps({ role: 'switch' }).props.onClick())
   assert.deepEqual(fixture.edits.at(-1).enabledModalities, ['Retirada', 'Local'])
   assert.equal(fixture.edits.at(-1).defaultModality, 'Retirada')
   assert.equal(fixture.saved(), 0)
@@ -196,11 +200,11 @@ test('modality controls never create a draft without an active and active defaul
   const draft = structuredClone(adminFixture.data)
   draft.enabledModalities = ['Entrega']
   const fixture = await renderEditable(h, OperationSettings, { ...resourceState(), draft })
-  const deactivateDefault = buttonNamed(modalityRow(fixture.screen.root, 'Entrega'), 'Desativar')
+  const deactivateDefault = modalityRow(fixture.screen.root, 'Entrega').findByProps({ role: 'switch' })
 
   assert.equal(deactivateDefault.props.disabled, true)
   assert.match(nodeText(modalityRow(fixture.screen.root, 'Entrega')), /Defina outra modalidade ativa como padrão/i)
-  assert.equal(buttonNamed(modalityRow(fixture.screen.root, 'Retirada'), 'Definir como padrão'), undefined)
+  assert.equal(buttonNamed(modalityRow(fixture.screen.root, 'Retirada'), 'Definir como padrão').props.disabled, true)
   assert.equal(fixture.edits.length, 0)
 })
 
@@ -216,7 +220,7 @@ test('an error in the other block remains visible and has an accessible jump', a
     onEdit() {}, onSave() {}, onDiscard() {},
   }, { createNodeMock: ({ props }) => ({ focus: () => focused.push(props.id || props.name), scrollIntoView() {} }) })
 
-  const jump = buttonNamed(screen.root, 'Ver 2 pendências em Tempos da cozinha')
+  const jump = buttonNamed(screen.root, 'Ver 2 pendências em Tempos e regras operacionais')
   assert.ok(jump)
   assert.match(nodeText(screen.root), /2 pendências/)
   assert.match(nodeText(screen.root), /maior que/i)
@@ -294,8 +298,8 @@ test('operation layout uses theme tokens and renders full labels with mobile-saf
     onEdit() {}, onSave() {}, onDiscard() {},
   })
   assert.equal(h.media.matches, true)
-  assert.match(nodeText(screen.root), /Muito atraso de pedido imediato/)
-  assert.match(nodeText(screen.root), /não altera o horário de impressão já definido/i)
+  assert.match(nodeText(screen.root), /Pedido imediato fica muito atrasado/)
+  assert.match(nodeText(screen.root), /Essas configurações organizam a fila da cozinha/)
   assert.equal(screen.root.findByProps({ className: 'operation-timing-grid' }).props.style, undefined)
   assert.equal(buttonNamed(screen.root, 'Salvar alterações').props.type, 'button')
 })

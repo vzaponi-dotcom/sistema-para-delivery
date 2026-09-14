@@ -1,14 +1,29 @@
 import { useEffect, useMemo, useRef } from 'react'
+import Icon from '../components/Icon.jsx'
+import '../operation-settings.css'
 import Button from '../components/Button.jsx'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 
 const MODALITIES = ['Entrega', 'Retirada', 'Local']
 
+const modalityDescriptions = {
+  Entrega: 'Pedidos com entrega no endereço do cliente',
+  Retirada: 'Pedidos para retirada no balcão',
+  Local: 'Consumo no local (mesa)',
+}
+
+function ModalityIcon({ modality }) {
+  if (modality === 'Entrega') return <Icon name="package" size={24} />
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {modality === 'Retirada' ? <><path d="M5 8h14l1 13H4L5 8Z" /><path d="M8 9V6a4 4 0 0 1 8 0v3" /></> : <><path d="M3 3v11h5v7M21 3v11h-5v7M3 21v-7M21 21v-7M7 10h10M12 10v11" /></>}
+  </svg>
+}
+
 const timingFields = [
-  { key: 'scheduledPrepLeadMinutes', label: 'Antecipação de preparo agendado', min: 0, max: 240 },
-  { key: 'scheduledLateGraceMinutes', label: 'Tolerância de atraso agendado', min: 0, max: 120 },
-  { key: 'immediateLateAfterMinutes', label: 'Atraso de pedido imediato', min: 1, max: 180 },
-  { key: 'immediateVeryLateAfterMinutes', label: 'Muito atraso de pedido imediato', min: 1, max: 240 },
+  { key: 'scheduledPrepLeadMinutes', label: 'Preparo antecipado do agendado', help: '0 a 240 minutos', min: 0, max: 240 },
+  { key: 'scheduledLateGraceMinutes', label: 'Tolerância de atraso do agendado', help: '0 a 120 minutos', min: 0, max: 120 },
+  { key: 'immediateLateAfterMinutes', label: 'Pedido imediato fica atrasado', help: '1 a 180 minutos', min: 1, max: 180 },
+  { key: 'immediateVeryLateAfterMinutes', label: 'Pedido imediato fica muito atrasado', help: 'Maior que o limite de atraso (máx. 240)', min: 1, max: 240 },
 ]
 
 const numberValue = (value) => /^\d+$/.test(value) ? Number(value) : value
@@ -33,7 +48,7 @@ function validate(data) {
   return errors
 }
 
-function OperationSettings({ resourceState, readOnly = false, initialSection = 'timing', onEdit, onSave, onDiscard, onReconcile, onReload, onReviewConflict }) {
+function OperationSettings({ resourceState, readOnly = false, initialSection = 'timing', onEdit, onSave, onDiscard, onReconcile, onReload, onReviewConflict, onNavigateHome }) {
   const timingRef = useRef(null)
   const modalitiesRef = useRef(null)
   const timingInputsRef = useRef({})
@@ -88,10 +103,13 @@ function OperationSettings({ resourceState, readOnly = false, initialSection = '
   }
 
   return <SettingsEditorShell
+    className="operation-editor"
     title="Operação"
-    description="Defina os tempos de acompanhamento e as modalidades aceitas pelo negócio."
-    scope="Todo o negócio"
-    effectiveNotice="Os tempos afetam pedidos ativos. Modalidades valem para novos pedidos."
+    description="Defina os tempos e regras operacionais da sua cozinha"
+    scope={<button type="button" className="operation-breadcrumb" onClick={onNavigateHome}>Configurações</button>}
+    discardLabel="Cancelar"
+    footerNote="Gestão Delivery · v1.0.0"
+    effectiveNotice={<><span className="operation-info-icon" aria-hidden="true">i</span><span>Essas configurações organizam a fila da cozinha e definem as regras de atrasos dos pedidos.<small>Ajuste os tempos de acordo com sua operação para manter uma boa experiência para seus clientes.</small></span></>}
     state={resourceState}
     readOnly={readOnly}
     onSave={save}
@@ -101,27 +119,23 @@ function OperationSettings({ resourceState, readOnly = false, initialSection = '
     onReviewConflict={onReviewConflict}
   >
     {!data ? <p className="settings-empty-state">Os valores confirmados aparecerão quando esta configuração estiver disponível.</p> : <div className="operation-settings-content">
-      {initialSection === 'modalities' && timingIssues && <Button type="button" variant="secondary" className="operation-section-jump" onClick={() => focusSection('timing')}>Ver {timingIssueCount} {timingIssueCount === 1 ? 'pendência' : 'pendências'} em Tempos da cozinha</Button>}
+      {initialSection === 'modalities' && timingIssues && <Button type="button" variant="secondary" className="operation-section-jump" onClick={() => focusSection('timing')}>Ver {timingIssueCount} {timingIssueCount === 1 ? 'pendência' : 'pendências'} em Tempos e regras operacionais</Button>}
       {initialSection !== 'modalities' && modalitiesIssues && <Button type="button" variant="secondary" className="operation-section-jump" onClick={() => focusSection('modalities')}>Ver {modalitiesIssueCount} {modalitiesIssueCount === 1 ? 'pendência' : 'pendências'} em Modalidades de pedido</Button>}
 
-      <section id="settings-timing" ref={timingRef} tabIndex={-1} className={initialSection === 'timing' ? 'operation-settings-section is-selected' : 'operation-settings-section'} aria-labelledby="timing-title">
-        <div className="operation-section-heading"><div><h2 id="timing-title">Tempos da cozinha</h2><p>Use minutos inteiros para acompanhar pedidos agendados e imediatos.</p></div>{timingIssues && <span className="operation-pending-badge">{timingIssueCount} {timingIssueCount === 1 ? 'pendência' : 'pendências'}</span>}</div>
-        <p className="operation-impact-notice">Alterar a antecipação pode mover pedidos agendados entre espera e operação, mas não altera o horário de impressão já definido.</p>
+      <section id="settings-timing" ref={timingRef} tabIndex={-1} className={initialSection === 'modalities' ? 'operation-settings-section' : 'operation-settings-section is-selected'} aria-labelledby="timing-title">
+        <div className="operation-section-heading"><div><h2 id="timing-title">Tempos e regras operacionais</h2><p>Configure os tempos de preparo e os limites de atraso para os pedidos.</p></div>{timingIssues && <span className="operation-pending-badge">{timingIssueCount} {timingIssueCount === 1 ? 'pendência' : 'pendências'}</span>}</div>
         {readOnly ? <dl className="operation-timing-readonly">{timingFields.map((field) => <div key={field.key}><dt>{field.label}</dt><dd>{data.timing[field.key]} min</dd></div>)}</dl> : <div className="operation-timing-grid">
-          {timingFields.map((field) => {
-            const errorId = `${field.key}-error`
-            return <label key={field.key} className="operation-timing-field">
-              <span>{field.label}</span>
-              <span className="operation-minute-input"><input ref={(element) => { timingInputsRef.current[field.key] = element }} name={field.key} type="number" inputMode="numeric" min={field.min} max={field.max} step={1} value={String(data.timing[field.key] ?? '')} disabled={locked} aria-invalid={errors.timing[field.key] ? true : undefined} aria-describedby={errors.timing[field.key] ? errorId : undefined} onChange={(event) => editTiming(field.key, event.target.value)} /><small>min</small></span>
-              <small>Entre {field.min} e {field.max} minutos.</small>
-              {errors.timing[field.key] && <small id={errorId} className="operation-field-error" role="alert">{errors.timing[field.key]}</small>}
-            </label>
-          })}
+          {timingFields.map((field) => <label key={field.key} className="operation-timing-field">
+            <span>{field.label}</span>
+            <span className="operation-minute-input"><input ref={(element) => { timingInputsRef.current[field.key] = element }} name={field.key} aria-label={field.label} type="number" inputMode="numeric" min={field.min} max={field.max} step={1} disabled={locked} value={String(data.timing[field.key] ?? '')} aria-invalid={errors.timing[field.key] ? true : undefined} aria-describedby={`${field.key}-help${errors.timing[field.key] ? ` ${field.key}-error` : ''}`} onChange={(event) => editTiming(field.key, event.target.value)} /><small>min</small></span>
+            <small id={`${field.key}-help`}>{field.help}</small>
+            {errors.timing[field.key] && <small id={`${field.key}-error`} className="operation-field-error" role="alert">{errors.timing[field.key]}</small>}
+          </label>)}
         </div>}
       </section>
 
       <section id="settings-modalities" ref={modalitiesRef} tabIndex={-1} className={initialSection === 'modalities' ? 'operation-settings-section is-selected' : 'operation-settings-section'} aria-labelledby="modalities-title">
-        <div className="operation-section-heading"><div><h2 id="modalities-title">Modalidades de pedido</h2><p>Vale para novos pedidos; atendimentos existentes não serão alterados.</p></div>{modalitiesIssues && <span className="operation-pending-badge">{modalitiesIssueCount} {modalitiesIssueCount === 1 ? 'pendência' : 'pendências'}</span>}</div>
+        <div className="operation-section-heading"><div><h2 id="modalities-title">Modalidades de pedido</h2><p>Ative ou desative as modalidades disponíveis na sua loja.</p></div>{modalitiesIssues && <span className="operation-pending-badge">{modalitiesIssueCount} {modalitiesIssueCount === 1 ? 'pendência' : 'pendências'}</span>}</div>
         {modalitiesIssues && <div className="operation-field-error" role="alert">{errors.modalities.map((message) => <p key={message}>{message}</p>)}</div>}
         <div className="operation-modality-list" aria-label="Modalidades de pedido">
           {MODALITIES.map((modality) => {
@@ -132,16 +146,20 @@ function OperationSettings({ resourceState, readOnly = false, initialSection = '
               ? isDefault ? 'Defina outra modalidade ativa como padrão antes de desativar esta.' : 'Mantenha pelo menos uma modalidade ativa.'
               : ''
             const reasonId = `modality-${modality.toLowerCase()}-disabled-reason`
+
             return <div key={modality} data-modality={modality} className="operation-modality-row">
-              <div className="operation-modality-copy"><strong>{modality}</strong><span>{active ? 'Ativo' : 'Inativo'}{isDefault ? ' · Padrão' : ''}</span>{disabledReason && <small id={reasonId}>{disabledReason}</small>}</div>
-              {!readOnly && <div className="operation-modality-actions">
-                <Button type="button" variant="secondary" disabled={locked || Boolean(disabledReason)} aria-describedby={disabledReason ? reasonId : undefined} onClick={() => setModalityActive(modality, !active)}>{active ? 'Desativar' : 'Ativar'}</Button>
-                {active && !isDefault && <Button type="button" variant="secondary" disabled={locked} onClick={() => setDefaultModality(modality)}>Definir como padrão</Button>}
-              </div>}
+              <span className="operation-modality-icon"><ModalityIcon modality={modality} /></span>
+              <div className="operation-modality-copy"><strong>{modality}</strong><span>{modalityDescriptions[modality]}</span></div>
+              {readOnly ? <span className="operation-switch-preview" data-active={active} aria-hidden="true" /> : <button type="button" className="operation-switch" disabled={locked || Boolean(disabledReason)} title={disabledReason || undefined} aria-describedby={disabledReason ? reasonId : undefined} role="switch" aria-checked={active} aria-label={modality} onClick={() => setModalityActive(modality, !active)}><span /></button>}
+              {disabledReason && <span id={reasonId} className="operation-accessible-reason">{disabledReason}</span>}
+              <div className="operation-modality-badges"><span className={active ? 'operation-status-badge is-active' : 'operation-status-badge'}>{active ? 'Ativo' : 'Inativo'}</span>{isDefault && <span className="operation-default-badge">Padrão</span>}</div>
+              {!readOnly && <details className="operation-modality-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }} onKeyDown={(event) => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() } }}>
+                <summary aria-label={`Ações de ${modality}`}><span aria-hidden="true">···</span></summary>
+                <div className="operation-modality-menu-content"><button type="button" disabled={locked || !active || isDefault} onClick={(event) => { setDefaultModality(modality); const menu = event.currentTarget.closest('details'); if (menu) { menu.open = false; menu.querySelector('summary')?.focus() } }}>Definir como padrão</button></div>
+              </details>}
             </div>
           })}
         </div>
-        {!readOnly && <p className="operation-modality-help">Trocar o padrão mantém a modalidade anterior ativa. Se desejar desativá-la, faça isso depois.</p>}
       </section>
     </div>}
   </SettingsEditorShell>

@@ -7,14 +7,14 @@ const stateMessage = (state) => ({
   conflict: 'Há alterações concorrentes para revisar.',
 }[state?.status])
 
-function SettingsEditorShell({ title, description, scope, effectiveNotice, state, readOnly, onSave, onDiscard, onReconcile, onReload, onReviewConflict, children }) {
+function SettingsEditorShell({ title, description, scope, effectiveNotice, state, readOnly, onSave, onDiscard, onReconcile, onReload, onReviewConflict, className = '', discardLabel = 'Descartar', footerNote, children }) {
   const status = state?.status || 'ready'
   const message = stateMessage(state)
   const errorMessage = typeof state?.error === 'string' ? state.error : state?.error?.message
   const readFailed = status === 'error' && !state?.draft && !state?.confirmed?.data
   const discardDisabled = ['saving', 'loading', 'unconfirmed'].includes(status) || readFailed
   const saveDisabled = discardDisabled || status === 'conflict'
-  return <section className="settings-editor-shell" aria-labelledby="settings-editor-title">
+  return <section className={['settings-editor-shell', className].filter(Boolean).join(' ')} aria-labelledby="settings-editor-title">
     <header className="settings-editor-header">
       <div><p className="section-kicker">{scope}</p><h1 id="settings-editor-title">{title}</h1><p>{description}</p></div>
       {readOnly && <span className="settings-readonly-badge">Somente leitura</span>}
@@ -28,8 +28,9 @@ function SettingsEditorShell({ title, description, scope, effectiveNotice, state
     {status === 'conflict' && !readOnly && <div><Button type="button" variant="secondary" onClick={onReviewConflict}>Revisar alterações</Button></div>}
     <div className="settings-editor-content">{children}</div>
     {!readOnly && status !== 'loading' && <footer className="settings-editor-footer">
+      {footerNote && <small className="settings-editor-footer-note">{footerNote}</small>}
       <div className="settings-editor-footer-actions">
-        <Button type="button" variant="secondary" onClick={onDiscard} disabled={discardDisabled}>Descartar</Button>
+        <Button type="button" variant="secondary" onClick={onDiscard} disabled={discardDisabled}>{discardLabel}</Button>
         <Button type="button" onClick={onSave} disabled={saveDisabled}>Salvar alterações</Button>
       </div>
     </footer>}

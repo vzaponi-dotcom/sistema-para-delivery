@@ -77,9 +77,9 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     setDevicePersistenceError(saved === false ? 'Não foi possível salvar esta preferência neste dispositivo.' : '')
   }
   if (section === 'settings-home') return <SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} />
-  if (operationRoute) return <div className="settings-page">
-    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+  if (operationRoute) return <div className="settings-page operation-settings-page">
     <OperationSettings
+      onNavigateHome={() => onNavigate?.('settings-home')}
       resourceState={operationSettings?.resources?.operations}
       readOnly={!(granted instanceof Set && granted.has('operations.settings.manage'))}
       initialSection={section === 'settings-modalities' ? 'modalities' : 'timing'}
