@@ -134,40 +134,31 @@ test('reorders by explicit action and Alt+Arrow keyboard without changing identi
   assert.deepEqual(fixture.edits.at(-1).methods.map((item) => item.code), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
 })
 
-test('pointer drag previews the target, placeholder and insertion marker before committing only the draft', async (t) => {
+test('dnd-kit owns the sortable lifecycle and Pix uses the stable brand asset', async () => {
+  const source = await readFile(new URL('./PaymentSettings.jsx', import.meta.url), 'utf8')
+  const pkg = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'))
+  assert.equal(pkg.dependencies['@dnd-kit/react'], '0.5.0')
+  assert.match(source, /DragDropProvider/)
+  assert.match(source, /DragOverlay/)
+  assert.match(source, /useSortable/)
+  assert.match(source, /pix-symbol\.svg/)
+  assert.doesNotMatch(source, /targetIndexAt|startPointerDrag|movePointerDrag|finishPointerDrag|setPointerCapture|elementFromPoint/)
+  const pix = await readFile(new URL('../assets/pix-symbol.svg', import.meta.url), 'utf8')
+  assert.match(pix, /viewBox="0 0 24 24"/)
+  assert.match(pix, /M5\.283 18\.36/)
+})
+
+test('reorderPaymentMethods keeps six identities and normalizes sortOrder', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
-  const fixture = await renderEditable(h, PaymentSettings)
-  const pix = row(fixture.screen.root, 'pix')
-  const handle = pix.findByProps({ 'data-payment-drag-handle': 'pix' })
-  const sourceElement = { getBoundingClientRect: () => ({ top: 100, height: 72 }) }
-  const targetElement = {
-    dataset: { paymentCode: 'debit_card' },
-    getBoundingClientRect: () => ({ top: 300, height: 72 }),
-    closest: () => targetElement,
-  }
-  h.document.elementFromPoint = () => targetElement
-
-  assert.equal(pix.props.draggable, undefined)
-  assert.equal(handle.props['aria-label'], 'Reordenar Pix')
-  assert.equal(handle.props.draggable, undefined)
-  assert.equal(typeof handle.props.onPointerDown, 'function')
-  assert.equal(typeof handle.props.onPointerMove, 'function')
-  assert.equal(typeof handle.props.onPointerUp, 'function')
-  await act(async () => handle.props.onPointerDown({ pointerId: 1, clientX: 20, clientY: 112, preventDefault() {}, currentTarget: { closest: () => sourceElement, setPointerCapture() {} } }))
-  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-drag-overlay'] === 'pix').length, 1)
-  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-insertion-marker'] === '0').length, 1)
-
-  let movePrevented = false
-  await act(async () => handle.props.onPointerMove({ pointerId: 1, clientX: 20, clientY: 350, preventDefault() { movePrevented = true } }))
-  assert.equal(movePrevented, true)
-  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-insertion-marker'] === '2').length, 1)
-  assert.deepEqual(fixture.screen.root.findAll((node) => node.props?.['data-payment-code']).map((node) => node.props['data-payment-code']), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
-  assert.equal(fixture.saves(), 0)
-
-  await act(async () => handle.props.onPointerUp({ pointerId: 1, clientX: 20, clientY: 350, preventDefault() {}, currentTarget: { releasePointerCapture() {} } }))
-  assert.deepEqual(fixture.edits.at(-1).methods.map((item) => item.code), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
-  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-drag-overlay']).length, 0)
+  const { reorderPaymentMethods } = await h.load('/src/pages/PaymentSettings.jsx')
+  const methods = paymentData().methods
+  const middle = reorderPaymentMethods(methods, 0, 2)
+  assert.deepEqual(middle.map((item) => item.code), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
+  assert.deepEqual(middle.map((item) => item.sortOrder), [0, 1, 2, 3, 4, 5])
+  assert.deepEqual(reorderPaymentMethods(methods, 2, 0).map((item) => item.code), ['debit_card', 'pix', 'cash', 'credit_card', 'transfer', 'other'])
+  assert.deepEqual(reorderPaymentMethods(methods, 2, 5).map((item) => item.code), ['pix', 'cash', 'credit_card', 'transfer', 'other', 'debit_card'])
+  assert.deepEqual(reorderPaymentMethods(methods, 2, 2).map((item) => item.code), methods.map((item) => item.code))
+  assert.equal(new Set(middle.map((item) => item.code)).size, 6)
 })
 
 test('read-only uses the shared shell and exposes no editing actions', async (t) => {
