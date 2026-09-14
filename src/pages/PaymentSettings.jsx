@@ -2,8 +2,11 @@ import { DragDropProvider, DragOverlay, useDragOperation } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 import { paymentLabel } from '../../shared/businessPolicies.js'
+import { reorderPaymentMethods } from './paymentSettingsModel.js'
 import pixSymbolUrl from '../assets/pix-symbol.svg'
 import '../payment-settings.css'
+
+export { reorderPaymentMethods } from './paymentSettingsModel.js'
 
 const blockedStatuses = new Set(['loading', 'saving', 'unconfirmed', 'conflict'])
 const descriptions = {
@@ -18,20 +21,6 @@ const descriptions = {
 const normalizedMethods = (data) => [...(data?.methods || [])]
   .sort((left, right) => left.sortOrder - right.sortOrder)
   .map((method, sortOrder) => ({ ...method, sortOrder }))
-
-export function reorderPaymentMethods(methods, sourceIndex, targetIndex) {
-  const normalized = methods.map((method, sortOrder) => ({ ...method, sortOrder }))
-  if (
-    sourceIndex < 0 || targetIndex < 0 ||
-    sourceIndex >= normalized.length || targetIndex >= normalized.length ||
-    sourceIndex === targetIndex
-  ) return normalized
-
-  const next = [...normalized]
-  const [method] = next.splice(sourceIndex, 1)
-  next.splice(targetIndex, 0, method)
-  return next.map((item, sortOrder) => ({ ...item, sortOrder }))
-}
 
 function PaymentIcon({ code }) {
   if (code === 'pix') return <span data-payment-icon="pix" className="payment-icon-pix" aria-hidden="true" style={{ '--payment-pix-mask': `url("${pixSymbolUrl}")` }} />
@@ -53,7 +42,13 @@ function PaymentDragPreview({ method, isDefault }) {
 }
 
 function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly, lockedReason, onMove, onAction }) {
-  const sortable = useSortable({
+  const {
+    ref: sortableRef,
+    handleRef,
+    isDropTarget,
+    isDragSource,
+    isDropping,
+  } = useSortable({
     id: method.code,
     index,
     disabled: locked,
@@ -71,13 +66,13 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
     : ''
   const className = [
     'payment-settings-row',
-    sortable.isDragSource ? 'is-dnd-source' : '',
-    sortable.isDropTarget ? 'is-dnd-target' : '',
-    sortable.isDropping ? 'is-dnd-dropping' : '',
+    isDragSource ? 'is-dnd-source' : '',
+    isDropTarget ? 'is-dnd-target' : '',
+    isDropping ? 'is-dnd-dropping' : '',
   ].filter(Boolean).join(' ')
 
   return <article
-    ref={sortable.ref}
+    ref={sortableRef}
     role="row"
     data-payment-code={method.code}
     data-payment-sortable-id={method.code}
@@ -91,7 +86,7 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
     {showMarker && <span className={`payment-insertion-marker is-${markerPosition}`} data-payment-insertion-marker={String(index)} aria-hidden="true" />}
     <div className="payment-order-cell" role="cell">
       <button
-        ref={sortable.handleRef}
+        ref={handleRef}
         type="button"
         className="payment-drag-handle"
         data-payment-drag-handle={method.code}
