@@ -7,7 +7,7 @@ const stateMessage = (state) => ({
   conflict: 'Há alterações concorrentes para revisar.',
 }[state?.status])
 
-function SettingsEditorShell({ title, description, scope, effectiveNotice, state, readOnly, onSave, onDiscard, onReconcile, onReload, onReviewConflict, className = '', discardLabel = 'Descartar', footerNote, children }) {
+function SettingsEditorShell({ title, description, scope, effectiveNotice, state, readOnly, onSave, onDiscard, onReconcile, onReload, onReviewConflict, className = '', discardLabel = 'Descartar', footerNote, headerAction, children }) {
   const status = state?.status || 'ready'
   const message = stateMessage(state)
   const errorMessage = typeof state?.error === 'string' ? state.error : state?.error?.message
@@ -17,7 +17,10 @@ function SettingsEditorShell({ title, description, scope, effectiveNotice, state
   return <section className={['settings-editor-shell', className].filter(Boolean).join(' ')} aria-labelledby="settings-editor-title">
     <header className="settings-editor-header">
       <div><p className="section-kicker">{scope}</p><h1 id="settings-editor-title">{title}</h1><p>{description}</p></div>
-      {readOnly && <span className="settings-readonly-badge">Somente leitura</span>}
+      {(readOnly || headerAction) && <div className="settings-editor-header-actions">
+        {readOnly && <span className="settings-readonly-badge">Somente leitura</span>}
+        {!readOnly && headerAction}
+      </div>}
     </header>
     {effectiveNotice && <p className="settings-effective-notice">{effectiveNotice}</p>}
     {status === 'loading' && <p className="settings-state-message" aria-live="polite">Carregando configurações…</p>}
