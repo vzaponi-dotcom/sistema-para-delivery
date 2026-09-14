@@ -27,6 +27,7 @@ function appApi(state) {
       if (method === 'PUT') {
         state.settingsWrites += 1
         state.settingsInput = JSON.parse(options.body)
+        state.settingsStarted?.resolve()
         return state.settingsSave.promise
       }
       return response({ settings: policy(state.copies, state.revision) })
@@ -42,7 +43,7 @@ async function navigate(h, target) {
 
 test('A9 keeps navigation continuity across repeated page cycles', async (t) => {
   const h = await workspaceHarness(t)
-  const state = { copies: 1, revision: 1, requests: [], settingsWrites: 0, settingsSave: null }
+  const state = { copies: 1, revision: 1, requests: [], settingsWrites: 0, settingsSave: null, settingsStarted: null }
   globalThis.fetch = appApi(state)
   const { default: App } = await h.load('/src/App.jsx')
   const renderer = await h.render(App, {}, {
@@ -71,9 +72,13 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   await navigate(h, 'settings-printing')
   const secondCopy = renderer.root.findAllByType('input').find((input) => input.props.name === 'orderDefaultCopies' && input.props.value === 2)
   state.settingsSave = deferred()
+  state.settingsStarted = deferred()
   await act(async () => { void secondCopy.props.onChange({ target: { value: 2 } }) })
   assert.equal(state.settingsWrites, 0, 'editing a policy must not autosave')
-  await act(async () => { void buttonNamed(renderer.root, 'Salvar política').props.onClick() })
+  await act(async () => {
+    void buttonNamed(renderer.root, 'Salvar política').props.onClick()
+    await state.settingsStarted.promise
+  })
   assert.equal(state.settingsWrites, 1)
   await navigate(h, 'clients')
   state.copies = 2; state.revision = 2
