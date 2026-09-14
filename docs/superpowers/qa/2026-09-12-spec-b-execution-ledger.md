@@ -1,5 +1,19 @@
 # Spec B execution ledger — business settings and policies
 
+## 2026-09-14 - Payment reorder migrated to dnd-kit
+
+Blocker correction restricted to `Settings > Payment methods`, after real staging QA showed that the custom Pointer Events implementation could leave the dragged method hidden and the insertion marker stuck until reload.
+
+- Root cause: the custom drag lifecycle was tied to a handle being optimistically repositioned while the source row used `visibility: hidden`; losing the final pointer lifecycle left the visual drag state orphaned.
+- TDD RED: temporary feature-branch CI run `34890327239` executed the new integration contract against the old implementation and ended **9/11**, with the two expected failures for the missing dnd-kit/brand-asset migration and reorder helper.
+- Implementation: `@dnd-kit/react@0.5.0` now owns pointer/touch/keyboard lifecycle, optimistic sorting and `DragOverlay`; `useSortable` connects each row and its dedicated six-dot `handleRef`. Manual `elementFromPoint`, pointer capture and custom pointer move/up/cancel handlers were removed. One normalized draft reorder is committed on `onDragEnd`; no backend save happens during drag.
+- Pix: added `src/assets/pix-symbol.svg` with the recognizable Pix geometry and token-colored CSS mask. Debit and credit remain card icons.
+- Visual feedback: the source remains in layout with reduced opacity, dnd-kit moves neighboring items optimistically, a primary insertion marker follows the live sortable index, and an overlay identifies the dragged method. Mobile keeps the same handle/touch path and flexible badges.
+- Final verification in temporary feature-branch CI run `34891370523`: focused Payment settings **11/11**; proportional Settings/Operation regression **57/57**; `npm ls @dnd-kit/react` resolved **0.5.0**; lint exited 0; build passed; `git diff --check` passed.
+- Browser QA remains intentionally pending staging/manual validation because this ChatGPT environment has no interactive browser. Required acceptance remains desktop/mobile real drag, repeated drops, Pix rendering, badge containment, Cancel restoration and Save/reload persistence.
+
+No migration, production action, master merge, release or other Settings screen was started.
+
 ## 2026-09-14 - Payment methods visual and functional round
 
 Work is limited to `Settings > Payment methods`; no other Spec B screen was redesigned.
