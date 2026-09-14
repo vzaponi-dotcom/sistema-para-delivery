@@ -1,12 +1,7 @@
 import Button from './Button'
 import LocalTableSelector from './LocalTableSelector'
 import { formatScheduledTimeInput } from '../utils/formFormatting.js'
-
-const ORDER_TYPE_OPTIONS = [
-  { value: 'Entrega', label: 'Entrega' },
-  { value: 'Retirada', label: 'Retirada' },
-  { value: 'Local', label: 'Consumo no local' },
-]
+import { ORDER_TYPE_OPTIONS } from '../utils/orderTypeOptions.js'
 
 function NewOrderCustomerStep({
   clients,
@@ -42,6 +37,7 @@ function NewOrderCustomerStep({
   onQuickClientSubmit,
   onQuickClientCancel,
   onContinue,
+  orderTypeOptions = ORDER_TYPE_OPTIONS,
 }) {
   return (
     <section className="surface-card new-order-customer-card new-order-step-card">
@@ -55,7 +51,7 @@ function NewOrderCustomerStep({
       <div className="form-field">
         <span>Tipo do pedido</span>
         <div className="new-order-type-options" role="group" aria-label="Tipo do pedido">
-          {ORDER_TYPE_OPTIONS.map((option) => (
+          {orderTypeOptions.map((option) => (
             <button
               key={option.value}
               type="button"

@@ -31,17 +31,25 @@ import {
   isNewOrderDraftDirty,
 } from '../utils/newOrderStepFlow.js'
 import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/orderTiming.js'
+import { ORDER_TYPE_OPTIONS } from '../utils/orderTypeOptions.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, paymentOptions, defaultPaymentMethod, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, paymentOptions, defaultPaymentMethod, modalityOptions, defaultModality, onPolicyChanged, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+  const activeModalityOptions = modalityOptions === undefined ? ORDER_TYPE_OPTIONS : modalityOptions
+  const activeModalityValues = new Set(activeModalityOptions.map((option) => option.value))
+  const initialCommonType = activeModalityValues.has(defaultModality)
+    ? defaultModality
+    : activeModalityValues.has(initialType)
+      ? initialType
+      : activeModalityOptions[0]?.value || initialType
   const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
   const [clientId, setClientId] = useState(clients[0]?.id ?? '')
   const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
-  const [type, setType] = useState(initialTableId ? 'Local' : initialType)
+  const [type, setType] = useState(initialTableId ? 'Local' : initialCommonType)
   const [selectedTableId, setSelectedTableId] = useState(initialTableId)
   const [localClientId, setLocalClientId] = useState('')
   const [localClientSearch, setLocalClientSearch] = useState('')
@@ -55,6 +63,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   const [quickClientError, setQuickClientError] = useState('')
   const [duplicateClient, setDuplicateClient] = useState(null)
   const [checkoutError, setCheckoutError] = useState('')
+  const [policyReviewError, setPolicyReviewError] = useState('')
   const initialDraftSnapshotRef = useRef(null)
   const stepContentRef = useRef(null)
 
@@ -112,6 +121,12 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     ? { type: 'table', tableId: selectedTableId, ...(localClientId ? { clientId: localClientId } : {}) }
     : { type: 'registered_client', clientId }
   const identityValidation = validateCustomerIdentity(type, customerIdentity)
+  const modalityNeedsReview = !activeModalityValues.has(type)
+  const selectedModalityOption = ORDER_TYPE_OPTIONS.find((option) => option.value === type)
+    || { value: type, label: type }
+  const visibleModalityOptions = modalityNeedsReview
+    ? [...activeModalityOptions, selectedModalityOption]
+    : activeModalityOptions
   const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
 
   const draft = {
@@ -152,8 +167,8 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     itemCount,
     scheduleValid,
   })
-  const canSubmit = Boolean(stepAccess.review)
-  const canContinueCustomer = stepAccess.products
+  const canSubmit = Boolean(stepAccess.review) && !modalityNeedsReview && !policyReviewError
+  const canContinueCustomer = stepAccess.products && !modalityNeedsReview
 
   const navigateStep = (targetStep) => {
     if (!canNavigateToNewOrderStep({
@@ -175,6 +190,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   const changeType = (nextType) => {
     setType(nextType)
     setCheckoutError('')
+    setPolicyReviewError('')
     closeQuickClient()
     if (nextType === 'Local') { setScheduleMode('now'); setScheduledTime('') }
     if (nextType !== 'Entrega') setDeliveryFee(formatBRLCurrencyValue(0))
@@ -298,8 +314,13 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   const save = async (paymentMethod) => {
     if (disabled || !canSubmit) return
     setCheckoutError('')
-    const success = await onSubmit(buildOrderPayload(numericDraft, paymentMethod))
-    if (!success) setCheckoutError('Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.')
+    const result = await onSubmit(buildOrderPayload(numericDraft, paymentMethod))
+    if (result?.code === 'POLICY_CHANGED') {
+      setPolicyReviewError('A política de modalidades foi alterada. Revise o tipo do pedido antes de confirmar novamente.')
+      await onPolicyChanged?.()
+      return
+    }
+    if (!result) setCheckoutError('Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.')
   }
 
   return (
@@ -312,6 +333,13 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
       />
 
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
+      {(policyReviewError || modalityNeedsReview) && (
+        <div className="new-order-error" role="alert">
+          {policyReviewError || (type === 'Local'
+            ? 'Consumo no local não está disponível. Revise a modalidade para continuar.'
+            : `${selectedModalityOption.label} não está mais ativa. Revise a modalidade para continuar.`)}
+        </div>
+      )}
 
       <NewOrderStepIndicator
         currentStep={currentStep}
@@ -331,6 +359,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             clientSearch={activeClientSearch}
             clientPickerOpen={clientPickerOpen}
             type={type}
+            orderTypeOptions={visibleModalityOptions}
             orderDate={orderDate}
             todayValue={getBusinessDate()}
             scheduleMode={scheduleMode}

@@ -15,14 +15,14 @@ import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, officialOrders = orders, now, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
+function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
-  const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search), [orders, now, search])
+  const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search, currentTiming), [currentTiming, orders, now, search])
   const detailOrder = detailOrderId ? officialOrders.find((order) => order.id === detailOrderId) ?? null : null
   const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
 
@@ -110,6 +110,7 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
                 <KitchenTicket
                   entry={entry}
                   now={now}
+                  currentTiming={currentTiming}
                   disabled={actionsDisabled || !canFinalizeOrders}
                   highlighted={newOrderIds.has(String(entry.order.id))}
                   onDetails={(order) => setDetailOrderId(order.id)}
@@ -132,6 +133,7 @@ function Orders({ orders, officialOrders = orders, now, search, onSearchChange, 
                 <KitchenTicket
                   entry={entry}
                   now={now}
+                  currentTiming={currentTiming}
                   disabled={actionsDisabled || !canCancelOrders}
                   highlighted={newOrderIds.has(String(entry.order.id))}
                   onDetails={(order) => setDetailOrderId(order.id)}

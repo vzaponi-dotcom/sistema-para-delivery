@@ -228,6 +228,12 @@ function App({ capabilities } = {}) {
   const cancellationRevision = useMemo(() => cancellationRevisionFromEffective(businessConfig), [businessConfig])
   const financeCategoryOptions = useMemo(() => businessConfig ? financeCategoryOptionsFromEffective(businessConfig) : [], [businessConfig])
   const financeCategoryRevision = useMemo(() => financeCategoryRevisionFromEffective(businessConfig), [businessConfig])
+  const modalityOptions = useMemo(() => businessConfig?.operations?.enabledModalities?.map((value) => ({
+    value,
+    label: value === 'Local' ? 'Consumo no local' : value,
+  })), [businessConfig])
+  const defaultModality = businessConfig?.operations?.defaultModality
+  const currentTiming = businessConfig?.operations?.timing
   const paymentMethodNeedsReview = paymentSelectionNeedsReview(paymentOptions, paymentMethod)
   const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, paymentMethod)
   useEffect(() => {
@@ -303,7 +309,7 @@ function App({ capabilities } = {}) {
     acknowledgeSecondCopyPrompt,
   } = printing
   const physicalPrinterReady = printerHealth?.state === 'ready'
-  const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' })
+  const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders', currentTiming })
   const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
   const secondCopyPromptOrderNumber = getSecondCopyPromptTitle(secondCopyPromptJob, secondCopyPromptOrder)
@@ -507,16 +513,6 @@ function App({ capabilities } = {}) {
     return pending
   }
   const refreshBootstrapSilently = () => refreshBootstrap({ background: true })
-  const printingSettings = usePrintingSettingsController({
-    authenticated: authState === 'authenticated' && bootstrapState === 'ready',
-    sessionKey,
-    printing,
-    granted,
-    onFeedback: (feedback) => {
-      if (feedback?.status === 401) showApiError(feedback)
-      else setToastMessage(typeof feedback === 'string' ? feedback : (feedback?.message || 'Não foi possível concluir a configuração de impressão.'))
-    },
-  })
   const businessSettings = useBusinessSettingsController({
     context: effectiveConfigOwner,
     storage: typeof window === 'undefined' ? undefined : window.sessionStorage,
@@ -527,6 +523,7 @@ function App({ capabilities } = {}) {
     onSessionExpired: expireSession,
     onConflictReview: setSettingsConflictReview,
   })
+  const printingSettings = usePrintingSettingsController({ businessSettings, printing })
   useEffect(() => { businessSettingsRef.current = businessSettings }, [businessSettings])
   const settingsUnloadRisk = hasSettingsUnloadRisk(businessSettings.resources)
   useEffect(() => {
@@ -564,8 +561,12 @@ function App({ capabilities } = {}) {
 
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
-    const nextEnabled = Boolean(enabled); setKitchenSoundEnabled(nextEnabled)
-    try { window.localStorage.setItem(KITCHEN_SOUND_STORAGE_KEY, String(nextEnabled)) } catch { /* optional */ }
+    const nextEnabled = Boolean(enabled)
+    try { window.localStorage.setItem(KITCHEN_SOUND_STORAGE_KEY, String(nextEnabled)) } catch {
+      setToastMessage('Não foi possível salvar esta preferência neste dispositivo.')
+      return false
+    }
+    setKitchenSoundEnabled(nextEnabled)
     if (nextEnabled) void playKitchenNewOrderSound()
     return true
   }
@@ -920,6 +921,10 @@ function App({ capabilities } = {}) {
       return true
     } catch (error) {
       if (owner !== newOrderOwnerRef.current) return false
+      if (error?.code === 'POLICY_CHANGED') {
+        showApiError(error)
+        return { ok: false, code: 'POLICY_CHANGED' }
+      }
       if (error?.status === 409 && newOrderContext.expectedTableTabId) await refreshBootstrapSilently()
       if (owner !== newOrderOwnerRef.current) return false
       showApiError(error)
@@ -1190,9 +1195,9 @@ function App({ capabilities } = {}) {
       {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
       <AppShell activeTab={activeTab} activeMobileEntry={activeTab === 'new-order' ? newOrderContext.returnTab : undefined} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} onOpenMore={openMore} onCloseMore={closeMore} onNavigate={requestNavigation} onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} />}
-        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
+        {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigate={requestNavigation} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} activeTab={activeTab} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} canManageClients={canManageClients} />}
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}

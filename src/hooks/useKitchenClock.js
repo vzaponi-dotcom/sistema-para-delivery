@@ -5,7 +5,7 @@ export const getKitchenNowForRender = (storedNow, active, getNow = () => new Dat
   active ? getNow() : storedNow
 )
 
-export function startKitchenClock(orders, onNow, dependencies = {}) {
+export function startKitchenClock(orders, onNow, dependencies = {}, currentTiming) {
   const getNow = dependencies.getNow || (() => new Date())
   const scheduleTransitions = dependencies.scheduleTransitions || scheduleKitchenTransitions
   const setFallbackInterval = dependencies.setInterval || globalThis.setInterval
@@ -15,7 +15,7 @@ export function startKitchenClock(orders, onNow, dependencies = {}) {
   const refresh = () => onNow(getNow())
 
   refresh()
-  const clearTransitions = scheduleTransitions(orders, onNow)
+  const clearTransitions = scheduleTransitions(orders, onNow, dependencies, currentTiming)
   const fallback = setFallbackInterval(refresh, 60_000)
   const onVisibility = () => { if (documentTarget.visibilityState === 'visible') refresh() }
   documentTarget.addEventListener('visibilitychange', onVisibility)
@@ -29,13 +29,13 @@ export function startKitchenClock(orders, onNow, dependencies = {}) {
   }
 }
 
-export function useKitchenClock(orders, { active = true } = {}) {
+export function useKitchenClock(orders, { active = true, currentTiming } = {}) {
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
     if (!active) return undefined
-    return startKitchenClock(orders, setNow)
-  }, [active, orders])
+    return startKitchenClock(orders, setNow, {}, currentTiming)
+  }, [active, currentTiming, orders])
 
   return getKitchenNowForRender(now, active)
 }

@@ -27,9 +27,8 @@ export const readThemePreference = (storage = browserStorage()) => {
 
 export const saveThemePreference = (preference, storage = browserStorage()) => {
   const normalized = normalizeThemePreference(preference)
-  try {
-    storage?.setItem(THEME_STORAGE_KEY, normalized)
-  } catch {}
+  if (!storage?.setItem) throw Object.assign(new Error('Armazenamento local indisponível.'), { code: 'DEVICE_STORAGE_UNAVAILABLE' })
+  storage.setItem(THEME_STORAGE_KEY, normalized)
   return normalized
 }
 

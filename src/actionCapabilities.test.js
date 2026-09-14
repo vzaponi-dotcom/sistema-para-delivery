@@ -301,18 +301,37 @@ test('15. printing.execute permite execuÃ§Ã£o e printing.discard ausente blo
   assert.equal(calls.execute, 1)
 })
 
-test('16. printing.settings permite vias e bloqueia estaÃ§Ã£o sem station.configure', async (t) => {
+test('16. printing.settings permite vias e bloqueia estação sem station.configure', async (t) => {
   const h = await workspaceHarness(t)
   const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
-  const idle = (value) => ({ status: 'idle', confirmedValue: value, error: '', revision: 0, owner: null })
-  const settings = { resources: { 'business-copies': idle(1), 'station-config': idle({ id: 'station-1', name: 'Cozinha', platform: 'windows', autoPrintEnabled: false }), 'local-printer': idle('Fila A') }, reload() {}, saveCopies() {}, saveStation() {}, makePrimary() {}, selectPrinter() {} }
-  const printing = { localStation: settings.resources['station-config'].confirmedValue, configuredPrinterName: 'Fila A', platform: 'windows', availablePrinters: ['Fila A'], printerHealth: { state: 'ready' } }
+  const policy = {
+    status: 'ready',
+    confirmed: { data: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 } },
+    draft: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 },
+    dirty: false,
+    error: '',
+  }
+  const settings = {
+    policyState: () => policy,
+    stationState: () => null,
+    primaryState: () => null,
+    editPolicy() {},
+    savePolicy() {},
+    discardPolicy() {},
+  }
+  const printing = {
+    localStation: { id: 'station-1', name: 'Cozinha', platform: 'windows' },
+    configuredPrinterName: 'Fila A',
+    transportKind: 'qz',
+    availablePrinters: ['Fila A'],
+    printerHealth: { state: 'ready' },
+  }
   const renderer = await h.render(PrintingSettingsContent, { printing, settings, granted: new Set(['printing.settings']) })
-  assert.equal(renderer.root.findAllByProps({ name: 'defaultCopies' }).length, 2)
-  assert.equal(Boolean(buttonNamed(renderer.root, 'Configurar impressora')), false)
-  assert.equal(Boolean(buttonNamed(renderer.root, 'Tornar estaÃ§Ã£o principal')), false)
+  assert.equal(renderer.root.findAllByProps({ name: 'orderDefaultCopies' }).length, 2)
+  assert.equal(renderer.root.findAllByProps({ name: 'tableTabDefaultCopies' }).length, 2)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Salvar impressora')), false)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Tornar principal')), false)
 })
-
 test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set(['preferences.local']), { withTheme: true })
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())

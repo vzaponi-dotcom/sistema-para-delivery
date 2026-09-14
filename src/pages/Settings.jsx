@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
 import AreaNavigation from '../components/AreaNavigation'
@@ -8,6 +8,7 @@ import PaymentSettings from './PaymentSettings'
 import CancellationSettings from './CancellationSettings'
 import FinanceCategorySettings from './FinanceCategorySettings'
 import { useTheme } from '../components/themeContext.js'
+import { hasCapability } from '../app/access.js'
 import '../area-navigation.css'
 
 const themeOptions = [
@@ -18,11 +19,15 @@ const themeOptions = [
 
 function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, businessSettings = operationSettings, onSettingsConflictReview }) {
   const { themePreference, setThemePreference } = useTheme()
+  const [devicePersistenceError, setDevicePersistenceError] = useState('')
   const operationRoute = section === 'settings-operations' || section === 'settings-modalities'
   const operationLoad = operationSettings?.load
   const paymentRoute = section === 'settings-payments'
   const cancellationRoute = section === 'settings-cancellations'
   const financeCategoryRoute = section === 'settings-finance-categories'
+  const printingRoute = section === 'settings-printing'
+  const canViewPrintPolicy = hasCapability(granted, 'printing.settings.view') || hasCapability(granted, 'printing.settings')
+  const canViewPrintStation = hasCapability(granted, 'printing.station.view') || hasCapability(granted, 'printing.station.configure')
   const paymentLoad = businessSettings?.load
   useEffect(() => {
     if (operationRoute) void operationLoad?.('operations')
@@ -36,6 +41,13 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   useEffect(() => {
     if (financeCategoryRoute) void paymentLoad?.('financeCategories')
   }, [financeCategoryRoute, paymentLoad])
+  useEffect(() => {
+    if (!printingRoute) return
+    if (canViewPrintPolicy) void paymentLoad?.('printingPolicy')
+    const stationId = printing?.localStation?.id
+    if (canViewPrintStation && stationId) void paymentLoad?.('stationConfiguration', stationId)
+    if (canViewPrintStation) void paymentLoad?.('stationPrimary')
+  }, [canViewPrintPolicy, canViewPrintStation, paymentLoad, printing?.localStation?.id, printingRoute])
   const reviewOperationConflict = async () => {
     const review = await operationSettings?.reviewConflict?.('operations')
     if (review) onSettingsConflictReview?.(review)
@@ -55,6 +67,14 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     const review = await businessSettings?.reviewConflict?.('financeCategories')
     if (review) onSettingsConflictReview?.(review)
     return review
+  }
+  const changeTheme = (value) => {
+    const saved = setThemePreference(value)
+    setDevicePersistenceError(saved === false ? 'Não foi possível salvar esta preferência neste dispositivo.' : '')
+  }
+  const changeSound = (value) => {
+    const saved = onSoundEnabledChange?.(value)
+    setDevicePersistenceError(saved === false ? 'Não foi possível salvar esta preferência neste dispositivo.' : '')
   }
   if (section === 'settings-home') return <SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} />
   if (operationRoute) return <div className="settings-page">
@@ -141,7 +161,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
                   type="button"
                   aria-pressed={themePreference === option.value}
                   className={themePreference === option.value ? 'active' : ''}
-                  onClick={() => setThemePreference(option.value)}
+                  onClick={() => changeTheme(option.value)}
                 >
                   {option.label}
                 </button>
@@ -153,9 +173,10 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
             <input
               type="checkbox"
               checked={soundEnabled}
-              onChange={(event) => onSoundEnabledChange(event.target.checked)}
+              onChange={(event) => changeSound(event.target.checked)}
             />
           </label>
+          {devicePersistenceError && <p className="settings-device-error" role="alert">{devicePersistenceError}</p>}
         </section>
       )}
     </div>
