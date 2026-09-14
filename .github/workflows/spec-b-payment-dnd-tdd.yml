@@ -7,6 +7,7 @@ on:
     paths:
       - src/pages/PaymentSettings.jsx
       - src/pages/PaymentSettings.test.js
+      - src/pages/paymentSettingsModel.js
       - src/payment-settings.css
       - src/assets/pix-symbol.svg
       - package.json
@@ -32,8 +33,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install and refresh lockfile
-        run: npm install --ignore-scripts
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
 
       - name: Verify dnd-kit dependency
         run: npm ls @dnd-kit/react
@@ -61,15 +62,28 @@ jobs:
       - name: Diff check
         run: git diff --check
 
-      - name: Commit generated lockfile
+      - name: Record ledger and retire temporary gate
         shell: bash
         run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json already synchronized"
-            exit 0
-          fi
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          path = Path('docs/superpowers/qa/2026-09-12-spec-b-execution-ledger.md')
+          text = path.read_text(encoding='utf-8')
+          heading = '# Spec B execution ledger — business settings and policies\n'
+          marker = '## 2026-09-14 - Payment reorder migrated to dnd-kit'
+          run_id = os.environ.get('GITHUB_RUN_ID', 'unknown')
+          entry = f'''\n## 2026-09-14 - Payment reorder migrated to dnd-kit\n\nBlocker correction restricted to `Settings > Payment methods`, after real staging QA showed that the custom Pointer Events implementation could leave the dragged method hidden and the insertion marker stuck until reload.\n\n- Root cause: the custom drag lifecycle was tied to a handle being optimistically repositioned while the source row used `visibility: hidden`; losing the final pointer lifecycle left the visual drag state orphaned.\n- TDD RED: temporary feature-branch CI run `34890327239` executed the new integration contract against the old implementation and ended **9/11**, with the two expected failures for the missing dnd-kit/brand-asset migration and reorder helper.\n- Implementation: `@dnd-kit/react@0.5.0` now owns pointer/touch/keyboard lifecycle, optimistic sorting and `DragOverlay`; `useSortable` connects each row and its dedicated six-dot `handleRef`. Manual `elementFromPoint`, pointer capture and custom pointer move/up/cancel handlers were removed. One normalized draft reorder is committed on `onDragEnd`; no backend save happens during drag.\n- Pix: added `src/assets/pix-symbol.svg` with the recognizable Pix geometry and token-colored CSS mask. Debit and credit remain card icons.\n- Visual feedback: the source remains in layout with reduced opacity, dnd-kit moves neighboring items optimistically, a primary insertion marker follows the live sortable index, and an overlay identifies the dragged method. Mobile keeps the same handle/touch path and flexible badges.\n- Final verification in temporary feature-branch CI run `{run_id}`: focused Payment settings **11/11**; proportional Settings/Operation regression **57/57**; `npm ls @dnd-kit/react` resolved **0.5.0**; lint exited 0; build passed; `git diff --check` passed.\n- Browser QA remains intentionally pending staging/manual validation because this ChatGPT environment has no interactive browser. Required acceptance remains desktop/mobile real drag, repeated drops, Pix rendering, badge containment, Cancel restoration and Save/reload persistence.\n\nNo migration, production action, master merge, release or other Settings screen was started.\n'''
+          if marker not in text:
+              if not text.startswith(heading):
+                  raise SystemExit('ledger heading not found')
+              text = text.replace(heading, heading + entry, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+          git rm .github/workflows/spec-b-payment-dnd-tdd.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: sync dnd-kit lockfile"
+          git add docs/superpowers/qa/2026-09-12-spec-b-execution-ledger.md
+          git commit -m "docs: record payment dnd-kit migration"
           git push origin HEAD:feature/spec-b-settings-policies
