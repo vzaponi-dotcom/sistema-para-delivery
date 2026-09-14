@@ -177,3 +177,17 @@ test('mobile cancellation settings use responsive rows and never a horizontal ta
   assert.equal(screen.root.findAllByType('table').length, 0)
   assert.equal(screen.root.findAll((node) => node.props?.['data-cancellation-id']).length, 5)
 })
+
+test('mobile cancellation metadata stays horizontal and protected reasons use a shield icon', async (t) => {
+  const css = await readFile(new URL('../cancellation-settings.css', import.meta.url), 'utf8')
+  assert.match(css, /"order reason reason actions"\s*"\. type status status"/)
+
+  const h = await workspaceHarness(t, { mobile: true })
+  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const screen = await h.render(CancellationSettings, {
+    resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {},
+  })
+  const protectedBadge = row(screen.root, 'other').findByProps({ className: 'cancellation-protected-badge' })
+  assert.equal(protectedBadge.findAllByType('svg').length, 1)
+  assert.doesNotMatch(nodeText(protectedBadge), /▣/)
+})
