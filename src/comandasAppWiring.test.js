@@ -3,6 +3,14 @@ import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
 import { comandaDetail, deferred, detailResponse } from './test-support/comandaFixtures.js'
+import { legacyCapabilities } from './app/access.js'
+
+const authenticatedSession = {
+  authenticated: true,
+  businessId: 'amor-e-sabor',
+  settingsContextId: 'test-settings-context',
+  capabilities: [...legacyCapabilities(true)],
+}
 
 const effectivePaymentConfig = {
   version: 'payment-test-v1', revisions: { paymentMethods: 1, cancellationReasons: 1 },
@@ -18,9 +26,18 @@ const effectivePaymentConfig = {
     { id: 'duplicate_order', label: 'Pedido duplicado', requiresNote: false },
   ] },
 }
+const effectiveCheckoutConfig = {
+  ...effectivePaymentConfig,
+  revisions: { ...effectivePaymentConfig.revisions, operations: 1 },
+  operations: {
+    enabledModalities: ['Entrega', 'Retirada', 'Local'],
+    defaultModality: 'Entrega',
+    timing: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
+  },
+}
 async function paymentWorkspace(t, mobile = false) {
   const h = await workspaceHarness(t, { mobile })
-  const state = { tables: workspaceTables, expired: false, pending: [], detail: comandaDetail, bootstrapCalls: 0 }
+  const state = { tables: workspaceTables, expired: false, relogged: false, pending: [], detail: comandaDetail, bootstrapCalls: 0 }
   globalThis.fetch = async (path, options = {}) => {
     if (path.endsWith('/cancel')) return state.deferCancellation.promise
     if (path === '/api/orders') return state.deferOrders ? state.deferOrders.promise : jsonResponse({ orders: state.bootstrapData?.orders || [] })
@@ -39,8 +56,9 @@ async function paymentWorkspace(t, mobile = false) {
       if (state.expired) return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }
       return { ok: true, json: async () => structuredClone({ tables: state.tables, tableTabs: [], orders: [], movements: [], clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig, ...state.bootstrapData }) }
     }
+    if (path === '/api/auth/login') { state.relogged = true; return jsonResponse({}) }
     const responses = {
-      '/api/auth/session': { authenticated: true }, '/api/auth/login': {},
+      '/api/auth/session': state.relogged ? authenticatedSession : { authenticated: true },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }
@@ -592,7 +610,7 @@ test('App renders official Comandas, preserves selection across destinations and
     const responses = {
       ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }
@@ -651,7 +669,7 @@ test('an occupied comanda adds another order through the preselected wizard and 
     const responses = {
       ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
       '/api/orders': { order: { id: 'order-43', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-42', tableId: 'occupied', number: 42, status: 'open' }, tables: afterCheckoutTables },
@@ -695,7 +713,7 @@ test('an occupied comanda can cancel its preselected wizard without creating an 
     const responses = {
       ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }
@@ -727,7 +745,7 @@ test('a stale occupied-comanda checkout keeps the wizard and refreshes authorita
       const currentTables = checkoutAttempted
         ? workspaceTables.map((table) => table.id === 'occupied' ? { ...table, occupancy: 'free', openTableTab: null } : table)
         : workspaceTables
-      return { ok: true, status: 200, json: async () => ({ tables: currentTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null }) }
+      return { ok: true, status: 200, json: async () => ({ tables: currentTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig }) }
     }
     if (path === '/api/table-tabs/tab-42') return detailResponse(comandaDetail)
     if (path === '/api/orders' && options.method === 'POST') {
@@ -774,7 +792,7 @@ test('a successful table checkout returns to Comandas with the authoritative occ
     const responses = {
       ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
       '/api/orders': { order: { id: 'order-99', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-99', tableId: 'free', number: 99, status: 'open' }, tables: createdTables },
@@ -818,7 +836,7 @@ test('an unavailable table rejection retains the real wizard draft and retries w
     const responses = {
       ...checkoutDetails,
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: bootstrapTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/bootstrap': { tables: bootstrapTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }
@@ -851,6 +869,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
   const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
+  let relogged = false
   const orderResolvers = []
   const orderStarted = []
   const originalFetch = globalThis.fetch
@@ -864,11 +883,11 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
         orderStarted.shift()?.()
       })
     }
+    if (path === '/api/auth/login') { relogged = true; return { ok: true, json: async () => ({}) } }
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
-      '/api/auth/login': {},
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/auth/session': relogged ? authenticatedSession : { authenticated: true },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }
@@ -949,6 +968,7 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
   const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
   const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
+  let relogged = false
   const orderResolvers = []
   const orderStarted = []
   const originalFetch = globalThis.fetch
@@ -962,11 +982,11 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
         orderStarted.shift()?.()
       })
     }
+    if (path === '/api/auth/login') { relogged = true; return { ok: true, json: async () => ({}) } }
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
-      '/api/auth/login': {},
-      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null },
+      '/api/auth/session': relogged ? authenticatedSession : { authenticated: true },
+      '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }
