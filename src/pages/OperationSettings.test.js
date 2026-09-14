@@ -284,12 +284,10 @@ test('read-only and controller states use the shared shell without editable acti
 })
 
 test('operation layout uses theme tokens and renders full labels with mobile-safe controls', async (t) => {
-  const css = await readFile(new URL('../settings.css', import.meta.url), 'utf8')
-  assert.match(css, /\.operation-settings-section[^{]*\{[^}]*background: var\(--surface\)/s)
-  assert.match(css, /\.operation-settings-section\.is-selected \{ border-color: var\(--primary\); \}/)
-  assert.match(css, /\.operation-timing-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s)
-  assert.match(css, /@media \(max-width: 640px\) \{[\s\S]*?\.operation-timing-grid[^}]*grid-template-columns: minmax\(0, 1fr\)/)
-  assert.doesNotMatch(css, /\.operation-[^{]*\{[^}]*(?:#[0-9a-f]{3,8}|rgb\()/i)
+  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  const sharedCss = await readFile(new URL('../settings.css', import.meta.url), 'utf8')
+  assert.match(css, /\.operation-editor \.operation-settings-section[^{]*\{[^}]*background: var\(--surface\)/s)
+  assert.match(sharedCss, /\.operation-timing-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s)
 
   const h = await workspaceHarness(t, { mobile: true })
   const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
@@ -302,6 +300,36 @@ test('operation layout uses theme tokens and renders full labels with mobile-saf
   assert.match(nodeText(screen.root), /Essas configurações organizam a fila da cozinha/)
   assert.equal(screen.root.findByProps({ className: 'operation-timing-grid' }).props.style, undefined)
   assert.equal(buttonNamed(screen.root, 'Salvar alterações').props.type, 'button')
+})
+
+test('operation inherits light and dark theme tokens instead of forcing a light palette', async () => {
+  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(css, /color-scheme\s*:\s*light/i)
+  for (const token of ['bg', 'surface', 'surface-soft', 'surface-strong', 'text', 'text-soft', 'muted', 'border']) {
+    assert.doesNotMatch(css, new RegExp(`--${token}\\s*:`))
+  }
+  assert.match(css, /background:\s*var\(--surface\)/)
+  assert.match(css, /color:\s*var\(--text\)/)
+})
+
+test('operation switches to its real mobile composition at the shell breakpoint', async () => {
+  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  const mobile = css.slice(css.indexOf('@media (max-width: 820px)'))
+  assert.match(mobile, /\.operation-editor \.operation-timing-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
+  assert.match(mobile, /\.operation-editor \.operation-modality-row\s*\{[^}]*grid-template-areas:/s)
+  assert.match(mobile, /\.operation-editor \.operation-minute-input input\s*\{[^}]*min-height:\s*44px/s)
+  assert.match(mobile, /\.operation-modality-menu summary\s*\{[^}]*min-height:\s*44px/s)
+})
+
+test('operation desktop sizing keeps the approved mockup at application scale', async () => {
+  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  assert.match(css, /\.app-content:has\(> \.operation-settings-page\)\s*\{[^}]*width:\s*min\(1600px, 100%\)/s)
+  assert.match(css, /\.operation-editor\s*\{[^}]*font-size:\s*14px/s)
+  assert.match(css, /\.operation-editor \.settings-editor-header h1\s*\{[^}]*font-size:\s*32px/s)
+  assert.match(css, /\.operation-editor \.operation-section-heading h2\s*\{[^}]*font-size:\s*18px/s)
+  assert.match(css, /\.operation-editor \.operation-minute-input input\s*\{[^}]*min-height:\s*42px/s)
+  assert.match(css, /\.operation-editor \.operation-modality-row\s*\{[^}]*min-height:\s*54px/s)
+  assert.match(css, /\.operation-editor \.settings-editor-footer \.button\s*\{[^}]*min-height:\s*42px/s)
 })
 
 test('printing settings route remains available and separate from operations', async (t) => {
