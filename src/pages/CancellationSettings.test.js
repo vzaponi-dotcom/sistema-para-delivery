@@ -130,7 +130,7 @@ test('unused custom reasons can be renamed or deleted while used reasons can onl
 
   await act(async () => buttonNamed(row(fixture.screen.root, 'unused-custom'), 'Renomear').props.onClick())
   await act(async () => fixture.screen.root.findByType('input').props.onChange({ target: { value: 'Cliente ausente' } }))
-  await act(async () => buttonNamed(fixture.screen.root, 'Aplicar ao rascunho').props.onClick())
+  await act(async () => buttonNamed(fixture.screen.root, 'Atualizar motivo').props.onClick())
   assert.equal(fixture.edits.at(-1).items.find((item) => item.id === 'unused-custom').label, 'Cliente ausente')
   assert.equal(fixture.saves(), 0)
 })
