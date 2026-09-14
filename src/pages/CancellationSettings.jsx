@@ -3,6 +3,7 @@ import { DragDropProvider, DragOverlay, useDragOperation } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import Button from '../components/Button.jsx'
 import ConfirmationDialog from '../components/ConfirmationDialog.jsx'
+import Icon from '../components/Icon.jsx'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 import SettingsItemDialog from '../components/SettingsItemDialog.jsx'
 import '../cancellation-settings.css'
@@ -114,7 +115,7 @@ function CancellationSortableRow({
       <span className={item.active ? 'cancellation-status-badge is-active' : 'cancellation-status-badge'}>
         <i aria-hidden="true" />{item.active ? 'Ativo' : 'Inativo'}
       </span>
-      {isOther && <span className="cancellation-protected-badge"><span aria-hidden="true">▣</span> Protegido</span>}
+      {isOther && <span className="cancellation-protected-badge"><Icon name="shield" size={13} /> Protegido</span>}
       {permissions.requiresNote && <span className="cancellation-visually-hidden">Exige nota</span>}
     </div>
     <div className="cancellation-actions-cell" role="cell" data-cancellation-actions={item.id}>
