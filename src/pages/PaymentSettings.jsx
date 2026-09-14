@@ -75,8 +75,8 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
   const runMenuAction = (event, actionId) => {
     const applied = onAction(method, actionId)
     if (!applied) return
-    const details = event.currentTarget.closest('details')
-    const summary = details?.querySelector('summary')
+    const details = event?.currentTarget?.closest?.('details')
+    const summary = details?.querySelector?.('summary')
     if (details) details.open = false
     summary?.focus?.()
   }
