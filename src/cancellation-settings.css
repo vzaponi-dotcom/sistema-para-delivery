@@ -311,6 +311,10 @@
   color: var(--primary);
 }
 
+.cancellation-protected-badge svg {
+  flex: 0 0 auto;
+}
+
 .cancellation-actions-cell {
   justify-self: center;
 }
@@ -455,12 +459,11 @@
 
   .cancellation-settings-row {
     grid-template-areas:
-      "order reason actions"
-      ". type type"
-      ". status status";
-    grid-template-columns: 70px minmax(0, 1fr) 46px;
+      "order reason reason actions"
+      ". type status status";
+    grid-template-columns: 70px max-content minmax(0, 1fr) 46px;
     gap: 8px 10px;
-    min-height: 128px;
+    min-height: 104px;
     padding: 13px;
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -474,8 +477,8 @@
   .cancellation-order-cell { grid-area: order; align-self: start; gap: 6px; }
   .cancellation-order-number { min-width: 28px; }
   .cancellation-reason-cell { grid-area: reason; align-self: center; }
-  .cancellation-type-cell { grid-area: type; padding-left: 4px; }
-  .cancellation-status-cell { grid-area: status; padding-left: 4px; }
+  .cancellation-type-cell { grid-area: type; align-self: start; padding-left: 4px; }
+  .cancellation-status-cell { grid-area: status; align-self: start; padding-left: 0; }
   .cancellation-actions-cell { grid-area: actions; align-self: start; }
   .cancellation-insertion-marker { right: 13px; left: 13px; }
   .cancellation-drag-overlay-card { grid-template-columns: 30px minmax(0, 1fr) auto; width: min(390px, calc(100vw - 32px)); min-height: 104px; padding: 12px 14px; }
@@ -504,8 +507,8 @@
   }
 
   .cancellation-settings-row {
-    grid-template-columns: 62px minmax(0, 1fr) 44px;
-    min-height: 132px;
+    grid-template-columns: 62px max-content minmax(0, 1fr) 44px;
+    min-height: 108px;
     padding: 12px 10px;
   }
 
