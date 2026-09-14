@@ -47,7 +47,7 @@ async function renderEditable(h, PaymentSettings, initial = resourceState()) {
 
 const row = (root, code) => root.findByProps({ 'data-payment-code': code })
 
-test('renders the approved payment administration composition for the six native methods', async (t) => {
+test('renders the native payment editor without free-CRUD controls and with specific payment icons', async (t) => {
   const h = await workspaceHarness(t)
   const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
@@ -61,7 +61,9 @@ test('renders the approved payment administration composition for the six native
   assert.match(nodeText(screen.root), /Pix.*Dinheiro.*Cartão de débito.*Cartão de crédito.*Transferência.*Outro/s)
   assert.match(nodeText(screen.root), /Configurações.*Formas de pagamento.*Gerencie os métodos de pagamento aceitos no seu delivery/s)
   assert.match(nodeText(screen.root), /Os métodos nativos não podem ser renomeados.*As alterações realizadas serão aplicadas após salvar/s)
-  assert.ok(buttonNamed(screen.root, 'Adicionar forma'))
+  assert.equal(Boolean(buttonNamed(screen.root, 'Adicionar forma')), false)
+  assert.equal(screen.root.findAll((node) => node.props?.className === 'payment-editor-toolbar').length, 0)
+  assert.equal(screen.root.findAll((node) => node.props?.className === 'payment-notice-secondary').length, 1)
   assert.equal(screen.root.findByProps({ role: 'table', 'aria-label': 'Formas de pagamento' }).props.role, 'table')
   assert.match(nodeText(screen.root), /ORDEM.*FORMA.*STATUS.*PADRÃO.*AÇÕES/s)
   assert.match(nodeText(row(screen.root, 'pix')), /Pagamento instantâneo.*Ativo.*Padrão/s)
@@ -70,6 +72,12 @@ test('renders the approved payment administration composition for the six native
   assert.match(nodeText(row(screen.root, 'transfer')), /TED, DOC ou transferência bancária/s)
   assert.equal(screen.root.findAll((node) => node.props?.['data-payment-drag-handle']).length, 6)
   assert.equal(screen.root.findAll((node) => node.props?.['data-payment-actions']).length, 6)
+  assert.equal(row(screen.root, 'pix').findByProps({ 'data-payment-icon': 'pix' }).props['data-payment-icon'], 'pix')
+  assert.equal(row(screen.root, 'cash').findByProps({ 'data-payment-icon': 'cash' }).props['data-payment-icon'], 'cash')
+  assert.equal(row(screen.root, 'debit_card').findByProps({ 'data-payment-icon': 'card' }).props['data-payment-icon'], 'card')
+  assert.equal(row(screen.root, 'credit_card').findByProps({ 'data-payment-icon': 'card' }).props['data-payment-icon'], 'card')
+  assert.equal(row(screen.root, 'transfer').findByProps({ 'data-payment-icon': 'transfer' }).props['data-payment-icon'], 'transfer')
+  assert.equal(row(screen.root, 'other').findByProps({ 'data-payment-icon': 'other' }).props['data-payment-icon'], 'other')
   assert.doesNotMatch(nodeText(screen.root), /Renomear|Excluir/i)
 })
 
@@ -126,21 +134,40 @@ test('reorders by explicit action and Alt+Arrow keyboard without changing identi
   assert.deepEqual(fixture.edits.at(-1).methods.map((item) => item.code), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
 })
 
-test('the drag handle is the only pointer reorder affordance and changes only the draft', async (t) => {
+test('pointer drag previews the target, placeholder and insertion marker before committing only the draft', async (t) => {
   const h = await workspaceHarness(t)
   const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
   const fixture = await renderEditable(h, PaymentSettings)
-  const cash = row(fixture.screen.root, 'cash')
-  const handle = cash.findByProps({ 'data-payment-drag-handle': 'cash' })
+  const pix = row(fixture.screen.root, 'pix')
+  const handle = pix.findByProps({ 'data-payment-drag-handle': 'pix' })
+  const sourceElement = { getBoundingClientRect: () => ({ top: 100, height: 72 }) }
+  const targetElement = {
+    dataset: { paymentCode: 'debit_card' },
+    getBoundingClientRect: () => ({ top: 300, height: 72 }),
+    closest: () => targetElement,
+  }
+  h.document.elementFromPoint = () => targetElement
 
-  assert.equal(cash.props.draggable, undefined)
-  assert.equal(handle.props['aria-label'], 'Reordenar Dinheiro')
-  assert.equal(handle.props.draggable, true)
+  assert.equal(pix.props.draggable, undefined)
+  assert.equal(handle.props['aria-label'], 'Reordenar Pix')
+  assert.equal(handle.props.draggable, undefined)
   assert.equal(typeof handle.props.onPointerDown, 'function')
-  await act(async () => handle.props.onDragStart({ dataTransfer: { effectAllowed: '' } }))
-  await act(async () => row(fixture.screen.root, 'pix').props.onDrop({ preventDefault() {} }))
-  assert.deepEqual(fixture.edits.at(-1).methods.map((item) => item.code), ['cash', 'pix', 'debit_card', 'credit_card', 'transfer', 'other'])
+  assert.equal(typeof handle.props.onPointerMove, 'function')
+  assert.equal(typeof handle.props.onPointerUp, 'function')
+  await act(async () => handle.props.onPointerDown({ pointerId: 1, clientX: 20, clientY: 112, preventDefault() {}, currentTarget: { closest: () => sourceElement, setPointerCapture() {} } }))
+  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-drag-overlay'] === 'pix').length, 1)
+  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-insertion-marker'] === '0').length, 1)
+
+  let movePrevented = false
+  await act(async () => handle.props.onPointerMove({ pointerId: 1, clientX: 20, clientY: 350, preventDefault() { movePrevented = true } }))
+  assert.equal(movePrevented, true)
+  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-insertion-marker'] === '2').length, 1)
+  assert.deepEqual(fixture.screen.root.findAll((node) => node.props?.['data-payment-code']).map((node) => node.props['data-payment-code']), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
   assert.equal(fixture.saves(), 0)
+
+  await act(async () => handle.props.onPointerUp({ pointerId: 1, clientX: 20, clientY: 350, preventDefault() {}, currentTarget: { releasePointerCapture() {} } }))
+  assert.deepEqual(fixture.edits.at(-1).methods.map((item) => item.code), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
+  assert.equal(fixture.screen.root.findAll((node) => node.props?.['data-payment-drag-overlay']).length, 0)
 })
 
 test('read-only uses the shared shell and exposes no editing actions', async (t) => {
@@ -155,14 +182,10 @@ test('read-only uses the shared shell and exposes no editing actions', async (t)
   assert.equal(buttonNamed(screen.root, 'Salvar alterações'), undefined)
   assert.equal(buttonNamed(screen.root, 'Ativar'), undefined)
   assert.equal(buttonNamed(screen.root, 'Desativar'), undefined)
+  assert.equal(row(screen.root, 'pix').findByProps({ 'data-payment-drag-handle': 'pix' }).props.disabled, true)
 })
 
-test('mobile payment settings change to cards at the shell breakpoint and keep the real theme tokens', async (t) => {
-  const css = await readFile(new URL('../payment-settings.css', import.meta.url), 'utf8')
-  assert.match(css, /\.payment-settings-table/)
-  assert.match(css, /@media \(max-width: 820px\) \{[\s\S]*?\.payment-settings-table-head[^}]*display:\s*none/)
-  assert.doesNotMatch(css, /\.payment-settings[^{]*{[^}]*(?:#[0-9a-f]{3,8}|rgb\()/i)
-
+test('mobile payment settings use one flexible metadata region for contained badges', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
   const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
@@ -170,6 +193,13 @@ test('mobile payment settings change to cards at the shell breakpoint and keep t
   })
   assert.equal(screen.root.findAllByType('table').length, 0)
   assert.equal(screen.root.findAll((node) => node.props?.['data-payment-code']).length, 6)
+  assert.equal(row(screen.root, 'pix').findAll((node) => node.props?.className === 'payment-meta-cell').length, 1)
+})
+
+test('desktop keeps dedicated status and default columns while mobile folds badges into metadata', async () => {
+  const css = await readFile(new URL('../payment-settings.css', import.meta.url), 'utf8')
+  assert.match(css, /grid-template-columns:\s*88px minmax\(300px, 1\.6fr\) 130px 116px 54px/)
+  assert.match(css, /payment-meta-cell \{ display: flex; grid-area: meta; flex-wrap: wrap/)
 })
 
 test('payment save confirms only after success and Cancel discards then returns to settings home', async (t) => {
@@ -227,6 +257,7 @@ test('settings route loads and edits the single paymentMethods controller resour
   }))
   const screen = await h.render(Page)
   assert.deepEqual(loaded, ['paymentMethods'])
+  assert.doesNotMatch(nodeText(screen.root), /Operação.*Modalidades de pedido.*Motivos de cancelamento/s)
   await act(async () => buttonNamed(row(screen.root, 'cash'), 'Definir como padrão').props.onClick())
   assert.equal(edited.at(-1)[0], 'paymentMethods')
   assert.equal(edited.at(-1)[1].defaultMethod, 'cash')

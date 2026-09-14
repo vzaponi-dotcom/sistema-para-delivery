@@ -962,3 +962,16 @@ Rodada corretiva restrita a `Configurações > Operação`, motivada pela homolo
 - Gates: `npm.cmd run lint` saiu 0, mantendo somente warnings preexistentes fora do diff. `npm.cmd run build` passou com 391 módulos e o aviso conhecido de chunk principal acima de 500 kB. `git diff --check` passou.
 
 Escopo final: `src/operation-settings.css`, os contratos em `src/pages/OperationSettings.test.js` e este ledger. Sem produção, merge em master, migrations ou outras telas.
+
+## 2026-09-14 — Correção exclusiva de Configurações > Formas de pagamento
+
+Rodada iniciada em worktree isolada `.worktrees/payment-settings-visual-round`, branch local `fix/payment-settings-visual-round`, baseada em `b14640b` da branch remota aprovada. Nenhuma API, migration, regra de domínio ou tela fora de Formas de pagamento foi alterada.
+
+- RED: o contrato focado terminou 6/9. As três falhas esperadas provaram que o botão `Adicionar forma` ainda existia, o drag não possuía preview/placeholder/marcador durante `pointermove`, e o card mobile não tinha uma região flexível única para os badges. Um RED adicional comprovou que a tabela desktop havia perdido as cinco colunas visuais independentes.
+- GREEN: removidos o botão, toolbar e a `AreaNavigation` somente da rota `settings-payments`. O callout preserva os textos e passou a usar 7 px de separação estrutural. Pix usa SVG próprio com marca entrelaçada; Dinheiro usa cédula; débito/crédito usam cartão; Transferência, Outro e handle têm símbolos próprios em `currentColor`.
+- Reorder: Pointer Events no handle exclusivo agora mantêm `sourceIndex`, `targetIndex`, posição e offset do ponteiro. Durante o gesto, a lista renderiza ordem de preview, placeholder, marcador de inserção e overlay flutuante; o draft só é atualizado no `pointerup`. `pointercancel` descarta o preview; keyboard Alt+setas e ações acessíveis existentes permanecem. O handle bloqueado em read-only não parece interativo.
+- Mobile/tema: até 820 px o status e Padrão compartilham `payment-meta-cell` com `flex-wrap`, sem coluna estreita dedicada ao badge; menu e handle preservam alvos de 44 px. Todas as superfícies, textos, badges e marcador dependem dos tokens existentes, sem cores hardcoded.
+- Verificação: `npm.cmd test -- src/pages/PaymentSettings.test.js` passou **10/10**. A regressão proporcional `node --test --test-concurrency=1 src/pages/PaymentSettings.test.js src/pages/OperationSettings.test.js src/components/SettingsPrimitives.test.js src/settingsNavigation.test.js src/settingsDraftNavigation.test.js src/specBSettingsIntegration.test.js src/settingsResponsive.test.js` passou **55/55**. `npm.cmd run lint` saiu 0 com warnings preexistentes fora do diff. `npm.cmd run build` passou com 392 módulos. `git diff --check` foi reservado para o gate final após o ledger.
+- QA visual: o servidor local Vite respondeu 200, mas o Computer Use não expôs navegador nem aba disponível (`No browser is available`). Logo, a inspeção interativa de 1440/390/360/320 em light/dark permanece pendente para homologação manual; nenhuma screenshot foi fabricada.
+
+Sem push, staging, produção, merge, release ou próxima tela.

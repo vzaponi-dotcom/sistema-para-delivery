@@ -109,7 +109,6 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     />
   </div>
   if (paymentRoute) return <div className="settings-page">
-    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
     <PaymentSettings
       resourceState={businessSettings?.resources?.paymentMethods}
       readOnly={!(granted instanceof Set && granted.has('payments.settings.manage'))}
