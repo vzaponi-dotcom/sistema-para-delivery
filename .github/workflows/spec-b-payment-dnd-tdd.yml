@@ -35,14 +35,31 @@ jobs:
       - name: Install and refresh lockfile
         run: npm install --ignore-scripts
 
+      - name: Verify dnd-kit dependency
+        run: npm ls @dnd-kit/react
+
       - name: Focused payment settings tests
         run: node --test --test-concurrency=1 src/pages/PaymentSettings.test.js
+
+      - name: Proportional settings regression
+        run: >-
+          node --test --test-concurrency=1
+          src/pages/PaymentSettings.test.js
+          src/components/SettingsPrimitives.test.js
+          src/settingsNavigation.test.js
+          src/settingsDraftNavigation.test.js
+          src/specBSettingsIntegration.test.js
+          src/settingsResponsive.test.js
+          src/pages/OperationSettings.test.js
 
       - name: Lint
         run: npm run lint
 
       - name: Build
         run: npm run build
+
+      - name: Diff check
+        run: git diff --check
 
       - name: Commit generated lockfile
         shell: bash
