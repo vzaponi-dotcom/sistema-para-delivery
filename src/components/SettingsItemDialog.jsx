@@ -49,7 +49,10 @@ function SettingsItemDialogContent({ kind, mode, initialValue, onAdd, onClose })
     }
     onClose()
   }
-  return <Modal title={mode === 'edit' ? detail.editTitle : detail.addTitle} onClose={onClose} footer={<><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="button" onClick={submit}>{mode === 'edit' ? 'Aplicar ao rascunho' : 'Adicionar à lista'}</Button></>}>
+  const submitLabel = mode === 'edit'
+    ? kind === 'cancellation' ? 'Atualizar motivo' : 'Aplicar ao rascunho'
+    : 'Adicionar à lista'
+  return <Modal title={mode === 'edit' ? detail.editTitle : detail.addTitle} onClose={onClose} footer={<><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="button" onClick={submit}>{submitLabel}</Button></>}>
     <label className="form-field"><span>{detail.label}</span><input ref={inputRef} autoFocus type="text" maxLength={80} value={value} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} onChange={(event) => { setValue(event.target.value); setError('') }} /></label>
     {kind === 'finance' && <div className="form-field"><span>Tipo</span><SystemSelect label="Tipo" value={type} options={financeTypes} onChange={setType} disabled={Boolean(initial.label)} /></div>}
     {kind === 'cancellation' && mode !== 'edit' && <label className="settings-dialog-active"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /><span>Adicionar como ativo</span></label>}
