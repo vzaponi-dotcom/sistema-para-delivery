@@ -332,6 +332,42 @@ test('16. printing.settings permite vias e bloqueia estação sem station.config
   assert.equal(Boolean(buttonNamed(renderer.root, 'Salvar impressora')), false)
   assert.equal(Boolean(buttonNamed(renderer.root, 'Tornar principal')), false)
 })
+
+test('16b. printing.execute permite testar sem conceder configuração da estação', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  let tests = 0
+  const settings = {
+    policyState: () => null,
+    stationState: () => ({
+      status: 'ready',
+      confirmed: { data: { id: 'station-1', name: 'Cozinha', platform: 'windows', autoPrintEnabled: false } },
+      draft: { name: 'Cozinha', platform: 'windows', autoPrintEnabled: false },
+      dirty: false,
+      error: '',
+    }),
+    primaryState: () => ({ status: 'ready', confirmed: { data: { primaryStationId: 'station-1' } }, draft: { primaryStationId: 'station-1' } }),
+    async testPrint() { tests += 1; return true },
+  }
+  const printing = {
+    localStation: { id: 'station-1', name: 'Cozinha', platform: 'windows' },
+    configuredPrinterName: 'Fila A',
+    transportKind: 'qz',
+    transportReady: true,
+    availablePrinters: ['Fila A'],
+    printerHealth: { state: 'ready' },
+  }
+  const renderer = await h.render(PrintingSettingsContent, {
+    printing,
+    settings,
+    granted: new Set(['printing.station.view', 'printing.execute']),
+  })
+
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Salvar impressora')), false)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Atualizar lista')), false)
+  await act(async () => { buttonNamed(renderer.root, 'Testar impressão').props.onClick(); await flush() })
+  assert.equal(tests, 1)
+})
 test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set(['preferences.local']), { withTheme: true })
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())

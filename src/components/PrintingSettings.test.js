@@ -41,7 +41,9 @@ test('making a station primary remains an explicit confirmed action', () => {
 test('queue-only devices cannot expose physical or automatic printing controls', () => {
   assert.match(settings, /!isQz && <p[^>]*>Esta estação acompanha a fila central/)
   assert.match(settings, /isQz && canConfigureStation && <label className="printing-toggle-row"/)
-  assert.match(settings, /isQz && canConfigureStation && <>[\s\S]*Testar impressão/)
+  assert.match(settings, /isQz && canConfigureStation && <SystemSelect/)
+  assert.match(settings, /isQz && \(canConfigureStation \|\| canExecutePrinting\)/)
+  assert.match(settings, /canExecutePrinting && <Button[^>]*>[\s\S]*Testar impressão/)
 })
 
 test('physical status and pending attention remain visible without owning remote settings', () => {

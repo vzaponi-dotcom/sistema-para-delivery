@@ -128,14 +128,12 @@ function PrintingSettingsContent({ printing, settings, granted }) {
       {canViewStation && <section className="printing-settings-section" aria-labelledby="printing-local-title">
         <div className="printing-settings-heading"><div><p className="section-kicker">Somente neste equipamento</p><h2 id="printing-local-title">Impressora local / QZ</h2><p>A fila selecionada não é sincronizada com outras máquinas.</p></div><span className="printing-state">{operationalLabel}</span></div>
         {!isQz && <p className="printing-feedback">Esta estação acompanha a fila central; a execução física ocorre na estação Windows principal.</p>}
-        {isQz && canConfigureStation && <>
-          <SystemSelect value={selectedPrinter} onChange={setPrinterSelection} options={printerOptions} placeholder="Selecione a impressora" ariaLabel="Impressora QZ" disabled={localBusy} />
-          <div className="printing-actions-row">
-            <Button type="button" variant="secondary" onClick={() => run('discover', () => settings.refreshPrinters())} disabled={localBusy}>Atualizar lista</Button>
-            <Button type="button" onClick={() => run('printer', () => settings.savePrinter(selectedPrinter), 'Impressora local salva.')} disabled={localBusy || !selectedPrinter}>Salvar impressora</Button>
-            {canExecutePrinting && <Button type="button" variant="secondary" onClick={() => run('test', () => settings.testPrint(), 'Teste enviado com 1 via.')} disabled={localBusy || !printing?.transportReady || printing?.printerHealth?.state !== 'ready'}>Testar impressão</Button>}
-          </div>
-        </>}
+        {isQz && canConfigureStation && <SystemSelect value={selectedPrinter} onChange={setPrinterSelection} options={printerOptions} placeholder="Selecione a impressora" ariaLabel="Impressora QZ" disabled={localBusy} />}
+        {isQz && (canConfigureStation || canExecutePrinting) && <div className="printing-actions-row">
+          {canConfigureStation && <Button type="button" variant="secondary" onClick={() => run('discover', () => settings.refreshPrinters())} disabled={localBusy}>Atualizar lista</Button>}
+          {canConfigureStation && <Button type="button" onClick={() => run('printer', () => settings.savePrinter(selectedPrinter), 'Impressora local salva.')} disabled={localBusy || !selectedPrinter}>Salvar impressora</Button>}
+          {canExecutePrinting && <Button type="button" variant="secondary" onClick={() => run('test', () => settings.testPrint(), 'Teste enviado com 1 via.')} disabled={localBusy || !printing?.transportReady || printing?.printerHealth?.state !== 'ready'}>Testar impressão</Button>}
+        </div>}
         <div className="printing-inline-card"><strong>{printing?.configuredPrinterName || 'Nenhuma fila configurada'}</strong><span>Fila encontrada não confirma que a impressora física está pronta.</span></div>
         {(pendingCount > 0 || awaitingConfirmationCount > 0) && <div className="printing-queue-summary" aria-live="polite">
           {pendingCount > 0 && <span>Há {countLabel(pendingCount, 'trabalho aguardando impressão', 'trabalhos aguardando impressão')}</span>}
