@@ -2,28 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { hashPin } from './auth.js'
 import { handleRequest } from './index.js'
-
-class AuthOnlyDb {
-  constructor(pinHash) { this.pinHash = pinHash; this.sessions = [] }
-  prepare(sql) {
-    const db = this
-    return { bind(...values) { return {
-      async first() {
-        if (sql.includes('FROM auth_credentials')) return { pin_hash: db.pinHash }
-        if (sql.includes('FROM sessions')) return db.sessions.find((item) => item.token_hash === values[0]) ?? null
-        return null
-      },
-      async run() {
-        if (sql.includes('INSERT INTO sessions')) { const [id, businessId, tokenHash, createdAt, expiresAt, lastSeenAt] = values; db.sessions.push({ id, business_id: businessId, token_hash: tokenHash, created_at: createdAt, expires_at: expiresAt, last_seen_at: lastSeenAt, revoked_at: null }) }
-        else if (sql.includes('SET last_seen_at')) { const [lastSeenAt, id] = values; const row = db.sessions.find((item) => item.id === id); if (row) row.last_seen_at = lastSeenAt }
-        return { success: true }
-      },
-    } } }
-  }
-}
+import { OperationalDb } from './test-support/operationalDb.js'
 
 const loggedIn = async () => {
-  const env = { DB: new AuthOnlyDb(await hashPin('4827', new Uint8Array(16).fill(7))), LOGIN_RATE_LIMITER: { limit: async () => ({ success: true }) } }
+  const db = new OperationalDb()
+  db.sqlite.prepare('INSERT INTO auth_credentials (business_id, pin_hash, created_at, updated_at) VALUES (?, ?, ?, ?)').run('amor-e-sabor', await hashPin('4827', new Uint8Array(16).fill(7)), '2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z')
+  const env = { DB: db, LOGIN_RATE_LIMITER: { limit: async () => ({ success: true }) } }
   const response = await handleRequest(new Request('https://delivery.example/api/auth/login', { method: 'POST', headers: { origin: 'https://delivery.example', 'content-type': 'application/json' }, body: JSON.stringify({ pin: '4827' }) }), env)
   return { env, cookie: response.headers.get('set-cookie').split(';')[0] }
 }

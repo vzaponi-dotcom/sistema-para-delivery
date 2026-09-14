@@ -84,7 +84,8 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
   }
   const vite = await createServer({
     cacheDir: viteCacheDir,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom',
+    // Fixed sources: filesystem activity must not enter browser timer tracking.
+    server: { middlewareMode: true, hmr: false, ws: false, watch: { ignored: () => true } }, appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: [] },
     ssr: { noExternal: ['react-dom'] },
     plugins: [{
@@ -120,6 +121,7 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
   })
   return {
     cacheDir: vite.config.cacheDir,
+    watchedPaths: () => Object.keys(vite.watcher.getWatched()),
     window, document, localStorage, sessionStorage, media, load: (path) => vite.ssrLoadModule(path),
     fireInterval(delay) { for (const interval of [...intervals.values()]) if (interval.delay === delay) interval.callback() },
     fireAllIntervals() { for (const interval of [...intervals.values()]) interval.callback() },

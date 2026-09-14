@@ -1,140 +1,23 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DatabaseSync } from 'node:sqlite'
+import { OperationalDb } from './test-support/operationalDb.js'
 import { createOrder } from './repositories.js'
 
-class D1Sqlite {
-  constructor() {
-    this.sqlite = new DatabaseSync(':memory:')
-    this.sqlite.exec(`
-      PRAGMA foreign_keys = ON;
-      CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-      CREATE TABLE clients (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, phone TEXT, address TEXT);
-      CREATE TABLE products (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, category TEXT, size TEXT,
-        presentation_type TEXT, presentation_value TEXT, presentation_unit TEXT,
-        name TEXT NOT NULL, price_cents INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1
-      );
-      CREATE TABLE orders (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_number INTEGER NOT NULL, client_id TEXT,
-        client_name_snapshot TEXT NOT NULL, client_phone_snapshot TEXT NOT NULL DEFAULT '',
-        client_address_snapshot TEXT NOT NULL DEFAULT '', customer_identity_type TEXT,
-        table_tab_id TEXT, type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL,
-        subtotal_cents INTEGER NOT NULL, delivery_fee_cents INTEGER NOT NULL,
-        adjustment_type TEXT NOT NULL, adjustment_mode TEXT NOT NULL, adjustment_value INTEGER NOT NULL,
-        adjustment_amount_cents INTEGER NOT NULL, adjustment_reason TEXT NOT NULL,
-        total_cents INTEGER NOT NULL, created_at TEXT NOT NULL, finished_at TEXT,
-        cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, scheduled_for TEXT, promised_payment_date TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, idempotency_key TEXT NOT NULL,
-        timing_policy_snapshot_json TEXT
-      );
-      CREATE UNIQUE INDEX orders_idempotency_idx ON orders (business_id, idempotency_key);
-      CREATE TABLE order_sequences (
-        business_id TEXT PRIMARY KEY,
-        last_order_number INTEGER NOT NULL
-      );
-      CREATE TABLE order_items (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, product_id TEXT,
-        name_snapshot TEXT NOT NULL, category_snapshot TEXT, size_snapshot TEXT, quantity INTEGER NOT NULL,
-        catalog_price_cents INTEGER NOT NULL, unit_price_cents INTEGER NOT NULL, price_reason TEXT,
-        note TEXT, created_at TEXT NOT NULL
-      );
-      CREATE TABLE payments (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL,
-        amount_cents INTEGER NOT NULL, method TEXT NOT NULL, paid_at TEXT NOT NULL, created_at TEXT NOT NULL
-      );
-      CREATE TABLE movements (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, type TEXT, category TEXT, description TEXT,
-        value_cents INTEGER, source TEXT, order_id TEXT, payment_id TEXT, payment_method TEXT,
-        movement_date TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT
-      );
-      CREATE TABLE table_tabs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_id TEXT, table_identifier TEXT NOT NULL,
-        tab_number INTEGER, status TEXT NOT NULL, opened_at TEXT NOT NULL, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-      );
-      CREATE UNIQUE INDEX idx_table_tabs_business_number ON table_tabs (business_id, tab_number);
-      CREATE TABLE table_tab_counters (
-        business_id TEXT PRIMARY KEY, last_number INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL
-      );
-      CREATE TABLE tables (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, name_key TEXT NOT NULL,
-        sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-      );
-      CREATE UNIQUE INDEX idx_table_tabs_one_open_per_table_id ON table_tabs (business_id, table_id) WHERE status = 'open';
-      CREATE TABLE print_stations (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL,
-        is_primary INTEGER NOT NULL DEFAULT 0, auto_print_enabled INTEGER NOT NULL DEFAULT 0,
-        default_copies INTEGER NOT NULL DEFAULT 2, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-      );
-      CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
-      CREATE TABLE business_print_settings (
-        business_id TEXT PRIMARY KEY, default_copies INTEGER NOT NULL,
-        table_tab_default_copies INTEGER NOT NULL DEFAULT 1, revision INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-      );
-      CREATE TABLE business_operation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
-      CREATE TABLE business_order_modalities (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
-      CREATE TABLE business_payment_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
-      CREATE TABLE business_payment_methods (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
-      CREATE TABLE settings_mutation_receipts (business_id TEXT, resource_key TEXT, mutation_id TEXT, payload_hash TEXT, committed_revision INTEGER, committed_at TEXT, resource_created_at TEXT, resource_updated_at TEXT);
-      CREATE TABLE settings_tx_assertions (tx_id TEXT, check_key TEXT, valid INTEGER);
-      CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
-      CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
-      CREATE TABLE print_jobs (
-        id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL,
-        trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL,
-        copies_printed INTEGER NOT NULL DEFAULT 0, station_id TEXT, snapshot_json TEXT NOT NULL,
-        created_at TEXT NOT NULL, available_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT,
-        second_copy_requested_at TEXT, second_copy_skipped_at TEXT, last_error_code TEXT, last_error_message TEXT
-      );
-      CREATE UNIQUE INDEX print_jobs_one_auto_order_idx ON print_jobs (business_id, order_id)
-        WHERE type = 'order' AND trigger = 'automatic';
-    `)
-  }
-  prepare(sql) {
-    const database = this.sqlite
-    return { bind(...values) { return {
-      async first() { return database.prepare(sql).get(...values) ?? null },
-      async all() { return { results: database.prepare(sql).all(...values) } },
-      async run() { const result = database.prepare(sql).run(...values); return { success: true, meta: { changes: Number(result.changes || 0) } } },
-    } } }
-  }
-  async batch(statements) {
-    this.sqlite.exec('BEGIN')
-    try {
-      const results = []
-      for (const statement of statements) results.push(await statement.run())
-      this.sqlite.exec('COMMIT')
-      return results
-    } catch (error) {
-      this.sqlite.exec('ROLLBACK')
-      throw error
-    }
-  }
-  exec(sql) { this.sqlite.exec(sql) }
-  all(sql) { return this.sqlite.prepare(sql).all() }
-}
-
 const seed = ({ auto = true, primary = true, centralCopies = 2 } = {}) => {
-  const db = new D1Sqlite()
+  const db = new OperationalDb()
   db.exec(`
-    INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');
-    INSERT INTO business_operation_settings VALUES ('amor-e-sabor', 1);
-    INSERT INTO business_order_modalities VALUES ('amor-e-sabor', 'Entrega', 1), ('amor-e-sabor', 'Retirada', 1), ('amor-e-sabor', 'Local', 1);
-    INSERT INTO business_payment_settings VALUES ('amor-e-sabor', 1);
-    INSERT INTO business_payment_methods VALUES ('amor-e-sabor', 'pix', 1), ('amor-e-sabor', 'cash', 1), ('amor-e-sabor', 'debit_card', 1), ('amor-e-sabor', 'credit_card', 1), ('amor-e-sabor', 'transfer', 1), ('amor-e-sabor', 'other', 1);
-    INSERT INTO clients (id, business_id, name, phone, address)
-      VALUES ('c1', 'amor-e-sabor', 'Maria', '11998765432', 'Rua das Flores, 123');
+    INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at)
+      VALUES ('c1', 'amor-e-sabor', 'Maria', '11998765432', 'Rua das Flores, 123', '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
     INSERT INTO products (
-      id, business_id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents, active
+      id, business_id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents, active, created_at, updated_at
     ) VALUES
-      ('p1', 'amor-e-sabor', 'Lanches', '', 'size', 'G', '', 'X-BURGER', 3000, 1),
-      ('p2', 'amor-e-sabor', 'Bebidas', '350ml', 'volume', '350', 'ml', 'Coca-Cola', 800, 1);
+      ('p1', 'amor-e-sabor', 'Lanches', '', 'size', 'G', '', 'X-BURGER', 3000, 1, '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z'),
+      ('p2', 'amor-e-sabor', 'Bebidas', '350ml', 'volume', '350', 'ml', 'Coca-Cola', 800, 1, '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
     INSERT INTO print_stations (
       id, business_id, name, platform, is_primary, auto_print_enabled, default_copies, created_at, updated_at
     ) VALUES ('station-a', 'amor-e-sabor', 'Tablet da cozinha', 'android', ${primary ? 1 : 0}, ${auto ? 1 : 0}, 2,
       '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
-    INSERT INTO business_print_settings (business_id, default_copies, table_tab_default_copies, revision, created_at, updated_at)
-      VALUES ('amor-e-sabor', ${centralCopies}, 1, 1, '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
+    UPDATE business_print_settings SET default_copies = ${centralCopies} WHERE business_id = 'amor-e-sabor';
     INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at)
       VALUES ('table-1', 'amor-e-sabor', 'Mesa 1', 'MESA 1', 1, 1,
         '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
@@ -159,8 +42,8 @@ const input = (overrides = {}) => ({
 
 const seedTableSeven = (db) => {
   db.exec(`
-    INSERT INTO clients (id, business_id, name, phone, address)
-      VALUES ('c2', 'amor-e-sabor', 'Joao', '', '');
+    INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at)
+      VALUES ('c2', 'amor-e-sabor', 'Joao', '', '', '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');
     INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at)
       VALUES ('table-7', 'amor-e-sabor', 'Mesa 7', 'MESA 7', 7, 1,
         '2026-09-03T20:00:00.000Z', '2026-09-03T20:00:00.000Z');

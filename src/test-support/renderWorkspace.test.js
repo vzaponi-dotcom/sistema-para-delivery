@@ -23,3 +23,9 @@ test('workspace harness caches are exclusive and teardown removes only the owned
     while (cleanups.length) await cleanups.pop()()
   }
 })
+
+test('workspace harness does not watch project files or schedule watcher timers', async (t) => {
+  const harness = await workspaceHarness(t)
+  await harness.load('/src/App.jsx')
+  assert.deepEqual(harness.watchedPaths(), [], 'filesystem watchers must not contaminate App lifecycle observations')
+})

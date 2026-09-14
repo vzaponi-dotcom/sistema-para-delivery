@@ -1,71 +1,25 @@
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import { DatabaseSync } from 'node:sqlite'
+import { OperationalDb } from './test-support/operationalDb.js'
 import test from 'node:test'
 import { cancelOrder } from './orderCancellation.js'
 import { createOrder, registerTableTabPayment } from './repositories.js'
 
-const lifecycleSql = () => fs.readFileSync(new URL('../migrations/0021_table_tab_lifecycle_guards.sql', import.meta.url), 'utf8')
-const centralizedPrintingSql = () => fs.readFileSync(new URL('../migrations/0014_centralized_print_queue.sql', import.meta.url), 'utf8')
-const orderNumbersSql = () => fs.readFileSync(new URL('../migrations/0017_order_numbers.sql', import.meta.url), 'utf8')
 const timestamp = '2026-09-10T18:00:00.000Z'
 
-class D1Sqlite {
+class D1Sqlite extends OperationalDb {
   constructor({ withOrder = true } = {}) {
-    this.sqlite = new DatabaseSync(':memory:')
+    super({ businesses: ['other-business'] })
     this.beforeBatch = null
     this.batchTail = Promise.resolve()
     this.sqlite.exec(`
-      PRAGMA foreign_keys = ON;
-      CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-      CREATE TABLE tables (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, name_key TEXT NOT NULL, sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE table_tabs (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_id TEXT, table_identifier TEXT NOT NULL, tab_number INTEGER NOT NULL, status TEXT NOT NULL, opened_at TEXT NOT NULL, closed_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE table_tab_counters (business_id TEXT PRIMARY KEY, last_number INTEGER NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE clients (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, phone TEXT, address TEXT);
-      CREATE TABLE products (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, category TEXT NOT NULL, size TEXT NOT NULL, presentation_type TEXT, presentation_value TEXT, presentation_unit TEXT, name TEXT NOT NULL, price_cents INTEGER NOT NULL, active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE orders (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, client_id TEXT, client_name_snapshot TEXT NOT NULL, client_phone_snapshot TEXT NOT NULL DEFAULT '', client_address_snapshot TEXT NOT NULL DEFAULT '', customer_identity_type TEXT NOT NULL, table_tab_id TEXT, type TEXT NOT NULL, order_date TEXT NOT NULL, status TEXT NOT NULL, scheduled_for TEXT, promised_payment_date TEXT, is_backdated INTEGER NOT NULL DEFAULT 0, subtotal_cents INTEGER NOT NULL, delivery_fee_cents INTEGER NOT NULL, adjustment_type TEXT NOT NULL, adjustment_mode TEXT NOT NULL, adjustment_value INTEGER NOT NULL, adjustment_amount_cents INTEGER NOT NULL, adjustment_reason TEXT NOT NULL, total_cents INTEGER NOT NULL, created_at TEXT NOT NULL, finished_at TEXT, cancelled_at TEXT, cancel_reason TEXT, cancel_reason_note TEXT, idempotency_key TEXT NOT NULL);
-      CREATE UNIQUE INDEX orders_business_idempotency_idx ON orders (business_id, idempotency_key);
-      CREATE TABLE order_items (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, product_id TEXT, name_snapshot TEXT NOT NULL, category_snapshot TEXT NOT NULL, size_snapshot TEXT NOT NULL, quantity INTEGER NOT NULL, catalog_price_cents INTEGER NOT NULL, unit_price_cents INTEGER NOT NULL, price_reason TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
-      CREATE TABLE payments (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL UNIQUE, amount_cents INTEGER NOT NULL, method TEXT NOT NULL, paid_at TEXT NOT NULL, created_at TEXT NOT NULL);
-      CREATE TABLE movements (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL, value_cents INTEGER NOT NULL, source TEXT NOT NULL, order_id TEXT, payment_id TEXT, payment_method TEXT, movement_date TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT, deleted_at TEXT);
-      CREATE TABLE print_stations (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL, is_primary INTEGER NOT NULL, auto_print_enabled INTEGER NOT NULL, default_copies INTEGER NOT NULL, last_seen_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE print_jobs (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL, status TEXT NOT NULL, copies_requested INTEGER NOT NULL, copies_printed INTEGER NOT NULL, station_id TEXT, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, available_at TEXT NOT NULL, processing_started_at TEXT, processed_at TEXT, last_error_code TEXT, last_error_message TEXT);
-      INSERT INTO businesses VALUES ('amor-e-sabor', 'Amor & Sabor'), ('other-business', 'Other');
-      INSERT INTO tables VALUES
+      INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at) VALUES
         ('table-1', 'amor-e-sabor', 'Mesa 1', 'MESA 1', 1, 1, '${timestamp}', '${timestamp}'),
         ('table-2', 'amor-e-sabor', 'Mesa 2', 'MESA 2', 2, 1, '${timestamp}', '${timestamp}');
-      INSERT INTO table_tabs VALUES ('tab-1', 'amor-e-sabor', 'table-1', 'Mesa 1', 1, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}');
-      INSERT INTO table_tab_counters VALUES ('amor-e-sabor', 1, '${timestamp}');
-      INSERT INTO products VALUES ('product-1', 'amor-e-sabor', 'Lanches', 'Un', 'unit', '', '', 'X-Burger', 2500, 1, '${timestamp}', '${timestamp}');
-    `)
-    this.sqlite.exec(`
-      ALTER TABLE orders ADD COLUMN timing_policy_snapshot_json TEXT;
-      CREATE TABLE business_operation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL,
-        scheduled_prep_lead_minutes INTEGER NOT NULL, scheduled_late_grace_minutes INTEGER NOT NULL,
-        immediate_late_after_minutes INTEGER NOT NULL, immediate_very_late_after_minutes INTEGER NOT NULL,
-        default_modality TEXT NOT NULL, default_active INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE business_order_modalities (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
-      CREATE TABLE business_payment_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
-      CREATE TABLE business_payment_methods (business_id TEXT NOT NULL, code TEXT NOT NULL, active INTEGER NOT NULL);
-      CREATE TABLE business_cancellation_settings (business_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
-      CREATE TABLE business_cancel_reasons (business_id TEXT NOT NULL, id TEXT NOT NULL, active INTEGER NOT NULL, requires_note INTEGER NOT NULL, first_used_at TEXT);
-      CREATE TABLE settings_mutation_receipts (business_id TEXT, resource_key TEXT, mutation_id TEXT, payload_hash TEXT, committed_revision INTEGER, committed_at TEXT, resource_created_at TEXT, resource_updated_at TEXT);
-      CREATE TABLE settings_tx_assertions (tx_id TEXT, check_key TEXT, valid INTEGER);
-      CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
-      CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions WHEN NEW.valid <> 1 BEGIN SELECT RAISE(ABORT, 'POLICY_CHANGED'); END;
-      INSERT INTO business_operation_settings VALUES ('amor-e-sabor', 1, 50, 15, 30, 40, 'Entrega', 1, '${timestamp}', '${timestamp}');
-      INSERT INTO business_order_modalities VALUES ('amor-e-sabor', 'Entrega', 1), ('amor-e-sabor', 'Retirada', 1), ('amor-e-sabor', 'Local', 1);
-      INSERT INTO business_payment_settings VALUES ('amor-e-sabor', 1);
-      INSERT INTO business_payment_methods VALUES ('amor-e-sabor', 'pix', 1), ('amor-e-sabor', 'cash', 1), ('amor-e-sabor', 'debit_card', 1), ('amor-e-sabor', 'credit_card', 1), ('amor-e-sabor', 'transfer', 1), ('amor-e-sabor', 'other', 1);
-      INSERT INTO business_cancellation_settings VALUES ('amor-e-sabor', 1);
-      INSERT INTO business_cancel_reasons VALUES ('amor-e-sabor', 'client_changed_mind', 1, 0, NULL);
+      INSERT INTO table_tabs (id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at) VALUES ('tab-1', 'amor-e-sabor', 'table-1', 'Mesa 1', 1, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}');
+      UPDATE table_tab_counters SET last_number = 1, updated_at = '${timestamp}' WHERE business_id = 'amor-e-sabor';
+      INSERT INTO products (id, business_id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents, active, created_at, updated_at) VALUES ('product-1', 'amor-e-sabor', 'Lanches', 'Un', 'unit', '', '', 'X-Burger', 2500, 1, '${timestamp}', '${timestamp}');
     `)
     if (withOrder) this.insertOrder('order-1', 'tab-1', 'seed-order')
-    this.sqlite.exec(centralizedPrintingSql())
-    this.sqlite.exec(`ALTER TABLE business_print_settings ADD COLUMN table_tab_default_copies INTEGER NOT NULL DEFAULT 1;
-      ALTER TABLE business_print_settings ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;`)
-    this.sqlite.exec(orderNumbersSql())
-    this.sqlite.exec(lifecycleSql())
   }
 
   insertOrder(id, tabId, key) {
@@ -76,33 +30,11 @@ class D1Sqlite {
       subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode,
       adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents,
       created_at, finished_at, cancelled_at, cancel_reason, cancel_reason_note,
-      idempotency_key
+      idempotency_key, order_number
     ) VALUES (?, 'amor-e-sabor', NULL, 'Mesa 1', '', '', 'table', ?, 'Local',
       '2026-09-10', 'Em preparo', NULL, NULL, 0, 2500, 0, 'none', 'fixed', 0,
-      0, '', 2500, ?, NULL, NULL, NULL, NULL, ?)`)
+      0, '', 2500, ?, NULL, NULL, NULL, NULL, ?, (SELECT coalesce(max(order_number), 0) + 1 FROM orders))`)
       .run(id, tabId, timestamp, key)
-  }
-
-  prepare(sql) {
-    const database = this.sqlite
-    return { bind(...values) { return {
-      async first() { return database.prepare(sql).get(...values) ?? null },
-      async all() { return { results: database.prepare(sql).all(...values) } },
-      async run() { const result = database.prepare(sql).run(...values); return { success: true, meta: { changes: Number(result.changes || 0) } } },
-    } } }
-  }
-
-  async executeBatch(statements) {
-    this.sqlite.exec('BEGIN')
-    try {
-      const results = []
-      for (const statement of statements) results.push(await statement.run())
-      this.sqlite.exec('COMMIT')
-      return results
-    } catch (error) {
-      this.sqlite.exec('ROLLBACK')
-      throw error
-    }
   }
 
   concurrentAdapter() {
@@ -231,7 +163,7 @@ test('expected table tab identity allows same-tab reuse and rejects close transf
     const db = new D1Sqlite({ withOrder: false })
     if (state === 'closed') db.sqlite.prepare("UPDATE table_tabs SET status = 'closed' WHERE id = 'tab-1'").run()
     if (state === 'transferred') db.sqlite.prepare("UPDATE table_tabs SET table_id = 'table-2' WHERE id = 'tab-1'").run()
-    if (state === 'replaced') db.sqlite.exec(`UPDATE table_tabs SET status = 'closed' WHERE id = 'tab-1'; INSERT INTO table_tabs VALUES ('tab-2', 'amor-e-sabor', 'table-1', 'Mesa 1', 2, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}');`)
+    if (state === 'replaced') db.sqlite.exec(`UPDATE table_tabs SET status = 'closed' WHERE id = 'tab-1'; INSERT INTO table_tabs (id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at) VALUES ('tab-2', 'amor-e-sabor', 'table-1', 'Mesa 1', 2, 'open', '${timestamp}', NULL, '${timestamp}', '${timestamp}');`)
     await assert.rejects(
       () => createOrder(db, 'amor-e-sabor', tableOrderInput('tab-1', `stale-${state}`), new Date(timestamp)),
       (error) => error.status === 409 && error.code === 'TABLE_TAB_CHANGED',

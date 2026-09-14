@@ -39,7 +39,7 @@ test('theme is absent from Sidebar and remains available in Settings device pref
   assert.match(settings, /Preferências deste dispositivo/)
   assert.match(settings, /const themeOptions =/)
   assert.match(settings, /aria-pressed=\{themePreference === option\.value\}/)
-  assert.match(settings, /setThemePreference\(option\.value\)/)
+  assert.match(settings, /changeTheme\(option\.value\)/)
 })
 
 test('mobile navigation owns logout, omits theme controls and avoids horizontal menu scrolling', async () => {

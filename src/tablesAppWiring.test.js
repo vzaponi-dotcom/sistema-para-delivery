@@ -4,6 +4,7 @@ import test from 'node:test'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
 import { deferred } from './test-support/comandaFixtures.js'
+import { authenticatedSession } from './test-support/appSessionFixtures.js'
 
 const app = fs.readFileSync(new URL('./App.jsx', import.meta.url), 'utf8')
 
@@ -14,7 +15,7 @@ async function tablesWorkspace(t) {
     if (path === '/api/tables' && options.method === 'POST') { state.writes.push(JSON.parse(options.body)); return state.pending.promise }
     if (path === '/api/bootstrap' && state.expired) return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }
     const responses = {
-      '/api/auth/session': { authenticated: true }, '/api/auth/login': {},
+      '/api/auth/session': authenticatedSession, '/api/auth/login': authenticatedSession,
       '/api/bootstrap': { tables: state.tables, orders: [], movements: [], products: [], clients: [], tableTabs: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },

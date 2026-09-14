@@ -864,3 +864,16 @@ T22 iniciou em novo worktree isolado `.worktrees/t22`, detached e limpo exatamen
 - Visual/manual: o servidor Vite local iniciou, mas Computer Use retornou zero browsers/apps e Edge indisponível. Nenhuma screenshot foi fabricada. V01–V14 têm evidência automatizada PASS e homologação manual/visual PENDING em `2026-09-12-spec-b-acceptance.md`.
 
 `TEST-INFRA-01` permanece **OPEN / causa não confirmada**. `TEST-INFRA-02` permanece **OPEN / causa não confirmada**. `npm test` agregado, seleção histórica de 103, migrations, gate D1, impressão física/QZ real, staging, produção, migration remota, merge, release, force-push e PR para master não foram executados. T23 permanece não autorizada e não iniciada.
+
+## T23A — correção das 39 falhas por causa raiz, sem gates seguintes
+
+Retomada local em `.worktrees/t23a`, branch `codex/t23a-spec-b-settings-policies`, base `48b5448`, com autorização específica para corrigir as 39 falhas do agregado 1473/1512. O histórico completo do agregado estava truncado, mas a saída filtrada posterior no transcript preservava os 39 registros `not ok`. A seleção inicial dos 14 arquivos reproduziu 39/72 falhas; um registro é o pai de um subteste que falhou, não um defeito adicional.
+
+O [inventário detalhado](2026-09-13-t23a-root-causes.md) contém todos os nomes, a classificação e as evidências: 19 schema/migrations manuais; 14 configuração efetiva/sessão, incluindo doubles de SQL e o pai; cinco expectativas de contrato; um caso de navegação com fixture antigo e contaminação de timers pelo watcher Vite. Nenhum defeito de produção foi confirmado. As alterações funcionais ficaram exclusivamente em testes/helpers; schemas reais até 0025 substituíram fixtures operacionais incompletos, preservando os testes históricos intermediários, transações reais e fail-closed.
+
+- Cache: RED determinístico de diretório compartilhado; GREEN 30/30 com regressão de exclusividade, remoção e preservação do cache vizinho. Commit separado `be978f1` (`test: isolate Vite cache per workspace harness`).
+- Grupos focados: schema/migrations 36/36; doubles/contratos/regressões 53/53; UI/ownership/recuperação/harness 18/18. O watcher foi caracterizado por stack de `FSWatcher._throttle`, não confundido com vazamento do App.
+- Processos: runner antigo T21 de 21:43 e seu filho foram identificados e encerrados; zero runners antes e depois do agregado. Supervisor da nova execução confirmou árvore drenada e fechamento.
+- Único agregado limpo: **1514/1514, zero falhas, cancelamentos, skips e todo; exit 0; resumo final presente; 58.318,2888 ms**. Os dois testes adicionais são cache/watcher. Logs e resumo persistidos em `logs/t23a-root-causes/`; o primeiro lançamento por cmd falhou antes de iniciar npm e foi preservado separadamente.
+
+`git diff --check` passou. Nenhum push, staging, migration remota, produção, merge ou force-push foi feito. Lint/build/dry-runs/D1 e T23B não foram iniciados; aprovação global da T23A, homologação visual/física e release continuam pendentes. O resultado agregado verde deste checkpoint não retroage para validar checkpoints anteriores.
