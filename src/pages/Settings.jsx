@@ -55,7 +55,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   }
   const saveOperation = async () => {
     const saved = await operationSettings?.save?.('operations')
-    if (saved === true) onSuccessMessage?.('Configura\u00e7\u00f5es de opera\u00e7\u00e3o salvas com sucesso')
+    if (saved === true) onSuccessMessage?.('Configurações de operação salvas com sucesso')
     return saved
   }
   const reviewPaymentConflict = async () => {
@@ -79,6 +79,17 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     const review = await businessSettings?.reviewConflict?.('cancellationReasons')
     if (review) onSettingsConflictReview?.(review)
     return review
+  }
+  const saveCancellation = async () => {
+    const saved = await businessSettings?.save?.('cancellationReasons')
+    if (saved === true) onSuccessMessage?.('Motivos de cancelamento salvos com sucesso')
+    return saved
+  }
+  const cancelCancellation = async () => {
+    const discarded = await businessSettings?.discard?.('cancellationReasons')
+    if (discarded === false) return false
+    onNavigate?.('settings-home')
+    return true
   }
   const reviewFinanceCategoryConflict = async () => {
     const review = await businessSettings?.reviewConflict?.('financeCategories')
@@ -122,16 +133,16 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     />
   </div>
   if (cancellationRoute) return <div className="settings-page">
-    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
     <CancellationSettings
       resourceState={businessSettings?.resources?.cancellationReasons}
       readOnly={!(granted instanceof Set && granted.has('orders.settings.manage'))}
       onEdit={(draft) => businessSettings?.edit?.('cancellationReasons', draft)}
-      onSave={() => businessSettings?.save?.('cancellationReasons')}
-      onDiscard={() => businessSettings?.discard?.('cancellationReasons')}
+      onSave={saveCancellation}
+      onDiscard={cancelCancellation}
       onReconcile={() => businessSettings?.reconcile?.('cancellationReasons')}
       onReload={() => businessSettings?.load?.('cancellationReasons')}
       onReviewConflict={reviewCancellationConflict}
+      onNavigateHome={() => onNavigate?.('settings-home')}
     />
   </div>
   if (financeCategoryRoute) return <div className="settings-page">
