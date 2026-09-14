@@ -145,6 +145,19 @@ export function useNavigationController({
     pendingNavigationRef.current = null
     setPendingNavigation(null)
   }, [])
+  const discardSettingsAndNavigate = useCallback((target) => {
+    if (pendingNavigationRef.current) return false
+    const resolution = resolveTarget(target)
+    if (resolution.status !== 'allowed') return reject(resolution.status)
+    const currentDraft = getSettingsDraft?.(resolvedActiveTab)
+    if (currentDraft) {
+      const discarded = onDiscardSettings?.(currentDraft.resourceKey, currentDraft)
+      if (discarded === false) return false
+    }
+    setMoreOpen(false)
+    setActiveTab(resolution.id)
+    return true
+  }, [getSettingsDraft, onDiscardSettings, reject, resolveTarget, resolvedActiveTab])
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
   const resetNavigation = useCallback(() => {
@@ -164,6 +177,7 @@ export function useNavigationController({
     closeMore,
     confirmDiscard,
     cancelDiscard,
+    discardSettingsAndNavigate,
     resetNavigation,
     completeNavigation,
   }

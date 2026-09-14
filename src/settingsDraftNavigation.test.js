@@ -94,6 +94,19 @@ test('destinations in the same settings aggregate preserve the draft without con
   assert.deepEqual(fixture.discarded, [])
 })
 
+test('explicit settings cancellation discards once and navigates immediately', async (t) => {
+  const fixture = await mountNavigation(t)
+  await act(async () => fixture.api.current.requestNavigation('settings-printing'))
+
+  let navigated
+  await act(async () => { navigated = fixture.api.current.discardSettingsAndNavigate('clients') })
+
+  assert.equal(navigated, true)
+  assert.equal(fixture.api.current.activeTab, 'clients')
+  assert.equal(fixture.api.current.pendingDestination, null)
+  assert.deepEqual(fixture.discarded, ['operations'])
+})
+
 test('saving or unconfirmed settings commitments can navigate without discard or another write decision', async (t) => {
   for (const status of ['saving', 'unconfirmed']) {
     const fixture = await mountNavigation(t, { draft: { ...dirtyDraft, status } })

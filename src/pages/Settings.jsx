@@ -17,7 +17,7 @@ const themeOptions = [
   { value: 'system', label: 'Automático' },
 ]
 
-function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, businessSettings = operationSettings, onSettingsConflictReview }) {
+function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, businessSettings = operationSettings, onSettingsConflictReview, onSuccessMessage, onCancelOperation }) {
   const { themePreference, setThemePreference } = useTheme()
   const [devicePersistenceError, setDevicePersistenceError] = useState('')
   const operationRoute = section === 'settings-operations' || section === 'settings-modalities'
@@ -53,6 +53,11 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     if (review) onSettingsConflictReview?.(review)
     return review
   }
+  const saveOperation = async () => {
+    const saved = await operationSettings?.save?.('operations')
+    if (saved === true) onSuccessMessage?.('Configura\u00e7\u00f5es de opera\u00e7\u00e3o salvas com sucesso')
+    return saved
+  }
   const reviewPaymentConflict = async () => {
     const review = await businessSettings?.reviewConflict?.('paymentMethods')
     if (review) onSettingsConflictReview?.(review)
@@ -84,8 +89,8 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       readOnly={!(granted instanceof Set && granted.has('operations.settings.manage'))}
       initialSection={section === 'settings-modalities' ? 'modalities' : 'timing'}
       onEdit={(draft) => operationSettings?.edit?.('operations', draft)}
-      onSave={() => operationSettings?.save?.('operations')}
-      onDiscard={() => operationSettings?.discard?.('operations')}
+      onSave={saveOperation}
+      onDiscard={onCancelOperation || (() => operationSettings?.discard?.('operations'))}
       onReconcile={() => operationSettings?.reconcile?.('operations')}
       onReload={() => operationSettings?.load?.('operations')}
       onReviewConflict={reviewOperationConflict}

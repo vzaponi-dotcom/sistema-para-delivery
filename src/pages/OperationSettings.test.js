@@ -69,6 +69,60 @@ test('Operation and Modalities routes open one shared operations resource', asyn
   assert.equal(operations.resources.operations.draft.timing.scheduledPrepLeadMinutes, adminFixture.data.timing.scheduledPrepLeadMinutes)
 })
 
+test('confirmed operation save reports success and failed save stays silent', async (t) => {
+  const h = await workspaceHarness(t)
+  h.document.documentElement.dataset = {}
+  const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
+    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+  ])
+  const messages = []
+  let saveResult = true
+  const controller = {
+    resources: { operations: { ...resourceState(), dirty: true } },
+    load() {}, edit() {}, discard() {}, reconcile() {}, reviewConflict() {},
+    save: async () => saveResult,
+  }
+  const Page = () => React.createElement(ThemeProvider, null, React.createElement(Settings, {
+    section: 'settings-operations', settings: {}, printing: {},
+    granted: new Set(['operations.settings.view', 'operations.settings.manage']),
+    implemented: new Set(['settings-home', 'settings-operations']),
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: controller,
+    onSuccessMessage: (message) => messages.push(message),
+  }))
+  const screen = await h.render(Page)
+
+  await act(async () => buttonNamed(screen.root, 'Salvar altera\u00e7\u00f5es').props.onClick())
+  assert.deepEqual(messages, ['Configura\u00e7\u00f5es de opera\u00e7\u00e3o salvas com sucesso'])
+
+  saveResult = false
+  await act(async () => buttonNamed(screen.root, 'Salvar altera\u00e7\u00f5es').props.onClick())
+  assert.equal(messages.length, 1)
+})
+
+test('operation Cancel delegates to the explicit discard-and-return action', async (t) => {
+  const h = await workspaceHarness(t)
+  h.document.documentElement.dataset = {}
+  const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
+    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+  ])
+  const cancellations = []
+  const controller = {
+    resources: { operations: { ...resourceState(), dirty: true } },
+    load() {}, edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
+  }
+  const Page = () => React.createElement(ThemeProvider, null, React.createElement(Settings, {
+    section: 'settings-operations', settings: {}, printing: {},
+    granted: new Set(['operations.settings.view', 'operations.settings.manage']),
+    implemented: new Set(['settings-home', 'settings-operations']),
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: controller,
+    onCancelOperation: () => cancellations.push('discard-and-return'),
+  }))
+  const screen = await h.render(Page)
+
+  await act(async () => buttonNamed(screen.root, 'Cancelar').props.onClick())
+  assert.deepEqual(cancellations, ['discard-and-return'])
+})
+
 test('switching between Operation and Modalities preserves one draft in both directions', async (t) => {
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}

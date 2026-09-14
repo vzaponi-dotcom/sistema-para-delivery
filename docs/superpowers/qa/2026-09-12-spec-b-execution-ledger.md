@@ -1,5 +1,17 @@
 # Spec B execution ledger — business settings and policies
 
+## 2026-09-14 - Operation save confirmation and Cancel return
+
+Functional correction limited to `Settings > Operation`, with no visual change and no work on other Settings screens.
+
+- Save: `Settings` awaits the settings controller result and invokes the central system confirmation only when `save('operations')` returns `true`, after API confirmation. The popup says `Configuracoes de operacao salvas com sucesso` with the proper Portuguese accents in the UI. Failure, conflict, or an uncertain result cannot show false success.
+- Cancel: the `Cancelar` button now uses an explicit navigation-controller intent. It discards the current draft once and immediately returns to `settings-home`; if discard is rejected, navigation does not occur. The global guard still protects ordinary exits with pending edits.
+- RED/GREEN: the first focused run ended 21/25 and confirmed the missing integrations; one test literal was normalized to Unicode escapes before GREEN. After implementation, the focused selection passed 25/25.
+- Proportional regression: `node --test --test-concurrency=1 src/pages/OperationSettings.test.js src/components/SettingsPrimitives.test.js src/settingsNavigation.test.js src/settingsDraftNavigation.test.js src/specBSettingsIntegration.test.js src/settingsResponsive.test.js src/successFeedbackRegression.test.js` passed 48/48 with no failures, skips, or cancellations.
+- Gates: `npm.cmd run lint` exited 0 with pre-existing warnings outside this diff; `npm.cmd run build` passed with 391 modules and the known chunk-size warning; `git diff --check` passed.
+
+No migration, deployment, production action, master merge, or other screen was started.
+
 ## Provenance and authorization
 
 - Application base: `8d2f897154526037606e9fee60f4b9a606089e8a` (`origin/master` at preparation).
