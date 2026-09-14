@@ -137,11 +137,11 @@ CREATE TABLE settings_tx_assertions (
 CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions
 WHEN NEW.valid IS NOT 1
 BEGIN
-  SELECT CASE NEW.check_key
+  SELECT (CASE NEW.check_key
     WHEN 'revision' THEN RAISE(ABORT, 'SETTINGS_REVISION_CONFLICT')
     WHEN 'unused' THEN RAISE(ABORT, 'SETTINGS_ITEM_USED')
     WHEN 'policy' THEN RAISE(ABORT, 'POLICY_CHANGED')
-    ELSE RAISE(ABORT, 'SETTINGS_INVALID') END;
+    ELSE RAISE(ABORT, 'SETTINGS_INVALID') END);
 END;
 CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions
 WHEN NEW.valid IS NOT 1
