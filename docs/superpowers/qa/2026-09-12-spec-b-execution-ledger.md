@@ -851,3 +851,16 @@ T21 iniciou sob autorização exclusiva em worktree isolada e branch local `code
 - Commit funcional: o commit contendo este ledger usa o subject `feat: implement scoped printing and local preference layouts`.
 
 O `npm test` agregado e a seleção conhecida de 103 testes não foram executados. `TEST-INFRA-01` e `TEST-INFRA-02` permanecem **OPEN / causa não confirmada** e não foram alterados. Migrations, gate D1, impressão física, QZ real, supervisor, deploy, migration remota, merge, release, force-push e PR para master não foram executados. Parada obrigatória após o push normal da T21; T22 permanece **não autorizada e não iniciada**.
+
+## T22 — Revisão integrada de UX, responsividade e regressões
+
+T22 iniciou em novo worktree isolado `.worktrees/t22`, detached e limpo exatamente no HEAD remoto aprovado `7ddd1b65f3a865ccb765eab693d2a021074c2ab5`. O checkout local divergente não foi reutilizado; T23 não foi iniciada.
+
+- Integração funcional: o harness real do manager prova que estação principal, QZ conectado, fila encontrada e impressora pronta alcançam `claimNextPrintJob` com autoimpressão desligada sem iniciar execução quando a claim rejeita o job normal. O polling precisa permanecer disponível para jobs manuais/priorizados; a claim real do Worker prova a filtragem por trigger/autorizações. O App real produziu RED para fallback silencioso de modalidades quando a configuração efetiva estava ausente; disponibilidade oficial passou a ser lista explícita vazia e a nova venda falha fechada, enquanto `NewOrder` isolado conserva o fallback legado quando a prop é omitida.
+- RED/GREEN responsivo: nomes de 80 caracteres e badges não possuíam quebra garantida. `overflow-wrap:anywhere` foi aplicado somente aos textos afetados. O harness automatiza contratos estruturais de layout fluido/mobile, rows, safe-area e modal; por não possuir motor de layout, geometria/overflow em 1440, 1024, 768, 390, 360 e 320 px permanece PENDING para navegador real.
+- Integração/lifecycle: duas passagens pelo App entre Home, todos os sete destinos de Configurações e Operação mantiveram 13 listeners e reduziram timers de 5 para 4; nenhum polling, heartbeat, listener, timer permanente ou segundo manager foi acumulado.
+- Testes T22: `src/specBSettingsIntegration.test.js` e `src/settingsResponsive.test.js` passaram 6/6.
+- Regressão proporcional: a seleção de 26 arquivos passou 212/213. A única falha foi `resposta de pagamento da sessão antiga não altera nem desbloqueia o alvo da nova sessão`, com assinatura reset/relogin já documentada em `TEST-INFRA-02`; não alcançou código T22. A matriz `actionCapabilities.test.js` passou separadamente 22/22, incluindo a separação `printing.execute` / `printing.station.configure`.
+- Visual/manual: o servidor Vite local iniciou, mas Computer Use retornou zero browsers/apps e Edge indisponível. Nenhuma screenshot foi fabricada. V01–V14 têm evidência automatizada PASS e homologação manual/visual PENDING em `2026-09-12-spec-b-acceptance.md`.
+
+`TEST-INFRA-01` permanece **OPEN / causa não confirmada**. `TEST-INFRA-02` permanece **OPEN / causa não confirmada**. `npm test` agregado, seleção histórica de 103, migrations, gate D1, impressão física/QZ real, staging, produção, migration remota, merge, release, force-push e PR para master não foram executados. T23 permanece não autorizada e não iniciada.

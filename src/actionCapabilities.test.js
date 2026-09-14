@@ -37,6 +37,13 @@ const bootstrap = {
   products: [product],
   movements: [{ id: 'movement-1', description: 'Caixa', type: 'entrada', value: 10, category: 'Outros', date: '2026-09-11', source: 'manual' }],
   financeSettings: null,
+  effectiveBusinessConfig: {
+    version: 'revision-zero', revisions: { operations: 0 },
+    operations: {
+      enabledModalities: ['Entrega', 'Retirada', 'Local'], defaultModality: 'Entrega',
+      timing: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
+    },
+  },
 }
 
 async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData = bootstrap } = {}) {
@@ -133,7 +140,10 @@ test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund
   const h = await workspaceHarness(t)
   const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/components/CancelOrderDialog.jsx'), h.load('/src/components/SystemSelect.jsx')])
   const confirmed = []
-  const renderer = await h.render(CancelOrderDialog, { open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload) })
+  const renderer = await h.render(CancelOrderDialog, {
+    open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload),
+    reasonOptions: [{ value: 'client_changed_mind', label: 'Cliente desistiu', active: true }], reasonRevision: 0,
+  })
   assert.equal(Boolean(buttonNamed(renderer.root, 'Sim')), false)
   await act(async () => renderer.root.findByType(SystemSelect).props.onChange('client_changed_mind'))
   await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
@@ -370,6 +380,7 @@ test('16b. printing.execute permite testar sem conceder configuração da estaç
 })
 test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set(['preferences.local']), { withTheme: true })
+  await navigate(h, 'settings-device')
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())
   assert.equal(h.window.localStorage.getItem('delivery-theme'), 'dark')
   const sound = renderer.root.findAllByType('input').find((node) => node.props.type === 'checkbox')

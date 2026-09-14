@@ -42,7 +42,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     ? defaultModality
     : activeModalityValues.has(initialType)
       ? initialType
-      : activeModalityOptions[0]?.value || initialType
+      : activeModalityOptions[0]?.value || (modalityOptions === undefined ? initialType : '')
   const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
@@ -124,7 +124,7 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   const modalityNeedsReview = !activeModalityValues.has(type)
   const selectedModalityOption = ORDER_TYPE_OPTIONS.find((option) => option.value === type)
     || { value: type, label: type }
-  const visibleModalityOptions = modalityNeedsReview
+  const visibleModalityOptions = modalityNeedsReview && type
     ? [...activeModalityOptions, selectedModalityOption]
     : activeModalityOptions
   const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
@@ -335,7 +335,9 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
       {(policyReviewError || modalityNeedsReview) && (
         <div className="new-order-error" role="alert">
-          {policyReviewError || (type === 'Local'
+          {policyReviewError || (!type
+            ? 'As modalidades de pedido estão indisponíveis. Tente novamente antes de continuar.'
+            : type === 'Local'
             ? 'Consumo no local não está disponível. Revise a modalidade para continuar.'
             : `${selectedModalityOption.label} não está mais ativa. Revise a modalidade para continuar.`)}
         </div>

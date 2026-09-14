@@ -231,7 +231,7 @@ function App({ capabilities } = {}) {
   const modalityOptions = useMemo(() => businessConfig?.operations?.enabledModalities?.map((value) => ({
     value,
     label: value === 'Local' ? 'Consumo no local' : value,
-  })), [businessConfig])
+  })) ?? [], [businessConfig])
   const defaultModality = businessConfig?.operations?.defaultModality
   const currentTiming = businessConfig?.operations?.timing
   const paymentMethodNeedsReview = paymentSelectionNeedsReview(paymentOptions, paymentMethod)

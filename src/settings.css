@@ -40,6 +40,7 @@
 .settings-item-list { display: grid; gap: 8px; }
 .settings-item-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
 .settings-item-copy { display: grid; gap: 4px; min-width: 0; }
+.settings-item-copy strong { overflow-wrap: anywhere; }
 .settings-item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .settings-item-action { display: grid; gap: 3px; }
 .settings-item-action small { max-width: 180px; color: var(--muted); font-size: .74rem; }
@@ -91,7 +92,7 @@
 .settings-catalog-copy { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .settings-catalog-copy > span:first-child { color: var(--text); }
 .settings-catalog-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.settings-catalog-badge { padding: 4px 7px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); font-size: .74rem; font-weight: 700; }
+.settings-catalog-badge { padding: 4px 7px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); overflow-wrap: anywhere; font-size: .74rem; font-weight: 700; }
 .settings-catalog-badge.is-active { background: var(--success-soft); color: var(--success); }
 .settings-catalog-badge.is-note, .settings-catalog-badge.is-pending { background: var(--primary-soft); color: var(--primary); }
 .settings-dialog-active { display: flex; align-items: center; gap: 8px; color: var(--text); }
