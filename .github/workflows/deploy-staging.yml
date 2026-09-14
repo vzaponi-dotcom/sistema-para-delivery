@@ -3,7 +3,7 @@ name: Deploy staging
 on:
   push:
     branches:
-      - feature/centralized-qz-print-queue
+      - feature/spec-b-settings-policies
   workflow_dispatch:
 
 permissions:
