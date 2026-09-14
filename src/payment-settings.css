@@ -14,6 +14,11 @@
 .payment-settings-table-head span:last-child { text-align: center; }
 .payment-settings-row { position: relative; min-height: 72px; padding: 9px 18px; color: var(--text); transition: opacity .16s ease, background-color .16s ease, box-shadow .16s ease; }
 .payment-settings-row + .payment-settings-row { border-top: 1px solid var(--border); }
+.payment-settings-row.is-inactive .payment-order-cell,
+.payment-settings-row.is-inactive .payment-method-cell,
+.payment-settings-row.is-inactive .payment-method-icon,
+.payment-settings-row.is-inactive .payment-meta-cell { color: var(--muted); }
+.payment-settings-row.is-inactive .payment-method-cell small { color: var(--muted); }
 .payment-settings-row.is-dnd-source { z-index: 1; background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface)); opacity: .28; }
 .payment-settings-row.is-dnd-target { background: color-mix(in srgb, var(--primary-soft) 32%, var(--surface)); }
 .payment-settings-row.is-dnd-dropping { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent); }

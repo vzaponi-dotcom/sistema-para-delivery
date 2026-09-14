@@ -66,10 +66,20 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
     : ''
   const className = [
     'payment-settings-row',
+    !method.active ? 'is-inactive' : '',
     isDragSource ? 'is-dnd-source' : '',
     isDropTarget ? 'is-dnd-target' : '',
     isDropping ? 'is-dnd-dropping' : '',
   ].filter(Boolean).join(' ')
+
+  const runMenuAction = (event, actionId) => {
+    const applied = onAction(method, actionId)
+    if (!applied) return
+    const details = event.currentTarget.closest('details')
+    const summary = details?.querySelector('summary')
+    if (details) details.open = false
+    summary?.focus?.()
+  }
 
   return <article
     ref={sortableRef}
@@ -107,10 +117,10 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
       {!readOnly && <details className="payment-actions-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}>
         <summary aria-label={`Ações de ${paymentLabel(method.code)}`}>···</summary>
         <div>
-          <button type="button" disabled={Boolean(lockedReason || disabledReason)} title={lockedReason || disabledReason} onClick={() => onAction(method, method.active ? 'deactivate' : 'activate')}>{method.active ? 'Desativar' : 'Ativar'}</button>
-          {method.active && !isDefault && <button type="button" disabled={Boolean(lockedReason)} onClick={() => onAction(method, 'default')}>Definir como padrão</button>}
-          <button type="button" disabled={Boolean(lockedReason) || index === 0} onClick={() => onAction(method, 'up')}>Mover para cima</button>
-          <button type="button" disabled={Boolean(lockedReason) || index === data.methods.length - 1} onClick={() => onAction(method, 'down')}>Mover para baixo</button>
+          <button type="button" disabled={Boolean(lockedReason || disabledReason)} title={lockedReason || disabledReason} onClick={(event) => runMenuAction(event, method.active ? 'deactivate' : 'activate')}>{method.active ? 'Desativar' : 'Ativar'}</button>
+          {method.active && !isDefault && <button type="button" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, 'default')}>Definir como padrão</button>}
+          <button type="button" disabled={Boolean(lockedReason) || index === 0} onClick={(event) => runMenuAction(event, 'up')}>Mover para cima</button>
+          <button type="button" disabled={Boolean(lockedReason) || index === data.methods.length - 1} onClick={(event) => runMenuAction(event, 'down')}>Mover para baixo</button>
         </div>
       </details>}
     </div>
