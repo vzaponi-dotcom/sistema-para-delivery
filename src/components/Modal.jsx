@@ -14,6 +14,7 @@ function Modal({ title, onClose, children, footer, className = '', initialFocusS
   const cardRef = useRef(null)
   const previousFocus = useRef(null)
   const onCloseRef = useRef(onClose)
+  const initialFocusSelectorRef = useRef(initialFocusSelector)
   onCloseRef.current = onClose
 
   useEffect(() => {
@@ -23,7 +24,7 @@ function Modal({ title, onClose, children, footer, className = '', initialFocusS
     const releaseScrollLock = acquireScrollLock(document)
 
     const controls = () => Array.from(cardRef.current?.querySelectorAll(focusable) || [])
-    const initialFocus = initialFocusSelector ? cardRef.current?.querySelector(initialFocusSelector) : null
+    const initialFocus = initialFocusSelectorRef.current ? cardRef.current?.querySelector(initialFocusSelectorRef.current) : null
     const focusTarget = initialFocus || controls()[0]
     focusTarget?.focus()
 
@@ -56,7 +57,7 @@ function Modal({ title, onClose, children, footer, className = '', initialFocusS
       releaseScrollLock()
       previousFocus.current?.focus?.()
     }
-  }, [initialFocusSelector])
+  }, [])
 
   const content = (
     <div className="modal-backdrop" onMouseDown={onClose}>

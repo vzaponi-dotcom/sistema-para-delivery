@@ -1,5 +1,18 @@
 # Spec B execution ledger — business settings and policies
 
+## 2026-09-14 - Staging deploy test-gate correction
+
+Correction limited to the shared modal focus lifecycle exercised by the Operation conflict review. No deployment was rerun in this round.
+
+- Failure reproduced from GitHub Actions run `34876595849`: `npm test` stopped before build and deployment with 1 failure in `src/productFormFocusRegression.test.js` (`modal focus lifecycle does not restart when an inline onClose callback changes during typing`). The Node.js 20 deprecation annotation was only a warning.
+- Root cause: the Operation review introduced `initialFocusSelector` into the modal effect dependency list, allowing the focus, scroll-lock, and restoration lifecycle to restart when the selector identity changed.
+- Correction: the initial selector is captured in a ref when the modal mounts, and the lifecycle effect remains mount-scoped. Operation keeps its intended initial conflict choice focus without restarting the shared modal lifecycle.
+- Focused verification: `src/productFormFocusRegression.test.js` and `src/components/SettingsConflictReview.test.js` passed 9/9.
+- Exact deploy test gate: `npm test` passed 1523/1523 with no failures, skips, or cancellations.
+- Remaining gates: lint exited 0 with pre-existing warnings, build passed with 391 modules and the known large-chunk warning, and `git diff --check` passed.
+
+No migration, deployment, production action, master merge, release, or other screen was started.
+
 ## 2026-09-14 - Operation conflict review blocker
 
 Correction limited to the conflict/review flow of `Settings > Operation`. Other Spec B screens and the three-way merge/controller rules were not changed.
