@@ -97,6 +97,22 @@
 .settings-catalog-badge.is-note, .settings-catalog-badge.is-pending { background: var(--primary-soft); color: var(--primary); }
 .settings-dialog-active { display: flex; align-items: center; gap: 8px; color: var(--text); }
 
+.settings-conflict-modal { width: min(760px, 100%); max-width: 100%; }
+.settings-conflict-review.is-operations { min-width: 0; overflow-x: hidden; }
+.settings-conflict-review.is-operations > p { margin: 0; color: var(--text-soft); line-height: 1.5; }
+.operation-conflict-summary { display: grid; min-width: 0; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
+.operation-conflict-summary strong { color: var(--text); }
+.operation-conflict-summary span { color: var(--muted); font-size: .86rem; }
+.operation-conflict-item { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.operation-conflict-item legend { max-width: 100%; padding: 0 6px; color: var(--text); font-weight: 750; overflow-wrap: anywhere; }
+.settings-conflict-choices { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.settings-conflict-choice { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; }
+.settings-conflict-choice:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
+.settings-conflict-choice input { margin: 3px 0 0; accent-color: var(--primary); }
+.settings-conflict-choice span { display: grid; min-width: 0; gap: 4px; }
+.settings-conflict-choice small { color: var(--muted); font-size: .78rem; }
+.settings-conflict-value { color: var(--text); overflow-wrap: anywhere; word-break: break-word; }
+
 @media (max-width: 640px) {
   .settings-home-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-home-card { min-height: 96px; padding: 16px; }
@@ -113,4 +129,6 @@
   .settings-catalog-copy { align-items: flex-start; flex-direction: column; }
   .finance-category-settings { grid-template-columns: minmax(0, 1fr); }
   .finance-category-group { padding: 12px; }
+  .settings-conflict-choices { grid-template-columns: minmax(0, 1fr); }
+  .operation-conflict-item { padding: 12px; }
 }

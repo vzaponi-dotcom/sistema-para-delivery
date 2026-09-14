@@ -10,7 +10,7 @@ const isTopmostDialog = (element) => {
   return dialogs.at(-1) === element
 }
 
-function Modal({ title, onClose, children, footer }) {
+function Modal({ title, onClose, children, footer, className = '', initialFocusSelector }) {
   const cardRef = useRef(null)
   const previousFocus = useRef(null)
   const onCloseRef = useRef(onClose)
@@ -23,7 +23,9 @@ function Modal({ title, onClose, children, footer }) {
     const releaseScrollLock = acquireScrollLock(document)
 
     const controls = () => Array.from(cardRef.current?.querySelectorAll(focusable) || [])
-    controls()[0]?.focus()
+    const initialFocus = initialFocusSelector ? cardRef.current?.querySelector(initialFocusSelector) : null
+    const focusTarget = initialFocus || controls()[0]
+    focusTarget?.focus()
 
     const handleKeyDown = (event) => {
       if (!isTopmostDialog(cardRef.current)) return
@@ -54,13 +56,14 @@ function Modal({ title, onClose, children, footer }) {
       releaseScrollLock()
       previousFocus.current?.focus?.()
     }
-  }, [])
+  }, [initialFocusSelector])
 
   const content = (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
         ref={cardRef}
-        className="modal-card"
+        className={['modal-card', className].filter(Boolean).join(' ')}
+        data-initial-focus={initialFocusSelector || undefined}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -1,5 +1,20 @@
 # Spec B execution ledger — business settings and policies
 
+## 2026-09-14 - Operation conflict review blocker
+
+Correction limited to the conflict/review flow of `Settings > Operation`. Other Spec B screens and the three-way merge/controller rules were not changed.
+
+- Root cause: the shared review component serialized complete `current` and `draft` objects through `JSON.stringify`, exposed internal paths as labels, and had no component-specific width or overflow containment.
+- Operation presentation: the modal branches only for `review.resource === 'operations'`. It renders only actual conflicts using the six labels from the Operation screen, formats timing values with `min`, joins active modalities with commas, and shows two clear radio cards for `Atual no negocio` and `Seu ajuste`. No raw object summary is rendered for Operation.
+- Focus and responsive layout: one conflicting field produces one review card and moves initial focus to its first choice. The operation modal has a bounded 760 px desktop width, zero-min-width grid tracks, explicit horizontal containment, wrapping values, and one-column choices at 640 px.
+- Preservation: `resolveSettingsConflict`, controller reconciliation, explicit apply behavior, no destructive default, draft retention, single-submit guard, and the requirement to save again after applying review remain unchanged.
+- RED/GREEN: the new focused contracts initially passed 4/7, reproducing raw JSON, missing labels/focus metadata, and absent responsive containment. The final focused run passed 7/7.
+- Proportional integration: conflict merge/state/controller, Operation, and Spec B integration tests passed 59/59.
+- Browser QA: Chromium rendered the real modal at 1440x900, 390x844, and 320x740. All three widths matched the viewport without horizontal overflow; the single-field case contained one card, had no internal key/JSON text, focused the current-value choice, and applied the selected local value while preserving the candidate.
+- Final verification: the expanded proportional selection passed 75/75 with no failures, skips, or cancellations. Lint exited 0 with pre-existing warnings, build passed with 391 modules and the known large-chunk warning, and `git diff --check` passed.
+
+No migration, deployment, production action, master merge, release, or other screen was started.
+
 ## 2026-09-14 - Operation save confirmation and Cancel return
 
 Functional correction limited to `Settings > Operation`, with no visual change and no work on other Settings screens.
