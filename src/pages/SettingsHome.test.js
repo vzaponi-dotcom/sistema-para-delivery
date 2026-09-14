@@ -13,25 +13,25 @@ const allImplemented = new Set([
   'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device',
 ])
 
-test('renders the seven implemented settings cards for full grants', async (t) => {
+test('renders one operation card for timing and modalities even when the modalities deep link is implemented', async (t) => {
   const h = await workspaceHarness(t)
   const { default: SettingsHome } = await h.load('/src/pages/SettingsHome.jsx')
   const screen = await h.render(SettingsHome, { granted: settingsGrants, implemented: allImplemented, onNavigate() {} })
 
   const cards = screen.root.findByProps({ className: 'settings-home-grid' }).findAllByType('button')
   assert.deepEqual(cards.map((card) => card.props['aria-label']), [
-    'Operação', 'Formas de pagamento', 'Modalidades de pedido', 'Motivos de cancelamento',
+    'Operação', 'Formas de pagamento', 'Motivos de cancelamento',
     'Categorias financeiras', 'Impressão', 'Preferências deste dispositivo',
   ])
   assert.deepEqual(cards.map((card) => nodeText(card)), [
-    'OperaçãoTempos da cozinha e critérios de atraso.',
+    'OperaçãoTempos, modalidades e regras operacionais.',
     'Formas de pagamentoMétodos aceitos, ordem e padrão.',
-    'Modalidades de pedidoEntrega, retirada e consumo no local.',
     'Motivos de cancelamentoMotivos disponíveis ao cancelar pedidos.',
     'Categorias financeirasCategorias dos lançamentos manuais.',
     'ImpressãoVias do negócio, estação e impressora local.',
     'Preferências deste dispositivoTema e som de novos pedidos.',
   ])
+  assert.equal(buttonNamed(screen.root, 'Modalidades de pedido'), undefined)
 })
 
 test('offers only device preferences to a local-preferences-only user', async (t) => {
