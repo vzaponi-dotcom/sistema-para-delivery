@@ -3,9 +3,8 @@ import PageHeader from '../components/PageHeader'
 import '../settings.css'
 
 const cards = [
-  { id: 'settings-operations', title: 'Operação', description: 'Tempos da cozinha e critérios de atraso.', capability: 'operations.settings.view', icon: 'settings' },
+  { id: 'settings-operations', title: 'Operação', description: 'Tempos, modalidades e regras operacionais.', capability: 'operations.settings.view', icon: 'settings' },
   { id: 'settings-payments', title: 'Formas de pagamento', description: 'Métodos aceitos, ordem e padrão.', capability: 'payments.settings.view', icon: 'wallet' },
-  { id: 'settings-modalities', title: 'Modalidades de pedido', description: 'Entrega, retirada e consumo no local.', capability: 'operations.settings.view', icon: 'clipboard' },
   { id: 'settings-cancellations', title: 'Motivos de cancelamento', description: 'Motivos disponíveis ao cancelar pedidos.', capability: 'orders.settings.view', icon: 'cancel' },
   { id: 'settings-finance-categories', title: 'Categorias financeiras', description: 'Categorias dos lançamentos manuais.', capability: 'finance.categories.view', icon: 'finance' },
   { id: 'settings-printing', title: 'Impressão', description: 'Vias do negócio, estação e impressora local.', capabilities: ['printing.settings.view', 'printing.settings', 'printing.station.view'], icon: 'printer' },
