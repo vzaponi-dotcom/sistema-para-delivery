@@ -67,7 +67,7 @@ public static class SpecBJob {
     }
     result.Append('\\', slashes * 2); return result.Append('"').ToString();
   }
-  public static int Run(string command, string[] args, string marker, string tracePath, string runId, string treeId) {
+  public static int Run(string command, string[] args, string marker, string tracePath, string runId, string treeId, int supervisorCloseDelayMs) {
     var trace = String.IsNullOrEmpty(tracePath) ? null : new DiagnosticTrace();
     if (trace != null) trace.Record("identity", ",\"runId\":\"" + runId + "\",\"treeId\":\"" + treeId + "\",\"source\":\"supervisor\",\"supervisorPid\":" + Process.GetCurrentProcess().Id + ",\"clock\":\"Stopwatch since Run; not comparable to manager clock\"");
     IntPtr job = IntPtr.Zero, inputRead = IntPtr.Zero, inputWrite = IntPtr.Zero;
@@ -136,7 +136,9 @@ public static class SpecBJob {
         Accounting state; Check(QueryInformationJobObject(job, 1, out state, (uint)Marshal.SizeOf(typeof(Accounting)), IntPtr.Zero));
         if (state.Active == 0) {
           if (trace != null) trace.Record("tree_empty", ",\"active\":0");
-          drained = true; Console.Error.WriteLine(marker + "{\"type\":\"drained\"}"); return 0;
+          drained = true; Console.Error.WriteLine(marker + "{\"type\":\"drained\"}");
+          if (supervisorCloseDelayMs > 0) Thread.Sleep(supervisorCloseDelayMs);
+          return 0;
         }
         Thread.Sleep(15);
       }
@@ -158,4 +160,4 @@ public static class SpecBJob {
   }
 }
 '@
-exit [SpecBJob]::Run($request.command, [string[]]$request.args, $request.marker, $request.tracePath, $request.runId, $request.treeId)
+exit [SpecBJob]::Run($request.command, [string[]]$request.args, $request.marker, $request.tracePath, $request.runId, $request.treeId, [int]$request.supervisorCloseDelayMs)

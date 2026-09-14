@@ -14,7 +14,7 @@ async function until(check, timeoutMs) {
 const groupAlive = (pid) => { try { process.kill(-pid, 0); return true } catch (error) { if (error.code === 'ESRCH') return false; throw error } }
 function signalGroup(pid, signal) { try { process.kill(-pid, signal) } catch (error) { if (error.code !== 'ESRCH') throw error } }
 
-function startTree(command, args, options, graceMs, forceMs, diagnostics) {
+function startTree(command, args, options, graceMs, forceMs, diagnostics, supervisorCloseDelayMs) {
   const windows = process.platform === 'win32'
   const treeId = randomUUID()
   const marker = `SPEC_B_JOB_${treeId}:`
@@ -24,7 +24,7 @@ function startTree(command, args, options, graceMs, forceMs, diagnostics) {
     if (diagnostics) events.push({ event, elapsedMs: Number(process.hrtime.bigint() - started) / 1e6, ...data })
   }
   const supervisorTracePath = diagnostics && join(diagnostics.directory, `${treeId}.supervisor.jsonl`)
-  const request = Buffer.from(JSON.stringify({ command, args, marker,
+  const request = Buffer.from(JSON.stringify({ command, args, marker, supervisorCloseDelayMs,
     ...(diagnostics ? { tracePath: supervisorTracePath, runId: diagnostics.runId, treeId } : {}) })).toString('base64')
   const child = windows
     ? spawn(join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'), ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', fileURLToPath(new URL('./spec-b-windows-job.ps1', import.meta.url)), request], { ...options, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -85,12 +85,17 @@ function startTree(command, args, options, graceMs, forceMs, diagnostics) {
       throw new Error('Process supervisor did not start before cleanup deadline')
     }
     if (failure) throw failure
-    const empty = () => windows ? drained && closed : !groupAlive(pid)
-    if (empty()) return { forced: false }
+    const empty = () => windows ? drained : !groupAlive(pid)
+    const awaitSupervisorClose = async () => {
+      if (!windows || closed) return
+      if (!await until(() => closed, forceMs)) throw new Error('Process supervisor did not close after confirming an empty job')
+      if (failure) throw failure
+    }
+    if (empty()) { await awaitSupervisorClose(); return { forced: false } }
     trace('stop_requested', { pid, graceMs, drained, closed, exitCode })
     if (windows) child.stdin.write('stop\n')
     else child.stdin.end()
-    if (await until(empty, graceMs)) return { forced: false }
+    if (await until(empty, graceMs)) { await awaitSupervisorClose(); return { forced: false } }
     trace('grace_expired', { pid, drained, closed, exitCode })
     // POSIX first gets a cooperative group SIGTERM, then SIGKILL. Windows cannot
     // deliver SIGTERM; the job receives TerminateJobObject and confirms Active=0.
@@ -111,6 +116,7 @@ function startTree(command, args, options, graceMs, forceMs, diagnostics) {
       }
       throw new Error('Process tree termination was not confirmed before deadline')
     }
+    await awaitSupervisorClose()
     return { forced: true }
   })()
   // Flush only after cleanup: no filesystem writes in the timed manager path.
@@ -128,7 +134,7 @@ function startTree(command, args, options, graceMs, forceMs, diagnostics) {
     get pid() { return pid }, get exitCode() { return exitCode }, get failure() { return failure } }
 }
 
-export function createProbeProcessManager({ graceMs = 300, forceMs = 5000, diagnostics = null } = {}) {
+export function createProbeProcessManager({ graceMs = 300, forceMs = 5000, diagnostics = null, supervisorCloseDelayMs = 0 } = {}) {
   const trees = new Set()
   const controller = new AbortController()
   let cleanupPromise
@@ -147,7 +153,7 @@ export function createProbeProcessManager({ graceMs = 300, forceMs = 5000, diagn
   return {
     spawn(command, args, options = {}) {
       if (closing) throw new Error('Process manager is closing')
-      const tree = startTree(command, args, options, graceMs, forceMs, diagnostics)
+      const tree = startTree(command, args, options, graceMs, forceMs, diagnostics, supervisorCloseDelayMs)
       trees.add(tree)
       return tree
     },

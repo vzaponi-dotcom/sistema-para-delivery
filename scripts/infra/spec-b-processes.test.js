@@ -47,6 +47,16 @@ test('cooperative shutdown is awaited and does not require force', async (t) => 
   assert.equal(result.forced, false)
 })
 
+test('post-drain supervisor cleanup is awaited without classifying cooperative shutdown as forced', { skip: process.platform !== 'win32' }, async (t) => {
+  const manager = createProbeProcessManager({ graceMs: 120, forceMs: 3000, supervisorCloseDelayMs: 250 })
+  const tree = manager.spawn(process.execPath, ['-e', "process.stdin.resume(); process.stdin.on('end',()=>process.exit(0)); console.log(JSON.stringify({pid:process.pid})); setInterval(()=>{},1000)"])
+  const info = await line(tree.stdout)
+  t.after(async () => { await manager.cleanup(); manager.dispose() })
+  const result = await tree.stop()
+  assert.equal(alive(info.pid), false)
+  assert.equal(result.forced, false)
+})
+
 test('uncooperative child hits the grace deadline then is killed and confirmed stopped', async (t) => {
   const { tree } = fixture(t, stubborn)
   const info = await line(tree.stdout)
