@@ -1,6 +1,9 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { createServer } from 'vite'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { detailResponse } from './comandaFixtures.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -10,6 +13,7 @@ export const buttonNamed = (root, name) => root.findAllByType('button').find((no
 // Browser boundaries only: components, hooks and API clients remain real.
 // Render portals inline because react-test-renderer has no DOM portal container.
 export async function workspaceHarness(t, { mobile = false, userAgent = 'test' } = {}) {
+  const viteCacheDir = await mkdtemp(join(tmpdir(), 'spec-b-vite-'))
   const media = Object.assign(new EventTarget(), { matches: mobile })
   const createStorage = (entries = []) => {
     const values = new Map(entries)
@@ -79,6 +83,7 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
     throw new Error(`Unexpected request: ${path}`)
   }
   const vite = await createServer({
+    cacheDir: viteCacheDir,
     server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: [] },
     ssr: { noExternal: ['react-dom'] },
@@ -95,15 +100,26 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
   }
   const renderers = []
   t.after(async () => {
-    for (const renderer of renderers) await act(async () => renderer.unmount())
-    await vite.close()
-    globalThis.fetch = originalFetch
-    for (const [key, descriptor] of saved) {
-      if (descriptor) Object.defineProperty(globalThis, key, descriptor)
-      else delete globalThis[key]
+    try {
+      try {
+        for (const renderer of renderers) await act(async () => renderer.unmount())
+      } finally {
+        await vite.close()
+      }
+    } finally {
+      try {
+        await rm(viteCacheDir, { recursive: true, force: true })
+      } finally {
+        globalThis.fetch = originalFetch
+        for (const [key, descriptor] of saved) {
+          if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+          else delete globalThis[key]
+        }
+      }
     }
   })
   return {
+    cacheDir: vite.config.cacheDir,
     window, document, localStorage, sessionStorage, media, load: (path) => vite.ssrLoadModule(path),
     fireInterval(delay) { for (const interval of [...intervals.values()]) if (interval.delay === delay) interval.callback() },
     fireAllIntervals() { for (const interval of [...intervals.values()]) interval.callback() },
