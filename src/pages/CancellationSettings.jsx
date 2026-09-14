@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { DragDropProvider, DragOverlay, useDragOperation } from '@dnd-kit/react'
+import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import Button from '../components/Button.jsx'
 import ConfirmationDialog from '../components/ConfirmationDialog.jsx'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 import SettingsItemDialog from '../components/SettingsItemDialog.jsx'
-import SettingsItemList from '../components/SettingsItemList.jsx'
+import '../cancellation-settings.css'
 
 const blockedStatuses = new Set(['loading', 'saving', 'unconfirmed', 'conflict'])
 const normalizeName = (value) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '')
@@ -12,6 +14,130 @@ const normalizeName = (value) => value.normalize('NFD').replace(/\p{Diacritic}/g
 const orderedItems = (data) => [...(data?.items || [])]
   .sort((left, right) => left.sortOrder - right.sortOrder)
   .map((item, sortOrder) => ({ ...item, sortOrder }))
+
+const reorderItems = (items, fromIndex, toIndex) => {
+  const next = [...items]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+  return next
+}
+
+function CancellationDragPreview({ item, permissions }) {
+  if (!item) return null
+  return <div className="cancellation-drag-overlay-card" data-cancellation-drag-overlay={item.id}>
+    <span className="cancellation-drag-overlay-grip" aria-hidden="true">⠿</span>
+    <strong>{item.label}</strong>
+    <span className="cancellation-type-badge">{permissions?.isSystem ? 'Nativo' : 'Personalizado'}</span>
+    <span className={item.active ? 'cancellation-status-badge is-active' : 'cancellation-status-badge'}>
+      <i aria-hidden="true" />{item.active ? 'Ativo' : 'Inativo'}
+    </span>
+  </div>
+}
+
+function CancellationSortableRow({
+  item,
+  permissions,
+  index,
+  itemCount,
+  locked,
+  readOnly,
+  lockedReason,
+  onMove,
+  onAction,
+}) {
+  const {
+    ref: sortableRef,
+    handleRef,
+    isDropTarget,
+    isDragSource,
+    isDropping,
+  } = useSortable({
+    id: item.id,
+    index,
+    disabled: locked,
+    transition: { duration: 160, easing: 'cubic-bezier(.2,.8,.2,1)', idle: true },
+  })
+  const { source } = useDragOperation()
+  const liveSortable = source && isSortable(source) ? source : null
+  const showMarker = liveSortable && liveSortable.initialIndex !== liveSortable.index && liveSortable.index === index
+  const markerPosition = showMarker && liveSortable.initialIndex < liveSortable.index ? 'after' : 'before'
+  const isOther = item.id === 'other'
+  const className = [
+    'cancellation-settings-row',
+    !item.active ? 'is-inactive' : '',
+    isDragSource ? 'is-dnd-source' : '',
+    isDropTarget ? 'is-dnd-target' : '',
+    isDropping ? 'is-dnd-dropping' : '',
+  ].filter(Boolean).join(' ')
+
+  const runMenuAction = (event, actionId) => {
+    const applied = onAction(item, actionId)
+    if (!applied) return
+    const details = event?.currentTarget?.closest?.('details')
+    const summary = details?.querySelector?.('summary')
+    if (details) details.open = false
+    summary?.focus?.()
+  }
+
+  return <article
+    ref={sortableRef}
+    role="row"
+    data-cancellation-id={item.id}
+    data-cancellation-sortable-id={item.id}
+    className={className}
+    onKeyDown={locked ? undefined : (event) => {
+      if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return
+      event.preventDefault()
+      onMove(item.id, event.key === 'ArrowUp' ? -1 : 1)
+    }}
+  >
+    {showMarker && <span className={`cancellation-insertion-marker is-${markerPosition}`} data-cancellation-insertion-marker={String(index)} aria-hidden="true" />}
+    <div className="cancellation-order-cell" role="cell">
+      <button
+        ref={handleRef}
+        type="button"
+        className="cancellation-drag-handle"
+        data-cancellation-drag-handle={item.id}
+        aria-label={`Reordenar ${item.label}`}
+        disabled={locked}
+      ><span aria-hidden="true">⠿</span></button>
+      <span className="cancellation-order-number">{index + 1}</span>
+    </div>
+    <div className="cancellation-reason-cell" role="cell">
+      <strong>{item.label}</strong>
+      {permissions.requiresNote && <span className="cancellation-note-icon" title="Exige descrição no cancelamento" aria-label="Exige descrição no cancelamento">i</span>}
+    </div>
+    <div className="cancellation-type-cell" role="cell">
+      <span className="cancellation-type-badge">{permissions.isSystem ? 'Nativo' : 'Personalizado'}</span>
+    </div>
+    <div className="cancellation-status-cell" role="cell">
+      <span className={item.active ? 'cancellation-status-badge is-active' : 'cancellation-status-badge'}>
+        <i aria-hidden="true" />{item.active ? 'Ativo' : 'Inativo'}
+      </span>
+      {isOther && <span className="cancellation-protected-badge"><span aria-hidden="true">▣</span> Protegido</span>}
+      {permissions.requiresNote && <span className="cancellation-visually-hidden">Exige nota</span>}
+    </div>
+    <div className="cancellation-actions-cell" role="cell" data-cancellation-actions={item.id}>
+      {!readOnly && <details className="cancellation-actions-menu" onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false
+      }}>
+        <summary aria-label={`Ações de ${item.label}`}>···</summary>
+        <div>
+          <button
+            type="button"
+            disabled={Boolean(lockedReason || (isOther && item.active))}
+            title={lockedReason || (isOther && item.active ? 'Outro deve permanecer ativo.' : '')}
+            onClick={(event) => runMenuAction(event, item.active ? 'deactivate' : 'activate')}
+          >{item.active ? 'Desativar' : 'Ativar'}</button>
+          {permissions.canRename && <button type="button" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, 'rename')}>Renomear</button>}
+          <button type="button" disabled={Boolean(lockedReason) || index === 0} onClick={(event) => runMenuAction(event, 'up')}>Mover para cima</button>
+          <button type="button" disabled={Boolean(lockedReason) || index === itemCount - 1} onClick={(event) => runMenuAction(event, 'down')}>Mover para baixo</button>
+          {permissions.canDelete && <button type="button" className="is-danger" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, 'delete')}>Excluir</button>}
+        </div>
+      </details>}
+    </div>
+  </article>
+}
 
 function CancellationSettings({
   resourceState,
@@ -22,9 +148,11 @@ function CancellationSettings({
   onReconcile,
   onReload,
   onReviewConflict,
+  onNavigateHome,
 }) {
   const [dialog, setDialog] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [feedbackMessage, setFeedbackMessage] = useState('')
   const data = resourceState?.draft || resourceState?.confirmed?.data || null
   const items = orderedItems(data)
   const baseItems = resourceState?.base?.data?.items || resourceState?.confirmed?.data?.items || []
@@ -48,6 +176,7 @@ function CancellationSettings({
     const error = duplicateError(label)
     if (error) return error
     const id = crypto.randomUUID()
+    setFeedbackMessage('')
     editItems([...items, { id, label, active, sortOrder: items.length }])
     return true
   }
@@ -58,71 +187,77 @@ function CancellationSettings({
     const label = typeof value === 'string' ? value : value.label
     const error = duplicateError(label, current.id)
     if (error) return error
+    setFeedbackMessage('')
     editItems(items.map((item) => item.id === current.id ? { ...item, label } : item))
     return true
   }
 
   const remove = (id) => editItems(items.filter((item) => item.id !== id))
 
+  const move = (id, direction) => {
+    const sourceIndex = items.findIndex((candidate) => candidate.id === id)
+    const targetIndex = sourceIndex + direction
+    if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= items.length) return false
+    setFeedbackMessage('')
+    return editItems(reorderItems(items, sourceIndex, targetIndex))
+  }
+
   const action = (item, actionId) => {
     if (locked) return false
     if (actionId === 'rename') { setDialog({ mode: 'edit', item }); return true }
-    if (actionId === 'delete') {
-      if (!baseById.has(item.id)) return remove(item.id)
-      setPendingDelete(item)
-      return true
-    }
+    if (actionId === 'delete') { setPendingDelete(item); return true }
+    if (actionId === 'up') return move(item.id, -1)
+    if (actionId === 'down') return move(item.id, 1)
     if (actionId === 'activate' || actionId === 'deactivate') {
       if (item.id === 'other' && actionId === 'deactivate') return false
+      setFeedbackMessage('')
       return editItems(items.map((candidate) => candidate.id === item.id
         ? { ...candidate, active: actionId === 'activate' } : candidate))
     }
-    const index = items.findIndex((candidate) => candidate.id === item.id)
-    const target = index + (actionId === 'up' ? -1 : actionId === 'down' ? 1 : 0)
-    if (index < 0 || target < 0 || target >= items.length || target === index) return false
-    const next = [...items]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    return editItems(next)
+    return false
   }
 
-  const viewItems = items.map((item, index) => {
-    const permissions = meta[item.id] || { isSystem: false, usedEver: false, canRename: true, canDelete: true, requiresNote: false }
-    const base = baseById.get(item.id)
-    const isNew = !base
-    const pending = !isNew && JSON.stringify(base) !== JSON.stringify(item)
-    const actions = readOnly ? [] : [
-      {
-        id: item.active ? 'deactivate' : 'activate', label: item.active ? 'Desativar' : 'Ativar',
-        disabledReason: lockedReason || (item.id === 'other' && item.active ? 'Outro deve permanecer ativo.' : ''),
-      },
-      ...(permissions.canRename ? [{ id: 'rename', label: 'Renomear', disabledReason: lockedReason }] : []),
-      ...(permissions.canDelete ? [{ id: 'delete', label: 'Excluir', disabledReason: lockedReason }] : []),
-      { id: 'up', label: 'Mover para cima', disabledReason: lockedReason || (index === 0 ? 'Este motivo já é o primeiro.' : '') },
-      { id: 'down', label: 'Mover para baixo', disabledReason: lockedReason || (index === items.length - 1 ? 'Este motivo já é o último.' : '') },
-    ]
-    return {
-      ...item,
-      dataAttributes: { 'data-cancellation-id': item.id },
-      label: <span className="settings-catalog-copy">
-        <span>{item.label}</span>
-        <span className="settings-catalog-badges">
-          <span className="settings-catalog-badge">{permissions.isSystem ? 'Nativo' : 'Personalizado'}</span>
-          <span className={item.active ? 'settings-catalog-badge is-active' : 'settings-catalog-badge'}>{item.active ? 'Ativo' : 'Inativo'}</span>
-          {permissions.requiresNote && <span className="settings-catalog-badge is-note">Exige nota</span>}
-          {permissions.usedEver && <span className="settings-catalog-badge">Já utilizado</span>}
-          {isNew && <span className="settings-catalog-badge is-pending">Novo</span>}
-          {pending && <span className="settings-catalog-badge is-pending">Alteração pendente</span>}
-        </span>
-      </span>,
-      actions,
-    }
-  })
+  const handleDragEnd = (event) => {
+    if (event.canceled) return
+    const { source } = event.operation
+    if (!source || !isSortable(source)) return
+    const { initialIndex, index } = source
+    if (initialIndex === index) return
+    setFeedbackMessage('')
+    editItems(reorderItems(items, initialIndex, index))
+  }
+
+  const confirmDelete = () => {
+    const item = pendingDelete
+    if (!item) return
+    const removed = remove(item.id)
+    if (removed) setFeedbackMessage('Motivo removido. Salve as alterações para confirmar.')
+    setPendingDelete(null)
+  }
+
+  const permissionFor = (item) => meta[item.id] || {
+    isSystem: false,
+    usedEver: false,
+    canRename: true,
+    canDelete: true,
+    requiresNote: false,
+  }
 
   return <SettingsEditorShell
+    className="cancellation-editor"
     title="Motivos de cancelamento"
-    description="Gerencie os motivos oferecidos ao cancelar novos pedidos."
-    scope="Todo o negócio"
-    effectiveNotice="As mudanças valem para novos cancelamentos. Pedidos cancelados preservam o motivo histórico."
+    description="Cadastre e organize os motivos disponíveis ao cancelar pedidos."
+    scope={<button type="button" className="cancellation-breadcrumb" onClick={onNavigateHome}>Configurações</button>}
+    discardLabel="Cancelar"
+    footerNote="Gestão Delivery · v1.0.0"
+    headerAction={!readOnly ? <Button type="button" icon="plus" disabled={locked} onClick={() => setDialog({ mode: 'add' })}>Adicionar motivo</Button> : null}
+    effectiveNotice={<>
+      <span className="cancellation-info-icon" aria-hidden="true">i</span>
+      <span className="cancellation-info-copy">
+        <strong>Motivos utilizados permanecem no histórico</strong>
+        <small>Os motivos que já foram usados em cancelamentos não podem ser excluídos, apenas desativados, para manter o histórico dos pedidos. O motivo “Outro” é protegido, permanece sempre ativo e exige uma descrição no momento do cancelamento.</small>
+      </span>
+    </>}
     state={resourceState}
     readOnly={readOnly}
     onSave={onSave}
@@ -132,10 +267,36 @@ function CancellationSettings({
     onReviewConflict={onReviewConflict}
   >
     <div className="cancellation-settings">
-      {!readOnly && <div className="settings-catalog-toolbar"><Button type="button" icon="plus" disabled={locked} onClick={() => setDialog({ mode: 'add' })}>Adicionar motivo</Button></div>}
+      {feedbackMessage && <p className="cancellation-feedback" role="status">{feedbackMessage}</p>}
       {!data
         ? <p className="settings-empty-state">Os motivos confirmados aparecerão quando esta configuração estiver disponível.</p>
-        : <SettingsItemList label="Motivos de cancelamento" items={viewItems} getActions={(item) => item.actions} onAction={action} />}
+        : <DragDropProvider onDragEnd={handleDragEnd}>
+          <section className="cancellation-settings-table" role="table" aria-label="Motivos de cancelamento">
+            <div className="cancellation-settings-table-head" role="row">
+              <span>ORDEM</span><span>MOTIVO</span><span>TIPO</span><span>STATUS</span><span>AÇÕES</span>
+            </div>
+            <div className="cancellation-settings-table-body" role="rowgroup">
+              {items.map((item, index) => <CancellationSortableRow
+                key={item.id}
+                item={item}
+                permissions={permissionFor(item)}
+                index={index}
+                itemCount={items.length}
+                locked={locked}
+                readOnly={readOnly}
+                lockedReason={lockedReason}
+                onMove={move}
+                onAction={action}
+              />)}
+            </div>
+          </section>
+          <DragOverlay>
+            {(source) => {
+              const item = items.find((candidate) => candidate.id === source?.id)
+              return item ? <CancellationDragPreview item={item} permissions={permissionFor(item)} /> : null
+            }}
+          </DragOverlay>
+        </DragDropProvider>}
     </div>
     <SettingsItemDialog
       open={Boolean(dialog)}
@@ -147,9 +308,9 @@ function CancellationSettings({
     />
     {pendingDelete && <ConfirmationDialog
       title="Excluir motivo?"
-      message={`O motivo “${pendingDelete.label}” será removido do rascunho e só será excluído ao salvar as alterações.`}
+      message={`Tem certeza que deseja excluir “${pendingDelete.label}”? A remoção ficará pendente até você salvar as alterações.`}
       confirmLabel="Excluir do rascunho"
-      onConfirm={() => { remove(pendingDelete.id); setPendingDelete(null) }}
+      onConfirm={confirmDelete}
       onClose={() => setPendingDelete(null)}
     />}
   </SettingsEditorShell>
