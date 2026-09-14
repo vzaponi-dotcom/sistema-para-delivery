@@ -1,5 +1,20 @@
 # Spec B execution ledger — business settings and policies
 
+## 2026-09-14 - Payment methods visual and functional round
+
+Work is limited to `Settings > Payment methods`; no other Spec B screen was redesigned.
+
+- Visual composition: the real payment resource now renders the approved breadcrumb, title, subtitle, red-token information callout, action button, administrative table, six native methods, descriptions, icons, six-dot reorder handles, status badges, default badge, action menus, footer, and the existing product footer note. The mockup-only narrative footer was intentionally omitted.
+- Functional preservation: the resource still owns active state, default, order, optimistic revision, conflict/reconcile, local draft, explicit atomic save, capabilities, and read-only behavior. The Add button is intentionally disabled with an explanatory title because the approved payment taxonomy is native and closed; no fictional CRUD or API was added.
+- Save and cancel: a payment success confirmation appears only after `save('paymentMethods')` returns `true`. Cancel uses the existing navigation controller to discard the active payment draft and return to Settings home while the general abandonment guard remains in place.
+- Reorder: the handle is the only draggable region. Desktop HTML drag and touch/pointer drag update the draft only; keyboard Alt+Arrow actions remain available. Read-only handles are passive and disabled.
+- Responsive/theme: desktop uses the table composition; at the actual shell breakpoint of 820 px it changes to cards and keeps 44 px touch targets, safe footer spacing, and token-driven light/dark surfaces without forcing a color scheme.
+- RED/GREEN: four added visual/behavior contracts initially failed (composition, handle reorder, 820 px composition, and save/cancel behavior). The focused green run passed 38/38; the expanded proportional run passed 69/69.
+- Gates: lint exited 0 with existing warnings, build passed with 392 modules and the existing large-chunk warning, and `git diff --check` passed.
+- Browser QA limitation: this session has no enabled browser surface (`iab` is unavailable), so the required eight live viewport/theme captures and manual desktop/mobile drag could not be executed here. The browser-specific checks remain required before manual staging acceptance.
+
+No migration, deployment, production action, master merge, release, or other screen was started.
+
 ## 2026-09-14 - Staging deploy test-gate correction
 
 Correction limited to the shared modal focus lifecycle exercised by the Operation conflict review. No deployment was rerun in this round.

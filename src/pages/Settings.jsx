@@ -17,7 +17,7 @@ const themeOptions = [
   { value: 'system', label: 'Automático' },
 ]
 
-function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, businessSettings = operationSettings, onSettingsConflictReview, onSuccessMessage, onCancelOperation }) {
+function Settings({ section, settings, printing, granted, implemented, onNavigate, soundEnabled, onSoundEnabledChange, operationSettings, businessSettings = operationSettings, onSettingsConflictReview, onSuccessMessage, onCancelOperation, onCancelPayment }) {
   const { themePreference, setThemePreference } = useTheme()
   const [devicePersistenceError, setDevicePersistenceError] = useState('')
   const operationRoute = section === 'settings-operations' || section === 'settings-modalities'
@@ -63,6 +63,18 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     if (review) onSettingsConflictReview?.(review)
     return review
   }
+  const savePayment = async () => {
+    const saved = await businessSettings?.save?.('paymentMethods')
+    if (saved === true) onSuccessMessage?.('Configurações de pagamento salvas com sucesso')
+    return saved
+  }
+  const cancelPayment = async () => {
+    if (onCancelPayment) return onCancelPayment()
+    const discarded = await businessSettings?.discard?.('paymentMethods')
+    if (discarded === false) return false
+    onNavigate?.('settings-home')
+    return true
+  }
   const reviewCancellationConflict = async () => {
     const review = await businessSettings?.reviewConflict?.('cancellationReasons')
     if (review) onSettingsConflictReview?.(review)
@@ -102,11 +114,12 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       resourceState={businessSettings?.resources?.paymentMethods}
       readOnly={!(granted instanceof Set && granted.has('payments.settings.manage'))}
       onEdit={(draft) => businessSettings?.edit?.('paymentMethods', draft)}
-      onSave={() => businessSettings?.save?.('paymentMethods')}
-      onDiscard={() => businessSettings?.discard?.('paymentMethods')}
+      onSave={savePayment}
+      onDiscard={cancelPayment}
       onReconcile={() => businessSettings?.reconcile?.('paymentMethods')}
       onReload={() => businessSettings?.load?.('paymentMethods')}
       onReviewConflict={reviewPaymentConflict}
+      onNavigateHome={() => onNavigate?.('settings-home')}
     />
   </div>
   if (cancellationRoute) return <div className="settings-page">
