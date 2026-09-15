@@ -1,5 +1,6 @@
 import Button from './Button'
 import '../settings.css'
+import '../settings-table-polish.css'
 
 const stateMessage = (state) => ({
   saving: 'Salvando alterações…',
