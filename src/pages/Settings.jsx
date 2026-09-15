@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
 import AreaNavigation from '../components/AreaNavigation'
+import { Icon } from '../components/Icon.jsx'
 import { SettingsBackLink, SettingsSwitch } from '../components/SettingsControls.jsx'
 import SettingsHome from './SettingsHome'
 import OperationSettings from './OperationSettings'
@@ -15,9 +16,9 @@ import '../area-navigation.css'
 const DEVICE_PREFERENCES_UPDATED_AT_KEY = 'delivery-device-preferences-updated-at'
 
 const themeOptions = [
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Escuro' },
-  { value: 'system', label: 'Automático' },
+  { value: 'light', label: 'Claro', icon: 'sun' },
+  { value: 'dark', label: 'Escuro', icon: 'moon' },
+  { value: 'system', label: 'Automático', icon: 'system' },
 ]
 
 function getBrowserLabel(userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '') {
@@ -295,6 +296,13 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
                   className={themePreference === option.value ? 'active' : ''}
                   onClick={() => changeTheme(option.value)}
                 >
+                  <span
+                    data-theme-icon={option.icon}
+                    aria-hidden="true"
+                    style={{ display: 'inline-flex', marginRight: 7, verticalAlign: 'middle' }}
+                  >
+                    <Icon name={option.icon} size={17} />
+                  </span>
                   {option.label}
                 </button>
               ))}
