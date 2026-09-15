@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const settingsControlsCss = readFileSync(new URL('./settings-controls.css', import.meta.url), 'utf8')
+const settingsControlsSource = readFileSync(new URL('./components/SettingsControls.jsx', import.meta.url), 'utf8')
 const comandasCss = readFileSync(new URL('./comandas.css', import.meta.url), 'utf8')
 
 const ruleBody = (css, selector) => {
@@ -18,6 +19,15 @@ test('settings back control floats with the viewport and becomes compact on mobi
   assert.match(backRule, /z-index:/)
   assert.match(settingsControlsCss, /@media\s*\(max-width:\s*720px\)[\s\S]*\.settings-back-link\s*>\s*span:last-child\s*\{[\s\S]*display:\s*none/)
   assert.match(settingsControlsCss, /env\(safe-area-inset-bottom/)
+})
+
+test('settings back control escapes transformed page content and clears the mobile navigation layer', () => {
+  const backRule = ruleBody(settingsControlsCss, '.settings-back-link')
+  assert.match(settingsControlsSource, /createPortal/)
+  assert.match(settingsControlsSource, /document\.body/)
+  assert.match(backRule, /z-index:\s*var\(--layer-floating-action/)
+  assert.match(settingsControlsCss, /var\(--mobile-bottom-nav-height/)
+  assert.match(settingsControlsCss, /var\(--mobile-floating-gap/)
 })
 
 test('comanda hero centers identity and table status metadata inside their columns', () => {
