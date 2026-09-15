@@ -29,3 +29,9 @@ test('payment methods use compact rows on desktop and compact cards on mobile wi
   assert.match(css, /@media \(max-width: 820px\) \{[\s\S]*?\.payment-settings-row\s*\{[^}]*min-height:\s*96px;[^}]*padding:\s*10px 11px;/s)
   assert.match(css, /@media \(max-width: 640px\) \{[\s\S]*?\.payment-settings-row\s*\{[^}]*min-height:\s*92px;[^}]*padding:\s*9px 9px;/s)
 })
+
+test('desktop payment metadata and actions stay on the first grid row', async () => {
+  const css = await readOptional('../settings-table-polish.css')
+
+  assert.match(css, /\.payment-editor \.payment-meta-badges,[\s\S]*\.payment-editor \.payment-meta-switch,[\s\S]*\.payment-editor \.payment-actions-cell\s*\{[^}]*grid-row:\s*1;[^}]*align-self:\s*center;/s)
+})
