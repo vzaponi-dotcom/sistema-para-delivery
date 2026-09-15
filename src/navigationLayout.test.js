@@ -155,10 +155,10 @@ test('AreaNavigation usa a barra leve comum em Pedidos, Financeiro e Configuraç
   }
 })
 
-test('uma única subnavegação precede o PageHeader em todas as áreas com subtabs', async (t) => {
+test('uma única subnavegação precede o PageHeader nas áreas que mantêm subtabs', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: Orders }, { default: OrderHistory }, { default: Dashboard }, { default: Receivables }, { default: Finance }, { default: Settings }, { DashboardPeriodContext }] = await Promise.all([
-    h.load('/src/pages/Orders.jsx'), h.load('/src/pages/OrderHistory.jsx'), h.load('/src/pages/Dashboard.jsx'), h.load('/src/pages/Receivables.jsx'), h.load('/src/pages/Finance.jsx'), h.load('/src/pages/Settings.jsx'), h.load('/src/components/dashboardPeriodContext.js'),
+  const [{ default: Orders }, { default: OrderHistory }, { default: Dashboard }, { default: Receivables }, { default: Finance }, { DashboardPeriodContext }] = await Promise.all([
+    h.load('/src/pages/Orders.jsx'), h.load('/src/pages/OrderHistory.jsx'), h.load('/src/pages/Dashboard.jsx'), h.load('/src/pages/Receivables.jsx'), h.load('/src/pages/Finance.jsx'), h.load('/src/components/dashboardPeriodContext.js'),
   ])
   const navigationProps = { granted, implemented, onNavigate() {} }
   const currency = (value) => `R$ ${value}`
@@ -170,7 +170,6 @@ test('uma única subnavegação precede o PageHeader em todas as áreas com subt
   assertSingleSubnavigationPrecedesHeader(await h.render(DashboardWithPeriod, { totals: { salesToday: 0, receivedToday: 0, receivables: 0 }, orders: [], currency, queryState: { valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
   assertSingleSubnavigationPrecedesHeader(await h.render(Receivables, { orders: [], currency, queryState, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
   assertSingleSubnavigationPrecedesHeader(await h.render(Finance, { totals: { entries: 0, exits: 0, balance: 0 }, movements: [], currency, onAddMovement() {}, ...navigationProps }), 'Navegação de Financeiro')
-  assertSingleSubnavigationPrecedesHeader(await h.render(Settings, { section: 'settings-device', settings: {}, printing: {}, soundEnabled: true, onSoundEnabledChange() {}, ...navigationProps }), 'Navegação de Configurações')
 })
 
 test('AreaNavigation preserva labels, callbacks e aria-current de todos os destinos', async (t) => {
