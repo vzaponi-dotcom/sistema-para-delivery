@@ -442,7 +442,7 @@ test('21. printing.execute protege a entrada manual global de segunda via na UI 
   const h = await workspaceHarness(t, { userAgent: 'Windows test' })
   const job = {
     id: 'second-copy-job', type: 'order', orderId: preparingOrder.id, status: 'awaiting_second_copy',
-    copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic', priority: 2,
+    copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic',
   }
   const calls = { secondCopy: 0 }
   globalThis.__actionCapabilitiesPrinting = {
