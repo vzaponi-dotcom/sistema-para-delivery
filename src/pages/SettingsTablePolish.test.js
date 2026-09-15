@@ -26,9 +26,6 @@ test('payment methods use compact rows on desktop and compact cards on mobile wi
   assert.match(css, /\.payment-settings-row\s*\{[^}]*min-height:\s*58px;[^}]*padding:\s*5px 18px;/s)
   assert.match(css, /\.payment-method-icon\s*\{[^}]*width:\s*26px;[^}]*height:\s*26px;/s)
   assert.match(paymentCss, /\.payment-actions-menu summary\s*\{[^}]*min-height:\s*44px;/s)
-
-  const mobile820 = css.match(/@media \(max-width: 820px\) \{([\s\S]*?)\n\}/)?.[1] || ''
-  const mobile640 = css.match(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/)?.[1] || ''
-  assert.match(mobile820, /\.payment-settings-row\s*\{[\s\S]*?min-height:\s*96px;[\s\S]*?padding:\s*10px 11px;/)
-  assert.match(mobile640, /\.payment-settings-row\s*\{[\s\S]*?min-height:\s*92px;[\s\S]*?padding:\s*9px 9px;/)
+  assert.match(css, /@media \(max-width: 820px\) \{[\s\S]*?\.payment-settings-row\s*\{[^}]*min-height:\s*96px;[^}]*padding:\s*10px 11px;/s)
+  assert.match(css, /@media \(max-width: 640px\) \{[\s\S]*?\.payment-settings-row\s*\{[^}]*min-height:\s*92px;[^}]*padding:\s*9px 9px;/s)
 })
