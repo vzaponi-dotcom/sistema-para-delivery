@@ -8,6 +8,7 @@ on:
     branches:
       - master
       - feature/spec-b-settings-policies
+      - feature/spec-b-primary-autoprint-ux
   workflow_dispatch:
 
 jobs:
