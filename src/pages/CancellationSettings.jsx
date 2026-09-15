@@ -6,6 +6,7 @@ import ConfirmationDialog from '../components/ConfirmationDialog.jsx'
 import Icon from '../components/Icon.jsx'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 import SettingsItemDialog from '../components/SettingsItemDialog.jsx'
+import { SettingsBackLink, SettingsSwitch } from '../components/SettingsControls.jsx'
 import '../cancellation-settings.css'
 
 const blockedStatuses = new Set(['loading', 'saving', 'unconfirmed', 'conflict'])
@@ -63,6 +64,7 @@ function CancellationSortableRow({
   const showMarker = liveSortable && liveSortable.initialIndex !== liveSortable.index && liveSortable.index === index
   const markerPosition = showMarker && liveSortable.initialIndex < liveSortable.index ? 'after' : 'before'
   const isOther = item.id === 'other'
+  const protectedReason = isOther && item.active ? 'Outro deve permanecer ativo.' : ''
   const className = [
     'cancellation-settings-row',
     !item.active ? 'is-inactive' : '',
@@ -112,6 +114,14 @@ function CancellationSortableRow({
       <span className="cancellation-type-badge">{permissions.isSystem ? 'Nativo' : 'Personalizado'}</span>
     </div>
     <div className="cancellation-status-cell" role="cell">
+      <SettingsSwitch
+        id={item.id}
+        checked={item.active}
+        disabled={locked || Boolean(protectedReason)}
+        title={lockedReason || protectedReason || undefined}
+        label={`${item.active ? 'Desativar' : 'Ativar'} ${item.label}`}
+        onChange={(active) => onAction(item, active ? 'activate' : 'deactivate')}
+      />
       <span className={item.active ? 'cancellation-status-badge is-active' : 'cancellation-status-badge'}>
         <i aria-hidden="true" />{item.active ? 'Ativo' : 'Inativo'}
       </span>
@@ -124,12 +134,6 @@ function CancellationSortableRow({
       }}>
         <summary aria-label={`Ações de ${item.label}`}>···</summary>
         <div>
-          <button
-            type="button"
-            disabled={Boolean(lockedReason || (isOther && item.active))}
-            title={lockedReason || (isOther && item.active ? 'Outro deve permanecer ativo.' : '')}
-            onClick={(event) => runMenuAction(event, item.active ? 'deactivate' : 'activate')}
-          >{item.active ? 'Desativar' : 'Ativar'}</button>
           {permissions.canRename && <button type="button" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, 'rename')}>Renomear</button>}
           <button type="button" disabled={Boolean(lockedReason) || index === 0} onClick={(event) => runMenuAction(event, 'up')}>Mover para cima</button>
           <button type="button" disabled={Boolean(lockedReason) || index === itemCount - 1} onClick={(event) => runMenuAction(event, 'down')}>Mover para baixo</button>
@@ -248,7 +252,7 @@ function CancellationSettings({
     className="cancellation-editor"
     title="Motivos de cancelamento"
     description="Cadastre e organize os motivos disponíveis ao cancelar pedidos."
-    scope={<button type="button" className="cancellation-breadcrumb" onClick={onNavigateHome}>Configurações</button>}
+    scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
     footerNote="Gestão Delivery · v1.0.0"
     headerAction={!readOnly ? <Button type="button" icon="plus" disabled={locked} onClick={() => setDialog({ mode: 'add' })}>Adicionar motivo</Button> : null}
