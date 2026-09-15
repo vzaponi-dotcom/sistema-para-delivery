@@ -185,7 +185,7 @@ test('mobile cancellation settings use responsive rows and never a horizontal ta
 
 test('mobile cancellation metadata stays horizontal and protected reasons use a shield icon', async (t) => {
   const css = await readFile(new URL('../cancellation-settings.css', import.meta.url), 'utf8')
-  assert.match(css, /"order reason reason actions"\s*"\. type status actions"/)
+  assert.match(css, /"order reason reason actions"\s*"\. type status status"/)
 
   const h = await workspaceHarness(t, { mobile: true })
   const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')

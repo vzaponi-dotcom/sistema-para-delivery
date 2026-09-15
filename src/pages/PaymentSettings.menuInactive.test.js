@@ -43,7 +43,7 @@ test('inactive payment method marks the whole row as visually inactive', async (
   assert.doesNotMatch(row(screen.root, 'pix').props.className, /\bis-inactive\b/)
 })
 
-test('successful payment menu action closes the menu and restores focus to its summary', async (t) => {
+test('successful complementary payment menu action closes the menu and restores focus to its summary', async (t) => {
   const h = await workspaceHarness(t)
   const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
   const edits = []
@@ -64,11 +64,11 @@ test('successful payment menu action closes the menu and restores focus to its s
   const summary = { focus() { focusCount += 1 } }
   details.querySelector = (selector) => selector === 'summary' ? summary : null
 
-  await act(async () => buttonNamed(row(screen.root, 'cash'), 'Desativar').props.onClick({
+  await act(async () => buttonNamed(row(screen.root, 'cash'), 'Definir como padrão').props.onClick({
     currentTarget: { closest: (selector) => selector === 'details' ? details : null },
   }))
 
-  assert.equal(edits.at(-1).methods.find((method) => method.code === 'cash').active, false)
+  assert.equal(edits.at(-1).defaultMethod, 'cash')
   assert.equal(details.open, false)
   assert.equal(focusCount, 1)
 })

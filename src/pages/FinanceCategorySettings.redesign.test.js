@@ -22,6 +22,7 @@ const resourceState = (items = nativeItems(), meta = nativeMeta()) => ({
   dirty: false,
 })
 const row = (root, id) => root.findByProps({ 'data-finance-category-id': id })
+const settingsSwitch = (root, id) => root.findByProps({ 'data-settings-switch': id })
 
 async function renderEditable(h, Page, initial = resourceState()) {
   const edits = []
@@ -48,7 +49,8 @@ test('finance categories follow the approved grouped table contract with icons a
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {}, onNavigateHome() {},
   })
 
-  assert.ok(buttonNamed(screen.root, 'Configurações'))
+  const backLink = buttonNamed(screen.root, 'Voltar para Configurações')
+  assert.match(nodeText(backLink), /←.*Configurações/)
   assert.ok(buttonNamed(screen.root, 'Adicionar categoria'))
   assert.match(nodeText(screen.root), /Organize as categorias manuais de receitas e despesas/)
   assert.match(nodeText(screen.root), /Categorias automáticas.*Vendas.*Estornos.*gerenciadas pelo sistema/is)
@@ -67,7 +69,7 @@ test('finance categories follow the approved grouped table contract with icons a
   assert.doesNotMatch(nodeText(screen.root), /Nativa|Personalizada/)
 })
 
-test('finance category menu actions stay compact, close after success and keep permissions', async (t) => {
+test('finance category complementary menu actions close after success and keep permissions', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Page } = await h.load('/src/pages/FinanceCategorySettings.jsx')
   const fixture = await renderEditable(h, Page)
@@ -79,16 +81,16 @@ test('finance category menu actions stay compact, close after success and keep p
   const aporte = row(fixture.screen.root, 'contribution')
   assert.equal(buttonNamed(aporte, 'Renomear'), undefined)
   assert.equal(buttonNamed(aporte, 'Excluir'), undefined)
-  await act(async () => buttonNamed(aporte, 'Desativar').props.onClick({
+  await act(async () => buttonNamed(aporte, 'Mover para baixo').props.onClick({
     currentTarget: { closest: (selector) => selector === 'details' ? details : null },
   }))
 
-  assert.equal(fixture.edits.at(-1).items.find((item) => item.id === 'contribution').active, false)
+  assert.equal(fixture.edits.length, 1)
   assert.equal(details.open, false)
   assert.equal(focusCount, 1)
 })
 
-test('inactive finance category dims only the row content while preserving the action menu', async (t) => {
+test('inactive finance category keeps a direct enabled activation switch and complementary action menu', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Page } = await h.load('/src/pages/FinanceCategorySettings.jsx')
   const items = nativeItems().map((item) => item.id === 'packaging' ? { ...item, active: false } : item)
@@ -99,7 +101,9 @@ test('inactive finance category dims only the row content while preserving the a
   assert.match(row(screen.root, 'packaging').props.className, /\bis-inactive\b/)
   assert.doesNotMatch(row(screen.root, 'supplies').props.className, /\bis-inactive\b/)
   assert.ok(row(screen.root, 'packaging').findByProps({ 'data-finance-category-actions': 'packaging' }))
-  assert.ok(buttonNamed(row(screen.root, 'packaging'), 'Ativar'))
+  const activation = settingsSwitch(row(screen.root, 'packaging'), 'packaging')
+  assert.equal(activation.props['aria-checked'], false)
+  assert.equal(activation.props.disabled, false)
 })
 
 test('mobile finance categories render compact cards with horizontal type and status metadata', async (t) => {
@@ -137,6 +141,8 @@ test('settings finance category route uses breadcrumb layout instead of legacy s
   }) })
 
   assert.equal(screen.root.findAll((node) => node.props?.className === 'area-navigation').length, 0)
-  await act(async () => buttonNamed(screen.root, 'Configurações').props.onClick())
+  const backLink = buttonNamed(screen.root, 'Voltar para Configurações')
+  assert.match(nodeText(backLink), /←.*Configurações/)
+  await act(async () => backLink.props.onClick())
   assert.deepEqual(navigations, ['settings-home'])
 })

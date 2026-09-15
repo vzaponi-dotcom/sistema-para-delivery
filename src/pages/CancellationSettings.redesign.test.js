@@ -33,6 +33,7 @@ const resourceState = (data = cancellationData(), meta = metadata()) => ({
 })
 
 const row = (root, id) => root.findByProps({ 'data-cancellation-id': id })
+const settingsSwitch = (root, id) => root.findByProps({ 'data-settings-switch': id })
 
 async function renderEditable(h, CancellationSettings, initial = resourceState()) {
   const edits = []
@@ -102,7 +103,7 @@ test('new unsaved reasons also require explicit delete confirmation', async (t) 
   assert.match(nodeText(fixture.screen.root), /Motivo removido.*Salve as alterações para confirmar/s)
 })
 
-test('inactive cancellation reason dims the row while keeping its action menu available', async (t) => {
+test('inactive cancellation reason keeps a direct enabled activation switch and its complementary action menu', async (t) => {
   const h = await workspaceHarness(t)
   const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
   const data = cancellationData()
@@ -114,10 +115,12 @@ test('inactive cancellation reason dims the row while keeping its action menu av
   assert.match(row(screen.root, 'duplicate_order').props.className, /\bis-inactive\b/)
   assert.doesNotMatch(row(screen.root, 'client_changed_mind').props.className, /\bis-inactive\b/)
   assert.ok(row(screen.root, 'duplicate_order').findByProps({ 'data-cancellation-actions': 'duplicate_order' }))
-  assert.ok(buttonNamed(row(screen.root, 'duplicate_order'), 'Ativar'))
+  const activation = settingsSwitch(row(screen.root, 'duplicate_order'), 'duplicate_order')
+  assert.equal(activation.props['aria-checked'], false)
+  assert.equal(activation.props.disabled, false)
 })
 
-test('successful cancellation menu action closes the menu and restores focus', async (t) => {
+test('successful complementary cancellation menu action closes the menu and restores focus', async (t) => {
   const h = await workspaceHarness(t)
   const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
   const fixture = await renderEditable(h, CancellationSettings)
@@ -126,11 +129,11 @@ test('successful cancellation menu action closes the menu and restores focus', a
   const summary = { focus() { focusCount += 1 } }
   details.querySelector = (selector) => selector === 'summary' ? summary : null
 
-  await act(async () => buttonNamed(row(fixture.screen.root, 'duplicate_order'), 'Desativar').props.onClick({
+  await act(async () => buttonNamed(row(fixture.screen.root, 'duplicate_order'), 'Mover para baixo').props.onClick({
     currentTarget: { closest: (selector) => selector === 'details' ? details : null },
   }))
 
-  assert.equal(fixture.edits.at(-1).items.find((item) => item.id === 'duplicate_order').active, false)
+  assert.equal(fixture.edits.at(-1).items.find((item) => item.id === 'duplicate_order').sortOrder, 2)
   assert.equal(details.open, false)
   assert.equal(focusCount, 1)
 })
@@ -153,6 +156,7 @@ test('settings cancellation route uses breadcrumb layout instead of the legacy s
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
     h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
+  const navigations = []
   const controller = {
     resources: { cancellationReasons: resourceState() },
     load() {}, edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
@@ -161,9 +165,12 @@ test('settings cancellation route uses breadcrumb layout instead of the legacy s
     section: 'settings-cancellations', settings: {}, printing: {},
     granted: new Set(['orders.settings.view', 'orders.settings.manage', 'payments.settings.view', 'operations.settings.view']),
     implemented: new Set(['settings-cancellations', 'settings-payments', 'settings-operations']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
+    onNavigate: (target) => navigations.push(target), soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
   }) })
 
   assert.equal(screen.root.findAll((node) => node.props?.className === 'area-navigation').length, 0)
-  assert.ok(buttonNamed(screen.root, 'Configurações'))
+  const backLink = buttonNamed(screen.root, 'Voltar para Configurações')
+  assert.match(nodeText(backLink), /←.*Configurações/)
+  await act(async () => backLink.props.onClick())
+  assert.deepEqual(navigations, ['settings-home'])
 })
