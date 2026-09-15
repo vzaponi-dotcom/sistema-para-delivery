@@ -22,6 +22,12 @@ export function createPrintingSettingsAdapter({ businessSettings, printing, stat
       const id = activeStationId()
       return id ? businessSettings?.load?.('stationConfiguration', id) : false
     },
+    reviewPolicy: () => businessSettings?.reviewConflict?.('printingPolicy') ?? null,
+    reviewStation: () => {
+      const id = activeStationId()
+      return id ? businessSettings?.reviewConflict?.('stationConfiguration', id) : null
+    },
+    reviewPrimary: () => businessSettings?.reviewConflict?.('stationPrimary') ?? null,
     editPolicy: (data) => businessSettings?.edit?.('printingPolicy', data) ?? false,
     savePolicy: () => businessSettings?.save?.('printingPolicy') ?? false,
     discardPolicy: () => businessSettings?.discard?.('printingPolicy') ?? false,
