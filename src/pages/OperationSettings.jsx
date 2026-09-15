@@ -3,6 +3,7 @@ import Icon from '../components/Icon.jsx'
 import '../operation-settings.css'
 import Button from '../components/Button.jsx'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
+import { SettingsBackLink, SettingsSwitch } from '../components/SettingsControls.jsx'
 
 const MODALITIES = ['Entrega', 'Retirada', 'Local']
 
@@ -106,7 +107,7 @@ function OperationSettings({ resourceState, readOnly = false, initialSection = '
     className="operation-editor"
     title="Operação"
     description="Defina os tempos e regras operacionais da sua cozinha"
-    scope={<button type="button" className="operation-breadcrumb" onClick={onNavigateHome}>Configurações</button>}
+    scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
     footerNote="Gestão Delivery · v1.0.0"
     effectiveNotice={<><span className="operation-info-icon" aria-hidden="true">i</span><span>Essas configurações organizam a fila da cozinha e definem as regras de atrasos dos pedidos.<small>Ajuste os tempos de acordo com sua operação para manter uma boa experiência para seus clientes.</small></span></>}
@@ -150,7 +151,16 @@ function OperationSettings({ resourceState, readOnly = false, initialSection = '
             return <div key={modality} data-modality={modality} className="operation-modality-row">
               <span className="operation-modality-icon"><ModalityIcon modality={modality} /></span>
               <div className="operation-modality-copy"><strong>{modality}</strong><span>{modalityDescriptions[modality]}</span></div>
-              {readOnly ? <span className="operation-switch-preview" data-active={active} aria-hidden="true" /> : <button type="button" className="operation-switch" disabled={locked || Boolean(disabledReason)} title={disabledReason || undefined} aria-describedby={disabledReason ? reasonId : undefined} role="switch" aria-checked={active} aria-label={modality} onClick={() => setModalityActive(modality, !active)}><span /></button>}
+              <SettingsSwitch
+                id={modality}
+                className="operation-switch"
+                checked={active}
+                disabled={locked || Boolean(disabledReason)}
+                title={disabledReason || undefined}
+                describedBy={disabledReason ? reasonId : undefined}
+                label={modality}
+                onChange={(nextActive) => setModalityActive(modality, nextActive)}
+              />
               {disabledReason && <span id={reasonId} className="operation-accessible-reason">{disabledReason}</span>}
               <div className="operation-modality-badges"><span className={active ? 'operation-status-badge is-active' : 'operation-status-badge'}>{active ? 'Ativo' : 'Inativo'}</span>{isDefault && <span className="operation-default-badge">Padrão</span>}</div>
               {!readOnly && <details className="operation-modality-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }} onKeyDown={(event) => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() } }}>
