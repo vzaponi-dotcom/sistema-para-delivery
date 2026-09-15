@@ -1,11 +1,17 @@
 .settings-back-link {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
   color: var(--primary);
   font: inherit;
   font-size: 14px;
@@ -87,6 +93,21 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .settings-back-link {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .settings-back-link > span:last-child {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
