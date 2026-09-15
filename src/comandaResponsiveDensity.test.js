@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const css = fs.readFileSync(new URL('./comandas.css', import.meta.url), 'utf8')
+const mobileCss = fs.readFileSync(new URL('./mobile-compact-controls.css', import.meta.url), 'utf8')
 const marker = '/* Comanda responsive density refinement */'
 
 test('comanda detail keeps the approved compact desktop density', () => {
@@ -29,12 +30,7 @@ test('narrow mobile keeps item subtotal and secondary actions on the compact row
 })
 
 test('narrow mobile keeps the COMANDA eyebrow on one compact line', () => {
-  const refinement = css.split(marker)[1]
-  const narrowStart = refinement.indexOf('@container (max-width: 400px)')
-  const mediaStart = refinement.indexOf('@media (max-width: 820px)')
-  const narrow = refinement.slice(narrowStart, mediaStart)
-
-  assert.match(narrow, /\.comanda-detail-eyebrow\s*\{[^}]*font-size:\s*\.64rem;[^}]*white-space:\s*nowrap;/s)
+  assert.match(mobileCss, /@media \(max-width: 400px\)[\s\S]*?\.comanda-detail-eyebrow\s*\{[^}]*font-size:\s*0\.64rem;[^}]*white-space:\s*nowrap;/s)
 })
 
 test('mobile detail removes the redundant inner horizontal inset', () => {
