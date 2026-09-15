@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
 import AreaNavigation from '../components/AreaNavigation'
+import { SettingsBackLink } from '../components/SettingsControls.jsx'
 import SettingsHome from './SettingsHome'
 import OperationSettings from './OperationSettings'
 import PaymentSettings from './PaymentSettings'
@@ -171,7 +172,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   </div>
   if (printingRoute) return <div className="settings-page printing-settings-page">
     <PageHeader
-      eyebrow="Configurações"
+      eyebrow={<SettingsBackLink onClick={() => onNavigate?.('settings-home')} />}
       title="Impressão de pedidos"
       description="Regras do negócio, estação e impressora local"
     />
