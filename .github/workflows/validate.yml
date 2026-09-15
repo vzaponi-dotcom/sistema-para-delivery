@@ -8,6 +8,7 @@ on:
     branches:
       - master
       - feature/spec-b-settings-policies
+      - feature/comandas-table-list-polish
   workflow_dispatch:
 
 jobs:
