@@ -46,6 +46,7 @@ async function renderEditable(h, PaymentSettings, initial = resourceState()) {
 }
 
 const row = (root, code) => root.findByProps({ 'data-payment-code': code })
+const settingsSwitch = (root, code) => root.findByProps({ 'data-settings-switch': code })
 
 test('renders the native payment editor without free-CRUD controls and with specific payment icons', async (t) => {
   const h = await workspaceHarness(t)
@@ -72,6 +73,7 @@ test('renders the native payment editor without free-CRUD controls and with spec
   assert.match(nodeText(row(screen.root, 'transfer')), /TED, DOC ou transferência bancária/s)
   assert.equal(screen.root.findAll((node) => node.props?.['data-payment-drag-handle']).length, 6)
   assert.equal(screen.root.findAll((node) => node.props?.['data-payment-actions']).length, 6)
+  assert.equal(screen.root.findAll((node) => node.props?.['data-settings-switch']).length, 6)
   assert.equal(row(screen.root, 'pix').findByProps({ 'data-payment-icon': 'pix' }).props['data-payment-icon'], 'pix')
   assert.equal(row(screen.root, 'cash').findByProps({ 'data-payment-icon': 'cash' }).props['data-payment-icon'], 'cash')
   assert.equal(row(screen.root, 'debit_card').findByProps({ 'data-payment-icon': 'card' }).props['data-payment-icon'], 'card')
@@ -86,15 +88,16 @@ test('activation and default actions never create an impossible draft or autosav
   const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
   const fixture = await renderEditable(h, PaymentSettings)
 
-  assert.equal(buttonNamed(row(fixture.screen.root, 'pix'), 'Desativar').props.disabled, true)
+  assert.equal(settingsSwitch(row(fixture.screen.root, 'pix'), 'pix').props.disabled, true)
   assert.match(nodeText(row(fixture.screen.root, 'pix')), /padrão/i)
   await act(async () => buttonNamed(row(fixture.screen.root, 'cash'), 'Definir como padrão').props.onClick())
   assert.equal(fixture.edits.at(-1).defaultMethod, 'cash')
   assert.equal(fixture.edits.at(-1).methods.find((item) => item.code === 'cash').active, true)
-  await act(async () => buttonNamed(row(fixture.screen.root, 'pix'), 'Desativar').props.onClick())
+  assert.equal(settingsSwitch(row(fixture.screen.root, 'pix'), 'pix').props.disabled, false)
+  await act(async () => settingsSwitch(row(fixture.screen.root, 'pix'), 'pix').props.onClick())
   assert.equal(fixture.edits.at(-1).methods.find((item) => item.code === 'pix').active, false)
   assert.equal(fixture.edits.at(-1).defaultMethod, 'cash')
-  await act(async () => buttonNamed(row(fixture.screen.root, 'pix'), 'Ativar').props.onClick())
+  await act(async () => settingsSwitch(row(fixture.screen.root, 'pix'), 'pix').props.onClick())
   assert.equal(fixture.edits.at(-1).methods.find((item) => item.code === 'pix').active, true)
   assert.equal(fixture.saves(), 0, 'draft actions must not autosave')
 
@@ -102,7 +105,7 @@ test('activation and default actions never create an impossible draft or autosav
   onlyCash.defaultMethod = 'cash'
   onlyCash.methods = onlyCash.methods.map((item) => ({ ...item, active: item.code === 'cash' }))
   const last = await renderEditable(h, PaymentSettings, resourceState(onlyCash))
-  assert.equal(buttonNamed(row(last.screen.root, 'cash'), 'Desativar').props.disabled, true)
+  assert.equal(settingsSwitch(row(last.screen.root, 'cash'), 'cash').props.disabled, true)
   assert.equal(last.edits.length, 0)
 })
 
@@ -114,7 +117,7 @@ test('controller-blocked states disable payment actions and reorder shortcuts', 
     readOnly: false, onEdit() { throw new Error('saving state must not edit') }, onSave() {}, onDiscard() {},
   })
 
-  assert.equal(buttonNamed(row(screen.root, 'cash'), 'Desativar').props.disabled, true)
+  assert.equal(settingsSwitch(row(screen.root, 'cash'), 'cash').props.disabled, true)
   assert.equal(row(screen.root, 'cash').props.onKeyDown, undefined)
 })
 
@@ -161,7 +164,7 @@ test('reorderPaymentMethods keeps six identities and normalizes sortOrder', asyn
   assert.equal(new Set(middle.map((item) => item.code)).size, 6)
 })
 
-test('read-only uses the shared shell and exposes no editing actions', async (t) => {
+test('read-only uses the shared shell and disables editing controls', async (t) => {
   const h = await workspaceHarness(t)
   const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
@@ -171,8 +174,9 @@ test('read-only uses the shared shell and exposes no editing actions', async (t)
   })
   assert.match(nodeText(screen.root), /Somente leitura/)
   assert.equal(buttonNamed(screen.root, 'Salvar alterações'), undefined)
-  assert.equal(buttonNamed(screen.root, 'Ativar'), undefined)
-  assert.equal(buttonNamed(screen.root, 'Desativar'), undefined)
+  const switches = screen.root.findAll((node) => node.props?.['data-settings-switch'])
+  assert.equal(switches.length, 6)
+  assert.equal(switches.every((node) => node.props.disabled), true)
   assert.equal(row(screen.root, 'pix').findByProps({ 'data-payment-drag-handle': 'pix' }).props.disabled, true)
 })
 
