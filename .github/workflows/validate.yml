@@ -31,8 +31,17 @@ jobs:
       - name: Focused Comandas polish tests
         run: node --test src/comandasTableListPolish.test.js
 
-      - name: Comandas regression tests
-        run: node --test src/comandaResponsiveDensity.test.js src/comandasAppWiring.test.js src/comandasTransferNavigation.test.js src/components/ComandaDetail.test.js
+      - name: Responsive density regression
+        run: node --test src/comandaResponsiveDensity.test.js
+
+      - name: App wiring regression
+        run: node --test src/comandasAppWiring.test.js
+
+      - name: Transfer navigation regression
+        run: node --test src/comandasTransferNavigation.test.js
+
+      - name: Comanda detail regression
+        run: node --test src/components/ComandaDetail.test.js
 
       - name: Test
         run: npm test
