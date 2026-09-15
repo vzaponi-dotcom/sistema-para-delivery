@@ -111,7 +111,7 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
     </div>
     <div className="payment-meta-cell" role="cell">
       <div className="payment-meta-badges">
-        {isDefault ? <span className="payment-default-badge">★ <span>Padrão</span></span> : <span className="payment-default-dash">—</span>}
+        {isDefault && <span className="payment-default-badge">★ <span>Padrão</span></span>}
       </div>
       <SettingsSwitch
         className="payment-meta-switch"
