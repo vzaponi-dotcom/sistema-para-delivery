@@ -96,6 +96,17 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     if (review) onSettingsConflictReview?.(review)
     return review
   }
+  const saveFinanceCategories = async () => {
+    const saved = await businessSettings?.save?.('financeCategories')
+    if (saved === true) onSuccessMessage?.('Categorias financeiras salvas com sucesso')
+    return saved
+  }
+  const cancelFinanceCategories = async () => {
+    const discarded = await businessSettings?.discard?.('financeCategories')
+    if (discarded === false) return false
+    onNavigate?.('settings-home')
+    return true
+  }
   const changeTheme = (value) => {
     const saved = setThemePreference(value)
     setDevicePersistenceError(saved === false ? 'Não foi possível salvar esta preferência neste dispositivo.' : '')
@@ -146,16 +157,16 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
     />
   </div>
   if (financeCategoryRoute) return <div className="settings-page">
-    <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
     <FinanceCategorySettings
       resourceState={businessSettings?.resources?.financeCategories}
       readOnly={!(granted instanceof Set && granted.has('finance.categories.manage'))}
       onEdit={(draft) => businessSettings?.edit?.('financeCategories', draft)}
-      onSave={() => businessSettings?.save?.('financeCategories')}
-      onDiscard={() => businessSettings?.discard?.('financeCategories')}
+      onSave={saveFinanceCategories}
+      onDiscard={cancelFinanceCategories}
       onReconcile={() => businessSettings?.reconcile?.('financeCategories')}
       onReload={() => businessSettings?.load?.('financeCategories')}
       onReviewConflict={reviewFinanceCategoryConflict}
+      onNavigateHome={() => onNavigate?.('settings-home')}
     />
   </div>
   return (
