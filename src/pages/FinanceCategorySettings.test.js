@@ -16,6 +16,7 @@ const resourceState = (items = nativeItems(), meta = nativeMeta(), extra = {}) =
   draft: structuredClone({ items }), dirty: false, ...extra,
 })
 const row = (root, id) => root.findByProps({ 'data-finance-category-id': id })
+const settingsSwitch = (root, id) => root.findByProps({ 'data-settings-switch': id })
 
 async function renderEditable(h, Page, initial) {
   const edits = []
@@ -68,8 +69,9 @@ test('adding asks for type, creates one stable UUID in that group and changes on
   assert.equal(created.type, 'saida')
   assert.equal(row(fixture.screen.root, created.id).props['data-finance-category-type'], 'saida')
   assert.equal(fixture.saves(), 0)
-  await act(async () => buttonNamed(row(fixture.screen.root, created.id), 'Desativar').props.onClick())
+  await act(async () => settingsSwitch(row(fixture.screen.root, created.id), created.id).props.onClick())
   assert.equal(fixture.edits.at(-1).items.find((item) => item.id === created.id).id, created.id)
+  assert.equal(fixture.edits.at(-1).items.find((item) => item.id === created.id).active, false)
 })
 
 test('existing category type is immutable and unused custom category can rename and delete only in draft', async (t) => {
@@ -116,7 +118,7 @@ test('native and used categories expose no illegal rename/delete while used cust
   for (const id of ['contribution', 'projects']) {
     assert.equal(buttonNamed(row(screen.root, id), 'Renomear'), undefined)
     assert.equal(buttonNamed(row(screen.root, id), 'Excluir'), undefined)
-    assert.ok(buttonNamed(row(screen.root, id), 'Desativar'))
+    assert.equal(settingsSwitch(row(screen.root, id), id).props.disabled, false)
   }
   assert.doesNotMatch(nodeText(screen.root), /Vendas.*Renomear|Estornos.*Excluir/s)
 })
@@ -139,6 +141,8 @@ test('read-only and mobile preserve values without editing actions or horizontal
   const screen = await h.render(Page, { resourceState: resourceState(), readOnly: true, onEdit() {}, onSave() {}, onDiscard() {} })
   assert.match(nodeText(screen.root), /Somente leitura/)
   assert.equal(buttonNamed(screen.root, 'Adicionar categoria'), undefined)
-  assert.equal(buttonNamed(screen.root, 'Desativar'), undefined)
+  const switches = screen.root.findAll((node) => node.props?.['data-settings-switch'])
+  assert.equal(switches.length, 13)
+  assert.equal(switches.every((node) => node.props.disabled), true)
   assert.equal(screen.root.findAllByType('table').length, 0)
 })
