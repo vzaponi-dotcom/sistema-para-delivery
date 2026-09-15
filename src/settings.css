@@ -113,6 +113,35 @@
 .settings-conflict-choice small { color: var(--muted); font-size: .78rem; }
 .settings-conflict-value { color: var(--text); overflow-wrap: anywhere; word-break: break-word; }
 
+.device-settings-page { max-width: 1040px; }
+.device-preferences { display: grid; max-width: 920px; gap: 18px; }
+.device-preferences-card { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.device-preferences-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px 16px; border-bottom: 1px solid var(--border); }
+.device-preferences-card-heading > div { display: grid; min-width: 0; gap: 4px; }
+.device-preferences-card-heading h2 { margin: 0; color: var(--text); font-size: 1.08rem; }
+.device-preferences-card-heading p { margin: 0; color: var(--muted); line-height: 1.45; }
+.device-preferences-card-heading .section-kicker { color: var(--primary); }
+.device-local-badge { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.device-preference-row { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 20px 22px; }
+.device-preference-copy { display: grid; min-width: 0; gap: 4px; }
+.device-preference-copy strong { color: var(--text); }
+.device-preference-copy small { color: var(--muted); line-height: 1.45; }
+.device-theme-options { display: inline-flex; flex: 0 0 auto; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
+.device-theme-options button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 11px; background: transparent; color: var(--text-soft); font-weight: 700; cursor: pointer; }
+.device-theme-options button:hover { color: var(--text); }
+.device-theme-options button.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+.device-sound-row .settings-switch { flex: 0 0 auto; }
+.device-local-info { margin: 0; }
+.device-local-info > div { display: grid; min-height: 58px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 0 22px; border-bottom: 1px solid var(--border); }
+.device-local-info > div:last-child { border-bottom: 0; }
+.device-local-info dt { color: var(--muted); font-weight: 600; }
+.device-local-info dd { margin: 0; color: var(--text); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.device-autosave-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); color: var(--muted); font-size: .82rem; }
+.device-autosave-status.saved { border-color: color-mix(in srgb, var(--primary) 28%, var(--border)); background: var(--primary-soft); color: var(--primary); }
+.device-autosave-status strong { color: inherit; }
+.device-preferences-footnote { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.55; }
+.settings-device-error { margin: 0; padding: 12px 14px; border: 1px solid var(--warning); border-radius: var(--radius-md); background: var(--warning-soft); color: var(--warning); font-weight: 700; }
+
 @media (max-width: 640px) {
   .settings-home-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-home-card { min-height: 96px; padding: 16px; }
@@ -131,4 +160,13 @@
   .finance-category-group { padding: 12px; }
   .settings-conflict-choices { grid-template-columns: minmax(0, 1fr); }
   .operation-conflict-item { padding: 12px; }
+  .device-preferences { gap: 14px; }
+  .device-preferences-card-heading, .device-preference-row { padding-left: 16px; padding-right: 16px; }
+  .device-preference-row { align-items: stretch; flex-direction: column; }
+  .device-theme-options { display: flex; width: 100%; }
+  .device-theme-options button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+  .device-sound-row { align-items: center; flex-direction: row; }
+  .device-local-info > div { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 12px 16px; }
+  .device-local-info dd { text-align: left; }
+  .device-autosave-status { align-items: flex-start; flex-direction: column; }
 }
