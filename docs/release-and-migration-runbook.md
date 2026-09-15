@@ -8,7 +8,7 @@ This document is the operating procedure for changing Gestão Delivery now that 
 feature/fix branch
 -> Pull Request to master
 -> required Validate application / validate check
--> manual Deploy staging on the feature/fix branch
+-> manual/automatic staging deployment for the approved branch
 -> human acceptance in staging
 -> merge to master
 -> explicit Deploy production workflow
@@ -33,10 +33,18 @@ Run or obtain a green result for the complete validation gate:
 npm test
 npm run lint
 npm run build
-npm run d1:migrate:local
 npx --yes wrangler@4.128.0 deploy --dry-run
 npx --yes wrangler@4.128.0 deploy --dry-run --env staging
+npm run d1:migrate:local
 ```
+
+Branches/releases that include the Spec B settings schema/policies (`0024`/`0025`) must additionally pass the real local D1 upgrade/clean-install gate:
+
+```bash
+node scripts/infra/spec-b-d1-gate.mjs
+```
+
+The repository `Validate application` workflow runs this gate after local migrations while Spec B is being closed. A node:sqlite-only test is not a substitute for this Wrangler/D1 gate.
 
 Any red validation check blocks the release. Fix the root cause on the branch; do not merge around a failing check.
 
@@ -47,6 +55,8 @@ For a behavior or infrastructure change, deploy that branch to staging and compl
 Use the **Deploy staging** GitHub Actions workflow. It may write only to staging resources. The workflow validates the application, applies migrations to `amor-e-sabor-delivery-staging`, configures the staging-only credential, deploys `sistema-para-delivery-staging`, and performs a staging login smoke check.
 
 If staging deployment, migration, or acceptance fails, the production release stops. Production is not used to diagnose unfinished branch changes.
+
+For Spec B, record the exact staging SHA and the acceptance evidence in `docs/superpowers/qa/2026-09-15-spec-b-final-closure.md`. Physical printing acceptance by context remains a separate release gate documented in `docs/superpowers/qa/2026-09-12-spec-b-physical-printing-guide.md`.
 
 ## Migration review
 
@@ -66,6 +76,15 @@ Destructive or data-transforming migrations require a reviewed restore strategy 
 
 Automatic down-migrations are not the default database rollback strategy.
 
+### Spec B migrations 0024/0025
+
+`0024_business_settings_policies.sql` persists typed settings/catalogs and their revisions. `0025_print_context_copies.sql` extends printing snapshots/policies by context. Before production:
+
+- prove clean install and upgrade through `node scripts/infra/spec-b-d1-gate.mjs`;
+- preserve existing print-history rows and references;
+- preserve already-created jobs and their copy snapshot when defaults change;
+- do not assume an older application version remains safe after users create custom settings or two-copy jobs.
+
 ## Production release
 
 After the PR is merged and staging acceptance is complete, explicitly start **Deploy production** from `master`.
@@ -82,6 +101,8 @@ The workflow must:
 
 Do not run routine production migrations or Worker deployment directly from a feature branch.
 
+For Spec B specifically, **do not authorize Deploy production while the physical printing-by-context matrix remains pending**. Existing physical validation of QZ/Windows infrastructure does not automatically prove the new 1/2-copy policy matrix for the current SHA.
+
 ## Production smoke test
 
 After a successful release, verify read-only behavior first:
@@ -90,6 +111,7 @@ After a successful release, verify read-only behavior first:
 - products load;
 - orders page loads;
 - finance page loads;
+- Settings home and the expected policies load;
 - the expected production state remains visible.
 
 Avoid creating fake production customers, orders, payments, movements, print jobs, or financial entries as a release test.
@@ -98,9 +120,11 @@ Avoid creating fake production customers, orders, payments, movements, print job
 
 ### Code rollback
 
-Code rollback means redeploying the last known-good `master` commit/version **only after checking that the previous application version remains compatible with the current production schema**.
+Code rollback means redeploying the last known-good `master` commit/version **only after checking that the previous application version remains compatible with the current production schema and data**.
 
-If the production smoke check fails, stop further changes and assess code rollback before touching production data.
+For Spec B this check is mandatory after `0024`/`0025`: custom catalogs/settings and jobs with context-specific copy snapshots may make an older application semantically incompatible even though the SQL schema is additive.
+
+If the production smoke check fails, stop further changes and assess code rollback before touching production data. Prefer a forward fix when compatibility of the previous binary is uncertain.
 
 ### Database rollback
 
