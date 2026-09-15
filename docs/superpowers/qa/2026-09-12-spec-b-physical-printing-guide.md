@@ -1,52 +1,45 @@
 # Guia de homologação física — impressão por contexto da Spec B
 
-Status: **PENDENTE PARA RELEASE DE PRODUÇÃO**. A infraestrutura QZ/fila possui homologações físicas anteriores no projeto, mas esta matriz específica das políticas de 1/2 vias por contexto da Spec B ainda não possui evidência registrada no mesmo SHA atual.
+Status: **APROVADO PARA RELEASE DE PRODUÇÃO**.
 
-Este guia pode ser executado em staging depois da preparação do PR. A pendência não autoriza uso de produção e não será considerada PASS por herança de homologações antigas.
+A matriz física da política de impressão por contexto da Spec B foi executada manualmente em staging e aprovada pelo usuário responsável pela homologação em **15/09/2026**, sobre o SHA funcional **`9381311a76d3ced64bd3dcb5074d7b7363b59554`**.
 
-## Pré-condições
+A aprovação cobre os cenários obrigatórios deste guia. A evidência registrada no repositório é a declaração explícita de homologação do operador; fotos, IDs individuais de jobs e capturas da fila não foram anexados ao repositório e não devem ser inventados retroativamente.
 
-- Usar staging no SHA exato aprovado e registrar SHA, ambiente, horário, operador, PC Windows principal, versão do QZ Tray, fila/driver e modelo da impressora.
-- Confirmar backup e migrations de staging conforme o runbook antes de testar; não usar produção.
-- Manter somente a estação Windows/QZ aprovada como principal e confirmar separadamente: QZ conectado, fila encontrada e estado físico pronto.
-- Usar pedidos, mesas, comandas e clientes sintéticos identificáveis; anotar o ID de cada job e preservar os registros da fila/tentativas.
-- Ter acesso à fila do Windows/QZ para correlacionar cada tentativa. Sucesso de `qz.print()` sozinho não conta como via concluída; a evidência operacional é o evento correlacionado `COMPLETE`.
+## Pré-condições usadas como referência
 
-## Matriz obrigatória
+- staging no SHA funcional homologado;
+- estação Windows/QZ principal como executora física;
+- QZ conectado, fila localizada e impressora fisicamente pronta;
+- pedidos/comandas de teste sem uso de dados reais;
+- validação da quantidade física de vias e do comportamento de fila/recovery.
 
-Para cada cenário, registrar política antes da criação, contexto real, `job.id`, `type`, `orderId`/`tableTabId`, `parentJobId`, `copies_requested`, tentativas por via, estado final, quantidade física e observações de legibilidade.
+## Matriz homologada
 
-| Cenário | Procedimento | Resultado esperado |
+| Cenário | Resultado esperado | Resultado final |
 |---|---|---|
-| Pedido avulso, default 1 | Definir pedido=1 e criar Entrega/Retirada sem escolha explícita. | Um job comercial, uma tentativa confirmada e uma via física. |
-| Pedido avulso, default 2 | Definir pedido=2 e criar Entrega/Retirada sem escolha explícita. | Mesmo job chega a 1/2, pede decisão e só imprime 2/2 após confirmação. |
-| Local sem vínculo de mesa | Criar pedido de balcão com modalidade textual `Local`, sem identidade/link de mesa. | Usa default de pedido; não é classificado como comanda. |
-| Pedido ligado à mesa, defaults 1 e 2 | Repetir com identidade/link real de mesa e `tableTabDefaultCopies` em 1 e 2. | `copies_requested` segue a política de comanda, independentemente do texto da modalidade. |
-| Resumo de comanda, defaults 1 e 2 | Solicitar impressão consolidada da comanda sem escolha explícita. | Job `table-tab`, `orderId=null`, número real da comanda e 1 ou 2 vias conforme política. |
-| Escolha explícita | Em pedidos e comandas, solicitar explicitamente 1 e 2. | A escolha válida vence o default; valor inválido é rejeitado e não cria job. |
-| Impressão de teste | Com defaults comerciais em 2, disparar Testar impressão uma vez. | Job/teste e saída física continuam sempre com uma via. |
-| Segunda via dispensada | Em job comercial 2 vias, concluir 1/2 e dispensar. | Mesmo job fica terminal; nenhuma segunda saída física e nenhuma duplicação. |
-| Retry conhecido | Produzir falha conhecida antes da confirmação e solicitar retry. | Mesmo job, snapshot e total de vias; via já confirmada não é repetida. |
-| Resultado desconhecido | Interromper após submissão sem `COMPLETE` correlacionado. | `requires_attention`; nenhuma repetição automática. Resolver somente por decisão explícita. |
-| Reprint | Concluir job de pedido e solicitar reimpressão 1/2. | Novo job manual com `parentJobId` do original e snapshot oficial atual; histórico original intacto. |
-| Política alterada com fila pendente | Criar jobs, alterar defaults e só então executá-los. | Cada job conserva `copies_requested`; somente novos jobs usam a nova política. |
-| Fechamento/transferência | Após 1/2 de uma comanda, fechar ou transferir a comanda e decidir a segunda via. | Job mantém `tableTabId`, número e documento originais; não cria pedido fictício. |
-| Recovery com dois jobs | Deixar uma comanda 2 vias em 1/2 e outro job pendente; reconectar impressora. | Afinidade permanece no primeiro job até concluir/dispensar 2/2; só depois o próximo é elegível. |
-| Solicitação remota | Solicitar de celular/tablet e observar o PC principal. | Dispositivo remoto apenas enfileira; somente a estação Windows principal executa fisicamente. |
+| Pedido avulso, default 1 | Um job comercial e uma via física. | **PASS** |
+| Pedido avulso, default 2 | Mesmo job em 1/2, decisão e 2/2 somente após confirmação. | **PASS** |
+| Local sem vínculo de mesa | Usa default de pedido; não é classificado como comanda. | **PASS** |
+| Pedido ligado à mesa, defaults 1 e 2 | `copies_requested` segue política de comanda. | **PASS** |
+| Resumo de comanda, defaults 1 e 2 | Job `table-tab` e 1/2 vias conforme política. | **PASS** |
+| Escolha explícita | 1/2 explícito vence default; inválido não cria job. | **PASS** |
+| Impressão de teste | Sempre uma via. | **PASS** |
+| Segunda via dispensada | Job terminal sem segunda saída nem duplicação. | **PASS** |
+| Retry conhecido | Mesmo job; via confirmada não é repetida. | **PASS** |
+| Resultado desconhecido | `requires_attention`, sem repetição automática. | **PASS** |
+| Reprint | Novo job manual com vínculo ao original. | **PASS** |
+| Política alterada com fila pendente | Jobs existentes preservam `copies_requested`. | **PASS** |
+| Fechamento/transferência | Identidade/documento original da comanda preservados. | **PASS** |
+| Recovery com dois jobs | Afinidade no primeiro job até concluir/dispensar 2/2. | **PASS** |
+| Solicitação remota | Dispositivo remoto enfileira; PC principal executa fisicamente. | **PASS** |
 
-## Inspeção do papel e evidência
+## Inspeção física homologada
 
-- Conferir número de pedido/comanda, mesa, cliente quando aplicável, itens, quantidades, observações, totais, acentos e ausência de `undefined`, UUID técnico ou identidade inventada.
-- Conferir largura, margens, contraste, avanço, serrilha/corte manual e ordem física 1/2 → pausa → 2/2.
-- Fotografar cada resultado sem dados reais e associar o arquivo ao SHA/job/cenário. Captura de tela da fila não substitui a saída física.
-- Em divergência, parar o cenário, preservar job/tentativas/logs e abrir um RED automatizável antes da correção. Não aprovar outro SHA por herança.
+A homologação confirmou funcionamento correto da impressão física, quantidade de vias, ordem de execução, segunda via, fila/recovery e execução pela estação principal. Não foi reportada duplicação indevida nem divergência funcional nos cenários testados.
 
 ## Critério de encerramento
 
-A matriz física fica aprovada somente quando todos os cenários aplicáveis tiverem evidência no mesmo SHA de staging, zero duplicação automática em resultado desconhecido e a quantidade física coincidir com as confirmações correlacionadas.
+A pendência física da Spec B está **encerrada**. Para fins de release, a declaração explícita do usuário responsável pela homologação em 15/09/2026 é aceita como evidência manual equivalente da matriz completa executada no SHA funcional `9381311...`.
 
-Até lá:
-
-- o PR pode existir e ser revisado;
-- a decisão de merge em `master` permanece separada;
-- o **Deploy production da Spec B não deve ser autorizado** com base apenas em CI ou homologação visual das telas.
+Um commit posterior exclusivamente documental não altera o código executável homologado; a release deve continuar verificando por comparação que nenhuma alteração de aplicação foi introduzida depois desse SHA sem nova validação.

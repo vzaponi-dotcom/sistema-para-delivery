@@ -1,93 +1,71 @@
 # Spec B — aceite integrado e homologação de staging
 
-**Base funcional homologada:** `7c6de7422d4693a9bee34422ff100d155a42af4f`  
+**SHA funcional final homologado:** `9381311a76d3ced64bd3dcb5074d7b7363b59554`  
 **Branch:** `feature/spec-b-settings-policies`  
 **Staging:** `https://sistema-para-delivery-staging.vzaponi.workers.dev`  
-**Status:** telas e fluxos de Configurações homologados em staging; fechamento documental em andamento; produção não autorizada.
+**Status:** **ACEITE FINAL APROVADO**; homologação visual/funcional e matriz física de impressão concluídas; produção autorizada pelo usuário em 15/09/2026, condicionada aos gates finais e ao workflow oficial de produção.
 
-> O histórico detalhado das rodadas permanece em `2026-09-12-spec-b-execution-ledger.md`. O fechamento atual está consolidado em `2026-09-15-spec-b-final-closure.md`.
+> O histórico detalhado das rodadas permanece em `2026-09-12-spec-b-execution-ledger.md`. O fechamento atual está consolidado em `2026-09-15-spec-b-final-closure.md` e o evento de release em `2026-09-15-spec-b-release-ledger.md`.
 
-## Evidência automatizada atual
+## Evidência automatizada final do SHA funcional
 
-No SHA funcional homologado `7c6de7422d4693a9bee34422ff100d155a42af4f`:
+No SHA `9381311a76d3ced64bd3dcb5074d7b7363b59554`:
 
-- **Validate application #1106** (`34989572799`): **PASS**;
-- `npm test`: **PASS**;
-- `npm run lint`: **PASS**;
-- `npm run build`: **PASS**;
+- **Validate application #1146** (`35024215026`): **PASS**;
+- **Validate application #1147** (`35024219794`, evento do PR): **PASS**;
+- **Deploy staging #174** (`35024214926`): **PASS**;
+- testes: **PASS**;
+- lint: **PASS**;
+- build: **PASS**;
 - Worker de produção em dry-run: **PASS**;
 - Worker de staging em dry-run: **PASS**;
 - migrations D1 locais: **PASS**;
-- **Deploy staging #150** (`34989572808`): **PASS**;
-- migrations do D1 de staging: **PASS**;
-- deploy do Worker de staging: **PASS**;
-- verificação real de login em staging: **PASS**.
-
-O checkpoint T23A corrigiu as falhas históricas de fixtures/harness que impediam confiar no agregado; a suíte integral naquele checkpoint passou **1514/1514**, sem defeito de produção confirmado.
-
-O fechamento final adiciona também o gate D1 específico da Spec B (`node scripts/infra/spec-b-d1-gate.mjs`) ao workflow de validação. O resultado desse gate deve ficar verde no SHA documental final antes de considerar o PR pronto para revisão final.
+- gate dedicado da Spec B, incluindo instalação limpa/upgrade: **PASS**;
+- migrations do D1 de staging, deploy e smoke real de login: **PASS**.
 
 ## Evidência manual/visual em staging
 
-A homologação manual reportada pelo usuário cobre as telas de Configurações implementadas pela Spec B. As rodadas finais incluíram ajustes observados diretamente em desktop e mobile.
-
-| ID | Automatizado | Manual/visual | Estado atual |
+| ID | Automatizado | Manual/visual | Estado final |
 |---|---|---|---|
-| V01 Home | PASS | PASS | Navegação e cards de Configurações homologados. |
-| V02 Operação | PASS | PASS | Layout/responsividade, claro/escuro e fluxos de edição já homologados nas rodadas anteriores. |
-| V03 Modalidades | PASS | PASS | Mesmo domínio/draft de Operação, controles e composição homologados. |
-| V04 Pagamentos | PASS | PASS | Desktop/mobile homologados; densidade, alinhamento, padrão, menus, inativos e reorder preservados. |
-| V05 Cancelamentos | PASS | PASS | Tela homologada; correção final do menu de três pontos validada. |
-| V06 Categorias financeiras | PASS | PASS | Tela homologada; correção final do menu de três pontos validada. |
-| V07 Impressão | PASS | PASS UI/fluxo | Tela/política/estação homologadas funcionalmente; matriz física específica da nova política por contexto continua separada abaixo. |
-| V08 Dispositivo | PASS | PASS | Preferências locais e temas homologados. |
-| V09 Modal | PASS | coberto por rodadas | Foco/escape/layout possuem regressões automatizadas e foram exercitados nas correções de telas. |
-| V10 Descarte | PASS | coberto por rodadas | Cancelar/descartar e preservação de draft exercitados nas telas homologadas. |
-| V11 Conflito | PASS | coberto por rodadas | Review de conflito recebeu rodada própria de correção e regressões. |
-| V12 Envio incerto | PASS | automatizado | Reconciliação sem reenvio automático permanece coberta por testes. |
-| V13 Read-only | PASS | automatizado | Capabilities e ausência de ações de escrita permanecem cobertas. |
-| V14 Loading/indisponível | PASS | automatizado | Estados fail-closed/reconsulta permanecem cobertos. |
+| V01 Home | PASS | PASS | Navegação e cards homologados. |
+| V02 Operação | PASS | PASS | Layout, responsividade e edição homologados. |
+| V03 Modalidades | PASS | PASS | Draft/controles/composição homologados. |
+| V04 Pagamentos | PASS | PASS | Desktop/mobile, reorder, menus, padrão e inativos homologados. |
+| V05 Cancelamentos | PASS | PASS | Tela e menu de ações homologados. |
+| V06 Categorias financeiras | PASS | PASS | Tela, menu e persistência da ordenação homologados. |
+| V07 Impressão | PASS | PASS físico | UI/política/estação e matriz física de 1/2 vias homologadas. |
+| V08 Dispositivo | PASS | PASS | Preferências locais/temas homologados. |
+| V09 Modal | PASS | coberto | Foco/escape/layout cobertos e exercitados. |
+| V10 Descarte | PASS | coberto | Cancelar/descartar e preservação de draft cobertos. |
+| V11 Conflito | PASS | coberto | Review/conflito cobertos. |
+| V12 Envio incerto | PASS | automatizado | Reconciliação sem reenvio automático coberta. |
+| V13 Read-only | PASS | automatizado | Capabilities e ausência de escrita cobertas. |
+| V14 Loading/indisponível | PASS | automatizado | Estados fail-closed/reconsulta cobertos. |
 
 ## Correções finais homologadas
 
-### Formas de pagamento
+- ordenação de Categorias financeiras recalcula `sortOrder`, salva e persiste após reload;
+- save sem alterações em Operação/Modalidades, Pagamentos, Cancelamentos e Categorias financeiras não grava e informa `Não há alterações para salvar.`;
+- menus de ações, estado inativo e densidade de Pagamentos homologados;
+- redesign/polish de Comandas homologado em desktop/mobile;
+- política de impressão por contexto e estação principal homologadas física e funcionalmente.
 
-- menu dos três pontos não é mais recortado pelo contêiner;
-- ações fecham o menu quando aplicadas;
-- itens inativos ficam visualmente atenuados sem desabilitar o menu;
-- coluna Padrão não renderiza `—` nos demais métodos;
-- desktop usa uma única linha de grid para status, padrão e ações;
-- linhas desktop ficaram compactas e verticalmente centralizadas;
-- mobile foi preservado após a compactação aprovada.
+## Homologação física de impressão
 
-### Motivos de cancelamento e categorias financeiras
+A matriz de `2026-09-12-spec-b-physical-printing-guide.md` foi reportada como executada integralmente pelo usuário em staging no SHA funcional `9381311...` e aprovada em 15/09/2026.
 
-O menu dos três pontos deixou de ser recortado no desktop, inclusive nas últimas linhas da lista.
-
-### Comandas na mesma branch de homologação
-
-O redesign de Comandas foi homologado em desktop/mobile, incluindo a compactação responsiva e a correção do rótulo `COMANDA` para permanecer em uma linha no celular.
-
-## Pendência física de impressão por contexto
-
-A infraestrutura de impressão QZ/fila possui homologações físicas anteriores no projeto. Entretanto, a Spec B introduz/centraliza defaults de **1/2 vias por contexto** e snapshot em `0025_print_context_copies.sql`.
-
-Não há evidência documental suficiente para afirmar que a matriz completa de `2026-09-12-spec-b-physical-printing-guide.md` foi repetida no mesmo SHA atual. Por isso:
-
-- a preparação e revisão do PR podem prosseguir;
-- merge em `master` continua uma decisão separada;
-- **Deploy production permanece bloqueado** até a matriz física por contexto ser concluída ou formalmente reavaliada com evidência equivalente;
-- nenhum PASS físico será presumido por herança de homologações antigas.
+A aprovação cobre 1 e 2 vias, pedido/comanda, segunda via, dois jobs na fila, recovery/reconexão, impressão de teste, reprint, mudança de política com fila pendente e solicitação remota executada apenas pela estação principal. Nenhuma falha foi reportada.
 
 ## Critério de encerramento
 
-Para o fechamento documental da branch:
+Para autorizar a release da Spec B:
 
-1. QA/runbooks atualizados;
-2. gate D1 específico adicionado ao CI;
-3. todos os gates finais verdes no SHA exato de fechamento;
-4. staging publicado e login verificado nesse SHA;
-5. PR para `master` criado sem merge automático;
-6. produção mantida sem deploy.
+1. QA/runbooks atualizados — **PASS**;
+2. gates automatizados no SHA funcional homologado — **PASS**;
+3. staging publicado e login verificado — **PASS**;
+4. homologação manual/visual — **PASS**;
+5. matriz física de impressão — **PASS**;
+6. autorização explícita do usuário para produção — **PASS em 15/09/2026**;
+7. PR deve ficar pronto para review/merge e o workflow oficial de produção deve ser executado somente a partir de `master`.
 
-A autorização de produção continuará exigindo decisão explícita e a resolução da pendência física acima.
+A produção não deve ser considerada concluída até o workflow `Deploy production` terminar com sucesso e seu smoke final de login passar.

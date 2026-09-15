@@ -2,8 +2,8 @@
 
 **Branch:** `feature/spec-b-settings-policies`  
 **Base de integração:** `master` em `8d2f897154526037606e9fee60f4b9a606089e8a`  
-**SHA funcional homologado antes do fechamento documental:** `7c6de7422d4693a9bee34422ff100d155a42af4f`  
-**Status:** aplicação e telas de Configurações homologadas em staging; PR pode ser preparado, mas a release de produção continua separada.
+**SHA funcional final homologado:** `9381311a76d3ced64bd3dcb5074d7b7363b59554`  
+**Status:** **QA FINAL APROVADO / RELEASE AUTORIZADA** em 15/09/2026. A execução de produção continua condicionada ao merge em `master` e ao sucesso do workflow oficial `Deploy production`.
 
 ## Escopo entregue
 
@@ -16,71 +16,74 @@ A Spec B centraliza e versiona as políticas de negócio e respectivos editores:
 - política de impressão por contexto e configuração de estação;
 - preferências locais de tema e som;
 - drafts, descarte, revisão otimista, conflitos e reconciliação de resultado incerto;
-- consumo da configuração efetiva nos fluxos de pedidos, cozinha, comandas, impressão e financeiro.
+- consumo da configuração efetiva nos fluxos de pedidos, cozinha, comandas, impressão e financeiro;
+- refinamentos de UI/UX homologados em Configurações e Comandas.
 
 As migrations da Spec B são `0024_business_settings_policies.sql` e `0025_print_context_copies.sql`.
 
-## Evidência automatizada no SHA funcional homologado
+## Evidência automatizada no SHA funcional final
 
-No SHA `7c6de7422d4693a9bee34422ff100d155a42af4f`:
+No SHA `9381311a76d3ced64bd3dcb5074d7b7363b59554`:
 
-- **Validate application #1106** (`34989572799`) — SUCCESS;
-- `npm test` — SUCCESS;
-- lint — SUCCESS;
-- build — SUCCESS;
-- dry-run do Worker de produção — SUCCESS;
-- dry-run do Worker de staging — SUCCESS;
+- **Validate application #1146** (`35024215026`) — SUCCESS;
+- **Validate application #1147** (`35024219794`) — SUCCESS;
+- **Deploy staging #174** (`35024214926`) — SUCCESS;
+- testes, lint e build — SUCCESS;
+- dry-run dos Workers de produção/staging — SUCCESS;
 - migrations D1 locais — SUCCESS;
-- **Deploy staging #150** (`34989572808`) — SUCCESS;
-- migrations remotas de staging — SUCCESS;
-- deploy do Worker de staging — SUCCESS;
-- smoke de login em staging — SUCCESS.
-
-O checkpoint T23A também eliminou as falhas históricas de infraestrutura/fixtures que impediam confiar no agregado: a suíte integral daquele checkpoint passou **1514/1514**, sem defeito de produção confirmado.
+- gate D1 da Spec B (clean install + upgrade) — SUCCESS;
+- migrations remotas de staging, deploy e smoke real de login — SUCCESS.
 
 ## Homologação manual/visual
 
-O usuário homologou em staging as telas de Configurações implementadas na Spec B e as correções finais desta rodada.
+O usuário homologou em staging as telas e correções finais da Spec B, incluindo:
 
-Pontos finais explicitamente validados durante a homologação:
+- Operação/Modalidades;
+- Formas de pagamento, reorder, padrão, ativação e estados visuais;
+- Motivos de cancelamento;
+- Categorias financeiras, incluindo persistência da nova ordenação;
+- feedback de save sem alterações;
+- Configurações de impressão;
+- Comandas em desktop/mobile e seus refinamentos finais.
 
-- **Formas de pagamento:** desktop e mobile; cards/linhas compactados; alinhamento vertical; coluna Padrão sem traços em itens não padrão; menu de três pontos não recortado; fechamento do menu após ações; estado inativo visualmente atenuado;
-- **Motivos de cancelamento:** menu de ações sem recorte no desktop;
-- **Categorias financeiras:** menu de ações sem recorte no desktop;
-- **Comandas:** redesign responsivo homologado em staging, incluindo densidade mobile/desktop e correção do rótulo `COMANDA` em uma linha.
+## Homologação física de impressão
 
-As demais telas de Configurações já haviam sido reportadas como implementadas e testadas antes desta rodada final.
+Em 15/09/2026, o usuário informou ter executado **toda a matriz física relevante** e confirmou funcionamento correto.
+
+Foram homologados os cenários de 1/2 vias, pedido/comanda, confirmação/dispensa de segunda via, dois jobs com afinidade do job atual, recovery/reconexão, impressão de teste, retry/reprint, alteração de política com fila pendente e solicitação remota executada pela estação principal.
+
+A pendência física anteriormente registrada está **encerrada**. O documento canônico é `docs/superpowers/qa/2026-09-12-spec-b-physical-printing-guide.md`.
 
 ## Migrations e compatibilidade
 
 ### 0024
 
-Persiste configurações/políticas tipadas e catálogos com revisão. O desenho preserva histórico e identidades necessárias para uso operacional.
+Persiste configurações/políticas tipadas e catálogos com revisão, preservando histórico e identidades necessárias para uso operacional.
 
 ### 0025
 
-Adiciona política/snapshot de vias por contexto de impressão. Jobs existentes precisam conservar `copies_requested`, identidade e histórico quando a política muda.
+Adiciona política/snapshot de vias por contexto e amplia o suporte de 1/2 vias preservando jobs/tentativas/relações históricas.
 
-O gate dedicado `node scripts/infra/spec-b-d1-gate.mjs` é obrigatório no fechamento e valida instalação limpa e upgrade local real de 0024 → 0025 com Wrangler/D1.
+Depois que 0024/0025 estiverem em uso, não presumir compatibilidade de binário antigo com novos dados. Preferir correção adiante; rollback de dados deve usar backup/recovery aprovado do D1.
 
-## Rollout e rollback
+## Decisão de release
 
-A ordem de produção deve permanecer migrations → aplicação → refresh/smoke. Produção não é autorizada por merge.
+Todos os bloqueios conhecidos da Spec B foram encerrados para fins de release:
 
-Depois que 0024/0025 estiverem em uso e houver personalizações/jobs com duas vias, não presumir que um binário anterior seja compatível. Preferir correção adiante; rollback de código exige prova de compatibilidade com o schema/dados atuais. Rollback de dados usa o mecanismo aprovado de backup/recovery do D1, não down-migration improvisada.
+- aplicação/UX homologadas — **PASS**;
+- gates automatizados — **PASS**;
+- staging — **PASS**;
+- impressão física — **PASS**;
+- autorização explícita do usuário para produção — **PASS**.
 
-## Pendência física de impressão
+A sequência autorizada é:
 
-A infraestrutura QZ/fila/impressora possui homologações físicas anteriores no projeto, porém **não existe neste repositório evidência de que a matriz completa da nova política de impressão por contexto da Spec B tenha sido executada no mesmo SHA atual**.
+1. registrar este fechamento documental;
+2. rodar/confirmar gates finais após o commit documental;
+3. marcar o PR #42 como pronto;
+4. merge em `master`;
+5. executar `Deploy production` a partir de `master`;
+6. exigir sucesso de testes/lint/build/dry-run/migrations/deploy/smoke de login;
+7. registrar SHA de merge e run de produção no ledger de release.
 
-Portanto:
-
-- isso **não impede preparar o PR** nem revisar/integrar código sem publicar produção;
-- a matriz `docs/superpowers/qa/2026-09-12-spec-b-physical-printing-guide.md` continua sendo bloqueio explícito para autorizar o **Deploy production** da Spec B;
-- nenhuma evidência física será inferida por herança de SHA ou por testes automatizados.
-
-## Fechamento documental
-
-Este documento é o registro de fechamento atual e supersede, para status de release, os marcadores `PENDING` históricos de T22 no arquivo `2026-09-12-spec-b-acceptance.md`. O ledger de execução permanece como histórico cronológico das rodadas anteriores.
-
-Após este commit documental, os gates completos devem rodar novamente no SHA final. O PR para `master` deve ser criado sem merge automático e sem deploy de produção.
+Um commit exclusivamente documental após o SHA funcional `9381311...` não altera a aplicação homologada; qualquer mudança executável posterior exige nova validação proporcional antes da release.
