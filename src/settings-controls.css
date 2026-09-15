@@ -81,7 +81,8 @@
   opacity: .58;
 }
 
-.settings-switch-status {
+.settings-switch-status,
+.payment-status-control {
   display: flex;
   align-items: center;
   gap: 7px;
