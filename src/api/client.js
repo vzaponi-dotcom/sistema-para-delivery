@@ -11,7 +11,7 @@ const requestError = (response, payload) => {
   return error
 }
 
-const apiRequest = async (path, options = {}) => {
+export const apiRequest = async (path, options = {}) => {
   const response = await fetch(path, buildRequestOptions(options))
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw requestError(response, payload)
@@ -33,12 +33,25 @@ const apiTextRequest = async (path, options = {}) => {
   return text
 }
 
-const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
+export const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
 
 export const getSession = () => apiRequest('/api/auth/session')
-export const login = (pin) => apiRequest('/api/auth/login', withJson('POST', { pin }))
+export const login = async (pin) => {
+  await apiRequest('/api/auth/login', withJson('POST', { pin }))
+  const session = await getSession()
+  if (!session?.authenticated || typeof session.businessId !== 'string' || !session.businessId
+    || typeof session.settingsContextId !== 'string' || !session.settingsContextId
+    || !Array.isArray(session.capabilities)) {
+    throw Object.assign(new Error('Não foi possível confirmar o contexto da sessão.'), { code: 'SESSION_CONTEXT_UNAVAILABLE' })
+  }
+  return session
+}
 export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' })
-export const getBootstrap = () => apiRequest('/api/bootstrap')
+export const getBootstrap = (knownEffectiveConfigVersion) => {
+  const params = new URLSearchParams()
+  if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
+  return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
+}
 export const getOrders = () => apiRequest('/api/orders')
 
 export const createTable = (table) => apiRequest('/api/tables', withJson('POST', table))
@@ -79,7 +92,7 @@ export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeU
 export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const getTableTabDetail = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}`)
 export const getTableTabPrintDocument = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-document`)
-export const createManualTableTabPrintJob = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-jobs`, withJson('POST', {}))
+export const createManualTableTabPrintJob = (id, copies) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-jobs`, withJson('POST', { copies }))
 
 export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
 export const updateMovement = (id, movement) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, withJson('PATCH', movement))

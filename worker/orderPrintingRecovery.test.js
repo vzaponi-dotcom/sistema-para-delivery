@@ -170,6 +170,7 @@ test('recovery safely claims an unsubmitted consolidated comanda job', async () 
   await addReadyPrimary(db)
   const job = await createManualTableTabPrintJob(db, businessId, {
     id: 'recover-tab', tableTabId: 'tab-42',
+    copies: 1,
     document: { type: 'table-tab', tableTab: { id: 'tab-42', number: 42, tableName: 'Mesa 7' }, items: [], financial: { totalCents: 2500 } },
   }, now)
   await heartbeatPrintStation(db, businessId, 'kitchen', { qzReady: true, printerReady: true, physicalState: 'ready' }, now)

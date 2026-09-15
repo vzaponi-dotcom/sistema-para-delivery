@@ -1,168 +1,24 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { OperationalDb } from './test-support/operationalDb.js'
 import { createOrder, mapOrderItemRow, mapOrderRow } from './repositories.js'
 
-class CheckoutDb {
+class CheckoutDb extends OperationalDb {
   constructor() {
-    this.clients = new Map([
-      ['c1', { id: 'c1', business_id: 'amor-e-sabor', name: 'Maria', phone: '11999999999', address: '' }],
-      ['other-client', { id: 'other-client', business_id: 'outro-negocio', name: 'Outro cliente', phone: '', address: '' }],
-    ])
-    this.products = new Map([
-      ['p1', { id: 'p1', business_id: 'amor-e-sabor', category: 'Marmita', size: 'G', name: 'Marmita G', price_cents: 3200, active: 1 }],
-      ['p2', { id: 'p2', business_id: 'amor-e-sabor', category: 'Bebida', size: 'Lata', name: 'Coca', price_cents: 800, active: 1 }],
-    ])
-    this.orders = new Map()
-    this.orderSequences = new Map()
-    this.items = new Map()
-    this.payments = new Map()
-    this.movements = new Map()
-    this.tables = new Map([
-      ['table-1', { id: 'table-1', business_id: 'amor-e-sabor', name: 'Mesa 4', is_active: 1 }],
-      ['table-inactive', { id: 'table-inactive', business_id: 'amor-e-sabor', name: 'Mesa 5', is_active: 0 }],
-      ['other-table', { id: 'other-table', business_id: 'outro-negocio', name: 'Mesa 6', is_active: 1 }],
-    ])
-    this.tableTabs = []
-    this.tableTabCounters = new Map()
-    this.failNextBatch = false
-  }
-
-  prepare(sql) {
-    const db = this
-    return {
-      bind(...values) {
-        return {
-          sql,
-          values,
-          async first() {
-            if (sql.includes('INSERT INTO order_sequences')) {
-              const [businessId] = values
-              const next = (db.orderSequences.get(businessId) ?? 0) + 1
-              db.orderSequences.set(businessId, next)
-              return { last_order_number: next }
-            }
-            if (sql.includes('UPDATE table_tab_counters')) {
-              const [, businessId] = values
-              const lastNumber = (db.tableTabCounters.get(businessId) ?? 0) + 1
-              db.tableTabCounters.set(businessId, lastNumber)
-              return { last_number: lastNumber }
-            }
-            if (sql.includes('FROM tables')) {
-              const [tableId, businessId] = values
-              const row = db.tables.get(tableId)
-              return row?.business_id === businessId ? row : null
-            }
-            if (sql.includes('FROM table_tabs')) {
-              const [businessId, tableId] = values
-              return db.tableTabs.find((row) => row.business_id === businessId && row.table_id === tableId && row.status === 'open') ?? null
-            }
-            if (sql.includes('idempotency_key') && !sql.includes('INSERT')) {
-              const [businessId, key] = values
-              return [...db.orders.values()].find((row) => row.business_id === businessId && row.idempotency_key === key) ?? null
-            }
-            if (sql.includes('FROM clients')) {
-              const [id, businessId] = values
-              const row = db.clients.get(id)
-              return row?.business_id === businessId ? row : null
-            }
-            if (sql.includes('FROM products')) {
-              const [id, businessId] = values
-              const row = db.products.get(id)
-              return row?.business_id === businessId && row.active === 1 ? row : null
-            }
-            if (sql.includes('FROM orders') && sql.includes('payment_id')) {
-              const [id, businessId] = values
-              const row = db.orders.get(id)
-              if (!row || row.business_id !== businessId) return null
-              const payment = [...db.payments.values()].find((entry) => entry.order_id === id && entry.business_id === businessId)
-              return {
-                ...row,
-                payment_id: payment?.id ?? null,
-                payment_method: payment?.method ?? null,
-                paid_at: payment?.paid_at ?? null,
-                paid_amount_cents: payment?.amount_cents ?? null,
-              }
-            }
-            if (sql.includes('FROM payments')) {
-              const [orderId, businessId] = values
-              return [...db.payments.values()].find((entry) => entry.order_id === orderId && entry.business_id === businessId) ?? null
-            }
-            return null
-          },
-          async all() {
-            if (sql.includes('FROM order_items')) {
-              const [orderId, businessId] = values
-              return { results: [...db.items.values()].filter((row) => row.order_id === orderId && row.business_id === businessId) }
-            }
-            return { results: [] }
-          },
-          async run() { return db._run(sql, values) },
-        }
-      },
-    }
-  }
-
-  async batch(statements) {
-    const snapshots = {
-      orders: new Map(this.orders), items: new Map(this.items),
-      payments: new Map(this.payments), movements: new Map(this.movements),
-      tableTabs: this.tableTabs.map((row) => ({ ...row })),
-    }
-    try {
-      if (this.failNextBatch) {
-        this.failNextBatch = false
-        throw new Error('forced batch failure')
-      }
-      return await Promise.all(statements.map((statement) => statement.run()))
-    } catch (error) {
-      this.orders = snapshots.orders
-      this.items = snapshots.items
-      this.payments = snapshots.payments
-      this.movements = snapshots.movements
-      this.tableTabs = snapshots.tableTabs
-      throw error
-    }
-  }
-
-  async _run(sql, values) {
-    if (sql.includes('INSERT OR IGNORE INTO table_tab_counters')) {
-      const [businessId] = values
-      if (!this.tableTabCounters.has(businessId)) this.tableTabCounters.set(businessId, 0)
-    } else if (sql.includes('INSERT OR IGNORE INTO table_tabs')) {
-      const [id, businessId, tableId, tableIdentifier, tabNumber, openedAt, createdAt, updatedAt] = values
-      const existing = this.tableTabs.find((row) => row.business_id === businessId && row.table_id === tableId && row.status === 'open')
-      if (!existing) {
-        this.tableTabs.push({
-          id, business_id: businessId, table_id: tableId, table_identifier: tableIdentifier, tab_number: tabNumber, status: 'open', opened_at: openedAt,
-          closed_at: null, created_at: createdAt, updated_at: updatedAt,
-        })
-      }
-    } else if (sql.includes('INSERT INTO orders')) {
-      const [id, businessId, orderNumber, clientId, clientName, customerIdentityType, tableTabId, type, orderDate, status, scheduledFor, isBackdated, subtotal, deliveryFee, adjustmentType, adjustmentMode, adjustmentValue, adjustmentAmount, adjustmentReason, total, createdAt, finishedAt, idempotencyKey] = values
-      if ([...this.orders.values()].some((row) => row.business_id === businessId && row.idempotency_key === idempotencyKey)) throw new Error('UNIQUE constraint failed')
-      this.orders.set(id, {
-        id, business_id: businessId, order_number: orderNumber, client_id: clientId, client_name_snapshot: clientName, customer_identity_type: customerIdentityType,
-        table_tab_id: tableTabId, type, order_date: orderDate, status, scheduled_for: scheduledFor, is_backdated: isBackdated, subtotal_cents: subtotal, delivery_fee_cents: deliveryFee,
-        adjustment_type: adjustmentType, adjustment_mode: adjustmentMode, adjustment_value: adjustmentValue,
-        adjustment_amount_cents: adjustmentAmount, adjustment_reason: adjustmentReason, total_cents: total,
-        created_at: createdAt, finished_at: finishedAt, idempotency_key: idempotencyKey,
-      })
-    } else if (sql.includes('INSERT INTO order_items')) {
-      const [id, businessId, orderId, productId, name, category, size, quantity, catalogPrice, unitPrice, priceReason, note, createdAt] = values
-      this.items.set(id, {
-        id, business_id: businessId, order_id: orderId, product_id: productId,
-        name_snapshot: name, category_snapshot: category, size_snapshot: size, quantity,
-        catalog_price_cents: catalogPrice, unit_price_cents: unitPrice, price_reason: priceReason,
-        note, created_at: createdAt,
-      })
-    } else if (sql.includes('INSERT INTO payments')) {
-      const [id, businessId, orderId, amount, method, paidAt, createdAt] = values
-      this.payments.set(id, { id, business_id: businessId, order_id: orderId, amount_cents: amount, method, paid_at: paidAt, created_at: createdAt })
-    } else if (sql.includes('INSERT INTO movements')) {
-      const [id, businessId, type, category, description, value, source, orderId, paymentId, movementDate, createdAt] = values
-      this.movements.set(id, { id, business_id: businessId, type, category, description, value_cents: value, source, order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: createdAt })
-    }
-    return { success: true }
+    super({ businesses: ['outro-negocio'] })
+    const timestamp = '2026-09-01T00:00:00.000Z'
+    this.exec(`
+      INSERT INTO clients (id, business_id, name, phone, created_at, updated_at) VALUES
+        ('c1', 'amor-e-sabor', 'Maria', '11999999999', '${timestamp}', '${timestamp}'),
+        ('other-client', 'outro-negocio', 'Outro cliente', '', '${timestamp}', '${timestamp}');
+      INSERT INTO products (id, business_id, category, size, name, price_cents, active, created_at, updated_at) VALUES
+        ('p1', 'amor-e-sabor', 'Marmita', 'G', 'Marmita G', 3200, 1, '${timestamp}', '${timestamp}'),
+        ('p2', 'amor-e-sabor', 'Bebida', 'Lata', 'Coca', 800, 1, '${timestamp}', '${timestamp}');
+      INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at) VALUES
+        ('table-1', 'amor-e-sabor', 'Mesa 4', 'MESA 4', 1, 1, '${timestamp}', '${timestamp}'),
+        ('table-inactive', 'amor-e-sabor', 'Mesa 5', 'MESA 5', 2, 0, '${timestamp}', '${timestamp}'),
+        ('other-table', 'outro-negocio', 'Mesa 6', 'MESA 6', 1, 1, '${timestamp}', '${timestamp}');
+    `)
   }
 }
 
@@ -235,10 +91,10 @@ test('local orders without a client reuse the persistent table tab and its exact
   const second = await createOrder(db, 'amor-e-sabor', tableInput('table-1', 'tab-a-2'), new Date('2026-09-02T18:01:00.000Z'))
 
   assert.equal(first.tableTabId, second.tableTabId)
-  assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 1)
-  assert.equal(db.tableTabs[0].table_id, 'table-1')
-  assert.equal(db.tableTabs[0].table_identifier, 'Mesa 4')
-  assert.equal(db.tableTabs[0].tab_number, 1)
+  assert.equal(db.all('SELECT * FROM table_tabs').filter((tab) => tab.status === 'open').length, 1)
+  assert.equal(db.all('SELECT * FROM table_tabs')[0].table_id, 'table-1')
+  assert.equal(db.all('SELECT * FROM table_tabs')[0].table_identifier, 'Mesa 4')
+  assert.equal(db.all('SELECT * FROM table_tabs')[0].tab_number, 1)
   assert.equal(first.clientId, null)
   assert.equal(first.client, 'Mesa 4')
   assert.equal(first.customerIdentityType, 'table')
@@ -254,10 +110,11 @@ test('local order persists an optional same-business client snapshot', async () 
   )
 
   assert.equal(order.clientId, 'c1')
-  assert.equal(order.client, 'Maria')
+  assert.equal(order.client, 'Mesa 4 · Maria')
+  assert.equal(db.all('SELECT client_name_snapshot FROM orders')[0].client_name_snapshot, 'Maria')
   assert.equal(order.customerIdentityType, 'table')
-  assert.equal(order.tableTabId, db.tableTabs[0].id)
-  assert.equal(db.tableTabs[0].tab_number, 1)
+  assert.equal(order.tableTabId, db.all('SELECT * FROM table_tabs')[0].id)
+  assert.equal(db.all('SELECT * FROM table_tabs')[0].tab_number, 1)
 })
 
 test('local order rejects an optional client from another business', async () => {
@@ -267,7 +124,7 @@ test('local order rejects an optional client from another business', async () =>
     () => createOrder(db, 'amor-e-sabor', tableInput('table-1', 'cross-client', 'other-client'), new Date('2026-09-02T18:00:00.000Z')),
     (error) => error.status === 404 && error.code === 'CLIENT_NOT_FOUND',
   )
-  assert.equal(db.orders.size, 0)
+  assert.equal(db.all('SELECT * FROM orders').length, 0)
 })
 
 test('paid retry creates one order, payment and movement and stays Em preparo', async () => {
@@ -284,17 +141,17 @@ test('paid retry creates one order, payment and movement and stays Em preparo', 
   assert.equal(first.id, second.id)
   assert.equal(first.status, 'Em preparo')
   assert.equal(first.paymentStatus, 'Pago')
-  assert.equal(db.orders.size, 1)
-  assert.equal(db.payments.size, 1)
-  assert.equal(db.movements.size, 1)
+  assert.equal(db.all('SELECT * FROM orders').length, 1)
+  assert.equal(db.all('SELECT * FROM payments').length, 1)
+  assert.equal(db.all('SELECT * FROM movements').length, 1)
 })
 
 test('failed paid checkout rolls back order items payment and movement together', async () => {
   const db = new CheckoutDb()
   db.failNextBatch = true
   await assert.rejects(() => createOrder(db, 'amor-e-sabor', baseInput({ paymentMethod: 'Pix' }), new Date('2026-09-01T20:00:00.000Z')))
-  assert.equal(db.orders.size, 0)
-  assert.equal(db.items.size, 0)
-  assert.equal(db.payments.size, 0)
-  assert.equal(db.movements.size, 0)
+  assert.equal(db.all('SELECT * FROM orders').length, 0)
+  assert.equal(db.all('SELECT * FROM order_items').length, 0)
+  assert.equal(db.all('SELECT * FROM payments').length, 0)
+  assert.equal(db.all('SELECT * FROM movements').length, 0)
 })

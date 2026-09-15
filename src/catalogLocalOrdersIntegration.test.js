@@ -24,7 +24,9 @@ test('approved catalog and local-order round stays wired across app surfaces', (
 
 test('table tab integration stays wired across persistence, app, receivables and new order', () => {
   assert.match(repositories, /table_tab_id/)
-  assert.match(repositories, /getOrCreateOpenTableTab/)
+  // T08 inserts a new tab in the guarded order batch, preserving atomicity.
+  assert.match(repositories, /const tableTabStatement = pendingTableTab/)
+  assert.match(repositories, /tableTabGuard \? \[tableTabGuard, tableTabStatement\] : \[\]/)
   assert.match(receivables, /buildPendingReceivableEntries/)
   assert.match(app, /tableTabs/)
   assert.match(newOrderCustomerStep, /LocalTableSelector/)

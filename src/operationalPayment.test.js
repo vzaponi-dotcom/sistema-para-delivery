@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { legacyCapabilities } from './app/access.js'
 
 const flush = () => new Promise((resolve) => setImmediate(resolve))
 const deferred = () => {
@@ -41,6 +42,28 @@ const operationalCapabilities = new Set([
   'payments.receive', 'clients.view', 'finance.receivables', 'finance.overview', 'finance.movements',
   'printing.queue', 'preferences.local',
 ])
+const authenticatedSession = {
+  authenticated: true,
+  businessId: 'amor-e-sabor',
+  settingsContextId: 'test-settings-context',
+  capabilities: [...legacyCapabilities(true)],
+}
+const effectivePaymentConfig = {
+  version: 'payment-test-v1', revisions: { operations: 1, paymentMethods: 1 },
+  operations: {
+    enabledModalities: ['Entrega', 'Retirada', 'Local'],
+    defaultModality: 'Entrega',
+    timing: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
+  },
+  paymentMethods: { methods: [
+    { code: 'pix', label: 'Pix', value: 'Pix' },
+    { code: 'cash', label: 'Dinheiro', value: 'Dinheiro' },
+    { code: 'debit_card', label: 'Cartão de débito', value: 'Cartão de débito' },
+    { code: 'credit_card', label: 'Cartão de crédito', value: 'Cartão de crédito' },
+    { code: 'transfer', label: 'Transferência', value: 'Transferência' },
+    { code: 'other', label: 'Outro', value: 'Outro' },
+  ], defaultMethod: 'pix' },
+}
 
 async function operationalWorkspace(t, { orders, capabilities = operationalCapabilities } = {}) {
   const h = await workspaceHarness(t)
@@ -50,16 +73,17 @@ async function operationalWorkspace(t, { orders, capabilities = operationalCapab
     bootstrapCalls: 0,
     paymentPosts: [],
     paymentHandler: null,
+    relogged: false,
   }
   globalThis.fetch = async (path, options = {}) => {
     const url = String(path)
     const method = options.method || 'GET'
-    if (url === '/api/auth/session') return response({ authenticated: true })
-    if (url === '/api/auth/login' && method === 'POST') return response({})
+    if (url === '/api/auth/session') return response(state.relogged ? authenticatedSession : { authenticated: true })
+    if (url === '/api/auth/login' && method === 'POST') { state.relogged = true; return response({}) }
     if (url === '/api/auth/logout' && method === 'POST') return response({})
     if (url === '/api/bootstrap') {
       state.bootstrapCalls += 1
-      return response({ tables: [], tableTabs: [], orders: structuredClone(state.bootstrapOrders), movements: [], clients: [], products: [], financeSettings: null })
+      return response({ tables: [], tableTabs: [], orders: structuredClone(state.bootstrapOrders), movements: [], clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig })
     }
     if (url === '/api/orders' && method === 'GET') return response({ orders: structuredClone(state.orders) })
     if (/^\/api\/orders\/[^/]+\/payment$/.test(url) && method === 'POST') {

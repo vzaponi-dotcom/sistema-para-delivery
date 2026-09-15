@@ -14,6 +14,8 @@ class OrderReadDb {
               assert.match(sql, /o\.is_backdated/)
               assert.match(sql, /o\.cancel_reason/)
               assert.match(sql, /o\.cancel_reason_note/)
+              assert.match(sql, /cr\.label AS cancel_reason_label/)
+              assert.match(sql, /LEFT JOIN business_cancel_reasons cr/)
               assert.match(sql, /r\.id AS refund_movement_id/)
               assert.match(sql, /r\.created_at AS refund_created_at/)
               assert.match(sql, /source = 'order-refund'/)
@@ -27,7 +29,7 @@ class OrderReadDb {
                     adjustment_type: 'none', adjustment_mode: 'fixed', adjustment_value: 0, adjustment_amount_cents: 0, adjustment_reason: '',
                     total_cents: 8000, created_at: '2026-09-03T12:00:00.000Z', finished_at: null,
                     scheduled_for: '2026-09-03T15:00:00.000Z', is_backdated: 0,
-                    cancelled_at: '2026-09-03T13:00:00.000Z', cancel_reason: 'client_changed_mind', cancel_reason_note: null,
+                    cancelled_at: '2026-09-03T13:00:00.000Z', cancel_reason: 'client_changed_mind', cancel_reason_label: 'Cliente desistiu', cancel_reason_note: null,
                     payment_id: 'pay-1', payment_method: 'Pix', paid_at: '2026-09-03T12:05:00.000Z', paid_amount_cents: 8000,
                     refund_movement_id: 'refund-1', refund_created_at: '2026-09-03T13:05:00.000Z',
                   },
@@ -83,6 +85,7 @@ test('orders-only reads preserve official cancellation, table snapshots and hist
   const [order, legacy, tableWithoutClient, tableWithClient, guestName] = await listOrders(new OrderReadDb(), 'amor-e-sabor')
 
   assert.equal(order.cancelledAt, '2026-09-03T13:00:00.000Z')
+  assert.equal(order.cancelReasonLabel, 'Cliente desistiu')
   assert.equal(order.refundMovementId, 'refund-1')
   assert.equal(order.refundedAt, '2026-09-03T13:05:00.000Z')
   assert.equal(order.refundState, 'refunded')

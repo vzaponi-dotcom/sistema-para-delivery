@@ -9,7 +9,16 @@ test('app keeps the dirty-order confirmation when navigating away from the wizar
   globalThis.fetch = async (path) => {
     const responses = {
       '/api/auth/session': { authenticated: true },
-      '/api/bootstrap': { tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
+      '/api/bootstrap': {
+        tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null,
+        effectiveBusinessConfig: {
+          version: 'revision-zero', revisions: { operations: 0 },
+          operations: {
+            enabledModalities: ['Entrega', 'Retirada', 'Local'], defaultModality: 'Entrega',
+            timing: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
+          },
+        },
+      },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
     }

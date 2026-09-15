@@ -17,9 +17,10 @@ class FinanceBootstrapDb {
               assert.match(sql, /CASE WHEN m\.source = 'order-payment' THEN COALESCE\(m\.payment_method, p\.method\)/)
               assert.match(sql, /m\.deleted_at IS NULL/)
               assert.match(sql, /LEFT JOIN payments p/)
+              assert.match(sql, /LEFT JOIN business_finance_categories fc/)
               return { results: [
                 { id: 'sale', type: 'entrada', category: 'Vendas', description: 'Venda', value_cents: 1000, source: 'order-payment', order_id: 'o1', payment_id: 'p1', payment_method: 'Pix', movement_date: '2026-09-03', created_at: 'c1', updated_at: 'c1' },
-                { id: 'refund', type: 'saida', category: 'Estornos', description: 'Estorno', value_cents: 500, source: 'order-refund', order_id: 'o2', payment_id: 'p2', payment_method: null, movement_date: '2026-09-03', created_at: 'c2', updated_at: 'c2' },
+                { id: 'refund', type: 'saida', category: 'Estornos', category_label: null, description: 'Estorno', value_cents: 500, source: 'order-refund', order_id: 'o2', payment_id: 'p2', payment_method: null, movement_date: '2026-09-03', created_at: 'c2', updated_at: 'c2' },
               ] }
             }
             return { results: [] }

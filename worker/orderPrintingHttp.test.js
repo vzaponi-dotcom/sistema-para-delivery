@@ -18,7 +18,9 @@ class D1Sqlite {
       CREATE TABLE business_print_settings (
         business_id TEXT PRIMARY KEY REFERENCES businesses(id),
         default_copies INTEGER NOT NULL DEFAULT 2 CHECK (default_copies IN (1, 2)),
-        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        table_tab_default_copies INTEGER NOT NULL DEFAULT 1 CHECK (table_tab_default_copies IN (1, 2)),
+        revision INTEGER NOT NULL DEFAULT 1
       );
       CREATE TABLE orders (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_number INTEGER, client_id TEXT, client_name_snapshot TEXT NOT NULL,
@@ -48,9 +50,30 @@ class D1Sqlite {
         physical_state TEXT NOT NULL DEFAULT 'verifying', physical_status_text TEXT, physical_status_code TEXT,
         physical_status_at TEXT, last_offline_at TEXT, recovery_state TEXT NOT NULL DEFAULT 'normal', recovery_pending_at TEXT,
         recovery_job_id TEXT,
-        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, config_revision INTEGER NOT NULL DEFAULT 1
       );
       CREATE UNIQUE INDEX print_stations_one_primary_idx ON print_stations (business_id) WHERE is_primary = 1;
+      CREATE UNIQUE INDEX print_stations_business_id_id_idx ON print_stations (business_id, id);
+      CREATE TABLE business_print_topology_settings (
+        business_id TEXT PRIMARY KEY REFERENCES businesses(id), primary_station_id TEXT,
+        revision INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        FOREIGN KEY (business_id, primary_station_id) REFERENCES print_stations(business_id, id) DEFERRABLE INITIALLY DEFERRED
+      );
+      CREATE TABLE settings_mutation_receipts (
+        business_id TEXT NOT NULL REFERENCES businesses(id), resource_key TEXT NOT NULL, mutation_id TEXT NOT NULL,
+        payload_hash TEXT NOT NULL, committed_revision INTEGER NOT NULL, committed_at TEXT NOT NULL,
+        resource_created_at TEXT, resource_updated_at TEXT, PRIMARY KEY (business_id, resource_key, mutation_id)
+      );
+      CREATE TABLE settings_tx_assertions (
+        tx_id TEXT NOT NULL, check_key TEXT NOT NULL, valid INTEGER NOT NULL CHECK (valid = 1), PRIMARY KEY (tx_id, check_key)
+      );
+      CREATE TRIGGER settings_tx_assertions_insert_guard BEFORE INSERT ON settings_tx_assertions
+      WHEN NEW.valid IS NOT 1 BEGIN SELECT CASE NEW.check_key
+        WHEN 'revision' THEN RAISE(ABORT, 'SETTINGS_REVISION_CONFLICT')
+        WHEN 'policy' THEN RAISE(ABORT, 'POLICY_CHANGED')
+        ELSE RAISE(ABORT, 'SETTINGS_INVALID') END; END;
+      CREATE TRIGGER settings_tx_assertions_update_guard BEFORE UPDATE ON settings_tx_assertions
+      WHEN NEW.valid IS NOT 1 BEGIN SELECT RAISE(ABORT, 'SETTINGS_TX_ASSERTION_FAILED'); END;
       CREATE TABLE print_jobs (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT, table_tab_id TEXT, type TEXT NOT NULL, trigger TEXT NOT NULL,
         status TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0, parent_job_id TEXT,
@@ -78,7 +101,8 @@ class D1Sqlite {
     return { bind(...values) { return {
       async first() { return database.prepare(sql).get(...values) ?? null },
       async all() { return { results: database.prepare(sql).all(...values) } },
-      async run() { const result = database.prepare(sql).run(...values); return { success: true, meta: { changes: Number(result.changes || 0) } } },
+      async run() { const statement = database.prepare(sql); if (statement.reader) return { success: true, results: statement.all(...values) }
+        const result = statement.run(...values); return { success: true, meta: { changes: Number(result.changes || 0) } } },
     } } }
   }
   async batch(statements) {
@@ -102,6 +126,9 @@ const makeEnv = async () => {
   DB.sqlite.prepare('INSERT INTO auth_credentials (business_id, pin_hash) VALUES (?, ?)').run('amor-e-sabor', pinHash)
   DB.exec(`
     INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor'), ('other-business', 'Outro');
+    INSERT INTO business_print_topology_settings (business_id, primary_station_id, created_at, updated_at) VALUES
+      ('amor-e-sabor', NULL, '2026-09-12T00:00:00.000Z', '2026-09-12T00:00:00.000Z'),
+      ('other-business', NULL, '2026-09-12T00:00:00.000Z', '2026-09-12T00:00:00.000Z');
     INSERT INTO orders (
       id, business_id, order_number, client_name_snapshot, client_phone_snapshot, client_address_snapshot, type,
       order_date, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_amount_cents,
@@ -133,19 +160,27 @@ const loginCookie = async (env) => {
   assert.equal(response.status, 200)
   return response.headers.get('set-cookie').split(';')[0]
 }
-const jsonRequest = (path, method, cookie, body) => handleRequest(new Request(`https://delivery.example${path}`, {
-  method,
-  headers: mutationHeaders(cookie),
-  body: body === undefined ? undefined : JSON.stringify(body),
-}), currentEnv)
+let mutationSequence = 0
+const jsonRequest = (path, method, cookie, body) => {
+  if (method === 'POST' && path.endsWith('/make-primary') && body === undefined) {
+    const revision = currentEnv.DB.sqlite.prepare('SELECT revision FROM business_print_topology_settings WHERE business_id = ?').get('amor-e-sabor').revision
+    body = { expectedRevision: revision, mutationId: `operational-primary-${++mutationSequence}` }
+  }
+  return handleRequest(new Request(`https://delivery.example${path}`, {
+    method,
+    headers: mutationHeaders(cookie),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }), currentEnv)
+}
 
 let currentEnv
 
 test('central copies are shared by authenticated devices and isolated by the session business', async () => {
   currentEnv = await makeEnv()
-  currentEnv.DB.exec(`INSERT INTO business_print_settings VALUES
-    ('amor-e-sabor', 1, '2026-09-08T10:00:00.000Z', '2026-09-08T10:00:00.000Z'),
-    ('other-business', 2, '2026-09-08T10:00:00.000Z', '2026-09-08T10:00:00.000Z')`)
+  currentEnv.DB.exec(`INSERT INTO business_print_settings
+    (business_id, default_copies, created_at, updated_at, table_tab_default_copies, revision) VALUES
+    ('amor-e-sabor', 1, '2026-09-08T10:00:00.000Z', '2026-09-08T10:00:00.000Z', 1, 1),
+    ('other-business', 2, '2026-09-08T10:00:00.000Z', '2026-09-08T10:00:00.000Z', 1, 1)`)
   const firstDevice = await loginCookie(currentEnv)
   const secondDevice = await loginCookie(currentEnv)
   const other = await createSession(currentEnv, 'other-business')
@@ -154,18 +189,24 @@ test('central copies are shared by authenticated devices and isolated by the ses
 
   const migrated = await read(firstDevice)
   assert.equal(migrated.status, 200)
-  assert.deepEqual(await migrated.json(), { settings: { defaultCopies: 1 } })
-  for (const [cookie, defaultCopies] of [[secondDevice, 2], [firstDevice, 1]]) {
-    const saved = await jsonRequest('/api/printing/settings', 'PUT', cookie, { defaultCopies })
+  assert.equal((await migrated.json()).settings.defaultCopies, 1)
+  for (const [cookie, defaultCopies, expectedRevision] of [[secondDevice, 2, 1], [firstDevice, 1, 2]]) {
+    const saved = await jsonRequest('/api/printing/settings', 'PUT', cookie, {
+      expectedRevision, mutationId: `copies-${expectedRevision}`, data: { orderDefaultCopies: defaultCopies, tableTabDefaultCopies: 1 },
+    })
     assert.equal(saved.status, 200)
-    assert.deepEqual(await saved.json(), { settings: { defaultCopies } })
-    assert.deepEqual(await (await read(secondDevice)).json(), { settings: { defaultCopies } })
+    assert.equal((await saved.json()).settings.defaultCopies, defaultCopies)
+    assert.equal((await (await read(secondDevice)).json()).settings.defaultCopies, defaultCopies)
   }
-  assert.deepEqual(await (await read(otherCookie)).json(), { settings: { defaultCopies: 2 } })
-  const savedOther = await jsonRequest('/api/printing/settings', 'PUT', otherCookie, { defaultCopies: 1 })
+  assert.equal((await (await read(otherCookie)).json()).settings.defaultCopies, 2)
+  const savedOther = await jsonRequest('/api/printing/settings', 'PUT', otherCookie, {
+    expectedRevision: 1, mutationId: 'other-copies', data: { orderDefaultCopies: 1, tableTabDefaultCopies: 1 },
+  })
   assert.equal(savedOther.status, 200)
-  assert.equal((await jsonRequest('/api/printing/settings', 'PUT', firstDevice, { defaultCopies: 2 })).status, 200)
-  assert.deepEqual(await (await read(otherCookie)).json(), { settings: { defaultCopies: 1 } })
+  assert.equal((await jsonRequest('/api/printing/settings', 'PUT', firstDevice, {
+    expectedRevision: 3, mutationId: 'final-copies', data: { orderDefaultCopies: 2, tableTabDefaultCopies: 1 },
+  })).status, 200)
+  assert.equal((await (await read(otherCookie)).json()).settings.defaultCopies, 1)
   assert.equal(currentEnv.DB.sqlite.prepare('SELECT created_at FROM business_print_settings WHERE business_id = ?').get('amor-e-sabor').created_at, '2026-09-08T10:00:00.000Z')
 })
 
@@ -174,30 +215,34 @@ test('central settings default to two for a new business and persist independent
   const cookie = await loginCookie(currentEnv)
   const defaults = await jsonRequest('/api/printing/settings', 'GET', cookie)
   assert.equal(defaults.status, 200)
-  assert.deepEqual(await defaults.json(), { settings: { defaultCopies: 2 } })
+  assert.equal((await defaults.json()).settings.defaultCopies, 2)
   const job = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })).json()).job
   const before = currentEnv.DB.sqlite.prepare('SELECT * FROM print_jobs WHERE id = ?').get(job.id)
-  assert.equal((await jsonRequest('/api/printing/settings', 'PUT', cookie, { defaultCopies: 1 })).status, 200)
+  assert.equal((await jsonRequest('/api/printing/settings', 'PUT', cookie, {
+    expectedRevision: 0, mutationId: 'new-policy', data: { orderDefaultCopies: 1, tableTabDefaultCopies: 1 },
+  })).status, 200)
   await jsonRequest('/api/printing/stations/legacy', 'PUT', cookie, {
     name: 'Legacy', platform: 'windows', autoPrintEnabled: true, defaultCopies: 2,
   })
   await jsonRequest('/api/printing/stations/legacy/make-primary', 'POST', cookie)
-  assert.deepEqual(await (await jsonRequest('/api/printing/settings', 'GET', cookie)).json(), { settings: { defaultCopies: 1 } })
+  assert.equal((await (await jsonRequest('/api/printing/settings', 'GET', cookie)).json()).settings.defaultCopies, 1)
   assert.deepEqual(currentEnv.DB.sqlite.prepare('SELECT * FROM print_jobs WHERE id = ?').get(job.id), before)
 })
 
-test('central settings reject missing, extra and non-integer copies without changing persisted settings', async () => {
+test('central settings reject legacy writes and invalid canonical copy counts without changing persisted settings', async () => {
   currentEnv = await makeEnv()
   const cookie = await loginCookie(currentEnv)
-  for (const body of [{}, { defaultCopies: 1, businessId: 'other-business' }, { defaultCopies: 2, stationId: 's1' }]) {
+  for (const body of [{}, { defaultCopies: 1 }, { defaultCopies: 1, businessId: 'other-business' }]) {
     const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, body)
     assert.equal(response.status, 400)
-    assert.equal((await response.json()).error.code, 'INVALID_PRINT_SETTINGS')
+    assert.equal((await response.json()).error.code, 'SETTINGS_CLIENT_UPDATE_REQUIRED')
   }
   for (const defaultCopies of [0, 3, -1, 1.5, '1', '2', true, false, null, [], {}]) {
-    const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, { defaultCopies })
+    const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, {
+      expectedRevision: 0, mutationId: `invalid-${JSON.stringify(defaultCopies)}`, data: { orderDefaultCopies: defaultCopies, tableTabDefaultCopies: 1 },
+    })
     assert.equal(response.status, 400, JSON.stringify({ defaultCopies }))
-    assert.equal((await response.json()).error.code, 'INVALID_PRINT_COPIES')
+    assert.equal((await response.json()).error.code, 'SETTINGS_INVALID')
   }
   for (const body of [undefined, null, [], 'invalid']) {
     const response = await jsonRequest('/api/printing/settings', 'PUT', cookie, body)
@@ -238,7 +283,7 @@ test('authenticated printing API configures a primary station and completes a ma
 
   const primary = await jsonRequest('/api/printing/stations/station%20a/make-primary', 'POST', cookie)
   assert.equal(primary.status, 200)
-  assert.equal((await primary.json()).station.isPrimary, true)
+  assert.equal((await primary.json()).station.data.primaryStationId, 'station a')
 
   const manual = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 2 })
   assert.equal(manual.status, 201)

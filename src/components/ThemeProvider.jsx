@@ -23,8 +23,13 @@ export function ThemeProvider({ children }) {
   }, [themePreference])
 
   const setThemePreference = (preference) => {
-    const normalized = saveThemePreference(preference)
-    setThemePreferenceState(normalized)
+    try {
+      const normalized = saveThemePreference(preference)
+      setThemePreferenceState(normalized)
+      return true
+    } catch {
+      return false
+    }
   }
 
   return (

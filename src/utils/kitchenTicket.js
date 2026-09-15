@@ -36,18 +36,18 @@ export const getKitchenItemNotes = (order) => getOrderItems(order)
     return { key: itemKey(item, index), itemLabel, note, text: `${itemLabel} — ${note}` }
   })
 
-export const buildKitchenTimingCopy = (entry, now = new Date()) => {
+export const buildKitchenTimingCopy = (entry, now = new Date(), currentTiming) => {
   const order = entry?.order || {}
   const desiredCopy = order.scheduledFor ? `Desejado ${formatTime(order.scheduledFor)}` : ''
   if (entry?.phase === 'scheduled') {
-    const start = getOperationalStartAt(order)
+    const start = getOperationalStartAt(order, currentTiming)
     const minutes = start ? Math.max(0, Math.floor((start.getTime() - new Date(now).getTime()) / 60_000)) : 0
     return { primary: `Preparo em ${elapsedLabel(minutes)}`, secondary: desiredCopy }
   }
 
   if (entry?.timingState && entry.timingState !== 'on-time') {
-    return { primary: `Fora do prazo há ${elapsedLabel(getOrderMinutesLate(order, now))}`, secondary: desiredCopy }
+    return { primary: `Fora do prazo há ${elapsedLabel(getOrderMinutesLate(order, now, currentTiming))}`, secondary: desiredCopy }
   }
 
-  return { primary: `Em preparo há ${elapsedLabel(getElapsedMinutes(order, now))}`, secondary: desiredCopy }
+  return { primary: `Em preparo há ${elapsedLabel(getElapsedMinutes(order, now, currentTiming))}`, secondary: desiredCopy }
 }

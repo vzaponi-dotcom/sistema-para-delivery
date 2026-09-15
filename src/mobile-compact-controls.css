@@ -228,3 +228,11 @@
     font-size: 0.76rem;
   }
 }
+
+@media (max-width: 400px) {
+  .comanda-detail-eyebrow {
+    font-size: 0.64rem;
+    letter-spacing: 0.09em;
+    white-space: nowrap;
+  }
+}

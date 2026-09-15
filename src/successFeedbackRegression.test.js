@@ -12,6 +12,8 @@ test('important success feedback uses a centered viewport confirmation while err
   assert.match(app, /setToastMessage\(error\?\.message \|\| 'Não foi possível concluir a operação\.'\)/)
   assert.match(app, /successMessage &&[\s\S]*success-confirmation-overlay[\s\S]*success-confirmation-card[\s\S]*document\.body/s)
   assert.match(app, /window\.setTimeout\(\(\) => setSuccessMessage\(''\), 1800\)/)
+  assert.match(app, /onSuccessMessage=\{showSuccessMessage\}/)
+  assert.match(app, /onCancelOperation=\{\(\) => discardSettingsAndNavigate\('settings-home'\)\}/)
 })
 
 test('success confirmation is centered, blurs the page softly and stays compact on mobile', async () => {

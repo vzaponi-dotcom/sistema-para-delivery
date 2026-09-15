@@ -16,10 +16,10 @@ const formatOperationalMinutes = (value) => Number.isFinite(value)
   ? `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} min`
   : '—'
 
-function OperationalHistoryAnalysis({ orders = [], period = '30d', onPeriodChange, now = new Date() }) {
+function OperationalHistoryAnalysis({ orders = [], period = '30d', onPeriodChange, now = new Date(), currentTiming }) {
   const operational = useMemo(
-    () => calculateOperationalMetrics(orders, period, now),
-    [now, orders, period],
+    () => calculateOperationalMetrics(orders, period, now, currentTiming),
+    [currentTiming, now, orders, period],
   )
   const operationalBands = operational.bands.map((value, index) => ({ label: ['≤20 min', '21–30 min', '31–40 min', '>40 min'][index], value }))
   const operationalTypes = Object.entries(operational.byType).map(([label, value]) => ({ label, value }))

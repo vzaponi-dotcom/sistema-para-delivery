@@ -21,7 +21,6 @@ import {
   getPrintStations,
   getQzCertificate,
   heartbeatPrintStation,
-  makePrimaryPrintStation,
   markPrintAttemptSubmitting,
   prioritizePrintJob,
   reprintPrintJob,
@@ -670,32 +669,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     }
   }, [notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
-  const saveStationSettings = useCallback(async (settings = {}) => {
-    const current = localStationRef.current
-    if (!current?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const payload = {
-      name: String(settings.name ?? current.name ?? getDefaultPrintStationName(current.platform)).trim(),
-      platform: settings.platform || current.platform || 'other',
-      autoPrintEnabled: settings.autoPrintEnabled ?? current.autoPrintEnabled ?? false,
-      defaultCopies: settings.defaultCopies ?? current.defaultCopies ?? 2,
-    }
-    const generation = initializationRef.current
-    const response = await upsertPrintStation(current.id, payload)
-    if (generation !== initializationRef.current) return response.station
-    updateLocalStation(response.station)
-    await refresh({ generation })
-    return response.station
-  }, [refresh, updateLocalStation])
-
-  const makePrimary = useCallback(async (stationId = localStationRef.current?.id) => {
-    if (!stationId) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
-    const generation = initializationRef.current
-    const response = await makePrimaryPrintStation(stationId)
-    if (generation !== initializationRef.current) return response.station
-    await refresh({ generation })
-    return response.station
-  }, [refresh])
-
   const testPrint = useCallback(() => runExclusivePrintOperation({
     acquire: acquirePrintOperation,
     release: releasePrintOperation,
@@ -709,7 +682,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     },
   }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
-  const printOrder = useCallback(async (orderId, copies = localStationRef.current?.defaultCopies || 2) => {
+  const printOrder = useCallback(async (orderId, copies) => {
     const created = await createManualPrintJob(orderId, copies)
     try { await refresh() } catch (error) { reportError(error) }
     return created
@@ -920,7 +893,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response.document
   }, [])
 
-  const printTableTab = useCallback((tableTabId) => createManualTableTabPrintJob(tableTabId), [])
+  const printTableTab = useCallback((tableTabId, copies) => createManualTableTabPrintJob(tableTabId, copies), [])
 
   useEffect(() => {
     if (!authenticated) {
@@ -1126,8 +1099,6 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     readConfiguredPrinter,
     selectPrinter,
     connectPrinter,
-    saveStationSettings,
-    makePrimary,
     testPrint,
     printOrder,
     printSecondCopy,

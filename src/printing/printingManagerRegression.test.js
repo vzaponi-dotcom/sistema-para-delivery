@@ -14,7 +14,6 @@ test('printing manager is driven by official job APIs and never by new-order det
   for (const apiName of [
     'getPrintStations',
     'upsertPrintStation',
-    'makePrimaryPrintStation',
     'getPrintJobs',
     'createManualPrintJob',
     'createTestPrintJob',
@@ -26,6 +25,8 @@ test('printing manager is driven by official job APIs and never by new-order det
     'getOrderPrintDocument',
     'getTableTabPrintDocument',
   ]) assert.match(manager, new RegExp(`\\b${apiName}\\b`))
+
+  assert.doesNotMatch(manager, /makePrimaryPrintStation|saveStationSettings/)
 
   assert.match(manager, /runClaimedPrintJob/)
   assert.doesNotMatch(manager, /findAuthorizedPrinterPort|requestPrinterPort/)
@@ -60,7 +61,7 @@ test('Android and other platforms are queue-only while Windows uses QZ', () => {
 test('QZ uses MPT-II bitmap rendering and queue-only platforms do not render physically', () => {
   const start = manager.indexOf('const executeClaimedJob = useCallback')
   assert.notEqual(start, -1)
-  const end = manager.indexOf('const saveStationSettings', start)
+  const end = manager.indexOf('const testPrint', start)
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
@@ -155,7 +156,7 @@ test('consolidated table-tab printing creates a centralized manual queue job', (
   assert.notEqual(end, -1)
   const block = manager.slice(start, end)
 
-  assert.match(block, /createManualTableTabPrintJob\(tableTabId\)/)
+  assert.match(block, /createManualTableTabPrintJob\(tableTabId, copies\)/)
   assert.doesNotMatch(block, /getTableTabPreviewDocument|runManualPrintDocument/)
 })
 

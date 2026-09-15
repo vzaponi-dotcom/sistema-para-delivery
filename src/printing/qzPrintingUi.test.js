@@ -6,7 +6,7 @@ const settings = await readFile(new URL('../components/PrintingSettingsContent.j
 
 test('Windows printing settings expose QZ Tray queue configuration without legacy Android transport', () => {
   assert.match(settings, /QZ Tray/)
-  assert.match(settings, /Configurar impressora|Trocar impressora/)
+  assert.match(settings, /Salvar impressora/)
   assert.match(settings, /SystemSelect/)
   assert.doesNotMatch(settings, /RawBT/)
   assert.match(settings, /transportReady/)

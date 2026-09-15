@@ -1,0 +1,25 @@
+.settings-save-feedback {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: var(--layer-toast, 80);
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 11px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .settings-save-feedback {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}

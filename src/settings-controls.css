@@ -1,0 +1,128 @@
+.settings-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.settings-back-link--inline {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.settings-back-link--floating {
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  left: calc(248px + 44px);
+  z-index: var(--layer-floating-action, 30);
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-back-link > span:first-child {
+  font-size: 18px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.settings-back-link:hover {
+  color: var(--primary-hover);
+}
+
+.settings-back-link:focus-visible,
+.settings-switch:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.settings-switch {
+  position: relative;
+  width: 52px;
+  min-width: 52px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.settings-switch::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 4px;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 55%, var(--surface));
+  transition: background-color .15s ease;
+}
+
+.settings-switch[aria-checked='true']::before {
+  background: var(--primary);
+}
+
+.settings-switch > span {
+  position: absolute;
+  top: 12px;
+  left: 7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 24%, transparent);
+  transition: transform .15s ease;
+}
+
+.settings-switch[aria-checked='true'] > span {
+  transform: translateX(18px);
+}
+
+.settings-switch:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.settings-switch-status,
+.payment-status-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .settings-back-link--floating {
+    top: calc(var(--mobile-floating-gap) + env(safe-area-inset-top, 0px));
+    left: var(--mobile-floating-gap);
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .settings-back-link--floating > span:last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch::before,
+  .settings-switch > span {
+    transition: none;
+  }
+}

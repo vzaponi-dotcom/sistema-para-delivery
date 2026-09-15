@@ -8,6 +8,15 @@ export const detectPrintStationPlatform = (userAgent = globalThis.navigator?.use
   return 'other'
 }
 
+export const detectPrintStationUiPlatform = (userAgent = globalThis.navigator?.userAgent || '') => {
+  const normalized = String(userAgent).toLowerCase()
+  if (normalized.includes('android')) return 'android'
+  if (normalized.includes('windows')) return 'windows'
+  if (/(iphone|ipad|ipod)/u.test(normalized)) return 'ios'
+  if (normalized.includes('macintosh') && normalized.includes('mobile')) return 'ios'
+  return 'other'
+}
+
 export const getDefaultPrintStationName = (platform) => {
   if (platform === 'windows') return 'Cozinha · Windows'
   if (platform === 'android') return 'Cozinha · Android'
@@ -37,14 +46,15 @@ export const getQzPrinterName = (storage = globalThis.localStorage, stationId) =
 export const saveQzPrinterName = (storage = globalThis.localStorage, stationId, printerName) => {
   const value = String(printerName ?? '').trim()
   if (!value) {
-    storage?.removeItem?.(qzPrinterKey(stationId))
+    if (!storage?.removeItem) throw Object.assign(new Error('Armazenamento local indisponível.'), { code: 'DEVICE_STORAGE_UNAVAILABLE' })
+    storage.removeItem(qzPrinterKey(stationId))
     return ''
   }
-  storage?.setItem?.(qzPrinterKey(stationId), value)
+  if (!storage?.setItem) throw Object.assign(new Error('Armazenamento local indisponível.'), { code: 'DEVICE_STORAGE_UNAVAILABLE' })
+  storage.setItem(qzPrinterKey(stationId), value)
   return value
 }
 
 export const clearQzPrinterName = (storage = globalThis.localStorage, stationId) => {
   storage?.removeItem?.(qzPrinterKey(stationId))
 }
-

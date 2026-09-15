@@ -3,6 +3,7 @@ import test from 'node:test'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 import { comandaDetail, deferred } from './test-support/comandaFixtures.js'
+import { effectivePaymentConfig } from './test-support/appSessionFixtures.js'
 
 const tabA = { id: 'tab-A', number: 41, itemCount: 3, totalCents: 12345 }
 const tabB = { id: 'tab-B', number: 42, itemCount: 1, totalCents: 2500 }
@@ -23,7 +24,7 @@ async function appWorkspace(h, App, { capabilities, tables = [sourceWithA(), des
     if (path === '/api/auth/session') return response({ authenticated: true })
     if (path === '/api/bootstrap') {
       state.bootstrapCalls += 1
-      return response({ tables: state.tables, tableTabs: state.tableTabs, orders: state.orders, movements: state.movements, clients: [], products: [], financeSettings: null })
+      return response({ tables: state.tables, tableTabs: state.tableTabs, orders: state.orders, movements: state.movements, clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig })
     }
     if (path === '/api/orders' && (!options.method || options.method === 'GET')) return response({ orders: state.orders })
     if (path === '/api/printing/stations') return response({ stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] })

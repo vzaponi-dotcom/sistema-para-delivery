@@ -1,6 +1,9 @@
 import { createTestPrintDocument } from '../shared/orderPrintDocument.js'
 import { isPrintQueueTerminal, resolvePrintQueueState } from '../shared/printQueue.js'
 import { isForcePrintReason, isRetryablePrintJob } from '../shared/printQueueActions.js'
+import { resolvePrintCopies } from '../shared/printContextPolicy.js'
+import { clearSettingsAssertions } from './settingsTransactions.js'
+import { preparePolicyGuards, readPrintingPolicyExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 
 export const PRINT_PENDING_MAX_AGE_MS = 10 * 60 * 1000
 export const PRINT_PROCESSING_MAX_AGE_MS = 2 * 60 * 1000
@@ -109,6 +112,7 @@ const mapStationRow = (row, now = new Date()) => {
     isPrimary: Boolean(row.is_primary),
     autoPrintEnabled: Boolean(row.auto_print_enabled),
     defaultCopies: Number(row.default_copies) || 2,
+    configRevision: Number(row.config_revision) || 1,
     lastSeenAt: row.last_seen_at ?? null,
     qzReady: Boolean(row.qz_ready),
     printerReady: Boolean(row.printer_ready),
@@ -175,26 +179,6 @@ export const listPrintStations = async (db, businessId, now = new Date()) => {
   return rows(result).map((row) => mapStationRow(row, now))
 }
 
-export const loadBusinessPrintSettings = async (db, businessId) => {
-  const row = await db.prepare(`SELECT default_copies FROM business_print_settings
-    WHERE business_id = ? LIMIT 1`).bind(businessId).first()
-  return { defaultCopies: row?.default_copies ?? 2 }
-}
-
-export const saveBusinessPrintSettings = async (db, businessId, input, now = new Date()) => {
-  const copies = input.defaultCopies
-  if (copies !== 1 && copies !== 2) {
-    throw repositoryError(400, 'INVALID_PRINT_COPIES', 'defaultCopies deve ser 1 ou 2.')
-  }
-  const at = timestamp(now)
-  await db.prepare(`INSERT INTO business_print_settings (business_id, default_copies, created_at, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(business_id) DO UPDATE SET
-      default_copies = excluded.default_copies, updated_at = excluded.updated_at`)
-    .bind(businessId, copies, at, at).run()
-  return loadBusinessPrintSettings(db, businessId)
-}
-
 export const upsertPrintStation = async (db, businessId, input, now = new Date()) => {
   const id = String(input.id || '')
   if (!id) throw repositoryError(400, 'PRINT_STATION_ID_REQUIRED', 'Identificador da estação é obrigatório.')
@@ -208,14 +192,7 @@ export const upsertPrintStation = async (db, businessId, input, now = new Date()
       id, business_id, name, platform, is_primary, auto_print_enabled, default_copies,
       last_seen_at, created_at, updated_at
     ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      name = excluded.name,
-      platform = excluded.platform,
-      auto_print_enabled = excluded.auto_print_enabled,
-      default_copies = excluded.default_copies,
-      last_seen_at = excluded.last_seen_at,
-      updated_at = excluded.updated_at
-    WHERE print_stations.business_id = excluded.business_id`)
+    ON CONFLICT(id) DO NOTHING`)
     .bind(id, businessId, name, platform, input.autoPrintEnabled ? 1 : 0, copies, at, at, at).run()
 
   const station = await loadPrintStation(db, businessId, id, now)
@@ -454,27 +431,65 @@ export const listPrintJobs = async (db, businessId, options = {}) => {
 }
 
 export const createManualOrderPrintJob = async (db, businessId, input, now = new Date()) => {
-  const copies = assertCopies(input.copies)
+  const expectation = input.copies === undefined ? await readPrintingPolicyExpectation(db, businessId) : null
+  const orderContext = expectation
+    ? await db.prepare(`SELECT customer_identity_type, table_tab_id FROM orders
+      WHERE id = ? AND business_id = ? LIMIT 1`).bind(input.orderId, businessId).first()
+    : null
+  const copies = resolvePrintCopies({
+    jobType: 'order',
+    customerIdentityType: orderContext?.customer_identity_type,
+    tableTabId: orderContext?.table_tab_id,
+    explicitCopies: input.copies,
+    policy: expectation?.policy,
+  })
   const at = timestamp(now)
   const id = String(input.id || crypto.randomUUID())
-  await db.prepare(`INSERT INTO print_jobs (
+  const statement = db.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed,
       station_id, snapshot_json, created_at, available_at, processing_started_at, processed_at,
       last_error_code, last_error_message
     ) VALUES (?, ?, ?, 'order', 'manual', 'pending', ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
-    .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), at, at).run()
+    .bind(id, businessId, input.orderId, copies, JSON.stringify(input.document), at, at)
+  if (expectation) {
+    const txId = crypto.randomUUID()
+    try {
+      await db.batch([
+        ...preparePolicyGuards(db, businessId, { printing: expectation }, txId),
+        statement,
+        clearSettingsAssertions(db, txId),
+      ])
+    } catch (error) { rethrowPolicyChange(error) }
+  } else await statement.run()
   return loadPrintJob(db, businessId, id)
 }
 
 export const createManualTableTabPrintJob = async (db, businessId, input, now = new Date()) => {
+  const expectation = input.copies === undefined ? await readPrintingPolicyExpectation(db, businessId) : null
+  const copies = resolvePrintCopies({
+    jobType: 'table-tab',
+    tableTabId: input.tableTabId,
+    explicitCopies: input.copies,
+    policy: expectation?.policy,
+  })
   const at = timestamp(now)
   const id = String(input.id || crypto.randomUUID())
-  await db.prepare(`INSERT INTO print_jobs (
+  const statement = db.prepare(`INSERT INTO print_jobs (
       id, business_id, order_id, table_tab_id, type, trigger, status, copies_requested, copies_printed,
       station_id, snapshot_json, created_at, available_at, processing_started_at, processed_at,
       last_error_code, last_error_message
-    ) VALUES (?, ?, NULL, ?, 'table-tab', 'manual', 'pending', 1, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
-    .bind(id, businessId, input.tableTabId, JSON.stringify(input.document), at, at).run()
+    ) VALUES (?, ?, NULL, ?, 'table-tab', 'manual', 'pending', ?, 0, NULL, ?, ?, ?, NULL, NULL, NULL, NULL)`)
+    .bind(id, businessId, input.tableTabId, copies, JSON.stringify(input.document), at, at)
+  if (expectation) {
+    const txId = crypto.randomUUID()
+    try {
+      await db.batch([
+        ...preparePolicyGuards(db, businessId, { printing: expectation }, txId),
+        statement,
+        clearSettingsAssertions(db, txId),
+      ])
+    } catch (error) { rethrowPolicyChange(error) }
+  } else await statement.run()
   return loadPrintJob(db, businessId, id)
 }
 
@@ -908,9 +923,9 @@ export const requestSecondCopy = async (db, businessId, jobId, actorLabel = 'Sis
   const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
   const row = await db.prepare(`UPDATE print_jobs SET status = 'pending', station_id = NULL, processing_started_at = NULL,
     second_copy_requested_at = ?, action_at = ?, action_actor_label = ?
-    WHERE id = ? AND business_id = ? AND type = 'order' AND status = 'awaiting_second_copy'
+    WHERE id = ? AND business_id = ? AND status = 'awaiting_second_copy'
       AND copies_requested = 2 AND copies_printed = 1 AND second_copy_skipped_at IS NULL
-      AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL} RETURNING *`)
+      AND (type = 'table-tab' OR (type = 'order' AND (trigger <> 'automatic' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL}))) RETURNING *`)
     .bind(at, at, actor, jobId, businessId).first()
   if (row) return mapJobRow(row)
   const existing = await loadPrintJob(db, businessId, jobId)

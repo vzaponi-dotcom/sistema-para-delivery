@@ -7,7 +7,7 @@ const groups = [
   { label: 'CADASTROS', items: [{ id: 'clients', label: 'Clientes', icon: 'clients' }, { id: 'products', label: 'Produtos e preços', icon: 'products' }, { id: 'tables', label: 'Mesas', icon: 'table' }] },
   { label: 'CONFIGURAÇÕES', items: [{ area: 'settings', label: 'Configurações', icon: 'settings' }] },
 ]
-const activeAreas = { orders: new Set(['orders', 'history', 'new-order']), settings: new Set(['settings-printing', 'settings-device']) }
+const activeAreas = { orders: new Set(['orders', 'history', 'new-order']), settings: new Set(['settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device']) }
 
 function Sidebar({ activeTab, activeNavigationEntry, granted, implemented, onNavigate, onLogout, logoutDisabled = false }) {
   const visibleGroups = groups.map((group) => ({ ...group, items: group.items.flatMap((item) => {

@@ -6,10 +6,10 @@ function TableTabTicketPreview({ document }) {
   if (!document || document.type !== 'table-tab') return null
 
   return (
-    <div className="order-ticket-preview" aria-label={`Visualiza\u00e7\u00e3o da comanda ${document.tableTab?.number || ''}`}>
+    <div className="order-ticket-preview" aria-label={`Visualização da comanda ${document.tableTab?.number || ''}`}>
       <header className="order-ticket-preview-header">
         <strong>{document.business?.name || 'Amor & Sabor'}</strong>
-        <h3>{`PR\u00c9-CONTA \u00b7 COMANDA #${document.tableTab?.number || ''}`}</h3>
+        <h3>{`PRÉ-CONTA · COMANDA #${document.tableTab?.number || ''}`}</h3>
         {document.tableTab?.tableName && <span>{document.tableTab.tableName}</span>}
       </header>
 
@@ -22,6 +22,7 @@ function TableTabTicketPreview({ document }) {
             <div className="order-ticket-item" key={`${item.name}-${presentation}-${item.note}-${index}`}>
               <div>
                 <strong>{Number(item.quantity) || 1}x {clean(item.name)}{presentation ? ` ${presentation}` : ''}</strong>
+                {Number.isFinite(Number(item.unitPriceCents)) && <span>Unit. {formatPrintMoneyCents(item.unitPriceCents)}</span>}
                 {item.note && <span>Obs: {item.note}</span>}
               </div>
               <span>{formatPrintMoneyCents(item.lineTotalCents || 0)}</span>
@@ -30,7 +31,6 @@ function TableTabTicketPreview({ document }) {
         })}
       </section>
 
-      <div className="order-ticket-divider" />
       <div className="order-ticket-total"><span>TOTAL</span><strong>{formatPrintMoneyCents(document.financial?.totalCents || 0)}</strong></div>
       {document.message && <footer className="order-ticket-message">{document.message}</footer>}
     </div>

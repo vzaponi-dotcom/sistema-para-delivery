@@ -10,7 +10,7 @@ test('register refund dialog exists and requires a refund method', () => {
   assert.equal(fs.existsSync(dialogUrl), true, 'RegisterRefundDialog.jsx must exist')
   const source = readDialog()
 
-  assert.match(source, /function RegisterRefundDialog\(\{ open, order, onClose, onConfirm, submitting(?: = false)? \}\)/)
+  assert.match(source, /function RegisterRefundDialog\(\{ open, order, onClose, onConfirm, submitting(?: = false)?, paymentOptions/)
   assert.match(source, /refundMethod/)
   assert.match(source, /SystemSelect/)
   assert.match(source, /Forma de estorno/)

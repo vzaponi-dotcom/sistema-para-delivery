@@ -1,17 +1,17 @@
 import { getOperationalStartAt } from '../../shared/orderTiming.js'
 import { isOrderActive } from './orderLifecycle.js'
 
-export const getNextKitchenTransitionAt = (orders = [], now = new Date()) => {
+export const getNextKitchenTransitionAt = (orders = [], now = new Date(), currentTiming) => {
   const reference = new Date(now)
   const candidates = orders
     .filter(isOrderActive)
-    .map((order) => getOperationalStartAt(order))
+    .map((order) => getOperationalStartAt(order, currentTiming))
     .filter((value) => value && value.getTime() > reference.getTime())
     .sort((left, right) => left.getTime() - right.getTime())
   return candidates[0] || null
 }
 
-export function scheduleKitchenTransitions(orders, onBoundary, timers = {}) {
+export function scheduleKitchenTransitions(orders, onBoundary, timers = {}, currentTiming) {
   const getNow = timers.getNow || (() => new Date())
   const setExactTimeout = timers.setTimeout || globalThis.setTimeout
   const clearExactTimeout = timers.clearTimeout || globalThis.clearTimeout
@@ -21,7 +21,7 @@ export function scheduleKitchenTransitions(orders, onBoundary, timers = {}) {
   const armNext = () => {
     if (stopped) return
     const now = getNow()
-    const next = getNextKitchenTransitionAt(orders, now)
+    const next = getNextKitchenTransitionAt(orders, now, currentTiming)
     if (!next) return
     currentTimeoutId = setExactTimeout(() => {
       currentTimeoutId = null

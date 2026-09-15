@@ -10,9 +10,25 @@ test('consolidated detail renders official payable total, quantities, unit price
   const actions = []
   const r = await h.render(Detail, { detail: comandaDetail, currency: (v) => `R$ ${v.toFixed(2)}`, onAddOrder: () => actions.push('add'), onViewTicket: () => actions.push('view'), onPrint: () => actions.push('print'), onPay: () => actions.push('pay') })
   const text = nodeText(r.root)
-  for (const value of ['Comanda 42', 'Mesa 7', '2 pedidos', '3 itens', '2x X-Bacon', '1x X-Bacon', 'Grande / queijo extra', 'Sem cebola', 'R$ 25.00', 'R$ 50.00', 'R$ 123.45']) assert.ok(text.includes(value), value)
+  for (const value of ['Comanda 42', 'Mesa 7', '2 pedidos', '3 itens', 'X-Bacon', 'Grande / queijo extra', 'Sem cebola', 'R$ 25.00', 'R$ 50.00', 'R$ 123.45']) assert.ok(text.includes(value), value)
   assert.equal(r.root.findByType('time').props.dateTime, '2026-09-10T12:30:00Z')
   assert.equal(r.root.findAllByType('button').length, 4)
+
+  const itemRows = r.root.findAllByType('li')
+  assert.equal(itemRows.length, 2)
+  assert.deepEqual(itemRows.map((row) => nodeText(row.findByProps({ className: 'comanda-detail-quantity' }))), ['2x', '1x'])
+  for (const row of itemRows) assert.match(nodeText(row), /X-Bacon/)
+
+  const hero = r.root.findByProps({ className: 'comanda-detail-hero' })
+  assert.match(nodeText(hero), /COMANDA.*42.*Mesa 7.*Ocupada.*Abertura/)
+  assert.ok(r.root.findByProps({ className: 'comanda-detail-order-summary' }))
+  assert.ok(r.root.findByProps({ className: 'comanda-detail-items-section' }))
+  assert.ok(r.root.findByProps({ className: 'comanda-detail-total' }))
+  assert.ok(buttonNamed(r.root, 'Adicionar pedido').props.className.includes('comanda-action-primary'))
+  assert.ok(buttonNamed(r.root, 'Registrar pagamento').props.className.includes('comanda-action-payment'))
+  assert.ok(buttonNamed(r.root, 'Ver ticket').props.className.includes('comanda-action-secondary'))
+  assert.ok(buttonNamed(r.root, 'Imprimir comanda').props.className.includes('comanda-action-secondary'))
+
   await act(async () => {
     buttonNamed(r.root, 'Adicionar pedido').props.onClick()
     buttonNamed(r.root, 'Ver ticket').props.onClick()

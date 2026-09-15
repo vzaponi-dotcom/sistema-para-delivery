@@ -37,6 +37,13 @@ const bootstrap = {
   products: [product],
   movements: [{ id: 'movement-1', description: 'Caixa', type: 'entrada', value: 10, category: 'Outros', date: '2026-09-11', source: 'manual' }],
   financeSettings: null,
+  effectiveBusinessConfig: {
+    version: 'revision-zero', revisions: { operations: 0 },
+    operations: {
+      enabledModalities: ['Entrega', 'Retirada', 'Local'], defaultModality: 'Entrega',
+      timing: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
+    },
+  },
 }
 
 async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData = bootstrap } = {}) {
@@ -133,7 +140,10 @@ test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund
   const h = await workspaceHarness(t)
   const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/components/CancelOrderDialog.jsx'), h.load('/src/components/SystemSelect.jsx')])
   const confirmed = []
-  const renderer = await h.render(CancelOrderDialog, { open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload) })
+  const renderer = await h.render(CancelOrderDialog, {
+    open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload),
+    reasonOptions: [{ value: 'client_changed_mind', label: 'Cliente desistiu', active: true }], reasonRevision: 0,
+  })
   assert.equal(Boolean(buttonNamed(renderer.root, 'Sim')), false)
   await act(async () => renderer.root.findByType(SystemSelect).props.onChange('client_changed_mind'))
   await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
@@ -301,24 +311,82 @@ test('15. printing.execute permite execuÃ§Ã£o e printing.discard ausente blo
   assert.equal(calls.execute, 1)
 })
 
-test('16. printing.settings permite vias e bloqueia estaÃ§Ã£o sem station.configure', async (t) => {
+test('16. printing.settings permite vias e bloqueia estação sem station.configure', async (t) => {
   const h = await workspaceHarness(t)
   const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
-  const idle = (value) => ({ status: 'idle', confirmedValue: value, error: '', revision: 0, owner: null })
-  const settings = { resources: { 'business-copies': idle(1), 'station-config': idle({ id: 'station-1', name: 'Cozinha', platform: 'windows', autoPrintEnabled: false }), 'local-printer': idle('Fila A') }, reload() {}, saveCopies() {}, saveStation() {}, makePrimary() {}, selectPrinter() {} }
-  const printing = { localStation: settings.resources['station-config'].confirmedValue, configuredPrinterName: 'Fila A', platform: 'windows', availablePrinters: ['Fila A'], printerHealth: { state: 'ready' } }
+  const policy = {
+    status: 'ready',
+    confirmed: { data: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 } },
+    draft: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 },
+    dirty: false,
+    error: '',
+  }
+  const settings = {
+    policyState: () => policy,
+    stationState: () => null,
+    primaryState: () => null,
+    editPolicy() {},
+    savePolicy() {},
+    discardPolicy() {},
+  }
+  const printing = {
+    localStation: { id: 'station-1', name: 'Cozinha', platform: 'windows' },
+    configuredPrinterName: 'Fila A',
+    transportKind: 'qz',
+    availablePrinters: ['Fila A'],
+    printerHealth: { state: 'ready' },
+  }
   const renderer = await h.render(PrintingSettingsContent, { printing, settings, granted: new Set(['printing.settings']) })
-  assert.equal(renderer.root.findAllByProps({ name: 'defaultCopies' }).length, 2)
-  assert.equal(Boolean(buttonNamed(renderer.root, 'Configurar impressora')), false)
-  assert.equal(Boolean(buttonNamed(renderer.root, 'Tornar estaÃ§Ã£o principal')), false)
+  const copySelectors = renderer.root.findAllByProps({ role: 'combobox' })
+  assert.equal(copySelectors.length, 2)
+  assert.deepEqual(copySelectors.map((selector) => selector.props['aria-label']), ['Vias de pedidos', 'Vias de mesas e comandas'])
+  assert.ok(copySelectors.every((selector) => selector.props.disabled === false))
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Salvar impressora')), false)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Tornar principal')), false)
 })
 
+test('16b. printing.execute permite testar sem conceder configuração da estação', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  let tests = 0
+  const settings = {
+    policyState: () => null,
+    stationState: () => ({
+      status: 'ready',
+      confirmed: { data: { id: 'station-1', name: 'Cozinha', platform: 'windows', autoPrintEnabled: false } },
+      draft: { name: 'Cozinha', platform: 'windows', autoPrintEnabled: false },
+      dirty: false,
+      error: '',
+    }),
+    primaryState: () => ({ status: 'ready', confirmed: { data: { primaryStationId: 'station-1' } }, draft: { primaryStationId: 'station-1' } }),
+    async testPrint() { tests += 1; return true },
+  }
+  const printing = {
+    localStation: { id: 'station-1', name: 'Cozinha', platform: 'windows' },
+    configuredPrinterName: 'Fila A',
+    transportKind: 'qz',
+    transportReady: true,
+    availablePrinters: ['Fila A'],
+    printerHealth: { state: 'ready' },
+  }
+  const renderer = await h.render(PrintingSettingsContent, {
+    printing,
+    settings,
+    granted: new Set(['printing.station.view', 'printing.execute']),
+  })
+
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Salvar impressora')), false)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Atualizar lista')), false)
+  await act(async () => { buttonNamed(renderer.root, 'Testar impressão').props.onClick(); await flush() })
+  assert.equal(tests, 1)
+})
 test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set(['preferences.local']), { withTheme: true })
+  await navigate(h, 'settings-device')
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())
   assert.equal(h.window.localStorage.getItem('delivery-theme'), 'dark')
-  const sound = renderer.root.findAllByType('input').find((node) => node.props.type === 'checkbox')
-  await act(async () => sound.props.onChange({ target: { checked: false } }))
+  const sound = renderer.root.findByProps({ role: 'switch', 'aria-label': 'Som de novos pedidos' })
+  await act(async () => sound.props.onClick())
   assert.equal(h.window.localStorage.getItem('kitchen-sound-enabled'), 'false')
   assert.equal(renderer.root.findAllByProps({ name: 'defaultCopies' }).length, 0)
 })
@@ -373,7 +441,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
 test('21. printing.execute protege a entrada manual global de segunda via na UI e no callback', async (t) => {
   const h = await workspaceHarness(t, { userAgent: 'Windows test' })
   const job = {
-    id: 'second-copy-job', orderId: preparingOrder.id, status: 'awaiting_second_copy',
+    id: 'second-copy-job', type: 'order', orderId: preparingOrder.id, status: 'awaiting_second_copy',
     copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic',
   }
   const calls = { secondCopy: 0 }

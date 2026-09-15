@@ -2,26 +2,35 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { act } from 'react-test-renderer'
 
-import { workspaceHarness } from './test-support/renderWorkspace.js'
+import { workspaceHarness, buttonNamed } from './test-support/renderWorkspace.js'
 import { deferred } from './test-support/comandaFixtures.js'
+import { authenticatedSession, effectivePaymentConfig } from './test-support/appSessionFixtures.js'
 
 const response = (data, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => structuredClone(data) })
+const meta = { createdAt: '2026-09-13T12:00:00.000Z', updatedAt: '2026-09-13T12:00:00.000Z' }
+const policy = (copies, revision = 1) => ({ resource: 'printingPolicy', revision, data: { orderDefaultCopies: copies, tableTabDefaultCopies: 1 }, meta })
 
 function appApi(state) {
   return async (path, options = {}) => {
     const method = options.method || 'GET'
     state.requests.push({ path: String(path), method })
-    if (path === '/api/auth/session') return response({ authenticated: true })
-    if (path === '/api/bootstrap') return response({ tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null })
-    if (path === '/api/printing/stations') return response({ stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] })
+    if (path === '/api/auth/session') return response(authenticatedSession)
+    if (path === '/api/bootstrap') return response({ tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig })
+    if (String(path).startsWith('/api/settings/effective')) return response(effectivePaymentConfig)
+    if (path === '/api/printing/stations') return response({
+      stations: [{ id: 'test-station', name: 'Test station', platform: 'other', isPrimary: false, autoPrintEnabled: false, configRevision: 1, ...meta }],
+      primary: { resource: 'stationPrimary', revision: 1, data: { primaryStationId: null }, meta },
+    })
     if (path === '/api/printing/jobs?limit=100') return response({ jobs: [] })
     if (path === '/api/printing/jobs/summary') return response({ summary: { safeBacklog: 0 } })
     if (path === '/api/printing/settings') {
       if (method === 'PUT') {
         state.settingsWrites += 1
-        return state.settingsSave ? state.settingsSave.promise : response({ settings: { defaultCopies: 2 } })
+        state.settingsInput = JSON.parse(options.body)
+        state.settingsStarted?.resolve()
+        return state.settingsSave.promise
       }
-      return response({ settings: { defaultCopies: state.copies } })
+      return response({ settings: policy(state.copies, state.revision) })
     }
     if (path === '/api/orders') return response({ orders: [] })
     throw new Error(`Unexpected request: ${path} ${method}`)
@@ -34,11 +43,13 @@ async function navigate(h, target) {
 
 test('A9 keeps navigation continuity across repeated page cycles', async (t) => {
   const h = await workspaceHarness(t)
-  const state = { copies: 1, requests: [], settingsWrites: 0, settingsSave: null }
+  const state = { copies: 1, revision: 1, requests: [], settingsWrites: 0, settingsSave: null, settingsStarted: null }
   globalThis.fetch = appApi(state)
   const { default: App } = await h.load('/src/App.jsx')
   const renderer = await h.render(App, {}, {
-    createNodeMock: (element) => element.props.className?.includes('app-content') ? { focus: () => h.recordFocus() } : {},
+    createNodeMock: (element) => element.props.role === 'combobox'
+      ? { focus() {} }
+      : element.props.className?.includes('app-content') ? { focus: () => h.recordFocus() } : {},
   })
 
   const baseline = h.activitySnapshot({ ignoreFocus: true })
@@ -61,14 +72,26 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   assert.equal(state.requests.filter((request) => request.method === 'POST').length, 0, 'navigation must not submit a payment or physical print')
 
   await navigate(h, 'settings-printing')
-  const secondCopy = renderer.root.findAllByType('input').find((input) => input.props.type === 'radio' && input.props.value === 2)
+  const copySelector = renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' })
   state.settingsSave = deferred()
-  await act(async () => { void secondCopy.props.onChange({ target: { value: 2 } }) })
+  state.settingsStarted = deferred()
+  await act(async () => copySelector.props.onClick())
+  const secondCopy = renderer.root.findAllByProps({ role: 'option' }).find((option) => option.props.children[0].props.children === '2 vias')
+  await act(async () => { secondCopy.props.onClick() })
+  assert.equal(state.settingsWrites, 0, 'editing a policy must not autosave')
+  await act(async () => {
+    void buttonNamed(renderer.root, 'Salvar política').props.onClick()
+    await state.settingsStarted.promise
+  })
+  assert.equal(state.settingsWrites, 1)
   await navigate(h, 'clients')
-  await act(async () => { state.settingsSave.resolve(response({ settings: { defaultCopies: 2 } })); await Promise.resolve() })
+  state.copies = 2; state.revision = 2
+  await act(async () => {
+    state.settingsSave.resolve(response({ settings: policy(2, 2), receipt: { mutationId: state.settingsInput.mutationId, committedRevision: 2 } }))
+  })
   await navigate(h, 'settings-printing')
   assert.equal(state.settingsWrites, 1, 'leaving Settings must not resend its pending save')
-  assert.equal(renderer.root.findAllByType('input').find((input) => input.props.type === 'radio' && input.props.value === 2).props.checked, true)
+  assert.equal(renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' }).props.children[0].props.children, '2 vias')
 
   await navigate(h, 'orders')
   const search = renderer.root.findByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' })

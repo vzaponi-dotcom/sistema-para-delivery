@@ -99,10 +99,10 @@ export const getPaymentMix = (orders, period = '30d', now = new Date()) => {
     .sort((a, b) => b.amount - a.amount || a.method.localeCompare(b.method, 'pt-BR'))
 }
 
-export const calculateOperationalMetrics = (orders, period = '30d', now = new Date()) => {
+export const calculateOperationalMetrics = (orders, period = '30d', now = new Date(), currentTiming) => {
   const eligible = filterOrdersByPeriod(orders, period, now)
     .filter((order) => order?.status === 'Finalizado' && order?.isBackdated !== true)
-    .map((order) => ({ order, minutes: getOperationalDurationMinutes(order) }))
+    .map((order) => ({ order, minutes: getOperationalDurationMinutes(order, currentTiming) }))
     .filter(({ minutes }) => Number.isFinite(minutes) && minutes >= 0)
 
   const durations = eligible.map(({ minutes }) => minutes)

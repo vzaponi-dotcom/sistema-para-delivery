@@ -1,13 +1,10 @@
+import { DEFAULT_PAYMENT_METHODS, paymentLabel } from './businessPolicies.js'
+
 export const FINANCE_TIME_ZONE = 'America/Sao_Paulo'
 
-export const PAYMENT_METHODS = [
-  'Dinheiro',
-  'Pix',
-  'Cartão de débito',
-  'Cartão de crédito',
-  'Transferência',
-  'Outro',
-]
+// Preserve the legacy UI order while sourcing labels from the canonical payment mapping.
+export const PAYMENT_METHODS = ['cash', ...DEFAULT_PAYMENT_METHODS.methods
+  .map(({ code }) => code).filter((code) => code !== 'cash')].map(paymentLabel)
 
 export const MANUAL_MOVEMENT_CATEGORIES = {
   entrada: [
@@ -59,9 +56,10 @@ export const normalizeMovementCategory = (movement = {}) => {
   return legacyCategoryCodes[category] ?? category
 }
 
-export const getMovementCategoryLabel = (movement = {}) => {
+export const getMovementCategoryLabel = (movement = {}, categoryLabels = new Map()) => {
   const normalized = normalizeMovementCategory(movement)
-  return categoryLabelByCode.get(normalized) ?? String(movement.category ?? '')
+  const historicalLabel = categoryLabels instanceof Map ? categoryLabels.get(normalized) : categoryLabels?.[normalized]
+  return historicalLabel ?? categoryLabelByCode.get(normalized) ?? String(movement.category ?? '')
 }
 
 export const getBusinessDate = (date = new Date()) => {

@@ -1,0 +1,92 @@
+/* Shared polish for list-style settings editors. */
+.settings-editor-shell .payment-settings-table,
+.settings-editor-shell .cancellation-settings-table,
+.settings-editor-shell .finance-category-table {
+  overflow: visible;
+}
+
+.settings-editor-shell .payment-settings-table-head,
+.settings-editor-shell .cancellation-settings-table-head,
+.settings-editor-shell .finance-category-table-head {
+  border-radius: 7px 7px 0 0;
+}
+
+.settings-editor-shell .payment-settings-table-body > .payment-settings-row:last-child,
+.settings-editor-shell .cancellation-settings-table-body > .cancellation-settings-row:last-child,
+.settings-editor-shell .finance-category-table-body > .finance-category-settings-row:last-child {
+  border-radius: 0 0 7px 7px;
+}
+
+.settings-editor-shell .payment-settings-row:has(.payment-actions-menu[open]),
+.settings-editor-shell .cancellation-settings-row:has(.cancellation-actions-menu[open]),
+.settings-editor-shell .finance-category-settings-row:has(.finance-category-actions-menu[open]) {
+  z-index: 20;
+}
+
+/* Payment methods: denser desktop table while keeping controls comfortably usable. */
+.payment-editor .payment-settings-row {
+  min-height: 58px;
+  padding: 5px 18px;
+}
+
+.payment-editor .payment-order-cell {
+  gap: 10px;
+  align-self: center;
+}
+
+.payment-editor .payment-method-cell {
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-self: center;
+}
+
+.payment-editor .payment-method-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.payment-editor .payment-method-icon svg,
+.payment-editor .payment-icon-pix {
+  width: 23px;
+  height: 23px;
+}
+
+.payment-editor .payment-meta-badges,
+.payment-editor .payment-meta-switch,
+.payment-editor .payment-actions-cell {
+  grid-row: 1;
+  align-self: center;
+}
+
+@media (max-width: 820px) {
+  .payment-editor .payment-settings-table-body {
+    gap: 8px;
+  }
+
+  .payment-editor .payment-settings-row {
+    min-height: 96px;
+    padding: 10px 11px;
+    gap: 6px 8px;
+  }
+
+  .payment-editor .payment-order-cell,
+  .payment-editor .payment-method-cell,
+  .payment-editor .payment-actions-cell {
+    align-self: center;
+  }
+
+  .payment-editor .payment-meta-cell {
+    padding-left: 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .payment-editor .payment-settings-row {
+    min-height: 92px;
+    padding: 9px 9px;
+  }
+
+  .payment-editor .payment-meta-cell {
+    padding-left: 31px;
+  }
+}

@@ -2,6 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { registerTableTabPayment } from './repositories.js'
 import { listTables } from './tableRepository.js'
+import { createSettingsDb } from './test-support/settingsDb.js'
+
+const insertOpenEmptyTab = (sqlite, suffix) => {
+  const now = '2026-09-12T18:00:00.000Z'
+  sqlite.prepare(`INSERT INTO tables (id, business_id, name, name_key, sort_order, is_active, created_at, updated_at)
+    VALUES (?, 'amor-e-sabor', ?, ?, 1, 1, ?, ?)`).run(`table-${suffix}`, `Mesa ${suffix}`, `mesa ${suffix}`, now, now)
+  sqlite.prepare(`INSERT INTO table_tabs (
+    id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at
+  ) VALUES (?, 'amor-e-sabor', ?, ?, 1, 'open', ?, NULL, ?, ?)`).run(
+    `tab-${suffix}`, `table-${suffix}`, `Mesa ${suffix}`, now, now, now,
+  )
+}
 
 class TableTabPaymentDb {
   constructor() {
@@ -30,6 +42,7 @@ class TableTabPaymentDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
             if (sql.includes('FROM table_tabs')) {
               const [tabId, businessId] = values
               return db.tableTabs.find((tab) => tab.id === tabId && tab.business_id === businessId) ?? null
@@ -146,4 +159,38 @@ test('table tab payment keeps the transferred tab id and releases the destinatio
   assert.equal(result.tableTab.status, 'closed')
   assert.equal((await listTables(db, 'amor-e-sabor')).find((table) => table.id === 'table-5').occupancy, 'free')
   assert.equal(db.tableTabs.filter((tab) => tab.status === 'open').length, 0)
+})
+
+test('table tab payment detects a concurrent close from its own update result', async (t) => {
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  insertOpenEmptyTab(sqlite, 'race')
+  const batch = db.batch.bind(db)
+  db.batch = async (statements) => {
+    sqlite.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
+      WHERE id = 'tab-race' AND business_id = 'amor-e-sabor' AND status = 'open'`).run(
+      '2026-09-12T18:30:00.000Z', '2026-09-12T18:30:00.000Z',
+    )
+    return batch(statements)
+  }
+
+  await assert.rejects(
+    registerTableTabPayment(db, 'amor-e-sabor', 'tab-race', 'Pix', new Date('2026-09-12T19:00:00.000Z')),
+    { status: 409, code: 'TABLE_TAB_PAYMENT_CONFLICT' },
+  )
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM settings_tx_assertions').get().n, 0)
+})
+
+test('table tab payment closes normally and clears its policy assertion', async (t) => {
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  insertOpenEmptyTab(sqlite, 'normal')
+
+  const result = await registerTableTabPayment(
+    db, 'amor-e-sabor', 'tab-normal', 'Pix', new Date('2026-09-12T19:00:00.000Z'),
+  )
+
+  assert.equal(result.tableTab.status, 'closed')
+  assert.equal(sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-normal'").get().status, 'closed')
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM settings_tx_assertions').get().n, 0)
 })

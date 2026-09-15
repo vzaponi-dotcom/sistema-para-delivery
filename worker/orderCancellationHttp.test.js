@@ -14,6 +14,8 @@ class HttpDb {
     }
     this.refund = null
     this.deletedOrders = 0
+    this.cancelReasons = new Map(['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other']
+      .map((id) => [id, { active: 1, first_used_at: null }]))
   }
 
   prepare(sql) {
@@ -24,8 +26,23 @@ class HttpDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM businesses b LEFT JOIN business_operation_settings')) return {
+              business_id: db.order.business_id, revision: 1,
+              created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
+              scheduled_prep_lead_minutes: 50, scheduled_late_grace_minutes: 15,
+              immediate_late_after_minutes: 30, immediate_very_late_after_minutes: 40,
+              default_modality: 'Entrega', default_active: 1,
+              modalities: JSON.stringify([{ code: 'Entrega', active: 1 }, { code: 'Retirada', active: 1 }, { code: 'Local', active: 1 }]),
+              receipt_count: 0, assertion_check: 0, guards: 2,
+            }
             if (sql.includes('FROM auth_credentials')) return { pin_hash: db.pinHash }
             if (sql.includes('FROM sessions')) return db.sessions.find((session) => session.token_hash === values[0]) ?? null
+            if (sql.includes('FROM business_payment_settings')) return { revision: 1, active: 1 }
+            if (sql.includes('FROM business_cancellation_settings')) {
+              const [reason, businessId] = values
+              const policy = businessId === db.order.business_id ? db.cancelReasons.get(reason) : null
+              return policy ? { revision: 1, active: policy.active, requires_note: Number(reason === 'other') } : null
+            }
             if (sql.includes('FROM orders o') && sql.includes('refund_movement_id')) {
               const [orderId, businessId] = values
               if (orderId !== db.order.id || businessId !== db.order.business_id) return null
@@ -49,8 +66,13 @@ class HttpDb {
               const session = db.sessions.find((item) => item.id === id && item.business_id === businessId)
               if (session) session.last_seen_at = lastSeenAt
             } else if (sql.includes("UPDATE orders SET status = 'Cancelado'")) {
-              const [cancelledAt, reason, note] = values
-              Object.assign(db.order, { status: 'Cancelado', cancelled_at: cancelledAt, cancel_reason: reason, cancel_reason_note: note || null })
+              const [cancelledAt, reason, note, timingSnapshot] = values
+              Object.assign(db.order, { status: 'Cancelado', cancelled_at: cancelledAt, cancel_reason: reason,
+                cancel_reason_note: note || null, timing_policy_snapshot_json: db.order.timing_policy_snapshot_json || timingSnapshot })
+            } else if (sql.includes('UPDATE business_cancel_reasons SET first_used_at')) {
+              const [firstUsedAt, businessId, reason] = values
+              const policy = businessId === db.order.business_id ? db.cancelReasons.get(reason) : null
+              if (policy && policy.first_used_at === null) policy.first_used_at = firstUsedAt
             } else if (sql.includes('INSERT INTO movements')) {
               const [id, businessId, type, category, description, value, source, orderId, paymentId, movementDate, createdAt] = values
               db.refund = { id, business_id: businessId, type, category, description, value_cents: value, source, order_id: orderId, payment_id: paymentId, movement_date: movementDate, created_at: createdAt }
@@ -105,8 +127,8 @@ test('authenticated cancel endpoint returns immediate refund effect and deferred
   const immediate = await handleRequest(new Request('https://delivery.example/api/orders/o1/cancel', {
     method: 'POST', headers: mutationHeaders(immediateCookie), body: JSON.stringify({ reason: 'entry_error', refundNow: true, refundMethod: 'Pix' }),
   }), immediateEnv)
-  assert.equal(immediate.status, 200)
   const immediateBody = await immediate.json()
+  assert.equal(immediate.status, 200, JSON.stringify(immediateBody))
   assert.equal(immediateBody.order.refundState, 'refunded')
   assert.equal(immediateBody.movement.source, 'order-refund')
   assert.equal(immediateBody.movement.orderId, 'o1')

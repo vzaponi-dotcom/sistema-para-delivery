@@ -1,4 +1,5 @@
-import { getOperationalElapsedMinutes, getScheduledLateAt } from '../../shared/orderTiming.js'
+import { LEGACY_TIMING } from '../../shared/businessPolicies.js'
+import { getOperationalElapsedMinutes, getScheduledLateAt, selectOrderTimingPolicy } from '../../shared/orderTiming.js'
 import { getBusinessDate } from '../../shared/finance.js'
 
 const FINAL_STATUSES = new Set(['Entregue', 'Finalizado', 'Despachado'])
@@ -83,16 +84,19 @@ export const normalizeOrder = (order, now = new Date()) => {
 }
 
 export const isOrderFinished = (order) => Boolean(parseDate(order?.finishedAt))
-export const getElapsedMinutes = (order, now = new Date()) => getOperationalElapsedMinutes(order, now)
-export const getOrderTimingState = (order, now = new Date()) => {
+export const getElapsedMinutes = (order, now = new Date(), currentTiming = LEGACY_TIMING) => getOperationalElapsedMinutes(order, now, currentTiming)
+export const getOrderTimingState = (order, now = new Date(), currentTiming = LEGACY_TIMING) => {
+  const policy = selectOrderTimingPolicy(order, currentTiming)
   if (order?.scheduledFor) {
-    const lateAt = getScheduledLateAt(order)
+    const lateAt = getScheduledLateAt(order, policy)
     if (lateAt && new Date(now).getTime() > lateAt.getTime()) return 'late'
     return 'on-time'
   }
-  const elapsedMinutes = getElapsedMinutes(order, now)
-  if (elapsedMinutes > 40) return 'very-late'; if (elapsedMinutes > 30) return 'late'; return 'on-time'
+  const elapsedMinutes = getElapsedMinutes(order, now, policy)
+  if (elapsedMinutes > policy.immediateVeryLateAfterMinutes) return 'very-late'
+  if (elapsedMinutes > policy.immediateLateAfterMinutes) return 'late'
+  return 'on-time'
 }
-export const getOrderUrgency = (order, now = new Date()) => { const timingState = getOrderTimingState(order, now); if (timingState === 'very-late') return 'delayed'; if (timingState === 'late') return 'attention'; return 'normal' }
+export const getOrderUrgency = (order, now = new Date(), currentTiming = LEGACY_TIMING) => { const timingState = getOrderTimingState(order, now, currentTiming); if (timingState === 'very-late') return 'delayed'; if (timingState === 'late') return 'attention'; return 'normal' }
 export const getFinalActionLabel = (order) => (order?.type === 'Entrega' ? 'Saiu para entrega' : 'Finalizar')
 export const isFinishedToday = (order, now = new Date()) => { const finishedAt = parseDate(order?.finishedAt); const reference = new Date(now); if (!finishedAt || Number.isNaN(reference.getTime())) return false; return getBusinessDate(finishedAt) === getBusinessDate(reference) }

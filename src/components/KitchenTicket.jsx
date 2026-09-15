@@ -7,9 +7,9 @@ import { getFinalActionLabel } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const attendanceIcons = { Entrega: 'delivery', Retirada: 'pickup', Local: 'local' }
-function KitchenTicket({ entry, now, disabled = false, highlighted = false, onDetails, onFinalize, onCancel }) {
+function KitchenTicket({ entry, now, currentTiming, disabled = false, highlighted = false, onDetails, onFinalize, onCancel }) {
   const order = entry.order
-  const timing = buildKitchenTimingCopy(entry, now)
+  const timing = buildKitchenTimingCopy(entry, now, currentTiming)
   const scheduled = entry.phase === 'scheduled'
   const status = scheduled ? 'Agendado' : 'Em preparo'
   const statusLabel = entry.isLate ? 'Fora do prazo' : (scheduled ? 'Agendado para preparo' : 'Em preparo')

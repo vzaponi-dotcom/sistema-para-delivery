@@ -6,6 +6,18 @@ const isAwaitingSecondCopy = (job) => job?.status === 'awaiting_second_copy'
 
 const isActiveOrder = (order) => !['Finalizado', 'Cancelado'].includes(order?.status)
 
+export const isSecondCopyPromptEligible = (job, order) => isAwaitingSecondCopy(job)
+  && (job?.type === 'table-tab' || (job?.type === 'order' && Boolean(order) && isActiveOrder(order)))
+
+export const getSecondCopyPromptTitle = (job, order) => {
+  if (job?.type === 'table-tab') {
+    const number = Number(job?.document?.tableTab?.number)
+    return Number.isInteger(number) && number > 0 ? `Comanda #${number}` : 'Comanda'
+  }
+  const number = Number(order?.orderNumber)
+  return Number.isInteger(number) && number > 0 ? `Pedido #${number}` : 'Pedido'
+}
+
 export const acknowledgeAndOpenSecondCopyPrompt = async ({ job, acknowledge, openPrompt, reopenAcknowledged = false }) => {
   const result = await acknowledge(job)
   if (result?.promptPresented || reopenAcknowledged) openPrompt(job.id)

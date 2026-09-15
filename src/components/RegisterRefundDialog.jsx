@@ -3,13 +3,15 @@ import Button from './Button'
 import Modal from './Modal'
 import SystemSelect from './SystemSelect'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
-
-const PAYMENT_OPTIONS = ['Pix', 'Dinheiro', 'Cartão de débito', 'Cartão de crédito', 'Transferência', 'Outro']
-  .map((value) => ({ value, label: value }))
+import {
+  PAYMENT_METHOD_OPTIONS,
+  paymentOptionsWithSelection,
+  paymentSelectionNeedsReview,
+} from '../utils/paymentMethodOptions.js'
 
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function RegisterRefundDialog({ open, order, onClose, onConfirm, submitting = false }) {
+function RegisterRefundDialog({ open, order, onClose, onConfirm, submitting = false, paymentOptions = PAYMENT_METHOD_OPTIONS }) {
   const [refundMethod, setRefundMethod] = useState('')
 
   useEffect(() => {
@@ -18,10 +20,13 @@ function RegisterRefundDialog({ open, order, onClose, onConfirm, submitting = fa
   }, [open, order])
 
   if (!open || !order) return null
+  const originalMethodInactive = paymentSelectionNeedsReview(paymentOptions, refundMethod)
+  const preservingOriginalMethod = refundMethod === (order.paymentMethod || '')
+  const visibleOptions = paymentOptionsWithSelection(paymentOptions, refundMethod)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!refundMethod || submitting) return
+    if (!refundMethod || originalMethodInactive || submitting) return
     await onConfirm?.({ refundMethod })
   }
 
@@ -40,17 +45,20 @@ function RegisterRefundDialog({ open, order, onClose, onConfirm, submitting = fa
           <span>Forma de estorno</span>
           <SystemSelect
             value={refundMethod}
-            options={PAYMENT_OPTIONS}
+            options={visibleOptions}
             onChange={setRefundMethod}
             placeholder="Selecione a forma do estorno"
             label="Forma de estorno"
             disabled={submitting}
           />
+          {originalMethodInactive && <small className="form-error" role="alert">{preservingOriginalMethod
+            ? 'O método original está inativo hoje e foi preservado como referência. Escolha uma forma ativa para registrar o estorno.'
+            : 'A forma escolhida ficou inativa. Escolha outra forma ativa para registrar o estorno.'}</small>}
         </div>
 
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>Voltar</Button>
-          <Button type="submit" disabled={submitting || !refundMethod}>{submitting ? 'Registrando…' : 'Confirmar estorno'}</Button>
+          <Button type="submit" disabled={submitting || !refundMethod || originalMethodInactive}>{submitting ? 'Registrando…' : 'Confirmar estorno'}</Button>
         </div>
       </form>
     </Modal>
