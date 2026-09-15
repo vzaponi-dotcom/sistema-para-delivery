@@ -1,7 +1,7 @@
 .settings-back-link {
   position: fixed;
-  right: 20px;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  left: 20px;
   z-index: var(--layer-floating-action, 30);
   display: inline-flex;
   align-items: center;
@@ -97,8 +97,8 @@
 
 @media (max-width: 720px) {
   .settings-back-link {
-    right: var(--mobile-floating-gap);
-    bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-floating-gap) + var(--mobile-safe-bottom));
+    top: calc(var(--mobile-floating-gap) + env(safe-area-inset-top, 0px));
+    left: var(--mobile-floating-gap);
     width: 44px;
     min-width: 44px;
     padding: 0;
