@@ -175,7 +175,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       title="Impressão de pedidos"
       description="Regras do negócio, estação e impressora local"
     />
-    <PrintingSettingsContent printing={printing} settings={settings} granted={granted} />
+    <PrintingSettingsContent printing={printing} settings={settings} granted={granted} onReviewConflict={onSettingsConflictReview} />
   </div>
   return (
     <div className="settings-page">
