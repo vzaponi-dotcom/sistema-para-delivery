@@ -169,21 +169,23 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
       onNavigateHome={() => onNavigate?.('settings-home')}
     />
   </div>
+  if (printingRoute) return <div className="settings-page printing-settings-page">
+    <PageHeader
+      eyebrow="Configurações"
+      title="Impressão de pedidos"
+      description="Regras do negócio, estação e impressora local"
+    />
+    <PrintingSettingsContent printing={printing} settings={settings} granted={granted} />
+  </div>
   return (
     <div className="settings-page">
       <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
 
       <PageHeader
         eyebrow="Configurações"
-        title={section === 'settings-device' ? 'Preferências deste dispositivo' : 'Impressão'}
-        description={section === 'settings-device'
-          ? 'Ajustes locais deste navegador e dispositivo'
-          : 'Regras do negócio, estação e impressora local'}
+        title="Preferências deste dispositivo"
+        description="Ajustes locais deste navegador e dispositivo"
       />
-
-      {section === 'settings-printing' && (
-        <PrintingSettingsContent printing={printing} settings={settings} granted={granted} />
-      )}
 
       {section === 'settings-device' && (
         <section className="device-preferences" aria-labelledby="device-preferences-title">
