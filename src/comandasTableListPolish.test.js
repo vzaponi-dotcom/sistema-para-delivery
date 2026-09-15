@@ -37,8 +37,8 @@ test('Comandas list uses one centered table icon without repeating the table num
     assert.ok(iconCell.findByType('svg'), 'table icon must be rendered inside the visual slot')
     assert.equal(nodeText(iconCell), '', 'the icon slot must not repeat the table number')
   }
-  assert.match(nodeText(buttons[0]), /Mesa 1.*Comanda 30.*5 itens.*R\$ 93\.50/)
-  assert.match(nodeText(buttons[1]), /Mesa 4.*Toque para lançar pedido.*Livre/)
+  assert.match(nodeText(buttons[0]), /Mesa 1.*Ocupada.*Comanda 30.*5 itens.*R\$ 93\.50/)
+  assert.match(nodeText(buttons[1]), /Mesa 4.*Livre.*Toque para lançar pedido/)
 })
 
 test('Comandas list keeps occupied cards richer and free cards shorter with aligned status and totals', async (t) => {
