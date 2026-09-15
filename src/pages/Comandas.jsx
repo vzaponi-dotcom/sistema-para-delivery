@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import '../comandas.css'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
@@ -123,11 +123,29 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
   const listScrollRef = useRef(0)
   const selectedButtonRef = useRef(null)
   const detailHeadingRef = useRef(null)
+  const pendingDetailFocusRef = useRef(false)
   const backButtonRef = useRef(null)
   const lastFocusedRef = useRef(null)
   const isMobile = useMediaQuery('(max-width: 820px)')
   const previousLayoutRef = useRef({ isMobile, showMobileDetail: false, selectedTableId: null })
   const showMobileDetail = Boolean(selectedTable && mobileDetailOpen)
+
+  const setDetailHeadingRef = useCallback((node) => {
+    detailHeadingRef.current = node
+    if (node && pendingDetailFocusRef.current) {
+      pendingDetailFocusRef.current = false
+      node.focus({ preventScroll: true })
+    }
+  }, [])
+
+  const focusDetailHeading = useCallback(() => {
+    if (detailHeadingRef.current) {
+      pendingDetailFocusRef.current = false
+      detailHeadingRef.current.focus({ preventScroll: true })
+      return
+    }
+    pendingDetailFocusRef.current = true
+  }, [])
 
   useLayoutEffect(() => {
     const previous = previousLayoutRef.current
@@ -136,8 +154,9 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
     if (isMobile && showMobileDetail) {
       const openedDetail = previous.isMobile && (!previous.showMobileDetail || previous.selectedTableId !== selection?.tableId)
       const hidFocusedList = !previous.isMobile && listRef.current?.contains(focused)
-      if (openedDetail || hidFocusedList) detailHeadingRef.current?.focus({ preventScroll: true })
+      if (openedDetail || hidFocusedList) focusDetailHeading()
     } else if (previous.isMobile && previous.showMobileDetail && !showMobileDetail) {
+      pendingDetailFocusRef.current = false
       if (listRef.current) listRef.current.scrollTop = listScrollRef.current
       const selectedButton = selectedButtonRef.current
       const target = selectedButton && !selectedButton.disabled
@@ -145,10 +164,10 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
         : listRef.current?.querySelector('button:not(:disabled)') || listRef.current
       target?.focus({ preventScroll: true })
     } else if (!isMobile && previous.isMobile && focused && focused === backButtonRef.current) {
-      detailHeadingRef.current?.focus({ preventScroll: true })
+      focusDetailHeading()
     }
     previousLayoutRef.current = { isMobile, showMobileDetail, selectedTableId: selection?.tableId ?? null }
-  }, [isMobile, showMobileDetail, selection?.tableId])
+  }, [isMobile, showMobileDetail, selection?.tableId, focusDetailHeading])
 
   const selectTable = (table) => {
     if (table.occupancy === 'free') {
@@ -191,7 +210,7 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
           {selectedTable ? (
             <>
               <Button type="button" variant="secondary" className="comandas-mobile-back" ref={backButtonRef} onClick={() => setMobileDetailOpen(false)}>Voltar para mesas</Button>
-              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} headingRef={detailHeadingRef} currency={currency} disabled={disabled || Boolean(paymentSync)} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransfer} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} onAddOrder={onAddOrder} onPay={onPay} onTransfer={onTransfer} onApiError={onApiError} onToast={onToast} printing={printing} />
+              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} headingRef={setDetailHeadingRef} currency={currency} disabled={disabled || Boolean(paymentSync)} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransfer} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} onAddOrder={onAddOrder} onPay={onPay} onTransfer={onTransfer} onApiError={onApiError} onToast={onToast} printing={printing} />
             </>
           ) : <div className="empty-state"><Icon name="clipboard" size={28} /><strong>Selecione uma mesa ocupada.</strong><span>Confira aqui o resumo da comanda.</span></div>}
         </aside>
