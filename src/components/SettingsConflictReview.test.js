@@ -159,6 +159,66 @@ test('primary station conflict stays human-readable and preserves the selected s
   assert.deepEqual(accepted, [{ primaryStationId: 'station-local' }])
 })
 
+test('printing policy review without collisions explains the automatic merge without raw JSON', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const accepted = []
+  const review = {
+    ...buildSettingsConflict({
+      base: { orderDefaultCopies: 1, tableTabDefaultCopies: 1 },
+      current: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 },
+      draft: { orderDefaultCopies: 2, tableTabDefaultCopies: 1 },
+    }),
+    resource: 'printingPolicy',
+  }
+  const renderer = await h.render(SettingsConflictReview, {
+    review,
+    onAccept: (value) => accepted.push(value),
+    onClose() {},
+  })
+  const content = nodeText(renderer.root)
+
+  assert.match(content, /Alterações compatíveis/)
+  assert.match(content, /podem ser combinadas automaticamente/)
+  assert.match(content, /Nenhuma escolha manual é necessária/)
+  assert.doesNotMatch(content, /Atual no neg[oó]cio|Seu ajuste|Escolha para salvar/)
+  assert.doesNotMatch(content, /orderDefaultCopies|tableTabDefaultCopies|\{"orderDefaultCopies"/)
+  assert.match(renderer.root.findByProps({ className: 'modal-card settings-conflict-modal' }).props.className, /settings-conflict-modal/)
+
+  await act(async () => buttonNamed(renderer.root, 'Aplicar revisão').props.onClick())
+  assert.deepEqual(accepted, [{ orderDefaultCopies: 2, tableTabDefaultCopies: 2 }])
+})
+
+test('station configuration conflicts use business labels instead of internal field names', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const accepted = []
+  const review = {
+    ...buildSettingsConflict({
+      base: { name: 'Cozinha', platform: 'windows', autoPrintEnabled: false },
+      current: { name: 'Balcão', platform: 'windows', autoPrintEnabled: false },
+      draft: { name: 'Expedição', platform: 'windows', autoPrintEnabled: false },
+    }),
+    resource: 'stationConfiguration',
+  }
+  const renderer = await h.render(SettingsConflictReview, {
+    review,
+    onAccept: (value) => accepted.push(value),
+    onClose() {},
+  })
+  const content = nodeText(renderer.root)
+
+  assert.match(content, /Nome da estação/)
+  assert.match(content, /Balcão/)
+  assert.match(content, /Expedição/)
+  assert.doesNotMatch(content, /\{"name"|autoPrintEnabled|stationConfiguration/)
+
+  const local = renderer.root.findByProps({ 'aria-label': 'Usar seu ajuste para Nome da estação' })
+  await act(async () => local.props.onChange())
+  await act(async () => buttonNamed(renderer.root, 'Aplicar revisão').props.onClick())
+  assert.deepEqual(accepted, [{ name: 'Expedição', platform: 'windows', autoPrintEnabled: false }])
+})
+
 test('double click accepts one review decision while the first callback is pending', async (t) => {
   const h = await workspaceHarness(t)
   const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
