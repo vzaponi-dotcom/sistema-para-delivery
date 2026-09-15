@@ -51,6 +51,11 @@ function orderedItems(data) {
     .map((item, sortOrder) => ({ ...item, sortOrder })))
 }
 
+function normalizeEditedItems(items) {
+  return TYPES.flatMap(({ id: type }) => items.filter((item) => item.type === type)
+    .map((item, sortOrder) => ({ ...item, sortOrder })))
+}
+
 const reorderItems = (items, fromIndex, toIndex) => {
   const next = [...items]
   const [moved] = next.splice(fromIndex, 1)
@@ -195,7 +200,7 @@ function FinanceCategorySettings({
 
   const editItems = (nextItems) => {
     if (locked) return false
-    onEdit?.({ items: orderedItems({ items: nextItems }) })
+    onEdit?.({ items: normalizeEditedItems(nextItems) })
     return true
   }
 
