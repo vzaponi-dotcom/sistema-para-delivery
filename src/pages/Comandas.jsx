@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import '../comandas.css'
+import '../comandas-table-list-polish.css'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
@@ -202,13 +203,13 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
                 <span className="comanda-table-icon" aria-hidden="true"><Icon name="table" size={20} /></span>
                 <span className="comanda-table-copy">
                   <strong className="comanda-table-name">{table.name}</strong>
+                  <span className={`comanda-status ${occupied ? 'occupied' : 'free'}`}>{occupied ? 'Ocupada' : 'Livre'}</span>
                   {occupied
                     ? (tab
                         ? <><span className="comanda-table-tab">Comanda {tab.number}</span><span className="comanda-table-items">{itemSummary(tab.itemCount)}</span></>
                         : <span className="comanda-table-tab">Resumo indisponível</span>)
                     : <span className="comanda-table-hint">Toque para lançar pedido</span>}
                 </span>
-                <span className={`comanda-status ${occupied ? 'occupied' : 'free'}`}>{occupied ? 'Ocupada' : 'Livre'}</span>
                 {occupied && tab && <strong className="comanda-table-total">{currency(tab.totalCents / 100)}</strong>}
               </button>
             )
