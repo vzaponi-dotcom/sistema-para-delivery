@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/spec-b-settings-policies
+      - feature/comandas-table-list-polish
   workflow_dispatch:
 
 permissions:
