@@ -35,6 +35,7 @@ const resourceState = (data = cancellationData(), meta = metadata(), extra = {})
 })
 
 const row = (root, id) => root.findByProps({ 'data-cancellation-id': id })
+const settingsSwitch = (root, id) => root.findByProps({ 'data-settings-switch': id })
 
 async function renderEditable(h, CancellationSettings, initial = resourceState()) {
   const edits = []
@@ -87,6 +88,7 @@ test('renders the five native reasons and protects Outro with requires-note meta
     .map((node) => node.props['data-cancellation-id']),
   ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other'])
   assert.match(nodeText(row(screen.root, 'other')), /Nativo.*Ativo.*Exige nota/s)
+  assert.equal(settingsSwitch(row(screen.root, 'other'), 'other').props.disabled, true)
   assert.equal(buttonNamed(row(screen.root, 'other'), 'Renomear'), undefined)
   assert.equal(buttonNamed(row(screen.root, 'other'), 'Excluir'), undefined)
 })
@@ -104,8 +106,9 @@ test('adding creates one stable UUID in the draft and never autosaves', async (t
   assert.equal(created.active, true)
   assert.equal(fixture.saves(), 0)
 
-  await act(async () => buttonNamed(row(fixture.screen.root, created.id), 'Desativar').props.onClick())
+  await act(async () => settingsSwitch(row(fixture.screen.root, created.id), created.id).props.onClick())
   assert.equal(fixture.edits.at(-1).items.find((item) => item.id === created.id).id, created.id)
+  assert.equal(fixture.edits.at(-1).items.find((item) => item.id === created.id).active, false)
   assert.equal(fixture.saves(), 0)
 })
 
@@ -126,7 +129,7 @@ test('unused custom reasons can be renamed or deleted while used reasons can onl
   assert.ok(buttonNamed(row(fixture.screen.root, 'unused-custom'), 'Excluir'))
   assert.equal(buttonNamed(row(fixture.screen.root, 'used-custom'), 'Renomear'), undefined)
   assert.equal(buttonNamed(row(fixture.screen.root, 'used-custom'), 'Excluir'), undefined)
-  assert.ok(buttonNamed(row(fixture.screen.root, 'used-custom'), 'Desativar'))
+  assert.equal(settingsSwitch(row(fixture.screen.root, 'used-custom'), 'used-custom').props.disabled, false)
 
   await act(async () => buttonNamed(row(fixture.screen.root, 'unused-custom'), 'Renomear').props.onClick())
   await act(async () => fixture.screen.root.findByType('input').props.onChange({ target: { value: 'Cliente ausente' } }))
@@ -153,7 +156,7 @@ test('deleting an unused custom reason removes only that draft item after confir
   assert.equal(fixture.saves(), 0)
 })
 
-test('read-only exposes values and no editing controls', async (t) => {
+test('read-only exposes values and disables editing controls', async (t) => {
   const h = await workspaceHarness(t)
   const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
@@ -163,7 +166,9 @@ test('read-only exposes values and no editing controls', async (t) => {
   assert.match(nodeText(screen.root), /Somente leitura/)
   assert.equal(buttonNamed(screen.root, 'Adicionar motivo'), undefined)
   assert.equal(buttonNamed(screen.root, 'Salvar alterações'), undefined)
-  assert.equal(buttonNamed(screen.root, 'Desativar'), undefined)
+  const switches = screen.root.findAll((node) => node.props?.['data-settings-switch'])
+  assert.equal(switches.length, 5)
+  assert.equal(switches.every((node) => node.props.disabled), true)
 })
 
 test('mobile cancellation settings use responsive rows and never a horizontal table', async (t) => {
@@ -180,7 +185,7 @@ test('mobile cancellation settings use responsive rows and never a horizontal ta
 
 test('mobile cancellation metadata stays horizontal and protected reasons use a shield icon', async (t) => {
   const css = await readFile(new URL('../cancellation-settings.css', import.meta.url), 'utf8')
-  assert.match(css, /"order reason reason actions"\s*"\. type status status"/)
+  assert.match(css, /"order reason reason actions"\s*"\. type status actions"/)
 
   const h = await workspaceHarness(t, { mobile: true })
   const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
