@@ -211,6 +211,7 @@ const renderTableTabCopy = (document) => {
     const title = `${Number(item.quantity) || 1}x ${sanitizeText(item.name)}${presentation ? ` ${presentation}` : ''}`
     pushWrapped(parts, title)
     if (item.note) pushWrapped(parts, item.note, { prefix: 'Obs: ' })
+    if (Number.isFinite(Number(item.unitPriceCents))) pushLine(parts, `  Unit. ${formatEscPosMoneyCents(item.unitPriceCents)}`)
     if (Number.isFinite(Number(item.lineTotalCents))) pushLine(parts, `  ${formatEscPosMoneyCents(item.lineTotalCents)}`)
   }
 
