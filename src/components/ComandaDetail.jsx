@@ -41,7 +41,7 @@ function ComandaDetail({ detail, currency, disabled = false, busyAction = false,
         <ul className="comanda-detail-items">
           {detail.items.map((item, index) => (
             <li key={index}>
-              <span className="comanda-detail-quantity" aria-label={`Quantidade ${item.quantity}`}>{item.quantity}x</span>
+              <span className="comanda-detail-quantity" aria-label={`Quantidade ${item.quantity}`}>{item.quantity}x</span>{' '}
               <div className="comanda-detail-item-copy">
                 <strong>{item.name}</strong>
                 {item.presentation && <span className="comanda-detail-presentation">{item.presentation}</span>}
