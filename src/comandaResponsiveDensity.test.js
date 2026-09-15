@@ -28,6 +28,15 @@ test('narrow mobile keeps item subtotal and secondary actions on the compact row
   assert.match(narrow, /\.comanda-detail-secondary-actions\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s)
 })
 
+test('narrow mobile keeps the COMANDA eyebrow on one compact line', () => {
+  const refinement = css.split(marker)[1]
+  const narrowStart = refinement.indexOf('@container (max-width: 400px)')
+  const mediaStart = refinement.indexOf('@media (max-width: 820px)')
+  const narrow = refinement.slice(narrowStart, mediaStart)
+
+  assert.match(narrow, /\.comanda-detail-eyebrow\s*\{[^}]*font-size:\s*\.64rem;[^}]*white-space:\s*nowrap;/s)
+})
+
 test('mobile detail removes the redundant inner horizontal inset', () => {
   const refinement = css.split(marker)[1]
   assert.match(refinement, /@media \(max-width: 820px\)[\s\S]*?\.comandas-detail-panel\s*\{[^}]*padding:\s*0 0 calc\(20px \+ env\(safe-area-inset-bottom, 0px\)\);/)
