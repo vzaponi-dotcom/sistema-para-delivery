@@ -29,8 +29,11 @@ test('icon catalog exposes platform-specific Windows Android and Apple symbols',
 })
 
 test('printing route uses the homologated breadcrumb header without legacy horizontal settings tabs', () => {
-  assert.match(page, /if \(printingRoute\)[\s\S]*title="Impressão de pedidos"/)
-  const printingBlock = page.match(/if \(printingRoute\)[\s\S]*?return \(/)?.[0] || ''
+  const start = page.indexOf('if (printingRoute)')
+  const end = page.indexOf('\n  return (', start)
+  const printingBlock = page.slice(start, end)
+  assert.ok(start >= 0 && end > start)
+  assert.match(printingBlock, /title="Impressão de pedidos"/)
   assert.doesNotMatch(printingBlock, /AreaNavigation/)
 })
 
