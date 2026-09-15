@@ -1,6 +1,7 @@
 import { DragDropProvider, DragOverlay, useDragOperation } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
+import { SettingsBackLink, SettingsSwitch } from '../components/SettingsControls.jsx'
 import { paymentLabel } from '../../shared/businessPolicies.js'
 import { reorderPaymentMethods } from './paymentSettingsModel.js'
 import pixSymbolUrl from '../assets/pix-symbol.svg'
@@ -110,14 +111,23 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
       <span><strong>{paymentLabel(method.code)}</strong><small>{descriptions[method.code]}</small></span>
     </div>
     <div className="payment-meta-cell" role="cell">
-      <span className={method.active ? 'payment-status-badge is-active' : 'payment-status-badge'}><i aria-hidden="true" />{method.active ? 'Ativo' : 'Inativo'}</span>
+      <div className="payment-status-control">
+        <SettingsSwitch
+          id={method.code}
+          checked={method.active}
+          disabled={locked || Boolean(disabledReason)}
+          title={lockedReason || disabledReason || undefined}
+          label={`${method.active ? 'Desativar' : 'Ativar'} ${paymentLabel(method.code)}`}
+          onChange={(active) => onAction(method, active ? 'activate' : 'deactivate')}
+        />
+        <span className={method.active ? 'payment-status-badge is-active' : 'payment-status-badge'}><i aria-hidden="true" />{method.active ? 'Ativo' : 'Inativo'}</span>
+      </div>
       {isDefault ? <span className="payment-default-badge">★ <span>Padrão</span></span> : <span className="payment-default-dash">—</span>}
     </div>
     <div className="payment-actions-cell" role="cell" data-payment-actions={method.code}>
       {!readOnly && <details className="payment-actions-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}>
         <summary aria-label={`Ações de ${paymentLabel(method.code)}`}>···</summary>
         <div>
-          <button type="button" disabled={Boolean(lockedReason || disabledReason)} title={lockedReason || disabledReason} onClick={(event) => runMenuAction(event, method.active ? 'deactivate' : 'activate')}>{method.active ? 'Desativar' : 'Ativar'}</button>
           {method.active && !isDefault && <button type="button" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, 'default')}>Definir como padrão</button>}
           <button type="button" disabled={Boolean(lockedReason) || index === 0} onClick={(event) => runMenuAction(event, 'up')}>Mover para cima</button>
           <button type="button" disabled={Boolean(lockedReason) || index === data.methods.length - 1} onClick={(event) => runMenuAction(event, 'down')}>Mover para baixo</button>
@@ -171,7 +181,7 @@ function PaymentSettings({ resourceState, readOnly = false, onEdit, onSave, onDi
     className="payment-editor"
     title="Formas de pagamento"
     description="Gerencie os métodos de pagamento aceitos no seu delivery"
-    scope={<button type="button" className="payment-breadcrumb" onClick={onNavigateHome}>Configurações</button>}
+    scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
     footerNote="Gestão Delivery · v1.0.0"
     effectiveNotice={<><span className="payment-info-icon" aria-hidden="true">i</span><span>Os métodos nativos não podem ser renomeados.<small className="payment-notice-secondary">As alterações realizadas serão aplicadas após salvar.</small></span></>}
