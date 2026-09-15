@@ -385,8 +385,8 @@ test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', 
   await navigate(h, 'settings-device')
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())
   assert.equal(h.window.localStorage.getItem('delivery-theme'), 'dark')
-  const sound = renderer.root.findAllByType('input').find((node) => node.props.type === 'checkbox')
-  await act(async () => sound.props.onChange({ target: { checked: false } }))
+  const sound = renderer.root.findByProps({ role: 'switch', 'aria-label': 'Som de novos pedidos' })
+  await act(async () => sound.props.onClick())
   assert.equal(h.window.localStorage.getItem('kitchen-sound-enabled'), 'false')
   assert.equal(renderer.root.findAllByProps({ name: 'defaultCopies' }).length, 0)
 })
@@ -442,7 +442,7 @@ test('21. printing.execute protege a entrada manual global de segunda via na UI 
   const h = await workspaceHarness(t, { userAgent: 'Windows test' })
   const job = {
     id: 'second-copy-job', type: 'order', orderId: preparingOrder.id, status: 'awaiting_second_copy',
-    copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic',
+    copiesRequested: 2, copiesPrinted: 1, trigger: 'automatic', priority: 2,
   }
   const calls = { secondCopy: 0 }
   globalThis.__actionCapabilitiesPrinting = {
