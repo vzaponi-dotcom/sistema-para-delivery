@@ -29,7 +29,12 @@ test('device page offers only light dark automatic and sound without any setting
     }))
   const screen = await h.render(DevicePage)
   const group = screen.root.findByProps({ 'aria-label': 'Tema do sistema' })
-  assert.deepEqual(group.findAllByType('button').map((button) => nodeText(button)), ['Claro', 'Escuro', 'Automático'])
+  const themeButtons = group.findAllByType('button')
+  assert.deepEqual(themeButtons.map((button) => nodeText(button)), ['Claro', 'Escuro', 'Automático'])
+  assert.deepEqual(
+    themeButtons.map((button) => button.findAll((node) => node.props?.['data-theme-icon']).map((node) => node.props['data-theme-icon'])),
+    [['sun'], ['moon'], ['system']],
+  )
   await act(async () => buttonNamed(group, 'Escuro').props.onClick())
   assert.equal(h.localStorage.getItem('delivery-theme'), 'dark')
   await act(async () => screen.root.findByProps({ role: 'switch', 'aria-label': 'Som de novos pedidos' }).props.onClick())
