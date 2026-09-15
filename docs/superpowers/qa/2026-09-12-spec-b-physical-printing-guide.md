@@ -1,6 +1,8 @@
 # Guia de homologação física — impressão por contexto da Spec B
 
-Status: **PENDENTE / não executado**. Este guia prepara uma rodada posterior em staging; sua criação não autoriza deploy, migration remota ou impressão real.
+Status: **PENDENTE PARA RELEASE DE PRODUÇÃO**. A infraestrutura QZ/fila possui homologações físicas anteriores no projeto, mas esta matriz específica das políticas de 1/2 vias por contexto da Spec B ainda não possui evidência registrada no mesmo SHA atual.
+
+Este guia pode ser executado em staging depois da preparação do PR. A pendência não autoriza uso de produção e não será considerada PASS por herança de homologações antigas.
 
 ## Pré-condições
 
@@ -41,4 +43,10 @@ Para cada cenário, registrar política antes da criação, contexto real, `job.
 
 ## Critério de encerramento
 
-A rodada física só pode ser marcada como aprovada quando todos os cenários aplicáveis tiverem evidência no mesmo SHA de staging, zero duplicação automática em resultado desconhecido e a quantidade física coincidir com as confirmações correlacionadas. `TEST-INFRA-01` continua sendo bloqueio independente para merge/release mesmo que esta matriz passe.
+A matriz física fica aprovada somente quando todos os cenários aplicáveis tiverem evidência no mesmo SHA de staging, zero duplicação automática em resultado desconhecido e a quantidade física coincidir com as confirmações correlacionadas.
+
+Até lá:
+
+- o PR pode existir e ser revisado;
+- a decisão de merge em `master` permanece separada;
+- o **Deploy production da Spec B não deve ser autorizado** com base apenas em CI ou homologação visual das telas.
