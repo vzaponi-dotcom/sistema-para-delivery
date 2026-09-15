@@ -1,7 +1,8 @@
+import { createPortal } from 'react-dom'
 import '../settings-controls.css'
 
 export function SettingsBackLink({ onClick, className = '' }) {
-  return <button
+  const control = <button
     type="button"
     className={['settings-back-link', className].filter(Boolean).join(' ')}
     onClick={onClick}
@@ -10,6 +11,9 @@ export function SettingsBackLink({ onClick, className = '' }) {
     <span aria-hidden="true">←</span>
     <span>Configurações</span>
   </button>
+
+  if (typeof document === 'undefined') return control
+  return createPortal(control, document.body)
 }
 
 export function SettingsSwitch({

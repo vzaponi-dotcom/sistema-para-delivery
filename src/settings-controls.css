@@ -2,7 +2,7 @@
   position: fixed;
   right: 20px;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  z-index: 30;
+  z-index: var(--layer-floating-action, 30);
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -97,8 +97,8 @@
 
 @media (max-width: 720px) {
   .settings-back-link {
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    right: var(--mobile-floating-gap);
+    bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-floating-gap) + var(--mobile-safe-bottom));
     width: 44px;
     min-width: 44px;
     padding: 0;
