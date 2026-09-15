@@ -28,6 +28,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Focused Comandas polish tests
+        run: node --test src/comandasTableListPolish.test.js
+
+      - name: Comandas regression tests
+        run: node --test src/comandaResponsiveDensity.test.js src/comandasAppWiring.test.js src/comandasTransferNavigation.test.js src/components/ComandaDetail.test.js
+
       - name: Test
         run: npm test
 
