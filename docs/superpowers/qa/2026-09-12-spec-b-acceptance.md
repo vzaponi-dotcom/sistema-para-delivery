@@ -1,50 +1,93 @@
-# Spec B — aceite integrado T22
+# Spec B — aceite integrado e homologação de staging
 
-**Base testada:** `7ddd1b65f3a865ccb765eab693d2a021074c2ab5`  
-**Worktree:** `.worktrees/t22`, detached e limpo na abertura  
-**Escopo:** somente T22; T23 não iniciada
+**Base funcional homologada:** `7c6de7422d4693a9bee34422ff100d155a42af4f`  
+**Branch:** `feature/spec-b-settings-policies`  
+**Staging:** `https://sistema-para-delivery-staging.vzaponi.workers.dev`  
+**Status:** telas e fluxos de Configurações homologados em staging; fechamento documental em andamento; produção não autorizada.
 
-## Evidência automatizada
+> O histórico detalhado das rodadas permanece em `2026-09-12-spec-b-execution-ledger.md`. O fechamento atual está consolidado em `2026-09-15-spec-b-final-closure.md`.
 
-- `node --test src/specBSettingsIntegration.test.js src/settingsResponsive.test.js`: **PASS 6/6**.
-- Regressão proporcional de Settings, navegação/drafts/conflitos, capabilities, impressão/recovery, NewOrder, cozinha/histórico, pagamentos, cancelamentos e financeiro: **212/213**; a única falha é o cenário reset/relogin já catalogado em `TEST-INFRA-02`.
-- `node --test src/actionCapabilities.test.js`: **PASS 22/22**, incluindo `printing.execute` sem `printing.station.configure` e ausência dos controles de configuração.
-- O harness automatiza contratos estruturais de layout fluido/mobile, nomes longos, actions, safe-area e modal. Ele não possui motor de layout: geometria/overflow em 1440, 1024, 768, 390, 360 e 320 px permanece PENDING na homologação real abaixo.
+## Evidência automatizada atual
 
-## Evidência visual/manual
+No SHA funcional homologado `7c6de7422d4693a9bee34422ff100d155a42af4f`:
 
-Foi iniciado servidor Vite local em `http://127.0.0.1:4175/`. A automação de computador retornou `browsers: []` e `apps: []`; a abertura explícita no Edge retornou `Browser is not available: edge`. Nenhuma screenshot foi produzida. Não há PASS manual ou visual presumido.
+- **Validate application #1106** (`34989572799`): **PASS**;
+- `npm test`: **PASS**;
+- `npm run lint`: **PASS**;
+- `npm run build`: **PASS**;
+- Worker de produção em dry-run: **PASS**;
+- Worker de staging em dry-run: **PASS**;
+- migrations D1 locais: **PASS**;
+- **Deploy staging #150** (`34989572808`): **PASS**;
+- migrations do D1 de staging: **PASS**;
+- deploy do Worker de staging: **PASS**;
+- verificação real de login em staging: **PASS**.
 
-| ID | Automatizado | Manual/visual | Evidência e pendência |
+O checkpoint T23A corrigiu as falhas históricas de fixtures/harness que impediam confiar no agregado; a suíte integral naquele checkpoint passou **1514/1514**, sem defeito de produção confirmado.
+
+O fechamento final adiciona também o gate D1 específico da Spec B (`node scripts/infra/spec-b-d1-gate.mjs`) ao workflow de validação. O resultado desse gate deve ficar verde no SHA documental final antes de considerar o PR pronto para revisão final.
+
+## Evidência manual/visual em staging
+
+A homologação manual reportada pelo usuário cobre as telas de Configurações implementadas pela Spec B. As rodadas finais incluíram ajustes observados diretamente em desktop e mobile.
+
+| ID | Automatizado | Manual/visual | Estado atual |
 |---|---|---|---|
-| V01 Home | PASS | PENDING | Cards/capabilities/tema em `SettingsHome.test.js`; conferir desktop/mobile claro/escuro. |
-| V02 Operação | PASS | PENDING | Campos, validação, erro e responsividade em `OperationSettings.test.js`; conferir foco/zoom real. |
-| V03 Modalidades | PASS | PENDING | Mesmo draft e navegação bidirecional automatizados; conferir composição real. |
-| V04 Pagamentos | PASS | PENDING | Lista responsiva, ordem, read-only e ausência de CRUD automatizados. |
-| V05 Cancelamentos | PASS | PENDING | Modal, catálogo, first-use, read-only e mobile automatizados. |
-| V06 Categorias financeiras | PASS | PENDING | Grupos, histórico, first-use, read-only e mobile automatizados. |
-| V07 Impressão | PASS | PENDING | Ownership/capabilities/auto-print/recovery automatizados; QZ e impressão física não executados. |
-| V08 Dispositivo | PASS | PENDING | Claro/Escuro/Automático e persistência local automatizados; conferir temas reais. |
-| V09 Modal | PASS | PENDING | Validação, primeiro erro, Escape e retorno de foco automatizados; conferir viewport/teclado. |
-| V10 Descarte | PASS | PENDING | Guard, decisão única e preservação de draft automatizados. |
-| V11 Conflito | PASS | PENDING | Comparação, decisão explícita e proteção de item automatizadas; conferir layout empilhado. |
-| V12 Envio incerto | PASS | PENDING | Estados saving/unconfirmed e reconciliação sem reenvio automatizados. |
-| V13 Read-only | PASS | PENDING | Dados sem controles de escrita e rotas/capabilities automatizados. |
-| V14 Loading/indisponível | PASS | PENDING | App sem policy falha fechado; estados loading/error/reconsulta automatizados. |
+| V01 Home | PASS | PASS | Navegação e cards de Configurações homologados. |
+| V02 Operação | PASS | PASS | Layout/responsividade, claro/escuro e fluxos de edição já homologados nas rodadas anteriores. |
+| V03 Modalidades | PASS | PASS | Mesmo domínio/draft de Operação, controles e composição homologados. |
+| V04 Pagamentos | PASS | PASS | Desktop/mobile homologados; densidade, alinhamento, padrão, menus, inativos e reorder preservados. |
+| V05 Cancelamentos | PASS | PASS | Tela homologada; correção final do menu de três pontos validada. |
+| V06 Categorias financeiras | PASS | PASS | Tela homologada; correção final do menu de três pontos validada. |
+| V07 Impressão | PASS | PASS UI/fluxo | Tela/política/estação homologadas funcionalmente; matriz física específica da nova política por contexto continua separada abaixo. |
+| V08 Dispositivo | PASS | PASS | Preferências locais e temas homologados. |
+| V09 Modal | PASS | coberto por rodadas | Foco/escape/layout possuem regressões automatizadas e foram exercitados nas correções de telas. |
+| V10 Descarte | PASS | coberto por rodadas | Cancelar/descartar e preservação de draft exercitados nas telas homologadas. |
+| V11 Conflito | PASS | coberto por rodadas | Review de conflito recebeu rodada própria de correção e regressões. |
+| V12 Envio incerto | PASS | automatizado | Reconciliação sem reenvio automático permanece coberta por testes. |
+| V13 Read-only | PASS | automatizado | Capabilities e ausência de ações de escrita permanecem cobertas. |
+| V14 Loading/indisponível | PASS | automatizado | Estados fail-closed/reconsulta permanecem cobertos. |
 
-## Defeitos demonstrados por RED/GREEN
+## Correções finais homologadas
 
-1. A auditoria inicial mostrou que a decisão não podia parar antes de `claimNextPrintJob`: a mesma fronteira executa jobs manuais/priorizados com autoimpressão desligada. O teste integrado agora prova que o polling alcança a claim segura sem iniciar execução quando ela rejeita o job normal; a claim real do Worker prova separadamente que auto off rejeita job normal e aceita manual/priorizado.
-2. App sem configuração efetiva enviava `undefined` ao `NewOrder`, ativando fallback silencioso para Entrega/Retirada/Local. O App agora envia lista explícita vazia e o formulário bloqueia nova venda sem apagar dados; o fallback isolado de `NewOrder` permanece compatível.
-3. Nome de catálogo com 80 caracteres não tinha quebra garantida em largura estreita. Adicionado `overflow-wrap:anywhere` ao nome.
-4. Badge longo não tinha quebra garantida. Adicionado `overflow-wrap:anywhere` ao badge.
+### Formas de pagamento
 
-Fixtures de regressão que pretendiam testar outros contratos passaram a declarar policy/catálogo revision 0 legítimos; nenhuma permissão foi ampliada.
+- menu dos três pontos não é mais recortado pelo contêiner;
+- ações fecham o menu quando aplicadas;
+- itens inativos ficam visualmente atenuados sem desabilitar o menu;
+- coluna Padrão não renderiza `—` nos demais métodos;
+- desktop usa uma única linha de grid para status, padrão e ações;
+- linhas desktop ficaram compactas e verticalmente centralizadas;
+- mobile foi preservado após a compactação aprovada.
 
-## Pendências deliberadas
+### Motivos de cancelamento e categorias financeiras
 
-- Screenshots reais: **PENDING**, navegador indisponível no ambiente.
-- Zoom 200%, teclado virtual e inspeção de overflow por motor real: **PENDING** para T23/usuário.
-- `TEST-INFRA-01`: **OPEN / causa não confirmada**, não investigado.
-- `TEST-INFRA-02`: **OPEN / causa não confirmada**, reproduzido em 1 cenário da seleção proporcional; não investigado.
-- Não executados: `npm test` agregado, deploy, migrations remotas, impressão física, merge, release ou PR para master.
+O menu dos três pontos deixou de ser recortado no desktop, inclusive nas últimas linhas da lista.
+
+### Comandas na mesma branch de homologação
+
+O redesign de Comandas foi homologado em desktop/mobile, incluindo a compactação responsiva e a correção do rótulo `COMANDA` para permanecer em uma linha no celular.
+
+## Pendência física de impressão por contexto
+
+A infraestrutura de impressão QZ/fila possui homologações físicas anteriores no projeto. Entretanto, a Spec B introduz/centraliza defaults de **1/2 vias por contexto** e snapshot em `0025_print_context_copies.sql`.
+
+Não há evidência documental suficiente para afirmar que a matriz completa de `2026-09-12-spec-b-physical-printing-guide.md` foi repetida no mesmo SHA atual. Por isso:
+
+- a preparação e revisão do PR podem prosseguir;
+- merge em `master` continua uma decisão separada;
+- **Deploy production permanece bloqueado** até a matriz física por contexto ser concluída ou formalmente reavaliada com evidência equivalente;
+- nenhum PASS físico será presumido por herança de homologações antigas.
+
+## Critério de encerramento
+
+Para o fechamento documental da branch:
+
+1. QA/runbooks atualizados;
+2. gate D1 específico adicionado ao CI;
+3. todos os gates finais verdes no SHA exato de fechamento;
+4. staging publicado e login verificado nesse SHA;
+5. PR para `master` criado sem merge automático;
+6. produção mantida sem deploy.
+
+A autorização de produção continuará exigindo decisão explícita e a resolução da pendência física acima.
