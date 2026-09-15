@@ -218,13 +218,13 @@ function PrintingSettingsContent({ printing, settings, granted, onReviewConflict
             />
           </label>
           {isQz && <label className="printing-switch-row">
-            <span><strong>Impressão automática</strong><small>Imprime novos pedidos automaticamente ao receber.</small></span>
+            <span><strong>Impressão automática</strong><small>{stationIsPrimary ? 'Imprime novos pedidos automaticamente ao receber.' : 'Disponível somente na estação principal.'}</small></span>
             <input
               type="checkbox"
               role="switch"
               checked={Boolean(stationDraft.autoPrintEnabled)}
               onChange={(event) => updateStation({ autoPrintEnabled: event.target.checked })}
-              disabled={!canConfigureStation || stationBlocked}
+              disabled={!canConfigureStation || stationBlocked || !stationIsPrimary}
             />
           </label>}
         </div>

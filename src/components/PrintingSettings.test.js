@@ -38,6 +38,11 @@ test('making a station primary remains an explicit confirmed action', () => {
   assert.match(settings, /settings\.makePrimary\(\)/)
 })
 
+test('automatic printing stays visible but disabled until this QZ station is primary', () => {
+  assert.match(settings, /stationIsPrimary \? 'Imprime novos pedidos automaticamente ao receber\.' : 'Disponível somente na estação principal\.'/)
+  assert.match(settings, /disabled=\{!canConfigureStation \|\| stationBlocked \|\| !stationIsPrimary\}/)
+})
+
 test('queue-only devices cannot expose physical or automatic printing controls', () => {
   assert.match(settings, /!isQz[\s\S]*Fila central/)
   assert.match(settings, /isQz && <label className="printing-switch-row"/)
