@@ -47,7 +47,9 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   globalThis.fetch = appApi(state)
   const { default: App } = await h.load('/src/App.jsx')
   const renderer = await h.render(App, {}, {
-    createNodeMock: (element) => element.props.className?.includes('app-content') ? { focus: () => h.recordFocus() } : {},
+    createNodeMock: (element) => element.props.role === 'combobox'
+      ? { focus() {} }
+      : element.props.className?.includes('app-content') ? { focus: () => h.recordFocus() } : {},
   })
 
   const baseline = h.activitySnapshot({ ignoreFocus: true })
@@ -70,10 +72,12 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   assert.equal(state.requests.filter((request) => request.method === 'POST').length, 0, 'navigation must not submit a payment or physical print')
 
   await navigate(h, 'settings-printing')
-  const secondCopy = renderer.root.findAllByType('input').find((input) => input.props.name === 'orderDefaultCopies' && input.props.value === 2)
+  const copySelector = renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' })
   state.settingsSave = deferred()
   state.settingsStarted = deferred()
-  await act(async () => { void secondCopy.props.onChange({ target: { value: 2 } }) })
+  await act(async () => copySelector.props.onClick())
+  const secondCopy = renderer.root.findAllByProps({ role: 'option' }).find((option) => option.props.children[0].props.children === '2 vias')
+  await act(async () => { secondCopy.props.onClick() })
   assert.equal(state.settingsWrites, 0, 'editing a policy must not autosave')
   await act(async () => {
     void buttonNamed(renderer.root, 'Salvar política').props.onClick()
@@ -87,7 +91,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   })
   await navigate(h, 'settings-printing')
   assert.equal(state.settingsWrites, 1, 'leaving Settings must not resend its pending save')
-  assert.equal(renderer.root.findAllByType('input').find((input) => input.props.name === 'orderDefaultCopies' && input.props.value === 2).props.checked, true)
+  assert.equal(renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' }).props.children[0].props.children, '2 vias')
 
   await navigate(h, 'orders')
   const search = renderer.root.findByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' })

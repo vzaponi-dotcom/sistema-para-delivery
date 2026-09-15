@@ -48,7 +48,7 @@ test('printing content renders three compact cards following the approved visual
     'Plataforma',
     'Estação principal',
     'Impressão automática',
-    'Impressora local \(QZ Tray\)',
+    'Impressora local \\(QZ Tray\\)',
     'Status da impressora',
     'Impressora configurada',
     'Testar impressão',

@@ -337,8 +337,10 @@ test('16. printing.settings permite vias e bloqueia estação sem station.config
     printerHealth: { state: 'ready' },
   }
   const renderer = await h.render(PrintingSettingsContent, { printing, settings, granted: new Set(['printing.settings']) })
-  assert.equal(renderer.root.findAllByProps({ name: 'orderDefaultCopies' }).length, 2)
-  assert.equal(renderer.root.findAllByProps({ name: 'tableTabDefaultCopies' }).length, 2)
+  const copySelectors = renderer.root.findAllByProps({ role: 'combobox' })
+  assert.equal(copySelectors.length, 2)
+  assert.deepEqual(copySelectors.map((selector) => selector.props['aria-label']), ['Vias de pedidos', 'Vias de mesas e comandas'])
+  assert.ok(copySelectors.every((selector) => selector.props.disabled === false))
   assert.equal(Boolean(buttonNamed(renderer.root, 'Salvar impressora')), false)
   assert.equal(Boolean(buttonNamed(renderer.root, 'Tornar principal')), false)
 })

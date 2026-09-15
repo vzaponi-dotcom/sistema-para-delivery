@@ -119,15 +119,16 @@ test('printing page renders three responsibilities and asks before electing the 
     granted: new Set(['printing.settings', 'printing.station.configure', 'printing.execute']),
   })
   const text = nodeText(screen.root)
-  assert.match(text, /Política do negócio/)
-  assert.match(text, /Pedidos avulsos/)
-  assert.match(text, /Mesas e comandas/)
-  assert.match(text, /Esta estação/)
-  assert.match(text, /Caixa Windows/)
-  assert.match(text, /Impressora local/)
+  assert.match(text, /Política de impressão do negócio/)
+  assert.match(text, /Pedidos/)
+  assert.match(text, /Mesas \/ Comandas/)
+  assert.match(text, /Estação/)
+  assert.equal(screen.root.findByProps({ 'aria-label': 'Nome da estação' }).props.value, 'Caixa Windows')
+  assert.match(text, /Impressora local \(QZ Tray\)/)
   assert.match(text, /Apenas novas solicitações de impressão\. A fila existente mantém suas vias\./)
 
-  await act(async () => buttonNamed(screen.root, 'Tornar principal').props.onClick())
+  const primarySwitch = screen.root.findAllByProps({ role: 'switch' })[0]
+  await act(async () => primarySwitch.props.onChange({ target: { checked: true } }))
   assert.equal(calls.putSettings.length, 0, 'opening confirmation must not elect the station')
   const dialog = screen.root.findByProps({ role: 'dialog' })
   await act(async () => buttonNamed(dialog, 'Tornar principal').props.onClick())
