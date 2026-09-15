@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/spec-b-settings-policies
+      - feature/spec-b-primary-autoprint-ux
   workflow_dispatch:
 
 permissions:
