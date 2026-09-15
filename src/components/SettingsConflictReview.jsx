@@ -91,6 +91,7 @@ function SettingsConflictReview({ review, onAccept, onClose, disabled = false })
 
   if (!review) return null
   const primaryStationReview = review.resource === 'stationPrimary'
+  const anonymousCompatibleReview = !review.resource && review.conflicts.length === 0
   const summary = conflictReviewSummary(review)
   const unresolved = review.conflicts.some((conflict) => conflict.choices.length > 1 && !choices[conflict.id])
   const hasManualChoice = review.conflicts.some((conflict) => conflict.choices.length > 1)
@@ -124,6 +125,7 @@ function SettingsConflictReview({ review, onAccept, onClose, disabled = false })
         <strong>{summary.title}</strong>
         <span>{summary.description}</span>
         {summary.detail && <small>{summary.detail}</small>}
+        {anonymousCompatibleReview && <small>Atual no negócio · Seu ajuste · Escolha para salvar</small>}
       </div>}
       {primaryStationReview ? review.conflicts.map((conflict) => <PrimaryStationConflictItem
         key={conflict.id}
