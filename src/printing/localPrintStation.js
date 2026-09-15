@@ -8,6 +8,15 @@ export const detectPrintStationPlatform = (userAgent = globalThis.navigator?.use
   return 'other'
 }
 
+export const detectPrintStationUiPlatform = (userAgent = globalThis.navigator?.userAgent || '') => {
+  const normalized = String(userAgent).toLowerCase()
+  if (normalized.includes('android')) return 'android'
+  if (normalized.includes('windows')) return 'windows'
+  if (/(iphone|ipad|ipod)/u.test(normalized)) return 'ios'
+  if (normalized.includes('macintosh') && normalized.includes('mobile')) return 'ios'
+  return 'other'
+}
+
 export const getDefaultPrintStationName = (platform) => {
   if (platform === 'windows') return 'Cozinha · Windows'
   if (platform === 'android') return 'Cozinha · Android'
@@ -49,4 +58,3 @@ export const saveQzPrinterName = (storage = globalThis.localStorage, stationId, 
 export const clearQzPrinterName = (storage = globalThis.localStorage, stationId) => {
   storage?.removeItem?.(qzPrinterKey(stationId))
 }
-
