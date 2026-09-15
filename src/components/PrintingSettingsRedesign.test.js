@@ -52,8 +52,8 @@ test('printing content renders three compact cards following the approved visual
     'Trocar impressora',
   ]) assert.match(content, new RegExp(label))
 
-  assert.match(content, /ariaLabel="Vias de pedidos"/)
-  assert.match(content, /ariaLabel="Vias de mesas e comandas"/)
+  assert.match(content, /label="Vias de pedidos"/)
+  assert.match(content, /label="Vias de mesas e comandas"/)
   assert.match(content, /detectPrintStationUiPlatform/)
   assert.match(content, /Icon name=\{platformIcon\}/)
 })
