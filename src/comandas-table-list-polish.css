@@ -1,0 +1,17 @@
+.comanda-table-button {
+  position: relative;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(88px, auto);
+}
+
+.comanda-table-copy > .comanda-status {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+
+@media (max-width: 820px) {
+  .comanda-table-copy > .comanda-status {
+    top: 11px;
+    right: 12px;
+  }
+}
