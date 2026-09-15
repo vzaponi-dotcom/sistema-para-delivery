@@ -81,6 +81,13 @@
   opacity: .58;
 }
 
+.settings-switch-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settings-switch::before,
   .settings-switch > span {
