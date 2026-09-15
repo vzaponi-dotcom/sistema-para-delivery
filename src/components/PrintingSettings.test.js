@@ -8,11 +8,11 @@ const manager = await readFile(new URL('../printing/usePrintingManager.js', impo
 const adapter = await readFile(new URL('../app/usePrintingSettingsController.js', import.meta.url), 'utf8')
 const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
 
-test('printing settings keep the three scoped responsibilities explicit', () => {
-  for (const label of ['Política do negócio', 'Pedidos avulsos', 'Mesas e comandas', 'Esta estação', 'Impressora local / QZ']) {
-    assert.match(settings, new RegExp(label))
+test('printing settings keep the three scoped responsibilities explicit in compact cards', () => {
+  for (const label of ['Política de impressão do negócio', 'Pedidos', 'Mesas / Comandas', 'Estação', 'Impressora local (QZ Tray)']) {
+    assert.match(settings, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   }
-  assert.equal((settings.match(/<section className="printing-settings-section"/g) || []).length, 3)
+  assert.equal((settings.match(/<section className="printing-settings-card/g) || []).length, 3)
   assert.match(settings, /Apenas novas solicitações de impressão\. A fila existente mantém suas vias\./)
 })
 
@@ -20,7 +20,7 @@ test('business policy, station and local printer expose independent save actions
   assert.match(settings, /settings\.savePolicy\(\)/)
   assert.match(settings, /settings\.saveStation\(\)/)
   assert.match(settings, /settings\.savePrinter\(selectedPrinter\)/)
-  assert.doesNotMatch(settings, /Salvar tudo/)
+  assert.doesNotMatch(settings, /Salvar tudo|saveAll/)
 })
 
 test('the printing adapter delegates remote state only to the T14 controller', () => {
@@ -39,10 +39,10 @@ test('making a station primary remains an explicit confirmed action', () => {
 })
 
 test('queue-only devices cannot expose physical or automatic printing controls', () => {
-  assert.match(settings, /!isQz && <p[^>]*>Esta estação acompanha a fila central/)
-  assert.match(settings, /isQz && canConfigureStation && <label className="printing-toggle-row"/)
-  assert.match(settings, /isQz && canConfigureStation && <SystemSelect/)
+  assert.match(settings, /!isQz[\s\S]*Fila central/)
+  assert.match(settings, /isQz && <label className="printing-switch-row"/)
   assert.match(settings, /isQz && \(canConfigureStation \|\| canExecutePrinting\)/)
+  assert.match(settings, /isQz && canConfigureStation && printerEditing[\s\S]*<SystemSelect/)
   assert.match(settings, /canExecutePrinting && <Button[^>]*>[\s\S]*Testar impressão/)
 })
 
@@ -71,9 +71,9 @@ test('manager distinguishes queue-only and QZ connection states honestly', () =>
 
 test('printing settings styling uses semantic tokens and complete interaction states', () => {
   assert.doesNotMatch(css, /var\(--[^,]+,\s*#[0-9a-f]{3,8}\)/i)
-  assert.match(css, /\.printing-info-card[\s\S]*background:\s*var\(--surface\)/)
-  assert.match(css, /\.printing-toggle-row input[\s\S]*accent-color:\s*var\(--primary\)/)
+  assert.match(css, /\.printing-settings-card[\s\S]*background:\s*var\(--surface\)/)
+  assert.match(css, /\.printing-switch-row input:checked[\s\S]*background:\s*var\(--primary\)/)
   assert.match(css, /\.printing-settings[^}]*color:\s*var\(--text\)/)
   assert.match(css, /\.printing-settings[\s\S]*:focus-visible/)
-  assert.match(css, /@media\s*\(max-width:\s*480px\)[\s\S]*\.printing-actions-row[\s\S]*width:\s*100%/)
+  assert.match(css, /@media\s*\(max-width:\s*480px\)[\s\S]*\.printing-settings-footer[\s\S]*width:\s*100%/)
 })
