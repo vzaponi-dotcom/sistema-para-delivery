@@ -35,7 +35,14 @@ const copyOptions = [
 
 const countLabel = (count, singular, plural) => `${count} ${count === 1 ? singular : plural}`
 
-function PrintingSettingsContent({ printing, settings, granted }) {
+function PrintingConflictRecovery({ message = 'Há alterações feitas em outro dispositivo para revisar.', onReview, disabled = false }) {
+  return <div className="printing-feedback printing-feedback-conflict" role="status">
+    <p>{message}</p>
+    <Button type="button" variant="secondary" onClick={onReview} disabled={disabled}>Revisar alterações</Button>
+  </div>
+}
+
+function PrintingSettingsContent({ printing, settings, granted, onReviewConflict }) {
   const policyState = settings?.policyState?.()
   const stationState = settings?.stationState?.()
   const primaryState = settings?.primaryState?.()
@@ -76,6 +83,14 @@ function PrintingSettingsContent({ printing, settings, granted }) {
       busyRef.current.delete(key)
       setBusyKeys(new Set(busyRef.current))
     }
+  }
+
+  const reopenConflict = async (reviewAction) => {
+    if (typeof reviewAction !== 'function') return false
+    const review = await reviewAction()
+    if (!review) return false
+    onReviewConflict?.(review)
+    return true
   }
 
   const updatePolicy = (field, value) => {
@@ -152,7 +167,9 @@ function PrintingSettingsContent({ printing, settings, granted }) {
         </div> : <p role="status">Carregando política de impressão…</p>}
 
         <div className="printing-card-notice"><Icon name="details" size={17} /><span>Apenas novas solicitações de impressão. A fila existente mantém suas vias.</span></div>
-        {policyState?.error && <div className="printing-feedback printing-feedback-error" role="alert"><p>{policyState.error}</p><Button type="button" variant="secondary" onClick={() => policyState.status === 'unconfirmed' ? settings.reconcilePolicy() : settings.reloadPolicy()}>{policyState.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}</Button></div>}
+        {policyState?.status === 'conflict'
+          ? <PrintingConflictRecovery onReview={() => reopenConflict(settings?.reviewPolicy)} />
+          : policyState?.error && <div className="printing-feedback printing-feedback-error" role="alert"><p>{policyState.error}</p><Button type="button" variant="secondary" onClick={() => policyState.status === 'unconfirmed' ? settings.reconcilePolicy() : settings.reloadPolicy()}>{policyState.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}</Button></div>}
         {canEditPolicy && policyState?.dirty && <footer className="printing-settings-footer">
           <Button type="button" variant="secondary" onClick={() => settings?.discardPolicy?.()} disabled={policyBlocked}>Cancelar</Button>
           <Button type="button" onClick={() => run('policy', () => settings.savePolicy(), 'Política de impressão salva.')} disabled={policyBlocked || busyKeys.has('policy')}>Salvar política</Button>
@@ -212,7 +229,13 @@ function PrintingSettingsContent({ printing, settings, granted }) {
           </label>}
         </div>
 
-        {stationState?.error && <div className="printing-feedback printing-feedback-error" role="alert"><p>{stationState.error}</p><Button type="button" variant="secondary" onClick={() => stationState.status === 'unconfirmed' ? settings.reconcileStation() : settings.reloadStation()}>{stationState.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}</Button></div>}
+        {stationState?.status === 'conflict'
+          ? <PrintingConflictRecovery onReview={() => reopenConflict(settings?.reviewStation)} />
+          : stationState?.error && <div className="printing-feedback printing-feedback-error" role="alert"><p>{stationState.error}</p><Button type="button" variant="secondary" onClick={() => stationState.status === 'unconfirmed' ? settings.reconcileStation() : settings.reloadStation()}>{stationState.status === 'unconfirmed' ? 'Reconsultar' : 'Tentar novamente'}</Button></div>}
+        {primaryState?.status === 'conflict' && <PrintingConflictRecovery
+          message="A definição de estação principal foi alterada em outro dispositivo e precisa ser revisada."
+          onReview={() => reopenConflict(settings?.reviewPrimary)}
+        />}
         {canConfigureStation && stationState?.dirty && <footer className="printing-settings-footer">
           <Button type="button" variant="secondary" onClick={() => settings?.discardStation?.()} disabled={stationBlocked}>Cancelar</Button>
           <Button type="button" onClick={() => run('station', () => settings.saveStation(), 'Estação salva.')} disabled={stationBlocked || busyKeys.has('station')}>Salvar estação</Button>
