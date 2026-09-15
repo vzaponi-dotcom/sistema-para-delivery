@@ -6,6 +6,7 @@ import ConfirmationDialog from '../components/ConfirmationDialog.jsx'
 import Icon from '../components/Icon.jsx'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 import SettingsItemDialog from '../components/SettingsItemDialog.jsx'
+import { SettingsBackLink, SettingsSwitch } from '../components/SettingsControls.jsx'
 import '../finance-category-settings.css'
 
 const blockedStatuses = new Set(['loading', 'saving', 'unconfirmed', 'conflict'])
@@ -148,9 +149,19 @@ function FinanceCategorySortableRow({
     </div>
     <div className="finance-category-meta" data-finance-category-meta={item.id}>
       <span className={`finance-category-type-badge ${item.type === 'entrada' ? 'is-income' : 'is-expense'}`} role="cell">{typeLabel(item.type)}</span>
-      <span className={item.active ? 'finance-category-status-badge is-active' : 'finance-category-status-badge'} role="cell">
-        <i aria-hidden="true" />{item.active ? 'Ativa' : 'Inativa'}
-      </span>
+      <div className="settings-switch-status" role="cell">
+        <SettingsSwitch
+          id={item.id}
+          checked={item.active}
+          disabled={locked}
+          title={lockedReason || undefined}
+          label={`${item.active ? 'Desativar' : 'Ativar'} ${item.label}`}
+          onChange={(active) => onAction(item, active ? 'activate' : 'deactivate')}
+        />
+        <span className={item.active ? 'finance-category-status-badge is-active' : 'finance-category-status-badge'}>
+          <i aria-hidden="true" />{item.active ? 'Ativa' : 'Inativa'}
+        </span>
+      </div>
     </div>
     <div className="finance-category-actions-cell" role="cell" data-finance-category-actions={item.id}>
       {!readOnly && <details className="finance-category-actions-menu" onBlur={(event) => {
@@ -158,9 +169,6 @@ function FinanceCategorySortableRow({
       }}>
         <summary aria-label={`Ações de ${item.label}`}>···</summary>
         <div>
-          <button type="button" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, item.active ? 'deactivate' : 'activate')}>
-            {item.active ? 'Desativar' : 'Ativar'}
-          </button>
           {permissions.canRename && <button type="button" disabled={Boolean(lockedReason)} onClick={(event) => runMenuAction(event, 'rename')}>Renomear</button>}
           <button type="button" disabled={Boolean(lockedReason) || index === 0} onClick={(event) => runMenuAction(event, 'up')}>Mover para cima</button>
           <button type="button" disabled={Boolean(lockedReason) || index === itemCount - 1} onClick={(event) => runMenuAction(event, 'down')}>Mover para baixo</button>
@@ -272,7 +280,7 @@ function FinanceCategorySettings({
     className="finance-category-editor"
     title="Categorias financeiras"
     description="Organize as categorias manuais de receitas e despesas"
-    scope={<button type="button" className="finance-category-breadcrumb" onClick={onNavigateHome}>Configurações</button>}
+    scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
     footerNote="Gestão Delivery · v1.0.0"
     headerAction={!readOnly ? <Button type="button" icon="plus" disabled={locked} onClick={() => setDialog({ mode: 'add' })}>Adicionar categoria</Button> : null}
