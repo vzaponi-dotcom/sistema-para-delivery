@@ -28,13 +28,13 @@ test('operation review renders only friendly field differences without raw JSON'
 
   for (const label of [
     'Preparo antecipado do agendado',
-    'Toler\u00e2ncia de atraso do agendado',
+    'Tolerância de atraso do agendado',
     'Pedido imediato fica atrasado',
     'Pedido imediato fica muito atrasado',
     'Modalidades ativas',
-    'Modalidade padr\u00e3o',
+    'Modalidade padrão',
   ]) assert.match(content, new RegExp(label))
-  assert.match(content, /Atual no neg[o\u00f3]cio/)
+  assert.match(content, /Atual no neg[oó]cio/)
   assert.match(content, /Seu ajuste/)
   assert.match(content, /min/)
   assert.match(content, /Retirada, Local/)
@@ -125,6 +125,38 @@ test('a newly protected item explains the change and does not offer the illegal 
   assert.match(nodeText(renderer.root), /estado atual do neg[oó]cio mudou|primeiro uso/i)
   assert.equal(renderer.root.findAll((node) => node.type === 'input' && node.props['aria-label']?.startsWith('Usar seu ajuste')).length, 0)
   assert.equal(buttonNamed(renderer.root, 'Aplicar revisão').props.disabled, false)
+})
+
+test('primary station conflict stays human-readable and preserves the selected station id', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const accepted = []
+  const review = {
+    ...buildSettingsConflict({
+      base: { primaryStationId: 'station-base' },
+      current: { primaryStationId: 'station-remote' },
+      draft: { primaryStationId: 'station-local' },
+    }),
+    resource: 'stationPrimary',
+  }
+  const renderer = await h.render(SettingsConflictReview, {
+    review,
+    onAccept: (value) => accepted.push(value),
+    onClose() {},
+  })
+  const content = nodeText(renderer.root)
+
+  assert.match(content, /Estação principal/)
+  assert.match(content, /Outra estação foi definida como principal enquanto você editava/)
+  assert.match(content, /Manter a estação principal atual/)
+  assert.match(content, /Tornar esta estação a principal/)
+  assert.doesNotMatch(content, /primaryStationId|station-base|station-remote|station-local|\{"primaryStationId"/)
+  assert.match(renderer.root.findByProps({ className: 'modal-card settings-conflict-modal' }).props.className, /settings-conflict-modal/)
+
+  const local = renderer.root.findByProps({ 'aria-label': 'Tornar esta estação a principal' })
+  await act(async () => local.props.onChange())
+  await act(async () => buttonNamed(renderer.root, 'Aplicar revisão').props.onClick())
+  assert.deepEqual(accepted, [{ primaryStationId: 'station-local' }])
 })
 
 test('double click accepts one review decision while the first callback is pending', async (t) => {
