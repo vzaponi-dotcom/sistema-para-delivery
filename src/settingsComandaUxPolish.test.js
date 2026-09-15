@@ -11,23 +11,27 @@ const ruleBody = (css, selector) => {
   return css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`))?.[1] || ''
 }
 
-test('settings back control floats from the top-left and becomes compact on mobile', () => {
-  const backRule = ruleBody(settingsControlsCss, '.settings-back-link')
-  assert.match(backRule, /position:\s*fixed/)
-  assert.match(backRule, /top:/)
-  assert.match(backRule, /left:/)
-  assert.doesNotMatch(backRule, /bottom:/)
-  assert.doesNotMatch(backRule, /right:/)
-  assert.match(backRule, /z-index:/)
-  assert.match(settingsControlsCss, /@media\s*\(max-width:\s*720px\)[\s\S]*\.settings-back-link\s*>\s*span:last-child\s*\{[\s\S]*display:\s*none/)
-  assert.match(settingsControlsCss, /env\(safe-area-inset-top/)
-})
-
-test('settings back control escapes transformed page content and stays above mobile navigation', () => {
-  const backRule = ruleBody(settingsControlsCss, '.settings-back-link')
+test('settings back control stays inline until its original position leaves the viewport', () => {
+  assert.match(settingsControlsSource, /useRef/)
+  assert.match(settingsControlsSource, /useEffect/)
+  assert.match(settingsControlsSource, /IntersectionObserver/)
+  assert.match(settingsControlsSource, /settings-back-link--inline/)
+  assert.match(settingsControlsSource, /settings-back-link--floating/)
   assert.match(settingsControlsSource, /createPortal/)
   assert.match(settingsControlsSource, /document\.body/)
-  assert.match(backRule, /z-index:\s*var\(--layer-floating-action/)
+
+  const inlineRule = ruleBody(settingsControlsCss, '.settings-back-link--inline')
+  const floatingRule = ruleBody(settingsControlsCss, '.settings-back-link--floating')
+  assert.doesNotMatch(inlineRule, /position:\s*fixed/)
+  assert.match(floatingRule, /position:\s*fixed/)
+  assert.match(floatingRule, /top:/)
+  assert.match(floatingRule, /left:/)
+  assert.match(floatingRule, /z-index:\s*var\(--layer-floating-action/)
+})
+
+test('floating settings back control becomes compact on mobile', () => {
+  assert.match(settingsControlsCss, /@media\s*\(max-width:\s*720px\)[\s\S]*\.settings-back-link--floating\s*>\s*span:last-child\s*\{[\s\S]*display:\s*none/)
+  assert.match(settingsControlsCss, /env\(safe-area-inset-top/)
 })
 
 test('comanda hero centers identity and table status metadata inside their columns', () => {
