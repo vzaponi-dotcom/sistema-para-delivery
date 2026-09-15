@@ -44,3 +44,6 @@ jobs:
 
       - name: Apply migrations to local D1
         run: npm run d1:migrate:local
+
+      - name: Validate Spec B D1 clean install and upgrade
+        run: node scripts/infra/spec-b-d1-gate.mjs
