@@ -212,7 +212,7 @@ export function describeSettingsConflict(review, conflict) {
       ? `${context.descriptor.itemSingular} “${itemName}” — ${field.label}`
       : `${context.descriptor.itemSingular} “${itemName}”`
   } else if (context) label = context.descriptor.label
-  else label = field?.label || humanize(conflict?.path)
+  else label = field?.label || (review?.resource ? humanize(conflict?.path) : conflict?.path || 'Configuração')
 
   return {
     label,
