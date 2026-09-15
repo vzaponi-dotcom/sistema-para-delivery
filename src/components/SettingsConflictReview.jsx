@@ -13,7 +13,7 @@ function FriendlyConflictItem({ review, conflict, choice, onChoice }) {
   const needsChoice = conflict.choices.length > 1
 
   return <fieldset
-    className="settings-conflict-item"
+    className="settings-conflict-item operation-conflict-item"
     data-operation-conflict={review.resource === 'operations' ? operationConflictKey(conflict) : undefined}
   >
     <legend>{description.label}</legend>
@@ -47,7 +47,7 @@ function FriendlyConflictItem({ review, conflict, choice, onChoice }) {
 }
 
 function PrimaryStationConflictItem({ conflict, choice, onChoice }) {
-  return <fieldset className="settings-conflict-item" data-primary-station-conflict="true">
+  return <fieldset className="settings-conflict-item operation-conflict-item" data-primary-station-conflict="true">
     <legend>Estação principal</legend>
     <p className="settings-conflict-message">Outra estação foi definida como principal enquanto você editava. Escolha qual deve permanecer como principal.</p>
     <div className="settings-conflict-choices">
@@ -117,10 +117,10 @@ function SettingsConflictReview({ review, onAccept, onClose, disabled = false })
   >
     <div className={`form-stack settings-conflict-review is-friendly${review.resource === 'operations' ? ' is-operations' : ''}${primaryStationReview ? ' is-primary-station' : ''}`}>
       <p>As configurações foram alteradas em outro dispositivo. Suas alterações foram mantidas para revisão.</p>
-      {primaryStationReview && review.conflicts.length ? <div className="settings-conflict-summary" role="status">
+      {primaryStationReview && review.conflicts.length ? <div className="settings-conflict-summary operation-conflict-summary" role="status">
         <strong>Conflito na estação principal</strong>
         <span>Escolha qual definição deve ser mantida antes de salvar novamente.</span>
-      </div> : <div className="settings-conflict-summary" role="status">
+      </div> : <div className="settings-conflict-summary operation-conflict-summary" role="status">
         <strong>{summary.title}</strong>
         <span>{summary.description}</span>
         {summary.detail && <small>{summary.detail}</small>}
