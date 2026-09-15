@@ -37,7 +37,6 @@ function PaymentDragPreview({ method, isDefault }) {
     <span className="payment-drag-overlay-grip" aria-hidden="true">⠿</span>
     <span className="payment-method-icon"><PaymentIcon code={method.code} /></span>
     <span className="payment-drag-overlay-copy"><strong>{paymentLabel(method.code)}</strong><small>{descriptions[method.code]}</small></span>
-    <span className={method.active ? 'payment-status-badge is-active' : 'payment-status-badge'}><i aria-hidden="true" />{method.active ? 'Ativo' : 'Inativo'}</span>
     {isDefault && <span className="payment-default-badge">★ <span>Padrão</span></span>}
   </div>
 }
@@ -111,18 +110,18 @@ function PaymentSortableRow({ method, index, data, activeCount, locked, readOnly
       <span><strong>{paymentLabel(method.code)}</strong><small>{descriptions[method.code]}</small></span>
     </div>
     <div className="payment-meta-cell" role="cell">
-      <div className="payment-status-control">
-        <SettingsSwitch
-          id={method.code}
-          checked={method.active}
-          disabled={locked || Boolean(disabledReason)}
-          title={lockedReason || disabledReason || undefined}
-          label={`${method.active ? 'Desativar' : 'Ativar'} ${paymentLabel(method.code)}`}
-          onChange={(active) => onAction(method, active ? 'activate' : 'deactivate')}
-        />
-        <span className={method.active ? 'payment-status-badge is-active' : 'payment-status-badge'}><i aria-hidden="true" />{method.active ? 'Ativo' : 'Inativo'}</span>
+      <div className="payment-meta-badges">
+        {isDefault ? <span className="payment-default-badge">★ <span>Padrão</span></span> : <span className="payment-default-dash">—</span>}
       </div>
-      {isDefault ? <span className="payment-default-badge">★ <span>Padrão</span></span> : <span className="payment-default-dash">—</span>}
+      <SettingsSwitch
+        className="payment-meta-switch"
+        id={method.code}
+        checked={method.active}
+        disabled={locked || Boolean(disabledReason)}
+        title={lockedReason || disabledReason || undefined}
+        label={`${method.active ? 'Desativar' : 'Ativar'} ${paymentLabel(method.code)}`}
+        onChange={(active) => onAction(method, active ? 'activate' : 'deactivate')}
+      />
     </div>
     <div className="payment-actions-cell" role="cell" data-payment-actions={method.code}>
       {!readOnly && <details className="payment-actions-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}>

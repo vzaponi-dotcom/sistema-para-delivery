@@ -63,8 +63,10 @@ test('cancellation settings follow the approved table contract with sortable row
   const table = screen.root.findByProps({ role: 'table' })
   assert.match(nodeText(table), /ORDEM.*MOTIVO.*TIPO.*STATUS.*AÇÕES/s)
   assert.equal(table.findAll((node) => node.props?.['data-cancellation-drag-handle']).length, 5)
-  assert.match(nodeText(row(screen.root, 'client_changed_mind')), /1.*Cliente desistiu.*Nativo.*Ativo/s)
-  assert.match(nodeText(row(screen.root, 'other')), /5.*Outro.*Nativo.*Ativo.*Protegido/s)
+  assert.match(nodeText(row(screen.root, 'client_changed_mind')), /1.*Cliente desistiu.*Nativo/s)
+  assert.doesNotMatch(nodeText(row(screen.root, 'client_changed_mind')), /Ativo|Inativo/)
+  assert.match(nodeText(row(screen.root, 'other')), /5.*Outro.*Nativo.*Protegido/s)
+  assert.doesNotMatch(nodeText(row(screen.root, 'other')), /Ativo|Inativo/)
 })
 
 test('renaming a custom reason opens the modal with the real reason text', async (t) => {

@@ -39,12 +39,9 @@
 .payment-method-cell strong { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .payment-method-cell small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .payment-meta-cell { display: contents; }
-.payment-meta-cell > :first-child { grid-column: 3; }
-.payment-meta-cell > :last-child { grid-column: 4; justify-self: start; }
-.payment-status-badge, .payment-default-badge { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: max-content; max-width: 100%; padding: 5px 11px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); font-size: 12px; line-height: 1.3; white-space: nowrap; }
-.payment-status-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.payment-status-badge.is-active { background: var(--success-soft); color: var(--success); }
-.payment-default-badge { background: var(--primary-soft); color: var(--primary); }
+.payment-meta-badges { grid-column: 4; justify-self: start; }
+.payment-meta-switch { grid-column: 3; justify-self: start; }
+.payment-default-badge { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: max-content; max-width: 100%; padding: 5px 11px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 12px; line-height: 1.3; white-space: nowrap; }
 .payment-default-dash { color: var(--muted); }
 .payment-actions-cell { grid-column: 5; justify-self: center; }
 .payment-actions-menu { position: relative; }
@@ -75,8 +72,9 @@
   .payment-order-cell { grid-area: order; gap: 7px; align-self: start; }
   .payment-method-cell { grid-area: method; align-self: start; }
   .payment-actions-cell { grid-area: actions; align-self: start; }
-  .payment-meta-cell { display: flex; grid-area: meta; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; padding-left: 39px; }
-  .payment-meta-cell > :first-child, .payment-meta-cell > :last-child { grid-column: auto; justify-self: auto; }
+  .payment-meta-cell { display: flex; grid-area: meta; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; padding-left: 39px; }
+  .payment-meta-badges { min-width: 0; }
+  .payment-meta-switch { margin-left: auto; }
   .payment-insertion-marker { right: 13px; left: 13px; }
   .payment-drag-overlay-card { grid-template-columns: 30px 30px minmax(0, 1fr) auto; width: min(390px, calc(100vw - 32px)); min-height: 104px; padding: 12px 14px; }
   .payment-drag-overlay-card .payment-default-badge { grid-column: 3 / -1; justify-self: start; }

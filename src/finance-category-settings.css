@@ -319,8 +319,7 @@
   justify-self: start;
 }
 
-.finance-category-type-badge,
-.finance-category-status-badge {
+.finance-category-type-badge {
   display: inline-flex;
   width: max-content;
   max-width: 100%;
@@ -342,23 +341,6 @@
 .finance-category-type-badge.is-expense {
   background: var(--danger-soft);
   color: var(--danger);
-}
-
-.finance-category-status-badge {
-  background: var(--surface-strong);
-  color: var(--text-soft);
-}
-
-.finance-category-status-badge i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.finance-category-status-badge.is-active {
-  background: var(--success-soft);
-  color: var(--success);
 }
 
 .finance-category-actions-cell {
@@ -543,9 +525,9 @@
   .finance-category-meta {
     display: flex;
     grid-area: meta;
-    min-width: 0;
-    flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
+    min-width: 0;
     gap: 7px;
     padding-left: 1px;
   }
@@ -554,6 +536,7 @@
     grid-column: auto;
     justify-self: auto;
   }
+  .finance-category-meta-switch { margin-left: auto; }
   .finance-category-actions-cell { grid-area: actions; align-self: start; }
   .finance-category-insertion-marker { right: 10px; left: 10px; }
 
@@ -564,10 +547,6 @@
     padding: 11px 13px;
   }
 
-  .finance-category-drag-overlay-card .finance-category-status-badge {
-    grid-column: 2 / -1;
-    justify-self: start;
-  }
 }
 
 @media (max-width: 640px) {
@@ -609,8 +588,7 @@
   }
 
   .finance-category-name-cell strong { font-size: 13px; }
-  .finance-category-type-badge,
-  .finance-category-status-badge { font-size: 11px; }
+  .finance-category-type-badge { font-size: 11px; }
 
   .finance-category-editor .settings-editor-footer {
     align-items: stretch;

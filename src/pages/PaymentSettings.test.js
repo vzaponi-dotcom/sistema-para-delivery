@@ -67,8 +67,10 @@ test('renders the native payment editor without free-CRUD controls and with spec
   assert.equal(screen.root.findAll((node) => node.props?.className === 'payment-notice-secondary').length, 1)
   assert.equal(screen.root.findByProps({ role: 'table', 'aria-label': 'Formas de pagamento' }).props.role, 'table')
   assert.match(nodeText(screen.root), /ORDEM.*FORMA.*STATUS.*PADRÃO.*AÇÕES/s)
-  assert.match(nodeText(row(screen.root, 'pix')), /Pagamento instantâneo.*Ativo.*Padrão/s)
-  assert.match(nodeText(row(screen.root, 'cash')), /Pagamento na entrega.*Ativo/s)
+  assert.match(nodeText(row(screen.root, 'pix')), /Pagamento instantâneo.*Padrão/s)
+  assert.doesNotMatch(nodeText(row(screen.root, 'pix')), /Ativo|Inativo/)
+  assert.match(nodeText(row(screen.root, 'cash')), /Pagamento na entrega/s)
+  assert.doesNotMatch(nodeText(row(screen.root, 'cash')), /Ativo|Inativo/)
   assert.match(nodeText(row(screen.root, 'debit_card')), /Visa, Mastercard, Elo e outros/s)
   assert.match(nodeText(row(screen.root, 'transfer')), /TED, DOC ou transferência bancária/s)
   assert.equal(screen.root.findAll((node) => node.props?.['data-payment-drag-handle']).length, 6)
@@ -191,10 +193,11 @@ test('mobile payment settings use one flexible metadata region for contained bad
   assert.equal(row(screen.root, 'pix').findAll((node) => node.props?.className === 'payment-meta-cell').length, 1)
 })
 
-test('desktop keeps dedicated status and default columns while mobile folds badges into metadata', async () => {
+test('desktop keeps dedicated metadata columns while mobile anchors badges and switch in one region', async () => {
   const css = await readFile(new URL('../payment-settings.css', import.meta.url), 'utf8')
   assert.match(css, /grid-template-columns:\s*88px minmax\(300px, 1\.6fr\) 130px 116px 54px/)
-  assert.match(css, /payment-meta-cell \{ display: flex; grid-area: meta; flex-wrap: wrap/)
+  assert.match(css, /payment-meta-cell \{ display: flex; grid-area: meta; align-items: center; justify-content: space-between/)
+  assert.match(css, /payment-meta-switch \{ margin-left: auto; \}/)
 })
 
 test('payment save confirms only after success and Cancel discards then returns to settings home', async (t) => {

@@ -67,9 +67,6 @@ function FinanceCategoryDragPreview({ item }) {
     <span className="finance-category-item-icon"><Icon name={categoryIcon(item)} size={18} /></span>
     <strong>{item.label}</strong>
     <span className={`finance-category-type-badge ${item.type === 'entrada' ? 'is-income' : 'is-expense'}`}>{typeLabel(item.type)}</span>
-    <span className={item.active ? 'finance-category-status-badge is-active' : 'finance-category-status-badge'}>
-      <i aria-hidden="true" />{item.active ? 'Ativa' : 'Inativa'}
-    </span>
   </div>
 }
 
@@ -149,19 +146,15 @@ function FinanceCategorySortableRow({
     </div>
     <div className="finance-category-meta" data-finance-category-meta={item.id}>
       <span className={`finance-category-type-badge ${item.type === 'entrada' ? 'is-income' : 'is-expense'}`} role="cell">{typeLabel(item.type)}</span>
-      <div className="settings-switch-status" role="cell">
-        <SettingsSwitch
-          id={item.id}
-          checked={item.active}
-          disabled={locked}
-          title={lockedReason || undefined}
-          label={`${item.active ? 'Desativar' : 'Ativar'} ${item.label}`}
-          onChange={(active) => onAction(item, active ? 'activate' : 'deactivate')}
-        />
-        <span className={item.active ? 'finance-category-status-badge is-active' : 'finance-category-status-badge'}>
-          <i aria-hidden="true" />{item.active ? 'Ativa' : 'Inativa'}
-        </span>
-      </div>
+      <SettingsSwitch
+        className="finance-category-meta-switch"
+        id={item.id}
+        checked={item.active}
+        disabled={locked}
+        title={lockedReason || undefined}
+        label={`${item.active ? 'Desativar' : 'Ativar'} ${item.label}`}
+        onChange={(active) => onAction(item, active ? 'activate' : 'deactivate')}
+      />
     </div>
     <div className="finance-category-actions-cell" role="cell" data-finance-category-actions={item.id}>
       {!readOnly && <details className="finance-category-actions-menu" onBlur={(event) => {

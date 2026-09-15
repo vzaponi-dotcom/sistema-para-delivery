@@ -87,7 +87,8 @@ test('renders the five native reasons and protects Outro with requires-note meta
   assert.deepEqual(screen.root.findAll((node) => node.props?.['data-cancellation-id'])
     .map((node) => node.props['data-cancellation-id']),
   ['client_changed_mind', 'duplicate_order', 'product_unavailable', 'entry_error', 'other'])
-  assert.match(nodeText(row(screen.root, 'other')), /Nativo.*Ativo.*Exige nota/s)
+  assert.match(nodeText(row(screen.root, 'other')), /Nativo.*Exige nota/s)
+  assert.doesNotMatch(nodeText(row(screen.root, 'other')), /Ativo|Inativo/)
   assert.equal(settingsSwitch(row(screen.root, 'other'), 'other').props.disabled, true)
   assert.equal(buttonNamed(row(screen.root, 'other'), 'Renomear'), undefined)
   assert.equal(buttonNamed(row(screen.root, 'other'), 'Excluir'), undefined)
@@ -185,7 +186,8 @@ test('mobile cancellation settings use responsive rows and never a horizontal ta
 
 test('mobile cancellation metadata stays horizontal and protected reasons use a shield icon', async (t) => {
   const css = await readFile(new URL('../cancellation-settings.css', import.meta.url), 'utf8')
-  assert.match(css, /"order reason reason actions"\s*"\. type status status"/)
+  assert.match(css, /"order reason reason actions"\s*"\. meta meta meta"/)
+  assert.match(css, /\.cancellation-meta-cell \{ grid-area: meta; display: grid;/)
 
   const h = await workspaceHarness(t, { mobile: true })
   const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')

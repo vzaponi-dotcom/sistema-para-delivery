@@ -30,9 +30,6 @@ function CancellationDragPreview({ item, permissions }) {
     <span className="cancellation-drag-overlay-grip" aria-hidden="true">⠿</span>
     <strong>{item.label}</strong>
     <span className="cancellation-type-badge">{permissions?.isSystem ? 'Nativo' : 'Personalizado'}</span>
-    <span className={item.active ? 'cancellation-status-badge is-active' : 'cancellation-status-badge'}>
-      <i aria-hidden="true" />{item.active ? 'Ativo' : 'Inativo'}
-    </span>
   </div>
 }
 
@@ -110,23 +107,22 @@ function CancellationSortableRow({
       <strong>{item.label}</strong>
       {permissions.requiresNote && <span className="cancellation-note-icon" title="Exige descrição no cancelamento" aria-label="Exige descrição no cancelamento">i</span>}
     </div>
-    <div className="cancellation-type-cell" role="cell">
-      <span className="cancellation-type-badge">{permissions.isSystem ? 'Nativo' : 'Personalizado'}</span>
-    </div>
-    <div className="cancellation-status-cell" role="cell">
-      <SettingsSwitch
-        id={item.id}
-        checked={item.active}
-        disabled={locked || Boolean(protectedReason)}
-        title={lockedReason || protectedReason || undefined}
-        label={`${item.active ? 'Desativar' : 'Ativar'} ${item.label}`}
-        onChange={(active) => onAction(item, active ? 'activate' : 'deactivate')}
-      />
-      <span className={item.active ? 'cancellation-status-badge is-active' : 'cancellation-status-badge'}>
-        <i aria-hidden="true" />{item.active ? 'Ativo' : 'Inativo'}
-      </span>
-      {isOther && <span className="cancellation-protected-badge"><Icon name="shield" size={13} /> Protegido</span>}
-      {permissions.requiresNote && <span className="cancellation-visually-hidden">Exige nota</span>}
+    <div className="cancellation-meta-cell" role="cell">
+      <div className="cancellation-meta-badges">
+        <span className="cancellation-type-badge">{permissions.isSystem ? 'Nativo' : 'Personalizado'}</span>
+        {isOther && <span className="cancellation-protected-badge"><Icon name="shield" size={13} /> Protegido</span>}
+      </div>
+      <div className="cancellation-status-group">
+        <SettingsSwitch
+          id={item.id}
+          checked={item.active}
+          disabled={locked || Boolean(protectedReason)}
+          title={lockedReason || protectedReason || undefined}
+          label={`${item.active ? 'Desativar' : 'Ativar'} ${item.label}`}
+          onChange={(active) => onAction(item, active ? 'activate' : 'deactivate')}
+        />
+        {permissions.requiresNote && <span className="cancellation-visually-hidden">Exige nota</span>}
+      </div>
     </div>
     <div className="cancellation-actions-cell" role="cell" data-cancellation-actions={item.id}>
       {!readOnly && <details className="cancellation-actions-menu" onBlur={(event) => {
