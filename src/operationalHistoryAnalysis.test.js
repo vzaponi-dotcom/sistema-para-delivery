@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { createQueryContext, patchQueryContext } from './app/queryContext.js'
+import { createQueryContext, patchQueryContext } from './app/navigation/queryContext.js'
 import { calculateOperationalMetrics } from './utils/dashboardAnalytics.js'
 import { nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 

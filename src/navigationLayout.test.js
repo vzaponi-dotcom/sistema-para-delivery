@@ -96,7 +96,7 @@ test('mobile tem quatro itens, ou três sem Financeiro, e usa fallback de área'
 
 test('destino financeiro explícito negado não faz fallback', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   const feedback = []
   const Probe = React.forwardRef(function Probe(_props, ref) {
@@ -230,7 +230,7 @@ test('Mais contém somente destinos aprovados e fecha antes de confirmar descart
 
 test('controlador fecha Mais antes da confirmação, cancela preservando e confirma uma vez', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   let dirty = true
   let discards = 0
@@ -268,7 +268,7 @@ test('controlador fecha Mais antes da confirmação, cancela preservando e confi
 
 test('destino revogado antes da confirmação não descarta o rascunho', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   let discards = 0
   const Probe = React.forwardRef(function Probe({ caps }, ref) {

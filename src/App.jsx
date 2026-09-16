@@ -38,10 +38,11 @@ import Settings from './pages/Settings'
 import Tables from './pages/Tables'
 import Comandas from './pages/Comandas'
 import { hasCapability, legacyCapabilities } from './app/access.js'
-import { resolveDestination } from './app/navigation.js'
+import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
-import { hasSettingsUnloadRisk, useNavigationController } from './app/useNavigationController.js'
-import { useQueryContext } from './app/useQueryContext.js'
+import { getSettingsDraftForDestination, hasSettingsUnloadRisk } from './app/navigation/settingsDraftGuard.js'
+import { useNavigationController } from './app/navigation/useNavigationController.js'
+import { useQueryContext } from './app/navigation/useQueryContext.js'
 import { usePrintingSettingsController } from './app/usePrintingSettingsController.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
 import { useBusinessSettingsController } from './app/useBusinessSettingsController.js'
@@ -92,19 +93,6 @@ import {
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
-const SETTINGS_DRAFT_ROUTES = Object.freeze({
-  'settings-operations': Object.freeze({ resource: 'operations', destinations: new Set(['settings-operations', 'settings-modalities']) }),
-  'settings-modalities': Object.freeze({ resource: 'operations', destinations: new Set(['settings-operations', 'settings-modalities']) }),
-  'settings-payments': Object.freeze({ resource: 'paymentMethods', destinations: new Set(['settings-payments']) }),
-  'settings-cancellations': Object.freeze({ resource: 'cancellationReasons', destinations: new Set(['settings-cancellations']) }),
-  'settings-finance-categories': Object.freeze({ resource: 'financeCategories', destinations: new Set(['settings-finance-categories']) }),
-  'settings-printing': Object.freeze({ resource: 'printingPolicy', destinations: new Set(['settings-printing']) }),
-})
-const settingsDraftAt = (resources, destination) => {
-  const route = SETTINGS_DRAFT_ROUTES[destination]
-  const state = route ? resources?.[route.resource] : null
-  return state ? { ...route, resourceKey: route.resource, dirty: state.dirty, status: state.status } : null
-}
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 // Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
@@ -248,7 +236,7 @@ function App({ capabilities } = {}) {
     checkoutPending: requestKey === 'order:create',
     dirtyOrder: newOrderDirty,
     onDiscardOrder: invalidateNewOrderDraft,
-    getSettingsDraft: (destination) => settingsDraftAt(businessSettingsRef.current?.resources, destination),
+    getSettingsDraft: (destination) => getSettingsDraftForDestination(businessSettingsRef.current?.resources, destination),
     onDiscardSettings: (_resourceKey, draft) => businessSettingsRef.current?.discard(draft.resource, draft.scopeId),
     onFeedback: setToastMessage,
   })
@@ -1106,6 +1094,8 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
 
+  const activeMobileEntry = activeTab === 'new-order' ? newOrderContext.returnTab : undefined
+
   return (
     <AppRoot
       isOnline={isOnline}
@@ -1119,7 +1109,7 @@ function App({ capabilities } = {}) {
       toastMessage={toastMessage}
       successMessage={successMessage}
     >
-      <NavigationProvider activeTab={activeTab} activeMobileEntry={activeTab === 'new-order' ? newOrderContext.returnTab : undefined} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
+      <NavigationProvider activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
       <AppShell onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
         {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}

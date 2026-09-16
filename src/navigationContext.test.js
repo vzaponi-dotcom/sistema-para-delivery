@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { buttonNamed, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const implemented = new Set([
   'orders',
@@ -192,6 +192,11 @@ test('App preserva consulta ao navegar e nova sessão rejeita callback da sessã
   const staleChange = kitchenSearch().props.onChange
   await act(async () => staleChange({ target: { value: 'maria' } }))
   await act(async () => buttonNamed(navigation(), 'Clientes').props.onClick())
+  await act(async () => buttonNamed(navigation(), 'Pedidos').props.onClick())
+  assert.equal(kitchenSearch().props.value, 'maria')
+
+  await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'clients' })))
+  assert.equal(nodeText(renderer.root).includes('Clientes'), true)
   await act(async () => buttonNamed(navigation(), 'Pedidos').props.onClick())
   assert.equal(kitchenSearch().props.value, 'maria')
 

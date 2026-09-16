@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../test-support/renderWorkspace.js'
 import { settingsGrants } from '../test-support/settingsFixtures.js'
-import { resolveDestination } from '../app/navigation.js'
+import { resolveDestination } from '../app/navigation/resolution.js'
 
 const allImplemented = new Set([
   'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments',

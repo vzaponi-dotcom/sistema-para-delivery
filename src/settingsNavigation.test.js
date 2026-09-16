@@ -62,7 +62,7 @@ test('printing route loads policy station configuration and primary through busi
 
 test('physical test or pending job does not block navigation', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   const Probe = React.forwardRef(function Probe(_props, ref) {
     const navigation = useNavigationController({

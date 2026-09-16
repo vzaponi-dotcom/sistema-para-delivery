@@ -11,7 +11,7 @@ const dirtyDraft = { resourceKey: 'operations', dirty: true, status: 'ready', de
 
 async function mountNavigation(t, initial = {}) {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   const discarded = []
   const feedback = []
@@ -122,7 +122,7 @@ test('saving or unconfirmed settings commitments can navigate without discard or
 
 test('beforeunload risk exists only for dirty drafts or relevant pending commitments', async (t) => {
   const h = await workspaceHarness(t)
-  const { hasSettingsUnloadRisk } = await h.load('/src/app/useNavigationController.js')
+  const { hasSettingsUnloadRisk } = await h.load('/src/app/navigation/settingsDraftGuard.js')
   assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'ready' } }), false)
   assert.equal(hasSettingsUnloadRisk({ operations: { dirty: true, status: 'ready' } }), true)
   assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'saving' } }), true)
