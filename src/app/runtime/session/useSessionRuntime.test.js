@@ -87,18 +87,18 @@ test('authenticated initial session establishes context and generation before bo
   assert.equal(refreshBootstrapCalls, 1)
 })
 
-test('successful login clears stale runtime state before bootstrap', async (t) => {
+test('successful login clears stale sync state without broad application cleanup before bootstrap', async (t) => {
   const calls = []
   const harness = await mountHarness(t, {
     api: anonymousApi(),
     resetOperationalData: () => { calls.push('reset-operational') },
-    onClearApplicationState: () => { calls.push('clear-application') },
+    onClearApplicationState: (scope) => { calls.push(`clear-application:${scope ?? 'full'}`) },
     refreshBootstrap: async () => { calls.push('refresh-bootstrap') },
   })
 
   await act(async () => { await harness.getCurrent().handleLogin('1234') })
 
-  assert.deepEqual(calls, ['reset-operational', 'clear-application', 'refresh-bootstrap'])
+  assert.deepEqual(calls, ['reset-operational', 'clear-application:sync', 'refresh-bootstrap'])
   assert.equal(harness.getCurrent().authState, 'authenticated')
   assert.equal(harness.getCurrent().sessionGeneration, 1)
 })
