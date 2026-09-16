@@ -20,15 +20,18 @@ test('App owns cancellation API and History consumes the central order collectio
   assert.doesNotMatch(shell, /<OrderHistory\s*\/>/)
 })
 
-test('central cancellation applies all authoritative effects immediately before success feedback', async () => {
-  const app = await read('./App.jsx')
+test('central cancellation applies authoritative effects through the operational runtime before success feedback', async () => {
+  const [app, runtime] = await Promise.all([
+    read('./App.jsx'),
+    read('./app/runtime/data/useOperationalDataRuntime.js'),
+  ])
 
   assert.match(app, /const handleCancelOrder = async \(orderId, payload\)/)
   assert.match(app, /const \{ order, movement, tableTab \} = await cancelOrderApi/)
   assert.match(app, /applyOfficialEffects\(\{ order, movement, tableTab \}\)/)
-  assert.match(app, /const applyOfficialEffects = \(\{[^}]*tableTab/)
-  assert.match(app, /if \(order\) setOrders\(\(current\) => upsertById\(current, order\)\)/)
-  assert.match(app, /if \(movement\) setMovements\(\(current\) => upsertById\(current, movement\)\)/)
-  assert.match(app, /if \(tableTab\) setTableTabs\(\(current\) => upsertById\(current, tableTab\)\)/)
+  assert.match(runtime, /const applyOfficialEffects = useCallback/)
+  assert.match(runtime, /if \(order\) setOrders\(\(current\) => upsertById\(current, order\)\)/)
+  assert.match(runtime, /if \(movement\) setMovements\(\(current\) => upsertById\(current, movement\)\)/)
+  assert.match(runtime, /if \(tableTab\) setTableTabs\(\(current\) => upsertById\(current, tableTab\)\)/)
   assert.match(app, /showSuccessMessage\(payload\.refundNow \? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'\)/)
 })
