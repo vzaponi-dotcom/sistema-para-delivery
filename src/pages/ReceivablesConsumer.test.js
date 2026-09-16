@@ -28,11 +28,14 @@ const order = (id, client, overrides = {}) => ({
 test('A Receber renders only ordinary pending and paid orders from a mixed dataset', async () => {
   const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
   const { default: Receivables } = await vite.ssrLoadModule('/src/pages/Receivables.jsx')
+  const { NavigationProvider } = await vite.ssrLoadModule('/src/app/navigation/NavigationContext.jsx')
   const hadWindow = Object.hasOwn(globalThis, 'window')
   const originalWindow = globalThis.window
   globalThis.window = {
     setInterval: () => 1,
     clearInterval: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
     matchMedia: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }),
   }
   const orders = [
@@ -59,11 +62,15 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
 
   try {
     await act(async () => {
-      renderer = create(React.createElement(ControlledReceivables, {
+      renderer = create(React.createElement(NavigationProvider, {
+        activeTab: 'receivables', granted: new Set(['finance.receivables']), implemented: new Set(['receivables']), moreOpen: false,
+        requestNavigation() {}, openMore() {}, closeMore() {},
+        children: React.createElement(ControlledReceivables, {
         orders,
         currency: (value) => `R$ ${value.toFixed(2)}`,
         onRegisterPayment: (orderId) => paymentRequests.push(orderId),
         onUpdatePaymentPromise: async () => true,
+        }),
       }))
     })
 
@@ -99,6 +106,7 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
 test('A Receber preserva a seleção mobile sem reabrir o detalhe ao retornar', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
   const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const api = React.createRef()
 
   const Workspace = React.forwardRef(function Workspace(_props, ref) {
@@ -113,11 +121,15 @@ test('A Receber preserva a seleção mobile sem reabrir o detalhe ao retornar', 
     })
     React.useImperativeHandle(ref, () => ({ activePage, queryState, setActivePage }), [activePage, queryState])
     if (activePage !== 'receivables') return React.createElement('div', null, 'Outra página')
-    return React.createElement(Receivables, {
-      orders: [order('mobile-pending', 'Cliente mobile')],
-      currency: (value) => `R$ ${value.toFixed(2)}`,
-      queryState,
-      onQueryChange: (patch) => setQueryState((current) => ({ ...current, ...patch })),
+    return React.createElement(NavigationProvider, {
+      activeTab: activePage, granted: new Set(['finance.receivables']), implemented: new Set(['receivables']), moreOpen: false,
+      requestNavigation() {}, openMore() {}, closeMore() {},
+      children: React.createElement(Receivables, {
+        orders: [order('mobile-pending', 'Cliente mobile')],
+        currency: (value) => `R$ ${value.toFixed(2)}`,
+        queryState,
+        onQueryChange: (patch) => setQueryState((current) => ({ ...current, ...patch })),
+      }),
     })
   })
 

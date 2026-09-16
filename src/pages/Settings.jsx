@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import PrintingSettingsContent from '../components/PrintingSettingsContent'
-import AreaNavigation from '../components/AreaNavigation'
+import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import Icon from '../components/Icon.jsx'
 import { SettingsBackLink, SettingsSwitch } from '../components/SettingsControls.jsx'
 import SettingsHome from './SettingsHome'
@@ -377,7 +377,7 @@ function Settings({ section, settings, printing, granted, implemented, onNavigat
   )
   return (
     <div className="settings-page">
-      <AreaNavigation area="settings" activeTab={section} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <AreaNavigation area="settings" />
     </div>
   )
 }

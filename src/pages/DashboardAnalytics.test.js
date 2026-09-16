@@ -7,7 +7,7 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 
 test('dashboard keeps the approved financial summary and 30-day commercial period', () => {
   const page = source('./Dashboard.jsx')
-  const query = source('../app/queryContext.js')
+  const query = source('../app/navigation/queryContext.js')
   assert.match(query, /dashboard: \{ period: '30d', valuesVisible: true \}/)
   for (const label of ['Vendas hoje', 'Recebido hoje', 'A receber', 'Vendas no período', 'Pedidos no período', 'Ticket médio']) assert.match(page, new RegExp(label))
   assert.match(page, /DashboardPeriodSelector/)

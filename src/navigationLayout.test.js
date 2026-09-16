@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
-import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const implemented = new Set([
   'orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard',
@@ -44,8 +44,8 @@ const assertSingleSubnavigationPrecedesHeader = (renderer, label) => {
 
 test('sidebar exibe somente grupos e destinos aprovados, omitindo grupos vazios', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Sidebar } = await h.load('/src/components/Sidebar.jsx')
-  const renderer = await h.render(Sidebar, { activeTab: 'history', granted, implemented, onNavigate() {} })
+  const { default: Sidebar } = await h.load('/src/app/shell/Sidebar.jsx')
+  const renderer = await renderWithNavigation(h, Sidebar, { activeTab: 'history', granted, implemented, onNavigate() {} })
   const nav = renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   const text = nodeText(nav)
   for (const group of ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS', 'CONFIGURAÇÕES']) assert.match(text, new RegExp(group))
@@ -55,7 +55,7 @@ test('sidebar exibe somente grupos e destinos aprovados, omitindo grupos vazios'
   ])
   assert.equal(buttonNamed(nav, 'Pedidos').props['aria-current'], 'page')
 
-  const reduced = await h.render(Sidebar, {
+  const reduced = await renderWithNavigation(h, Sidebar, {
     activeTab: 'clients', granted: new Set(['clients.view']), implemented, onNavigate() {},
   })
   const reducedText = nodeText(reduced.root.findByProps({ 'aria-label': 'Menu principal' }))
@@ -65,9 +65,10 @@ test('sidebar exibe somente grupos e destinos aprovados, omitindo grupos vazios'
 
 test('mobile tem quatro itens, ou três sem Financeiro, e usa fallback de área', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: MobileNavigation } = await h.load('/src/components/MobileNavigation.jsx')
+  const { default: MobileNavigation } = await h.load('/src/app/shell/MobileNavigation.jsx')
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const calls = []
-  const renderer = await h.render(MobileNavigation, {
+  const renderer = await renderWithNavigation(h, MobileNavigation, {
     activeTab: 'receivables', granted, implemented, moreOpen: false,
     onOpenMore() {}, onCloseMore() {}, onNavigate: (id) => calls.push(id),
   })
@@ -77,15 +78,17 @@ test('mobile tem quatro itens, ou três sem Financeiro, e usa fallback de área'
   await act(async () => buttonNamed(renderer.root, 'Financeiro').props.onClick())
   assert.deepEqual(calls, ['dashboard'])
 
-  await act(async () => renderer.update(React.createElement(MobileNavigation, {
+  await act(async () => renderer.update(React.createElement(NavigationProvider, {
     activeTab: 'orders', granted: new Set(['orders.view', 'comandas.view']), implemented,
-    moreOpen: false, onOpenMore() {}, onCloseMore() {}, onNavigate: (id) => calls.push(id),
+    moreOpen: false, requestNavigation: (id) => calls.push(id), openMore() {}, closeMore() {},
+    children: React.createElement(MobileNavigation),
   })))
   assert.deepEqual(navButtons(renderer.root, 'Navegação principal').map(nodeText), ['Pedidos', 'Comandas', 'Mais'])
 
-  await act(async () => renderer.update(React.createElement(MobileNavigation, {
+  await act(async () => renderer.update(React.createElement(NavigationProvider, {
     activeTab: 'orders', granted: new Set(['orders.view', 'comandas.view', 'finance.receivables']), implemented,
-    moreOpen: false, onOpenMore() {}, onCloseMore() {}, onNavigate: (id) => calls.push(id),
+    moreOpen: false, requestNavigation: (id) => calls.push(id), openMore() {}, closeMore() {},
+    children: React.createElement(MobileNavigation),
   })))
   await act(async () => buttonNamed(renderer.root, 'Financeiro').props.onClick())
   assert.equal(calls.at(-1), 'receivables')
@@ -93,7 +96,7 @@ test('mobile tem quatro itens, ou três sem Financeiro, e usa fallback de área'
 
 test('destino financeiro explícito negado não faz fallback', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   const feedback = []
   const Probe = React.forwardRef(function Probe(_props, ref) {
@@ -112,9 +115,9 @@ test('destino financeiro explícito negado não faz fallback', async (t) => {
 
 test('AreaNavigation filtra capacidades e usa semântica de navegação por botões', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: AreaNavigation } = await h.load('/src/components/AreaNavigation.jsx')
+  const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
   const calls = []
-  const renderer = await h.render(AreaNavigation, {
+  const renderer = await renderWithNavigation(h, AreaNavigation, {
     area: 'orders', activeTab: 'orders',
     granted: new Set(['orders.view']), implemented, onNavigate: (id) => calls.push(id),
   })
@@ -132,9 +135,9 @@ test('AreaNavigation filtra capacidades e usa semântica de navegação por bot�
 
 test('AreaNavigation usa a barra leve comum em Pedidos, Financeiro e Configurações', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: AreaNavigation } = await h.load('/src/components/AreaNavigation.jsx')
+  const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
   const calls = []
-  const orders = await h.render(AreaNavigation, {
+  const orders = await renderWithNavigation(h, AreaNavigation, {
     area: 'orders', activeTab: 'history', granted, implemented, onNavigate: (id) => calls.push(id),
   })
   const ordersNav = orders.root.findByProps({ 'aria-label': 'Navegação de Pedidos' })
@@ -148,7 +151,7 @@ test('AreaNavigation usa a barra leve comum em Pedidos, Financeiro e Configuraç
     ['finance', 'finance', 'Movimentações', 'Navegação de Financeiro'],
     ['settings', 'settings-device', 'Preferências deste dispositivo', 'Navegação de Configurações'],
   ]) {
-    const renderer = await h.render(AreaNavigation, { area, activeTab, granted, implemented, onNavigate() {} })
+    const renderer = await renderWithNavigation(h, AreaNavigation, { area, activeTab, granted, implemented, onNavigate() {} })
     const nav = renderer.root.findByProps({ 'aria-label': ariaLabel })
     assert.equal(nav.props.className, 'area-navigation')
     assert.equal(buttonNamed(nav, label).props['aria-current'], 'page')
@@ -165,16 +168,16 @@ test('uma única subnavegação precede o PageHeader nas áreas que mantêm subt
   const queryState = { search: '', activeView: 'pending', timingFilter: 'all', sortMode: 'urgency', exactDateFilter: null, selectedEntryKey: null }
   const DashboardWithPeriod = (props) => React.createElement(DashboardPeriodContext.Provider, { value: { period: '30d', setPeriod() {} } }, React.createElement(Dashboard, props))
 
-  assertSingleSubnavigationPrecedesHeader(await h.render(Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos')
-  assertSingleSubnavigationPrecedesHeader(await h.render(OrderHistory, { orders: [], queryState: { filter: 'all', analysisPeriod: '30d' }, onQueryChange() {}, ...navigationProps }), 'Navegação de Pedidos')
-  assertSingleSubnavigationPrecedesHeader(await h.render(DashboardWithPeriod, { totals: { salesToday: 0, receivedToday: 0, receivables: 0 }, orders: [], currency, queryState: { valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
-  assertSingleSubnavigationPrecedesHeader(await h.render(Receivables, { orders: [], currency, queryState, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
-  assertSingleSubnavigationPrecedesHeader(await h.render(Finance, { totals: { entries: 0, exits: 0, balance: 0 }, movements: [], currency, onAddMovement() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, OrderHistory, { orders: [], queryState: { filter: 'all', analysisPeriod: '30d' }, onQueryChange() {}, ...navigationProps }), 'Navegação de Pedidos')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, DashboardWithPeriod, { totals: { salesToday: 0, receivedToday: 0, receivables: 0 }, orders: [], currency, queryState: { valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Receivables, { orders: [], currency, queryState, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Finance, { totals: { entries: 0, exits: 0, balance: 0 }, movements: [], currency, onAddMovement() {}, ...navigationProps }), 'Navegação de Financeiro')
 })
 
 test('AreaNavigation preserva labels, callbacks e aria-current de todos os destinos', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: AreaNavigation } = await h.load('/src/components/AreaNavigation.jsx')
+  const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
   for (const [area, ariaLabel, destinations] of [
     ['orders', 'Navegação de Pedidos', [['orders', 'Cozinha'], ['history', 'Histórico']]],
     ['finance', 'Navegação de Financeiro', [['dashboard', 'Visão geral'], ['receivables', 'A receber'], ['finance', 'Movimentações']]],
@@ -182,7 +185,7 @@ test('AreaNavigation preserva labels, callbacks e aria-current de todos os desti
   ]) {
     for (const [activeTab, activeLabel] of destinations) {
       const calls = []
-      const renderer = await h.render(AreaNavigation, { area, activeTab, granted, implemented, onNavigate: (id) => calls.push(id) })
+      const renderer = await renderWithNavigation(h, AreaNavigation, { area, activeTab, granted, implemented, onNavigate: (id) => calls.push(id) })
       const nav = renderer.root.findByProps({ 'aria-label': ariaLabel })
       assert.deepEqual(nav.findAllByType('button').map(nodeText), destinations.map(([, label]) => label))
       assert.equal(buttonNamed(nav, activeLabel).props['aria-current'], 'page')
@@ -209,10 +212,10 @@ test('Cadastros permanece sem AreaNavigation', async (t) => {
 
 test('Mais contém somente destinos aprovados e fecha antes de confirmar descarte', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: MobileNavigation } = await h.load('/src/components/MobileNavigation.jsx')
+  const { default: MobileNavigation } = await h.load('/src/app/shell/MobileNavigation.jsx')
   let open = true
   const events = []
-  const renderer = await h.render(MobileNavigation, {
+  const renderer = await renderWithNavigation(h, MobileNavigation, {
     activeTab: 'new-order', granted, implemented, moreOpen: open,
     onOpenMore() { open = true }, onCloseMore() { events.push('close'); open = false },
     onNavigate(id) { events.push(`navigate:${id}`) }, onLogout() {},
@@ -227,7 +230,7 @@ test('Mais contém somente destinos aprovados e fecha antes de confirmar descart
 
 test('controlador fecha Mais antes da confirmação, cancela preservando e confirma uma vez', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   let dirty = true
   let discards = 0
@@ -265,7 +268,7 @@ test('controlador fecha Mais antes da confirmação, cancela preservando e confi
 
 test('destino revogado antes da confirmação não descarta o rascunho', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const api = React.createRef()
   let discards = 0
   const Probe = React.forwardRef(function Probe({ caps }, ref) {

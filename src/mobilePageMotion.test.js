@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 const read = (path) => readFileSync(resolve(path), 'utf8')
 
 test('mobile app shell marks page direction for animated section changes', () => {
-  const shell = read('src/components/AppShell.jsx')
+  const shell = read('src/app/shell/AppShell.jsx')
   assert.match(shell, /page-transition/)
   assert.match(shell, /data-direction/)
   assert.match(shell, /previousTab/)

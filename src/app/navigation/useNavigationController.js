@@ -1,40 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import {
-  NAVIGATION_DESTINATIONS,
   decideNavigation,
   resolveArea,
   resolveDestination,
-} from './navigation.js'
-
-const HOME_AREAS = ['orders', 'finance', 'settings']
-
-function resolveHome(granted, implemented) {
-  for (const area of HOME_AREAS) {
-    const destination = resolveArea(area, granted, implemented)
-    if (destination) return destination
-  }
-
-  for (const { id } of NAVIGATION_DESTINATIONS) {
-    if (id === 'new-order') continue
-    if (resolveDestination(id, granted, implemented).status === 'allowed') return id
-  }
-
-  return null
-}
-
-export function hasSettingsUnloadRisk(resources) {
-  return Object.values(resources || {}).some((resource) => (
-    resource?.dirty === true || ['saving', 'unconfirmed'].includes(resource?.status)
-  ))
-}
-
-const shouldConfirmSettingsExit = (draft, active, destination) => Boolean(
-  draft?.dirty
-  && !['saving', 'unconfirmed'].includes(draft.status)
-  && draft.destinations instanceof Set
-  && draft.destinations.has(active)
-  && !draft.destinations.has(destination),
-)
+  resolveHome,
+} from './resolution.js'
+import { shouldConfirmSettingsExit } from './settingsDraftGuard.js'
 
 export function useNavigationController({
   granted,
@@ -145,6 +116,7 @@ export function useNavigationController({
     pendingNavigationRef.current = null
     setPendingNavigation(null)
   }, [])
+
   const discardSettingsAndNavigate = useCallback((target) => {
     if (pendingNavigationRef.current) return false
     const resolution = resolveTarget(target)
@@ -158,6 +130,7 @@ export function useNavigationController({
     setActiveTab(resolution.id)
     return true
   }, [getSettingsDraft, onDiscardSettings, reject, resolveTarget, resolvedActiveTab])
+
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
   const resetNavigation = useCallback(() => {

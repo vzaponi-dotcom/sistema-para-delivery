@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 import { buildSettingsConflict } from './app/settingsConflict.js'
 
 const activeReasons = [
@@ -106,7 +106,7 @@ test('historical inactive reason remains readable from the order snapshot label'
     cancelReasonNote: '', cancelledAt: '2026-09-13T12:00:00.000Z', createdAt: '2026-09-13T11:00:00.000Z',
     type: 'Entrega', orderDate: '2026-09-13', total: 25, items: [], paymentStatus: 'Pendente',
   }
-  const screen = await h.render(OrderHistory, {
+  const screen = await renderWithNavigation(h, OrderHistory, {
     orders: [historical], queryState: { filter: 'all', analysisPeriod: 'today' }, onQueryChange() {},
     granted: new Set(), implemented: new Set(['history']), onNavigate() {}, canCancelOrders: false,
   })

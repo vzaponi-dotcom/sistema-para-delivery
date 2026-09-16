@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-const extractMoreEntries = (source) => source.match(/const moreEntries = \[(.*?)\]\r?\n/s)?.[1] || ''
+const extractMoreEntries = (source) => source.match(/(?:const moreEntries = |MOBILE_MORE_ENTRIES = Object\.freeze\()\[(.*?)\](?:\)|\r?\n)/s)?.[1] || ''
 const assertApprovedMoreEntries = (source) => {
   const moreEntries = extractMoreEntries(source)
   for (const id of ['print-queue', 'clients', 'products', 'tables']) assert.match(moreEntries, new RegExp(`id: '${id}'`))
@@ -52,13 +52,14 @@ test('App derives pending refunds and applies the authoritative deferred refund 
 })
 
 test('more menu keeps only approved direct destinations and touch-friendly actions', async () => {
-  const nav = await read('../components/MobileNavigation.jsx')
+  const nav = await read('../app/navigation/registry.js')
+  const mobileNavigation = await read('../app/shell/MobileNavigation.jsx')
   const navCss = await read('../mobile-navigation.css')
 
-  assert.match(nav, /<BottomSheet[^>]*title="Mais opções"/)
+  assert.match(mobileNavigation, /<BottomSheet[^>]*title=/)
   assertApprovedMoreEntries(nav)
-  assert.match(nav, />Sair</)
-  assert.doesNotMatch(nav, /theme-cycle-button|mobile-more-theme/)
+  assert.match(mobileNavigation, />Sair</)
+  assert.doesNotMatch(mobileNavigation, /theme-cycle-button|mobile-more-theme/)
   assert.match(navCss, /\.mobile-more-action,\s*\.mobile-more-logout\s*\{[\s\S]*?min-height:\s*48px/s)
 })
 

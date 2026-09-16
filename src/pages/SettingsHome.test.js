@@ -4,9 +4,9 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../test-support/renderWorkspace.js'
 import { settingsGrants } from '../test-support/settingsFixtures.js'
-import { resolveDestination } from '../app/navigation.js'
+import { resolveDestination } from '../app/navigation/resolution.js'
 
 const allImplemented = new Set([
   'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments',
@@ -49,9 +49,9 @@ test('offers only device preferences to a local-preferences-only user', async (t
 
 test('sidebar keeps the single settings area active while the Home is open', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Sidebar } = await h.load('/src/components/Sidebar.jsx')
+  const { default: Sidebar } = await h.load('/src/app/shell/Sidebar.jsx')
   const calls = []
-  const screen = await h.render(Sidebar, {
+  const screen = await renderWithNavigation(h, Sidebar, {
     activeTab: 'settings-home',
     granted: new Set(['preferences.local']),
     implemented: new Set(['settings-home', 'settings-device']),

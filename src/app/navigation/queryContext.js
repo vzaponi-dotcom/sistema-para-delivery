@@ -1,4 +1,4 @@
-import { DEFAULT_PRINT_QUEUE_QUERY } from '../pages/printQueueQuery.js'
+import { DEFAULT_PRINT_QUEUE_QUERY } from '../../pages/printQueueQuery.js'
 
 const QUERY_FIELDS = Object.freeze({
   orders: Object.freeze(['search']),

@@ -5,7 +5,7 @@ import DashboardLineChart from '../components/DashboardLineChart'
 import DashboardPaymentMix from '../components/DashboardPaymentMix'
 import DashboardPeriodSelector from '../components/DashboardPeriodSelector'
 import PageHeader from '../components/PageHeader'
-import AreaNavigation from '../components/AreaNavigation'
+import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import StatCard from '../components/StatCard'
 import Icon from '../components/Icon'
 import { useDashboardPeriod } from '../components/dashboardPeriodContext.js'
@@ -32,7 +32,7 @@ const compactMoneyFormatter = new Intl.NumberFormat('pt-BR', {
 })
 
 const formatCompactAxisValue = (value) => compactMoneyFormatter.format(Number(value) || 0)
-function Dashboard({ totals, orders, currency, queryState, onQueryChange, granted, implemented, onNavigate, activeTab }) {
+function Dashboard({ totals, orders, currency, queryState, onQueryChange }) {
   const { period, setPeriod } = useDashboardPeriod()
   const valuesVisible = queryState.valuesVisible
   const todayValue = toLocalDateValue()
@@ -53,7 +53,7 @@ function Dashboard({ totals, orders, currency, queryState, onQueryChange, grante
 
   return (
     <>
-      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <AreaNavigation area="finance" />
       <PageHeader
         eyebrow="Resumo do dia"
         title="Visão geral financeira"

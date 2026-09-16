@@ -6,7 +6,7 @@ import CancelOrderDialog from '../components/CancelOrderDialog'
 import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
 import OperationalHistoryAnalysis from '../components/OperationalHistoryAnalysis'
-import AreaNavigation from '../components/AreaNavigation'
+import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import PageHeader from '../components/PageHeader'
 import PaymentBadge from '../components/PaymentBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -19,7 +19,7 @@ import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, implemented, onNavigate, activeTab, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
+function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
   const filter = queryState.filter
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -44,7 +44,7 @@ function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, 
 
   return (
     <>
-      <AreaNavigation area="orders" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <AreaNavigation area="orders" />
       <PageHeader eyebrow="Pedidos" title="Histórico" description="Consulte pedidos finalizados e cancelados sem apagar o registro original da operação." />
       {canViewAnalysis && (
         <OperationalHistoryAnalysis

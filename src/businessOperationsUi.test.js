@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 import { getNextKitchenTransitionAt } from './utils/kitchenClock.js'
 
 const modalities = (...values) => values.map((value) => ({ value, label: value === 'Local' ? 'Consumo no local' : value }))
@@ -114,7 +114,7 @@ test('kitchen uses current timing while terminal analytics keep the T10 snapshot
     id: 'scheduled-1', orderNumber: 1, client: 'Ana', type: 'Entrega', status: 'Em preparo', paymentStatus: 'Pendente',
     createdAt: '2026-09-13T11:00:00.000Z', scheduledFor: '2026-09-13T13:00:00.000Z', items: [],
   }
-  const orders = await h.render(Orders, {
+  const orders = await renderWithNavigation(h, Orders, {
     orders: [scheduled], officialOrders: [scheduled], now: new Date('2026-09-13T12:20:00.000Z'), search: '', onSearchChange() {},
     currency: String, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigate() {}, onNavigatePrintQueue() {},
     granted: new Set(['orders.view']), implemented: new Set(['orders']), printing: {}, currentTiming,

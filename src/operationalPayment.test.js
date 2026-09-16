@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
-import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 import { legacyCapabilities } from './app/access.js'
 
 const flush = () => new Promise((resolve) => setImmediate(resolve))
@@ -296,7 +296,7 @@ for (const [name, blockedOrder] of [
 ]) test(`${name} não expõe pagamento avulso no detalhe operacional`, async (t) => {
   const h = await workspaceHarness(t)
   const { default: Orders } = await h.load('/src/pages/Orders.jsx')
-  const renderer = await h.render(Orders, {
+  const renderer = await renderWithNavigation(h, Orders, {
     orders: [blockedOrder],
     now: new Date('2026-09-11T12:10:00.000Z'),
     search: '',

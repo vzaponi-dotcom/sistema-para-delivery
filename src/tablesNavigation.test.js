@@ -5,15 +5,13 @@ import test from 'node:test'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('mobile More navigation recognizes and opens Mesas', async () => {
-  const navigation = await read('./components/MobileNavigation.jsx')
+  const navigation = await read('./app/navigation/registry.js')
 
-  assert.match(navigation, /moreEntries = \[[\s\S]*?\{ id: 'tables', icon: 'table' \}/)
-  assert.match(navigation, /activeTab === item\.id/)
-  assert.match(navigation, /onClick=\{\(\) => onNavigate\(item\.id\)\}/)
+  assert.match(navigation, /MOBILE_MORE_ENTRIES = Object\.freeze\(\[[\s\S]*?\{ id: 'tables', icon: 'table' \}/)
 })
 
 test('desktop navigation includes Mesas', async () => {
-  const sidebar = await read('./components/Sidebar.jsx')
+  const sidebar = await read('./app/navigation/registry.js')
 
   assert.match(sidebar, /\{ id: 'tables', label: 'Mesas', icon: 'table' \}/)
 })

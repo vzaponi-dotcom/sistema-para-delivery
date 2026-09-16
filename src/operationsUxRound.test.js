@@ -33,7 +33,7 @@ test('active kitchen ticket actions use two readable columns and full touch targ
 })
 
 test('theme is absent from Sidebar and remains available in Settings device preferences', async () => {
-  const sidebar = await read('./components/Sidebar.jsx')
+  const sidebar = await read('./app/shell/Sidebar.jsx')
   const settings = await read('./pages/Settings.jsx')
   assert.doesNotMatch(sidebar, /theme-segmented-control|themePreference|setThemePreference/)
   assert.match(settings, /Preferências deste dispositivo/)
@@ -44,8 +44,8 @@ test('theme is absent from Sidebar and remains available in Settings device pref
 
 test('mobile navigation owns logout, omits theme controls and avoids horizontal menu scrolling', async () => {
   const themeCss = await read('./theme-controls.css')
-  const sidebar = await read('./components/Sidebar.jsx')
-  const mobileNavigation = await read('./components/MobileNavigation.jsx')
+  const sidebar = await read('./app/shell/Sidebar.jsx')
+  const mobileNavigation = await read('./app/shell/MobileNavigation.jsx')
   const mobileCss = await read('./mobile-navigation.css')
 
   assert.doesNotMatch(sidebar, /sidebar-mobile-logout/)

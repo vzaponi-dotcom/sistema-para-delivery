@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { act } from 'react-test-renderer'
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../test-support/renderWorkspace.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -10,7 +10,7 @@ test('mobile kitchen header separates the primary action without changing copy o
   const h = await workspaceHarness(t)
   const { default: Orders } = await h.load('/src/pages/Orders.jsx')
   const calls = []
-  const renderer = await h.render(Orders, {
+  const renderer = await renderWithNavigation(h, Orders, {
     orders: [],
     now: new Date('2026-09-12T15:00:00.000Z'),
     search: '',

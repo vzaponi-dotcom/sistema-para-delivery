@@ -9,12 +9,13 @@ const granted = new Set(['orders.view', 'orders.history', 'comandas.view', 'prin
 
 test('Produtos opens from Mais, closes the sheet and keeps Mais current', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: MobileNavigation } = await harness.load('/src/components/MobileNavigation.jsx')
+  const { default: MobileNavigation } = await harness.load('/src/app/shell/MobileNavigation.jsx')
+  const { NavigationProvider } = await harness.load('/src/app/navigation/NavigationContext.jsx')
   function Navigation() {
     const [activeTab, onNavigate] = React.useState('dashboard')
     const [moreOpen, setMoreOpen] = React.useState(false)
     const navigate = (id) => { onNavigate(id); setMoreOpen(false) }
-    return React.createElement(MobileNavigation, { activeTab, granted, implemented, moreOpen, onOpenMore: () => setMoreOpen(true), onCloseMore: () => setMoreOpen(false), onNavigate: navigate })
+    return React.createElement(NavigationProvider, { activeTab, granted, implemented, moreOpen, requestNavigation: navigate, openMore: () => setMoreOpen(true), closeMore: () => setMoreOpen(false), children: React.createElement(MobileNavigation, null) })
   }
   const renderer = await harness.render(Navigation)
   assert.ok(!buttonNamed(renderer.root.findByType('nav'), 'Produtos'), 'Produtos belongs in Mais')
@@ -29,11 +30,12 @@ test('Produtos opens from Mais, closes the sheet and keeps Mais current', async 
 
 test('Mais exposes Configurações and Sair, has no theme selector, and closes without navigation', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: MobileNavigation } = await harness.load('/src/components/MobileNavigation.jsx')
+  const { default: MobileNavigation } = await harness.load('/src/app/shell/MobileNavigation.jsx')
+  const { NavigationProvider } = await harness.load('/src/app/navigation/NavigationContext.jsx')
   let logouts = 0
   function Navigation() {
     const [moreOpen, setMoreOpen] = React.useState(false)
-    return React.createElement(MobileNavigation, { activeTab: 'comandas', granted, implemented, moreOpen, onOpenMore: () => setMoreOpen(true), onCloseMore: () => setMoreOpen(false), onNavigate: () => assert.fail('unexpected navigation'), onLogout: () => logouts++ })
+    return React.createElement(NavigationProvider, { activeTab: 'comandas', granted, implemented, moreOpen, requestNavigation: () => assert.fail('unexpected navigation'), openMore: () => setMoreOpen(true), closeMore: () => setMoreOpen(false), children: React.createElement(MobileNavigation, { onLogout: () => logouts++ }) })
   }
   const renderer = await harness.render(Navigation)
   await act(async () => buttonNamed(renderer.root, 'Mais').props.onClick())

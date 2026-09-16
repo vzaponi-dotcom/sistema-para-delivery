@@ -2,14 +2,14 @@ import { useState } from 'react'
 import Button from '../components/Button'
 import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
-import AreaNavigation from '../components/AreaNavigation'
+import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import RegisterRefundDialog from '../components/RegisterRefundDialog'
 import StatCard from '../components/StatCard'
 import { formatCancellationDate } from '../utils/orderWorkflow.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
-function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, granted, implemented, onNavigate, activeTab, canManageMovements = true, canRefundPayments = true }) {
+function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, canManageMovements = true, canRefundPayments = true }) {
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const [movementPendingDelete, setMovementPendingDelete] = useState(null)
@@ -28,7 +28,7 @@ function Finance({ totals, movements, currency, onAddMovement, onEditMovement, o
 
   return (
     <>
-      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <AreaNavigation area="finance" />
       <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={canManageMovements ? <Button icon="plus" onClick={() => { if (canManageMovements) onAddMovement?.() }} disabled={writeDisabled}>Novo movimento</Button> : null} />
       <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">
         <StatCard label="Entradas" value={currency(totals.entries)} helper="Receita registrada" icon="arrow-up" tone="success" />

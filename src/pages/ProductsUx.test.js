@@ -43,7 +43,7 @@ test('bulk selection actions stay accessible while scrolling on desktop', async 
 
 test('mobile bulk actions render through a body portal instead of inside the transformed page transition', async () => {
   const products = await read('./Products.jsx')
-  const shell = await read('../components/AppShell.jsx')
+  const shell = await read('../app/shell/AppShell.jsx')
   const css = await read('../product-selection.css')
 
   assert.match(shell, /className="app-content page-transition"/)
