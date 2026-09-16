@@ -1,52 +1,8 @@
-const buildRequestOptions = (options = {}) => ({
-  ...options,
-  credentials: 'same-origin',
-  headers: { 'content-type': 'application/json', ...(options.headers || {}) },
-})
+import { apiRequest, apiTextRequest, withJson } from '../infrastructure/api/httpClient.js'
+import { getSession, login, logout } from '../infrastructure/auth/sessionApi.js'
 
-const requestError = (response, payload) => {
-  const error = new Error(payload?.error?.message || 'Não foi possível concluir a operação.')
-  error.status = response.status
-  error.code = payload?.error?.code || 'REQUEST_FAILED'
-  return error
-}
+export { apiRequest, withJson, getSession, login, logout }
 
-export const apiRequest = async (path, options = {}) => {
-  const response = await fetch(path, buildRequestOptions(options))
-  const payload = await response.json().catch(() => null)
-  if (!response.ok) throw requestError(response, payload)
-  return payload
-}
-
-const apiTextRequest = async (path, options = {}) => {
-  const response = await fetch(path, buildRequestOptions(options))
-  const text = await response.text()
-  if (!response.ok) {
-    let payload = null
-    try {
-      payload = JSON.parse(text)
-    } catch {
-      // Plain-text failures fall back to the standard request error below.
-    }
-    throw requestError(response, payload)
-  }
-  return text
-}
-
-export const withJson = (method, payload) => ({ method, body: JSON.stringify(payload) })
-
-export const getSession = () => apiRequest('/api/auth/session')
-export const login = async (pin) => {
-  await apiRequest('/api/auth/login', withJson('POST', { pin }))
-  const session = await getSession()
-  if (!session?.authenticated || typeof session.businessId !== 'string' || !session.businessId
-    || typeof session.settingsContextId !== 'string' || !session.settingsContextId
-    || !Array.isArray(session.capabilities)) {
-    throw Object.assign(new Error('Não foi possível confirmar o contexto da sessão.'), { code: 'SESSION_CONTEXT_UNAVAILABLE' })
-  }
-  return session
-}
-export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' })
 export const getBootstrap = (knownEffectiveConfigVersion) => {
   const params = new URLSearchParams()
   if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
