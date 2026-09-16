@@ -12,6 +12,17 @@
 
 **Rollout:** `docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md`
 
+## Execution status — 2026-09-16
+
+- Tasks 1–5 have been implemented on `feature/spec-c1-runtime`; Task 6 is the next active task.
+- Task 5 RED contract: commit `ef3bd4921368c0dce0f648d1fe19d45fc5354809`, Validate #1163 / run `35050387434`.
+- Task 5 isolated runtime GREEN: Validate #1166 / run `35051086481`.
+- App integration commit: `bef8d2f1d850a9c8f82a9b94fcec077a3426debe`.
+- Post-integration REDs (#1169 and #1173) were traced to legacy structural regression tests that still asserted runtime internals lived inside `App.jsx`; those contracts were migrated to assert the new runtime owners without changing production behavior.
+- Final executable Task 5 evidence: `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`, Validate #1175 / run `35054633792`, fully GREEN across tests, architecture, lint, build, production/staging Worker bundles, local D1 and Spec B D1 clean-install/upgrade.
+- The payment-receipt bridge, table-commit bridge and `updateCollection` escape hatch remain active with the original C6/C5/C8-C10 removal targets.
+- The approved task definitions below remain normative; this status block records execution evidence only and does not alter their requirements.
+
 ## Global Constraints
 
 - Start from the latest merged `master` after the approved Spec C documentation is integrated.
