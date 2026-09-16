@@ -176,9 +176,10 @@ Mesas e Comandas permanecem telas distintas para o usuário, mas pertencem ao me
 - entradas/saídas;
 - projeções financeiras;
 - regras financeiras de estorno/refund;
-- categorias financeiras enquanto política pertencente ao domínio financeiro.
+- categorias financeiras enquanto política pertencente ao domínio financeiro;
+- catálogo/política de formas de pagamento — métodos ativos, padrão e ordenação — enquanto meios financeiros aceitos pelo negócio.
 
-Pagamento **não** vira um domínio separado. Operações que atravessam `orders`, `finance` e `table-service` ficam em workflows de aplicação.
+Pagamento **não** vira um domínio separado. Operações que atravessam `orders`, `finance` e `table-service` ficam em workflows de aplicação. `orders` e esses workflows consomem o contrato público das formas de pagamento sem assumir seu ownership.
 
 ### 5.4 `customers`
 
@@ -229,9 +230,11 @@ QZ não pertence ao domínio: QZ é um adapter de infraestrutura.
 
 Configurações é uma **superfície de composição**, não o dono de todas as políticas.
 
-A UI continua única para o usuário, mas o ownership é distribuído:
+A UI continua única para o usuário, mas o ownership é distribuído de forma explícita:
 
-- Operação/modalidades e cancelamentos → `orders` quando forem regras do ciclo operacional;
+- operação/modalidades → `orders`;
+- motivos de cancelamento → `orders`;
+- formas de pagamento — catálogo nativo, ativo/inativo, padrão e ordenação → `finance`, consumidas por `orders` e pelos workflows de pagamento;
 - categorias financeiras → `finance`;
 - política de impressão → `printing`;
 - preferências locais de dispositivo → app/infrastructure;
