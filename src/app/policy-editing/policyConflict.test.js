@@ -22,6 +22,7 @@ test('different changes on both sides remain explicit and unresolved', () => {
   })
 
   assert.equal(review.conflicts.length, 1)
+  assert.match(review.conflicts[0].id, /^policy-conflict-/)
   assert.equal(review.conflicts[0].path, 'late')
   assert.deepEqual(review.conflicts[0].choices, ['current', 'draft'])
   assert.equal(review.conflicts[0].choice, null)
@@ -152,7 +153,7 @@ test('first use removes a now-illegal rename or delete choice and preserves hist
     const conflict = review.conflicts.find(({ kind }) => kind === 'protected-action')
     assert.ok(conflict)
     assert.deepEqual(conflict.choices, ['current'])
-    assert.match(conflict.message, /estado atual do neg[oÃ³]cio mudou|primeiro uso/i)
+    assert.match(conflict.message, /estado atual do neg[o\u00f3]cio mudou|primeiro uso/i)
     assert.deepEqual(review.candidate.items, [item])
   }
 })

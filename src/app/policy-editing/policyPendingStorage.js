@@ -22,7 +22,7 @@ const validPointer = (value, contextKey) => Boolean(
 export function writePending(storage, contextKey, resourceKey, pointer) {
   try {
     const value = allowedPointer(pointer || {})
-    if (!validPointer(value, contextKey)) throw new TypeError('Ponteiro de gravaÃ§Ã£o pendente invÃ¡lido.')
+    if (!validPointer(value, contextKey)) throw new TypeError('Ponteiro de grava\u00e7\u00e3o pendente inv\u00e1lido.')
     storage.setItem(storageKey(contextKey, resourceKey), JSON.stringify(value))
     return { ok: true }
   } catch (error) {

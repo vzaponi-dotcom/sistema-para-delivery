@@ -22,7 +22,7 @@ export function policyEditingReducer(state, event) {
       return { status: 'ready', confirmed: value, base: clone(value), draft: clone(value?.data), submitted: null, dirty: false, error: null }
     }
     case 'loadFailed':
-      return { ...state, status: 'error', error: event.error?.message || 'NÃ£o foi possÃ­vel carregar esta configuraÃ§Ã£o.' }
+      return { ...state, status: 'error', error: event.error?.message || 'N\u00e3o foi poss\u00edvel carregar esta configura\u00e7\u00e3o.' }
     case 'edited': {
       const draft = clone(event.data)
       return { ...state, draft, dirty: !same(draft, state.base?.data), error: null }
@@ -48,11 +48,11 @@ export function policyEditingReducer(state, event) {
         status: 'unconfirmed',
         submitted: clone(event.pointer),
         error: event.pointer?.expired
-          ? 'A gravaÃ§Ã£o pendente expirou apÃ³s 24 horas. Recarregue o estado atual antes de decidir novamente.'
-          : 'Resultado da gravaÃ§Ã£o nÃ£o confirmado.',
+          ? 'A grava\u00e7\u00e3o pendente expirou ap\u00f3s 24 horas. Recarregue o estado atual antes de decidir novamente.'
+          : 'Resultado da grava\u00e7\u00e3o n\u00e3o confirmado.',
       }
     case 'saveUnconfirmed':
-      return { ...state, status: 'unconfirmed', error: event.error?.message || 'Resultado da gravaÃ§Ã£o nÃ£o confirmado.' }
+      return { ...state, status: 'unconfirmed', error: event.error?.message || 'Resultado da grava\u00e7\u00e3o n\u00e3o confirmado.' }
     case 'expiredRefreshed': {
       const value = clone(event.value)
       const hasInMemoryDraft = Object.hasOwn(state.submitted || {}, 'data')
@@ -60,11 +60,11 @@ export function policyEditingReducer(state, event) {
       return { status: 'ready', confirmed: value, base: clone(value), draft, submitted: null, dirty: !same(draft, value?.data), error: null }
     }
     case 'saveConflict':
-      return { ...state, status: 'conflict', error: event.error?.message || 'As configuraÃ§Ãµes foram alteradas em outro dispositivo.' }
+      return { ...state, status: 'conflict', error: event.error?.message || 'As configura\u00e7\u00f5es foram alteradas em outro dispositivo.' }
     case 'conflictReviewAccepted':
       return { ...state, status: 'ready', base: clone(state.confirmed), submitted: null, error: null }
     case 'saveFailed':
-      return { ...state, status: 'error', submitted: null, error: event.error?.message || 'NÃ£o foi possÃ­vel salvar esta configuraÃ§Ã£o.' }
+      return { ...state, status: 'error', submitted: null, error: event.error?.message || 'N\u00e3o foi poss\u00edvel salvar esta configura\u00e7\u00e3o.' }
     case 'saveConfirmed': {
       const value = clone(event.value)
       const hasLaterDraft = Object.hasOwn(state.submitted || {}, 'data') && !same(state.draft, state.submitted.data)

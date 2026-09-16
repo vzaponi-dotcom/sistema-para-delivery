@@ -22,7 +22,7 @@ const unwrap = (value) => isObject(value) && Object.hasOwn(value, 'data') && Num
 
 const pathLabel = (segments) => segments.map((segment, index) => (
   typeof segment === 'object' ? `[${segment.id}]` : `${index ? '.' : ''}${segment}`
-)).join('') || 'configuraÃ§Ã£o'
+)).join('') || 'configura\u00e7\u00e3o'
 
 const listWithIds = (values) => values.every((value) => isObject(value) && (typeof value.id === 'string' || typeof value.id === 'number'))
 const itemMeta = (meta, listPath, id) => {
@@ -37,7 +37,7 @@ function createMerger({ baseMeta, currentMeta }) {
   let conflictSequence = 0
   const conflict = ({ segments, kind = 'value', base, current, draft, choices = ['current', 'draft'], message, target }) => {
     const entry = {
-      id: `settings-conflict-${++conflictSequence}`,
+      id: `policy-conflict-${++conflictSequence}`,
       path: pathLabel(segments),
       segments: clone(segments),
       kind,
@@ -113,8 +113,8 @@ function createMerger({ baseMeta, currentMeta }) {
           segments: [...segments, { id }], kind: 'protected-action', base: baseItem, current: currentItem, draft: MISSING,
           choices: ['current'],
           message: changedNow
-            ? 'O estado atual do negÃ³cio mudou apÃ³s o primeiro uso. A referÃªncia histÃ³rica serÃ¡ preservada e a exclusÃ£o nÃ£o estÃ¡ mais disponÃ­vel.'
-            : 'Este item Ã© protegido e sua referÃªncia histÃ³rica deve ser preservada.',
+            ? 'O estado atual do neg\u00f3cio mudou ap\u00f3s o primeiro uso. A refer\u00eancia hist\u00f3rica ser\u00e1 preservada e a exclus\u00e3o n\u00e3o est\u00e1 mais dispon\u00edvel.'
+            : 'Este item \u00e9 protegido e sua refer\u00eancia hist\u00f3rica deve ser preservada.',
           target: { type: 'item', listSegments: segments, itemId: id },
         }))
         continue
@@ -144,8 +144,8 @@ function createMerger({ baseMeta, currentMeta }) {
             segments: [...segments, { id }, key], kind: 'protected-action', base: baseItem[key], current: currentItem[key], draft: draftItem[key],
             choices: ['current'],
             message: changedNow
-              ? 'O estado atual do negÃ³cio mudou apÃ³s o primeiro uso. O nome histÃ³rico serÃ¡ preservado e a renomeaÃ§Ã£o nÃ£o estÃ¡ mais disponÃ­vel.'
-              : 'Este item Ã© protegido e nÃ£o pode ser renomeado.',
+              ? 'O estado atual do neg\u00f3cio mudou ap\u00f3s o primeiro uso. O nome hist\u00f3rico ser\u00e1 preservado e a renomea\u00e7\u00e3o n\u00e3o est\u00e1 mais dispon\u00edvel.'
+              : 'Este item \u00e9 protegido e n\u00e3o pode ser renomeado.',
             target: { type: 'value', segments: [...segments, { id }, key] },
           })
         } else {

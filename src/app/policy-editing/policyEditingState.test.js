@@ -51,7 +51,7 @@ test('unknown result preserves confirmed state and submitted intent', () => {
   assert.equal(state.status, 'unconfirmed')
   assert.deepEqual(state.confirmed, before)
   assert.deepEqual(state.submitted.data, draftFixture)
-  assert.match(state.error, /nÃ£o confirmado/i)
+  assert.match(state.error, /n\u00e3o confirmado/i)
 })
 
 test('confirmed save replaces official state while revision conflict preserves all edit inputs', () => {

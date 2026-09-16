@@ -53,7 +53,6 @@ test('unavailable storage reports failure without throwing or claiming persisten
 })
 
 
-
 test('recovers a legacy settings-pending pointer unchanged', () => {
   const storage = memoryStorage()
   storage.setItem('settings-pending:context-1:operations', JSON.stringify({
