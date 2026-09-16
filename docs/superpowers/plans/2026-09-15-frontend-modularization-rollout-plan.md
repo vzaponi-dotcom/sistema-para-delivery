@@ -10,6 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`
 
+## Current rollout status — 2026-09-16
+
+- Active slice: **C1 — Runtime central** on `feature/spec-c1-runtime`, draft PR #45.
+- C1 Tasks 1–5 are implemented; Task 6 is next. C1 as a whole remains **IN PROGRESS** because session extraction, final App boundary cleanup, staging and manual QA are still pending.
+- Task 5 executable HEAD `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166` passed Validate #1175 / run `35054633792` across tests, architecture, lint, build, production/staging Worker bundles, local D1 and Spec B D1 clean-install/upgrade.
+- The post-integration failures were isolated to stale structural tests that still asserted runtime implementation lived inside `App.jsx`; those tests now assert the new runtime owners without changing production behavior.
+- Temporary C1 bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md` with their original C5/C6/C8-C10 removal targets.
+- No production deploy has been performed from C1.
+- The rollout contracts below are unchanged; this block is execution status only.
+
 ## Global Constraints
 
 - Preserve current visual behavior and business behavior; no redesign, new UX, new feature, or deliberate rule change.
