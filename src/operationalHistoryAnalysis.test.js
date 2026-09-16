@@ -5,7 +5,7 @@ import { act } from 'react-test-renderer'
 
 import { createQueryContext, patchQueryContext } from './app/queryContext.js'
 import { calculateOperationalMetrics } from './utils/dashboardAnalytics.js'
-import { nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const now = new Date(2026, 8, 11, 12, 0, 0)
 const orders = [
@@ -49,7 +49,7 @@ test('history list filter does not change the official collection used by operat
   const h = await workspaceHarness(t)
   const { default: OrderHistory } = await h.load('/src/pages/OrderHistory.jsx')
   const changes = []
-  const renderer = await h.render(OrderHistory, {
+  const renderer = await renderWithNavigation(h, OrderHistory, {
     orders,
     queryState: { filter: 'cancelled', analysisPeriod: 'today' },
     onQueryChange: (patch) => changes.push(patch),

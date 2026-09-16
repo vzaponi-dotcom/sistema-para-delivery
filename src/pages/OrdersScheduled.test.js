@@ -35,7 +35,7 @@ test('orders page composes the approved kitchen heading, actions, counters, and 
   for (const text of requiredCopy) assert.match(source, new RegExp(text))
   assert.doesNotMatch(source, /Mais antigos primeiro/)
   assert.doesNotMatch(source, />Ver histórico</)
-  assert.match(source, /<AreaNavigation area="orders" activeTab="orders"/)
+  assert.match(source, /<AreaNavigation area="orders" \/>/)
   assert.match(source, /buildKitchenQueueModel\(orders, now, search, currentTiming\)/)
   assert.match(source, /className="kitchen-page"/)
   assert.match(source, /className="kitchen-board"/)

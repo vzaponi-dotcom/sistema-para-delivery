@@ -16,7 +16,7 @@ const collectRuntimeFiles = async (directory) => {
 }
 
 test('app shell does not intercept horizontal touch gestures for navigation', async () => {
-  const source = await read('./components/AppShell.jsx')
+  const source = await read('./app/shell/AppShell.jsx')
   assert.doesNotMatch(source, /getAdjacentMobileSection/)
   assert.doesNotMatch(source, /getSwipeDirection/)
   assert.doesNotMatch(source, /shouldIgnoreNavigationSwipe/)

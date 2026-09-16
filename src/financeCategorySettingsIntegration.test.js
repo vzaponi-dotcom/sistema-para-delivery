@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { buildSettingsConflict } from './app/settingsConflict.js'
-import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const effective = (items, revision = 8) => ({ version: 'finance-v8', revisions: { financeCategories: revision }, financeCategories: { items } })
 const categories = [
@@ -109,7 +109,7 @@ test('first-use conflict preserves a finance rename intention for explicit revie
 test('finance history displays the worker-resolved label instead of an inactive custom id', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Finance } = await h.load('/src/pages/Finance.jsx')
-  const screen = await h.render(Finance, {
+  const screen = await renderWithNavigation(h, Finance, {
     totals: { entries: 0, exits: 25, balance: -25 }, movements: [movement], currency: (value) => `R$ ${value}`,
     paymentOptions: [], granted: new Set(), implemented: new Set(['finance']), onNavigate() {}, activeTab: 'finance', canManageMovements: false,
   })
@@ -123,7 +123,7 @@ test('finance history exposes edit and confirmed delete only for manual movement
   const edits = []
   const deletes = []
   const automatic = { ...movement, id: 'sale', source: 'order-payment', category: 'sales', categoryLabel: 'Vendas', description: 'Venda' }
-  const screen = await h.render(Finance, {
+  const screen = await renderWithNavigation(h, Finance, {
     totals: { entries: 25, exits: 25, balance: 0 }, movements: [movement, automatic], currency: (value) => `R$ ${value}`,
     paymentOptions: [], granted: new Set(), implemented: new Set(['finance']), onNavigate() {}, activeTab: 'finance',
     canManageMovements: true, onEditMovement: (item) => edits.push(item.id), onDeleteMovement: (id) => deletes.push(id),

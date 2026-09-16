@@ -27,7 +27,7 @@ test('print queue page provides the initial structural heading', async () => {
 test('desktop navigation opens the queue and its settings shortcut opens the printing section', async () => {
   const [app, sidebar, orders] = await Promise.all([
     readSource('../App.jsx'),
-    readSource('../components/Sidebar.jsx'),
+    readSource('../app/navigation/registry.js'),
     readSource('./Orders.jsx'),
   ])
 
@@ -40,11 +40,10 @@ test('desktop navigation opens the queue and its settings shortcut opens the pri
 })
 
 test('mobile keeps five bottom tabs and exposes the print queue through Mais', async () => {
-  const mobileNavigation = await readSource('../components/MobileNavigation.jsx')
+  const mobileNavigation = await readSource('../app/navigation/registry.js')
 
-  assert.match(mobileNavigation, /const directEntries = \[[\s\S]*?\{ id: 'comandas', label: 'Comandas', icon: 'clipboard' \},[\s\S]*?\{ area: 'finance', label: 'Financeiro', icon: 'finance' \}\]/)
-  assert.match(mobileNavigation, /const moreEntries = \[[\s\S]*?\{ id: 'print-queue', icon: 'printer' \},[\s\S]*?\{ id: 'clients', icon: 'clients' \},[\s\S]*?\{ id: 'products', icon: 'products' \}/)
-  assert.match(mobileNavigation, /onClick=\{\(\) => onNavigate\(item\.id\)\}/)
+  assert.match(mobileNavigation, /MOBILE_DIRECT_ENTRIES = Object\.freeze\(\[[\s\S]*?\{ area: 'orders', label: 'Pedidos', icon: 'orders' \}[\s\S]*?\{ id: 'comandas', label: 'Comandas', icon: 'clipboard' \}[\s\S]*?\{ area: 'finance', label: 'Financeiro', icon: 'finance' \}/)
+  assert.match(mobileNavigation, /MOBILE_MORE_ENTRIES = Object\.freeze\(\[[\s\S]*?\{ id: 'print-queue', icon: 'printer' \}[\s\S]*?\{ id: 'clients', icon: 'clients' \}[\s\S]*?\{ id: 'products', icon: 'products' \}/)
 })
 
 test('print queue summary uses the four server operational counters', () => {

@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 const read = (path) => readFileSync(resolve(path), 'utf8')
 
 test('sidebar uses the compact meal icon instead of the detailed brand logo', () => {
-  const source = read('src/components/Sidebar.jsx')
+  const source = read('src/app/shell/Sidebar.jsx')
   assert.doesNotMatch(source, /BrandLogo/)
   assert.match(source, /className="sidebar-logo"[^>]*><Icon name="meal" size=\{24\}/)
   assert.match(source, /Amor &amp; Sabor/)

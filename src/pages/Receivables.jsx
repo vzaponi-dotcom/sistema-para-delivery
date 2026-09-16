@@ -7,7 +7,7 @@ import Button from '../components/Button'
 import Icon from '../components/Icon'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
-import AreaNavigation from '../components/AreaNavigation'
+import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import PaymentPromiseDialog from '../components/PaymentPromiseDialog'
 import ReceivableDetail from '../components/ReceivableDetail'
 import ReceivablesForecastDialog from '../components/ReceivablesForecastDialog'
@@ -78,10 +78,6 @@ function Receivables({
   onUpdatePaymentPromise,
   queryState,
   onQueryChange,
-  granted,
-  implemented,
-  onNavigate,
-  activeTab,
 }) {
   const { search, activeView, timingFilter, sortMode, exactDateFilter, selectedEntryKey } = queryState
   const patchQuery = (patch) => onQueryChange(patch)
@@ -223,7 +219,7 @@ function Receivables({
 
   return (
     <>
-      <AreaNavigation area="finance" activeTab={activeTab} granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <AreaNavigation area="finance" />
       <div className="receivables-page-header">
         <PageHeader eyebrow="Financeiro" title="A receber" description="Acompanhe o que entra hoje, os próximos recebimentos e os atrasos." />
         <button

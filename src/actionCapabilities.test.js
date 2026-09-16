@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { createServer } from 'vite'
-import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const flush = () => new Promise((resolve) => setImmediate(resolve))
 const response = (payload, status = 200) => ({
@@ -104,7 +104,7 @@ test('1. orders.view consulta a Cozinha sem oferecer ou iniciar novo pedido', as
   const h = await workspaceHarness(t)
   const { default: Orders } = await h.load('/src/pages/Orders.jsx')
   let starts = 0
-  const renderer = await h.render(Orders, {
+  const renderer = await renderWithNavigation(h, Orders, {
     orders: [], now: new Date('2026-09-11T12:00:00.000Z'), search: '', onSearchChange() {}, currency,
     canCreateOrders: false, onNewOrder: () => { starts += 1 }, granted: new Set(['orders.view']), implemented: new Set(['orders']),
   })
@@ -119,7 +119,7 @@ test('2. orders.view sem orders.finalize bloqueia UI e handler de finalizaÃ§Ã
     h.load('/src/pages/Orders.jsx'), h.load('/src/components/KitchenTicket.jsx'), h.load('/src/components/ConfirmationDialog.jsx'),
   ])
   let finalizations = 0
-  const renderer = await h.render(Orders, {
+  const renderer = await renderWithNavigation(h, Orders, {
     orders: [preparingOrder], now: new Date('2026-09-11T12:00:00.000Z'), search: '', onSearchChange() {}, currency,
     canFinalizeOrders: false, onFinalizeOrder: async () => { finalizations += 1 }, granted: new Set(['orders.view']), implemented: new Set(['orders']),
   })

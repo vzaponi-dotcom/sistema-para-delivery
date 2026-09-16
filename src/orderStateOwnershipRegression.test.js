@@ -8,7 +8,7 @@ test('App owns cancellation API and History consumes the central order collectio
   const app = await read('./App.jsx')
   const orders = await read('./pages/Orders.jsx')
   const history = await read('./pages/OrderHistory.jsx')
-  const shell = await read('./components/AppShell.jsx')
+  const shell = await read('./app/shell/AppShell.jsx')
 
   assert.match(app, /cancelOrder as cancelOrderApi/)
   assert.match(app, /<OrderHistory/)

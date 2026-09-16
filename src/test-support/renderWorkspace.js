@@ -10,6 +10,21 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 export const nodeText = (node) => typeof node === 'string' ? node : (node.children || []).map(nodeText).join('')
 export const buttonNamed = (root, name) => root.findAllByType('button').find((node) => (node.props['aria-label'] || nodeText(node)) === name)
 
+export async function renderWithNavigation(h, Component, props = {}, options = {}) {
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  return h.render(NavigationProvider, {
+    activeTab: props.activeTab || 'orders',
+    activeMobileEntry: props.activeMobileEntry,
+    granted: props.granted || new Set(),
+    implemented: props.implemented || new Set(),
+    moreOpen: props.moreOpen || false,
+    requestNavigation: props.requestNavigation || props.onNavigate || (() => {}),
+    openMore: props.openMore || props.onOpenMore || (() => {}),
+    closeMore: props.closeMore || props.onCloseMore || (() => {}),
+    children: React.createElement(Component, props),
+  }, options)
+}
+
 // Browser boundaries only: components, hooks and API clients remain real.
 // Render portals inline because react-test-renderer has no DOM portal container.
 export async function workspaceHarness(t, { mobile = false, userAgent = 'test' } = {}) {

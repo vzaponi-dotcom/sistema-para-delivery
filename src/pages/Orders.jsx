@@ -9,13 +9,13 @@ import KitchenTicket from '../components/KitchenTicket'
 import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
-import AreaNavigation from '../components/AreaNavigation'
+import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
 import { canReceiveStandaloneOrder } from '../utils/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigate, onNavigatePrintQueue, granted, implemented, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
+function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -64,7 +64,7 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
 
   return (
     <div className="kitchen-page">
-      <AreaNavigation area="orders" activeTab="orders" granted={granted} implemented={implemented} onNavigate={onNavigate} />
+      <AreaNavigation area="orders" />
 
       <PageHeader
         eyebrow="Operação"

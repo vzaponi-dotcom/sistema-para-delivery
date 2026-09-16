@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('mobile UX combines bottom navigation, free horizontal gestures and safe areas', async () => {
-  const shell = await read('./components/AppShell.jsx')
-  const nav = await read('./components/MobileNavigation.jsx')
+  const shell = await read('./app/shell/AppShell.jsx')
+  const nav = await read('./app/shell/MobileNavigation.jsx')
   const foundationCss = await read('./mobile-foundation.css')
   const navCss = await read('./mobile-navigation.css')
 
@@ -20,7 +20,7 @@ test('mobile UX combines bottom navigation, free horizontal gestures and safe ar
 })
 
 test('desktop sidebar remains while bottom nav is mobile-only', async () => {
-  const shell = await read('./components/AppShell.jsx')
+  const shell = await read('./app/shell/AppShell.jsx')
   const css = await read('./mobile-navigation.css')
   assert.match(shell, /<Sidebar/)
   assert.match(css, /\.mobile-bottom-nav\s*\{[^}]*display:\s*none/s)
