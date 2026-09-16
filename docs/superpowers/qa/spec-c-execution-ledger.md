@@ -17,8 +17,8 @@ If this ledger and GitHub disagree, inspect the branch and update this ledger be
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
-| C1 | Runtime central, generic HTTP/auth, architecture gate | IN PROGRESS — Tasks 1–5 GREEN | `feature/spec-c1-runtime` / PR #45 | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
-| C2 | Navigation and App composition | NOT STARTED | — | Write after C1 merge from the real new `master` |
+| C1 | Runtime central, generic HTTP/auth, architecture gate | IN PROGRESS — Tasks 1–7 COMPLETE; Task 8 homologation pending | `feature/spec-c1-runtime` / PR #45 | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
+| C2 | Navigation and App composition | NOT STARTED | — | Write only after C1 merge from the real new `master` |
 | C3 | Settings surface + generic policy editing engine | NOT STARTED | — | Write after C2 merge |
 | C4 | Orders | NOT STARTED | — | Write after C3 merge |
 | C5 | Table Service | NOT STARTED | — | Write after C4 merge |
@@ -28,7 +28,7 @@ If this ledger and GitHub disagree, inspect the branch and update this ledger be
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
-Do **not** freeze detailed C2-C10 plans in advance. Each detailed plan must use the actual post-merge tree produced by the preceding slice.
+Do **not** start C2 before C1 is manually homologated, approved and merged to `master`. Do **not** freeze detailed C2-C10 plans in advance.
 
 ---
 
@@ -41,12 +41,20 @@ Do **not** freeze detailed C2-C10 plans in advance. Each detailed plan must use 
 - PR state: draft, open, not merged
 - Base: `master`
 - C1 base SHA: `af8266549603fc2d392880c812bc1c0d608a6dbc`
-- Task 5 final executable SHA before documentation: `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`
-- Last fully green validation before this ledger update: Validate application #1175, run `35054633792`
+- Last pre-reconciliation staging SHA: `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`
+- Validate application #1194 / run `35075714168`: **GREEN** on `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`
+- Deploy staging #101 / run `35078821466`: **GREEN**, event `workflow_dispatch`, on the same SHA
+- Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 - Production deployed from C1: **NO**
-- Staging homologation for C1: **NOT STARTED**
+- Manual 15-item C1 homologation: **PENDING / no recorded evidence yet**
 
-The approved Spec C documentation was not yet merged to `master` when C1 began, so PR #45 also contains the approved design/rollout/C1 plan documents. Do not recreate or re-brainstorm them.
+### Rollout-trigger reconciliation — 2026-09-16
+
+Commit `87644cba4e9b3255b92bdcff851cc7a84c17ce8e` temporarily added `feature/spec-c1-runtime` to the automatic `push` trigger of `.github/workflows/deploy-staging.yml`. That contradicted the approved Spec C rollout, which requires manual `workflow_dispatch` for Spec C unless a separate exact-branch trigger is explicitly approved.
+
+This was corrected on the C1 branch by commit `d8b105e55fa42da476c6b2e79f73ce584a815a5c` (`fix: restore manual c1 staging dispatch`). The existing Spec B automatic branch trigger remains intact; Spec C again uses manual dispatch only.
+
+Because the reconciliation commits advance the branch HEAD beyond the already-homologated staging SHA, C1 must receive a **fresh manual Deploy staging on the final reconciliation HEAD** before Task 8 can close, even though no production runtime behavior was changed by this workflow correction.
 
 ## Task status
 
@@ -54,212 +62,102 @@ The approved Spec C documentation was not yet merged to `master` when C1 began, 
 |---|---|---|
 | Task 1 — generic HTTP + session infrastructure | DONE | RED #1153 / GREEN #1154 |
 | Task 2 — permanent architecture gate | DONE | Final GREEN #1158 |
-| Task 3 — online/offline runtime | DONE + INTEGRATED | Hook GREEN #1160; wired into `App.jsx` during Task 5 integration |
-| Task 4 — feedback runtime | DONE + INTEGRATED | Hook GREEN #1162; wired into `App.jsx` during Task 5 integration |
-| Task 5 — operational data runtime | DONE + FULL GREEN | RED #1163; isolated runtime GREEN #1166; App integration stabilized; full GREEN #1175 |
-| Task 6 — session lifecycle runtime | NOT STARTED | Next active task; start with approved RED tests |
-| Task 7 — App extraction contract + cleanup | NOT STARTED | Start after Task 6 |
-| Task 8 — full gates + staging + manual QA | NOT STARTED | No production deploy |
+| Task 3 — online/offline runtime | DONE + INTEGRATED | Hook GREEN #1160; integrated in `App.jsx` |
+| Task 4 — feedback runtime | DONE + INTEGRATED | Hook GREEN #1162; integrated in `App.jsx` |
+| Task 5 — operational data runtime | DONE + FULL GREEN | RED #1163; isolated GREEN #1166; integrated FULL GREEN #1175 |
+| Task 6 — session lifecycle runtime | DONE + INTEGRATED | session runtime/tests present; auth copies and cleanup/reset ordering locked by tests |
+| Task 7 — App extraction contract + cleanup | DONE + FULL GREEN | `runtimeExtractionContract.test.js`; runtime boundary completed; Validate #1194 green on pre-reconciliation staging SHA |
+| Task 8 — full gates + staging + manual QA | IN PROGRESS | automated gates + one manual staging deploy green on `87644cb`; fresh final-HEAD staging dispatch + 15-item manual matrix + QA record still required |
 
 ---
 
-## Task 1 — completed
+## Tasks 1–5 — completed baseline
 
-Created:
+Task 1 created generic HTTP/auth infrastructure while retaining `src/api/client.js` as a temporary compatibility facade.
 
-- `src/infrastructure/api/httpClient.js`
-- `src/infrastructure/api/httpClient.test.js`
-- `src/infrastructure/auth/sessionApi.js`
-- `src/infrastructure/auth/sessionApi.test.js`
+Task 2 created the permanent architecture gate under `scripts/architecture/`, including the legacy import allowlist and `npm run test:architecture`, integrated into validation/staging workflows.
 
-`src/api/client.js` remains a temporary compatibility facade for generic/auth exports while later Spec C slices migrate consumers.
+Task 3 extracted `src/app/runtime/network/useOnlineStatus.js`.
 
-Compatibility tracking:
+Task 4 extracted `src/app/runtime/feedback/useFeedbackRuntime.js`, preserving toast dismiss `2600 ms`, success dismiss `1800 ms`, and default success copy `Ação salva com sucesso`.
 
-- `docs/superpowers/qa/spec-c-compatibility-facades.md`
+Task 5 extracted `src/app/runtime/data/useOperationalDataRuntime.js` and integrated the network/feedback/data runtimes into `App.jsx`, preserving:
 
-Evidence:
-
-- RED: Validate application #1153
-- GREEN: Validate application #1154
-- tests, lint, build, Worker dry-runs, local D1 and Spec B D1 gate passed
-
----
-
-## Task 2 — completed
-
-Created:
-
-- `scripts/architecture/check-import-boundaries.mjs`
-- `scripts/architecture/check-import-boundaries.test.mjs`
-- `scripts/architecture/legacy-import-allowlist.json`
-
-Added:
-
-- `npm run test:architecture`
-
-Integrated into:
-
-- `.github/workflows/validate.yml`
-- `.github/workflows/deploy-staging.yml`
-
-Protected rules include:
-
-- pure domain layer cannot import React / React DOM / QZ / infrastructure;
-- `shared` cannot import `domains`;
-- cross-domain consumers must use the target domain public `index.js`;
-- direct production `qz-tray` imports are restricted to `src/infrastructure/qz/**` or an exact temporary allowlist entry.
-
-Current production QZ allowlist contains exactly:
-
-- `src/printing/usePrintingManager.js`
-
-Final Task 2 commit:
-
-- `a6f56c57fec66773eb77f8c4cc9bae2ce0293f3a`
-
-Final validation:
-
-- Validate application #1158 — fully green
-
----
-
-## Task 3 — completed and integrated
-
-Implemented:
-
-- `src/app/runtime/network/useOnlineStatus.js`
-- `src/app/runtime/network/useOnlineStatus.test.js`
-
-Evidence:
-
-- RED: Validate #1159
-- GREEN: Validate #1160
-- `App.jsx` now consumes `useOnlineStatus()`; App-owned `online` / `offline` browser listeners were removed during Task 5 integration.
-- Full integrated validation: #1175 — GREEN.
-
----
-
-## Task 4 — completed and integrated
-
-Implemented:
-
-- `src/app/runtime/feedback/useFeedbackRuntime.js`
-- `src/app/runtime/feedback/useFeedbackRuntime.test.js`
-
-Locked behavior:
-
-- toast dismiss: `2600 ms`
-- success dismiss: `1800 ms`
-- default success copy: `Ação salva com sucesso`
-
-Evidence:
-
-- RED: Validate #1161
-- GREEN: Validate #1162
-- `App.jsx` now delegates toast/success state and timers to `useFeedbackRuntime()` while preserving visible portal markup and UX.
-- Full integrated validation: #1175 — GREEN.
-
----
-
-## Task 5 — completed and integrated
-
-Implemented:
-
-- `src/app/runtime/data/useOperationalDataRuntime.js`
-- `src/app/runtime/data/useOperationalDataRuntime.test.js`
-- `App.jsx` integration of `useOperationalDataRuntime`, `useOnlineStatus` and `useFeedbackRuntime`
-
-The runtime now owns:
-
-- official collections: clients / products / orders / tables / tableTabs / movements / financeSettings;
-- `bootstrapState` and `bootstrapEffectiveConfig`;
-- collection sync guard;
-- bootstrap and orders-only in-flight protection;
-- official revision/table snapshots;
-- bootstrap application and silent refresh;
-- `applyOfficialEffects`;
+- official collections and backend-source-of-truth semantics;
+- bootstrap state/effective config handoff;
+- sync guards and official revision/table snapshots;
 - 5-second global synchronization;
 - 2-second Cozinha order synchronization;
-- focus/visibility refresh subscription mechanics;
+- focus/visibility refresh mechanics;
 - operational data reset.
 
-### TDD / integration evidence
+Task 5 final executable SHA before later session extraction: `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`, Validate #1175 / run `35054633792` — **FULL GREEN**.
 
-- RED contract commit: `ef3bd4921368c0dce0f648d1fe19d45fc5354809`
-- RED validation: #1163 / run `35050387434` — expected module-not-found failure
-- initial runtime implementation: `de3ccdda2ee93beba49a0295c385753ad9263efc`
-- isolated runtime validation: #1166 / run `35051086481` — fully GREEN
-- compatibility ledger commit: `6316e667cfe5b9fde5c63ecad7a43022afb323ea`
-- runtime semantics refinement: `2d96b6fd0e067c145c4747b2314bab22b9062aa4`
-- App integration: `bef8d2f1d850a9c8f82a9b94fcec077a3426debe`
-- integration validation #1169: RED in `Test`
-- root cause: structural regression tests still asserted that synchronization/feedback internals lived literally inside `App.jsx`; runtime tests themselves were green
-- first regression-contract migration round: `ca31e325eeeec9d9f621e51145b590a0f9cd3329`, `8dd467a78be3a33fe959c335105e1a2708396006`, `663ea4ab7eebad498a09002fe500537623296121`, `cb2c9f034cf74d0998f341e4faf7785444872895`
-- validation #1173 / run `35054295234`: only two stale structural tests remained red (`printingManagerRegression.test.js` and `successFeedbackRegression.test.js`)
-- final structural-contract migration: `2eb2d223b348d809b1b9171656e6bc994c2d4018`, `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`
-- final validation #1175 / run `35054633792`: **FULL GREEN** — Test, architecture, lint, build, production/staging Worker bundles, local D1 migrations and Spec B D1 clean-install/upgrade all passed
-
-The regression-test migration changed test ownership assertions only; it did not reintroduce App-owned runtime mechanics or change production behavior.
-
-### Approved temporary bridges still active
-
-- payment receipt bridge → remove in C6;
-- table/comanda selection bridge → remove in C5;
-- `updateCollection` escape hatch → reduce during C4-C8 and remove no later than C10.
-
-They remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`.
+Approved temporary bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 
 ---
 
-## Active resume point — Task 6
+## Task 6 — completed and integrated
 
-Next task is **Task 6 — session lifecycle runtime**.
-
-Create:
+Implemented and integrated:
 
 - `src/app/runtime/session/useSessionRuntime.js`
 - `src/app/runtime/session/useSessionRuntime.test.js`
 
-Move session check/login/logout/expiry lifecycle while preserving exactly:
+The extracted runtime preserves exactly:
 
-- auth states: `checking | anonymous | authenticated`
-- expiry copy: `Sua sessão expirou. Entre novamente.`
-- invalid PIN copy: `PIN inválido. Confira e tente novamente.`
+- auth states: `checking | anonymous | authenticated`;
+- expiry copy: `Sua sessão expirou. Entre novamente.`;
+- invalid PIN copy: `PIN inválido. Confira e tente novamente.`;
+- login/logout/session-check lifecycle ordering;
+- successful-login operational reset/cleanup scope;
+- session-expiry synchronization cleanup scope.
 
-Do not begin Task 7 until Task 6 has its own RED → GREEN evidence and integrated gates.
+Relevant execution history includes the RED contract (`117ba1e5`), initial runtime implementation (`34031db8`), App integration/extraction (`886c8b1f`), and subsequent regression hardening through `f2633c8a`.
+
+No new compatibility facade or cross-slice bridge was required by the session extraction.
 
 ---
 
-## Task 7 — App runtime boundary contract
+## Task 7 — completed
 
-Create:
+Implemented:
 
 - `src/app/runtime/runtimeExtractionContract.test.js`
 
-The contract must prove App no longer owns C1 runtime implementation while still retaining explicitly deferred domain/workflow handlers.
+The contract protects the C1 boundary by preventing extracted runtime concerns from drifting back into `App.jsx` while allowing explicitly deferred domain/workflow handlers to remain until their scheduled Spec C slices.
 
-## Task 8 — final C1 validation and homologation
+Runtime-boundary completion commit:
 
-Run:
+- `9bb7b043` — `refactor: complete c1 runtime boundary`
 
-```bash
-npm test
-npm run lint
-npm run test:architecture
-npm run build
-npm run d1:migrate:local
-```
+The final pre-reconciliation application branch state passed Validate application #1194 on SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`.
 
-Then:
+---
 
-1. review the actual C1 diff against the base/master;
-2. require Validate application success;
-3. manually run Deploy staging for `feature/spec-c1-runtime`;
-4. require staging workflow success;
-5. execute the approved 15-item manual C1 matrix;
-6. create `docs/superpowers/qa/spec-c1-runtime-qa.md` only from real evidence;
-7. keep production untouched until separately authorized.
+## Active resume point — Task 8
+
+Task 8 is the **only active C1 task**. Do not begin C2.
+
+Already evidenced on SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`:
+
+- full Validate application: **PASS** (#1194 / run `35075714168`);
+- manual `Deploy staging`: **PASS** (#101 / run `35078821466`);
+- staging workflow smoke-tested `/api/auth/session` and PIN login;
+- production remained untouched.
+
+Still required before C1 can be marked complete:
+
+1. finish documentation/workflow reconciliation on `feature/spec-c1-runtime`;
+2. require `Validate application` green on the resulting final HEAD;
+3. manually dispatch `Deploy staging` on that exact final HEAD and require success;
+4. execute the approved 15-item manual C1 staging matrix from the detailed plan;
+5. create `docs/superpowers/qa/spec-c1-runtime-qa.md` **only from real evidence** and record PASS/FAIL per item;
+6. update this ledger and PR #45 with the final evidence;
+7. keep PR #45 unmerged until explicit approval;
+8. keep production untouched until separately authorized.
+
+Do not fabricate or infer manual QA. The absence of a QA evidence file means manual homologation is still pending.
 
 ---
 
@@ -287,9 +185,10 @@ Before changing code:
 2. read the rollout plan;
 3. read this ledger;
 4. read the detailed plan for the active slice;
-5. inspect PR #45 / branch `feature/spec-c1-runtime` and current CI;
-6. verify the current branch HEAD and latest validation against this ledger;
-7. if GitHub has advanced beyond this ledger, update this ledger first;
-8. continue Task 6 with the approved TDD and gate discipline.
+5. read the compatibility ledger;
+6. inspect PR #45 / branch `feature/spec-c1-runtime` and current CI;
+7. verify the current branch HEAD and latest validation against this ledger;
+8. if GitHub has advanced beyond this ledger, update this ledger first;
+9. while C1 remains open, continue **Task 8 only** — final-head validation, manual staging, manual matrix, QA evidence and approval.
 
 The repository is the source of truth for Spec C continuity, not any individual chat.
