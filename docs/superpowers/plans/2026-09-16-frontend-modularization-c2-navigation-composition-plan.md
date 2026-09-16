@@ -4,7 +4,7 @@
 
 **Goal:** Reorganizar navegação e composição do frontend em `src/app/navigation/` e `src/app/shell/`, criando um `AppRoot` fino e um contrato pequeno de navegação, sem alterar UX, regras de negócio, URLs, polling ou workflows de domínio.
 
-**Architecture:** A C2 parte da `master` pós-C1 e mantém `App.jsx` como orquestrador transitório das responsabilidades que só serão migradas em C3-C9. Um registro declarativo único passa a descrever destinos/áreas/menus, funções puras resolvem acesso e fallback, `useNavigationController` continua sendo o único owner do estado transitório, `NavigationContext` expõe somente navegação, e `AppRoot`/`AppShell` cuidam exclusivamente da composição visual global e da moldura autenticada.
+**Architecture:** A C2 parte da `master` pós-C1 e mantém `App.jsx` como orquestrador transitório das responsabilidades destinadas a C3-C9. Um registry declarativo único descreve destinos/áreas/menus; funções puras resolvem acesso/fallback; `useNavigationController` continua sendo o único owner do estado transitório; `NavigationContext` expõe somente navegação; `AppRoot` e `AppShell` cuidam apenas da composição visual global e da moldura autenticada.
 
 **Tech Stack:** React 19.2.8, React DOM 19.2.8, Vite 8.2.2, Node 22 `node:test`, `react-test-renderer` 19.2.8, oxlint 1.79.0, Cloudflare Worker/D1, GitHub Actions.
 
@@ -12,29 +12,28 @@
 
 ## Global Constraints
 
-- Base obrigatória: `master` em `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`; branch de execução: `feature/spec-c2-navigation-composition`.
+- Base obrigatória: `master` em `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`; branch: `feature/spec-c2-navigation-composition`.
 - Não implementar diretamente na `master`.
 - Preservar comportamento e visual atuais; C2 não é redesign, feature ou mudança de regra.
 - Não adicionar React Router, Redux, Zustand, WebSocket/SSE, nova API, migration, dependência ou mecanismo próprio de URL/history.
-- Não alterar Worker/D1 nem contratos HTTP; qualquer necessidade desse tipo é bloqueio e deve ser discutida antes de continuar.
+- Não alterar Worker/D1 nem contratos HTTP. Qualquer necessidade desse tipo é bloqueio e exige nova decisão antes de continuar.
 - Não alterar polling global (~5 s) nem polling dedicado de `orders` (~2 s enquanto Cozinha está ativa).
 - `activeTab === 'orders'` continua sendo sinal transitório válido para polling/relógio da Cozinha nesta slice.
-- Preservar integralmente IDs de destino, fallbacks por área, capabilities, `Mais`, retorno de Novo Pedido, guards de Novo Pedido/Settings, foco, direção da animação e queries por sessão.
+- Preservar IDs de destino, fallbacks de área, capabilities, `Mais`, retorno de Novo Pedido, guards de Novo Pedido/Settings, foco, animação e queries por sessão.
 - Settings em `saving` ou `unconfirmed` não ganha guarda global de navegação; `beforeunload` continua com o owner atual até C3.
-- Não antecipar ownership de C3-C9: settings engine, orders, table-service, finance/workflows, customers, catalog e printing permanecem nos donos atuais.
-- Não mover CSS por estética. Só ajustar caminho de import quando um componente for movido.
+- Não antecipar C3-C9: settings engine, orders, table-service, finance/workflows, customers, catalog e printing permanecem nos donos atuais.
+- Não mover CSS por estética. Ajustar somente caminhos de imports já existentes quando o arquivo dono for movido.
 - Não adicionar trigger amplo `feature/**` em staging. C2 usa `workflow_dispatch` no SHA exato a homologar.
-- Nenhum merge ou deploy de produção é autorizado por este plano. Merge exige aprovação explícita após homologação; produção exige nova autorização explícita após merge e validação da `master`.
-- Reexports temporários criados apenas para manter commits intermediários verdes devem ser removidos dentro da própria C2 antes de staging; nenhum facade novo pode atravessar a slice sem registro em `docs/superpowers/qa/spec-c-compatibility-facades.md`.
-- Cada tarefa: teste RED focado → implementação mínima → GREEN focado + regressões proporcionais → revisão de diff → commit. Não acumular tarefas sem revisão.
+- Reexports usados para manter commits intermediários verdes devem desaparecer dentro da própria C2 antes de staging; facade que atravessar a slice exige registro no compatibility ledger.
+- Cada tarefa: RED focado → implementação mínima → GREEN focado/regressões proporcionais → revisão de diff → commit.
+- Nenhum merge ou deploy de produção é autorizado por este plano. Merge e produção permanecem autorizações separadas.
 
 ## Execution preflight
 
-Antes da Task 1, em worktree isolada criada a partir da branch remota atual:
+Na execução, criar worktree isolada com `superpowers:using-git-worktrees`; então:
 
 ```bash
 git fetch origin
-git switch feature/spec-c2-navigation-composition
 git status --short
 git rev-parse HEAD
 git merge-base HEAD origin/master
@@ -47,73 +46,77 @@ npm run build
 npm run d1:migrate:local
 ```
 
-Esperado antes de código funcional:
+Antes de código funcional, exigir:
 
 - `git status --short` vazio;
 - `merge-base` igual a `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`;
 - Node 22;
-- todos os gates verdes na branch documental.
+- todos os gates verdes.
 
-Se a worktree estiver suja/divergente, não usar `reset`, `restore`, `clean`, `stash` ou `push --force`; criar worktree nova ou parar e relatar o bloqueio.
-
----
-
-## File map da C2
-
-### Arquivos novos finais
-
-- `src/app/navigation/registry.js` — única fonte declarativa de destinos, áreas, grupos desktop, entradas mobile/`Mais` e ordem de transição mobile.
-- `src/app/navigation/resolution.js` — funções puras de acesso, fallback, home, target e direção da transição.
-- `src/app/navigation/useNavigationController.js` — único owner do estado transitório de navegação.
-- `src/app/navigation/NavigationContext.jsx` — provider/hook com contrato mínimo de navegação.
-- `src/app/navigation/useNavigationEventBridge.js` — bridge de compatibilidade do evento `app:navigate`.
-- `src/app/navigation/queryContext.js` / `useQueryContext.js` — continuidade de consulta por sessão.
-- `src/app/navigation/settingsDraftGuard.js` — adaptador de guard para drafts de Settings, sem mover o engine da Spec B.
-- `src/app/navigation/AreaNavigation.jsx` — navegação interna de área consumindo o contrato comum.
-- `src/app/shell/AppRoot.jsx` — estados visuais globais e montagem do conteúdo ready.
-- `src/app/shell/AppShell.jsx` — moldura autenticada, foco e transição.
-- `src/app/shell/Sidebar.jsx` — menu desktop a partir do registry/context.
-- `src/app/shell/MobileNavigation.jsx` — menu mobile/`Mais` a partir do registry/context.
-
-### Arquivos legados que não devem existir no final
-
-- `src/app/navigation.js`
-- `src/app/useNavigationController.js`
-- `src/app/queryContext.js`
-- `src/app/useQueryContext.js`
-- `src/components/AppShell.jsx`
-- `src/components/Sidebar.jsx`
-- `src/components/MobileNavigation.jsx`
-- `src/components/AreaNavigation.jsx`
-- `src/utils/mobileNavigation.js`
-
-### Páginas com `AreaNavigation` que serão ajustadas mecanicamente
-
-- `src/pages/Orders.jsx`
-- `src/pages/OrderHistory.jsx`
-- `src/pages/Dashboard.jsx`
-- `src/pages/Receivables.jsx`
-- `src/pages/Finance.jsx`
-- `src/pages/Settings.jsx`
+Worktree inesperadamente suja/divergente é bloqueio. Não usar `reset`, `restore`, `clean`, `stash` ou `push --force` para contornar o estado.
 
 ---
 
-### Task 1: Centralizar registry e resolução pura da navegação
+## File map final
+
+### Novos owners
+
+- `src/app/navigation/registry.js` — destinos, áreas, menus desktop/mobile/`Mais` e ordem da transição.
+- `src/app/navigation/resolution.js` — acesso, fallback, home, entries e direção da transição.
+- `src/app/navigation/useNavigationController.js` — owner de `activeTab`, `moreOpen` e navegação pendente.
+- `src/app/navigation/NavigationContext.jsx` — contexto mínimo de navegação.
+- `src/app/navigation/useNavigationEventBridge.js` — compatibilidade `app:navigate`.
+- `src/app/navigation/queryContext.js`, `useQueryContext.js` — query por sessão.
+- `src/app/navigation/settingsDraftGuard.js` — adaptador de guard de Settings.
+- `src/app/navigation/AreaNavigation.jsx` — navegação interna por área.
+- `src/app/shell/AppRoot.jsx` — estados visuais globais.
+- `src/app/shell/AppShell.jsx` — moldura autenticada, foco/transição.
+- `src/app/shell/Sidebar.jsx` — menu desktop.
+- `src/app/shell/MobileNavigation.jsx` — menu mobile/`Mais`.
+
+### Caminhos que devem desaparecer antes de staging
+
+```text
+src/app/navigation.js
+src/app/useNavigationController.js
+src/app/queryContext.js
+src/app/useQueryContext.js
+src/components/AppShell.jsx
+src/components/Sidebar.jsx
+src/components/MobileNavigation.jsx
+src/components/AreaNavigation.jsx
+src/utils/mobileNavigation.js
+```
+
+### Consumidores de `AreaNavigation`
+
+```text
+src/pages/Orders.jsx
+src/pages/OrderHistory.jsx
+src/pages/Dashboard.jsx
+src/pages/Receivables.jsx
+src/pages/Finance.jsx
+src/pages/Settings.jsx
+```
+
+---
+
+### Task 1: Registry único e resolução pura
 
 **Files:**
 - Create: `src/app/navigation/registry.js`
 - Create: `src/app/navigation/resolution.js`
 - Create: `src/app/navigation/registry.test.js`
 - Move/Modify: `src/app/navigation.test.js` → `src/app/navigation/resolution.test.js`
-- Modify temporarily: `src/app/navigation.js` — reexport intra-slice somente para consumidores ainda não migrados
+- Modify temporarily: `src/app/navigation.js`
 
 **Interfaces:**
 - Consumes: `hasCapability(granted, key)` de `src/app/access.js`.
-- Produces: `NAVIGATION_DESTINATIONS`, `destinationById`, `AREA_DESTINATION_IDS`, `HOME_AREA_ORDER`, `AREA_LABELS`, `DESKTOP_NAV_GROUPS`, `MOBILE_DIRECT_ENTRIES`, `MOBILE_MORE_ENTRIES`, `MOBILE_SECTION_IDS`, `resolveArea()`, `resolveDestination()`, `resolveHome()`, `resolveNavigationEntry()`, `decideNavigation()`, `getMobilePageDirection()`.
+- Produces: `NAVIGATION_DESTINATIONS`, `destinationById`, `AREA_DESTINATION_IDS`, `HOME_AREA_ORDER`, `AREA_LABELS`, `DESKTOP_NAV_GROUPS`, `MOBILE_DIRECT_ENTRIES`, `MOBILE_MORE_ENTRIES`, `MOBILE_SECTION_IDS`, `resolveArea`, `resolveDestination`, `resolveHome`, `resolveNavigationEntry`, `decideNavigation`, `getMobilePageDirection`.
 
-- [ ] **Step 1: Escrever o RED do registry exato**
+- [ ] **Step 1: RED do registry exato**
 
-Criar `src/app/navigation/registry.test.js` com caracterização explícita dos metadados hoje espalhados:
+Criar `registry.test.js`:
 
 ```js
 import test from 'node:test'
@@ -127,19 +130,14 @@ import {
   MOBILE_SECTION_IDS,
 } from './registry.js'
 
-const ids = NAVIGATION_DESTINATIONS.map(({ id }) => id)
-
-test('C2 preserva os IDs e a ordem dos destinos atuais', () => {
-  assert.deepEqual(ids, [
+test('C2 preserva IDs, fallbacks e menus atuais', () => {
+  assert.deepEqual(NAVIGATION_DESTINATIONS.map(({ id }) => id), [
     'settings-home', 'settings-operations', 'settings-modalities',
     'settings-payments', 'settings-cancellations', 'settings-finance-categories',
     'orders', 'history', 'new-order', 'comandas', 'print-queue',
     'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables',
     'settings-printing', 'settings-device',
   ])
-})
-
-test('registry preserva fallbacks, desktop, mobile, Mais e ordem de transição', () => {
   assert.deepEqual(AREA_DESTINATION_IDS, {
     orders: ['orders', 'history'],
     finance: ['dashboard', 'receivables', 'finance'],
@@ -149,26 +147,17 @@ test('registry preserva fallbacks, desktop, mobile, Mais e ordem de transição'
       'settings-finance-categories', 'settings-printing', 'settings-device',
     ],
   })
-  assert.deepEqual(DESKTOP_NAV_GROUPS.map(({ label }) => label), [
-    'OPERAÇÃO', 'FINANCEIRO', 'CADASTROS', 'CONFIGURAÇÕES',
-  ])
-  assert.deepEqual(MOBILE_DIRECT_ENTRIES.map((item) => item.area || item.id), [
-    'orders', 'comandas', 'finance',
-  ])
-  assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), [
-    'print-queue', 'clients', 'products', 'tables', 'settings',
-  ])
+  assert.deepEqual(DESKTOP_NAV_GROUPS.map(({ label }) => label), ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS', 'CONFIGURAÇÕES'])
+  assert.deepEqual(MOBILE_DIRECT_ENTRIES.map((item) => item.area || item.id), ['orders', 'comandas', 'finance'])
+  assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), ['print-queue', 'clients', 'products', 'tables', 'settings'])
   assert.deepEqual(MOBILE_SECTION_IDS, [
     'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
-    'print-queue', 'clients', 'products', 'tables',
-    'settings-printing', 'settings-device',
+    'print-queue', 'clients', 'products', 'tables', 'settings-printing', 'settings-device',
   ])
 })
 ```
 
-- [ ] **Step 2: Rodar o RED**
-
-Run:
+- [ ] **Step 2: Confirmar RED**
 
 ```bash
 node --test src/app/navigation/registry.test.js
@@ -176,9 +165,7 @@ node --test src/app/navigation/registry.test.js
 
 Expected: FAIL porque `registry.js` ainda não existe.
 
-- [ ] **Step 3: Implementar o registry declarativo sem mudar dados**
-
-Criar `registry.js` a partir dos valores atuais. Estrutura obrigatória:
+- [ ] **Step 3: Implementar registry sem mudar nenhum valor**
 
 ```js
 export const NAVIGATION_DESTINATIONS = Object.freeze([
@@ -222,40 +209,35 @@ export const MOBILE_MORE_ENTRIES = Object.freeze([{ id: 'print-queue', icon: 'pr
 export const MOBILE_SECTION_IDS = Object.freeze(['orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance', 'print-queue', 'clients', 'products', 'tables', 'settings-printing', 'settings-device'])
 ```
 
-- [ ] **Step 4: Escrever o RED/characterization da resolução**
+- [ ] **Step 4: Mover o teste puro atual e adicionar home/entry/direção**
 
-Mover o teste atual para `src/app/navigation/resolution.test.js`, preservar todas as asserções existentes e acrescentar:
+Mover `src/app/navigation.test.js` para `src/app/navigation/resolution.test.js`, ajustar imports e manter todas as asserções existentes. Acrescentar:
 
 ```js
 import { getMobilePageDirection, resolveHome, resolveNavigationEntry } from './resolution.js'
 
-test('home e entries usam somente o registry atual', () => {
+test('home e entry por área mantêm fallback atual', () => {
   const implemented = new Set(['orders', 'history', 'dashboard', 'receivables', 'finance'])
   assert.equal(resolveHome(new Set(['finance.receivables']), implemented), 'receivables')
-  assert.deepEqual(
-    resolveNavigationEntry({ area: 'finance', label: 'Financeiro' }, new Set(['finance.receivables']), implemented),
-    { area: 'finance', label: 'Financeiro', id: 'receivables' },
-  )
+  assert.deepEqual(resolveNavigationEntry(
+    { area: 'finance', label: 'Financeiro' },
+    new Set(['finance.receivables']),
+    implemented,
+  ), { area: 'finance', label: 'Financeiro', id: 'receivables' })
 })
 
-test('direção mobile preserva none fora da lista histórica', () => {
+test('direção mobile preserva none para destinos fora da lista histórica', () => {
   assert.equal(getMobilePageDirection('orders', 'history'), 'forward')
-  assert.equal(getMobilePageDirection('finance', 'dashboard'), 'backward')
+  assert.equal(getMobilePageDirection('history', 'orders'), 'backward')
   assert.equal(getMobilePageDirection('settings-home', 'settings-payments'), 'none')
 })
 ```
 
-- [ ] **Step 5: Implementar `resolution.js` com decisões puras**
+- [ ] **Step 5: Implementar `resolution.js`**
 
 ```js
 import { hasCapability } from '../access.js'
-import {
-  AREA_DESTINATION_IDS,
-  HOME_AREA_ORDER,
-  MOBILE_SECTION_IDS,
-  NAVIGATION_DESTINATIONS,
-  destinationById,
-} from './registry.js'
+import { AREA_DESTINATION_IDS, HOME_AREA_ORDER, MOBILE_SECTION_IDS, NAVIGATION_DESTINATIONS, destinationById } from './registry.js'
 
 const canAccess = (destination, granted) => destination.capability
   ? hasCapability(granted, destination.capability)
@@ -309,39 +291,31 @@ export function getMobilePageDirection(previousId, activeId) {
 }
 ```
 
-- [ ] **Step 6: Manter compatibilidade apenas durante a própria C2**
+- [ ] **Step 6: Manter reexport intra-slice temporário**
 
-Transformar temporariamente `src/app/navigation.js` em reexport para os consumidores ainda não movidos:
+Até os consumidores serem migrados, `src/app/navigation.js` deve conter somente:
 
 ```js
 export { NAVIGATION_DESTINATIONS, NAVIGATION_DESTINATIONS as destinations } from './navigation/registry.js'
 export { decideNavigation, resolveArea, resolveDestination } from './navigation/resolution.js'
 ```
 
-Esse arquivo deve ser removido na Task 6 e não pode chegar ao staging final.
+Ele é removido na Task 6 e não pode chegar ao staging final.
 
-- [ ] **Step 7: Rodar GREEN e regressões puras**
+- [ ] **Step 7: GREEN e commit**
 
 ```bash
 node --test src/app/navigation/registry.test.js src/app/navigation/resolution.test.js
 npm run lint
 npm run test:architecture
-```
-
-Expected: PASS.
-
-- [ ] **Step 8: Revisar diff e commit**
-
-```bash
 git diff --check
-git diff -- src/app/navigation src/app/navigation.js
 git add src/app/navigation src/app/navigation.js
 git commit -m "refactor: centralize navigation registry"
 ```
 
 ---
 
-### Task 2: Mover controller/query e extrair guard de Settings
+### Task 2: Controller/query no novo owner e guard de Settings
 
 **Files:**
 - Move: `src/app/useNavigationController.js` → `src/app/navigation/useNavigationController.js`
@@ -351,52 +325,43 @@ git commit -m "refactor: centralize navigation registry"
 - Create: `src/app/navigation/settingsDraftGuard.js`
 - Create: `src/app/navigation/settingsDraftGuard.test.js`
 - Modify: `src/navigationContext.test.js`
-- Modify: `src/App.jsx` imports/guard adapter only; não alterar composição ainda
+- Modify: `src/App.jsx` somente imports/adaptador do guard
 
 **Interfaces:**
 - Consumes: registry/resolution da Task 1 e `DEFAULT_PRINT_QUEUE_QUERY` existente.
-- Produces: `useNavigationController()` com a mesma API atual; `createQueryContext()`, `patchQueryContext()`, `useQueryContext()` com a mesma semântica; `getSettingsDraftForDestination()`, `shouldConfirmSettingsExit()`, `hasSettingsUnloadRisk()`.
+- Produces: API atual de `useNavigationController`; query API atual; `getSettingsDraftForDestination`, `shouldConfirmSettingsExit`, `hasSettingsUnloadRisk`.
 
-- [ ] **Step 1: Escrever RED do guard de Settings**
+- [ ] **Step 1: RED do guard puro**
 
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  getSettingsDraftForDestination,
-  shouldConfirmSettingsExit,
-  hasSettingsUnloadRisk,
-} from './settingsDraftGuard.js'
-
-const dirtyOperations = {
-  operations: { dirty: true, status: 'idle', scopeId: null },
-}
+import { getSettingsDraftForDestination, shouldConfirmSettingsExit, hasSettingsUnloadRisk } from './settingsDraftGuard.js'
 
 test('operações e modalidades compartilham o mesmo guard', () => {
-  const draft = getSettingsDraftForDestination(dirtyOperations, 'settings-operations')
+  const draft = getSettingsDraftForDestination({ operations: { dirty: true, status: 'idle' } }, 'settings-operations')
   assert.equal(draft.resourceKey, 'operations')
   assert.equal(shouldConfirmSettingsExit(draft, 'settings-operations', 'settings-modalities'), false)
   assert.equal(shouldConfirmSettingsExit(draft, 'settings-operations', 'settings-home'), true)
 })
 
-test('saving/unconfirmed não cria bloqueio global novo', () => {
+test('saving/unconfirmed mantém unload risk sem criar confirmação de navegação', () => {
   for (const status of ['saving', 'unconfirmed']) {
-    const draft = getSettingsDraftForDestination({ operations: { dirty: true, status } }, 'settings-operations')
+    const resources = { operations: { dirty: true, status } }
+    const draft = getSettingsDraftForDestination(resources, 'settings-operations')
     assert.equal(shouldConfirmSettingsExit(draft, 'settings-operations', 'orders'), false)
-    assert.equal(hasSettingsUnloadRisk({ operations: { dirty: true, status } }), true)
+    assert.equal(hasSettingsUnloadRisk(resources), true)
   }
 })
 ```
-
-Run:
 
 ```bash
 node --test src/app/navigation/settingsDraftGuard.test.js
 ```
 
-Expected: FAIL porque o módulo ainda não existe.
+Expected: FAIL porque o módulo não existe.
 
-- [ ] **Step 2: Implementar somente o adaptador de guard**
+- [ ] **Step 2: Implementar o adaptador de guard, sem mover engine de Settings**
 
 ```js
 const SETTINGS_DRAFT_ROUTES = Object.freeze({
@@ -423,35 +388,27 @@ export const shouldConfirmSettingsExit = (draft, active, destination) => Boolean
 )
 
 export function hasSettingsUnloadRisk(resources) {
-  return Object.values(resources || {}).some((resource) => (
-    resource?.dirty === true || ['saving', 'unconfirmed'].includes(resource?.status)
-  ))
+  return Object.values(resources || {}).some((resource) => resource?.dirty === true || ['saving', 'unconfirmed'].includes(resource?.status))
 }
 ```
 
-- [ ] **Step 3: Mover controller e query sem reescrever comportamento**
-
-Usar moves reais para manter histórico:
+- [ ] **Step 3: Mover controller/query preservando corpos**
 
 ```bash
-mkdir -p src/app/navigation
 git mv src/app/useNavigationController.js src/app/navigation/useNavigationController.js
 git mv src/app/queryContext.js src/app/navigation/queryContext.js
 git mv src/app/useQueryContext.js src/app/navigation/useQueryContext.js
 git mv src/app/queryContext.test.js src/app/navigation/queryContext.test.js
 ```
 
-Ajustes exatos:
+Mudanças exatas:
 
 - `queryContext.js`: `../pages/printQueueQuery.js` → `../../pages/printQueueQuery.js`.
-- `useQueryContext.js`: continua importando `./queryContext.js`.
-- controller: importar `NAVIGATION_DESTINATIONS` de `./registry.js`, `decideNavigation`, `resolveArea`, `resolveDestination`, `resolveHome` de `./resolution.js`, e `shouldConfirmSettingsExit` de `./settingsDraftGuard.js`.
-- remover `HOME_AREAS`, `resolveHome()` local, `hasSettingsUnloadRisk()` local e `shouldConfirmSettingsExit()` local do controller.
-- manter mensagens, precedência e API pública atuais sem alteração.
+- controller: importar `NAVIGATION_DESTINATIONS` de `./registry.js`; `decideNavigation`, `resolveArea`, `resolveDestination`, `resolveHome` de `./resolution.js`; `shouldConfirmSettingsExit` de `./settingsDraftGuard.js`.
+- remover do controller as implementações locais `HOME_AREAS`, `resolveHome`, `hasSettingsUnloadRisk`, `shouldConfirmSettingsExit`.
+- manter mensagens, precedência e retorno do hook inalterados.
 
-- [ ] **Step 4: Atualizar App somente nos imports e callbacks de guard**
-
-No `src/App.jsx`:
+- [ ] **Step 4: Atualizar App só nos imports/adapter**
 
 ```js
 import { resolveDestination } from './app/navigation/resolution.js'
@@ -460,7 +417,7 @@ import { useQueryContext } from './app/navigation/useQueryContext.js'
 import { getSettingsDraftForDestination, hasSettingsUnloadRisk } from './app/navigation/settingsDraftGuard.js'
 ```
 
-Remover `SETTINGS_DRAFT_ROUTES` e `settingsDraftAt` do topo; no controller usar:
+Remover `SETTINGS_DRAFT_ROUTES`/`settingsDraftAt` de `App.jsx` e usar:
 
 ```js
 getSettingsDraft: (destination) => getSettingsDraftForDestination(
@@ -469,54 +426,63 @@ getSettingsDraft: (destination) => getSettingsDraftForDestination(
 ),
 ```
 
-Não tocar ainda no return/composição do App.
+- [ ] **Step 5: Atualizar loads dos testes e adicionar integração do guard**
 
-- [ ] **Step 5: Atualizar os testes existentes para os novos caminhos e reforçar guards**
-
-Em `src/navigationContext.test.js`, trocar loads para:
+Em `src/navigationContext.test.js`, usar os novos paths e acrescentar:
 
 ```js
-const { useQueryContext } = await h.load('/src/app/navigation/useQueryContext.js')
-const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
+test('controller permite navegar no mesmo draft de Settings e confirma ao abandonar o recurso', async (t) => {
+  const h = await workspaceHarness(t)
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
+  const { getSettingsDraftForDestination } = await h.load('/src/app/navigation/settingsDraftGuard.js')
+  const api = React.createRef()
+  const discarded = []
+  const resources = { operations: { dirty: true, status: 'idle' } }
+
+  const Probe = React.forwardRef(function Probe(_props, ref) {
+    const current = useNavigationController({
+      granted: new Set(['operations.settings.view', 'clients.view']),
+      implemented: new Set(['settings-home', 'settings-operations', 'settings-modalities', 'clients']),
+      checkoutPending: false,
+      dirtyOrder: false,
+      onDiscardOrder() {},
+      getSettingsDraft: (destination) => getSettingsDraftForDestination(resources, destination),
+      onDiscardSettings: () => { discarded.push('operations'); return true },
+      onFeedback() {},
+    })
+    React.useImperativeHandle(ref, () => current, [current])
+    return React.createElement('output', null, `${current.activeTab}:${current.pendingDestination || ''}`)
+  })
+
+  const renderer = await h.render(Probe, { ref: api })
+  await act(async () => api.current.requestNavigation('settings-operations'))
+  await act(async () => api.current.requestNavigation('settings-modalities'))
+  assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:')
+  await act(async () => api.current.requestNavigation('clients'))
+  assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:clients')
+  await act(async () => api.current.confirmDiscard())
+  assert.equal(renderer.root.findByType('output').children.join(''), 'clients:')
+  assert.deepEqual(discarded, ['operations'])
+})
 ```
 
-Acrescentar um caso com `getSettingsDraft`/`onDiscardSettings` confirmando que Settings dirty pede confirmação somente ao abandonar o recurso e que `saving`/`unconfirmed` não cria nova confirmação.
-
-- [ ] **Step 6: Rodar GREEN focado**
+- [ ] **Step 6: GREEN, ausência de imports antigos e commit**
 
 ```bash
-node --test \
-  src/app/navigation/queryContext.test.js \
-  src/app/navigation/settingsDraftGuard.test.js \
-  src/app/navigation/resolution.test.js \
-  src/navigationContext.test.js \
-  src/AppNewOrderGuard.test.js
+node --test src/app/navigation/queryContext.test.js src/app/navigation/settingsDraftGuard.test.js src/app/navigation/resolution.test.js src/navigationContext.test.js src/AppNewOrderGuard.test.js
 npm run lint
 npm run test:architecture
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Confirmar que não há consumidor dos caminhos antigos antes do commit**
-
-```bash
 grep -R "app/useNavigationController\|app/useQueryContext\|app/queryContext" -n src --include='*.js' --include='*.jsx' || true
-```
-
-Expected: nenhuma referência de produção/teste aos três arquivos antigos.
-
-- [ ] **Step 8: Revisar diff e commit**
-
-```bash
 git diff --check
-git diff -- src/app/navigation src/App.jsx src/navigationContext.test.js
 git add src/app/navigation src/App.jsx src/navigationContext.test.js
 git commit -m "refactor: isolate navigation state ownership"
 ```
 
+Expected do `grep`: nenhuma referência aos três caminhos antigos.
+
 ---
 
-### Task 3: Adicionar NavigationContext mínimo e bridge `app:navigate`
+### Task 3: NavigationContext mínimo e bridge `app:navigate`
 
 **Files:**
 - Create: `src/app/navigation/useNavigationEventBridge.js`
@@ -525,67 +491,53 @@ git commit -m "refactor: isolate navigation state ownership"
 
 **Interfaces:**
 - Consumes: `requestNavigation(target)` do controller.
-- Produces: `NavigationProvider` e `useNavigation()`; contexto com exatamente `activeTab`, `activeMobileEntry`, `granted`, `implemented`, `moreOpen`, `requestNavigation`, `openMore`, `closeMore`; listener `app:navigate` somente enquanto o provider estiver montado.
+- Produces: contexto exatamente com `activeTab`, `activeMobileEntry`, `granted`, `implemented`, `moreOpen`, `requestNavigation`, `openMore`, `closeMore`; um listener `app:navigate` durante a montagem do provider.
 
-- [ ] **Step 1: Escrever RED do contexto pequeno**
+- [ ] **Step 1: RED do contrato e lifecycle do listener**
 
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
+import { act } from 'react-test-renderer'
 import { workspaceHarness } from '../../test-support/renderWorkspace.js'
 
-test('NavigationContext expõe somente o contrato de navegação', async (t) => {
+test('NavigationProvider expõe só navegação e possui um listener app:navigate', async (t) => {
   const h = await workspaceHarness(t)
   const { NavigationProvider, useNavigation } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const seen = React.createRef()
+  const calls = []
   function Probe() {
     seen.current = useNavigation()
     return React.createElement('output', null, seen.current.activeTab)
   }
-  await h.render(NavigationProvider, {
+  const before = h.activitySnapshot({ ignoreFocus: true }).listeners
+  const renderer = await h.render(NavigationProvider, {
     activeTab: 'orders', activeMobileEntry: undefined,
     granted: new Set(['orders.view']), implemented: new Set(['orders']),
-    moreOpen: false, requestNavigation() {}, openMore() {}, closeMore() {},
+    moreOpen: false, requestNavigation: (id) => calls.push(id), openMore() {}, closeMore() {},
     children: React.createElement(Probe),
   })
   assert.deepEqual(Object.keys(seen.current).sort(), [
     'activeMobileEntry', 'activeTab', 'closeMore', 'granted', 'implemented',
     'moreOpen', 'openMore', 'requestNavigation',
   ].sort())
-  assert.equal(Object.hasOwn(seen.current, 'orders'), false)
+  assert.equal(h.activitySnapshot({ ignoreFocus: true }).listeners, before + 1)
+  await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'clients' })))
+  await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: { id: 'clients' } })))
+  assert.deepEqual(calls, ['clients'])
+  await act(async () => renderer.unmount())
+  assert.equal(h.activitySnapshot({ ignoreFocus: true }).listeners, before)
 })
 ```
 
-Expected RED: arquivo inexistente.
-
-- [ ] **Step 2: Escrever RED do bridge e cleanup**
-
-No mesmo teste, instrumentar `window.addEventListener/removeEventListener` e verificar:
-
-```js
-const calls = []
-const handlers = new Map()
-const originalAdd = window.addEventListener
-const originalRemove = window.removeEventListener
-window.addEventListener = (type, handler) => handlers.set(type, handler)
-window.removeEventListener = (type, handler) => {
-  if (handlers.get(type) === handler) handlers.delete(type)
-}
-t.after(() => {
-  window.addEventListener = originalAdd
-  window.removeEventListener = originalRemove
-})
-
-// montar provider com requestNavigation: value => calls.push(value)
-handlers.get('app:navigate')?.({ detail: 'clients' })
-handlers.get('app:navigate')?.({ detail: { id: 'clients' } })
-assert.deepEqual(calls, ['clients'])
-// unmount
-assert.equal(handlers.has('app:navigate'), false)
+```bash
+node --test src/app/navigation/NavigationContext.test.js
 ```
 
-- [ ] **Step 3: Implementar bridge com callback atual e listener único**
+Expected: FAIL porque os módulos não existem.
+
+- [ ] **Step 2: Implementar bridge com callback atualizado sem recriar listener**
 
 ```js
 import { useEffect, useRef } from 'react'
@@ -603,7 +555,7 @@ export function useNavigationEventBridge(requestNavigation) {
 }
 ```
 
-- [ ] **Step 4: Implementar provider restrito**
+- [ ] **Step 3: Implementar provider fechado**
 
 ```jsx
 import { createContext, useContext, useMemo } from 'react'
@@ -611,17 +563,7 @@ import { useNavigationEventBridge } from './useNavigationEventBridge.js'
 
 const NavigationContext = createContext(null)
 
-export function NavigationProvider({
-  activeTab,
-  activeMobileEntry,
-  granted,
-  implemented,
-  moreOpen,
-  requestNavigation,
-  openMore,
-  closeMore,
-  children,
-}) {
+export function NavigationProvider({ activeTab, activeMobileEntry, granted, implemented, moreOpen, requestNavigation, openMore, closeMore, children }) {
   useNavigationEventBridge(requestNavigation)
   const value = useMemo(() => ({
     activeTab, activeMobileEntry, granted, implemented, moreOpen,
@@ -637,18 +579,11 @@ export function useNavigation() {
 }
 ```
 
-- [ ] **Step 5: Rodar GREEN**
+- [ ] **Step 4: GREEN e commit**
 
 ```bash
 node --test src/app/navigation/NavigationContext.test.js
 npm run lint
-```
-
-Expected: PASS, um listener durante montagem e cleanup no unmount.
-
-- [ ] **Step 6: Revisar diff e commit**
-
-```bash
 git diff --check
 git add src/app/navigation/NavigationContext.jsx src/app/navigation/useNavigationEventBridge.js src/app/navigation/NavigationContext.test.js
 git commit -m "refactor: add scoped navigation context"
@@ -656,37 +591,32 @@ git commit -m "refactor: add scoped navigation context"
 
 ---
 
-### Task 4: Mover shell/menus/AreaNavigation para seus owners
+### Task 4: Mover shell, menus e AreaNavigation
 
 **Files:**
 - Move: `src/components/AppShell.jsx` → `src/app/shell/AppShell.jsx`
 - Move: `src/components/Sidebar.jsx` → `src/app/shell/Sidebar.jsx`
 - Move: `src/components/MobileNavigation.jsx` → `src/app/shell/MobileNavigation.jsx`
 - Move: `src/components/AreaNavigation.jsx` → `src/app/navigation/AreaNavigation.jsx`
-- Delete after migration: `src/utils/mobileNavigation.js`
+- Delete after consumers migrate: `src/utils/mobileNavigation.js`
 - Create: `src/app/shell/AppShell.test.js`
 - Create: `src/app/navigation/AreaNavigation.test.js`
-- Modify: `src/pages/Orders.jsx`
-- Modify: `src/pages/OrderHistory.jsx`
-- Modify: `src/pages/Dashboard.jsx`
-- Modify: `src/pages/Receivables.jsx`
-- Modify: `src/pages/Finance.jsx`
-- Modify: `src/pages/Settings.jsx`
-- Modify: `src/App.jsx` import de `AppShell` e props de páginas apenas
+- Modify: `src/pages/Orders.jsx`, `OrderHistory.jsx`, `Dashboard.jsx`, `Receivables.jsx`, `Finance.jsx`, `Settings.jsx`
+- Modify: `src/App.jsx` import do shell e props de páginas
 
 **Interfaces:**
-- Consumes: `NavigationProvider/useNavigation`, registry/resolution e `getMobilePageDirection()`.
-- Produces: shell autenticado que não contém registry local nem listener global; menus e AreaNavigation usam o mesmo contrato.
+- Consumes: `NavigationProvider/useNavigation`, registry/resolution.
+- Produces: shell sem registry local e sem listener global; Sidebar/Mobile/Area usando o mesmo contrato.
 
-- [ ] **Step 1: Escrever RED da AreaNavigation baseada no contexto**
+- [ ] **Step 1: RED da AreaNavigation pelo contexto**
 
 ```js
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
-import { buttonNamed, workspaceHarness } from '../../test-support/renderWorkspace.js'
+import { workspaceHarness, buttonNamed } from '../../test-support/renderWorkspace.js'
 
-test('AreaNavigation usa o contexto e mantém somente destinos permitidos da área', async (t) => {
+test('AreaNavigation usa contexto e marca destino ativo', async (t) => {
   const h = await workspaceHarness(t)
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
@@ -701,77 +631,133 @@ test('AreaNavigation usa o contexto e mantém somente destinos permitidos da ár
   })
   const nav = renderer.root.findByProps({ 'aria-label': 'Navegação de Pedidos' })
   assert.equal(buttonNamed(nav, 'Histórico').props['aria-current'], 'page')
-  await buttonNamed(nav, 'Cozinha').props.onClick()
+  buttonNamed(nav, 'Cozinha').props.onClick()
   assert.deepEqual(calls, ['orders'])
 })
 ```
 
-Expected RED: novo caminho ainda não existe.
+Expected: FAIL porque o novo caminho ainda não existe.
 
-- [ ] **Step 2: Escrever RED da transição/foco do shell**
+- [ ] **Step 2: RED do foco/transição do novo AppShell**
 
-Criar `AppShell.test.js` com provider e `createNodeMock`/harness para comprovar:
+```js
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import React from 'react'
+import { act } from 'react-test-renderer'
+import { workspaceHarness } from '../../test-support/renderWorkspace.js'
 
-- `orders → history` resulta `data-direction="forward"`;
-- `history → orders` resulta `backward`;
-- `settings-home → settings-payments` continua `none`;
-- mudança de `activeTab` chama `focus()` uma vez no `.app-content`;
-- o shell não registra `app:navigate` diretamente.
+test('AppShell preserva direção e foco ao trocar de página', async (t) => {
+  const h = await workspaceHarness(t)
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: AppShell } = await h.load('/src/app/shell/AppShell.jsx')
+  const granted = new Set(['orders.view', 'orders.history'])
+  const implemented = new Set(['orders', 'history'])
+  const Wrapper = ({ activeTab }) => React.createElement(NavigationProvider, {
+    activeTab, granted, implemented, moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(AppShell, {
+      dashboardPeriod: '30d', onDashboardPeriodChange() {},
+      children: React.createElement('span', null, activeTab),
+    }),
+  })
+  const renderer = await h.render(Wrapper, { activeTab: 'orders' }, {
+    createNodeMock: (element) => element.props?.className === 'app-content page-transition'
+      ? { focus: h.recordFocus }
+      : {},
+  })
+  const beforeFocus = h.activitySnapshot().focus
+  await act(async () => renderer.update(React.createElement(Wrapper, { activeTab: 'history' })))
+  const content = renderer.root.findByProps({ className: 'app-content page-transition' })
+  assert.equal(content.props['data-direction'], 'forward')
+  assert.equal(h.activitySnapshot().focus, beforeFocus + 1)
+  await act(async () => renderer.update(React.createElement(Wrapper, { activeTab: 'orders' })))
+  assert.equal(renderer.root.findByProps({ className: 'app-content page-transition' }).props['data-direction'], 'backward')
+})
+```
 
-A asserção de direção deve derivar do comportamento real do `AppShell`; a lógica pura já está coberta em `resolution.test.js`.
+Expected: FAIL porque o novo shell ainda não existe.
 
-- [ ] **Step 3: Mover arquivos preservando JSX/CSS existente**
+- [ ] **Step 3: Mover os quatro componentes preservando marcação/CSS**
 
 ```bash
-mkdir -p src/app/shell src/app/navigation
 git mv src/components/AppShell.jsx src/app/shell/AppShell.jsx
 git mv src/components/Sidebar.jsx src/app/shell/Sidebar.jsx
 git mv src/components/MobileNavigation.jsx src/app/shell/MobileNavigation.jsx
 git mv src/components/AreaNavigation.jsx src/app/navigation/AreaNavigation.jsx
 ```
 
-Ajustar imports mecânicos:
+Ajustar imports mecanicamente:
 
-- shell → componentes compartilhados via `../../components/...`;
-- `AppShell` → `../../order-cancellation.css`, `../../components/DashboardPeriodProvider`;
-- `MobileNavigation` → `../../mobile-navigation.css`, `../../components/BottomSheet`, `../../components/Icon`;
-- `AreaNavigation` → `../../area-navigation.css` se necessário e registry/context locais.
+- `AppShell`: `../../order-cancellation.css`, `../../components/DashboardPeriodProvider`, `./Sidebar`, `./MobileNavigation`, `../navigation/NavigationContext.jsx`, `../navigation/resolution.js`.
+- `Sidebar`: `../../components/Icon`, registry/resolution/context.
+- `MobileNavigation`: `../../mobile-navigation.css`, `../../components/BottomSheet`, `../../components/Icon`, registry/resolution/context.
+- `AreaNavigation`: registry/resolution/context. **Não adicionar import novo de CSS**; manter `src/pages/Settings.jsx` com o import global `../area-navigation.css` existente nesta slice.
 
-- [ ] **Step 4: Remover definições duplicadas de menu dos componentes**
+- [ ] **Step 4: Implementar Sidebar sem árvore local**
 
-`Sidebar.jsx` deve consumir:
+Núcleo obrigatório:
 
 ```js
-import { DESKTOP_NAV_GROUPS } from '../navigation/registry.js'
-import { resolveNavigationEntry } from '../navigation/resolution.js'
-import { useNavigation } from '../navigation/NavigationContext.jsx'
+const { activeTab, activeMobileEntry, granted, implemented, requestNavigation } = useNavigation()
+const visibleGroups = DESKTOP_NAV_GROUPS.map((group) => ({
+  ...group,
+  items: group.items.map((item) => resolveNavigationEntry(item, granted, implemented)).filter(Boolean),
+})).filter((group) => group.items.length)
+
+const isActive = (item) => activeMobileEntry
+  ? (item.area || item.id) === activeMobileEntry
+  : item.area
+    ? destinationById.get(activeTab)?.area === item.area
+    : activeTab === item.id
 ```
 
-E obter `activeTab`, `activeMobileEntry`, `granted`, `implemented`, `requestNavigation` do contexto. Não manter `groups`/`activeAreas` locais; a atividade por área deve usar `destinationById.get(activeTab)?.area === item.area`, preservando `new-order` como área `orders`.
+O JSX/copies/ícones/logout permanecem os atuais.
 
-`MobileNavigation.jsx` deve consumir `MOBILE_DIRECT_ENTRIES`, `MOBILE_MORE_ENTRIES`, `destinationById`, `resolveNavigationEntry` e `useNavigation()`. Remover `directEntries`, `moreEntries` e `destinationById` locais.
+- [ ] **Step 5: Implementar MobileNavigation sem arrays locais**
 
-`AreaNavigation.jsx` deve receber somente `{ area }` e usar:
+Núcleo obrigatório:
+
+```js
+const { activeTab, activeMobileEntry, granted, implemented, moreOpen, requestNavigation, openMore, closeMore } = useNavigation()
+const directItems = MOBILE_DIRECT_ENTRIES.map((item) => resolveNavigationEntry(item, granted, implemented)).filter(Boolean)
+const moreItems = MOBILE_MORE_ENTRIES.map((item) => resolveNavigationEntry(item, granted, implemented)).filter(Boolean)
+const currentEntry = activeMobileEntry || destinationById.get(activeTab)?.mobileEntry
+const moreActive = currentEntry === 'more'
+```
+
+Manter exatamente o BottomSheet “Mais opções”, logout e `aria-current` atuais.
+
+- [ ] **Step 6: Implementar AreaNavigation com prop única `area`**
 
 ```jsx
-const { activeTab, granted, implemented, requestNavigation } = useNavigation()
-const destinations = NAVIGATION_DESTINATIONS.filter((destination) => (
-  destination.area === area
-  && destination.id !== 'new-order'
-  && resolveDestination(destination.id, granted, implemented).status === 'allowed'
-))
+import { AREA_LABELS, NAVIGATION_DESTINATIONS } from './registry.js'
+import { resolveDestination } from './resolution.js'
+import { useNavigation } from './NavigationContext.jsx'
+
+export default function AreaNavigation({ area }) {
+  const { activeTab, granted, implemented, requestNavigation } = useNavigation()
+  const destinations = NAVIGATION_DESTINATIONS.filter((destination) => (
+    destination.area === area
+    && destination.id !== 'new-order'
+    && resolveDestination(destination.id, granted, implemented).status === 'allowed'
+  ))
+  if (!destinations.length) return null
+  return <nav className="area-navigation" aria-label={`Navegação de ${AREA_LABELS[area] || area}`}>
+    {destinations.map((destination) => <button key={destination.id} type="button" aria-current={activeTab === destination.id ? 'page' : undefined} className={activeTab === destination.id ? 'area-navigation-item active' : 'area-navigation-item'} onClick={() => requestNavigation(destination.id)}>{destination.label}</button>)}
+  </nav>
+}
 ```
 
-- [ ] **Step 5: Deixar AppShell somente com shell/foco/transição**
+- [ ] **Step 7: Deixar AppShell somente com shell/foco/transição**
 
-Remover o effect de `app:navigate`. Usar:
+Remover o effect `app:navigate`. Usar:
 
 ```js
 const { activeTab } = useNavigation()
 const previousTab = useRef(activeTab)
 const contentRef = useRef(null)
 const [pageDirection, setPageDirection] = useState('none')
-
 useEffect(() => {
   setPageDirection(getMobilePageDirection(previousTab.current, activeTab))
   if (previousTab.current !== activeTab) contentRef.current?.focus?.()
@@ -779,84 +765,61 @@ useEffect(() => {
 }, [activeTab])
 ```
 
-Manter exatamente `key={activeTab}`, `className="app-content page-transition"`, `tabIndex={-1}` e `DashboardPeriodProvider`.
+Manter `key={activeTab}`, `className="app-content page-transition"`, `data-direction`, `tabIndex={-1}` e `DashboardPeriodProvider`.
 
-- [ ] **Step 6: Migrar os seis consumidores de AreaNavigation**
+- [ ] **Step 8: Migrar os seis consumidores sem deixar prop drilling morto**
 
-Trocar imports para `../app/navigation/AreaNavigation.jsx` e renderizar somente `area`:
+Todos passam a renderizar somente `AreaNavigation area="..."`.
 
-```jsx
-<AreaNavigation area="orders" />
-<AreaNavigation area="finance" />
-<AreaNavigation area="settings" />
-```
+Remover dos signatures/calls:
 
-Remover de signatures/props somente argumentos usados exclusivamente por AreaNavigation:
+- `Orders`: `implemented`, `onNavigate`; manter `granted`.
+- `OrderHistory`: `implemented`, `onNavigate`, `activeTab`; manter `granted`.
+- `Dashboard`: `granted`, `implemented`, `onNavigate`, `activeTab`.
+- `Receivables`: `granted`, `implemented`, `onNavigate`, `activeTab` — hoje só aparecem no AreaNavigation.
+- `Finance`: `granted`, `implemented`, `onNavigate`, `activeTab` — hoje só aparecem no AreaNavigation.
+- `Settings`: não remover `granted`, `implemented`, `onNavigate`; a própria superfície ainda os usa. Somente a chamada a AreaNavigation vira `<AreaNavigation area="settings" />`.
 
-- `Orders`: remover `implemented`, `onNavigate`; manter `granted` porque pagamento usa capability.
-- `OrderHistory`: remover `implemented`, `onNavigate`, `activeTab`; manter `granted`.
-- `Dashboard`: remover `granted`, `implemented`, `onNavigate`, `activeTab`.
-- `Receivables`: remover `granted`, `implemented`, `onNavigate`, `activeTab` se não houver outro uso no arquivo.
-- `Finance`: remover `granted`, `implemented`, `onNavigate`, `activeTab` se não houver outro uso no arquivo.
-- `Settings`: manter `granted`, `implemented`, `onNavigate` porque a própria superfície e `SettingsHome` ainda os usam; somente AreaNavigation deixa de receber esses props.
+Atualizar as chamadas em `App.jsx` exatamente na mesma rodada.
 
-Atualizar as chamadas correspondentes em `App.jsx`, sem mover handlers de domínio.
-
-- [ ] **Step 7: Remover util legado de transição**
-
-Depois de nenhum import restante:
+- [ ] **Step 9: Remover util legado e rodar GREEN**
 
 ```bash
 grep -R "utils/mobileNavigation" -n src --include='*.js' --include='*.jsx' || true
 git rm src/utils/mobileNavigation.js
-```
-
-- [ ] **Step 8: Rodar GREEN e regressões de navegação/superfícies**
-
-```bash
-node --test \
-  src/app/navigation/registry.test.js \
-  src/app/navigation/resolution.test.js \
-  src/app/navigation/AreaNavigation.test.js \
-  src/app/shell/AppShell.test.js \
-  src/navigationContext.test.js \
-  src/AppNewOrderGuard.test.js \
-  src/pages/DashboardMobile.test.js \
-  src/pages/ClientsProductsMobile.test.js
+node --test src/app/navigation/registry.test.js src/app/navigation/resolution.test.js src/app/navigation/AreaNavigation.test.js src/app/shell/AppShell.test.js src/navigationContext.test.js src/AppNewOrderGuard.test.js src/pages/DashboardMobile.test.js src/pages/ClientsProductsMobile.test.js
 npm run lint
 npm run test:architecture
-```
-
-Expected: PASS.
-
-- [ ] **Step 9: Revisar diff e commit**
-
-```bash
 git diff --check
-git diff -- src/app/shell src/app/navigation src/pages src/App.jsx src/utils/mobileNavigation.js
 git add -A src/app/shell src/app/navigation src/pages src/App.jsx src/utils/mobileNavigation.js
 git commit -m "refactor: move application shell navigation"
 ```
 
+Expected do `grep`: nenhuma referência antes do `git rm`.
+
 ---
 
-### Task 5: Extrair AppRoot fino para estados globais
+### Task 5: AppRoot fino para estados globais
 
 **Files:**
 - Create: `src/app/shell/AppRoot.jsx`
 - Create: `src/app/shell/AppRoot.test.js`
-- Modify: `src/App.jsx` somente na integração visual global
+- Modify: `src/App.jsx`
 
 **Interfaces:**
-- Consumes props já calculados pelo App: `authState`, `isOnline`, login state/callback, bootstrap state/retry, feedback e `children`.
-- Produces somente estados globais visuais; nenhum dado/handler de domínio entra no `AppRoot`.
+- Consumes somente `authState`, `isOnline`, estado/callback de login, bootstrap/retry, feedback e `children`.
+- Produces checking/Login/bootstrap/feedback/ready visual; nenhum dado/handler de domínio entra no componente.
 
-- [ ] **Step 1: Escrever RED dos cinco estados globais**
-
-Cobrir em `AppRoot.test.js`:
+- [ ] **Step 1: RED dos estados globais**
 
 ```js
-const base = {
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import React from 'react'
+import { act } from 'react-test-renderer'
+import { workspaceHarness, buttonNamed, nodeText } from '../../test-support/renderWorkspace.js'
+
+const baseProps = {
   isOnline: true,
   authState: 'authenticated',
   loginLoading: false,
@@ -869,21 +832,32 @@ const base = {
   successMessage: '',
   children: React.createElement('div', { id: 'ready-content' }, 'ready'),
 }
+
+test('AppRoot preserva checking, anonymous, bootstrap error e ready', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: AppRoot } = await h.load('/src/app/shell/AppRoot.jsx')
+  const renderer = await h.render(AppRoot, { ...baseProps, authState: 'checking' })
+  assert.match(nodeText(renderer.root), /Carregando sistema/)
+  await act(async () => renderer.update(React.createElement(AppRoot, { ...baseProps, authState: 'anonymous', isOnline: false })))
+  assert.equal(renderer.root.findAllByProps({ placeholder: 'Digite o PIN' }).length, 1)
+  let retries = 0
+  await act(async () => renderer.update(React.createElement(AppRoot, { ...baseProps, bootstrapState: 'error', onRetryBootstrap: () => { retries += 1 } })))
+  await act(async () => buttonNamed(renderer.root, 'Tentar novamente').props.onClick())
+  assert.equal(retries, 1)
+  await act(async () => renderer.update(React.createElement(AppRoot, { ...baseProps, toastMessage: 'Aviso', successMessage: 'Sucesso' })))
+  assert.match(nodeText(renderer.root), /ready/)
+  assert.match(nodeText(renderer.root), /Aviso/)
+  assert.match(nodeText(renderer.root), /Sucesso/)
+})
 ```
 
-Asserções obrigatórias:
+```bash
+node --test src/app/shell/AppRoot.test.js
+```
 
-- `authState='checking'` → “Carregando sistema” / “Verificando sua sessão…”;
-- `anonymous` → Login e banner quando `isOnline=false`;
-- `bootstrapState='loading'` → “Carregando dados”;
-- `bootstrapState='error'` → botão “Tentar novamente” chama `onRetryBootstrap`;
-- `ready` → monta `children` e feedback global.
-
-Expected RED: `AppRoot.jsx` inexistente.
+Expected: FAIL porque `AppRoot.jsx` não existe.
 
 - [ ] **Step 2: Implementar AppRoot sem domínio**
-
-Estrutura de implementação:
 
 ```jsx
 import { createPortal } from 'react-dom'
@@ -892,63 +866,23 @@ import ConnectionBanner from '../../components/ConnectionBanner'
 import Icon from '../../components/Icon'
 import LoginScreen from '../../components/LoginScreen'
 
-const renderToast = (message) => (
-  <div className="toast-success" role="status">
-    <span className="toast-icon"><Icon name="dashboard" size={17} /></span>{message}
-  </div>
-)
+const Toast = ({ message }) => <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{message}</div>
+const Success = ({ message }) => <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{message}</strong></div></div>
+const portal = (node) => node && typeof document !== 'undefined' ? createPortal(node, document.body) : node
 
-const renderSuccess = (message) => (
-  <div className="success-confirmation-overlay" role="status" aria-live="polite">
-    <div className="success-confirmation-card">
-      <span className="success-confirmation-icon"><Icon name="check" size={30} /></span>
-      <strong>{message}</strong>
-    </div>
-  </div>
-)
-
-export default function AppRoot({
-  isOnline,
-  authState,
-  loginLoading,
-  loginError,
-  onLogin,
-  bootstrapState,
-  onRetryBootstrap,
-  retryDisabled,
-  toastMessage,
-  successMessage,
-  children,
-}) {
+export default function AppRoot({ isOnline, authState, loginLoading, loginError, onLogin, bootstrapState, onRetryBootstrap, retryDisabled, toastMessage, successMessage, children }) {
   if (authState === 'checking') return <div className="system-state-screen"><div className="system-state-card"><h2>Carregando sistema</h2><p>Verificando sua sessão…</p></div></div>
   if (authState === 'anonymous') return <>{!isOnline && <ConnectionBanner />}<LoginScreen onLogin={onLogin} loading={loginLoading} error={loginError} disabled={!isOnline} /></>
   if (bootstrapState !== 'ready') return <>{!isOnline && <ConnectionBanner />}<div className="system-state-screen"><div className="system-state-card">{bootstrapState === 'error' ? <><h2>Não foi possível carregar os dados</h2><p>Confira sua conexão e tente novamente.</p><Button type="button" onClick={onRetryBootstrap} disabled={retryDisabled}>Tentar novamente</Button></> : <><h2>Carregando dados</h2><p>Sincronizando a operação da Amor &amp; Sabor…</p></>}</div></div></>
-
-  const toast = toastMessage ? renderToast(toastMessage) : null
-  const success = successMessage ? renderSuccess(successMessage) : null
-  const portal = (node) => node && typeof document !== 'undefined' ? createPortal(node, document.body) : node
-  return <>{!isOnline && <ConnectionBanner />}{portal(toast)}{portal(success)}{children}</>
+  return <>{!isOnline && <ConnectionBanner />}{toastMessage && portal(<Toast message={toastMessage} />)}{successMessage && portal(<Success message={successMessage} />)}{children}</>
 }
 ```
 
 Não adicionar outras props.
 
-- [ ] **Step 3: Rodar GREEN unitário**
+- [ ] **Step 3: Integrar sem alterar a árvore ready**
 
-```bash
-node --test src/app/shell/AppRoot.test.js
-```
-
-Expected: PASS.
-
-- [ ] **Step 4: Integrar AppRoot sem alterar a árvore ready**
-
-No `App.jsx`:
-
-- importar `AppRoot` de `./app/shell/AppRoot.jsx`;
-- remover imports diretos `createPortal`, `ConnectionBanner` e `LoginScreen` se não usados em outro lugar;
-- remover os três early returns de checking/anonymous/bootstrap;
-- envolver a árvore atual no fim do App:
+Em `App.jsx`, remover os early returns checking/anonymous/bootstrap e os renders globais de connection/toast/success. O retorno passa a começar assim:
 
 ```jsx
 return (
@@ -964,32 +898,19 @@ return (
     toastMessage={toastMessage}
     successMessage={successMessage}
   >
-    {/* árvore autenticada ready permanece aqui */}
+    {/* a árvore autenticada atual permanece como children */}
   </AppRoot>
 )
 ```
 
-O AppRoot não deve conhecer `orders`, `clients`, `printing`, settings ou handlers CRUD.
+Remover de `App.jsx` imports `createPortal`, `ConnectionBanner` e `LoginScreen` depois de confirmar que não têm outro uso.
 
-- [ ] **Step 5: Rodar regressões de sessão/bootstrap/feedback**
+- [ ] **Step 4: GREEN e commit**
 
 ```bash
-node --test \
-  src/app/shell/AppRoot.test.js \
-  src/app/runtime/session/useSessionRuntime.test.js \
-  src/app/runtime/feedback/useFeedbackRuntime.test.js \
-  src/app/runtime/runtimeExtractionContract.test.js \
-  src/navigationContext.test.js
+node --test src/app/shell/AppRoot.test.js src/app/runtime/session/useSessionRuntime.test.js src/app/runtime/feedback/useFeedbackRuntime.test.js src/app/runtime/runtimeExtractionContract.test.js src/navigationContext.test.js
 npm run lint
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Revisar diff e commit**
-
-```bash
 git diff --check
-git diff -- src/app/shell/AppRoot.jsx src/app/shell/AppRoot.test.js src/App.jsx
 git add src/app/shell/AppRoot.jsx src/app/shell/AppRoot.test.js src/App.jsx
 git commit -m "refactor: extract app root composition"
 ```
@@ -1002,16 +923,14 @@ git commit -m "refactor: extract app root composition"
 - Modify: `src/App.jsx`
 - Modify: `src/navigationContext.test.js`
 - Create: `src/app/navigation/navigationExtractionContract.test.js`
-- Delete: `src/app/navigation.js` (reexport temporário da Task 1)
-- Verify absent: todos os caminhos legados listados no File map
+- Delete: `src/app/navigation.js`
+- Verify absent: todos os caminhos legados do File map
 
 **Interfaces:**
 - Consumes: controller/query/guard, NavigationProvider, AppRoot/AppShell.
-- Produces: árvore ready com um único contrato de navegação; `App.jsx` continua dono apenas das operações transitórias C3-C9 e sinais necessários como `activeTab` para Cozinha.
+- Produces: árvore ready com um único contrato de navegação; `App.jsx` continua usando `activeTab` apenas onde comportamento existente exige.
 
-- [ ] **Step 1: Escrever RED do contrato estrutural final**
-
-Criar `navigationExtractionContract.test.js`:
+- [ ] **Step 1: RED do contrato estrutural final**
 
 ```js
 import test from 'node:test'
@@ -1031,32 +950,33 @@ const legacyPaths = [
 ]
 
 test('C2 remove caminhos legados de shell/navigation', async () => {
-  for (const path of legacyPaths) {
-    await assert.rejects(access(path), undefined, `${path} should not exist after C2`)
-  }
+  for (const path of legacyPaths) await assert.rejects(access(path), { code: 'ENOENT' })
 })
 
-test('App não redefine registry nem listener global de navegação', async () => {
+test('App preserva sinais operacionais sem redefinir navegação extraída', async () => {
   const source = await readFile('src/App.jsx', 'utf8')
   assert.equal(source.includes('SETTINGS_DRAFT_ROUTES'), false)
   assert.equal(source.includes("addEventListener('app:navigate'"), false)
   assert.equal(source.includes('DESKTOP_NAV_GROUPS'), false)
   assert.equal(source.includes('MOBILE_DIRECT_ENTRIES'), false)
   assert.match(source, /ordersSyncEnabled:\s*activeTab === 'orders'/)
+  assert.match(source, /active:\s*activeTab === 'orders'/)
+  assert.match(source, /activeMobileEntry\s*=\s*activeTab === 'new-order' \? newOrderContext\.returnTab/)
+  assert.match(source, /requestNavigation\(newOrderContext\.returnTab\)/)
 })
 ```
 
-Expected RED antes da integração final: ao menos `src/app/navigation.js` ainda existe.
+Antes da integração final, expected: FAIL porque `src/app/navigation.js` ainda existe.
 
-- [ ] **Step 2: Montar NavigationProvider somente dentro do estado ready**
+- [ ] **Step 2: Montar provider somente no conteúdo ready**
 
-Derivar no `App.jsx`:
+Em `App.jsx`:
 
 ```js
 const activeMobileEntry = activeTab === 'new-order' ? newOrderContext.returnTab : undefined
 ```
 
-Dentro dos children de `AppRoot`, envolver shell + modais ready:
+Dentro dos children de `AppRoot`:
 
 ```jsx
 <NavigationProvider
@@ -1075,116 +995,113 @@ Dentro dos children de `AppRoot`, envolver shell + modais ready:
     dashboardPeriod={query.dashboard.period}
     onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}
   >
-    {/* páginas atuais */}
+    {/* condicionais de páginas atuais */}
   </AppShell>
   {/* modais/overlays de domínio atuais continuam definidos no App */}
 </NavigationProvider>
 ```
 
-Como `AppRoot` só renderiza `children` quando ready, o listener `app:navigate` mantém a mesma janela de vida que o AppShell autenticado atual.
+Como `AppRoot` só monta `children` em `ready`, o bridge `app:navigate` mantém a janela de vida do shell autenticado atual.
 
-- [ ] **Step 3: Preservar os pontos em que App ainda precisa de activeTab**
+- [ ] **Step 3: Preservar os owners que continuam no App**
 
-Não alterar estas relações:
+Estas linhas continuam semanticamente iguais:
 
 ```js
 ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated'
 const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders', currentTiming })
 ```
 
-Preservar também:
+Também manter:
 
-- `resetNavigation()` e `resetQueries()` em `clearBusinessData()`;
-- `handleCancelDiscard()` com `requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())`;
-- `pendingDestination`/`pendingDiscardKind`, `confirmDiscard`, `cancelDiscard`, `discardSettingsAndNavigate`, `completeNavigation` consumidos diretamente do controller onde já são necessários ao App.
-
-- [ ] **Step 4: Reforçar integração em `navigationContext.test.js`**
-
-Acrescentar caracterizações:
-
-1. `app:navigate` em estado authenticated/ready navega para destino permitido;
-2. após logout/Login novo, query anterior não reaparece;
-3. Novo Pedido iniciado a partir de Comandas mantém `Comandas` como entrada mobile ativa e retorno correto;
-4. cancelamento do dialog de discard mantém o wizard e devolve foco ao conteúdo.
-
-Reutilizar `workspaceHarness`, `buttonNamed`, `nodeText` já existentes; não criar novo harness.
-
-- [ ] **Step 5: Remover o reexport temporário e provar ausência de imports antigos**
-
-```bash
-grep -R "from './app/navigation'\|from '../app/navigation'\|from './navigation.js'\|from '../navigation.js'" -n src --include='*.js' --include='*.jsx' || true
-git rm src/app/navigation.js
+```js
+resetNavigation()
+resetQueries()
 ```
 
-Depois:
+em `clearBusinessData()`, e:
+
+```js
+const handleCancelDiscard = useCallback(() => {
+  cancelDiscard()
+  window.requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())
+}, [cancelDiscard])
+```
+
+`pendingDestination`, `pendingDiscardKind`, `confirmDiscard`, `cancelDiscard`, `discardSettingsAndNavigate` e `completeNavigation` continuam consumidos diretamente do controller no App quando necessários.
+
+- [ ] **Step 4: Adicionar comportamento `app:navigate` ao teste de App existente**
+
+No teste `App preserva consulta ao navegar e nova sessão rejeita callback da sessão anterior` de `src/navigationContext.test.js`, após voltar à Cozinha e confirmar a busca preservada, inserir:
+
+```js
+await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'clients' })))
+assert.equal(nodeText(renderer.root).includes('Clientes'), true)
+await act(async () => buttonNamed(navigation(), 'Pedidos').props.onClick())
+assert.equal(kitchenSearch().props.value, 'maria')
+```
+
+Manter em seguida o logout/login/reset que já prova invalidação da sessão anterior.
+
+- [ ] **Step 5: Remover reexport e provar ausência dos paths antigos**
 
 ```bash
+git rm src/app/navigation.js
 grep -R "components/AppShell\|components/Sidebar\|components/MobileNavigation\|components/AreaNavigation\|utils/mobileNavigation\|app/useNavigationController\|app/useQueryContext\|app/queryContext" -n src --include='*.js' --include='*.jsx' || true
 ```
 
-Expected: nenhuma referência aos caminhos legados.
+Expected: nenhuma referência.
 
-- [ ] **Step 6: Rodar GREEN focado + regressões proporcionais**
+- [ ] **Step 6: GREEN focado e contrato final**
 
 ```bash
-node --test \
-  src/app/navigation/registry.test.js \
-  src/app/navigation/resolution.test.js \
-  src/app/navigation/queryContext.test.js \
-  src/app/navigation/settingsDraftGuard.test.js \
-  src/app/navigation/NavigationContext.test.js \
-  src/app/navigation/AreaNavigation.test.js \
-  src/app/navigation/navigationExtractionContract.test.js \
-  src/app/shell/AppShell.test.js \
-  src/app/shell/AppRoot.test.js \
-  src/navigationContext.test.js \
-  src/AppNewOrderGuard.test.js \
-  src/actionCapabilities.test.js
+node --test src/app/navigation/registry.test.js src/app/navigation/resolution.test.js src/app/navigation/queryContext.test.js src/app/navigation/settingsDraftGuard.test.js src/app/navigation/NavigationContext.test.js src/app/navigation/AreaNavigation.test.js src/app/navigation/navigationExtractionContract.test.js src/app/shell/AppShell.test.js src/app/shell/AppRoot.test.js src/navigationContext.test.js src/AppNewOrderGuard.test.js src/actionCapabilities.test.js
 npm run lint
 npm run test:architecture
 ```
 
 Expected: PASS.
 
-- [ ] **Step 7: Revisar diff contra o escopo C2**
+- [ ] **Step 7: Revisar diff de código e commit**
 
 ```bash
 git diff --check
 git diff f5d8b7267cdbf91a7d254a3c1546464d4d9b0210...HEAD -- src scripts package.json .github
 ```
 
-Bloqueadores de revisão:
+Bloquear se aparecer:
 
-- qualquer alteração em `worker/`, `migrations/`, endpoint ou dependência;
+- `worker/` ou `migrations/`;
+- mudança de dependência;
 - mudança deliberada de CSS/textos/menu;
-- criação de context com coleções/handlers de domínio;
-- mudança nos intervalos/políticas de sync;
-- facade legado permanecendo sem remoção.
+- contexto com coleções/handlers de domínio;
+- mudança de polling/sync;
+- facade legado final.
 
-- [ ] **Step 8: Commit de fechamento funcional C2**
+Se o diff estiver dentro do escopo:
 
 ```bash
 git add -A src
 git commit -m "refactor: complete c2 navigation boundary"
 ```
 
-Não fazer deploy nem merge ainda.
+Não fazer deploy/merge ainda.
 
 ---
 
-### Task 7: Gates finais, PR, staging e homologação C2
+### Task 7: Gates finais, PR, staging e homologação
 
-**Files:**
-- Create somente após evidência real: `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`
-- Modify após evidência real: `docs/superpowers/qa/spec-c-execution-ledger.md`
+**Files após evidência real:**
+- Create: `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`
+- Modify: `docs/superpowers/qa/spec-c-execution-ledger.md`
 - Modify status-only: `docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md`
-- Modify se necessário: `docs/superpowers/qa/spec-c-compatibility-facades.md`
+- Modify somente se houver mudança real: `docs/superpowers/qa/spec-c-compatibility-facades.md`
 
 **Interfaces:**
 - Consumes: HEAD funcional fechado da Task 6.
-- Produces: evidência reproduzível de CI/staging/manual QA e gate de decisão de merge; não produz release de produção.
+- Produces: evidência reproduzível de CI/staging/QA e gate de decisão de merge; não produz release de produção.
 
-- [ ] **Step 1: Rodar todos os gates locais no HEAD funcional**
+- [ ] **Step 1: Full gates e captura do SHA executável**
 
 ```bash
 npm test
@@ -1193,179 +1110,135 @@ npm run test:architecture
 npm run build
 npm run d1:migrate:local
 git diff --check
+EXECUTABLE_SHA="$(git rev-parse HEAD)"
+printf '%s\n' "$EXECUTABLE_SHA"
 ```
 
-Todos devem PASS. Registrar o SHA exato após o último commit funcional:
+Todos devem PASS. O valor impresso é o único SHA elegível para staging até novo commit funcional.
 
-```bash
-git rev-parse HEAD
-```
-
-- [ ] **Step 2: Revisar o diff completo contra a base pós-C1**
+- [ ] **Step 2: Revisar diff completo contra a base C1**
 
 ```bash
 git diff --stat f5d8b7267cdbf91a7d254a3c1546464d4d9b0210...HEAD
 git diff --name-status f5d8b7267cdbf91a7d254a3c1546464d4d9b0210...HEAD
 ```
 
-Confirmar explicitamente:
+Confirmar: nenhum `worker/**`, `migrations/**`, dependência ou trigger amplo novo; somente C2, testes e documentação.
 
-- nenhum `worker/**` ou `migrations/**` alterado;
-- nenhuma mudança de dependência;
-- `.github/workflows/deploy-staging.yml` sem trigger amplo novo;
-- alterações limitadas a C2 + testes + documentação de execução.
+- [ ] **Step 3: Abrir PR draft contra `master`**
 
-- [ ] **Step 3: Abrir PR C2 em draft contra `master` e aguardar CI**
-
-Título sugerido:
+Título:
 
 ```text
 Spec C2: modularizar navegação e composição do frontend
 ```
 
-Descrição mínima:
+Corpo deve registrar a base `f5d8b726...`, escopo/não objetivos, commits, gates locais, compatibilities finais e “produção não autorizada”. Não marcar ready/merge antes da homologação.
 
-- base C1/master SHA;
-- escopo C2 e não objetivos;
-- tarefas/commits;
-- testes focados e gates locais;
-- compatibilities (esperado: nenhuma nova final);
-- produção não autorizada.
+- [ ] **Step 4: Validar CI no HEAD exato**
 
-Não marcar ready/merge antes da homologação.
+Aguardar **Validate application** e conferir o SHA do run. Exigir PASS em tests, architecture, lint, build, Worker dry-runs e gates D1 existentes. Registrar números/IDs reais somente depois do run concluído.
 
-- [ ] **Step 4: Exigir Validate application verde no HEAD exato**
+- [ ] **Step 5: Deploy staging manual**
 
-Conferir que o run corresponde ao SHA funcional/documental atual e que passam:
-
-- `npm test`;
-- architecture gate;
-- lint;
-- build;
-- production/staging Worker dry-run;
-- D1 local e gates existentes.
-
-Não registrar PASS sem ID/run real.
-
-- [ ] **Step 5: Deploy staging manual no SHA exato a homologar**
-
-GitHub Actions → **Deploy staging** → `workflow_dispatch` → branch `feature/spec-c2-navigation-composition`.
-
-Antes da homologação, conferir:
-
-- `head_branch` exata;
-- `head_sha` exato;
-- event `workflow_dispatch`;
-- conclusion `success`;
-- teste/login smoke do workflow verde.
+Executar **Deploy staging** via `workflow_dispatch` na branch `feature/spec-c2-navigation-composition`. Conferir `head_sha == EXECUTABLE_SHA`, event `workflow_dispatch`, conclusion `success` e smoke de login do workflow.
 
 Não criar trigger automático para C2.
 
-- [ ] **Step 6: Executar a matriz manual C2 e registrar somente resultados reais**
+- [ ] **Step 6: Matriz manual obrigatória**
 
-Matriz mínima obrigatória:
+Registrar resultado real de cada item:
 
-1. login e home continuam iguais;
-2. Sidebar desktop abre cada área/destino permitido;
-3. fallback de área permanece correto quando a capability principal não existe;
-4. navegação mobile direta permanece correta;
-5. `Mais` abre, navega e fecha corretamente;
-6. navegação interna de Pedidos, Financeiro e Settings permanece correta;
-7. buscas/filtros persistem ao trocar de página e somem após nova sessão;
-8. Novo Pedido retorna para a origem correta, inclusive Comandas;
-9. pedido sujo mantém confirmação de descarte e cancelar mantém o wizard;
-10. checkout em andamento continua bloqueando saída;
-11. Settings dirty mantém confirmação correta, sem novo bloqueio durante `saving`/`unconfirmed`;
-12. foco e animação de troca de página continuam equivalentes;
-13. Cozinha ativa polling `orders` ~2 s e sair da Cozinha interrompe o polling dedicado enquanto sync global continua;
-14. `app:navigate` continua funcionando onde utilizado;
+1. login e home iguais;
+2. Sidebar desktop abre áreas/destinos permitidos;
+3. fallback de área correto sem capability principal;
+4. navegação mobile direta correta;
+5. `Mais` abre, navega e fecha;
+6. navegação interna Pedidos/Financeiro/Settings correta;
+7. buscas/filtros persistem entre páginas e resetam em nova sessão;
+8. Novo Pedido retorna à origem correta, inclusive Comandas;
+9. pedido sujo exige confirmação e cancelar mantém wizard;
+10. checkout em andamento bloqueia saída;
+11. Settings dirty confirma saída correta sem novo bloqueio em `saving`/`unconfirmed`;
+12. foco e animação permanecem equivalentes;
+13. Cozinha mantém `orders` ~2 s e sair interrompe somente esse polling dedicado;
+14. `app:navigate` continua funcional;
 15. desktop/mobile + light/dark sem regressão visual atribuível a C2.
 
-Qualquer FAIL interrompe o fechamento e volta para debugging/TDD; não mascarar como observação.
+Qualquer FAIL volta para systematic-debugging/TDD antes do fechamento.
 
-- [ ] **Step 7: Criar o QA record após a matriz real**
+- [ ] **Step 7: Criar QA record somente com valores reais**
 
-`docs/superpowers/qa/spec-c2-navigation-composition-qa.md` deve conter:
+Criar `docs/superpowers/qa/spec-c2-navigation-composition-qa.md` somente depois de conhecer todos os dados. O documento deve registrar literalmente:
 
-```markdown
-# Spec C2 — Navigation and App Composition QA
+- branch `feature/spec-c2-navigation-composition`;
+- base SHA `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`;
+- valor real de `EXECUTABLE_SHA` homologado;
+- número real da PR;
+- número/ID/conclusão reais do Validate application;
+- número/ID/conclusão reais do Deploy staging;
+- os 15 resultados reais da matriz com evidência curta;
+- compatibilities finais reais;
+- `Production deploy: NO`.
 
-- Branch: `feature/spec-c2-navigation-composition`
-- Base SHA: `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`
-- Homologated executable SHA: `<SHA real>`
-- PR: `#<real>`
-- Validate application: `#<run number>` / run `<id>` — PASS
-- Deploy staging: `#<run number>` / run `<id>` — PASS (`workflow_dispatch`)
-- Production deploy: **NO**
+Não criar o arquivo antes desses valores existirem e não usar marcadores incompletos.
 
-## Manual matrix
-1. ... — PASS/FAIL + evidence
-...
-15. ... — PASS/FAIL + evidence
+- [ ] **Step 8: Reconciliar ledger e rollout com fatos comprovados**
 
-## Compatibility
-- New final compatibility facades: none / exact entries if unavoidable.
-```
+Atualizar status de execução, sem alterar contratos normativos:
 
-Os campos entre `<...>` são instrução de formato para o executor: substituir pelos valores reais antes do commit; o arquivo não deve ser criado com placeholders.
+- C1 = MERGED + RELEASED; merge `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`; Validate #1205/run `35114139465`; Deploy production #49/run `35114517283`; smoke de produção aprovado pelo usuário.
+- C2 = branch/PR/CI/staging/QA que realmente ocorreram.
+- C3 = bloqueada até aprovação e merge de C2.
 
-- [ ] **Step 8: Reconciliar ledger/rollout somente com fatos já comprovados**
+Compatibility ledger só muda se C2 realmente introduzir/remover bridge/facade final.
 
-Atualizar:
+- [ ] **Step 9: Commit docs-only pós-homologação sem redeploy**
 
-- C1: MERGED + RELEASED, merge SHA `f5d8b726...`, Validate #1205/run `35114139465`, Deploy production #49/run `35114517283`, smoke de produção aprovado pelo usuário;
-- C2: branch/PR reais, tarefas concluídas, CI/staging/QA reais;
-- C3: bloqueada até aprovação/merge C2.
-
-Não reescrever os contratos normativos do rollout; alterar apenas status de execução.
-
-- [ ] **Step 9: Se QA/docs forem commitados depois do SHA homologado, provar docs-only**
+O shell desta sessão ainda possui `EXECUTABLE_SHA`; usar:
 
 ```bash
-git diff --name-only <SHA_HOMOLOGADO>..HEAD
+git diff --name-only "$EXECUTABLE_SHA"..HEAD
 ```
 
-Esperado: somente `docs/**`. Rodar a validação normal do novo HEAD; **não** redeployar staging apenas por commit docs-only.
-
-Commit sugerido:
+Antes do commit docs, a lista deve ser vazia. Depois de editar QA/ledger/rollout, verificar:
 
 ```bash
-git add docs/superpowers/qa/spec-c2-navigation-composition-qa.md \
-  docs/superpowers/qa/spec-c-execution-ledger.md \
-  docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md \
-  docs/superpowers/qa/spec-c-compatibility-facades.md
+git diff --name-only "$EXECUTABLE_SHA"
+```
+
+Expected: somente `docs/**`.
+
+Então:
+
+```bash
+git add docs/superpowers/qa/spec-c2-navigation-composition-qa.md docs/superpowers/qa/spec-c-execution-ledger.md docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md
+# adicionar spec-c-compatibility-facades.md apenas se ele realmente mudou
 git commit -m "docs: record c2 staging homologation"
 ```
 
-- [ ] **Step 10: Parar no gate de decisão de merge**
+Rodar a validação normal do HEAD documental. Não redeployar staging apenas por docs-only.
 
-Estado esperado:
+- [ ] **Step 10: Parar no gate de merge**
 
-- PR C2 aberta/draft ou pronta para review;
-- CI verde;
-- staging homologado 15/15;
-- QA/ledger atualizados;
-- produção intocada;
-- C3 não iniciada.
-
-Apresentar evidências ao usuário e solicitar autorização explícita para merge. Não fazer merge automaticamente. Após merge autorizado, validar a nova `master`; deploy de produção continua exigindo autorização separada.
+Apresentar ao usuário: SHA homologado, PR, CI, staging, 15/15 e diff pós-homologação. Manter produção intocada e C3 não iniciada. Merge somente após autorização explícita. Depois do merge, validar a nova `master`; produção continua exigindo autorização separada.
 
 ---
 
-## Plan self-review checklist
+## Self-review do plano
 
-Antes da execução, o plano foi conferido contra a spec C2 nos seguintes pontos:
+Cobertura conferida contra a spec aprovada:
 
 - registry único cobre destinos, fallbacks, desktop, mobile, `Mais` e transição;
-- controller continua único owner de `activeTab`/pending navigation;
-- queries continuam por sessão e invalidam callbacks antigos;
-- Settings guard preserva `dirty` e não cria bloqueio novo em `saving`/`unconfirmed`;
+- controller permanece único owner de `activeTab`/pending navigation;
+- query permanece por sessão e invalida callbacks antigos;
+- guard de Settings preserva dirty/same-resource e não cria bloqueio novo em saving/unconfirmed;
 - `app:navigate` sai do shell e mantém lifecycle equivalente;
-- `NavigationContext` não recebe dados/handlers de domínio;
-- shell mantém foco/transição e CSS atual;
+- NavigationContext não recebe dados/handlers de domínio;
+- shell preserva foco/transição/CSS;
 - AppRoot contém apenas estados globais visuais;
-- App continua usando `activeTab` para polling/clock da Cozinha;
+- App mantém `activeTab` para polling/clock da Cozinha;
 - C3-C9 permanecem fora do escopo;
-- nenhuma alteração de Worker/D1/API/dependências é prevista;
-- staging permanece manual;
-- homologação e produção continuam gates separados.
+- Worker/D1/API/dependências permanecem intocados;
+- staging continua manual;
+- homologação, merge e produção permanecem gates separados.
