@@ -55,3 +55,10 @@ test('direct qz-tray imports require infrastructure/qz or an exact legacy allowa
   assert.equal(violations.some((value) => value.includes('usePrintingManager.js') && value.includes('qz-direct')), false)
   assert.ok(violations.some((value) => value.includes('anotherManager.js') && value.includes('qz-direct')))
 })
+
+test('qz dependency imports in test files do not create production architecture violations', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/printing/usePrintingManager.test.js', "import qz from 'qz-tray'\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((value) => value.includes('qz-direct')), false)
+})
