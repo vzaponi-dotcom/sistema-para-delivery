@@ -21,7 +21,7 @@ const implemented = new Set([
 
 test('query hook preserva filtros ao navegar e reset de sessão invalida callback antigo', async (t) => {
   const h = await workspaceHarness(t)
-  const { useQueryContext } = await h.load('/src/app/useQueryContext.js')
+  const { useQueryContext } = await h.load('/src/app/navigation/useQueryContext.js')
   const api = React.createRef()
 
   const Probe = React.forwardRef(function Probe(_props, ref) {
@@ -43,7 +43,7 @@ test('query hook preserva filtros ao navegar e reset de sessão invalida callbac
 
 test('controlador usa A1 para negar destino explícito desconhecido ou sem capacidade', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const feedback = []
   const api = React.createRef()
 
@@ -71,7 +71,7 @@ test('controlador usa A1 para negar destino explícito desconhecido ou sem capac
 
 test('checkout bloqueia e pedido sujo exige confirmação antes de navegar', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const discarded = []
   const api = React.createRef()
 
@@ -105,7 +105,7 @@ test('checkout bloqueia e pedido sujo exige confirmação antes de navegar', asy
 
 test('completeNavigation valida destino e não descarta pedido já salvo', async (t) => {
   const h = await workspaceHarness(t)
-  const { useNavigationController } = await h.load('/src/app/useNavigationController.js')
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
   const discarded = []
   const api = React.createRef()
 
@@ -128,6 +128,40 @@ test('completeNavigation valida destino e não descarta pedido já salvo', async
 
   assert.equal(renderer.root.findByType('output').children.join(''), 'orders')
   assert.deepEqual(discarded, [])
+})
+
+test('controller permite navegar no mesmo draft de Settings e confirma ao abandonar o recurso', async (t) => {
+  const h = await workspaceHarness(t)
+  const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
+  const { getSettingsDraftForDestination } = await h.load('/src/app/navigation/settingsDraftGuard.js')
+  const api = React.createRef()
+  const discarded = []
+  const resources = { operations: { dirty: true, status: 'idle' } }
+
+  const Probe = React.forwardRef(function Probe(_props, ref) {
+    const current = useNavigationController({
+      granted: new Set(['operations.settings.view', 'clients.view']),
+      implemented: new Set(['settings-home', 'settings-operations', 'settings-modalities', 'clients']),
+      checkoutPending: false,
+      dirtyOrder: false,
+      onDiscardOrder() {},
+      getSettingsDraft: (destination) => getSettingsDraftForDestination(resources, destination),
+      onDiscardSettings: () => { discarded.push('operations'); return true },
+      onFeedback() {},
+    })
+    React.useImperativeHandle(ref, () => current, [current])
+    return React.createElement('output', null, `${current.activeTab}:${current.pendingDestination || ''}`)
+  })
+
+  const renderer = await h.render(Probe, { ref: api })
+  await act(async () => api.current.requestNavigation('settings-operations'))
+  await act(async () => api.current.requestNavigation('settings-modalities'))
+  assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:')
+  await act(async () => api.current.requestNavigation('clients'))
+  assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:clients')
+  await act(async () => api.current.confirmDiscard())
+  assert.equal(renderer.root.findByType('output').children.join(''), 'clients:')
+  assert.deepEqual(discarded, ['operations'])
 })
 
 test('App preserva consulta ao navegar e nova sessão rejeita callback da sessão anterior', async (t) => {

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { createQueryContext, patchQueryContext } from './queryContext.js'
-import { DEFAULT_PRINT_QUEUE_QUERY } from '../pages/printQueueQuery.js'
+import { DEFAULT_PRINT_QUEUE_QUERY } from '../../pages/printQueueQuery.js'
 
 test('períodos de Dashboard e Histórico são independentes', () => {
   const initial = createQueryContext()
