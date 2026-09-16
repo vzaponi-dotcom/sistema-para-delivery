@@ -1,0 +1,79 @@
+name: C1 session cleanup scope integration
+
+on:
+  push:
+    branches:
+      - feature/spec-c1-runtime
+    paths:
+      - .github/workflows/c1-session-cleanup-scope.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/spec-c1-runtime
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Preserve successful-login cleanup scope
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/App.jsx')
+          source = path.read_text()
+
+          def replace_once(before, after, label):
+              global source
+              count = source.count(before)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one anchor, found {count}')
+              source = source.replace(before, after, 1)
+
+          replace_once(
+              "  const sessionRuntimeTargetsRef = useRef({\n    refreshBootstrap: async () => {},\n    resetOperationalData: () => {},\n    clearApplicationState: () => {},\n  })",
+              "  const sessionRuntimeTargetsRef = useRef({\n    refreshBootstrap: async () => {},\n    resetOperationalData: () => {},\n    resetSyncState: () => {},\n    clearApplicationState: () => {},\n  })",
+              'session runtime targets',
+          )
+          replace_once(
+              "  const clearApplicationStateForSession = useCallback(\n    (...args) => sessionRuntimeTargetsRef.current.clearApplicationState(...args),\n    [],\n  )",
+              "  const clearApplicationStateForSession = useCallback(\n    (scope) => scope === 'sync'\n      ? sessionRuntimeTargetsRef.current.resetSyncState()\n      : sessionRuntimeTargetsRef.current.clearApplicationState(),\n    [],\n  )",
+              'session cleanup router',
+          )
+          replace_once(
+              "    effectiveConfigVersionRef.current = null\n  }\n\n  const clearBusinessData = () => {",
+              "    effectiveConfigVersionRef.current = null\n  }\n  sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState\n\n  const clearBusinessData = () => {",
+              'sync reset target',
+          )
+
+          path.write_text(source)
+          PY
+      - name: Verify focused session regressions
+        run: |
+          node --test \
+            src/app/runtime/session/useSessionRuntime.test.js \
+            src/app/runtime/runtimeExtractionContract.test.js \
+            src/AppNewOrderGuard.test.js \
+            src/AppReceivablesPromise.test.js \
+            src/actionCapabilities.test.js \
+            src/app/effectiveBusinessConfig.test.js
+          npm run lint
+          git diff --check
+      - name: Commit App integration fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx
+          git diff --cached --quiet && { echo "Expected App.jsx diff was empty"; exit 1; }
+          git commit -m "fix: preserve session sync cleanup scope"
+          git push origin HEAD:feature/spec-c1-runtime
