@@ -18,7 +18,10 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - The payment-receipt bridge still targets removal in C6.
 - The table-commit bridge still targets removal in C5.
 - The `updateCollection` escape hatch still targets reduction through C4-C8 and final enforcement no later than C10.
-- Validate application #1194 / run `35075714168` was green on the pre-reconciliation staging SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`.
-- C1 is not yet closed: final-head validation, fresh manual staging dispatch and the 15-item manual homologation matrix remain Task 8 gates.
+- Homologated C1 HEAD `b6e8de4bf3c64652dff7352e4ff744017cff10e5` passed Validate application #1201 / run `35104869996`.
+- Manual Deploy staging #177 / run `35105946795` passed via `workflow_dispatch` on that exact HEAD.
+- The approved 15-item C1 manual staging matrix completed **15/15 PASS** on 2026-09-16; evidence is recorded in `docs/superpowers/qa/spec-c1-runtime-qa.md`.
+- No compatibility path changed as a result of homologation. The rows above remain the canonical removal schedule for later slices.
+- Production was not deployed from C1.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
