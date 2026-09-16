@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import './App.css'
 import './central-data.css'
 import './new-order.css'
@@ -7,13 +6,11 @@ import './client-duplicate.css'
 import './product-form.css'
 import './finance-mobile.css'
 import AppShell from './app/shell/AppShell.jsx'
+import AppRoot from './app/shell/AppRoot.jsx'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
 import ConfirmationDialog from './components/ConfirmationDialog'
 import SettingsConflictReview from './components/SettingsConflictReview'
-import ConnectionBanner from './components/ConnectionBanner'
-import Icon from './components/Icon'
-import LoginScreen from './components/LoginScreen'
 import Modal from './components/Modal'
 import MovementDialog from './components/MovementDialog'
 import OpeningBalanceDialog from './components/OpeningBalanceDialog'
@@ -1109,15 +1106,19 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
 
-  if (authState === 'checking') return <div className="system-state-screen"><div className="system-state-card"><h2>Carregando sistema</h2><p>Verificando sua sessão…</p></div></div>
-  if (authState === 'anonymous') return <>{!isOnline && <ConnectionBanner />}<LoginScreen onLogin={handleLogin} loading={requestKey === 'auth:login'} error={loginError} disabled={!isOnline} /></>
-  if (bootstrapState !== 'ready') return <>{!isOnline && <ConnectionBanner />}<div className="system-state-screen"><div className="system-state-card">{bootstrapState === 'error' ? <><h2>Não foi possível carregar os dados</h2><p>Confira sua conexão e tente novamente.</p><Button type="button" onClick={() => void refreshBootstrap()} disabled={!isOnline || requestKey !== null}>Tentar novamente</Button></> : <><h2>Carregando dados</h2><p>Sincronizando a operação da Amor &amp; Sabor…</p></>}</div></div></>
-
   return (
-    <>
-      {!isOnline && <ConnectionBanner />}
-      {toastMessage && (typeof document === 'undefined' ? <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div> : createPortal(<div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{toastMessage}</div>, document.body))}
-      {successMessage && (typeof document === 'undefined' ? <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div> : createPortal(<div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{successMessage}</strong></div></div>, document.body))}
+    <AppRoot
+      isOnline={isOnline}
+      authState={authState}
+      loginLoading={requestKey === 'auth:login'}
+      loginError={loginError}
+      onLogin={handleLogin}
+      bootstrapState={bootstrapState}
+      onRetryBootstrap={() => void refreshBootstrap()}
+      retryDisabled={!isOnline || requestKey !== null}
+      toastMessage={toastMessage}
+      successMessage={successMessage}
+    >
       <NavigationProvider activeTab={activeTab} activeMobileEntry={activeTab === 'new-order' ? newOrderContext.returnTab : undefined} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
       <AppShell onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
@@ -1225,7 +1226,7 @@ function App({ capabilities } = {}) {
           disabled={originSecondCopyPromptBusy || !canExecutePrinting}
         />
       )}
-    </>
+    </AppRoot>
   )
 }
 
