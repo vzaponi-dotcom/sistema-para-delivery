@@ -5,7 +5,7 @@ export const printingPolicy = createPathPolicyAdapter({
   destinations: Object.freeze(['settings-printing']), capabilities: Object.freeze(['printing.settings.view', 'printing.settings']),
 })
 
-const stationConfigurationMeta = Object.freeze({ scoped: true, capabilities: Object.freeze(['printing.station.view', 'printing.settings']) })
+const stationConfigurationMeta = Object.freeze({ scoped: true, capabilities: Object.freeze(['printing.station.view', 'printing.station.configure']) })
 const normalizeStation = (station, scopeId) => {
   if (!station) throw policyClientError('PRINT_STATION_NOT_FOUND', 'Esta\u00e7\u00e3o de impress\u00e3o n\u00e3o encontrada.')
   return {
@@ -33,7 +33,7 @@ export const stationConfigurationPolicy = Object.freeze({
 })
 
 export const stationPrimaryPolicy = Object.freeze({
-  id: 'stationPrimary', capabilities: Object.freeze(['printing.station.view', 'printing.settings']),
+  id: 'stationPrimary', capabilities: Object.freeze(['printing.station.view', 'printing.station.configure']),
   load: async (scopeId) => {
     validatePolicyScope({}, scopeId)
     return extractEnvelope(await getJson('/api/printing/stations'), 'primary')
@@ -41,7 +41,7 @@ export const stationPrimaryPolicy = Object.freeze({
   save: async (input, scopeId) => {
     validatePolicyScope({}, scopeId)
     const stationId = input?.data?.primaryStationId
-    if (typeof stationId !== 'string' || !stationId.trim()) throw policyClientError('SETTINGS_SCOPE_REQUIRED', 'Informe a estaÃ§Ã£o principal.')
+    if (typeof stationId !== 'string' || !stationId.trim()) throw policyClientError('SETTINGS_SCOPE_REQUIRED', 'Informe a esta\u00e7\u00e3o principal.')
     const payload = await putJson(`/api/printing/stations/${encodeURIComponent(stationId)}/make-primary`, input, 'POST')
     return { resource: extractEnvelope(payload, 'station'), receipt: payload?.receipt }
   },

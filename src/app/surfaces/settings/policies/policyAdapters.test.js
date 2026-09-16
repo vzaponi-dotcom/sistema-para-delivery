@@ -51,16 +51,32 @@ test('settings policy adapters preserve typed resource paths, methods, envelopes
   await adapters.stationConfiguration.save({ expectedRevision: 7, mutationId: 'm-station', data: station }, 'station 1')
   await adapters.stationPrimary.save({ expectedRevision: 8, mutationId: 'm-primary', data: { primaryStationId: 'station 1' } })
   assert.deepEqual(await adapters.stationConfiguration.loadReceipt('mutation / 1', 'station 1'), { status: 'confirmed', receipt: { mutationId: 'mutation / 1' } })
+  assert.deepEqual(calls.find(([path]) => path === '/api/printing/stations/station%201'), [
+    '/api/printing/stations/station%201', 'PUT', { expectedRevision: 7, mutationId: 'm-station', data: station },
+  ])
+  assert.deepEqual(calls.find(([path]) => path === '/api/printing/stations/station%201/make-primary'), [
+    '/api/printing/stations/station%201/make-primary', 'POST', { expectedRevision: 8, mutationId: 'm-primary', data: { primaryStationId: 'station 1' } },
+  ])
   assert.deepEqual(calls.map(([path, method]) => [path, method]), [
     ['/api/settings/operations', 'GET'], ['/api/settings/payment-methods', 'GET'], ['/api/settings/cancellation-reasons', 'GET'], ['/api/settings/finance-categories', 'GET'], ['/api/printing/settings', 'GET'], ['/api/printing/stations', 'GET'], ['/api/printing/stations', 'GET'],
     ['/api/settings/operations', 'PUT'], ['/api/settings/payment-methods', 'PUT'], ['/api/settings/cancellation-reasons', 'PUT'], ['/api/settings/finance-categories', 'PUT'], ['/api/printing/settings', 'PUT'], ['/api/printing/stations/station%201', 'PUT'], ['/api/printing/stations/station%201/make-primary', 'POST'], ['/api/settings/receipts/mutation%20%2F%201?resource=stationConfiguration&scopeId=station+1', 'GET'],
   ])
 })
 
+test('station policy adapters declare backend view and manage capabilities', () => {
+  const adapters = createSettingsPolicyAdapters()
+  for (const id of ['stationConfiguration', 'stationPrimary']) {
+    assert.deepEqual(adapters[id].capabilities, ['printing.station.view', 'printing.station.configure'])
+  }
+})
+
 test('settings policy adapters reject invalid scopes and primary stations before transport', async () => {
   const adapters = createSettingsPolicyAdapters()
   await assert.rejects(() => adapters.stationConfiguration.load(), { code: 'SETTINGS_SCOPE_REQUIRED' })
   await assert.rejects(() => adapters.operations.load('station-1'), { code: 'SETTINGS_SCOPE_INVALID' })
-  await assert.rejects(() => adapters.stationPrimary.save({ data: { primaryStationId: ' ' } }), { code: 'SETTINGS_SCOPE_REQUIRED' })
+  await assert.rejects(
+    () => adapters.stationPrimary.save({ data: { primaryStationId: ' ' } }),
+    { code: 'SETTINGS_SCOPE_REQUIRED', message: 'Informe a esta\u00e7\u00e3o principal.' },
+  )
   assert.equal(getSettingsPolicy('madeUp'), null)
 })
