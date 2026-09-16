@@ -87,6 +87,22 @@ test('authenticated initial session establishes context and generation before bo
   assert.equal(refreshBootstrapCalls, 1)
 })
 
+test('successful login clears stale runtime state before bootstrap', async (t) => {
+  const calls = []
+  const harness = await mountHarness(t, {
+    api: anonymousApi(),
+    resetOperationalData: () => { calls.push('reset-operational') },
+    onClearApplicationState: () => { calls.push('clear-application') },
+    refreshBootstrap: async () => { calls.push('refresh-bootstrap') },
+  })
+
+  await act(async () => { await harness.getCurrent().handleLogin('1234') })
+
+  assert.deepEqual(calls, ['reset-operational', 'clear-application', 'refresh-bootstrap'])
+  assert.equal(harness.getCurrent().authState, 'authenticated')
+  assert.equal(harness.getCurrent().sessionGeneration, 1)
+})
+
 test('invalid PIN preserves the exact login error copy', async (t) => {
   const harness = await mountHarness(t, {
     api: anonymousApi({ login: async () => { throw { code: 'INVALID_PIN' } } }),
