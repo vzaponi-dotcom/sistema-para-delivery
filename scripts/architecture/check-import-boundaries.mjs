@@ -61,6 +61,7 @@ export const collectImportEdges = async (rootDir) => {
 
 const domainOf = (relativePath) => relativePath?.match(/^src\/domains\/([^/]+)\//)?.[1] ?? null
 const isDomainLayer = (relativePath) => /^src\/domains\/[^/]+\/domain\//.test(relativePath)
+const isTestFile = (relativePath) => /\.(?:test|spec)\.(?:js|jsx|mjs)$/.test(relativePath)
 const isReactSpecifier = (specifier) => specifier === 'react'
   || specifier.startsWith('react/')
   || specifier === 'react-dom'
@@ -103,6 +104,7 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     }
 
     if (edge.specifier === 'qz-tray'
+      && !isTestFile(edge.from)
       && !edge.from.startsWith('src/infrastructure/qz/')
       && !exactAllowed(allowlist, 'qzDirectImports', edge.from)) {
       violations.push(`qz-direct: ${edge.from} -> qz-tray`)
