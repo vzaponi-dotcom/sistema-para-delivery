@@ -50,6 +50,7 @@ import { useBusinessSettingsController } from './app/useBusinessSettingsControll
 import { useOperationalDataRuntime } from './app/runtime/data/useOperationalDataRuntime.js'
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
+import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
@@ -76,9 +77,6 @@ import {
   deleteClient as deleteClientApi,
   deleteMovement as deleteMovementApi,
   deleteProduct as deleteProductApi,
-  getSession as getSessionApi,
-  login as loginApi,
-  logout as logoutApi,
   refundOrder as refundOrderApi,
   registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
@@ -119,11 +117,7 @@ const readKitchenSoundPreference = () => {
 const emptyProduct = () => ({ category: 'Refeições', presentationType: 'size', presentationValue: 'P', presentationUnit: '', name: '', price: formatBRLCurrencyValue(32) })
 
 function App({ capabilities } = {}) {
-  const [authState, setAuthState] = useState('checking')
-  const [sessionKey, setSessionKey] = useState(0)
-  const [sessionContext, setSessionContext] = useState(null)
   const [requestKey, setRequestKey] = useState(null)
-  const [loginError, setLoginError] = useState('')
   const [selectedComanda, setSelectedComanda] = useState(null)
   const [selectedComandaGeneration, setSelectedComandaGeneration] = useState(0)
   const [checkoutKey, setCheckoutKey] = useState(null)
@@ -183,6 +177,11 @@ function App({ capabilities } = {}) {
   const effectiveConfigVersionRef = useRef(null)
   const businessSettingsRef = useRef(null)
   const operationalBridgeTargetsRef = useRef({ onUnauthorized: null, settlePaymentOwners: null, onTablesCommitted: null })
+  const sessionRuntimeTargetsRef = useRef({
+    refreshBootstrap: async () => {},
+    resetOperationalData: () => {},
+    clearApplicationState: () => {},
+  })
 
   const invalidateNewOrderDraft = useCallback(() => {
     newOrderOwnerRef.current += 1
@@ -190,6 +189,35 @@ function App({ capabilities } = {}) {
     setNewOrderContext({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
     setNewOrderDirty(false)
   }, [])
+
+  const refreshBootstrapForSession = useCallback(
+    (...args) => sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
+    [],
+  )
+  const resetOperationalDataForSession = useCallback(
+    (...args) => sessionRuntimeTargetsRef.current.resetOperationalData(...args),
+    [],
+  )
+  const clearApplicationStateForSession = useCallback(
+    (...args) => sessionRuntimeTargetsRef.current.clearApplicationState(...args),
+    [],
+  )
+  const {
+    authState,
+    sessionContext,
+    sessionGeneration,
+    loginError,
+    handleLogin,
+    handleLogout: handleSessionLogout,
+    expireSession,
+  } = useSessionRuntime({
+    isOnline,
+    requestKey,
+    setRequestKey,
+    resetOperationalData: resetOperationalDataForSession,
+    refreshBootstrap: refreshBootstrapForSession,
+    onClearApplicationState: clearApplicationStateForSession,
+  })
 
   const granted = useMemo(
     () => capabilities === undefined
@@ -255,6 +283,11 @@ function App({ capabilities } = {}) {
     effectiveConfigVersion: getEffectiveConfigVersion,
     legacyBridges: operationalLegacyBridges,
   })
+  // Session bootstrap/cleanup needs operational actions, while operational polling
+  // needs auth state. Stable render-time targets break that hook-order cycle without
+  // moving either responsibility back into App.
+  sessionRuntimeTargetsRef.current.refreshBootstrap = refreshBootstrap
+  sessionRuntimeTargetsRef.current.resetOperationalData = resetOperationalData
 
   const effectiveConfigOwner = useMemo(() => authState === 'authenticated'
     && sessionContext?.businessId
@@ -262,11 +295,11 @@ function App({ capabilities } = {}) {
     && Array.isArray(sessionContext.capabilities)
     ? {
         businessId: sessionContext.businessId,
-        generation: sessionKey,
+        generation: sessionGeneration,
         settingsContextId: sessionContext.settingsContextId,
         capabilities: [...granted],
       }
-    : null, [authState, granted, sessionContext, sessionKey])
+    : null, [authState, granted, sessionContext, sessionGeneration])
   const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig })
   const businessConfig = effectiveConfig.config || bootstrapEffectiveConfig
   const paymentOptions = useMemo(() => businessConfig ? paymentOptionsFromEffective(businessConfig) : [], [businessConfig])
@@ -351,7 +384,6 @@ function App({ capabilities } = {}) {
     comandaSelectionRef.current += 1
     setSelectedComandaGeneration(comandaSelectionRef.current)
     effectiveConfigVersionRef.current = null
-    resetOperationalData()
   }
 
   const clearBusinessData = () => {
@@ -362,9 +394,9 @@ function App({ capabilities } = {}) {
     setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
     invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
-    setSessionContext(null)
     setSettingsConflictReview(null)
   }
+  sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
   const ownsPaymentSelection = (owner) => owner?.guard === getSyncGuard()
     && owner.selection === comandaSelectionRef.current
@@ -451,9 +483,6 @@ function App({ capabilities } = {}) {
     }
   }
 
-  const expireSession = () => {
-    setSessionKey((current) => current + 1); clearBusinessData(); setAuthState('anonymous'); setRequestKey(null); setLoginError('Sua sessão expirou. Entre novamente.')
-  }
   operationalBridgeTargetsRef.current.onUnauthorized = expireSession
   operationalBridgeTargetsRef.current.settlePaymentOwners = (owners, receipt) => owners.forEach((owner) => settleAcceptedPayment(owner, receipt))
   operationalBridgeTargetsRef.current.onTablesCommitted = onTablesCommitted
@@ -461,6 +490,9 @@ function App({ capabilities } = {}) {
   const showApiError = (error) => {
     if (error?.status === 401) return expireSession()
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
+  }
+  const handleLogout = async () => {
+    try { await handleSessionLogout() } catch (error) { showApiError(error) }
   }
 
   const businessSettings = useBusinessSettingsController({
@@ -520,20 +552,6 @@ function App({ capabilities } = {}) {
     if (nextEnabled) void playKitchenNewOrderSound()
     return true
   }
-
-  useEffect(() => {
-    let cancelled = false
-    const initialize = async () => {
-      try {
-        const session = await getSessionApi()
-        if (cancelled) return
-        if (!session?.authenticated) return setAuthState('anonymous')
-        setSessionContext(session); setSessionKey((current) => current + 1); setAuthState('authenticated')
-        if (!cancelled) await refreshBootstrap()
-      } catch { if (!cancelled) { setAuthState('anonymous'); resetOperationalData() } }
-    }
-    void initialize(); return () => { cancelled = true }
-  }, [])
 
   useEffect(() => {
     if (!kitchenSoundEnabled) return undefined
@@ -778,13 +796,6 @@ function App({ capabilities } = {}) {
     if (duplicate.name) { setDuplicateClientDialog({ client: duplicate.name, action }); return false }
     return true
   }
-
-  const handleLogin = async (pin) => {
-    if (!isOnline || requestKey) return
-    setRequestKey('auth:login'); setLoginError('')
-    try { const session = await loginApi(pin); resetSyncState(); setSessionContext({ authenticated: true, ...session }); setSessionKey((current) => current + 1); setAuthState('authenticated'); await refreshBootstrap() } catch (error) { clearBusinessData(); setAuthState('anonymous'); setLoginError(error?.code === 'INVALID_PIN' ? 'PIN inválido. Confira e tente novamente.' : (error?.message || 'Não foi possível entrar no sistema.')) } finally { setRequestKey(null) }
-  }
-  const handleLogout = async () => { if (writesBlocked) return; setRequestKey('auth:logout'); try { await logoutApi(); setSessionKey((current) => current + 1); clearBusinessData(); setAuthState('anonymous'); setLoginError('') } catch (error) { showApiError(error) } finally { setRequestKey(null) } }
 
   const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
     if (!canCreateOrders || writesBlocked) return false
