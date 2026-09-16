@@ -6,7 +6,7 @@ const appShell = fs.readFileSync(new URL('./components/AppShell.jsx', import.met
 const dashboard = fs.readFileSync(new URL('./pages/Dashboard.jsx', import.meta.url), 'utf8')
 const providerUrl = new URL('./components/DashboardPeriodProvider.jsx', import.meta.url)
 const contextUrl = new URL('./components/dashboardPeriodContext.js', import.meta.url)
-const queryContext = fs.readFileSync(new URL('./app/queryContext.js', import.meta.url), 'utf8')
+const queryContext = fs.readFileSync(new URL('./app/navigation/queryContext.js', import.meta.url), 'utf8')
 
 test('dashboard period is owned by the authenticated shell instead of the dashboard page', () => {
   assert.equal(fs.existsSync(providerUrl), true)
