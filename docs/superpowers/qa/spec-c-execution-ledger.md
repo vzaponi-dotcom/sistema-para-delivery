@@ -17,7 +17,7 @@ If this ledger and GitHub disagree, inspect the branch and update this ledger be
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
-| C1 | Runtime central, generic HTTP/auth, architecture gate | IN PROGRESS — Tasks 1–7 COMPLETE; Task 8 homologation pending | `feature/spec-c1-runtime` / PR #45 | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
+| C1 | Runtime central, generic HTTP/auth, architecture gate | HOMOLOGATED — Tasks 1–8 COMPLETE; awaiting explicit merge approval | `feature/spec-c1-runtime` / PR #45 | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | NOT STARTED | — | Write only after C1 merge from the real new `master` |
 | C3 | Settings surface + generic policy editing engine | NOT STARTED | — | Write after C2 merge |
 | C4 | Orders | NOT STARTED | — | Write after C3 merge |
@@ -28,7 +28,7 @@ If this ledger and GitHub disagree, inspect the branch and update this ledger be
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
-Do **not** start C2 before C1 is manually homologated, approved and merged to `master`. Do **not** freeze detailed C2-C10 plans in advance.
+Do **not** start C2 before C1 is explicitly approved and merged to `master`. Do **not** freeze detailed C2-C10 plans in advance.
 
 ---
 
@@ -38,15 +38,16 @@ Do **not** start C2 before C1 is manually homologated, approved and merged to `m
 
 - Branch: `feature/spec-c1-runtime`
 - PR: #45 — `Spec C1: centralizar runtime do frontend`
-- PR state: draft, open, not merged
+- PR state at homologation: draft, open, not merged
 - Base: `master`
 - C1 base SHA: `af8266549603fc2d392880c812bc1c0d608a6dbc`
-- Last pre-reconciliation staging SHA: `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`
-- Validate application #1194 / run `35075714168`: **GREEN** on `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`
-- Deploy staging #101 / run `35078821466`: **GREEN**, event `workflow_dispatch`, on the same SHA
+- Homologated final HEAD: `b6e8de4bf3c64652dff7352e4ff744017cff10e5`
+- Validate application #1201 / run `35104869996`: **GREEN** on the homologated HEAD
+- Deploy staging #177 / run `35105946795`: **GREEN**, event `workflow_dispatch`, on the exact homologated HEAD
 - Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
+- Manual 15-item C1 homologation: **15/15 PASS** on 2026-09-16
+- QA evidence: `docs/superpowers/qa/spec-c1-runtime-qa.md`
 - Production deployed from C1: **NO**
-- Manual 15-item C1 homologation: **PENDING / no recorded evidence yet**
 
 ### Rollout-trigger reconciliation — 2026-09-16
 
@@ -54,7 +55,7 @@ Commit `87644cba4e9b3255b92bdcff851cc7a84c17ce8e` temporarily added `feature/spe
 
 This was corrected on the C1 branch by commit `d8b105e55fa42da476c6b2e79f73ce584a815a5c` (`fix: restore manual c1 staging dispatch`). The existing Spec B automatic branch trigger remains intact; Spec C again uses manual dispatch only.
 
-Because the reconciliation commits advance the branch HEAD beyond the already-homologated staging SHA, C1 must receive a **fresh manual Deploy staging on the final reconciliation HEAD** before Task 8 can close, even though no production runtime behavior was changed by this workflow correction.
+The final manual staging deploy was then run against `b6e8de4bf3c64652dff7352e4ff744017cff10e5` and passed as Deploy staging #177 / run `35105946795`.
 
 ## Task status
 
@@ -66,8 +67,8 @@ Because the reconciliation commits advance the branch HEAD beyond the already-ho
 | Task 4 — feedback runtime | DONE + INTEGRATED | Hook GREEN #1162; integrated in `App.jsx` |
 | Task 5 — operational data runtime | DONE + FULL GREEN | RED #1163; isolated GREEN #1166; integrated FULL GREEN #1175 |
 | Task 6 — session lifecycle runtime | DONE + INTEGRATED | session runtime/tests present; auth copies and cleanup/reset ordering locked by tests |
-| Task 7 — App extraction contract + cleanup | DONE + FULL GREEN | `runtimeExtractionContract.test.js`; runtime boundary completed; Validate #1194 green on pre-reconciliation staging SHA |
-| Task 8 — full gates + staging + manual QA | IN PROGRESS | automated gates + one manual staging deploy green on `87644cb`; fresh final-HEAD staging dispatch + 15-item manual matrix + QA record still required |
+| Task 7 — App extraction contract + cleanup | DONE + FULL GREEN | `runtimeExtractionContract.test.js`; runtime boundary completed; Validate #1201 green on homologated final HEAD |
+| Task 8 — full gates + staging + manual QA | DONE + HOMOLOGATED | exact-HEAD Validate #1201 + staging #177; approved manual matrix 15/15 PASS; QA record created |
 
 ---
 
@@ -131,33 +132,26 @@ Runtime-boundary completion commit:
 
 - `9bb7b043` — `refactor: complete c1 runtime boundary`
 
-The final pre-reconciliation application branch state passed Validate application #1194 on SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`.
+The homologated application state passed Validate application #1201 on SHA `b6e8de4bf3c64652dff7352e4ff744017cff10e5`.
 
 ---
 
-## Active resume point — Task 8
+## Task 8 — completed and homologated
 
-Task 8 is the **only active C1 task**. Do not begin C2.
+Evidence on the exact homologated SHA `b6e8de4bf3c64652dff7352e4ff744017cff10e5`:
 
-Already evidenced on SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`:
-
-- full Validate application: **PASS** (#1194 / run `35075714168`);
-- manual `Deploy staging`: **PASS** (#101 / run `35078821466`);
-- staging workflow smoke-tested `/api/auth/session` and PIN login;
+- full Validate application: **PASS** (#1201 / run `35104869996`);
+- manual `Deploy staging`: **PASS** (#177 / run `35105946795`, event `workflow_dispatch`);
+- staging workflow passed tests, architecture, lint, build, D1 checks/migrations, deploy and real login smoke test;
+- approved 15-item manual staging matrix: **15/15 PASS**;
+- detailed manual evidence recorded in `docs/superpowers/qa/spec-c1-runtime-qa.md`;
 - production remained untouched.
 
-Still required before C1 can be marked complete:
+One specifically observed synchronization check used DevTools Network: the dedicated `orders` polling appeared about every 2 seconds while Cozinha was active, stopped after leaving Cozinha, and other expected global/background requests continued.
 
-1. finish documentation/workflow reconciliation on `feature/spec-c1-runtime`;
-2. require `Validate application` green on the resulting final HEAD;
-3. manually dispatch `Deploy staging` on that exact final HEAD and require success;
-4. execute the approved 15-item manual C1 staging matrix from the detailed plan;
-5. create `docs/superpowers/qa/spec-c1-runtime-qa.md` **only from real evidence** and record PASS/FAIL per item;
-6. update this ledger and PR #45 with the final evidence;
-7. keep PR #45 unmerged until explicit approval;
-8. keep production untouched until separately authorized.
+C1 is therefore at the **merge decision gate**, not at a new implementation task. PR #45 must remain unmerged until explicit approval.
 
-Do not fabricate or infer manual QA. The absence of a QA evidence file means manual homologation is still pending.
+QA/documentation commits made after the homologated SHA are allowed without another staging deploy only when the diff is documentation-only. Before merge, prove that post-homologation changes are docs-only and require normal PR validation on the current branch HEAD.
 
 ---
 
@@ -188,7 +182,9 @@ Before changing code:
 5. read the compatibility ledger;
 6. inspect PR #45 / branch `feature/spec-c1-runtime` and current CI;
 7. verify the current branch HEAD and latest validation against this ledger;
-8. if GitHub has advanced beyond this ledger, update this ledger first;
-9. while C1 remains open, continue **Task 8 only** — final-head validation, manual staging, manual matrix, QA evidence and approval.
+8. while C1 remains unmerged, do not start C2;
+9. verify any post-homologation commits are docs-only and CI-green;
+10. merge C1 only after explicit human approval;
+11. after merge, write the C2 detailed plan from the real new `master` before implementation.
 
 The repository is the source of truth for Spec C continuity, not any individual chat.
