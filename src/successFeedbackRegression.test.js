@@ -5,13 +5,18 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('important success feedback uses a centered viewport confirmation while errors keep the top toast', async () => {
-  const app = await read('./App.jsx')
+  const [app, feedbackRuntime] = await Promise.all([
+    read('./App.jsx'),
+    read('./app/runtime/feedback/useFeedbackRuntime.js'),
+  ])
 
-  assert.match(app, /const \[successMessage, setSuccessMessage\] = useState\(''\)/)
-  assert.match(app, /const showSuccessMessage = \(message = 'Ação salva com sucesso'\) => setSuccessMessage\(message\)/)
+  assert.match(app, /useFeedbackRuntime/)
+  assert.match(feedbackRuntime, /const \[successMessage, setSuccessMessage\] = useState\(''\)/)
+  assert.match(feedbackRuntime, /export const SUCCESS_DISMISS_MS = 1800/)
+  assert.match(feedbackRuntime, /const showSuccessMessage = useCallback\(\(message = 'Ação salva com sucesso'\) => \{[\s\S]*setSuccessMessage\(message\)/)
+  assert.match(feedbackRuntime, /setTimeout\(\(\) => setSuccessMessage\(''\), SUCCESS_DISMISS_MS\)/)
   assert.match(app, /setToastMessage\(error\?\.message \|\| 'Não foi possível concluir a operação\.'\)/)
   assert.match(app, /successMessage &&[\s\S]*success-confirmation-overlay[\s\S]*success-confirmation-card[\s\S]*document\.body/s)
-  assert.match(app, /window\.setTimeout\(\(\) => setSuccessMessage\(''\), 1800\)/)
   assert.match(app, /onSuccessMessage=\{showSuccessMessage\}/)
   assert.match(app, /onCancelOperation=\{\(\) => discardSettingsAndNavigate\('settings-home'\)\}/)
 })
