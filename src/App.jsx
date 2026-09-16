@@ -180,6 +180,7 @@ function App({ capabilities } = {}) {
   const sessionRuntimeTargetsRef = useRef({
     refreshBootstrap: async () => {},
     resetOperationalData: () => {},
+    resetSyncState: () => {},
     clearApplicationState: () => {},
   })
 
@@ -199,7 +200,9 @@ function App({ capabilities } = {}) {
     [],
   )
   const clearApplicationStateForSession = useCallback(
-    (...args) => sessionRuntimeTargetsRef.current.clearApplicationState(...args),
+    (scope) => scope === 'sync'
+      ? sessionRuntimeTargetsRef.current.resetSyncState()
+      : sessionRuntimeTargetsRef.current.clearApplicationState(),
     [],
   )
   const {
@@ -385,6 +388,7 @@ function App({ capabilities } = {}) {
     setSelectedComandaGeneration(comandaSelectionRef.current)
     effectiveConfigVersionRef.current = null
   }
+  sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState
 
   const clearBusinessData = () => {
     resetNavigation()
