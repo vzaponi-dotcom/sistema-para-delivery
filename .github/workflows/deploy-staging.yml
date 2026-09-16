@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/spec-b-settings-policies
+      - feature/spec-c1-runtime
   workflow_dispatch:
 
 permissions:
