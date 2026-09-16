@@ -18,8 +18,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
-| C2 | Navigation and App composition | **PLANNED — implementation not started** | `feature/spec-c2-navigation-composition` / no PR yet | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
-| C3 | Settings surface + generic policy editing engine | BLOCKED by C2 | — | Write after C2 merge |
+| C2 | Navigation and App composition | **HOMOLOGATED — MERGE GATE** | `feature/spec-c2-navigation-composition` / PR #46 draft | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
+| C3 | Settings surface + generic policy editing engine | **BLOCKED by C2 merge** | — | Write after C2 merge |
 | C4 | Orders | NOT STARTED | — | Write after C3 merge |
 | C5 | Table Service | NOT STARTED | — | Write after C4 merge |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
@@ -83,72 +83,66 @@ Temporary bridges/facades inherited from C1 remain governed by `docs/superpowers
 
 ---
 
-# C2 — Navigation and App Composition — ACTIVE PLANNING HANDOFF
+# C2 — Navigation and App Composition — HOMOLOGATED / MERGE GATE
 
-## Git state
+## Git / PR / CI state
 
 - Base/master SHA: `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`
 - Branch: `feature/spec-c2-navigation-composition`
-- PR: not opened yet
-- Functional implementation: **not started**
+- PR: #46 — `Spec C2: modularizar navegação e composição do frontend` — **draft**
+- Homologated executable SHA: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`
+- Validate application: #1213 / run `35139754603` — **PASS**
+- Manual Deploy staging: #178 / run `35141467373` — **PASS**, `workflow_dispatch`, exact executable SHA
+- Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
+- Manual homologation: 2026-09-16 ~16:54 BRT — **0 FAIL**
+- Manual matrix summary: **10 fully PASS, 4 fully BLOCKED, 1 partial PASS/BLOCKED, 0 FAIL**
+- QA record: `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`
 - Production changes from C2: **none**
+- Merge: **pending explicit user authorization**
+- C3: **blocked until C2 merge and validation of resulting master**
 
-## Approved design
+The manually blocked scenarios remain explicitly blocked; automated tests are recorded only as complementary evidence in the QA record and do not convert manual BLOCKED results into PASS.
 
-- File: `docs/superpowers/specs/2026-09-16-frontend-modularization-c2-navigation-composition-design.md`
-- Design commit: `9f905423c6fbfb83a737374d50cfc4cddce1ac9e`
-- Human approval: **YES**
+## C2 delivered boundaries
 
-Approved direction: balanced extraction. C2 creates explicit `app/navigation` and `app/shell` ownership, a thin `AppRoot`, a single navigation registry, a navigation-only context, and a dedicated `app:navigate` bridge without moving C3-C9 domain/workflow responsibilities.
+C2 implemented and staged:
 
-## Detailed executable plan
+- single declarative navigation registry and pure resolution/fallback logic under `src/app/navigation/`;
+- navigation controller/query ownership and Settings navigation guard under `src/app/navigation/`;
+- scoped `NavigationContext` and dedicated `app:navigate` event bridge;
+- `AppShell`, `Sidebar` and `MobileNavigation` under `src/app/shell/`;
+- `AreaNavigation` under `src/app/navigation/`;
+- thin `AppRoot` for auth/bootstrap/offline/global feedback composition;
+- direct imports from the new navigation owners;
+- removal of the old navigation/query/controller compatibility facades and legacy shell/menu paths;
+- final extraction contract protecting the C2 boundary.
 
-- File: `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md`
-- Initial plan commit: `bee5c58b613f2f087335a9a9ccb96c5a211fad76`
-- Hardened plan commit: `51b9b382488762e98b6fdfb46a37f24ae121b19a`
-- Plan status: written and self-reviewed; no functional task executed yet.
+C2 preserved the approved invariants for destination IDs, capability fallbacks, mobile `Mais`, internal area navigation, New Order return context, dirty-order and Settings guards, focus/page transition, same-session query continuity, stale-session callback invalidation, `app:navigate`, global sync and dedicated Cozinha polling signals, and desktop/mobile light/dark visuals.
 
-The plan has seven reviewable tasks:
+No Worker, D1 schema, API contract, dependency, CSS redesign or React Router change was introduced by C2.
 
-1. navigation registry + pure resolution;
-2. controller/query ownership + Settings navigation guard;
-3. scoped `NavigationContext` + `app:navigate` bridge;
-4. shell/menu/AreaNavigation ownership moves;
-5. thin `AppRoot` extraction;
-6. final provider integration + legacy-path removal + extraction contract;
-7. full gates, draft PR, manual staging, 15-item manual QA and merge-decision handoff.
+## C2 homologation evidence
 
-## C2 mandatory invariants
+- Functional CI on `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`: tests, architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 gate all passed.
+- Staging deploy #178 used `workflow_dispatch`, exact executable SHA and passed migrations, deploy and real staging login verification.
+- Manual matrix had no FAIL. Items 3, 10, 13 and 14 were BLOCKED by staging/tooling observability constraints; item 11 was DIRTY PASS with saving/unconfirmed BLOCKED. Exact evidence and complementary automated coverage are in the QA record.
+- No persistent QA data was left behind; temporary Settings/theme changes were restored/discarded.
+- Production remained untouched.
 
-C2 must preserve:
+## C2 merge gate
 
-- destination IDs, capabilities and area fallback order;
-- desktop menu, mobile menu and `Mais`;
-- internal navigation for Pedidos, Financeiro and Configurações;
-- Novo Pedido origin/return semantics and Comandas context;
-- checkout block and dirty-order discard guard;
-- Settings dirty-resource guard without a new saving/unconfirmed navigation block;
-- query continuity during the same session and stale-callback invalidation after reset;
-- focus on `.app-content` and current mobile page-transition direction;
-- current `app:navigate` compatibility behavior;
-- global ~5 s sync and Cozinha ~2 s dedicated `orders` polling;
-- light/dark and desktop/mobile visuals.
+Do not start C3 and do not merge automatically.
 
-C2 must not introduce React Router, URL/history semantics, a new state library, domain extraction, Worker/D1/API changes, dependency updates, or broad staging triggers.
+Before merge in a new session:
 
-## C2 execution gate
-
-Do not start functional code until the user chooses the execution mode after reviewing the detailed plan.
-
-At execution start:
-
-1. use `superpowers:using-git-worktrees` and create/use an isolated worktree for `feature/spec-c2-navigation-composition`;
-2. verify branch HEAD/base and clean state;
-3. run baseline tests/lint/architecture/build/local D1 as defined in the plan;
-4. execute strict RED → GREEN task by task;
-5. review after every task and commit small;
-6. do not start C3;
-7. do not merge or deploy production without the later explicit gates.
+1. read `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`;
+2. inspect PR #46 and its current head SHA;
+3. verify the latest branch validation is green;
+4. verify no functional commit was added after the homologated executable SHA except documented docs-only reconciliation;
+5. obtain explicit user authorization for the merge;
+6. merge PR #46 only after that authorization;
+7. validate the resulting `master` before planning C3;
+8. production still requires separate explicit authorization.
 
 ---
 
@@ -169,17 +163,17 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-Before changing code for C2:
+C2 is at the merge gate. Before any further implementation:
 
 1. read the Spec C design;
 2. read the rollout plan;
 3. read this ledger;
-4. read the C2 design and detailed plan;
+4. read the C2 design, detailed plan and QA record;
 5. read the compatibility ledger;
-6. inspect the actual GitHub branch/PR/CI state;
-7. confirm base `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210` and branch `feature/spec-c2-navigation-composition`;
-8. confirm no functional implementation already exists unexpectedly;
-9. choose/confirm the approved execution mode;
-10. execute C2 only, then stop at its merge decision gate.
+6. inspect PR #46, current branch head and latest CI on GitHub;
+7. confirm the homologated executable SHA `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8` and any later docs-only commit;
+8. do not start C3 before explicit approval and merge of C2;
+9. if merge is authorized, merge PR #46 and validate the resulting `master`;
+10. production remains a separate explicit authorization gate.
 
 The repository is the source of truth for Spec C continuity, not any individual chat.

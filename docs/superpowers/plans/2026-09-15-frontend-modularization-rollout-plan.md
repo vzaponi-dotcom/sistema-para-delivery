@@ -12,15 +12,16 @@
 
 ## Current rollout status — 2026-09-16
 
-- Active slice: **C1 — Runtime central** on `feature/spec-c1-runtime`, draft PR #45.
-- C1 Tasks 1–7 are implemented. **Task 8 is the only active task**; C1 remains **IN PROGRESS** until final-head staging and the approved 15-item manual matrix are completed and recorded.
-- Session extraction and the final App runtime-boundary contract are present and covered by dedicated tests; no new compatibility facade/bridge was introduced by Tasks 6–7.
-- Pre-reconciliation SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e` passed Validate application #1194 / run `35075714168` and manual Deploy staging #101 / run `35078821466` (`workflow_dispatch`).
-- The accidental automatic staging trigger for `feature/spec-c1-runtime` was removed in `d8b105e55fa42da476c6b2e79f73ce584a815a5c`; Spec C again follows the required manual `workflow_dispatch` contract.
-- Reconciliation HEAD `5ac91141beed2bc76886fd295cd21c9bc5e5dfcf` passed Validate application #1199 / run `35104231026` across tests, architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 clean-install/upgrade.
-- Temporary C1 bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md` with their original C5/C6/C8-C10 removal targets.
-- Manual C1 homologation has **no recorded PASS evidence yet**; `docs/superpowers/qa/spec-c1-runtime-qa.md` must not be created as completed evidence until the real matrix is executed.
-- No production deploy has been performed from C1. C2 remains blocked until C1 is homologated, approved and merged.
+- C1 — Runtime central is **RELEASED / COMPLETE** on `master` at `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210` after PR #45, post-merge validation and explicitly authorized production release.
+- Active slice: **C2 — Navigation and App composition**, branch `feature/spec-c2-navigation-composition`, draft PR #46, currently **HOMOLOGATED / MERGE GATE**.
+- C2 homologated executable SHA: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`.
+- C2 Validate application #1213 / run `35139754603` passed tests, architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 clean-install/upgrade.
+- Manual C2 Deploy staging #178 / run `35141467373` passed via `workflow_dispatch` on the exact executable SHA, including migrations, deploy and real staging login verification.
+- Manual C2 homologation on 2026-09-16 completed with **0 FAIL**: 10 fully PASS, 4 fully BLOCKED by staging/tooling observability constraints, and 1 partial PASS/BLOCKED. Automated tests are complementary evidence only; BLOCKED scenarios remain BLOCKED in the QA record.
+- C2 QA record: `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`.
+- C2 did not deploy production and remains pending explicit user authorization for merge.
+- C3 remains **BLOCKED** until C2 is explicitly merged and the resulting `master` is validated.
+- Temporary compatibility bridges inherited from C1 remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`; C2 introduced no new cross-slice facade requiring a ledger row.
 - The rollout contracts below are unchanged; this block is execution status only.
 
 ## Global Constraints
