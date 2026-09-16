@@ -14,13 +14,18 @@
 
 ## Execution status — 2026-09-16
 
-- Tasks 1–5 have been implemented on `feature/spec-c1-runtime`; Task 6 is the next active task.
+- Tasks 1–7 have been implemented on `feature/spec-c1-runtime`; **Task 8 is the only active task**.
 - Task 5 RED contract: commit `ef3bd4921368c0dce0f648d1fe19d45fc5354809`, Validate #1163 / run `35050387434`.
 - Task 5 isolated runtime GREEN: Validate #1166 / run `35051086481`.
-- App integration commit: `bef8d2f1d850a9c8f82a9b94fcec077a3426debe`.
-- Post-integration REDs (#1169 and #1173) were traced to legacy structural regression tests that still asserted runtime internals lived inside `App.jsx`; those contracts were migrated to assert the new runtime owners without changing production behavior.
-- Final executable Task 5 evidence: `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`, Validate #1175 / run `35054633792`, fully GREEN across tests, architecture, lint, build, production/staging Worker bundles, local D1 and Spec B D1 clean-install/upgrade.
-- The payment-receipt bridge, table-commit bridge and `updateCollection` escape hatch remain active with the original C6/C5/C8-C10 removal targets.
+- Task 5 final executable evidence before session extraction: `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`, Validate #1175 / run `35054633792`, fully GREEN.
+- Task 6 extracted session lifecycle into `src/app/runtime/session/useSessionRuntime.js` with dedicated tests preserving `checking | anonymous | authenticated`, exact invalid-PIN/expiry copy, login/logout ordering, reset and cleanup scope.
+- Task 7 added `src/app/runtime/runtimeExtractionContract.test.js` and completed the C1 App runtime boundary (`9bb7b043`), followed by regression hardening through `f2633c8a`.
+- Pre-reconciliation SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e` passed Validate #1194 / run `35075714168` and manual Deploy staging #101 / run `35078821466` (`workflow_dispatch`).
+- The accidental automatic staging trigger for `feature/spec-c1-runtime` was removed in `d8b105e55fa42da476c6b2e79f73ce584a815a5c`; manual dispatch is again the only Spec C staging path.
+- Reconciliation HEAD `5ac91141beed2bc76886fd295cd21c9bc5e5dfcf` passed Validate #1199 / run `35104231026` across tests, architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 clean-install/upgrade.
+- The payment-receipt bridge, table-commit bridge and `updateCollection` escape hatch remain active with the original C6/C5/C8-C10 removal targets. Tasks 6–7 introduced no additional compatibility facade/bridge.
+- Remaining Task 8 gates: require validation on the final documentation-reconciled HEAD, manually dispatch `Deploy staging` for that exact branch/HEAD, execute the 15-item manual matrix below, then write `docs/superpowers/qa/spec-c1-runtime-qa.md` from real evidence only.
+- Production remains untouched. C2 must not start until C1 is homologated, approved and merged.
 - The approved task definitions below remain normative; this status block records execution evidence only and does not alter their requirements.
 
 ## Global Constraints
