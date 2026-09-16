@@ -9,9 +9,16 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | operational data runtime table-commit bridge | App-owned comanda selection reconciliation | C1 legacy table-service workflow | C5 |
 | `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
 
-## C1 Task 5 status — 2026-09-16
+## C1 status — 2026-09-16
 
-- All three Task 5 compatibility bridges remain intentional and active after the `useOperationalDataRuntime` integration.
-- No additional facade/bridge was introduced while fixing the post-integration regression tests.
-- Validate application #1175 (run `35054633792`) was fully green on executable HEAD `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`.
-- Do not remove the payment bridge before C6, the table-commit bridge before C5, or the `updateCollection` escape hatch before its C8/C10 migration targets.
+- The Task 5 compatibility bridges remain intentional and active after the `useOperationalDataRuntime` integration.
+- Task 6 session extraction (`useSessionRuntime`) introduced **no new compatibility facade or cross-slice bridge**.
+- Task 7 runtime-boundary cleanup and `runtimeExtractionContract.test.js` introduced **no new compatibility facade or cross-slice bridge**.
+- The generic/auth reexports in `src/api/client.js` remain temporary while later Spec C slices migrate consumers.
+- The payment-receipt bridge still targets removal in C6.
+- The table-commit bridge still targets removal in C5.
+- The `updateCollection` escape hatch still targets reduction through C4-C8 and final enforcement no later than C10.
+- Validate application #1194 / run `35075714168` was green on the pre-reconciliation staging SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e`.
+- C1 is not yet closed: final-head validation, fresh manual staging dispatch and the 15-item manual homologation matrix remain Task 8 gates.
+
+Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
