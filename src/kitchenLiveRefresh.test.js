@@ -26,15 +26,16 @@ test('worker and browser client expose an orders-only GET refresh path', () => {
   assert.match(client, /export const getOrders\s*=\s*\(\)\s*=>\s*apiRequest\(['"]\/api\/orders['"]\)/)
 })
 
-test('App polls orders every two seconds only through the orders refresh path and refreshes on focus', () => {
+test('App enables the orders runtime only for Cozinha while the runtime owns the two-second refresh and focus behavior', () => {
   const app = read('src/App.jsx')
-  assert.match(app, /getOrders as getOrdersApi/)
-  assert.match(app, /const ORDER_SYNC_INTERVAL_MS = 2_000/)
-  assert.match(app, /const timer = window\.setInterval/)
-  assert.match(app, /},\s*ORDER_SYNC_INTERVAL_MS\)/)
-  assert.match(app, /activeTab !== ['"]orders['"]/)
-  assert.match(app, /visibilitychange/)
-  assert.match(app, /window\.addEventListener\(['"]focus['"]/)
+  const runtime = read('src/app/runtime/data/useOperationalDataRuntime.js')
+  assert.match(app, /ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated'/)
+  assert.match(runtime, /getOrders/)
+  assert.match(runtime, /export const ORDER_SYNC_INTERVAL_MS = 2_000/)
+  assert.match(runtime, /run: refreshOrders/)
+  assert.match(runtime, /intervalMs: ORDER_SYNC_INTERVAL_MS/)
+  assert.match(runtime, /visibilitychange/)
+  assert.match(runtime, /addEventListener\?\.\('focus'/)
 })
 
 test('kitchen UI supports one-time visual alerts and a persisted sound toggle', () => {
