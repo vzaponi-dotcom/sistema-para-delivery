@@ -3,7 +3,12 @@ import { createPolicyEditingState, policyEditingReducer } from './policyEditingS
 import { buildPolicyConflict } from './policyConflict.js'
 
 export const policyResourceKey = (policyId, scopeId) => scopeId ? `${policyId}:${scopeId}` : policyId
-const contextSignature = (context) => context?.contextId || ''
+const contextSignature = (context) => context ? [
+  context.ownerId,
+  context.generation,
+  context.contextId,
+  [...new Set(context.capabilities || [])].sort().join('\u001f'),
+].join('\u001e') : ''
 const isUnknownResult = (error) => !Number.isInteger(error?.status) || error.status === 408 || error.status >= 500
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical)

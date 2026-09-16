@@ -5,7 +5,7 @@ import { createPolicyEditingController } from './policyEditingController.js'
 
 const createController = (options) => createPolicyEditingController({
   ...options,
-  context: options.context && { ...options.context, contextId: options.context.settingsContextId },
+  context: options.context && { ...options.context, contextId: options.context.settingsContextId, ownerId: options.context.businessId },
 })
 
 const deferred = () => {
@@ -585,4 +585,66 @@ test('context change invalidates stale reads and clears the previous context pen
   assert.equal(await staleLoad, false)
   assert.equal(storage.getItem('settings-pending:context-1:operations'), null)
   assert.deepEqual(controller.getResources(), {})
+})
+
+test('generation change with the same contextId invalidates stale load and save owners', async () => {
+  const delayedLoad = deferred()
+  const delayedSave = deferred()
+  const saveStarted = deferred()
+  let loads = 0
+  const controller = createController({
+    context,
+    storage: memoryStorage(),
+    createMutationId: () => 'mutation-1',
+    transport: {
+      load: () => ++loads === 1 ? delayedLoad.promise : adminFixture,
+      save: () => { saveStarted.resolve(); return delayedSave.promise },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  const staleLoad = controller.load('operations')
+  controller.setContext({ ...context, contextId: 'context-1', ownerId: 'business-1', generation: 2 })
+  delayedLoad.resolve(adminFixture)
+  assert.equal(await staleLoad, false)
+
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  const staleSave = controller.save('operations')
+  await saveStarted.promise
+  controller.setContext({ ...context, contextId: 'context-1', ownerId: 'business-1', generation: 3 })
+  delayedSave.resolve({ resource: savedResource, receipt: {} })
+
+  assert.equal(await staleSave, false)
+  assert.deepEqual(controller.getResources(), {})
+})
+
+test('capability and owner changes with the same contextId invalidate stale write owners', async () => {
+  for (const changedContext of [
+    { ...context, contextId: 'context-1', ownerId: 'business-1', capabilities: ['printing.settings.manage'] },
+    { ...context, contextId: 'context-1', ownerId: 'business-2' },
+  ]) {
+    const delayedSave = deferred()
+    const saveStarted = deferred()
+    const controller = createController({
+      context,
+      storage: memoryStorage(),
+      createMutationId: () => 'mutation-1',
+      transport: {
+        load: async () => adminFixture,
+        save: () => { saveStarted.resolve(); return delayedSave.promise },
+        loadReceipt: async () => ({ status: 'unconfirmed' }),
+      },
+    })
+
+    await controller.load('operations')
+    controller.edit('operations', draftFixture)
+    const staleSave = controller.save('operations')
+    await saveStarted.promise
+    controller.setContext(changedContext)
+    delayedSave.resolve({ resource: savedResource, receipt: {} })
+
+    assert.equal(await staleSave, false)
+    assert.deepEqual(controller.getResources(), {})
+  }
 })

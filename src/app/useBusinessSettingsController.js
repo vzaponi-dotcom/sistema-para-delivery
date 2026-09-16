@@ -3,7 +3,7 @@ import { getSettings, getSettingsReceipt, putSettings } from '../api/settingsCli
 import { createPolicyEditingController, policyResourceKey } from './policy-editing/policyEditingController.js'
 
 const defaultApi = { getSettings, putSettings, getSettingsReceipt }
-const toPolicyContext = (context) => context && { ...context, contextId: context.settingsContextId }
+const toPolicyContext = (context) => context && { ...context, contextId: context.settingsContextId, ownerId: context.businessId }
 const toTransport = (api) => ({
   load: (policyId, scopeId) => api.getSettings(policyId, scopeId),
   save: (policyId, input, scopeId) => api.putSettings(policyId, input, scopeId),
