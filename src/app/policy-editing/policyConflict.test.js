@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildPolicyConflict, resolvePolicyConflict } from './policyConflict.js'
+import { buildPolicyConflict, POLICY_CONFLICT_UNRESOLVED, resolvePolicyConflict } from './policyConflict.js'
 
 test('three-way merge keeps remote-only and local-only changes and accepts the same change', () => {
   const review = buildPolicyConflict({
@@ -28,6 +28,16 @@ test('different changes on both sides remain explicit and unresolved', () => {
   assert.equal(review.conflicts[0].choice, null)
   assert.deepEqual(review.candidate, { late: 35 })
   assert.deepEqual(resolvePolicyConflict(review, { [review.conflicts[0].id]: 'draft' }), { late: 25 })
+})
+
+test('unresolved choices expose the generic policy conflict sentinel', () => {
+  const review = buildPolicyConflict({
+    base: { late: 30 },
+    draft: { late: 25 },
+    current: { late: 35 },
+  })
+
+  assert.throws(() => resolvePolicyConflict(review), { code: POLICY_CONFLICT_UNRESOLVED })
 })
 
 test('stable item identity merges a local reorder with a remote item edit', () => {

@@ -1,4 +1,5 @@
 const MISSING = Symbol('missing')
+export const POLICY_CONFLICT_UNRESOLVED = 'POLICY_CONFLICT_UNRESOLVED'
 const clone = (value) => value === MISSING ? MISSING : (value == null ? value : structuredClone(value))
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 
@@ -236,7 +237,7 @@ export function resolvePolicyConflict(review, choices = {}) {
   const candidate = clone(review.candidate)
   for (const conflict of review.conflicts) {
     const choice = choices[conflict.id] || conflict.choice
-    if (!conflict.choices.includes(choice)) throw Object.assign(new Error(`Escolha pendente para ${conflict.path}.`), { code: 'SETTINGS_CONFLICT_UNRESOLVED' })
+    if (!conflict.choices.includes(choice)) throw Object.assign(new Error(`Escolha pendente para ${conflict.path}.`), { code: POLICY_CONFLICT_UNRESOLVED })
     const value = conflict[choice]
     const exists = conflict[`${choice}Exists`]
     const target = conflict.target
