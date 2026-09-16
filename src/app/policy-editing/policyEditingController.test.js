@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { adminFixture, draftFixture } from '../test-support/settingsFixtures.js'
-import { createBusinessSettingsController, useBusinessSettingsController } from './useBusinessSettingsController.js'
+import { adminFixture, draftFixture } from '../../test-support/settingsFixtures.js'
+import { createPolicyEditingController } from './policyEditingController.js'
+
+const createController = (options) => createPolicyEditingController({
+  ...options,
+  context: options.context && { ...options.context, contextId: options.context.settingsContextId },
+})
 
 const deferred = () => {
   let resolve
@@ -23,12 +28,12 @@ test('two immediate saves reserve one resource before hashing and issue at most 
   const write = deferred()
   let writes = 0
   let mutation = 0
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => `mutation-${++mutation}`,
-    api: {
-      getSettings: async () => adminFixture,
-      putSettings: () => { writes += 1; return write.promise },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => adminFixture,
+      save: () => { writes += 1; return write.promise },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -47,12 +52,12 @@ test('save carries draft A unchanged through hash submitted state and PUT while 
   const started = deferred()
   const sent = []
   const laterDraft = { ...draftFixture, defaultModality: 'Retirada' }
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => adminFixture,
-      putSettings: async (_resource, input) => { sent.push(input); started.resolve(); return write.promise },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => adminFixture,
+      save: async (_resource, input) => { sent.push(input); started.resolve(); return write.promise },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -74,16 +79,16 @@ test('save carries draft A unchanged through hash submitted state and PUT while 
 test('preparation failure releases the synchronous reservation for a later explicit attempt', async () => {
   let writes = 0
   let failHash = true
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
     hash: async () => {
       if (failHash) { failHash = false; throw new Error('digest unavailable') }
       return 'payload-hash'
     },
-    api: {
-      getSettings: async () => adminFixture,
-      putSettings: async (_resource, input) => { writes += 1; return { resource: { ...savedResource, data: input.data }, receipt: {} } },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => adminFixture,
+      save: async (_resource, input) => { writes += 1; return { resource: { ...savedResource, data: input.data }, receipt: {} } },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -97,12 +102,12 @@ test('preparation failure releases the synchronous reservation for a later expli
 test('refresh after editing advances confirmed without discarding the original base or draft', async () => {
   let reads = 0
   const remote = { ...adminFixture, revision: 2, data: { ...adminFixture.data, defaultModality: 'Local' } }
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(),
-    api: {
-      getSettings: async () => ++reads === 1 ? adminFixture : remote,
-      putSettings: async () => assert.fail('refresh must not save'),
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => ++reads === 1 ? adminFixture : remote,
+      save: async () => assert.fail('refresh must not save'),
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -120,12 +125,12 @@ test('refresh during saving preserves submitted ownership and the PUT confirmati
   const write = deferred()
   const writeStarted = deferred()
   let reads = 0
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => { reads += 1; return adminFixture },
-      putSettings: async () => { writeStarted.resolve(); return write.promise },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => { reads += 1; return adminFixture },
+      save: async () => { writeStarted.resolve(); return write.promise },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -150,12 +155,12 @@ test('blocked storage does not let refresh abandon an in-memory save or admit an
     get length() { throw new Error('blocked') }, key() { throw new Error('blocked') },
     getItem() { throw new Error('blocked') }, setItem() { throw new Error('blocked') }, removeItem() { throw new Error('blocked') },
   }
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: blockedStorage, createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => adminFixture,
-      putSettings: async () => { writes += 1; writeStarted.resolve(); return write.promise },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => adminFixture,
+      save: async () => { writes += 1; writeStarted.resolve(); return write.promise },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -173,12 +178,12 @@ test('blocked storage does not let refresh abandon an in-memory save or admit an
 test('an older refresh cannot regress a newer save confirmation', async () => {
   const staleRead = deferred()
   let reads = 0
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => ++reads === 1 ? adminFixture : staleRead.promise,
-      putSettings: async () => ({ resource: savedResource, receipt: {} }),
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => ++reads === 1 ? adminFixture : staleRead.promise,
+      save: async () => ({ resource: savedResource, receipt: {} }),
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -200,12 +205,12 @@ test('refresh after conflict or unknown result preserves the submitted intention
       ? Object.assign(new Error('changed'), { status: 409, code: 'SETTINGS_REVISION_CONFLICT' })
       : new TypeError('network lost')
     let reads = 0
-    const controller = createBusinessSettingsController({
+    const controller = createController({
       context, storage: memoryStorage(), createMutationId: () => `mutation-${outcome}`,
-      api: {
-        getSettings: async () => { reads += 1; return reads === 1 ? adminFixture : savedResource },
-        putSettings: async () => { throw error },
-        getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+      transport: {
+        load: async () => { reads += 1; return reads === 1 ? adminFixture : savedResource },
+        save: async () => { throw error },
+        loadReceipt: async () => ({ status: 'unconfirmed' }),
       },
     })
     await controller.load('operations')
@@ -224,12 +229,12 @@ test('refresh after conflict or unknown result preserves the submitted intention
 test('receipt reconciliation cannot regress a newer confirmed revision from refresh', async () => {
   const revisionThree = { ...savedResource, revision: 3, data: { ...draftFixture, defaultModality: 'Local' } }
   let reads = 0
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => [adminFixture, revisionThree, savedResource][reads++],
-      putSettings: async () => { throw new TypeError('response lost') },
-      getSettingsReceipt: async () => ({ status: 'confirmed', receipt: { mutationId: 'mutation-1', committedRevision: 2 } }),
+    transport: {
+      load: async () => [adminFixture, revisionThree, savedResource][reads++],
+      save: async () => { throw new TypeError('response lost') },
+      loadReceipt: async () => ({ status: 'confirmed', receipt: { mutationId: 'mutation-1', committedRevision: 2 } }),
     },
   })
   await controller.load('operations')
@@ -246,12 +251,12 @@ test('receipt reconciliation cannot regress a newer confirmed revision from refr
 
 test('editing is local and confirmed save uses revision plus one stable mutation id', async () => {
   const calls = []
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => adminFixture,
-      putSettings: async (resource, input, scopeId) => { calls.push([resource, input, scopeId]); return { resource: savedResource, receipt: { mutationId: input.mutationId, committedRevision: 2 } } },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => adminFixture,
+      save: async (resource, input, scopeId) => { calls.push([resource, input, scopeId]); return { resource: savedResource, receipt: { mutationId: input.mutationId, committedRevision: 2 } } },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -270,12 +275,12 @@ test('unknown save remains blocked and receipt reconciliation reads without rese
   let receipt = { status: 'unconfirmed' }
   let current = adminFixture
   const storage = memoryStorage()
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage, createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => current,
-      putSettings: async () => { writes += 1; throw new TypeError('network lost') },
-      getSettingsReceipt: async () => receipt,
+    transport: {
+      load: async () => current,
+      save: async () => { writes += 1; throw new TypeError('network lost') },
+      loadReceipt: async () => receipt,
     },
   })
   await controller.load('operations')
@@ -295,20 +300,20 @@ test('unknown save remains blocked and receipt reconciliation reads without rese
 
 test('same-session reload recovers the minimal pointer and confirmed receipt', async () => {
   const storage = memoryStorage()
-  const first = createBusinessSettingsController({
+  const first = createController({
     context, storage, createMutationId: () => 'mutation-1',
-    api: { getSettings: async () => adminFixture, putSettings: async () => { throw new TypeError('lost') }, getSettingsReceipt: async () => ({ status: 'unconfirmed' }) },
+    transport: { load: async () => adminFixture, save: async () => { throw new TypeError('lost') }, loadReceipt: async () => ({ status: 'unconfirmed' }) },
   })
   await first.load('operations')
   first.edit('operations', draftFixture)
   await first.save('operations')
 
-  const second = createBusinessSettingsController({
+  const second = createController({
     context, storage,
-    api: {
-      getSettings: async () => savedResource,
-      putSettings: async () => assert.fail('reload reconciliation must not resend'),
-      getSettingsReceipt: async () => ({ status: 'confirmed', receipt: { mutationId: 'mutation-1', committedRevision: 2 } }),
+    transport: {
+      load: async () => savedResource,
+      save: async () => assert.fail('reload reconciliation must not resend'),
+      loadReceipt: async () => ({ status: 'confirmed', receipt: { mutationId: 'mutation-1', committedRevision: 2 } }),
     },
   })
   await second.load('operations')
@@ -319,12 +324,12 @@ test('same-session reload recovers the minimal pointer and confirmed receipt', a
 
 test('resource keys isolate station scopes and allow unrelated saves concurrently', async () => {
   const writes = []
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => `mutation-${writes.length + 1}`,
-    api: {
-      getSettings: async (resource, scopeId) => ({ ...adminFixture, resource, scopeId, data: { value: scopeId || resource } }),
-      putSettings: async (resource, input, scopeId) => { writes.push(`${resource}:${scopeId || ''}`); return { resource: { ...adminFixture, resource, scopeId, revision: 2, data: input.data }, receipt: {} } },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async (resource, scopeId) => ({ ...adminFixture, resource, scopeId, data: { value: scopeId || resource } }),
+      save: async (resource, input, scopeId) => { writes.push(`${resource}:${scopeId || ''}`); return { resource: { ...adminFixture, resource, scopeId, revision: 2, data: input.data }, receipt: {} } },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('stationConfiguration', 'station-a')
@@ -340,9 +345,9 @@ test('resource keys isolate station scopes and allow unrelated saves concurrentl
 
 test('revision conflict is conclusive but preserves base draft and submitted intent for T15', async () => {
   const error = Object.assign(new Error('changed elsewhere'), { status: 409, code: 'SETTINGS_REVISION_CONFLICT' })
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
-    api: { getSettings: async () => adminFixture, putSettings: async () => { throw error }, getSettingsReceipt: async () => ({ status: 'unconfirmed' }) },
+    transport: { load: async () => adminFixture, save: async () => { throw error }, loadReceipt: async () => ({ status: 'unconfirmed' }) },
   })
   await controller.load('operations')
   controller.edit('operations', draftFixture)
@@ -361,17 +366,17 @@ test('accepted conflict review updates the base and draft without saving until a
   let writes = 0
   let mutation = 0
   let openedReview = null
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => `mutation-${++mutation}`,
     onConflictReview: (review) => { openedReview = review },
-    api: {
-      getSettings: async () => ++reads === 1 ? adminFixture : current,
-      putSettings: async (_resource, input) => {
+    transport: {
+      load: async () => ++reads === 1 ? adminFixture : current,
+      save: async (_resource, input) => {
         writes += 1
         if (writes === 1) throw conflict
         return { resource: { ...current, revision: 3, data: input.data }, receipt: { mutationId: input.mutationId } }
       },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -402,13 +407,13 @@ test('logout invalidates an open conflict review and its late decision', async (
   const current = { ...adminFixture, revision: 2 }
   let reads = 0
   let openedReview = null
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), createMutationId: () => 'mutation-1',
     onConflictReview: (review) => { openedReview = review },
-    api: {
-      getSettings: async () => ++reads === 1 ? adminFixture : current,
-      putSettings: async () => { throw conflict },
-      getSettingsReceipt: async () => ({ status: 'unconfirmed' }),
+    transport: {
+      load: async () => ++reads === 1 ? adminFixture : current,
+      save: async () => { throw conflict },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
     },
   })
   await controller.load('operations')
@@ -430,12 +435,12 @@ test('a 24-hour pointer requires an explicit current read and is never replayed'
   }))
   let receiptReads = 0
   let writes = 0
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage, now: () => new Date('2026-09-13T10:00:00.000Z'),
-    api: {
-      getSettings: async () => adminFixture,
-      putSettings: async () => { writes += 1 },
-      getSettingsReceipt: async () => { receiptReads += 1; return { status: 'confirmed' } },
+    transport: {
+      load: async () => adminFixture,
+      save: async () => { writes += 1 },
+      loadReceipt: async () => { receiptReads += 1; return { status: 'confirmed' } },
     },
   })
   await controller.load('operations')
@@ -454,12 +459,12 @@ test('an in-memory uncertain save expires at exactly 24 hours and preserves a la
   let writes = 0
   const current = { ...savedResource, data: draftFixture }
   const laterDraft = { ...draftFixture, defaultModality: 'Retirada' }
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage: memoryStorage(), now: () => clock, createMutationId: () => 'mutation-1',
-    api: {
-      getSettings: async () => { reads += 1; return reads === 1 ? adminFixture : current },
-      putSettings: async () => { writes += 1; throw new TypeError('response lost') },
-      getSettingsReceipt: async () => { receiptReads += 1; return { status: 'confirmed' } },
+    transport: {
+      load: async () => { reads += 1; return reads === 1 ? adminFixture : current },
+      save: async () => { writes += 1; throw new TypeError('response lost') },
+      loadReceipt: async () => { receiptReads += 1; return { status: 'confirmed' } },
     },
   })
   await controller.load('operations')
@@ -487,12 +492,12 @@ test('401 while reviewing an in-memory expired save invalidates the session and 
   let expirations = 0
   const storage = memoryStorage()
   const unauthorized = Object.assign(new Error('expired session'), { status: 401 })
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage, now: () => clock, createMutationId: () => 'mutation-1', onSessionExpired: () => { expirations += 1 },
-    api: {
-      getSettings: async () => { reads += 1; if (reads > 1) throw unauthorized; return adminFixture },
-      putSettings: async () => { throw new TypeError('response lost') },
-      getSettingsReceipt: async () => assert.fail('expired attempts must read current state first'),
+    transport: {
+      load: async () => { reads += 1; if (reads > 1) throw unauthorized; return adminFixture },
+      save: async () => { throw new TypeError('response lost') },
+      loadReceipt: async () => assert.fail('expired attempts must read current state first'),
     },
   })
   await controller.load('operations')
@@ -509,9 +514,9 @@ test('401 while reviewing an in-memory expired save invalidates the session and 
 test('logout/reset invalidates late responses and clears session pointers', async () => {
   const save = deferred()
   const storage = memoryStorage()
-  const controller = createBusinessSettingsController({
+  const controller = createController({
     context, storage, createMutationId: () => 'mutation-1',
-    api: { getSettings: async () => adminFixture, putSettings: () => save.promise, getSettingsReceipt: async () => ({ status: 'unconfirmed' }) },
+    transport: { load: async () => adminFixture, save: () => save.promise, loadReceipt: async () => ({ status: 'unconfirmed' }) },
   })
   await controller.load('operations')
   controller.edit('operations', draftFixture)
@@ -521,5 +526,63 @@ test('logout/reset invalidates late responses and clears session pointers', asyn
   assert.equal(await pending, false)
   assert.deepEqual(controller.getResources(), {})
   assert.equal(storage.length, 0)
-  assert.equal(typeof useBusinessSettingsController, 'function')
+})
+test('onPolicyCommitted fires only when a policy mutation is confirmed', async () => {
+  const commits = []
+  let receipt = { status: 'unconfirmed' }
+  let current = adminFixture
+  const controller = createController({
+    context,
+    storage: memoryStorage(),
+    createMutationId: () => 'mutation-1',
+    onPolicyCommitted: (commit) => commits.push(commit),
+    transport: {
+      load: async () => current,
+      save: async () => ({ resource: savedResource, receipt: { committedRevision: 2 } }),
+      loadReceipt: async () => receipt,
+    },
+  })
+
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  assert.equal(await controller.save('operations'), true)
+  assert.deepEqual(commits, [{ policyId: 'operations', resourceKey: 'operations', scopeId: undefined }])
+
+  commits.length = 0
+  controller.edit('operations', draftFixture)
+  controller.configure({ transport: { load: async () => current, save: async () => { throw new TypeError('response lost') }, loadReceipt: async () => receipt } })
+  assert.equal(await controller.save('operations'), false)
+  assert.deepEqual(commits, [])
+  await controller.load('operations')
+  controller.discard('operations')
+  assert.deepEqual(commits, [])
+
+  const laterDraft = { ...draftFixture, defaultModality: 'Retirada' }
+  controller.edit('operations', laterDraft)
+  assert.equal(await controller.save('operations'), false)
+  receipt = { status: 'confirmed', receipt: { mutationId: 'mutation-1', committedRevision: 2 } }
+  current = { ...savedResource, revision: 3, data: laterDraft }
+  assert.equal(await controller.reconcile('operations'), true)
+  assert.deepEqual(commits, [{ policyId: 'operations', resourceKey: 'operations', scopeId: undefined }])
+})
+test('context change invalidates stale reads and clears the previous context pending pointer', async () => {
+  const delayed = deferred()
+  const storage = memoryStorage()
+  storage.setItem('settings-pending:context-1:operations', JSON.stringify({
+    resource: 'operations', mutationId: 'old-mutation', payloadHash: 'old-hash',
+    startedAt: '2026-09-13T10:00:00.000Z', contextId: 'context-1',
+  }))
+  const controller = createController({
+    context,
+    storage,
+    transport: { load: () => delayed.promise, save: async () => assert.fail('must not save'), loadReceipt: async () => assert.fail('must not reconcile') },
+  })
+
+  const staleLoad = controller.load('operations')
+  controller.setContext({ ...context, generation: 2, settingsContextId: 'context-2', contextId: 'context-2' })
+  delayed.resolve(adminFixture)
+
+  assert.equal(await staleLoad, false)
+  assert.equal(storage.getItem('settings-pending:context-1:operations'), null)
+  assert.deepEqual(controller.getResources(), {})
 })
