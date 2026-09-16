@@ -42,6 +42,8 @@ export const createRefreshSubscription = ({
   }
 }
 
+const readEffectiveConfigVersion = (value) => typeof value === 'function' ? value() : value
+
 export function useOperationalDataRuntime({
   api = defaultApi,
   onUnauthorized = () => {},
@@ -147,15 +149,17 @@ export function useOperationalDataRuntime({
   }, [commitTables])
 
   const updateCollection = useCallback((collection, updater) => {
+    if (collection === 'tables') {
+      syncGuardRef.current.markMutation(['tables'])
+      officialRevisionRef.current += 1
+      const next = typeof updater === 'function' ? updater(officialTablesRef.current) : updater
+      commitTables(next)
+      return true
+    }
     const setters = {
       clients: setClients,
       products: setProducts,
       orders: setOrders,
-      tables: (value) => setTables((current) => {
-        const next = typeof value === 'function' ? value(current) : value
-        commitTables(next)
-        return next
-      }),
       tableTabs: setTableTabs,
       movements: setMovements,
       financeSettings: setFinanceSettings,
@@ -177,7 +181,8 @@ export function useOperationalDataRuntime({
 
     const read = async () => {
       try {
-        const data = await apiRef.current.getBootstrap(background ? effectiveConfigVersionRef.current : undefined)
+        const configVersion = readEffectiveConfigVersion(effectiveConfigVersionRef.current)
+        const data = await apiRef.current.getBootstrap(background ? configVersion : undefined)
         if (guard !== syncGuardRef.current) return false
         const receipt = applyBootstrapCollections(data, token)
         legacyBridgesRef.current.settlePaymentOwners?.(paymentOwners, receipt)
@@ -241,20 +246,20 @@ export function useOperationalDataRuntime({
   }, [])
 
   useEffect(() => {
-    if (!globalSyncEnabled) return undefined
+    if (!globalSyncEnabled || bootstrapState !== 'ready') return undefined
     return createRefreshSubscription({
       run: refreshBootstrapSilently,
       intervalMs: GLOBAL_SYNC_INTERVAL_MS,
     })
-  }, [globalSyncEnabled, refreshBootstrapSilently])
+  }, [bootstrapState, globalSyncEnabled, refreshBootstrapSilently])
 
   useEffect(() => {
-    if (!ordersSyncEnabled) return undefined
+    if (!ordersSyncEnabled || bootstrapState !== 'ready') return undefined
     return createRefreshSubscription({
       run: refreshOrders,
       intervalMs: ORDER_SYNC_INTERVAL_MS,
     })
-  }, [ordersSyncEnabled, refreshOrders])
+  }, [bootstrapState, ordersSyncEnabled, refreshOrders])
 
   return useMemo(() => ({
     bootstrapState,
