@@ -17,7 +17,7 @@ If this ledger and GitHub disagree, inspect the branch and update this ledger be
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
-| C1 | Runtime central, generic HTTP/auth, architecture gate | IN PROGRESS | `feature/spec-c1-runtime` / PR #45 | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
+| C1 | Runtime central, generic HTTP/auth, architecture gate | IN PROGRESS — Tasks 1–5 GREEN | `feature/spec-c1-runtime` / PR #45 | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | NOT STARTED | — | Write after C1 merge from the real new `master` |
 | C3 | Settings surface + generic policy editing engine | NOT STARTED | — | Write after C2 merge |
 | C4 | Orders | NOT STARTED | — | Write after C3 merge |
@@ -41,10 +41,8 @@ Do **not** freeze detailed C2-C10 plans in advance. Each detailed plan must use 
 - PR state: draft, open, not merged
 - Base: `master`
 - C1 base SHA: `af8266549603fc2d392880c812bc1c0d608a6dbc`
-- Last fully green executable SHA: `894e4b3273eb98232bb826a153a650c2dcefa567`
-- Last fully green validation: Validate application #1162
-- Task 5 RED commit: `ef3bd4921368c0dce0f648d1fe19d45fc5354809`
-- Task 5 RED validation: Validate application #1163 — expected failure
+- Task 5 final executable SHA before documentation: `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`
+- Last fully green validation before this ledger update: Validate application #1175, run `35054633792`
 - Production deployed from C1: **NO**
 - Staging homologation for C1: **NOT STARTED**
 
@@ -56,10 +54,10 @@ The approved Spec C documentation was not yet merged to `master` when C1 began, 
 |---|---|---|
 | Task 1 — generic HTTP + session infrastructure | DONE | RED #1153 / GREEN #1154 |
 | Task 2 — permanent architecture gate | DONE | Final GREEN #1158 |
-| Task 3 — online/offline runtime | PARTIAL | Hook/test green (#1160); still wire into `App.jsx` |
-| Task 4 — feedback runtime | PARTIAL | Hook/test green (#1162); still wire into `App.jsx` |
-| Task 5 — operational data runtime | RED CONFIRMED | Contract tests committed; implementation module still absent; implement GREEN next |
-| Task 6 — session lifecycle runtime | NOT STARTED | Start only after Task 5 GREEN/integration |
+| Task 3 — online/offline runtime | DONE + INTEGRATED | Hook GREEN #1160; wired into `App.jsx` during Task 5 integration |
+| Task 4 — feedback runtime | DONE + INTEGRATED | Hook GREEN #1162; wired into `App.jsx` during Task 5 integration |
+| Task 5 — operational data runtime | DONE + FULL GREEN | RED #1163; isolated runtime GREEN #1166; App integration stabilized; full GREEN #1175 |
+| Task 6 — session lifecycle runtime | NOT STARTED | Next active task; start with approved RED tests |
 | Task 7 — App extraction contract + cleanup | NOT STARTED | Start after Task 6 |
 | Task 8 — full gates + staging + manual QA | NOT STARTED | No production deploy |
 
@@ -116,8 +114,6 @@ Current production QZ allowlist contains exactly:
 
 - `src/printing/usePrintingManager.js`
 
-`src/printing/usePrintingManager.test.js` also imports QZ, but that is a test dependency. A RED test was added and the checker was corrected so the `qz-direct` production rule ignores test/spec files without expanding the production allowlist.
-
 Final Task 2 commit:
 
 - `a6f56c57fec66773eb77f8c4cc9bae2ce0293f3a`
@@ -128,33 +124,25 @@ Final validation:
 
 ---
 
-## Task 3 — runtime module implemented, App integration pending
+## Task 3 — completed and integrated
 
-Implemented and green:
+Implemented:
 
 - `src/app/runtime/network/useOnlineStatus.js`
 - `src/app/runtime/network/useOnlineStatus.test.js`
-
-Commit:
-
-- `f181261179a6ab1b846f8fdef839c1797a35ab64`
 
 Evidence:
 
 - RED: Validate #1159
 - GREEN: Validate #1160
-
-Still pending in `App.jsx`:
-
-- replace App-owned `isOnline` state with `useOnlineStatus()`;
-- remove inline `online` / `offline` browser listeners;
-- preserve all existing write-blocking behavior exactly.
+- `App.jsx` now consumes `useOnlineStatus()`; App-owned `online` / `offline` browser listeners were removed during Task 5 integration.
+- Full integrated validation: #1175 — GREEN.
 
 ---
 
-## Task 4 — runtime module implemented, App integration pending
+## Task 4 — completed and integrated
 
-Implemented and green:
+Implemented:
 
 - `src/app/runtime/feedback/useFeedbackRuntime.js`
 - `src/app/runtime/feedback/useFeedbackRuntime.test.js`
@@ -169,122 +157,64 @@ Evidence:
 
 - RED: Validate #1161
 - GREEN: Validate #1162
-
-Still pending in `App.jsx`:
-
-- replace App-owned toast/success state and timer implementation with `useFeedbackRuntime()`;
-- keep visible portal markup and UX unchanged.
+- `App.jsx` now delegates toast/success state and timers to `useFeedbackRuntime()` while preserving visible portal markup and UX.
+- Full integrated validation: #1175 — GREEN.
 
 ---
 
-## Task 5 — exact resume point
+## Task 5 — completed and integrated
 
-A RED test commit **does exist** and is now part of the branch:
-
-- commit: `ef3bd4921368c0dce0f648d1fe19d45fc5354809`
-- message: `test: define operational data runtime contract`
-- file added: `src/app/runtime/data/useOperationalDataRuntime.test.js`
-- Validate application #1163: failed in the test step as expected
-- `src/app/runtime/data/useOperationalDataRuntime.js` does not exist yet
-
-Therefore the next action is **not** to rewrite the RED tests from scratch. First inspect them against the approved C1 plan, confirm the failure is still the expected missing implementation, then implement the GREEN runtime.
-
-The RED test imports and expects:
-
-- `GLOBAL_SYNC_INTERVAL_MS`
-- `ORDER_SYNC_INTERVAL_MS`
-- `createRefreshSubscription`
-- `useOperationalDataRuntime`
-
-from:
+Implemented:
 
 - `src/app/runtime/data/useOperationalDataRuntime.js`
+- `src/app/runtime/data/useOperationalDataRuntime.test.js`
+- `App.jsx` integration of `useOperationalDataRuntime`, `useOnlineStatus` and `useFeedbackRuntime`
 
-### Task 5 runtime scope
-
-Extract, without semantic simplification:
+The runtime now owns:
 
 - official collections: clients / products / orders / tables / tableTabs / movements / financeSettings;
-- `bootstrapState`;
-- `bootstrapEffectiveConfig`;
+- `bootstrapState` and `bootstrapEffectiveConfig`;
 - collection sync guard;
-- bootstrap in-flight protection;
-- orders-only in-flight protection;
-- official revision tracking;
-- official table snapshot;
-- bootstrap application;
+- bootstrap and orders-only in-flight protection;
+- official revision/table snapshots;
+- bootstrap application and silent refresh;
 - `applyOfficialEffects`;
-- global bootstrap refresh;
-- orders-only refresh;
-- operational data reset;
-- polling/subscription mechanics.
+- 5-second global synchronization;
+- 2-second Cozinha order synchronization;
+- focus/visibility refresh subscription mechanics;
+- operational data reset.
 
-Locked timing invariants:
+### TDD / integration evidence
 
-- global sync: `5000 ms`
-- Cozinha-only order sync: `2000 ms`
+- RED contract commit: `ef3bd4921368c0dce0f648d1fe19d45fc5354809`
+- RED validation: #1163 / run `35050387434` — expected module-not-found failure
+- initial runtime implementation: `de3ccdda2ee93beba49a0295c385753ad9263efc`
+- isolated runtime validation: #1166 / run `35051086481` — fully GREEN
+- compatibility ledger commit: `6316e667cfe5b9fde5c63ecad7a43022afb323ea`
+- runtime semantics refinement: `2d96b6fd0e067c145c4747b2314bab22b9062aa4`
+- App integration: `bef8d2f1d850a9c8f82a9b94fcec077a3426debe`
+- integration validation #1169: RED in `Test`
+- root cause: structural regression tests still asserted that synchronization/feedback internals lived literally inside `App.jsx`; runtime tests themselves were green
+- first regression-contract migration round: `ca31e325eeeec9d9f621e51145b590a0f9cd3329`, `8dd467a78be3a33fe959c335105e1a2708396006`, `663ea4ab7eebad498a09002fe500537623296121`, `cb2c9f034cf74d0998f341e4faf7785444872895`
+- validation #1173 / run `35054295234`: only two stale structural tests remained red (`printingManagerRegression.test.js` and `successFeedbackRegression.test.js`)
+- final structural-contract migration: `2eb2d223b348d809b1b9171656e6bc994c2d4018`, `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166`
+- final validation #1175 / run `35054633792`: **FULL GREEN** — Test, architecture, lint, build, production/staging Worker bundles, local D1 migrations and Spec B D1 clean-install/upgrade all passed
 
-Do not alter those values in C1.
+The regression-test migration changed test ownership assertions only; it did not reintroduce App-owned runtime mechanics or change production behavior.
 
-The RED contract must continue covering at minimum:
-
-1. immediate polling run;
-2. interval run;
-3. hidden-document suppression;
-4. visible transition refresh;
-5. focus refresh;
-6. unsubscribe cleanup;
-7. bootstrap populates all official collections;
-8. stale bootstrap cannot overwrite a newer mutation;
-9. payment owner snapshot is captured at read start and that same snapshot is settled;
-10. table commit bridge updates official table snapshot;
-11. orders-only refresh does not alter unrelated collections;
-12. reset clears operational data, replaces the sync guard, and resets official revision.
-
-### Approved temporary bridges
+### Approved temporary bridges still active
 
 - payment receipt bridge → remove in C6;
 - table/comanda selection bridge → remove in C5;
 - `updateCollection` escape hatch → reduce during C4-C8 and remove no later than C10.
 
-Every bridge introduced in Task 5 must be recorded in:
-
-- `docs/superpowers/qa/spec-c-compatibility-facades.md`
-
-in the same implementation round.
+They remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 
 ---
 
-## App.jsx integration constraint
+## Active resume point — Task 6
 
-`src/App.jsx` is large (~89 KB) and GitHub Contents API updates replace the entire file. Tasks 3 and 4 were deliberately proven in isolation before integration.
-
-During Task 5 App integration, integrate these runtime contracts together in one carefully reviewed App change where practical:
-
-- `useOnlineStatus()`
-- `useFeedbackRuntime()`
-- `useOperationalDataRuntime()`
-
-Preserve everything outside C1 in behavior and presentation.
-
-Do not migrate/redesign in C1:
-
-- payment workflows;
-- comanda workflows;
-- customer/product/order/table/finance domain CRUD handlers;
-- printing workflows;
-- navigation architecture beyond preservation needs;
-- CSS/layout/copy;
-- React Router;
-- Redux/Zustand;
-- WebSocket/SSE;
-- Worker/backend architecture.
-
----
-
-## After Task 5
-
-### Task 6 — session lifecycle runtime
+Next task is **Task 6 — session lifecycle runtime**.
 
 Create:
 
@@ -297,7 +227,11 @@ Move session check/login/logout/expiry lifecycle while preserving exactly:
 - expiry copy: `Sua sessão expirou. Entre novamente.`
 - invalid PIN copy: `PIN inválido. Confira e tente novamente.`
 
-### Task 7 — App runtime boundary contract
+Do not begin Task 7 until Task 6 has its own RED → GREEN evidence and integrated gates.
+
+---
+
+## Task 7 — App runtime boundary contract
 
 Create:
 
@@ -305,7 +239,7 @@ Create:
 
 The contract must prove App no longer owns C1 runtime implementation while still retaining explicitly deferred domain/workflow handlers.
 
-### Task 8 — final C1 validation and homologation
+## Task 8 — final C1 validation and homologation
 
 Run:
 
@@ -354,8 +288,8 @@ Before changing code:
 3. read this ledger;
 4. read the detailed plan for the active slice;
 5. inspect PR #45 / branch `feature/spec-c1-runtime` and current CI;
-6. verify the branch still contains the Task 5 RED commit and no newer implementation commit;
+6. verify the current branch HEAD and latest validation against this ledger;
 7. if GitHub has advanced beyond this ledger, update this ledger first;
-8. continue the active task with the existing TDD and gate discipline.
+8. continue Task 6 with the approved TDD and gate discipline.
 
 The repository is the source of truth for Spec C continuity, not any individual chat.
