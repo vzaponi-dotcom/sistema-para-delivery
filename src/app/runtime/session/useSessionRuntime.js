@@ -56,6 +56,8 @@ export const useSessionRuntime = ({
     setLoginError('')
     try {
       const session = await api.login(pin)
+      resetOperationalData()
+      onClearApplicationState()
       setSessionContext({ authenticated: true, ...session })
       setSessionGeneration((current) => current + 1)
       setAuthState('authenticated')
