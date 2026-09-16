@@ -9,6 +9,7 @@ import {
 
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
+const operationalRuntime = await readFile(new URL('../app/runtime/data/useOperationalDataRuntime.js', import.meta.url), 'utf8')
 
 test('printing manager is driven by official job APIs and never by new-order detection', () => {
   for (const apiName of [
@@ -178,6 +179,6 @@ test('App mounts one printing manager and passes it to Orders without changing o
 
   assert.match(app, /getNew(?:Active|Operational)OrderIds/)
   assert.match(app, /detectedIds/)
-  assert.match(app, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings'\]/)
-  assert.doesNotMatch(app, /DATA_COLLECTIONS = \[[^\]]*print/i)
+  assert.match(operationalRuntime, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings'\]/)
+  assert.doesNotMatch(operationalRuntime, /DATA_COLLECTIONS = \[[^\]]*print/i)
 })
