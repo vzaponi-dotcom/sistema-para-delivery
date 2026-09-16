@@ -13,11 +13,14 @@
 ## Current rollout status — 2026-09-16
 
 - Active slice: **C1 — Runtime central** on `feature/spec-c1-runtime`, draft PR #45.
-- C1 Tasks 1–5 are implemented; Task 6 is next. C1 as a whole remains **IN PROGRESS** because session extraction, final App boundary cleanup, staging and manual QA are still pending.
-- Task 5 executable HEAD `8212a8ee61c9f1eca2c3fe5fc74bc84c412d6166` passed Validate #1175 / run `35054633792` across tests, architecture, lint, build, production/staging Worker bundles, local D1 and Spec B D1 clean-install/upgrade.
-- The post-integration failures were isolated to stale structural tests that still asserted runtime implementation lived inside `App.jsx`; those tests now assert the new runtime owners without changing production behavior.
+- C1 Tasks 1–7 are implemented. **Task 8 is the only active task**; C1 remains **IN PROGRESS** until final-head staging and the approved 15-item manual matrix are completed and recorded.
+- Session extraction and the final App runtime-boundary contract are present and covered by dedicated tests; no new compatibility facade/bridge was introduced by Tasks 6–7.
+- Pre-reconciliation SHA `87644cba4e9b3255b92bdcff851cc7a84c17ce8e` passed Validate application #1194 / run `35075714168` and manual Deploy staging #101 / run `35078821466` (`workflow_dispatch`).
+- The accidental automatic staging trigger for `feature/spec-c1-runtime` was removed in `d8b105e55fa42da476c6b2e79f73ce584a815a5c`; Spec C again follows the required manual `workflow_dispatch` contract.
+- Reconciliation HEAD `5ac91141beed2bc76886fd295cd21c9bc5e5dfcf` passed Validate application #1199 / run `35104231026` across tests, architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 clean-install/upgrade.
 - Temporary C1 bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md` with their original C5/C6/C8-C10 removal targets.
-- No production deploy has been performed from C1.
+- Manual C1 homologation has **no recorded PASS evidence yet**; `docs/superpowers/qa/spec-c1-runtime-qa.md` must not be created as completed evidence until the real matrix is executed.
+- No production deploy has been performed from C1. C2 remains blocked until C1 is homologated, approved and merged.
 - The rollout contracts below are unchanged; this block is execution status only.
 
 ## Global Constraints
