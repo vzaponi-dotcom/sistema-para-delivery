@@ -9,6 +9,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "test": "node --test",
+    "test:architecture": "node scripts/architecture/check-import-boundaries.mjs",
     "preview": "vite preview",
     "d1:migrate:local": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery --local",
     "d1:migrate:staging": "npx --yes wrangler@4.128.0 d1 migrations apply amor-e-sabor-delivery-staging --remote --env staging",
