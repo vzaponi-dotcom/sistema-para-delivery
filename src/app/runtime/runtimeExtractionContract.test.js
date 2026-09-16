@@ -20,6 +20,15 @@ test('App does not own C1 runtime implementation', () => {
   }
 })
 
+test('App routes successful-login cleanup to sync state without broad application cleanup', () => {
+  for (const token of [
+    "scope === 'sync'",
+    'sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState',
+  ]) {
+    assert.equal(source.includes(token), true, token)
+  }
+})
+
 test('App retains responsibilities intentionally deferred beyond C1', () => {
   const deferred = [
     'settleAcceptedPayment',
