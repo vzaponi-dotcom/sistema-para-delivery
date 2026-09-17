@@ -1,0 +1,51 @@
+name: C4 Orders Executor
+
+on:
+  push:
+    branches:
+      - automation/c4-orders-executor
+
+permissions:
+  contents: read
+
+jobs:
+  task1-diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact C4 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/spec-c4-orders
+          fetch-depth: 0
+
+      - name: Assert expected HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          expected="cd7abf430e8d3b3a654e28633ed68b47e39cf61e"
+          echo "HEAD=$actual"
+          test "$actual" = "$expected"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prove Task 1 RED
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          output="$(node --test src/domains/orders/ordersPublicContract.test.js 2>&1)"
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$status" -ne 0
+          printf '%s\n' "$output" | grep -E 'ERR_MODULE_NOT_FOUND|Cannot find module'
+          printf '%s\n' "$output" | grep -F 'domains/orders/index.js'
+
+      - name: Inventory Task 1 legacy consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern='utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)'
+          rg -n "$pattern" src || true
