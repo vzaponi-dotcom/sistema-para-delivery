@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { buttonNamed, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const paymentData = () => ({
   methods: [
@@ -30,7 +30,7 @@ const row = (root, code) => root.findByProps({ 'data-payment-code': code })
 
 test('inactive payment method marks the whole row as visually inactive', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
   const data = paymentData()
   data.methods = data.methods.map((method) => method.code === 'cash' ? { ...method, active: false } : method)
 
@@ -45,7 +45,7 @@ test('inactive payment method marks the whole row as visually inactive', async (
 
 test('successful complementary payment menu action closes the menu and restores focus to its summary', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/pages/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
   const edits = []
   function Editor() {
     const [state, setState] = React.useState(resourceState(paymentData()))
@@ -74,7 +74,7 @@ test('successful complementary payment menu action closes the menu and restores 
 })
 
 test('inactive row styling mutes informational content without disabling the action menu', async () => {
-  const css = await readFile(new URL('../payment-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../payment-settings.css', import.meta.url), 'utf8')
   assert.match(css, /\.payment-settings-row\.is-inactive/)
   assert.match(css, /\.payment-settings-row\.is-inactive[\s\S]*payment-method-(?:icon|cell)/)
   assert.match(css, /\.payment-settings-row\.is-inactive[\s\S]*payment-order-cell/)

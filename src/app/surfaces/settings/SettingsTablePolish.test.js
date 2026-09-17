@@ -6,8 +6,8 @@ const read = (relativePath) => readFile(new URL(relativePath, import.meta.url), 
 const readOptional = async (relativePath) => read(relativePath).catch(() => '')
 
 test('desktop settings tables do not clip their three-dot action menus', async () => {
-  const css = await readOptional('../settings-table-polish.css')
-  const shell = await read('../app/surfaces/settings/components/SettingsEditorShell.jsx')
+  const css = await readOptional('../../../settings-table-polish.css')
+  const shell = await read('./components/SettingsEditorShell.jsx')
 
   assert.match(shell, /settings-table-polish\.css/)
   assert.match(css, /\.payment-settings-table[\s\S]*\.cancellation-settings-table[\s\S]*\.finance-category-table\s*\{[^}]*overflow:\s*visible;/s)
@@ -20,8 +20,8 @@ test('non-default payment methods leave the default column empty instead of rend
 })
 
 test('payment methods use compact rows on desktop and compact cards on mobile without shrinking menu touch targets', async () => {
-  const css = await readOptional('../settings-table-polish.css')
-  const paymentCss = await read('../payment-settings.css')
+  const css = await readOptional('../../../settings-table-polish.css')
+  const paymentCss = await read('../../../payment-settings.css')
 
   assert.match(css, /\.payment-settings-row\s*\{[^}]*min-height:\s*58px;[^}]*padding:\s*5px 18px;/s)
   assert.match(css, /\.payment-method-icon\s*\{[^}]*width:\s*26px;[^}]*height:\s*26px;/s)
@@ -31,7 +31,7 @@ test('payment methods use compact rows on desktop and compact cards on mobile wi
 })
 
 test('desktop payment metadata and actions stay on the first grid row', async () => {
-  const css = await readOptional('../settings-table-polish.css')
+  const css = await readOptional('../../../settings-table-polish.css')
 
   assert.match(css, /\.payment-editor \.payment-meta-badges,[\s\S]*\.payment-editor \.payment-meta-switch,[\s\S]*\.payment-editor \.payment-actions-cell\s*\{[^}]*grid-row:\s*1;[^}]*align-self:\s*center;/s)
 })

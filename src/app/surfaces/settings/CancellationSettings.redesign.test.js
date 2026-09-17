@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const cancellationData = () => ({
   items: [
@@ -55,7 +55,7 @@ async function renderEditable(h, CancellationSettings, initial = resourceState()
 
 test('cancellation settings follow the approved table contract with sortable rows', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {}, onNavigateHome() {},
   })
@@ -71,7 +71,7 @@ test('cancellation settings follow the approved table contract with sortable row
 
 test('renaming a custom reason opens the modal with the real reason text', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const data = cancellationData()
   data.items.push({ id: 'unused-custom', label: 'Sem entregador', active: true, sortOrder: 5 })
   const fixture = await renderEditable(h, CancellationSettings, resourceState(data, metadata({
@@ -87,7 +87,7 @@ test('renaming a custom reason opens the modal with the real reason text', async
 
 test('new unsaved reasons also require explicit delete confirmation', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const fixture = await renderEditable(h, CancellationSettings)
 
   await act(async () => buttonNamed(fixture.screen.root, 'Adicionar motivo').props.onClick())
@@ -107,7 +107,7 @@ test('new unsaved reasons also require explicit delete confirmation', async (t) 
 
 test('inactive cancellation reason keeps a direct enabled activation switch and its complementary action menu', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const data = cancellationData()
   data.items = data.items.map((item) => item.id === 'duplicate_order' ? { ...item, active: false } : item)
   const screen = await h.render(CancellationSettings, {
@@ -124,7 +124,7 @@ test('inactive cancellation reason keeps a direct enabled activation switch and 
 
 test('successful complementary cancellation menu action closes the menu and restores focus', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const fixture = await renderEditable(h, CancellationSettings)
   const details = { open: true }
   let focusCount = 0
@@ -142,7 +142,7 @@ test('successful complementary cancellation menu action closes the menu and rest
 
 test('cancellation notice explains history protection and Outro rule', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {}, onNavigateHome() {},
   })

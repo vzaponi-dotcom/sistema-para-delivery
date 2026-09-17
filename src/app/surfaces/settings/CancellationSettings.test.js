@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const cancellationData = () => ({
   items: [
@@ -80,7 +80,7 @@ test('settings route loads the single cancellationReasons resource instead of fa
 
 test('renders the five native reasons and protects Outro with requires-note metadata', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {},
   })
@@ -96,7 +96,7 @@ test('renders the five native reasons and protects Outro with requires-note meta
 
 test('adding creates one stable UUID in the draft and never autosaves', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const fixture = await renderEditable(h, CancellationSettings)
   await act(async () => buttonNamed(fixture.screen.root, 'Adicionar motivo').props.onClick())
   const input = fixture.screen.root.findAllByType('input').find((node) => node.props.type === 'text')
@@ -115,7 +115,7 @@ test('adding creates one stable UUID in the draft and never autosaves', async (t
 
 test('unused custom reasons can be renamed or deleted while used reasons can only toggle status', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const data = cancellationData()
   data.items.push(
     { id: 'unused-custom', label: 'Sem entregador', active: true, sortOrder: 5 },
@@ -141,7 +141,7 @@ test('unused custom reasons can be renamed or deleted while used reasons can onl
 
 test('deleting an unused custom reason removes only that draft item after confirmation and never autosaves', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const data = cancellationData()
   data.items.push({ id: 'unused-custom', label: 'Sem entregador', active: true, sortOrder: 5 })
   const fixture = await renderEditable(h, CancellationSettings, resourceState(data, metadata({
@@ -159,7 +159,7 @@ test('deleting an unused custom reason removes only that draft item after confir
 
 test('read-only exposes values and disables editing controls', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
     resourceState: resourceState(), readOnly: true,
     onEdit() { throw new Error('read-only must not edit') }, onSave() { throw new Error('read-only must not save') }, onDiscard() {},
@@ -173,10 +173,10 @@ test('read-only exposes values and disables editing controls', async (t) => {
 })
 
 test('mobile cancellation settings use responsive rows and never a horizontal table', async (t) => {
-  const css = await readFile(new URL('../settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../settings.css', import.meta.url), 'utf8')
   assert.match(css, /\.cancellation-settings/)
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {},
   })
@@ -185,12 +185,12 @@ test('mobile cancellation settings use responsive rows and never a horizontal ta
 })
 
 test('mobile cancellation metadata stays horizontal and protected reasons use a shield icon', async (t) => {
-  const css = await readFile(new URL('../cancellation-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../cancellation-settings.css', import.meta.url), 'utf8')
   assert.match(css, /"order reason reason actions"\s*"\. meta meta meta"/)
   assert.match(css, /\.cancellation-meta-cell \{ grid-area: meta; display: grid;/)
 
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: CancellationSettings } = await h.load('/src/pages/CancellationSettings.jsx')
+  const { default: CancellationSettings } = await h.load('/src/app/surfaces/settings/CancellationSettings.jsx')
   const screen = await h.render(CancellationSettings, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {},
   })

@@ -4,9 +4,9 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../test-support/renderWorkspace.js'
-import { settingsGrants } from '../test-support/settingsFixtures.js'
-import { resolveDestination } from '../app/navigation/resolution.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { settingsGrants } from '../../../test-support/settingsFixtures.js'
+import { resolveDestination } from '../../navigation/resolution.js'
 
 const allImplemented = new Set([
   'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments',
@@ -15,7 +15,7 @@ const allImplemented = new Set([
 
 test('renders one operation card for timing and modalities even when the modalities deep link is implemented', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsHome } = await h.load('/src/pages/SettingsHome.jsx')
+  const { default: SettingsHome } = await h.load('/src/app/surfaces/settings/SettingsHome.jsx')
   const screen = await h.render(SettingsHome, { granted: settingsGrants, implemented: allImplemented, onNavigate() {} })
 
   const cards = screen.root.findByProps({ className: 'settings-home-grid' }).findAllByType('button')
@@ -36,7 +36,7 @@ test('renders one operation card for timing and modalities even when the modalit
 
 test('offers only device preferences to a local-preferences-only user', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsHome } = await h.load('/src/pages/SettingsHome.jsx')
+  const { default: SettingsHome } = await h.load('/src/app/surfaces/settings/SettingsHome.jsx')
   const screen = await h.render(SettingsHome, {
     granted: new Set(['preferences.local']),
     implemented: new Set(['settings-home', 'settings-device']),
@@ -66,7 +66,7 @@ test('sidebar keeps the single settings area active while the Home is open', asy
 
 test('omits unavailable future screens and activates an entire allowed card', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsHome } = await h.load('/src/pages/SettingsHome.jsx')
+  const { default: SettingsHome } = await h.load('/src/app/surfaces/settings/SettingsHome.jsx')
   const calls = []
   const screen = await h.render(SettingsHome, {
     granted: new Set(['operations.settings.view', 'payments.settings.view', 'preferences.local']),
@@ -88,7 +88,7 @@ test('omits unavailable future screens and activates an entire allowed card', as
 
 test('each printing view capability exposes a Home card with an allowed printing destination', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsHome } = await h.load('/src/pages/SettingsHome.jsx')
+  const { default: SettingsHome } = await h.load('/src/app/surfaces/settings/SettingsHome.jsx')
   for (const capability of ['printing.settings.view', 'printing.station.view']) {
     const granted = new Set([capability])
     const implemented = new Set(['settings-home', 'settings-printing'])
@@ -102,7 +102,7 @@ test('each printing view capability exposes a Home card with an allowed printing
 })
 
 test('settings home style uses existing theme tokens and a mobile one-column grid', async () => {
-  const css = await readFile(new URL('../settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../settings.css', import.meta.url), 'utf8')
   assert.match(css, /background: var\(--surface\)/)
   assert.match(css, /color: var\(--text\)/)
   assert.match(css, /background: var\(--primary-soft\); color: var\(--primary\)/)
@@ -112,7 +112,7 @@ test('settings home style uses existing theme tokens and a mobile one-column gri
 test('renders theme-aware Home cards under both document themes without inline palette values', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: SettingsHome }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/SettingsHome.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/surfaces/settings/SettingsHome.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   for (const theme of ['light', 'dark']) {
     h.document.documentElement.dataset = {}

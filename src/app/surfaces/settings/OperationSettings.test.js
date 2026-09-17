@@ -4,8 +4,8 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
-import { adminFixture } from '../test-support/settingsFixtures.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { adminFixture } from '../../../test-support/settingsFixtures.js'
 
 const resourceState = () => ({
   status: 'ready',
@@ -159,7 +159,7 @@ test('switching between Operation and Modalities preserves one draft in both dir
 
 test('timing entry renders four bounded minute fields and edits only the shared draft', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   const fixture = await renderEditable(h, OperationSettings)
   const fields = [
     ['scheduledPrepLeadMinutes', 0, 240],
@@ -187,7 +187,7 @@ test('timing entry renders four bounded minute fields and edits only the shared 
 
 test('timing validation keeps invalid values in the draft, links errors and blocks save', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   const focused = []
   const fixture = await renderEditable(h, OperationSettings, resourceState(), 'timing', {
     createNodeMock: ({ props }) => ({ focus: () => focused.push(props.name || props.id), scrollIntoView() {} }),
@@ -221,7 +221,7 @@ test('timing validation keeps invalid values in the draft, links errors and bloc
 
 test('modality entry focuses its block and preserves timing while default and activation change independently', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   const draft = structuredClone(adminFixture.data)
   draft.timing.scheduledPrepLeadMinutes = 40
   const focused = []
@@ -250,7 +250,7 @@ test('modality entry focuses its block and preserves timing while default and ac
 
 test('modality controls never create a draft without an active and active default modality', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   const draft = structuredClone(adminFixture.data)
   draft.enabledModalities = ['Entrega']
   const fixture = await renderEditable(h, OperationSettings, { ...resourceState(), draft })
@@ -264,7 +264,7 @@ test('modality controls never create a draft without an active and active defaul
 
 test('an error in the other block remains visible and has an accessible jump', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   const draft = structuredClone(adminFixture.data)
   draft.timing.scheduledPrepLeadMinutes = 241
   draft.timing.immediateVeryLateAfterMinutes = 20
@@ -309,7 +309,7 @@ test('review action presents the conflict returned by the shared controller', as
 
 test('read-only and controller states use the shared shell without editable actions', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   for (const [status, message] of Object.entries({
     loading: /Carregando configurações/,
     saving: /Salvando alterações/,
@@ -338,13 +338,13 @@ test('read-only and controller states use the shared shell without editable acti
 })
 
 test('operation layout uses theme tokens and renders full labels with mobile-safe controls', async (t) => {
-  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
-  const sharedCss = await readFile(new URL('../settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../operation-settings.css', import.meta.url), 'utf8')
+  const sharedCss = await readFile(new URL('../../../settings.css', import.meta.url), 'utf8')
   assert.match(css, /\.operation-editor \.operation-settings-section[^{]*\{[^}]*background: var\(--surface\)/s)
   assert.match(sharedCss, /\.operation-timing-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/s)
 
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: OperationSettings } = await h.load('/src/pages/OperationSettings.jsx')
+  const { default: OperationSettings } = await h.load('/src/app/surfaces/settings/OperationSettings.jsx')
   const screen = await h.render(OperationSettings, {
     resourceState: resourceState(), initialSection: 'timing', readOnly: false,
     onEdit() {}, onSave() {}, onDiscard() {},
@@ -357,7 +357,7 @@ test('operation layout uses theme tokens and renders full labels with mobile-saf
 })
 
 test('operation inherits light and dark theme tokens instead of forcing a light palette', async () => {
-  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../operation-settings.css', import.meta.url), 'utf8')
   assert.doesNotMatch(css, /color-scheme\s*:\s*light/i)
   for (const token of ['bg', 'surface', 'surface-soft', 'surface-strong', 'text', 'text-soft', 'muted', 'border']) {
     assert.doesNotMatch(css, new RegExp(`--${token}\\s*:`))
@@ -367,7 +367,7 @@ test('operation inherits light and dark theme tokens instead of forcing a light 
 })
 
 test('operation switches to its real mobile composition at the shell breakpoint', async () => {
-  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../operation-settings.css', import.meta.url), 'utf8')
   const mobile = css.slice(css.indexOf('@media (max-width: 820px)'))
   assert.match(mobile, /\.operation-editor \.operation-timing-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s)
   assert.match(mobile, /\.operation-editor \.operation-modality-row\s*\{[^}]*grid-template-areas:/s)
@@ -376,7 +376,7 @@ test('operation switches to its real mobile composition at the shell breakpoint'
 })
 
 test('operation desktop sizing keeps the approved mockup at application scale', async () => {
-  const css = await readFile(new URL('../operation-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../operation-settings.css', import.meta.url), 'utf8')
   assert.match(css, /\.app-content:has\(> \.operation-settings-page\)\s*\{[^}]*width:\s*min\(1600px, 100%\)/s)
   assert.match(css, /\.operation-editor\s*\{[^}]*font-size:\s*14px/s)
   assert.match(css, /\.operation-editor \.settings-editor-header h1\s*\{[^}]*font-size:\s*32px/s)
