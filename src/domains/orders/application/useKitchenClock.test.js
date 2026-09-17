@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { detectOperationalArrivals } from '../utils/orderRealtime.js'
+import { detectOperationalArrivals } from '../domain/orderRealtime.js'
 import { getKitchenNowForRender, startKitchenClock } from './useKitchenClock.js'
 
 const scheduled = {

@@ -1,7 +1,7 @@
-import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
-import { getOperationalStartAt, getOrderMinutesLate } from '../../shared/orderTiming.js'
-import { getOrderItemDisplayName, getOrderItems } from '../domains/orders/index.js'
-import { getElapsedMinutes } from '../domains/orders/index.js'
+import { FINANCE_TIME_ZONE } from '../../../../shared/finance.js'
+import { getOperationalStartAt, getOrderMinutesLate } from '../../../../shared/orderTiming.js'
+import { getOrderItemDisplayName, getOrderItems } from './orderCart.js'
+import { getElapsedMinutes } from './orderWorkflow.js'
 
 const itemKey = (item, index) => item.id || item.lineId || `${item.productId || item.name || 'item'}-${index}`
 const formatTime = (value) => new Intl.DateTimeFormat('pt-BR', {

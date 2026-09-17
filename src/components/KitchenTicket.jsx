@@ -2,8 +2,7 @@ import Button from './Button.jsx'
 import Icon from './Icon.jsx'
 import KitchenTicketNotes from './KitchenTicketNotes.jsx'
 import StatusBadge from './StatusBadge.jsx'
-import { buildKitchenItemSummary, buildKitchenTimingCopy } from '../utils/kitchenTicket.js'
-import { getFinalActionLabel } from '../domains/orders/index.js'
+import { buildKitchenItemSummary, buildKitchenTimingCopy, getFinalActionLabel } from '../domains/orders/index.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const attendanceIcons = { Entrega: 'delivery', Retirada: 'pickup', Local: 'local' }
