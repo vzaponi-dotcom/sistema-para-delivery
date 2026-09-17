@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createClient, createMovement, createOrder, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './client.js'
+import { createClient, createMovement, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, registerTableTabPayment, updateClient, updateProduct } from './client.js'
+import { ordersApi } from '../domains/orders/index.js'
 import * as tableClient from './client.js'
 
 const withFetch = async (implementation, callback) => {
@@ -104,14 +105,14 @@ test('order helper sends the cart unchanged with one stable idempotency key', as
     if (path === '/api/orders') return new Response(JSON.stringify({ order: { id: 'o1' } }), { status: 201, headers: { 'content-type': 'application/json' } })
     return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
   }, async () => {
-    await createOrder({
+    await ordersApi.createOrder({
       clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01',
       items: [{ productId: 'p1', quantity: 2, note: 'sem cebola' }],
       deliveryFee: 8,
       adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: '' },
       paymentMethod: 'Pix',
     }, 'checkout-key')
-    await updateOrderStatus('o1', 'Finalizado')
+    await ordersApi.updateOrderStatus('o1', 'Finalizado')
     await registerPayment('o1', 'Pix')
     await createMovement({ type: 'saida', category: 'Insumos', description: 'Arroz', value: 20 })
   })
