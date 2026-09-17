@@ -7,7 +7,7 @@
 - Base SHA: `de24b2ceb807440d4c339200b44ae2ed6583b27a`
 - Executable SHA: `17673b66774a1b532fc22972603407dcbb932bad` (`refactor: close c3 settings ownership`)
 - Remote branch verification: `git fetch origin feature/spec-c3-settings-surface` returned the exact executable SHA.
-- Docs-only SHA: pending this QA record commit.
+- Docs-only history: `8b01af19a4f74fd4725394860edd6a85d50d4915` contains the QA record and rollout-status update; this correction is a subsequent docs-only commit.
 - Production deploy: **NO**
 - Merge: **NO**
 
