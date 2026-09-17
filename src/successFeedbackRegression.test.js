@@ -21,7 +21,7 @@ test('important success feedback uses a centered viewport confirmation while err
   assert.match(appRoot, /success-confirmation-overlay[\s\S]*success-confirmation-card/)
   assert.match(appRoot, /const portal = .*createPortal\(node, document\.body\)/)
   assert.match(app, /onSuccessMessage=\{showSuccessMessage\}/)
-  assert.match(app, /onCancelOperation=\{\(\) => discardSettingsAndNavigate\('settings-home'\)\}/)
+  assert.match(app, /<SettingsSurface[^>]*onSuccessMessage=\{showSuccessMessage\}/)
 })
 
 test('success confirmation is centered, blurs the page softly and stays compact on mobile', async () => {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
@@ -95,19 +96,6 @@ test('destinations in the same policy aggregate preserve the draft without confi
   assert.deepEqual(fixture.discarded, [])
 })
 
-test('legacy explicit policy cancellation discards once and navigates immediately', async (t) => {
-  const fixture = await mountNavigation(t)
-  await act(async () => fixture.api.current.requestNavigation('settings-printing'))
-
-  let navigated
-  await act(async () => { navigated = fixture.api.current.discardSettingsAndNavigate('clients') })
-
-  assert.equal(navigated, true)
-  assert.equal(fixture.api.current.activeTab, 'clients')
-  assert.equal(fixture.api.current.pendingDestination, null)
-  assert.deepEqual(fixture.discarded, ['operations'])
-})
-
 test('saving or unconfirmed policy commitments can navigate without discard or another write decision', async (t) => {
   for (const status of ['saving', 'unconfirmed']) {
     const fixture = await mountNavigation(t, { draft: { ...dirtyDraft, status } })
@@ -128,4 +116,30 @@ test('beforeunload risk exists only for dirty drafts or relevant pending commitm
   assert.equal(hasSettingsUnloadRisk({ operations: { dirty: true, status: 'ready' } }), true)
   assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'saving' } }), true)
   assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'unconfirmed' } }), true)
+})
+
+test('App delegates Settings ownership to the policy boundary and surface', async () => {
+  const app = await readFile(new URL('./App.jsx', import.meta.url), 'utf8')
+
+  for (const legacyOwner of [
+    'useBusinessSettingsController',
+    'usePrintingSettingsController',
+    'businessSettings.resources',
+    'businessSettingsRef',
+    'settingsConflictReview',
+    'getSettingsDraftForDestination',
+    'hasSettingsUnloadRisk',
+    "'./pages/Settings'",
+  ]) assert.equal(app.includes(legacyOwner), false, `${legacyOwner} stays App-owned`)
+
+  assert.match(app, /SettingsPolicyBoundary/)
+  assert.match(app, /SettingsSurface/)
+  assert.match(app, /createPolicyNavigationBridge/)
+})
+
+test('navigation exposes only the generic policy draft contract', async (t) => {
+  const fixture = await mountNavigation(t)
+  assert.equal(typeof fixture.api.current.getNavigationDraft, 'undefined')
+  assert.equal(typeof fixture.api.current.discardNavigationDraft, 'undefined')
+  assert.equal(typeof fixture.api.current.discardSettingsAndNavigate, 'undefined')
 })

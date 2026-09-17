@@ -18,6 +18,14 @@ const deferred = () => {
   return { promise, resolve, reject }
 }
 
+const waitFor = async (condition, description, timeoutMs = 1000) => {
+  const deadline = Date.now() + timeoutMs
+  while (!condition()) {
+    if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${description}`)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 10)))
+  }
+}
+
 const memoryStorage = () => {
   const values = new Map()
   return {
@@ -196,7 +204,10 @@ test('provider registers beforeunload only for dirty saving or unconfirmed resou
 
   await act(async () => fixture.api.current.edit('operations', { enabled: true }))
   const saving = fixture.api.current.save('operations')
-  await act(async () => {})
+  await waitFor(
+    () => fixture.api.current.resources.operations.status === 'saving',
+    'the provider to publish the saving state after hashing',
+  )
   assert.equal(fixture.api.current.resources.operations.status, 'saving')
   assertUnload(true)
   pendingSave.reject({ status: 503 })

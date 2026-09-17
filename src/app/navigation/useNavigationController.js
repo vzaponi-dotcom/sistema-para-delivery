@@ -15,12 +15,10 @@ export function useNavigationController({
   onDiscardOrder,
   getNavigationDraft,
   discardNavigationDraft,
-  getSettingsDraft,
-  onDiscardSettings,
   onFeedback,
 }) {
-  const resolveNavigationDraft = getNavigationDraft || getSettingsDraft
-  const discardDraft = discardNavigationDraft || ((resourceKey, draft) => onDiscardSettings?.(resourceKey, draft))
+  const resolveNavigationDraft = getNavigationDraft
+  const discardDraft = discardNavigationDraft
   const [activeTab, setActiveTab] = useState(() => resolveHome(granted, implemented))
   const [moreOpen, setMoreOpen] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState(null)
@@ -121,20 +119,6 @@ export function useNavigationController({
     setPendingNavigation(null)
   }, [])
 
-  const discardSettingsAndNavigate = useCallback((target) => {
-    if (pendingNavigationRef.current) return false
-    const resolution = resolveTarget(target)
-    if (resolution.status !== 'allowed') return reject(resolution.status)
-    const currentDraft = resolveNavigationDraft?.(resolvedActiveTab)
-    if (currentDraft) {
-      const discarded = discardDraft(currentDraft.resourceKey, currentDraft)
-      if (discarded === false) return false
-    }
-    setMoreOpen(false)
-    setActiveTab(resolution.id)
-    return true
-  }, [discardDraft, reject, resolveNavigationDraft, resolveTarget, resolvedActiveTab])
-
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
   const resetNavigation = useCallback(() => {
@@ -154,7 +138,6 @@ export function useNavigationController({
     closeMore,
     confirmDiscard,
     cancelDiscard,
-    discardSettingsAndNavigate,
     resetNavigation,
     completeNavigation,
   }

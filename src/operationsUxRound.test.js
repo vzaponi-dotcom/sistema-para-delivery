@@ -34,7 +34,7 @@ test('active kitchen ticket actions use two readable columns and full touch targ
 
 test('theme is absent from Sidebar and remains available in Settings device preferences', async () => {
   const sidebar = await read('./app/shell/Sidebar.jsx')
-  const settings = await read('./pages/Settings.jsx')
+  const settings = await read('./app/surfaces/settings/local/DevicePreferences.jsx')
   assert.doesNotMatch(sidebar, /theme-segmented-control|themePreference|setThemePreference/)
   assert.match(settings, /Preferências deste dispositivo/)
   assert.match(settings, /const themeOptions =/)
