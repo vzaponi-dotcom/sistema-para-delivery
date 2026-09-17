@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           pattern='utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)'
-          rg -n "$pattern" src
+          rg -n "$pattern" src shared
 
       - name: Apply minimal Task 1 extraction
         shell: bash
@@ -218,6 +218,9 @@ jobs:
               Path('src/pages/NewOrderWizard.test.js'): (
                   '../utils/newOrderStepFlow.js', '../domains/orders/domain/newOrderStepFlow.js'
               ),
+              Path('shared/businessTiming.test.js'): (
+                  '../src/utils/orderWorkflow.js', '../src/domains/orders/index.js'
+              ),
           }
           for relative_path, (before, after) in source_reference_updates.items():
               file_path = root / relative_path
@@ -234,7 +237,7 @@ jobs:
               ],
               'orderLifecycle': ['getOrderRefundState', 'isOrderActive', 'isOrderCancelled', 'isOrderFinished'],
               'orderPaymentEligibility': ['canReceiveStandaloneOrder'],
-              'orderWorkflow': ['formatCancellationDate', 'formatOrderDate', 'toLocalDateValue'],
+              'orderWorkflow': ['formatCancellationDate', 'formatOrderDate', 'toLocalDateValue', 'getOrderTimingState'],
               'orderTypeOptions': ['ORDER_TYPE_OPTIONS'],
               'newOrderStepFlow': [
                   'NEW_ORDER_STEPS', 'canNavigateToNewOrderStep', 'createNewOrderDirtySnapshot',
@@ -289,7 +292,7 @@ jobs:
         run: |
           set -euo pipefail
           pattern='utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)'
-          if rg -n "$pattern" src; then
+          if rg -n "$pattern" src shared; then
             echo 'Legacy Task 1 Orders import remains' >&2
             exit 1
           fi
@@ -327,11 +330,12 @@ jobs:
           git fetch origin automation/c4-orders-executor
           rm -rf /tmp/c4-executor-diagnostics
           git worktree add -B automation/c4-orders-executor /tmp/c4-executor-diagnostics origin/automation/c4-orders-executor
-          cp /tmp/c4-diagnostics/task1-broad-gate.txt /tmp/c4-executor-diagnostics/diagnostics-task1-broad-gate.txt
+          mkdir -p /tmp/c4-executor-diagnostics/diagnostics
+          cp /tmp/c4-diagnostics/task1-broad-gate.txt /tmp/c4-executor-diagnostics/diagnostics/task1-broad-gate.txt
           cd /tmp/c4-executor-diagnostics
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add diagnostics-task1-broad-gate.txt
+          git add diagnostics/task1-broad-gate.txt
           if ! git diff --cached --quiet; then
             git commit -m 'chore: record c4 task1 gate diagnostics'
             git push origin HEAD:automation/c4-orders-executor
