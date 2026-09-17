@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import * as localStation from '../printing/localPrintStation.js'
 
 const content = await readFile(new URL('./PrintingSettingsContent.jsx', import.meta.url), 'utf8')
-const page = await readFile(new URL('../pages/Settings.jsx', import.meta.url), 'utf8')
+const page = await readFile(new URL('../app/surfaces/settings/SettingsSurface.jsx', import.meta.url), 'utf8')
 const icons = await readFile(new URL('./Icon.jsx', import.meta.url), 'utf8')
 const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
 
@@ -30,7 +30,7 @@ test('icon catalog exposes platform-specific Windows Android and Apple symbols',
 
 test('printing route uses the homologated breadcrumb header without legacy horizontal settings tabs', () => {
   const start = page.indexOf('if (printingRoute)')
-  const end = page.indexOf('\n  return (', start)
+  const end = page.indexOf("\n  if (section === 'settings-device')", start)
   const printingBlock = page.slice(start, end)
   assert.ok(start >= 0 && end > start)
   assert.match(printingBlock, /title="Impressão de pedidos"/)

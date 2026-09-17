@@ -129,7 +129,7 @@ test('settings finance category route uses breadcrumb layout instead of legacy s
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const controller = {
     resources: { financeCategories: resourceState() },
@@ -140,7 +140,7 @@ test('settings finance category route uses breadcrumb layout instead of legacy s
     section: 'settings-finance-categories', settings: {}, printing: {},
     granted: new Set(['finance.categories.view', 'finance.categories.manage', 'orders.settings.view']),
     implemented: new Set(['settings-finance-categories', 'settings-cancellations', 'settings-operations']),
-    onNavigate: (target) => navigations.push(target), soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
+    onNavigate: (target) => navigations.push(target), soundEnabled: true, onSoundEnabledChange() {}, policyEditing: { ...controller, activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {} },
   }) })
 
   assert.equal(screen.root.findAll((node) => node.props?.className === 'area-navigation').length, 0)

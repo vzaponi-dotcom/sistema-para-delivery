@@ -109,15 +109,6 @@ test('saving or unconfirmed policy commitments can navigate without discard or a
   }
 })
 
-test('beforeunload risk exists only for dirty drafts or relevant pending commitments', async (t) => {
-  const h = await workspaceHarness(t)
-  const { hasSettingsUnloadRisk } = await h.load('/src/app/navigation/settingsDraftGuard.js')
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'ready' } }), false)
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: true, status: 'ready' } }), true)
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'saving' } }), true)
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'unconfirmed' } }), true)
-})
-
 test('App delegates Settings ownership to the policy boundary and surface', async () => {
   const app = await readFile(new URL('./App.jsx', import.meta.url), 'utf8')
 

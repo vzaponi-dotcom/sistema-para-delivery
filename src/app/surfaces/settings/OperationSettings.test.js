@@ -42,7 +42,7 @@ test('Operation and Modalities routes open one shared operations resource', asyn
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'),
     h.load('/src/components/ThemeProvider.jsx'),
   ])
   const loaded = []
@@ -54,7 +54,7 @@ test('Operation and Modalities routes open one shared operations resource', asyn
   const props = {
     settings: {}, printing: {}, granted: new Set(['operations.settings.view', 'operations.settings.manage']),
     implemented: new Set(['settings-home', 'settings-operations', 'settings-modalities']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: operations,
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, policyEditing: operations,
   }
 
   const Timing = () => React.createElement(ThemeProvider, null, React.createElement(Settings, { ...props, section: 'settings-operations' }))
@@ -73,7 +73,7 @@ test('confirmed operation save reports success and failed save stays silent', as
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const messages = []
   let saveResult = true
@@ -86,7 +86,7 @@ test('confirmed operation save reports success and failed save stays silent', as
     section: 'settings-operations', settings: {}, printing: {},
     granted: new Set(['operations.settings.view', 'operations.settings.manage']),
     implemented: new Set(['settings-home', 'settings-operations']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: controller,
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, policyEditing: controller,
     onSuccessMessage: (message) => messages.push(message),
   }))
   const screen = await h.render(Page)
@@ -103,9 +103,9 @@ test('operation Cancel delegates to the explicit discard-and-return action', asy
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
-  const cancellations = []
+  const navigations = []
   const controller = {
     resources: { operations: { ...resourceState(), dirty: true } },
     load() {}, edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
@@ -114,20 +114,19 @@ test('operation Cancel delegates to the explicit discard-and-return action', asy
     section: 'settings-operations', settings: {}, printing: {},
     granted: new Set(['operations.settings.view', 'operations.settings.manage']),
     implemented: new Set(['settings-home', 'settings-operations']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: controller,
-    onCancelOperation: () => cancellations.push('discard-and-return'),
+    onNavigate: (target) => navigations.push(target), soundEnabled: true, onSoundEnabledChange() {}, policyEditing: controller,
   }))
   const screen = await h.render(Page)
 
   await act(async () => buttonNamed(screen.root, 'Cancelar').props.onClick())
-  assert.deepEqual(cancellations, ['discard-and-return'])
+  assert.deepEqual(navigations, ['settings-home'])
 })
 
 test('switching between Operation and Modalities preserves one draft in both directions', async (t) => {
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   function RoutedSettings() {
     const [section, setSection] = React.useState('settings-operations')
@@ -143,7 +142,7 @@ test('switching between Operation and Modalities preserves one draft in both dir
       section, settings: {}, printing: {},
       granted: new Set(['operations.settings.view', 'operations.settings.manage']),
       implemented: new Set(['settings-home', 'settings-operations', 'settings-modalities']),
-      onNavigate: setSection, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: controller,
+      onNavigate: setSection, soundEnabled: true, onSoundEnabledChange() {}, policyEditing: controller,
     }))
   }
   const screen = await h.render(RoutedSettings)
@@ -286,7 +285,7 @@ test('review action presents the conflict returned by the shared controller', as
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const review = { reviewId: 'review-2', resource: 'operations' }
   const presented = []
@@ -298,8 +297,16 @@ test('review action presents the conflict returned by the shared controller', as
     section: 'settings-operations', settings: {}, printing: {},
     granted: new Set(['operations.settings.view', 'operations.settings.manage']),
     implemented: new Set(['settings-home', 'settings-operations', 'settings-modalities']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, operationSettings: controller,
-    onSettingsConflictReview: (value) => presented.push(value),
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, policyEditing: {
+      ...controller,
+      activeConflict: null,
+      acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {},
+      reviewConflict: async (...args) => {
+        const value = await controller.reviewConflict(...args)
+        presented.push(value)
+        return value
+      },
+    },
   }))
   const screen = await h.render(Page)
 
@@ -390,7 +397,7 @@ test('printing settings route remains available and separate from operations', a
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const printingSettings = {
     resources: {
@@ -403,7 +410,10 @@ test('printing settings route remains available and separate from operations', a
   const Page = () => React.createElement(ThemeProvider, null, React.createElement(Settings, {
     section: 'settings-printing', settings: printingSettings, printing: {},
     granted: new Set(['printing.settings.view']), implemented: new Set(['settings-printing']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {},
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, policyEditing: {
+      resources: {}, load() {}, edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
+      activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {},
+    },
   }))
   const screen = await h.render(Page)
   assert.match(nodeText(screen.root), /Impressão/)

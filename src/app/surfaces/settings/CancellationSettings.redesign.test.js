@@ -156,7 +156,7 @@ test('settings cancellation route uses breadcrumb layout instead of the legacy s
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const navigations = []
   const controller = {
@@ -167,7 +167,7 @@ test('settings cancellation route uses breadcrumb layout instead of the legacy s
     section: 'settings-cancellations', settings: {}, printing: {},
     granted: new Set(['orders.settings.view', 'orders.settings.manage', 'payments.settings.view', 'operations.settings.view']),
     implemented: new Set(['settings-cancellations', 'settings-payments', 'settings-operations']),
-    onNavigate: (target) => navigations.push(target), soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
+    onNavigate: (target) => navigations.push(target), soundEnabled: true, onSoundEnabledChange() {}, policyEditing: { ...controller, activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {} },
   }) })
 
   assert.equal(screen.root.findAll((node) => node.props?.className === 'area-navigation').length, 0)

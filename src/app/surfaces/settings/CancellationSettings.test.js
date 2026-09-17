@@ -59,7 +59,7 @@ test('settings route loads the single cancellationReasons resource instead of fa
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const loaded = []
   const controller = {
@@ -70,7 +70,7 @@ test('settings route loads the single cancellationReasons resource instead of fa
     section: 'settings-cancellations', settings: {}, printing: {},
     granted: new Set(['orders.settings.view', 'orders.settings.manage']),
     implemented: new Set(['settings-cancellations']), onNavigate() {}, soundEnabled: true,
-    onSoundEnabledChange() {}, businessSettings: controller,
+    onSoundEnabledChange() {}, policyEditing: { ...controller, activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {} },
   }))
   const screen = await h.render(Page)
   assert.deepEqual(loaded, ['cancellationReasons'])

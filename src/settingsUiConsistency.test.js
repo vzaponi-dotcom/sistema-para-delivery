@@ -66,10 +66,10 @@ const findSwitch = (root, id) => root.findByProps({ 'data-settings-switch': id }
 test('all completed settings editors expose the same visual back affordance', async (t) => {
   const h = await workspaceHarness(t)
   const modules = await Promise.all([
-    h.load('/src/pages/OperationSettings.jsx'),
-    h.load('/src/pages/PaymentSettings.jsx'),
-    h.load('/src/pages/CancellationSettings.jsx'),
-    h.load('/src/pages/FinanceCategorySettings.jsx'),
+    h.load('/src/app/surfaces/settings/OperationSettings.jsx'),
+    h.load('/src/app/surfaces/settings/PaymentSettings.jsx'),
+    h.load('/src/app/surfaces/settings/CancellationSettings.jsx'),
+    h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx'),
   ])
   const cases = [
     ['operation', modules[0].default, operationState()],
@@ -97,23 +97,26 @@ test('all completed settings editors expose the same visual back affordance', as
 test('printing header uses the same back control and returns to settings home', async (t) => {
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
-  const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'),
+  const [{ default: SettingsSurface }, { PolicyEditingContext }, { ThemeProvider }] = await Promise.all([
+    h.load('/src/app/surfaces/settings/SettingsSurface.jsx'),
+    h.load('/src/app/policy-editing/policyEditingContext.js'),
     h.load('/src/components/ThemeProvider.jsx'),
   ])
   const navigations = []
-  const businessSettings = { resources: {}, load() {} }
-  const screen = await h.render(ThemeProvider, { children: React.createElement(Settings, {
+  const policyEditing = {
+    resources: {}, load() {}, edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
+    activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {},
+  }
+  const screen = await h.render(ThemeProvider, { children: React.createElement(PolicyEditingContext.Provider, { value: policyEditing }, React.createElement(SettingsSurface, {
     section: 'settings-printing',
-    settings: { policyState: () => null, stationState: () => null, primaryState: () => null },
     printing: { localStation: { id: 'station-1', platform: 'windows' }, transportKind: 'central', jobs: [] },
     granted: new Set(['printing.settings.view', 'printing.station.view']),
     implemented: new Set(['settings-home', 'settings-printing']),
     onNavigate: (target) => navigations.push(target),
     soundEnabled: true,
     onSoundEnabledChange() {},
-    businessSettings,
-  }) })
+    onSuccessMessage() {},
+  })) })
 
   const back = buttonNamed(screen.root, 'Voltar para Configurações')
   assert.ok(back)
@@ -125,10 +128,10 @@ test('printing header uses the same back control and returns to settings home', 
 test('activation controls share one switch contract while preserving each business rule', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: OperationSettings }, { default: PaymentSettings }, { default: CancellationSettings }, { default: FinanceCategorySettings }] = await Promise.all([
-    h.load('/src/pages/OperationSettings.jsx'),
-    h.load('/src/pages/PaymentSettings.jsx'),
-    h.load('/src/pages/CancellationSettings.jsx'),
-    h.load('/src/pages/FinanceCategorySettings.jsx'),
+    h.load('/src/app/surfaces/settings/OperationSettings.jsx'),
+    h.load('/src/app/surfaces/settings/PaymentSettings.jsx'),
+    h.load('/src/app/surfaces/settings/CancellationSettings.jsx'),
+    h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx'),
   ])
 
   const operation = await h.render(OperationSettings, {

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { getSession, login, logout } from './api/client.js'
-import { createBusinessSettingsController } from './app/useBusinessSettingsController.js'
+import { createPolicyEditingController } from './app/policy-editing/policyEditingController.js'
+import { createSettingsPolicyAdapters } from './app/surfaces/settings/policies/registry.js'
 import { adminFixture, draftFixture } from './test-support/settingsFixtures.js'
 
 const json = (payload) => new Response(JSON.stringify(payload), {
@@ -13,6 +14,15 @@ const memoryStorage = () => {
   return {
     get length() { return values.size }, key: (index) => [...values.keys()][index] ?? null,
     getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: (key) => values.delete(key),
+  }
+}
+
+const settingsPolicyTransport = () => {
+  const adapters = createSettingsPolicyAdapters()
+  return {
+    load: (policyId, scopeId) => adapters[policyId].load(scopeId),
+    save: (policyId, input, scopeId) => adapters[policyId].save(input, scopeId),
+    loadReceipt: (policyId, mutationId, scopeId) => adapters[policyId].loadReceipt(mutationId, scopeId),
   }
 }
 
@@ -45,14 +55,23 @@ test('login context recovers an uncertain save after reload only by receipt and 
   try {
     const session = await login('4827')
     assert.equal(session.settingsContextId, 'session-context-1')
-    const first = createBusinessSettingsController({ context: { ...session, generation: 1 }, storage, createMutationId: () => 'mutation-1' })
+    const first = createPolicyEditingController({
+      transport: settingsPolicyTransport(),
+      context: { ownerId: session.businessId, generation: 1, contextId: session.settingsContextId, capabilities: session.capabilities },
+      storage,
+      createMutationId: () => 'mutation-1',
+    })
     await first.load('operations')
     first.edit('operations', draftFixture)
     assert.equal(await first.save('operations'), false)
     assert.equal(puts, 1)
 
     const restoredSession = await getSession()
-    const restored = createBusinessSettingsController({ context: { ...restoredSession, generation: 1 }, storage })
+    const restored = createPolicyEditingController({
+      transport: settingsPolicyTransport(),
+      context: { ownerId: restoredSession.businessId, generation: 1, contextId: restoredSession.settingsContextId, capabilities: restoredSession.capabilities },
+      storage,
+    })
     await restored.load('operations')
     assert.equal(restored.getResources().operations.status, 'unconfirmed')
     assert.equal(await restored.reconcile('operations'), true)
@@ -62,7 +81,11 @@ test('login context recovers an uncertain save after reload only by receipt and 
     await logout()
     settingsContextId = 'session-context-2'
     const newSession = await login('4827')
-    const next = createBusinessSettingsController({ context: { ...newSession, generation: 2 }, storage })
+    const next = createPolicyEditingController({
+      transport: settingsPolicyTransport(),
+      context: { ownerId: newSession.businessId, generation: 2, contextId: newSession.settingsContextId, capabilities: newSession.capabilities },
+      storage,
+    })
     await next.load('operations')
     assert.equal(next.getResources().operations.status, 'ready')
     assert.equal(storage.length, 0)

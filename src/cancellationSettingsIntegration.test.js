@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
-import { buildSettingsConflict } from './app/settingsConflict.js'
+import { buildPolicyConflict } from './app/policy-editing/policyConflict.js'
 
 const activeReasons = [
   { id: 'client_changed_mind', label: 'Cliente desistiu', requiresNote: false },
@@ -134,7 +134,7 @@ test('first-use conflict preserves rename intent for explicit review instead of 
   const base = { revision: 1, data, meta: { items: { 'weather-delay': { isSystem: false, usedEver: false, canRename: true, canDelete: true } } } }
   const draft = { items: [{ ...data.items[0], label: 'Chuva forte' }] }
   const current = { revision: 2, data, meta: { items: { 'weather-delay': { isSystem: false, usedEver: true, canRename: false, canDelete: false } } } }
-  const review = buildSettingsConflict({ base, draft, current })
+  const review = buildPolicyConflict({ base, draft, current })
   const protectedRename = review.conflicts.find((entry) => entry.kind === 'protected-action')
   assert.ok(protectedRename)
   assert.equal(protectedRename.draft, 'Chuva forte')

@@ -204,7 +204,7 @@ test('payment save confirms only after success and Cancel discards then returns 
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const messages = []
   const calls = []
@@ -219,7 +219,7 @@ test('payment save confirms only after success and Cancel discards then returns 
     section: 'settings-payments', settings: {}, printing: {},
     granted: new Set(['payments.settings.view', 'payments.settings.manage']),
     implemented: new Set(['settings-home', 'settings-payments']), onNavigate: (destination) => calls.push(destination),
-    soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
+    soundEnabled: true, onSoundEnabledChange() {}, policyEditing: { ...controller, activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {} },
     onSuccessMessage: (message) => messages.push(message),
   }))
   const screen = await h.render(Page)
@@ -237,7 +237,7 @@ test('settings route loads and edits the single paymentMethods controller resour
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const loaded = []
   const edited = []
@@ -251,7 +251,7 @@ test('settings route loads and edits the single paymentMethods controller resour
     section: 'settings-payments', settings: {}, printing: {},
     granted: new Set(['payments.settings.view', 'payments.settings.manage']),
     implemented: new Set(['settings-payments']), onNavigate() {},
-    soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
+    soundEnabled: true, onSoundEnabledChange() {}, policyEditing: { ...controller, activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {} },
   }))
   const screen = await h.render(Page)
   assert.deepEqual(loaded, ['paymentMethods'])

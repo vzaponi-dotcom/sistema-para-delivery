@@ -4,7 +4,8 @@ import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { createBusinessSettingsController } from './app/useBusinessSettingsController.js'
+import { createPolicyEditingController } from './app/policy-editing/policyEditingController.js'
+import { createPrintingSettingsAdapter } from './app/surfaces/settings/printingSettingsAdapter.js'
 import { resolvePrintCopies } from '../shared/printContextPolicy.js'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 
@@ -53,9 +54,13 @@ async function printingFixture() {
     },
     async getSettingsReceipt() { return { status: 'unconfirmed' } },
   }
-  const controller = createBusinessSettingsController({
-    api,
-    context: { businessId: 'business-1', generation: 1, settingsContextId: 'settings-1', capabilities: [] },
+  const controller = createPolicyEditingController({
+    transport: {
+      load: api.getSettings,
+      save: api.putSettings,
+      loadReceipt: api.getSettingsReceipt,
+    },
+    context: { ownerId: 'business-1', generation: 1, contextId: 'settings-1', capabilities: [] },
     storage: memoryStorage(),
     createMutationId: (() => { let id = 0; return () => `mutation-${++id}` })(),
   })
@@ -71,8 +76,16 @@ async function printingFixture() {
     async refreshPrinters() { return this.availablePrinters },
     async testPrint() { calls.testPrint.push({ copies: 1 }); return { status: 'printed', copiesRequested: 1 } },
   }
-  const { createPrintingSettingsAdapter } = await import('./app/usePrintingSettingsController.js')
-  const adapter = createPrintingSettingsAdapter({ businessSettings: controller, printing, stationId })
+  const policyEditing = {
+    get resources() { return controller.getResources() },
+    load: controller.load,
+    edit: controller.edit,
+    save: controller.save,
+    discard: controller.discard,
+    reconcile: controller.reconcile,
+    reviewConflict: controller.reviewConflict,
+  }
+  const adapter = createPrintingSettingsAdapter({ policyEditing, printing, stationId })
   return { adapter, calls, controller, printing, stationId }
 }
 

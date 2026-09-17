@@ -36,14 +36,14 @@ test('settings route loads financeCategories and renders separate manual income 
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
   ])
   const loaded = []
   const controller = { resources: { financeCategories: resourceState() }, load: (key) => loaded.push(key), edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {} }
   const screen = await h.render(() => React.createElement(ThemeProvider, null, React.createElement(Settings, {
     section: 'settings-finance-categories', settings: {}, printing: {},
     granted: new Set(['finance.categories.view', 'finance.categories.manage']), implemented: new Set(['settings-finance-categories']),
-    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, businessSettings: controller,
+    onNavigate() {}, soundEnabled: true, onSoundEnabledChange() {}, policyEditing: { ...controller, activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {} },
   })))
   assert.deepEqual(loaded, ['financeCategories'])
   assert.ok(screen.root.findByProps({ id: 'manual-in-title' }))
