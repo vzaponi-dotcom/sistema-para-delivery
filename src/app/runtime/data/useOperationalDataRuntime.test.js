@@ -252,3 +252,29 @@ test('resetOperationalData clears official state, replaces the guard, and resets
   assert.equal(current.getOfficialRevision(), 0)
   assert.deepEqual(current.getOfficialTables(), [])
 })
+
+test('a stale orders refresh cannot overwrite a newer official mutation', async (t) => {
+  const pending = deferred()
+  const bootstrap = bootstrapFixture()
+  const harness = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => bootstrap,
+      getOrders: async () => pending.promise,
+    },
+  })
+
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+
+  let refreshPromise
+  await act(async () => {
+    refreshPromise = harness.getCurrent().refreshOrders()
+  })
+  await act(async () => {
+    harness.getCurrent().applyOfficialEffects({ order: { id: 'order-1', status: 'Finalizado' } })
+  })
+
+  pending.resolve({ orders: [{ id: 'order-1', status: 'Em preparo' }] })
+  await act(async () => { await refreshPromise })
+
+  assert.equal(harness.getCurrent().orders[0].status, 'Finalizado')
+})

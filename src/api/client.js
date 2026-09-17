@@ -8,8 +8,6 @@ export const getBootstrap = (knownEffectiveConfigVersion) => {
   if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
   return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
 }
-export const getOrders = () => apiRequest('/api/orders')
-
 export const createTable = (table) => apiRequest('/api/tables', withJson('POST', table))
 export const updateTable = (id, patch) => apiRequest(`/api/tables/${encodeURIComponent(id)}`, withJson('PATCH', patch))
 export const reorderTables = (tableIds) => apiRequest('/api/tables/order', withJson('PUT', { tableIds }))
