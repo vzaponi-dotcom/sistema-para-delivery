@@ -50,7 +50,7 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
-import { useKitchenClock, useOrderArrivals } from './domains/orders/index.js'
+import { ordersApi, useKitchenClock, useNewOrderDraft, useOrderArrivals } from './domains/orders/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { removeById } from './utils/dataSync.js'
@@ -66,7 +66,6 @@ import {
   cancelOrder as cancelOrderApi,
   createClient as createClientApi,
   createMovement as createMovementApi,
-  createOrder as createOrderApi,
   createProduct as createProductApi,
   createTable as createTableApi,
   deleteClient as deleteClientApi,
@@ -101,9 +100,6 @@ function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
   const [selectedComanda, setSelectedComanda] = useState(null)
   const [selectedComandaGeneration, setSelectedComandaGeneration] = useState(0)
-  const [checkoutKey, setCheckoutKey] = useState(null)
-  const [newOrderContext, setNewOrderContext] = useState({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
-  const [newOrderDirty, setNewOrderDirty] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
   const [editingClientId, setEditingClientId] = useState(null)
   const [showClientForm, setShowClientForm] = useState(false)
@@ -135,7 +131,6 @@ function App({ capabilities } = {}) {
   } = useFeedbackRuntime()
   const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
   const recoveryPromptSeenRef = useRef(false)
-  const newOrderOwnerRef = useRef(0)
   const tableTabPaymentRef = useRef(null)
   const paymentDialogRef = useRef(null)
   const paymentAttemptRef = useRef(null)
@@ -157,12 +152,22 @@ function App({ capabilities } = {}) {
     clearApplicationState: () => {},
   })
 
-  const invalidateNewOrderDraft = useCallback(() => {
-    newOrderOwnerRef.current += 1
-    setCheckoutKey(null)
-    setNewOrderContext({ tableId: '', expectedTableTabId: '', returnTab: 'orders', owner: null })
-    setNewOrderDirty(false)
-  }, [])
+  const newOrderDraftTargetsRef = useRef({
+    canSubmit: () => false,
+    commitOfficialEffects: () => {},
+    onCommitted: async () => {},
+    onSuccess: () => {},
+    onConflict: async () => {},
+  })
+  const newOrderDraft = useNewOrderDraft({
+    submitOrder: ordersApi.createOrder,
+    canSubmit: (payload) => newOrderDraftTargetsRef.current.canSubmit(payload),
+    commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
+    onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
+    onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
+    onError: showApiError,
+    onConflict: (context) => newOrderDraftTargetsRef.current.onConflict(context),
+  })
 
   const refreshBootstrapForSession = useCallback(
     (...args) => sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
@@ -220,9 +225,9 @@ function App({ capabilities } = {}) {
   } = useNavigationController({
     granted,
     implemented: IMPLEMENTED_DESTINATIONS,
-    checkoutPending: requestKey === 'order:create',
-    dirtyOrder: newOrderDirty,
-    onDiscardOrder: invalidateNewOrderDraft,
+    checkoutPending: newOrderDraft.checkoutPending,
+    dirtyOrder: newOrderDraft.dirty,
+    onDiscardOrder: newOrderDraft.discard,
     getNavigationDraft: policyNavigationBridge.getNavigationDraft,
     discardNavigationDraft: policyNavigationBridge.discardNavigationDraft,
     onFeedback: setToastMessage,
@@ -320,7 +325,8 @@ function App({ capabilities } = {}) {
   const paymentOrderEligible = paymentOrder && (paymentTarget?.source
     ? canReceiveStandaloneOrder(paymentOrder, granted, paymentTarget.source)
     : !isOrderPaid(paymentOrder) && !isOrderCancelled(paymentOrder))
-  const writesBlocked = !isOnline || requestKey !== null
+  const writesBlockedWithoutOrderCheckout = !isOnline || requestKey !== null
+  const writesBlocked = writesBlockedWithoutOrderCheckout || newOrderDraft.checkoutPending
   const handlePhysicalJobFailure = useCallback(() => {
     setToastMessage('Impressão requer atenção na fila')
   }, [setToastMessage])
@@ -375,7 +381,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -415,6 +421,28 @@ function App({ capabilities } = {}) {
     }
     selectComanda(identity)
     return true
+  }
+
+  newOrderDraftTargetsRef.current = {
+    canSubmit: (payload) => canCreateOrders
+      && (canAdjustOrders || !payload?.adjustment || payload.adjustment.type === 'none')
+      && !writesBlockedWithoutOrderCheckout,
+    commitOfficialEffects: applyOfficialEffects,
+    onCommitted: (result, context) => {
+      const { order, tableTab, tables: nextTables } = result || {}
+      if (context.returnDestination === 'comandas' && tableTab?.id) {
+        const table = nextTables?.find((item) => item.isActive && item.occupancy === 'occupied' && item.openTableTab?.id === tableTab.id)
+        if (table) selectComanda({ tableId: table.id, tableTabId: tableTab.id })
+      }
+      if (order?.id) setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
+      completeNavigation(context.returnDestination)
+    },
+    onSuccess: (order) => {
+      showSuccessMessage(order.paymentStatus === 'Pago'
+        ? 'Pedido salvo e pagamento recebido'
+        : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido enviado para a fila da cozinha'))
+    },
+    onConflict: async () => { await refreshBootstrapSilently() },
   }
 
   const publishPaymentSync = () => {
@@ -711,45 +739,8 @@ function App({ capabilities } = {}) {
       currentTableId = currentTable.id
       selectComanda({ tableId: currentTable.id, tableTabId: expectedTableTabId })
     }
-    const owner = newOrderOwnerRef.current + 1
-    newOrderOwnerRef.current = owner
-    setNewOrderContext({ tableId: currentTableId, expectedTableTabId, returnTab, owner })
-    setCheckoutKey(crypto.randomUUID())
-    setNewOrderDirty(false)
+    newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
     return completeNavigation('new-order')
-  }
-
-  const handleOrderCheckout = async (payload) => {
-    const owner = newOrderContext.owner
-    if (!canCreateOrders || (!canAdjustOrders && payload?.adjustment && payload.adjustment.type !== 'none') || writesBlocked || !owner || owner !== newOrderOwnerRef.current) return false
-    const key = checkoutKey || crypto.randomUUID(); if (!checkoutKey) setCheckoutKey(key); setRequestKey('order:create')
-    try {
-      const { order, movement, tableTab, tables: nextTables } = await createOrderApi(payload, key)
-      if (owner !== newOrderOwnerRef.current) return false
-      applyOfficialEffects({ order, movement, tableTab, tables: nextTables })
-      if (newOrderContext.returnTab === 'comandas' && tableTab?.id) {
-        const table = nextTables?.find((item) => item.isActive && item.occupancy === 'occupied' && item.openTableTab?.id === tableTab.id)
-        if (table) selectComanda({ tableId: table.id, tableTabId: tableTab.id })
-      }
-      setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
-      setRequestKey(null)
-      showSuccessMessage(order.paymentStatus === 'Pago' ? 'Pedido salvo e pagamento recebido' : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido enviado para a fila da cozinha'))
-      invalidateNewOrderDraft()
-      completeNavigation(newOrderContext.returnTab)
-      return true
-    } catch (error) {
-      if (owner !== newOrderOwnerRef.current) return false
-      if (error?.code === 'POLICY_CHANGED') {
-        showApiError(error)
-        return { ok: false, code: 'POLICY_CHANGED' }
-      }
-      if (error?.status === 409 && newOrderContext.expectedTableTabId) await refreshBootstrapSilently()
-      if (owner !== newOrderOwnerRef.current) return false
-      showApiError(error)
-      return false
-    } finally {
-      if (owner === newOrderOwnerRef.current) setRequestKey(null)
-    }
   }
   const handleQuickCreateClient = async ({ name, phone }) => { if (!canManageClients || writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
   const handleFinalizeOrder = async (orderId) => { if (!canFinalizeOrders || writesBlocked) return false; const currentOrder = orders.find((item) => item.id === orderId); if (!currentOrder) return false; setRequestKey(`order:status:${orderId}`); try { const { order } = await updateOrderStatusApi(orderId, 'Finalizado'); applyOfficialEffects({ order }); showSuccessMessage(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
@@ -1003,7 +994,7 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
 
-  const activeMobileEntry = activeTab === 'new-order' ? newOrderContext.returnTab : undefined
+  const activeMobileEntry = activeTab === 'new-order' ? newOrderDraft.context?.returnDestination : undefined
 
   return (
     <AppRoot
@@ -1034,7 +1025,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
         {activeTab === 'orders' && <Orders orders={filteredOrders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={handleFinalizeOrder} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={handleCancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={requestKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderContext.owner ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderContext.tableId} expectedTableTabId={newOrderContext.expectedTableTabId} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderContext.returnTab)} onCreateClient={handleQuickCreateClient} onSubmit={handleOrderCheckout} onDraftDirtyChange={setNewOrderDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} tableTabs={tableTabs} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={handleQuickCreateClient} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} canManageClients={canManageClients} />}
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
