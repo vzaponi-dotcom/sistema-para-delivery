@@ -157,6 +157,7 @@ function App({ capabilities } = {}) {
     commitOfficialEffects: () => {},
     onCommitted: async () => {},
     onSuccess: () => {},
+    onError: () => {},
     onConflict: async () => {},
   })
   const newOrderDraft = useNewOrderDraft({
@@ -165,7 +166,7 @@ function App({ capabilities } = {}) {
     commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
     onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
     onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
-    onError: showApiError,
+    onError: (error) => newOrderDraftTargetsRef.current.onError(error),
     onConflict: (context) => newOrderDraftTargetsRef.current.onConflict(context),
   })
 
@@ -500,6 +501,7 @@ function App({ capabilities } = {}) {
     if (error?.status === 401) return expireSession()
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
+  newOrderDraftTargetsRef.current.onError = showApiError
   const handleLogout = async () => {
     try { await handleSessionLogout() } catch (error) { showApiError(error) }
   }
