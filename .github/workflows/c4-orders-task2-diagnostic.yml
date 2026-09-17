@@ -32,35 +32,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run focused Task 2 diagnostics
-        id: focused
+      - name: Isolate failing test files
+        id: isolated
         shell: bash
         run: |
           set -u
           mkdir -p /tmp/c4-task2
-          : > /tmp/c4-task2/focused.txt
+          : > /tmp/c4-task2/failures.txt
           overall=0
-          tests=(
-            src/domains/orders/application/useOrderArrivals.test.js
-            src/domains/orders/application/useKitchenClock.test.js
-            src/domains/orders/domain/kitchenClock.test.js
-            src/domains/orders/domain/kitchenQueue.test.js
-            src/domains/orders/domain/kitchenTicket.test.js
-            src/domains/orders/domain/orderRealtime.test.js
-            src/pages/OrdersScheduled.test.js
-            src/pages/OrdersMultiItem.test.js
-          )
-          for test_file in "${tests[@]}"; do
-            echo "===== $test_file =====" | tee -a /tmp/c4-task2/focused.txt
+          while IFS= read -r -d '' test_file; do
             set +e
-            node --test "$test_file" >> /tmp/c4-task2/focused.txt 2>&1
+            output=$(node --test "$test_file" 2>&1)
             status=$?
             set -e
-            echo "STATUS=$status" | tee -a /tmp/c4-task2/focused.txt
-            if [ "$status" -ne 0 ]; then overall=1; fi
-          done
-          echo "focused_status=$overall" >> "$GITHUB_OUTPUT"
-          cat /tmp/c4-task2/focused.txt
+            if [ "$status" -ne 0 ]; then
+              overall=1
+              {
+                echo "===== FAIL: $test_file ====="
+                printf '%s\n' "$output"
+                echo "STATUS=$status"
+              } >> /tmp/c4-task2/failures.txt
+            fi
+          done < <(find . -path './node_modules' -prune -o -name '*.test.js' -print0 | sort -z)
+          echo "isolated_status=$overall" >> "$GITHUB_OUTPUT"
+          if [ -s /tmp/c4-task2/failures.txt ]; then cat /tmp/c4-task2/failures.txt; else echo 'ALL_TEST_FILES_PASS'; fi
 
       - name: Run full suite diagnostic
         id: full
@@ -72,7 +67,7 @@ jobs:
           status=$?
           set -e
           echo "full_status=$status" >> "$GITHUB_OUTPUT"
-          tail -n 300 /tmp/c4-task2/full-suite.txt
+          tail -n 80 /tmp/c4-task2/full-suite.txt
 
       - name: Run architecture and diff diagnostics
         id: broad
@@ -94,22 +89,16 @@ jobs:
           set -euo pipefail
           {
             echo "feature_head=1223c79e53abd5159821267c80ab067accb2b5bb"
-            echo "focused_status=${{ steps.focused.outputs.focused_status }}"
+            echo "isolated_status=${{ steps.isolated.outputs.isolated_status }}"
             echo "full_status=${{ steps.full.outputs.full_status }}"
             echo "architecture_status=${{ steps.broad.outputs.architecture_status }}"
             echo "diff_status=${{ steps.broad.outputs.diff_status }}"
             echo
-            echo '===== FOCUSED ====='
-            cat /tmp/c4-task2/focused.txt
+            echo '===== FAILING TEST FILES ====='
+            if [ -s /tmp/c4-task2/failures.txt ]; then cat /tmp/c4-task2/failures.txt; else echo 'ALL_TEST_FILES_PASS'; fi
             echo
-            echo '===== FULL SUITE ====='
-            cat /tmp/c4-task2/full-suite.txt
-            echo
-            echo '===== ARCHITECTURE ====='
-            cat /tmp/c4-task2/architecture.txt
-            echo
-            echo '===== DIFF CHECK ====='
-            cat /tmp/c4-task2/diff-check.txt
+            echo '===== FULL SUITE TAIL ====='
+            tail -n 100 /tmp/c4-task2/full-suite.txt
           } > /tmp/c4-task2/task2-diagnostic.txt
 
           rm -rf /tmp/c4-task2-aux
@@ -120,15 +109,13 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add diagnostics/task2-diagnostic.txt
-          if ! git diff --cached --quiet; then
-            git commit -m 'chore: record c4 task2 diagnostics'
-            git push origin HEAD:automation/c4-orders-executor
-          fi
+          git commit -m 'chore: record c4 task2 isolated diagnostics' || true
+          git push origin HEAD:automation/c4-orders-executor
 
       - name: Enforce diagnostic gates
         shell: bash
         run: |
-          test "${{ steps.focused.outputs.focused_status }}" = "0"
+          test "${{ steps.isolated.outputs.isolated_status }}" = "0"
           test "${{ steps.full.outputs.full_status }}" = "0"
           test "${{ steps.broad.outputs.architecture_status }}" = "0"
           test "${{ steps.broad.outputs.diff_status }}" = "0"
