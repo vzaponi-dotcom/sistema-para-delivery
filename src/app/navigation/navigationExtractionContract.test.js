@@ -26,6 +26,6 @@ test('App preserva sinais operacionais sem redefinir navegação extraída', asy
   assert.equal(source.includes('MOBILE_DIRECT_ENTRIES'), false)
   assert.match(source, /ordersSyncEnabled:\s*activeTab === 'orders'/)
   assert.match(source, /active:\s*activeTab === 'orders'/)
-  assert.match(source, /activeMobileEntry\s*=\s*activeTab === 'new-order' \? newOrderContext\.returnTab/)
-  assert.match(source, /requestNavigation\(newOrderContext\.returnTab\)/)
+  assert.match(source, /activeMobileEntry\s*=\s*activeTab === 'new-order' \? newOrderDraft\.context\?\.returnDestination/)
+  assert.match(source, /requestNavigation\(newOrderDraft\.context\?\.returnDestination \|\| 'orders'\)/)
 })
