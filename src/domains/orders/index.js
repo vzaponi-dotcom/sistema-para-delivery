@@ -60,3 +60,4 @@ export { buildKitchenItemSummary, buildKitchenTimingCopy, getKitchenItemNotes } 
 export { createOrdersApi, ordersApi } from './infrastructure/ordersApi.js'
 export { operationsPolicy } from './infrastructure/operationsPolicy.js'
 export { cancellationReasonsPolicy } from './infrastructure/cancellationReasonsPolicy.js'
+export { createNewOrderDraftController } from './application/newOrderDraft.js'
