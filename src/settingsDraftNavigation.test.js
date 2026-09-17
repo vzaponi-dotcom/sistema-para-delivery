@@ -22,8 +22,8 @@ async function mountNavigation(t, initial = {}) {
       checkoutPending: false,
       dirtyOrder: false,
       onDiscardOrder() {},
-      getSettingsDraft: () => draft,
-      onDiscardSettings: (resourceKey) => discarded.push(resourceKey),
+      getNavigationDraft: () => draft,
+      discardNavigationDraft: (resourceKey) => discarded.push(resourceKey),
       onFeedback: (message) => feedback.push(message),
     })
     React.useImperativeHandle(ref, () => navigation, [navigation])
@@ -33,13 +33,14 @@ async function mountNavigation(t, initial = {}) {
   return { h, api, renderer, Probe, discarded, feedback }
 }
 
-test('leaving a dirty settings editor waits for discard while cancel preserves the exact draft', async (t) => {
+test('leaving a dirty policy editor waits for discard while cancel preserves the exact draft', async (t) => {
   const fixture = await mountNavigation(t)
   const original = dirtyDraft
   await act(async () => fixture.api.current.requestNavigation('settings-printing'))
   await act(async () => fixture.api.current.requestNavigation('clients'))
   assert.equal(fixture.api.current.activeTab, 'settings-printing')
   assert.equal(fixture.api.current.pendingDestination, 'clients')
+  assert.equal(fixture.api.current.pendingDiscardKind, 'policy')
   await act(async () => fixture.api.current.cancelDiscard())
   assert.equal(fixture.api.current.activeTab, 'settings-printing')
   assert.deepEqual(fixture.discarded, [])
@@ -82,7 +83,7 @@ test('discard and duplicate decisions perform one discard and one navigation int
   assert.deepEqual(fixture.discarded, ['operations'])
 })
 
-test('destinations in the same settings aggregate preserve the draft without confirmation', async (t) => {
+test('destinations in the same policy aggregate preserve the draft without confirmation', async (t) => {
   const draft = { ...dirtyDraft, destinations: new Set(['settings-printing', 'settings-device']) }
   const fixture = await mountNavigation(t, { draft })
   await act(async () => fixture.api.current.requestNavigation('settings-printing'))
@@ -94,7 +95,7 @@ test('destinations in the same settings aggregate preserve the draft without con
   assert.deepEqual(fixture.discarded, [])
 })
 
-test('explicit settings cancellation discards once and navigates immediately', async (t) => {
+test('legacy explicit policy cancellation discards once and navigates immediately', async (t) => {
   const fixture = await mountNavigation(t)
   await act(async () => fixture.api.current.requestNavigation('settings-printing'))
 
@@ -107,7 +108,7 @@ test('explicit settings cancellation discards once and navigates immediately', a
   assert.deepEqual(fixture.discarded, ['operations'])
 })
 
-test('saving or unconfirmed settings commitments can navigate without discard or another write decision', async (t) => {
+test('saving or unconfirmed policy commitments can navigate without discard or another write decision', async (t) => {
   for (const status of ['saving', 'unconfirmed']) {
     const fixture = await mountNavigation(t, { draft: { ...dirtyDraft, status } })
     await act(async () => fixture.api.current.requestNavigation('settings-printing'))

@@ -1125,14 +1125,14 @@ function App({ capabilities } = {}) {
         {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} operationSettings={businessSettings} businessSettings={businessSettings} onSettingsConflictReview={setSettingsConflictReview} onSuccessMessage={showSuccessMessage} onCancelOperation={() => discardSettingsAndNavigate('settings-home')} onCancelPayment={() => discardSettingsAndNavigate('settings-home')} />}
 
         {pendingDestination && (
-          <Modal title={pendingDiscardKind === 'settings' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>
+          <Modal title={pendingDiscardKind === 'policy' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>
             <div className="form-stack">
-              <p>{pendingDiscardKind === 'settings'
+              <p>{pendingDiscardKind === 'policy'
                 ? 'As alterações ainda não salvas serão descartadas.'
                 : 'As informações preenchidas e os produtos adicionados serão descartados.'}</p>
               <div className="form-actions">
-                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>{pendingDiscardKind === 'settings' ? 'Continuar editando' : 'Continuar na venda'}</Button>
-                <Button type="button" onClick={confirmDiscard}>{pendingDiscardKind === 'settings' ? 'Descartar alterações' : 'Descartar venda'}</Button>
+                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>{pendingDiscardKind === 'policy' ? 'Continuar editando' : 'Continuar na venda'}</Button>
+                <Button type="button" onClick={confirmDiscard}>{pendingDiscardKind === 'policy' ? 'Descartar alterações' : 'Descartar venda'}</Button>
               </div>
             </div>
           </Modal>
