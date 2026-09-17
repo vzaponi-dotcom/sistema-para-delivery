@@ -1,8 +1,8 @@
-import { getOperationalStartAt, getOrderLateAt, isScheduledWaiting } from '../../../../shared/orderTiming.js'
-import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
-import { getOrderItemsSearchText } from './orderCart.js'
-import { isOrderActive } from './orderLifecycle.js'
-import { getOrderTimingState, isFinishedToday } from './orderWorkflow.js'
+import { getOperationalStartAt, getOrderLateAt, isScheduledWaiting } from '../../shared/orderTiming.js'
+import { getOrderItemsSearchText } from '../domains/orders/index.js'
+import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import { isOrderActive } from '../domains/orders/index.js'
+import { getOrderTimingState, isFinishedToday } from '../domains/orders/index.js'
 
 const normalizeSearch = (value) => String(value ?? '').trim().toLocaleLowerCase('pt-BR')
 const compareIds = (first, second) => String(first.order.id).localeCompare(String(second.order.id), 'pt-BR')

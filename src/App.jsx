@@ -50,7 +50,7 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
-import { useKitchenClock, useOrderArrivals } from './domains/orders/index.js'
+import { useKitchenClock } from './hooks/useKitchenClock.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { removeById } from './utils/dataSync.js'
@@ -59,6 +59,7 @@ import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './ut
 import { getOrderItemsSearchText } from './domains/orders/index.js'
 import { getOrderRefundState, isOrderActive, isOrderCancelled } from './domains/orders/index.js'
 import { canReceiveStandaloneOrder } from './domains/orders/index.js'
+import { detectOperationalArrivals } from './utils/orderRealtime.js'
 import { toLocalDateValue } from './domains/orders/index.js'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import { formatTableIdentifierLabel } from './utils/receivables.js'
@@ -90,6 +91,7 @@ const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+// Arrival detection moved from getNewOperationalOrderIds into one clock-driven effect below.
 
 const readKitchenSoundPreference = () => {
   if (typeof window === 'undefined') return true
@@ -116,6 +118,7 @@ function App({ capabilities } = {}) {
   const [openingBalanceDialogOpen, setOpeningBalanceDialogOpen] = useState(false)
   const [paymentTarget, setPaymentTarget] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [newOrderIds, setNewOrderIds] = useState(() => new Set())
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
   const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
@@ -133,6 +136,10 @@ function App({ capabilities } = {}) {
     setSuccessMessage,
     showSuccessMessage,
   } = useFeedbackRuntime()
+  const knownOperationalOrderIdsRef = useRef(undefined)
+  const alertedOrderIdsRef = useRef(new Set())
+  const kitchenAudioContextRef = useRef(null)
+  const newOrderHighlightTimerRef = useRef(null)
   const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
   const recoveryPromptSeenRef = useRef(false)
   const newOrderOwnerRef = useRef(0)
@@ -343,11 +350,6 @@ function App({ capabilities } = {}) {
   } = printing
   const physicalPrinterReady = printerHealth?.state === 'ready'
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders', currentTiming })
-  const {
-    newOrderIds,
-    previewSound: previewKitchenOrderSound,
-    reset: resetOrderArrivals,
-  } = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, soundEnabled: kitchenSoundEnabled })
   const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
   const secondCopyPromptOrderNumber = getSecondCopyPromptTitle(secondCopyPromptJob, secondCopyPromptOrder)
@@ -373,8 +375,8 @@ function App({ capabilities } = {}) {
     resetQueries()
     setSelectedComanda(null)
     resetSyncState()
-    resetOrderArrivals()
-    dismissedOriginSecondCopyJobIdsRef.current = new Set()
+    setNewOrderIds(new Set())
+    knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
     invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
@@ -476,6 +478,23 @@ function App({ capabilities } = {}) {
     try { await handleSessionLogout() } catch (error) { showApiError(error) }
   }
 
+  const playKitchenNewOrderSound = async () => {
+    if (typeof window === 'undefined') return
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) return
+    try {
+      if (!kitchenAudioContextRef.current) kitchenAudioContextRef.current = new AudioContextClass()
+      const context = kitchenAudioContextRef.current
+      if (context.state === 'suspended') await context.resume()
+      if (context.state !== 'running') return
+      const playTone = (frequency, delay) => {
+        const oscillator = context.createOscillator(); const gain = context.createGain(); const startsAt = context.currentTime + delay
+        oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(frequency, startsAt); gain.gain.setValueAtTime(0.0001, startsAt); gain.gain.exponentialRampToValueAtTime(0.14, startsAt + 0.015); gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + 0.18); oscillator.connect(gain); gain.connect(context.destination); oscillator.start(startsAt); oscillator.stop(startsAt + 0.2)
+      }
+      playTone(784, 0); playTone(988, 0.16)
+    } catch { /* Browsers may block audio until the first user interaction. */ }
+  }
+
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
     const nextEnabled = Boolean(enabled)
@@ -484,9 +503,43 @@ function App({ capabilities } = {}) {
       return false
     }
     setKitchenSoundEnabled(nextEnabled)
-    if (nextEnabled) void previewKitchenOrderSound()
+    if (nextEnabled) void playKitchenNewOrderSound()
     return true
   }
+
+  useEffect(() => {
+    if (!kitchenSoundEnabled) return undefined
+    const unlockAudio = () => {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext
+      if (!AudioContextClass) return
+      try { if (!kitchenAudioContextRef.current) kitchenAudioContextRef.current = new AudioContextClass(); if (kitchenAudioContextRef.current.state === 'suspended') void kitchenAudioContextRef.current.resume() } catch { /* retry later */ }
+    }
+    window.addEventListener('pointerdown', unlockAudio, { passive: true }); window.addEventListener('keydown', unlockAudio)
+    return () => { window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio) }
+  }, [kitchenSoundEnabled])
+
+  useEffect(() => {
+    if (activeTab !== 'orders') {
+      knownOperationalOrderIdsRef.current = undefined
+      return
+    }
+    const { currentIds, newIds: detectedIds } = detectOperationalArrivals(
+      knownOperationalOrderIdsRef.current,
+      orders,
+      kitchenNow,
+      alertedOrderIdsRef.current,
+    )
+    knownOperationalOrderIdsRef.current = currentIds
+    if (!detectedIds.length) return
+    detectedIds.forEach((id) => alertedOrderIdsRef.current.add(id))
+    setNewOrderIds((current) => new Set([...current, ...detectedIds]))
+    if (kitchenSoundEnabled) void playKitchenNewOrderSound()
+    if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current)
+    newOrderHighlightTimerRef.current = window.setTimeout(() => {
+      setNewOrderIds(new Set())
+      newOrderHighlightTimerRef.current = null
+    }, 2600)
+  }, [activeTab, orders, kitchenNow, kitchenSoundEnabled])
 
   useEffect(() => {
     const recoveryJobId = localPrintStation?.recoveryJobId ?? null
@@ -562,6 +615,8 @@ function App({ capabilities } = {}) {
     })
     if (next?.id) setOriginSecondCopyPromptJobId(next.id)
   }, [originOrderIds, originSecondCopyPromptJobId, orders, printJobs, printTransportKind])
+
+  useEffect(() => () => { if (newOrderHighlightTimerRef.current) window.clearTimeout(newOrderHighlightTimerRef.current); if (kitchenAudioContextRef.current?.close) void kitchenAudioContextRef.current.close() }, [])
 
   const totals = useMemo(() => {
     const validOrders = orders.filter((order) => !isOrderCancelled(order)); const salesToday = validOrders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0); const receivedToday = calculateReceivedToday(movements, todayValue); const receivables = validOrders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0); const activeOrders = orders.filter(isOrderActive).length

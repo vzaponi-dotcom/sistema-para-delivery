@@ -10,7 +10,8 @@ import OrderDetail from '../components/OrderDetail'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
-import { buildKitchenQueueModel, canReceiveStandaloneOrder } from '../domains/orders/index.js'
+import { buildKitchenQueueModel } from '../utils/kitchenQueue.js'
+import { canReceiveStandaloneOrder } from '../domains/orders/index.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 
