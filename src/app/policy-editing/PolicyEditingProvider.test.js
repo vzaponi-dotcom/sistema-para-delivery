@@ -64,6 +64,42 @@ test('provider delegates policy edits and forwards only confirmed commits', asyn
   assert.deepEqual(committed, [{ policyId: 'operations', resourceKey: 'operations', scopeId: undefined }])
 })
 
+test('provider clears removed callbacks before later confirmation feedback or session expiry', async (t) => {
+  const committed = []
+  const feedback = []
+  const expired = []
+  const fixture = await mountProvider(t, {
+    onPolicyCommitted: (event) => committed.push(event),
+    onFeedback: (event) => feedback.push(event),
+    onSessionExpired: (error) => expired.push(error),
+  })
+  const callbackFreeProps = { ...fixture.props }
+  delete callbackFreeProps.onPolicyCommitted
+  delete callbackFreeProps.onFeedback
+  delete callbackFreeProps.onSessionExpired
+
+  await act(async () => fixture.renderer.update(React.createElement(fixture.PolicyEditingProvider, callbackFreeProps, fixture.props.children)))
+  await act(async () => fixture.api.current.load('operations'))
+  await act(async () => fixture.api.current.edit('operations', { enabled: true }))
+  await act(async () => fixture.api.current.save('operations'))
+
+  assert.deepEqual(committed, [])
+  assert.deepEqual(feedback, [])
+
+  const expiredTransport = {
+    ...fixture.props.transport,
+    save: async () => { throw { status: 401 } },
+  }
+  await act(async () => fixture.renderer.update(React.createElement(fixture.PolicyEditingProvider, {
+    ...callbackFreeProps,
+    transport: expiredTransport,
+  }, fixture.props.children)))
+  await act(async () => fixture.api.current.edit('operations', { enabled: false }))
+  await act(async () => fixture.api.current.save('operations'))
+
+  assert.deepEqual(expired, [])
+})
+
 test('provider owns active conflicts through reopen, accept, dismiss, and context reset', async (t) => {
   let reads = 0
   const fixture = await mountProvider(t, {

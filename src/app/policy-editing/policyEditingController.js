@@ -10,6 +10,7 @@ const contextSignature = (context) => context ? [
   [...new Set(context.capabilities || [])].sort().join('\u001f'),
 ].join('\u001e') : ''
 const isUnknownResult = (error) => !Number.isInteger(error?.status) || error.status === 408 || error.status >= 500
+const noop = () => {}
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical)
   if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
@@ -28,10 +29,10 @@ export function createPolicyEditingController({
   createMutationId = () => crypto.randomUUID(),
   hash = hashPayload,
   onChange = () => {},
-  onFeedback = () => {},
-  onSessionExpired = () => {},
+  onFeedback = noop,
+  onSessionExpired = noop,
   onConflictReview = () => {},
-  onPolicyCommitted = () => {},
+  onPolicyCommitted = noop,
 } = {}) {
   let activeContext = context
   let generation = 0
@@ -59,10 +60,10 @@ export function createPolicyEditingController({
     configure(next = {}) {
       if (next.transport) transport = next.transport
       if (Object.hasOwn(next, 'storage')) storage = next.storage
-      if (next.onFeedback) onFeedback = next.onFeedback
-      if (next.onSessionExpired) onSessionExpired = next.onSessionExpired
+      if (Object.hasOwn(next, 'onFeedback')) onFeedback = next.onFeedback || noop
+      if (Object.hasOwn(next, 'onSessionExpired')) onSessionExpired = next.onSessionExpired || noop
       if (next.onConflictReview) onConflictReview = next.onConflictReview
-      if (next.onPolicyCommitted) onPolicyCommitted = next.onPolicyCommitted
+      if (Object.hasOwn(next, 'onPolicyCommitted')) onPolicyCommitted = next.onPolicyCommitted || noop
     },
     setContext(nextContext) {
       if (contextSignature(nextContext) === contextSignature(activeContext)) return false
