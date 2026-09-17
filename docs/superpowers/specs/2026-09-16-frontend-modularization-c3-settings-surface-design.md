@@ -1,8 +1,8 @@
 # Spec C3 — Settings Surface and Versioned Policy Editing Design
 
-**Date:** 2026-09-16  
-**Branch:** `feature/spec-c3-settings-surface`  
-**Base:** `master` at `de24b2ceb807440d4c339200b44ae2ed6583b27a`  
+**Date:** 2026-09-16
+**Branch:** `feature/spec-c3-settings-surface`
+**Base:** `master` at `de24b2ceb807440d4c339200b44ae2ed6583b27a`
 **Status:** Design approved in brainstorming; implementation not started
 
 ## 1. Purpose
