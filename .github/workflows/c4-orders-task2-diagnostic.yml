@@ -17,16 +17,16 @@ jobs:
       - name: Checkout exact C4 Task 2 HEAD
         uses: actions/checkout@v4
         with:
-          ref: f7fac6263bdc8d90d8d7ab240168b8254808193c
+          ref: ba339157dfb94117a33f7d1ad9d860625832bc0e
           fetch-depth: 0
 
       - name: Assert branch and master safety
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "f7fac6263bdc8d90d8d7ab240168b8254808193c"
+          test "$(git rev-parse HEAD)" = "ba339157dfb94117a33f7d1ad9d860625832bc0e"
           git fetch origin master feature/spec-c4-orders automation/c4-orders-executor
-          test "$(git rev-parse origin/feature/spec-c4-orders)" = "f7fac6263bdc8d90d8d7ab240168b8254808193c"
+          test "$(git rev-parse origin/feature/spec-c4-orders)" = "ba339157dfb94117a33f7d1ad9d860625832bc0e"
           test "$(git rev-parse origin/master)" = "737beeac2150aabeb39024af823f2f60fee25108"
 
       - name: Install dependencies
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "feature_head=f7fac6263bdc8d90d8d7ab240168b8254808193c"
+            echo "feature_head=ba339157dfb94117a33f7d1ad9d860625832bc0e"
             echo "focused_status=${{ steps.focused.outputs.focused_status }}"
             echo "full_status=${{ steps.full.outputs.full_status }}"
             echo "architecture_status=${{ steps.broad.outputs.architecture_status }}"
