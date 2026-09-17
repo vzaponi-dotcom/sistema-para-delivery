@@ -41,3 +41,15 @@ test('initialization after the boundary seeds current IDs without retroactive al
   assert.deepEqual([...initialized.currentIds], ['scheduled-1'])
   assert.deepEqual(initialized.newIds, [])
 })
+
+test('newly discovered immediate active orders exclude finished work', () => {
+  const now = new Date('2026-09-17T12:00:00-03:00')
+  const baseline = operationalOrderIdSet([{ id: 'old-active', status: 'Em preparo' }], now)
+  const orders = [
+    { id: 'old-active', status: 'Em preparo' },
+    { id: 'new-active', status: 'Em preparo' },
+    { id: 'finished', status: 'Finalizado' },
+  ]
+  assert.deepEqual(getNewOperationalOrderIds(baseline, orders, now), ['new-active'])
+  assert.deepEqual([...operationalOrderIdSet(orders, now)], ['old-active', 'new-active'])
+})

@@ -76,3 +76,18 @@ test('cleanup cancels the currently rearmed timeout', () => {
   assert.deepEqual(harness.cleared, [currentId])
   assert.equal(harness.active.size, 0)
 })
+
+test('uses current effective timing when scheduling the next boundary', () => {
+  const order = {
+    id: 'scheduled-clock', type: 'Entrega', status: 'Em preparo',
+    createdAt: '2026-09-13T11:00:00.000Z', scheduledFor: '2026-09-13T13:00:00.000Z',
+  }
+  const currentTiming = {
+    scheduledPrepLeadMinutes: 30, scheduledLateGraceMinutes: 5,
+    immediateLateAfterMinutes: 10, immediateVeryLateAfterMinutes: 15,
+  }
+  assert.equal(
+    getNextKitchenTransitionAt([order], new Date('2026-09-13T12:00:00.000Z'), currentTiming).toISOString(),
+    '2026-09-13T12:30:00.000Z',
+  )
+})

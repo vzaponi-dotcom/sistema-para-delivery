@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildKitchenQueueModel } from './utils/kitchenQueue.js'
-import { buildKitchenTimingCopy, getKitchenItemNotes } from './utils/kitchenTicket.js'
+import { buildKitchenQueueModel, buildKitchenTimingCopy, getKitchenItemNotes } from './domains/orders/index.js'
 
 const read = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 

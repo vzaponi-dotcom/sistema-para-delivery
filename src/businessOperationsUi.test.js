@@ -4,7 +4,6 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
-import { getNextKitchenTransitionAt } from './utils/kitchenClock.js'
 
 const modalities = (...values) => values.map((value) => ({ value, label: value === 'Local' ? 'Consumo no local' : value }))
 const client = { id: 'client-1', name: 'Ana', phone: '11999999999' }
@@ -132,19 +131,4 @@ test('kitchen uses current timing while terminal analytics keep the T10 snapshot
   }
   const history = await h.render(OperationalHistoryAnalysis, { orders: [terminal], period: 'today', now: new Date('2026-09-13T13:00:00.000Z'), currentTiming })
   assert.match(nodeText(history.root), /Tempo médio50 min/)
-})
-
-test('kitchen clock schedules its next boundary from the current effective timing', () => {
-  const order = {
-    id: 'scheduled-clock', type: 'Entrega', status: 'Em preparo',
-    createdAt: '2026-09-13T11:00:00.000Z', scheduledFor: '2026-09-13T13:00:00.000Z',
-  }
-  const currentTiming = {
-    scheduledPrepLeadMinutes: 30, scheduledLateGraceMinutes: 5,
-    immediateLateAfterMinutes: 10, immediateVeryLateAfterMinutes: 15,
-  }
-  assert.equal(
-    getNextKitchenTransitionAt([order], new Date('2026-09-13T12:00:00.000Z'), currentTiming).toISOString(),
-    '2026-09-13T12:30:00.000Z',
-  )
 })
