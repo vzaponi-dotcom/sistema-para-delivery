@@ -24,7 +24,7 @@ test('orders operation renders all items and exposes complete detail', () => {
 })
 
 test('orders and detail render the complete product label including size', () => {
-  const ticketUtils = source('../utils/kitchenTicket.js')
+  const ticketUtils = source('../domains/orders/domain/kitchenTicket.js')
   const detail = source('../components/OrderDetail.jsx')
 
   assert.match(ticketUtils, /map\(getOrderItemDisplayName\)/)
