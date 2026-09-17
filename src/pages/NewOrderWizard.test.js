@@ -90,7 +90,7 @@ test('step navigation preserves the single draft and focuses the active step', a
 
 test('wizard dirty state tracks the selected table and optional local client', async () => {
   const page = await read('./NewOrder.jsx')
-  const flow = await read('../utils/newOrderStepFlow.js')
+  const flow = await read('../domains/orders/domain/newOrderStepFlow.js')
 
   assert.match(page, /createNewOrderDirtySnapshot\(\{[\s\S]*selectedTableId,[\s\S]*localClientId,/)
   assert.match(page, /isNewOrderDraftDirty\(\{[\s\S]*selectedTableId,[\s\S]*localClientId,/)

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildOrderPayload } from './utils/orderCart.js'
+import { buildOrderPayload } from './domains/orders/index.js'
 
 const baseDraft = {
   type: 'Local',

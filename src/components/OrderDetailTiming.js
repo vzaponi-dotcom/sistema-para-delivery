@@ -1,6 +1,6 @@
 import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
 import { getOperationalDurationMinutes, getOperationalStartAt } from '../../shared/orderTiming.js'
-import { formatElapsedDuration } from '../utils/orderWorkflow.js'
+import { formatElapsedDuration } from '../domains/orders/index.js'
 
 const formatTime = (value) => new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: FINANCE_TIME_ZONE,

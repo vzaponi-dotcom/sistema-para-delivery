@@ -1,4 +1,4 @@
-import { hasCapability } from '../app/access.js'
+import { hasCapability } from '../../../app/access.js'
 
 const sourceCapability = Object.freeze({
   orders: 'orders.view',

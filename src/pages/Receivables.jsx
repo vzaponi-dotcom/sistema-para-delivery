@@ -14,8 +14,8 @@ import ReceivablesForecastDialog from '../components/ReceivablesForecastDialog'
 import ReceivablesQuickPaymentDialog from '../components/ReceivablesQuickPaymentDialog'
 import SystemSelect from '../components/SystemSelect'
 import { getBusinessDate } from '../../shared/finance.js'
-import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
-import { formatOrderDate } from '../utils/orderWorkflow'
+import { getOrderItemsSearchText, getOrderItemsSummary } from '../domains/orders/index.js'
+import { formatOrderDate } from '../domains/orders/index.js'
 import { calculateReceivedToday } from '../utils/paymentWorkflow.js'
 import {
   buildPendingReceivableEntries,

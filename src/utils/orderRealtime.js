@@ -1,5 +1,5 @@
 import { isScheduledWaiting } from '../../shared/orderTiming.js'
-import { isOrderActive } from './orderLifecycle.js'
+import { isOrderActive } from '../domains/orders/index.js'
 
 const FINISHED_STATUSES = new Set(['Finalizado', 'Entregue', 'Despachado'])
 const isActiveOrder = (order) => Boolean(order?.id) && isOrderActive(order) && !FINISHED_STATUSES.has(order?.status)

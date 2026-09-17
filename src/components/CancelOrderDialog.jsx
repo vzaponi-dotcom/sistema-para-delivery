@@ -12,7 +12,7 @@ import {
 import {
   cancellationOptionsWithSelection,
   cancellationSelectionNeedsReview,
-} from '../utils/cancellationReasonOptions.js'
+} from '../domains/orders/index.js'
 
 function CancelOrderDialog({
   open,

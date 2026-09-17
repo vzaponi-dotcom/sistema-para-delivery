@@ -1,6 +1,6 @@
-import { getOrderItemDisplayName, getOrderItems } from './orderCart.js'
-import { isOrderCancelled } from './orderLifecycle.js'
-import { toLocalDateValue } from './orderWorkflow.js'
+import { getOrderItemDisplayName, getOrderItems } from '../domains/orders/index.js'
+import { isOrderCancelled } from '../domains/orders/index.js'
+import { toLocalDateValue } from '../domains/orders/index.js'
 import { isOrderPaid } from './paymentWorkflow.js'
 import { getOperationalDurationMinutes } from '../../shared/orderTiming.js'
 

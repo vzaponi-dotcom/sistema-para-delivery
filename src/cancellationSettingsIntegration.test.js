@@ -20,7 +20,7 @@ const effective = (items = activeReasons, revision = 7) => ({
 const order = { id: 'order-1', orderNumber: 1, client: 'Ana', paymentStatus: 'Pendente' }
 
 test('new cancellation choices come only from the active effective projection', async () => {
-  const { cancellationOptionsFromEffective, cancellationRevisionFromEffective } = await import('./utils/cancellationReasonOptions.js')
+  const { cancellationOptionsFromEffective, cancellationRevisionFromEffective } = await import('./domains/orders/index.js')
   assert.deepEqual(cancellationOptionsFromEffective(effective()), [
     { value: 'client_changed_mind', label: 'Cliente desistiu', id: 'client_changed_mind', requiresNote: false },
     { value: 'weather-delay', label: 'Chuva forte', id: 'weather-delay', requiresNote: false },

@@ -1,4 +1,4 @@
-import { isOrderCancelled } from './orderLifecycle.js'
+import { isOrderCancelled } from '../domains/orders/index.js'
 import { getPendingAmount, isOrderPaid } from './paymentWorkflow.js'
 
 const DAY_MS = 86_400_000

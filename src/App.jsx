@@ -21,7 +21,7 @@ import {
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
 } from './utils/paymentMethodOptions.js'
-import { cancellationOptionsFromEffective, cancellationRevisionFromEffective } from './utils/cancellationReasonOptions.js'
+import { cancellationOptionsFromEffective, cancellationRevisionFromEffective } from './domains/orders/index.js'
 import { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } from './utils/financeCategoryOptions.js'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
@@ -56,11 +56,11 @@ import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingMan
 import { removeById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import { getOrderItemsSearchText } from './utils/orderCart'
-import { getOrderRefundState, isOrderActive, isOrderCancelled } from './utils/orderLifecycle.js'
-import { canReceiveStandaloneOrder } from './utils/orderPaymentEligibility.js'
+import { getOrderItemsSearchText } from './domains/orders/index.js'
+import { getOrderRefundState, isOrderActive, isOrderCancelled } from './domains/orders/index.js'
+import { canReceiveStandaloneOrder } from './domains/orders/index.js'
 import { detectOperationalArrivals } from './utils/orderRealtime.js'
-import { toLocalDateValue } from './utils/orderWorkflow'
+import { toLocalDateValue } from './domains/orders/index.js'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import { formatTableIdentifierLabel } from './utils/receivables.js'
 import {

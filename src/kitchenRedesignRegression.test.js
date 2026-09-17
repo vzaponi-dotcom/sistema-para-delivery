@@ -106,7 +106,7 @@ test('kitchen ticket exposes the approved derived state, attendance icons and ex
   assert.match(ticket, />Cancelar<\/Button>/)
   assert.doesNotMatch(ticket, />Cancelar pedido<\/Button>/)
   for (const label of ['Exibir detalhes', 'Saiu para entrega', 'Finalizar']) {
-    const sources = `${ticket}\n${read('./utils/orderWorkflow.js')}`
+    const sources = `${ticket}\n${read('./domains/orders/domain/orderWorkflow.js')}`
     assert.match(sources, new RegExp(label))
   }
 })

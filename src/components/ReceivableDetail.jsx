@@ -1,5 +1,5 @@
 import Button from './Button'
-import { formatOrderDate } from '../utils/orderWorkflow.js'
+import { formatOrderDate } from '../domains/orders/index.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 const timingText = (entry) => {

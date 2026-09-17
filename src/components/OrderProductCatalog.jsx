@@ -4,7 +4,7 @@ import {
   categoryForUi,
   formatProductPresentation,
 } from '../../shared/productCatalog.js'
-import { getCartProductQuantity } from '../utils/orderCart.js'
+import { getCartProductQuantity } from '../domains/orders/index.js'
 import Button from './Button'
 
 function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd, onDecrease }) {

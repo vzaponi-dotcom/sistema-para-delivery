@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import Icon from './Icon'
 import Modal from './Modal'
-import { getOrderItemsSearchText, getOrderItemsSummary } from '../utils/orderCart.js'
-import { formatOrderDate } from '../utils/orderWorkflow.js'
+import { getOrderItemsSearchText, getOrderItemsSummary } from '../domains/orders/index.js'
+import { formatOrderDate } from '../domains/orders/index.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 

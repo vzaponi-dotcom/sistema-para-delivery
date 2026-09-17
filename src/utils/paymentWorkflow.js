@@ -1,4 +1,4 @@
-import { formatOrderDate, toLocalDateValue } from './orderWorkflow.js'
+import { formatOrderDate, toLocalDateValue } from '../domains/orders/index.js'
 
 const parseDate = (value) => {
   if (!value) return null

@@ -18,7 +18,7 @@ import {
   editCartItemNote,
   removeCartItem,
   updateCartItem,
-} from '../utils/orderCart.js'
+} from '../domains/orders/index.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../utils/formFormatting.js'
 import {
   NEW_ORDER_STEPS,
@@ -29,9 +29,9 @@ import {
   getOrderItemCount,
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
-} from '../utils/newOrderStepFlow.js'
+} from '../domains/orders/index.js'
 import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/orderTiming.js'
-import { ORDER_TYPE_OPTIONS } from '../utils/orderTypeOptions.js'
+import { ORDER_TYPE_OPTIONS } from '../domains/orders/index.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 

@@ -38,7 +38,7 @@ test('uses delivery-specific final action label', () => { assert.equal(getFinalA
 test('recognizes orders finished today', () => { const todayAtTen = new Date(2026, 8, 1, 10, 0, 0).toISOString(); const yesterdayLate = new Date(2026, 7, 31, 23, 59, 59).toISOString(); assert.equal(isFinishedToday({ finishedAt: todayAtTen }, now), true); assert.equal(isFinishedToday({ finishedAt: yesterdayLate }, now), false); assert.equal(isFinishedToday({ finishedAt: null }, now), false) })
 test('recognizes a completion on the next UTC date as today in São Paulo', () => {
   const output = execFileSync(process.execPath, ['--input-type=module', '--eval', `
-    import { isFinishedToday } from './src/utils/orderWorkflow.js'
+    import { isFinishedToday } from './src/domains/orders/domain/orderWorkflow.js'
     const now = new Date('2026-09-04T23:30:00.000Z')
     const finishedAt = new Date('2026-09-05T01:30:00.000Z')
     process.stdout.write(String(isFinishedToday({ finishedAt }, now)))

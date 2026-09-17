@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import * as orderWorkflow from './utils/orderWorkflow.js'
+import * as orderWorkflow from './domains/orders/index.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const readOptional = (path) => read(path).catch(() => '')

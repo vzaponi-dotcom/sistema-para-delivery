@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as timing from './orderTiming.js'
 import { LEGACY_TIMING } from './businessPolicies.js'
-import { getOrderTimingState } from '../src/utils/orderWorkflow.js'
+import { getOrderTimingState } from '../src/domains/orders/index.js'
 import { buildKitchenQueueModel } from '../src/utils/kitchenQueue.js'
 
 const currentTiming = {

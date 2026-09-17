@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 test('NewOrder customer step uses pressed options for order type', async () => {
   const page = await read('./pages/NewOrder.jsx')
   const customerStep = await read('./components/NewOrderCustomerStep.jsx')
-  const orderTypes = await read('./utils/orderTypeOptions.js')
+  const orderTypes = await read('./domains/orders/domain/orderTypeOptions.js')
 
   assert.doesNotMatch(page, /import SystemSelect/)
   assert.match(customerStep, /aria-label="Tipo do pedido"/)

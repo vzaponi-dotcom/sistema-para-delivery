@@ -1,5 +1,5 @@
 import { getOperationalStartAt } from '../../shared/orderTiming.js'
-import { isOrderActive } from './orderLifecycle.js'
+import { isOrderActive } from '../domains/orders/index.js'
 
 export const getNextKitchenTransitionAt = (orders = [], now = new Date(), currentTiming) => {
   const reference = new Date(now)
