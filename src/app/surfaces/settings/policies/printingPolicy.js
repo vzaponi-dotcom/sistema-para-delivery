@@ -1,4 +1,4 @@
-import { createPathPolicyAdapter, extractEnvelope, getJson, loadPolicyReceipt, policyClientError, putJson, validatePolicyScope } from './policyHttp.js'
+import { createPathPolicyAdapter, extractEnvelope, getJson, loadPolicyReceipt, policyClientError, putJson, validatePolicyScope } from '../../../../infrastructure/api/policyHttp.js'
 
 export const printingPolicy = createPathPolicyAdapter({
   id: 'printingPolicy', path: '/api/printing/settings', envelope: 'settings',

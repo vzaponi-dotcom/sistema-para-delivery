@@ -1,4 +1,4 @@
-import { apiRequest, withJson } from '../../../../api/client.js'
+import { apiRequest, withJson } from './httpClient.js'
 
 export const policyClientError = (code, message) => Object.assign(new Error(message), { code })
 

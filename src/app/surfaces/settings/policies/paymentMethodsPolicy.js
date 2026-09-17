@@ -1,4 +1,4 @@
-import { createPathPolicyAdapter } from './policyHttp.js'
+import { createPathPolicyAdapter } from '../../../../infrastructure/api/policyHttp.js'
 
 export const paymentMethodsPolicy = createPathPolicyAdapter({
   id: 'paymentMethods', path: '/api/settings/payment-methods',
