@@ -6,10 +6,10 @@ on:
       - automation/c4-orders-executor
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  task1-diagnostic:
+  task1:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact C4 branch
@@ -26,9 +26,16 @@ jobs:
           expected="cd7abf430e8d3b3a654e28633ed68b47e39cf61e"
           echo "HEAD=$actual"
           test "$actual" = "$expected"
+          test "$(git rev-parse origin/master)" = "737beeac2150aabeb39024af823f2f60fee25108"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies and plan tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ripgrep
+          rg --version | head -1
 
       - name: Prove Task 1 RED
         shell: bash
@@ -48,4 +55,238 @@ jobs:
         run: |
           set -euo pipefail
           pattern='utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)'
-          rg -n "$pattern" src || true
+          rg -n "$pattern" src
+
+      - name: Apply minimal Task 1 extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+          import subprocess
+
+          root = Path.cwd().resolve()
+          modules = [
+              'orderCart',
+              'orderLifecycle',
+              'orderPaymentEligibility',
+              'orderWorkflow',
+              'orderTypeOptions',
+              'newOrderStepFlow',
+              'cancellationReasonOptions',
+          ]
+          moves = {
+              Path('src/utils/orderCart.js'): Path('src/domains/orders/domain/orderCart.js'),
+              Path('src/utils/orderCart.test.js'): Path('src/domains/orders/domain/orderCart.test.js'),
+              Path('src/utils/orderLifecycle.js'): Path('src/domains/orders/domain/orderLifecycle.js'),
+              Path('src/utils/orderLifecycle.test.js'): Path('src/domains/orders/domain/orderLifecycle.test.js'),
+              Path('src/utils/orderPaymentEligibility.js'): Path('src/domains/orders/domain/orderPaymentEligibility.js'),
+              Path('src/utils/orderPaymentEligibility.test.js'): Path('src/domains/orders/domain/orderPaymentEligibility.test.js'),
+              Path('src/utils/orderWorkflow.js'): Path('src/domains/orders/domain/orderWorkflow.js'),
+              Path('src/utils/orderWorkflow.test.js'): Path('src/domains/orders/domain/orderWorkflow.test.js'),
+              Path('src/utils/orderTypeOptions.js'): Path('src/domains/orders/domain/orderTypeOptions.js'),
+              Path('src/utils/newOrderStepFlow.js'): Path('src/domains/orders/domain/newOrderStepFlow.js'),
+              Path('src/utils/newOrderStepFlow.test.js'): Path('src/domains/orders/domain/newOrderStepFlow.test.js'),
+              Path('src/utils/cancellationReasonOptions.js'): Path('src/domains/orders/domain/cancellationReasonOptions.js'),
+          }
+          for old in moves:
+              if not old.exists():
+                  raise SystemExit(f'missing planned move source: {old}')
+
+          source_targets = {
+              (root / f'src/utils/{name}.js').resolve(): name
+              for name in modules
+          }
+          index_path = (root / 'src/domains/orders/index.js').resolve()
+          external_imports = {name: set() for name in modules}
+
+          named_import = re.compile(
+              r"import\s*\{(?P<body>[^}]+)\}\s*from\s*(?P<q>['\"])(?P<spec>[^'\"]+)(?P=q)",
+              re.S,
+          )
+          module_spec = re.compile(
+              r"(?P<prefix>\bfrom\s*|\bimport\s*)(?P<q>['\"])(?P<spec>\.{1,2}/[^'\"]+)(?P=q)"
+          )
+
+          def resolve_from(file_path, spec):
+              return (file_path.parent / spec).resolve()
+
+          def relative_spec(from_dir, to_path):
+              value = os.path.relpath(to_path, from_dir).replace(os.sep, '/')
+              return value if value.startswith('.') else f'./{value}'
+
+          src_files = [
+              p for p in (root / 'src').rglob('*')
+              if p.is_file() and p.suffix in {'.js', '.jsx', '.mjs', '.cjs'}
+          ]
+
+          for file_path in src_files:
+              text = file_path.read_text(encoding='utf-8')
+              for match in named_import.finditer(text):
+                  spec = match.group('spec')
+                  if not spec.startswith('.'):
+                      continue
+                  target = resolve_from(file_path, spec)
+                  module = source_targets.get(target)
+                  if not module:
+                      continue
+                  for raw in match.group('body').split(','):
+                      token = raw.strip()
+                      if not token:
+                          continue
+                      imported = re.split(r'\s+as\s+', token, maxsplit=1)[0].strip()
+                      external_imports[module].add(imported)
+
+          print('External imports preserved through public Orders API:')
+          for module in modules:
+              print(f'  {module}: {sorted(external_imports[module])}')
+
+          consumer_updates = {}
+          move_sources = {(root / old).resolve() for old in moves}
+          for file_path in src_files:
+              if file_path.resolve() in move_sources:
+                  continue
+              text = file_path.read_text(encoding='utf-8')
+
+              def rewrite_consumer(match):
+                  spec = match.group('spec')
+                  target = resolve_from(file_path, spec)
+                  if target not in source_targets:
+                      return match.group(0)
+                  replacement = relative_spec(file_path.parent, index_path)
+                  return f"{match.group('prefix')}{match.group('q')}{replacement}{match.group('q')}"
+
+              updated = module_spec.sub(rewrite_consumer, text)
+              if updated != text:
+                  consumer_updates[file_path] = updated
+
+          original_contents = {
+              old: (root / old).read_text(encoding='utf-8')
+              for old in moves
+          }
+          for new in moves.values():
+              (root / new).parent.mkdir(parents=True, exist_ok=True)
+          for old, new in moves.items():
+              subprocess.run(['git', 'mv', str(old), str(new)], check=True)
+
+          resolved_move_map = {
+              (root / old).resolve(): (root / new).resolve()
+              for old, new in moves.items()
+          }
+          for old, new in moves.items():
+              old_abs = (root / old).resolve()
+              new_abs = (root / new).resolve()
+              text = original_contents[old]
+
+              def rewrite_moved_import(match):
+                  spec = match.group('spec')
+                  target = resolve_from(old_abs, spec)
+                  target = resolved_move_map.get(target, target)
+                  replacement = relative_spec(new_abs.parent, target)
+                  return f"{match.group('prefix')}{match.group('q')}{replacement}{match.group('q')}"
+
+              updated = module_spec.sub(rewrite_moved_import, text)
+              updated = updated.replace(
+                  './src/utils/orderWorkflow.js',
+                  './src/domains/orders/domain/orderWorkflow.js',
+              )
+              new_abs.write_text(updated, encoding='utf-8')
+
+          for file_path, updated in consumer_updates.items():
+              file_path.write_text(updated, encoding='utf-8')
+
+          baseline = {
+              'orderCart': [
+                  'addCartItem', 'buildOrderPayload', 'calculateOrderPreview',
+                  'commitCartItemNote', 'decrementCartProduct', 'editCartItemNote',
+                  'getOrderItemsSearchText', 'getOrderItemsSummary', 'removeCartItem',
+                  'updateCartItem',
+              ],
+              'orderLifecycle': [
+                  'getOrderRefundState', 'isOrderActive', 'isOrderCancelled', 'isOrderFinished',
+              ],
+              'orderPaymentEligibility': ['canReceiveStandaloneOrder'],
+              'orderWorkflow': ['formatCancellationDate', 'formatOrderDate', 'toLocalDateValue'],
+              'orderTypeOptions': ['ORDER_TYPE_OPTIONS'],
+              'newOrderStepFlow': [
+                  'NEW_ORDER_STEPS', 'canNavigateToNewOrderStep', 'createNewOrderDirtySnapshot',
+                  'getFurthestReachedStep', 'getNewOrderStepAccess', 'getOrderItemCount',
+                  'getOrderItemsSubtotal', 'isNewOrderDraftDirty',
+              ],
+              'cancellationReasonOptions': [
+                  'cancellationOptionsFromEffective', 'cancellationRevisionFromEffective',
+              ],
+          }
+          canonical = {}
+          for module, names in baseline.items():
+              for name in names:
+                  canonical.setdefault(name, module)
+
+          exports = {module: list(names) for module, names in baseline.items()}
+          for module, names in external_imports.items():
+              for name in sorted(names):
+                  owner = canonical.get(name)
+                  if owner and owner != module:
+                      print(f'Canonical public owner retained for duplicate {name}: {owner} (legacy import from {module})')
+                      continue
+                  canonical.setdefault(name, module)
+                  if name not in exports[module]:
+                      exports[module].append(name)
+
+          blocks = []
+          for module in modules:
+              names = exports[module]
+              path = f'./domain/{module}.js'
+              if len(names) == 1:
+                  blocks.append(f"export {{ {names[0]} }} from '{path}'")
+              else:
+                  lines = ['export {'] + [f'  {name},' for name in names] + [f"}} from '{path}'"]
+                  blocks.append('\n'.join(lines))
+          index_path.write_text('\n'.join(blocks) + '\n', encoding='utf-8')
+          PY
+
+      - name: Verify Task 1 focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test \
+            src/domains/orders/ordersPublicContract.test.js \
+            src/domains/orders/domain/orderCart.test.js \
+            src/domains/orders/domain/orderLifecycle.test.js \
+            src/domains/orders/domain/orderPaymentEligibility.test.js \
+            src/domains/orders/domain/orderWorkflow.test.js \
+            src/domains/orders/domain/newOrderStepFlow.test.js
+
+      - name: Verify no Task 1 legacy imports remain
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern='utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)'
+          if rg -n "$pattern" src; then
+            echo 'Legacy Task 1 Orders import remains' >&2
+            exit 1
+          fi
+
+      - name: Verify architecture and full suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:architecture
+          npm test
+          git diff --check
+
+      - name: Commit and fast-forward Task 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "cd7abf430e8d3b3a654e28633ed68b47e39cf61e"
+          test "$(git rev-parse origin/feature/spec-c4-orders)" = "cd7abf430e8d3b3a654e28633ed68b47e39cf61e"
+          git status --short
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor: establish orders domain rules'
+          git push origin HEAD:feature/spec-c4-orders
+          echo "TASK1_HEAD=$(git rev-parse HEAD)"
