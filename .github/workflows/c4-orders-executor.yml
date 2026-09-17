@@ -69,13 +69,8 @@ jobs:
 
           root = Path.cwd().resolve()
           modules = [
-              'orderCart',
-              'orderLifecycle',
-              'orderPaymentEligibility',
-              'orderWorkflow',
-              'orderTypeOptions',
-              'newOrderStepFlow',
-              'cancellationReasonOptions',
+              'orderCart', 'orderLifecycle', 'orderPaymentEligibility', 'orderWorkflow',
+              'orderTypeOptions', 'newOrderStepFlow', 'cancellationReasonOptions',
           ]
           moves = {
               Path('src/utils/orderCart.js'): Path('src/domains/orders/domain/orderCart.js'),
@@ -95,23 +90,31 @@ jobs:
               if not old.exists():
                   raise SystemExit(f'missing planned move source: {old}')
 
-          source_targets = {
-              (root / f'src/utils/{name}.js').resolve(): name
-              for name in modules
-          }
+          source_targets = {(root / f'src/utils/{name}.js').resolve(): name for name in modules}
           index_path = (root / 'src/domains/orders/index.js').resolve()
           external_imports = {name: set() for name in modules}
 
           named_import = re.compile(
-              r"import\s*\{(?P<body>[^}]+)\}\s*from\s*(?P<q>['\"])(?P<spec>[^'\"]+)(?P=q)",
-              re.S,
+              r"import\s*\{(?P<body>[^}]+)\}\s*from\s*(?P<q>['\"])(?P<spec>[^'\"]+)(?P=q)", re.S
           )
-          module_spec = re.compile(
+          static_spec = re.compile(
               r"(?P<prefix>\bfrom\s*|\bimport\s*)(?P<q>['\"])(?P<spec>\.{1,2}/[^'\"]+)(?P=q)"
           )
+          dynamic_spec = re.compile(
+              r"(?P<prefix>\bimport\(\s*)(?P<q>['\"])(?P<spec>\.{1,2}/[^'\"]+)(?P=q)(?P<suffix>\s*\))"
+          )
 
-          def resolve_from(file_path, spec):
+          def raw_target(file_path, spec):
               return (file_path.parent / spec).resolve()
+
+          def source_target(file_path, spec):
+              target = raw_target(file_path, spec)
+              if target in source_targets:
+                  return target
+              with_js = Path(f'{target}.js')
+              if with_js in source_targets:
+                  return with_js
+              return target
 
           def relative_spec(from_dir, to_path):
               value = os.path.relpath(to_path, from_dir).replace(os.sep, '/')
@@ -128,16 +131,13 @@ jobs:
                   spec = match.group('spec')
                   if not spec.startswith('.'):
                       continue
-                  target = resolve_from(file_path, spec)
-                  module = source_targets.get(target)
+                  module = source_targets.get(source_target(file_path, spec))
                   if not module:
                       continue
                   for raw in match.group('body').split(','):
                       token = raw.strip()
-                      if not token:
-                          continue
-                      imported = re.split(r'\s+as\s+', token, maxsplit=1)[0].strip()
-                      external_imports[module].add(imported)
+                      if token:
+                          external_imports[module].add(re.split(r'\s+as\s+', token, maxsplit=1)[0].strip())
 
           print('External imports preserved through public Orders API:')
           for module in modules:
@@ -150,22 +150,26 @@ jobs:
                   continue
               text = file_path.read_text(encoding='utf-8')
 
-              def rewrite_consumer(match):
-                  spec = match.group('spec')
-                  target = resolve_from(file_path, spec)
+              def rewrite_static_consumer(match):
+                  target = source_target(file_path, match.group('spec'))
                   if target not in source_targets:
                       return match.group(0)
                   replacement = relative_spec(file_path.parent, index_path)
                   return f"{match.group('prefix')}{match.group('q')}{replacement}{match.group('q')}"
 
-              updated = module_spec.sub(rewrite_consumer, text)
+              def rewrite_dynamic_consumer(match):
+                  target = source_target(file_path, match.group('spec'))
+                  if target not in source_targets:
+                      return match.group(0)
+                  replacement = relative_spec(file_path.parent, index_path)
+                  return f"{match.group('prefix')}{match.group('q')}{replacement}{match.group('q')}{match.group('suffix')}"
+
+              updated = static_spec.sub(rewrite_static_consumer, text)
+              updated = dynamic_spec.sub(rewrite_dynamic_consumer, updated)
               if updated != text:
                   consumer_updates[file_path] = updated
 
-          original_contents = {
-              old: (root / old).read_text(encoding='utf-8')
-              for old in moves
-          }
+          original_contents = {old: (root / old).read_text(encoding='utf-8') for old in moves}
           for new in moves.values():
               (root / new).parent.mkdir(parents=True, exist_ok=True)
           for old, new in moves.items():
@@ -181,13 +185,18 @@ jobs:
               text = original_contents[old]
 
               def rewrite_moved_import(match):
-                  spec = match.group('spec')
-                  target = resolve_from(old_abs, spec)
+                  target = raw_target(old_abs, match.group('spec'))
+                  if target not in resolved_move_map and not target.exists():
+                      with_js = Path(f'{target}.js')
+                      if with_js.exists():
+                          target = with_js
+                      else:
+                          return match.group(0)
                   target = resolved_move_map.get(target, target)
                   replacement = relative_spec(new_abs.parent, target)
                   return f"{match.group('prefix')}{match.group('q')}{replacement}{match.group('q')}"
 
-              updated = module_spec.sub(rewrite_moved_import, text)
+              updated = static_spec.sub(rewrite_moved_import, text)
               updated = updated.replace(
                   './src/utils/orderWorkflow.js',
                   './src/domains/orders/domain/orderWorkflow.js',
@@ -197,16 +206,31 @@ jobs:
           for file_path, updated in consumer_updates.items():
               file_path.write_text(updated, encoding='utf-8')
 
+          source_reference_updates = {
+              Path('src/newOrderSystemSelect.test.js'): (
+                  './utils/orderTypeOptions.js', './domains/orders/domain/orderTypeOptions.js'
+              ),
+              Path('src/kitchenRedesignRegression.test.js'): (
+                  './utils/orderWorkflow.js', './domains/orders/domain/orderWorkflow.js'
+              ),
+              Path('src/pages/NewOrderWizard.test.js'): (
+                  '../utils/newOrderStepFlow.js', '../domains/orders/domain/newOrderStepFlow.js'
+              ),
+          }
+          for relative_path, (before, after) in source_reference_updates.items():
+              file_path = root / relative_path
+              text = file_path.read_text(encoding='utf-8')
+              if before not in text:
+                  raise SystemExit(f'expected source reference not found: {relative_path}: {before}')
+              file_path.write_text(text.replace(before, after), encoding='utf-8')
+
           baseline = {
               'orderCart': [
                   'addCartItem', 'buildOrderPayload', 'calculateOrderPreview',
                   'commitCartItemNote', 'decrementCartProduct', 'editCartItemNote',
-                  'getOrderItemsSearchText', 'getOrderItemsSummary', 'removeCartItem',
-                  'updateCartItem',
+                  'getOrderItemsSearchText', 'getOrderItemsSummary', 'removeCartItem', 'updateCartItem',
               ],
-              'orderLifecycle': [
-                  'getOrderRefundState', 'isOrderActive', 'isOrderCancelled', 'isOrderFinished',
-              ],
+              'orderLifecycle': ['getOrderRefundState', 'isOrderActive', 'isOrderCancelled', 'isOrderFinished'],
               'orderPaymentEligibility': ['canReceiveStandaloneOrder'],
               'orderWorkflow': ['formatCancellationDate', 'formatOrderDate', 'toLocalDateValue'],
               'orderTypeOptions': ['ORDER_TYPE_OPTIONS'],
@@ -215,9 +239,7 @@ jobs:
                   'getFurthestReachedStep', 'getNewOrderStepAccess', 'getOrderItemCount',
                   'getOrderItemsSubtotal', 'isNewOrderDraftDirty',
               ],
-              'cancellationReasonOptions': [
-                  'cancellationOptionsFromEffective', 'cancellationRevisionFromEffective',
-              ],
+              'cancellationReasonOptions': ['cancellationOptionsFromEffective', 'cancellationRevisionFromEffective'],
           }
           canonical = {}
           for module, names in baseline.items():
@@ -242,8 +264,9 @@ jobs:
               if len(names) == 1:
                   blocks.append(f"export {{ {names[0]} }} from '{path}'")
               else:
-                  lines = ['export {'] + [f'  {name},' for name in names] + [f"}} from '{path}'"]
-                  blocks.append('\n'.join(lines))
+                  blocks.append('\n'.join(
+                      ['export {'] + [f'  {name},' for name in names] + [f"}} from '{path}'"]
+                  ))
           index_path.write_text('\n'.join(blocks) + '\n', encoding='utf-8')
           PY
 
