@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { cancellationReasonsPolicy, operationsPolicy } from '../../../../domains/orders/index.js'
 import { createSettingsPolicyAdapters, getSettingsPolicy } from './registry.js'
 
 const resource = (name, revision = 1, data = {}) => ({ resource: name, revision, data, meta: {} })
@@ -79,4 +80,13 @@ test('settings policy adapters reject invalid scopes and primary stations before
     { code: 'SETTINGS_SCOPE_REQUIRED', message: 'Informe a esta\u00e7\u00e3o principal.' },
   )
   assert.equal(getSettingsPolicy('madeUp'), null)
+})
+
+
+test('operations and cancellation policies come from Orders', () => {
+  assert.equal(getSettingsPolicy('operations'), operationsPolicy)
+  assert.equal(getSettingsPolicy('cancellationReasons'), cancellationReasonsPolicy)
+  assert.deepEqual(operationsPolicy.destinations, ['settings-operations', 'settings-modalities'])
+  assert.equal(operationsPolicy.capability, 'operations.settings.view')
+  assert.equal(cancellationReasonsPolicy.capability, 'orders.settings.view')
 })
