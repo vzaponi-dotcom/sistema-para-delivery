@@ -12,6 +12,7 @@ import FinanceCategorySettings from './FinanceCategorySettings.jsx'
 import DevicePreferences from './local/DevicePreferences.jsx'
 import SettingsConflictReview from './components/SettingsConflictReview.jsx'
 import { SettingsBackLink } from './components/SettingsBackAndSwitchControls.jsx'
+import { createPrintingSettingsAdapter } from './printingSettingsAdapter.js'
 import '../../../area-navigation.css'
 
 const policyForSection = (section) => {
@@ -32,15 +33,17 @@ export function SettingsSurface({
   onSoundEnabledChange,
   onSuccessMessage,
 }) {
+  const policyEditing = usePolicyEditing()
   const {
     resources, load, edit, save, discard, reconcile, reviewConflict,
     activeConflict, acceptActiveConflict, dismissActiveConflict,
-  } = usePolicyEditing()
+  } = policyEditing
   const selectedPolicy = policyForSection(section)?.[0] || null
   const printingRoute = section === 'settings-printing'
   const canViewPrintPolicy = hasCapability(granted, 'printing.settings.view') || hasCapability(granted, 'printing.settings')
   const canViewPrintStation = hasCapability(granted, 'printing.station.view') || hasCapability(granted, 'printing.station.configure')
   const stationId = printing?.localStation?.id
+  const printingSettings = printingRoute ? createPrintingSettingsAdapter({ policyEditing, printing, stationId }) : null
 
   useEffect(() => {
     if (selectedPolicy) void load(selectedPolicy)
@@ -131,7 +134,7 @@ export function SettingsSurface({
       title="Impressão de pedidos"
       description="Regras do negócio, estação e impressora local"
     />
-    <PrintingSettingsContent printing={printing} settings={printing?.settings} granted={granted} />
+    <PrintingSettingsContent printing={printing} settings={printingSettings} granted={granted} />
   </div>)
   if (section === 'settings-device') return withActiveConflict(<DevicePreferences
     soundEnabled={soundEnabled}

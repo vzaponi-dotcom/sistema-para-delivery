@@ -50,7 +50,7 @@ async function renderSection(t, section, { granted = new Set(), printing = { loc
     }),
   })
   await act(async () => {})
-  return { calls, screen }
+  return { calls, screen, h }
 }
 
 test('loads the policy selected by each versioned Settings destination', async (t) => {
@@ -80,6 +80,21 @@ test('loads printing policy and permitted station policies, while device prefere
   const device = await renderSection(t, 'settings-device')
   assert.deepEqual(device.calls, [])
   assert.match(nodeText(device.screen.root), /Prefer.ncias deste dispositivo/)
+})
+
+test('passes the provider-backed printing adapter to the printing content', async (t) => {
+  const { calls, screen, h } = await renderSection(t, 'settings-printing', {
+    granted: new Set(['printing.settings.view', 'printing.station.view']),
+  })
+  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const [content] = screen.root.findAllByType(PrintingSettingsContent)
+
+  assert.ok(content.props.settings)
+  assert.equal(typeof content.props.settings.policyState, 'function')
+  let reloaded = false
+  await act(async () => { reloaded = await content.props.settings.reloadStation() })
+  assert.equal(reloaded, true)
+  assert.deepEqual(calls.slice(-1), [['load', 'stationConfiguration', 'station-1']])
 })
 
 test('renders Settings Home without loading a versioned policy', async (t) => {
