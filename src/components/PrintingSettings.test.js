@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 const settings = await readFile(new URL('./PrintingSettingsContent.jsx', import.meta.url), 'utf8')
 const orders = await readFile(new URL('../pages/Orders.jsx', import.meta.url), 'utf8')
 const manager = await readFile(new URL('../printing/usePrintingManager.js', import.meta.url), 'utf8')
-const adapter = await readFile(new URL('../app/usePrintingSettingsController.js', import.meta.url), 'utf8')
+const adapter = await readFile(new URL('../app/surfaces/settings/printingSettingsAdapter.js', import.meta.url), 'utf8')
 const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
 
 test('printing settings keep the three scoped responsibilities explicit in compact cards', () => {
@@ -23,9 +23,9 @@ test('business policy, station and local printer expose independent save actions
   assert.doesNotMatch(settings, /Salvar tudo|saveAll/)
 })
 
-test('the printing adapter delegates remote state only to the T14 controller', () => {
+test('the printing adapter delegates remote state only to policy editing', () => {
   for (const resource of ['printingPolicy', 'stationConfiguration', 'stationPrimary']) {
-    assert.match(adapter, new RegExp(`businessSettings[\\s\\S]*'${resource}'`))
+    assert.match(adapter, new RegExp(`policyEditing[\\s\\S]*'${resource}'`))
   }
   assert.doesNotMatch(adapter, /useState|useEffect|getPrintSettings|savePrintSettings/)
   assert.doesNotMatch(manager, /makePrimaryPrintStation|saveStationSettings/)

@@ -130,13 +130,15 @@ test('completeNavigation valida destino e não descarta pedido já salvo', async
   assert.deepEqual(discarded, [])
 })
 
-test('controller permite navegar no mesmo draft de Settings e confirma ao abandonar o recurso', async (t) => {
+test('controller consumes a resolved policy draft while navigating', async (t) => {
   const h = await workspaceHarness(t)
   const { useNavigationController } = await h.load('/src/app/navigation/useNavigationController.js')
-  const { getSettingsDraftForDestination } = await h.load('/src/app/navigation/settingsDraftGuard.js')
   const api = React.createRef()
   const discarded = []
-  const resources = { operations: { dirty: true, status: 'idle' } }
+  const draft = {
+    resourceKey: 'operations', resource: 'operations', dirty: true, status: 'idle', scopeId: undefined,
+    destinations: new Set(['settings-operations', 'settings-modalities']),
+  }
 
   const Probe = React.forwardRef(function Probe(_props, ref) {
     const current = useNavigationController({
@@ -145,8 +147,8 @@ test('controller permite navegar no mesmo draft de Settings e confirma ao abando
       checkoutPending: false,
       dirtyOrder: false,
       onDiscardOrder() {},
-      getSettingsDraft: (destination) => getSettingsDraftForDestination(resources, destination),
-      onDiscardSettings: () => { discarded.push('operations'); return true },
+      getNavigationDraft: () => draft,
+      discardNavigationDraft: () => { discarded.push('operations'); return true },
       onFeedback() {},
     })
     React.useImperativeHandle(ref, () => current, [current])
@@ -159,6 +161,7 @@ test('controller permite navegar no mesmo draft de Settings e confirma ao abando
   assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:')
   await act(async () => api.current.requestNavigation('clients'))
   assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:clients')
+  assert.equal(api.current.pendingDiscardKind, 'policy')
   await act(async () => api.current.confirmDiscard())
   assert.equal(renderer.root.findByType('output').children.join(''), 'clients:')
   assert.deepEqual(discarded, ['operations'])

@@ -10,18 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`
 
-## Current rollout status — 2026-09-16
+## Current rollout status — 2026-09-17
 
 - C1 — Runtime central is **RELEASED / COMPLETE** on `master` at `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210` after PR #45, post-merge validation and explicitly authorized production release.
-- Active slice: **C2 — Navigation and App composition**, branch `feature/spec-c2-navigation-composition`, draft PR #46, currently **HOMOLOGATED / MERGE GATE**.
-- C2 homologated executable SHA: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`.
-- C2 Validate application #1213 / run `35139754603` passed tests, architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 clean-install/upgrade.
-- Manual C2 Deploy staging #178 / run `35141467373` passed via `workflow_dispatch` on the exact executable SHA, including migrations, deploy and real staging login verification.
-- Manual C2 homologation on 2026-09-16 completed with **0 FAIL**: 10 fully PASS, 4 fully BLOCKED by staging/tooling observability constraints, and 1 partial PASS/BLOCKED. Automated tests are complementary evidence only; BLOCKED scenarios remain BLOCKED in the QA record.
-- C2 QA record: `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`.
-- C2 did not deploy production and remains pending explicit user authorization for merge.
-- C3 remains **BLOCKED** until C2 is explicitly merged and the resulting `master` is validated.
-- Temporary compatibility bridges inherited from C1 remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`; C2 introduced no new cross-slice facade requiring a ledger row.
+- C2 — Navigation and App composition was merged by PR #46; `master` is now `de24b2ceb807440d4c339200b44ae2ed6583b27a`.
+- C2 homologated executable SHA: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`; Validate application #1213 / run `35139754603` and Manual Deploy staging #178 / run `35141467373` passed. The C2 QA record remains `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`.
+- Active slice: **C3 — Settings surface and versioned policy engine**, branch `feature/spec-c3-settings-surface`, executable SHA `17673b66774a1b532fc22972603407dcbb932bad`.
+- C3 local gates passed on the executable SHA: `npm test`, `npm run test:architecture`, `npm run lint` (existing warnings only), `npm run build`, and `npm run d1:migrate:local`. The diff audit found no changes under `worker`, `migrations`, or `src/printing`.
+- C3 Validate #1216 / run `35176245887` passed on branch HEAD `8b01af19a4f74fd4725394860edd6a85d50d4915`. Manual Deploy staging #179 / run `35176387507` passed on branch HEAD `471d377f973864be6d3037e47a743a02f6a59df0`, including staging login verification. The 23-item manual UI matrix remains blocked because no browser surface is available in this session; production remains untouched and C3 is not ready for merge authorization. Evidence is in `docs/superpowers/qa/spec-c3-settings-surface-qa.md`.
+- C3 did not deploy production and was not merged.
+- Temporary compatibility bridges inherited from C1 remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`; C3 left no C3 compatibility facade.
 - The rollout contracts below are unchanged; this block is execution status only.
 
 ## Global Constraints

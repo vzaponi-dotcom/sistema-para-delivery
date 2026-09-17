@@ -25,7 +25,7 @@ const financeState = () => {
 
 test('reordering finance categories persists the new order in the draft', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/pages/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
   const edits = []
   const screen = await h.render(Page, {
     resourceState: financeState(),
@@ -50,7 +50,7 @@ test('reordering finance categories persists the new order in the draft', async 
 
 test('shared settings save shows informational feedback and skips save when nothing changed', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   let saves = 0
   const screen = await h.render(SettingsEditorShell, {
     title: 'Configuração de teste',
@@ -70,7 +70,7 @@ test('shared settings save shows informational feedback and skips save when noth
 
 test('shared settings save still calls the real save when the draft is dirty', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   let saves = 0
   const screen = await h.render(SettingsEditorShell, {
     title: 'Configuração de teste',

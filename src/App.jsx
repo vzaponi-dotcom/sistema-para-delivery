@@ -10,12 +10,10 @@ import AppRoot from './app/shell/AppRoot.jsx'
 import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
 import ConfirmationDialog from './components/ConfirmationDialog'
-import SettingsConflictReview from './components/SettingsConflictReview'
 import Modal from './components/Modal'
 import MovementDialog from './components/MovementDialog'
 import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
-import PrintingSettings from './components/PrintingSettings'
 import SystemSelect from './components/SystemSelect'
 import {
   paymentDefaultFromEffective,
@@ -34,18 +32,17 @@ import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
 import OrderHistory from './pages/OrderHistory'
 import PrintQueue from './pages/PrintQueue'
-import Settings from './pages/Settings'
+import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
+import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
 import Tables from './pages/Tables'
 import Comandas from './pages/Comandas'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
-import { getSettingsDraftForDestination, hasSettingsUnloadRisk } from './app/navigation/settingsDraftGuard.js'
 import { useNavigationController } from './app/navigation/useNavigationController.js'
 import { useQueryContext } from './app/navigation/useQueryContext.js'
-import { usePrintingSettingsController } from './app/usePrintingSettingsController.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
-import { useBusinessSettingsController } from './app/useBusinessSettingsController.js'
+import { createPolicyNavigationBridge } from './app/policy-editing/policyNavigationBridge.js'
 import { useOperationalDataRuntime } from './app/runtime/data/useOperationalDataRuntime.js'
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
@@ -131,8 +128,6 @@ function App({ capabilities } = {}) {
   const [recoveryBusy, setRecoveryBusy] = useState(false)
   const [recoveryDiscardConfirmation, setRecoveryDiscardConfirmation] = useState(false)
   const [originOrderIds, setOriginOrderIds] = useState(() => readOriginOrderIds(typeof window === 'undefined' ? null : window.localStorage))
-  const [showPrintingSettings, setShowPrintingSettings] = useState(false)
-  const [settingsConflictReview, setSettingsConflictReview] = useState(null)
   const isOnline = useOnlineStatus()
   const {
     toastMessage,
@@ -161,7 +156,6 @@ function App({ capabilities } = {}) {
   const pausedRecoverySecondCopyJobIdRef = useRef(null)
   const previousRecoveryStateRef = useRef(null)
   const effectiveConfigVersionRef = useRef(null)
-  const businessSettingsRef = useRef(null)
   const operationalBridgeTargetsRef = useRef({ onUnauthorized: null, settlePaymentOwners: null, onTablesCommitted: null })
   const sessionRuntimeTargetsRef = useRef({
     refreshBootstrap: async () => {},
@@ -217,6 +211,7 @@ function App({ capabilities } = {}) {
     [authState, capabilities, sessionContext],
   )
   const { query, patchQuery, resetQueries } = useQueryContext()
+  const policyNavigationBridge = useMemo(() => createPolicyNavigationBridge(), [])
   const {
     activeTab,
     moreOpen,
@@ -227,7 +222,6 @@ function App({ capabilities } = {}) {
     closeMore,
     confirmDiscard,
     cancelDiscard,
-    discardSettingsAndNavigate,
     resetNavigation,
     completeNavigation,
   } = useNavigationController({
@@ -236,8 +230,8 @@ function App({ capabilities } = {}) {
     checkoutPending: requestKey === 'order:create',
     dirtyOrder: newOrderDirty,
     onDiscardOrder: invalidateNewOrderDraft,
-    getSettingsDraft: (destination) => getSettingsDraftForDestination(businessSettingsRef.current?.resources, destination),
-    onDiscardSettings: (_resourceKey, draft) => businessSettingsRef.current?.discard(draft.resource, draft.scopeId),
+    getNavigationDraft: policyNavigationBridge.getNavigationDraft,
+    discardNavigationDraft: policyNavigationBridge.discardNavigationDraft,
     onFeedback: setToastMessage,
   })
   const operationalLegacyBridges = useMemo(() => ({
@@ -383,8 +377,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     setNewOrderIds(new Set())
     knownOperationalOrderIdsRef.current = undefined; alertedOrderIdsRef.current = new Set(); dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowPrintingSettings(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
-    setSettingsConflictReview(null)
+    invalidateNewOrderDraft(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -484,35 +477,6 @@ function App({ capabilities } = {}) {
   const handleLogout = async () => {
     try { await handleSessionLogout() } catch (error) { showApiError(error) }
   }
-
-  const businessSettings = useBusinessSettingsController({
-    context: effectiveConfigOwner,
-    storage: typeof window === 'undefined' ? undefined : window.sessionStorage,
-    onFeedback: (feedback) => {
-      if (feedback?.status === 401) showApiError(feedback)
-      else if (feedback?.message) setToastMessage(feedback.message)
-    },
-    onSessionExpired: expireSession,
-    onConflictReview: setSettingsConflictReview,
-  })
-  const printingSettings = usePrintingSettingsController({ businessSettings, printing })
-  useEffect(() => { businessSettingsRef.current = businessSettings }, [businessSettings])
-  const settingsUnloadRisk = hasSettingsUnloadRisk(businessSettings.resources)
-  useEffect(() => {
-    if (!settingsUnloadRisk || typeof window === 'undefined') return undefined
-    const warnBeforeUnload = (event) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warnBeforeUnload)
-    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
-  }, [settingsUnloadRisk])
-  const acceptSettingsConflict = useCallback((choices) => {
-    if (!settingsConflictReview) return false
-    const accepted = businessSettings.acceptConflictReview(settingsConflictReview, choices)
-    if (accepted) setSettingsConflictReview(null)
-    return accepted
-  }, [businessSettings, settingsConflictReview])
 
   const playKitchenNewOrderSound = async () => {
     if (typeof window === 'undefined') return
@@ -1109,6 +1073,17 @@ function App({ capabilities } = {}) {
       toastMessage={toastMessage}
       successMessage={successMessage}
     >
+      <SettingsPolicyBoundary
+        effectiveConfigOwner={effectiveConfigOwner}
+        storage={typeof window === 'undefined' ? undefined : window.sessionStorage}
+        navigationBridge={policyNavigationBridge}
+        onFeedback={(feedback) => {
+          if (feedback?.status === 401) showApiError(feedback)
+          else if (feedback?.message) setToastMessage(feedback.message)
+        }}
+        onSessionExpired={expireSession}
+        onPolicyCommitted={() => effectiveConfig.refresh()}
+      >
       <NavigationProvider activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
       <AppShell onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
@@ -1122,29 +1097,20 @@ function App({ capabilities } = {}) {
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} paymentOptions={paymentOptions} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
         {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransferComanda} onTransfer={handleTransferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
-        {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <Settings section={activeTab} settings={printingSettings} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} operationSettings={businessSettings} businessSettings={businessSettings} onSettingsConflictReview={setSettingsConflictReview} onSuccessMessage={showSuccessMessage} onCancelOperation={() => discardSettingsAndNavigate('settings-home')} onCancelPayment={() => discardSettingsAndNavigate('settings-home')} />}
+        {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSuccessMessage={showSuccessMessage} />}
 
         {pendingDestination && (
-          <Modal title={pendingDiscardKind === 'settings' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>
+          <Modal title={pendingDiscardKind === 'policy' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>
             <div className="form-stack">
-              <p>{pendingDiscardKind === 'settings'
+              <p>{pendingDiscardKind === 'policy'
                 ? 'As alterações ainda não salvas serão descartadas.'
                 : 'As informações preenchidas e os produtos adicionados serão descartados.'}</p>
               <div className="form-actions">
-                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>{pendingDiscardKind === 'settings' ? 'Continuar editando' : 'Continuar na venda'}</Button>
-                <Button type="button" onClick={confirmDiscard}>{pendingDiscardKind === 'settings' ? 'Descartar alterações' : 'Descartar venda'}</Button>
+                <Button type="button" variant="secondary" onClick={handleCancelDiscard}>{pendingDiscardKind === 'policy' ? 'Continuar editando' : 'Continuar na venda'}</Button>
+                <Button type="button" onClick={confirmDiscard}>{pendingDiscardKind === 'policy' ? 'Descartar alterações' : 'Descartar venda'}</Button>
               </div>
             </div>
           </Modal>
-        )}
-
-        {settingsConflictReview && (
-          <SettingsConflictReview
-            key={settingsConflictReview.reviewId || settingsConflictReview.currentRevision}
-            review={settingsConflictReview}
-            onAccept={acceptSettingsConflict}
-            onClose={() => setSettingsConflictReview(null)}
-          />
         )}
 
         {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={visiblePaymentOptions} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div>{paymentMethodNeedsReview && <p className="form-error" role="alert">A forma escolhida não está mais ativa. Revise a seleção antes de confirmar.</p>}<div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked || !paymentMethod || paymentMethodNeedsReview}>Confirmar pagamento</Button></div></form></Modal>}
@@ -1154,9 +1120,9 @@ function App({ capabilities } = {}) {
         {canManageProducts && showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
         <MovementDialog open={canManageMovements && movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
         <OpeningBalanceDialog open={canManageMovements && openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
-        {showPrintingSettings && <PrintingSettings printing={printing} settings={printingSettings} granted={granted} onClose={() => setShowPrintingSettings(false)} />}
       </AppShell>
       </NavigationProvider>
+      </SettingsPolicyBoundary>
 
       {recoveryPromptEligible && physicalPrinterReady && recoveryDialogMode === 'prompt' && (
         <Modal title="Impressora disponível novamente" onClose={() => { void handleDeferRecovery() }}>

@@ -14,16 +14,15 @@ test('theme persistence reports a storage failure instead of returning a success
 test('device page offers only light dark automatic and sound without any settings API write', async (t) => {
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
-  const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'),
+  const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
+    h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
     h.load('/src/components/ThemeProvider.jsx'),
   ])
   let sound = true
   let settingsCalls = 0
   globalThis.fetch = async () => { settingsCalls += 1; throw new Error('device preferences must not use settings API') }
   const DevicePage = () => React.createElement(ThemeProvider, null,
-    React.createElement(Settings, {
-      section: 'settings-device', granted: new Set(['preferences.local']), implemented: new Set(['settings-device']),
+    React.createElement(DevicePreferences, {
       onNavigate() {}, soundEnabled: sound,
       onSoundEnabledChange(value) { sound = value; h.localStorage.setItem('kitchen-sound-enabled', String(value)); return true },
     }))
@@ -47,15 +46,14 @@ test('device page presents the approved local-preferences layout and confirms su
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36',
   })
   h.document.documentElement.dataset = {}
-  const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'),
+  const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
+    h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
     h.load('/src/components/ThemeProvider.jsx'),
   ])
   let navigated = null
   let sound = true
   const DevicePage = () => React.createElement(ThemeProvider, null,
-    React.createElement(Settings, {
-      section: 'settings-device', granted: new Set(['preferences.local']), implemented: new Set(['settings-device']),
+    React.createElement(DevicePreferences, {
       onNavigate(value) { navigated = value }, soundEnabled: sound,
       onSoundEnabledChange(value) { sound = value; h.localStorage.setItem('kitchen-sound-enabled', String(value)); return true },
     }))
@@ -83,14 +81,13 @@ test('failed theme or sound storage keeps the safe value and never announces Sav
   h.document.documentElement.dataset = {}
   const originalSetItem = h.localStorage.setItem
   h.localStorage.setItem = () => { throw new Error('blocked') }
-  const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/pages/Settings.jsx'),
+  const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
+    h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
     h.load('/src/components/ThemeProvider.jsx'),
   ])
   let sound = true
   const DevicePage = () => React.createElement(ThemeProvider, null,
-    React.createElement(Settings, {
-      section: 'settings-device', granted: new Set(['preferences.local']), implemented: new Set(['settings-device']),
+    React.createElement(DevicePreferences, {
       onNavigate() {}, soundEnabled: sound,
       onSoundEnabledChange() { return false },
     }))

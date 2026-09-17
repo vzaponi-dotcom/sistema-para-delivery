@@ -62,3 +62,46 @@ test('qz dependency imports in test files do not create production architecture 
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.equal(violations.some((value) => value.includes('qz-direct')), false)
 })
+
+test('policy editing cannot import the concrete Settings surface', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/policy-editing/controller.js', "import { registry } from '../surfaces/settings/policies/registry.js'\n")
+  await write('src/app/surfaces/settings/policies/registry.js', 'export const registry = []\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((value) => value.includes('policy-settings-surface')))
+})
+
+test('policy editing cannot import pages or printing runtime', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/policy-editing/controller.js', "import Settings from '../../pages/Settings.jsx'\nimport { print } from '../../printing/runtime.js'\n")
+  await write('src/pages/Settings.jsx', 'export default null\n')
+  await write('src/printing/runtime.js', 'export const print = () => {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((value) => value.includes('policy-concrete-ui')))
+  assert.ok(violations.some((value) => value.includes('policy-printing')))
+})
+
+test('navigation cannot import the concrete Settings surface', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/navigation/controller.js', "import { registry } from '../surfaces/settings/policies/registry.js'\n")
+  await write('src/app/surfaces/settings/policies/registry.js', 'export const registry = []\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((value) => value.includes('navigation-settings-surface')))
+})
+
+test('C3 legacy Settings owners are rejected even when they are compatibility reexports', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/settingsState.js', "export * from './policy-editing/policyEditingState.js'\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((value) => value.includes('c3-legacy-owner')))
+})
+
+test('App cannot import legacy Settings owners or concrete policy adapters', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import { controller } from './app/useBusinessSettingsController.js'\nimport { registry } from './app/surfaces/settings/policies/registry.js'\n")
+  await write('src/app/useBusinessSettingsController.js', 'export const controller = {}\n')
+  await write('src/app/surfaces/settings/policies/registry.js', 'export const registry = []\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((value) => value.includes('app-c3-legacy-owner')))
+  assert.ok(violations.some((value) => value.includes('app-settings-policy')))
+})

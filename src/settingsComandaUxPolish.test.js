@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const settingsControlsCss = readFileSync(new URL('./settings-controls.css', import.meta.url), 'utf8')
-const settingsControlsSource = readFileSync(new URL('./components/SettingsControls.jsx', import.meta.url), 'utf8')
+const settingsControlsSource = readFileSync(new URL('./app/surfaces/settings/components/SettingsBackAndSwitchControls.jsx', import.meta.url), 'utf8')
 const comandasCss = readFileSync(new URL('./comandas.css', import.meta.url), 'utf8')
 
 const ruleBody = (css, selector) => {

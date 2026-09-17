@@ -77,7 +77,7 @@ test('theme is initialized before the React app renders', () => {
 
 test('global provider exposes persistent Claro Escuro and Automático controls', () => {
   const provider = optionalSource('./components/ThemeProvider.jsx')
-  const settings = source('./pages/Settings.jsx')
+  const settings = source('./app/surfaces/settings/local/DevicePreferences.jsx')
 
   assert.match(provider, /themePreference/)
   assert.match(provider, /saveThemePreference/)

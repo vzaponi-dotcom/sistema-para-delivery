@@ -19,7 +19,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 |---|---|---|---|---|
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | **HOMOLOGATED — MERGE GATE** | `feature/spec-c2-navigation-composition` / PR #46 draft | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
-| C3 | Settings surface + generic policy editing engine | **BLOCKED by C2 merge** | — | Write after C2 merge |
+| C3 | Settings surface + generic policy editing engine | **STAGING DEPLOYED — MANUAL QA BLOCKED** | `feature/spec-c3-settings-surface` / no PR | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | NOT STARTED | — | Write after C3 merge |
 | C5 | Table Service | NOT STARTED | — | Write after C4 merge |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |

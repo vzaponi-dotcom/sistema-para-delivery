@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { createPrintingSettingsAdapter } from './app/usePrintingSettingsController.js'
+import { createPrintingSettingsAdapter } from './app/surfaces/settings/printingSettingsAdapter.js'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const response = (payload, status = 200) => ({
@@ -19,8 +19,8 @@ test('printing adapter keeps canonical resources independent without local remot
     'stationConfiguration:station-1': { status: 'ready', confirmed: { data: { name: 'Cozinha', platform: 'windows', autoPrintEnabled: false } } },
     stationPrimary: { status: 'ready', confirmed: { data: { primaryStationId: null } } },
   }
-  const businessSettings = {
-    getResources: () => resources,
+  const policyEditing = {
+    resources,
     edit(resource, data, scopeId) { calls.push(['edit', resource, scopeId, data]); return true },
     save(resource, scopeId) { calls.push(['save', resource, scopeId]); return true },
   }
@@ -29,7 +29,7 @@ test('printing adapter keeps canonical resources independent without local remot
     localStation: { id: 'station-1' },
     selectPrinter(name) { localCalls.push(name); return name },
   }
-  const adapter = createPrintingSettingsAdapter({ businessSettings, printing })
+  const adapter = createPrintingSettingsAdapter({ policyEditing, printing })
   adapter.editPolicy({ orderDefaultCopies: 2, tableTabDefaultCopies: 2 })
   await adapter.savePolicy()
   await adapter.savePrinter('Fila B')
@@ -42,16 +42,23 @@ test('printing adapter keeps canonical resources independent without local remot
 
 test('printing route loads policy station configuration and primary through businessSettings', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Settings } = await h.load('/src/pages/Settings.jsx')
+  const [{ default: SettingsSurface }, { PolicyEditingContext }] = await Promise.all([
+    h.load('/src/app/surfaces/settings/SettingsSurface.jsx'),
+    h.load('/src/app/policy-editing/policyEditingContext.js'),
+  ])
   const loads = []
-  const businessSettings = { load(resource, scopeId) { loads.push([resource, scopeId]); return true } }
+  const policyEditing = {
+    resources: {}, load(resource, scopeId) { loads.push([resource, scopeId]); return true },
+    edit() {}, save() {}, discard() {}, reconcile() {}, reviewConflict() {},
+    activeConflict: null, acceptActiveConflict() {}, dismissActiveConflict() {}, reset() {},
+  }
   const printing = { transportKind: 'queue-only', localStation: { id: 'station-1', name: 'Tablet', platform: 'android' }, jobs: [] }
-  const settings = createPrintingSettingsAdapter({ businessSettings, printing })
-  await h.render(Settings, {
-    section: 'settings-printing', settings, printing, businessSettings,
+  await h.render(PolicyEditingContext.Provider, { value: policyEditing, children: React.createElement(SettingsSurface, {
+    section: 'settings-printing', printing,
     granted: new Set(['printing.settings.view', 'printing.station.view']),
     implemented: new Set(['settings-printing']), onNavigate() {},
-  })
+    soundEnabled: true, onSoundEnabledChange() {}, onSuccessMessage() {},
+  }) })
   await act(async () => new Promise((resolve) => setImmediate(resolve)))
   assert.deepEqual(loads, [
     ['printingPolicy', undefined],

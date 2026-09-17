@@ -19,7 +19,7 @@ test('production styles define fluid desktop/tablet cards and the mobile stacked
 
 test('an 80-character catalog name wraps while its actions remain reachable', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: SettingsItemList } = await h.load('/src/components/SettingsItemList.jsx')
+  const { default: SettingsItemList } = await h.load('/src/app/surfaces/settings/components/SettingsItemList.jsx')
   const longName = 'Categoria financeira com nome longo '.padEnd(80, 'X')
   const screen = await h.render(SettingsItemList, {
     label: 'Categorias', items: [{ id: 'long', label: longName }],

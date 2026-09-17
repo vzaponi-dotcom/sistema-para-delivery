@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
@@ -22,8 +23,8 @@ async function mountNavigation(t, initial = {}) {
       checkoutPending: false,
       dirtyOrder: false,
       onDiscardOrder() {},
-      getSettingsDraft: () => draft,
-      onDiscardSettings: (resourceKey) => discarded.push(resourceKey),
+      getNavigationDraft: () => draft,
+      discardNavigationDraft: (resourceKey) => discarded.push(resourceKey),
       onFeedback: (message) => feedback.push(message),
     })
     React.useImperativeHandle(ref, () => navigation, [navigation])
@@ -33,13 +34,14 @@ async function mountNavigation(t, initial = {}) {
   return { h, api, renderer, Probe, discarded, feedback }
 }
 
-test('leaving a dirty settings editor waits for discard while cancel preserves the exact draft', async (t) => {
+test('leaving a dirty policy editor waits for discard while cancel preserves the exact draft', async (t) => {
   const fixture = await mountNavigation(t)
   const original = dirtyDraft
   await act(async () => fixture.api.current.requestNavigation('settings-printing'))
   await act(async () => fixture.api.current.requestNavigation('clients'))
   assert.equal(fixture.api.current.activeTab, 'settings-printing')
   assert.equal(fixture.api.current.pendingDestination, 'clients')
+  assert.equal(fixture.api.current.pendingDiscardKind, 'policy')
   await act(async () => fixture.api.current.cancelDiscard())
   assert.equal(fixture.api.current.activeTab, 'settings-printing')
   assert.deepEqual(fixture.discarded, [])
@@ -82,7 +84,7 @@ test('discard and duplicate decisions perform one discard and one navigation int
   assert.deepEqual(fixture.discarded, ['operations'])
 })
 
-test('destinations in the same settings aggregate preserve the draft without confirmation', async (t) => {
+test('destinations in the same policy aggregate preserve the draft without confirmation', async (t) => {
   const draft = { ...dirtyDraft, destinations: new Set(['settings-printing', 'settings-device']) }
   const fixture = await mountNavigation(t, { draft })
   await act(async () => fixture.api.current.requestNavigation('settings-printing'))
@@ -94,20 +96,7 @@ test('destinations in the same settings aggregate preserve the draft without con
   assert.deepEqual(fixture.discarded, [])
 })
 
-test('explicit settings cancellation discards once and navigates immediately', async (t) => {
-  const fixture = await mountNavigation(t)
-  await act(async () => fixture.api.current.requestNavigation('settings-printing'))
-
-  let navigated
-  await act(async () => { navigated = fixture.api.current.discardSettingsAndNavigate('clients') })
-
-  assert.equal(navigated, true)
-  assert.equal(fixture.api.current.activeTab, 'clients')
-  assert.equal(fixture.api.current.pendingDestination, null)
-  assert.deepEqual(fixture.discarded, ['operations'])
-})
-
-test('saving or unconfirmed settings commitments can navigate without discard or another write decision', async (t) => {
+test('saving or unconfirmed policy commitments can navigate without discard or another write decision', async (t) => {
   for (const status of ['saving', 'unconfirmed']) {
     const fixture = await mountNavigation(t, { draft: { ...dirtyDraft, status } })
     await act(async () => fixture.api.current.requestNavigation('settings-printing'))
@@ -120,11 +109,28 @@ test('saving or unconfirmed settings commitments can navigate without discard or
   }
 })
 
-test('beforeunload risk exists only for dirty drafts or relevant pending commitments', async (t) => {
-  const h = await workspaceHarness(t)
-  const { hasSettingsUnloadRisk } = await h.load('/src/app/navigation/settingsDraftGuard.js')
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'ready' } }), false)
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: true, status: 'ready' } }), true)
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'saving' } }), true)
-  assert.equal(hasSettingsUnloadRisk({ operations: { dirty: false, status: 'unconfirmed' } }), true)
+test('App delegates Settings ownership to the policy boundary and surface', async () => {
+  const app = await readFile(new URL('./App.jsx', import.meta.url), 'utf8')
+
+  for (const legacyOwner of [
+    'useBusinessSettingsController',
+    'usePrintingSettingsController',
+    'businessSettings.resources',
+    'businessSettingsRef',
+    'settingsConflictReview',
+    'getSettingsDraftForDestination',
+    'hasSettingsUnloadRisk',
+    "'./pages/Settings'",
+  ]) assert.equal(app.includes(legacyOwner), false, `${legacyOwner} stays App-owned`)
+
+  assert.match(app, /SettingsPolicyBoundary/)
+  assert.match(app, /SettingsSurface/)
+  assert.match(app, /createPolicyNavigationBridge/)
+})
+
+test('navigation exposes only the generic policy draft contract', async (t) => {
+  const fixture = await mountNavigation(t)
+  assert.equal(typeof fixture.api.current.getNavigationDraft, 'undefined')
+  assert.equal(typeof fixture.api.current.discardNavigationDraft, 'undefined')
+  assert.equal(typeof fixture.api.current.discardSettingsAndNavigate, 'undefined')
 })

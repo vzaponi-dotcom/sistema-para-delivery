@@ -3,6 +3,28 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SOURCE_EXTENSIONS = new Set(['.js', '.jsx', '.mjs'])
+const C3_LEGACY_SETTINGS_OWNERS = new Set([
+  'src/pages/Settings.jsx',
+  'src/pages/SettingsHome.jsx',
+  'src/pages/OperationSettings.jsx',
+  'src/pages/PaymentSettings.jsx',
+  'src/pages/CancellationSettings.jsx',
+  'src/pages/FinanceCategorySettings.jsx',
+  'src/pages/paymentSettingsModel.js',
+  'src/app/settingsState.js',
+  'src/app/settingsConflict.js',
+  'src/app/settingsConflictPresentation.js',
+  'src/app/settingsPendingStorage.js',
+  'src/app/useBusinessSettingsController.js',
+  'src/app/usePrintingSettingsController.js',
+  'src/app/navigation/settingsDraftGuard.js',
+  'src/api/settingsClient.js',
+  'src/components/SettingsControls.jsx',
+  'src/components/SettingsConflictReview.jsx',
+  'src/components/SettingsEditorShell.jsx',
+  'src/components/SettingsItemDialog.jsx',
+  'src/components/SettingsItemList.jsx',
+])
 const IMPORT_PATTERNS = [
   /\bimport\s+(?:[^'"()]*?\s+from\s+)?['"]([^'"]+)['"]/g,
   /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
@@ -71,7 +93,12 @@ const exactAllowed = (allowlist, key, value) => Array.isArray(allowlist?.[key]) 
 
 export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) => {
   const edges = await collectImportEdges(rootDir)
+  const sourcePaths = new Set((await listSourceFiles(path.join(rootDir, 'src'))).map((file) => repoRelative(rootDir, file)))
   const violations = []
+
+  for (const legacyOwner of C3_LEGACY_SETTINGS_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c3-legacy-owner: ${legacyOwner}`)
+  }
 
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
@@ -108,6 +135,31 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && !edge.from.startsWith('src/infrastructure/qz/')
       && !exactAllowed(allowlist, 'qzDirectImports', edge.from)) {
       violations.push(`qz-direct: ${edge.from} -> qz-tray`)
+    }
+
+    if (edge.from.startsWith('src/app/policy-editing/')) {
+      if (edge.resolvedPath?.startsWith('src/app/surfaces/settings/')) {
+        violations.push(`policy-settings-surface: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+      if (edge.resolvedPath?.startsWith('src/pages/') || edge.resolvedPath?.startsWith('src/components/Settings')) {
+        violations.push(`policy-concrete-ui: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+      if (edge.resolvedPath?.startsWith('src/printing/')) {
+        violations.push(`policy-printing: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+    }
+
+    if (edge.from.startsWith('src/app/navigation/') && edge.resolvedPath?.startsWith('src/app/surfaces/settings/')) {
+      violations.push(`navigation-settings-surface: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from === 'src/App.jsx') {
+      if (C3_LEGACY_SETTINGS_OWNERS.has(edge.resolvedPath)) {
+        violations.push(`app-c3-legacy-owner: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+      if (edge.resolvedPath?.startsWith('src/app/surfaces/settings/policies/')) {
+        violations.push(`app-settings-policy: ${edge.from} -> ${edge.resolvedPath}`)
+      }
     }
   }
 

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
-import { buildSettingsConflict } from './app/settingsConflict.js'
+import { buildPolicyConflict } from './app/policy-editing/policyConflict.js'
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const effective = (items, revision = 8) => ({ version: 'finance-v8', revisions: { financeCategories: revision }, financeCategories: { items } })
@@ -98,7 +98,7 @@ test('first-use conflict preserves a finance rename intention for explicit revie
   const base = { revision: 1, data, meta: { items: { marketing: { isSystem: false, usedEver: false, canRename: true, canDelete: true } } } }
   const draft = { items: [{ ...data.items[0], label: 'Publicidade' }] }
   const current = { revision: 2, data, meta: { items: { marketing: { isSystem: false, usedEver: true, canRename: false, canDelete: false } } } }
-  const review = buildSettingsConflict({ base, draft, current })
+  const review = buildPolicyConflict({ base, draft, current })
   const protectedRename = review.conflicts.find((entry) => entry.kind === 'protected-action')
   assert.ok(protectedRename)
   assert.equal(protectedRename.draft, 'Publicidade')
