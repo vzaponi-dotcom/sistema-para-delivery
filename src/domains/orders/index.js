@@ -53,3 +53,7 @@ export {
   cancellationOptionsWithSelection,
   cancellationSelectionNeedsReview,
 } from './domain/cancellationReasonOptions.js'
+export { useKitchenClock } from './application/useKitchenClock.js'
+export { useOrderArrivals } from './application/useOrderArrivals.js'
+export { buildKitchenQueueModel } from './domain/kitchenQueue.js'
+export { buildKitchenItemSummary, buildKitchenTimingCopy, getKitchenItemNotes } from './domain/kitchenTicket.js'

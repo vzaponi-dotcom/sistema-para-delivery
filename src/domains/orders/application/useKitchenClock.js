@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { scheduleKitchenTransitions } from '../utils/kitchenClock.js'
+import { scheduleKitchenTransitions } from '../domain/kitchenClock.js'
 
 export const getKitchenNowForRender = (storedNow, active, getNow = () => new Date()) => (
   active ? getNow() : storedNow
