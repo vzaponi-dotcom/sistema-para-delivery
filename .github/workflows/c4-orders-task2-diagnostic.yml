@@ -1,0 +1,134 @@
+name: C4 Orders Task 2 Diagnostic
+
+on:
+  push:
+    branches:
+      - automation/c4-orders-executor
+    paths:
+      - .github/workflows/c4-orders-task2-diagnostic.yml
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose-task2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact C4 Task 2 HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: dfb11f04421db24491711abc04ed11c0ddad9557
+          fetch-depth: 0
+
+      - name: Assert branch and master safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dfb11f04421db24491711abc04ed11c0ddad9557"
+          git fetch origin master feature/spec-c4-orders automation/c4-orders-executor
+          test "$(git rev-parse origin/feature/spec-c4-orders)" = "dfb11f04421db24491711abc04ed11c0ddad9557"
+          test "$(git rev-parse origin/master)" = "737beeac2150aabeb39024af823f2f60fee25108"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused Task 2 diagnostics
+        id: focused
+        shell: bash
+        run: |
+          set -u
+          mkdir -p /tmp/c4-task2
+          : > /tmp/c4-task2/focused.txt
+          overall=0
+          tests=(
+            src/domains/orders/application/useOrderArrivals.test.js
+            src/domains/orders/application/useKitchenClock.test.js
+            src/domains/orders/domain/kitchenClock.test.js
+            src/domains/orders/domain/kitchenQueue.test.js
+            src/domains/orders/domain/kitchenTicket.test.js
+            src/domains/orders/domain/orderRealtime.test.js
+            src/pages/OrdersScheduled.test.js
+            src/pages/OrdersMultiItem.test.js
+          )
+          for test_file in "${tests[@]}"; do
+            echo "===== $test_file =====" | tee -a /tmp/c4-task2/focused.txt
+            set +e
+            node --test "$test_file" >> /tmp/c4-task2/focused.txt 2>&1
+            status=$?
+            set -e
+            echo "STATUS=$status" | tee -a /tmp/c4-task2/focused.txt
+            if [ "$status" -ne 0 ]; then overall=1; fi
+          done
+          echo "focused_status=$overall" >> "$GITHUB_OUTPUT"
+          cat /tmp/c4-task2/focused.txt
+
+      - name: Run full suite diagnostic
+        id: full
+        shell: bash
+        run: |
+          set -u
+          set +e
+          npm test > /tmp/c4-task2/full-suite.txt 2>&1
+          status=$?
+          set -e
+          echo "full_status=$status" >> "$GITHUB_OUTPUT"
+          tail -n 300 /tmp/c4-task2/full-suite.txt
+
+      - name: Run architecture and diff diagnostics
+        id: broad
+        shell: bash
+        run: |
+          set -u
+          set +e
+          npm run test:architecture > /tmp/c4-task2/architecture.txt 2>&1
+          architecture_status=$?
+          git diff --check > /tmp/c4-task2/diff-check.txt 2>&1
+          diff_status=$?
+          set -e
+          echo "architecture_status=$architecture_status" >> "$GITHUB_OUTPUT"
+          echo "diff_status=$diff_status" >> "$GITHUB_OUTPUT"
+
+      - name: Persist diagnostic evidence on auxiliary branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "feature_head=dfb11f04421db24491711abc04ed11c0ddad9557"
+            echo "focused_status=${{ steps.focused.outputs.focused_status }}"
+            echo "full_status=${{ steps.full.outputs.full_status }}"
+            echo "architecture_status=${{ steps.broad.outputs.architecture_status }}"
+            echo "diff_status=${{ steps.broad.outputs.diff_status }}"
+            echo
+            echo '===== FOCUSED ====='
+            cat /tmp/c4-task2/focused.txt
+            echo
+            echo '===== FULL SUITE ====='
+            cat /tmp/c4-task2/full-suite.txt
+            echo
+            echo '===== ARCHITECTURE ====='
+            cat /tmp/c4-task2/architecture.txt
+            echo
+            echo '===== DIFF CHECK ====='
+            cat /tmp/c4-task2/diff-check.txt
+          } > /tmp/c4-task2/task2-diagnostic.txt
+
+          rm -rf /tmp/c4-task2-aux
+          git worktree add -B automation/c4-orders-executor /tmp/c4-task2-aux origin/automation/c4-orders-executor
+          mkdir -p /tmp/c4-task2-aux/diagnostics
+          cp /tmp/c4-task2/task2-diagnostic.txt /tmp/c4-task2-aux/diagnostics/task2-diagnostic.txt
+          cd /tmp/c4-task2-aux
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add diagnostics/task2-diagnostic.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: record c4 task2 diagnostics'
+            git push origin HEAD:automation/c4-orders-executor
+          fi
+
+      - name: Enforce diagnostic gates
+        shell: bash
+        run: |
+          test "${{ steps.focused.outputs.focused_status }}" = "0"
+          test "${{ steps.full.outputs.full_status }}" = "0"
+          test "${{ steps.broad.outputs.architecture_status }}" = "0"
+          test "${{ steps.broad.outputs.diff_status }}" = "0"
