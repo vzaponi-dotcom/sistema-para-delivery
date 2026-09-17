@@ -7,7 +7,7 @@ const readOptional = async (relativePath) => read(relativePath).catch(() => '')
 
 test('desktop settings tables do not clip their three-dot action menus', async () => {
   const css = await readOptional('../settings-table-polish.css')
-  const shell = await read('../components/SettingsEditorShell.jsx')
+  const shell = await read('../app/surfaces/settings/components/SettingsEditorShell.jsx')
 
   assert.match(shell, /settings-table-polish\.css/)
   assert.match(css, /\.payment-settings-table[\s\S]*\.cancellation-settings-table[\s\S]*\.finance-category-table\s*\{[^}]*overflow:\s*visible;/s)
