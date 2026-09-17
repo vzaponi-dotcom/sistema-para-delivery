@@ -43,6 +43,7 @@ Focused Settings/policy/navigation/printing regression coverage was green during
 | Exact executable SHA pushed | PASS | Executable `17673b66774a1b532fc22972603407dcbb932bad` is present in the remote branch history. |
 | Validate workflow on branch HEAD | PASS | `Validate application` #1216 / run `35176245887`, `workflow_dispatch`, head SHA `8b01af19a4f74fd4725394860edd6a85d50d4915`; all jobs green. |
 | Validate workflow ID/number/jobs | PASS | Job `validate` ID `105058483558`; tests, architecture, lint, build, Worker dry-runs, local D1 and Spec B D1 gate all passed. |
+| Post-documentation Validate | PASS | `Validate application` #1217 / run `35176750253`, `workflow_dispatch`, head SHA `7dc646b`; all jobs green. |
 
 ## Staging deployment
 
