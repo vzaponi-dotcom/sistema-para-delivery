@@ -3,13 +3,13 @@ import test from 'node:test'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buildSettingsConflict } from '../app/settingsConflict.js'
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
-import { adminFixture } from '../test-support/settingsFixtures.js'
+import { buildPolicyConflict } from '../../../policy-editing/policyConflict.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../../test-support/renderWorkspace.js'
+import { adminFixture } from '../../../../test-support/settingsFixtures.js'
 
 test('operation review renders only friendly field differences without raw JSON', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const base = structuredClone(adminFixture.data)
   const current = structuredClone(base)
   const draft = structuredClone(base)
@@ -22,7 +22,7 @@ test('operation review renders only friendly field differences without raw JSON'
   draft.enabledModalities = ['Retirada', 'Local']
   current.defaultModality = 'Local'
   draft.defaultModality = 'Retirada'
-  const review = { ...buildSettingsConflict({ base, current, draft }), resource: 'operations' }
+  const review = { ...buildPolicyConflict({ base, current, draft }), resource: 'operations' }
   const renderer = await h.render(SettingsConflictReview, { review, onAccept() {}, onClose() {} })
   const content = nodeText(renderer.root)
 
@@ -45,13 +45,13 @@ test('operation review renders only friendly field differences without raw JSON'
 
 test('a single operation difference is the only review card and receives initial focus', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const base = structuredClone(adminFixture.data)
   const current = structuredClone(base)
   const draft = structuredClone(base)
   current.timing.scheduledPrepLeadMinutes += 1
   draft.timing.scheduledPrepLeadMinutes += 2
-  const review = { ...buildSettingsConflict({ base, current, draft }), resource: 'operations' }
+  const review = { ...buildPolicyConflict({ base, current, draft }), resource: 'operations' }
   const renderer = await h.render(SettingsConflictReview, { review, onAccept() {}, onClose() {} })
 
   assert.equal(renderer.root.findAllByType('fieldset').length, 1)
@@ -60,7 +60,7 @@ test('a single operation difference is the only review card and receives initial
 })
 
 test('operation conflict modal contains long values without horizontal overflow', async () => {
-  const css = await readFile(new URL('../settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../../settings.css', import.meta.url), 'utf8')
   assert.match(css, /\.settings-conflict-modal\s*\{[^}]*width:\s*min\(760px, 100%\)[^}]*max-width:\s*100%/s)
   assert.match(css, /\.settings-conflict-review\.is-operations\s*\{[^}]*min-width:\s*0[^}]*overflow-x:\s*hidden/s)
   assert.match(css, /\.settings-conflict-choices\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s)
@@ -70,10 +70,10 @@ test('operation conflict modal contains long values without horizontal overflow'
 
 test('review without collisions still waits for an explicit click and never saves', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const accepted = []
   let writes = 0
-  const review = buildSettingsConflict({
+  const review = buildPolicyConflict({
     base: { late: 30, grace: 15 },
     draft: { late: 25, grace: 15 },
     current: { late: 30, grace: 10 },
@@ -97,9 +97,9 @@ test('review without collisions still waits for an explicit click and never save
 
 test('a real collision has no destructive default and applies the selected side', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const accepted = []
-  const review = buildSettingsConflict({ base: { late: 30 }, draft: { late: 25 }, current: { late: 35 } })
+  const review = buildPolicyConflict({ base: { late: 30 }, draft: { late: 25 }, current: { late: 35 } })
   const renderer = await h.render(SettingsConflictReview, { review, onAccept: (value) => accepted.push(value), onClose() {} })
   const apply = () => buttonNamed(renderer.root, 'Aplicar revisão')
 
@@ -113,9 +113,9 @@ test('a real collision has no destructive default and applies the selected side'
 
 test('a newly protected item explains the change and does not offer the illegal draft action', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const item = { id: 'custom', label: 'Personalizado', active: true, sortOrder: 0 }
-  const review = buildSettingsConflict({
+  const review = buildPolicyConflict({
     base: { data: { items: [item] }, revision: 1, meta: { items: { custom: { canRename: true, canDelete: true } } } },
     draft: { items: [] },
     current: { data: { items: [item] }, revision: 2, meta: { items: { custom: { usedEver: true, canRename: false, canDelete: false } } } },
@@ -129,10 +129,10 @@ test('a newly protected item explains the change and does not offer the illegal 
 
 test('primary station conflict stays human-readable and preserves the selected station id', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const accepted = []
   const review = {
-    ...buildSettingsConflict({
+    ...buildPolicyConflict({
       base: { primaryStationId: 'station-base' },
       current: { primaryStationId: 'station-remote' },
       draft: { primaryStationId: 'station-local' },
@@ -161,10 +161,10 @@ test('primary station conflict stays human-readable and preserves the selected s
 
 test('printing policy review without collisions explains the automatic merge without raw JSON', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const accepted = []
   const review = {
-    ...buildSettingsConflict({
+    ...buildPolicyConflict({
       base: { orderDefaultCopies: 1, tableTabDefaultCopies: 1 },
       current: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 },
       draft: { orderDefaultCopies: 2, tableTabDefaultCopies: 1 },
@@ -191,10 +191,10 @@ test('printing policy review without collisions explains the automatic merge wit
 
 test('station configuration conflicts use business labels instead of internal field names', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   const accepted = []
   const review = {
-    ...buildSettingsConflict({
+    ...buildPolicyConflict({
       base: { name: 'Cozinha', platform: 'windows', autoPrintEnabled: false },
       current: { name: 'Balcão', platform: 'windows', autoPrintEnabled: false },
       draft: { name: 'Expedição', platform: 'windows', autoPrintEnabled: false },
@@ -221,11 +221,11 @@ test('station configuration conflicts use business labels instead of internal fi
 
 test('double click accepts one review decision while the first callback is pending', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsConflictReview } = await h.load('/src/components/SettingsConflictReview.jsx')
+  const { default: SettingsConflictReview } = await h.load('/src/app/surfaces/settings/components/SettingsConflictReview.jsx')
   let releases
   let calls = 0
   const pending = new Promise((resolve) => { releases = resolve })
-  const review = buildSettingsConflict({ base: { late: 30 }, draft: { late: 25 }, current: { late: 30 } })
+  const review = buildPolicyConflict({ base: { late: 30 }, draft: { late: 25 }, current: { late: 30 } })
   const renderer = await h.render(SettingsConflictReview, { review, onAccept: async () => { calls += 1; await pending }, onClose() {} })
   const apply = buttonNamed(renderer.root, 'Aplicar revisão')
 

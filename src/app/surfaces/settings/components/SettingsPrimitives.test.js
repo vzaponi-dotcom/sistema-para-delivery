@@ -2,11 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
 
-import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../../test-support/renderWorkspace.js'
 
 test('editor shell presents readonly values without editable save actions', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   const screen = await h.render(SettingsEditorShell, {
     title: 'Categorias financeiras', description: 'Categorias usadas em lançamentos.', scope: 'Todo o negócio',
     effectiveNotice: 'Vale para novos lançamentos.', state: { status: 'ready' }, readOnly: true,
@@ -21,7 +21,7 @@ test('editor shell presents readonly values without editable save actions', asyn
 
 test('editor shell announces controller errors accessibly', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   const screen = await h.render(SettingsEditorShell, {
     title: 'Operação', description: 'Tempos da cozinha.', scope: 'Todo o negócio', effectiveNotice: '',
     state: { status: 'error', error: new Error('Conexão indisponível.') }, readOnly: false,
@@ -33,7 +33,7 @@ test('editor shell announces controller errors accessibly', async (t) => {
 
 test('editor shell exposes a pending-draft status without saving automatically', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   let saves = 0
   const screen = await h.render(SettingsEditorShell, {
     title: 'Operação', description: 'Tempos da cozinha.', scope: 'Todo o negócio', effectiveNotice: '',
@@ -47,7 +47,7 @@ test('editor shell exposes a pending-draft status without saving automatically',
 
 test('editor shell announces loading, saving, unconfirmed and conflict states, and invokes explicit actions', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   const messages = {
     loading: /Carregando configurações/,
     saving: /Salvando alterações/,
@@ -76,7 +76,7 @@ test('editor shell announces loading, saving, unconfirmed and conflict states, a
 
 test('editor shell exposes only controller-valid recovery actions for blocked and failed states', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsEditorShell } = await h.load('/src/components/SettingsEditorShell.jsx')
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
   const calls = []
   const props = {
     title: 'Operação', description: 'Tempos da cozinha.', scope: 'Todo o negócio', effectiveNotice: '', readOnly: false,
@@ -111,7 +111,7 @@ test('editor shell exposes only controller-valid recovery actions for blocked an
 
 test('item dialog changes the draft through onAdd and never calls save itself', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemDialog } = await h.load('/src/components/SettingsItemDialog.jsx')
+  const { default: SettingsItemDialog } = await h.load('/src/app/surfaces/settings/components/SettingsItemDialog.jsx')
   const additions = []
   let saves = 0
   const screen = await h.render(SettingsItemDialog, {
@@ -128,7 +128,7 @@ test('item dialog changes the draft through onAdd and never calls save itself', 
 
 test('finance dialog uses the existing modal Escape close and focus restoration behavior', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemDialog } = await h.load('/src/components/SettingsItemDialog.jsx')
+  const { default: SettingsItemDialog } = await h.load('/src/app/surfaces/settings/components/SettingsItemDialog.jsx')
   let closed = 0
   let restored = 0
   h.document.activeElement = { focus: () => { restored += 1 } }
@@ -146,7 +146,7 @@ test('finance dialog uses the existing modal Escape close and focus restoration 
 
 test('finance dialog selects income or expense and returns only a draft item', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemDialog } = await h.load('/src/components/SettingsItemDialog.jsx')
+  const { default: SettingsItemDialog } = await h.load('/src/app/surfaces/settings/components/SettingsItemDialog.jsx')
   const additions = []
   let closed = 0
   const screen = await h.render(SettingsItemDialog, {
@@ -167,7 +167,7 @@ test('finance dialog selects income or expense and returns only a draft item', a
 
 test('item dialog keeps validation failures open and announces the duplicate', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemDialog } = await h.load('/src/components/SettingsItemDialog.jsx')
+  const { default: SettingsItemDialog } = await h.load('/src/app/surfaces/settings/components/SettingsItemDialog.jsx')
   let closed = 0
   const screen = await h.render(SettingsItemDialog, {
     open: true, kind: 'cancellation', initialValue: '',
@@ -184,7 +184,7 @@ test('item dialog keeps validation failures open and announces the duplicate', a
 
 test('item dialog associates validation errors and returns focus to the invalid name', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemDialog } = await h.load('/src/components/SettingsItemDialog.jsx')
+  const { default: SettingsItemDialog } = await h.load('/src/app/surfaces/settings/components/SettingsItemDialog.jsx')
   let focused = 0
   const screen = await h.render(SettingsItemDialog, {
     open: true, kind: 'cancellation', initialValue: '',
@@ -207,7 +207,7 @@ test('item dialog associates validation errors and returns focus to the invalid 
 
 test('item dialog reports an empty name instead of exposing a dead submit action', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemDialog } = await h.load('/src/components/SettingsItemDialog.jsx')
+  const { default: SettingsItemDialog } = await h.load('/src/app/surfaces/settings/components/SettingsItemDialog.jsx')
   const screen = await h.render(SettingsItemDialog, {
     open: true, kind: 'cancellation', initialValue: '', onAdd() {}, onClose() {},
   })
@@ -220,7 +220,7 @@ test('item dialog reports an empty name instead of exposing a dead submit action
 
 test('item list keeps disabled action reasons available to keyboard users', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: SettingsItemList } = await h.load('/src/components/SettingsItemList.jsx')
+  const { default: SettingsItemList } = await h.load('/src/app/surfaces/settings/components/SettingsItemList.jsx')
   const screen = await h.render(SettingsItemList, {
     label: 'Motivos de cancelamento', items: [{ id: 'other', label: 'Outro', active: true }],
     getActions: () => [{ id: 'delete', label: 'Excluir', disabledReason: 'Motivo nativo protegido.' }], onAction() {},
@@ -235,7 +235,7 @@ test('item list keeps disabled action reasons available to keyboard users', asyn
 
 test('mobile harness renders settings items as actionable rows instead of a squeezed table', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: SettingsItemList } = await h.load('/src/components/SettingsItemList.jsx')
+  const { default: SettingsItemList } = await h.load('/src/app/surfaces/settings/components/SettingsItemList.jsx')
   const calls = []
   const screen = await h.render(SettingsItemList, {
     label: 'Categorias financeiras', items: [{ id: 'delivery', label: 'Taxa de entrega', active: true }],

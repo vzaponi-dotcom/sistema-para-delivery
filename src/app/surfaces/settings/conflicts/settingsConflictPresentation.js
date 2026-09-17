@@ -1,4 +1,4 @@
-import { paymentLabel } from '../../shared/businessPolicies.js'
+import { paymentLabel } from '../../../../../shared/businessPolicies.js'
 
 const PLATFORM_LABELS = Object.freeze({
   windows: 'Windows',
