@@ -30,13 +30,15 @@
 
 ## File ownership map locked by this plan
 
-`src/domains/orders/domain/` will own pure order rules currently spread across `src/utils`: cart/search, lifecycle/refund presentation state, payment eligibility, workflow/date helpers, type options, New Order step flow, cancellation-reason effective-config projection, kitchen queue/ticket/clock rules, and realtime arrival detection.
+`src/domains/orders/domain/` owns pure order rules: cart/search, lifecycle/refund presentation state, payment eligibility, workflow/date helpers, type options, New Order step flow, cancellation-reason effective-config projection, kitchen queue/ticket/clock rules, and realtime arrival detection.
 
-`src/domains/orders/application/` will own `useKitchenClock`, the Cozinha arrival/highlight/sound lifecycle, the New Order draft lifecycle, and finalize/cancel command orchestration.
+`src/domains/orders/application/` owns `useKitchenClock`, Cozinha arrival/highlight/sound lifecycle, New Order draft lifecycle, and finalize/cancel orchestration.
 
-`src/domains/orders/infrastructure/` will own lifecycle HTTP endpoints and the operations/cancellation settings policy adapters. Generic HTTP remains in `src/infrastructure/api/`.
+`src/domains/orders/infrastructure/` owns lifecycle HTTP endpoints and the operations/cancellation settings policy adapters. Generic HTTP remains in `src/infrastructure/api/`.
 
-`src/domains/orders/ui/` will own Cozinha, Histórico, Novo Pedido, and components that have order-only meaning. Generic primitives, `LocalTableSelector`, payment workflow UI, printing runtime, and navigation stay outside the domain.
+`src/domains/orders/ui/` owns Cozinha, Histórico, Novo Pedido, and these order-only components: `CancelOrderDialog`, `KitchenTicket`, `KitchenTicketNotes`, `NewOrderCartSummary`, `NewOrderCustomerStep`, `NewOrderProductsStep`, `NewOrderReviewStep`, `NewOrderStepIndicator`, `OperationalHistoryAnalysis`, `OrderCart`, `OrderCheckoutSummary`, `OrderDetail`, `OrderDetailTiming`, and `OrderProductCatalog`.
+
+Generic primitives, `LocalTableSelector`, payment workflow UI, printing runtime, `OrderTicketPreview`, and navigation stay outside Orders for this slice.
 
 `src/domains/orders/index.js` is the only supported Orders import path for non-Orders code.
 
@@ -48,22 +50,22 @@
 - Create: `src/domains/orders/index.js`
 - Create/Test: `src/domains/orders/ordersPublicContract.test.js`
 - Move: `src/utils/orderCart.js` → `src/domains/orders/domain/orderCart.js`
-- Move: `src/utils/orderCart.test.js` → `src/domains/orders/domain/orderCart.test.js`
+- Move/Test: `src/utils/orderCart.test.js` → `src/domains/orders/domain/orderCart.test.js`
 - Move: `src/utils/orderLifecycle.js` → `src/domains/orders/domain/orderLifecycle.js`
-- Move: `src/utils/orderLifecycle.test.js` → `src/domains/orders/domain/orderLifecycle.test.js`
+- Move/Test: `src/utils/orderLifecycle.test.js` → `src/domains/orders/domain/orderLifecycle.test.js`
 - Move: `src/utils/orderPaymentEligibility.js` → `src/domains/orders/domain/orderPaymentEligibility.js`
-- Move: `src/utils/orderPaymentEligibility.test.js` → `src/domains/orders/domain/orderPaymentEligibility.test.js`
+- Move/Test: `src/utils/orderPaymentEligibility.test.js` → `src/domains/orders/domain/orderPaymentEligibility.test.js`
 - Move: `src/utils/orderWorkflow.js` → `src/domains/orders/domain/orderWorkflow.js`
-- Move: `src/utils/orderWorkflow.test.js` → `src/domains/orders/domain/orderWorkflow.test.js`
+- Move/Test: `src/utils/orderWorkflow.test.js` → `src/domains/orders/domain/orderWorkflow.test.js`
 - Move: `src/utils/orderTypeOptions.js` → `src/domains/orders/domain/orderTypeOptions.js`
 - Move: `src/utils/newOrderStepFlow.js` → `src/domains/orders/domain/newOrderStepFlow.js`
-- Move: `src/utils/newOrderStepFlow.test.js` → `src/domains/orders/domain/newOrderStepFlow.test.js`
+- Move/Test: `src/utils/newOrderStepFlow.test.js` → `src/domains/orders/domain/newOrderStepFlow.test.js`
 - Move: `src/utils/cancellationReasonOptions.js` → `src/domains/orders/domain/cancellationReasonOptions.js`
-- Modify imports in: `src/App.jsx`, `src/pages/NewOrder.jsx`, `src/pages/OrderHistory.jsx`, and current order-specific components/tests that import the moved utilities.
+- Modify imports in: `src/App.jsx`, `src/pages/NewOrder.jsx`, `src/pages/OrderHistory.jsx`, and any current `src/components/*` consumer reported by `rg` before the move.
 
 **Interfaces:**
-- Consumes: `shared/orderTiming.js`, `shared/orderDisplayNumber.js`, and existing capability helpers without copying them.
-- Produces: public named exports from `src/domains/orders/index.js` for any moved rule currently consumed outside Orders; internal Orders code may later import direct domain paths.
+- Consumes: `shared/orderTiming.js`, `shared/orderDisplayNumber.js`, existing capability helpers.
+- Produces: public named exports from `src/domains/orders/index.js` for moved rules consumed outside Orders.
 
 - [ ] **Step 1: Add a failing public-contract characterization test**
 
@@ -82,10 +84,9 @@ import {
   toLocalDateValue,
 } from './index.js'
 
-test('orders public contract exposes the existing pure order rules', () => {
+test('orders public contract exposes existing pure rules', () => {
   const active = { id: 'o-1', status: 'Em preparo', items: [{ name: 'Marmita P' }] }
   const cancelled = { id: 'o-2', status: 'Cancelado', paymentStatus: 'Pago' }
-
   assert.equal(isOrderActive(active), true)
   assert.equal(isOrderCancelled(cancelled), true)
   assert.equal(getOrderRefundState(cancelled), 'pending')
@@ -96,19 +97,15 @@ test('orders public contract exposes the existing pure order rules', () => {
 })
 ```
 
-- [ ] **Step 2: Run the new test and verify RED**
-
-Run:
+- [ ] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/ordersPublicContract.test.js
 ```
 
-Expected: FAIL because `src/domains/orders/index.js` and its exports do not exist yet.
+Expected: FAIL because the Orders public entry point does not exist.
 
-- [ ] **Step 3: Move the files without changing their business logic**
-
-Run:
+- [ ] **Step 3: Move the rule files without changing business logic**
 
 ```bash
 mkdir -p src/domains/orders/domain
@@ -126,9 +123,9 @@ git mv src/utils/newOrderStepFlow.test.js src/domains/orders/domain/newOrderStep
 git mv src/utils/cancellationReasonOptions.js src/domains/orders/domain/cancellationReasonOptions.js
 ```
 
-Update relative `shared/` imports in the moved files from `../../shared/...` to `../../../../shared/...` only where required by the new directory depth.
+Update moved `shared/` relative paths for the new directory depth; preserve the same shared modules.
 
-- [ ] **Step 4: Create the first Orders public entry point**
+- [ ] **Step 4: Create the first public entry point**
 
 Create `src/domains/orders/index.js`:
 
@@ -147,11 +144,7 @@ export {
 } from './domain/orderCart.js'
 export { getOrderRefundState, isOrderActive, isOrderCancelled, isOrderFinished } from './domain/orderLifecycle.js'
 export { canReceiveStandaloneOrder } from './domain/orderPaymentEligibility.js'
-export {
-  formatCancellationDate,
-  formatOrderDate,
-  toLocalDateValue,
-} from './domain/orderWorkflow.js'
+export { formatCancellationDate, formatOrderDate, toLocalDateValue } from './domain/orderWorkflow.js'
 export { ORDER_TYPE_OPTIONS } from './domain/orderTypeOptions.js'
 export {
   NEW_ORDER_STEPS,
@@ -163,34 +156,28 @@ export {
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
 } from './domain/newOrderStepFlow.js'
-export {
-  cancellationOptionsFromEffective,
-  cancellationRevisionFromEffective,
-} from './domain/cancellationReasonOptions.js'
+export { cancellationOptionsFromEffective, cancellationRevisionFromEffective } from './domain/cancellationReasonOptions.js'
 ```
 
-Use the exact export names already present in the moved source files; if `orderWorkflow.js` exports additional current consumers, export those names too rather than recreating wrappers.
+Before committing, compare these names against the moved modules and add any other *currently imported outside Orders* export by its existing name; do not create alias wrappers.
 
-- [ ] **Step 5: Rewrite non-Orders imports to the public boundary**
+- [ ] **Step 5: Rewrite non-Orders consumers to the public entry**
 
-For current non-Orders consumers, replace imports such as:
+Example in App:
 
 ```js
-import { isOrderActive } from './utils/orderLifecycle.js'
-import { getOrderItemsSearchText } from './utils/orderCart.js'
+import {
+  getOrderItemsSearchText,
+  getOrderRefundState,
+  isOrderActive,
+  isOrderCancelled,
+  toLocalDateValue,
+} from './domains/orders/index.js'
 ```
 
-with:
-
-```js
-import { getOrderItemsSearchText, isOrderActive } from './domains/orders/index.js'
-```
-
-and use the equivalent relative public-index import from files under `src/pages/` and `src/components/`. Do not create compatibility reexport files under `src/utils/`.
+Use the equivalent relative `domains/orders/index.js` import from current pages/components. Do not create `src/utils` reexports.
 
 - [ ] **Step 6: Run focused rule tests**
-
-Run:
 
 ```bash
 node --test \
@@ -202,11 +189,9 @@ node --test \
   src/domains/orders/domain/newOrderStepFlow.test.js
 ```
 
-Expected: PASS, with no order-rule file left at the moved `src/utils/` paths.
+Expected: PASS.
 
 - [ ] **Step 7: Verify old imports are gone**
-
-Run:
 
 ```bash
 rg "utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)" src
@@ -214,7 +199,7 @@ rg "utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderT
 
 Expected: no output.
 
-- [ ] **Step 8: Commit Task 1**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components src/utils
@@ -227,27 +212,25 @@ git commit -m "refactor: establish orders domain rules"
 
 **Files:**
 - Move: `src/utils/kitchenClock.js` → `src/domains/orders/domain/kitchenClock.js`
-- Move: `src/utils/kitchenClock.test.js` → `src/domains/orders/domain/kitchenClock.test.js`
+- Move/Test: `src/utils/kitchenClock.test.js` → `src/domains/orders/domain/kitchenClock.test.js`
 - Move: `src/utils/kitchenQueue.js` → `src/domains/orders/domain/kitchenQueue.js`
-- Move: `src/utils/kitchenQueue.test.js` → `src/domains/orders/domain/kitchenQueue.test.js`
+- Move/Test: `src/utils/kitchenQueue.test.js` → `src/domains/orders/domain/kitchenQueue.test.js`
 - Move: `src/utils/kitchenTicket.js` → `src/domains/orders/domain/kitchenTicket.js`
-- Move: `src/utils/kitchenTicket.test.js` → `src/domains/orders/domain/kitchenTicket.test.js`
+- Move/Test: `src/utils/kitchenTicket.test.js` → `src/domains/orders/domain/kitchenTicket.test.js`
 - Move: `src/utils/orderRealtime.js` → `src/domains/orders/domain/orderRealtime.js`
-- Move: `src/utils/orderRealtime.test.js` → `src/domains/orders/domain/orderRealtime.test.js`
+- Move/Test: `src/utils/orderRealtime.test.js` → `src/domains/orders/domain/orderRealtime.test.js`
 - Move: `src/hooks/useKitchenClock.js` → `src/domains/orders/application/useKitchenClock.js`
-- Move: `src/hooks/useKitchenClock.test.js` → `src/domains/orders/application/useKitchenClock.test.js`
+- Move/Test: `src/hooks/useKitchenClock.test.js` → `src/domains/orders/application/useKitchenClock.test.js`
 - Create: `src/domains/orders/infrastructure/browserOrderAlert.js`
 - Create: `src/domains/orders/application/useOrderArrivals.js`
 - Create/Test: `src/domains/orders/application/useOrderArrivals.test.js`
-- Modify: `src/domains/orders/index.js`
-- Modify: `src/App.jsx`
-- Modify current Cozinha components/tests that import kitchen utilities.
+- Modify: `src/domains/orders/index.js`, `src/App.jsx`, current Cozinha components/tests.
 
 **Interfaces:**
-- Consumes: official `orders[]`, `now`, `active`, and external/local `soundEnabled`.
-- Produces: `useKitchenClock(orders, { active, currentTiming })`; `useOrderArrivals({ active, orders, now, soundEnabled, playSound? })` returning `{ newOrderIds, previewSound, reset }`.
+- Consumes: official `orders[]`, `now`, `active`, external/local `soundEnabled`.
+- Produces: `useKitchenClock(orders, { active, currentTiming })` and `useOrderArrivals({ active, orders, now, soundEnabled, playSound, setTimeoutFn, clearTimeoutFn })` returning `{ newOrderIds, previewSound, reset }`.
 
-- [ ] **Step 1: Write the failing arrival lifecycle test**
+- [ ] **Step 1: Write failing arrival lifecycle test**
 
 Create `src/domains/orders/application/useOrderArrivals.test.js`:
 
@@ -260,16 +243,17 @@ import { useOrderArrivals } from './useOrderArrivals.js'
 
 const activeOrder = (id) => ({ id, status: 'Em preparo', orderDate: '2026-09-17' })
 
-test('useOrderArrivals establishes a baseline, alerts once, and clears highlight', async () => {
+test('arrival baseline does not alert, then a new order alerts once and highlights', async () => {
   const sounds = []
+  const timers = []
   let latest
   let renderer
-  const timers = []
-  const setTimeoutFn = (fn) => { timers.push(fn); return timers.length }
-  const clearTimeoutFn = () => {}
-
   function Probe(props) {
-    latest = useOrderArrivals({ ...props, setTimeoutFn, clearTimeoutFn })
+    latest = useOrderArrivals({
+      ...props,
+      setTimeoutFn: (fn) => { timers.push(fn); return timers.length },
+      clearTimeoutFn: () => {},
+    })
     return null
   }
 
@@ -284,12 +268,7 @@ test('useOrderArrivals establishes a baseline, alerts once, and clears highlight
   assert.deepEqual([...latest.newOrderIds], ['2'])
   assert.equal(sounds.length, 1)
 
-  await act(async () => {
-    renderer.update(<Probe active orders={[activeOrder('1'), activeOrder('2')]} now={new Date('2026-09-17T12:00:02-03:00')} soundEnabled playSound={() => sounds.push('sound')} />)
-  })
-  assert.equal(sounds.length, 1)
-
-  await act(async () => { timers.at(-1)?.() })
+  await act(async () => { timers.at(-1)() })
   assert.deepEqual([...latest.newOrderIds], [])
   renderer.unmount()
 })
@@ -301,9 +280,9 @@ test('useOrderArrivals establishes a baseline, alerts once, and clears highlight
 node --test src/domains/orders/application/useOrderArrivals.test.js
 ```
 
-Expected: FAIL because `useOrderArrivals.js` does not exist.
+Expected: FAIL because the hook does not exist.
 
-- [ ] **Step 3: Move the existing kitchen rules and hook**
+- [ ] **Step 3: Move existing pure rules/hook**
 
 ```bash
 mkdir -p src/domains/orders/application src/domains/orders/infrastructure
@@ -319,16 +298,15 @@ git mv src/hooks/useKitchenClock.js src/domains/orders/application/useKitchenClo
 git mv src/hooks/useKitchenClock.test.js src/domains/orders/application/useKitchenClock.test.js
 ```
 
-Update moved-file relative imports so they continue to consume `shared/orderTiming.js` rather than copying timing constants.
+Fix only relative import paths; `shared/orderTiming.js` remains the timing source.
 
-- [ ] **Step 4: Add the browser sound adapter**
+- [ ] **Step 4: Add browser alert adapter**
 
-Create `src/domains/orders/infrastructure/browserOrderAlert.js` with a module-scoped player factory:
+Create `src/domains/orders/infrastructure/browserOrderAlert.js`:
 
 ```js
 export const createBrowserOrderAlertPlayer = ({ windowObject = globalThis.window } = {}) => {
   let context = null
-
   const ensureContext = () => {
     const AudioContextClass = windowObject?.AudioContext || windowObject?.webkitAudioContext
     if (!AudioContextClass) return null
@@ -342,7 +320,7 @@ export const createBrowserOrderAlertPlayer = ({ windowObject = globalThis.window
     try {
       if (audio.state === 'suspended') await audio.resume()
       if (audio.state !== 'running') return false
-      const playTone = (frequency, delay) => {
+      const tone = (frequency, delay) => {
         const oscillator = audio.createOscillator()
         const gain = audio.createGain()
         const startsAt = audio.currentTime + delay
@@ -356,8 +334,8 @@ export const createBrowserOrderAlertPlayer = ({ windowObject = globalThis.window
         oscillator.start(startsAt)
         oscillator.stop(startsAt + 0.2)
       }
-      playTone(784, 0)
-      playTone(988, 0.16)
+      tone(784, 0)
+      tone(988, 0.16)
       return true
     } catch {
       return false
@@ -381,9 +359,9 @@ export const createBrowserOrderAlertPlayer = ({ windowObject = globalThis.window
 }
 ```
 
-- [ ] **Step 5: Implement `useOrderArrivals` using the existing pure detector**
+- [ ] **Step 5: Implement `useOrderArrivals`**
 
-Create `src/domains/orders/application/useOrderArrivals.js` so that it:
+Create `src/domains/orders/application/useOrderArrivals.js`:
 
 ```js
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -401,39 +379,40 @@ export function useOrderArrivals({
   clearTimeoutFn = globalThis.clearTimeout,
 }) {
   const player = useMemo(() => createBrowserOrderAlertPlayer(), [])
-  const play = playSound || player.play
-  const knownIdsRef = useRef(undefined)
-  const alertedIdsRef = useRef(new Set())
+  const playRef = useRef(playSound || player.play)
+  const knownRef = useRef(undefined)
+  const alertedRef = useRef(new Set())
   const timerRef = useRef(null)
   const [newOrderIds, setNewOrderIds] = useState(() => new Set())
+  useEffect(() => { playRef.current = playSound || player.play }, [playSound, player])
 
   const reset = useCallback(() => {
-    knownIdsRef.current = undefined
-    alertedIdsRef.current = new Set()
+    knownRef.current = undefined
+    alertedRef.current = new Set()
     if (timerRef.current) clearTimeoutFn(timerRef.current)
     timerRef.current = null
     setNewOrderIds(new Set())
   }, [clearTimeoutFn])
 
-  const previewSound = useCallback(() => play(), [play])
+  const previewSound = useCallback(() => playRef.current(), [])
 
   useEffect(() => {
     if (!active) {
-      knownIdsRef.current = undefined
+      knownRef.current = undefined
       return
     }
-    const { currentIds, newIds } = detectOperationalArrivals(knownIdsRef.current, orders, now, alertedIdsRef.current)
-    knownIdsRef.current = currentIds
+    const { currentIds, newIds } = detectOperationalArrivals(knownRef.current, orders, now, alertedRef.current)
+    knownRef.current = currentIds
     if (!newIds.length) return
-    newIds.forEach((id) => alertedIdsRef.current.add(id))
+    newIds.forEach((id) => alertedRef.current.add(id))
     setNewOrderIds((current) => new Set([...current, ...newIds]))
-    if (soundEnabled) void play()
+    if (soundEnabled) void playRef.current()
     if (timerRef.current) clearTimeoutFn(timerRef.current)
     timerRef.current = setTimeoutFn(() => {
       setNewOrderIds(new Set())
       timerRef.current = null
     }, highlightDurationMs)
-  }, [active, clearTimeoutFn, highlightDurationMs, now, orders, play, setTimeoutFn, soundEnabled])
+  }, [active, clearTimeoutFn, highlightDurationMs, now, orders, setTimeoutFn, soundEnabled])
 
   useEffect(() => {
     if (!soundEnabled || !globalThis.window) return undefined
@@ -455,20 +434,17 @@ export function useOrderArrivals({
 }
 ```
 
-If React dependency identity causes repeated effects, stabilize `play` with a ref/callback without changing the public return shape.
+- [ ] **Step 6: Export and integrate**
 
-- [ ] **Step 6: Export the operational API from `index.js` and integrate App**
-
-Export:
+Add to `index.js`:
 
 ```js
 export { useKitchenClock } from './application/useKitchenClock.js'
 export { useOrderArrivals } from './application/useOrderArrivals.js'
 export { buildKitchenQueueModel } from './domain/kitchenQueue.js'
-export * from './domain/kitchenTicket.js'
 ```
 
-In `App.jsx`, replace the old arrival refs/state/effects and audio context with:
+Replace App-owned arrival refs/audio/timer effects with:
 
 ```js
 const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders', currentTiming })
@@ -476,17 +452,12 @@ const {
   newOrderIds,
   previewSound: previewKitchenOrderSound,
   reset: resetOrderArrivals,
-} = useOrderArrivals({
-  active: activeTab === 'orders',
-  orders,
-  now: kitchenNow,
-  soundEnabled: kitchenSoundEnabled,
-})
+} = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, soundEnabled: kitchenSoundEnabled })
 ```
 
-Keep `readKitchenSoundPreference` and localStorage persistence in App. When enabling sound, call `void previewKitchenOrderSound()` instead of App-owned WebAudio code. During business/session clear, call `resetOrderArrivals()` instead of mutating arrival refs.
+Keep localStorage preference persistence in App. When enabling sound, call `void previewKitchenOrderSound()`. On session/business clear, call `resetOrderArrivals()`.
 
-- [ ] **Step 7: Run focused Cozinha tests**
+- [ ] **Step 7: Run focused tests**
 
 ```bash
 node --test \
@@ -502,7 +473,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit Task 2**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components src/hooks src/utils
@@ -511,43 +482,40 @@ git commit -m "refactor: move kitchen operations into orders"
 
 ---
 
-### Task 3: Move lifecycle HTTP endpoints into Orders and inject the runtime read port
+### Task 3: Move lifecycle HTTP endpoints into Orders and inject runtime read port
 
 **Files:**
 - Create: `src/domains/orders/infrastructure/ordersApi.js`
 - Create/Test: `src/domains/orders/infrastructure/ordersApi.test.js`
 - Modify: `src/domains/orders/index.js`
-- Modify: `src/app/runtime/data/useOperationalDataRuntime.js`
-- Modify/Test: `src/app/runtime/data/useOperationalDataRuntime.test.js`
-- Modify: `src/api/client.js` to remove `getOrders` now; keep create/status/cancel temporarily until Task 7 migrates their final consumer.
+- Modify/Test: `src/app/runtime/data/useOperationalDataRuntime.js`, `src/app/runtime/data/useOperationalDataRuntime.test.js`
+- Modify: `src/api/client.js` to remove only `getOrders` in this task.
 
 **Interfaces:**
-- Produces `createOrdersApi({ request, json, randomUUID })` and singleton `ordersApi` with exact methods `getOrders`, `createOrder`, `updateOrderStatus`, `cancelOrder`.
-- Runtime consumes `ordersApi.getOrders` through the Orders public index; polling cadence remains runtime-owned.
+- Produces `createOrdersApi({ request, json, randomUUID })` and singleton `ordersApi` with `getOrders`, `createOrder`, `updateOrderStatus`, `cancelOrder`.
+- Runtime consumes `ordersApi.getOrders`; polling stays runtime-owned.
 
-- [ ] **Step 1: Write the failing Orders API contract test**
+- [ ] **Step 1: Write failing adapter test**
 
-Create `src/domains/orders/infrastructure/ordersApi.test.js`:
+Create `ordersApi.test.js`:
 
 ```js
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createOrdersApi } from './ordersApi.js'
 
-test('orders api preserves lifecycle endpoints and idempotency header', async () => {
+test('orders api preserves lifecycle routes and idempotency', async () => {
   const calls = []
-  const request = async (path, options) => { calls.push([path, options]); return { ok: true } }
+  const request = async (path, options = {}) => { calls.push([path, options]); return { ok: true } }
   const json = (method, body) => ({ method, body: JSON.stringify(body), headers: { 'content-type': 'application/json' } })
   const api = createOrdersApi({ request, json, randomUUID: () => 'generated-key' })
-
   await api.getOrders()
   await api.createOrder({ client: 'Ana' })
   await api.updateOrderStatus('order / 1')
   await api.cancelOrder('order / 1', { reasonId: 'r-1' })
-
   assert.equal(calls[0][0], '/api/orders')
-  assert.equal(calls[1][0], '/api/orders')
   assert.equal(calls[1][1].headers['idempotency-key'], 'generated-key')
+  assert.equal(calls[1][1].headers['content-type'], 'application/json')
   assert.equal(calls[2][0], '/api/orders/order%20%2F%201/status')
   assert.equal(JSON.parse(calls[2][1].body).status, 'Finalizado')
   assert.equal(calls[3][0], '/api/orders/order%20%2F%201/cancel')
@@ -560,28 +528,24 @@ test('orders api preserves lifecycle endpoints and idempotency header', async ()
 node --test src/domains/orders/infrastructure/ordersApi.test.js
 ```
 
-Expected: FAIL because `ordersApi.js` does not exist.
+Expected: FAIL because the adapter does not exist.
 
-- [ ] **Step 3: Implement the Orders API adapter**
+- [ ] **Step 3: Implement adapter**
 
-Create `src/domains/orders/infrastructure/ordersApi.js`:
+Create `ordersApi.js`:
 
 ```js
 import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
 
-export const createOrdersApi = ({
-  request = apiRequest,
-  json = withJson,
-  randomUUID = () => crypto.randomUUID(),
-} = {}) => Object.freeze({
+export const createOrdersApi = ({ request = apiRequest, json = withJson, randomUUID = () => crypto.randomUUID() } = {}) => Object.freeze({
   getOrders: () => request('/api/orders'),
-  createOrder: (order, idempotencyKey = randomUUID()) => request('/api/orders', {
-    ...json('POST', order),
-    headers: {
-      ...json('POST', order).headers,
-      'idempotency-key': idempotencyKey,
-    },
-  }),
+  createOrder: (order, idempotencyKey = randomUUID()) => {
+    const options = json('POST', order)
+    return request('/api/orders', {
+      ...options,
+      headers: { ...(options.headers || {}), 'idempotency-key': idempotencyKey },
+    })
+  },
   updateOrderStatus: (id, status = 'Finalizado') => request(
     `/api/orders/${encodeURIComponent(id)}/status`,
     json('PATCH', { status }),
@@ -595,61 +559,48 @@ export const createOrdersApi = ({
 export const ordersApi = createOrdersApi()
 ```
 
-Avoid calling `json('POST', order)` twice in production code by assigning it once before spreading; preserve both the JSON content-type header and idempotency header.
+- [ ] **Step 4: Export and inject into runtime**
 
-- [ ] **Step 4: Export the adapter through the public boundary**
-
-Add to `src/domains/orders/index.js`:
+Add:
 
 ```js
 export { createOrdersApi, ordersApi } from './infrastructure/ordersApi.js'
 ```
 
-- [ ] **Step 5: Make runtime consume the Orders read port**
-
-In `useOperationalDataRuntime.js`, change the default imports/adapter to:
+In runtime:
 
 ```js
 import { getBootstrap } from '../../../api/client.js'
 import { ordersApi } from '../../../domains/orders/index.js'
-
 const defaultApi = { getBootstrap, getOrders: ordersApi.getOrders }
 ```
 
-Do not change `ORDER_SYNC_INTERVAL_MS`, `createRefreshSubscription`, `refreshOrders`, sync-guard checks, or 401 handoff.
+Do not change `refreshOrders`, sync guards, or timing constants.
 
-- [ ] **Step 6: Add a runtime regression assertion**
+- [ ] **Step 5: Add runtime regression assertion**
 
-In `useOperationalDataRuntime.test.js`, add/retain a test using an injected API with `getOrders` that verifies a stale read cannot replace a later mutation and that the dedicated interval remains `2_000`. The assertion must include:
+In `useOperationalDataRuntime.test.js`, assert:
 
 ```js
 assert.equal(ORDER_SYNC_INTERVAL_MS, 2_000)
 ```
 
-and must verify `refreshOrders()` uses the injected `getOrders` rather than a concrete endpoint.
+and use an injected `{ getBootstrap, getOrders }` fake to verify `refreshOrders()` applies the injected result and stale reads still lose to later mutations.
 
-- [ ] **Step 7: Remove only the migrated read export from `src/api/client.js`**
+- [ ] **Step 6: Remove only legacy `getOrders` export**
 
-Delete:
+Delete `export const getOrders = () => apiRequest('/api/orders')` from `src/api/client.js`. Keep create/status/cancel there temporarily until Task 7 closes their last consumer.
 
-```js
-export const getOrders = () => apiRequest('/api/orders')
-```
-
-Keep `createOrder`, `updateOrderStatus`, and `cancelOrder` until Task 7 so there is no broken intermediate App import. Do not touch payment/refund/payment-promise/printing/table-tab APIs.
-
-- [ ] **Step 8: Run focused tests**
+- [ ] **Step 7: Run tests**
 
 ```bash
-node --test \
-  src/domains/orders/infrastructure/ordersApi.test.js \
-  src/app/runtime/data/useOperationalDataRuntime.test.js
+node --test src/domains/orders/infrastructure/ordersApi.test.js src/app/runtime/data/useOperationalDataRuntime.test.js
 npm run test:architecture
 ```
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit Task 3**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/app/runtime/data src/api/client.js
@@ -661,41 +612,34 @@ git commit -m "refactor: move orders api behind domain port"
 ### Task 4: Transfer Operations and Cancellation policy ownership into Orders
 
 **Files:**
-- Create: `src/infrastructure/api/policyHttp.js`
+- Move: `src/app/surfaces/settings/policies/policyHttp.js` → `src/infrastructure/api/policyHttp.js`
 - Create/Test: `src/infrastructure/api/policyHttp.test.js`
 - Create: `src/domains/orders/infrastructure/operationsPolicy.js`
 - Create: `src/domains/orders/infrastructure/cancellationReasonsPolicy.js`
 - Modify: `src/domains/orders/index.js`
-- Modify: `src/app/surfaces/settings/policies/registry.js`
-- Modify: `src/app/surfaces/settings/policies/paymentMethodsPolicy.js`
-- Modify: `src/app/surfaces/settings/policies/financeCategoriesPolicy.js`
-- Modify: `src/app/surfaces/settings/policies/printingPolicy.js` only if it imports helpers from the old `policyHttp.js`.
+- Modify: `src/app/surfaces/settings/policies/registry.js`, `paymentMethodsPolicy.js`, `financeCategoriesPolicy.js`, `printingPolicy.js`
 - Modify/Test: `src/app/surfaces/settings/policies/policyAdapters.test.js`
-- Delete: `src/app/surfaces/settings/policies/operationsPolicy.js`
-- Delete: `src/app/surfaces/settings/policies/cancellationReasonsPolicy.js`
-- Delete: `src/app/surfaces/settings/policies/policyHttp.js`
+- Delete: old Settings-owned `operationsPolicy.js`, `cancellationReasonsPolicy.js`.
 
 **Interfaces:**
-- Generic infrastructure produces `createPathPolicyAdapter`, `validatePolicyScope`, `loadPolicyReceipt`, `getJson`, and `putJson` without concrete resource knowledge.
-- Orders public boundary produces `operationsPolicy` and `cancellationReasonsPolicy`.
-- Settings registry continues to expose the same resource IDs and editor behavior.
+- Generic infra produces `createPathPolicyAdapter`, `validatePolicyScope`, `loadPolicyReceipt`, `getJson`, `putJson`.
+- Orders public entry produces `operationsPolicy`, `cancellationReasonsPolicy`.
 
-- [ ] **Step 1: Write the failing ownership test**
+- [ ] **Step 1: Write failing ownership assertion**
 
 Add to `policyAdapters.test.js`:
 
 ```js
 import { cancellationReasonsPolicy, operationsPolicy } from '../../../../domains/orders/index.js'
 
-test('operations and cancellation policies are supplied by the Orders public boundary', () => {
+test('operations and cancellation policies come from Orders', () => {
   assert.equal(getSettingsPolicy('operations'), operationsPolicy)
   assert.equal(getSettingsPolicy('cancellationReasons'), cancellationReasonsPolicy)
   assert.deepEqual(operationsPolicy.destinations, ['settings-operations', 'settings-modalities'])
-  assert.equal(cancellationReasonsPolicy.capability, 'cancellations.settings.view')
+  assert.equal(operationsPolicy.capability, 'operations.settings.view')
+  assert.equal(cancellationReasonsPolicy.capability, 'orders.settings.view')
 })
 ```
-
-Use the exact capability currently declared in the existing cancellation policy file if it differs; do not change capability semantics.
 
 - [ ] **Step 2: Run RED**
 
@@ -703,38 +647,41 @@ Use the exact capability currently declared in the existing cancellation policy 
 node --test src/app/surfaces/settings/policies/policyAdapters.test.js
 ```
 
-Expected: FAIL because the Orders public boundary does not yet export those adapters.
+Expected: FAIL because Orders does not export the adapters.
 
-- [ ] **Step 3: Move the generic HTTP adapter out of Settings**
+- [ ] **Step 3: Move generic policy HTTP helper**
 
-Copy the current logic from `src/app/surfaces/settings/policies/policyHttp.js` into `src/infrastructure/api/policyHttp.js`, changing only its HTTP import to:
+```bash
+git mv src/app/surfaces/settings/policies/policyHttp.js src/infrastructure/api/policyHttp.js
+```
+
+Change its first import to:
 
 ```js
 import { apiRequest, withJson } from './httpClient.js'
 ```
 
-Preserve the current error codes, exact scope messages, receipt URL construction, envelope normalization, and `createPathPolicyAdapter` contract.
+Preserve all current scope error codes/messages, envelope logic, and receipt URL behavior.
 
-Add `src/infrastructure/api/policyHttp.test.js` with assertions for scoped/unscoped validation and receipt URL encoding, for example:
+Create `policyHttp.test.js`:
 
 ```js
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { validatePolicyScope } from './policyHttp.js'
 
-test('policy HTTP scope validation preserves existing error codes', () => {
+test('generic policy transport keeps scope error contracts', () => {
   assert.throws(() => validatePolicyScope({ scoped: true }), { code: 'SETTINGS_SCOPE_REQUIRED' })
   assert.throws(() => validatePolicyScope({ scoped: false }, 'station-1'), { code: 'SETTINGS_SCOPE_INVALID' })
 })
 ```
 
-- [ ] **Step 4: Create the Orders-owned concrete adapters**
+- [ ] **Step 4: Create Orders-owned policy adapters**
 
-Create `src/domains/orders/infrastructure/operationsPolicy.js`:
+`operationsPolicy.js`:
 
 ```js
 import { createPathPolicyAdapter } from '../../../infrastructure/api/policyHttp.js'
-
 export const operationsPolicy = createPathPolicyAdapter({
   id: 'operations',
   path: '/api/settings/operations',
@@ -743,35 +690,35 @@ export const operationsPolicy = createPathPolicyAdapter({
 })
 ```
 
-Create `src/domains/orders/infrastructure/cancellationReasonsPolicy.js` with the same values currently present in the Settings-owned adapter, using `createPathPolicyAdapter` from generic infrastructure.
-
-- [ ] **Step 5: Update the public boundary and Settings registry**
-
-Export from `src/domains/orders/index.js`:
+`cancellationReasonsPolicy.js`:
 
 ```js
-export { operationsPolicy } from './infrastructure/operationsPolicy.js'
-export { cancellationReasonsPolicy } from './infrastructure/cancellationReasonsPolicy.js'
+import { createPathPolicyAdapter } from '../../../infrastructure/api/policyHttp.js'
+export const cancellationReasonsPolicy = createPathPolicyAdapter({
+  id: 'cancellationReasons',
+  path: '/api/settings/cancellation-reasons',
+  destinations: Object.freeze(['settings-cancellations']),
+  capability: 'orders.settings.view',
+})
 ```
 
-Update Settings registry imports to:
+- [ ] **Step 5: Wire Settings through the Orders public entry**
+
+Add exports in `index.js`, then change `registry.js` to:
 
 ```js
 import { cancellationReasonsPolicy, operationsPolicy } from '../../../../domains/orders/index.js'
 ```
 
-Update payment/finance/printing policy files to import generic helpers from `src/infrastructure/api/policyHttp.js` via the correct relative path.
+Update the remaining Settings policies to import generic policy HTTP helpers from `src/infrastructure/api/policyHttp.js` at the correct relative depth.
 
-- [ ] **Step 6: Delete the former Settings-owned adapters/factory**
+- [ ] **Step 6: Delete old concrete policy files**
 
 ```bash
-git rm \
-  src/app/surfaces/settings/policies/operationsPolicy.js \
-  src/app/surfaces/settings/policies/cancellationReasonsPolicy.js \
-  src/app/surfaces/settings/policies/policyHttp.js
+git rm src/app/surfaces/settings/policies/operationsPolicy.js src/app/surfaces/settings/policies/cancellationReasonsPolicy.js
 ```
 
-- [ ] **Step 7: Run policy regression tests**
+- [ ] **Step 7: Run regressions**
 
 ```bash
 node --test \
@@ -783,9 +730,9 @@ node --test \
 npm run test:architecture
 ```
 
-Expected: PASS with the same Settings resource behavior.
+Expected: PASS.
 
-- [ ] **Step 8: Commit Task 4**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/infrastructure/api src/domains/orders src/app/surfaces/settings
@@ -803,38 +750,32 @@ git commit -m "refactor: move order policies to orders domain"
 
 **Interfaces:**
 - Produces `createNewOrderDraftController({ randomUUID })`.
-- Controller public methods: `open(context)`, `discard()`, `setDirty(value)`, `beginSubmit()`, `isCurrent(token)`, `complete(token)`, `snapshot()`.
-- `snapshot()` returns `{ context, dirty, renderKey }`; implementation-only generation and idempotency details stay hidden except inside the opaque submit token.
+- Methods: `open(context)`, `discard()`, `setDirty(value)`, `beginSubmit()`, `isCurrent(token)`, `complete(token)`, `snapshot()`.
+- `snapshot()` exposes only `{ context, dirty, renderKey }`; generation/idempotency stay internal or in opaque submit tokens.
 
-- [ ] **Step 1: Write the failing controller tests**
-
-Create `src/domains/orders/application/newOrderDraft.test.js`:
+- [ ] **Step 1: Write failing controller tests**
 
 ```js
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createNewOrderDraftController } from './newOrderDraft.js'
 
-test('new order draft owns generation, idempotency, dirtiness and stale invalidation', () => {
+test('draft owns generation, idempotency, dirtiness, and stale invalidation', () => {
   const ids = ['key-1', 'key-2']
   const controller = createNewOrderDraftController({ randomUUID: () => ids.shift() })
-
   assert.deepEqual(controller.snapshot(), { context: null, dirty: false, renderKey: null })
-  controller.open({ returnDestination: 'orders', tableId: '', expectedTableTabId: '' })
+  controller.open({ returnDestination: 'orders' })
   controller.setDirty(true)
   const first = controller.beginSubmit()
-
-  assert.equal(controller.snapshot().dirty, true)
   assert.equal(first.idempotencyKey, 'key-1')
   assert.equal(controller.isCurrent(first), true)
-
   controller.open({ returnDestination: 'comandas', tableId: 't-1', expectedTableTabId: 'tab-1' })
   assert.equal(controller.isCurrent(first), false)
   assert.equal(controller.snapshot().dirty, false)
   assert.equal(controller.beginSubmit().idempotencyKey, 'key-2')
 })
 
-test('discard and complete invalidate the current token', () => {
+test('complete clears only the current draft', () => {
   const controller = createNewOrderDraftController({ randomUUID: () => 'key' })
   controller.open({ returnDestination: 'orders' })
   const token = controller.beginSubmit()
@@ -850,65 +791,40 @@ test('discard and complete invalidate the current token', () => {
 node --test src/domains/orders/application/newOrderDraft.test.js
 ```
 
-Expected: FAIL because `newOrderDraft.js` does not exist.
+Expected: FAIL.
 
-- [ ] **Step 3: Implement the controller**
-
-Create `newOrderDraft.js` with this state model:
+- [ ] **Step 3: Implement controller**
 
 ```js
-const normalizeContext = ({
-  returnDestination = 'orders',
-  tableId = '',
-  expectedTableTabId = '',
-} = {}) => ({ returnDestination, tableId, expectedTableTabId })
+const normalizeContext = ({ returnDestination = 'orders', tableId = '', expectedTableTabId = '' } = {}) => ({
+  returnDestination,
+  tableId,
+  expectedTableTabId,
+})
 
 export const createNewOrderDraftController = ({ randomUUID = () => crypto.randomUUID() } = {}) => {
   let generation = 0
   let current = null
-
   const snapshot = () => ({
     context: current ? { ...current.context } : null,
     dirty: Boolean(current?.dirty),
     renderKey: current ? `new-order:${current.generation}` : null,
   })
-
-  const invalidate = () => {
-    generation += 1
-    current = null
-  }
-
+  const invalidate = () => { generation += 1; current = null }
   return Object.freeze({
     snapshot,
     open(context) {
       generation += 1
-      current = {
-        generation,
-        context: normalizeContext(context),
-        dirty: false,
-        idempotencyKey: randomUUID(),
-      }
+      current = { generation, context: normalizeContext(context), dirty: false, idempotencyKey: randomUUID() }
       return snapshot()
     },
-    discard() {
-      invalidate()
-      return snapshot()
-    },
-    setDirty(value) {
-      if (current) current.dirty = Boolean(value)
-      return snapshot()
-    },
+    discard() { invalidate(); return snapshot() },
+    setDirty(value) { if (current) current.dirty = Boolean(value); return snapshot() },
     beginSubmit() {
       if (!current) return null
-      return Object.freeze({
-        generation: current.generation,
-        idempotencyKey: current.idempotencyKey,
-        context: { ...current.context },
-      })
+      return Object.freeze({ generation: current.generation, idempotencyKey: current.idempotencyKey, context: { ...current.context } })
     },
-    isCurrent(token) {
-      return Boolean(current && token?.generation === current.generation)
-    },
+    isCurrent(token) { return Boolean(current && token?.generation === current.generation) },
     complete(token) {
       if (!current || token?.generation !== current.generation) return false
       invalidate()
@@ -918,25 +834,15 @@ export const createNewOrderDraftController = ({ randomUUID = () => crypto.random
 }
 ```
 
-- [ ] **Step 4: Run GREEN**
+- [ ] **Step 4: Run GREEN and export**
 
 ```bash
 node --test src/domains/orders/application/newOrderDraft.test.js
 ```
 
-Expected: PASS.
+Add `export { createNewOrderDraftController } from './application/newOrderDraft.js'` to `index.js`.
 
-- [ ] **Step 5: Export the controller**
-
-Add:
-
-```js
-export { createNewOrderDraftController } from './application/newOrderDraft.js'
-```
-
-to `src/domains/orders/index.js`.
-
-- [ ] **Step 6: Commit Task 5**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/domains/orders
@@ -945,63 +851,32 @@ git commit -m "feat: own new order draft lifecycle"
 
 ---
 
-### Task 6: Add the New Order application hook and remove draft internals from App
+### Task 6: Add New Order application hook and remove draft internals from App
 
 **Files:**
 - Create: `src/domains/orders/application/useNewOrderDraft.js`
 - Create/Test: `src/domains/orders/application/useNewOrderDraft.test.js`
-- Modify: `src/domains/orders/index.js`
-- Modify/Test: `src/App.jsx`
-- Modify existing App New Order guard tests: `src/AppNewOrderGuard.test.js` and any current New Order navigation regression tests.
+- Modify: `src/domains/orders/index.js`, `src/App.jsx`, `src/AppNewOrderGuard.test.js`.
 
 **Interfaces:**
 - `useNewOrderDraft({ submitOrder, canSubmit, commitOfficialEffects, onCommitted, onSuccess, onError, onConflict })` returns `{ context, renderKey, dirty, checkoutPending, open, discard, setDirty, submit, reset }`.
-- `onCommitted(result, context)` is the external port for C5/printing-origin effects after the official response is committed.
-- `onConflict(context)` is called only for current-draft 409s that carry `expectedTableTabId`.
+- C5 table validation remains outside Orders before `open()`.
 
-- [ ] **Step 1: Write the failing hook test**
+- [ ] **Step 1: Write failing stale-checkout test**
 
-Create `useNewOrderDraft.test.js` with a Probe component and assertions for stale response suppression and success commit:
+Create a React Probe around `useNewOrderDraft`. Test this sequence:
 
 ```js
-import assert from 'node:assert/strict'
-import test from 'node:test'
-import React from 'react'
-import TestRenderer, { act } from 'react-test-renderer'
-import { useNewOrderDraft } from './useNewOrderDraft.js'
-
-test('stale checkout result cannot commit into a replacement draft', async () => {
-  let resolveFirst
-  const committed = []
-  let latest
-  const submitOrder = () => new Promise((resolve) => { resolveFirst = resolve })
-
-  function Probe() {
-    latest = useNewOrderDraft({
-      submitOrder,
-      canSubmit: () => true,
-      commitOfficialEffects: (result) => committed.push(result),
-      onCommitted: () => {},
-      onSuccess: () => {},
-      onError: () => {},
-      onConflict: async () => {},
-    })
-    return null
-  }
-
-  await act(async () => { TestRenderer.create(<Probe />) })
-  await act(async () => { latest.open({ returnDestination: 'orders' }) })
-  let pending
-  await act(async () => { pending = latest.submit({ client: 'Ana' }) })
-  await act(async () => { latest.open({ returnDestination: 'comandas' }) })
-  await act(async () => { resolveFirst({ order: { id: 'o-1', status: 'Em preparo' } }); await pending })
-
-  assert.equal(committed.length, 0)
-  assert.equal(latest.context.returnDestination, 'comandas')
-})
+latest.open({ returnDestination: 'orders' })
+const firstPromise = latest.submit({ client: 'Ana' })
+latest.open({ returnDestination: 'comandas' })
+resolveFirst({ order: { id: 'o-1', status: 'Em preparo' } })
+await firstPromise
+assert.equal(committed.length, 0)
+assert.equal(latest.context.returnDestination, 'comandas')
 ```
 
-Add a second test that resolves while current and asserts `commitOfficialEffects` → `onCommitted` → `onSuccess` → draft cleared and `checkoutPending === false`.
+Use `react-test-renderer` `act()` for each state change. Add a second test where the response is current and assert `commitOfficialEffects` runs before `onCommitted`, then `onSuccess`, and the draft is cleared.
 
 - [ ] **Step 2: Run RED**
 
@@ -1011,114 +886,70 @@ node --test src/domains/orders/application/useNewOrderDraft.test.js
 
 Expected: FAIL because the hook does not exist.
 
-- [ ] **Step 3: Implement the hook around `createNewOrderDraftController`**
+- [ ] **Step 3: Implement hook around controller**
 
-The hook must:
-
-```js
-const [snapshot, setSnapshot] = useState(() => controllerRef.current.snapshot())
-const [checkoutPending, setCheckoutPending] = useState(false)
-```
-
-and expose stable callbacks that:
+The submit body must be:
 
 ```js
-open(context)      // controller.open + checkoutPending false + publish snapshot
-discard()          // controller.discard + checkoutPending false + publish snapshot
-setDirty(value)    // controller.setDirty + publish snapshot
-reset()            // same invalidation semantics as discard
-```
-
-`submit(payload)` must execute exactly this order:
-
-```js
-const token = controller.beginSubmit()
-if (!token || checkoutPending || !canSubmit(payload)) return false
-setCheckoutPending(true)
-try {
-  const result = await submitOrder(payload, token.idempotencyKey)
-  if (!controller.isCurrent(token)) return false
-  commitOfficialEffects(result)
-  await onCommitted(result, token.context)
-  onSuccess(result.order, token.context)
-  setCheckoutPending(false)
-  controller.complete(token)
-  publish()
-  return true
-} catch (error) {
-  if (!controller.isCurrent(token)) return false
-  if (error?.code === 'POLICY_CHANGED') {
-    onError(error)
-    return { ok: false, code: 'POLICY_CHANGED' }
+const submit = useCallback(async (payload) => {
+  const token = controllerRef.current.beginSubmit()
+  if (!token || pendingRef.current || !canSubmitRef.current(payload)) return false
+  pendingRef.current = true
+  setCheckoutPending(true)
+  try {
+    const result = await submitOrderRef.current(payload, token.idempotencyKey)
+    if (!controllerRef.current.isCurrent(token)) return false
+    commitOfficialEffectsRef.current(result)
+    await onCommittedRef.current(result, token.context)
+    onSuccessRef.current(result.order, token.context)
+    pendingRef.current = false
+    setCheckoutPending(false)
+    controllerRef.current.complete(token)
+    publish()
+    return true
+  } catch (error) {
+    if (!controllerRef.current.isCurrent(token)) return false
+    if (error?.code === 'POLICY_CHANGED') {
+      onErrorRef.current(error)
+      return { ok: false, code: 'POLICY_CHANGED' }
+    }
+    if (error?.status === 409 && token.context.expectedTableTabId) await onConflictRef.current(token.context)
+    if (controllerRef.current.isCurrent(token)) onErrorRef.current(error)
+    return false
+  } finally {
+    if (controllerRef.current.isCurrent(token)) {
+      pendingRef.current = false
+      setCheckoutPending(false)
+    }
   }
-  if (error?.status === 409 && token.context.expectedTableTabId) await onConflict(token.context)
-  if (controller.isCurrent(token)) onError(error)
-  return false
-} finally {
-  if (controller.isCurrent(token)) setCheckoutPending(false)
-}
+}, [publish])
 ```
 
-Use refs for callback dependencies if necessary to prevent submit identity churn; do not expose the generation or idempotency key in the returned public state.
+Implement `open`, `discard`, `setDirty`, `reset` by mutating the controller then publishing `snapshot()`. Keep callback/function dependencies in refs so Orders does not expose owner/key internals.
 
-- [ ] **Step 4: Export the hook**
+- [ ] **Step 4: Export and integrate App**
 
-```js
-export { useNewOrderDraft } from './application/useNewOrderDraft.js'
-```
-
-- [ ] **Step 5: Integrate App without moving C5 responsibilities**
-
-In App, keep current table/comanda validation before opening New Order. After validation, call:
+Export the hook. In App, keep existing Comanda/table validation, then call:
 
 ```js
-newOrderDraft.open({
-  tableId: currentTableId,
-  expectedTableTabId,
-  returnDestination: returnTab,
-})
+newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
 return completeNavigation('new-order')
 ```
 
-Configure the hook with:
+Configure `useNewOrderDraft` with `ordersApi.createOrder`, `applyOfficialEffects`, current success copy, origin-order tracking, C5 selection callback, `showApiError`, and `refreshBootstrapSilently` for 409 with expected table-tab context.
 
-```js
-const newOrderDraft = useNewOrderDraft({
-  submitOrder: ordersApi.createOrder,
-  canSubmit: (payload) => canCreateOrders
-    && !writesBlockedWithoutOrderCheckout
-    && (canAdjustOrders || !payload?.adjustment || payload.adjustment.type === 'none'),
-  commitOfficialEffects: ({ order, movement, tableTab, tables: nextTables }) => {
-    applyOfficialEffects({ order, movement, tableTab, tables: nextTables })
-  },
-  onCommitted: ({ order, tableTab, tables: nextTables }, context) => {
-    if (context.returnDestination === 'comandas' && tableTab?.id) {
-      const table = nextTables?.find((item) => item.isActive && item.occupancy === 'occupied' && item.openTableTab?.id === tableTab.id)
-      if (table) selectComanda({ tableId: table.id, tableTabId: tableTab.id })
-    }
-    setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
-  },
-  onSuccess: (order, context) => {
-    showSuccessMessage(order.paymentStatus === 'Pago'
-      ? 'Pedido salvo e pagamento recebido'
-      : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido enviado para a fila da cozinha'))
-    completeNavigation(context.returnDestination)
-  },
-  onError: showApiError,
-  onConflict: async () => { await refreshBootstrapSilently() },
-})
-```
-
-Compute write blocking in two layers to avoid circular ownership:
+Use:
 
 ```js
 const writesBlockedWithoutOrderCheckout = !isOnline || requestKey !== null
 const writesBlocked = writesBlockedWithoutOrderCheckout || newOrderDraft.checkoutPending
 ```
 
-Use `newOrderDraft.dirty`, `newOrderDraft.checkoutPending`, and `newOrderDraft.discard` in `useNavigationController`. Use `newOrderDraft.context`, `renderKey`, `submit`, and `setDirty` when rendering New Order. Remove `newOrderContext`, `checkoutKey`, `newOrderDirty`, `newOrderOwnerRef`, `invalidateNewOrderDraft`, and `handleOrderCheckout` from App.
+Navigation receives `dirtyOrder: newOrderDraft.dirty`, `checkoutPending: newOrderDraft.checkoutPending`, and `onDiscardOrder: newOrderDraft.discard`. New Order rendering receives `context`, `renderKey`, `submit`, and `setDirty`.
 
-- [ ] **Step 6: Run focused draft/navigation tests**
+Remove App state/refs/functions named `newOrderContext`, `checkoutKey`, `newOrderDirty`, `newOrderOwnerRef`, `invalidateNewOrderDraft`, and `handleOrderCheckout`.
+
+- [ ] **Step 5: Run focused tests**
 
 ```bash
 node --test \
@@ -1131,7 +962,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 6**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/AppNewOrderGuard.test.js src/pages
@@ -1140,37 +971,27 @@ git commit -m "refactor: move new order draft out of app"
 
 ---
 
-### Task 7: Move finalize/cancel command orchestration into Orders and retire lifecycle API exports from the legacy client
+### Task 7: Move finalize/cancel orchestration and retire lifecycle exports from legacy API client
 
 **Files:**
 - Create: `src/domains/orders/application/useOrderCommands.js`
 - Create/Test: `src/domains/orders/application/useOrderCommands.test.js`
-- Modify: `src/domains/orders/index.js`
-- Modify: `src/App.jsx`
-- Modify: `src/api/client.js`
+- Modify: `src/domains/orders/index.js`, `src/App.jsx`, `src/api/client.js`.
 
 **Interfaces:**
 - `useOrderCommands({ orders, api, canFinalizeOrders, canCancelOrders, canRefundPayments, writesBlocked, applyOfficialEffects, onSuccess, onError })` returns `{ actionKey, pending, finalizeOrder, cancelOrder }`.
-- App passes these callbacks to Cozinha/Histórico; Finance/payment flows remain untouched.
 
 - [ ] **Step 1: Write failing command tests**
 
-Create `useOrderCommands.test.js` using a Probe component. Assert:
+Use a React Probe and injected API. Verify an `Entrega` order finalization commits `{ order }` and emits exact copy `Pedido saiu para entrega`. Verify cancel with `{ refundNow: true }` commits `{ order, movement, tableTab }` and emits `Pedido cancelado e estorno registrado`. Verify refund cancellation is rejected without `canRefundPayments`.
+
+Core assertions:
 
 ```js
-await latest.finalizeOrder('o-1')
-assert.deepEqual(commits.at(-1), { order: { id: 'o-1', status: 'Finalizado' } })
-assert.equal(messages.at(-1), 'Pedido saiu para entrega')
+assert.deepEqual(commits[0], { order: { id: 'o-1', status: 'Finalizado' } })
+assert.equal(messages[0], 'Pedido saiu para entrega')
+assert.equal(await latest.cancelOrder('o-2', { refundNow: true }), false)
 ```
-
-for an `Entrega` order, and:
-
-```js
-await latest.cancelOrder('o-2', { reasonId: 'r-1', refundNow: true })
-assert.equal(messages.at(-1), 'Pedido cancelado e estorno registrado')
-```
-
-with a result containing `{ order, movement, tableTab }`. Add an assertion that `refundNow: true` returns `false` without calling the API when `canRefundPayments` is false.
 
 - [ ] **Step 2: Run RED**
 
@@ -1178,47 +999,43 @@ with a result containing `{ order, movement, tableTab }`. Add an assertion that 
 node --test src/domains/orders/application/useOrderCommands.test.js
 ```
 
-Expected: FAIL because the hook does not exist.
+Expected: FAIL.
 
-- [ ] **Step 3: Implement the command hook**
+- [ ] **Step 3: Implement hook**
 
-Use local `actionKey` state. `finalizeOrder` must reject when another Orders command is pending, when globally blocked, when capability is absent, or when the order does not exist. It calls `api.updateOrderStatus(id, 'Finalizado')`, commits `{ order }`, and uses the exact current success copy.
-
-`cancelOrder` must reject when another Orders command is pending, globally blocked, cancel capability is absent, or `payload.refundNow` lacks refund capability. It calls `api.cancelOrder`, commits `{ order, movement, tableTab }`, and uses the exact current success copy.
-
-Both must route errors through `onError` and clear only their own local `actionKey` in `finally`.
-
-- [ ] **Step 4: Export and integrate the hook**
-
-Export:
+Use local `actionKey` state and these command rules:
 
 ```js
-export { useOrderCommands } from './application/useOrderCommands.js'
+const finalizeOrder = async (orderId) => {
+  if (!canFinalizeOrders || writesBlocked || actionKey) return false
+  const currentOrder = orders.find((item) => item.id === orderId)
+  if (!currentOrder) return false
+  setActionKey(`order:status:${orderId}`)
+  try {
+    const { order } = await api.updateOrderStatus(orderId, 'Finalizado')
+    applyOfficialEffects({ order })
+    onSuccess(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado')
+    return true
+  } catch (error) {
+    onError(error)
+    return false
+  } finally {
+    setActionKey(null)
+  }
+}
 ```
 
-In App, replace `handleFinalizeOrder` and `handleCancelOrder` with `orderCommands.finalizeOrder` and `orderCommands.cancelOrder`. Include `orderCommands.pending` in the effective global write block passed to other surfaces, while passing `orderCommands.actionKey` to Histórico where it currently receives the global request key for order lifecycle actions.
+Implement `cancelOrder` with the same pending guard, cancel capability, `refundNow` refund capability gate, `api.cancelOrder`, generic official-effect commit, exact current success copy, and `onError`.
 
-- [ ] **Step 5: Delete the three lifecycle write exports from `src/api/client.js`**
+- [ ] **Step 4: Export and integrate App**
 
-Delete only:
+Export `useOrderCommands`. Replace App's `handleFinalizeOrder` and `handleCancelOrder`. Include `orderCommands.pending` in effective global write blocking and pass `orderCommands.actionKey` to Histórico.
 
-```js
-export const createOrder = ...
-export const updateOrderStatus = ...
-export const cancelOrder = ...
-```
+- [ ] **Step 5: Delete lifecycle endpoint exports from legacy client**
 
-`getOrders` was removed in Task 3. Keep `updateOrderPaymentPromise`, `refundOrder`, `registerPayment`, print APIs, and table-tab APIs.
+Delete exactly `createOrder`, `updateOrderStatus`, and `cancelOrder` from `src/api/client.js`. `getOrders` was removed in Task 3. Keep `updateOrderPaymentPromise`, `refundOrder`, `registerPayment`, all table-tab APIs, and all printing APIs.
 
-- [ ] **Step 6: Verify no consumer imports migrated lifecycle functions from the legacy client**
-
-```bash
-rg "(createOrder|updateOrderStatus|cancelOrder) as .*Api|\b(createOrder|updateOrderStatus|cancelOrder)\b" src/api/client.js src/App.jsx src/app src/pages src/components
-```
-
-Expected: no lifecycle endpoint implementation/import remains in `src/api/client.js` or App; UI callback names such as `onCancelOrder` are allowed.
-
-- [ ] **Step 7: Run focused tests**
+- [ ] **Step 6: Run focused tests**
 
 ```bash
 node --test \
@@ -1230,70 +1047,59 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit Task 7**
+- [ ] **Step 7: Verify legacy API ownership is gone**
 
 ```bash
-git add src/domains/orders src/App.jsx src/api/client.js src/pages
+rg "export const (getOrders|createOrder|updateOrderStatus|cancelOrder)" src/api/client.js
+rg "(createOrderApi|updateOrderStatusApi|cancelOrderApi)" src/App.jsx
+```
+
+Expected: no output.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/domains/orders src/App.jsx src/api/client.js
 git commit -m "refactor: move order lifecycle commands to domain"
 ```
 
 ---
 
-### Task 8: Move Novo Pedido UI and order-only creation components into Orders
+### Task 8: Move Novo Pedido UI and creation-only components into Orders
 
 **Files:**
-- Move: `src/pages/NewOrder.jsx` → `src/domains/orders/ui/NewOrder.jsx`
-- Move: `src/pages/NewOrderRoute.jsx` → `src/domains/orders/ui/NewOrderRoute.jsx`
-- Move associated tests from `src/pages/NewOrder*.test.js` into `src/domains/orders/ui/`.
-- Move order-only creation components into `src/domains/orders/ui/components/`: `NewOrderCustomerStep.jsx`, `NewOrderProductsStep.jsx`, `NewOrderReviewStep.jsx`, `NewOrderStepIndicator.jsx`, `NewOrderCartSummary.jsx`, `OrderCart.jsx`, `OrderCheckoutSummary.jsx`, `OrderProductCatalog.jsx` and their order-only tests.
-- Leave generic/shared components in `src/components/`, including `Button`, `PageHeader`, `ClientDuplicateModal`, and `LocalTableSelector` because Table Service ownership is deferred.
-- Modify: `src/domains/orders/index.js`
-- Modify: `src/App.jsx`
+- Move pages/tests: `NewOrder.jsx`, `NewOrderRoute.jsx`, `NewOrder.test.js`, `NewOrderMobile.test.js`, `NewOrderRoute.test.js`, `NewOrderWizard.test.js` from `src/pages/` to `src/domains/orders/ui/`.
+- Move components: `NewOrderCartSummary.jsx`, `NewOrderCustomerStep.jsx`, `NewOrderProductsStep.jsx`, `NewOrderReviewStep.jsx`, `NewOrderStepIndicator.jsx`, `OrderCart.jsx`, `OrderCheckoutSummary.jsx`, `OrderProductCatalog.jsx` and their existing tests into `src/domains/orders/ui/components/`.
+- Modify: `src/domains/orders/index.js`, `src/App.jsx`.
+- Leave `LocalTableSelector.jsx`, `ClientDuplicateModal.jsx`, generic primitives, and `OrderTicketPreview.jsx` outside Orders.
 
 **Interfaces:**
-- Public entry exports `NewOrderRoute` for App composition.
-- The moved UI consumes Orders domain internals directly and external props for clients/products/tables/customer quick-create/settings/payment options.
+- Public entry exports `NewOrderRoute` only; internal New Order components remain private.
 
-- [ ] **Step 1: Write a failing public UI test before moving files**
+- [ ] **Step 1: Add failing UI-boundary test**
 
-Add `src/domains/orders/ordersPublicUi.test.js`:
+Create `src/domains/orders/ordersPublicUi.test.js`:
 
 ```js
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { NewOrderRoute } from './index.js'
 
-test('orders public boundary exposes NewOrderRoute', () => {
+test('Orders exports NewOrderRoute as a composition surface', () => {
   assert.equal(typeof NewOrderRoute, 'function')
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [ ] **Step 2: Run RED, then baseline existing UI**
 
 ```bash
 node --test src/domains/orders/ordersPublicUi.test.js
+node --test src/pages/NewOrder.test.js src/pages/NewOrderMobile.test.js src/pages/NewOrderRoute.test.js src/pages/NewOrderWizard.test.js src/components/OrderCheckoutSummary.test.js
 ```
 
-Expected: FAIL because `NewOrderRoute` is not exported from Orders yet.
+Expected: first command FAIL, second command PASS.
 
-- [ ] **Step 3: Establish a green characterization baseline before the move**
-
-Run:
-
-```bash
-node --test \
-  src/pages/NewOrder.test.js \
-  src/pages/NewOrderMobile.test.js \
-  src/pages/NewOrderRoute.test.js \
-  src/pages/NewOrderWizard.test.js \
-  src/components/OrderCheckoutSummary.test.js
-```
-
-Expected: PASS. Stop and investigate if baseline is not green.
-
-- [ ] **Step 4: Move the page and order-only components/tests**
-
-Use `git mv` for each file; do not copy-and-leave facades. Example:
+- [ ] **Step 3: Move exact files with `git mv`**
 
 ```bash
 mkdir -p src/domains/orders/ui/components
@@ -1305,9 +1111,9 @@ git mv src/pages/NewOrderRoute.test.js src/domains/orders/ui/NewOrderRoute.test.
 git mv src/pages/NewOrderWizard.test.js src/domains/orders/ui/NewOrderWizard.test.js
 ```
 
-Move the listed order-only components and their existing tests similarly. Update imports to generic UI via `../../../components/...` (or the correct depth) and Orders rules via `../domain/...`/`../../domain/...`. Keep cross-runtime imports under `shared/` unchanged in meaning.
+Move each listed creation-only component/test that exists with `git mv`; update generic imports to `src/components` and Orders rule imports to `src/domains/orders/domain` internal paths.
 
-- [ ] **Step 5: Export New Order through the public boundary**
+- [ ] **Step 4: Export and update App**
 
 Add:
 
@@ -1315,13 +1121,9 @@ Add:
 export { NewOrderRoute } from './ui/NewOrderRoute.jsx'
 ```
 
-Do not export every internal component.
+Remove the old `src/pages/NewOrderRoute` import from App and use the Orders public import.
 
-- [ ] **Step 6: Update App to import only the public Orders route**
-
-Remove the old page import and include `NewOrderRoute` in the existing Orders public import from `./domains/orders/index.js`.
-
-- [ ] **Step 7: Run the moved UI suite**
+- [ ] **Step 5: Run moved UI suite**
 
 ```bash
 node --test \
@@ -1333,9 +1135,9 @@ node --test \
   src/domains/orders/ui/components/OrderCheckoutSummary.test.js
 ```
 
-Expected: PASS with no `src/pages/NewOrder*.jsx` facade.
+Expected: PASS.
 
-- [ ] **Step 8: Commit Task 8**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components
@@ -1347,26 +1149,21 @@ git commit -m "refactor: move new order ui into domain"
 ### Task 9: Move Cozinha and Histórico UI/components into Orders
 
 **Files:**
-- Move: `src/pages/Orders.jsx` → `src/domains/orders/ui/Orders.jsx`
-- Move: `src/pages/OrderHistory.jsx` → `src/domains/orders/ui/OrderHistory.jsx`
-- Move current Orders/History tests into `src/domains/orders/ui/`.
-- Move order-only components into `src/domains/orders/ui/components/`: `CancelOrderDialog.jsx`, `KitchenTicket.jsx`, `KitchenTicketNotes.jsx`, `OrderDetail.jsx`, `OrderDetailTiming.js`, `OrderDetailTiming.jsx`, `OperationalHistoryAnalysis.jsx`, and their order-only tests.
-- Leave generic payment/status/confirmation/navigation/printing primitives outside Orders.
-- Modify: `src/domains/orders/index.js`
-- Modify: `src/App.jsx`
+- Move pages/tests: `src/pages/Orders.jsx`, `OrdersMobile.test.js`, `OrdersMultiItem.test.js`, `OrdersScheduled.test.js`, `OrderHistory.jsx`, `OrderHistory.test.js` → `src/domains/orders/ui/`.
+- Move components/tests: `CancelOrderDialog.jsx`, `KitchenTicket.jsx`, `KitchenTicketNotes.jsx`, `OperationalHistoryAnalysis.jsx`, `OrderDetail.jsx`, `OrderDetailTiming.js`, `OrderDetailTiming.jsx` and their existing order-only tests → `src/domains/orders/ui/components/`.
+- Modify: `src/domains/orders/index.js`, `src/App.jsx`.
+- Keep generic `PaymentBadge`, `StatusBadge`, `ConfirmationDialog`, `Button`, `PageHeader`, printing runtime/facades outside Orders.
 
 **Interfaces:**
-- Public entry exports `Orders` and `OrderHistory` only as composition surfaces.
-- Printing and payment remain injected props/callbacks; no deep imports into future domains are introduced.
+- Public entry exports default surfaces as named `Orders` and `OrderHistory`.
+- Payment and printing remain props/callbacks.
 
-- [ ] **Step 1: Extend the public UI test and verify RED**
-
-Update `ordersPublicUi.test.js`:
+- [ ] **Step 1: Extend public UI test and verify RED**
 
 ```js
 import { NewOrderRoute, OrderHistory, Orders } from './index.js'
 
-test('orders public boundary exposes the three order surfaces', () => {
+test('Orders public boundary exposes all order surfaces', () => {
   assert.equal(typeof Orders, 'function')
   assert.equal(typeof OrderHistory, 'function')
   assert.equal(typeof NewOrderRoute, 'function')
@@ -1379,9 +1176,9 @@ Run:
 node --test src/domains/orders/ordersPublicUi.test.js
 ```
 
-Expected: FAIL because `Orders` and `OrderHistory` are not exported yet.
+Expected: FAIL because Cozinha/Histórico are not exported yet.
 
-- [ ] **Step 2: Record a green pre-move characterization baseline**
+- [ ] **Step 2: Establish green pre-move baseline**
 
 ```bash
 node --test \
@@ -1397,53 +1194,31 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 3: Move the surfaces/components/tests with `git mv`**
+- [ ] **Step 3: Move page files/tests**
 
 ```bash
 git mv src/pages/Orders.jsx src/domains/orders/ui/Orders.jsx
-git mv src/pages/OrderHistory.jsx src/domains/orders/ui/OrderHistory.jsx
 git mv src/pages/OrdersMobile.test.js src/domains/orders/ui/OrdersMobile.test.js
 git mv src/pages/OrdersMultiItem.test.js src/domains/orders/ui/OrdersMultiItem.test.js
 git mv src/pages/OrdersScheduled.test.js src/domains/orders/ui/OrdersScheduled.test.js
+git mv src/pages/OrderHistory.jsx src/domains/orders/ui/OrderHistory.jsx
 git mv src/pages/OrderHistory.test.js src/domains/orders/ui/OrderHistory.test.js
 ```
 
-Move the listed order-only components/tests under `src/domains/orders/ui/components/`. Update internal Orders imports to direct domain/application paths and external generic UI/navigation/printing imports to their existing owners.
+Move each listed order-only component/test with `git mv`. Use direct Orders-internal rule imports inside `src/domains/orders`; use existing external owners for generic UI/navigation/payment/printing.
 
-- [ ] **Step 4: Export the surfaces through `index.js`**
+- [ ] **Step 4: Export surfaces and update App**
+
+Add:
 
 ```js
 export { default as Orders } from './ui/Orders.jsx'
 export { default as OrderHistory } from './ui/OrderHistory.jsx'
 ```
 
-- [ ] **Step 5: Update App composition to use only the Orders public boundary**
+Consolidate App into one Orders public import. App must not import `src/domains/orders/domain`, `application`, `infrastructure`, or `ui` paths directly.
 
-App should have one Orders import group conceptually equivalent to:
-
-```js
-import {
-  NewOrderRoute,
-  OrderHistory,
-  Orders,
-  cancellationOptionsFromEffective,
-  cancellationRevisionFromEffective,
-  getOrderItemsSearchText,
-  getOrderRefundState,
-  isOrderActive,
-  isOrderCancelled,
-  ordersApi,
-  toLocalDateValue,
-  useKitchenClock,
-  useNewOrderDraft,
-  useOrderArrivals,
-  useOrderCommands,
-} from './domains/orders/index.js'
-```
-
-Remove direct imports from legacy order pages/components/hooks/utils.
-
-- [ ] **Step 6: Run moved UI tests**
+- [ ] **Step 5: Run moved UI suite**
 
 ```bash
 node --test \
@@ -1460,7 +1235,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 9**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components
@@ -1469,30 +1244,28 @@ git commit -m "refactor: move order surfaces into domain"
 
 ---
 
-### Task 10: Enforce the Orders boundary and remove C4 legacy ownership paths
+### Task 10: Enforce Orders boundary and remove all C4 legacy owner paths
 
 **Files:**
 - Modify: `scripts/architecture/check-import-boundaries.mjs`
 - Modify/Test: `scripts/architecture/check-import-boundaries.test.mjs`
-- Modify: `src/App.jsx`
-- Modify: `docs/superpowers/qa/spec-c-compatibility-facades.md` only to record C4 closure status, without changing C5/C6/C8-C10 removal schedules.
-- Delete any remaining C4-owned legacy files under `src/pages`, `src/components`, `src/hooks`, and `src/utils` that were fully migrated and are not genuine shared/generic owners.
+- Modify: `docs/superpowers/qa/spec-c-compatibility-facades.md`
+- Delete any migrated C4 legacy file that still exists.
 
 **Interfaces:**
-- Architecture checker rejects deep imports into Orders from outside `src/domains/orders`.
-- Architecture checker rejects reintroduced C4 legacy owners and migrated lifecycle endpoints in `src/api/client.js`.
-- Existing C3 gates and cross-domain gates remain active.
+- Non-Orders code may import only `src/domains/orders/index.js`.
+- Checker rejects migrated legacy owner paths and reintroduced lifecycle endpoint exports in `src/api/client.js`.
 
-- [ ] **Step 1: Write failing architecture tests**
+- [ ] **Step 1: Write failing architecture fixture tests**
 
-In `check-import-boundaries.test.mjs`, add fixture tests that construct temporary files and assert these violation labels:
+Add fixtures that assert:
 
 ```js
 assert.ok(violations.some((item) => item.startsWith('orders-deep-import:')))
 assert.ok(violations.some((item) => item.startsWith('c4-legacy-orders-owner:')))
 ```
 
-The deep-import fixture should make `src/App.jsx` import `./domains/orders/domain/orderLifecycle.js`. The legacy-owner fixture should create `src/pages/Orders.jsx` after the migration boundary is considered closed.
+Deep-import fixture: `src/App.jsx` imports `./domains/orders/domain/orderLifecycle.js`. Legacy fixture: create `src/pages/Orders.jsx` in the temporary fixture tree.
 
 - [ ] **Step 2: Run RED**
 
@@ -1500,13 +1273,51 @@ The deep-import fixture should make `src/App.jsx` import `./domains/orders/domai
 node --test scripts/architecture/check-import-boundaries.test.mjs
 ```
 
-Expected: FAIL because the C4-specific rules do not exist.
+Expected: FAIL because C4 rules are absent.
 
-- [ ] **Step 3: Add the C4 legacy-owner set and Orders deep-import rule**
+- [ ] **Step 3: Add exact C4 legacy owner set**
 
-Add a `C4_LEGACY_ORDERS_OWNERS` set covering the exact legacy files migrated in Tasks 1, 2, 8, and 9. At minimum include the old page roots, hook, moved order utilities, and moved order-only components.
+Add this set to the checker:
 
-Add this rule inside the edge loop:
+```js
+const C4_LEGACY_ORDERS_OWNERS = new Set([
+  'src/pages/NewOrder.jsx',
+  'src/pages/NewOrderRoute.jsx',
+  'src/pages/OrderHistory.jsx',
+  'src/pages/Orders.jsx',
+  'src/hooks/useKitchenClock.js',
+  'src/utils/cancellationReasonOptions.js',
+  'src/utils/kitchenClock.js',
+  'src/utils/kitchenQueue.js',
+  'src/utils/kitchenTicket.js',
+  'src/utils/newOrderStepFlow.js',
+  'src/utils/orderCart.js',
+  'src/utils/orderLifecycle.js',
+  'src/utils/orderPaymentEligibility.js',
+  'src/utils/orderRealtime.js',
+  'src/utils/orderTypeOptions.js',
+  'src/utils/orderWorkflow.js',
+  'src/components/CancelOrderDialog.jsx',
+  'src/components/KitchenTicket.jsx',
+  'src/components/KitchenTicketNotes.jsx',
+  'src/components/NewOrderCartSummary.jsx',
+  'src/components/NewOrderCustomerStep.jsx',
+  'src/components/NewOrderProductsStep.jsx',
+  'src/components/NewOrderReviewStep.jsx',
+  'src/components/NewOrderStepIndicator.jsx',
+  'src/components/OperationalHistoryAnalysis.jsx',
+  'src/components/OrderCart.jsx',
+  'src/components/OrderCheckoutSummary.jsx',
+  'src/components/OrderDetail.jsx',
+  'src/components/OrderDetailTiming.js',
+  'src/components/OrderDetailTiming.jsx',
+  'src/components/OrderProductCatalog.jsx',
+])
+```
+
+Add the same source-existence loop pattern already used for C3.
+
+- [ ] **Step 4: Add deep-import rule**
 
 ```js
 if (!edge.from.startsWith('src/domains/orders/')
@@ -1516,23 +1327,19 @@ if (!edge.from.startsWith('src/domains/orders/')
 }
 ```
 
-Add source-path checks analogous to the C3 legacy-owner check:
+Do not apply this to imports from within Orders itself.
+
+- [ ] **Step 5: Add migrated API ownership check**
+
+Read `src/api/client.js` once in `findArchitectureViolations`. Match only declarations of these exact exported names:
 
 ```js
-for (const legacyOwner of C4_LEGACY_ORDERS_OWNERS) {
-  if (sourcePaths.has(legacyOwner)) violations.push(`c4-legacy-orders-owner: ${legacyOwner}`)
-}
+const migratedOrderApiPattern = /export\s+const\s+(getOrders|createOrder|updateOrderStatus|cancelOrder)\b/
 ```
 
-Do not forbid imports *within* Orders from its own layers.
+If it matches, add `c4-legacy-orders-api: src/api/client.js`. Do not match `refundOrder`, `registerPayment`, `updateOrderPaymentPromise`, print APIs, or callback props.
 
-- [ ] **Step 4: Add a source-content check for migrated API ownership**
-
-Extend the checker so `src/api/client.js` containing lifecycle exports named `getOrders`, `createOrder`, `updateOrderStatus`, or `cancelOrder` produces `c4-legacy-orders-api`. Do not match callback names in other files and do not reject `refundOrder`, `registerPayment`, or `updateOrderPaymentPromise`.
-
-- [ ] **Step 5: Remove all remaining C4 facades instead of reexporting them**
-
-Verify and delete any migrated old owner paths that remain. Use:
+- [ ] **Step 6: Verify migrated old paths are physically gone**
 
 ```bash
 for path in \
@@ -1553,9 +1360,7 @@ done
 
 Expected: exit 0.
 
-- [ ] **Step 6: Verify App no longer owns C4 internals**
-
-Run:
+- [ ] **Step 7: Verify App no longer owns Orders internals**
 
 ```bash
 rg "newOrderOwnerRef|checkoutKey|knownOperationalOrderIdsRef|alertedOrderIdsRef|kitchenAudioContextRef|newOrderHighlightTimerRef|createOrderApi|updateOrderStatusApi|cancelOrderApi" src/App.jsx
@@ -1563,7 +1368,7 @@ rg "newOrderOwnerRef|checkoutKey|knownOperationalOrderIdsRef|alertedOrderIdsRef|
 
 Expected: no output.
 
-- [ ] **Step 7: Run architecture and focused boundary tests**
+- [ ] **Step 8: Run architecture tests**
 
 ```bash
 node --test scripts/architecture/check-import-boundaries.test.mjs
@@ -1573,11 +1378,11 @@ node --test src/domains/orders/ordersPublicContract.test.js src/domains/orders/o
 
 Expected: PASS and `Frontend architecture boundaries: OK`.
 
-- [ ] **Step 8: Update the compatibility ledger without removing later-slice bridges**
+- [ ] **Step 9: Update compatibility ledger**
 
-Append a C4 status section recording that C4 introduced no surviving Orders compatibility facade, that lifecycle APIs moved out of `src/api/client.js`, and that the payment-receipt bridge remains C6, table-commit bridge remains C5, generic/auth facade remains C10-at-latest, and `updateCollection` keeps its existing schedule.
+Add a C4 status subsection stating: no C4 Orders facade survives; lifecycle endpoints moved out of `src/api/client.js`; payment-receipt bridge still targets C6; table-commit bridge still targets C5; generic/auth facade still targets C10 at latest; `updateCollection` keeps its existing C8/C10 schedule.
 
-- [ ] **Step 9: Commit Task 10**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add scripts/architecture src docs/superpowers/qa/spec-c-compatibility-facades.md
@@ -1586,21 +1391,19 @@ git commit -m "refactor: enforce orders domain boundary"
 
 ---
 
-### Task 11: Full regression gates, QA record, GitHub validation, and staging handoff
+### Task 11: Run full gates, record QA, validate GitHub, deploy staging, and stop at merge gate
 
 **Files:**
 - Create: `docs/superpowers/qa/spec-c4-orders-qa.md`
 - Modify: `docs/superpowers/qa/spec-c-execution-ledger.md`
 - Modify: `docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md`
-- No production workflow or production configuration changes.
+- No production workflow/config changes.
 
 **Interfaces:**
-- Produces an auditable C4 executable SHA, local gate evidence, GitHub Validate evidence, staging deployment evidence, and a manual homologation matrix.
+- Produces exact executable SHA evidence, local gate evidence, GitHub Validate evidence, staging evidence, and manual homologation results.
 - Does not merge or deploy production.
 
-- [ ] **Step 1: Run the complete local gate set on a clean executable tree**
-
-Run in this order:
+- [ ] **Step 1: Run complete local gates**
 
 ```bash
 git status --short
@@ -1612,20 +1415,9 @@ npm run build
 npm run d1:migrate:local
 ```
 
-Expected:
-- no unexpected tracked working-tree changes before the gate;
-- `git diff --check` exit 0;
-- full tests exit 0;
-- architecture prints `Frontend architecture boundaries: OK`;
-- lint exit 0, allowing only already-known warning classes;
-- build exit 0;
-- local D1 migration exit 0.
+Expected: no unexpected tracked changes, diff-check exit 0, tests/architecture/lint/build/D1 commands exit 0. Existing warning classes may be recorded, but any error/failing exit stops the task.
 
-If any command fails, stop Task 11 and fix the failure under TDD before continuing.
-
-- [ ] **Step 2: Audit the C4 diff against the approved scope**
-
-Run:
+- [ ] **Step 2: Audit scope**
 
 ```bash
 git diff --name-status origin/master...HEAD
@@ -1633,89 +1425,80 @@ git diff origin/master...HEAD -- worker migrations src/printing
 rg "domains/orders/(domain|application|infrastructure|ui)/" src --glob '!domains/orders/**'
 ```
 
-Expected:
-- no Worker or migration changes;
-- no C9 printing-runtime refactor;
-- no non-Orders deep import into Orders internals;
-- no payment/table-service ownership moved early.
+Expected: no Worker/migration changes, no C9 runtime refactor, and no non-Orders deep import.
 
-- [ ] **Step 3: Record the executable SHA and local evidence**
+- [ ] **Step 3: Capture executable identity before creating QA docs**
 
-Create `docs/superpowers/qa/spec-c4-orders-qa.md` with:
+Run:
 
-```markdown
-# Spec C4 — Orders Domain Extraction — QA Record
-
-## Execution identity
-- Slice: **C4 — Orders**
-- Branch: `feature/spec-c4-orders`
-- Base SHA: `737beeac2150aabeb39024af823f2f60fee25108`
-- Executable SHA: `<replace with git rev-parse HEAD when Task 11 starts>`
-- Production deploy: **NO**
-- Merge: **NO**
-
-## Automated gates
-Record command, exit code/result, and notable warnings for:
-`git diff --check`, `npm test`, `npm run test:architecture`, `npm run lint`, `npm run build`, `npm run d1:migrate:local`.
-
-## Scope audit
-Record Worker/migrations/printing-runtime diff result and facade/deep-import audit.
-
-## Manual staging matrix
-Record direct observation separately from automated evidence.
+```bash
+git rev-parse HEAD
 ```
 
-Replace the executable SHA immediately with the exact output of `git rev-parse HEAD`; do not leave angle-bracket text in the committed file.
+Store that exact 40-character SHA in the QA file created in the next step; the QA file must contain the real value, never a marker or symbolic ref.
 
-- [ ] **Step 4: Add the proportional manual matrix before staging**
+- [ ] **Step 4: Create QA record with exact values**
 
-The QA file must contain rows for at least these observable scenarios, initially `PENDING`:
+Create `docs/superpowers/qa/spec-c4-orders-qa.md` with headings `Execution identity`, `Automated gates`, `Scope audit`, `GitHub Validate`, `Staging deployment`, and `Manual staging homologation matrix`. Under Execution identity write:
 
 ```text
-1. Novo Pedido imediato — open, fill, save, return destination
-2. Novo Pedido agendado — time input and same-day validation
-3. Dirty New Order navigation — stay/discard behavior
-4. New Order from Comandas — table context and return to Comandas
-5. Policy-changed checkout feedback/retry if safely reproducible
-6. Cozinha — preparing/scheduled ordering and 50-minute timing behavior
-7. Cozinha — search by client/order/product/type
-8. Cozinha — new arrival appears without reload
-9. Cozinha — one sound/highlight per arrival and sound preference behavior
-10. Cozinha — finalize confirmation and success copy
-11. Cozinha — cancellation entry, reason, optional refund permission behavior
-12. Histórico — filters, detail, cancellation metadata
-13. Histórico/Cozinha — payment action still opens existing external payment flow
-14. Order detail printing entry still behaves as before
-15. Settings Operação — load/edit/save/cancel
-16. Settings Modalidades shares Operations draft without discard prompt
-17. Settings Cancelamentos — add/edit/order/save/cancel/read-only behavior
-18. Desktop light/dark visual regression for Cozinha/Novo Pedido/Histórico
-19. Mobile/narrow visual regression for Cozinha/Novo Pedido/Histórico
-20. No new C4-attributable console errors
+Slice: C4 — Orders
+Branch: feature/spec-c4-orders
+Base SHA: 737beeac2150aabeb39024af823f2f60fee25108
+Executable SHA: [paste the exact output captured in Step 3]
+Production deploy: NO
+Merge: NO
 ```
 
-Do not mark a manual scenario PASS from automated tests.
+The bracketed instruction is not committed: replace that entire line value with the captured SHA before `git add`.
 
-- [ ] **Step 5: Commit QA/ledger/rollout status as docs-only**
+Add these 20 matrix rows as `PENDING`:
 
-Update the execution ledger to `C4 — AUTOMATED GATES GREEN / STAGING PENDING` with the exact executable SHA. Update the rollout status block similarly, leaving C5 NOT STARTED.
+```text
+1 Novo Pedido imediato — abrir, preencher, salvar, retornar
+2 Novo Pedido agendado — horário e validação de mesmo dia
+3 Draft sujo — continuar editando / descartar
+4 Novo Pedido vindo de Comandas — contexto e retorno
+5 POLICY_CHANGED — feedback/retry se reproduzível com segurança
+6 Cozinha — filas imediato/agendado e regra temporal
+7 Cozinha — busca cliente/pedido/produto/tipo
+8 Cozinha — chegada nova sem reload
+9 Cozinha — som/highlight uma vez e preferência local
+10 Cozinha — finalização e mensagem de sucesso
+11 Cozinha — cancelamento, motivo e permissão de estorno
+12 Histórico — filtros, detalhes e metadados de cancelamento
+13 Cozinha/Histórico — pagamento externo continua abrindo
+14 Detalhe — entrada de impressão permanece igual
+15 Settings Operação — carregar/editar/salvar/cancelar
+16 Settings Modalidades — mesmo draft de Operação, sem prompt interno
+17 Settings Cancelamentos — adicionar/editar/ordenar/salvar/cancelar/read-only
+18 Desktop claro/escuro — Cozinha/Novo Pedido/Histórico
+19 Mobile/narrow claro/escuro — Cozinha/Novo Pedido/Histórico
+20 Console — nenhum novo erro atribuível à C4
+```
+
+Manual PASS requires direct observation; automated tests cannot upgrade a manual row.
+
+- [ ] **Step 5: Record pre-staging status in ledger/rollout and commit docs**
+
+Set C4 to `AUTOMATED GATES GREEN — STAGING PENDING`, include the exact executable SHA from Step 3, and keep C5 `NOT STARTED`.
 
 ```bash
 git add docs/superpowers/qa/spec-c4-orders-qa.md docs/superpowers/qa/spec-c-execution-ledger.md docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md
 git commit -m "docs: record c4 pre-staging qa"
 ```
 
-- [ ] **Step 6: Push the feature branch and run GitHub Validate on the exact branch HEAD**
+- [ ] **Step 6: Push and run Validate on exact branch HEAD**
 
 ```bash
 git push -u origin feature/spec-c4-orders
 ```
 
-Trigger `Validate application` for `feature/spec-c4-orders` using the repository's existing workflow path. Record workflow run number, run ID, event, exact head SHA, and conclusion in the QA record only after the run completes successfully.
+Trigger the existing `Validate application` workflow for `feature/spec-c4-orders`. Wait for completion; record run number, run ID, event, head SHA, and `success` conclusion in the QA file.
 
-- [ ] **Step 7: Deploy staging manually from the validated C4 branch**
+- [ ] **Step 7: Deploy staging manually**
 
-Trigger the existing manual staging deployment workflow for `feature/spec-c4-orders`. Verify the deployed SHA matches the intended C4 executable/docs descendant and record the run ID plus staging URL:
+Trigger the existing manual staging deployment for `feature/spec-c4-orders`. Confirm the deployment run succeeds and record its exact deployed SHA plus:
 
 ```text
 https://sistema-para-delivery-staging.vzaponi.workers.dev
@@ -1723,26 +1506,14 @@ https://sistema-para-delivery-staging.vzaponi.workers.dev
 
 Do not trigger production.
 
-- [ ] **Step 8: Hand off the manual homologation matrix to the user**
+- [ ] **Step 8: Execute manual matrix with the user**
 
-Guide the user through the 20 scenarios in the QA matrix. Record each as `PASS`, `FAIL`, or `BLOCKED` based only on direct observation. Any `FAIL` stops merge preparation and returns to systematic debugging/TDD.
+Guide the user through rows 1–20. Record only `PASS`, `FAIL`, or `BLOCKED` from direct observation. Any `FAIL` stops merge preparation and returns to systematic debugging/TDD.
 
-- [ ] **Step 9: Re-run final Validate after documentation-only QA updates**
+- [ ] **Step 9: Commit manual QA result and run final docs-head Validate**
 
-After manual results are committed, confirm the diff from the staged executable SHA to the final branch HEAD is documentation-only. Run `Validate application` again on the final branch HEAD and record the successful run.
+After manual results are recorded, verify changes since the staged executable are documentation-only, commit the QA/ledger update, push, and run `Validate application` on the final branch HEAD. Record the final successful run.
 
-- [ ] **Step 10: Stop at the merge gate**
+- [ ] **Step 10: Stop at merge gate**
 
-C4 is eligible to ask for merge authorization only when:
-
-```text
-- executable code gates are green;
-- staging workflow succeeded;
-- manual matrix has 0 FAIL;
-- all BLOCKED rows are honestly documented;
-- final docs-only HEAD Validate is green;
-- master has not moved unexpectedly or any movement has been reconciled;
-- production remains untouched.
-```
-
-Do not create/merge the PR or deploy production without the user's explicit authorization at that point.
+Ask for merge authorization only if all executable gates are green, staging succeeded, manual matrix has `0 FAIL`, every BLOCKED row is honestly documented, final branch HEAD Validate is green, master movement has been reconciled, and production remains untouched. Do not create/merge the PR or deploy production without explicit user authorization.
