@@ -236,7 +236,7 @@ test('10. tables.view mantÃ©m consulta e Ver comanda sem tables.manage', async
 
 test('11. comandas.transfer continua disponÃ­vel sem tables.manage', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: ComandaDetail } = await h.load('/src/components/ComandaDetail.jsx')
+  const { default: ComandaDetail } = await h.load('/src/domains/table-service/ui/ComandaDetail.jsx')
   let transfers = 0
   const detail = { number: 42, status: 'open', table: { name: 'Mesa 7' }, openedAt: '2026-09-11T12:00:00.000Z', orderCount: 1, itemCount: 1, totalCents: 2500, items: [] }
   const renderer = await h.render(ComandaDetail, { detail, currency, canTransfer: true, canCreateOrders: false, canExecutePrinting: false, onTransfer: () => { transfers += 1 } })
@@ -397,11 +397,11 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
     Promise.all([
       h.load('/src/domains/orders/ui/Orders.jsx'),
       h.load('/src/domains/orders/ui/OrderHistory.jsx'),
-      ...['Clients', 'Products', 'Receivables', 'Finance', 'Comandas', 'PrintQueue'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+      ...['Clients', 'Products', 'Receivables', 'Finance', 'PrintQueue'].map((name) => h.load(`/src/pages/${name}.jsx`)),
     ]),
     h.load('/src/domains/table-service/index.js'),
   ])
-  const pageTypes = [...pageModules.map((module) => module.default), tableService.Tables]
+  const pageTypes = [...pageModules.map((module) => module.default), tableService.Tables, tableService.Comandas]
   assert.equal(pageTypes.reduce((count, Component) => count + renderer.root.findAllByType(Component).length, 0), 0)
   assert.ok(buttonNamed(renderer.root, 'Sair do sistema'))
 })
