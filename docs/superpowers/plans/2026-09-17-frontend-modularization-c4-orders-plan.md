@@ -10,15 +10,15 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-frontend-modularization-c4-orders-design.md`
 
-## Execution status — checkpoint after Task 9 — 2026-09-17
+## Execution status — checkpoint after Task 10 — 2026-09-17
 
 - Branch: `feature/spec-c4-orders`
 - Draft PR: #48
 - Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
-- Last fully validated executable SHA before this docs-only reconciliation: `67ad2a1237c87573f391a8fcd1f4496f22d9f761`
-- Validate application #1258 / run `35296515259`: **SUCCESS**
-- Tasks 1–9: **COMPLETE / GREEN**
-- Tasks 10–11: NOT STARTED
+- Last fully validated executable SHA before this docs-only reconciliation: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
+- Validate application #1261 / run `35297628138`: **SUCCESS**
+- Tasks 1–10: **COMPLETE / GREEN**
+- Task 11: NOT STARTED
 - C5: NOT STARTED
 - C4 staging/manual homologation: NOT STARTED
 - Merge: NO
@@ -27,6 +27,8 @@
 Task 8 implementation note: the planned public UI export was adapted to `./ui/NewOrderRoute.js` instead of statically exporting the `.jsx` module. This keeps `src/domains/orders/index.js` importable by pure Node `node --test` consumers while Vite loads the actual `NewOrder.jsx` UI. `NewOrderRoute.jsx` remains an internal reexport. This is an execution detail only; the public contract is still the named `NewOrderRoute` export and no legacy `src/pages/NewOrderRoute` facade survives.
 
 Task 9 implementation note: Cozinha, Histórico and their order-only components now live under `src/domains/orders/ui/`. Public UI access uses `ui/orderSurfaces.js`, preserving the pure-Node public-contract tests while Vite loads the `.jsx` surfaces. `OrderDetail` is also exposed through the Orders public boundary because the existing Receivables surface still consumes order details until its later ownership slice; no legacy `src/components/OrderDetail.jsx` facade was recreated. During GREEN stabilization, the move also relocated the pure operational-history projection to `domain/orderHistoryAnalysis.js` and removed two circular dependencies introduced by the UI move. Validate #1258 closed with 1,684 tests, 0 failures.
+
+Task 10 implementation note: Validate #1260 proved all three new architecture fixtures RED before implementation. The checker now rejects non-Orders deep imports, the exact migrated C4 legacy owner set, and reintroduced `getOrders` / `createOrder` / `updateOrderStatus` / `cancelOrder` declarations in `src/api/client.js`. Physical legacy-owner and App-internal audits were empty, and Validate #1261 closed with 1,687 tests / 0 failures plus `Frontend architecture boundaries: OK`.
 
 ## Global Constraints
 
@@ -1274,7 +1276,7 @@ git commit -m "refactor: move order surfaces into domain"
 - Non-Orders code may import only `src/domains/orders/index.js`.
 - Checker rejects migrated legacy owner paths and reintroduced lifecycle endpoint exports in `src/api/client.js`.
 
-- [ ] **Step 1: Write failing architecture fixture tests**
+- [x] **Step 1: Write failing architecture fixture tests**
 
 Add fixtures that assert:
 
@@ -1285,7 +1287,7 @@ assert.ok(violations.some((item) => item.startsWith('c4-legacy-orders-owner:')))
 
 Deep-import fixture: `src/App.jsx` imports `./domains/orders/domain/orderLifecycle.js`. Legacy fixture: create `src/pages/Orders.jsx` in the temporary fixture tree.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test scripts/architecture/check-import-boundaries.test.mjs
@@ -1293,7 +1295,7 @@ node --test scripts/architecture/check-import-boundaries.test.mjs
 
 Expected: FAIL because C4 rules are absent.
 
-- [ ] **Step 3: Add exact C4 legacy owner set**
+- [x] **Step 3: Add exact C4 legacy owner set**
 
 Add this set to the checker:
 
@@ -1335,7 +1337,7 @@ const C4_LEGACY_ORDERS_OWNERS = new Set([
 
 Add the same source-existence loop pattern already used for C3.
 
-- [ ] **Step 4: Add deep-import rule**
+- [x] **Step 4: Add deep-import rule**
 
 ```js
 if (!edge.from.startsWith('src/domains/orders/')
@@ -1347,7 +1349,7 @@ if (!edge.from.startsWith('src/domains/orders/')
 
 Do not apply this to imports from within Orders itself.
 
-- [ ] **Step 5: Add migrated API ownership check**
+- [x] **Step 5: Add migrated API ownership check**
 
 Read `src/api/client.js` once in `findArchitectureViolations`. Match only declarations of these exact exported names:
 
@@ -1357,7 +1359,7 @@ const migratedOrderApiPattern = /export\s+const\s+(getOrders|createOrder|updateO
 
 If it matches, add `c4-legacy-orders-api: src/api/client.js`. Do not match `refundOrder`, `registerPayment`, `updateOrderPaymentPromise`, print APIs, or callback props.
 
-- [ ] **Step 6: Verify migrated old paths are physically gone**
+- [x] **Step 6: Verify migrated old paths are physically gone**
 
 ```bash
 for path in \
@@ -1378,7 +1380,7 @@ done
 
 Expected: exit 0.
 
-- [ ] **Step 7: Verify App no longer owns Orders internals**
+- [x] **Step 7: Verify App no longer owns Orders internals**
 
 ```bash
 rg "newOrderOwnerRef|checkoutKey|knownOperationalOrderIdsRef|alertedOrderIdsRef|kitchenAudioContextRef|newOrderHighlightTimerRef|createOrderApi|updateOrderStatusApi|cancelOrderApi" src/App.jsx
@@ -1386,7 +1388,7 @@ rg "newOrderOwnerRef|checkoutKey|knownOperationalOrderIdsRef|alertedOrderIdsRef|
 
 Expected: no output.
 
-- [ ] **Step 8: Run architecture tests**
+- [x] **Step 8: Run architecture tests**
 
 ```bash
 node --test scripts/architecture/check-import-boundaries.test.mjs
@@ -1396,11 +1398,11 @@ node --test src/domains/orders/ordersPublicContract.test.js src/domains/orders/o
 
 Expected: PASS and `Frontend architecture boundaries: OK`.
 
-- [ ] **Step 9: Update compatibility ledger**
+- [x] **Step 9: Update compatibility ledger**
 
 Add a C4 status subsection stating: no C4 Orders facade survives; lifecycle endpoints moved out of `src/api/client.js`; payment-receipt bridge still targets C6; table-commit bridge still targets C5; generic/auth facade still targets C10 at latest; `updateCollection` keeps its existing C8/C10 schedule.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add scripts/architecture src docs/superpowers/qa/spec-c-compatibility-facades.md
