@@ -42,9 +42,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains for later Customers/Catalog migration, with final enforcement no later than C10.
 
-## C5 execution status — 2026-09-18
+## C5 final status — 2026-09-18
 
-- Branch: `feature/spec-c5-table-service`; draft PR #49.
+- Branch: `feature/spec-c5-table-service`; PR #49 merged to `master` at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
 - Base: C4 merge/master `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
 - Written design and detailed implementation plan are **APPROVED**.
 - Task 1 is **COMPLETE / GREEN** at `e8f490808900d56c2c23d6683ed5365da4921b80`; it introduced no temporary compatibility facade.
@@ -76,7 +76,19 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
 - C5 staging homologation completed at executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`: Validate #1339 and Deploy staging #182 are green; manual QA is **22 PASS / 0 FAIL / 1 BLOCKED**.
 - The table-commit bridge remains **REMOVED / architecture-enforced**. The payment-receipt bridge remains intentionally active for C6; generic/auth reexports remain tracked for C10; `updateCollection` remains for later Customers/Catalog cleanup and C10 enforcement.
-- C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
+- C5 final branch HEAD `5c86585e10ad04e36fcb507cbfee7bbc1e84c767` passed Validate #1341 / run `35400357800`; post-merge `master` `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` passed Validate #1342 / run `35401628448`.
+- C5 is **MERGED / COMPLETE**. It did not move table-tab payment APIs (C6) or table-tab printing APIs (C9).
+
+## C6 planning status — 2026-09-18
+
+- Branch: `feature/spec-c6-finance-workflows`.
+- Base: post-C5 `master` `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
+- Written design `docs/superpowers/specs/2026-09-18-frontend-modularization-c6-finance-workflows-design.md` is **APPROVED**.
+- The operational data runtime payment-receipt bridge is still physically present at C6 start and is the explicit compatibility debt C6 must remove.
+- No replacement payment bridge is approved. Payment reconciliation moves to app-owned workflows while the operational runtime remains generic.
+- Generic/auth reexports remain scheduled for C10; `updateCollection` remains for C7/C8 cleanup and final C10 enforcement.
+- C6 functional implementation has **NOT STARTED**; the detailed plan is the next gate.
+- Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
 
