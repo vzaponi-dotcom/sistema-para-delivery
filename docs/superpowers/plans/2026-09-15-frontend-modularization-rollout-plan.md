@@ -20,7 +20,7 @@
 - C5 written design and detailed implementation plan are **APPROVED**. Implementation is active on `feature/spec-c5-table-service` with draft PR #49.
 - C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
 - C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
-- C5 Task 3 — table-tab detail controller — has **STARTED at RED**. Test-first commit `8f460f139845e2288abe1d454d5d83c89643fb7b` adds the detail ownership suite; Validate #1300 / run `35380071895` is currently in progress and Task 3 is not yet complete.
+- C5 Task 3 — table-tab detail controller — is **RED / IN PROGRESS**. Test-first commit `8f460f139845e2288abe1d454d5d83c89643fb7b` added the detail ownership suite; Validate #1300 / run `35380071895` failed at the test step for the intended reason: `useTableTabDetail.js` does not exist yet (`ERR_MODULE_NOT_FOUND`). Task 3 is not complete.
 - The operational data runtime table-commit bridge is removed in current C5 code. Its compatibility row remains tracked until final C5 closure evidence.
 - The operational data runtime payment-receipt bridge remains scheduled for C6.
 - C6 has not started. Production has not been deployed from C4 or C5.
