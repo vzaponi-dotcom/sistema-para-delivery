@@ -54,6 +54,7 @@ import Finance from './pages/Finance'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
+import TableServiceExternalActions from './app/surfaces/table-service/TableServiceExternalActions.jsx'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
@@ -826,13 +827,13 @@ function App({ capabilities } = {}) {
     return false
   }
 
-  const handleRegisterTableTabPayment = async (tableTabId, method) => {
-    const selectionOwner = getComandaSelectionOwner()
-    const selected = getOfficialTables().find((table) => table.id === selectionOwner?.tableId && table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === tableTabId && tableTabId === selectionOwner?.tableTabId)
-    if (writesBlocked || tableTabPaymentRef.current || paymentSyncRef.current.size || !selectionOwner || !selected) return false
+  const handleRegisterTableTabPayment = async (tableTabId, method, intent) => {
+    const currentTables = getOfficialTables()
+    const selected = currentTables.find((table) => table.id === intent?.tableId && table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === tableTabId && tableTabId === intent?.tableTabId)
+    if (writesBlocked || tableTabPaymentRef.current || paymentSyncRef.current.size || !intent || !ownsComandaSelection(intent, currentTables) || !selected) return false
     const guard = getSyncGuard()
     const revision = getOfficialRevision()
-    const owner = { guard, selectionGeneration: selectionOwner.selectionGeneration, tableId: selected.id, tabId: tableTabId, method, requestKey: `table-tab:payment:${tableTabId}` }
+    const owner = { guard, selectionGeneration: intent.selectionGeneration, tableId: intent.tableId, tabId: intent.tableTabId, method, requestKey: `table-tab:payment:${tableTabId}` }
     tableTabPaymentRef.current = owner
     const ownsRequest = () => getSyncGuard() === guard && tableTabPaymentRef.current === owner
     setRequestKey(owner.requestKey)
@@ -982,7 +983,45 @@ function App({ capabilities } = {}) {
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} paymentOptions={paymentOptions} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={tableServiceCommands.createTable} onRename={tableServiceCommands.renameTable} onSetActive={tableServiceCommands.setTableActive} onReorder={tableServiceCommands.reorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
-        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransferComanda} onTransfer={tableServiceCommands.transferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'comandas' && (
+          <TableServiceExternalActions
+            selection={selectedComanda}
+            selectionGeneration={selectedComandaGeneration}
+            disabled={writesBlocked || Boolean(tableTabSync)}
+            paymentOptions={paymentOptions}
+            defaultPaymentMethod={defaultPaymentMethod}
+            currency={currency}
+            onPay={handleRegisterTableTabPayment}
+            onApiError={showApiError}
+            onToast={setToastMessage}
+            printing={printing}
+          >
+            {({ requestPayment, requestPreview, requestPrint, printingBusy, printingFeedback, printingAvailable }) => (
+              <Comandas
+                tables={tables}
+                selection={selectedComanda}
+                selectionGeneration={selectedComandaGeneration}
+                onSelectComanda={selectCurrentComanda}
+                onAddOrder={(owner) => handleNewOrder({ tableId: owner.tableId, expectedTableTabId: owner.tableTabId, returnTab: 'comandas' })}
+                canTransfer={canTransferComanda}
+                onTransfer={tableServiceCommands.transferTableTab}
+                onApiError={showApiError}
+                onRequestPayment={requestPayment}
+                onRequestPreview={requestPreview}
+                onRequestPrint={requestPrint}
+                printingBusy={printingBusy}
+                printingFeedback={printingFeedback}
+                printingAvailable={printingAvailable}
+                paymentSync={tableTabSync}
+                onRetryPaymentSync={() => reconcileTableTabPayment()}
+                currency={currency}
+                disabled={writesBlocked}
+                canCreateOrders={canCreateOrders}
+                canExecutePrinting={canExecutePrinting}
+              />
+            )}
+          </TableServiceExternalActions>
+        )}
         {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSuccessMessage={showSuccessMessage} />}
 
         {pendingDestination && (

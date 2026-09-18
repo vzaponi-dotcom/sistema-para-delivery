@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import '../../../comandas.css'
 import '../../../comandas-table-list-polish.css'
 import Button from '../../../components/Button'
@@ -6,26 +6,33 @@ import Icon from '../../../components/Icon'
 import PageHeader from '../../../components/PageHeader'
 import { useMediaQuery } from '../../../hooks/useMediaQuery.js'
 import ComandaDetail from './ComandaDetail.jsx'
-import Modal from '../../../components/Modal'
-import TableTabPaymentDialog from '../../../components/TableTabPaymentDialog'
-import TableTabTicketPreview from '../../../components/TableTabTicketPreview'
 import TableTransferDialog from './TableTransferDialog.jsx'
 import { useTableTabDetail } from '../application/useTableTabDetail.js'
 
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const itemSummary = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
 
-function SelectedComanda({ table, tables, currency, disabled, paymentOptions, defaultPaymentMethod, canTransfer, canCreateOrders, canExecutePrinting, onAddOrder, onPay, onTransfer, onApiError, onToast, printing, headingRef }) {
-  const [paymentOpen, setPaymentOpen] = useState(false)
-  const [previewDocument, setPreviewDocument] = useState(null)
-  const [printingFeedback, setPrintingFeedback] = useState(null)
-  const [activeAction, setActiveAction] = useState(null)
+function SelectedComanda({
+  table,
+  tables,
+  selectionGeneration,
+  currency,
+  disabled,
+  canTransfer,
+  canCreateOrders,
+  canExecutePrinting,
+  onAddOrder,
+  onTransfer,
+  onApiError,
+  onRequestPayment,
+  onRequestPreview,
+  onRequestPrint,
+  printingBusy,
+  printingFeedback,
+  printingAvailable,
+  headingRef,
+}) {
   const [transferSource, setTransferSource] = useState(null)
-  const actionRef = useRef(null)
-  const actionSequenceRef = useRef(0)
-  const mountedRef = useRef(true)
-  const errorHandler = useRef(onApiError)
-  useLayoutEffect(() => { errorHandler.current = onApiError }, [onApiError])
   const tabId = table.openTableTab?.id
   const tableId = table.id
   const {
@@ -38,60 +45,41 @@ function SelectedComanda({ table, tables, currency, disabled, paymentOptions, de
     officialTables: tables,
     onUnauthorized: onApiError,
   })
-  useEffect(() => {
-    if (detailError) setPaymentOpen(false)
-  }, [detailError])
-  useEffect(() => () => {
-    mountedRef.current = false
-    actionSequenceRef.current += 1
-    actionRef.current = null
-  }, [])
-  const runPrintingAction = async (kind, operation) => {
-    if ((kind === 'print' && !canExecutePrinting) || actionRef.current || disabled) return false
-    const owner = { token: ++actionSequenceRef.current, tabId, tableId, kind }
-    actionRef.current = owner
-    setActiveAction(owner)
-    setPrintingFeedback(null)
-    const ownsAction = () => mountedRef.current && actionRef.current === owner
-    try {
-      const result = await operation()
-      if (!ownsAction()) return
-      if (kind === 'preview') {
-        if (result?.type !== 'table-tab' || result.tableTab?.id !== tabId) {
-          throw new Error('O ticket recebido não corresponde à comanda selecionada. Tente novamente.')
-        }
-        setPreviewDocument(result)
-      } else {
-        setPrintingFeedback(null)
-        onToast?.('Impressão enviada para a fila')
-      }
-    } catch (error) {
-      if (!ownsAction()) return
-      setPrintingFeedback({ type: 'error', message: error?.message || 'Não foi possível concluir a impressão da comanda. Tente novamente.' })
-      if (error?.status === 401) errorHandler.current?.(error)
-    } finally {
-      if (ownsAction()) {
-        actionRef.current = null
-        setActiveAction(null)
-      }
-    }
-  }
   const current = !loading
+  const owner = { tableId, tableTabId: tabId, selectionGeneration }
+
   if (!tabId) return <p role="alert">Comanda indisponível. Aguarde a atualização das mesas.</p>
+
   return (
     <>
       {!current && <p role="status">Carregando comanda…</p>}
       {current && detailError && <div role="alert"><p>{detailError}</p><Button type="button" onClick={() => retryDetail()}>Tentar novamente</Button></div>}
       {printingFeedback && <p role={printingFeedback.type === 'error' ? 'alert' : 'status'}>{printingFeedback.message}</p>}
-      {detail && <ComandaDetail detail={detail} headingId="comanda-heading" headingRef={headingRef} currency={currency} disabled={disabled} busyAction={!current || Boolean(activeAction)} printingDisabled={!printing?.getTableTabPreviewDocument || !printing?.printTableTab} canTransfer={canTransfer} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} onAddOrder={() => { if (canCreateOrders) onAddOrder?.(tableId, tabId) }} onTransfer={() => setTransferSource({ ...table, openTableTab: { ...table.openTableTab, id: tabId } })} onViewTicket={() => runPrintingAction('preview', () => printing.getTableTabPreviewDocument(tabId))} onPrint={() => runPrintingAction('print', () => printing.printTableTab(tabId))} onPay={() => setPaymentOpen(true)} />}
-      <TableTabPaymentDialog open={paymentOpen} detail={detail} currency={currency} disabled={disabled || !current} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} onClose={() => setPaymentOpen(false)} onConfirm={onPay} />
+      {detail && (
+        <ComandaDetail
+          detail={detail}
+          headingId="comanda-heading"
+          headingRef={headingRef}
+          currency={currency}
+          disabled={disabled}
+          busyAction={!current || Boolean(printingBusy)}
+          printingDisabled={!printingAvailable}
+          canTransfer={canTransfer}
+          canCreateOrders={canCreateOrders}
+          canExecutePrinting={canExecutePrinting}
+          onAddOrder={() => { if (canCreateOrders) onAddOrder?.(owner) }}
+          onTransfer={() => setTransferSource({ ...table, openTableTab: { ...table.openTableTab, id: tabId } })}
+          onViewTicket={() => onRequestPreview?.(owner)}
+          onPrint={() => onRequestPrint?.(owner)}
+          onPay={() => onRequestPayment?.({ ...owner, detail })}
+        />
+      )}
       {transferSource && <TableTransferDialog sourceTable={transferSource} tables={tables} disabled={disabled} onClose={() => setTransferSource(null)} onTransfer={onTransfer} />}
-      {previewDocument && <Modal title={`Visualização da comanda ${previewDocument.tableTab.number}`} onClose={() => setPreviewDocument(null)}><TableTabTicketPreview document={previewDocument} /></Modal>}
     </>
   )
 }
 
-function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectComanda, onAddOrder, onPay, paymentOptions, defaultPaymentMethod, canTransfer = false, canCreateOrders = true, canExecutePrinting = true, onTransfer, onApiError, onToast, paymentSync, onRetryPaymentSync, printing, currency = defaultCurrency, disabled = false }) {
+function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectComanda, onAddOrder, canTransfer = false, canCreateOrders = true, canExecutePrinting = true, onTransfer, onApiError, onRequestPayment, onRequestPreview, onRequestPrint, printingBusy = false, printingFeedback = null, printingAvailable = false, paymentSync, onRetryPaymentSync, currency = defaultCurrency, disabled = false }) {
   const activeTables = tables.filter((table) => table.isActive).sort((left, right) => left.sortOrder - right.sortOrder)
   const selectedTable = activeTables.find((table) => table.id === selection?.tableId && table.occupancy === 'occupied' && table.openTableTab?.id === selection.tableTabId) || null
   const [mobileDetailOpen, setMobileDetailOpen] = useState(Boolean(selectedTable))
@@ -150,7 +138,7 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
 
   const selectTable = (table) => {
     if (table.occupancy === 'free') {
-      if (canCreateOrders && !disabled) onAddOrder?.(table.id)
+      if (canCreateOrders && !disabled) onAddOrder?.({ tableId: table.id, tableTabId: '', selectionGeneration })
       return
     }
     listScrollRef.current = listRef.current?.scrollTop || 0
@@ -198,7 +186,7 @@ function Comandas({ tables = [], selection, selectionGeneration = 0, onSelectCom
           {selectedTable ? (
             <>
               <Button type="button" variant="secondary" className="comandas-mobile-back" ref={backButtonRef} onClick={() => setMobileDetailOpen(false)}>Voltar para mesas</Button>
-              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} headingRef={setDetailHeadingRef} currency={currency} disabled={disabled || Boolean(paymentSync)} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransfer} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} onAddOrder={onAddOrder} onPay={onPay} onTransfer={onTransfer} onApiError={onApiError} onToast={onToast} printing={printing} />
+              <SelectedComanda key={`${selectionGeneration}:${selectedTable.id}:${selectedTable.openTableTab?.id}`} table={selectedTable} tables={tables} selectionGeneration={selectionGeneration} headingRef={setDetailHeadingRef} currency={currency} disabled={disabled || Boolean(paymentSync)} canTransfer={canTransfer} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} onAddOrder={onAddOrder} onTransfer={onTransfer} onApiError={onApiError} onRequestPayment={onRequestPayment} onRequestPreview={onRequestPreview} onRequestPrint={onRequestPrint} printingBusy={printingBusy} printingFeedback={printingFeedback} printingAvailable={printingAvailable} />
             </>
           ) : <div className="empty-state"><Icon name="clipboard" size={28} /><strong>Selecione uma mesa ocupada.</strong><span>Confira aqui o resumo da comanda.</span></div>}
         </aside>

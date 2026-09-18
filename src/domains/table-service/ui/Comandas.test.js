@@ -161,174 +161,38 @@ test('empty workspace announces absence of active tables', async (t) => {
   assert.match(nodeText(renderer.root.findByProps({ role: 'status' })), /Nenhuma mesa ativa/)
 })
 
-test('ticket preview uses the canonical document and closes without changing the selected comanda', async (t) => {
+test('selected comanda emits canonical external intents without owning overlay workflows', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  const calls = []
-  const printing = {
-    getTableTabPreviewDocument: async (id) => { calls.push(id); return tableTabDocument() },
-    printTableTab: async () => assert.fail('preview must not print'),
-  }
-  h.document.body.style.overflow = 'scroll'
-  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing })
-
-  await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
-  assert.deepEqual(calls, ['tab-42'])
-  assert.match(nodeText(r.root.findByProps({ role: 'dialog' })).replace(/\u00a0/g, ' '), /Restaurante.*PR\u00c9-CONTA.*COMANDA #42.*Mesa 7.*3x X-Bacon Grande.*Sem cebola.*R\$ 123,45/)
-  assert.equal(h.document.body.style.overflow, 'hidden')
-  await act(async () => buttonNamed(r.root.findByProps({ role: 'dialog' }), 'Fechar').props.onClick())
-  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
-  assert.equal(h.document.body.style.overflow, 'scroll')
-  assert.match(nodeText(detail(r)), /Comanda 42.*Mesa 7/)
-})
-
-test('preview failure is actionable and retry opens only the successful canonical snapshot', async (t) => {
-  const h = await workspaceHarness(t)
-  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  let attempts = 0
-  const printing = {
-    getTableTabPreviewDocument: async () => {
-      attempts += 1
-      if (attempts === 1) throw new Error('N\u00e3o foi poss\u00edvel atualizar o ticket')
-      return tableTabDocument({ items: [{ name: 'Suco', presentation: '500 ml', note: 'Sem gelo', quantity: 1, lineTotalCents: 12345 }] })
-    },
-    printTableTab: async () => {},
-  }
-  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing })
-
-  await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
-  assert.match(nodeText(detail(r)), /N\u00e3o foi poss\u00edvel atualizar o ticket/)
-  assert.match(nodeText(detail(r)), /Comanda 42.*Mesa 7/)
-  await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
-  assert.match(nodeText(r.root.findByProps({ role: 'dialog' })), /1x Suco 500 ml.*Sem gelo/)
-  assert.equal(attempts, 2)
-})
-
-test('manual print suppresses duplicates, preserves the open tab on failure, and retries successfully', async (t) => {
-  const h = await workspaceHarness(t)
-  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  const first = deferred()
-  let attempts = 0
-  const printing = {
-    getTableTabPreviewDocument: async () => tableTabDocument(),
-    printTableTab: (id) => {
-      assert.equal(id, 'tab-42')
-      attempts += 1
-      return attempts === 1 ? first.promise : Promise.resolve({ status: 'printed', copiesPrinted: 1 })
-    },
-  }
-  const toasts = []
-  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing, onToast: (message) => toasts.push(message) })
-  const print = buttonNamed(detail(r), 'Imprimir comanda')
-  await act(async () => {
-    const pending = print.props.onClick()
-    print.props.onClick()
-    first.reject(new Error('Impressora desconectada'))
-    await pending
+  globalThis.fetch = async () => detailResponse()
+  const intents = { add: [], pay: [], preview: [], print: [] }
+  const r = await h.render(Comandas, {
+    tables: workspaceTables,
+    selection: occupiedSelection,
+    selectionGeneration: 7,
+    currency,
+    printingAvailable: true,
+    onAddOrder: (intent) => intents.add.push(intent),
+    onRequestPayment: (intent) => intents.pay.push(intent),
+    onRequestPreview: (intent) => intents.preview.push(intent),
+    onRequestPrint: (intent) => intents.print.push(intent),
   })
-  assert.equal(attempts, 1)
-  assert.match(nodeText(detail(r)), /Impressora desconectada/)
-  assert.match(nodeText(detail(r)), /Comanda 42.*Mesa 7/)
 
-  await act(async () => buttonNamed(detail(r), 'Imprimir comanda').props.onClick())
-  assert.equal(attempts, 2)
-  assert.deepEqual(toasts, ['Impress\u00e3o enviada para a fila'])
-  assert.doesNotMatch(nodeText(detail(r)), /enviada para a fila/)
-  assert.match(nodeText(detail(r)), /Comanda 42.*Mesa 7/)
-})
-
-test('late preview and print results cannot affect a newer selected tab or clear its busy action', async (t) => {
-  const h = await workspaceHarness(t)
-  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  const previews = [deferred(), deferred()]
-  const prints = [deferred(), deferred()]
-  let previewIndex = 0
-  let printIndex = 0
-  const tables = [...workspaceTables, { id: 'other', name: 'Terra\u00e7o', isActive: true, occupancy: 'occupied', sortOrder: 4, openTableTab: { id: 'tab-43', number: 43, itemCount: 1, totalCents: 5000 } }]
-  globalThis.fetch = async (path) => detailResponse(path.endsWith('tab-43') ? { ...comandaDetail, id: 'tab-43', number: 43, table: { id: 'other', name: 'Terra\u00e7o' } } : comandaDetail)
-  const printing = {
-    getTableTabPreviewDocument: () => previews[previewIndex++].promise,
-    printTableTab: () => prints[printIndex++].promise,
-  }
-  const toasts = []
-  function Workspace() {
-    const [selection, onSelectComanda] = React.useState(occupiedSelection)
-    return React.createElement(Comandas, { tables, selection, onSelectComanda, currency, printing, onToast: (message) => toasts.push(message) })
-  }
-  const r = await h.render(Workspace)
-  let oldPreview
-  await act(async () => { oldPreview = buttonNamed(detail(r), 'Ver ticket').props.onClick(); await Promise.resolve() })
-  await act(async () => list(r).findAllByType('button').at(-1).props.onClick())
-  let currentPrint
-  await act(async () => { currentPrint = buttonNamed(detail(r), 'Imprimir comanda').props.onClick(); await Promise.resolve() })
-  await act(async () => previews[0].resolve(tableTabDocument()))
-  await oldPreview
-  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
-  assert.ok(buttonNamed(detail(r), 'Imprimir comanda').props.disabled, 'late old result must not release the newer action')
-  await act(async () => prints[0].resolve({ status: 'printed', copiesPrinted: 1 }))
-  await currentPrint
-  assert.deepEqual(toasts, ['Impress\u00e3o enviada para a fila'])
-  assert.match(nodeText(detail(r)), /Comanda 43.*Terra\u00e7o/)
-})
-
-test('late preview rejection after selection replacement cannot show an error or expire the session', async (t) => {
-  const h = await workspaceHarness(t)
-  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  const pending = deferred()
-  const sessionErrors = []
-  const tables = [...workspaceTables, { id: 'other', name: 'Terra\u00e7o', isActive: true, occupancy: 'occupied', sortOrder: 4, openTableTab: { id: 'tab-43', number: 43, itemCount: 1, totalCents: 5000 } }]
-  globalThis.fetch = async (path) => detailResponse(path.endsWith('tab-43') ? { ...comandaDetail, id: 'tab-43', number: 43, table: { id: 'other', name: 'Terra\u00e7o' } } : comandaDetail)
-  const printing = { getTableTabPreviewDocument: () => pending.promise, printTableTab: async () => ({ status: 'printed' }) }
-  function Workspace() {
-    const [selection, onSelectComanda] = React.useState(occupiedSelection)
-    return React.createElement(Comandas, { tables, selection, onSelectComanda, currency, printing, onApiError: (error) => sessionErrors.push(error) })
-  }
-  const r = await h.render(Workspace)
-  let oldPreview
-  await act(async () => { oldPreview = buttonNamed(detail(r), 'Ver ticket').props.onClick(); await Promise.resolve() })
-  await act(async () => list(r).findAllByType('button').at(-1).props.onClick())
-  const staleError = Object.assign(new Error('Sess\u00e3o antiga'), { status: 401 })
-  await act(async () => pending.reject(staleError))
-  await oldPreview
-
-  assert.deepEqual(sessionErrors, [])
-  assert.doesNotMatch(nodeText(detail(r)), /Sess\u00e3o antiga/)
-  assert.match(nodeText(detail(r)), /Comanda 43.*Terra\u00e7o/)
-})
-
-test('tab replacement closes its old preview and releases that overlay lock', async (t) => {
-  const h = await workspaceHarness(t)
-  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  const printing = { getTableTabPreviewDocument: async () => tableTabDocument(), printTableTab: async () => ({ status: 'printed' }) }
-  h.document.body.style.overflow = 'scroll'
-  const props = { tables: workspaceTables, selection: occupiedSelection, currency, printing }
-  const r = await h.render(Comandas, props)
-  await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
-  assert.equal(h.document.body.style.overflow, 'hidden')
-  const replacedTables = workspaceTables.map((table) => table.id === 'occupied'
-    ? { ...table, openTableTab: { ...table.openTableTab, id: 'tab-99', number: 99 } }
-    : table)
-  globalThis.fetch = async () => detailResponse({ ...comandaDetail, id: 'tab-99', number: 99 })
-  await act(async () => r.update(React.createElement(Comandas, { ...props, tables: replacedTables })))
-  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
-  assert.equal(h.document.body.style.overflow, 'scroll')
-})
-
-test('preview and payment overlays release only their own shared scroll locks', async (t) => {
-  const h = await workspaceHarness(t)
-  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
-  const printing = { getTableTabPreviewDocument: async () => tableTabDocument(), printTableTab: async () => ({ status: 'printed' }) }
-  h.document.body.style.overflow = 'auto'
-  const r = await h.render(Comandas, { tables: workspaceTables, selection: occupiedSelection, currency, printing, onPay: async () => true })
-  await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
+  await act(async () => buttonNamed(detail(r), 'Adicionar pedido').props.onClick())
   await act(async () => buttonNamed(detail(r), 'Registrar pagamento').props.onClick())
-  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 2)
-  assert.equal(h.document.body.style.overflow, 'hidden')
-  await act(async () => buttonNamed(r.root.findAllByProps({ role: 'dialog' })[0], 'Fechar').props.onClick())
-  assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 1)
-  assert.equal(h.document.body.style.overflow, 'hidden')
-  await act(async () => buttonNamed(r.root.findByProps({ role: 'dialog' }), 'Fechar').props.onClick())
-  assert.equal(h.document.body.style.overflow, 'auto')
+  await act(async () => buttonNamed(detail(r), 'Ver ticket').props.onClick())
+  await act(async () => buttonNamed(detail(r), 'Imprimir comanda').props.onClick())
+
+  const owner = { tableId: 'occupied', tableTabId: 'tab-42', selectionGeneration: 7 }
+  assert.deepEqual(intents.add, [owner])
+  assert.deepEqual(intents.preview, [owner])
+  assert.deepEqual(intents.print, [owner])
+  assert.equal(intents.pay.length, 1)
+  assert.deepEqual(
+    { tableId: intents.pay[0].tableId, tableTabId: intents.pay[0].tableTabId, selectionGeneration: intents.pay[0].selectionGeneration },
+    owner,
+  )
+  assert.equal(intents.pay[0].detail.id, 'tab-42')
 })
 
 // DOM boundary for focus/containment. Targets are derived from rendered host nodes;

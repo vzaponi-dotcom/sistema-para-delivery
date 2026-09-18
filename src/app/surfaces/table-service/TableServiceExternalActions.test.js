@@ -165,3 +165,44 @@ test('payment and preview overlays release only their own shared scroll locks', 
   await act(async () => buttonNamed(renderer.root.findByProps({ role: 'dialog' }), 'Fechar').props.onClick())
   assert.equal(h.document.body.style.overflow, 'auto')
 })
+
+
+test('preview failure remains actionable and retry opens only the successful document', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Surface } = await h.load('/src/app/surfaces/table-service/TableServiceExternalActions.jsx')
+  let attempts = 0
+  const { renderer, actions } = await renderSurface(h, Surface, {
+    printing: {
+      getTableTabPreviewDocument: async () => {
+        attempts += 1
+        if (attempts === 1) throw new Error('Não foi possível atualizar o ticket')
+        return documentFor()
+      },
+      printTableTab: async () => ({ status: 'printed' }),
+    },
+  })
+
+  await act(async () => actions().requestPreview(intentA))
+  assert.match(actions().printingFeedback?.message || '', /Não foi possível atualizar o ticket/)
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+
+  await act(async () => actions().requestPreview(intentA))
+  assert.equal(attempts, 2)
+  assert.equal(actions().printingFeedback, null)
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
+})
+
+test('open preview closes and releases its lock when visual ownership is replaced', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Surface } = await h.load('/src/app/surfaces/table-service/TableServiceExternalActions.jsx')
+  h.document.body.style.overflow = 'scroll'
+  const { renderer, actions, update } = await renderSurface(h, Surface)
+
+  await act(async () => actions().requestPreview(intentA))
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
+  assert.equal(h.document.body.style.overflow, 'hidden')
+
+  await update({ selection: selectionB, selectionGeneration: 5 })
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.equal(h.document.body.style.overflow, 'scroll')
+})
