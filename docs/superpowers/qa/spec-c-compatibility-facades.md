@@ -6,7 +6,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 |---|---|---|---|
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | C1 legacy payment workflow | C6 |
-| operational data runtime table-commit bridge | App-owned comanda selection reconciliation | C1 legacy table-service workflow | C5 |
+| operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | no remaining runtime consumer on current C5 branch; final removal evidence pending C5 closure | C5 |
 | `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
 
 ## C1 status — 2026-09-16
@@ -42,15 +42,19 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains for later Customers/Catalog migration, with final enforcement no later than C10.
 
-## C5 design status — 2026-09-18
+## C5 execution status — 2026-09-18
 
-- Branch: `feature/spec-c5-table-service`.
+- Branch: `feature/spec-c5-table-service`; draft PR #49.
 - Base: C4 merge/master `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
-- Written design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md` — **APPROVED by user on 2026-09-18**.
-- Detailed implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` — awaiting user plan review.
-- C5 implementation has not started.
-- C5 is explicitly responsible for removing the operational data runtime table-commit bridge.
-- C5 must not remove the payment-receipt bridge; that remains C6.
+- Written design and detailed implementation plan are **APPROVED**.
+- Task 1 is **COMPLETE / GREEN** at `e8f490808900d56c2c23d6683ed5365da4921b80`; it introduced no temporary compatibility facade.
+- Task 2 is **COMPLETE / GREEN** after fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`; Validate #1298 / run `35379605815` passed.
+- Task 2 physically removed the runtime `onTablesCommitted` callback and App-owned comanda selection refs. Selection now reconciles unidirectionally from official `tables[]`.
+- The table-commit bridge row remains visible only until final C5 architecture/closure evidence records its removal; there is no remaining runtime consumer on the current branch.
+- Task 3 has started at RED but introduces no compatibility facade at this checkpoint.
+- The payment-receipt bridge remains intentionally active until C6.
+- Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
+- `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
 - C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
