@@ -6,7 +6,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 |---|---|---|---|
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | C1 legacy payment workflow | C6 |
-| operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | no remaining runtime consumer on current C5 branch; final removal evidence pending C5 closure | C5 |
+| operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
 | `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
 
 ## C1 status — 2026-09-16
@@ -50,7 +50,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 1 is **COMPLETE / GREEN** at `e8f490808900d56c2c23d6683ed5365da4921b80`; it introduced no temporary compatibility facade.
 - Task 2 is **COMPLETE / GREEN** after fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`; Validate #1298 / run `35379605815` passed.
 - Task 2 physically removed the runtime `onTablesCommitted` callback and App-owned comanda selection refs. Selection now reconciles unidirectionally from official `tables[]`.
-- The table-commit bridge row remains visible only until final C5 architecture/closure evidence records its removal; there is no remaining runtime consumer on the current branch.
+- The operational table-commit bridge is **REMOVED IN C5**. Task 10 architecture enforcement now rejects legacy owner/API reintroduction and external deep imports; there is no remaining runtime consumer.
 - Task 3 is **COMPLETE / GREEN** at `4fcfff12a3357dfbeb1587142b643a0db55702bf`; Validate #1306 / run `35380450226` passed. `Comandas.jsx` no longer owns direct detail HTTP/loading.
 - Task 4 is **COMPLETE / GREEN** at `7ef5fc7a68292e17372bb15a9d23131c38ecfd48`; Validate #1309 / run `35381219700` passed.
 - The temporary Task 3 dependency on legacy `getTableTabDetail` is removed. Detail HTTP now belongs to `domains/table-service/infrastructure/tableServiceApi.js`.
@@ -70,6 +70,8 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 9 is **COMPLETE / GREEN** at `8a69d6d6b1643ae865bbf976225bbe46e237fd89`; Validate #1335 / run `35389776835` passed.
 - The dead Orders route compatibility contract is removed: `tableTabsFromBootstrap` is gone, `NewOrderRoute` no longer receives a `tableTabs` prop, and no compatibility reexport was introduced. `tables`, `initialTableId` and `expectedTableTabId` remain the live route contract.
 - Official runtime `tableTabs` deliberately remains for C6 payment reconciliation; this is runtime state, not an Orders compatibility facade. Orders → Table Service continues only through `src/domains/table-service/index.js`.
+- Task 10 is **COMPLETE / GREEN** at `bf871adb3c21de2cd3c6143214d12a5e825c1bda`; Validate #1338 / run `35391943036` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**.
+- The C5 architecture checker permanently rejects external Table Service deep imports, Table Service → Orders imports, recreation of the five legacy UI owners, and reintroduction of the five migrated C5 API exports. The public entry is restricted to the six real external contracts.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
 - C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).

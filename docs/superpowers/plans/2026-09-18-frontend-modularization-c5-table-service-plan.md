@@ -76,8 +76,14 @@
   - Final GREEN: Validate #1335 / run `35389776835` — **1,717 tests / 1,716 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
   - `tableTabsFromBootstrap` and App's `tableTabs={tableTabs}` route prop are removed. `tables`, `initialTableId` and `expectedTableTabId` remain live.
   - Runtime `tableTabs` remains intact for accepted-payment reconciliation. Orders continues to import `LocalTableSelector` from the public Table Service entry only.
-- Task 10: **NOT STARTED / NEXT**.
-- Task 11: **NOT STARTED**.
+- Task 10: **COMPLETE / GREEN**.
+  - RED: `b24def5f6cbe29f2e7b0ae8b9d305980a0c44dde`; Validate #1337 failed with the five intended architecture/public-contract failures.
+  - GREEN: `bf871adb3c21de2cd3c6143214d12a5e825c1bda`.
+  - Final GREEN: Validate #1338 / run `35391943036` — **1,724 tests / 1,723 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - Permanent rules now reject external Table Service deep imports, Table Service → Orders imports, re-created C5 legacy owners and reintroduced C5 legacy API declarations.
+  - Public entry is exactly: `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection`, `useTableServiceCommands`.
+  - Physical/API/import audits passed. The operational runtime table-commit bridge is formally removed in C5; payment-receipt bridge remains C6.
+- Task 11: **NOT STARTED / NEXT**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -1607,7 +1613,7 @@ git commit -m "refactor: clean table service orders integration"
 - Reject reappearance of the five exact C5 legacy owner paths.
 - Reject reintroduction of the five C5 API declarations in `src/api/client.js`.
 
-- [ ] **Step 1: Add architecture fixtures first**
+- [x] **Step 1: Add architecture fixtures first**
 
 Add `C5_LEGACY_TABLE_SERVICE_OWNERS` fixture expectations for:
 - `src/pages/Tables.jsx`;
@@ -1623,7 +1629,7 @@ Add tests proving:
 4. re-created legacy owner is rejected;
 5. legacy API declaration `export const transferTableTab = ...` is rejected as `c5-legacy-table-service-api`.
 
-- [ ] **Step 2: Run architecture RED**
+- [x] **Step 2: Run architecture RED**
 
 ```bash
 node --test scripts/architecture/check-import-boundaries.test.mjs
@@ -1631,7 +1637,7 @@ node --test scripts/architecture/check-import-boundaries.test.mjs
 
 Expected: FAIL because the checker does not yet know the C5 rules.
 
-- [ ] **Step 3: Extend the checker**
+- [x] **Step 3: Extend the checker**
 
 Add:
 
@@ -1671,7 +1677,7 @@ if (edge.from.startsWith('src/domains/table-service/')
 
 Loop through `C5_LEGACY_TABLE_SERVICE_OWNERS` like the C3/C4 owner sets and emit `c5-legacy-table-service-owner: <path>`.
 
-- [ ] **Step 4: Add an App exit-contract test**
+- [x] **Step 4: Add an App exit-contract test**
 
 Create `src/domains/table-service/tableServiceExtractionContract.test.js` reading `../../App.jsx` and assert none of these implementation tokens remain:
 
@@ -1708,7 +1714,7 @@ for (const token of [
 
 Do not require printing API names in App because printing is already behind `usePrintingManager`.
 
-- [ ] **Step 5: Trim the Table Service public entry to actual external consumers**
+- [x] **Step 5: Trim the Table Service public entry to actual external consumers**
 
 By this point, `src/domains/table-service/index.js` must export only contracts with a real external consumer:
 
@@ -1734,7 +1740,7 @@ Update `tableServicePublicContract.test.js` to import the module namespace and a
 
 Pure/internal helpers remain covered by their direct domain tests; do not keep them public only for test convenience.
 
-- [ ] **Step 6: Run architecture GREEN**
+- [x] **Step 6: Run architecture GREEN**
 
 ```bash
 node --test   scripts/architecture/check-import-boundaries.test.mjs   src/domains/table-service/tableServiceExtractionContract.test.js
@@ -1743,7 +1749,7 @@ npm run test:architecture
 
 Expected: PASS and `Frontend architecture boundaries: OK`.
 
-- [ ] **Step 7: Run physical ownership audits**
+- [x] **Step 7: Run physical ownership audits**
 
 ```bash
 for path in   src/pages/Tables.jsx   src/pages/Comandas.jsx   src/components/ComandaDetail.jsx   src/components/TableTransferDialog.jsx   src/components/LocalTableSelector.jsx; do
@@ -1757,7 +1763,7 @@ rg "domains/orders" src/domains/table-service
 
 Expected: all old paths absent and all three `rg` commands print no prohibited production imports.
 
-- [ ] **Step 8: Update the compatibility ledger only after evidence exists**
+- [x] **Step 8: Update the compatibility ledger only after evidence exists**
 
 In `docs/superpowers/qa/spec-c-compatibility-facades.md` mark the operational data runtime table-commit bridge as **removed in C5**. Keep:
 - payment-receipt bridge → C6;
@@ -1766,7 +1772,7 @@ In `docs/superpowers/qa/spec-c-compatibility-facades.md` mark the operational da
 
 Do not delete or broaden another row.
 
-- [ ] **Step 9: Run the focused C5 regression bundle**
+- [x] **Step 9: Run the focused C5 regression bundle**
 
 ```bash
 node --test   src/domains/table-service/**/*.test.js   src/app/surfaces/table-service/*.test.js   src/comandasAppWiring.test.js   src/comandasTransferNavigation.test.js   src/tableTransferIdentityUi.test.js   src/tableTabNewOrderUi.test.js   src/tablesAppWiring.test.js   src/tableTabsAppWiring.test.js   src/components/TableTabPaymentDialog.test.js   src/printing/usePrintingManager.test.js   scripts/architecture/check-import-boundaries.test.mjs
@@ -1776,7 +1782,7 @@ If the shell does not expand `**`, enumerate the Table Service test files explic
 
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add scripts/architecture src/domains/table-service docs/superpowers/qa/spec-c-compatibility-facades.md
