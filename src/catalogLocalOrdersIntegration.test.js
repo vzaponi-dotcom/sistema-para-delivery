@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs'
 
 const app = readFileSync(new URL('./App.jsx', import.meta.url), 'utf8')
 const appShell = readFileSync(new URL('./app/shell/AppShell.jsx', import.meta.url), 'utf8')
-const newOrder = readFileSync(new URL('./pages/NewOrder.jsx', import.meta.url), 'utf8')
-const newOrderCustomerStep = readFileSync(new URL('./components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
+const newOrder = readFileSync(new URL('./domains/orders/ui/NewOrder.jsx', import.meta.url), 'utf8')
+const newOrderCustomerStep = readFileSync(new URL('./domains/orders/ui/components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
 const localTableSelector = readFileSync(new URL('./components/LocalTableSelector.jsx', import.meta.url), 'utf8')
 const receivables = readFileSync(new URL('./pages/Receivables.jsx', import.meta.url), 'utf8')
 const repositories = readFileSync(new URL('../worker/repositories.js', import.meta.url), 'utf8')

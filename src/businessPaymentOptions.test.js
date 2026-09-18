@@ -97,7 +97,7 @@ test('a new cash movement remains empty and requires an explicit active payment 
 
 test('checkout applies the current default only when opening a new payment choice', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Checkout } = await h.load('/src/components/OrderCheckoutSummary.jsx')
+  const { default: Checkout } = await h.load('/src/domains/orders/ui/components/OrderCheckoutSummary.jsx')
   const base = {
     draft: { type: 'Retirada', adjustment: { type: 'none', mode: 'fixed', value: '', reason: '' } },
     preview: { subtotal: 20, deliveryFee: 0, adjustmentAmount: 0, total: 20 },

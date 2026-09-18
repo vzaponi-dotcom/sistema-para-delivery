@@ -203,7 +203,7 @@ test('8. products.view mantÃ©m catÃ¡logo e bloqueia CRUD sem products.manage
 test('9. montar pedido consulta produtos sem products.manage e nÃ£o injeta ajuste sem orders.discount', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }, { default: OrderCheckoutSummary }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'), h.load('/src/components/NewOrderReviewStep.jsx'), h.load('/src/components/OrderCheckoutSummary.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'), h.load('/src/domains/orders/ui/components/OrderCheckoutSummary.jsx'),
   ])
   const renderer = await h.render(NewOrder, {
     clients: [client], products: [product], tables, initialTableId: 'occupied', currency, disabled: false,
