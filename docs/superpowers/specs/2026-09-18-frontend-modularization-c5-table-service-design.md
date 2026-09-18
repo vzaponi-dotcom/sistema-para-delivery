@@ -1,11 +1,12 @@
 # Spec C5 — Table Service Domain Extraction Design
 
 **Date:** 2026-09-18  
-**Status:** design approved in conversation; written specification awaiting user review  
+**Status:** approved by user; implementation plan written and awaiting user review  
 **Program:** Spec C — Frontend modularization  
 **Branch:** `feature/spec-c5-table-service`  
 **Base/master SHA:** `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`  
-**Parent design:** `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`
+**Parent design:** `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`  
+**Implementation plan:** `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
 
 ## 1. Purpose
 
