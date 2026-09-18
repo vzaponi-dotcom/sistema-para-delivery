@@ -10,6 +10,23 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-frontend-modularization-c4-orders-design.md`
 
+## Execution status — checkpoint after Task 8 — 2026-09-17
+
+- Branch: `feature/spec-c4-orders`
+- Draft PR: #48
+- Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
+- Last fully validated executable SHA before this docs-only reconciliation: `52619afa04b9ee0b94370f341e9ca83ca826d162`
+- Validate application #1250 / run `35292926495`: **SUCCESS**
+- Tasks 1–8: **COMPLETE / GREEN**
+- Task 9: **NOT STARTED**
+- Tasks 10–11: NOT STARTED
+- C5: NOT STARTED
+- C4 staging/manual homologation: NOT STARTED
+- Merge: NO
+- Production deploy: NO
+
+Task 8 implementation note: the planned public UI export was adapted to `./ui/NewOrderRoute.js` instead of statically exporting the `.jsx` module. This keeps `src/domains/orders/index.js` importable by pure Node `node --test` consumers while Vite loads the actual `NewOrder.jsx` UI. `NewOrderRoute.jsx` remains an internal reexport. This is an execution detail only; the public contract is still the named `NewOrderRoute` export and no legacy `src/pages/NewOrderRoute` facade survives.
+
 ## Global Constraints
 
 - Work only on `feature/spec-c4-orders` in a fresh isolated worktree created from the remote branch; never implement directly on `master`.
@@ -67,7 +84,7 @@ Generic primitives, `LocalTableSelector`, payment workflow UI, printing runtime,
 - Consumes: `shared/orderTiming.js`, `shared/orderDisplayNumber.js`, existing capability helpers.
 - Produces: public named exports from `src/domains/orders/index.js` for moved rules consumed outside Orders.
 
-- [ ] **Step 1: Add a failing public-contract characterization test**
+- [x] **Step 1: Add a failing public-contract characterization test**
 
 Create `src/domains/orders/ordersPublicContract.test.js`:
 
@@ -97,7 +114,7 @@ test('orders public contract exposes existing pure rules', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/ordersPublicContract.test.js
@@ -105,7 +122,7 @@ node --test src/domains/orders/ordersPublicContract.test.js
 
 Expected: FAIL because the Orders public entry point does not exist.
 
-- [ ] **Step 3: Move the rule files without changing business logic**
+- [x] **Step 3: Move the rule files without changing business logic**
 
 ```bash
 mkdir -p src/domains/orders/domain
@@ -125,7 +142,7 @@ git mv src/utils/cancellationReasonOptions.js src/domains/orders/domain/cancella
 
 Update moved `shared/` relative paths for the new directory depth; preserve the same shared modules.
 
-- [ ] **Step 4: Create the first public entry point**
+- [x] **Step 4: Create the first public entry point**
 
 Create `src/domains/orders/index.js`:
 
@@ -161,7 +178,7 @@ export { cancellationOptionsFromEffective, cancellationRevisionFromEffective } f
 
 Before committing, compare these names against the moved modules and add any other *currently imported outside Orders* export by its existing name; do not create alias wrappers.
 
-- [ ] **Step 5: Rewrite non-Orders consumers to the public entry**
+- [x] **Step 5: Rewrite non-Orders consumers to the public entry**
 
 Example in App:
 
@@ -177,7 +194,7 @@ import {
 
 Use the equivalent relative `domains/orders/index.js` import from current pages/components. Do not create `src/utils` reexports.
 
-- [ ] **Step 6: Run focused rule tests**
+- [x] **Step 6: Run focused rule tests**
 
 ```bash
 node --test \
@@ -191,7 +208,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 7: Verify old imports are gone**
+- [x] **Step 7: Verify old imports are gone**
 
 ```bash
 rg "utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderTypeOptions|newOrderStepFlow|cancellationReasonOptions)" src
@@ -199,7 +216,7 @@ rg "utils/(orderCart|orderLifecycle|orderPaymentEligibility|orderWorkflow|orderT
 
 Expected: no output.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components src/utils
@@ -230,7 +247,7 @@ git commit -m "refactor: establish orders domain rules"
 - Consumes: official `orders[]`, `now`, `active`, external/local `soundEnabled`.
 - Produces: `useKitchenClock(orders, { active, currentTiming })` and `useOrderArrivals({ active, orders, now, soundEnabled, playSound, setTimeoutFn, clearTimeoutFn })` returning `{ newOrderIds, previewSound, reset }`.
 
-- [ ] **Step 1: Write failing arrival lifecycle test**
+- [x] **Step 1: Write failing arrival lifecycle test**
 
 Create `src/domains/orders/application/useOrderArrivals.test.js`:
 
@@ -274,7 +291,7 @@ test('arrival baseline does not alert, then a new order alerts once and highligh
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/application/useOrderArrivals.test.js
@@ -282,7 +299,7 @@ node --test src/domains/orders/application/useOrderArrivals.test.js
 
 Expected: FAIL because the hook does not exist.
 
-- [ ] **Step 3: Move existing pure rules/hook**
+- [x] **Step 3: Move existing pure rules/hook**
 
 ```bash
 mkdir -p src/domains/orders/application src/domains/orders/infrastructure
@@ -300,7 +317,7 @@ git mv src/hooks/useKitchenClock.test.js src/domains/orders/application/useKitch
 
 Fix only relative import paths; `shared/orderTiming.js` remains the timing source.
 
-- [ ] **Step 4: Add browser alert adapter**
+- [x] **Step 4: Add browser alert adapter**
 
 Create `src/domains/orders/infrastructure/browserOrderAlert.js`:
 
@@ -359,7 +376,7 @@ export const createBrowserOrderAlertPlayer = ({ windowObject = globalThis.window
 }
 ```
 
-- [ ] **Step 5: Implement `useOrderArrivals`**
+- [x] **Step 5: Implement `useOrderArrivals`**
 
 Create `src/domains/orders/application/useOrderArrivals.js`:
 
@@ -434,7 +451,7 @@ export function useOrderArrivals({
 }
 ```
 
-- [ ] **Step 6: Export and integrate**
+- [x] **Step 6: Export and integrate**
 
 Add to `index.js`:
 
@@ -457,7 +474,7 @@ const {
 
 Keep localStorage preference persistence in App. When enabling sound, call `void previewKitchenOrderSound()`. On session/business clear, call `resetOrderArrivals()`.
 
-- [ ] **Step 7: Run focused tests**
+- [x] **Step 7: Run focused tests**
 
 ```bash
 node --test \
@@ -473,7 +490,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components src/hooks src/utils
@@ -495,7 +512,7 @@ git commit -m "refactor: move kitchen operations into orders"
 - Produces `createOrdersApi({ request, json, randomUUID })` and singleton `ordersApi` with `getOrders`, `createOrder`, `updateOrderStatus`, `cancelOrder`.
 - Runtime consumes `ordersApi.getOrders`; polling stays runtime-owned.
 
-- [ ] **Step 1: Write failing adapter test**
+- [x] **Step 1: Write failing adapter test**
 
 Create `ordersApi.test.js`:
 
@@ -522,7 +539,7 @@ test('orders api preserves lifecycle routes and idempotency', async () => {
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/infrastructure/ordersApi.test.js
@@ -530,7 +547,7 @@ node --test src/domains/orders/infrastructure/ordersApi.test.js
 
 Expected: FAIL because the adapter does not exist.
 
-- [ ] **Step 3: Implement adapter**
+- [x] **Step 3: Implement adapter**
 
 Create `ordersApi.js`:
 
@@ -559,7 +576,7 @@ export const createOrdersApi = ({ request = apiRequest, json = withJson, randomU
 export const ordersApi = createOrdersApi()
 ```
 
-- [ ] **Step 4: Export and inject into runtime**
+- [x] **Step 4: Export and inject into runtime**
 
 Add:
 
@@ -577,7 +594,7 @@ const defaultApi = { getBootstrap, getOrders: ordersApi.getOrders }
 
 Do not change `refreshOrders`, sync guards, or timing constants.
 
-- [ ] **Step 5: Add runtime regression assertion**
+- [x] **Step 5: Add runtime regression assertion**
 
 In `useOperationalDataRuntime.test.js`, assert:
 
@@ -587,11 +604,11 @@ assert.equal(ORDER_SYNC_INTERVAL_MS, 2_000)
 
 and use an injected `{ getBootstrap, getOrders }` fake to verify `refreshOrders()` applies the injected result and stale reads still lose to later mutations.
 
-- [ ] **Step 6: Remove only legacy `getOrders` export**
+- [x] **Step 6: Remove only legacy `getOrders` export**
 
 Delete `export const getOrders = () => apiRequest('/api/orders')` from `src/api/client.js`. Keep create/status/cancel there temporarily until Task 7 closes their last consumer.
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
 
 ```bash
 node --test src/domains/orders/infrastructure/ordersApi.test.js src/app/runtime/data/useOperationalDataRuntime.test.js
@@ -600,7 +617,7 @@ npm run test:architecture
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/app/runtime/data src/api/client.js
@@ -625,7 +642,7 @@ git commit -m "refactor: move orders api behind domain port"
 - Generic infra produces `createPathPolicyAdapter`, `validatePolicyScope`, `loadPolicyReceipt`, `getJson`, `putJson`.
 - Orders public entry produces `operationsPolicy`, `cancellationReasonsPolicy`.
 
-- [ ] **Step 1: Write failing ownership assertion**
+- [x] **Step 1: Write failing ownership assertion**
 
 Add to `policyAdapters.test.js`:
 
@@ -641,7 +658,7 @@ test('operations and cancellation policies come from Orders', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/app/surfaces/settings/policies/policyAdapters.test.js
@@ -649,7 +666,7 @@ node --test src/app/surfaces/settings/policies/policyAdapters.test.js
 
 Expected: FAIL because Orders does not export the adapters.
 
-- [ ] **Step 3: Move generic policy HTTP helper**
+- [x] **Step 3: Move generic policy HTTP helper**
 
 ```bash
 git mv src/app/surfaces/settings/policies/policyHttp.js src/infrastructure/api/policyHttp.js
@@ -676,7 +693,7 @@ test('generic policy transport keeps scope error contracts', () => {
 })
 ```
 
-- [ ] **Step 4: Create Orders-owned policy adapters**
+- [x] **Step 4: Create Orders-owned policy adapters**
 
 `operationsPolicy.js`:
 
@@ -702,7 +719,7 @@ export const cancellationReasonsPolicy = createPathPolicyAdapter({
 })
 ```
 
-- [ ] **Step 5: Wire Settings through the Orders public entry**
+- [x] **Step 5: Wire Settings through the Orders public entry**
 
 Add exports in `index.js`, then change `registry.js` to:
 
@@ -712,13 +729,13 @@ import { cancellationReasonsPolicy, operationsPolicy } from '../../../../domains
 
 Update the remaining Settings policies to import generic policy HTTP helpers from `src/infrastructure/api/policyHttp.js` at the correct relative depth.
 
-- [ ] **Step 6: Delete old concrete policy files**
+- [x] **Step 6: Delete old concrete policy files**
 
 ```bash
 git rm src/app/surfaces/settings/policies/operationsPolicy.js src/app/surfaces/settings/policies/cancellationReasonsPolicy.js
 ```
 
-- [ ] **Step 7: Run regressions**
+- [x] **Step 7: Run regressions**
 
 ```bash
 node --test \
@@ -732,7 +749,7 @@ npm run test:architecture
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/infrastructure/api src/domains/orders src/app/surfaces/settings
@@ -753,7 +770,7 @@ git commit -m "refactor: move order policies to orders domain"
 - Methods: `open(context)`, `discard()`, `setDirty(value)`, `beginSubmit()`, `isCurrent(token)`, `complete(token)`, `snapshot()`.
 - `snapshot()` exposes only `{ context, dirty, renderKey }`; generation/idempotency stay internal or in opaque submit tokens.
 
-- [ ] **Step 1: Write failing controller tests**
+- [x] **Step 1: Write failing controller tests**
 
 ```js
 import assert from 'node:assert/strict'
@@ -785,7 +802,7 @@ test('complete clears only the current draft', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/application/newOrderDraft.test.js
@@ -793,7 +810,7 @@ node --test src/domains/orders/application/newOrderDraft.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement controller**
+- [x] **Step 3: Implement controller**
 
 ```js
 const normalizeContext = ({ returnDestination = 'orders', tableId = '', expectedTableTabId = '' } = {}) => ({
@@ -834,7 +851,7 @@ export const createNewOrderDraftController = ({ randomUUID = () => crypto.random
 }
 ```
 
-- [ ] **Step 4: Run GREEN and export**
+- [x] **Step 4: Run GREEN and export**
 
 ```bash
 node --test src/domains/orders/application/newOrderDraft.test.js
@@ -842,7 +859,7 @@ node --test src/domains/orders/application/newOrderDraft.test.js
 
 Add `export { createNewOrderDraftController } from './application/newOrderDraft.js'` to `index.js`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/domains/orders
@@ -862,7 +879,7 @@ git commit -m "feat: own new order draft lifecycle"
 - `useNewOrderDraft({ submitOrder, canSubmit, commitOfficialEffects, onCommitted, onSuccess, onError, onConflict })` returns `{ context, renderKey, dirty, checkoutPending, open, discard, setDirty, submit, reset }`.
 - C5 table validation remains outside Orders before `open()`.
 
-- [ ] **Step 1: Write failing stale-checkout test**
+- [x] **Step 1: Write failing stale-checkout test**
 
 Create a React Probe around `useNewOrderDraft`. Test this sequence:
 
@@ -878,7 +895,7 @@ assert.equal(latest.context.returnDestination, 'comandas')
 
 Use `react-test-renderer` `act()` for each state change. Add a second test where the response is current and assert `commitOfficialEffects` runs before `onCommitted`, then `onSuccess`, and the draft is cleared.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/application/useNewOrderDraft.test.js
@@ -886,7 +903,7 @@ node --test src/domains/orders/application/useNewOrderDraft.test.js
 
 Expected: FAIL because the hook does not exist.
 
-- [ ] **Step 3: Implement hook around controller**
+- [x] **Step 3: Implement hook around controller**
 
 The submit body must be:
 
@@ -927,7 +944,7 @@ const submit = useCallback(async (payload) => {
 
 Implement `open`, `discard`, `setDirty`, `reset` by mutating the controller then publishing `snapshot()`. Keep callback/function dependencies in refs so Orders does not expose owner/key internals.
 
-- [ ] **Step 4: Export and integrate App**
+- [x] **Step 4: Export and integrate App**
 
 Export the hook. In App, keep existing Comanda/table validation, then call:
 
@@ -949,7 +966,7 @@ Navigation receives `dirtyOrder: newOrderDraft.dirty`, `checkoutPending: newOrde
 
 Remove App state/refs/functions named `newOrderContext`, `checkoutKey`, `newOrderDirty`, `newOrderOwnerRef`, `invalidateNewOrderDraft`, and `handleOrderCheckout`.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 ```bash
 node --test \
@@ -962,7 +979,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/AppNewOrderGuard.test.js src/pages
@@ -981,7 +998,7 @@ git commit -m "refactor: move new order draft out of app"
 **Interfaces:**
 - `useOrderCommands({ orders, api, canFinalizeOrders, canCancelOrders, canRefundPayments, writesBlocked, applyOfficialEffects, onSuccess, onError })` returns `{ actionKey, pending, finalizeOrder, cancelOrder }`.
 
-- [ ] **Step 1: Write failing command tests**
+- [x] **Step 1: Write failing command tests**
 
 Use a React Probe and injected API. Verify an `Entrega` order finalization commits `{ order }` and emits exact copy `Pedido saiu para entrega`. Verify cancel with `{ refundNow: true }` commits `{ order, movement, tableTab }` and emits `Pedido cancelado e estorno registrado`. Verify refund cancellation is rejected without `canRefundPayments`.
 
@@ -993,7 +1010,7 @@ assert.equal(messages[0], 'Pedido saiu para entrega')
 assert.equal(await latest.cancelOrder('o-2', { refundNow: true }), false)
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/application/useOrderCommands.test.js
@@ -1001,7 +1018,7 @@ node --test src/domains/orders/application/useOrderCommands.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement hook**
+- [x] **Step 3: Implement hook**
 
 Use local `actionKey` state and these command rules:
 
@@ -1027,15 +1044,15 @@ const finalizeOrder = async (orderId) => {
 
 Implement `cancelOrder` with the same pending guard, cancel capability, `refundNow` refund capability gate, `api.cancelOrder`, generic official-effect commit, exact current success copy, and `onError`.
 
-- [ ] **Step 4: Export and integrate App**
+- [x] **Step 4: Export and integrate App**
 
 Export `useOrderCommands`. Replace App's `handleFinalizeOrder` and `handleCancelOrder`. Include `orderCommands.pending` in effective global write blocking and pass `orderCommands.actionKey` to Histórico.
 
-- [ ] **Step 5: Delete lifecycle endpoint exports from legacy client**
+- [x] **Step 5: Delete lifecycle endpoint exports from legacy client**
 
 Delete exactly `createOrder`, `updateOrderStatus`, and `cancelOrder` from `src/api/client.js`. `getOrders` was removed in Task 3. Keep `updateOrderPaymentPromise`, `refundOrder`, `registerPayment`, all table-tab APIs, and all printing APIs.
 
-- [ ] **Step 6: Run focused tests**
+- [x] **Step 6: Run focused tests**
 
 ```bash
 node --test \
@@ -1047,7 +1064,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 7: Verify legacy API ownership is gone**
+- [x] **Step 7: Verify legacy API ownership is gone**
 
 ```bash
 rg "export const (getOrders|createOrder|updateOrderStatus|cancelOrder)" src/api/client.js
@@ -1056,7 +1073,7 @@ rg "(createOrderApi|updateOrderStatusApi|cancelOrderApi)" src/App.jsx
 
 Expected: no output.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/api/client.js
@@ -1076,7 +1093,7 @@ git commit -m "refactor: move order lifecycle commands to domain"
 **Interfaces:**
 - Public entry exports `NewOrderRoute` only; internal New Order components remain private.
 
-- [ ] **Step 1: Add failing UI-boundary test**
+- [x] **Step 1: Add failing UI-boundary test**
 
 Create `src/domains/orders/ordersPublicUi.test.js`:
 
@@ -1090,7 +1107,7 @@ test('Orders exports NewOrderRoute as a composition surface', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED, then baseline existing UI**
+- [x] **Step 2: Run RED, then baseline existing UI**
 
 ```bash
 node --test src/domains/orders/ordersPublicUi.test.js
@@ -1099,7 +1116,7 @@ node --test src/pages/NewOrder.test.js src/pages/NewOrderMobile.test.js src/page
 
 Expected: first command FAIL, second command PASS.
 
-- [ ] **Step 3: Move exact files with `git mv`**
+- [x] **Step 3: Move exact files with `git mv`**
 
 ```bash
 mkdir -p src/domains/orders/ui/components
@@ -1113,17 +1130,17 @@ git mv src/pages/NewOrderWizard.test.js src/domains/orders/ui/NewOrderWizard.tes
 
 Move each listed creation-only component/test that exists with `git mv`; update generic imports to `src/components` and Orders rule imports to `src/domains/orders/domain` internal paths.
 
-- [ ] **Step 4: Export and update App**
+- [x] **Step 4: Export and update App**
 
 Add:
 
 ```js
-export { NewOrderRoute } from './ui/NewOrderRoute.jsx'
+export { NewOrderRoute } from './ui/NewOrderRoute.js'
 ```
 
 Remove the old `src/pages/NewOrderRoute` import from App and use the Orders public import.
 
-- [ ] **Step 5: Run moved UI suite**
+- [x] **Step 5: Run moved UI suite**
 
 ```bash
 node --test \
@@ -1137,7 +1154,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components
