@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 
 const page = readFileSync(new URL('./domains/orders/ui/NewOrder.jsx', import.meta.url), 'utf8')
 const customerStep = readFileSync(new URL('./domains/orders/ui/components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
-const tableSelectorUrl = new URL('./components/LocalTableSelector.jsx', import.meta.url)
+const tableSelectorUrl = new URL('./domains/table-service/ui/LocalTableSelector.jsx', import.meta.url)
 const tableSelector = existsSync(tableSelectorUrl) ? readFileSync(tableSelectorUrl, 'utf8') : ''
 
 test('local orders require a registered active table without free-text identity modes', () => {
