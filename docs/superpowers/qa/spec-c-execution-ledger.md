@@ -13,15 +13,15 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-17
+## Program status — 2026-09-18
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
-| C4 | Orders | **AUTOMATED GATES GREEN — STAGING PENDING** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | NOT STARTED | — | Write after C4 merge |
+| C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
+| C5 | Table Service | **DESIGN WRITTEN — AWAITING USER SPEC REVIEW** | `feature/spec-c5-table-service` | Plan after written-spec approval |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -123,69 +123,45 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — MERGE GATE / AWAITING AUTHORIZATION
+# C4 — Orders — CLOSED
 
-## Current Git / PR / CI state
+## Final Git / CI state
 
-- Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
+- Base SHA: `737beeac2150aabeb39024af823f2f60fee25108`
 - Branch: `feature/spec-c4-orders`
-- PR: #48 — **draft**, open, not merged
+- PR: #48 — merged
 - Last code-changing SHA: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
 - Staging-homologated SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`
-- Item 7 fix Validate: #1273 / run `35301870107` — **PASS** (1,689 tests / 0 failures plus full gate set)
-- Staging deployment: #181 / run `35303388467` — **SUCCESS** on `f630c6a96a40384032ed607031bdc935d4ac20a7`
-- Manual homologation: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**
-- Item 6 BLOCKED reason: safe out-of-window scheduled-queue reproduction was not possible at the homologation time under the same-day scheduling rule; observed in-window transition behavior was correct.
-- Changes since staged SHA: documentation-only.
-- Master reconciliation: `master` remains the approved base `737beeac2150aabeb39024af823f2f60fee25108`
-- Final QA/docs-head Validate: #1289 / run `35356575893` — **PASS** on `8468cc335fb59e95643360c21369e16cb0e24b82` (1,689 tests / 0 failures plus full gate set)
+- Staging deployment: #181 / run `35303388467` — SUCCESS
+- Manual QA: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**
+- Final branch HEAD: `64eff8dadf3e67784477fbd848289c0fc2f9f43c`
+- Final branch Validate: #1290 / run `35357003475` — SUCCESS
+- Merge/master SHA: `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`
+- Post-merge Validate: #1291 / run `35357630853` — SUCCESS (1,689 tests / 1,688 pass / 0 fail / 1 skipped)
+- Production changes from C4: none.
+- C4 surviving Orders compatibility facade: none.
+- QA record: `docs/superpowers/qa/spec-c4-orders-qa.md`
+
+C4 established `src/domains/orders/` as the Orders owner and is the approved C5 base.
+
+---
+
+# C5 — Table Service — DESIGN WRITTEN / AWAITING USER SPEC REVIEW
+
+## Current state
+
+- Base/master SHA: `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`
+- Branch: `feature/spec-c5-table-service`
+- Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
+- Implementation plan: **NOT WRITTEN**
+- Implementation: **NOT STARTED**
+- PR: not opened as part of design drafting
 - Production deploy: **NO**
-- Task 11: **COMPLETE — MERGE GATE**
-- Merge: **NO — explicit user authorization required**
-- C5: **NOT STARTED**
+- C6: **NOT STARTED**
 
-## Completed task checkpoint
+## Design gate
 
-| Task | Boundary | Status |
-|---|---|---|
-| 1 | Orders public boundary + core pure rules | GREEN |
-| 2 | Kitchen operations, clock, arrivals/highlight/sound lifecycle | GREEN |
-| 3 | Orders lifecycle HTTP read port / runtime integration | GREEN |
-| 4 | Operations + cancellation policy ownership | GREEN |
-| 5 | Pure New Order draft lifecycle controller | GREEN |
-| 6 | `useNewOrderDraft` + draft internals removed from App | GREEN |
-| 7 | Finalize/cancel orchestration + legacy lifecycle exports retired | GREEN |
-| 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
-| 9 | Cozinha + Histórico UI move | GREEN |
-| 10 | Enforce final C4 boundary / legacy-owner removal | GREEN |
-| 11 | Full QA, staging, homologation and merge gate | COMPLETE — MERGE GATE |
-
-## Current C4 ownership state
-
-- `src/domains/orders/domain/` owns the extracted pure order rules.
-- `src/domains/orders/application/` owns arrival lifecycle, New Order draft lifecycle and order lifecycle commands.
-- `src/domains/orders/infrastructure/` owns order lifecycle API and the Orders-owned Settings policies.
-- Novo Pedido, Cozinha and Histórico UI plus their order-only components are physically under `src/domains/orders/ui/`.
-- `src/domains/orders/index.js` is the public boundary for non-Orders consumers. Task 9 also exposes `OrderDetail` publicly for the existing Receivables integration without restoring the removed legacy path.
-- The Task 8 public route uses `src/domains/orders/ui/NewOrderRoute.js` so the public entry remains compatible with pure Node `node --test`; `NewOrderRoute.jsx` remains an internal UI reexport and `NewOrder.jsx` remains the actual wizard surface.
-- All legacy Task 8 and Task 9 Orders-owned paths under `src/pages` / `src/components` are physically absent.
-- The pure operational-history projection now lives at `src/domains/orders/domain/orderHistoryAnalysis.js`, avoiding a UI → dashboard util → Orders public-index cycle.
-- Generic `LocalTableSelector`, `ClientDuplicateModal`, primitives, `PaymentBadge` and `OrderTicketPreview` remain outside Orders by design.
-- The permanent architecture gate now rejects external deep imports into Orders, reintroduced C4 legacy owner files, and migrated Orders lifecycle exports in `src/api/client.js`.
-
-## Resume gate
-
-C4 has reached the merge gate. Do **not** begin C5 and do **not** deploy production.
-
-Before executing a merge:
-1. confirm the current branch HEAD and PR #48;
-2. confirm the current docs-only reconciliation HEAD has a successful Validate;
-3. confirm `master` has not moved incompatibly from `737beeac2150aabeb39024af823f2f60fee25108`;
-4. preserve staging #181 / run `35303388467` and manual QA **19 PASS / 0 FAIL / 1 BLOCKED** as the homologation evidence;
-5. keep item 6 BLOCKED as documented unless directly re-observed;
-6. require explicit user authorization before merging PR #48;
-7. production remains a separate later authorization;
-8. C5 may begin only after C4 is merged/closed according to the rollout.
+The C5 design was approved section-by-section in conversation and has now been written for explicit user review. Do not begin implementation and do not invoke the implementation plan until the written specification is approved.
 
 ---
 
@@ -206,17 +182,15 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C4, Task 11 in progress at the staging gate. GitHub state wins over this file if the branch advanced after this documentation commit.
+The active slice is C5 at the written-spec review gate. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
-2. Read this ledger.
-3. Read `docs/superpowers/specs/2026-09-17-frontend-modularization-c4-orders-design.md`.
-4. Read `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md`.
-5. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
-6. Inspect PR #48 and the remote HEAD of `feature/spec-c4-orders`.
-7. Treat `e7f05b6d6d8364c0482a7fe03949c001816e8e85` as the Task 11 pre-QA executable identity; Validate #1262 / run `35297928408` passed.
-8. Task 11 is IN PROGRESS — pre-staging QA recorded; staging/manual homologation remain pending.
-9. C5 is NOT STARTED and must not begin before C4 closes and merges.
-10. Do not merge C4 or deploy production without explicit user authorization.
+2. Read this execution ledger.
+3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`.
+4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
+5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
+6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
+7. C5 implementation plan is not yet written; first obtain explicit user approval of the written spec.
+8. Do not implement C5, begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

@@ -31,22 +31,26 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - The generic/auth reexports, payment-receipt bridge, table-commit bridge and `updateCollection` escape hatch remain governed by the table above.
 - Final C3 branch Validate #1219 / run `35232989249` passed before merge.
 
-## C4 status — checkpoint after Task 10 — 2026-09-17
+## C4 final status — 2026-09-18
 
-- Active branch: `feature/spec-c4-orders`, draft PR #48.
-- Last fully validated executable checkpoint: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`.
-- Validate #1261 / run `35297628138` — PASS, including 1,687 tests / 0 failures, `Frontend architecture boundaries: OK`, and the full validation gate set.
-- No C4 Orders compatibility facade survives Task 10.
-- Core order rules, kitchen rules/hooks, lifecycle API, Orders-owned policies, New Order draft/commands, Novo Pedido, Cozinha, Histórico and the listed order-only UI components were moved to their planned Orders owners rather than left behind as old-path facades.
-- `OrderDetail` is available through the Orders public contract for the existing Receivables consumer; this is a public integration contract, not a legacy-path facade. The removed `src/components/OrderDetail.jsx` path was not recreated.
-- `getOrders`, `createOrder`, `updateOrderStatus`, and `cancelOrder` are no longer lifecycle exports of the legacy `src/api/client.js`; payment/refund/payment-promise APIs intentionally remain for C6.
+- PR #48 merged at `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
+- C4 left no Orders legacy-path compatibility facade.
+- Final branch Validate #1290 / run `35357003475` passed.
+- Post-merge Validate #1291 / run `35357630853` passed on the exact merge commit.
 - The operational data runtime payment-receipt bridge remains intentionally active until C6.
-- The operational data runtime table-commit bridge remains intentionally active until C5.
-- Generic/auth `src/api/client.js` compatibility reexports remain scheduled for C10 at latest.
-- `updateCollection` remains for later Customers/Catalog migration, with the existing C8/C10 removal schedule.
-- Task 10 completed the C4 boundary/facade audit. The architecture checker now permanently rejects external Orders deep imports, reintroduced C4 legacy owner paths, and migrated lifecycle exports in `src/api/client.js`.
-- The payment-receipt bridge still targets C6; the table-commit bridge still targets C5; generic/auth `src/api/client.js` compatibility still targets program slice C10 at latest; `updateCollection` keeps its C8/C10 schedule.
-- Task 11 remains the C4 QA/staging/homologation and merge-gate task. No production deployment has occurred.
+- The operational data runtime table-commit bridge remains intentionally active and is the specific compatibility debt C5 must remove.
+- Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
+- `updateCollection` remains for later Customers/Catalog migration, with final enforcement no later than C10.
+
+## C5 design status — 2026-09-18
+
+- Branch: `feature/spec-c5-table-service`.
+- Base: C4 merge/master `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
+- Written design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`.
+- C5 implementation has not started.
+- C5 is explicitly responsible for removing the operational data runtime table-commit bridge.
+- C5 must not remove the payment-receipt bridge; that remains C6.
+- C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
 
