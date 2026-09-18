@@ -508,7 +508,7 @@ node --test   src/domains/table-service/application/useComandaSelection.test.js 
 
 Expected: PASS. In particular, the existing `official transfer keeps the selected tab...` and replacement/payment-isolation tests stay green.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/domains/table-service src/App.jsx src/app/runtime
@@ -1717,7 +1717,7 @@ If the shell does not expand `**`, enumerate the Table Service test files explic
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add scripts/architecture src/domains/table-service docs/superpowers/qa/spec-c-compatibility-facades.md
