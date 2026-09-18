@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  Comandas,
   getTransferDestinations,
   LocalTableSelector,
   reconcileComandaSelection,
@@ -14,4 +15,5 @@ test('table-service public contract exposes canonical identity and transfer rule
   assert.equal(typeof getTransferDestinations, 'function')
   assert.equal(typeof Tables, 'function')
   assert.equal(typeof LocalTableSelector, 'function')
+  assert.equal(typeof Comandas, 'function')
 })
