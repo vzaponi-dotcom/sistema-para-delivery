@@ -15,7 +15,7 @@ const scheduledOrder = {
 
 const fixtures = [
   { id: 'old-operational', status: 'Em preparo', type: 'Retirada', createdAt: '2026-09-04T08:00:00.000Z', scheduledFor: '2026-09-04T11:00:00.000Z', items: [{ name: 'Marmita' }] },
-  { id: 'order-1048', status: 'Em preparo', client: 'João Silva', type: 'Entrega', createdAt: '2026-09-04T10:30:00.000Z', items: [{ name: 'Pudim' }] },
+  { id: 'order-1048', orderNumber: 116, status: 'Em preparo', client: 'João Silva', type: 'Entrega', createdAt: '2026-09-04T10:30:00.000Z', items: [{ name: 'Pudim' }] },
   { id: 'desired-1230', status: 'Em preparo', type: 'Retirada', createdAt: '2026-09-04T08:00:00.000Z', scheduledFor: '2026-09-04T12:30:00.000Z' },
   { id: 'desired-1200', status: 'Em preparo', type: 'Entrega', createdAt: '2026-09-04T08:00:00.000Z', scheduledFor: '2026-09-04T12:00:00.000Z' },
   { id: 'finished-order', status: 'Finalizado', type: 'Local', createdAt: '2026-09-04T09:00:00.000Z', finishedAt: '2026-09-04T10:45:00.000Z' },
@@ -135,10 +135,14 @@ test('search filters visible queues without changing global indicators', () => {
   assert.deepEqual(globalModel.counts, { preparing: 2, scheduled: 2, late: 1, finishedToday: 1 })
 })
 
-test('searches client, full order ID, last four digits, products and attendance type without changing order', () => {
+test('searches client, order identifiers, visible order number, products and attendance type without changing order', () => {
   assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, 'joão').preparing), ['order-1048'])
   assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, 'order-1048').preparing), ['order-1048'])
   assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, '1048').preparing), ['order-1048'])
+  assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, '116').preparing), ['order-1048'])
+  assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, '#116').preparing), ['order-1048'])
+  assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, 'pedido 116').preparing), ['order-1048'])
+  assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, 'pedido #116').preparing), ['order-1048'])
   assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, 'pudim').preparing), ['order-1048'])
   assert.deepEqual(ids(buildKitchenQueueModel(fixtures, now, 'entrega').preparing), ['order-1048'])
 })

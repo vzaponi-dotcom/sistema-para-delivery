@@ -37,3 +37,11 @@ test('central cancellation applies authoritative effects through the operational
   assert.match(runtime, /if \(movement\) setMovements\(\(current\) => upsertById\(current, movement\)\)/)
   assert.match(runtime, /if \(tableTab\) setTableTabs\(\(current\) => upsertById\(current, tableTab\)\)/)
 })
+
+
+test('App delegates kitchen search to Orders with the complete order collection', async () => {
+  const app = await read('./App.jsx')
+
+  assert.match(app, /<Orders orders=\{orders\}/)
+  assert.doesNotMatch(app, /const filteredOrders = useMemo/)
+})

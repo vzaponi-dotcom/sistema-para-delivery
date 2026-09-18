@@ -273,3 +273,14 @@ test('narrow kitchen keeps two counter columns and stacks ticket content without
   assert.match(narrow, /\.kitchen-ticket\s*\{[^}]*min-width:\s*0/s)
   assert.deepEqual(forcingWidths, [])
 })
+
+test('dark kitchen search keeps a light focused field with readable ticket text', () => {
+  const contrastCss = read('./kitchen-theme-contrast.css')
+  const searchCss = read('./order-operations.css')
+
+  assert.match(searchCss, /\.kitchen-search input,[\s\S]*?color:\s*var\(--kitchen-ticket-text\)/)
+  assert.match(
+    contrastCss,
+    /\[data-theme='dark'\] \.kitchen-page \.kitchen-search:focus-within\s*\{[^}]*background:\s*var\(--kitchen-ticket\)/s,
+  )
+})
