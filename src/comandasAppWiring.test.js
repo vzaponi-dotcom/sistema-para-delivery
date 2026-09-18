@@ -87,12 +87,12 @@ const paidResult = () => ({
 })
 const jsonResponse = (data) => ({ ok: true, json: async () => data })
 
-test('Comandas can publish printing confirmation through the global toast', async (t) => {
+test('Table Service external actions publish printing confirmation through the global toast', async (t) => {
   const { h, r } = await paymentWorkspace(t)
-  const { Comandas } = await h.load('/src/domains/table-service/index.js')
-  const comandas = r.root.findByType(Comandas)
-  await act(async () => comandas.props.onToast('Impress\u00e3o enviada para a fila'))
-  assert.match(nodeText(r.root), /Impress\u00e3o enviada para a fila/)
+  const { default: TableServiceExternalActions } = await h.load('/src/app/surfaces/table-service/TableServiceExternalActions.jsx')
+  const externalActions = r.root.findByType(TableServiceExternalActions)
+  await act(async () => externalActions.props.onToast('Impressão enviada para a fila'))
+  assert.match(nodeText(r.root), /Impressão enviada para a fila/)
 })
 
 for (const syncOutcome of ['success', 'failure']) test(`accepted payment reconciles after an applied snapshot and selection change (${syncOutcome})`, async (t) => {
