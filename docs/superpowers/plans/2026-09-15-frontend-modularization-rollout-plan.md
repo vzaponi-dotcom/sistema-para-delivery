@@ -16,10 +16,10 @@
 - C2 — Navigation and App composition is **MERGED / COMPLETE**. PR #46 merged to `master` at `de24b2ceb807440d4c339200b44ae2ed6583b27a`. Homologated executable: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`; Validate #1213 / run `35139754603`, staging #178 / run `35141467373`, and post-merge Validate #1215 all passed.
 - C3 — Settings surface and versioned policy engine is **MERGED / COMPLETE**. PR #47 merged to `master` at `737beeac2150aabeb39024af823f2f60fee25108`. Homologated executable: `17673b66774a1b532fc22972603407dcbb932bad`; staging #179 / run `35176387507` passed; manual QA closed with **14 PASS / 0 FAIL / 9 BLOCKED**; final branch Validate #1219 / run `35232989249` passed on `bc6c38eb0b81c91820108dee7a228d930832bdc9`.
 - Active slice: **C4 — Orders**, branch `feature/spec-c4-orders`, draft PR #48, base `master` `737beeac2150aabeb39024af823f2f60fee25108`.
-- C4 implementation checkpoint: **Tasks 1–8 GREEN; Task 9 NOT STARTED**. Last executable SHA before this documentation reconciliation: `52619afa04b9ee0b94370f341e9ca83ca826d162`.
-- C4 Validate application #1250 / run `35292926495` passed the full gate set on that executable SHA: tests, architecture, lint, build, production/staging Worker dry-runs, local D1 migrations, and Spec B D1 clean-install/upgrade.
+- C4 implementation checkpoint: **Tasks 1–9 GREEN; Task 10 NOT STARTED**. Last executable SHA before this documentation reconciliation: `67ad2a1237c87573f391a8fcd1f4496f22d9f761`.
+- C4 Validate application #1258 / run `35296515259` passed the full gate set on that executable SHA: 1,684 tests / 0 failures, architecture, lint, build, production/staging Worker dry-runs, local D1 migrations, and Spec B D1 clean-install/upgrade.
 - C4 has not been deployed to staging for manual slice homologation yet, has not been merged, and has not deployed production.
-- Temporary compatibility bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`. No C3 compatibility facade survived; through C4 Task 8 no C4 compatibility facade survives either. Scheduled C5/C6/C8/C10 bridges remain intentionally active.
+- Temporary compatibility bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`. No C3 compatibility facade survived; through C4 Task 9 no C4 compatibility facade survives either. Scheduled C5/C6/C8/C10 bridges remain intentionally active.
 - The rollout contracts below are unchanged; this block is execution status only.
 
 ## Global Constraints

@@ -20,7 +20,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
-| C4 | Orders | **IN PROGRESS — TASKS 1–8 GREEN** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
+| C4 | Orders | **IN PROGRESS — TASKS 1–9 GREEN** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | NOT STARTED | — | Write after C4 merge |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
@@ -123,18 +123,18 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — ACTIVE / TASKS 1–8 GREEN
+# C4 — Orders — ACTIVE / TASKS 1–9 GREEN
 
 ## Current Git / PR / CI state
 
 - Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
 - Branch: `feature/spec-c4-orders`
 - PR: #48 — **draft**, open, not merged
-- Last executable SHA before this docs-only reconciliation: `52619afa04b9ee0b94370f341e9ca83ca826d162`
-- Validate application: #1250 / run `35292926495` — **PASS**
+- Last executable SHA before this docs-only reconciliation: `67ad2a1237c87573f391a8fcd1f4496f22d9f761`
+- Validate application: #1258 / run `35296515259` — **PASS** (1,684 tests / 0 failures plus architecture, lint, build, Worker dry-runs and D1 gates)
 - Production deploy: **NO**
 - C4 staging deployment/manual homologation: **NOT STARTED**
-- Task 9: **NOT STARTED**
+- Task 9: **GREEN / COMPLETE**
 - C5: **NOT STARTED**
 
 ## Completed task checkpoint
@@ -149,7 +149,7 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 | 6 | `useNewOrderDraft` + draft internals removed from App | GREEN |
 | 7 | Finalize/cancel orchestration + legacy lifecycle exports retired | GREEN |
 | 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
-| 9 | Cozinha + Histórico UI move | **NOT STARTED** |
+| 9 | Cozinha + Histórico UI move | GREEN |
 | 10 | Enforce final C4 boundary / legacy-owner removal | NOT STARTED |
 | 11 | Full QA, staging, homologation and merge gate | NOT STARTED |
 
@@ -158,22 +158,23 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 - `src/domains/orders/domain/` owns the extracted pure order rules.
 - `src/domains/orders/application/` owns arrival lifecycle, New Order draft lifecycle and order lifecycle commands.
 - `src/domains/orders/infrastructure/` owns order lifecycle API and the Orders-owned Settings policies.
-- Novo Pedido UI and its creation-only components are physically under `src/domains/orders/ui/`.
-- `src/domains/orders/index.js` is the public boundary for non-Orders consumers.
+- Novo Pedido, Cozinha and Histórico UI plus their order-only components are physically under `src/domains/orders/ui/`.
+- `src/domains/orders/index.js` is the public boundary for non-Orders consumers. Task 9 also exposes `OrderDetail` publicly for the existing Receivables integration without restoring the removed legacy path.
 - The Task 8 public route uses `src/domains/orders/ui/NewOrderRoute.js` so the public entry remains compatible with pure Node `node --test`; `NewOrderRoute.jsx` remains an internal UI reexport and `NewOrder.jsx` remains the actual wizard surface.
-- All 15 legacy Task 8 owner paths under `src/pages` / `src/components` are physically absent.
-- Generic `LocalTableSelector`, `ClientDuplicateModal`, primitives and `OrderTicketPreview` remain outside Orders by design.
+- All legacy Task 8 and Task 9 Orders-owned paths under `src/pages` / `src/components` are physically absent.
+- The pure operational-history projection now lives at `src/domains/orders/domain/orderHistoryAnalysis.js`, avoiding a UI → dashboard util → Orders public-index cycle.
+- Generic `LocalTableSelector`, `ClientDuplicateModal`, primitives, `PaymentBadge` and `OrderTicketPreview` remain outside Orders by design.
 
 ## Resume gate
 
-Do **not** begin C5. Do **not** merge C4. The next implementation task, only after explicit continuation, is **Task 9** from the C4 detailed plan.
+Do **not** begin C5. Do **not** merge C4. The next implementation task, only after explicit continuation, is **Task 10** from the C4 detailed plan.
 
-Before Task 9:
+Before Task 10:
 1. inspect PR #48 and verify current branch HEAD against GitHub;
 2. read the C4 spec, detailed plan, this ledger and compatibility ledger;
-3. confirm Validate #1250 is the last green executable checkpoint or investigate any newer commit first;
-4. preserve the Task 8 ownership boundary;
-5. start Task 9 with its planned RED;
+3. confirm `67ad2a1237c87573f391a8fcd1f4496f22d9f761` / Validate #1258 is the last green executable checkpoint or investigate any newer commit first;
+4. preserve the completed Task 9 UI ownership boundary and public `OrderDetail` integration;
+5. do not start staging/manual homologation until the plan reaches its staging gate;
 6. production remains prohibited until a later explicit release authorization.
 
 ---
@@ -203,8 +204,8 @@ The active slice is C4, stopped after Task 8. GitHub state wins over this file i
 4. Read `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md`.
 5. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 6. Inspect PR #48 and the remote HEAD of `feature/spec-c4-orders`.
-7. Treat `52619afa04b9ee0b94370f341e9ca83ca826d162` as the last fully validated executable checkpoint recorded here; Validate #1250 / run `35292926495` passed.
-8. Task 9 is NOT STARTED. Do not skip its RED.
+7. Treat `67ad2a1237c87573f391a8fcd1f4496f22d9f761` as the last fully validated executable checkpoint recorded here; Validate #1258 / run `35296515259` passed.
+8. Task 9 is COMPLETE / GREEN. Task 10 is NOT STARTED.
 9. C5 is NOT STARTED and must not begin before C4 closes and merges.
 10. Do not merge C4 or deploy production without explicit user authorization.
 

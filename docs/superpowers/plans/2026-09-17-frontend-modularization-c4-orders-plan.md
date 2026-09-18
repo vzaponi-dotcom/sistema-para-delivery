@@ -10,15 +10,14 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-frontend-modularization-c4-orders-design.md`
 
-## Execution status — checkpoint after Task 8 — 2026-09-17
+## Execution status — checkpoint after Task 9 — 2026-09-17
 
 - Branch: `feature/spec-c4-orders`
 - Draft PR: #48
 - Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
-- Last fully validated executable SHA before this docs-only reconciliation: `52619afa04b9ee0b94370f341e9ca83ca826d162`
-- Validate application #1250 / run `35292926495`: **SUCCESS**
-- Tasks 1–8: **COMPLETE / GREEN**
-- Task 9: **NOT STARTED**
+- Last fully validated executable SHA before this docs-only reconciliation: `67ad2a1237c87573f391a8fcd1f4496f22d9f761`
+- Validate application #1258 / run `35296515259`: **SUCCESS**
+- Tasks 1–9: **COMPLETE / GREEN**
 - Tasks 10–11: NOT STARTED
 - C5: NOT STARTED
 - C4 staging/manual homologation: NOT STARTED
@@ -26,6 +25,8 @@
 - Production deploy: NO
 
 Task 8 implementation note: the planned public UI export was adapted to `./ui/NewOrderRoute.js` instead of statically exporting the `.jsx` module. This keeps `src/domains/orders/index.js` importable by pure Node `node --test` consumers while Vite loads the actual `NewOrder.jsx` UI. `NewOrderRoute.jsx` remains an internal reexport. This is an execution detail only; the public contract is still the named `NewOrderRoute` export and no legacy `src/pages/NewOrderRoute` facade survives.
+
+Task 9 implementation note: Cozinha, Histórico and their order-only components now live under `src/domains/orders/ui/`. Public UI access uses `ui/orderSurfaces.js`, preserving the pure-Node public-contract tests while Vite loads the `.jsx` surfaces. `OrderDetail` is also exposed through the Orders public boundary because the existing Receivables surface still consumes order details until its later ownership slice; no legacy `src/components/OrderDetail.jsx` facade was recreated. During GREEN stabilization, the move also relocated the pure operational-history projection to `domain/orderHistoryAnalysis.js` and removed two circular dependencies introduced by the UI move. Validate #1258 closed with 1,684 tests, 0 failures.
 
 ## Global Constraints
 
@@ -1175,7 +1176,7 @@ git commit -m "refactor: move new order ui into domain"
 - Public entry exports default surfaces as named `Orders` and `OrderHistory`.
 - Payment and printing remain props/callbacks.
 
-- [ ] **Step 1: Extend public UI test and verify RED**
+- [x] **Step 1: Extend public UI test and verify RED**
 
 ```js
 import { NewOrderRoute, OrderHistory, Orders } from './index.js'
@@ -1195,7 +1196,7 @@ node --test src/domains/orders/ordersPublicUi.test.js
 
 Expected: FAIL because Cozinha/Histórico are not exported yet.
 
-- [ ] **Step 2: Establish green pre-move baseline**
+- [x] **Step 2: Establish green pre-move baseline**
 
 ```bash
 node --test \
@@ -1211,7 +1212,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 3: Move page files/tests**
+- [x] **Step 3: Move page files/tests**
 
 ```bash
 git mv src/pages/Orders.jsx src/domains/orders/ui/Orders.jsx
@@ -1224,7 +1225,7 @@ git mv src/pages/OrderHistory.test.js src/domains/orders/ui/OrderHistory.test.js
 
 Move each listed order-only component/test with `git mv`. Use direct Orders-internal rule imports inside `src/domains/orders`; use existing external owners for generic UI/navigation/payment/printing.
 
-- [ ] **Step 4: Export surfaces and update App**
+- [x] **Step 4: Export surfaces and update App**
 
 Add:
 
@@ -1235,7 +1236,7 @@ export { default as OrderHistory } from './ui/OrderHistory.jsx'
 
 Consolidate App into one Orders public import. App must not import `src/domains/orders/domain`, `application`, `infrastructure`, or `ui` paths directly.
 
-- [ ] **Step 5: Run moved UI suite**
+- [x] **Step 5: Run moved UI suite**
 
 ```bash
 node --test \
@@ -1252,7 +1253,7 @@ node --test \
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/domains/orders src/App.jsx src/pages src/components
