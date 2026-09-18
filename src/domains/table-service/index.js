@@ -17,3 +17,4 @@ export {
 } from './domain/tableTransfer.js'
 export { useComandaSelection } from './application/useComandaSelection.js'
 export { useTableTabDetail } from './application/useTableTabDetail.js'
+export { useTableServiceCommands } from './application/useTableServiceCommands.js'

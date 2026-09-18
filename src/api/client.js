@@ -8,14 +8,6 @@ export const getBootstrap = (knownEffectiveConfigVersion) => {
   if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
   return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
 }
-export const createTable = (table) => apiRequest('/api/tables', withJson('POST', table))
-export const updateTable = (id, patch) => apiRequest(`/api/tables/${encodeURIComponent(id)}`, withJson('PATCH', patch))
-export const reorderTables = (tableIds) => apiRequest('/api/tables/order', withJson('PUT', { tableIds }))
-export const transferTableTab = (sourceTableId, destinationTableId, expectedTableTabId) => apiRequest(
-  `/api/tables/${encodeURIComponent(sourceTableId)}/transfer`,
-  withJson('POST', { destinationTableId, expectedTableTabId }),
-)
-
 export const createClient = (client) => apiRequest('/api/clients', withJson('POST', client))
 export const updateClient = (id, client) => apiRequest(`/api/clients/${encodeURIComponent(id)}`, withJson('PATCH', client))
 export const deleteClient = (id) => apiRequest(`/api/clients/${encodeURIComponent(id)}`, { method: 'DELETE' })

@@ -35,6 +35,7 @@ import {
 import {
   resolveOpenComanda,
   useComandaSelection,
+  useTableServiceCommands,
 } from './domains/table-service/index.js'
 import {
   paymentDefaultFromEffective,
@@ -78,21 +79,17 @@ import {
   createClient as createClientApi,
   createMovement as createMovementApi,
   createProduct as createProductApi,
-  createTable as createTableApi,
   deleteClient as deleteClientApi,
   deleteMovement as deleteMovementApi,
   deleteProduct as deleteProductApi,
   refundOrder as refundOrderApi,
   registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
-  reorderTables as reorderTablesApi,
   saveFinanceSettings as saveFinanceSettingsApi,
   updateClient as updateClientApi,
   updateMovement as updateMovementApi,
   updateOrderPaymentPromise as updateOrderPaymentPromiseApi,
   updateProduct as updateProductApi,
-  updateTable as updateTableApi,
-  transferTableTab as transferTableTabApi,
 } from './api/client'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
@@ -498,6 +495,18 @@ function App({ capabilities } = {}) {
   }
   newOrderDraftTargetsRef.current.onError = showApiError
   orderCommandTargetsRef.current.onError = showApiError
+  const tableServiceCommands = useTableServiceCommands({
+    getOfficialTables,
+    applyOfficialEffects,
+    refreshOfficialData: refreshBootstrapSilently,
+    writesBlocked,
+    canManageTables,
+    canTransfer: canTransferComanda,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+    onStaleTarget: setToastMessage,
+  })
   const handleLogout = async () => {
     try { await handleSessionLogout() } catch (error) { showApiError(error) }
   }
@@ -855,66 +864,6 @@ function App({ capabilities } = {}) {
       if (ownsRequest()) { tableTabPaymentRef.current = null; setRequestKey((current) => current === owner.requestKey ? null : current) }
     }
   }
-  const handleCreateTable = async (name) => {
-    if (!canManageTables || writesBlocked) return false
-    setRequestKey('table:create')
-    try {
-      const result = await createTableApi({ name })
-      applyOfficialEffects({ tables: result.tables })
-      showSuccessMessage('Mesa adicionada com sucesso')
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
-  const handleRenameTable = async (tableId, name) => {
-    if (!canManageTables || writesBlocked) return false
-    setRequestKey(`table:rename:${tableId}`)
-    try {
-      const result = await updateTableApi(tableId, { name })
-      applyOfficialEffects({ tables: result.tables })
-      showSuccessMessage('Mesa renomeada com sucesso')
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
-  const handleSetTableActive = async (tableId, isActive) => {
-    if (!canManageTables || writesBlocked) return false
-    setRequestKey(`table:active:${tableId}`)
-    try {
-      const result = await updateTableApi(tableId, { isActive })
-      applyOfficialEffects({ tables: result.tables })
-      showSuccessMessage(isActive ? 'Mesa ativada com sucesso' : 'Mesa desativada com sucesso')
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
-  const handleReorderTables = async (tableIds) => {
-    if (!canManageTables || writesBlocked) return false
-    setRequestKey('table:reorder')
-    try {
-      const result = await reorderTablesApi(tableIds)
-      applyOfficialEffects({ tables: result.tables })
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
-  const handleTransferTableTab = async (sourceTableId, destinationTableId, expectedTableTabId) => {
-    if (writesBlocked || !canTransferComanda) return false
-    const source = resolveOpenComanda(getOfficialTables(), { tableId: sourceTableId, tableTabId: expectedTableTabId })
-    const destination = getOfficialTables().find((table) => table.id === destinationTableId)
-    if (!source || !destination?.isActive || destination.occupancy !== 'free' || destination.id === source.tableId) {
-      setToastMessage('A comanda ou a mesa de destino mudou. Atualizamos a consulta.')
-      void refreshBootstrapSilently()
-      return false
-    }
-    setRequestKey(`table:transfer:${sourceTableId}`)
-    try {
-      const result = await transferTableTabApi(sourceTableId, destinationTableId, expectedTableTabId)
-      applyOfficialEffects({ tables: result.tables, tableTab: result.tableTab })
-      showSuccessMessage('Comanda transferida com sucesso')
-      return true
-    } catch (error) {
-      if (error?.status === 409) await refreshBootstrapSilently()
-      showApiError(error)
-      return false
-    } finally { setRequestKey(null) }
-  }
   const handleOpenComanda = (target) => {
     if (!canOpenComanda) return false
     const currentTables = getOfficialTables()
@@ -1032,8 +981,8 @@ function App({ capabilities } = {}) {
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} paymentOptions={paymentOptions} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
-        {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={handleCreateTable} onRename={handleRenameTable} onSetActive={handleSetTableActive} onReorder={handleReorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
-        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransferComanda} onTransfer={handleTransferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={tableServiceCommands.createTable} onRename={tableServiceCommands.renameTable} onSetActive={tableServiceCommands.setTableActive} onReorder={tableServiceCommands.reorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
+        {activeTab === 'comandas' && <Comandas tables={tables} selection={selectedComanda} selectionGeneration={selectedComandaGeneration} onSelectComanda={selectCurrentComanda} onAddOrder={(tableId, expectedTableTabId) => handleNewOrder({ tableId, expectedTableTabId, returnTab: 'comandas' })} onPay={handleRegisterTableTabPayment} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} canTransfer={canTransferComanda} onTransfer={tableServiceCommands.transferTableTab} onApiError={showApiError} onToast={setToastMessage} paymentSync={tableTabSync} onRetryPaymentSync={() => reconcileTableTabPayment()} printing={printing} currency={currency} disabled={writesBlocked} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} />}
         {(activeTab === 'settings-home' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSuccessMessage={showSuccessMessage} />}
 
         {pendingDestination && (
