@@ -194,7 +194,7 @@ test('mobile payment settings use one flexible metadata region for contained bad
 })
 
 test('desktop keeps dedicated metadata columns while mobile anchors badges and switch in one region', async () => {
-  const css = await readFile(new URL('../../../payment-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../../payment-settings.css', import.meta.url), 'utf8')
   assert.match(css, /grid-template-columns:\s*88px minmax\(300px, 1\.6fr\) 130px 116px 54px/)
   assert.match(css, /payment-meta-cell \{ display: flex; grid-area: meta; align-items: center; justify-content: space-between/)
   assert.match(css, /payment-meta-switch \{ margin-left: auto; \}/)

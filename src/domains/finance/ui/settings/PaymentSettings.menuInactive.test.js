@@ -74,7 +74,7 @@ test('successful complementary payment menu action closes the menu and restores 
 })
 
 test('inactive row styling mutes informational content without disabling the action menu', async () => {
-  const css = await readFile(new URL('../../../payment-settings.css', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../../../../payment-settings.css', import.meta.url), 'utf8')
   assert.match(css, /\.payment-settings-row\.is-inactive/)
   assert.match(css, /\.payment-settings-row\.is-inactive[\s\S]*payment-method-(?:icon|cell)/)
   assert.match(css, /\.payment-settings-row\.is-inactive[\s\S]*payment-order-cell/)

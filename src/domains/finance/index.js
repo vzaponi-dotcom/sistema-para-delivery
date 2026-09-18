@@ -16,5 +16,4 @@ export {
 export { paymentMethodsPolicy } from './infrastructure/paymentMethodsPolicy.js'
 export { financeCategoriesPolicy } from './infrastructure/financeCategoriesPolicy.js'
 
-export { default as PaymentSettings } from './ui/settings/PaymentSettings.jsx'
-export { default as FinanceCategorySettings } from './ui/settings/FinanceCategorySettings.jsx'
+export { FinanceCategorySettings, PaymentSettings } from './ui/settings/financeSettingsSurfaces.js'
