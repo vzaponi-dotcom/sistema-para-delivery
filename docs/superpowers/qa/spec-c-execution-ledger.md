@@ -20,7 +20,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
-| C4 | Orders | **IN PROGRESS — TASKS 1–10 GREEN** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
+| C4 | Orders | **AUTOMATED GATES GREEN — STAGING PENDING** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | NOT STARTED | — | Write after C4 merge |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
@@ -123,18 +123,20 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — ACTIVE / TASKS 1–10 GREEN
+# C4 — Orders — ACTIVE / AUTOMATED GATES GREEN — STAGING PENDING
 
 ## Current Git / PR / CI state
 
 - Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
 - Branch: `feature/spec-c4-orders`
 - PR: #48 — **draft**, open, not merged
-- Last executable SHA before this docs-only reconciliation: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
-- Validate application: #1261 / run `35297628138` — **PASS** (1,687 tests / 0 failures, `Frontend architecture boundaries: OK`, lint, build, Worker dry-runs and D1 gates)
+- Task 11 pre-QA executable SHA: `e7f05b6d6d8364c0482a7fe03949c001816e8e85`
+- Last code-changing SHA: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
+- Validate application: #1262 / run `35297928408` — **PASS** (1,687 tests / 0 failures, `Frontend architecture boundaries: OK`, lint, build, Worker dry-runs and D1 gates)
 - Production deploy: **NO**
-- C4 staging deployment/manual homologation: **NOT STARTED**
-- Task 10: **GREEN / COMPLETE**
+- C4 staging deployment/manual homologation: **PENDING**
+- Task 11: **IN PROGRESS — PRE-STAGING QA RECORDED**
+- QA record: `docs/superpowers/qa/spec-c4-orders-qa.md`
 - C5: **NOT STARTED**
 
 ## Completed task checkpoint
@@ -151,7 +153,7 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 | 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
 | 9 | Cozinha + Histórico UI move | GREEN |
 | 10 | Enforce final C4 boundary / legacy-owner removal | GREEN |
-| 11 | Full QA, staging, homologation and merge gate | NOT STARTED |
+| 11 | Full QA, staging, homologation and merge gate | IN PROGRESS — STAGING PENDING |
 
 ## Current C4 ownership state
 
@@ -168,15 +170,16 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ## Resume gate
 
-Do **not** begin C5. Do **not** merge C4. The next implementation task, only after explicit continuation, is **Task 11** from the C4 detailed plan.
+Do **not** begin C5. Do **not** merge C4. Task 11 is in progress and stopped at the staging gate.
 
-Before Task 11:
-1. inspect PR #48 and verify current branch HEAD against GitHub;
-2. read the C4 spec, detailed plan, this ledger and compatibility ledger;
-3. confirm `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4` / Validate #1261 is the last green executable checkpoint or investigate any newer commit first;
-4. preserve the completed Task 10 architecture boundary and all C4 owner removals;
-5. Task 11 owns full QA, staging/manual homologation and merge-gate preparation; do not deploy production;
-6. C5 remains prohibited until C4 closes and merges.
+Resume Task 11:
+1. inspect PR #48 and verify the current branch HEAD against GitHub;
+2. read `docs/superpowers/qa/spec-c4-orders-qa.md`;
+3. preserve executable identity `e7f05b6d6d8364c0482a7fe03949c001816e8e85` and Validate #1262 unless a newer executable commit is introduced;
+4. confirm the pre-staging QA docs-head Validate is green;
+5. manually dispatch `Deploy staging` for `feature/spec-c4-orders` and record the deployed SHA/run;
+6. execute the 20-row manual homologation matrix with direct observation;
+7. do not merge or deploy production without explicit authorization; C5 remains prohibited until C4 closes and merges.
 
 ---
 
@@ -197,7 +200,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C4, stopped after Task 10. GitHub state wins over this file if the branch advanced after this documentation commit.
+The active slice is C4, Task 11 in progress at the staging gate. GitHub state wins over this file if the branch advanced after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this ledger.
@@ -205,8 +208,8 @@ The active slice is C4, stopped after Task 10. GitHub state wins over this file 
 4. Read `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md`.
 5. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 6. Inspect PR #48 and the remote HEAD of `feature/spec-c4-orders`.
-7. Treat `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4` as the last fully validated executable checkpoint recorded here; Validate #1261 / run `35297628138` passed.
-8. Task 10 is COMPLETE / GREEN. Task 11 is NOT STARTED.
+7. Treat `e7f05b6d6d8364c0482a7fe03949c001816e8e85` as the Task 11 pre-QA executable identity; Validate #1262 / run `35297928408` passed.
+8. Task 11 is IN PROGRESS — pre-staging QA recorded; staging/manual homologation remain pending.
 9. C5 is NOT STARTED and must not begin before C4 closes and merges.
 10. Do not merge C4 or deploy production without explicit user authorization.
 
