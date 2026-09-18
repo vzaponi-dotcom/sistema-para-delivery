@@ -81,7 +81,7 @@ for (const kind of ['closed', 'foreign', 'transferred', 'replaced']) test(`unava
 
 test('active tables retain official ordering, textual occupancy and stable comanda summaries', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const renderer = await harness.render(Comandas, { tables: workspaceTables, currency })
   const cards = list(renderer).findAllByType('button')
   assert.equal(cards.length, 2)
@@ -93,7 +93,7 @@ test('active tables retain official ordering, textual occupancy and stable coman
 
 test('free tables request an order; blocked writes still allow occupied-table consultation', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const orders = [], selections = []
   const props = { tables: workspaceTables, currency, onAddOrder: (id) => orders.push(id), onSelectComanda: (identity) => selections.push(identity) }
   const renderer = await harness.render(Comandas, props)
@@ -111,7 +111,7 @@ test('free tables request an order; blocked writes still allow occupied-table co
 
 test('mobile back restores list scroll and focus without clearing selection; the same table reopens', async (t) => {
   const harness = await workspaceHarness(t, { mobile: true })
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const listElement = { scrollTop: 0 }
   let focus = ''
   function Workspace() {
@@ -140,7 +140,7 @@ test('mobile back restores list scroll and focus without clearing selection; the
 
 test('official refresh updates totals and clears obsolete detail when a table becomes free or inactive', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const props = { tables: workspaceTables, selection: occupiedSelection, currency }
   const renderer = await harness.render(Comandas, props)
   const updated = workspaceTables.map((table) => table.id === 'occupied' ? { ...table, openTableTab: { ...table.openTableTab, itemCount: 1, totalCents: 2500 } } : table)
@@ -156,7 +156,7 @@ test('official refresh updates totals and clears obsolete detail when a table be
 
 test('empty workspace announces absence of active tables', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const renderer = await harness.render(Comandas)
   assert.match(nodeText(renderer.root.findByProps({ role: 'status' })), /Nenhuma mesa ativa/)
 })
@@ -369,7 +369,7 @@ function focusDOM(harness) {
 for (const invalidation of ['free', 'inactive', 'missing', 'blocked-free', 'empty']) {
   test(`mobile refresh ${invalidation} restores available list focus and never reopens on reoccupation`, async (t) => {
     const harness = await workspaceHarness(t, { mobile: true })
-    const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+    const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
     const dom = focusDOM(harness)
     const selections = []
     function Workspace({ tables, disabled }) {
@@ -407,7 +407,7 @@ for (const invalidation of ['free', 'inactive', 'missing', 'blocked-free', 'empt
 
 test('reoccupation cannot resurrect a mobile detail invalidated by refresh', async (t) => {
   const harness = await workspaceHarness(t, { mobile: true })
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const props = { tables: workspaceTables, currency, selection: occupiedSelection }
   const renderer = await harness.render(Comandas, props)
   await act(async () => renderer.update(React.createElement(Comandas, { ...props, tables: [] })))
@@ -417,7 +417,7 @@ test('reoccupation cannot resurrect a mobile detail invalidated by refresh', asy
 
 test('mobile to desktop moves focus off the now-hidden back button', async (t) => {
   const harness = await workspaceHarness(t, { mobile: true })
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const dom = focusDOM(harness)
   const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selection: occupiedSelection }, dom.options)
   dom.attach(renderer)
@@ -429,7 +429,7 @@ test('mobile to desktop moves focus off the now-hidden back button', async (t) =
 for (const mobile of [false, true]) {
   test(`breakpoint ${mobile ? 'mobile to desktop' : 'desktop to mobile'} restores focus even when CSS blurs before the media event`, async (t) => {
     const harness = await workspaceHarness(t, { mobile })
-    const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+    const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
     const dom = focusDOM(harness)
     const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selection: occupiedSelection }, dom.options)
     dom.attach(renderer)
@@ -442,7 +442,7 @@ for (const mobile of [false, true]) {
 
 test('breakpoint changes move focus out of the hidden list/back button and preserve back scroll', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const dom = focusDOM(harness)
   const renderer = await harness.render(Comandas, { tables: workspaceTables, currency, selection: occupiedSelection }, dom.options)
   dom.attach(renderer)

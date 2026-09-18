@@ -5,11 +5,11 @@ import Button from '../../../components/Button'
 import Icon from '../../../components/Icon'
 import PageHeader from '../../../components/PageHeader'
 import { useMediaQuery } from '../../../hooks/useMediaQuery.js'
-import ComandaDetail from '../../../components/ComandaDetail'
+import ComandaDetail from './ComandaDetail.jsx'
 import Modal from '../../../components/Modal'
 import TableTabPaymentDialog from '../../../components/TableTabPaymentDialog'
 import TableTabTicketPreview from '../../../components/TableTabTicketPreview'
-import TableTransferDialog from '../../../components/TableTransferDialog'
+import TableTransferDialog from './TableTransferDialog.jsx'
 import { useTableTabDetail } from '../application/useTableTabDetail.js'
 
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
