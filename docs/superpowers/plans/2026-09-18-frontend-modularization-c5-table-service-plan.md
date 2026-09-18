@@ -19,8 +19,25 @@
 - Remote branch HEAD verified before plan authoring: `b3847d3e003e57801c70559283af908b7c2a662e`.
 - The branch was 2 commits ahead / 0 behind master and contained documentation changes only.
 - C4 is merged and complete. C6 is not started.
-- C5 implementation is not authorized by this plan alone; execution begins only after explicit user approval of this plan.
+- The written C5 spec and this implementation plan were explicitly approved by the user on 2026-09-18.
 - Production deploy is not part of C5 implementation or homologation.
+
+## Execution status — current checkpoint — 2026-09-18
+
+- Task 1: **COMPLETE / GREEN**.
+  - RED: `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa`; Validate #1293 / run `35377843427`.
+  - GREEN: `e8f490808900d56c2c23d6683ed5365da4921b80`; Validate #1294 / run `35378133967` — **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
+- Task 2: **COMPLETE / GREEN**.
+  - Authoritative RED: `de43919b3395eab52b1518b099b79b4225cb69aa`; Validate #1296 / run `35378772513`.
+  - First GREEN candidate `ec6e8c3a12ace35745e9fa4bb70345f13235df45` exposed one payment visual-ownership regression in Validate #1297.
+  - Root-cause fix: `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`.
+  - Final GREEN: Validate #1298 / run `35379605815` — **1,702 tests / 1,701 pass / 0 fail / 1 skipped**; remaining gates green.
+- Task 3: **RED IN PROGRESS**.
+  - Test-first commit: `8f460f139845e2288abe1d454d5d83c89643fb7b` — `test: define table tab detail ownership`.
+  - Validate #1300 / run `35380071895` is currently in progress; authoritative RED reason has not yet been recorded in this plan.
+- Tasks 4–11: **NOT STARTED**.
+- C6: **NOT STARTED**.
+- Staging/production deploy for C5: **NO**.
 
 ## Global Constraints
 
@@ -85,7 +102,7 @@
 - Produces `getTransferDestinations(tables, sourceTableId)` and `validateTransferIntent(tables, intent)`.
 - No React/application/UI/API dependency is introduced.
 
-- [ ] **Step 1: Write the failing public-contract and domain tests**
+- [x] **Step 1: Write the failing public-contract and domain tests**
 
 Create `src/domains/table-service/tableServicePublicContract.test.js`:
 
@@ -134,7 +151,7 @@ assert.equal(validateTransferIntent([occupiedA, free], { sourceTableId: 'table-1
 assert.equal(validateTransferIntent([{ ...occupiedA, openTableTab: tabB }, free], { sourceTableId: 'table-1', destinationTableId: 'table-2', expectedTableTabId: 'tab-A' }), null)
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test   src/domains/table-service/tableServicePublicContract.test.js   src/domains/table-service/domain/tables.test.js   src/domains/table-service/domain/comandaIdentity.test.js   src/domains/table-service/domain/tableTransfer.test.js
@@ -142,7 +159,7 @@ node --test   src/domains/table-service/tableServicePublicContract.test.js   src
 
 Expected: FAIL because the Table Service public entry and pure rule files do not exist.
 
-- [ ] **Step 3: Implement the pure table projections**
+- [x] **Step 3: Implement the pure table projections**
 
 Create `src/domains/table-service/domain/tables.js`:
 
@@ -167,7 +184,7 @@ export const isFreeTable = (table) => Boolean(
 export const getActiveTables = (tables = []) => orderTables(tables).filter(isActiveTable)
 ```
 
-- [ ] **Step 4: Implement canonical comanda identity rules**
+- [x] **Step 4: Implement canonical comanda identity rules**
 
 Create `src/domains/table-service/domain/comandaIdentity.js`:
 
@@ -198,7 +215,7 @@ export const reconcileComandaSelection = (tables = [], selection) => {
 }
 ```
 
-- [ ] **Step 5: Implement pure transfer validation**
+- [x] **Step 5: Implement pure transfer validation**
 
 Create `src/domains/table-service/domain/tableTransfer.js`:
 
@@ -223,7 +240,7 @@ export const validateTransferIntent = (tables = [], {
 }
 ```
 
-- [ ] **Step 6: Create the first deliberate public entry**
+- [x] **Step 6: Create the first deliberate public entry**
 
 Create `src/domains/table-service/index.js` with only the pure public contract at this point:
 
@@ -247,7 +264,7 @@ export {
 } from './domain/tableTransfer.js'
 ```
 
-- [ ] **Step 7: Run GREEN and architecture smoke**
+- [x] **Step 7: Run GREEN and architecture smoke**
 
 ```bash
 node --test   src/domains/table-service/tableServicePublicContract.test.js   src/domains/table-service/domain/tables.test.js   src/domains/table-service/domain/comandaIdentity.test.js   src/domains/table-service/domain/tableTransfer.test.js
@@ -256,7 +273,7 @@ npm run test:architecture
 
 Expected: PASS and `Frontend architecture boundaries: OK`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/table-service
@@ -291,7 +308,7 @@ git commit -m "feat: establish table service domain rules"
 - Explicit selection, invalidation and reset advance generation.
 - Runtime `legacyBridges` keeps payment reconciliation callbacks but no longer supports `onTablesCommitted`.
 
-- [ ] **Step 1: Write RED tests for selection generations**
+- [x] **Step 1: Write RED tests for selection generations**
 
 Create `src/domains/table-service/application/useComandaSelection.test.js` using the same `react-test-renderer` probe pattern as `useOrderCommands.test.js`.
 
@@ -324,7 +341,7 @@ assert.equal(probe.getLatest().ownsComandaSelection(ownerBeforeReset), false)
 
 Also assert an equivalent cloned tables snapshot leaves both selection and generation unchanged.
 
-- [ ] **Step 2: Change the runtime characterization to expect no table-commit callback**
+- [x] **Step 2: Change the runtime characterization to expect no table-commit callback**
 
 Replace the current runtime test named `table commits notify the bridge and update the official tables snapshot` with a test named `table commits update the official snapshot without invoking domain behavior`.
 
@@ -343,7 +360,7 @@ assert.deepEqual(harness.getCurrent().getOfficialTables().map(({ id }) => id), [
 
 This test is expected to fail before the bridge is removed.
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 ```bash
 node --test   src/domains/table-service/application/useComandaSelection.test.js   src/app/runtime/data/useOperationalDataRuntime.test.js
@@ -351,7 +368,7 @@ node --test   src/domains/table-service/application/useComandaSelection.test.js 
 
 Expected: FAIL because the hook does not exist and the runtime still invokes `onTablesCommitted`.
 
-- [ ] **Step 4: Implement `useComandaSelection`**
+- [x] **Step 4: Implement `useComandaSelection`**
 
 Use refs for synchronous current-owner reads and React state for rendering. The core shape is:
 
@@ -432,7 +449,7 @@ export function useComandaSelection({ tables = [] } = {}) {
 }
 ```
 
-- [ ] **Step 5: Integrate selection into App without changing payment semantics**
+- [x] **Step 5: Integrate selection into App without changing payment semantics**
 
 Export `useComandaSelection` from `src/domains/table-service/index.js`.
 
@@ -475,7 +492,7 @@ When creating a payment owner, capture `getComandaSelectionOwner()` once and sto
 
 In `clearBusinessData` call `resetComandaSelection()` instead of manipulating selection refs.
 
-- [ ] **Step 6: Remove the runtime callback**
+- [x] **Step 6: Remove the runtime callback**
 
 In `useOperationalDataRuntime.js` make `commitTables` only update official state:
 
@@ -488,7 +505,7 @@ const commitTables = useCallback((nextTables) => {
 
 Remove `onTablesCommitted` from `operationalBridgeTargetsRef` in App. Keep `capturePaymentOwners` / `settlePaymentOwners` behavior unchanged.
 
-- [ ] **Step 7: Tighten the runtime extraction test**
+- [x] **Step 7: Tighten the runtime extraction test**
 
 In `src/app/runtime/runtimeExtractionContract.test.js` add these forbidden App tokens:
 
@@ -500,7 +517,7 @@ In `src/app/runtime/runtimeExtractionContract.test.js` add these forbidden App t
 
 Do not remove payment tokens such as `settleAcceptedPayment` or `handleRegisterTableTabPayment`; they remain C6 responsibilities.
 
-- [ ] **Step 8: Run GREEN regressions**
+- [x] **Step 8: Run GREEN regressions**
 
 ```bash
 node --test   src/domains/table-service/application/useComandaSelection.test.js   src/app/runtime/data/useOperationalDataRuntime.test.js   src/app/runtime/runtimeExtractionContract.test.js   src/comandasTransferNavigation.test.js   src/comandasAppWiring.test.js
@@ -508,7 +525,7 @@ node --test   src/domains/table-service/application/useComandaSelection.test.js 
 
 Expected: PASS. In particular, the existing `official transfer keeps the selected tab...` and replacement/payment-isolation tests stay green.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/domains/table-service src/App.jsx src/app/runtime
@@ -535,7 +552,7 @@ git commit -m "refactor: extract comanda selection ownership"
 - Initial failure exposes an error; failed background refresh retains the current detail.
 - A stale success/error/401 has no visual/session effect.
 
-- [ ] **Step 1: Write RED hook tests**
+- [x] **Step 1: Write RED hook tests**
 
 Use an injectable `api.getTableTabDetail` and deferred promises. Prove:
 
