@@ -409,12 +409,12 @@ function App({ capabilities } = {}) {
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
-  const ownsPaymentSelection = (owner) => owner?.guard === getSyncGuard()
+  const ownsPaymentSelection = (owner, sourceTables = null) => owner?.guard === getSyncGuard()
     && ownsComandaSelection({
       tableId: owner.tableId,
       tableTabId: owner.tabId,
       selectionGeneration: owner.selectionGeneration,
-    })
+    }, sourceTables)
 
   const retirePaymentUI = useCallback(() => {
     const owner = tableTabPaymentRef.current
@@ -482,7 +482,7 @@ function App({ capabilities } = {}) {
     owner.settled = true
     paymentSyncRef.current.delete(owner)
     publishPaymentSync()
-    if (ownsPaymentSelection(owner) && !replaced) {
+    if (ownsPaymentSelection(owner, nextTables) && !replaced) {
       clearComandaSelection()
       setSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(owner.tableIdentifier)} recebido via ${owner.method}`)
     }

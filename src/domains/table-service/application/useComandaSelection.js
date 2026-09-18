@@ -37,12 +37,19 @@ export function useComandaSelection({ tables = [] } = {}) {
     publish(null, { advanceGeneration: true })
   }, [publish])
 
-  const ownsComandaSelection = useCallback((owner) => Boolean(
-    owner
-    && owner.selectionGeneration === generationRef.current
-    && owner.tableId === selectionRef.current?.tableId
-    && owner.tableTabId === selectionRef.current?.tableTabId
-  ), [])
+  const ownsComandaSelection = useCallback((owner, sourceTables = null) => {
+    const ownsCurrent = Boolean(
+      owner
+      && owner.selectionGeneration === generationRef.current
+      && owner.tableId === selectionRef.current?.tableId
+      && owner.tableTabId === selectionRef.current?.tableTabId
+    )
+    if (!ownsCurrent || !Array.isArray(sourceTables)) return ownsCurrent
+    return Boolean(resolveOpenComanda(sourceTables, {
+      tableId: owner.tableId,
+      tableTabId: owner.tableTabId,
+    }))
+  }, [])
 
   const getComandaSelectionOwner = useCallback(() => selectionRef.current ? {
     ...selectionRef.current,
