@@ -1,1 +1,1 @@
-export { NewOrderRoute, tableTabsFromBootstrap } from './NewOrderRoute.js'
+export { NewOrderRoute } from './NewOrderRoute.js'

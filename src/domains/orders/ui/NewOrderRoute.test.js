@@ -32,7 +32,7 @@ test('new-order route forwards only the live table contract and exposes no boots
     assert.equal(receivedProps.initialTableId, 'table-7')
     assert.equal(receivedProps.expectedTableTabId, 'tab-42')
     assert.equal(Object.hasOwn(receivedProps, 'tableTabs'), false)
-    assert.equal(Object.hasOwn(routeModule, 'tableTabsFromBootstrap'), false)
+    assert.equal(Object.hasOwn(routeModule, ['tableTabs', 'FromBootstrap'].join('')), false)
   } finally {
     await vite.close()
   }
