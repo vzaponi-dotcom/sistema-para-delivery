@@ -13,13 +13,17 @@ const compareDeadlinePriority = (first, second) => getTimestamp(first.lateAt) - 
   || compareIds(first, second)
 const compareScheduledFor = (first, second) => getTimestamp(new Date(first.order.scheduledFor)) - getTimestamp(new Date(second.order.scheduledFor)) || compareIds(first, second)
 
-const matchesKitchenSearch = (order, normalizedSearch) => !normalizedSearch || [
-  order.client,
-  order.id,
-  formatOrderDisplayNumber(order),
-  getOrderItemsSearchText(order),
-  order.type,
-].join(' ').toLocaleLowerCase('pt-BR').includes(normalizedSearch)
+const matchesKitchenSearch = (order, normalizedSearch) => {
+  const orderNumber = Number(order?.orderNumber)
+  return !normalizedSearch || [
+    order.client,
+    order.id,
+    formatOrderDisplayNumber(order),
+    Number.isInteger(orderNumber) && orderNumber > 0 ? `Pedido ${orderNumber}` : '',
+    getOrderItemsSearchText(order),
+    order.type,
+  ].join(' ').toLocaleLowerCase('pt-BR').includes(normalizedSearch)
+}
 
 export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '', currentTiming) => {
   const normalizedSearch = normalizeSearch(search)
