@@ -527,8 +527,10 @@ It may own local visual behavior such as:
 - mobile detail open/close;
 - focus restoration;
 - scroll restoration;
-- which overlay intent the user requested;
+- the immediate button interaction that emits an external intent;
 - rendering loading/error/detail states provided by application controllers.
+
+It does not own the external overlay state after that intent is emitted.
 
 It must not own:
 
@@ -549,13 +551,25 @@ Table Service UI emits narrow intents such as:
 - request print for the current canonical identity;
 - add order for the current canonical identity.
 
+External intents that can outlive the immediate click carry enough ownership metadata to identify the selected comanda, conceptually:
+
+```js
+{
+  tableId,
+  tableTabId,
+  selectionGeneration,
+}
+```
+
 C5 may introduce a small composition surface in:
 
 `src/app/surfaces/table-service/TableServiceExternalActions.jsx`
 
-Its job is to materialize external overlays/actions without acquiring Table Service business ownership.
+Its job is to own the external overlay/action state and materialize payment/printing integrations without acquiring Table Service business ownership.
 
 It may compose the existing payment dialog, preview, and printing ports.
+
+Visual results from preview/print/payment UI must be applied only when their captured identity/generation still owns the relevant UI. An accepted financial result must still reconcile globally even if its original visual selection has retired; that stronger payment obligation remains the existing C6-bound workflow.
 
 It must not become a generic system workflow controller.
 
