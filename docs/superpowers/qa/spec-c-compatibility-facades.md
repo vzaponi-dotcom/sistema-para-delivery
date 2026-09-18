@@ -60,6 +60,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 6 is **COMPLETE / GREEN** at `3c9fce53a594de182b7dd34948926a83cf464baa`; Validate #1320 / run `35384747211` passed.
 - `src/pages/Tables.jsx`, `src/pages/Tables.test.js` and `src/components/LocalTableSelector.jsx` are removed with no compatibility reexport. Their owners are now `src/domains/table-service/ui/Tables.jsx`, `Tables.test.js` and `LocalTableSelector.jsx`.
 - App and Orders consume `Tables` / `LocalTableSelector` only through `src/domains/table-service/index.js`; Task 6 introduced no surviving compatibility facade.
+- Task 7 is **COMPLETE / GREEN** at `d040bf730c786af4aea815c1bcdbfb306f4e0b1e`; Validate #1326 / run `35386530872` passed.
+- `src/pages/Comandas.jsx`, `src/pages/Comandas.test.js`, `src/components/ComandaDetail.jsx`, `src/components/ComandaDetail.test.js` and `src/components/TableTransferDialog.jsx` are removed with no compatibility reexport. Their owners are now under `src/domains/table-service/ui/`.
+- `Comandas` is exported through the Table Service public entry. `ComandaDetail` and `TableTransferDialog` remain internal, and `useTableTabDetail` is no longer exported publicly because its only consumer is internal. Task 7 introduced no surviving compatibility facade.
 - The payment-receipt bridge remains intentionally active until C6.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.

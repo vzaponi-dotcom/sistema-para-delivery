@@ -54,8 +54,16 @@
   - Test-only path alignment: `66007fcf2f30fece36800faf393f78125dd65dde` and `3c9fce53a594de182b7dd34948926a83cf464baa`.
   - Final GREEN: Validate #1320 / run `35384747211` — **1,716 tests / 1,715 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
   - Legacy `Tables` / `LocalTableSelector` paths are physically absent. App and Orders use the Table Service public entry; Orders has no deep Table Service import.
-- Task 7: **NOT STARTED / NEXT**.
-- Tasks 8–11: **NOT STARTED**.
+- Task 7: **COMPLETE / GREEN**.
+  - RED: `b785f500b677c518f1baea1f8e662468504877e6`; Validate #1322 failed because `Comandas` was not yet exported by the Table Service public surface.
+  - New UI owners/public wrapper: `c315a0d20fda5344a4336807f44e547d8115f529`.
+  - App/integration consumer migration: `6770d3d83089194ecafe14bf5559f0be1127ef78`.
+  - Legacy owner removal: `d30252ec536ef9bb5945b8b98b0a03b73963316e`.
+  - Final path-only correction: `d040bf730c786af4aea815c1bcdbfb306f4e0b1e` fixed two internal imports and residual moved-test loads discovered by audit; no behavior change.
+  - Final GREEN: Validate #1326 / run `35386530872` — **1,716 tests / 1,715 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - Legacy Comandas/ComandaDetail/TableTransferDialog owner paths are physically absent. App consumes public `Comandas`; detail/transfer stay domain-internal; `useTableTabDetail` is internal-only.
+- Task 8: **NOT STARTED / NEXT**.
+- Tasks 9–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -1110,7 +1118,7 @@ git commit -m "refactor: move tables ui into table service"
 - `Comandas` uses internal relative imports for Table Service internals and application hooks.
 - Generic primitives/hooks stay outside the domain.
 
-- [ ] **Step 1: Add RED public surface expectation**
+- [x] **Step 1: Add RED public surface expectation**
 
 Extend `tableServicePublicContract.test.js`:
 
@@ -1121,7 +1129,7 @@ assert.equal(typeof Comandas, 'function')
 
 Expected RED before the wrapper export exists.
 
-- [ ] **Step 2: Move the UI owners physically**
+- [x] **Step 2: Move the UI owners physically**
 
 ```bash
 git mv src/pages/Comandas.jsx src/domains/table-service/ui/Comandas.jsx
@@ -1131,7 +1139,7 @@ git mv src/components/ComandaDetail.test.js src/domains/table-service/ui/Comanda
 git mv src/components/TableTransferDialog.jsx src/domains/table-service/ui/TableTransferDialog.jsx
 ```
 
-- [ ] **Step 3: Repair imports without moving CSS**
+- [x] **Step 3: Repair imports without moving CSS**
 
 In moved `Comandas.jsx`:
 - `../../../comandas.css`;
@@ -1147,7 +1155,7 @@ In moved `ComandaDetail.jsx` use generic components from `../../../components/`.
 
 In moved `TableTransferDialog.jsx` use generic components from `../../../components/` and use `getTransferDestinations` from `../domain/tableTransfer.js` for destination projection.
 
-- [ ] **Step 4: Add Comandas to the Vite-safe public surface**
+- [x] **Step 4: Add Comandas to the Vite-safe public surface**
 
 Extend the `import.meta.glob` list in `tableServiceSurfaces.js` to include `./Comandas.jsx`, then add:
 
@@ -1160,7 +1168,7 @@ export function Comandas(props) {
 
 Export `Comandas` from `src/domains/table-service/index.js`. App imports `Comandas` only from that index.
 
-- [ ] **Step 5: Rewrite test load paths according to responsibility**
+- [x] **Step 5: Rewrite test load paths according to responsibility**
 
 Domain UI tests:
 - load `/src/domains/table-service/ui/Comandas.jsx`;
@@ -1171,7 +1179,7 @@ App/integration tests that inspect the component type:
 
 `src/tableTransferIdentityUi.test.js` may load the internal dialog directly because it is a Table Service component-level test embedded in a broader integration file; update that path to `/src/domains/table-service/ui/TableTransferDialog.jsx`.
 
-- [ ] **Step 6: Run the migrated UI suite**
+- [x] **Step 6: Run the migrated UI suite**
 
 ```bash
 node --test   src/domains/table-service/tableServicePublicContract.test.js   src/domains/table-service/ui/Tables.test.js   src/domains/table-service/ui/Comandas.test.js   src/domains/table-service/ui/ComandaDetail.test.js   src/comandasAppWiring.test.js   src/comandasTransferNavigation.test.js   src/tableTransferIdentityUi.test.js   src/comandaResponsiveDensity.test.js   src/comandasTableListPolish.test.js
@@ -1179,7 +1187,7 @@ node --test   src/domains/table-service/tableServicePublicContract.test.js   src
 
 Expected: PASS with desktop/mobile focus, back, scroll, detail, transfer and styling characterization unchanged.
 
-- [ ] **Step 7: Verify the moved legacy paths are gone**
+- [x] **Step 7: Verify the moved legacy paths are gone**
 
 ```bash
 for path in   src/pages/Comandas.jsx   src/components/ComandaDetail.jsx   src/components/TableTransferDialog.jsx; do
@@ -1189,7 +1197,7 @@ done
 
 Expected: exit 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/table-service src/App.jsx src/comandasAppWiring.test.js src/comandasTransferNavigation.test.js src/tableTransferIdentityUi.test.js src/comandaResponsiveDensity.test.js src/comandasTableListPolish.test.js

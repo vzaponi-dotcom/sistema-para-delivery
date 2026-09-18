@@ -21,7 +21,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **IMPLEMENTATION — TASKS 1–6 COMPLETE / TASK 7 NEXT** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C5 | Table Service | **IMPLEMENTATION — TASKS 1–7 COMPLETE / TASK 8 NEXT** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -154,7 +154,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **Tasks 1–6 COMPLETE / GREEN; Task 7 NOT STARTED**
+- Implementation: **Tasks 1–7 COMPLETE / GREEN; Task 8 NOT STARTED**
 - PR: #49 — draft
 - Production deploy: **NO**
 - C6: **NOT STARTED**
@@ -180,6 +180,8 @@ Task 5 RED commit `ec27b99d4528d9e0ae4af2eed5d369f04658eeaa` was confirmed by Va
 
 Task 6 RED commit `567bc2c6f93e6769ca920e448af90a0037c57a8e` was confirmed by Validate #1315 for the intended missing public UI exports. The UI was moved in normal fast-forward commits `6afafaec1f370d78466576107f8d6123a658488e`, `10e42fee40333a69814b15d6743671fbd6135094` and `2c7fe92039e3694d676d64dc6681df79a97efc5f`. Validate #1318 then identified only stale tests reading the removed paths. Test-only commits `66007fcf2f30fece36800faf393f78125dd65dde` and `3c9fce53a594de182b7dd34948926a83cf464baa` realigned those characterizations. Validate #1320 / run `35384747211` passed with **1,716 tests / 1,715 pass / 0 fail / 1 skipped** and all remaining gates green. `Tables` and `LocalTableSelector` now have one Table Service UI owner and external consumers use the public index.
 
+Task 7 RED commit `b785f500b677c518f1baea1f8e662468504877e6` was confirmed by Validate #1322 for the intended missing-`Comandas` public export. The new Table Service UI owners/public surface landed in `c315a0d20fda5344a4336807f44e547d8115f529`, App/integration consumers moved in `6770d3d83089194ecafe14bf5559f0be1127ef78`, and legacy owners were deleted in `d30252ec536ef9bb5945b8b98b0a03b73963316e`. An audit then found two internal imports plus moved-test loads still targeting the removed paths; `d040bf730c786af4aea815c1bcdbfb306f4e0b1e` corrected those path-only defects. Validate #1326 / run `35386530872` passed with **1,716 tests / 1,715 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. `Comandas` is public through the Table Service entry; `ComandaDetail` and `TableTransferDialog` remain internal.
+
 ---
 
 # Cross-slice rules
@@ -199,7 +201,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 implementation with Tasks 1–6 GREEN and Task 7 next. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 implementation with Tasks 1–7 GREEN and Task 8 next. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -207,8 +209,8 @@ The active slice is C5 implementation with Tasks 1–6 GREEN and Task 7 next. Gi
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–6 are complete.
-8. Begin Task 7 only with its planned RED for moving Comandas/ComandaDetail/TableTransferDialog UI ownership. Keep payment APIs in C6 and printing APIs in C9.
-9. Do not begin Task 8 until Task 7 is GREEN/reviewed; do not begin C6, merge, or deploy production before the corresponding gates.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–7 are complete.
+8. Begin Task 8 only with its planned RED for app-owned payment/printing overlay composition. Keep payment API ownership in C6 and printing API/queue/QZ ownership in C9.
+9. Do not begin Task 9 until Task 8 is GREEN/reviewed; do not begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
