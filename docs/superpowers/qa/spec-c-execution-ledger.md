@@ -21,7 +21,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **IMPLEMENTATION — TASK 2 COMPLETE** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C5 | Table Service | **IMPLEMENTATION — TASKS 1–2 COMPLETE / TASK 3 RED** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -154,7 +154,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **Tasks 1–2 COMPLETE / GREEN; Task 3 NOT STARTED**
+- Implementation: **Tasks 1–2 COMPLETE / GREEN; Task 3 RED IN PROGRESS**
 - PR: #49 — draft
 - Production deploy: **NO**
 - C6: **NOT STARTED**
@@ -172,7 +172,7 @@ The written C5 specification and detailed implementation plan were explicitly ap
 - The runtime `onTablesCommitted` call and App-owned `comandaSelectionRef` / `comandaIdentityRef` are removed in code. The compatibility ledger remains unchanged until the planned C5 architecture/closure evidence.
 - No staging deploy and no production deploy have occurred.
 
-Next task: **Task 3 — extract table-tab detail loading from Comandas**.
+Task 3 has started with RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b` (`test: define table tab detail ownership`). Validate #1300 / run `35380071895` is currently in progress; do not treat Task 3 as complete until the RED reason is confirmed, implementation reaches GREEN and review closes.
 
 ---
 
@@ -193,7 +193,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 implementation after Task 2 GREEN. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 implementation with Tasks 1–2 GREEN and Task 3 in RED. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -201,7 +201,8 @@ The active slice is C5 implementation after Task 2 GREEN. GitHub state wins over
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–2 are complete and Task 3 is next.
-8. Continue strict RED → GREEN on Task 3. Do not begin C6, merge, or deploy production before the corresponding gates.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–2 are complete.
+8. Resume Task 3 from RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b`; confirm the authoritative RED result, then implement minimal GREEN and review before Task 4.
+9. Do not begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
