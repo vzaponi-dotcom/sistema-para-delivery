@@ -127,8 +127,8 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 17 | Settings Cancelamentos — adicionar/editar/ordenar/salvar/cancelar/read-only | PASS | Observado manualmente em staging; adicionar, editar, ordenar, salvar, cancelar e comportamento de acesso foram validados sem regressão. |
 | 18 | Desktop claro/escuro — Cozinha/Novo Pedido/Histórico | PASS | Observado manualmente em staging; as três superfícies foram revisadas em desktop nos temas claro e escuro sem regressão visual. |
 | 19 | Mobile/narrow claro/escuro — Cozinha/Novo Pedido/Histórico | PASS | Observado manualmente em staging; as três superfícies foram revisadas em largura mobile/narrow nos temas claro e escuro sem regressão visual. |
-| 20 | Console — nenhum novo erro atribuível à C4 | PENDING | — |
+| 20 | Console — nenhum novo erro atribuível à C4 | PASS | Observado manualmente em staging; navegação pelas superfícies C4 não apresentou novos erros de Console atribuíveis à C4. |
 
-Current manual result: **18 PASS / 0 FAIL / 1 BLOCKED / 1 PENDING**.
+Current manual result: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
 
-Task 11 must stop merge preparation on any manual FAIL. BLOCKED is allowed only with an explicit, honest reason.
+Manual matrix closed: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED row is item 6, documented with direct observation of the in-window behavior and the same-day scheduling/time-of-day limitation that prevented a safe out-of-window reproduction. Merge preparation may proceed only after final docs-head validation and master reconciliation; production remains prohibited.
