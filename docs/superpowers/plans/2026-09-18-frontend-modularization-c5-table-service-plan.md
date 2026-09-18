@@ -47,8 +47,15 @@
   - GREEN candidate: `aab6ca4ccb0461510a65bbb3a079808174229d4d`; all new command tests passed, but Validate #1312 exposed one stale `tablesNavigation.test.js` source-contract.
   - Final test-only alignment: `44f9b9e0f4410ae909873811fff70b2c5b80f083`; Validate #1313 / run `35382601189` — **1,716 tests / 1,715 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
   - App no longer owns create/rename/active/reorder/transfer handlers. Legacy C5 API exports are removed; C6/C9 endpoints remain untouched.
-- Task 6: **NOT STARTED / NEXT**.
-- Tasks 7–11: **NOT STARTED**.
+- Task 6: **COMPLETE / GREEN**.
+  - RED: `567bc2c6f93e6769ca920e448af90a0037c57a8e`; Validate #1315 failed because the public Table Service entry did not yet export `Tables` / `LocalTableSelector`.
+  - Public surfaces + physical move: `6afafaec1f370d78466576107f8d6123a658488e`, `10e42fee40333a69814b15d6743671fbd6135094`, `2c7fe92039e3694d676d64dc6681df79a97efc5f`.
+  - Validate #1318 on the complete move exposed only stale characterization tests that still read the removed paths.
+  - Test-only path alignment: `66007fcf2f30fece36800faf393f78125dd65dde` and `3c9fce53a594de182b7dd34948926a83cf464baa`.
+  - Final GREEN: Validate #1320 / run `35384747211` — **1,716 tests / 1,715 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - Legacy `Tables` / `LocalTableSelector` paths are physically absent. App and Orders use the Table Service public entry; Orders has no deep Table Service import.
+- Task 7: **NOT STARTED / NEXT**.
+- Tasks 8–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -974,7 +981,7 @@ git commit -m "refactor: extract table service commands"
 - Orders imports `LocalTableSelector` only from `../../../table-service/index.js`.
 - No legacy reexport remains at `src/pages/Tables.jsx` or `src/components/LocalTableSelector.jsx`.
 
-- [ ] **Step 1: Add RED public UI contract**
+- [x] **Step 1: Add RED public UI contract**
 
 Extend `tableServicePublicContract.test.js` only with Node-safe type checks after introducing the wrapper module:
 
@@ -986,7 +993,7 @@ assert.equal(typeof LocalTableSelector, 'function')
 
 Run it before adding exports; expected FAIL because those exports do not exist.
 
-- [ ] **Step 2: Move the files and tests**
+- [x] **Step 2: Move the files and tests**
 
 ```bash
 mkdir -p src/domains/table-service/ui
@@ -1001,7 +1008,7 @@ Update relative imports in `Tables.jsx`:
 
 Update the moved test harness load path to `/src/domains/table-service/ui/Tables.jsx`.
 
-- [ ] **Step 3: Add Vite-safe public wrappers**
+- [x] **Step 3: Add Vite-safe public wrappers**
 
 Create `src/domains/table-service/ui/tableServiceSurfaces.js`:
 
@@ -1028,7 +1035,7 @@ Do not export `Comandas` until its file is moved in Task 7; the glob may include
 
 Export `Tables` and `LocalTableSelector` from `src/domains/table-service/index.js`.
 
-- [ ] **Step 4: Migrate external consumers**
+- [x] **Step 4: Migrate external consumers**
 
 In App:
 
@@ -1051,13 +1058,13 @@ import { LocalTableSelector } from '../../../table-service/index.js'
 
 This establishes the allowed Orders → Table Service public dependency.
 
-- [ ] **Step 5: Update characterization tests**
+- [x] **Step 5: Update characterization tests**
 
 `src/tableTabNewOrderUi.test.js` must read `src/domains/table-service/ui/LocalTableSelector.jsx` for the existing “Comanda aberta” copy and assert the Orders customer step imports the public Table Service entry rather than a deep path.
 
 `src/comandasTransferNavigation.test.js` must obtain `Tables` from `/src/domains/table-service/index.js` instead of `/src/pages/Tables.jsx`.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 ```bash
 node --test   src/domains/table-service/tableServicePublicContract.test.js   src/domains/table-service/ui/Tables.test.js   src/tableTabNewOrderUi.test.js   src/tablesAppWiring.test.js   src/comandasTransferNavigation.test.js
@@ -1065,7 +1072,7 @@ node --test   src/domains/table-service/tableServicePublicContract.test.js   src
 
 Expected: PASS.
 
-- [ ] **Step 7: Verify legacy owner paths are absent**
+- [x] **Step 7: Verify legacy owner paths are absent**
 
 ```bash
 test ! -e src/pages/Tables.jsx
@@ -1075,7 +1082,7 @@ rg "pages/Tables|components/LocalTableSelector" src
 
 Expected: both `test` commands exit 0 and `rg` prints no production import.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domains/table-service src/App.jsx src/domains/orders src/tableTabNewOrderUi.test.js src/tablesAppWiring.test.js src/comandasTransferNavigation.test.js

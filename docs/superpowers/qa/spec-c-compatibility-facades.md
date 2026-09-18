@@ -57,6 +57,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 5 is **COMPLETE / GREEN** at final fix HEAD `44f9b9e0f4410ae909873811fff70b2c5b80f083`; Validate #1313 / run `35382601189` passed.
 - App table-management/transfer handlers are removed and replaced by `useTableServiceCommands`.
 - C5 API debt in `src/api/client.js` is now cleared: `createTable`, `updateTable`, `reorderTables`, `transferTableTab` and `getTableTabDetail` are absent. Table-tab payment remains C6; print document/manual print job remain C9.
+- Task 6 is **COMPLETE / GREEN** at `3c9fce53a594de182b7dd34948926a83cf464baa`; Validate #1320 / run `35384747211` passed.
+- `src/pages/Tables.jsx`, `src/pages/Tables.test.js` and `src/components/LocalTableSelector.jsx` are removed with no compatibility reexport. Their owners are now `src/domains/table-service/ui/Tables.jsx`, `Tables.test.js` and `LocalTableSelector.jsx`.
+- App and Orders consume `Tables` / `LocalTableSelector` only through `src/domains/table-service/index.js`; Task 6 introduced no surviving compatibility facade.
 - The payment-receipt bridge remains intentionally active until C6.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
