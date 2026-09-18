@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getTableTabDetail as legacyGetTableTabDetail } from '../../../api/client.js'
-
-const legacyApi = Object.freeze({ getTableTabDetail: legacyGetTableTabDetail })
+import { tableServiceApi } from '../infrastructure/tableServiceApi.js'
 const emptySnapshot = Object.freeze({ detail: null, loading: false, error: null })
 
 export function useTableTabDetail({
   selection,
   officialTables = [],
-  api = legacyApi,
+  api = tableServiceApi,
   onUnauthorized = () => {},
 } = {}) {
   const apiRef = useRef(api)

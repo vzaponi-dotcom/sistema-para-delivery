@@ -38,7 +38,6 @@ export const deleteOrder = async () => {
 }
 export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
-export const getTableTabDetail = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}`)
 export const getTableTabPrintDocument = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-document`)
 export const createManualTableTabPrintJob = (id, copies) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-jobs`, withJson('POST', { copies }))
 
