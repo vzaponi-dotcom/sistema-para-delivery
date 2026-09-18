@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react'
-import Button from './Button'
-import Modal from './Modal'
-import SystemSelect from './SystemSelect'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import Button from '../../../../components/Button'
+import Modal from '../../../../components/Modal'
+import SystemSelect from '../../../../components/SystemSelect'
+import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 import {
   PAYMENT_METHOD_OPTIONS,
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
-} from '../utils/paymentMethodOptions.js'
+} from '../../../../utils/paymentMethodOptions.js'
 
 import {
   cancellationOptionsWithSelection,
   cancellationSelectionNeedsReview,
-} from '../domains/orders/index.js'
+} from '../../domain/cancellationReasonOptions.js'
 
 function CancelOrderDialog({
   open,

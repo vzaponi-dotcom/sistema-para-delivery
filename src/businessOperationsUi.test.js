@@ -103,7 +103,7 @@ test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', as
 test('kitchen uses current timing while terminal analytics keep the T10 snapshot', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: OperationalHistoryAnalysis }] = await Promise.all([
-    h.load('/src/pages/Orders.jsx'), h.load('/src/components/OperationalHistoryAnalysis.jsx'),
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/OperationalHistoryAnalysis.jsx'),
   ])
   const currentTiming = {
     scheduledPrepLeadMinutes: 30, scheduledLateGraceMinutes: 5,

@@ -30,7 +30,7 @@ test('kitchen ticket scopes actions to the queue phase', () => {
 
 test('kitchen ticket prioritizes the customer name and de-emphasizes the order id', () => {
   const ticket = source('./KitchenTicket.jsx')
-  const styles = source('../order-operations.css')
+  const styles = source('../../../../order-operations.css')
 
   assert.match(ticket, /kitchen-ticket-customer-name[^}]*order\.client/)
   assert.match(ticket, /kitchen-ticket-id[^}]*formatOrderDisplayNumber\(order\)/)

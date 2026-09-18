@@ -31,7 +31,7 @@ test('operational component preserves calculateOperationalMetrics results for th
   })
 
   const h = await workspaceHarness(t)
-  const { default: OperationalHistoryAnalysis } = await h.load('/src/components/OperationalHistoryAnalysis.jsx')
+  const { default: OperationalHistoryAnalysis } = await h.load('/src/domains/orders/ui/components/OperationalHistoryAnalysis.jsx')
   const renderer = await h.render(OperationalHistoryAnalysis, { orders, period: 'today', onPeriodChange() {}, now })
   const text = nodeText(renderer.root)
   assert.match(text, /32,5 min/)
@@ -47,7 +47,7 @@ test('operational component preserves calculateOperationalMetrics results for th
 
 test('history list filter does not change the official collection used by operational analysis', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OrderHistory } = await h.load('/src/pages/OrderHistory.jsx')
+  const { default: OrderHistory } = await h.load('/src/domains/orders/ui/OrderHistory.jsx')
   const changes = []
   const renderer = await renderWithNavigation(h, OrderHistory, {
     orders,
@@ -75,7 +75,7 @@ test('commercial and operational periods remain independent with 30d defaults an
   assert.equal(commercial.history.analysisPeriod, '7d')
 
   const h = await workspaceHarness(t)
-  const { default: OperationalHistoryAnalysis } = await h.load('/src/components/OperationalHistoryAnalysis.jsx')
+  const { default: OperationalHistoryAnalysis } = await h.load('/src/domains/orders/ui/components/OperationalHistoryAnalysis.jsx')
   const changes = []
   const renderer = await h.render(OperationalHistoryAnalysis, { orders: [], period: '30d', onPeriodChange: (period) => changes.push(period), now })
   const buttons = renderer.root.findAllByType('button')

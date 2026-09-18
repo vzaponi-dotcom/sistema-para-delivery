@@ -95,7 +95,7 @@ test('integrated kitchen fixture preserves queues, counts, timing copy and item-
 })
 
 test('kitchen ticket exposes the approved derived state, attendance icons and exact actions', () => {
-  const ticket = read('./components/KitchenTicket.jsx')
+  const ticket = read('./domains/orders/ui/components/KitchenTicket.jsx')
 
   assert.match(ticket, /Fora do prazo/)
   assert.match(ticket, /Agendado para preparo/)
@@ -111,8 +111,8 @@ test('kitchen ticket exposes the approved derived state, attendance icons and ex
 })
 
 test('ticket privacy stays operational while shared details retain contact and financial data', () => {
-  const ticket = read('./components/KitchenTicket.jsx')
-  const detail = read('./components/OrderDetail.jsx')
+  const ticket = read('./domains/orders/ui/components/KitchenTicket.jsx')
+  const detail = read('./domains/orders/ui/components/OrderDetail.jsx')
 
   assert.doesNotMatch(ticket, /order\.(?:total|subtotal|deliveryFee|paymentStatus|paymentMethod|clientPhone|clientAddress)/)
   for (const field of ['clientPhone', 'clientAddress', 'subtotal', 'deliveryFee', 'total']) assert.match(detail, new RegExp(`order\\.${field}`))
@@ -138,7 +138,7 @@ test('kitchen visual primitives expose the approved icon and StatCard contracts'
 })
 
 test('kitchen page keeps the approved two-queue composition and search vocabulary', () => {
-  const orders = read('./pages/Orders.jsx')
+  const orders = read('./domains/orders/ui/Orders.jsx')
 
   assert.match(orders, /placeholder="Buscar cliente, pedido, produto ou tipo"/)
   assert.match(orders, /queueModel\.totalVisible/)
@@ -150,8 +150,8 @@ test('kitchen page keeps the approved two-queue composition and search vocabular
 })
 
 test('kitchen page exposes accessible queue names and full-text controls', () => {
-  const orders = read('./pages/Orders.jsx')
-  const ticket = read('./components/KitchenTicket.jsx')
+  const orders = read('./domains/orders/ui/Orders.jsx')
+  const ticket = read('./domains/orders/ui/components/KitchenTicket.jsx')
 
   assert.equal(orders.match(/className="kitchen-queue-section" aria-labelledby=/g)?.length, 2)
   assert.match(orders, /<h2 id="kitchen-preparing-heading">/)

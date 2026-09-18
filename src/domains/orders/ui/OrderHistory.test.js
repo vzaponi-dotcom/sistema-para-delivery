@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const source = await readFile(new URL('./OrderHistory.jsx', import.meta.url), 'utf8').catch(() => '')
-const appSource = await readFile(new URL('../App.jsx', import.meta.url), 'utf8').catch(() => '')
+const appSource = await readFile(new URL('../../../App.jsx', import.meta.url), 'utf8').catch(() => '')
 
 test('history owns terminal orders and exposes all finalized cancelled filters', () => {
   assert.match(source, /isOrderFinished/)
@@ -34,7 +34,7 @@ test('history reuses the single printing manager for terminal order details', ()
 })
 
 test('history keeps terminal reprint available even when retention removes the latest print job', async () => {
-  const detail = await readFile(new URL('../components/OrderDetail.jsx', import.meta.url), 'utf8')
+  const detail = await readFile(new URL('./components/OrderDetail.jsx', import.meta.url), 'utf8')
 
   assert.match(source, /printJob=\{printing\?\.latestJobByOrderId\?\.get\(detailOrder\.id\)/)
   assert.match(detail, /!printJob && isHistoricalOrder/)

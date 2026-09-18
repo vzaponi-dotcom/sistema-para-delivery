@@ -70,6 +70,6 @@ test('scheduled order details keep cancellation available and do not introduce e
 })
 
 test('legacy waiting-window copy is absent from application source', async () => {
-  const allSource = await readSourceTree(new URL('../', import.meta.url))
+  const allSource = await readSourceTree(new URL('../../../', import.meta.url))
   assert.doesNotMatch(allSource, /Aguardando janela/i)
 })

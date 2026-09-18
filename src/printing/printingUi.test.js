@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const badge = await readFile(new URL('../components/PrintStatusBadge.jsx', import.meta.url), 'utf8')
-const orders = await readFile(new URL('../pages/Orders.jsx', import.meta.url), 'utf8')
-const detail = await readFile(new URL('../components/OrderDetail.jsx', import.meta.url), 'utf8')
+const orders = await readFile(new URL('../domains/orders/ui/Orders.jsx', import.meta.url), 'utf8')
+const detail = await readFile(new URL('../domains/orders/ui/components/OrderDetail.jsx', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
 
 test('print status badge exposes all friendly persisted job states', () => {
@@ -22,7 +22,7 @@ test('print status badge exposes all friendly persisted job states', () => {
 })
 
 test('kitchen preserves the shared printing manager in details without moving printing into tickets', async () => {
-  const ticket = await readFile(new URL('../components/KitchenTicket.jsx', import.meta.url), 'utf8')
+  const ticket = await readFile(new URL('../domains/orders/ui/components/KitchenTicket.jsx', import.meta.url), 'utf8')
   assert.match(orders, /latestJobByOrderId/)
   assert.match(orders, /<OrderDetail[^>]*printing=\{printing\}[^>]*printJob=\{detailPrintJob\}/)
   assert.match(app, /printing=\{printing\}/)

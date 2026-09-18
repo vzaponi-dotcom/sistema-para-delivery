@@ -1,4 +1,4 @@
-import { getKitchenItemNotes } from '../domains/orders/index.js'
+import { getKitchenItemNotes } from '../../domain/kitchenTicket.js'
 
 function KitchenTicketNotes({ order }) {
   const notes = getKitchenItemNotes(order)

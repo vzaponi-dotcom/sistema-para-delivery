@@ -6,8 +6,8 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('Orders owns cancellation orchestration while History consumes the central order collection', async () => {
   const app = await read('./App.jsx')
-  const orders = await read('./pages/Orders.jsx')
-  const history = await read('./pages/OrderHistory.jsx')
+  const orders = await read('./domains/orders/ui/Orders.jsx')
+  const history = await read('./domains/orders/ui/OrderHistory.jsx')
   const shell = await read('./app/shell/AppShell.jsx')
 
   assert.match(app, /useOrderCommands/)

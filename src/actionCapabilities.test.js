@@ -102,7 +102,7 @@ describe('A8 action capabilities', { concurrency: false }, () => {
 
 test('1. orders.view consulta a Cozinha sem oferecer ou iniciar novo pedido', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Orders } = await h.load('/src/pages/Orders.jsx')
+  const { default: Orders } = await h.load('/src/domains/orders/ui/Orders.jsx')
   let starts = 0
   const renderer = await renderWithNavigation(h, Orders, {
     orders: [], now: new Date('2026-09-11T12:00:00.000Z'), search: '', onSearchChange() {}, currency,
@@ -116,7 +116,7 @@ test('1. orders.view consulta a Cozinha sem oferecer ou iniciar novo pedido', as
 test('2. orders.view sem orders.finalize bloqueia UI e handler de finalizaÃ§Ã£o', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: KitchenTicket }, { default: ConfirmationDialog }] = await Promise.all([
-    h.load('/src/pages/Orders.jsx'), h.load('/src/components/KitchenTicket.jsx'), h.load('/src/components/ConfirmationDialog.jsx'),
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/KitchenTicket.jsx'), h.load('/src/components/ConfirmationDialog.jsx'),
   ])
   let finalizations = 0
   const renderer = await renderWithNavigation(h, Orders, {
@@ -130,7 +130,7 @@ test('2. orders.view sem orders.finalize bloqueia UI e handler de finalizaÃ§Ã
 
 test('3. orders.history continua visÃ­vel sem orders.analysis', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set(['orders.history']))
-  const [{ default: OrderHistory }, { default: OperationalHistoryAnalysis }] = await Promise.all([h.load('/src/pages/OrderHistory.jsx'), h.load('/src/components/OperationalHistoryAnalysis.jsx')])
+  const [{ default: OrderHistory }, { default: OperationalHistoryAnalysis }] = await Promise.all([h.load('/src/domains/orders/ui/OrderHistory.jsx'), h.load('/src/domains/orders/ui/components/OperationalHistoryAnalysis.jsx')])
   assert.ok(renderer.root.findByType(OrderHistory))
   assert.match(nodeText(renderer.root), /Hist.rico/)
   assert.equal(renderer.root.findAllByType(OperationalHistoryAnalysis).length, 0)
@@ -138,7 +138,7 @@ test('3. orders.history continua visÃ­vel sem orders.analysis', async (t) => {
 
 test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/components/CancelOrderDialog.jsx'), h.load('/src/components/SystemSelect.jsx')])
+  const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx'), h.load('/src/components/SystemSelect.jsx')])
   const confirmed = []
   const renderer = await h.render(CancelOrderDialog, {
     open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload),

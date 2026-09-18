@@ -16,21 +16,35 @@ import OpeningBalanceDialog from './components/OpeningBalanceDialog'
 import ProductForm from './components/ProductForm'
 import SystemSelect from './components/SystemSelect'
 import {
+  cancellationOptionsFromEffective,
+  cancellationRevisionFromEffective,
+  canReceiveStandaloneOrder,
+  getOrderItemsSearchText,
+  getOrderRefundState,
+  isOrderActive,
+  isOrderCancelled,
+  NewOrderRoute,
+  OrderHistory,
+  Orders,
+  ordersApi,
+  toLocalDateValue,
+  useKitchenClock,
+  useNewOrderDraft,
+  useOrderArrivals,
+  useOrderCommands,
+} from './domains/orders/index.js'
+import {
   paymentDefaultFromEffective,
   paymentOptionsFromEffective,
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
 } from './utils/paymentMethodOptions.js'
-import { cancellationOptionsFromEffective, cancellationRevisionFromEffective } from './domains/orders/index.js'
-import { NewOrderRoute } from './domains/orders/index.js'
 import { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } from './utils/financeCategoryOptions.js'
 import Dashboard from './pages/Dashboard'
-import Orders from './pages/Orders'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
 import Finance from './pages/Finance'
-import OrderHistory from './pages/OrderHistory'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
@@ -50,16 +64,11 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { findClientDuplicates } from '../shared/clientIdentity.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
-import { ordersApi, useKitchenClock, useNewOrderDraft, useOrderArrivals, useOrderCommands } from './domains/orders/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { removeById } from './utils/dataSync.js'
 import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import { getOrderItemsSearchText } from './domains/orders/index.js'
-import { getOrderRefundState, isOrderActive, isOrderCancelled } from './domains/orders/index.js'
-import { canReceiveStandaloneOrder } from './domains/orders/index.js'
-import { toLocalDateValue } from './domains/orders/index.js'
 import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import { formatTableIdentifierLabel } from './utils/receivables.js'
 import {

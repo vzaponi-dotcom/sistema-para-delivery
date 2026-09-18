@@ -1,9 +1,10 @@
-import Button from './Button.jsx'
-import Icon from './Icon.jsx'
+import Button from '../../../../components/Button.jsx'
+import Icon from '../../../../components/Icon.jsx'
 import KitchenTicketNotes from './KitchenTicketNotes.jsx'
-import StatusBadge from './StatusBadge.jsx'
-import { buildKitchenItemSummary, buildKitchenTimingCopy, getFinalActionLabel } from '../domains/orders/index.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import StatusBadge from '../../../../components/StatusBadge.jsx'
+import { buildKitchenItemSummary, buildKitchenTimingCopy } from '../../domain/kitchenTicket.js'
+import { getFinalActionLabel } from '../../domain/orderWorkflow.js'
+import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 
 const attendanceIcons = { Entrega: 'delivery', Retirada: 'pickup', Local: 'local' }
 function KitchenTicket({ entry, now, currentTiming, disabled = false, highlighted = false, onDetails, onFinalize, onCancel }) {

@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import '../dashboard.css'
-import '../area-navigation.css'
-import DashboardBarChart from './DashboardBarChart'
-import DashboardPeriodSelector from './DashboardPeriodSelector'
-import StatCard from './StatCard'
-import { calculateOperationalMetrics } from '../utils/dashboardAnalytics.js'
+import '../../../../dashboard.css'
+import '../../../../area-navigation.css'
+import DashboardBarChart from '../../../../components/DashboardBarChart'
+import DashboardPeriodSelector from '../../../../components/DashboardPeriodSelector'
+import StatCard from '../../../../components/StatCard'
+import { calculateOperationalMetrics } from '../../../../utils/dashboardAnalytics.js'
 
 const PERIOD_HELPERS = {
   today: 'Somente hoje',
