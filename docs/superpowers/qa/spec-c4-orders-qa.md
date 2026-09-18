@@ -78,11 +78,16 @@ Run #1263 also completed the full test, architecture, lint, build, Worker dry-ru
 
 ## Staging deployment
 
-- Status: **PENDING**
-- Required trigger: existing `Deploy staging` workflow via manual `workflow_dispatch`
-- Required branch: `feature/spec-c4-orders`
-- Expected URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
-- Production workflow: **MUST NOT BE TRIGGERED**
+- Status: **SUCCESS**
+- Workflow: `Deploy staging`
+- Run number: **#180**
+- Run ID: `35298763053`
+- Event: `workflow_dispatch`
+- Deployed SHA: `badfbcb7b5793a5b444c34950883d1216c4c42bd`
+- Branch: `feature/spec-c4-orders`
+- URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
+- Workflow evidence: tests, architecture, lint, build, local D1, staging Worker dry-run, staging migrations, PIN configuration, deploy and staging-login smoke all passed.
+- Production workflow: **NOT TRIGGERED**
 
 ## Manual staging homologation matrix
 
