@@ -1,19 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  Comandas,
-  getTransferDestinations,
-  LocalTableSelector,
-  reconcileComandaSelection,
-  resolveOpenComanda,
-  Tables,
-} from './index.js'
+import * as tableService from './index.js'
 
-test('table-service public contract exposes canonical identity and transfer rules', () => {
-  assert.equal(typeof resolveOpenComanda, 'function')
-  assert.equal(typeof reconcileComandaSelection, 'function')
-  assert.equal(typeof getTransferDestinations, 'function')
-  assert.equal(typeof Tables, 'function')
-  assert.equal(typeof LocalTableSelector, 'function')
-  assert.equal(typeof Comandas, 'function')
+test('table-service public contract exposes only real external consumers', () => {
+  assert.deepEqual(
+    Object.keys(tableService).sort(),
+    [
+      'Comandas',
+      'LocalTableSelector',
+      'Tables',
+      'resolveOpenComanda',
+      'useComandaSelection',
+      'useTableServiceCommands',
+    ].sort(),
+  )
 })

@@ -131,3 +131,62 @@ test('legacy API client cannot reintroduce Orders lifecycle exports', async (t) 
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.ok(violations.includes('c4-legacy-orders-api: src/api/client.js'))
 })
+
+
+test('external consumers cannot deep import Table Service internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import Comandas from './domains/table-service/ui/Comandas.jsx'\n")
+  await write('src/domains/table-service/ui/Comandas.jsx', 'export default function Comandas() {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('table-service-deep-import: src/App.jsx -> src/domains/table-service/ui/Comandas.jsx'))
+})
+
+test('Orders may use the Table Service public entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/orders/ui/x.js', "import { Tables } from '../../table-service/index.js'\n")
+  await write('src/domains/table-service/index.js', 'export const Tables = () => null\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((item) => item.startsWith('table-service-deep-import:')), false)
+  assert.equal(violations.some((item) => item.startsWith('cross-domain-internal:')), false)
+})
+
+test('Table Service cannot import Orders even through its public entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/table-service/ui/x.js', "import { Orders } from '../../orders/index.js'\n")
+  await write('src/domains/orders/index.js', 'export const Orders = () => null\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('table-service-orders-import: src/domains/table-service/ui/x.js -> src/domains/orders/index.js'))
+})
+
+test('C5 legacy Table Service owners are rejected when they reappear', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  for (const legacyOwner of [
+    'src/pages/Tables.jsx',
+    'src/pages/Comandas.jsx',
+    'src/components/ComandaDetail.jsx',
+    'src/components/TableTransferDialog.jsx',
+    'src/components/LocalTableSelector.jsx',
+  ]) {
+    await write(legacyOwner, 'export default function LegacyOwner() {}\n')
+  }
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  for (const legacyOwner of [
+    'src/pages/Tables.jsx',
+    'src/pages/Comandas.jsx',
+    'src/components/ComandaDetail.jsx',
+    'src/components/TableTransferDialog.jsx',
+    'src/components/LocalTableSelector.jsx',
+  ]) {
+    assert.ok(violations.includes(`c5-legacy-table-service-owner: ${legacyOwner}`))
+  }
+})
+
+test('legacy API client cannot reintroduce migrated Table Service exports', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/client.js', [
+    'export const transferTableTab = () => {}',
+    'export const registerTableTabPayment = () => {}',
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c5-legacy-table-service-api: src/api/client.js'))
+})
