@@ -23,3 +23,9 @@ test('Finance exposes payment and finance-category public contracts', async () =
     )
   }
 })
+
+test('Finance publicly owns its Settings editors', async () => {
+  const finance = await import('./index.js')
+  assert.equal(typeof finance.PaymentSettings, 'function')
+  assert.equal(typeof finance.FinanceCategorySettings, 'function')
+})
