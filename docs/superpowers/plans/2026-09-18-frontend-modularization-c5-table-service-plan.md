@@ -81,7 +81,7 @@
 
 **Interfaces:**
 - Produces `orderTables(tables)`, `getActiveTables(tables)`, `isActiveTable(table)`, `isOccupiedTable(table)`, `isFreeTable(table)`.
-- Produces `findOpenTableByTabId(tables, tableTabId)`, `resolveOpenComanda(tables, target)`, `reconcileComandaSelection(tables, selection)` and `sameComandaIdentity(left, right)`.
+- Produces `findOpenTableByTabId(tables, tableTabId)`, `resolveOpenComanda(tables, target)`, `reconcileComandaSelection(tables, selection)` and `sameComandaIdentity(left, right)`. `resolveOpenComanda` remains the one pure helper intentionally needed by App composition for pre-navigation stale-target validation; the other pure helpers become internal-only by the final architecture task.
 - Produces `getTransferDestinations(tables, sourceTableId)` and `validateTransferIntent(tables, intent)`.
 - No React/application/UI/API dependency is introduced.
 
@@ -458,7 +458,7 @@ const {
 } = useComandaSelection({ tables })
 ```
 
-Keep current stale-target feedback by resolving explicit user actions through `selectComanda` and, on `false`, showing the existing message and calling `refreshBootstrapSilently()`.
+Import `resolveOpenComanda` from the Table Service public entry and use it only as a pure pre-navigation/pre-New-Order validation against `getOfficialTables()`. Keep current stale-target feedback by refusing the action before navigation when resolution fails, showing the existing message and calling `refreshBootstrapSilently()`. Once a target is resolved, pass that exact identity to `selectComanda`; do not recreate the resolution rule in App.
 
 Change payment visual ownership checks from App-owned refs to the hook owner:
 
@@ -508,7 +508,7 @@ node --test   src/domains/table-service/application/useComandaSelection.test.js 
 
 Expected: PASS. In particular, the existing `official transfer keeps the selected tab...` and replacement/payment-isolation tests stay green.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add src/domains/table-service src/App.jsx src/app/runtime
@@ -1005,9 +1005,9 @@ In App:
 ```js
 import {
   Tables,
+  resolveOpenComanda,
   useComandaSelection,
   useTableServiceCommands,
-  useTableTabDetail,
 } from './domains/table-service/index.js'
 ```
 
@@ -1103,6 +1103,8 @@ In moved `Comandas.jsx`:
 - `useMediaQuery` from `../../../hooks/useMediaQuery.js`;
 - `ComandaDetail` and `TableTransferDialog` by same-directory relative import;
 - `useTableTabDetail` by `../application/useTableTabDetail.js`.
+
+Because the hook is now consumed only inside Table Service, remove the temporary `useTableTabDetail` export from `src/domains/table-service/index.js` in this task.
 
 In moved `ComandaDetail.jsx` use generic components from `../../../components/`.
 
@@ -1618,7 +1620,7 @@ Create `src/domains/table-service/tableServiceExtractionContract.test.js` readin
 const forbidden = [
   'comandaSelectionRef',
   'comandaIdentityRef',
-  'resolveOpenComanda',
+  'const resolveOpenComanda =',
   'onTablesCommitted',
   'handleCreateTable',
   'handleRenameTable',
@@ -1647,7 +1649,33 @@ for (const token of [
 
 Do not require printing API names in App because printing is already behind `usePrintingManager`.
 
-- [ ] **Step 5: Run architecture GREEN**
+- [ ] **Step 5: Trim the Table Service public entry to actual external consumers**
+
+By this point, `src/domains/table-service/index.js` must export only contracts with a real external consumer:
+
+```js
+export { resolveOpenComanda } from './domain/comandaIdentity.js'
+export { useComandaSelection } from './application/useComandaSelection.js'
+export { useTableServiceCommands } from './application/useTableServiceCommands.js'
+export { Comandas, LocalTableSelector, Tables } from './ui/tableServiceSurfaces.js'
+```
+
+Update `tableServicePublicContract.test.js` to import the module namespace and assert its sorted keys equal exactly:
+
+```js
+[
+  'Comandas',
+  'LocalTableSelector',
+  'Tables',
+  'resolveOpenComanda',
+  'useComandaSelection',
+  'useTableServiceCommands',
+].sort()
+```
+
+Pure/internal helpers remain covered by their direct domain tests; do not keep them public only for test convenience.
+
+- [ ] **Step 6: Run architecture GREEN**
 
 ```bash
 node --test   scripts/architecture/check-import-boundaries.test.mjs   src/domains/table-service/tableServiceExtractionContract.test.js
@@ -1656,7 +1684,7 @@ npm run test:architecture
 
 Expected: PASS and `Frontend architecture boundaries: OK`.
 
-- [ ] **Step 6: Run physical ownership audits**
+- [ ] **Step 7: Run physical ownership audits**
 
 ```bash
 for path in   src/pages/Tables.jsx   src/pages/Comandas.jsx   src/components/ComandaDetail.jsx   src/components/TableTransferDialog.jsx   src/components/LocalTableSelector.jsx; do
@@ -1670,7 +1698,7 @@ rg "domains/orders" src/domains/table-service
 
 Expected: all old paths absent and all three `rg` commands print no prohibited production imports.
 
-- [ ] **Step 7: Update the compatibility ledger only after evidence exists**
+- [ ] **Step 8: Update the compatibility ledger only after evidence exists**
 
 In `docs/superpowers/qa/spec-c-compatibility-facades.md` mark the operational data runtime table-commit bridge as **removed in C5**. Keep:
 - payment-receipt bridge → C6;
@@ -1679,7 +1707,7 @@ In `docs/superpowers/qa/spec-c-compatibility-facades.md` mark the operational da
 
 Do not delete or broaden another row.
 
-- [ ] **Step 8: Run the focused C5 regression bundle**
+- [ ] **Step 9: Run the focused C5 regression bundle**
 
 ```bash
 node --test   src/domains/table-service/**/*.test.js   src/app/surfaces/table-service/*.test.js   src/comandasAppWiring.test.js   src/comandasTransferNavigation.test.js   src/tableTransferIdentityUi.test.js   src/tableTabNewOrderUi.test.js   src/tablesAppWiring.test.js   src/tableTabsAppWiring.test.js   src/components/TableTabPaymentDialog.test.js   src/printing/usePrintingManager.test.js   scripts/architecture/check-import-boundaries.test.mjs
