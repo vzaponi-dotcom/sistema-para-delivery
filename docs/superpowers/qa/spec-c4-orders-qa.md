@@ -63,7 +63,18 @@ Pre-staging executable validation:
 | Head SHA | `e7f05b6d6d8364c0482a7fe03949c001816e8e85` |
 | Conclusion | **success** |
 
-A new Validate run is expected on the pre-staging QA documentation commit created after this record.
+Pre-staging QA documentation validation:
+
+| Field | Value |
+|---|---|
+| Workflow | Validate application |
+| Run number | #1263 |
+| Run ID | `35298379927` |
+| Event | `pull_request` |
+| Head SHA | `d625776952d1b58e1c4222830499913e42563f12` |
+| Conclusion | **success** |
+
+Run #1263 also completed the full test, architecture, lint, build, Worker dry-run, local D1, and Spec B D1 gate set successfully.
 
 ## Staging deployment
 
