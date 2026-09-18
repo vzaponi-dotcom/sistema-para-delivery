@@ -18,6 +18,7 @@
 - Design approval recorded on this branch before this plan.
 - Production deployment: **NO** unless separately authorized.
 - Task 1 evidence: RED `9476b0b74d7c18305466eb6079314f8b24d8ae00` → Validate #1344 / run `35403401486` failed for intended missing Finance modules; GREEN `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf` → Validate #1345 / run `35403573350` SUCCESS with **1,729 tests / 1,728 pass / 0 fail / 1 skipped** and all remaining gates green.
+- Task 2 evidence: RED `bc52cdb8b60e8c79a6390b51b5b973fbe0ee8ef4` → Validate #1349 / run `35404405552` failed for the intended missing Finance Settings ownership. GREEN candidate `68ba38df6165171686ab91a27550b410df5ba892` → Validate #1350 exposed only stale path contracts and the need for a Node-safe `.js` public surface wrapper. Fix `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5` → Validate #1351 / run `35405016988` SUCCESS with **1,731 tests / 1,730 pass / 0 fail / 1 skipped** and all remaining gates green.
 
 ## Global Constraints
 
@@ -372,7 +373,7 @@ Expected: Validate application SUCCESS before Task 2.
 
 ---
 
-### Task 2: Move Finance-owned Settings content behind the Finance public entry
+### Task 2: Move Finance-owned Settings content behind the Finance public entry — COMPLETE / GREEN
 
 **Files:**
 - Move: `src/app/surfaces/settings/PaymentSettings.jsx` → `src/domains/finance/ui/settings/PaymentSettings.jsx`
@@ -391,7 +392,7 @@ Expected: Validate application SUCCESS before Task 2.
 - Produces: public `PaymentSettings`, `FinanceCategorySettings`, `paymentMethodsPolicy`, `financeCategoriesPolicy`.
 - Does not move generic `SettingsEditorShell`, conflict review, pending recovery, or policy engine into Finance.
 
-- [ ] **Step 1: Write RED ownership tests**
+- [x] **Step 1: Write RED ownership tests**
 
 Add to `financePublicContract.test.js`:
 
@@ -419,7 +420,7 @@ test('legacy app-owned Finance settings owners are absent', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED and commit it**
+- [x] **Step 2: Run RED and commit it**
 
 ```bash
 node --test src/domains/finance/financePublicContract.test.js
@@ -437,7 +438,7 @@ git push origin feature/spec-c6-finance-workflows
 
 Remote RED must fail for the intended missing ownership.
 
-- [ ] **Step 3: Move Settings UI and fix only import paths**
+- [x] **Step 3: Move Settings UI and fix only import paths**
 
 Use `git mv` for ownership-preserving moves. Update moved files to import generic controls via relative paths back to `src/app/surfaces/settings/components/**` and finance rules via `../../domain/**`.
 
@@ -470,7 +471,7 @@ import {
 
 Do not change the existing read-only capabilities, save messages, reconcile callbacks, or navigation behavior.
 
-- [ ] **Step 4: Run Settings regressions**
+- [x] **Step 4: Run Settings regressions**
 
 ```bash
 node --test   src/app/surfaces/settings/PaymentSettings.test.js   src/app/surfaces/settings/PaymentSettings.menuInactive.test.js   src/app/surfaces/settings/FinanceCategorySettings.test.js   src/app/surfaces/settings/FinanceCategorySettings.redesign.test.js   src/settingsSaveAndFinanceOrderRegression.test.js   src/businessPaymentOptions.test.js
@@ -479,7 +480,7 @@ npm run test:architecture
 
 Run the moved tests at `src/domains/finance/ui/settings/PaymentSettings.test.js`, `src/domains/finance/ui/settings/PaymentSettings.menuInactive.test.js`, `src/domains/finance/ui/settings/FinanceCategorySettings.test.js`, and `src/domains/finance/ui/settings/FinanceCategorySettings.redesign.test.js`. Expected: PASS with the same assertions, not rewritten weaker assertions.
 
-- [ ] **Step 5: Commit GREEN and validate exact SHA**
+- [x] **Step 5: Commit GREEN and validate exact SHA**
 
 ```bash
 git add -A src/domains/finance src/app/surfaces/settings

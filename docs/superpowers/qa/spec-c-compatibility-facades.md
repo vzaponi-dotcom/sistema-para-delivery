@@ -90,6 +90,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Detailed C6 plan is **APPROVED** and implementation is active in draft PR #50.
 - Task 1 is **COMPLETE / GREEN** at `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf`; Validate #1345 / run `35403573350` passed with **1,729 tests / 1,728 pass / 0 fail / 1 skipped**.
 - Task 1 added the new Finance public boundary and Finance-owned payment/finance-category policy adapters without removing any compatibility facade. The payment-receipt bridge remains intentionally active until Task 7.
+- Task 2 is **COMPLETE / GREEN** at `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5`; Validate #1351 / run `35405016988` passed with **1,731 tests / 1,730 pass / 0 fail / 1 skipped**.
+- Task 2 moved Payment Settings and Finance Category Settings ownership plus their policy adapters behind the Finance public entry. The former app-owned UI/model/policy paths are removed with no compatibility reexport.
+- Task 2 created no surviving temporary facade. The operational payment-receipt bridge remains intentionally active until Task 7.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
