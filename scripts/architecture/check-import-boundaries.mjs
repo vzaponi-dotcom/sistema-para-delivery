@@ -25,6 +25,13 @@ const C3_LEGACY_SETTINGS_OWNERS = new Set([
   'src/components/SettingsItemDialog.jsx',
   'src/components/SettingsItemList.jsx',
 ])
+const C5_LEGACY_TABLE_SERVICE_OWNERS = new Set([
+  'src/pages/Tables.jsx',
+  'src/pages/Comandas.jsx',
+  'src/components/ComandaDetail.jsx',
+  'src/components/TableTransferDialog.jsx',
+  'src/components/LocalTableSelector.jsx',
+])
 const C4_LEGACY_ORDERS_OWNERS = new Set([
   'src/pages/NewOrder.jsx',
   'src/pages/NewOrderRoute.jsx',
@@ -137,11 +144,19 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (sourcePaths.has(legacyOwner)) violations.push(`c4-legacy-orders-owner: ${legacyOwner}`)
   }
 
+  for (const legacyOwner of C5_LEGACY_TABLE_SERVICE_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c5-legacy-table-service-owner: ${legacyOwner}`)
+  }
+
   try {
     const legacyApiClient = await readFile(path.join(rootDir, 'src/api/client.js'), 'utf8')
     const migratedOrderApiPattern = /export\s+const\s+(getOrders|createOrder|updateOrderStatus|cancelOrder)\b/
     if (migratedOrderApiPattern.test(legacyApiClient)) {
       violations.push('c4-legacy-orders-api: src/api/client.js')
+    }
+    const migratedTableServiceApiPattern = /export\s+const\s+(createTable|updateTable|reorderTables|transferTableTab|getTableTabDetail)\b/
+    if (migratedTableServiceApiPattern.test(legacyApiClient)) {
+      violations.push('c5-legacy-table-service-api: src/api/client.js')
     }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
@@ -174,6 +189,17 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && edge.resolvedPath?.startsWith('src/domains/orders/')
       && edge.resolvedPath !== 'src/domains/orders/index.js') {
       violations.push(`orders-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!edge.from.startsWith('src/domains/table-service/')
+      && edge.resolvedPath?.startsWith('src/domains/table-service/')
+      && edge.resolvedPath !== 'src/domains/table-service/index.js') {
+      violations.push(`table-service-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/table-service/')
+      && edge.resolvedPath?.startsWith('src/domains/orders/')) {
+      violations.push(`table-service-orders-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
     if (fromDomain && targetDomain && fromDomain !== targetDomain) {
