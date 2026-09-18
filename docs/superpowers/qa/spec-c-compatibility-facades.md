@@ -46,7 +46,8 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 
 - Branch: `feature/spec-c5-table-service`.
 - Base: C4 merge/master `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
-- Written design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`.
+- Written design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md` — **APPROVED by user on 2026-09-18**.
+- Detailed implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` — awaiting user plan review.
 - C5 implementation has not started.
 - C5 is explicitly responsible for removing the operational data runtime table-commit bridge.
 - C5 must not remove the payment-receipt bridge; that remains C6.
