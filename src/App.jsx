@@ -33,6 +33,7 @@ import {
   useOrderCommands,
 } from './domains/orders/index.js'
 import {
+  Tables,
   resolveOpenComanda,
   useComandaSelection,
   useTableServiceCommands,
@@ -52,7 +53,6 @@ import Finance from './pages/Finance'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
-import Tables from './pages/Tables'
 import Comandas from './pages/Comandas'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'

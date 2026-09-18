@@ -1,5 +1,5 @@
 import Button from '../../../../components/Button'
-import LocalTableSelector from '../../../../components/LocalTableSelector'
+import { LocalTableSelector } from '../../../table-service/index.js'
 import { formatScheduledTimeInput } from '../../../../utils/formFormatting.js'
 import { ORDER_TYPE_OPTIONS } from '../../domain/orderTypeOptions.js'
 
