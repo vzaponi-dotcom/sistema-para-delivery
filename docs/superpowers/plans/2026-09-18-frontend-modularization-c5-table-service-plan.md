@@ -32,9 +32,10 @@
   - First GREEN candidate `ec6e8c3a12ace35745e9fa4bb70345f13235df45` exposed one payment visual-ownership regression in Validate #1297.
   - Root-cause fix: `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`.
   - Final GREEN: Validate #1298 / run `35379605815` — **1,702 tests / 1,701 pass / 0 fail / 1 skipped**; remaining gates green.
-- Task 3: **RED IN PROGRESS**.
+- Task 3: **RED CONFIRMED / IN PROGRESS**.
   - Test-first commit: `8f460f139845e2288abe1d454d5d83c89643fb7b` — `test: define table tab detail ownership`.
-  - Validate #1300 / run `35380071895` is currently in progress; authoritative RED reason has not yet been recorded in this plan.
+  - Validate #1300 / run `35380071895`: **FAIL** at the test step for the intended reason — `useTableTabDetail.js` does not exist yet (`ERR_MODULE_NOT_FOUND`).
+  - Next action: implement the minimal controller for GREEN, run the Task 3 regression set, review, then and only then proceed to Task 4.
 - Tasks 4–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
@@ -574,7 +575,7 @@ const valid = tableTab
   && tableTab.table?.id === selection.tableId
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/table-service/application/useTableTabDetail.test.js
