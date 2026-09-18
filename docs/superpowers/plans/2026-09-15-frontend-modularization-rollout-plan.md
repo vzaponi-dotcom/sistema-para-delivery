@@ -17,10 +17,12 @@
 - C3 — Settings surface and versioned policy engine is **MERGED / COMPLETE** by PR #47 at `737beeac2150aabeb39024af823f2f60fee25108`.
 - C4 — Orders is **MERGED / COMPLETE** by PR #48 at `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`. Staging #181 / run `35303388467` passed; manual QA closed at **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; final branch Validate #1290 and post-merge Validate #1291 passed. No production deploy occurred.
 - Active slice: **C5 — Table Service**, branch `feature/spec-c5-table-service`, base `master` `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
-- C5 design was approved section-by-section and is written at `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`; implementation plan and implementation remain blocked until explicit written-spec approval.
-- The operational data runtime table-commit bridge is still active and is scheduled for removal in C5.
+- C5 written design and detailed implementation plan are **APPROVED**. Implementation is active on `feature/spec-c5-table-service` with draft PR #49.
+- C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
+- C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
+- C5 Task 3 — table-tab detail controller — has **STARTED at RED**. Test-first commit `8f460f139845e2288abe1d454d5d83c89643fb7b` adds the detail ownership suite; Validate #1300 / run `35380071895` is currently in progress and Task 3 is not yet complete.
+- The operational data runtime table-commit bridge is removed in current C5 code. Its compatibility row remains tracked until final C5 closure evidence.
 - The operational data runtime payment-receipt bridge remains scheduled for C6.
-- Generic/auth `src/api/client.js` compatibility reexports remain scheduled for C10 at latest; `updateCollection` remains governed by its later-slice cleanup schedule.
 - C6 has not started. Production has not been deployed from C4 or C5.
 
 The rollout contracts below are unchanged; this block is execution status only.
