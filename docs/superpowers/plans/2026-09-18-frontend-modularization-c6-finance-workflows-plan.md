@@ -19,6 +19,7 @@
 - Production deployment: **NO** unless separately authorized.
 - Task 1 evidence: RED `9476b0b74d7c18305466eb6079314f8b24d8ae00` → Validate #1344 / run `35403401486` failed for intended missing Finance modules; GREEN `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf` → Validate #1345 / run `35403573350` SUCCESS with **1,729 tests / 1,728 pass / 0 fail / 1 skipped** and all remaining gates green.
 - Task 2 evidence: RED `bc52cdb8b60e8c79a6390b51b5b973fbe0ee8ef4` → Validate #1349 / run `35404405552` failed for the intended missing Finance Settings ownership. GREEN candidate `68ba38df6165171686ab91a27550b410df5ba892` → Validate #1350 exposed only stale path contracts and the need for a Node-safe `.js` public surface wrapper. Fix `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5` → Validate #1351 / run `35405016988` SUCCESS with **1,731 tests / 1,730 pass / 0 fail / 1 skipped** and all remaining gates green.
+- Task 3 evidence: RED `8bfc9926e6f9718fb461e41f59ce54a351fd2f8d` → Validate #1353 / run `35405851531` failed for the intended missing `cashFlow.js` and `receivables.js` modules. GREEN `54dcbd1ff44f2dc715a469bc60c78c458ac42318` → Validate #1354 / run `35406034390` SUCCESS with **1,745 tests / 1,744 pass / 0 fail / 1 skipped** and all remaining gates green. Ruling: Finance receivable helpers receive `isOrderCancelled`, `isOrderPaid`, and `getPendingAmount` as injected rules instead of importing Orders; this preserves the no-cycle spec and keeps Orders lifecycle ownership intact.
 
 ## Global Constraints
 
@@ -492,7 +493,7 @@ Expected Validate: SUCCESS.
 
 ---
 
-### Task 3: Move pure cash-flow, receivable, and payment metrics into Finance
+### Task 3: Move pure cash-flow, receivable, and payment metrics into Finance — COMPLETE / GREEN
 
 **Files:**
 - Create: `src/domains/finance/domain/cashFlow.js`
@@ -518,7 +519,7 @@ Expected Validate: SUCCESS.
   - existing pending/paid/timing/forecast/group/sort helpers from legacy `utils/receivables.js`.
 - Orders lifecycle remains owned by Orders; do not move `isOrderPaid`, `getPendingAmount`, or order normalization into Finance merely to avoid imports.
 
-- [ ] **Step 1: Write RED for the new Finance rule imports**
+- [x] **Step 1: Write RED for the new Finance rule imports**
 
 Create tests under `src/domains/finance/domain` that reproduce the current `src/utils/finance.test.js` and `src/utils/receivables.test.js` assertions, importing the new paths.
 
@@ -535,7 +536,7 @@ test('received today is net payments minus same-day refunds', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED, commit, push**
+- [x] **Step 2: Run RED, commit, push**
 
 ```bash
 node --test src/domains/finance/domain/cashFlow.test.js src/domains/finance/domain/receivables.test.js
@@ -551,7 +552,7 @@ git commit -am "test: define finance pure rules"
 
 Use `git add` for new files before commit; push and record intended RED.
 
-- [ ] **Step 3: Implement by moving existing pure behavior, not rewriting it**
+- [x] **Step 3: Implement by moving existing pure behavior, not rewriting it**
 
 For `calculateReceivedToday`, preserve:
 
@@ -569,7 +570,7 @@ export const calculateReceivedToday = (movements = [], dateValue = toLocalDateVa
 
 Use `getBusinessDate` from `shared/finance.js` for the financial calendar date used by `calculateReceivedToday`; do not import `toLocalDateValue` or any other Orders internal into Finance.
 
-- [ ] **Step 4: Export rules through Finance public entry and migrate App metrics**
+- [x] **Step 4: Export rules through Finance public entry and migrate App metrics**
 
 Update `src/domains/finance/index.js` with the public calculations actually consumed outside Finance.
 
@@ -577,7 +578,7 @@ Change App imports from legacy `utils/finance.js` / `utils/paymentWorkflow.js` t
 
 Keep Orders-owned `isOrderPaid`/pending eligibility in Orders.
 
-- [ ] **Step 5: Run focused GREEN**
+- [x] **Step 5: Run focused GREEN**
 
 ```bash
 node --test   src/domains/finance/domain/cashFlow.test.js   src/domains/finance/domain/receivables.test.js   src/financeRealtimeRegression.test.js   src/pages/ReceivablesConsumer.test.js   src/pages/ReceivablesForecast.test.js
@@ -586,7 +587,7 @@ npm run test:architecture
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit GREEN + Validate**
+- [x] **Step 6: Commit GREEN + Validate**
 
 ```bash
 git add -A src/domains/finance src/App.jsx

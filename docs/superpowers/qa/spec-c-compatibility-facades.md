@@ -93,6 +93,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 2 is **COMPLETE / GREEN** at `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5`; Validate #1351 / run `35405016988` passed with **1,731 tests / 1,730 pass / 0 fail / 1 skipped**.
 - Task 2 moved Payment Settings and Finance Category Settings ownership plus their policy adapters behind the Finance public entry. The former app-owned UI/model/policy paths are removed with no compatibility reexport.
 - Task 2 created no surviving temporary facade. The operational payment-receipt bridge remains intentionally active until Task 7.
+- Task 3 is **COMPLETE / GREEN** at `54dcbd1ff44f2dc715a469bc60c78c458ac42318`; Validate #1354 / run `35406034390` passed with **1,745 tests / 1,744 pass / 0 fail / 1 skipped**.
+- Task 3 added no compatibility facade. Finance receivable projections take Orders financial-state rules by injection, preserving the no-cycle boundary; legacy `src/utils/finance.js`, `src/utils/receivables.js`, and `src/utils/paymentWorkflow.js` remain intentionally present until Task 9 as planned.
+- The operational payment-receipt bridge remains active until Task 7.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
