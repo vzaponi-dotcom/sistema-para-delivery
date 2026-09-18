@@ -476,7 +476,7 @@ node --test   src/app/surfaces/settings/PaymentSettings.test.js   src/app/surfac
 npm run test:architecture
 ```
 
-If tests were moved with their owner, run their new exact paths instead. Expected: PASS with the same assertions, not rewritten weaker assertions.
+Run the moved tests at `src/domains/finance/ui/settings/PaymentSettings.test.js`, `src/domains/finance/ui/settings/PaymentSettings.menuInactive.test.js`, `src/domains/finance/ui/settings/FinanceCategorySettings.test.js`, and `src/domains/finance/ui/settings/FinanceCategorySettings.redesign.test.js`. Expected: PASS with the same assertions, not rewritten weaker assertions.
 
 - [ ] **Step 5: Commit GREEN and validate exact SHA**
 
@@ -565,7 +565,7 @@ export const calculateReceivedToday = (movements = [], dateValue = toLocalDateVa
   }, 0)
 ```
 
-Use `shared/finance.js` for business-date primitives if needed. Do not import Orders internals from Finance.
+Use `getBusinessDate` from `shared/finance.js` for the financial calendar date used by `calculateReceivedToday`; do not import `toLocalDateValue` or any other Orders internal into Finance.
 
 - [ ] **Step 4: Export rules through Finance public entry and migrate App metrics**
 
@@ -754,7 +754,7 @@ In `App.jsx`:
 - remove movement/opening handlers;
 - remove direct finance API imports;
 - render `FinanceWorkspace` from the Finance public entry;
-- pass `applyOfficialEffects`, capabilities, payment/category projections, feedback callbacks, `formatCancellationDate`, and `onRequestRefund` placeholder still wired to current refund handler until Task 8.
+- pass `applyOfficialEffects`, capabilities, payment/category projections, feedback callbacks, and `formatCancellationDate`; keep the existing App `handleRegisterRefund` as the temporary `onRequestRefund` callback only until Task 8 removes it.
 
 - [ ] **Step 7: Run focused regressions**
 
@@ -763,7 +763,7 @@ node --test   src/domains/finance/infrastructure/financeApi.test.js   src/domain
 npm run test:architecture
 ```
 
-Moved test paths replace old paths where applicable. Keep the legacy API contract test until Task 9; at this task it may be adjusted to assert the new Finance API while legacy exports still exist temporarily.
+Run moved UI tests at `src/domains/finance/ui/MovementDialog.test.js` and `src/domains/finance/ui/OpeningBalanceDialog.test.js`. Keep `src/api/financeClientContract.test.js` unchanged through Task 8 because the legacy exports remain temporarily present until Task 9.
 
 - [ ] **Step 8: Commit GREEN + Validate**
 
@@ -1081,7 +1081,7 @@ Preserve exact existing text:
 App may instantiate the workflow hook, but must not contain the refs/submit logic. Pass:
 - `orderPayment.open` to Orders/History;
 - an app-surface callback to Receivables with no operational source;
-- render `<OrderPaymentDialog workflow={orderPayment} ... />` or equivalent dedicated workflow composition.
+- render `{orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}`; `dialog` contains the current order, selected method, visible options, review/submitting state, and its `onClose`/`onSubmit` callbacks.
 
 Delete from App:
 - `paymentTarget`;
@@ -1207,7 +1207,7 @@ Expected: missing workflow plus runtime bridge test failure.
 
 Do not read global UI selection in the pure function. Validate only receipt authority and owner/result identity.
 
-Use order paid check locally by status or inject a predicate; do not import Orders internals into Finance. This workflow lives in app, so importing `isOrderPaid` from Orders public entry is allowed if needed.
+Import `isOrderPaid` from `src/domains/orders/index.js` in the app-owned table-tab payment workflow and use it to verify every returned order in the authoritative receipt. Finance remains free of Orders imports.
 
 - [ ] **Step 5: Implement reconciliation hook preserving the two-read race**
 
@@ -1856,5 +1856,5 @@ Before calling this plan ready:
 - [ ] Legacy API exports are removed only after new owners exist.
 - [ ] Settings generic policy engine remains app-owned.
 - [ ] Every behavioral extraction has an intended RED.
-- [ ] No `TBD`, `TODO`, `FIXME`, "similar to", or unowned future interface remains.
+- [ ] No unfinished placeholder, vague deferred step, or unowned interface remains.
 - [ ] Final staging/manual QA and exact-HEAD validation are required before merge.
