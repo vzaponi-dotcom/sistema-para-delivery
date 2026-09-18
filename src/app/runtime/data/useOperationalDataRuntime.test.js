@@ -179,17 +179,19 @@ test('bootstrap uses the payment-owner snapshot captured when the read starts', 
 
 test('table commits update the official snapshot without invoking domain behavior', async (t) => {
   const bootstrap = bootstrapFixture()
+  let tableCommitBridgeCalls = 0
   const harness = await mountHarness(t, {
     api: {
       getBootstrap: async () => bootstrap,
       getOrders: async () => ({ orders: [] }),
     },
     legacyBridges: {
-      onTablesCommitted: () => assert.fail('runtime must not call Table Service behavior'),
+      onTablesCommitted: () => { tableCommitBridgeCalls += 1 },
     },
   })
 
   await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  assert.equal(tableCommitBridgeCalls, 0)
   assert.deepEqual(harness.getCurrent().getOfficialTables().map(({ id }) => id), ['table-1'])
 })
 
