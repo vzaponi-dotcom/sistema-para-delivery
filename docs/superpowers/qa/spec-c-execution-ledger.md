@@ -21,7 +21,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **DESIGN WRITTEN — AWAITING USER SPEC REVIEW** | `feature/spec-c5-table-service` | Plan after written-spec approval |
+| C5 | Table Service | **PLAN WRITTEN — AWAITING USER PLAN REVIEW** | `feature/spec-c5-table-service` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -146,22 +146,22 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 
 ---
 
-# C5 — Table Service — DESIGN WRITTEN / AWAITING USER SPEC REVIEW
+# C5 — Table Service — PLAN WRITTEN / AWAITING USER PLAN REVIEW
 
 ## Current state
 
 - Base/master SHA: `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
-- Implementation plan: **NOT WRITTEN**
+- Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
 - Implementation: **NOT STARTED**
 - PR: not opened as part of design drafting
 - Production deploy: **NO**
 - C6: **NOT STARTED**
 
-## Design gate
+## Plan gate
 
-The C5 design was approved section-by-section in conversation and has now been written for explicit user review. Do not begin implementation and do not invoke the implementation plan until the written specification is approved.
+The written C5 specification was explicitly approved by the user on 2026-09-18. The detailed implementation plan has now been written with strict RED → GREEN task boundaries and is awaiting explicit user approval. Do not begin C5 implementation until that plan approval is given.
 
 ---
 
@@ -182,7 +182,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 at the written-spec review gate. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 at the written implementation-plan review gate. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -190,7 +190,7 @@ The active slice is C5 at the written-spec review gate. GitHub state wins over t
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. C5 implementation plan is not yet written; first obtain explicit user approval of the written spec.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` and obtain explicit user approval of that plan before implementation.
 8. Do not implement C5, begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
