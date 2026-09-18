@@ -70,8 +70,14 @@
   - Final GREEN: Validate #1331 / run `35388385418` — **1,717 tests / 1,716 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
   - App payment submission receives the captured intent and validates identity/generation against official tables before POST. Accepted payment obligations still reconcile globally after visual ownership retires.
   - Audit: zero payment/printing workflow ownership tokens remain in Table Service production code; `Comandas` does not receive the `printing` object.
-- Task 9: **NOT STARTED / NEXT**.
-- Tasks 10–11: **NOT STARTED**.
+- Task 9: **COMPLETE / GREEN**.
+  - RED: `1756611e7603991927b45b576637880d06f117a2`; Validate #1334 / run `35389482528` failed with one intended assertion because the route module still exported the dead bootstrap table-tab helper.
+  - GREEN: `8a69d6d6b1643ae865bbf976225bbe46e237fd89`.
+  - Final GREEN: Validate #1335 / run `35389776835` — **1,717 tests / 1,716 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - `tableTabsFromBootstrap` and App's `tableTabs={tableTabs}` route prop are removed. `tables`, `initialTableId` and `expectedTableTabId` remain live.
+  - Runtime `tableTabs` remains intact for accepted-payment reconciliation. Orders continues to import `LocalTableSelector` from the public Table Service entry only.
+- Task 10: **NOT STARTED / NEXT**.
+- Task 11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -1472,7 +1478,7 @@ git commit -m "refactor: externalize table service actions"
 - Runtime `tableTabs` remains intact for C6 payment reconciliation.
 - Orders uses `LocalTableSelector` through `src/domains/table-service/index.js` only.
 
-- [ ] **Step 1: Turn the existing route characterization RED**
+- [x] **Step 1: Turn the existing route characterization RED**
 
 Rewrite `NewOrderRoute.test.js` to pass only live props and assert no dead tableTabs prop is forwarded:
 
@@ -1495,7 +1501,7 @@ assert.equal(Object.hasOwn(receivedProps, 'tableTabs'), false)
 
 Before implementation, also assert the module no longer exports `tableTabsFromBootstrap`; this is RED while the helper still exists.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/orders/ui/NewOrderRoute.test.js
@@ -1503,7 +1509,7 @@ node --test src/domains/orders/ui/NewOrderRoute.test.js
 
 Expected: FAIL because `tableTabsFromBootstrap` / old route expectations still exist.
 
-- [ ] **Step 3: Remove the dead route helper**
+- [x] **Step 3: Remove the dead route helper**
 
 Make `NewOrderRoute.js` contain only:
 
@@ -1527,13 +1533,13 @@ Make `NewOrderRoute.jsx`:
 export { NewOrderRoute } from './NewOrderRoute.js'
 ```
 
-- [ ] **Step 4: Remove tableTabs from App route wiring**
+- [x] **Step 4: Remove tableTabs from App route wiring**
 
 Change the `NewOrderRoute` render in `App.jsx` to stop passing `tableTabs={tableTabs}`. Keep `tables`, `initialTableId` and `expectedTableTabId`.
 
 Do not remove `tableTabs` from `useOperationalDataRuntime` destructuring if payment reconciliation still consumes it.
 
-- [ ] **Step 5: Update App/payment integration assertions**
+- [x] **Step 5: Update App/payment integration assertions**
 
 In `src/comandasAppWiring.test.js` replace any assertion that expects `NewOrderRoute.props.tableTabs` with:
 
@@ -1549,7 +1555,7 @@ Retain the existing tests proving:
 - successful local checkout returns to authoritative selected comanda;
 - stale occupied-comanda checkout preserves draft and refreshes official tables.
 
-- [ ] **Step 6: Verify Orders dependency direction**
+- [x] **Step 6: Verify Orders dependency direction**
 
 `src/tableTabNewOrderUi.test.js` must assert:
 
@@ -1558,7 +1564,7 @@ assert.match(customerStep, /from ['"]\.\.\/\.\.\/\.\.\/table-service\/index\.js[
 assert.doesNotMatch(customerStep, /table-service\/(domain|application|infrastructure|ui)\//)
 ```
 
-- [ ] **Step 7: Run GREEN Orders/Table Service integration suite**
+- [x] **Step 7: Run GREEN Orders/Table Service integration suite**
 
 ```bash
 node --test   src/domains/orders/ui/NewOrderRoute.test.js   src/domains/orders/ordersPublicUi.test.js   src/domains/orders/ui/NewOrder.test.js   src/domains/orders/ui/NewOrderMobile.test.js   src/tableTabNewOrderUi.test.js   src/comandasAppWiring.test.js   src/comandasTransferNavigation.test.js
@@ -1566,7 +1572,7 @@ node --test   src/domains/orders/ui/NewOrderRoute.test.js   src/domains/orders/o
 
 Expected: PASS.
 
-- [ ] **Step 8: Audit dead contract removal**
+- [x] **Step 8: Audit dead contract removal**
 
 ```bash
 rg "tableTabsFromBootstrap|tableTabs=\{tableTabs\}" src
@@ -1574,7 +1580,7 @@ rg "tableTabsFromBootstrap|tableTabs=\{tableTabs\}" src
 
 Expected: no output.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/App.jsx src/domains/orders src/tableTabNewOrderUi.test.js src/comandasAppWiring.test.js src/comandasTransferNavigation.test.js

@@ -67,6 +67,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Payment-open, ticket-preview, print-feedback and print action ownership moved to `src/app/surfaces/table-service/TableServiceExternalActions.jsx`. `Comandas` now emits external intents carrying `{ tableId, tableTabId, selectionGeneration }` and has no direct payment/printing workflow ownership.
 - The Table Service production tree contains no `TableTabPaymentDialog`, `TableTabTicketPreview`, `getTableTabPreviewDocument`, `printTableTab` or `registerTableTabPayment` ownership tokens. This is composition, not a compatibility facade.
 - The payment-receipt bridge and accepted-payment reconciliation remain intentionally active until C6; table-tab print APIs/queue/QZ remain C9.
+- Task 9 is **COMPLETE / GREEN** at `8a69d6d6b1643ae865bbf976225bbe46e237fd89`; Validate #1335 / run `35389776835` passed.
+- The dead Orders route compatibility contract is removed: `tableTabsFromBootstrap` is gone, `NewOrderRoute` no longer receives a `tableTabs` prop, and no compatibility reexport was introduced. `tables`, `initialTableId` and `expectedTableTabId` remain the live route contract.
+- Official runtime `tableTabs` deliberately remains for C6 payment reconciliation; this is runtime state, not an Orders compatibility facade. Orders → Table Service continues only through `src/domains/table-service/index.js`.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
 - C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).

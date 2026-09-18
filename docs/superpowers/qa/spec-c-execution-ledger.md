@@ -21,7 +21,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **IMPLEMENTATION — TASKS 1–8 COMPLETE / TASK 9 NEXT** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C5 | Table Service | **IMPLEMENTATION — TASKS 1–9 COMPLETE / TASK 10 NEXT** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -154,7 +154,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **Tasks 1–8 COMPLETE / GREEN; Task 9 NOT STARTED**
+- Implementation: **Tasks 1–9 COMPLETE / GREEN; Task 10 NOT STARTED**
 - PR: #49 — draft
 - Production deploy: **NO**
 - C6: **NOT STARTED**
@@ -184,6 +184,8 @@ Task 7 RED commit `b785f500b677c518f1baea1f8e662468504877e6` was confirmed by Va
 
 Task 8 RED commit `c8ed819478fc981ffd5463d976282f48f9c4b0f5` was confirmed by Validate #1328 / run `35387492807` for the intended missing app-surface file. GREEN candidate `88c3974f349aebface02ccd18f4954b069aceeea` introduced `TableServiceExternalActions`, converted `Comandas` to identity/generation intents, and made App payment capture the submitted owner. Validate #1329 found only two stale ownership characterizations; `17f72918fba548186ea8c04ad88c1293c58a987f` aligned the free-table intent and toast composition tests, leaving one string replacement that had not applied. `23963386b140c2bea90eaa80c0dc60874fcf025a` corrected that final test. Validate #1331 / run `35388385418` passed with **1,717 tests / 1,716 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Audit confirms zero payment/printing workflow tokens in Table Service production code; accepted financial reconciliation remains intentionally outside the domain.
 
+Task 9 RED commit `1756611e7603991927b45b576637880d06f117a2` was confirmed by Validate #1334 / run `35389482528`: the new route contract failed because the dead bootstrap table-tab helper was still exported. GREEN commit `8a69d6d6b1643ae865bbf976225bbe46e237fd89` removed the helper/export, stopped App from passing `tableTabs` to `NewOrderRoute`, and updated stale/relogin integration characterizations to prove the prop remains absent while `expectedTableTabId` preserves occupied-comanda identity. Validate #1335 / run `35389776835` passed with **1,717 tests / 1,716 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Runtime `tableTabs` remains intact for payment reconciliation, and Orders still depends on Table Service only through its public index.
+
 ---
 
 # Cross-slice rules
@@ -203,7 +205,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 implementation with Tasks 1–8 GREEN and Task 9 next. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 implementation with Tasks 1–9 GREEN and Task 10 next. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -211,8 +213,8 @@ The active slice is C5 implementation with Tasks 1–8 GREEN and Task 9 next. Gi
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–8 are complete.
-8. Begin Task 9 only with its planned RED for the Orders ↔ Table Service route cleanup and dead `tableTabs` prop removal.
-9. Do not begin Task 10 until Task 9 is GREEN/reviewed; do not begin C6, merge, or deploy production before the corresponding gates.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–9 are complete.
+8. Begin Task 10 only with its planned architecture RED for permanent C5 boundary enforcement and legacy-owner/API reintroduction checks.
+9. Do not begin Task 11 until Task 10 is GREEN/reviewed; do not begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
