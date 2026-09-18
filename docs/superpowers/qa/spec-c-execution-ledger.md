@@ -146,7 +146,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 
 ---
 
-# C5 — Table Service — IMPLEMENTATION IN PROGRESS
+# C5 — Table Service — MERGED / COMPLETE
 
 ## Current state
 
@@ -154,10 +154,12 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **Tasks 1–10 COMPLETE / GREEN; Task 11 NOT STARTED**
-- PR: #49 — draft
+- Implementation: **Tasks 1–11 COMPLETE / HOMOLOGATED / MERGED**
+- PR: #49 — merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`
+- Final branch Validate: #1341 / run `35400357800` — SUCCESS
+- Post-merge Validate: #1342 / run `35401628448` — SUCCESS
 - Production deploy: **NO**
-- C6: **NOT STARTED**
+- C6: **ACTIVE — Task 1 COMPLETE / GREEN**
 
 ## Execution checkpoint — after Task 2
 
@@ -188,7 +190,7 @@ Task 9 RED commit `1756611e7603991927b45b576637880d06f117a2` was confirmed by Va
 
 Task 10 RED commit `b24def5f6cbe29f2e7b0ae8b9d305980a0c44dde` was confirmed by Validate #1337 with five intended failures: missing `table-service-deep-import`, missing `table-service-orders-import`, missing legacy-owner rejection, missing C5 legacy-API rejection, and extra public exports. GREEN commit `bf871adb3c21de2cd3c6143214d12a5e825c1bda` added all permanent checker rules, `tableServiceExtractionContract.test.js`, and trimmed the public entry to `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection` and `useTableServiceCommands`. Validate #1338 / run `35391943036` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Physical/API/import audits also passed; the runtime table-commit bridge is formally removed in C5.
 
-Task 11 pre-staging gate used executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**, architecture/lint/build, production+staging Worker dry-runs, local D1 and Spec B D1 all green. Manual Deploy staging #182 / run `35393748126` deployed that exact SHA, reported no pending remote staging migrations, completed staging migration application, and passed the real login smoke with HTTP 200. Manual QA then closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 (capability/read-only) is BLOCKED because staging has no real restricted-capability identity; it is not promoted to manual PASS. C5 is homologated and awaits final docs-only validation plus explicit merge authorization. Production remains untouched.
+Task 11 pre-staging gate used executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**, architecture/lint/build, production+staging Worker dry-runs, local D1 and Spec B D1 all green. Manual Deploy staging #182 / run `35393748126` deployed that exact SHA, reported no pending remote staging migrations, completed staging migration application, and passed the real login smoke with HTTP 200. Manual QA then closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 (capability/read-only) is BLOCKED because staging has no real restricted-capability identity; it is not promoted to manual PASS. QA/ledger Validate #1340 and final branch Validate #1341 passed; PR #49 then merged to `master` at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`, and post-merge Validate #1342 passed. C5 is **MERGED / COMPLETE**. Production remained untouched.
 
 ---
 
