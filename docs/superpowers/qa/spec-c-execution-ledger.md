@@ -21,8 +21,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **HOMOLOGATED — 22 PASS / 0 FAIL / 1 BLOCKED — AWAITING MERGE AUTHORIZATION** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
+| C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **DESIGN APPROVED — PLAN IN PROGRESS** | `feature/spec-c6-finance-workflows` / base `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/specs/2026-09-18-frontend-modularization-c6-finance-workflows-design.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -209,16 +209,16 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 after successful staging homologation. Task 11 manual QA has 22 PASS / 0 FAIL / 1 BLOCKED. QA/ledger commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340 / run `35400039611`; C5 now waits at the explicit merge-authorization gate. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
-3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`.
+3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c6-finance-workflows-design.md`; it is explicitly approved.
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
-5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
-6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–10 are complete and Task 11 staging/manual homologation is complete.
-8. Read `docs/superpowers/qa/spec-c5-table-service-qa.md`; QA/ledger commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340. Confirm the current status-only closure HEAD also has a successful exact-HEAD Validate before merge.
-9. Do not begin C6, merge, or deploy production before explicit user approval.
+5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
+6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
+7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
+8. The next artifact is the detailed C6 implementation plan. Functional C6 implementation must not start before that plan is written and explicitly approved.
+9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
