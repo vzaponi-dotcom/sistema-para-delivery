@@ -123,22 +123,24 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — ACTIVE / ITEM 7 FIX GREEN — STAGING RETEST PENDING
+# C4 — Orders — ACTIVE / MANUAL QA CLOSED — FINAL VALIDATE PENDING
 
 ## Current Git / PR / CI state
 
 - Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
 - Branch: `feature/spec-c4-orders`
 - PR: #48 — **draft**, open, not merged
-- Task 11 pre-QA executable SHA: `e7f05b6d6d8364c0482a7fe03949c001816e8e85`
-- Last code-changing SHA: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
-- Validate application: #1262 / run `35297928408` — **PASS** (1,687 tests / 0 failures, `Frontend architecture boundaries: OK`, lint, build, Worker dry-runs and D1 gates)
+- Last code-changing SHA: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
+- Staging-homologated SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`
+- Item 7 fix Validate: #1273 / run `35301870107` — **PASS** (1,689 tests / 0 failures plus full gate set)
+- Staging deployment: #181 / run `35303388467` — **SUCCESS** on `f630c6a96a40384032ed607031bdc935d4ac20a7`
+- Manual homologation: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**
+- Item 6 BLOCKED reason: safe out-of-window scheduled-queue reproduction was not possible at the homologation time under the same-day scheduling rule; observed in-window transition behavior was correct.
+- Changes since staged SHA: documentation-only.
+- Master reconciliation: `master` remains the approved base `737beeac2150aabeb39024af823f2f60fee25108`
+- Final docs-head Validate: **PENDING**
 - Production deploy: **NO**
-- C4 staging deployment/manual homologation: **PENDING**
-- Task 11: **IN PROGRESS — HOMOLOGATION PAUSED FOR ITEM 7 RETEST**
-- QA record: `docs/superpowers/qa/spec-c4-orders-qa.md`
-- Homologation checkpoint: 5 PASS / 1 FAIL awaiting retest / 1 BLOCKED / 13 PENDING.
-- Item 7 fix executable: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`; Validate #1273 / run `35301870107` — PASS. Staging redeploy required before retest.
+- Task 11: **IN PROGRESS — FINAL VALIDATE PENDING**
 - C5: **NOT STARTED**
 
 ## Completed task checkpoint
@@ -155,7 +157,7 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 | 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
 | 9 | Cozinha + Histórico UI move | GREEN |
 | 10 | Enforce final C4 boundary / legacy-owner removal | GREEN |
-| 11 | Full QA, staging, homologation and merge gate | IN PROGRESS — STAGING PENDING |
+| 11 | Full QA, staging, homologation and merge gate | IN PROGRESS — FINAL VALIDATE PENDING |
 
 ## Current C4 ownership state
 
@@ -172,16 +174,16 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ## Resume gate
 
-Do **not** begin C5. Do **not** merge C4. Task 11 is in progress and stopped at the staging gate.
+Do **not** begin C5. Do **not** merge C4 yet. Manual QA is closed with 0 FAIL; only the final docs-head Validate remains before the merge authorization gate.
 
-Resume Task 11:
-1. inspect PR #48 and verify the current branch HEAD against GitHub;
-2. read `docs/superpowers/qa/spec-c4-orders-qa.md`;
-3. preserve executable identity `e7f05b6d6d8364c0482a7fe03949c001816e8e85` and Validate #1262 unless a newer executable commit is introduced;
-4. confirm the pre-staging QA docs-head Validate is green;
-5. manually dispatch `Deploy staging` for `feature/spec-c4-orders` and record the deployed SHA/run;
-6. execute the 20-row manual homologation matrix with direct observation;
-7. do not merge or deploy production without explicit authorization; C5 remains prohibited until C4 closes and merges.
+Before merge authorization:
+1. confirm the current branch HEAD and PR #48;
+2. confirm the final branch-head Validate succeeds;
+3. re-check that `master` still equals or has been safely reconciled from the approved C4 base;
+4. preserve the homologated staging evidence #181 / run `35303388467`;
+5. keep the documented item 6 BLOCKED honest; do not convert it to PASS without direct observation;
+6. production remains prohibited;
+7. C5 remains prohibited until C4 closes and merges.
 
 ---
 

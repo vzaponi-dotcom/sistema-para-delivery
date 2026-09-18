@@ -5,13 +5,14 @@
 - Slice: C4 — Orders
 - Branch: `feature/spec-c4-orders`
 - Base SHA: `737beeac2150aabeb39024af823f2f60fee25108`
-- Current executable SHA after item 7 fix: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
+- Staging-homologated SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`
+- Last code-changing SHA: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
 - Original pre-homologation executable SHA: `e7f05b6d6d8364c0482a7fe03949c001816e8e85`
 - Task 10 code checkpoint: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
 - PR: #48 — draft, open, not merged
 - Production deploy: **NO**
 - Merge: **NO**
-- Status: **ITEM 7 FIX GREEN — STAGING REDEPLOY / RETEST PENDING**
+- Status: **MANUAL QA CLOSED — FINAL DOCS-HEAD VALIDATE PENDING**
 
 ## Automated gates
 
@@ -79,16 +80,17 @@ Run #1263 also completed the full test, architecture, lint, build, Worker dry-ru
 
 ## Staging deployment
 
-- Current status: **REDEPLOY REQUIRED AFTER ITEM 7 FIX**
-- Previous staging deployment: **SUCCESS**
+- Current status: **SUCCESS**
 - Workflow: `Deploy staging`
-- Run number: **#180**
-- Run ID: `35298763053`
+- Run number: **#181**
+- Run ID: `35303388467`
 - Event: `workflow_dispatch`
-- Deployed SHA: `badfbcb7b5793a5b444c34950883d1216c4c42bd`
+- Deployed SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`
+- Last code-changing SHA contained by that deployment: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
 - Branch: `feature/spec-c4-orders`
 - URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
 - Workflow evidence: tests, architecture, lint, build, local D1, staging Worker dry-run, staging migrations, PIN configuration, deploy and staging-login smoke all passed.
+- Manual retest of item 7 on this deployment: **PASS**
 - Production workflow: **NOT TRIGGERED**
 
 ### Item 7 fix validation
@@ -100,7 +102,7 @@ Run #1263 also completed the full test, architecture, lint, build, Worker dry-ru
 - First GREEN attempt: `c03c764e5b70ca1c9a7b1db228e5a478cb113f6f`; Validate #1272 exposed one stale test that still assigned search ownership to App.
 - Final executable fix: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`.
 - Validate #1273 / run `35301870107`: **SUCCESS**, 1,689 tests / 1,688 pass / 0 fail / 1 skipped plus architecture, lint, build, Worker dry-runs and D1 gates.
-- Required next step: redeploy staging from the current branch HEAD, then manually retest item 7 before continuing item 8.
+- Staging #181 redeployed the fix and the manual item 7 retest passed. The matrix then continued through item 20.
 
 ## Manual staging homologation matrix
 
@@ -132,3 +134,14 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 Current manual result: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
 
 Manual matrix closed: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED row is item 6, documented with direct observation of the in-window behavior and the same-day scheduling/time-of-day limitation that prevented a safe out-of-window reproduction. Merge preparation may proceed only after final docs-head validation and master reconciliation; production remains prohibited.
+
+
+## Final merge-gate preparation
+
+- Manual staging matrix: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- BLOCKED row: item 6 only; direct in-window behavior was observed correctly, but safe reproduction of the out-of-window scheduled queue was prevented by the same-day scheduling rule and late-night homologation time.
+- Changes after staging-homologated SHA `f630c6a96a40384032ed607031bdc935d4ac20a7`: documentation-only.
+- Master reconciliation before final validation: `master` remains `737beeac2150aabeb39024af823f2f60fee25108`, equal to the approved C4 base.
+- Final docs-head Validate: **PENDING**.
+- Merge: **NO**.
+- Production deploy: **NO**.
