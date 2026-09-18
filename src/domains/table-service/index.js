@@ -18,3 +18,4 @@ export {
 export { useComandaSelection } from './application/useComandaSelection.js'
 export { useTableTabDetail } from './application/useTableTabDetail.js'
 export { useTableServiceCommands } from './application/useTableServiceCommands.js'
+export { LocalTableSelector, Tables } from './ui/tableServiceSurfaces.js'
