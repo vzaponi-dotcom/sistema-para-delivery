@@ -529,7 +529,7 @@ git commit -m "refactor: extract comanda selection ownership"
 
 **Interfaces:**
 - `useTableTabDetail({ selection, officialTables, api, onUnauthorized })` returns `{ detail, loading, error, retry }`.
-- `api` defaults later to the C5 Table Service API but is injectable from the first test.
+- For this intermediate task, `api` is injectable and defaults to the existing legacy `getTableTabDetail` helper inside the application hook; Task 4 immediately replaces that temporary dependency with the Table Service infrastructure adapter.
 - New selection starts a new owner immediately even if an older request is still pending.
 - Same-owner refreshes coalesce to one in-flight read plus at most one queued follow-up.
 - Initial failure exposes an error; failed background refresh retains the current detail.
@@ -567,7 +567,7 @@ Expected: FAIL because `useTableTabDetail.js` does not exist.
 
 - [ ] **Step 3: Implement request ownership and coalescing**
 
-Implement a per-selection owner counter and per-owner request state. The load path must follow this ordering:
+Implement a per-selection owner counter and per-owner request state. For this single intermediate task, import `getTableTabDetail as legacyGetTableTabDetail` from `../../../api/client.js` and default the hook's `api` parameter to `{ getTableTabDetail: legacyGetTableTabDetail }`. This keeps HTTP ownership out of `Comandas` while every commit remains green; Task 4 removes this temporary legacy application dependency before architecture enforcement. The load path must follow this ordering:
 
 ```js
 const runLoad = async (owner) => {
@@ -731,7 +731,7 @@ export const tableServiceApi = createTableServiceApi()
 
 - [ ] **Step 4: Make detail loading use the domain adapter**
 
-In `useTableTabDetail.js` default the injectable `api` to `tableServiceApi` with an internal relative import. Do not expose the adapter from the public index solely for UI use.
+In `useTableTabDetail.js`, remove the temporary `../../../api/client.js` import from Task 3 and default the injectable `api` to `tableServiceApi` with an internal relative import. Do not expose the adapter from the public index solely for UI use.
 
 - [ ] **Step 5: Split legacy table-tab client tests by ownership**
 
@@ -979,7 +979,7 @@ Create `src/domains/table-service/ui/tableServiceSurfaces.js`:
 import React from 'react'
 
 const load = (path) => {
-  const modules = import.meta.glob(['./Tables.jsx', './LocalTableSelector.jsx', './Comandas.jsx'], { eager: true })
+  const modules = import.meta.glob(['./Tables.jsx', './LocalTableSelector.jsx'], { eager: true })
   return modules[path]?.default
 }
 
@@ -1110,7 +1110,7 @@ In moved `TableTransferDialog.jsx` use generic components from `../../../compone
 
 - [ ] **Step 4: Add Comandas to the Vite-safe public surface**
 
-Extend `tableServiceSurfaces.js`:
+Extend the `import.meta.glob` list in `tableServiceSurfaces.js` to include `./Comandas.jsx`, then add:
 
 ```js
 export function Comandas(props) {
@@ -1218,16 +1218,24 @@ Expected: FAIL because the app surface does not exist.
 
 - [ ] **Step 3: Implement the app-owned surface**
 
-Use a strict owner comparison:
+Use a ref-backed owner comparison so an async closure created for selection A reads the newest selection after a rerender:
 
 ```js
-const isCurrentOwner = (intent) => Boolean(
-  intent
-  && intent.selectionGeneration === selectionGeneration
-  && intent.tableId === selection?.tableId
-  && intent.tableTabId === selection?.tableTabId
-)
+const currentVisualOwnerRef = useRef({ selection, selectionGeneration })
+currentVisualOwnerRef.current = { selection, selectionGeneration }
+
+const isCurrentOwner = (intent) => {
+  const current = currentVisualOwnerRef.current
+  return Boolean(
+    intent
+    && intent.selectionGeneration === current.selectionGeneration
+    && intent.tableId === current.selection?.tableId
+    && intent.tableTabId === current.selection?.tableTabId
+  )
+}
 ```
+
+Do not compare late results against render-time `selection` variables captured by the old async callback.
 
 Payment request stores the captured detail only when current. Preview/print create an action owner:
 
@@ -1265,13 +1273,13 @@ const runPrintingAction = async (kind, intent, operation) => {
   } finally {
     if (actionRef.current === owner) {
       actionRef.current = null
-      if (isCurrentOwner(owner)) setActiveAction(null)
+      setActiveAction((current) => current === owner ? null : current)
     }
   }
 }
 ```
 
-On selection/generation change, close payment/preview state that no longer belongs to the current owner and retire old visual action ownership without touching accepted payment reconciliation.
+On selection/generation change, close payment/preview state that no longer belongs to the current owner and retire old visual action ownership without touching accepted payment reconciliation. Use an effect keyed by `selection?.tableId`, `selection?.tableTabId` and `selectionGeneration` that clears only intents/actions for which `isCurrentOwner` is false; if `actionRef.current` is that retired action, null the ref before clearing its rendered busy state.
 
 Render `TableTabPaymentDialog` and ticket `Modal` in this surface. Keep those existing components in their current paths.
 
