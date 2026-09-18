@@ -66,7 +66,7 @@ test('A6 keeps comanda identity across transfer, navigation, payment, and order 
     h.load('/src/App.jsx'),
     h.load('/src/pages/Comandas.jsx'),
     h.load('/src/pages/Tables.jsx'),
-    h.load('/src/pages/NewOrderRoute.jsx'),
+    h.load('/src/domains/orders/ui/NewOrderRoute.jsx'),
   ])
 
   await t.test('Mesas captures Ver comanda identity and no longer exposes transfer', async (st) => {

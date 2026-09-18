@@ -409,7 +409,8 @@ test('19. capability desconhecida nÃ£o concede aÃ§Ã£o nem invalida conheci
 test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos de ediÃ§Ã£o', async (t) => {
   const capabilities = new Set(['orders.history', 'clients.view', 'products.view', 'tables.view', 'comandas.view', 'finance.overview', 'finance.receivables', 'finance.movements', 'printing.queue'])
   const { h, renderer, requests } = await appWorkspace(t, capabilities)
-  const modules = Object.fromEntries(await Promise.all(['OrderHistory', 'Dashboard', 'NewOrderRoute', 'Clients', 'Products', 'Tables', 'Receivables', 'Finance'].map(async (name) => [name, (await h.load(`/src/pages/${name}.jsx`)).default])))
+  const modules = Object.fromEntries(await Promise.all(['OrderHistory', 'Dashboard', 'Clients', 'Products', 'Tables', 'Receivables', 'Finance'].map(async (name) => [name, (await h.load(`/src/pages/${name}.jsx`)).default])))
+  modules.NewOrderRoute = (await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')).NewOrderRoute
   const before = mutations(requests).length
   let page = renderer.root.findByType(modules.OrderHistory)
   await act(async () => {
