@@ -1,3 +1,4 @@
+import { calculateCurrentBalance, calculateReceivedToday, formatTableIdentifierLabel } from './domains/finance/index.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './central-data.css'
@@ -72,10 +73,8 @@ import { categoryForUi } from '../shared/productCatalog.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { removeById } from './utils/dataSync.js'
-import { calculateCurrentBalance } from './utils/finance.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import { calculateReceivedToday, getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
-import { formatTableIdentifierLabel } from './utils/receivables.js'
+import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
   createClient as createClientApi,
   createMovement as createMovementApi,
