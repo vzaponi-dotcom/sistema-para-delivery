@@ -158,7 +158,7 @@ Expected before functional code:
 - `origin/master` is `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` unless GitHub proves an intentional later merge;
 - branch contains only approved C6 docs/planning commits beyond that base.
 
-- [ ] If PR #50 (or another C6 PR) does not exist, open a **draft** PR from `feature/spec-c6-finance-workflows` to `master`. The PR body must state that it exists early for exact-SHA TDD runner evidence and must not be merged before staging/manual QA and explicit authorization.
+- [x] If PR #50 (or another C6 PR) does not exist, open a **draft** PR from `feature/spec-c6-finance-workflows` to `master`. The PR body must state that it exists early for exact-SHA TDD runner evidence and must not be merged before staging/manual QA and explicit authorization.
 
 - [ ] Run baseline focused/full checks only if a reliable local worktree exists:
 
