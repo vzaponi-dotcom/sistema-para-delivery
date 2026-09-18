@@ -74,6 +74,8 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - The C5 architecture checker permanently rejects external Table Service deep imports, Table Service → Orders imports, recreation of the five legacy UI owners, and reintroduction of the five migrated C5 API exports. The public entry is restricted to the six real external contracts.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
+- C5 staging homologation completed at executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`: Validate #1339 and Deploy staging #182 are green; manual QA is **22 PASS / 0 FAIL / 1 BLOCKED**.
+- The table-commit bridge remains **REMOVED / architecture-enforced**. The payment-receipt bridge remains intentionally active for C6; generic/auth reexports remain tracked for C10; `updateCollection` remains for later Customers/Catalog cleanup and C10 enforcement.
 - C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.

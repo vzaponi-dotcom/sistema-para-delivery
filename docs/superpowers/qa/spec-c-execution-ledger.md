@@ -21,7 +21,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **IMPLEMENTATION — TASKS 1–10 COMPLETE / TASK 11 NEXT** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C5 | Table Service | **HOMOLOGATED — 22 PASS / 0 FAIL / 1 BLOCKED — FINAL DOCS VALIDATION PENDING** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -188,6 +188,8 @@ Task 9 RED commit `1756611e7603991927b45b576637880d06f117a2` was confirmed by Va
 
 Task 10 RED commit `b24def5f6cbe29f2e7b0ae8b9d305980a0c44dde` was confirmed by Validate #1337 with five intended failures: missing `table-service-deep-import`, missing `table-service-orders-import`, missing legacy-owner rejection, missing C5 legacy-API rejection, and extra public exports. GREEN commit `bf871adb3c21de2cd3c6143214d12a5e825c1bda` added all permanent checker rules, `tableServiceExtractionContract.test.js`, and trimmed the public entry to `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection` and `useTableServiceCommands`. Validate #1338 / run `35391943036` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Physical/API/import audits also passed; the runtime table-commit bridge is formally removed in C5.
 
+Task 11 pre-staging gate used executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**, architecture/lint/build, production+staging Worker dry-runs, local D1 and Spec B D1 all green. Manual Deploy staging #182 / run `35393748126` deployed that exact SHA, reported no pending remote staging migrations, completed staging migration application, and passed the real login smoke with HTTP 200. Manual QA then closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 (capability/read-only) is BLOCKED because staging has no real restricted-capability identity; it is not promoted to manual PASS. C5 is homologated and awaits final docs-only validation plus explicit merge authorization. Production remains untouched.
+
 ---
 
 # Cross-slice rules
@@ -207,7 +209,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 implementation with Tasks 1–10 GREEN and Task 11 next. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 after successful staging homologation. Task 11 manual QA has 22 PASS / 0 FAIL / 1 BLOCKED; final docs-only exact-HEAD validation and explicit merge authorization remain. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -215,8 +217,8 @@ The active slice is C5 implementation with Tasks 1–10 GREEN and Task 11 next. 
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–10 are complete.
-8. Task 11 is next: final diff scope, full gates, staging deploy/homologation, QA evidence and merge gate.
-9. Do not begin C6, merge, or deploy production before Task 11 evidence and explicit user approval.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–10 are complete and Task 11 staging/manual homologation is complete.
+8. Read `docs/superpowers/qa/spec-c5-table-service-qa.md`; confirm the final docs-only Validate on the current branch HEAD before merge.
+9. Do not begin C6, merge, or deploy production before explicit user approval.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

@@ -36,7 +36,10 @@
 - `getTableTabDetail` plus table-management/transfer commands now belong to Table Service. `src/api/client.js` no longer exports `createTable`, `updateTable`, `reorderTables`, `transferTableTab` or `getTableTabDetail`. Payment/printing endpoints remain deferred to C6/C9.
 - The operational data runtime table-commit bridge is **REMOVED IN C5**; Task 10 architecture evidence makes the removal permanent.
 - The operational data runtime payment-receipt bridge remains scheduled for C6.
-- C6 has not started. Production has not been deployed from C4 or C5.
+- C5 Task 11 staging homologation is **COMPLETE / 0 FAIL** on executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**. Deploy staging #182 / run `35393748126` succeeded on the exact same SHA, including remote migration check/application and real login smoke HTTP 200.
+- Manual C5 staging matrix closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The sole BLOCKED case is capability/read-only behavior because staging exposes only the full-capability PIN session; automated capability tests remain green. Physical printer output was not observed for the print case, but UI feedback and the actual queued print job were verified.
+- C5 is **HOMOLOGATED / AWAITING FINAL DOCS-ONLY VALIDATION AND EXPLICIT MERGE AUTHORIZATION**. Production remains untouched.
+- C6 has not started.
 
 The rollout contracts below are unchanged; this block is execution status only.
 

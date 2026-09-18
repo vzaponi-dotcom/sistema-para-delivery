@@ -83,9 +83,14 @@
   - Permanent rules now reject external Table Service deep imports, Table Service → Orders imports, re-created C5 legacy owners and reintroduced C5 legacy API declarations.
   - Public entry is exactly: `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection`, `useTableServiceCommands`.
   - Physical/API/import audits passed. The operational runtime table-commit bridge is formally removed in C5; payment-receipt bridge remains C6.
-- Task 11: **NOT STARTED / NEXT**.
+- Task 11: **HOMOLOGATED / FINAL DOCS-ONLY VALIDATION PENDING**.
+  - Executable/validated SHA: `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`.
+  - Validate #1339 / run `35392353832`: **SUCCESS**, **1,724 tests / 1,723 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 green.
+  - Deploy staging #182 / run `35393748126`: **SUCCESS** on the exact same SHA; remote staging migrations had no pending work and login smoke returned HTTP 200.
+  - Manual staging: **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 capability/read-only is BLOCKED because staging has no restricted-capability identity.
+  - Production deployment: **NO**.
 - C6: **NOT STARTED**.
-- Staging/production deploy for C5: **NO**.
+- Staging deploy for C5: **YES — run #182**. Production deploy: **NO**.
 
 ## Global Constraints
 
