@@ -43,3 +43,14 @@ test('App retains responsibilities intentionally deferred beyond C1', () => {
     assert.equal(source.includes(token), true, token)
   }
 })
+
+
+test('App no longer owns the Table Service selection bridge', () => {
+  for (const token of [
+    'comandaSelectionRef',
+    'comandaIdentityRef',
+    'const onTablesCommitted',
+  ]) {
+    assert.equal(source.includes(token), false, token)
+  }
+})
