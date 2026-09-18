@@ -83,12 +83,15 @@
   - Permanent rules now reject external Table Service deep imports, Table Service → Orders imports, re-created C5 legacy owners and reintroduced C5 legacy API declarations.
   - Public entry is exactly: `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection`, `useTableServiceCommands`.
   - Physical/API/import audits passed. The operational runtime table-commit bridge is formally removed in C5; payment-receipt bridge remains C6.
-- Task 11: **HOMOLOGATED / FINAL DOCS-ONLY VALIDATION PENDING**.
+- Task 11: **COMPLETE / HOMOLOGATED / AWAITING EXPLICIT MERGE AUTHORIZATION**.
   - Executable/validated SHA: `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`.
   - Validate #1339 / run `35392353832`: **SUCCESS**, **1,724 tests / 1,723 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 green.
   - Deploy staging #182 / run `35393748126`: **SUCCESS** on the exact same SHA; remote staging migrations had no pending work and login smoke returned HTTP 200.
   - Manual staging: **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 capability/read-only is BLOCKED because staging has no restricted-capability identity.
   - Production deployment: **NO**.
+  - QA/ledger docs commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340 / run `35400039611` with **1,724 tests / 1,723 pass / 0 fail / 1 skipped** and all remaining gates green.
+  - Final diff audit at that commit: **0 trailing-whitespace issues**, **0 `worker/`/`migrations/` changes**, **0 core `src/printing/` changes**; master remained at the approved C5 base.
+  - This status-only closure commit must receive exact-HEAD Validate before any merge; no further docs mutation is required to record that self-referential gate.
 - C6: **NOT STARTED**.
 - Staging deploy for C5: **YES — run #182**. Production deploy: **NO**.
 
@@ -1812,7 +1815,7 @@ git commit -m "test: enforce table service architecture"
 - BLOCKED requires an explicit reason and is never converted to PASS.
 - Production remains untouched.
 
-- [ ] **Step 1: Verify final diff scope before full gates**
+- [x] **Step 1: Verify final diff scope before full gates**
 
 ```bash
 git status --short
@@ -1829,7 +1832,7 @@ Expected:
 
 If `master` advanced after the C5 base, stop merge preparation and reconcile the new master deliberately before staging/merge decisions.
 
-- [ ] **Step 2: Run the complete local/runner gate set**
+- [x] **Step 2: Run the complete local/runner gate set**
 
 ```bash
 npm test
@@ -1844,7 +1847,7 @@ node scripts/infra/spec-b-d1-gate.mjs
 
 Expected: every command exits 0. Record the exact test totals and any intentional skips. Do not claim a local PASS for commands that were not actually executed locally.
 
-- [ ] **Step 3: Create/update the draft PR and obtain exact GitHub Validate evidence**
+- [x] **Step 3: Create/update the draft PR and obtain exact GitHub Validate evidence**
 
 Push the branch normally, never force-push.
 
@@ -1865,7 +1868,7 @@ Run/observe `Validate application` on the exact branch SHA. Record:
 
 A failed run must be investigated before staging.
 
-- [ ] **Step 4: Manually deploy the exact validated branch to staging**
+- [x] **Step 4: Manually deploy the exact validated branch to staging**
 
 Dispatch `Deploy staging` with `feature/spec-c5-table-service` selected.
 
@@ -1882,7 +1885,7 @@ Require the workflow to complete its existing:
 
 Record the exact deployment run and exact deployed SHA in `spec-c5-table-service-qa.md`.
 
-- [ ] **Step 5: Execute the C5 manual staging matrix**
+- [x] **Step 5: Execute the C5 manual staging matrix**
 
 Record each case as PASS, FAIL or BLOCKED with concise evidence/reason:
 
@@ -1912,7 +1915,7 @@ Record each case as PASS, FAIL or BLOCKED with concise evidence/reason:
 
 Do not infer manual PASS from automated tests.
 
-- [ ] **Step 6: Write the QA record with exact evidence**
+- [x] **Step 6: Write the QA record with exact evidence**
 
 `docs/superpowers/qa/spec-c5-table-service-qa.md` must include:
 - base SHA;
@@ -1926,7 +1929,7 @@ Do not infer manual PASS from automated tests.
 - explicit `0 FAIL` requirement;
 - production deployment: **NO**.
 
-- [ ] **Step 7: Reconcile Spec C ledgers**
+- [x] **Step 7: Reconcile Spec C ledgers**
 
 Update `spec-c-execution-ledger.md` only to the state actually reached. At successful homologation before merge, record C5 as homologated / awaiting merge authorization, the exact SHA and QA totals.
 
@@ -1938,11 +1941,11 @@ Update the compatibility ledger to confirm:
 - generic/auth reexports still tracked;
 - `updateCollection` remains only for later slices.
 
-- [ ] **Step 8: Validate the final docs-only HEAD**
+- [x] **Step 8: Validate the final docs-only HEAD**
 
 After QA/ledger commits, re-run `Validate application` on the exact final branch HEAD. A previous executable SHA validation is not sufficient for the final merge gate.
 
-- [ ] **Step 9: Stop at explicit merge authorization**
+- [x] **Step 9: Stop at explicit merge authorization**
 
 Present:
 - final branch HEAD;

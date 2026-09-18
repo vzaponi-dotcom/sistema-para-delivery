@@ -93,6 +93,14 @@ These are runner results. They are not represented as locally executed commands.
 - Master drift before staging/QA: **none**; master remained `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
 - Production touched: **NO**
 - Merge authorization: **NOT YET GRANTED**
-- Final docs-only exact-HEAD Validate: **PENDING after this QA/ledger commit**
+- QA/ledger documentation commit: `61bc0461677fd643e7cf07920a81518a6272bbd8`
+- Final docs-only Validate on that QA/ledger commit: **#1340 / run `35400039611` — SUCCESS**
+- Tests on final QA/ledger Validate: **1,724 total / 1,723 pass / 0 fail / 1 skipped**
+- Architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 on #1340: **PASS**
+- Final diff audit at QA/ledger commit: **0 trailing-whitespace issues; 0 `worker/` or `migrations/` changes; 0 core `src/printing/` changes**
+- Master drift after QA docs: **none**
+- Merge authorization: **NOT YET GRANTED**
 
-Do not merge C5 until the final docs-only branch HEAD receives a successful Validate and the user explicitly authorizes the merge.
+This document is now closed as QA evidence. The status-only closure commit that marks Task 11 complete changes the Git SHA by definition; therefore that exact new HEAD must itself receive a successful Validate before merge. That final exact-HEAD result is the merge gate and is reported in the PR/merge handoff without another self-referential documentation commit.
+
+Do not merge C5 until that exact current branch HEAD has a successful Validate and the user explicitly authorizes the merge.
