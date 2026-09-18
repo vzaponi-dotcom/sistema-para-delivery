@@ -20,6 +20,7 @@ export {
   isOrderFinished,
 } from './domain/orderLifecycle.js'
 export { canReceiveStandaloneOrder } from './domain/orderPaymentEligibility.js'
+export { calculateOperationalMetrics, filterOrdersByPeriod, getDashboardDateRange } from './domain/orderHistoryAnalysis.js'
 export {
   formatCancellationDate,
   formatOrderDate,

@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 
 import { createQueryContext, patchQueryContext } from './app/navigation/queryContext.js'
-import { calculateOperationalMetrics } from './utils/dashboardAnalytics.js'
+import { calculateOperationalMetrics } from './domains/orders/index.js'
 import { nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const now = new Date(2026, 8, 11, 12, 0, 0)

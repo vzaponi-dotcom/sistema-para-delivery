@@ -4,7 +4,7 @@ import '../../../../area-navigation.css'
 import DashboardBarChart from '../../../../components/DashboardBarChart'
 import DashboardPeriodSelector from '../../../../components/DashboardPeriodSelector'
 import StatCard from '../../../../components/StatCard'
-import { calculateOperationalMetrics } from '../../../../utils/dashboardAnalytics.js'
+import { calculateOperationalMetrics } from '../../domain/orderHistoryAnalysis.js'
 
 const PERIOD_HELPERS = {
   today: 'Somente hoje',

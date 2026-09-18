@@ -24,7 +24,7 @@ test('dashboard renders all four approved commercial visualizations', () => {
 
 test('dashboard leaves operational timing and recent orders to history', () => {
   const page = source('./Dashboard.jsx')
-  const analysis = source('../components/OperationalHistoryAnalysis.jsx')
+  const analysis = source('../domains/orders/ui/components/OperationalHistoryAnalysis.jsx')
   assert.doesNotMatch(page, /calculateOperationalMetrics|Tempo operacional|Pedidos recentes/)
   assert.match(analysis, /calculateOperationalMetrics/)
   assert.match(analysis, /Tempo operacional/)

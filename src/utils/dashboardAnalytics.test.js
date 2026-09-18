@@ -2,13 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildDailySeries,
-  calculateOperationalMetrics,
   calculatePeriodMetrics,
-  filterOrdersByPeriod,
-  getDashboardDateRange,
   getPaymentMix,
   getTopProducts,
 } from './dashboardAnalytics.js'
+import {
+  calculateOperationalMetrics,
+  filterOrdersByPeriod,
+  getDashboardDateRange,
+} from '../domains/orders/index.js'
 
 const now = new Date(2026, 8, 2, 12, 0, 0)
 
