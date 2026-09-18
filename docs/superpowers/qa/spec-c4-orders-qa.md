@@ -117,7 +117,7 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 7 | Cozinha — busca cliente/pedido/produto/tipo | PASS | Após correção e redeploy staging #181, reteste manual confirmou busca por cliente/pedido/produto/tipo e contraste legível do texto digitado no tema escuro. |
 | 8 | Cozinha — chegada nova sem reload | PASS | Observado manualmente em staging; novo pedido apareceu na Cozinha sem reload e sem duplicação. |
 | 9 | Cozinha — som/highlight uma vez e preferência local | PASS | Observado manualmente em staging; som tocou uma vez por chegada elegível, destaque temporário funcionou e preferência local de som persistiu após reload. |
-| 10 | Cozinha — finalização e mensagem de sucesso | PENDING | — |
+| 10 | Cozinha — finalização e mensagem de sucesso | PASS | Observado manualmente em staging; confirmação, saída da fila ativa, feedback de sucesso e atualização da Cozinha ocorreram normalmente. |
 | 11 | Cozinha — cancelamento, motivo e permissão de estorno | PENDING | — |
 | 12 | Histórico — filtros, detalhes e metadados de cancelamento | PENDING | — |
 | 13 | Cozinha/Histórico — pagamento externo continua abrindo | PENDING | — |
@@ -129,6 +129,6 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 19 | Mobile/narrow claro/escuro — Cozinha/Novo Pedido/Histórico | PENDING | — |
 | 20 | Console — nenhum novo erro atribuível à C4 | PENDING | — |
 
-Current manual result: **8 PASS / 0 FAIL / 1 BLOCKED / 11 PENDING**.
+Current manual result: **9 PASS / 0 FAIL / 1 BLOCKED / 10 PENDING**.
 
 Task 11 must stop merge preparation on any manual FAIL. BLOCKED is allowed only with an explicit, honest reason.
