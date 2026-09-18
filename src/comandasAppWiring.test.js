@@ -87,12 +87,12 @@ const paidResult = () => ({
 })
 const jsonResponse = (data) => ({ ok: true, json: async () => data })
 
-test('Comandas can publish printing confirmation through the global toast', async (t) => {
+test('Table Service external actions publish printing confirmation through the global toast', async (t) => {
   const { h, r } = await paymentWorkspace(t)
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
-  const comandas = r.root.findByType(Comandas)
-  await act(async () => comandas.props.onToast('Impress\u00e3o enviada para a fila'))
-  assert.match(nodeText(r.root), /Impress\u00e3o enviada para a fila/)
+  const { default: TableServiceExternalActions } = await h.load('/src/app/surfaces/table-service/TableServiceExternalActions.jsx')
+  const externalActions = r.root.findByType(TableServiceExternalActions)
+  await act(async () => externalActions.props.onToast('Impressão enviada para a fila'))
+  assert.match(nodeText(r.root), /Impressão enviada para a fila/)
 })
 
 for (const syncOutcome of ['success', 'failure']) test(`accepted payment reconciles after an applied snapshot and selection change (${syncOutcome})`, async (t) => {
@@ -116,7 +116,7 @@ for (const syncOutcome of ['success', 'failure']) test(`accepted payment reconci
     state.bootstrapError = null
     await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
   }
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.deepEqual(r.root.findByType(Comandas).props.selection, { tableId: 'other', tableTabId: 'tab-43' })
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
   assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
@@ -144,7 +144,7 @@ for (const readState of ['started', 'failed']) test(`partial free-table reconcil
   state.bootstrapError = 'Sem reconciliação completa'
   await act(async () => partial.resolve(jsonResponse({ ...paidResult(), tableTabs: [paidResult().tableTab] })))
   await navigate('Comandas')
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null, 'obsolete visual ownership clears even while financial reconciliation remains pending')
   assert.doesNotMatch(nodeText(r.root), /recebido via Pix/)
   assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'free tables alone cannot discharge financial synchronization')
@@ -164,7 +164,9 @@ for (const readState of ['started', 'failed']) test(`partial free-table reconcil
   await navigate('Comandas')
   await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
   const { NewOrderRoute } = await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')
-  assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab])
+  const route = r.root.findByType(NewOrderRoute)
+  assert.equal(Object.hasOwn(route.props, 'tableTabs'), false)
+  assert.equal(route.props.expectedTableTabId, '')
 })
 
 for (const stale of ['orders', 'movements', 'tableTabs']) test(`a fully applied reconciliation still requires accepted payment evidence in ${stale}`, async (t) => {
@@ -176,7 +178,7 @@ for (const stale of ['orders', 'movements', 'tableTabs']) test(`a fully applied 
   if (stale === 'movements') state.bootstrapData.movements = []
   if (stale === 'tableTabs') state.bootstrapData.tableTabs = [{ ...paidResult().tableTab, status: 'open' }]
   await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null, `obsolete visual ownership clears even when ${stale} evidence is stale`)
   assert.doesNotMatch(nodeText(r.root), /recebido via/)
   assert.ok(buttonNamed(r.root, 'Tentar sincronizar'))
@@ -238,7 +240,9 @@ test('a newer cancellation rejects three financial collections without free tabl
   await navigate('Comandas')
   await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
   const { NewOrderRoute } = await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')
-  assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab, closedOtherTab])
+  const route = r.root.findByType(NewOrderRoute)
+  assert.equal(Object.hasOwn(route.props, 'tableTabs'), false)
+  assert.equal(route.props.expectedTableTabId, '')
 })
 
 test('two accepted payments retain independent reconciliation obligations after automatic replacement', async (t) => {
@@ -275,7 +279,7 @@ for (const readState of ['started', 'failed']) test(`payment applies official ef
   if (readState === 'failed') await act(async () => read.reject(new Error('Refresh falhou')))
   await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/, 'starting a read is not applying authority')
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null)
   if (readState === 'started') await act(async () => read.resolve(jsonResponse({ tables: workspaceTables, orders: [], tableTabs: [], movements: [] })))
   await navigate('A receber')
@@ -294,7 +298,7 @@ test('successful reconciled payment clears only the originating selection and us
   await act(async () => state.pending[0].resolve(jsonResponse(paidResult())))
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7 atual/, 'payment must not roll back the applied snapshot')
   await act(async () => sync.resolve(jsonResponse({ ...paidResult(), tableTabs: [paidResult().tableTab] })))
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null, 'reconciliation must finish the originating selection too')
 })
 
@@ -312,7 +316,7 @@ test('failed reconciliation after accepted payment exposes retry and blocks payi
   state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
   await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null)
   assert.equal(state.pending.length, 1, 'sync retry never resubmits the payment')
 })
@@ -328,7 +332,7 @@ test('unresolved accepted payment survives leaving Comandas after obsolete visua
   state.bootstrapError = null
   state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
   await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null, 'settlement keeps the already-cleared visual ownership clear')
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
   assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
@@ -346,7 +350,7 @@ test('periodic applied settlement resolves an earlier failed payment reconciliat
   state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
   await act(async () => h.fireInterval(5000))
   assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null)
 })
 
@@ -357,7 +361,7 @@ for (const outcome of ['success', 'error', '401']) test(`automatic tab replaceme
   state.detail = { ...comandaDetail, id: 'tab-99', number: 99 }
   await act(async () => h.window.dispatchEvent(new Event('focus')))
   assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null, 'B cannot inherit A selection')
   await select()
   assert.ok(!buttonNamed(r.root, 'Registrar pagamento').props.disabled, 'replacement cannot inherit the old request lock')
@@ -406,7 +410,7 @@ for (const mobile of [false, true]) test(`official full payment releases table a
   assert.equal(r.root.findAllByProps({ role: 'dialog' }).length, 0)
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Selecione/)
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null)
   assert.ok(!r.root.findByProps({ className: 'comandas-page' }).props.className.includes('has-mobile-detail'))
   await navigate('A receber')
@@ -416,7 +420,9 @@ for (const mobile of [false, true]) test(`official full payment releases table a
   await navigate('Comandas')
   await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
   const { NewOrderRoute } = await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')
-  assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab])
+  const route = r.root.findByType(NewOrderRoute)
+  assert.equal(Object.hasOwn(route.props, 'tableTabs'), false)
+  assert.equal(route.props.expectedTableTabId, '')
 })
 
 test('payment conflict refreshes official tables and removes the mobile closed selection', async (t) => {
@@ -428,7 +434,7 @@ test('payment conflict refreshes official tables and removes the mobile closed s
   assert.ok(state.bootstrapCalls > reads)
   assert.match(nodeText(r.root), /Comanda já encerrada/)
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).findByType('div').props.className, 'comandas-page')
 })
 
@@ -444,7 +450,7 @@ test('official transfer keeps the selected tab and follows its authoritative tab
 
   await act(async () => h.window.dispatchEvent(new Event('focus')))
 
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.deepEqual(r.root.findByType(Comandas).props.selection, { tableId: 'free', tableTabId: 'tab-42' })
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*Varanda/)
 })
@@ -866,7 +872,7 @@ test('an unavailable table rejection retains the real wizard draft and retries w
 test('a deferred old checkout cannot mutate or leave an ownerless wizard after reset and relogin', async (t) => {
   const harness = await workspaceHarness(t)
   const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
-  const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
+  const { Comandas } = await harness.load('/src/domains/table-service/index.js')
   const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
   let relogged = false
@@ -927,7 +933,8 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
 
   const replacementRoute = renderer.root.findByType(NewOrderRoute)
   assert.deepEqual(ids(replacementRoute.props.tables), ids(workspaceTables), 'replacement route still receives only the relogged bootstrap tables')
-  assert.deepEqual(ids(replacementRoute.props.tableTabs), [], 'replacement route receives no old-session tab')
+  assert.equal(Object.hasOwn(replacementRoute.props, 'tableTabs'), false, 'replacement route exposes no old-session tableTabs prop')
+  assert.equal(replacementRoute.props.expectedTableTabId, '')
   assert.deepEqual(ids(replacementRoute.props.products), [lifecycleProduct.id])
   assert.doesNotMatch(JSON.stringify(replacementRoute.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
 
@@ -940,7 +947,8 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Mesas ativas' }).length, 0)
   const stillOwnedRoute = renderer.root.findByType(NewOrderRoute)
   assert.deepEqual(ids(stillOwnedRoute.props.tables), ids(workspaceTables), 'stale tables never reach the replacement route')
-  assert.deepEqual(ids(stillOwnedRoute.props.tableTabs), [], 'stale table tab never reaches the replacement route')
+  assert.equal(Object.hasOwn(stillOwnedRoute.props, 'tableTabs'), false, 'stale table tab never becomes a route prop')
+  assert.equal(stillOwnedRoute.props.expectedTableTabId, '')
   assert.doesNotMatch(JSON.stringify(stillOwnedRoute.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
   assert.doesNotMatch(nodeText(renderer.root), /Mesa Stale Exclusiva|Cliente Stale Exclusivo|Movimento Stale Exclusivo|Pedido entrou em preparo/)
   await act(async () => {
@@ -959,7 +967,8 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' }), 'Adicionar pedido').props.onClick())
   const postCheckoutRoute = renderer.root.findByType(NewOrderRoute)
-  assert.deepEqual(ids(postCheckoutRoute.props.tableTabs), ['new-tab-200'], 'a normal new-order route consumes only the newer table tab')
+  assert.equal(Object.hasOwn(postCheckoutRoute.props, 'tableTabs'), false)
+  assert.equal(postCheckoutRoute.props.expectedTableTabId, 'new-tab-200', 'occupied comanda identity is preserved by expectedTableTabId')
   assert.doesNotMatch(JSON.stringify(postCheckoutRoute.props), /stale-(order|movement|tab|table)|Mesa Stale Exclusiva/)
 })
 
@@ -1022,7 +1031,8 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
   })
   const replacementRoute = renderer.root.findByType(NewOrderRoute)
   assert.deepEqual(ids(replacementRoute.props.tables), ids(workspaceTables))
-  assert.deepEqual(ids(replacementRoute.props.tableTabs), [])
+  assert.equal(Object.hasOwn(replacementRoute.props, 'tableTabs'), false)
+  assert.equal(replacementRoute.props.expectedTableTabId, '')
 
   await act(async () => {
     orderResolvers[0]({ ok: false, status: 500, json: async () => ({ error: { message: 'Falha antiga.' } }) })
@@ -1032,7 +1042,8 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
   assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Mesas ativas' }).length, 0)
   const stillOwnedRoute = renderer.root.findByType(NewOrderRoute)
   assert.deepEqual(ids(stillOwnedRoute.props.tables), ids(workspaceTables), 'stale rejection leaves bootstrap tables intact')
-  assert.deepEqual(ids(stillOwnedRoute.props.tableTabs), [], 'stale rejection leaves bootstrap tabs intact')
+  assert.equal(Object.hasOwn(stillOwnedRoute.props, 'tableTabs'), false, 'stale rejection cannot reintroduce the dead route prop')
+  assert.equal(stillOwnedRoute.props.expectedTableTabId, '')
   assert.doesNotMatch(nodeText(renderer.root), /Falha antiga|Mesa Stale Exclusiva|Pedido entrou em preparo/)
   await act(async () => {
     orderResolvers[1]({ ok: true, json: async () => ({ order: { id: 'new-order-201', client: 'Cliente Novo 201', type: 'Local', total: 2000, paymentStatus: 'Pendente', status: 'Em preparo' }, movement: { id: 'new-movement-201', description: 'Movimento Novo 201', type: 'entrada', value: 2000, category: 'Vendas', date: '2026-09-10' }, tableTab: { id: 'new-tab-201', tableId: 'free', number: 201, status: 'open' }, tables: workspaceTables.map((table) => table.id === 'free' ? { ...table, occupancy: 'occupied', openTableTab: { id: 'new-tab-201', number: 201, itemCount: 1, totalCents: 2000 } } : table) }) })

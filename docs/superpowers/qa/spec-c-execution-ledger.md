@@ -13,15 +13,15 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-17
+## Program status — 2026-09-18
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
-| C4 | Orders | **AUTOMATED GATES GREEN — STAGING PENDING** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | NOT STARTED | — | Write after C4 merge |
+| C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
+| C5 | Table Service | **HOMOLOGATED — 22 PASS / 0 FAIL / 1 BLOCKED — AWAITING MERGE AUTHORIZATION** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -123,69 +123,72 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — MERGE GATE / AWAITING AUTHORIZATION
+# C4 — Orders — CLOSED
 
-## Current Git / PR / CI state
+## Final Git / CI state
 
-- Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
+- Base SHA: `737beeac2150aabeb39024af823f2f60fee25108`
 - Branch: `feature/spec-c4-orders`
-- PR: #48 — **draft**, open, not merged
+- PR: #48 — merged
 - Last code-changing SHA: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
 - Staging-homologated SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`
-- Item 7 fix Validate: #1273 / run `35301870107` — **PASS** (1,689 tests / 0 failures plus full gate set)
-- Staging deployment: #181 / run `35303388467` — **SUCCESS** on `f630c6a96a40384032ed607031bdc935d4ac20a7`
-- Manual homologation: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**
-- Item 6 BLOCKED reason: safe out-of-window scheduled-queue reproduction was not possible at the homologation time under the same-day scheduling rule; observed in-window transition behavior was correct.
-- Changes since staged SHA: documentation-only.
-- Master reconciliation: `master` remains the approved base `737beeac2150aabeb39024af823f2f60fee25108`
-- Final QA/docs-head Validate: #1289 / run `35356575893` — **PASS** on `8468cc335fb59e95643360c21369e16cb0e24b82` (1,689 tests / 0 failures plus full gate set)
+- Staging deployment: #181 / run `35303388467` — SUCCESS
+- Manual QA: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**
+- Final branch HEAD: `64eff8dadf3e67784477fbd848289c0fc2f9f43c`
+- Final branch Validate: #1290 / run `35357003475` — SUCCESS
+- Merge/master SHA: `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`
+- Post-merge Validate: #1291 / run `35357630853` — SUCCESS (1,689 tests / 1,688 pass / 0 fail / 1 skipped)
+- Production changes from C4: none.
+- C4 surviving Orders compatibility facade: none.
+- QA record: `docs/superpowers/qa/spec-c4-orders-qa.md`
+
+C4 established `src/domains/orders/` as the Orders owner and is the approved C5 base.
+
+---
+
+# C5 — Table Service — IMPLEMENTATION IN PROGRESS
+
+## Current state
+
+- Base/master SHA: `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`
+- Branch: `feature/spec-c5-table-service`
+- Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
+- Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
+- Implementation: **Tasks 1–10 COMPLETE / GREEN; Task 11 NOT STARTED**
+- PR: #49 — draft
 - Production deploy: **NO**
-- Task 11: **COMPLETE — MERGE GATE**
-- Merge: **NO — explicit user authorization required**
-- C5: **NOT STARTED**
+- C6: **NOT STARTED**
 
-## Completed task checkpoint
+## Execution checkpoint — after Task 2
 
-| Task | Boundary | Status |
-|---|---|---|
-| 1 | Orders public boundary + core pure rules | GREEN |
-| 2 | Kitchen operations, clock, arrivals/highlight/sound lifecycle | GREEN |
-| 3 | Orders lifecycle HTTP read port / runtime integration | GREEN |
-| 4 | Operations + cancellation policy ownership | GREEN |
-| 5 | Pure New Order draft lifecycle controller | GREEN |
-| 6 | `useNewOrderDraft` + draft internals removed from App | GREEN |
-| 7 | Finalize/cancel orchestration + legacy lifecycle exports retired | GREEN |
-| 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
-| 9 | Cozinha + Histórico UI move | GREEN |
-| 10 | Enforce final C4 boundary / legacy-owner removal | GREEN |
-| 11 | Full QA, staging, homologation and merge gate | COMPLETE — MERGE GATE |
+The written C5 specification and detailed implementation plan were explicitly approved by the user on 2026-09-18. Execution is staying in this chat; no Work Mode or Codex handoff is being used.
 
-## Current C4 ownership state
+- Task 1 RED: `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa`; Validate #1293 / run `35377843427` failed with the four expected missing Table Service modules.
+- Task 1 GREEN: `e8f490808900d56c2c23d6683ed5365da4921b80`; Validate #1294 / run `35378133967` — SUCCESS (1,698 tests / 1,697 pass / 0 fail / 1 skipped).
+- Task 2 authoritative RED: `de43919b3395eab52b1518b099b79b4225cb69aa`; Validate #1296 / run `35378772513` failed with the three intended failures: selection controller absent, runtime table-commit bridge still called, App selection refs still present.
+- Task 2 first GREEN candidate: `ec6e8c3a12ace35745e9fa4bb70345f13235df45`; Validate #1297 / run `35379280195` exposed one payment-visual ownership ordering regression.
+- Root-cause fix: `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` validates current payment ownership against the official receipt table snapshot without restoring a runtime → Table Service bridge.
+- Task 2 final GREEN: Validate #1298 / run `35379605815` — SUCCESS (1,702 tests / 1,701 pass / 0 fail / 1 skipped), architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- The runtime `onTablesCommitted` call and App-owned `comandaSelectionRef` / `comandaIdentityRef` are removed in code. The compatibility ledger remains unchanged until the planned C5 architecture/closure evidence.
+- No staging deploy and no production deploy have occurred.
 
-- `src/domains/orders/domain/` owns the extracted pure order rules.
-- `src/domains/orders/application/` owns arrival lifecycle, New Order draft lifecycle and order lifecycle commands.
-- `src/domains/orders/infrastructure/` owns order lifecycle API and the Orders-owned Settings policies.
-- Novo Pedido, Cozinha and Histórico UI plus their order-only components are physically under `src/domains/orders/ui/`.
-- `src/domains/orders/index.js` is the public boundary for non-Orders consumers. Task 9 also exposes `OrderDetail` publicly for the existing Receivables integration without restoring the removed legacy path.
-- The Task 8 public route uses `src/domains/orders/ui/NewOrderRoute.js` so the public entry remains compatible with pure Node `node --test`; `NewOrderRoute.jsx` remains an internal UI reexport and `NewOrder.jsx` remains the actual wizard surface.
-- All legacy Task 8 and Task 9 Orders-owned paths under `src/pages` / `src/components` are physically absent.
-- The pure operational-history projection now lives at `src/domains/orders/domain/orderHistoryAnalysis.js`, avoiding a UI → dashboard util → Orders public-index cycle.
-- Generic `LocalTableSelector`, `ClientDuplicateModal`, primitives, `PaymentBadge` and `OrderTicketPreview` remain outside Orders by design.
-- The permanent architecture gate now rejects external deep imports into Orders, reintroduced C4 legacy owner files, and migrated Orders lifecycle exports in `src/api/client.js`.
+Task 3 RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b` was confirmed by Validate #1300 / run `35380071895` for the intended missing-controller reason. Task 3 GREEN commit `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 / run `35380450226` with **1,712 tests / 1,711 pass / 0 fail / 1 skipped**.
 
-## Resume gate
+Task 4 RED commit `78d246915eed7847b3db9719e5c2e02137d996c7` was confirmed by Validate #1308 / run `35380889353` for the intended missing-`tableServiceApi.js` boundary. Task 4 GREEN commit `7ef5fc7a68292e17372bb15a9d23131c38ecfd48` passed Validate #1309 / run `35381219700` with **1,711 tests / 1,710 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all passed.
 
-C4 has reached the merge gate. Do **not** begin C5 and do **not** deploy production.
+Task 5 RED commit `ec27b99d4528d9e0ae4af2eed5d369f04658eeaa` was confirmed by Validate #1311 for the intended missing-`useTableServiceCommands.js` boundary. GREEN candidate `aab6ca4ccb0461510a65bbb3a079808174229d4d` made all new command tests pass but Validate #1312 found one stale source-contract in `tablesNavigation.test.js`. Test-only commit `44f9b9e0f4410ae909873811fff70b2c5b80f083` aligned that characterization with the new owner; Validate #1313 / run `35382601189` passed with **1,716 tests / 1,715 pass / 0 fail / 1 skipped** and all remaining gates green. App no longer owns the table mutation handlers, and the five C5 API exports are absent from `src/api/client.js`.
 
-Before executing a merge:
-1. confirm the current branch HEAD and PR #48;
-2. confirm the current docs-only reconciliation HEAD has a successful Validate;
-3. confirm `master` has not moved incompatibly from `737beeac2150aabeb39024af823f2f60fee25108`;
-4. preserve staging #181 / run `35303388467` and manual QA **19 PASS / 0 FAIL / 1 BLOCKED** as the homologation evidence;
-5. keep item 6 BLOCKED as documented unless directly re-observed;
-6. require explicit user authorization before merging PR #48;
-7. production remains a separate later authorization;
-8. C5 may begin only after C4 is merged/closed according to the rollout.
+Task 6 RED commit `567bc2c6f93e6769ca920e448af90a0037c57a8e` was confirmed by Validate #1315 for the intended missing public UI exports. The UI was moved in normal fast-forward commits `6afafaec1f370d78466576107f8d6123a658488e`, `10e42fee40333a69814b15d6743671fbd6135094` and `2c7fe92039e3694d676d64dc6681df79a97efc5f`. Validate #1318 then identified only stale tests reading the removed paths. Test-only commits `66007fcf2f30fece36800faf393f78125dd65dde` and `3c9fce53a594de182b7dd34948926a83cf464baa` realigned those characterizations. Validate #1320 / run `35384747211` passed with **1,716 tests / 1,715 pass / 0 fail / 1 skipped** and all remaining gates green. `Tables` and `LocalTableSelector` now have one Table Service UI owner and external consumers use the public index.
+
+Task 7 RED commit `b785f500b677c518f1baea1f8e662468504877e6` was confirmed by Validate #1322 for the intended missing-`Comandas` public export. The new Table Service UI owners/public surface landed in `c315a0d20fda5344a4336807f44e547d8115f529`, App/integration consumers moved in `6770d3d83089194ecafe14bf5559f0be1127ef78`, and legacy owners were deleted in `d30252ec536ef9bb5945b8b98b0a03b73963316e`. An audit then found two internal imports plus moved-test loads still targeting the removed paths; `d040bf730c786af4aea815c1bcdbfb306f4e0b1e` corrected those path-only defects. Validate #1326 / run `35386530872` passed with **1,716 tests / 1,715 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. `Comandas` is public through the Table Service entry; `ComandaDetail` and `TableTransferDialog` remain internal.
+
+Task 8 RED commit `c8ed819478fc981ffd5463d976282f48f9c4b0f5` was confirmed by Validate #1328 / run `35387492807` for the intended missing app-surface file. GREEN candidate `88c3974f349aebface02ccd18f4954b069aceeea` introduced `TableServiceExternalActions`, converted `Comandas` to identity/generation intents, and made App payment capture the submitted owner. Validate #1329 found only two stale ownership characterizations; `17f72918fba548186ea8c04ad88c1293c58a987f` aligned the free-table intent and toast composition tests, leaving one string replacement that had not applied. `23963386b140c2bea90eaa80c0dc60874fcf025a` corrected that final test. Validate #1331 / run `35388385418` passed with **1,717 tests / 1,716 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Audit confirms zero payment/printing workflow tokens in Table Service production code; accepted financial reconciliation remains intentionally outside the domain.
+
+Task 9 RED commit `1756611e7603991927b45b576637880d06f117a2` was confirmed by Validate #1334 / run `35389482528`: the new route contract failed because the dead bootstrap table-tab helper was still exported. GREEN commit `8a69d6d6b1643ae865bbf976225bbe46e237fd89` removed the helper/export, stopped App from passing `tableTabs` to `NewOrderRoute`, and updated stale/relogin integration characterizations to prove the prop remains absent while `expectedTableTabId` preserves occupied-comanda identity. Validate #1335 / run `35389776835` passed with **1,717 tests / 1,716 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Runtime `tableTabs` remains intact for payment reconciliation, and Orders still depends on Table Service only through its public index.
+
+Task 10 RED commit `b24def5f6cbe29f2e7b0ae8b9d305980a0c44dde` was confirmed by Validate #1337 with five intended failures: missing `table-service-deep-import`, missing `table-service-orders-import`, missing legacy-owner rejection, missing C5 legacy-API rejection, and extra public exports. GREEN commit `bf871adb3c21de2cd3c6143214d12a5e825c1bda` added all permanent checker rules, `tableServiceExtractionContract.test.js`, and trimmed the public entry to `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection` and `useTableServiceCommands`. Validate #1338 / run `35391943036` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Physical/API/import audits also passed; the runtime table-commit bridge is formally removed in C5.
+
+Task 11 pre-staging gate used executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**, architecture/lint/build, production+staging Worker dry-runs, local D1 and Spec B D1 all green. Manual Deploy staging #182 / run `35393748126` deployed that exact SHA, reported no pending remote staging migrations, completed staging migration application, and passed the real login smoke with HTTP 200. Manual QA then closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 (capability/read-only) is BLOCKED because staging has no real restricted-capability identity; it is not promoted to manual PASS. C5 is homologated and awaits final docs-only validation plus explicit merge authorization. Production remains untouched.
 
 ---
 
@@ -206,17 +209,16 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C4, Task 11 in progress at the staging gate. GitHub state wins over this file if the branch advanced after this documentation commit.
+The active slice is C5 after successful staging homologation. Task 11 manual QA has 22 PASS / 0 FAIL / 1 BLOCKED. QA/ledger commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340 / run `35400039611`; C5 now waits at the explicit merge-authorization gate. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
-2. Read this ledger.
-3. Read `docs/superpowers/specs/2026-09-17-frontend-modularization-c4-orders-design.md`.
-4. Read `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md`.
-5. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
-6. Inspect PR #48 and the remote HEAD of `feature/spec-c4-orders`.
-7. Treat `e7f05b6d6d8364c0482a7fe03949c001816e8e85` as the Task 11 pre-QA executable identity; Validate #1262 / run `35297928408` passed.
-8. Task 11 is IN PROGRESS — pre-staging QA recorded; staging/manual homologation remain pending.
-9. C5 is NOT STARTED and must not begin before C4 closes and merges.
-10. Do not merge C4 or deploy production without explicit user authorization.
+2. Read this execution ledger.
+3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`.
+4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
+5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
+6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–10 are complete and Task 11 staging/manual homologation is complete.
+8. Read `docs/superpowers/qa/spec-c5-table-service-qa.md`; QA/ledger commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340. Confirm the current status-only closure HEAD also has a successful exact-HEAD Validate before merge.
+9. Do not begin C6, merge, or deploy production before explicit user approval.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

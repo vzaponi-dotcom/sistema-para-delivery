@@ -19,6 +19,7 @@ test('desktop navigation includes Mesas', async () => {
 test('App renders the table workspace with official data and callbacks', async () => {
   const app = await read('./App.jsx')
 
-  assert.match(app, /import Tables from '\.\/pages\/Tables'/)
-  assert.match(app, /activeTab === 'tables'[\s\S]*?<Tables[\s\S]*?tables=\{tables\}[\s\S]*?disabled=\{writesBlocked\}[\s\S]*?onCreate=\{handleCreateTable\}[\s\S]*?onRename=\{handleRenameTable\}[\s\S]*?onSetActive=\{handleSetTableActive\}[\s\S]*?onReorder=\{handleReorderTables\}[\s\S]*?onOpenComanda=\{handleOpenComanda\}/)
+  assert.match(app, /import \{[\s\S]*?\bTables,[\s\S]*?\} from '\.\/domains\/table-service\/index\.js'/)
+  assert.doesNotMatch(app, /import Tables from '\.\/pages\/Tables'/)
+  assert.match(app, /activeTab === 'tables'[\s\S]*?<Tables[\s\S]*?tables=\{tables\}[\s\S]*?disabled=\{writesBlocked\}[\s\S]*?onCreate=\{tableServiceCommands\.createTable\}[\s\S]*?onRename=\{tableServiceCommands\.renameTable\}[\s\S]*?onSetActive=\{tableServiceCommands\.setTableActive\}[\s\S]*?onReorder=\{tableServiceCommands\.reorderTables\}[\s\S]*?onOpenComanda=\{handleOpenComanda\}/)
 })

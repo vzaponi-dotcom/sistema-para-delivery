@@ -18,7 +18,7 @@ const openConfirmation = async (renderer) => {
 
 test('refresh after opening A never retargets the confirmed intention to B', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: TableTransferDialog } = await h.load('/src/components/TableTransferDialog.jsx')
+  const { default: TableTransferDialog } = await h.load('/src/domains/table-service/ui/TableTransferDialog.jsx')
   const calls = []
   const props = { sourceTable: source('A'), tables: [source('A'), destination], disabled: false, onClose() {}, onTransfer: async (...args) => { calls.push(args); return true } }
   const renderer = await h.render(TableTransferDialog, props)
@@ -33,7 +33,7 @@ test('refresh after opening A never retargets the confirmed intention to B', asy
 
 test('double confirmation sends at most one request with the captured identity', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: TableTransferDialog } = await h.load('/src/components/TableTransferDialog.jsx')
+  const { default: TableTransferDialog } = await h.load('/src/domains/table-service/ui/TableTransferDialog.jsx')
   const calls = []
   let resolveTransfer
   const transfer = new Promise((resolve) => { resolveTransfer = resolve })

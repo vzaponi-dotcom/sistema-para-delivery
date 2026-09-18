@@ -59,14 +59,16 @@ test('table creation applies the returned official list without predicting name 
   assert.ok(buttonNamed(list, 'Ver comanda'))
 })
 
-test('App prepares table mutation handlers using official API responses and request keys', () => {
-  for (const alias of ['createTableApi', 'updateTableApi', 'reorderTablesApi', 'transferTableTabApi']) {
-    assert.match(app, new RegExp(alias))
-  }
-  for (const handler of ['handleCreateTable', 'handleRenameTable', 'handleSetTableActive', 'handleReorderTables', 'handleTransferTableTab']) {
-    assert.match(app, new RegExp(`const ${handler} = async`))
-  }
-  assert.match(app, /transferTableTabApi\(sourceTableId, destinationTableId, expectedTableTabId\)[\s\S]*?applyOfficialEffects\(\{ tables: result\.tables, tableTab: result\.tableTab \}\)/)
+test('App delegates table mutation ownership to Table Service commands', () => {
+  assert.match(app, /import \{[\s\S]*?\bTables,[\s\S]*?\} from '\.\/domains\/table-service\/index\.js'/)
+  assert.doesNotMatch(app, /import Tables from '\.\/pages\/Tables'/)
+  assert.match(app, /useTableServiceCommands\(\{/)
+  assert.match(app, /onCreate=\{tableServiceCommands\.createTable\}/)
+  assert.match(app, /onRename=\{tableServiceCommands\.renameTable\}/)
+  assert.match(app, /onSetActive=\{tableServiceCommands\.setTableActive\}/)
+  assert.match(app, /onReorder=\{tableServiceCommands\.reorderTables\}/)
+  assert.match(app, /onTransfer=\{tableServiceCommands\.transferTableTab\}/)
+  assert.doesNotMatch(app, /createTableApi|updateTableApi|reorderTablesApi|transferTableTabApi/)
 })
 
 test('NewOrder receives the official tables collection for registered table selection', () => {

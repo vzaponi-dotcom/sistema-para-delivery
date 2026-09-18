@@ -80,7 +80,6 @@ export function useOperationalDataRuntime({
 
   const commitTables = useCallback((nextTables) => {
     officialTablesRef.current = nextTables
-    legacyBridgesRef.current.onTablesCommitted?.(nextTables)
     setTables(nextTables)
   }, [])
 

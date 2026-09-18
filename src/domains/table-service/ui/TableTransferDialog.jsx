@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
-import Button from './Button'
-import ConfirmationDialog from './ConfirmationDialog'
-import Modal from './Modal'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Modal from '../../../components/Modal'
+import { getTransferDestinations } from '../domain/tableTransfer.js'
 
 function TableTransferDialog({ sourceTable, tables, disabled, onClose, onTransfer }) {
   const [destinationId, setDestinationId] = useState('')
@@ -9,7 +10,7 @@ function TableTransferDialog({ sourceTable, tables, disabled, onClose, onTransfe
   const [expectedTableTabId] = useState(() => sourceTable.openTableTab?.id ?? sourceTable.openTableTabId ?? '')
   const submittingRef = useRef(false)
   const destinations = useMemo(
-    () => tables.filter((table) => table.isActive && table.occupancy === 'free' && table.id !== sourceTable.id),
+    () => getTransferDestinations(tables, sourceTable.id),
     [sourceTable.id, tables],
   )
   const destination = destinations.find((table) => table.id === destinationId) ?? null

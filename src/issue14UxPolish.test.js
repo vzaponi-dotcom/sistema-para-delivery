@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const tables = fs.readFileSync(new URL('./pages/Tables.jsx', import.meta.url), 'utf8')
+const tables = fs.readFileSync(new URL('./domains/table-service/ui/Tables.jsx', import.meta.url), 'utf8')
 const tableStyles = fs.readFileSync(new URL('./table-management.css', import.meta.url), 'utf8')
 const detail = fs.readFileSync(new URL('./components/ReceivableDetail.jsx', import.meta.url), 'utf8')
 

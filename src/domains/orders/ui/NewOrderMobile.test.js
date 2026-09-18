@@ -16,8 +16,8 @@ test('new order uses a single narrow-screen flow without horizontal pressure', a
 
 test('local table grid stays responsive with textual status and mobile touch targets', async () => {
   const css = await read('../../../local-order-identity.css')
-  const selectorUrl = new URL('../../../components/LocalTableSelector.jsx', import.meta.url)
-  const selector = existsSync(selectorUrl) ? await read('../../../components/LocalTableSelector.jsx') : ''
+  const selectorUrl = new URL('../../table-service/ui/LocalTableSelector.jsx', import.meta.url)
+  const selector = existsSync(selectorUrl) ? await read('../../table-service/ui/LocalTableSelector.jsx') : ''
 
   assert.match(css, /\.new-order-table-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(140px, 1fr\)\)/s)
   assert.match(css, /\.new-order-table-option\s*\{[^}]*min-height:\s*(?:44px|var\(--mobile-touch-target, 44px\))/s)

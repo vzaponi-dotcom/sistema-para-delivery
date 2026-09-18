@@ -224,7 +224,7 @@ test('9. montar pedido consulta produtos sem products.manage e nÃ£o injeta aju
 
 test('10. tables.view mantÃ©m consulta e Ver comanda sem tables.manage', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Tables } = await h.load('/src/pages/Tables.jsx')
+  const { Tables } = await h.load('/src/domains/table-service/index.js')
   let opened = 0
   const renderer = await h.render(Tables, { tables, disabled: false, canManageTables: false, canOpenComanda: true, onCreate() {}, onRename() {}, onSetActive() {}, onReorder() {}, onOpenComanda: () => { opened += 1 } })
   assert.match(nodeText(renderer.root), /Mesa 7/)
@@ -236,7 +236,7 @@ test('10. tables.view mantÃ©m consulta e Ver comanda sem tables.manage', async
 
 test('11. comandas.transfer continua disponÃ­vel sem tables.manage', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: ComandaDetail } = await h.load('/src/components/ComandaDetail.jsx')
+  const { default: ComandaDetail } = await h.load('/src/domains/table-service/ui/ComandaDetail.jsx')
   let transfers = 0
   const detail = { number: 42, status: 'open', table: { name: 'Mesa 7' }, openedAt: '2026-09-11T12:00:00.000Z', orderCount: 1, itemCount: 1, totalCents: 2500, items: [] }
   const renderer = await h.render(ComandaDetail, { detail, currency, canTransfer: true, canCreateOrders: false, canExecutePrinting: false, onTransfer: () => { transfers += 1 } })
@@ -393,12 +393,16 @@ test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', 
 
 test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set())
-  const pageModules = await Promise.all([
-    h.load('/src/domains/orders/ui/Orders.jsx'),
-    h.load('/src/domains/orders/ui/OrderHistory.jsx'),
-    ...['Clients', 'Products', 'Receivables', 'Finance', 'Tables', 'Comandas', 'PrintQueue'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+  const [pageModules, tableService] = await Promise.all([
+    Promise.all([
+      h.load('/src/domains/orders/ui/Orders.jsx'),
+      h.load('/src/domains/orders/ui/OrderHistory.jsx'),
+      ...['Clients', 'Products', 'Receivables', 'Finance', 'PrintQueue'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+    ]),
+    h.load('/src/domains/table-service/index.js'),
   ])
-  assert.equal(pageModules.reduce((count, module) => count + renderer.root.findAllByType(module.default).length, 0), 0)
+  const pageTypes = [...pageModules.map((module) => module.default), tableService.Tables, tableService.Comandas]
+  assert.equal(pageTypes.reduce((count, Component) => count + renderer.root.findAllByType(Component).length, 0), 0)
   assert.ok(buttonNamed(renderer.root, 'Sair do sistema'))
 })
 
@@ -418,10 +422,10 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
     ['Dashboard', '/src/pages/Dashboard.jsx'],
     ['Clients', '/src/pages/Clients.jsx'],
     ['Products', '/src/pages/Products.jsx'],
-    ['Tables', '/src/pages/Tables.jsx'],
     ['Receivables', '/src/pages/Receivables.jsx'],
     ['Finance', '/src/pages/Finance.jsx'],
   ].map(async ([name, path]) => [name, (await h.load(path)).default])))
+  modules.Tables = (await h.load('/src/domains/table-service/index.js')).Tables
   modules.NewOrderRoute = (await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')).NewOrderRoute
   const before = mutations(requests).length
   let page = renderer.root.findByType(modules.OrderHistory)

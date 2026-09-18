@@ -6,7 +6,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 |---|---|---|---|
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | C1 legacy payment workflow | C6 |
-| operational data runtime table-commit bridge | App-owned comanda selection reconciliation | C1 legacy table-service workflow | C5 |
+| operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
 | `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
 
 ## C1 status — 2026-09-16
@@ -31,22 +31,52 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - The generic/auth reexports, payment-receipt bridge, table-commit bridge and `updateCollection` escape hatch remain governed by the table above.
 - Final C3 branch Validate #1219 / run `35232989249` passed before merge.
 
-## C4 status — checkpoint after Task 10 — 2026-09-17
+## C4 final status — 2026-09-18
 
-- Active branch: `feature/spec-c4-orders`, draft PR #48.
-- Last fully validated executable checkpoint: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`.
-- Validate #1261 / run `35297628138` — PASS, including 1,687 tests / 0 failures, `Frontend architecture boundaries: OK`, and the full validation gate set.
-- No C4 Orders compatibility facade survives Task 10.
-- Core order rules, kitchen rules/hooks, lifecycle API, Orders-owned policies, New Order draft/commands, Novo Pedido, Cozinha, Histórico and the listed order-only UI components were moved to their planned Orders owners rather than left behind as old-path facades.
-- `OrderDetail` is available through the Orders public contract for the existing Receivables consumer; this is a public integration contract, not a legacy-path facade. The removed `src/components/OrderDetail.jsx` path was not recreated.
-- `getOrders`, `createOrder`, `updateOrderStatus`, and `cancelOrder` are no longer lifecycle exports of the legacy `src/api/client.js`; payment/refund/payment-promise APIs intentionally remain for C6.
+- PR #48 merged at `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
+- C4 left no Orders legacy-path compatibility facade.
+- Final branch Validate #1290 / run `35357003475` passed.
+- Post-merge Validate #1291 / run `35357630853` passed on the exact merge commit.
 - The operational data runtime payment-receipt bridge remains intentionally active until C6.
-- The operational data runtime table-commit bridge remains intentionally active until C5.
-- Generic/auth `src/api/client.js` compatibility reexports remain scheduled for C10 at latest.
-- `updateCollection` remains for later Customers/Catalog migration, with the existing C8/C10 removal schedule.
-- Task 10 completed the C4 boundary/facade audit. The architecture checker now permanently rejects external Orders deep imports, reintroduced C4 legacy owner paths, and migrated lifecycle exports in `src/api/client.js`.
-- The payment-receipt bridge still targets C6; the table-commit bridge still targets C5; generic/auth `src/api/client.js` compatibility still targets program slice C10 at latest; `updateCollection` keeps its C8/C10 schedule.
-- Task 11 remains the C4 QA/staging/homologation and merge-gate task. No production deployment has occurred.
+- The operational data runtime table-commit bridge remains intentionally active and is the specific compatibility debt C5 must remove.
+- Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
+- `updateCollection` remains for later Customers/Catalog migration, with final enforcement no later than C10.
+
+## C5 execution status — 2026-09-18
+
+- Branch: `feature/spec-c5-table-service`; draft PR #49.
+- Base: C4 merge/master `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
+- Written design and detailed implementation plan are **APPROVED**.
+- Task 1 is **COMPLETE / GREEN** at `e8f490808900d56c2c23d6683ed5365da4921b80`; it introduced no temporary compatibility facade.
+- Task 2 is **COMPLETE / GREEN** after fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`; Validate #1298 / run `35379605815` passed.
+- Task 2 physically removed the runtime `onTablesCommitted` callback and App-owned comanda selection refs. Selection now reconciles unidirectionally from official `tables[]`.
+- The operational table-commit bridge is **REMOVED IN C5**. Task 10 architecture enforcement now rejects legacy owner/API reintroduction and external deep imports; there is no remaining runtime consumer.
+- Task 3 is **COMPLETE / GREEN** at `4fcfff12a3357dfbeb1587142b643a0db55702bf`; Validate #1306 / run `35380450226` passed. `Comandas.jsx` no longer owns direct detail HTTP/loading.
+- Task 4 is **COMPLETE / GREEN** at `7ef5fc7a68292e17372bb15a9d23131c38ecfd48`; Validate #1309 / run `35381219700` passed.
+- The temporary Task 3 dependency on legacy `getTableTabDetail` is removed. Detail HTTP now belongs to `domains/table-service/infrastructure/tableServiceApi.js`.
+- Task 5 is **COMPLETE / GREEN** at final fix HEAD `44f9b9e0f4410ae909873811fff70b2c5b80f083`; Validate #1313 / run `35382601189` passed.
+- App table-management/transfer handlers are removed and replaced by `useTableServiceCommands`.
+- C5 API debt in `src/api/client.js` is now cleared: `createTable`, `updateTable`, `reorderTables`, `transferTableTab` and `getTableTabDetail` are absent. Table-tab payment remains C6; print document/manual print job remain C9.
+- Task 6 is **COMPLETE / GREEN** at `3c9fce53a594de182b7dd34948926a83cf464baa`; Validate #1320 / run `35384747211` passed.
+- `src/pages/Tables.jsx`, `src/pages/Tables.test.js` and `src/components/LocalTableSelector.jsx` are removed with no compatibility reexport. Their owners are now `src/domains/table-service/ui/Tables.jsx`, `Tables.test.js` and `LocalTableSelector.jsx`.
+- App and Orders consume `Tables` / `LocalTableSelector` only through `src/domains/table-service/index.js`; Task 6 introduced no surviving compatibility facade.
+- Task 7 is **COMPLETE / GREEN** at `d040bf730c786af4aea815c1bcdbfb306f4e0b1e`; Validate #1326 / run `35386530872` passed.
+- `src/pages/Comandas.jsx`, `src/pages/Comandas.test.js`, `src/components/ComandaDetail.jsx`, `src/components/ComandaDetail.test.js` and `src/components/TableTransferDialog.jsx` are removed with no compatibility reexport. Their owners are now under `src/domains/table-service/ui/`.
+- `Comandas` is exported through the Table Service public entry. `ComandaDetail` and `TableTransferDialog` remain internal, and `useTableTabDetail` is no longer exported publicly because its only consumer is internal. Task 7 introduced no surviving compatibility facade.
+- Task 8 is **COMPLETE / GREEN** at `23963386b140c2bea90eaa80c0dc60874fcf025a`; Validate #1331 / run `35388385418` passed.
+- Payment-open, ticket-preview, print-feedback and print action ownership moved to `src/app/surfaces/table-service/TableServiceExternalActions.jsx`. `Comandas` now emits external intents carrying `{ tableId, tableTabId, selectionGeneration }` and has no direct payment/printing workflow ownership.
+- The Table Service production tree contains no `TableTabPaymentDialog`, `TableTabTicketPreview`, `getTableTabPreviewDocument`, `printTableTab` or `registerTableTabPayment` ownership tokens. This is composition, not a compatibility facade.
+- The payment-receipt bridge and accepted-payment reconciliation remain intentionally active until C6; table-tab print APIs/queue/QZ remain C9.
+- Task 9 is **COMPLETE / GREEN** at `8a69d6d6b1643ae865bbf976225bbe46e237fd89`; Validate #1335 / run `35389776835` passed.
+- The dead Orders route compatibility contract is removed: `tableTabsFromBootstrap` is gone, `NewOrderRoute` no longer receives a `tableTabs` prop, and no compatibility reexport was introduced. `tables`, `initialTableId` and `expectedTableTabId` remain the live route contract.
+- Official runtime `tableTabs` deliberately remains for C6 payment reconciliation; this is runtime state, not an Orders compatibility facade. Orders → Table Service continues only through `src/domains/table-service/index.js`.
+- Task 10 is **COMPLETE / GREEN** at `bf871adb3c21de2cd3c6143214d12a5e825c1bda`; Validate #1338 / run `35391943036` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**.
+- The C5 architecture checker permanently rejects external Table Service deep imports, Table Service → Orders imports, recreation of the five legacy UI owners, and reintroduction of the five migrated C5 API exports. The public entry is restricted to the six real external contracts.
+- Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
+- `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
+- C5 staging homologation completed at executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`: Validate #1339 and Deploy staging #182 are green; manual QA is **22 PASS / 0 FAIL / 1 BLOCKED**.
+- The table-commit bridge remains **REMOVED / architecture-enforced**. The payment-receipt bridge remains intentionally active for C6; generic/auth reexports remain tracked for C10; `updateCollection` remains for later Customers/Catalog cleanup and C10 enforcement.
+- C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
 

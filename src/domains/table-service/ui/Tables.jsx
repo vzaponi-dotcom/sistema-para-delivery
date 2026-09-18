@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import '../table-management.css'
-import Button from '../components/Button'
-import ConfirmationDialog from '../components/ConfirmationDialog'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
+import '../../../table-management.css'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Icon from '../../../components/Icon'
+import PageHeader from '../../../components/PageHeader'
 
 function Tables({ tables, disabled, canOpenComanda = false, canManageTables = true, onCreate, onRename, onSetActive, onReorder, onOpenComanda }) {
   const [newName, setNewName] = useState('')

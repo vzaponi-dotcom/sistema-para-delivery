@@ -1,5 +1,5 @@
-import Button from './Button'
-import Icon from './Icon'
+import Button from '../../../components/Button'
+import Icon from '../../../components/Icon'
 
 function ComandaDetail({ detail, currency, disabled = false, busyAction = false, printingDisabled = false, canTransfer = false, canCreateOrders = true, canExecutePrinting = true, onAddOrder, onViewTicket, onPrint, onPay, onTransfer, labelledBy, headingId = 'comanda-heading', headingRef }) {
   const closed = detail.status !== 'open'

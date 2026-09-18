@@ -26,7 +26,7 @@ const tables = [
 
 test('Comandas list uses one centered table icon without repeating the table number', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
   const r = await h.render(Comandas, { tables, currency: (value) => `R$ ${value.toFixed(2)}` })
   const list = r.root.findByProps({ 'aria-label': 'Mesas ativas' })
   const buttons = list.findAllByType('button')
@@ -43,7 +43,7 @@ test('Comandas list uses one centered table icon without repeating the table num
 
 test('Comandas list keeps occupied cards richer and free cards shorter with aligned status and totals', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: Comandas } = await h.load('/src/pages/Comandas.jsx')
+  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
   const r = await h.render(Comandas, { tables, currency: (value) => `R$ ${value.toFixed(2)}` })
   const [occupied, free] = r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')
 

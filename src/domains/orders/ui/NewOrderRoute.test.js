@@ -6,42 +6,33 @@ import { createServer } from 'vite'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-test('new-order route preserves bootstrap table tabs and operational callbacks for its consumer', async () => {
-  const bootstrapTableTabs = [{ id: 'tab-42', tableId: 'table-7', number: 42, status: 'open' }]
-  const onCancel = () => {}
-  const onCreateClient = async () => null
-  const onSubmit = async () => false
-  const onDraftDirtyChange = () => {}
+test('new-order route forwards only the live table contract and exposes no bootstrap table-tab helper', async () => {
+  const tables = [{ id: 'table-7', isActive: true, occupancy: 'occupied', openTableTab: { id: 'tab-42' } }]
   let receivedProps
-  const CapturingNewOrder = (props) => {
+  const Probe = (props) => {
     receivedProps = props
     return React.createElement('output', { 'data-route': 'new-order' })
   }
 
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   try {
-    const { NewOrderRoute, tableTabsFromBootstrap } = await vite.ssrLoadModule('/src/domains/orders/ui/NewOrderRoute.jsx')
+    const routeModule = await vite.ssrLoadModule('/src/domains/orders/ui/NewOrderRoute.jsx')
+    const { NewOrderRoute } = routeModule
+
     await act(async () => {
       create(React.createElement(NewOrderRoute, {
-        clients: [],
-        products: [],
-        tables: [],
-        tableTabs: tableTabsFromBootstrap({ tableTabs: bootstrapTableTabs }),
-        currency: (value) => `R$ ${value}`,
-        disabled: false,
-        onCancel,
-        onCreateClient,
-        onSubmit,
-        onDraftDirtyChange,
-        NewOrderComponent: CapturingNewOrder,
+        NewOrderComponent: Probe,
+        tables,
+        initialTableId: 'table-7',
+        expectedTableTabId: 'tab-42',
       }))
     })
 
-    assert.equal(receivedProps.tableTabs, bootstrapTableTabs)
-    assert.equal(receivedProps.onCancel, onCancel)
-    assert.equal(receivedProps.onCreateClient, onCreateClient)
-    assert.equal(receivedProps.onSubmit, onSubmit)
-    assert.equal(receivedProps.onDraftDirtyChange, onDraftDirtyChange)
+    assert.strictEqual(receivedProps.tables, tables)
+    assert.equal(receivedProps.initialTableId, 'table-7')
+    assert.equal(receivedProps.expectedTableTabId, 'tab-42')
+    assert.equal(Object.hasOwn(receivedProps, 'tableTabs'), false)
+    assert.equal(Object.hasOwn(routeModule, ['tableTabs', 'FromBootstrap'].join('')), false)
   } finally {
     await vite.close()
   }

@@ -45,7 +45,7 @@ test('occupied tables explain their restrictions and link to the exact comanda i
 })
 
 test('table management styling remains theme-token based and mobile-safe', async () => {
-  const css = await read('../table-management.css')
+  const css = await read('../../../table-management.css')
 
   assert.match(css, /var\(--surface\)/)
   assert.match(css, /var\(--text\)/)

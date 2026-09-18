@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
-import { workspaceHarness, nodeText, buttonNamed } from '../test-support/renderWorkspace.js'
-import { comandaDetail } from '../test-support/comandaFixtures.js'
+import { workspaceHarness, nodeText, buttonNamed } from '../../../test-support/renderWorkspace.js'
+import { comandaDetail } from '../../../test-support/comandaFixtures.js'
 
 test('consolidated detail renders official payable total, quantities, unit prices, variations and counts', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Detail } = await h.load('/src/components/ComandaDetail.jsx')
+  const { default: Detail } = await h.load('/src/domains/table-service/ui/ComandaDetail.jsx')
   const actions = []
   const r = await h.render(Detail, { detail: comandaDetail, currency: (v) => `R$ ${v.toFixed(2)}`, onAddOrder: () => actions.push('add'), onViewTicket: () => actions.push('view'), onPrint: () => actions.push('print'), onPay: () => actions.push('pay') })
   const text = nodeText(r.root)
@@ -40,7 +40,7 @@ test('consolidated detail renders official payable total, quantities, unit price
 
 for (const state of ['readonly', 'closed', 'empty']) test(`detail handles ${state} honestly`, async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Detail } = await h.load('/src/components/ComandaDetail.jsx')
+  const { default: Detail } = await h.load('/src/domains/table-service/ui/ComandaDetail.jsx')
   const detail = { ...comandaDetail, ...(state === 'closed' ? { status: 'closed' } : state === 'empty' ? { items: [], orderCount: 0, itemCount: 0, totalCents: 0 } : {}) }
   let calls = 0
   const r = await h.render(Detail, { detail, disabled: state === 'readonly', currency: String, onAddOrder: () => calls++, onPay: () => calls++ })
