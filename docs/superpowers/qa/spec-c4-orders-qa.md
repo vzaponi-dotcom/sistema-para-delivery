@@ -122,13 +122,13 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 12 | Histórico — filtros, detalhes e metadados de cancelamento | PASS | Observado manualmente em staging; filtros, detalhes e metadados de cancelamento funcionaram corretamente. |
 | 13 | Cozinha/Histórico — pagamento externo continua abrindo | PASS | Observado manualmente em staging; entrada de pagamento continuou abrindo corretamente nas superfícies elegíveis. |
 | 14 | Detalhe — entrada de impressão permanece igual | PASS | Observado manualmente em staging; entrada/fluxo de impressão no detalhe permaneceu disponível e funcional. |
-| 15 | Settings Operação — carregar/editar/salvar/cancelar | PENDING | — |
+| 15 | Settings Operação — carregar/editar/salvar/cancelar | PASS | Observado manualmente em staging; carregamento, descarte, salvamento, persistência e restauração do valor original funcionaram corretamente. |
 | 16 | Settings Modalidades — mesmo draft de Operação, sem prompt interno | PENDING | — |
 | 17 | Settings Cancelamentos — adicionar/editar/ordenar/salvar/cancelar/read-only | PENDING | — |
 | 18 | Desktop claro/escuro — Cozinha/Novo Pedido/Histórico | PENDING | — |
 | 19 | Mobile/narrow claro/escuro — Cozinha/Novo Pedido/Histórico | PENDING | — |
 | 20 | Console — nenhum novo erro atribuível à C4 | PENDING | — |
 
-Current manual result: **13 PASS / 0 FAIL / 1 BLOCKED / 6 PENDING**.
+Current manual result: **14 PASS / 0 FAIL / 1 BLOCKED / 5 PENDING**.
 
 Task 11 must stop merge preparation on any manual FAIL. BLOCKED is allowed only with an explicit, honest reason.
