@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import Button from './Button'
-import SystemSelect from './SystemSelect'
-import { formatBRLCurrencyInput } from '../utils/formFormatting.js'
+import Button from '../../../../components/Button'
+import SystemSelect from '../../../../components/SystemSelect'
+import { formatBRLCurrencyInput } from '../../../../utils/formFormatting.js'
 import {
   PAYMENT_METHOD_OPTIONS,
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
-} from '../utils/paymentMethodOptions.js'
+} from '../../../../utils/paymentMethodOptions.js'
 
 const ADJUSTMENT_OPTIONS = [
   { value: 'none', label: 'Nenhum' },

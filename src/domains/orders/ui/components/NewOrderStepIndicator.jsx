@@ -1,4 +1,4 @@
-import { NEW_ORDER_STEPS, NEW_ORDER_STEP_ORDER } from '../domains/orders/index.js'
+import { NEW_ORDER_STEPS, NEW_ORDER_STEP_ORDER } from '../../domain/newOrderStepFlow.js'
 
 const STEPS = [
   { id: NEW_ORDER_STEPS.CUSTOMER, number: 1, label: 'Cliente' },

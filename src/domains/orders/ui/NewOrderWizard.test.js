@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('new order exposes an accessible three-step indicator with reached-state awareness', async () => {
-  const indicator = await read('../components/NewOrderStepIndicator.jsx')
+  const indicator = await read('./components/NewOrderStepIndicator.jsx')
 
   assert.match(indicator, /Etapas da nova venda/)
   assert.match(indicator, /Cliente/)
@@ -19,7 +19,7 @@ test('new order exposes an accessible three-step indicator with reached-state aw
 
 test('new order starts on the context-appropriate step and customer step contains only attendance data', async () => {
   const page = await read('./NewOrder.jsx')
-  const customerStep = await read('../components/NewOrderCustomerStep.jsx')
+  const customerStep = await read('./components/NewOrderCustomerStep.jsx')
 
   assert.match(page, /initialTableId \? NEW_ORDER_STEPS\.PRODUCTS : NEW_ORDER_STEPS\.CUSTOMER/)
   assert.match(page, /useState\(initialStep\)/)
@@ -36,7 +36,7 @@ test('new order starts on the context-appropriate step and customer step contain
 })
 
 test('customer step exposes same-day scheduling controls and helper text', async () => {
-  const source = await read('../components/NewOrderCustomerStep.jsx')
+  const source = await read('./components/NewOrderCustomerStep.jsx')
   assert.match(source, /Quando preparar\?/)
   assert.match(source, />Agora</)
   assert.match(source, />Agendado</)
@@ -47,8 +47,8 @@ test('customer step exposes same-day scheduling controls and helper text', async
 })
 
 test('products step focuses on catalog and exposes a subtotal-only cart summary', async () => {
-  const productsStep = await read('../components/NewOrderProductsStep.jsx')
-  const cartSummary = await read('../components/NewOrderCartSummary.jsx')
+  const productsStep = await read('./components/NewOrderProductsStep.jsx')
+  const cartSummary = await read('./components/NewOrderCartSummary.jsx')
 
   assert.match(productsStep, /OrderProductCatalog/)
   assert.match(productsStep, /NewOrderCartSummary/)
@@ -63,8 +63,8 @@ test('products step focuses on catalog and exposes a subtotal-only cart summary'
 })
 
 test('review step owns the full cart and financial checkout composition', async () => {
-  const reviewStep = await read('../components/NewOrderReviewStep.jsx')
-  const productsStep = await read('../components/NewOrderProductsStep.jsx')
+  const reviewStep = await read('./components/NewOrderReviewStep.jsx')
+  const productsStep = await read('./components/NewOrderProductsStep.jsx')
 
   assert.match(reviewStep, /OrderCart/)
   assert.match(reviewStep, /OrderCheckoutSummary/)
@@ -90,7 +90,7 @@ test('step navigation preserves the single draft and focuses the active step', a
 
 test('wizard dirty state tracks the selected table and optional local client', async () => {
   const page = await read('./NewOrder.jsx')
-  const flow = await read('../domains/orders/domain/newOrderStepFlow.js')
+  const flow = await read('../domain/newOrderStepFlow.js')
 
   assert.match(page, /createNewOrderDirtySnapshot\(\{[\s\S]*selectedTableId,[\s\S]*localClientId,/)
   assert.match(page, /isNewOrderDraftDirty\(\{[\s\S]*selectedTableId,[\s\S]*localClientId,/)

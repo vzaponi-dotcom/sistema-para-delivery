@@ -16,7 +16,7 @@ const baseNewOrderProps = {
 
 test('a new common order uses only active modalities and the current default', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: NewOrder } = await h.load('/src/pages/NewOrder.jsx')
+  const { default: NewOrder } = await h.load('/src/domains/orders/ui/NewOrder.jsx')
   const screen = await h.render(NewOrder, {
     ...baseNewOrderProps,
     modalityOptions: modalities('Retirada'),
@@ -30,7 +30,7 @@ test('a new common order uses only active modalities and the current default', a
 
 test('a policy refresh keeps a still-valid selection instead of reapplying the new default', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: NewOrder } = await h.load('/src/pages/NewOrder.jsx')
+  const { default: NewOrder } = await h.load('/src/domains/orders/ui/NewOrder.jsx')
   const props = { ...baseNewOrderProps, modalityOptions: modalities('Entrega', 'Retirada'), defaultModality: 'Entrega', modalityRevision: 1 }
   const screen = await h.render(NewOrder, props)
   await act(async () => buttonNamed(screen.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Retirada').props.onClick())
@@ -41,7 +41,7 @@ test('a policy refresh keeps a still-valid selection instead of reapplying the n
 test('an open order keeps an inactive selection, cart and client until explicit review', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'), h.load('/src/components/NewOrderReviewStep.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
   ])
   const props = { ...baseNewOrderProps, modalityOptions: modalities('Entrega', 'Retirada'), defaultModality: 'Entrega', modalityRevision: 4 }
   const screen = await h.render(NewOrder, props)
@@ -65,7 +65,7 @@ test('an open order keeps an inactive selection, cart and client until explicit 
 test('table context uses Local only while Local is active and otherwise requests review', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'),
   ])
   const screen = await h.render(NewOrder, {
     ...baseNewOrderProps,
@@ -82,7 +82,7 @@ test('table context uses Local only while Local is active and otherwise requests
 test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'), h.load('/src/components/NewOrderReviewStep.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
   ])
   let refreshes = 0
   const screen = await h.render(NewOrder, {

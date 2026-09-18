@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { workspaceHarness, nodeText } from '../test-support/renderWorkspace.js'
+import { workspaceHarness, nodeText } from '../../../test-support/renderWorkspace.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('new order uses one searchable client picker without phone in the selected label', () => {
-  const customerStep = source('../components/NewOrderCustomerStep.jsx')
+  const customerStep = source('./components/NewOrderCustomerStep.jsx')
 
   assert.match(customerStep, /new-order-client-picker/)
   assert.match(customerStep, /role="combobox"/)
@@ -19,7 +19,7 @@ test('new order uses one searchable client picker without phone in the selected 
 test('new order from a selected table starts at products without marking the untouched draft dirty', async (t) => {
   const harness = await workspaceHarness(t)
   const dirtyStates = []
-  const { default: NewOrder } = await harness.load('/src/pages/NewOrder.jsx')
+  const { default: NewOrder } = await harness.load('/src/domains/orders/ui/NewOrder.jsx')
   const renderer = await harness.render(NewOrder, {
     clients: [],
     products: [],
@@ -43,7 +43,7 @@ test('new order from a selected table starts at products without marking the unt
 
 test('quick client phone reuses the normal phone mask', () => {
   const page = source('./NewOrder.jsx')
-  const customerStep = source('../components/NewOrderCustomerStep.jsx')
+  const customerStep = source('./components/NewOrderCustomerStep.jsx')
 
   assert.match(page, /formatPhone/)
   assert.match(page, /phone: formatPhone\(patch\.phone\)/)
@@ -52,9 +52,9 @@ test('quick client phone reuses the normal phone mask', () => {
 
 test('product catalog replaces added action with synchronized quantity controls', () => {
   const page = source('./NewOrder.jsx')
-  const productsStep = source('../components/NewOrderProductsStep.jsx')
-  const catalog = source('../components/OrderProductCatalog.jsx')
-  const css = source('../new-order.css')
+  const productsStep = source('./components/NewOrderProductsStep.jsx')
+  const catalog = source('./components/OrderProductCatalog.jsx')
+  const css = source('../../../new-order.css')
 
   assert.match(page, /decrementCartProduct/)
   assert.match(page, /onDecrease=\{\(productId\) => setItems/)
@@ -68,7 +68,7 @@ test('product catalog replaces added action with synchronized quantity controls'
 })
 
 test('product catalog starts empty until a category is selected or search is typed', () => {
-  const catalog = source('../components/OrderProductCatalog.jsx')
+  const catalog = source('./components/OrderProductCatalog.jsx')
 
   assert.match(catalog, /const \[category, setCategory\] = useState\(null\)/)
   assert.doesNotMatch(catalog, /\['Todos',/)
@@ -77,7 +77,7 @@ test('product catalog starts empty until a category is selected or search is typ
 })
 
 test('product search ignores the selected category and adding keeps the category active', () => {
-  const catalog = source('../components/OrderProductCatalog.jsx')
+  const catalog = source('./components/OrderProductCatalog.jsx')
 
   assert.match(catalog, /if \(normalized\) return matchesSearch/)
   assert.match(catalog, /return uiCategory === category/)
@@ -86,7 +86,7 @@ test('product search ignores the selected category and adding keeps the category
 
 test('item note typing preserves spaces and commits normalization on blur', () => {
   const page = source('./NewOrder.jsx')
-  const cart = source('../components/OrderCart.jsx')
+  const cart = source('./components/OrderCart.jsx')
 
   assert.match(page, /editCartItemNote/)
   assert.match(page, /commitCartItemNote/)
@@ -97,7 +97,7 @@ test('item note typing preserves spaces and commits normalization on blur', () =
 })
 
 test('item observation stays collapsed until requested and collapses to a summary after editing', () => {
-  const cart = source('../components/OrderCart.jsx')
+  const cart = source('./components/OrderCart.jsx')
 
   assert.match(cart, /useState/)
   assert.match(cart, /Adicionar observação/)
@@ -108,8 +108,8 @@ test('item observation stays collapsed until requested and collapses to a summar
 })
 
 test('cart item layout is horizontal and compact with quantity on the left', () => {
-  const cart = source('../components/OrderCart.jsx')
-  const css = source('../new-order.css')
+  const cart = source('./components/OrderCart.jsx')
+  const css = source('../../../new-order.css')
 
   assert.match(cart, /new-order-cart-quantity/)
   assert.match(cart, /new-order-cart-content/)
@@ -118,8 +118,8 @@ test('cart item layout is horizontal and compact with quantity on the left', () 
 })
 
 test('product form uses a BRL formatted text input', () => {
-  const app = source('../App.jsx')
-  const form = source('../components/ProductForm.jsx')
+  const app = source('../../../App.jsx')
+  const form = source('../../../components/ProductForm.jsx')
 
   assert.match(form, /formatBRLCurrencyInput/)
   assert.match(app, /parseBRLCurrencyInput/)
@@ -140,10 +140,10 @@ test('new order keeps money display formatted but normalizes preview and payload
 
 test('new order still exposes catalog, cart and both checkout actions', () => {
   const page = source('./NewOrder.jsx')
-  const customerStep = source('../components/NewOrderCustomerStep.jsx')
-  const catalog = source('../components/OrderProductCatalog.jsx')
-  const cart = source('../components/OrderCart.jsx')
-  const checkout = source('../components/OrderCheckoutSummary.jsx')
+  const customerStep = source('./components/NewOrderCustomerStep.jsx')
+  const catalog = source('./components/OrderProductCatalog.jsx')
+  const cart = source('./components/OrderCart.jsx')
+  const checkout = source('./components/OrderCheckoutSummary.jsx')
 
   assert.match(page, /Nova venda/)
   assert.match(customerStep, /\+ Novo cliente/)
@@ -167,8 +167,8 @@ test('wizard keeps checkout payload unchanged and never persists intermediate st
 
 test('scheduling uses the shared business timezone source', () => {
   const page = source('./NewOrder.jsx')
-  const review = source('../components/NewOrderReviewStep.jsx')
-  assert.match(page, /import \{ getBusinessDate \} from '..\/\.\.?\/shared\/finance\.js'/)
+  const review = source('./components/NewOrderReviewStep.jsx')
+  assert.match(page, /import \{ getBusinessDate \} from '\.\.\/\.\.\/\.\.\/\.\.\/shared\/finance\.js'/)
   assert.match(page, /useState\(getBusinessDate\(\)\)/)
   assert.match(page, /todayValue=\{getBusinessDate\(\)\}/)
   assert.match(review, /FINANCE_TIME_ZONE/)

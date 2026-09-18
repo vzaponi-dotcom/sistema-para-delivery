@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('NewOrder customer step uses pressed options for order type', async () => {
-  const page = await read('./pages/NewOrder.jsx')
-  const customerStep = await read('./components/NewOrderCustomerStep.jsx')
+  const page = await read('./domains/orders/ui/NewOrder.jsx')
+  const customerStep = await read('./domains/orders/ui/components/NewOrderCustomerStep.jsx')
   const orderTypes = await read('./domains/orders/domain/orderTypeOptions.js')
 
   assert.doesNotMatch(page, /import SystemSelect/)
@@ -21,7 +21,7 @@ test('NewOrder customer step uses pressed options for order type', async () => {
 })
 
 test('checkout uses SystemSelect for adjustment mode and payment', async () => {
-  const source = await read('./components/OrderCheckoutSummary.jsx')
+  const source = await read('./domains/orders/ui/components/OrderCheckoutSummary.jsx')
   for (const label of ['Ajuste do pedido', 'Modo', 'Forma de pagamento']) assert.match(source, new RegExp(`label="${label}"`))
   assert.doesNotMatch(source, /<select/)
 })

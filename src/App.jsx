@@ -22,10 +22,10 @@ import {
   paymentSelectionNeedsReview,
 } from './utils/paymentMethodOptions.js'
 import { cancellationOptionsFromEffective, cancellationRevisionFromEffective } from './domains/orders/index.js'
+import { NewOrderRoute } from './domains/orders/index.js'
 import { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } from './utils/financeCategoryOptions.js'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
-import { NewOrderRoute } from './pages/NewOrderRoute'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'

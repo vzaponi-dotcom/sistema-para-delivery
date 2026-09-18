@@ -1,7 +1,7 @@
-import Button from './Button'
+import Button from '../../../../components/Button'
 import OrderCart from './OrderCart'
 import OrderCheckoutSummary from './OrderCheckoutSummary'
-import { FINANCE_TIME_ZONE } from '../../shared/finance.js'
+import { FINANCE_TIME_ZONE } from '../../../../../shared/finance.js'
 
 function NewOrderReviewStep({ customerSummary, itemCount, cartProps, checkoutProps, disabled, canAdjustOrders = true, onBack }) {
   const scheduledFor = checkoutProps?.draft?.scheduledFor

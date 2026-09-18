@@ -20,7 +20,7 @@ test('new-order route preserves bootstrap table tabs and operational callbacks f
 
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   try {
-    const { NewOrderRoute, tableTabsFromBootstrap } = await vite.ssrLoadModule('/src/pages/NewOrderRoute.jsx')
+    const { NewOrderRoute, tableTabsFromBootstrap } = await vite.ssrLoadModule('/src/domains/orders/ui/NewOrderRoute.jsx')
     await act(async () => {
       create(React.createElement(NewOrderRoute, {
         clients: [],

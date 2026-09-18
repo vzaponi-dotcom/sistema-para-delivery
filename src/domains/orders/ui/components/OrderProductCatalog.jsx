@@ -3,9 +3,9 @@ import {
   PRODUCT_CATEGORIES,
   categoryForUi,
   formatProductPresentation,
-} from '../../shared/productCatalog.js'
-import { getCartProductQuantity } from '../domains/orders/index.js'
-import Button from './Button'
+} from '../../../../../shared/productCatalog.js'
+import { getCartProductQuantity } from '../../domain/orderCart.js'
+import Button from '../../../../components/Button'
 
 function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd, onDecrease }) {
   const [search, setSearch] = useState('')

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { findClientDuplicates } from '../../shared/clientIdentity.js'
-import { getBusinessDate } from '../../shared/finance.js'
-import { validateCustomerIdentity } from '../../shared/orderCustomerIdentity.js'
-import Button from '../components/Button'
-import ClientDuplicateModal from '../components/ClientDuplicateModal'
-import NewOrderCustomerStep from '../components/NewOrderCustomerStep'
-import NewOrderProductsStep from '../components/NewOrderProductsStep'
-import NewOrderReviewStep from '../components/NewOrderReviewStep'
-import NewOrderStepIndicator from '../components/NewOrderStepIndicator'
-import PageHeader from '../components/PageHeader'
+import { findClientDuplicates } from '../../../../shared/clientIdentity.js'
+import { getBusinessDate } from '../../../../shared/finance.js'
+import { validateCustomerIdentity } from '../../../../shared/orderCustomerIdentity.js'
+import Button from '../../../components/Button'
+import ClientDuplicateModal from '../../../components/ClientDuplicateModal'
+import NewOrderCustomerStep from './components/NewOrderCustomerStep'
+import NewOrderProductsStep from './components/NewOrderProductsStep'
+import NewOrderReviewStep from './components/NewOrderReviewStep'
+import NewOrderStepIndicator from './components/NewOrderStepIndicator'
+import PageHeader from '../../../components/PageHeader'
 import {
   addCartItem,
   buildOrderPayload,
@@ -18,8 +18,8 @@ import {
   editCartItemNote,
   removeCartItem,
   updateCartItem,
-} from '../domains/orders/index.js'
-import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../utils/formFormatting.js'
+} from '../domain/orderCart.js'
+import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../../../utils/formFormatting.js'
 import {
   NEW_ORDER_STEPS,
   canNavigateToNewOrderStep,
@@ -29,9 +29,9 @@ import {
   getOrderItemCount,
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
-} from '../domains/orders/index.js'
-import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../shared/orderTiming.js'
-import { ORDER_TYPE_OPTIONS } from '../domains/orders/index.js'
+} from '../domain/newOrderStepFlow.js'
+import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../../../shared/orderTiming.js'
+import { ORDER_TYPE_OPTIONS } from '../domain/orderTypeOptions.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 

@@ -1,7 +1,7 @@
-import Button from './Button'
-import LocalTableSelector from './LocalTableSelector'
-import { formatScheduledTimeInput } from '../utils/formFormatting.js'
-import { ORDER_TYPE_OPTIONS } from '../domains/orders/index.js'
+import Button from '../../../../components/Button'
+import LocalTableSelector from '../../../../components/LocalTableSelector'
+import { formatScheduledTimeInput } from '../../../../utils/formFormatting.js'
+import { ORDER_TYPE_OPTIONS } from '../../domain/orderTypeOptions.js'
 
 function NewOrderCustomerStep({
   clients,
