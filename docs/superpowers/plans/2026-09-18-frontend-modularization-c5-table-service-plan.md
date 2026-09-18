@@ -42,8 +42,13 @@
   - RED: `78d246915eed7847b3db9719e5c2e02137d996c7`; Validate #1308 / run `35380889353` failed for the intended missing-`tableServiceApi.js` reason.
   - GREEN: `7ef5fc7a68292e17372bb15a9d23131c38ecfd48`; Validate #1309 / run `35381219700` — **1,711 tests / 1,710 pass / 0 fail / 1 skipped**; remaining gates green.
   - `useTableTabDetail` now defaults to `tableServiceApi`; legacy `getTableTabDetail` is removed; C6/C9 APIs remain in the legacy client.
-- Task 5: **NOT STARTED / NEXT**.
-- Tasks 6–11: **NOT STARTED**.
+- Task 5: **COMPLETE / GREEN**.
+  - RED: `ec27b99d4528d9e0ae4af2eed5d369f04658eeaa`; Validate #1311 failed for the intended missing-`useTableServiceCommands.js` reason.
+  - GREEN candidate: `aab6ca4ccb0461510a65bbb3a079808174229d4d`; all new command tests passed, but Validate #1312 exposed one stale `tablesNavigation.test.js` source-contract.
+  - Final test-only alignment: `44f9b9e0f4410ae909873811fff70b2c5b80f083`; Validate #1313 / run `35382601189` — **1,716 tests / 1,715 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - App no longer owns create/rename/active/reorder/transfer handlers. Legacy C5 API exports are removed; C6/C9 endpoints remain untouched.
+- Task 6: **NOT STARTED / NEXT**.
+- Tasks 7–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -807,7 +812,7 @@ git commit -m "refactor: move table service api ownership"
 - A client-side stale transfer target triggers current stale feedback + official refresh and no request.
 - 409 triggers one refresh, surfaces the API error and never retries.
 
-- [ ] **Step 1: Write RED command tests**
+- [x] **Step 1: Write RED command tests**
 
 Use an injectable API and `getOfficialTables` function. Cover:
 - each management command is blocked when `writesBlocked` or missing `canManageTables`;
@@ -834,7 +839,7 @@ assert.equal(refreshCalls, 1)
 assert.equal(errors[0].status, 409)
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/table-service/application/useTableServiceCommands.test.js
@@ -842,7 +847,7 @@ node --test src/domains/table-service/application/useTableServiceCommands.test.j
 
 Expected: FAIL because the hook does not exist.
 
-- [ ] **Step 3: Implement the command hook**
+- [x] **Step 3: Implement the command hook**
 
 Use `tableServiceApi` by default and the pure `validateTransferIntent` before transfer. Preserve current success copies exactly:
 
@@ -887,7 +892,7 @@ try {
 
 Use analogous `try/catch/finally` blocks for create/rename/active/reorder, preserving current request keys.
 
-- [ ] **Step 4: Compose the hook in App**
+- [x] **Step 4: Compose the hook in App**
 
 Instantiate once with:
 - `getOfficialTables` from runtime;
@@ -902,7 +907,7 @@ Instantiate once with:
 
 Replace `handleCreateTable`, `handleRenameTable`, `handleSetTableActive`, `handleReorderTables` and `handleTransferTableTab` with the returned command functions.
 
-- [ ] **Step 5: Remove C5 command exports from legacy API client**
+- [x] **Step 5: Remove C5 command exports from legacy API client**
 
 Delete these declarations from `src/api/client.js`:
 
@@ -918,13 +923,13 @@ Do not touch `registerTableTabPayment`, `getTableTabPrintDocument` or `createMan
 
 Remove their App imports.
 
-- [ ] **Step 6: Update source-contract tests to the new owner**
+- [x] **Step 6: Update source-contract tests to the new owner**
 
 Change `src/tablesAppWiring.test.js` so it no longer expects handler implementations in App. Instead assert App imports/uses `useTableServiceCommands` and still passes returned callbacks to the Tables surface.
 
 Change `src/tableTabsAppWiring.test.js` so the transfer test no longer source-matches App implementation; assert the legacy API still exposes `registerTableTabPayment` only and run the command hook test for authoritative transfer effects.
 
-- [ ] **Step 7: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 ```bash
 node --test   src/domains/table-service/application/useTableServiceCommands.test.js   src/domains/table-service/infrastructure/tableServiceApi.test.js   src/tablesAppWiring.test.js   src/tableTabsAppWiring.test.js   src/tableTransferIdentityUi.test.js   src/comandasTransferNavigation.test.js   src/api/client.test.js   src/api/tableTabClient.test.js
@@ -932,7 +937,7 @@ node --test   src/domains/table-service/application/useTableServiceCommands.test
 
 Expected: PASS.
 
-- [ ] **Step 8: Audit App/API ownership**
+- [x] **Step 8: Audit App/API ownership**
 
 ```bash
 rg "createTableApi|updateTableApi|reorderTablesApi|transferTableTabApi|handleCreateTable|handleRenameTable|handleSetTableActive|handleReorderTables|handleTransferTableTab" src/App.jsx
@@ -941,7 +946,7 @@ rg "export const (createTable|updateTable|reorderTables|transferTableTab|getTabl
 
 Expected: no output.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/domains/table-service src/App.jsx src/api src/tablesAppWiring.test.js src/tableTabsAppWiring.test.js src/tableTransferIdentityUi.test.js src/comandasTransferNavigation.test.js

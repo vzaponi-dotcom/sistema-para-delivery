@@ -54,7 +54,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 3 is **COMPLETE / GREEN** at `4fcfff12a3357dfbeb1587142b643a0db55702bf`; Validate #1306 / run `35380450226` passed. `Comandas.jsx` no longer owns direct detail HTTP/loading.
 - Task 4 is **COMPLETE / GREEN** at `7ef5fc7a68292e17372bb15a9d23131c38ecfd48`; Validate #1309 / run `35381219700` passed.
 - The temporary Task 3 dependency on legacy `getTableTabDetail` is removed. Detail HTTP now belongs to `domains/table-service/infrastructure/tableServiceApi.js`.
-- The remaining C5 API debt is limited to `createTable`, `updateTable`, `reorderTables` and `transferTableTab` in `src/api/client.js`, intentionally retained only until Task 5 migrates App command ownership.
+- Task 5 is **COMPLETE / GREEN** at final fix HEAD `44f9b9e0f4410ae909873811fff70b2c5b80f083`; Validate #1313 / run `35382601189` passed.
+- App table-management/transfer handlers are removed and replaced by `useTableServiceCommands`.
+- C5 API debt in `src/api/client.js` is now cleared: `createTable`, `updateTable`, `reorderTables`, `transferTableTab` and `getTableTabDetail` are absent. Table-tab payment remains C6; print document/manual print job remain C9.
 - The payment-receipt bridge remains intentionally active until C6.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
