@@ -15,3 +15,4 @@ export {
   getTransferDestinations,
   validateTransferIntent,
 } from './domain/tableTransfer.js'
+export { useComandaSelection } from './application/useComandaSelection.js'

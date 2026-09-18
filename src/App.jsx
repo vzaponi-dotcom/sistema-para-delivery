@@ -33,6 +33,10 @@ import {
   useOrderCommands,
 } from './domains/orders/index.js'
 import {
+  resolveOpenComanda,
+  useComandaSelection,
+} from './domains/table-service/index.js'
+import {
   paymentDefaultFromEffective,
   paymentOptionsFromEffective,
   paymentOptionsWithSelection,
@@ -104,8 +108,6 @@ const emptyProduct = () => ({ category: 'Refeições', presentationType: 'size',
 
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
-  const [selectedComanda, setSelectedComanda] = useState(null)
-  const [selectedComandaGeneration, setSelectedComandaGeneration] = useState(0)
   const [newClient, setNewClient] = useState({ name: '', phone: '', address: '' })
   const [editingClientId, setEditingClientId] = useState(null)
   const [showClientForm, setShowClientForm] = useState(false)
@@ -141,8 +143,6 @@ function App({ capabilities } = {}) {
   const paymentDialogRef = useRef(null)
   const paymentAttemptRef = useRef(null)
   const paymentSequenceRef = useRef(0)
-  const comandaSelectionRef = useRef(0)
-  const comandaIdentityRef = useRef(null)
   // Accepted financial obligations outlive dialog/selection ownership. More than
   // one can exist when another comanda starts payment before the first responds.
   const paymentSyncRef = useRef(new Set())
@@ -150,7 +150,7 @@ function App({ capabilities } = {}) {
   const pausedRecoverySecondCopyJobIdRef = useRef(null)
   const previousRecoveryStateRef = useRef(null)
   const effectiveConfigVersionRef = useRef(null)
-  const operationalBridgeTargetsRef = useRef({ onUnauthorized: null, settlePaymentOwners: null, onTablesCommitted: null })
+  const operationalBridgeTargetsRef = useRef({ onUnauthorized: null, settlePaymentOwners: null })
   const sessionRuntimeTargetsRef = useRef({
     refreshBootstrap: async () => {},
     resetOperationalData: () => {},
@@ -243,7 +243,6 @@ function App({ capabilities } = {}) {
   const operationalLegacyBridges = useMemo(() => ({
     capturePaymentOwners: () => [...paymentSyncRef.current],
     settlePaymentOwners: (owners, receipt) => operationalBridgeTargetsRef.current.settlePaymentOwners?.(owners, receipt),
-    onTablesCommitted: (nextTables) => operationalBridgeTargetsRef.current.onTablesCommitted?.(nextTables),
   }), [])
   const handleOperationalUnauthorized = useCallback((error) => operationalBridgeTargetsRef.current.onUnauthorized?.(error), [])
   const getEffectiveConfigVersion = useCallback(() => effectiveConfigVersionRef.current, [])
@@ -272,6 +271,15 @@ function App({ capabilities } = {}) {
     effectiveConfigVersion: getEffectiveConfigVersion,
     legacyBridges: operationalLegacyBridges,
   })
+  const {
+    selection: selectedComanda,
+    selectionGeneration: selectedComandaGeneration,
+    selectComanda,
+    clearComandaSelection,
+    resetComandaSelection,
+    ownsComandaSelection,
+    getComandaSelectionOwner,
+  } = useComandaSelection({ tables })
   // Session bootstrap/cleanup needs operational actions, while operational polling
   // needs auth state. Stable render-time targets break that hook-order cycle without
   // moving either responsibility back into App.
@@ -386,9 +394,6 @@ function App({ capabilities } = {}) {
     paymentAttemptRef.current = null
     paymentSyncRef.current = new Set()
     setTableTabSync(null)
-    comandaIdentityRef.current = null
-    comandaSelectionRef.current += 1
-    setSelectedComandaGeneration(comandaSelectionRef.current)
     effectiveConfigVersionRef.current = null
   }
   sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState
@@ -396,7 +401,7 @@ function App({ capabilities } = {}) {
   const clearBusinessData = () => {
     resetNavigation()
     resetQueries()
-    setSelectedComanda(null)
+    resetComandaSelection()
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
@@ -405,9 +410,11 @@ function App({ capabilities } = {}) {
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
   const ownsPaymentSelection = (owner) => owner?.guard === getSyncGuard()
-    && owner.selection === comandaSelectionRef.current
-    && owner.tableId === comandaIdentityRef.current?.tableId
-    && owner.tabId === comandaIdentityRef.current?.tableTabId
+    && ownsComandaSelection({
+      tableId: owner.tableId,
+      tableTabId: owner.tabId,
+      selectionGeneration: owner.selectionGeneration,
+    })
 
   const retirePaymentUI = useCallback(() => {
     const owner = tableTabPaymentRef.current
@@ -415,31 +422,19 @@ function App({ capabilities } = {}) {
     tableTabPaymentRef.current = null
   }, [])
 
-  const selectComanda = (target) => {
+  useEffect(() => {
     retirePaymentUI()
-    comandaSelectionRef.current += 1
-    setSelectedComandaGeneration(comandaSelectionRef.current)
-    const identity = target ? { tableId: target.tableId, tableTabId: target.tableTabId } : null
-    comandaIdentityRef.current = identity
-    setSelectedComanda(identity)
-  }
-
-  const resolveOpenComanda = (target) => {
-    if (!target?.tableId || !target?.tableTabId) return null
-    const table = getOfficialTables().find((item) => item.id === target.tableId)
-    if (!table?.isActive || table.occupancy !== 'occupied' || table.openTableTab?.id !== target.tableTabId) return null
-    return { tableId: table.id, tableTabId: table.openTableTab.id }
-  }
+  }, [selectedComandaGeneration, retirePaymentUI])
 
   const selectCurrentComanda = (target) => {
-    const identity = resolveOpenComanda(target)
+    const currentTables = getOfficialTables()
+    const identity = resolveOpenComanda(currentTables, target)
     if (!identity) {
       setToastMessage('A comanda mudou ou não está mais disponível. A consulta foi atualizada.')
       void refreshBootstrapSilently()
       return false
     }
-    selectComanda(identity)
-    return true
+    return selectComanda(identity, currentTables)
   }
 
   newOrderDraftTargetsRef.current = {
@@ -451,7 +446,10 @@ function App({ capabilities } = {}) {
       const { order, tableTab, tables: nextTables } = result || {}
       if (context.returnDestination === 'comandas' && tableTab?.id) {
         const table = nextTables?.find((item) => item.isActive && item.occupancy === 'occupied' && item.openTableTab?.id === tableTab.id)
-        if (table) selectComanda({ tableId: table.id, tableTabId: tableTab.id })
+        const identity = table
+          ? resolveOpenComanda(nextTables, { tableId: table.id, tableTabId: tableTab.id })
+          : null
+        if (identity) selectComanda(identity, nextTables)
       }
       if (order?.id) setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
       completeNavigation(context.returnDestination)
@@ -485,35 +483,14 @@ function App({ capabilities } = {}) {
     paymentSyncRef.current.delete(owner)
     publishPaymentSync()
     if (ownsPaymentSelection(owner) && !replaced) {
-      selectComanda(null)
+      clearComandaSelection()
       setSuccessMessage(`Pagamento de ${formatTableIdentifierLabel(owner.tableIdentifier)} recebido via ${owner.method}`)
     }
     return true
   }
 
-  const onTablesCommitted = (nextTables) => {
-    const identity = comandaIdentityRef.current
-    const currentTable = identity?.tableTabId
-      ? nextTables.find((table) => table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === identity.tableTabId)
-      : null
-    if (currentTable) {
-      if (currentTable.id !== identity.tableId) {
-        const nextIdentity = { tableId: currentTable.id, tableTabId: identity.tableTabId }
-        comandaIdentityRef.current = nextIdentity
-        setSelectedComanda(nextIdentity)
-      }
-    } else if (identity) {
-      retirePaymentUI()
-      comandaSelectionRef.current += 1
-      setSelectedComandaGeneration(comandaSelectionRef.current)
-      comandaIdentityRef.current = null
-      setSelectedComanda(null)
-    }
-  }
-
   operationalBridgeTargetsRef.current.onUnauthorized = expireSession
   operationalBridgeTargetsRef.current.settlePaymentOwners = (owners, receipt) => owners.forEach((owner) => settleAcceptedPayment(owner, receipt))
-  operationalBridgeTargetsRef.current.onTablesCommitted = onTablesCommitted
 
   const showApiError = (error) => {
     if (error?.status === 401) return expireSession()
@@ -748,16 +725,21 @@ function App({ capabilities } = {}) {
     if (!canCreateOrders || writesBlocked) return false
     let currentTableId = tableId
     if (expectedTableTabId) {
-      const currentTable = getOfficialTables().find((table) => table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === expectedTableTabId)
-      if (!currentTable) {
-        selectComanda(null)
+      const currentTables = getOfficialTables()
+      const selectionOwner = getComandaSelectionOwner()
+      const candidate = selectionOwner?.tableTabId === expectedTableTabId
+        ? { tableId: selectionOwner.tableId, tableTabId: expectedTableTabId }
+        : { tableId, tableTabId: expectedTableTabId }
+      const identity = resolveOpenComanda(currentTables, candidate)
+      if (!identity) {
+        clearComandaSelection()
         setToastMessage('A comanda mudou ou não está mais disponível. A consulta foi atualizada.')
         void refreshBootstrapSilently()
         completeNavigation(returnTab)
         return
       }
-      currentTableId = currentTable.id
-      selectComanda({ tableId: currentTable.id, tableTabId: expectedTableTabId })
+      currentTableId = identity.tableId
+      selectComanda(identity, currentTables)
     }
     newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
     return completeNavigation('new-order')
@@ -836,11 +818,12 @@ function App({ capabilities } = {}) {
   }
 
   const handleRegisterTableTabPayment = async (tableTabId, method) => {
-    const selected = getOfficialTables().find((table) => table.id === comandaIdentityRef.current?.tableId && table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === tableTabId && tableTabId === comandaIdentityRef.current?.tableTabId)
-    if (writesBlocked || tableTabPaymentRef.current || paymentSyncRef.current.size || !selected) return false
+    const selectionOwner = getComandaSelectionOwner()
+    const selected = getOfficialTables().find((table) => table.id === selectionOwner?.tableId && table.isActive && table.occupancy === 'occupied' && table.openTableTab?.id === tableTabId && tableTabId === selectionOwner?.tableTabId)
+    if (writesBlocked || tableTabPaymentRef.current || paymentSyncRef.current.size || !selectionOwner || !selected) return false
     const guard = getSyncGuard()
     const revision = getOfficialRevision()
-    const owner = { guard, selection: comandaSelectionRef.current, tableId: selected.id, tabId: tableTabId, method, requestKey: `table-tab:payment:${tableTabId}` }
+    const owner = { guard, selectionGeneration: selectionOwner.selectionGeneration, tableId: selected.id, tabId: tableTabId, method, requestKey: `table-tab:payment:${tableTabId}` }
     tableTabPaymentRef.current = owner
     const ownsRequest = () => getSyncGuard() === guard && tableTabPaymentRef.current === owner
     setRequestKey(owner.requestKey)
@@ -913,7 +896,7 @@ function App({ capabilities } = {}) {
   }
   const handleTransferTableTab = async (sourceTableId, destinationTableId, expectedTableTabId) => {
     if (writesBlocked || !canTransferComanda) return false
-    const source = resolveOpenComanda({ tableId: sourceTableId, tableTabId: expectedTableTabId })
+    const source = resolveOpenComanda(getOfficialTables(), { tableId: sourceTableId, tableTabId: expectedTableTabId })
     const destination = getOfficialTables().find((table) => table.id === destinationTableId)
     if (!source || !destination?.isActive || destination.occupancy !== 'free' || destination.id === source.tableId) {
       setToastMessage('A comanda ou a mesa de destino mudou. Atualizamos a consulta.')
@@ -934,15 +917,15 @@ function App({ capabilities } = {}) {
   }
   const handleOpenComanda = (target) => {
     if (!canOpenComanda) return false
-    const identity = resolveOpenComanda(target)
+    const currentTables = getOfficialTables()
+    const identity = resolveOpenComanda(currentTables, target)
     if (!identity) {
       setToastMessage('A comanda mudou ou não está mais disponível. A consulta foi atualizada.')
       void refreshBootstrapSilently()
       return false
     }
     if (!requestNavigation('comandas')) return false
-    selectComanda(identity)
-    return true
+    return selectComanda(identity, currentTables)
   }
   const handleUpdatePaymentPromise = async (orderId, promisedPaymentDate) => {
     if (!canManagePaymentPromises || writesBlocked) return false
