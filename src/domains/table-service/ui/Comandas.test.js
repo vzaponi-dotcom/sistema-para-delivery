@@ -95,17 +95,17 @@ test('free tables request an order; blocked writes still allow occupied-table co
   const harness = await workspaceHarness(t)
   const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
   const orders = [], selections = []
-  const props = { tables: workspaceTables, currency, onAddOrder: (id) => orders.push(id), onSelectComanda: (identity) => selections.push(identity) }
+  const props = { tables: workspaceTables, currency, onAddOrder: (intent) => orders.push(intent), onSelectComanda: (identity) => selections.push(identity) }
   const renderer = await harness.render(Comandas, props)
   await act(async () => list(renderer).findAllByType('button')[1].props.onClick())
-  assert.deepEqual(orders, ['free'])
+  assert.deepEqual(orders, [{ tableId: 'free', tableTabId: '', selectionGeneration: 0 }])
   assert.deepEqual(selections, [])
   await act(async () => renderer.update(React.createElement(Comandas, { ...props, disabled: true })))
   const [occupied, free] = list(renderer).findAllByType('button')
   assert.equal(free.props.disabled, true)
   assert.ok(!occupied.props.disabled)
   await act(async () => { free.props.onClick(); occupied.props.onClick() })
-  assert.deepEqual(orders, ['free'])
+  assert.deepEqual(orders, [{ tableId: 'free', tableTabId: '', selectionGeneration: 0 }])
   assert.deepEqual(selections, [occupiedSelection])
 })
 
