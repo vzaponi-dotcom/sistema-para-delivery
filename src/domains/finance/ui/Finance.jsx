@@ -1,30 +1,15 @@
 import { useState } from 'react'
-import Button from '../components/Button'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
-import ConfirmationDialog from '../components/ConfirmationDialog'
-import RegisterRefundDialog from '../components/RegisterRefundDialog'
-import StatCard from '../components/StatCard'
-import { formatCancellationDate } from '../domains/orders/index.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import Button from '../../../components/Button'
+import Icon from '../../../components/Icon'
+import PageHeader from '../../../components/PageHeader'
+import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import StatCard from '../../../components/StatCard'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
-function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, canManageMovements = true, canRefundPayments = true }) {
-  const [refundOrder, setRefundOrder] = useState(null)
-  const [refundSubmitting, setRefundSubmitting] = useState(false)
+function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRequestRefund, formatCancellationDate = () => 'Data não informada', canManageMovements = true, canRefundPayments = true }) {
   const [movementPendingDelete, setMovementPendingDelete] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
-
-  const confirmRefund = async (payload) => {
-    if (!canRefundPayments || !refundOrder || refundSubmitting || !onRegisterRefund) return false
-    setRefundSubmitting(true)
-    try {
-      const saved = await onRegisterRefund(refundOrder.id, payload)
-      if (saved !== false) setRefundOrder(null)
-    } finally {
-      setRefundSubmitting(false)
-    }
-  }
 
   return (
     <>
@@ -43,7 +28,7 @@ function Finance({ totals, movements, currency, onAddMovement, onEditMovement, o
               <article className="pending-refund-row" key={order.id}>
                 <div className="pending-refund-main"><strong>{formatOrderDisplayNumber(order)} · {order.client}</strong><span>Cancelado em {formatCancellationDate(order.cancelledAt)}</span></div>
                 <strong className="pending-refund-value">{currency(order.paidAmount || order.total || 0)}</strong>
-                {canRefundPayments && <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => { if (canRefundPayments) setRefundOrder(order) }} disabled={writeDisabled || refundSubmitting}>Registrar estorno</Button>}
+                {canRefundPayments && <Button type="button" variant="secondary" className="button-danger-outline" onClick={() => { if (canRefundPayments) onRequestRefund?.(order) }} disabled={writeDisabled}>Registrar estorno</Button>}
               </article>
             ))}
           </div>
@@ -62,7 +47,6 @@ function Finance({ totals, movements, currency, onAddMovement, onEditMovement, o
         </div>
         {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
       </section>
-      <RegisterRefundDialog open={canRefundPayments && Boolean(refundOrder)} order={refundOrder} paymentOptions={paymentOptions} onClose={() => setRefundOrder(null)} onConfirm={confirmRefund} submitting={refundSubmitting} />
       {movementPendingDelete && <ConfirmationDialog title="Excluir movimentação?" message={`A movimentação “${movementPendingDelete.description}” será removida do histórico visível.`} confirmLabel="Excluir movimentação" onConfirm={async () => { const deleted = await onDeleteMovement?.(movementPendingDelete.id); if (deleted !== false) setMovementPendingDelete(null) }} onClose={() => setMovementPendingDelete(null)} disabled={writeDisabled} />}
     </>
   )

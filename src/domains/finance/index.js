@@ -41,3 +41,5 @@ export {
   groupPendingOrders,
   sortReceivableEntries,
 } from './domain/receivables.js'
+
+export { FinanceWorkspace } from './ui/financeSurfaces.js'

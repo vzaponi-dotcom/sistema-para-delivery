@@ -3,10 +3,10 @@ import {
   formatSignedBRLCurrencyInput,
   formatSignedBRLCurrencyValue,
   parseSignedBRLCurrencyInput,
-} from '../utils/formFormatting.js'
-import Button from './Button'
-import ConfirmationDialog from './ConfirmationDialog'
-import Modal from './Modal'
+} from '../../../utils/formFormatting.js'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Modal from '../../../components/Modal'
 
 const buildDraft = (settings, today) => ({
   value: formatSignedBRLCurrencyValue(settings?.openingBalance ?? 0),

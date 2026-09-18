@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import { getMovementCategoryLabel } from '../../shared/finance.js'
+import { getMovementCategoryLabel } from '../../../../shared/finance.js'
 import {
   formatBRLCurrencyInput,
   formatBRLCurrencyValue,
   parseBRLCurrencyInput,
-} from '../utils/formFormatting.js'
-import Button from './Button'
-import ConfirmationDialog from './ConfirmationDialog'
-import Modal from './Modal'
-import SystemSelect from './SystemSelect'
-import { PAYMENT_METHOD_OPTIONS, paymentOptionsWithSelection, paymentSelectionNeedsReview } from '../utils/paymentMethodOptions.js'
-import { financeCategoryOptionsWithSelection, financeCategorySelectionNeedsReview } from '../utils/financeCategoryOptions.js'
+} from '../../../utils/formFormatting.js'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Modal from '../../../components/Modal'
+import SystemSelect from '../../../components/SystemSelect'
+import { PAYMENT_METHOD_OPTIONS, paymentOptionsWithSelection, paymentSelectionNeedsReview } from '../domain/paymentMethods.js'
+import { financeCategoryOptionsWithSelection, financeCategorySelectionNeedsReview } from '../domain/financeCategories.js'
 
 const TYPE_OPTIONS = [
   { value: 'entrada', label: 'Entrada' },

@@ -1,4 +1,4 @@
-import { calculateCurrentBalance, calculateReceivedToday, formatTableIdentifierLabel } from './domains/finance/index.js'
+import { FinanceWorkspace, calculateReceivedToday, formatTableIdentifierLabel } from './domains/finance/index.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './central-data.css'
@@ -12,14 +12,14 @@ import Button from './components/Button'
 import ClientDuplicateModal from './components/ClientDuplicateModal'
 import ConfirmationDialog from './components/ConfirmationDialog'
 import Modal from './components/Modal'
-import MovementDialog from './components/MovementDialog'
-import OpeningBalanceDialog from './components/OpeningBalanceDialog'
+import RegisterRefundDialog from './components/RegisterRefundDialog'
 import ProductForm from './components/ProductForm'
 import SystemSelect from './components/SystemSelect'
 import {
   cancellationOptionsFromEffective,
   cancellationRevisionFromEffective,
   canReceiveStandaloneOrder,
+  formatCancellationDate,
   getOrderRefundState,
   isOrderActive,
   isOrderCancelled,
@@ -51,7 +51,6 @@ import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
 import Receivables from './pages/Receivables'
-import Finance from './pages/Finance'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
@@ -77,17 +76,13 @@ import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './ut
 import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
   createClient as createClientApi,
-  createMovement as createMovementApi,
   createProduct as createProductApi,
   deleteClient as deleteClientApi,
-  deleteMovement as deleteMovementApi,
   deleteProduct as deleteProductApi,
   refundOrder as refundOrderApi,
   registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
-  saveFinanceSettings as saveFinanceSettingsApi,
   updateClient as updateClientApi,
-  updateMovement as updateMovementApi,
   updateOrderPaymentPromise as updateOrderPaymentPromiseApi,
   updateProduct as updateProductApi,
 } from './api/client'
@@ -112,11 +107,10 @@ function App({ capabilities } = {}) {
   const [editingProductId, setEditingProductId] = useState(null)
   const [showProductForm, setShowProductForm] = useState(false)
   const [newProduct, setNewProduct] = useState(emptyProduct)
-  const [movementDialogOpen, setMovementDialogOpen] = useState(false)
-  const [editingMovement, setEditingMovement] = useState(null)
-  const [openingBalanceDialogOpen, setOpeningBalanceDialogOpen] = useState(false)
   const [paymentTarget, setPaymentTarget] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [refundOrder, setRefundOrder] = useState(null)
+  const [refundSubmitting, setRefundSubmitting] = useState(false)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
   const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
@@ -402,7 +396,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    newOrderDraft.reset(); setPaymentTarget(null); setPaymentMethod(''); setMovementDialogOpen(false); setEditingMovement(null); setOpeningBalanceDialogOpen(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); setPaymentTarget(null); setPaymentMethod(''); setRefundOrder(null); setRefundSubmitting(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -602,8 +596,6 @@ function App({ capabilities } = {}) {
     const validOrders = orders.filter((order) => !isOrderCancelled(order)); const salesToday = validOrders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0); const receivedToday = calculateReceivedToday(movements, todayValue); const receivables = validOrders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0); const activeOrders = orders.filter(isOrderActive).length
     return { salesToday, receivedToday, receivables, activeOrders }
   }, [movements, orders, todayValue])
-  const financialTotals = useMemo(() => { const entries = movements.filter((movement) => movement.type === 'entrada').reduce((total, movement) => total + Number(movement.value), 0); const exits = movements.filter((movement) => movement.type === 'saida').reduce((total, movement) => total + Number(movement.value), 0); return { entries, exits, balance: entries - exits } }, [movements])
-  const currentFinanceBalance = useMemo(() => calculateCurrentBalance(movements, financeSettings), [financeSettings, movements])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
   const filteredClients = useMemo(() => { const normalizedSearch = query.clients.search.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => query.clients.sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clients, query.clients.search, query.clients.sort])
 
@@ -887,6 +879,27 @@ function App({ capabilities } = {}) {
     } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
   }
   const handleRegisterRefund = async (orderId, payload) => { if (!canRefundPayments || writesBlocked) return false; setRequestKey(`order:refund:${orderId}`); try { const { order, movement } = await refundOrderApi(orderId, payload); applyOfficialEffects({ order, movement }); showSuccessMessage('Estorno registrado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const openRefundDialog = (order) => {
+    if (!canRefundPayments || !order) return false
+    setRefundOrder(order)
+    return true
+  }
+  const closeRefundDialog = () => {
+    if (refundSubmitting) return false
+    setRefundOrder(null)
+    return true
+  }
+  const confirmRefund = async (payload) => {
+    if (!canRefundPayments || !refundOrder || refundSubmitting) return false
+    setRefundSubmitting(true)
+    try {
+      const saved = await handleRegisterRefund(refundOrder.id, payload)
+      if (saved !== false) setRefundOrder(null)
+      return saved
+    } finally {
+      setRefundSubmitting(false)
+    }
+  }
 
   const resetClientForm = () => { setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(false) }
   const openNewClient = () => { if (!canManageClients || writesBlocked) return false; setDuplicateClientDialog(null); setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(true); return true }
@@ -907,42 +920,6 @@ function App({ capabilities } = {}) {
   const handleAddProduct = async () => { if (!canManageProducts || writesBlocked || !newProduct.name.trim()) return false; const editing = editingProductId; setRequestKey(editing ? `product:update:${editing}` : 'product:create'); try { if (editing) { const { product } = await updateProductApi(editing, productPayload()); applyOfficialEffects({ product }); setEditingProductId(null); showSuccessMessage('Produto atualizado com sucesso') } else { const { product } = await createProductApi(productPayload()); applyOfficialEffects({ product }); showSuccessMessage('Produto adicionado com sucesso') } setNewProduct(emptyProduct()); setShowProductForm(false); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
   const handleDeleteProduct = async (productId) => { if (!canManageProducts || writesBlocked) return false; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); updateCollection('products', (current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
   const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
-
-  const openNewMovement = () => { if (!canManageMovements || writesBlocked) return false; setEditingMovement(null); setMovementDialogOpen(true); return true }
-  const openEditMovement = (movement) => { if (!canManageMovements || writesBlocked || movement?.source !== 'manual') return false; setEditingMovement(movement); setMovementDialogOpen(true); return true }
-  const closeMovementDialog = () => { setMovementDialogOpen(false); setEditingMovement(null) }
-  const handleSaveMovement = async (payload) => {
-    if (!canManageMovements || writesBlocked) return false
-    const movementId = editingMovement?.id ?? null
-    setRequestKey(movementId ? `movement:update:${movementId}` : 'movement:create')
-    try {
-      const { movement } = movementId ? await updateMovementApi(movementId, payload) : await createMovementApi(payload)
-      applyOfficialEffects({ movement })
-      showSuccessMessage(movementId ? 'Movimentação atualizada com sucesso' : 'Movimentação registrada com sucesso')
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
-  const handleDeleteMovement = async (movementId) => {
-    if (!canManageMovements || writesBlocked) return false
-    setRequestKey(`movement:delete:${movementId}`)
-    try {
-      const { deletedMovementId } = await deleteMovementApi(movementId)
-      applyOfficialEffects({ deletedMovementId })
-      showSuccessMessage('Movimentação excluída com sucesso')
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
-  const openOpeningBalanceDialog = () => { if (!canManageMovements || writesBlocked) return false; setOpeningBalanceDialogOpen(true); return true }
-  const handleSaveFinanceSettings = async (payload) => {
-    if (!canManageMovements || writesBlocked) return false
-    setRequestKey('finance-settings:save')
-    try {
-      const { financeSettings } = await saveFinanceSettingsApi(payload)
-      applyOfficialEffects({ financeSettings })
-      showSuccessMessage('Saldo inicial atualizado com sucesso')
-      return true
-    } catch (error) { showApiError(error); return false } finally { setRequestKey(null) }
-  }
 
   const activeMobileEntry = activeTab === 'new-order' ? newOrderDraft.context?.returnDestination : undefined
 
@@ -980,7 +957,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
         {activeTab === 'receivables' && <Receivables orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} onUpdatePaymentPromise={handleUpdatePaymentPromise} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'finance' && <Finance totals={financialTotals} movements={movements} financeSettings={financeSettings} currentBalance={currentFinanceBalance} currency={currency} onAddMovement={openNewMovement} onEditMovement={openEditMovement} onDeleteMovement={handleDeleteMovement} onConfigureOpeningBalance={openOpeningBalanceDialog} pendingRefundOrders={pendingRefundOrders} onRegisterRefund={handleRegisterRefund} paymentOptions={paymentOptions} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} />}
+        {activeTab === 'finance' && <FinanceWorkspace movements={movements} financeSettings={financeSettings} today={todayValue} currency={currency} pendingRefundOrders={pendingRefundOrders} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} writesBlocked={writesBlocked} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} formatCancellationDate={formatCancellationDate} onRequestRefund={openRefundDialog} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={tableServiceCommands.createTable} onRename={tableServiceCommands.renameTable} onSetActive={tableServiceCommands.setTableActive} onReorder={tableServiceCommands.reorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
         {activeTab === 'comandas' && (
           <TableServiceExternalActions
@@ -1042,8 +1019,7 @@ function App({ capabilities } = {}) {
         {canManageClients && showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
         {canManageClients && duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
         {canManageProducts && showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
-        <MovementDialog open={canManageMovements && movementDialogOpen} movement={editingMovement} today={todayValue} disabled={writesBlocked} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} onClose={closeMovementDialog} onSubmit={handleSaveMovement} />
-        <OpeningBalanceDialog open={canManageMovements && openingBalanceDialogOpen} settings={financeSettings} today={todayValue} currentBalance={currentFinanceBalance} disabled={writesBlocked} onClose={() => setOpeningBalanceDialogOpen(false)} onSubmit={handleSaveFinanceSettings} />
+        <RegisterRefundDialog open={canRefundPayments && Boolean(refundOrder)} order={refundOrder} paymentOptions={paymentOptions} onClose={closeRefundDialog} onConfirm={confirmRefund} submitting={refundSubmitting} />
       </AppShell>
       </NavigationProvider>
       </SettingsPolicyBoundary>
