@@ -52,7 +52,7 @@ test('mobile overlays use dynamic viewport sizing and internal scrolling', async
 
 test('new confirmation and cancellation review dialogs inherit the mobile-safe modal shell', async () => {
   const confirmation = await read('./components/ConfirmationDialog.jsx')
-  const cancellation = await read('./components/CancelOrderDialog.jsx')
+  const cancellation = await read('./domains/orders/ui/components/CancelOrderDialog.jsx')
   const foundation = await read('./mobile-foundation.css')
   const appCss = await read('./App.css')
 

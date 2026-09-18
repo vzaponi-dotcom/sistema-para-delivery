@@ -393,7 +393,11 @@ test('17. preferences.local altera tema e som sem capacidades de impressÃ£o', 
 
 test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set())
-  const pageModules = await Promise.all(['Orders', 'OrderHistory', 'Clients', 'Products', 'Receivables', 'Finance', 'Tables', 'Comandas', 'PrintQueue'].map((name) => h.load(`/src/pages/${name}.jsx`)))
+  const pageModules = await Promise.all([
+    h.load('/src/domains/orders/ui/Orders.jsx'),
+    h.load('/src/domains/orders/ui/OrderHistory.jsx'),
+    ...['Clients', 'Products', 'Receivables', 'Finance', 'Tables', 'Comandas', 'PrintQueue'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+  ])
   assert.equal(pageModules.reduce((count, module) => count + renderer.root.findAllByType(module.default).length, 0), 0)
   assert.ok(buttonNamed(renderer.root, 'Sair do sistema'))
 })
@@ -409,7 +413,15 @@ test('19. capability desconhecida nÃ£o concede aÃ§Ã£o nem invalida conheci
 test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos de ediÃ§Ã£o', async (t) => {
   const capabilities = new Set(['orders.history', 'clients.view', 'products.view', 'tables.view', 'comandas.view', 'finance.overview', 'finance.receivables', 'finance.movements', 'printing.queue'])
   const { h, renderer, requests } = await appWorkspace(t, capabilities)
-  const modules = Object.fromEntries(await Promise.all(['OrderHistory', 'Dashboard', 'Clients', 'Products', 'Tables', 'Receivables', 'Finance'].map(async (name) => [name, (await h.load(`/src/pages/${name}.jsx`)).default])))
+  const modules = Object.fromEntries(await Promise.all([
+    ['OrderHistory', '/src/domains/orders/ui/OrderHistory.jsx'],
+    ['Dashboard', '/src/pages/Dashboard.jsx'],
+    ['Clients', '/src/pages/Clients.jsx'],
+    ['Products', '/src/pages/Products.jsx'],
+    ['Tables', '/src/pages/Tables.jsx'],
+    ['Receivables', '/src/pages/Receivables.jsx'],
+    ['Finance', '/src/pages/Finance.jsx'],
+  ].map(async ([name, path]) => [name, (await h.load(path)).default])))
   modules.NewOrderRoute = (await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')).NewOrderRoute
   const before = mutations(requests).length
   let page = renderer.root.findByType(modules.OrderHistory)

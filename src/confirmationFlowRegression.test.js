@@ -16,7 +16,7 @@ test('a reusable confirmation dialog is available for significant actions', asyn
 })
 
 test('finalizing an order requires a review confirmation before the write callback', async () => {
-  const orders = await read('./pages/Orders.jsx')
+  const orders = await read('./domains/orders/ui/Orders.jsx')
   assert.match(orders, /ConfirmationDialog/)
   assert.match(orders, /finalizeCandidate/)
   assert.match(orders, /Confirmar finalização/)
