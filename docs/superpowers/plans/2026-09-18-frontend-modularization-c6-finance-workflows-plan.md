@@ -17,6 +17,7 @@
 - Work branch: `feature/spec-c6-finance-workflows`
 - Design approval recorded on this branch before this plan.
 - Production deployment: **NO** unless separately authorized.
+- Task 1 evidence: RED `9476b0b74d7c18305466eb6079314f8b24d8ae00` → Validate #1344 / run `35403401486` failed for intended missing Finance modules; GREEN `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf` → Validate #1345 / run `35403573350` SUCCESS with **1,729 tests / 1,728 pass / 0 fail / 1 skipped** and all remaining gates green.
 
 ## Global Constraints
 
@@ -172,7 +173,7 @@ Expected: exit 0. If local execution is unavailable, rely on the already-green p
 
 ---
 
-### Task 1: Establish the Finance public boundary, payment-method ownership, and finance-category ownership
+### Task 1: Establish the Finance public boundary, payment-method ownership, and finance-category ownership — COMPLETE / GREEN
 
 **Files:**
 - Create: `src/domains/finance/index.js`
@@ -200,7 +201,7 @@ Expected: exit 0. If local execution is unavailable, rely on the already-green p
   - `paymentMethodsPolicy`
   - `financeCategoriesPolicy`
 
-- [ ] **Step 1: Write the RED public-boundary tests**
+- [x] **Step 1: Write the RED public-boundary tests**
 
 Create `src/domains/finance/financePublicContract.test.js`:
 
@@ -265,7 +266,7 @@ test('inactive open selection is preserved only as a review option', () => {
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/finance/financePublicContract.test.js src/domains/finance/domain/paymentMethods.test.js
@@ -273,7 +274,7 @@ node --test src/domains/finance/financePublicContract.test.js src/domains/financ
 
 Expected: FAIL because `src/domains/finance/index.js` and domain modules do not exist.
 
-- [ ] **Step 3: Commit and push authoritative RED**
+- [x] **Step 3: Commit and push authoritative RED**
 
 ```bash
 git add src/domains/finance
@@ -283,7 +284,7 @@ git push origin feature/spec-c6-finance-workflows
 
 Expected remote Validate: fail for the intended missing Finance modules, not parser/config reasons. Record run number/SHA in the execution ledger.
 
-- [ ] **Step 4: Implement payment-method and finance-category modules**
+- [x] **Step 4: Implement payment-method and finance-category modules**
 
 Move the existing behavior without changing semantics. `paymentMethods.js` must contain:
 
@@ -350,7 +351,7 @@ export const financeCategoriesPolicy = createPathPolicyAdapter({
 
 Export only the contracts above from the initial `domains/finance/index.js`.
 
-- [ ] **Step 5: Run focused GREEN**
+- [x] **Step 5: Run focused GREEN**
 
 ```bash
 node --test src/domains/finance/financePublicContract.test.js src/domains/finance/domain/paymentMethods.test.js src/domains/finance/domain/financeCategories.test.js
@@ -359,7 +360,7 @@ npm run test:architecture
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit GREEN and obtain exact-SHA Validate**
+- [x] **Step 6: Commit GREEN and obtain exact-SHA Validate**
 
 ```bash
 git add src/domains/finance

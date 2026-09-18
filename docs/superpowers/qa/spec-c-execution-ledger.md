@@ -22,7 +22,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | **DESIGN APPROVED — PLAN WRITTEN / AWAITING APPROVAL** | `feature/spec-c6-finance-workflows` / base `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **IN PROGRESS — TASK 1 COMPLETE / GREEN** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -207,6 +207,17 @@ These remain mandatory for C2-C10:
 - compatibility facades/bridges are temporary, tracked and removed by their target slice;
 - C10 cannot close with unexplained temporary facades, prohibited imports, cycles or architecture violations.
 
+# C6 — Finance + Cross-Domain Payment Workflows — ACTIVE
+
+- Base: post-C5 master `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
+- Branch: `feature/spec-c6-finance-workflows`; draft PR #50.
+- Design and detailed plan: **APPROVED**.
+- Task 1 RED: `9476b0b74d7c18305466eb6079314f8b24d8ae00`; Validate #1344 / run `35403401486` failed at Test for the intended missing `domains/finance` modules.
+- Task 1 GREEN: `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf`; Validate #1345 / run `35403573350` — **SUCCESS**, **1,729 tests / 1,728 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Task 1 introduced the Finance public boundary plus payment-method and finance-category pure projections/policy adapters. No legacy facade was removed yet.
+- Task 2 has **NOT STARTED**.
+- Production deployment: **NO**.
+
 # New-session resume protocol
 
 The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit.
@@ -218,7 +229,7 @@ The active slice is C6 after C5 merged successfully. GitHub state wins over this
 5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
 6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
 7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is written and self-reviewed, but functional C6 implementation must not start until the user explicitly approves this plan.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Task 1 is complete/green; resume at Task 2 only after the user asks to continue.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

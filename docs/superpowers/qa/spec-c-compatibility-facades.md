@@ -87,7 +87,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - The operational data runtime payment-receipt bridge is still physically present at C6 start and is the explicit compatibility debt C6 must remove.
 - No replacement payment bridge is approved. Payment reconciliation moves to app-owned workflows while the operational runtime remains generic.
 - Generic/auth reexports remain scheduled for C10; `updateCollection` remains for C7/C8 cleanup and final C10 enforcement.
-- Detailed C6 plan `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` is **WRITTEN / AWAITING APPROVAL**. Functional implementation has **NOT STARTED**.
+- Detailed C6 plan is **APPROVED** and implementation is active in draft PR #50.
+- Task 1 is **COMPLETE / GREEN** at `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf`; Validate #1345 / run `35403573350` passed with **1,729 tests / 1,728 pass / 0 fail / 1 skipped**.
+- Task 1 added the new Finance public boundary and Finance-owned payment/finance-category policy adapters without removing any compatibility facade. The payment-receipt bridge remains intentionally active until Task 7.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
