@@ -100,7 +100,7 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 3 | Draft sujo — continuar editando / descartar | PASS | Observado manualmente em staging; continuar editando e descartar funcionaram corretamente. |
 | 4 | Novo Pedido vindo de Comandas — contexto e retorno | PASS | Observado manualmente em staging; contexto, vínculo e retorno funcionaram corretamente. |
 | 5 | POLICY_CHANGED — feedback/retry se reproduzível com segurança | PASS | Reproduzido manualmente em staging; modalidade invalidada foi bloqueada, feedback exibido, dados preservados e revisão exigida antes de nova confirmação. |
-| 6 | Cozinha — filas imediato/agendado e regra temporal | PENDING | — |
+| 6 | Cozinha — filas imediato/agendado e regra temporal | BLOCKED | Observado manualmente: pedido agendado dentro da janela operacional entrou corretamente em Em preparo e manteve o horário desejado. A fila Agendados para preparo não foi reproduzível com segurança por limitação de horário e regra de agendamento no mesmo dia. |
 | 7 | Cozinha — busca cliente/pedido/produto/tipo | PENDING | — |
 | 8 | Cozinha — chegada nova sem reload | PENDING | — |
 | 9 | Cozinha — som/highlight uma vez e preferência local | PENDING | — |
@@ -116,6 +116,6 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 19 | Mobile/narrow claro/escuro — Cozinha/Novo Pedido/Histórico | PENDING | — |
 | 20 | Console — nenhum novo erro atribuível à C4 | PENDING | — |
 
-Current manual result: **5 PASS / 0 FAIL / 15 PENDING**.
+Current manual result: **5 PASS / 0 FAIL / 1 BLOCKED / 14 PENDING**.
 
 Task 11 must stop merge preparation on any manual FAIL. BLOCKED is allowed only with an explicit, honest reason.
