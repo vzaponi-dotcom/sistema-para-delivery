@@ -1,8 +1,6 @@
 import './payment.css'
-import { isOrderPaid } from '../utils/paymentWorkflow'
-
 function PaymentBadge({ order }) {
-  const paid = isOrderPaid(order)
+  const paid = order?.paymentStatus === 'Pago'
   const label = paid ? `Pago · ${order.paymentMethod || 'Não informado'}` : 'Pagamento pendente'
 
   return (
