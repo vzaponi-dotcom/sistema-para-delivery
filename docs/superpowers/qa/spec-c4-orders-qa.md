@@ -90,9 +90,9 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 
 | # | Scenario | Status | Evidence / notes |
 |---:|---|---|---|
-| 1 | Novo Pedido imediato — abrir, preencher, salvar, retornar | PENDING | — |
-| 2 | Novo Pedido agendado — horário e validação de mesmo dia | PENDING | — |
-| 3 | Draft sujo — continuar editando / descartar | PENDING | — |
+| 1 | Novo Pedido imediato — abrir, preencher, salvar, retornar | PASS | Observado manualmente em staging; fluxo concluído normalmente. |
+| 2 | Novo Pedido agendado — horário e validação de mesmo dia | PASS | Observado manualmente em staging; agendamento e validação ocorreram normalmente. |
+| 3 | Draft sujo — continuar editando / descartar | PASS | Observado manualmente em staging; continuar editando e descartar funcionaram corretamente. |
 | 4 | Novo Pedido vindo de Comandas — contexto e retorno | PENDING | — |
 | 5 | POLICY_CHANGED — feedback/retry se reproduzível com segurança | PENDING | — |
 | 6 | Cozinha — filas imediato/agendado e regra temporal | PENDING | — |
@@ -111,6 +111,6 @@ Manual PASS requires direct observation. Automated evidence does not upgrade any
 | 19 | Mobile/narrow claro/escuro — Cozinha/Novo Pedido/Histórico | PENDING | — |
 | 20 | Console — nenhum novo erro atribuível à C4 | PENDING | — |
 
-Current manual result: **0 PASS / 0 FAIL / 20 PENDING**.
+Current manual result: **3 PASS / 0 FAIL / 17 PENDING**.
 
 Task 11 must stop merge preparation on any manual FAIL. BLOCKED is allowed only with an explicit, honest reason.
