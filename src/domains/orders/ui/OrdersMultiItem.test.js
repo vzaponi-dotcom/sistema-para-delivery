@@ -39,9 +39,9 @@ test('mobile final action is styled to keep long delivery text inside the button
   assert.match(css, /\.kitchen-ticket-actions \.button\s*\{[^}]*white-space:\s*normal/s)
 })
 
-test('app order search uses the complete multi-item searchable text', () => {
-  const app = source('../../../App.jsx')
-  assert.match(app, /getOrderItemsSearchText\(order\)/)
+test('Orders domain search uses the complete multi-item searchable text', () => {
+  const queue = source('../domain/kitchenQueue.js')
+  assert.match(queue, /getOrderItemsSearchText\(order\)/)
 })
 
 test('focused kitchen ticket units preserve every item note without reviving the expandable item list', () => {
