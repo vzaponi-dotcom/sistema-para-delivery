@@ -12,7 +12,7 @@
 - PR: #48 — draft, open, not merged
 - Production deploy: **NO**
 - Merge: **NO**
-- Status: **MANUAL QA CLOSED — FINAL DOCS-HEAD VALIDATE PENDING**
+- Status: **MERGE GATE — AWAITING EXPLICIT AUTHORIZATION**
 
 ## Automated gates
 
@@ -142,6 +142,7 @@ Manual matrix closed: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single B
 - BLOCKED row: item 6 only; direct in-window behavior was observed correctly, but safe reproduction of the out-of-window scheduled queue was prevented by the same-day scheduling rule and late-night homologation time.
 - Changes after staging-homologated SHA `f630c6a96a40384032ed607031bdc935d4ac20a7`: documentation-only.
 - Master reconciliation before final validation: `master` remains `737beeac2150aabeb39024af823f2f60fee25108`, equal to the approved C4 base.
-- Final docs-head Validate: **PENDING**.
-- Merge: **NO**.
+- Final QA/docs-head Validate: **#1289** / run `35356575893` — **SUCCESS** on `8468cc335fb59e95643360c21369e16cb0e24b82` (1,689 tests / 1,688 pass / 0 fail / 1 skipped, architecture OK, lint/build/Worker dry-runs/D1 gates PASS).
+- This final reconciliation commit is documentation-only and must itself remain green before merge authorization is acted on.
+- Merge: **NO — awaiting explicit user authorization**.
 - Production deploy: **NO**.

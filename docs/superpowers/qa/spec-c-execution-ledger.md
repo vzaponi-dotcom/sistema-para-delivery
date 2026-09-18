@@ -123,7 +123,7 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — ACTIVE / MANUAL QA CLOSED — FINAL VALIDATE PENDING
+# C4 — Orders — MERGE GATE / AWAITING AUTHORIZATION
 
 ## Current Git / PR / CI state
 
@@ -138,9 +138,10 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 - Item 6 BLOCKED reason: safe out-of-window scheduled-queue reproduction was not possible at the homologation time under the same-day scheduling rule; observed in-window transition behavior was correct.
 - Changes since staged SHA: documentation-only.
 - Master reconciliation: `master` remains the approved base `737beeac2150aabeb39024af823f2f60fee25108`
-- Final docs-head Validate: **PENDING**
+- Final QA/docs-head Validate: #1289 / run `35356575893` — **PASS** on `8468cc335fb59e95643360c21369e16cb0e24b82` (1,689 tests / 0 failures plus full gate set)
 - Production deploy: **NO**
-- Task 11: **IN PROGRESS — FINAL VALIDATE PENDING**
+- Task 11: **COMPLETE — MERGE GATE**
+- Merge: **NO — explicit user authorization required**
 - C5: **NOT STARTED**
 
 ## Completed task checkpoint
@@ -157,7 +158,7 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 | 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
 | 9 | Cozinha + Histórico UI move | GREEN |
 | 10 | Enforce final C4 boundary / legacy-owner removal | GREEN |
-| 11 | Full QA, staging, homologation and merge gate | IN PROGRESS — FINAL VALIDATE PENDING |
+| 11 | Full QA, staging, homologation and merge gate | COMPLETE — MERGE GATE |
 
 ## Current C4 ownership state
 
@@ -174,16 +175,17 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ## Resume gate
 
-Do **not** begin C5. Do **not** merge C4 yet. Manual QA is closed with 0 FAIL; only the final docs-head Validate remains before the merge authorization gate.
+C4 has reached the merge gate. Do **not** begin C5 and do **not** deploy production.
 
-Before merge authorization:
+Before executing a merge:
 1. confirm the current branch HEAD and PR #48;
-2. confirm the final branch-head Validate succeeds;
-3. re-check that `master` still equals or has been safely reconciled from the approved C4 base;
-4. preserve the homologated staging evidence #181 / run `35303388467`;
-5. keep the documented item 6 BLOCKED honest; do not convert it to PASS without direct observation;
-6. production remains prohibited;
-7. C5 remains prohibited until C4 closes and merges.
+2. confirm the current docs-only reconciliation HEAD has a successful Validate;
+3. confirm `master` has not moved incompatibly from `737beeac2150aabeb39024af823f2f60fee25108`;
+4. preserve staging #181 / run `35303388467` and manual QA **19 PASS / 0 FAIL / 1 BLOCKED** as the homologation evidence;
+5. keep item 6 BLOCKED as documented unless directly re-observed;
+6. require explicit user authorization before merging PR #48;
+7. production remains a separate later authorization;
+8. C5 may begin only after C4 is merged/closed according to the rollout.
 
 ---
 
