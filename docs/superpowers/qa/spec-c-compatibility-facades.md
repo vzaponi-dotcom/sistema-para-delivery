@@ -51,7 +51,8 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 2 is **COMPLETE / GREEN** after fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`; Validate #1298 / run `35379605815` passed.
 - Task 2 physically removed the runtime `onTablesCommitted` callback and App-owned comanda selection refs. Selection now reconciles unidirectionally from official `tables[]`.
 - The table-commit bridge row remains visible only until final C5 architecture/closure evidence records its removal; there is no remaining runtime consumer on the current branch.
-- Task 3 is at confirmed RED: Validate #1300 / run `35380071895` fails because `useTableTabDetail.js` does not yet exist. This RED introduces no compatibility facade.
+- Task 3 is **COMPLETE / GREEN** at `4fcfff12a3357dfbeb1587142b643a0db55702bf`; Validate #1306 / run `35380450226` passed. `Comandas.jsx` no longer owns direct detail HTTP/loading.
+- Task 3 has one deliberate intermediate dependency only: `useTableTabDetail` defaults to legacy `getTableTabDetail` until Task 4 moves that endpoint to `domains/table-service/infrastructure/tableServiceApi.js`. It is not a surviving C5 facade and must not outlive Task 4.
 - The payment-receipt bridge remains intentionally active until C6.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.

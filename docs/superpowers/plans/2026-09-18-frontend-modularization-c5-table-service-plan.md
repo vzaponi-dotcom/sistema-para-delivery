@@ -32,11 +32,14 @@
   - First GREEN candidate `ec6e8c3a12ace35745e9fa4bb70345f13235df45` exposed one payment visual-ownership regression in Validate #1297.
   - Root-cause fix: `1eb0f4b51283ad2f6274720a6eaafa63156fbe00`.
   - Final GREEN: Validate #1298 / run `35379605815` — **1,702 tests / 1,701 pass / 0 fail / 1 skipped**; remaining gates green.
-- Task 3: **RED CONFIRMED / IN PROGRESS**.
-  - Test-first commit: `8f460f139845e2288abe1d454d5d83c89643fb7b` — `test: define table tab detail ownership`.
-  - Validate #1300 / run `35380071895`: **FAIL** at the test step for the intended reason — `useTableTabDetail.js` does not exist yet (`ERR_MODULE_NOT_FOUND`).
-  - Next action: implement the minimal controller for GREEN, run the Task 3 regression set, review, then and only then proceed to Task 4.
-- Tasks 4–11: **NOT STARTED**.
+- Task 3: **COMPLETE / GREEN**.
+  - RED: `8f460f139845e2288abe1d454d5d83c89643fb7b`; Validate #1300 / run `35380071895` failed for the intended missing-`useTableTabDetail.js` boundary.
+  - During GREEN publication the branch advanced with docs-only progress commits; they were preserved and the implementation was reapplied by normal fast-forward, without force push or history rewrite.
+  - GREEN: `4fcfff12a3357dfbeb1587142b643a0db55702bf`; Validate #1306 / run `35380450226` — **1,712 tests / 1,711 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - `Comandas.jsx` no longer owns direct detail HTTP/loading. `useTableTabDetail` owns request generation, stale-result/401 rejection, retry and same-owner refresh coalescing.
+  - Intentional intermediate dependency: the controller defaults to the legacy `getTableTabDetail` helper only until Task 4 moves the endpoint into `tableServiceApi.js`.
+- Task 4: **NOT STARTED**.
+- Tasks 5–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -583,7 +586,7 @@ node --test src/domains/table-service/application/useTableTabDetail.test.js
 
 Expected: FAIL because `useTableTabDetail.js` does not exist.
 
-- [ ] **Step 3: Implement request ownership and coalescing**
+- [x] **Step 3: Implement request ownership and coalescing**
 
 Implement a per-selection owner counter and per-owner request state. For this single intermediate task, import `getTableTabDetail as legacyGetTableTabDetail` from `../../../api/client.js` and default the hook's `api` parameter to `{ getTableTabDetail: legacyGetTableTabDetail }`. This keeps HTTP ownership out of `Comandas` while every commit remains green; Task 4 removes this temporary legacy application dependency before architecture enforcement. The load path must follow this ordering:
 
@@ -620,7 +623,7 @@ When the selection identity changes:
 - clear old detail and enter initial loading;
 - start the new request without waiting for the old owner.
 
-- [ ] **Step 4: Replace direct HTTP ownership in legacy Comandas**
+- [x] **Step 4: Replace direct HTTP ownership in legacy Comandas**
 
 In `src/pages/Comandas.jsx`:
 - remove `getTableTabDetail` import;
@@ -631,7 +634,7 @@ In `src/pages/Comandas.jsx`:
 
 Export the hook from `src/domains/table-service/index.js` but keep the legacy UI importing only the hook from the public entry while it is outside the domain.
 
-- [ ] **Step 5: Run GREEN detail and UI regressions**
+- [x] **Step 5: Run GREEN detail and UI regressions**
 
 ```bash
 node --test   src/domains/table-service/application/useTableTabDetail.test.js   src/pages/Comandas.test.js   src/comandasAppWiring.test.js
@@ -639,7 +642,7 @@ node --test   src/domains/table-service/application/useTableTabDetail.test.js   
 
 Expected: PASS, including the current tests for slow refresh coalescing, stale detail, transfer/mismatch, current selection and session reset.
 
-- [ ] **Step 6: Verify no detail HTTP call remains in Comandas**
+- [x] **Step 6: Verify no detail HTTP call remains in Comandas**
 
 ```bash
 rg "getTableTabDetail|/api/table-tabs/" src/pages/Comandas.jsx
@@ -647,7 +650,7 @@ rg "getTableTabDetail|/api/table-tabs/" src/pages/Comandas.jsx
 
 Expected: no output.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/domains/table-service src/pages/Comandas.jsx src/pages/Comandas.test.js src/comandasAppWiring.test.js

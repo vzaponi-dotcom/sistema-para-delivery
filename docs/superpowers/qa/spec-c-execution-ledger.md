@@ -154,7 +154,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **Tasks 1–2 COMPLETE / GREEN; Task 3 RED IN PROGRESS**
+- Implementation: **Tasks 1–3 COMPLETE / GREEN; Task 4 NOT STARTED**
 - PR: #49 — draft
 - Production deploy: **NO**
 - C6: **NOT STARTED**
@@ -172,7 +172,7 @@ The written C5 specification and detailed implementation plan were explicitly ap
 - The runtime `onTablesCommitted` call and App-owned `comandaSelectionRef` / `comandaIdentityRef` are removed in code. The compatibility ledger remains unchanged until the planned C5 architecture/closure evidence.
 - No staging deploy and no production deploy have occurred.
 
-Task 3 has started with RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b` (`test: define table tab detail ownership`). Validate #1300 / run `35380071895` is **FAIL** at the test step for the intended RED reason: `useTableTabDetail.js` is absent (`ERR_MODULE_NOT_FOUND`). Task 3 remains in progress; next action is minimal GREEN implementation followed by regression/review.
+Task 3 RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b` was confirmed by Validate #1300 / run `35380071895` for the intended missing-controller reason. Task 3 GREEN commit `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 / run `35380450226` with **1,712 tests / 1,711 pass / 0 fail / 1 skipped** and all remaining gates green. Direct table-tab detail HTTP/loading ownership is out of `Comandas.jsx`; the application controller temporarily delegates only the endpoint call to the legacy API helper until Task 4 migrates the contract.
 
 ---
 
@@ -193,7 +193,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 implementation with Tasks 1–2 GREEN and Task 3 in RED. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 implementation with Tasks 1–3 GREEN and Task 4 next. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -201,8 +201,8 @@ The active slice is C5 implementation with Tasks 1–2 GREEN and Task 3 in RED. 
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–2 are complete.
-8. Resume Task 3 from confirmed RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b`; Validate #1300 proves the missing `useTableTabDetail.js` boundary. Implement minimal GREEN and review before Task 4.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–3 are complete.
+8. Begin Task 4 with RED for the Table Service API adapter; preserve the temporary detail legacy helper only until that task's GREEN.
 9. Do not begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
