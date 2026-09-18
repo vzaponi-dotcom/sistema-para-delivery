@@ -1,10 +1,10 @@
 # Spec C6 — Finance and cross-domain payment workflows
 
-**Data:** 2026-09-18  
-**Status:** design consolidado; aguardando revisão escrita do usuário  
-**Branch:** `feature/spec-c6-finance-workflows`  
-**Base:** `master` em `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`  
-**Base validation:** Validate application #1342 / run `35401628448` — SUCCESS  
+**Data:** 2026-09-18
+**Status:** design consolidado; aguardando revisão escrita do usuário
+**Branch:** `feature/spec-c6-finance-workflows`
+**Base:** `master` em `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`
+**Base validation:** Validate application #1342 / run `35401628448` — SUCCESS
 **Produção:** não tocar nesta slice sem autorização separada
 
 ## 1. Objetivo
@@ -364,7 +364,7 @@ Preservar:
 - somente o pedido oficial retornado é aplicado;
 - sem movimento financeiro;
 - sem alteração operacional indevida;
-- capability `finance.payment_promises`/capability equivalente já existente permanece como hoje;
+- capability `finance.promises.manage` permanece como hoje;
 - offline bloqueia escrita.
 
 ## 14. Estorno
