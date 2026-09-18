@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
-import { nativeFinanceCategories } from '../../../../shared/settingsCatalogs.js'
-import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { nativeFinanceCategories } from '../../../../../shared/settingsCatalogs.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../../test-support/renderWorkspace.js'
 
 const nativeItems = () => nativeFinanceCategories().items.map(({ id, type, label, active, sortOrder }) => ({ id, type, label, active, sortOrder }))
 const nativeMeta = () => Object.fromEntries(nativeFinanceCategories().items.map((item) => [item.id, {
@@ -55,7 +55,7 @@ test('settings route loads financeCategories and renders separate manual income 
 
 test('adding asks for type, creates one stable UUID in that group and changes only the shared draft', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const fixture = await renderEditable(h, Page, resourceState())
   await act(async () => buttonNamed(fixture.screen.root, 'Adicionar categoria').props.onClick())
   const type = fixture.screen.root.findByProps({ role: 'combobox', 'aria-label': 'Tipo' })
@@ -76,7 +76,7 @@ test('adding asks for type, creates one stable UUID in that group and changes on
 
 test('existing category type is immutable and unused custom category can rename and delete only in draft', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const items = nativeItems()
   items.push({ id: 'marketing', type: 'saida', label: 'Marketing', active: true, sortOrder: 11 })
   const fixture = await renderEditable(h, Page, resourceState(items, { ...nativeMeta(), marketing: { isSystem: false, usedEver: false, canRename: true, canDelete: true, type: 'saida' } }))
@@ -94,7 +94,7 @@ test('existing category type is immutable and unused custom category can rename 
 
 test('duplicate names are scoped to type so the same custom label can exist in both groups', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const items = nativeItems()
   items.push({ id: 'expense-events', type: 'saida', label: 'Eventos', active: true, sortOrder: 11 })
   const fixture = await renderEditable(h, Page, resourceState(items, {
@@ -110,7 +110,7 @@ test('duplicate names are scoped to type so the same custom label can exist in b
 
 test('native and used categories expose no illegal rename/delete while used custom can toggle active', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const items = nativeItems()
   items.push({ id: 'projects', type: 'entrada', label: 'Projetos', active: true, sortOrder: 2 })
   const state = resourceState(items, { ...nativeMeta(), projects: { isSystem: false, usedEver: true, canRename: false, canDelete: false, type: 'entrada' } })
@@ -125,7 +125,7 @@ test('native and used categories expose no illegal rename/delete while used cust
 
 test('missing trusted metadata fails closed for an existing category', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const items = nativeItems()
   items.push({ id: 'legacy-custom', type: 'saida', label: 'Legado', active: true, sortOrder: 11 })
   const screen = await h.render(Page, {
@@ -137,7 +137,7 @@ test('missing trusted metadata fails closed for an existing category', async (t)
 
 test('read-only and mobile preserve values without editing actions or horizontal tables', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const screen = await h.render(Page, { resourceState: resourceState(), readOnly: true, onEdit() {}, onSave() {}, onDiscard() {} })
   assert.match(nodeText(screen.root), /Somente leitura/)
   assert.equal(buttonNamed(screen.root, 'Adicionar categoria'), undefined)

@@ -1,11 +1,11 @@
 import { DragDropProvider, DragOverlay, useDragOperation } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
-import SettingsEditorShell from './components/SettingsEditorShell.jsx'
-import { SettingsBackLink, SettingsSwitch } from './components/SettingsBackAndSwitchControls.jsx'
-import { paymentLabel } from '../../../../shared/businessPolicies.js'
+import SettingsEditorShell from '../../../../app/surfaces/settings/components/SettingsEditorShell.jsx'
+import { SettingsBackLink, SettingsSwitch } from '../../../../app/surfaces/settings/components/SettingsBackAndSwitchControls.jsx'
+import { paymentLabel } from '../../../../../shared/businessPolicies.js'
 import { reorderPaymentMethods } from './paymentSettingsModel.js'
-import pixSymbolUrl from '../../../assets/pix-symbol.svg'
-import '../../../payment-settings.css'
+import pixSymbolUrl from '../../../../assets/pix-symbol.svg'
+import '../../../../payment-settings.css'
 
 export { reorderPaymentMethods } from './paymentSettingsModel.js'
 

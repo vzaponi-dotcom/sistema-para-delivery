@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 
-import { nativeFinanceCategories } from '../../../../shared/settingsCatalogs.js'
-import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { nativeFinanceCategories } from '../../../../../shared/settingsCatalogs.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../../test-support/renderWorkspace.js'
 
 const nativeItems = () => nativeFinanceCategories().items.map(({ id, type, label, active, sortOrder }) => ({ id, type, label, active, sortOrder }))
 const nativeMeta = () => Object.fromEntries(nativeFinanceCategories().items.map((item) => [item.id, {
@@ -44,7 +44,7 @@ async function renderEditable(h, Page, initial = resourceState()) {
 
 test('finance categories follow the approved grouped table contract with icons and sortable rows', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const screen = await h.render(Page, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {}, onNavigateHome() {},
   })
@@ -73,7 +73,7 @@ test('finance categories follow the approved grouped table contract with icons a
 
 test('finance category complementary menu actions close after success and keep permissions', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const fixture = await renderEditable(h, Page)
   const details = { open: true }
   let focusCount = 0
@@ -94,7 +94,7 @@ test('finance category complementary menu actions close after success and keep p
 
 test('inactive finance category keeps a direct enabled activation switch and complementary action menu', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const items = nativeItems().map((item) => item.id === 'packaging' ? { ...item, active: false } : item)
   const screen = await h.render(Page, {
     resourceState: resourceState(items), onEdit() {}, onSave() {}, onDiscard() {}, onNavigateHome() {},
@@ -110,7 +110,7 @@ test('inactive finance category keeps a direct enabled activation switch and com
 
 test('mobile finance categories render compact cards with horizontal type and status metadata', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { default: Page } = await h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx')
   const screen = await h.render(Page, {
     resourceState: resourceState(), onEdit() {}, onSave() {}, onDiscard() {}, onNavigateHome() {},
   })

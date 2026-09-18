@@ -25,7 +25,7 @@ const financeState = () => {
 
 test('reordering finance categories persists the new order in the draft', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Page } = await h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx')
+  const { FinanceCategorySettings: Page } = await h.load('/src/domains/finance/index.js')
   const edits = []
   const screen = await h.render(Page, {
     resourceState: financeState(),

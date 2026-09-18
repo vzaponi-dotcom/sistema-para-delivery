@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, workspaceHarness } from '../../../../test-support/renderWorkspace.js'
 
 const paymentData = () => ({
   methods: [
@@ -50,7 +50,7 @@ const settingsSwitch = (root, code) => root.findByProps({ 'data-settings-switch'
 
 test('renders the native payment editor without free-CRUD controls and with specific payment icons', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
     resourceState: resourceState(), readOnly: false, onEdit() {}, onSave() {}, onDiscard() {},
   })
@@ -87,7 +87,7 @@ test('renders the native payment editor without free-CRUD controls and with spec
 
 test('activation and default actions never create an impossible draft or autosave', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const fixture = await renderEditable(h, PaymentSettings)
 
   assert.equal(settingsSwitch(row(fixture.screen.root, 'pix'), 'pix').props.disabled, true)
@@ -113,7 +113,7 @@ test('activation and default actions never create an impossible draft or autosav
 
 test('controller-blocked states disable payment actions and reorder shortcuts', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
     resourceState: resourceState(paymentData(), { status: 'saving', dirty: true }),
     readOnly: false, onEdit() { throw new Error('saving state must not edit') }, onSave() {}, onDiscard() {},
@@ -125,7 +125,7 @@ test('controller-blocked states disable payment actions and reorder shortcuts', 
 
 test('reorders by explicit action and Alt+Arrow keyboard without changing identities', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const fixture = await renderEditable(h, PaymentSettings)
 
   await act(async () => buttonNamed(row(fixture.screen.root, 'cash'), 'Mover para cima').props.onClick())
@@ -141,21 +141,21 @@ test('reorders by explicit action and Alt+Arrow keyboard without changing identi
 
 test('dnd-kit owns the sortable lifecycle and Pix uses the stable brand asset', async () => {
   const source = await readFile(new URL('./PaymentSettings.jsx', import.meta.url), 'utf8')
-  const pkg = JSON.parse(await readFile(new URL('../../../../package.json', import.meta.url), 'utf8'))
+  const pkg = JSON.parse(await readFile(new URL('../../../../../package.json', import.meta.url), 'utf8'))
   assert.equal(pkg.dependencies['@dnd-kit/react'], '0.5.0')
   assert.match(source, /DragDropProvider/)
   assert.match(source, /DragOverlay/)
   assert.match(source, /useSortable/)
   assert.match(source, /pix-symbol\.svg/)
   assert.doesNotMatch(source, /targetIndexAt|startPointerDrag|movePointerDrag|finishPointerDrag|setPointerCapture|elementFromPoint/)
-  const pix = await readFile(new URL('../../../assets/pix-symbol.svg', import.meta.url), 'utf8')
+  const pix = await readFile(new URL('../../../../assets/pix-symbol.svg', import.meta.url), 'utf8')
   assert.match(pix, /viewBox="0 0 24 24"/)
   assert.match(pix, /M5\.283 18\.36/)
 })
 
 test('reorderPaymentMethods keeps six identities and normalizes sortOrder', async (t) => {
   const h = await workspaceHarness(t)
-  const { reorderPaymentMethods } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { reorderPaymentMethods } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const methods = paymentData().methods
   const middle = reorderPaymentMethods(methods, 0, 2)
   assert.deepEqual(middle.map((item) => item.code), ['cash', 'debit_card', 'pix', 'credit_card', 'transfer', 'other'])
@@ -168,7 +168,7 @@ test('reorderPaymentMethods keeps six identities and normalizes sortOrder', asyn
 
 test('read-only uses the shared shell and disables editing controls', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
     resourceState: resourceState(), readOnly: true,
     onEdit() { throw new Error('read-only must not edit') },
@@ -184,7 +184,7 @@ test('read-only uses the shared shell and disables editing controls', async (t) 
 
 test('mobile payment settings use one flexible metadata region for contained badges', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const screen = await h.render(PaymentSettings, {
     resourceState: resourceState(), readOnly: false, onEdit() {}, onSave() {}, onDiscard() {},
   })

@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { readFile } from 'node:fs/promises'
 
-import { buttonNamed, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { buttonNamed, workspaceHarness } from '../../../../test-support/renderWorkspace.js'
 
 const paymentData = () => ({
   methods: [
@@ -30,7 +30,7 @@ const row = (root, code) => root.findByProps({ 'data-payment-code': code })
 
 test('inactive payment method marks the whole row as visually inactive', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const data = paymentData()
   data.methods = data.methods.map((method) => method.code === 'cash' ? { ...method, active: false } : method)
 
@@ -45,7 +45,7 @@ test('inactive payment method marks the whole row as visually inactive', async (
 
 test('successful complementary payment menu action closes the menu and restores focus to its summary', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PaymentSettings } = await h.load('/src/app/surfaces/settings/PaymentSettings.jsx')
+  const { default: PaymentSettings } = await h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx')
   const edits = []
   function Editor() {
     const [state, setState] = React.useState(resourceState(paymentData()))

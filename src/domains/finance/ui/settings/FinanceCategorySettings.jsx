@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { DragDropProvider, DragOverlay, useDragOperation } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
-import Button from '../../../components/Button.jsx'
-import ConfirmationDialog from '../../../components/ConfirmationDialog.jsx'
-import Icon from '../../../components/Icon.jsx'
-import SettingsEditorShell from './components/SettingsEditorShell.jsx'
-import SettingsItemDialog from './components/SettingsItemDialog.jsx'
-import { SettingsBackLink, SettingsSwitch } from './components/SettingsBackAndSwitchControls.jsx'
-import '../../../finance-category-settings.css'
+import Button from '../../../../components/Button.jsx'
+import ConfirmationDialog from '../../../../components/ConfirmationDialog.jsx'
+import Icon from '../../../../components/Icon.jsx'
+import SettingsEditorShell from '../../../../app/surfaces/settings/components/SettingsEditorShell.jsx'
+import SettingsItemDialog from '../../../../app/surfaces/settings/components/SettingsItemDialog.jsx'
+import { SettingsBackLink, SettingsSwitch } from '../../../../app/surfaces/settings/components/SettingsBackAndSwitchControls.jsx'
+import '../../../../finance-category-settings.css'
 
 const blockedStatuses = new Set(['loading', 'saving', 'unconfirmed', 'conflict'])
 const TYPES = [
