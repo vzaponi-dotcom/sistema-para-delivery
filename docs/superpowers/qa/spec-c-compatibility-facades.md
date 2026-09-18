@@ -63,6 +63,10 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 7 is **COMPLETE / GREEN** at `d040bf730c786af4aea815c1bcdbfb306f4e0b1e`; Validate #1326 / run `35386530872` passed.
 - `src/pages/Comandas.jsx`, `src/pages/Comandas.test.js`, `src/components/ComandaDetail.jsx`, `src/components/ComandaDetail.test.js` and `src/components/TableTransferDialog.jsx` are removed with no compatibility reexport. Their owners are now under `src/domains/table-service/ui/`.
 - `Comandas` is exported through the Table Service public entry. `ComandaDetail` and `TableTransferDialog` remain internal, and `useTableTabDetail` is no longer exported publicly because its only consumer is internal. Task 7 introduced no surviving compatibility facade.
+- Task 8 is **COMPLETE / GREEN** at `23963386b140c2bea90eaa80c0dc60874fcf025a`; Validate #1331 / run `35388385418` passed.
+- Payment-open, ticket-preview, print-feedback and print action ownership moved to `src/app/surfaces/table-service/TableServiceExternalActions.jsx`. `Comandas` now emits external intents carrying `{ tableId, tableTabId, selectionGeneration }` and has no direct payment/printing workflow ownership.
+- The Table Service production tree contains no `TableTabPaymentDialog`, `TableTabTicketPreview`, `getTableTabPreviewDocument`, `printTableTab` or `registerTableTabPayment` ownership tokens. This is composition, not a compatibility facade.
+- The payment-receipt bridge and accepted-payment reconciliation remain intentionally active until C6; table-tab print APIs/queue/QZ remain C9.
 - The payment-receipt bridge remains intentionally active until C6.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.

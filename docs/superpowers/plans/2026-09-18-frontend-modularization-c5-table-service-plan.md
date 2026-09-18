@@ -62,8 +62,16 @@
   - Final path-only correction: `d040bf730c786af4aea815c1bcdbfb306f4e0b1e` fixed two internal imports and residual moved-test loads discovered by audit; no behavior change.
   - Final GREEN: Validate #1326 / run `35386530872` — **1,716 tests / 1,715 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
   - Legacy Comandas/ComandaDetail/TableTransferDialog owner paths are physically absent. App consumes public `Comandas`; detail/transfer stay domain-internal; `useTableTabDetail` is internal-only.
-- Task 8: **NOT STARTED / NEXT**.
-- Tasks 9–11: **NOT STARTED**.
+- Task 8: **COMPLETE / GREEN**.
+  - RED: `c8ed819478fc981ffd5463d976282f48f9c4b0f5`; Validate #1328 / run `35387492807` failed for the intended missing-`TableServiceExternalActions.jsx` reason.
+  - GREEN candidate: `88c3974f349aebface02ccd18f4954b069aceeea` moved external overlay/action ownership to the app surface and made `Comandas` intent-only.
+  - Validate #1329 found two stale ownership characterizations; `17f72918fba548186ea8c04ad88c1293c58a987f` aligned them, after which #1330 exposed one residual toast test block that the first replacement had not matched.
+  - Final test-only correction: `23963386b140c2bea90eaa80c0dc60874fcf025a`.
+  - Final GREEN: Validate #1331 / run `35388385418` — **1,717 tests / 1,716 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+  - App payment submission receives the captured intent and validates identity/generation against official tables before POST. Accepted payment obligations still reconcile globally after visual ownership retires.
+  - Audit: zero payment/printing workflow ownership tokens remain in Table Service production code; `Comandas` does not receive the `printing` object.
+- Task 9: **NOT STARTED / NEXT**.
+- Tasks 10–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -1231,7 +1239,7 @@ git commit -m "refactor: move comandas ui into table service"
   - `printingAvailable`
 - App payment callback receives the captured owner as a third argument but accepted-payment reconciliation remains in App until C6.
 
-- [ ] **Step 1: Move owner-specific regression expectations into a RED app-surface test**
+- [x] **Step 1: Move owner-specific regression expectations into a RED app-surface test**
 
 Create `TableServiceExternalActions.test.js`. Re-home the behavior currently proved inside `Comandas.test.js` for:
 - canonical ticket preview;
@@ -1255,7 +1263,7 @@ assert.equal(dialogCount(), 0)
 
 Add a late preview test where A resolves after B is current and assert no A modal/error appears and B's busy state is not cleared.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/app/surfaces/table-service/TableServiceExternalActions.test.js
@@ -1263,7 +1271,7 @@ node --test src/app/surfaces/table-service/TableServiceExternalActions.test.js
 
 Expected: FAIL because the app surface does not exist.
 
-- [ ] **Step 3: Implement the app-owned surface**
+- [x] **Step 3: Implement the app-owned surface**
 
 Use a ref-backed owner comparison so an async closure created for selection A reads the newest selection after a rerender:
 
@@ -1330,7 +1338,7 @@ On selection/generation change, close payment/preview state that no longer belon
 
 Render `TableTabPaymentDialog` and ticket `Modal` in this surface. Keep those existing components in their current paths.
 
-- [ ] **Step 4: Turn Comandas into an intent-emitting presentation surface**
+- [x] **Step 4: Turn Comandas into an intent-emitting presentation surface**
 
 Remove from `Comandas.jsx`:
 - `paymentOpen`;
@@ -1360,7 +1368,7 @@ Render `printingFeedback` supplied by composition and use supplied `printingBusy
 
 Keep transfer state/dialog inside Table Service.
 
-- [ ] **Step 5: Compose the app surface around Comandas**
+- [x] **Step 5: Compose the app surface around Comandas**
 
 In App, render the current Comandas branch conceptually as:
 
@@ -1404,7 +1412,7 @@ In App, render the current Comandas branch conceptually as:
 
 Adapt the exact prop names to the interface above; do not pass the entire `printing` object into Table Service UI after this task.
 
-- [ ] **Step 6: Capture payment identity/generation at submission**
+- [x] **Step 6: Capture payment identity/generation at submission**
 
 Change `handleRegisterTableTabPayment` to accept `(tableTabId, method, intent)`.
 
@@ -1414,7 +1422,7 @@ Before the POST, require:
 
 Create the payment owner using the captured `intent.selectionGeneration`. After the request is accepted, its financial reconciliation stays in `paymentSyncRef` even if `ownsComandaSelection(owner)` later becomes false. Visual success/clearing still requires current ownership.
 
-- [ ] **Step 7: Run GREEN external-action/payment/printing regressions**
+- [x] **Step 7: Run GREEN external-action/payment/printing regressions**
 
 ```bash
 node --test   src/app/surfaces/table-service/TableServiceExternalActions.test.js   src/domains/table-service/ui/Comandas.test.js   src/comandasAppWiring.test.js   src/comandasTransferNavigation.test.js   src/components/TableTabPaymentDialog.test.js   src/components/overlayScrollLock.test.js   src/printing/usePrintingManager.test.js
@@ -1422,7 +1430,7 @@ node --test   src/app/surfaces/table-service/TableServiceExternalActions.test.js
 
 Expected: PASS. Existing accepted-payment-after-selection-change tests remain green.
 
-- [ ] **Step 8: Audit Table Service for forbidden workflow ownership**
+- [x] **Step 8: Audit Table Service for forbidden workflow ownership**
 
 ```bash
 rg "TableTabPaymentDialog|TableTabTicketPreview|getTableTabPreviewDocument|printTableTab|registerTableTabPayment" src/domains/table-service
@@ -1436,7 +1444,7 @@ rg "TableTabPaymentDialog|TableTabTicketPreview|getTableTabPreviewDocument|print
 
 Expected: no output.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/app/surfaces/table-service src/domains/table-service src/App.jsx src/comandasAppWiring.test.js src/comandasTransferNavigation.test.js
