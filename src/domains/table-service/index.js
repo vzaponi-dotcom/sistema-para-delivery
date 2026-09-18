@@ -16,3 +16,4 @@ export {
   validateTransferIntent,
 } from './domain/tableTransfer.js'
 export { useComandaSelection } from './application/useComandaSelection.js'
+export { useTableTabDetail } from './application/useTableTabDetail.js'

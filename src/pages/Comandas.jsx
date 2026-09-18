@@ -10,14 +10,12 @@ import Modal from '../components/Modal'
 import TableTabPaymentDialog from '../components/TableTabPaymentDialog'
 import TableTabTicketPreview from '../components/TableTabTicketPreview'
 import TableTransferDialog from '../components/TableTransferDialog'
-import { getTableTabDetail } from '../api/client.js'
+import { useTableTabDetail } from '../domains/table-service/index.js'
 
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const itemSummary = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
 
 function SelectedComanda({ table, tables, currency, disabled, paymentOptions, defaultPaymentMethod, canTransfer, canCreateOrders, canExecutePrinting, onAddOrder, onPay, onTransfer, onApiError, onToast, printing, headingRef }) {
-  const [snapshot, setSnapshot] = useState({ loading: true })
-  const refreshRef = useRef(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [previewDocument, setPreviewDocument] = useState(null)
   const [printingFeedback, setPrintingFeedback] = useState(null)
@@ -30,43 +28,24 @@ function SelectedComanda({ table, tables, currency, disabled, paymentOptions, de
   useLayoutEffect(() => { errorHandler.current = onApiError }, [onApiError])
   const tabId = table.openTableTab?.id
   const tableId = table.id
+  const {
+    detail,
+    loading,
+    error: detailError,
+    retry: retryDetail,
+  } = useTableTabDetail({
+    selection: { tableId, tableTabId: tabId },
+    officialTables: tables,
+    onUnauthorized: onApiError,
+  })
+  useEffect(() => {
+    if (detailError) setPaymentOpen(false)
+  }, [detailError])
   useEffect(() => () => {
     mountedRef.current = false
     actionSequenceRef.current += 1
     actionRef.current = null
   }, [])
-  useEffect(() => {
-    let cancelled = false
-    let inFlight = false
-    let queued = false
-    if (!tabId) return undefined
-    const load = async () => {
-      if (inFlight) { queued = true; return }
-      inFlight = true
-      setSnapshot((current) => current.detail ? { ...current, error: undefined } : { ...current, loading: true })
-      try {
-        const { tableTab } = await getTableTabDetail(tabId)
-        if (cancelled) return
-        if (!tableTab || tableTab.id !== tabId || tableTab.status !== 'open' || tableTab.table?.id !== tableId) {
-          throw new Error('Comanda indisponível, encerrada ou transferida. Atualize a consulta.')
-        }
-        setSnapshot({ detail: tableTab, loading: false })
-      } catch (error) {
-        if (cancelled) return
-        setSnapshot((current) => current.detail
-          ? { ...current, loading: false, error: undefined }
-          : { loading: false, error: error.message || 'Não foi possível carregar a comanda.' })
-        setPaymentOpen(false)
-        if (error.status === 401) errorHandler.current?.(error)
-      } finally {
-        inFlight = false
-        if (!cancelled && queued) { queued = false; void load() }
-      }
-    }
-    refreshRef.current = load
-    return () => { cancelled = true; refreshRef.current = null }
-  }, [tabId, tableId])
-  useEffect(() => { void refreshRef.current?.() }, [tables, tabId, tableId])
   const runPrintingAction = async (kind, operation) => {
     if ((kind === 'print' && !canExecutePrinting) || actionRef.current || disabled) return false
     const owner = { token: ++actionSequenceRef.current, tabId, tableId, kind }
@@ -97,13 +76,12 @@ function SelectedComanda({ table, tables, currency, disabled, paymentOptions, de
       }
     }
   }
-  const current = !snapshot.loading
-  const detail = snapshot?.detail
+  const current = !loading
   if (!tabId) return <p role="alert">Comanda indisponível. Aguarde a atualização das mesas.</p>
   return (
     <>
       {!current && <p role="status">Carregando comanda…</p>}
-      {current && snapshot.error && <div role="alert"><p>{snapshot.error}</p><Button type="button" onClick={() => refreshRef.current?.()}>Tentar novamente</Button></div>}
+      {current && detailError && <div role="alert"><p>{detailError}</p><Button type="button" onClick={() => retryDetail()}>Tentar novamente</Button></div>}
       {printingFeedback && <p role={printingFeedback.type === 'error' ? 'alert' : 'status'}>{printingFeedback.message}</p>}
       {detail && <ComandaDetail detail={detail} headingId="comanda-heading" headingRef={headingRef} currency={currency} disabled={disabled} busyAction={!current || Boolean(activeAction)} printingDisabled={!printing?.getTableTabPreviewDocument || !printing?.printTableTab} canTransfer={canTransfer} canCreateOrders={canCreateOrders} canExecutePrinting={canExecutePrinting} onAddOrder={() => { if (canCreateOrders) onAddOrder?.(tableId, tabId) }} onTransfer={() => setTransferSource({ ...table, openTableTab: { ...table.openTableTab, id: tabId } })} onViewTicket={() => runPrintingAction('preview', () => printing.getTableTabPreviewDocument(tabId))} onPrint={() => runPrintingAction('print', () => printing.printTableTab(tabId))} onPay={() => setPaymentOpen(true)} />}
       <TableTabPaymentDialog open={paymentOpen} detail={detail} currency={currency} disabled={disabled || !current} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} onClose={() => setPaymentOpen(false)} onConfirm={onPay} />
