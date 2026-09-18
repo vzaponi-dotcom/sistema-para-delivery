@@ -172,7 +172,7 @@ The written C5 specification and detailed implementation plan were explicitly ap
 - The runtime `onTablesCommitted` call and App-owned `comandaSelectionRef` / `comandaIdentityRef` are removed in code. The compatibility ledger remains unchanged until the planned C5 architecture/closure evidence.
 - No staging deploy and no production deploy have occurred.
 
-Task 3 has started with RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b` (`test: define table tab detail ownership`). Validate #1300 / run `35380071895` is currently in progress; do not treat Task 3 as complete until the RED reason is confirmed, implementation reaches GREEN and review closes.
+Task 3 has started with RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b` (`test: define table tab detail ownership`). Validate #1300 / run `35380071895` is **FAIL** at the test step for the intended RED reason: `useTableTabDetail.js` is absent (`ERR_MODULE_NOT_FOUND`). Task 3 remains in progress; next action is minimal GREEN implementation followed by regression/review.
 
 ---
 
@@ -202,7 +202,7 @@ The active slice is C5 implementation with Tasks 1–2 GREEN and Task 3 in RED. 
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
 7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–2 are complete.
-8. Resume Task 3 from RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b`; confirm the authoritative RED result, then implement minimal GREEN and review before Task 4.
+8. Resume Task 3 from confirmed RED commit `8f460f139845e2288abe1d454d5d83c89643fb7b`; Validate #1300 proves the missing `useTableTabDetail.js` boundary. Implement minimal GREEN and review before Task 4.
 9. Do not begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
