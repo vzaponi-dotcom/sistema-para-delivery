@@ -38,8 +38,12 @@
   - GREEN: `4fcfff12a3357dfbeb1587142b643a0db55702bf`; Validate #1306 / run `35380450226` — **1,712 tests / 1,711 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
   - `Comandas.jsx` no longer owns direct detail HTTP/loading. `useTableTabDetail` owns request generation, stale-result/401 rejection, retry and same-owner refresh coalescing.
   - Intentional intermediate dependency: the controller defaults to the legacy `getTableTabDetail` helper only until Task 4 moves the endpoint into `tableServiceApi.js`.
-- Task 4: **NOT STARTED**.
-- Tasks 5–11: **NOT STARTED**.
+- Task 4: **COMPLETE / GREEN**.
+  - RED: `78d246915eed7847b3db9719e5c2e02137d996c7`; Validate #1308 / run `35380889353` failed for the intended missing-`tableServiceApi.js` reason.
+  - GREEN: `7ef5fc7a68292e17372bb15a9d23131c38ecfd48`; Validate #1309 / run `35381219700` — **1,711 tests / 1,710 pass / 0 fail / 1 skipped**; remaining gates green.
+  - `useTableTabDetail` now defaults to `tableServiceApi`; legacy `getTableTabDetail` is removed; C6/C9 APIs remain in the legacy client.
+- Task 5: **NOT STARTED / NEXT**.
+- Tasks 6–11: **NOT STARTED**.
 - C6: **NOT STARTED**.
 - Staging/production deploy for C5: **NO**.
 
@@ -675,7 +679,7 @@ git commit -m "refactor: extract table tab detail controller"
 - Exact methods: `createTable`, `updateTable`, `reorderTables`, `transferTableTab`, `getTableTabDetail`.
 - No raw `fetch` outside generic HTTP infrastructure.
 
-- [ ] **Step 1: Write RED API contract test**
+- [x] **Step 1: Write RED API contract test**
 
 Create `src/domains/table-service/infrastructure/tableServiceApi.test.js`:
 
@@ -715,7 +719,7 @@ test('table service api preserves exact routes and payloads', async () => {
 })
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 node --test src/domains/table-service/infrastructure/tableServiceApi.test.js
@@ -723,7 +727,7 @@ node --test src/domains/table-service/infrastructure/tableServiceApi.test.js
 
 Expected: FAIL because the adapter does not exist.
 
-- [ ] **Step 3: Implement the adapter**
+- [x] **Step 3: Implement the adapter**
 
 Create `src/domains/table-service/infrastructure/tableServiceApi.js`:
 
@@ -750,11 +754,11 @@ export const createTableServiceApi = ({
 export const tableServiceApi = createTableServiceApi()
 ```
 
-- [ ] **Step 4: Make detail loading use the domain adapter**
+- [x] **Step 4: Make detail loading use the domain adapter**
 
 In `useTableTabDetail.js`, remove the temporary `../../../api/client.js` import from Task 3 and default the injectable `api` to `tableServiceApi` with an internal relative import. Do not expose the adapter from the public index solely for UI use.
 
-- [ ] **Step 5: Split legacy table-tab client tests by ownership**
+- [x] **Step 5: Split legacy table-tab client tests by ownership**
 
 In `src/api/tableTabClient.test.js` keep only the C6/C9 contracts:
 - `getTableTabPrintDocument`;
@@ -766,7 +770,7 @@ In `src/api/client.test.js` remove the `table management helpers...` test that c
 
 Do not remove the five legacy function declarations from `src/api/client.js` yet in this task except `getTableTabDetail` if no remaining consumer exists. The remaining four are removed atomically with App command migration in Task 5 so each commit stays green.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 ```bash
 node --test   src/domains/table-service/infrastructure/tableServiceApi.test.js   src/domains/table-service/application/useTableTabDetail.test.js   src/api/tableTabClient.test.js   src/api/client.test.js   src/pages/Comandas.test.js
@@ -774,7 +778,7 @@ node --test   src/domains/table-service/infrastructure/tableServiceApi.test.js  
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/domains/table-service src/api src/pages/Comandas.jsx
