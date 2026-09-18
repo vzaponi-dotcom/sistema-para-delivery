@@ -67,7 +67,6 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Payment-open, ticket-preview, print-feedback and print action ownership moved to `src/app/surfaces/table-service/TableServiceExternalActions.jsx`. `Comandas` now emits external intents carrying `{ tableId, tableTabId, selectionGeneration }` and has no direct payment/printing workflow ownership.
 - The Table Service production tree contains no `TableTabPaymentDialog`, `TableTabTicketPreview`, `getTableTabPreviewDocument`, `printTableTab` or `registerTableTabPayment` ownership tokens. This is composition, not a compatibility facade.
 - The payment-receipt bridge and accepted-payment reconciliation remain intentionally active until C6; table-tab print APIs/queue/QZ remain C9.
-- The payment-receipt bridge remains intentionally active until C6.
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
 - C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
