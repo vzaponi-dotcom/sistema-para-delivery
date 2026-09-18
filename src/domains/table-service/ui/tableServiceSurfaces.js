@@ -1,7 +1,7 @@
 import React from 'react'
 
 const load = (path) => {
-  const modules = import.meta.glob(['./Tables.jsx', './LocalTableSelector.jsx'], { eager: true })
+  const modules = import.meta.glob(['./Tables.jsx', './LocalTableSelector.jsx', './Comandas.jsx'], { eager: true })
   return modules[path]?.default
 }
 
@@ -12,5 +12,10 @@ export function Tables(props) {
 
 export function LocalTableSelector(props) {
   const Component = load('./LocalTableSelector.jsx')
+  return React.createElement(Component, props)
+}
+
+export function Comandas(props) {
+  const Component = load('./Comandas.jsx')
   return React.createElement(Component, props)
 }
