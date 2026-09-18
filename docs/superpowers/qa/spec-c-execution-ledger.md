@@ -21,7 +21,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **PLAN WRITTEN — AWAITING USER PLAN REVIEW** | `feature/spec-c5-table-service` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C5 | Table Service | **IMPLEMENTATION — TASK 2 COMPLETE** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
@@ -146,7 +146,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 
 ---
 
-# C5 — Table Service — PLAN WRITTEN / AWAITING USER PLAN REVIEW
+# C5 — Table Service — IMPLEMENTATION IN PROGRESS
 
 ## Current state
 
@@ -154,14 +154,25 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **NOT STARTED**
-- PR: not opened as part of design drafting
+- Implementation: **Tasks 1–2 COMPLETE / GREEN; Task 3 NOT STARTED**
+- PR: #49 — draft
 - Production deploy: **NO**
 - C6: **NOT STARTED**
 
-## Plan gate
+## Execution checkpoint — after Task 2
 
-The written C5 specification was explicitly approved by the user on 2026-09-18. The detailed implementation plan has now been written with strict RED → GREEN task boundaries and is awaiting explicit user approval. Do not begin C5 implementation until that plan approval is given.
+The written C5 specification and detailed implementation plan were explicitly approved by the user on 2026-09-18. Execution is staying in this chat; no Work Mode or Codex handoff is being used.
+
+- Task 1 RED: `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa`; Validate #1293 / run `35377843427` failed with the four expected missing Table Service modules.
+- Task 1 GREEN: `e8f490808900d56c2c23d6683ed5365da4921b80`; Validate #1294 / run `35378133967` — SUCCESS (1,698 tests / 1,697 pass / 0 fail / 1 skipped).
+- Task 2 authoritative RED: `de43919b3395eab52b1518b099b79b4225cb69aa`; Validate #1296 / run `35378772513` failed with the three intended failures: selection controller absent, runtime table-commit bridge still called, App selection refs still present.
+- Task 2 first GREEN candidate: `ec6e8c3a12ace35745e9fa4bb70345f13235df45`; Validate #1297 / run `35379280195` exposed one payment-visual ownership ordering regression.
+- Root-cause fix: `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` validates current payment ownership against the official receipt table snapshot without restoring a runtime → Table Service bridge.
+- Task 2 final GREEN: Validate #1298 / run `35379605815` — SUCCESS (1,702 tests / 1,701 pass / 0 fail / 1 skipped), architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- The runtime `onTablesCommitted` call and App-owned `comandaSelectionRef` / `comandaIdentityRef` are removed in code. The compatibility ledger remains unchanged until the planned C5 architecture/closure evidence.
+- No staging deploy and no production deploy have occurred.
+
+Next task: **Task 3 — extract table-tab detail loading from Comandas**.
 
 ---
 
@@ -182,7 +193,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C5 at the written implementation-plan review gate. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C5 implementation after Task 2 GREEN. GitHub state wins over this file if the branch advances after this documentation commit.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -190,7 +201,7 @@ The active slice is C5 at the written implementation-plan review gate. GitHub st
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
 5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
 6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` and obtain explicit user approval of that plan before implementation.
-8. Do not implement C5, begin C6, merge, or deploy production before the corresponding gates.
+7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–2 are complete and Task 3 is next.
+8. Continue strict RED → GREEN on Task 3. Do not begin C6, merge, or deploy production before the corresponding gates.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
