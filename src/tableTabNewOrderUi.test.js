@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const page = fs.readFileSync(new URL('./pages/NewOrder.jsx', import.meta.url), 'utf8')
-const customerStep = fs.readFileSync(new URL('./components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
+const page = fs.readFileSync(new URL('./domains/orders/ui/NewOrder.jsx', import.meta.url), 'utf8')
+const customerStep = fs.readFileSync(new URL('./domains/orders/ui/components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
 const tableSelector = fs.readFileSync(new URL('./components/LocalTableSelector.jsx', import.meta.url), 'utf8')
 
 test('occupied registered tables stay selectable and explain open-tab reuse', () => {

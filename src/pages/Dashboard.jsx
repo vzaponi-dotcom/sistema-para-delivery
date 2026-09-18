@@ -15,7 +15,7 @@ import {
   getPaymentMix,
   getTopProducts,
 } from '../utils/dashboardAnalytics.js'
-import { toLocalDateValue } from '../utils/orderWorkflow'
+import { toLocalDateValue } from '../domains/orders/index.js'
 
 const MONEY_MASK = '••••••'
 const PERIOD_HELPERS = {

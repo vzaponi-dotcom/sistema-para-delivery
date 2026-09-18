@@ -28,7 +28,7 @@ test('desktop navigation opens the queue and its settings shortcut opens the pri
   const [app, sidebar, orders] = await Promise.all([
     readSource('../App.jsx'),
     readSource('../app/navigation/registry.js'),
-    readSource('./Orders.jsx'),
+    readSource('../domains/orders/ui/Orders.jsx'),
   ])
 
   assert.match(app, /import PrintQueue from '\.\/pages\/PrintQueue'/)

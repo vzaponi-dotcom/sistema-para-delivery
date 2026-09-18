@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cancelOrder, refundOrder } from './client.js'
+import { refundOrder } from './client.js'
+import { ordersApi } from '../domains/orders/index.js'
 
 const withFetchStub = async (run) => {
   const originalFetch = globalThis.fetch
@@ -22,7 +23,7 @@ const withFetchStub = async (run) => {
 test('cancelOrder posts semantic cancellation payload to encoded order endpoint', async () => {
   await withFetchStub(async (calls) => {
     const payload = { reason: 'entry_error', note: '', refundNow: false, refundMethod: '' }
-    await cancelOrder('pedido 1', payload)
+    await ordersApi.cancelOrder('pedido 1', payload)
     assert.equal(calls.length, 1)
     assert.equal(calls[0].path, '/api/orders/pedido%201/cancel')
     assert.equal(calls[0].options.method, 'POST')

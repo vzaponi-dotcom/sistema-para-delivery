@@ -1,6 +1,5 @@
-import { cancellationReasonsPolicy } from './cancellationReasonsPolicy.js'
+import { cancellationReasonsPolicy, operationsPolicy } from '../../../../domains/orders/index.js'
 import { financeCategoriesPolicy } from './financeCategoriesPolicy.js'
-import { operationsPolicy } from './operationsPolicy.js'
 import { paymentMethodsPolicy } from './paymentMethodsPolicy.js'
 import { printingPolicy, stationConfigurationPolicy, stationPrimaryPolicy } from './printingPolicy.js'
 

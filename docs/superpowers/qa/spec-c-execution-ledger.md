@@ -13,14 +13,14 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-16
+## Program status — 2026-09-17
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
 | C1 | Runtime central, generic HTTP/auth, architecture gate | **RELEASED — COMPLETE** | `feature/spec-c1-runtime` / PR #45 merged | `docs/superpowers/plans/2026-09-15-frontend-modularization-c1-runtime-plan.md` |
-| C2 | Navigation and App composition | **HOMOLOGATED — MERGE GATE** | `feature/spec-c2-navigation-composition` / PR #46 draft | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
-| C3 | Settings surface + generic policy editing engine | **STAGING DEPLOYED — MANUAL QA BLOCKED** | `feature/spec-c3-settings-surface` / no PR | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
-| C4 | Orders | NOT STARTED | — | Write after C3 merge |
+| C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
+| C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
+| C4 | Orders | **AUTOMATED GATES GREEN — STAGING PENDING** | `feature/spec-c4-orders` / PR #48 draft | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | NOT STARTED | — | Write after C4 merge |
 | C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
@@ -29,8 +29,6 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
-
----
 
 # C1 — Runtime Centralization — CLOSED
 
@@ -83,66 +81,111 @@ Temporary bridges/facades inherited from C1 remain governed by `docs/superpowers
 
 ---
 
-# C2 — Navigation and App Composition — HOMOLOGATED / MERGE GATE
+# C2 — Navigation and App Composition — CLOSED
 
-## Git / PR / CI state
+## Final Git / CI state
 
-- Base/master SHA: `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`
+- Base SHA: `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`
 - Branch: `feature/spec-c2-navigation-composition`
-- PR: #46 — `Spec C2: modularizar navegação e composição do frontend` — **draft**
+- PR: #46 — merged
 - Homologated executable SHA: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`
-- Validate application: #1213 / run `35139754603` — **PASS**
-- Manual Deploy staging: #178 / run `35141467373` — **PASS**, `workflow_dispatch`, exact executable SHA
-- Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
-- Manual homologation: 2026-09-16 ~16:54 BRT — **0 FAIL**
-- Manual matrix summary: **10 fully PASS, 4 fully BLOCKED, 1 partial PASS/BLOCKED, 0 FAIL**
-- QA record: `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`
-- Production changes from C2: **none**
-- Merge: **pending explicit user authorization**
-- C3: **blocked until C2 merge and validation of resulting master**
+- Final docs-only branch HEAD: `03154a883a6e96fdbfb75b58ec672ff591c80a4b`
+- Merge/master SHA: `de24b2ceb807440d4c339200b44ae2ed6583b27a`
+- Validate executable: #1213 / run `35139754603` — PASS
+- Manual Deploy staging: #178 / run `35141467373` — PASS
+- Final docs Validate: #1214 / run `35145796111` — PASS
+- Post-merge master Validate: #1215 — PASS
+- Manual staging QA: 0 FAIL; exact PASS/BLOCKED evidence remains in `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`.
+- Production changes from C2: none.
 
-The manually blocked scenarios remain explicitly blocked; automated tests are recorded only as complementary evidence in the QA record and do not convert manual BLOCKED results into PASS.
+C2 is closed and no longer blocks later slices.
 
-## C2 delivered boundaries
+---
 
-C2 implemented and staged:
+# C3 — Settings Surface and Versioned Policy Editing — CLOSED
 
-- single declarative navigation registry and pure resolution/fallback logic under `src/app/navigation/`;
-- navigation controller/query ownership and Settings navigation guard under `src/app/navigation/`;
-- scoped `NavigationContext` and dedicated `app:navigate` event bridge;
-- `AppShell`, `Sidebar` and `MobileNavigation` under `src/app/shell/`;
-- `AreaNavigation` under `src/app/navigation/`;
-- thin `AppRoot` for auth/bootstrap/offline/global feedback composition;
-- direct imports from the new navigation owners;
-- removal of the old navigation/query/controller compatibility facades and legacy shell/menu paths;
-- final extraction contract protecting the C2 boundary.
+## Final Git / CI state
 
-C2 preserved the approved invariants for destination IDs, capability fallbacks, mobile `Mais`, internal area navigation, New Order return context, dirty-order and Settings guards, focus/page transition, same-session query continuity, stale-session callback invalidation, `app:navigate`, global sync and dedicated Cozinha polling signals, and desktop/mobile light/dark visuals.
+- Base SHA: `de24b2ceb807440d4c339200b44ae2ed6583b27a`
+- Branch: `feature/spec-c3-settings-surface`
+- PR: #47 — merged
+- Homologated executable SHA: `17673b66774a1b532fc22972603407dcbb932bad`
+- Final branch/docs HEAD: `bc6c38eb0b81c91820108dee7a228d930832bdc9`
+- Merge/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
+- Manual Deploy staging: #179 / run `35176387507` — PASS
+- Manual staging QA: **14 PASS / 0 FAIL / 9 BLOCKED**
+- Final branch Validate: #1219 / run `35232989249` — PASS
+- QA record: `docs/superpowers/qa/spec-c3-settings-surface-qa.md`
+- C3 compatibility facades surviving merge: none
+- Production changes from C3: none.
 
-No Worker, D1 schema, API contract, dependency, CSS redesign or React Router change was introduced by C2.
+C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then merged cleanly. Its merged `master` SHA is the approved C4 base.
 
-## C2 homologation evidence
+---
 
-- Functional CI on `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`: tests, architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 gate all passed.
-- Staging deploy #178 used `workflow_dispatch`, exact executable SHA and passed migrations, deploy and real staging login verification.
-- Manual matrix had no FAIL. Items 3, 10, 13 and 14 were BLOCKED by staging/tooling observability constraints; item 11 was DIRTY PASS with saving/unconfirmed BLOCKED. Exact evidence and complementary automated coverage are in the QA record.
-- No persistent QA data was left behind; temporary Settings/theme changes were restored/discarded.
-- Production remained untouched.
+# C4 — Orders — MERGE GATE / AWAITING AUTHORIZATION
 
-## C2 merge gate
+## Current Git / PR / CI state
 
-Do not start C3 and do not merge automatically.
+- Base/master SHA: `737beeac2150aabeb39024af823f2f60fee25108`
+- Branch: `feature/spec-c4-orders`
+- PR: #48 — **draft**, open, not merged
+- Last code-changing SHA: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
+- Staging-homologated SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`
+- Item 7 fix Validate: #1273 / run `35301870107` — **PASS** (1,689 tests / 0 failures plus full gate set)
+- Staging deployment: #181 / run `35303388467` — **SUCCESS** on `f630c6a96a40384032ed607031bdc935d4ac20a7`
+- Manual homologation: **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**
+- Item 6 BLOCKED reason: safe out-of-window scheduled-queue reproduction was not possible at the homologation time under the same-day scheduling rule; observed in-window transition behavior was correct.
+- Changes since staged SHA: documentation-only.
+- Master reconciliation: `master` remains the approved base `737beeac2150aabeb39024af823f2f60fee25108`
+- Final QA/docs-head Validate: #1289 / run `35356575893` — **PASS** on `8468cc335fb59e95643360c21369e16cb0e24b82` (1,689 tests / 0 failures plus full gate set)
+- Production deploy: **NO**
+- Task 11: **COMPLETE — MERGE GATE**
+- Merge: **NO — explicit user authorization required**
+- C5: **NOT STARTED**
 
-Before merge in a new session:
+## Completed task checkpoint
 
-1. read `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`;
-2. inspect PR #46 and its current head SHA;
-3. verify the latest branch validation is green;
-4. verify no functional commit was added after the homologated executable SHA except documented docs-only reconciliation;
-5. obtain explicit user authorization for the merge;
-6. merge PR #46 only after that authorization;
-7. validate the resulting `master` before planning C3;
-8. production still requires separate explicit authorization.
+| Task | Boundary | Status |
+|---|---|---|
+| 1 | Orders public boundary + core pure rules | GREEN |
+| 2 | Kitchen operations, clock, arrivals/highlight/sound lifecycle | GREEN |
+| 3 | Orders lifecycle HTTP read port / runtime integration | GREEN |
+| 4 | Operations + cancellation policy ownership | GREEN |
+| 5 | Pure New Order draft lifecycle controller | GREEN |
+| 6 | `useNewOrderDraft` + draft internals removed from App | GREEN |
+| 7 | Finalize/cancel orchestration + legacy lifecycle exports retired | GREEN |
+| 8 | Novo Pedido UI + creation-only components moved into Orders | GREEN |
+| 9 | Cozinha + Histórico UI move | GREEN |
+| 10 | Enforce final C4 boundary / legacy-owner removal | GREEN |
+| 11 | Full QA, staging, homologation and merge gate | COMPLETE — MERGE GATE |
+
+## Current C4 ownership state
+
+- `src/domains/orders/domain/` owns the extracted pure order rules.
+- `src/domains/orders/application/` owns arrival lifecycle, New Order draft lifecycle and order lifecycle commands.
+- `src/domains/orders/infrastructure/` owns order lifecycle API and the Orders-owned Settings policies.
+- Novo Pedido, Cozinha and Histórico UI plus their order-only components are physically under `src/domains/orders/ui/`.
+- `src/domains/orders/index.js` is the public boundary for non-Orders consumers. Task 9 also exposes `OrderDetail` publicly for the existing Receivables integration without restoring the removed legacy path.
+- The Task 8 public route uses `src/domains/orders/ui/NewOrderRoute.js` so the public entry remains compatible with pure Node `node --test`; `NewOrderRoute.jsx` remains an internal UI reexport and `NewOrder.jsx` remains the actual wizard surface.
+- All legacy Task 8 and Task 9 Orders-owned paths under `src/pages` / `src/components` are physically absent.
+- The pure operational-history projection now lives at `src/domains/orders/domain/orderHistoryAnalysis.js`, avoiding a UI → dashboard util → Orders public-index cycle.
+- Generic `LocalTableSelector`, `ClientDuplicateModal`, primitives, `PaymentBadge` and `OrderTicketPreview` remain outside Orders by design.
+- The permanent architecture gate now rejects external deep imports into Orders, reintroduced C4 legacy owner files, and migrated Orders lifecycle exports in `src/api/client.js`.
+
+## Resume gate
+
+C4 has reached the merge gate. Do **not** begin C5 and do **not** deploy production.
+
+Before executing a merge:
+1. confirm the current branch HEAD and PR #48;
+2. confirm the current docs-only reconciliation HEAD has a successful Validate;
+3. confirm `master` has not moved incompatibly from `737beeac2150aabeb39024af823f2f60fee25108`;
+4. preserve staging #181 / run `35303388467` and manual QA **19 PASS / 0 FAIL / 1 BLOCKED** as the homologation evidence;
+5. keep item 6 BLOCKED as documented unless directly re-observed;
+6. require explicit user authorization before merging PR #48;
+7. production remains a separate later authorization;
+8. C5 may begin only after C4 is merged/closed according to the rollout.
 
 ---
 
@@ -163,17 +206,17 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-C2 is at the merge gate. Before any further implementation:
+The active slice is C4, Task 11 in progress at the staging gate. GitHub state wins over this file if the branch advanced after this documentation commit.
 
-1. read the Spec C design;
-2. read the rollout plan;
-3. read this ledger;
-4. read the C2 design, detailed plan and QA record;
-5. read the compatibility ledger;
-6. inspect PR #46, current branch head and latest CI on GitHub;
-7. confirm the homologated executable SHA `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8` and any later docs-only commit;
-8. do not start C3 before explicit approval and merge of C2;
-9. if merge is authorized, merge PR #46 and validate the resulting `master`;
-10. production remains a separate explicit authorization gate.
+1. Read the Spec C design and rollout plan.
+2. Read this ledger.
+3. Read `docs/superpowers/specs/2026-09-17-frontend-modularization-c4-orders-design.md`.
+4. Read `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md`.
+5. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
+6. Inspect PR #48 and the remote HEAD of `feature/spec-c4-orders`.
+7. Treat `e7f05b6d6d8364c0482a7fe03949c001816e8e85` as the Task 11 pre-QA executable identity; Validate #1262 / run `35297928408` passed.
+8. Task 11 is IN PROGRESS — pre-staging QA recorded; staging/manual homologation remain pending.
+9. C5 is NOT STARTED and must not begin before C4 closes and merges.
+10. Do not merge C4 or deploy production without explicit user authorization.
 
-The repository is the source of truth for Spec C continuity, not any individual chat.
+The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

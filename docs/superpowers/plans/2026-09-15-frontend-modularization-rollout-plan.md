@@ -13,13 +13,14 @@
 ## Current rollout status — 2026-09-17
 
 - C1 — Runtime central is **RELEASED / COMPLETE** on `master` at `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210` after PR #45, post-merge validation and explicitly authorized production release.
-- C2 — Navigation and App composition was merged by PR #46; `master` is now `de24b2ceb807440d4c339200b44ae2ed6583b27a`.
-- C2 homologated executable SHA: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`; Validate application #1213 / run `35139754603` and Manual Deploy staging #178 / run `35141467373` passed. The C2 QA record remains `docs/superpowers/qa/spec-c2-navigation-composition-qa.md`.
-- Active slice: **C3 — Settings surface and versioned policy engine**, branch `feature/spec-c3-settings-surface`, executable SHA `17673b66774a1b532fc22972603407dcbb932bad`.
-- C3 local gates passed on the executable SHA: `npm test`, `npm run test:architecture`, `npm run lint` (existing warnings only), `npm run build`, and `npm run d1:migrate:local`. The diff audit found no changes under `worker`, `migrations`, or `src/printing`.
-- C3 Validate #1216 / run `35176245887` passed on branch HEAD `8b01af19a4f74fd4725394860edd6a85d50d4915`. Manual Deploy staging #179 / run `35176387507` passed on branch HEAD `471d377f973864be6d3037e47a743a02f6a59df0`, including staging login verification. The 23-item manual UI matrix remains blocked because no browser surface is available in this session; production remains untouched and C3 is not ready for merge authorization. Evidence is in `docs/superpowers/qa/spec-c3-settings-surface-qa.md`.
-- C3 did not deploy production and was not merged.
-- Temporary compatibility bridges inherited from C1 remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`; C3 left no C3 compatibility facade.
+- C2 — Navigation and App composition is **MERGED / COMPLETE**. PR #46 merged to `master` at `de24b2ceb807440d4c339200b44ae2ed6583b27a`. Homologated executable: `882fa7bb3a7bfd3abc3a6ba6a9c58e407da201b8`; Validate #1213 / run `35139754603`, staging #178 / run `35141467373`, and post-merge Validate #1215 all passed.
+- C3 — Settings surface and versioned policy engine is **MERGED / COMPLETE**. PR #47 merged to `master` at `737beeac2150aabeb39024af823f2f60fee25108`. Homologated executable: `17673b66774a1b532fc22972603407dcbb932bad`; staging #179 / run `35176387507` passed; manual QA closed with **14 PASS / 0 FAIL / 9 BLOCKED**; final branch Validate #1219 / run `35232989249` passed on `bc6c38eb0b81c91820108dee7a228d930832bdc9`.
+- Active slice: **C4 — Orders**, branch `feature/spec-c4-orders`, draft PR #48, base `master` `737beeac2150aabeb39024af823f2f60fee25108`.
+- C4 Task 11 status: **COMPLETE — MERGE GATE / AWAITING EXPLICIT AUTHORIZATION**. Last code-changing SHA: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`; staging-homologated SHA: `f630c6a96a40384032ed607031bdc935d4ac20a7`.
+- Item 7 fix Validate #1273 / run `35301870107` passed with 1,689 tests / 0 failures plus architecture, lint, build, Worker dry-runs and D1 gates. Deploy staging #181 / run `35303388467` succeeded on `f630c6a96a40384032ed607031bdc935d4ac20a7`.
+- C4 manual QA closed at **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED row is the scheduled-queue out-of-window observation constrained by same-day scheduling and homologation time; in-window transition behavior was observed correctly.
+- Final QA/docs-head Validate #1289 / run `35356575893` passed on `8468cc335fb59e95643360c21369e16cb0e24b82` with 1,689 tests / 0 failures and the full gate set. Changes after the staging-homologated SHA are documentation-only. `master` remained at the approved C4 base during merge-gate preparation. C4 has not been merged and production has not been deployed.
+- Temporary compatibility bridges remain tracked in `docs/superpowers/qa/spec-c-compatibility-facades.md`. No C3 compatibility facade survived; C4 Task 10 now permanently rejects reintroduced C4 owner paths, deep external Orders imports, and migrated lifecycle exports. Scheduled C5/C6/C8/C10 bridges remain intentionally active.
 - The rollout contracts below are unchanged; this block is execution status only.
 
 ## Global Constraints

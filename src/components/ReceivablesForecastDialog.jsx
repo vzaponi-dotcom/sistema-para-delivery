@@ -1,5 +1,5 @@
 import Modal from './Modal'
-import { formatOrderDate } from '../utils/orderWorkflow.js'
+import { formatOrderDate } from '../domains/orders/index.js'
 
 const countLabel = (count) => `${count} ${count === 1 ? 'recebimento' : 'recebimentos'}`
 

@@ -6,7 +6,7 @@ import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import RegisterRefundDialog from '../components/RegisterRefundDialog'
 import StatCard from '../components/StatCard'
-import { formatCancellationDate } from '../utils/orderWorkflow.js'
+import { formatCancellationDate } from '../domains/orders/index.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 
 function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRegisterRefund, paymentOptions, canManageMovements = true, canRefundPayments = true }) {

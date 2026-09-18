@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getBootstrap, getOrders } from '../../../api/client.js'
+import { getBootstrap } from '../../../api/client.js'
+import { ordersApi } from '../../../domains/orders/index.js'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from '../../../utils/dataSync.js'
 
 export const GLOBAL_SYNC_INTERVAL_MS = 5_000
@@ -8,7 +9,7 @@ export const ORDER_SYNC_INTERVAL_MS = 2_000
 const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 
-const defaultApi = { getBootstrap, getOrders }
+const defaultApi = { getBootstrap, getOrders: ordersApi.getOrders }
 const defaultLegacyBridges = Object.freeze({})
 
 export const createRefreshSubscription = ({

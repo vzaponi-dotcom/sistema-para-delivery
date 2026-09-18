@@ -105,3 +105,29 @@ test('App cannot import legacy Settings owners or concrete policy adapters', asy
   assert.ok(violations.some((value) => value.includes('app-c3-legacy-owner')))
   assert.ok(violations.some((value) => value.includes('app-settings-policy')))
 })
+
+
+test('non-Orders consumers cannot deep import Orders internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import { isOrderActive } from './domains/orders/domain/orderLifecycle.js'\n")
+  await write('src/domains/orders/domain/orderLifecycle.js', 'export const isOrderActive = () => true\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((item) => item.startsWith('orders-deep-import:')))
+})
+
+test('C4 legacy Orders owners are rejected when they reappear', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/pages/Orders.jsx', 'export default function Orders() {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((item) => item.startsWith('c4-legacy-orders-owner:')))
+})
+
+test('legacy API client cannot reintroduce Orders lifecycle exports', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/client.js', [
+    "export const createOrder = () => {}",
+    "export const refundOrder = () => {}",
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c4-legacy-orders-api: src/api/client.js'))
+})

@@ -111,7 +111,7 @@ async function operationalWorkspace(t, { orders, capabilities = operationalCapab
 test('detalhe aberto usa o pedido oficial atual por ID e retira a ação quando ele é pago ou desaparece', async (t) => {
   const pending = standaloneOrder('101')
   const { h, renderer, state, openKitchenDetail } = await operationalWorkspace(t, { orders: [pending] })
-  const { default: OrderDetail } = await h.load('/src/components/OrderDetail.jsx')
+  const { default: OrderDetail } = await h.load('/src/domains/orders/ui/components/OrderDetail.jsx')
 
   await openKitchenDetail()
   assert.ok(buttonNamed(renderer.root, 'Registrar pagamento'))
@@ -130,7 +130,7 @@ test('Histórico recebe sem Financeiro, fecha detalhe e cancelar o modal preserv
   const order = standaloneOrder('202', { status: 'Finalizado', finishedAt: '2026-09-11T12:30:00.000Z' })
   const capabilities = new Set(['orders.history', 'payments.receive'])
   const { h, renderer, openHistoryDetail, openOperationalPayment } = await operationalWorkspace(t, { orders: [order], capabilities })
-  const { default: OrderDetail } = await h.load('/src/components/OrderDetail.jsx')
+  const { default: OrderDetail } = await h.load('/src/domains/orders/ui/components/OrderDetail.jsx')
 
   await act(async () => buttonNamed(renderer.root, 'Finalizados').props.onClick())
   await openHistoryDetail()
@@ -164,7 +164,7 @@ test('cancelar pagamento na Cozinha não reabre detalhe e preserva a busca; offl
 test('clique duplo envia um POST e resposta válida após navegação aplica efeitos sem forçar retorno', async (t) => {
   const order = standaloneOrder('404')
   const { h, renderer, state, navigate, openKitchenDetail, openOperationalPayment, submitPayment } = await operationalWorkspace(t, { orders: [order] })
-  const { default: Orders } = await h.load('/src/pages/Orders.jsx')
+  const { default: Orders } = await h.load('/src/domains/orders/ui/Orders.jsx')
 
   await openKitchenDetail()
   await openOperationalPayment()
@@ -215,7 +215,7 @@ test('resposta de pagamento da sessão antiga não altera nem desbloqueia o alvo
   const orderA = standaloneOrder('601')
   const orderB = standaloneOrder('602')
   const { h, renderer, state, openKitchenDetail, openOperationalPayment, submitPayment } = await operationalWorkspace(t, { orders: [orderA] })
-  const { default: Orders } = await h.load('/src/pages/Orders.jsx')
+  const { default: Orders } = await h.load('/src/domains/orders/ui/Orders.jsx')
 
   await openKitchenDetail()
   await openOperationalPayment()
@@ -245,7 +245,7 @@ test('resposta de pagamento da sessão antiga não altera nem desbloqueia o alvo
 test('409 faz leitura oficial sem repetir POST e o estado oficial prevalece', async (t) => {
   const order = standaloneOrder('701')
   const { h, renderer, state, openKitchenDetail, openOperationalPayment, submitPayment } = await operationalWorkspace(t, { orders: [order] })
-  const { default: Orders } = await h.load('/src/pages/Orders.jsx')
+  const { default: Orders } = await h.load('/src/domains/orders/ui/Orders.jsx')
 
   await openKitchenDetail()
   await openOperationalPayment()
@@ -264,7 +264,7 @@ test('409 faz leitura oficial sem repetir POST e o estado oficial prevalece', as
 test('resultado incerto faz leitura oficial, não repete POST e não marca Pago por otimismo', async (t) => {
   const order = standaloneOrder('801')
   const { h, renderer, state, openKitchenDetail, openOperationalPayment, submitPayment } = await operationalWorkspace(t, { orders: [order] })
-  const { default: Orders } = await h.load('/src/pages/Orders.jsx')
+  const { default: Orders } = await h.load('/src/domains/orders/ui/Orders.jsx')
   state.paymentHandler = async () => { throw new TypeError('network') }
 
   await openKitchenDetail()
@@ -295,7 +295,7 @@ for (const [name, blockedOrder] of [
   ['pedido ligado a comanda', standaloneOrder('1002', { customerIdentityType: 'table', tableTabId: 'tab-1002', tableIdentifier: 'Mesa 2' })],
 ]) test(`${name} não expõe pagamento avulso no detalhe operacional`, async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Orders } = await h.load('/src/pages/Orders.jsx')
+  const { default: Orders } = await h.load('/src/domains/orders/ui/Orders.jsx')
   const renderer = await renderWithNavigation(h, Orders, {
     orders: [blockedOrder],
     now: new Date('2026-09-11T12:10:00.000Z'),

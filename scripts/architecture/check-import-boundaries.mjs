@@ -25,6 +25,39 @@ const C3_LEGACY_SETTINGS_OWNERS = new Set([
   'src/components/SettingsItemDialog.jsx',
   'src/components/SettingsItemList.jsx',
 ])
+const C4_LEGACY_ORDERS_OWNERS = new Set([
+  'src/pages/NewOrder.jsx',
+  'src/pages/NewOrderRoute.jsx',
+  'src/pages/OrderHistory.jsx',
+  'src/pages/Orders.jsx',
+  'src/hooks/useKitchenClock.js',
+  'src/utils/cancellationReasonOptions.js',
+  'src/utils/kitchenClock.js',
+  'src/utils/kitchenQueue.js',
+  'src/utils/kitchenTicket.js',
+  'src/utils/newOrderStepFlow.js',
+  'src/utils/orderCart.js',
+  'src/utils/orderLifecycle.js',
+  'src/utils/orderPaymentEligibility.js',
+  'src/utils/orderRealtime.js',
+  'src/utils/orderTypeOptions.js',
+  'src/utils/orderWorkflow.js',
+  'src/components/CancelOrderDialog.jsx',
+  'src/components/KitchenTicket.jsx',
+  'src/components/KitchenTicketNotes.jsx',
+  'src/components/NewOrderCartSummary.jsx',
+  'src/components/NewOrderCustomerStep.jsx',
+  'src/components/NewOrderProductsStep.jsx',
+  'src/components/NewOrderReviewStep.jsx',
+  'src/components/NewOrderStepIndicator.jsx',
+  'src/components/OperationalHistoryAnalysis.jsx',
+  'src/components/OrderCart.jsx',
+  'src/components/OrderCheckoutSummary.jsx',
+  'src/components/OrderDetail.jsx',
+  'src/components/OrderDetailTiming.js',
+  'src/components/OrderDetailTiming.jsx',
+  'src/components/OrderProductCatalog.jsx',
+])
 const IMPORT_PATTERNS = [
   /\bimport\s+(?:[^'"()]*?\s+from\s+)?['"]([^'"]+)['"]/g,
   /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
@@ -100,6 +133,20 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (sourcePaths.has(legacyOwner)) violations.push(`c3-legacy-owner: ${legacyOwner}`)
   }
 
+  for (const legacyOwner of C4_LEGACY_ORDERS_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c4-legacy-orders-owner: ${legacyOwner}`)
+  }
+
+  try {
+    const legacyApiClient = await readFile(path.join(rootDir, 'src/api/client.js'), 'utf8')
+    const migratedOrderApiPattern = /export\s+const\s+(getOrders|createOrder|updateOrderStatus|cancelOrder)\b/
+    if (migratedOrderApiPattern.test(legacyApiClient)) {
+      violations.push('c4-legacy-orders-api: src/api/client.js')
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
@@ -121,6 +168,12 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
 
     if (edge.from.startsWith('src/shared/') && edge.resolvedPath?.startsWith('src/domains/')) {
       violations.push(`shared-domain: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!edge.from.startsWith('src/domains/orders/')
+      && edge.resolvedPath?.startsWith('src/domains/orders/')
+      && edge.resolvedPath !== 'src/domains/orders/index.js') {
+      violations.push(`orders-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
     if (fromDomain && targetDomain && fromDomain !== targetDomain) {

@@ -57,3 +57,7 @@
 .kitchen-page .kitchen-queue-empty strong {
   color: var(--kitchen-board-text);
 }
+[data-theme='dark'] .kitchen-page .kitchen-search:focus-within {
+  background: var(--kitchen-ticket);
+}
+

@@ -97,7 +97,7 @@ test('a new cash movement remains empty and requires an explicit active payment 
 
 test('checkout applies the current default only when opening a new payment choice', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Checkout } = await h.load('/src/components/OrderCheckoutSummary.jsx')
+  const { default: Checkout } = await h.load('/src/domains/orders/ui/components/OrderCheckoutSummary.jsx')
   const base = {
     draft: { type: 'Retirada', adjustment: { type: 'none', mode: 'fixed', value: '', reason: '' } },
     preview: { subtotal: 20, deliveryFee: 0, adjustmentAmount: 0, total: 20 },
@@ -116,7 +116,7 @@ test('checkout applies the current default only when opening a new payment choic
 
 test('cancellation refund starts from the persisted method and never silently substitutes Pix', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const order = { id: 'order-2', orderNumber: 2, client: 'Bia', paymentStatus: 'Pago', paymentMethod: 'Transferência' }
   const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm() {} })
   await act(async () => buttonNamed(screen.root, 'Sim').props.onClick())
@@ -127,7 +127,7 @@ test('cancellation refund starts from the persisted method and never silently su
 
 test('cancellation without a persisted method requires an explicit refund choice', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const order = { id: 'order-3', orderNumber: 3, client: 'Caio', paymentStatus: 'Pago', paymentMethod: '' }
   const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm() {} })
   await act(async () => buttonNamed(screen.root, 'Sim').props.onClick())

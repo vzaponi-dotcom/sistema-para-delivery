@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('orders receive the shared kitchen clock instead of owning a minute timer', async () => {
-  const source = await read('./pages/Orders.jsx')
+  const source = await read('./domains/orders/ui/Orders.jsx')
   assert.match(source, /function Orders\(\{[^}]*\bnow\b/)
   assert.doesNotMatch(source, /setInterval[\s\S]*60_000/)
   assert.doesNotMatch(source, /setNow/)

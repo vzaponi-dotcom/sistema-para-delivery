@@ -10,6 +10,7 @@ import {
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
 const operationalRuntime = await readFile(new URL('../app/runtime/data/useOperationalDataRuntime.js', import.meta.url), 'utf8')
+const orderArrivals = await readFile(new URL('../domains/orders/application/useOrderArrivals.js', import.meta.url), 'utf8')
 
 test('printing manager is driven by official job APIs and never by new-order detection', () => {
   for (const apiName of [
@@ -35,14 +36,15 @@ test('printing manager is driven by official job APIs and never by new-order det
   assert.doesNotMatch(manager, /getNewActiveOrderIds/)
   assert.doesNotMatch(manager, /detectedIds/)
 
-  const detectedIdsIndex = app.indexOf('newIds: detectedIds')
-  assert.notEqual(detectedIdsIndex, -1)
-  const detectionEffectStart = app.lastIndexOf('useEffect(() => {', detectedIdsIndex)
+  const arrivalIndex = orderArrivals.indexOf('const { currentIds, newIds }')
+  assert.notEqual(arrivalIndex, -1)
+  const detectionEffectStart = orderArrivals.lastIndexOf('useEffect(() => {', arrivalIndex)
   assert.notEqual(detectionEffectStart, -1)
-  const nextEffectStart = app.indexOf('useEffect(() => {', detectedIdsIndex + 1)
+  const nextEffectStart = orderArrivals.indexOf('useEffect(() => {', arrivalIndex + 1)
   assert.notEqual(nextEffectStart, -1)
-  const detectionEffect = app.slice(detectionEffectStart, nextEffectStart)
-  assert.match(detectionEffect, /detectedIds/)
+  const detectionEffect = orderArrivals.slice(detectionEffectStart, nextEffectStart)
+  assert.match(detectionEffect, /detectOperationalArrivals/)
+  assert.match(detectionEffect, /\bnewIds\b/)
   assert.doesNotMatch(detectionEffect, /\bprinting\./)
 })
 
@@ -177,8 +179,10 @@ test('App mounts one printing manager and passes it to Orders without changing o
   assert.match(app, /<Orders[\s\S]*printing=\{printing\}/)
   assert.match(app, /<Comandas[\s\S]*printing=\{printing\}/)
 
-  assert.match(app, /getNew(?:Active|Operational)OrderIds/)
-  assert.match(app, /detectedIds/)
+  assert.match(app, /useOrderArrivals\(/)
+  assert.doesNotMatch(app, /getNew(?:Active|Operational)OrderIds|newIds:\s*detectedIds/)
+  assert.match(orderArrivals, /detectOperationalArrivals/)
+  assert.match(orderArrivals, /const \{ currentIds, newIds \}/)
   assert.match(operationalRuntime, /const DATA_COLLECTIONS = \['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings'\]/)
   assert.doesNotMatch(operationalRuntime, /DATA_COLLECTIONS = \[[^\]]*print/i)
 })

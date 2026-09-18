@@ -3,10 +3,11 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
-const [app, runtime, onlineRuntime] = await Promise.all([
+const [app, runtime, onlineRuntime, newOrderDraft] = await Promise.all([
   read('./App.jsx'),
   read('./app/runtime/data/useOperationalDataRuntime.js'),
   read('./app/runtime/network/useOnlineStatus.js'),
+  read('./domains/orders/application/useNewOrderDraft.js'),
 ])
 
 test('App delegates official-data synchronization to the operational runtime', () => {
@@ -48,9 +49,11 @@ test('orders keep the faster cadence and stale order reads cannot overwrite newe
 })
 
 test('paid checkout applies authoritative effects locally instead of awaiting full bootstrap', () => {
-  assert.match(app, /const \{ order, movement, tableTab, tables: nextTables \} = await createOrderApi/)
+  assert.match(app, /submitOrder: ordersApi\.createOrder/)
+  assert.match(app, /commitOfficialEffects: applyOfficialEffects/)
+  assert.match(newOrderDraft, /const result = await submitOrderRef\.current\(payload, token\.idempotencyKey\)/)
+  assert.match(newOrderDraft, /commitOfficialEffectsRef\.current\(result\)/)
   assert.doesNotMatch(app, /if \(order\.paymentStatus === 'Pago'\) await refreshBootstrap\(\)/)
-  assert.match(app, /applyOfficialEffects/)
   assert.match(runtime, /markMutation/)
   assert.match(runtime, /upsertById/)
 })

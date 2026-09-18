@@ -40,10 +40,10 @@ test('kitchen header actions prioritize new order above the secondary controls o
 
 test('mobile cart matches the approved compact icon-and-pill layout without changing cart actions', async () => {
   const css = await read('./mobile-compact-controls.css')
-  const cart = await read('./components/OrderCart.jsx')
+  const cart = await read('./domains/orders/ui/components/OrderCart.jsx')
 
-  assert.match(cart, /import Icon from '\.\/Icon'/)
-  assert.match(cart, /import \{ CATEGORY_ICON_NAMES, categoryForUi \} from '\.\.\/\.\.\/shared\/productCatalog\.js'/)
+  assert.match(cart, /import Icon from '[^']*components\/Icon'/)
+  assert.match(cart, /import \{ CATEGORY_ICON_NAMES, categoryForUi \} from '[^']*shared\/productCatalog\.js'/)
   assert.match(cart, /className="new-order-cart-category-icon"/)
   assert.match(cart, /<Icon name=\{CATEGORY_ICON_NAMES\[categoryForUi\(item\.category\)\]\} size=\{22\} \/>/)
 
@@ -62,7 +62,7 @@ test('mobile cart matches the approved compact icon-and-pill layout without chan
 
 test('existing cart notes stay readable on mobile instead of collapsing into an ellipsis', async () => {
   const css = await read('./mobile-compact-controls.css')
-  const cart = await read('./components/OrderCart.jsx')
+  const cart = await read('./domains/orders/ui/components/OrderCart.jsx')
 
   assert.match(cart, /className="new-order-note-summary"/)
   assert.match(cart, /<span title=\{item\.note\}>📝 \{item\.note\}<\/span>/)

@@ -1,0 +1,143 @@
+import { useMemo, useState } from 'react'
+import {
+  PRODUCT_CATEGORIES,
+  categoryForUi,
+  formatProductPresentation,
+} from '../../../../../shared/productCatalog.js'
+import { getCartProductQuantity } from '../../domain/orderCart.js'
+import Button from '../../../../components/Button'
+
+function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd, onDecrease }) {
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState(null)
+
+  const categories = useMemo(
+    () => PRODUCT_CATEGORIES.filter((item) => products.some((product) => categoryForUi(product.category) === item)),
+    [products],
+  )
+
+  const visibleProducts = useMemo(() => {
+    const normalized = search.trim().toLocaleLowerCase('pt-BR')
+    if (!normalized && !category) return []
+
+    return products.filter((product) => {
+      const uiCategory = categoryForUi(product.category)
+      const presentation = formatProductPresentation(product)
+      const matchesSearch = [product.name, uiCategory, presentation]
+        .join(' ')
+        .toLocaleLowerCase('pt-BR')
+        .includes(normalized)
+
+      if (normalized) return matchesSearch
+      return uiCategory === category
+    })
+  }, [category, products, search])
+
+  const hasSelection = Boolean(search.trim() || category)
+
+  return (
+    <section className="surface-card new-order-catalog">
+      <div className="section-heading">
+        <div>
+          <span className="section-kicker">Catálogo</span>
+          <h2>Adicionar produtos</h2>
+        </div>
+        <span className="toolbar-count">{visibleProducts.length} produto(s)</span>
+      </div>
+
+      <label className="form-field">
+        <span>Buscar produto</span>
+        <input
+          type="search"
+          placeholder="Nome, categoria ou apresentação"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </label>
+
+      <div className="new-order-categories" aria-label="Categorias de produtos">
+        {categories.map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={category === item ? 'new-order-category active' : 'new-order-category'}
+            onClick={() => setCategory(item)}
+            aria-pressed={category === item}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <div className="new-order-products">
+        {visibleProducts.map((product) => {
+          const quantity = getCartProductQuantity(items, product.id)
+          const isAdded = quantity > 0
+          const uiCategory = categoryForUi(product.category)
+          const presentation = formatProductPresentation(product)
+          return (
+            <article className={isAdded ? 'new-order-product recently-added' : 'new-order-product'} key={product.id}>
+              <div>
+                <strong>{product.name}</strong>
+                <span>{[uiCategory, presentation].filter(Boolean).join(' · ')}</span>
+              </div>
+              <div className="new-order-product-action">
+                <strong>{currency(product.price)}</strong>
+                {isAdded ? (
+                  <div
+                    className="new-order-product-quantity new-order-quantity-control"
+                    aria-label={`Quantidade de ${product.name}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onDecrease(product.id)}
+                      disabled={disabled}
+                      aria-label={`Remover uma unidade de ${product.name}`}
+                    >
+                      −
+                    </button>
+                    <span aria-live="polite">{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => onAdd(product)}
+                      disabled={disabled}
+                      aria-label={`Adicionar mais uma unidade de ${product.name}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    className="new-order-add-button"
+                    onClick={() => onAdd(product)}
+                    disabled={disabled}
+                    aria-label={`Adicionar ${product.name}`}
+                  >
+                    Adicionar
+                  </Button>
+                )}
+              </div>
+            </article>
+          )
+        })}
+
+        {!hasSelection && (
+          <div className="empty-state compact">
+            <strong>Selecione uma categoria ou busque um produto</strong>
+            <span>Use as categorias acima ou digite na busca para encontrar rapidamente.</span>
+          </div>
+        )}
+
+        {hasSelection && !visibleProducts.length && (
+          <div className="empty-state compact">
+            <strong>Nenhum produto encontrado</strong>
+            <span>Ajuste a busca ou selecione outra categoria.</span>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+export default OrderProductCatalog

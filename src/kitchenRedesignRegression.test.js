@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildKitchenQueueModel } from './utils/kitchenQueue.js'
-import { buildKitchenTimingCopy, getKitchenItemNotes } from './utils/kitchenTicket.js'
+import { buildKitchenQueueModel, buildKitchenTimingCopy, getKitchenItemNotes } from './domains/orders/index.js'
 
 const read = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -96,7 +95,7 @@ test('integrated kitchen fixture preserves queues, counts, timing copy and item-
 })
 
 test('kitchen ticket exposes the approved derived state, attendance icons and exact actions', () => {
-  const ticket = read('./components/KitchenTicket.jsx')
+  const ticket = read('./domains/orders/ui/components/KitchenTicket.jsx')
 
   assert.match(ticket, /Fora do prazo/)
   assert.match(ticket, /Agendado para preparo/)
@@ -106,14 +105,14 @@ test('kitchen ticket exposes the approved derived state, attendance icons and ex
   assert.match(ticket, />Cancelar<\/Button>/)
   assert.doesNotMatch(ticket, />Cancelar pedido<\/Button>/)
   for (const label of ['Exibir detalhes', 'Saiu para entrega', 'Finalizar']) {
-    const sources = `${ticket}\n${read('./utils/orderWorkflow.js')}`
+    const sources = `${ticket}\n${read('./domains/orders/domain/orderWorkflow.js')}`
     assert.match(sources, new RegExp(label))
   }
 })
 
 test('ticket privacy stays operational while shared details retain contact and financial data', () => {
-  const ticket = read('./components/KitchenTicket.jsx')
-  const detail = read('./components/OrderDetail.jsx')
+  const ticket = read('./domains/orders/ui/components/KitchenTicket.jsx')
+  const detail = read('./domains/orders/ui/components/OrderDetail.jsx')
 
   assert.doesNotMatch(ticket, /order\.(?:total|subtotal|deliveryFee|paymentStatus|paymentMethod|clientPhone|clientAddress)/)
   for (const field of ['clientPhone', 'clientAddress', 'subtotal', 'deliveryFee', 'total']) assert.match(detail, new RegExp(`order\\.${field}`))
@@ -139,7 +138,7 @@ test('kitchen visual primitives expose the approved icon and StatCard contracts'
 })
 
 test('kitchen page keeps the approved two-queue composition and search vocabulary', () => {
-  const orders = read('./pages/Orders.jsx')
+  const orders = read('./domains/orders/ui/Orders.jsx')
 
   assert.match(orders, /placeholder="Buscar cliente, pedido, produto ou tipo"/)
   assert.match(orders, /queueModel\.totalVisible/)
@@ -151,8 +150,8 @@ test('kitchen page keeps the approved two-queue composition and search vocabular
 })
 
 test('kitchen page exposes accessible queue names and full-text controls', () => {
-  const orders = read('./pages/Orders.jsx')
-  const ticket = read('./components/KitchenTicket.jsx')
+  const orders = read('./domains/orders/ui/Orders.jsx')
+  const ticket = read('./domains/orders/ui/components/KitchenTicket.jsx')
 
   assert.equal(orders.match(/className="kitchen-queue-section" aria-labelledby=/g)?.length, 2)
   assert.match(orders, /<h2 id="kitchen-preparing-heading">/)
@@ -273,4 +272,15 @@ test('narrow kitchen keeps two counter columns and stacks ticket content without
   assert.match(narrow, /\.kitchen-ticket\s*\{[^}]*grid-template-areas:\s*["']identity["']\s*["']customer["']\s*["']summary["']\s*["']notes["']\s*["']timing["']\s*["']actions["']/s)
   assert.match(narrow, /\.kitchen-ticket\s*\{[^}]*min-width:\s*0/s)
   assert.deepEqual(forcingWidths, [])
+})
+
+test('dark kitchen search keeps a light focused field with readable ticket text', () => {
+  const contrastCss = read('./kitchen-theme-contrast.css')
+  const searchCss = read('./order-operations.css')
+
+  assert.match(searchCss, /\.kitchen-search input,[\s\S]*?color:\s*var\(--kitchen-ticket-text\)/)
+  assert.match(
+    contrastCss,
+    /\[data-theme='dark'\] \.kitchen-page \.kitchen-search:focus-within\s*\{[^}]*background:\s*var\(--kitchen-ticket\)/s,
+  )
 })

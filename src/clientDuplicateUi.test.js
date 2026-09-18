@@ -18,7 +18,7 @@ test('normal client form blocks duplicate phones and opens the in-app duplicate-
 })
 
 test('quick client inside new order can use the existing client or continue duplicate-name registration', () => {
-  const page = source('./pages/NewOrder.jsx')
+  const page = source('./domains/orders/ui/NewOrder.jsx')
 
   assert.match(page, /findClientDuplicates/)
   assert.match(page, /Telefone já cadastrado para/)
@@ -32,7 +32,7 @@ test('quick client inside new order can use the existing client or continue dupl
 
 test('duplicate client modal shows the existing client and all three choices', () => {
   const app = source('./App.jsx')
-  const page = source('./pages/NewOrder.jsx')
+  const page = source('./domains/orders/ui/NewOrder.jsx')
 
   for (const content of [app, page]) {
     assert.match(content, /Cancelar/)

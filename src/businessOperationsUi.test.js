@@ -4,7 +4,6 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
-import { getNextKitchenTransitionAt } from './utils/kitchenClock.js'
 
 const modalities = (...values) => values.map((value) => ({ value, label: value === 'Local' ? 'Consumo no local' : value }))
 const client = { id: 'client-1', name: 'Ana', phone: '11999999999' }
@@ -17,7 +16,7 @@ const baseNewOrderProps = {
 
 test('a new common order uses only active modalities and the current default', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: NewOrder } = await h.load('/src/pages/NewOrder.jsx')
+  const { default: NewOrder } = await h.load('/src/domains/orders/ui/NewOrder.jsx')
   const screen = await h.render(NewOrder, {
     ...baseNewOrderProps,
     modalityOptions: modalities('Retirada'),
@@ -31,7 +30,7 @@ test('a new common order uses only active modalities and the current default', a
 
 test('a policy refresh keeps a still-valid selection instead of reapplying the new default', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: NewOrder } = await h.load('/src/pages/NewOrder.jsx')
+  const { default: NewOrder } = await h.load('/src/domains/orders/ui/NewOrder.jsx')
   const props = { ...baseNewOrderProps, modalityOptions: modalities('Entrega', 'Retirada'), defaultModality: 'Entrega', modalityRevision: 1 }
   const screen = await h.render(NewOrder, props)
   await act(async () => buttonNamed(screen.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Retirada').props.onClick())
@@ -42,7 +41,7 @@ test('a policy refresh keeps a still-valid selection instead of reapplying the n
 test('an open order keeps an inactive selection, cart and client until explicit review', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'), h.load('/src/components/NewOrderReviewStep.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
   ])
   const props = { ...baseNewOrderProps, modalityOptions: modalities('Entrega', 'Retirada'), defaultModality: 'Entrega', modalityRevision: 4 }
   const screen = await h.render(NewOrder, props)
@@ -66,7 +65,7 @@ test('an open order keeps an inactive selection, cart and client until explicit 
 test('table context uses Local only while Local is active and otherwise requests review', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'),
   ])
   const screen = await h.render(NewOrder, {
     ...baseNewOrderProps,
@@ -83,7 +82,7 @@ test('table context uses Local only while Local is active and otherwise requests
 test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
-    h.load('/src/pages/NewOrder.jsx'), h.load('/src/components/NewOrderProductsStep.jsx'), h.load('/src/components/NewOrderReviewStep.jsx'),
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
   ])
   let refreshes = 0
   const screen = await h.render(NewOrder, {
@@ -104,7 +103,7 @@ test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', as
 test('kitchen uses current timing while terminal analytics keep the T10 snapshot', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: OperationalHistoryAnalysis }] = await Promise.all([
-    h.load('/src/pages/Orders.jsx'), h.load('/src/components/OperationalHistoryAnalysis.jsx'),
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/OperationalHistoryAnalysis.jsx'),
   ])
   const currentTiming = {
     scheduledPrepLeadMinutes: 30, scheduledLateGraceMinutes: 5,
@@ -132,19 +131,4 @@ test('kitchen uses current timing while terminal analytics keep the T10 snapshot
   }
   const history = await h.render(OperationalHistoryAnalysis, { orders: [terminal], period: 'today', now: new Date('2026-09-13T13:00:00.000Z'), currentTiming })
   assert.match(nodeText(history.root), /Tempo médio50 min/)
-})
-
-test('kitchen clock schedules its next boundary from the current effective timing', () => {
-  const order = {
-    id: 'scheduled-clock', type: 'Entrega', status: 'Em preparo',
-    createdAt: '2026-09-13T11:00:00.000Z', scheduledFor: '2026-09-13T13:00:00.000Z',
-  }
-  const currentTiming = {
-    scheduledPrepLeadMinutes: 30, scheduledLateGraceMinutes: 5,
-    immediateLateAfterMinutes: 10, immediateVeryLateAfterMinutes: 15,
-  }
-  assert.equal(
-    getNextKitchenTransitionAt([order], new Date('2026-09-13T12:00:00.000Z'), currentTiming).toISOString(),
-    '2026-09-13T12:30:00.000Z',
-  )
 })

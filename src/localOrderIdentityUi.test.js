@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 
-const page = readFileSync(new URL('./pages/NewOrder.jsx', import.meta.url), 'utf8')
-const customerStep = readFileSync(new URL('./components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
+const page = readFileSync(new URL('./domains/orders/ui/NewOrder.jsx', import.meta.url), 'utf8')
+const customerStep = readFileSync(new URL('./domains/orders/ui/components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
 const tableSelectorUrl = new URL('./components/LocalTableSelector.jsx', import.meta.url)
 const tableSelector = existsSync(tableSelectorUrl) ? readFileSync(tableSelectorUrl, 'utf8') : ''
 

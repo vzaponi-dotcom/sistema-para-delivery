@@ -161,7 +161,7 @@ test('AreaNavigation usa a barra leve comum em Pedidos, Financeiro e Configuraç
 test('uma única subnavegação precede o PageHeader nas áreas que mantêm subtabs', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: OrderHistory }, { default: Dashboard }, { default: Receivables }, { default: Finance }, { DashboardPeriodContext }] = await Promise.all([
-    h.load('/src/pages/Orders.jsx'), h.load('/src/pages/OrderHistory.jsx'), h.load('/src/pages/Dashboard.jsx'), h.load('/src/pages/Receivables.jsx'), h.load('/src/pages/Finance.jsx'), h.load('/src/components/dashboardPeriodContext.js'),
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/OrderHistory.jsx'), h.load('/src/pages/Dashboard.jsx'), h.load('/src/pages/Receivables.jsx'), h.load('/src/pages/Finance.jsx'), h.load('/src/components/dashboardPeriodContext.js'),
   ])
   const navigationProps = { granted, implemented, onNavigate() {} }
   const currency = (value) => `R$ ${value}`

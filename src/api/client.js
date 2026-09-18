@@ -8,8 +8,6 @@ export const getBootstrap = (knownEffectiveConfigVersion) => {
   if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
   return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
 }
-export const getOrders = () => apiRequest('/api/orders')
-
 export const createTable = (table) => apiRequest('/api/tables', withJson('POST', table))
 export const updateTable = (id, patch) => apiRequest(`/api/tables/${encodeURIComponent(id)}`, withJson('PATCH', patch))
 export const reorderTables = (tableIds) => apiRequest('/api/tables/order', withJson('PUT', { tableIds }))
@@ -26,16 +24,10 @@ export const createProduct = (product) => apiRequest('/api/products', withJson('
 export const updateProduct = (id, product) => apiRequest(`/api/products/${encodeURIComponent(id)}`, withJson('PATCH', product))
 export const deleteProduct = (id) => apiRequest(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
 
-export const createOrder = (order, idempotencyKey = crypto.randomUUID()) => apiRequest('/api/orders', {
-  ...withJson('POST', order),
-  headers: { 'idempotency-key': idempotencyKey },
-})
-export const updateOrderStatus = (id, status = 'Finalizado') => apiRequest(`/api/orders/${encodeURIComponent(id)}/status`, withJson('PATCH', { status }))
 export const updateOrderPaymentPromise = (id, promisedPaymentDate) => apiRequest(
   `/api/orders/${encodeURIComponent(id)}/payment-promise`,
   withJson('PATCH', { promisedPaymentDate }),
 )
-export const cancelOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/cancel`, withJson('POST', payload))
 export const refundOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/refund`, withJson('POST', payload))
 // Compatibility-only export while App.jsx is migrated away from its old handler.
 // It never issues DELETE and therefore cannot erase an order.

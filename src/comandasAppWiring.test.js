@@ -163,7 +163,7 @@ for (const readState of ['started', 'failed']) test(`partial free-table reconcil
   assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
   await navigate('Comandas')
   await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
-  const { NewOrderRoute } = await h.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab])
 })
 
@@ -237,7 +237,7 @@ test('a newer cancellation rejects three financial collections without free tabl
   assert.deepEqual(r.root.findByType(Receivables).props.movements, [...paidResult().movements, refund])
   await navigate('Comandas')
   await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
-  const { NewOrderRoute } = await h.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab, closedOtherTab])
 })
 
@@ -415,7 +415,7 @@ for (const mobile of [false, true]) test(`official full payment releases table a
   assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
   await navigate('Comandas')
   await act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
-  const { NewOrderRoute } = await h.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   assert.deepEqual(r.root.findByType(NewOrderRoute).props.tableTabs, [paidResult().tableTab])
 })
 
@@ -636,7 +636,7 @@ test('App renders official Comandas, preserves selection across destinations and
   assert.ok(requests.every(([, method]) => method === 'GET'), 'consultation makes no mutations')
   await act(async () => harness.window.dispatchEvent(new Event('online')))
   await act(async () => tableList().findAllByType('button')[1].props.onClick())
-  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   assert.equal(renderer.root.findAllByType(NewOrderRoute).length, 1)
   assert.match(nodeText(renderer.root.findByProps({ 'aria-current': 'step' })), /Produtos/)
   await act(async () => buttonContaining(renderer.root, 'Voltar').props.onClick())
@@ -764,7 +764,7 @@ test('a stale occupied-comanda checkout keeps the wizard and refreshes authorita
   t.after(() => { globalThis.fetch = originalFetch })
 
   const { default: App } = await harness.load('/src/App.jsx')
-  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   const renderer = await harness.render(App)
   const navigation = renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation, 'Comandas').props.onClick())
@@ -865,7 +865,7 @@ test('an unavailable table rejection retains the real wizard draft and retries w
 
 test('a deferred old checkout cannot mutate or leave an ownerless wizard after reset and relogin', async (t) => {
   const harness = await workspaceHarness(t)
-  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   const { default: Comandas } = await harness.load('/src/pages/Comandas.jsx')
   const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
@@ -965,7 +965,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
 
 test('a deferred stale checkout rejection cannot clear or report over a newer relogged checkout', async (t) => {
   const harness = await workspaceHarness(t)
-  const { NewOrderRoute } = await harness.load('/src/pages/NewOrderRoute.jsx')
+  const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
   let sessionExpired = false
   let relogged = false

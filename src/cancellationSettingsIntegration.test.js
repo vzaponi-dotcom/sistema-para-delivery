@@ -20,7 +20,7 @@ const effective = (items = activeReasons, revision = 7) => ({
 const order = { id: 'order-1', orderNumber: 1, client: 'Ana', paymentStatus: 'Pendente' }
 
 test('new cancellation choices come only from the active effective projection', async () => {
-  const { cancellationOptionsFromEffective, cancellationRevisionFromEffective } = await import('./utils/cancellationReasonOptions.js')
+  const { cancellationOptionsFromEffective, cancellationRevisionFromEffective } = await import('./domains/orders/index.js')
   assert.deepEqual(cancellationOptionsFromEffective(effective()), [
     { value: 'client_changed_mind', label: 'Cliente desistiu', id: 'client_changed_mind', requiresNote: false },
     { value: 'weather-delay', label: 'Chuva forte', id: 'weather-delay', requiresNote: false },
@@ -34,7 +34,7 @@ test('new cancellation choices come only from the active effective projection', 
 
 test('legitimate revision-zero defaults remain confirmed choices for a new business', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const confirmations = []
   const screen = await h.render(Dialog, {
     open: true, order, reasonOptions: activeReasons.map((item) => ({ ...item, value: item.id })),
@@ -50,7 +50,7 @@ test('legitimate revision-zero defaults remain confirmed choices for a new busin
 
 test('dialog uses supplied reasons and revision, without a fixed fallback', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const confirmations = []
   const screen = await h.render(Dialog, {
     open: true, order, reasonOptions: [{ value: 'weather-delay', label: 'Chuva forte', id: 'weather-delay', requiresNote: false }],
@@ -68,7 +68,7 @@ test('dialog uses supplied reasons and revision, without a fixed fallback', asyn
 
 test('unavailable effective cancellation settings expose no invented choices and block submission', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const confirmations = []
   const screen = await h.render(Dialog, {
     open: true, order, reasonOptions: [], reasonRevision: null, paymentOptions: [], onClose() {}, onConfirm: (payload) => confirmations.push(payload),
@@ -83,7 +83,7 @@ test('unavailable effective cancellation settings expose no invented choices and
 
 test('requiresNote is enforced from effective metadata and note length is limited to 240', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const props = { open: true, order, reasonOptions: activeReasons.map((item) => ({ ...item, value: item.id })), reasonRevision: 7, paymentOptions: [], onClose() {}, onConfirm() {} }
   const screen = await h.render(Dialog, props)
   const select = screen.root.findByProps({ role: 'combobox', 'aria-label': 'Motivo do cancelamento' })
@@ -100,7 +100,7 @@ test('requiresNote is enforced from effective metadata and note length is limite
 
 test('historical inactive reason remains readable from the order snapshot label', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OrderHistory } = await h.load('/src/pages/OrderHistory.jsx')
+  const { default: OrderHistory } = await h.load('/src/domains/orders/ui/OrderHistory.jsx')
   const historical = {
     ...order, status: 'Cancelado', cancelReason: 'weather-delay', cancelReasonLabel: 'Chuva forte',
     cancelReasonNote: '', cancelledAt: '2026-09-13T12:00:00.000Z', createdAt: '2026-09-13T11:00:00.000Z',
@@ -116,7 +116,7 @@ test('historical inactive reason remains readable from the order snapshot label'
 
 test('cancelled order detail uses the historical label resolved by the worker', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: OrderDetail } = await h.load('/src/components/OrderDetail.jsx')
+  const { default: OrderDetail } = await h.load('/src/domains/orders/ui/components/OrderDetail.jsx')
   const cancelled = {
     ...order, status: 'Cancelado', cancelReason: 'weather-delay', cancelReasonLabel: 'Chuva forte',
     cancelReasonNote: 'Ruas alagadas', cancelledAt: '2026-09-13T12:00:00.000Z',
@@ -144,7 +144,7 @@ test('first-use conflict preserves rename intent for explicit review instead of 
 
 test('refund payment validation remains independent from cancellation reason selection', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/CancelOrderDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
   const paid = { ...order, paymentStatus: 'Pago', paymentMethod: 'Transferência' }
   const screen = await h.render(Dialog, {
     open: true, order: paid, reasonOptions: activeReasons.map((item) => ({ ...item, value: item.id })), reasonRevision: 7,

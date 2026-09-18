@@ -4,15 +4,17 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('App owns cancellation API and History consumes the central order collection', async () => {
+test('Orders owns cancellation orchestration while History consumes the central order collection', async () => {
   const app = await read('./App.jsx')
-  const orders = await read('./pages/Orders.jsx')
-  const history = await read('./pages/OrderHistory.jsx')
+  const orders = await read('./domains/orders/ui/Orders.jsx')
+  const history = await read('./domains/orders/ui/OrderHistory.jsx')
   const shell = await read('./app/shell/AppShell.jsx')
 
-  assert.match(app, /cancelOrder as cancelOrderApi/)
+  assert.match(app, /useOrderCommands/)
+  assert.match(app, /api: ordersApi/)
   assert.match(app, /<OrderHistory/)
-  assert.match(app, /onCancelOrder=\{handleCancelOrder\}/)
+  assert.match(app, /onCancelOrder=\{orderCommands\.cancelOrder\}/)
+  assert.doesNotMatch(app, /cancelOrder as cancelOrderApi|const handleCancelOrder/)
   assert.doesNotMatch(orders, /cancelOrder as cancelOrderApi/)
   assert.doesNotMatch(orders, /cancelledIds/)
   assert.doesNotMatch(history, /getOrders as getOrdersApi/)
@@ -21,17 +23,25 @@ test('App owns cancellation API and History consumes the central order collectio
 })
 
 test('central cancellation applies authoritative effects through the operational runtime before success feedback', async () => {
-  const [app, runtime] = await Promise.all([
-    read('./App.jsx'),
+  const [commands, runtime] = await Promise.all([
+    read('./domains/orders/application/useOrderCommands.js'),
     read('./app/runtime/data/useOperationalDataRuntime.js'),
   ])
 
-  assert.match(app, /const handleCancelOrder = async \(orderId, payload\)/)
-  assert.match(app, /const \{ order, movement, tableTab \} = await cancelOrderApi/)
-  assert.match(app, /applyOfficialEffects\(\{ order, movement, tableTab \}\)/)
+  assert.match(commands, /const result = await api\.cancelOrder\(orderId, payload\)/)
+  assert.match(commands, /applyOfficialEffects\(result\)/)
+  assert.match(commands, /onSuccess\(payload\?\.refundNow \? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'\)/)
+  assert.ok(commands.indexOf('applyOfficialEffects(result)') < commands.indexOf("onSuccess(payload?.refundNow"))
   assert.match(runtime, /const applyOfficialEffects = useCallback/)
   assert.match(runtime, /if \(order\) setOrders\(\(current\) => upsertById\(current, order\)\)/)
   assert.match(runtime, /if \(movement\) setMovements\(\(current\) => upsertById\(current, movement\)\)/)
   assert.match(runtime, /if \(tableTab\) setTableTabs\(\(current\) => upsertById\(current, tableTab\)\)/)
-  assert.match(app, /showSuccessMessage\(payload\.refundNow \? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso'\)/)
+})
+
+
+test('App delegates kitchen search to Orders with the complete order collection', async () => {
+  const app = await read('./App.jsx')
+
+  assert.match(app, /<Orders orders=\{orders\}/)
+  assert.doesNotMatch(app, /const filteredOrders = useMemo/)
 })

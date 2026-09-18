@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import * as orderWorkflow from './utils/orderWorkflow.js'
+import * as orderWorkflow from './domains/orders/index.js'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 const readOptional = (path) => read(path).catch(() => '')
@@ -16,9 +16,9 @@ test('elapsed duration switches to hours and minutes from one hour onward', () =
 })
 
 test('active kitchen tickets expose item summaries and associated notes without an expandable list', async () => {
-  const orders = await read('./pages/Orders.jsx')
-  const ticket = await read('./components/KitchenTicket.jsx')
-  const notes = await read('./components/KitchenTicketNotes.jsx')
+  const orders = await read('./domains/orders/ui/Orders.jsx')
+  const ticket = await read('./domains/orders/ui/components/KitchenTicket.jsx')
+  const notes = await read('./domains/orders/ui/components/KitchenTicketNotes.jsx')
   assert.match(orders, /<KitchenTicket/)
   assert.match(ticket, /buildKitchenItemSummary/)
   assert.match(ticket, /KitchenTicketNotes/)
