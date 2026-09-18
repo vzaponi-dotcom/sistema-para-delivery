@@ -60,6 +60,8 @@ test('table creation applies the returned official list without predicting name 
 })
 
 test('App delegates table mutation ownership to Table Service commands', () => {
+  assert.match(app, /import \{[\s\S]*?\bTables,[\s\S]*?\} from '\.\/domains\/table-service\/index\.js'/)
+  assert.doesNotMatch(app, /import Tables from '\.\/pages\/Tables'/)
   assert.match(app, /useTableServiceCommands\(\{/)
   assert.match(app, /onCreate=\{tableServiceCommands\.createTable\}/)
   assert.match(app, /onRename=\{tableServiceCommands\.renameTable\}/)

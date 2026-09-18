@@ -62,10 +62,10 @@ async function openTransferConfirmation(renderer) {
 
 test('A6 keeps comanda identity across transfer, navigation, payment, and order entry', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: App }, { default: Comandas }, { default: Tables }, { NewOrderRoute }] = await Promise.all([
+  const [{ default: App }, { default: Comandas }, { Tables }, { NewOrderRoute }] = await Promise.all([
     h.load('/src/App.jsx'),
     h.load('/src/pages/Comandas.jsx'),
-    h.load('/src/pages/Tables.jsx'),
+    h.load('/src/domains/table-service/index.js'),
     h.load('/src/domains/orders/ui/NewOrderRoute.jsx'),
   ])
 
