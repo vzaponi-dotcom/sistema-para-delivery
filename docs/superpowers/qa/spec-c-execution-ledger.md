@@ -123,7 +123,7 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 
 ---
 
-# C4 — Orders — ACTIVE / AUTOMATED GATES GREEN — STAGING PENDING
+# C4 — Orders — ACTIVE / ITEM 7 FIX GREEN — STAGING RETEST PENDING
 
 ## Current Git / PR / CI state
 
@@ -135,8 +135,10 @@ C3 established `src/app/surfaces/settings/` and `src/app/policy-editing/`, then 
 - Validate application: #1262 / run `35297928408` — **PASS** (1,687 tests / 0 failures, `Frontend architecture boundaries: OK`, lint, build, Worker dry-runs and D1 gates)
 - Production deploy: **NO**
 - C4 staging deployment/manual homologation: **PENDING**
-- Task 11: **IN PROGRESS — PRE-STAGING QA RECORDED**
+- Task 11: **IN PROGRESS — HOMOLOGATION PAUSED FOR ITEM 7 RETEST**
 - QA record: `docs/superpowers/qa/spec-c4-orders-qa.md`
+- Homologation checkpoint: 5 PASS / 1 FAIL awaiting retest / 1 BLOCKED / 13 PENDING.
+- Item 7 fix executable: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`; Validate #1273 / run `35301870107` — PASS. Staging redeploy required before retest.
 - C5: **NOT STARTED**
 
 ## Completed task checkpoint

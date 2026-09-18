@@ -5,12 +5,13 @@
 - Slice: C4 — Orders
 - Branch: `feature/spec-c4-orders`
 - Base SHA: `737beeac2150aabeb39024af823f2f60fee25108`
-- Executable SHA: `e7f05b6d6d8364c0482a7fe03949c001816e8e85`
-- Last code-changing SHA before Task 11 QA docs: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
+- Current executable SHA after item 7 fix: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`
+- Original pre-homologation executable SHA: `e7f05b6d6d8364c0482a7fe03949c001816e8e85`
+- Task 10 code checkpoint: `d42bb42ba97f772c5e1fcd01dd1b9480ab02d0f4`
 - PR: #48 — draft, open, not merged
 - Production deploy: **NO**
 - Merge: **NO**
-- Status: **AUTOMATED GATES GREEN — STAGING PENDING**
+- Status: **ITEM 7 FIX GREEN — STAGING REDEPLOY / RETEST PENDING**
 
 ## Automated gates
 
@@ -78,7 +79,8 @@ Run #1263 also completed the full test, architecture, lint, build, Worker dry-ru
 
 ## Staging deployment
 
-- Status: **SUCCESS**
+- Current status: **REDEPLOY REQUIRED AFTER ITEM 7 FIX**
+- Previous staging deployment: **SUCCESS**
 - Workflow: `Deploy staging`
 - Run number: **#180**
 - Run ID: `35298763053`
@@ -88,6 +90,17 @@ Run #1263 also completed the full test, architecture, lint, build, Worker dry-ru
 - URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
 - Workflow evidence: tests, architecture, lint, build, local D1, staging Worker dry-run, staging migrations, PIN configuration, deploy and staging-login smoke all passed.
 - Production workflow: **NOT TRIGGERED**
+
+### Item 7 fix validation
+
+- Manual item 7 initially **FAIL**: dark-theme focused search text unreadable; visible order number search failed.
+- Root cause 1: `App.jsx` prefiltered Orders before the Orders-owned kitchen search, excluding visible order-number aliases.
+- Root cause 2: global dark-theme focus background overrode the Cozinha light search surface while the input retained dark ticket text.
+- RED: Validate #1271 / run `35301469303` failed the three targeted regression contracts.
+- First GREEN attempt: `c03c764e5b70ca1c9a7b1db228e5a478cb113f6f`; Validate #1272 exposed one stale test that still assigned search ownership to App.
+- Final executable fix: `4ec5527203f038915d45f4949f6d5b23b0eda7f0`.
+- Validate #1273 / run `35301870107`: **SUCCESS**, 1,689 tests / 1,688 pass / 0 fail / 1 skipped plus architecture, lint, build, Worker dry-runs and D1 gates.
+- Required next step: redeploy staging from the current branch HEAD, then manually retest item 7 before continuing item 8.
 
 ## Manual staging homologation matrix
 
