@@ -305,3 +305,86 @@ test('deletedClientId removes the accepted client and protects it from a stale b
 
   assert.deepEqual(harness.getCurrent().clients, [])
 })
+
+
+test('C8 accepted product delete survives an older bootstrap and does not change financial revision', async (t) => {
+  const pending = deferred()
+  let reads = 0
+  const harness = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => ++reads === 1 ? bootstrapFixture() : pending.promise,
+      getOrders: async () => ({ orders: [] }),
+    },
+  })
+
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  let refreshPromise
+  await act(async () => { refreshPromise = harness.getCurrent().refreshBootstrapSilently() })
+  const revision = harness.getCurrent().getOfficialRevision()
+  await act(async () => {
+    harness.getCurrent().applyOfficialEffects({ deletedProductId: 'product-1' })
+  })
+
+  assert.deepEqual(harness.getCurrent().products, [])
+  assert.equal(harness.getCurrent().getOfficialRevision(), revision)
+
+  const stale = bootstrapFixture()
+  stale.clients = [{ id: 'client-2', name: 'Bia' }]
+  pending.resolve(stale)
+  await act(async () => { await refreshPromise })
+
+  assert.deepEqual(harness.getCurrent().products, [])
+  assert.deepEqual(harness.getCurrent().clients, stale.clients)
+  assert.equal(harness.getCurrent().getOfficialRevision(), revision + 1)
+})
+
+test('C8 product upsert protects products from stale bootstrap while unrelated collections still refresh', async (t) => {
+  const pending = deferred()
+  let reads = 0
+  const harness = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => ++reads === 1 ? bootstrapFixture() : pending.promise,
+      getOrders: async () => ({ orders: [] }),
+    },
+  })
+
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  let refreshPromise
+  await act(async () => { refreshPromise = harness.getCurrent().refreshBootstrapSilently() })
+  const revision = harness.getCurrent().getOfficialRevision()
+  const officialProduct = { id: 'product-1', name: 'Marmita atualizada', price: 35 }
+  await act(async () => {
+    harness.getCurrent().applyOfficialEffects({ product: officialProduct })
+  })
+
+  assert.deepEqual(harness.getCurrent().products, [officialProduct])
+  assert.equal(harness.getCurrent().getOfficialRevision(), revision)
+
+  const stale = bootstrapFixture()
+  stale.clients = [{ id: 'client-3', name: 'Caio' }]
+  pending.resolve(stale)
+  await act(async () => { await refreshPromise })
+
+  assert.deepEqual(harness.getCurrent().products, [officialProduct])
+  assert.deepEqual(harness.getCurrent().clients, stale.clients)
+})
+
+test('C8 deleting a missing product is locally idempotent and non-financial', async (t) => {
+  const harness = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => bootstrapFixture(),
+      getOrders: async () => ({ orders: [] }),
+    },
+  })
+
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  const before = harness.getCurrent().products
+  const revision = harness.getCurrent().getOfficialRevision()
+
+  await act(async () => {
+    harness.getCurrent().applyOfficialEffects({ deletedProductId: 'missing-product' })
+  })
+
+  assert.deepEqual(harness.getCurrent().products, before)
+  assert.equal(harness.getCurrent().getOfficialRevision(), revision)
+})

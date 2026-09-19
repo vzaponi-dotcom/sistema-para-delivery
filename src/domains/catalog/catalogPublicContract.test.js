@@ -15,7 +15,7 @@ const filesUnder = (directory) => readdirSync(directory, { withFileTypes: true }
 test('C8 Task 1 public entry is Node-safe and exposes only the current external contracts', async () => {
   const catalog = await import('./index.js')
   assert.deepEqual(Object.keys(catalog).sort(), [
-    'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm',
+    'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm', 'useCatalogCommands',
   ].sort())
   assert.equal(typeof catalog.Products, 'function')
   assert.equal(typeof catalog.ProductForm, 'function')
