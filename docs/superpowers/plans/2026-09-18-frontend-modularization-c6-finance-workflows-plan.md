@@ -20,6 +20,7 @@
 - Task 1 evidence: RED `9476b0b74d7c18305466eb6079314f8b24d8ae00` → Validate #1344 / run `35403401486` failed for intended missing Finance modules; GREEN `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf` → Validate #1345 / run `35403573350` SUCCESS with **1,729 tests / 1,728 pass / 0 fail / 1 skipped** and all remaining gates green.
 - Task 2 evidence: RED `bc52cdb8b60e8c79a6390b51b5b973fbe0ee8ef4` → Validate #1349 / run `35404405552` failed for the intended missing Finance Settings ownership. GREEN candidate `68ba38df6165171686ab91a27550b410df5ba892` → Validate #1350 exposed only stale path contracts and the need for a Node-safe `.js` public surface wrapper. Fix `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5` → Validate #1351 / run `35405016988` SUCCESS with **1,731 tests / 1,730 pass / 0 fail / 1 skipped** and all remaining gates green.
 - Task 3 evidence: RED `8bfc9926e6f9718fb461e41f59ce54a351fd2f8d` → Validate #1353 / run `35405851531` failed for the intended missing `cashFlow.js` and `receivables.js` modules. GREEN `54dcbd1ff44f2dc715a469bc60c78c458ac42318` → Validate #1354 / run `35406034390` SUCCESS with **1,745 tests / 1,744 pass / 0 fail / 1 skipped** and all remaining gates green. Ruling: Finance receivable helpers receive `isOrderCancelled`, `isOrderPaid`, and `getPendingAmount` as injected rules instead of importing Orders; this preserves the no-cycle spec and keeps Orders lifecycle ownership intact.
+- Task 4 evidence: RED `f5fe1563d871c3cb5135cb06e86be58e80f57877` → Validate #1356 / run `35407256910` failed for the intended missing `financeApi`, `useFinanceCommands`, and `FinanceWorkspace` owners. GREEN candidate `9974799a3440ae9bbe59ba0e80d28c9b70b5112e` → Validate #1357 exposed stale extraction/UI/capability characterizations after the ownership move. Fix `2665e82a97207eb118497b8f3e2cf44cda5ccc39` aligned extraction/UI tests but Validate #1358 still found two capability characterizations tied to App-local handlers. Final fix `f76b223245f1a2fcaaf981694d052365e5ca9ffb` aligned those capability contracts; Validate #1359 / run `35408051011` SUCCESS with **1,750 tests / 1,749 pass / 0 fail / 1 skipped** and all remaining gates green.
 
 ## Global Constraints
 
@@ -599,7 +600,7 @@ Expected exact-SHA Validate: SUCCESS.
 
 ---
 
-### Task 4: Create Finance API/commands and migrate Finance UI, movement dialogs, and opening balance
+### Task 4: Create Finance API/commands and migrate Finance UI, movement dialogs, and opening balance — COMPLETE / GREEN
 
 **Files:**
 - Create: `src/domains/finance/infrastructure/financeApi.js`
@@ -633,7 +634,7 @@ Expected exact-SHA Validate: SUCCESS.
   - `saveOpeningBalance(payload)`
 - `FinanceWorkspace` owns movement/opening UI state and uses official effects only.
 
-- [ ] **Step 1: Write RED API contract**
+- [x] **Step 1: Write RED API contract**
 
 ```js
 import test from 'node:test'
@@ -666,7 +667,7 @@ Write command tests that prove:
 - settings applies returned `financeSettings`;
 - disabled/capability returns false without API calls.
 
-- [ ] **Step 2: Run RED and commit**
+- [x] **Step 2: Run RED and commit**
 
 ```bash
 node --test src/domains/finance/infrastructure/financeApi.test.js src/domains/finance/application/useFinanceCommands.test.js
@@ -676,7 +677,7 @@ Expected: missing API/controller.
 
 Commit/push authoritative RED.
 
-- [ ] **Step 3: Implement Finance API**
+- [x] **Step 3: Implement Finance API**
 
 ```js
 import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
@@ -691,7 +692,7 @@ export const createFinanceApi = ({ request = apiRequest, json = withJson } = {})
 export const financeApi = createFinanceApi()
 ```
 
-- [ ] **Step 4: Implement commands with injected official-effect/feedback ports**
+- [x] **Step 4: Implement commands with injected official-effect/feedback ports**
 
 The hook must use this dependency shape:
 
@@ -730,7 +731,7 @@ const { financeSettings } = await api.saveFinanceSettings(payload)
 applyOfficialEffects({ financeSettings })
 ```
 
-- [ ] **Step 5: Move Finance UI and create FinanceWorkspace**
+- [x] **Step 5: Move Finance UI and create FinanceWorkspace**
 
 `Finance.jsx` must stop importing Orders. Add a `formatCancellationDate` prop and use it when rendering pending refunds.
 
@@ -750,7 +751,7 @@ It must also stop rendering `RegisterRefundDialog`; instead call:
 
 `FinanceWorkspace` computes `financialTotals` and `currentFinanceBalance`, instantiates `useFinanceCommands`, renders `Finance`, `MovementDialog`, and `OpeningBalanceDialog`.
 
-- [ ] **Step 6: Replace App movement/opening ownership**
+- [x] **Step 6: Replace App movement/opening ownership**
 
 In `App.jsx`:
 - remove `movementDialogOpen`, `editingMovement`, `openingBalanceDialogOpen`;
@@ -759,7 +760,7 @@ In `App.jsx`:
 - render `FinanceWorkspace` from the Finance public entry;
 - pass `applyOfficialEffects`, capabilities, payment/category projections, feedback callbacks, and `formatCancellationDate`; keep the existing App `handleRegisterRefund` as the temporary `onRequestRefund` callback only until Task 8 removes it.
 
-- [ ] **Step 7: Run focused regressions**
+- [x] **Step 7: Run focused regressions**
 
 ```bash
 node --test   src/domains/finance/infrastructure/financeApi.test.js   src/domains/finance/application/useFinanceCommands.test.js   src/domains/finance/ui/FinanceWorkspace.test.js   src/components/MovementDialog.test.js   src/components/OpeningBalanceDialog.test.js   src/financeRealtimeRegression.test.js   src/api/financeClientContract.test.js
@@ -768,7 +769,7 @@ npm run test:architecture
 
 Run moved UI tests at `src/domains/finance/ui/MovementDialog.test.js` and `src/domains/finance/ui/OpeningBalanceDialog.test.js`. Keep `src/api/financeClientContract.test.js` unchanged through Task 8 because the legacy exports remain temporarily present until Task 9.
 
-- [ ] **Step 8: Commit GREEN + Validate**
+- [x] **Step 8: Commit GREEN + Validate**
 
 Commit:
 

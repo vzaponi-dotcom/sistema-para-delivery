@@ -96,6 +96,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 3 is **COMPLETE / GREEN** at `54dcbd1ff44f2dc715a469bc60c78c458ac42318`; Validate #1354 / run `35406034390` passed with **1,745 tests / 1,744 pass / 0 fail / 1 skipped**.
 - Task 3 added no compatibility facade. Finance receivable projections take Orders financial-state rules by injection, preserving the no-cycle boundary; legacy `src/utils/finance.js`, `src/utils/receivables.js`, and `src/utils/paymentWorkflow.js` remain intentionally present until Task 9 as planned.
 - The operational payment-receipt bridge remains active until Task 7.
+- C6 Task 4 is **COMPLETE / GREEN** at `f76b223245f1a2fcaaf981694d052365e5ca9ffb`; Validate #1359 / run `35408051011` passed with **1,750 tests / 1,749 pass / 0 fail / 1 skipped**.
+- Finance UI, movement/opening-balance dialogs, Finance API and Finance commands moved to `domains/finance` with no compatibility reexport. Legacy C6 finance API exports remain intentionally present in `src/api/client.js` until Task 9, while App no longer imports or owns those finance CRUD operations.
+- Refund remains a cross-domain workflow debt for Task 8; Finance only emits `onRequestRefund` intent and has no Orders import.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.

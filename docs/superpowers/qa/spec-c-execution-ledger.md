@@ -22,7 +22,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | **IN PROGRESS — TASKS 1–3 COMPLETE / GREEN** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **IN PROGRESS — TASKS 1–4 COMPLETE / GREEN** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -224,7 +224,12 @@ These remain mandatory for C2-C10:
 - Task 3 RED: `8bfc9926e6f9718fb461e41f59ce54a351fd2f8d`; Validate #1353 / run `35405851531` failed for the intended missing `cashFlow.js` and `receivables.js` modules.
 - Task 3 final GREEN: `54dcbd1ff44f2dc715a469bc60c78c458ac42318`; Validate #1354 / run `35406034390` — **SUCCESS**, **1,745 tests / 1,744 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
 - Ruling: receivable projections accept Orders financial-state predicates by injection. This avoids a Finance → Orders dependency and avoids duplicating Orders lifecycle rules inside Finance; if wrong, Task 5 composition would need interface rework, but no current behavior is changed.
-- Task 4 has **NOT STARTED**.
+- Task 4 RED: `f5fe1563d871c3cb5135cb06e86be58e80f57877`; Validate #1356 / run `35407256910` failed for the intended missing `financeApi`, `useFinanceCommands`, and `FinanceWorkspace` ownership.
+- Task 4 first GREEN candidate: `9974799a3440ae9bbe59ba0e80d28c9b70b5112e`; Validate #1357 failed only on stale extraction/UI/capability characterizations after the move.
+- Task 4 intermediate fix: `2665e82a97207eb118497b8f3e2cf44cda5ccc39`; Validate #1358 reduced the remaining failures to two App-local capability characterizations.
+- Task 4 final GREEN: `f76b223245f1a2fcaaf981694d052365e5ca9ffb`; Validate #1359 / run `35408051011` — **SUCCESS**, **1,750 tests / 1,749 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Finance UI, MovementDialog, OpeningBalanceDialog, Finance API and finance commands now belong to `domains/finance`; App no longer owns movement/opening-balance state or finance CRUD handlers. Refund coordination remains outside Finance and is still scheduled for Task 8.
+- Task 5 has **NOT STARTED**.
 - Production deployment: **NO**.
 
 # New-session resume protocol
@@ -238,7 +243,7 @@ The active slice is C6 after C5 merged successfully. GitHub state wins over this
 5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
 6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
 7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–3 are complete/green; resume at Task 4 only after the user asks to continue.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–4 are complete/green; resume at Task 5 only after the user asks to continue.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
