@@ -1,4 +1,4 @@
-import { executeQzPrintAttempt } from './qzPrintAttemptController.js'
+import { executeQzPrintAttempt } from '../infrastructure/qz/qzPrintAttemptController.js'
 
 export const runClaimedPrintJob = async ({
   job,

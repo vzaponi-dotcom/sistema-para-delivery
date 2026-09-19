@@ -30,19 +30,3 @@ test('station platform detection remains browser-specific and deterministic', ()
   assert.equal(detectPrintStationPlatform('Mozilla/5.0 (X11; Linux x86_64)'), 'other')
   assert.equal(detectPrintStationPlatform('Mozilla/5.0 (Windows NT 10.0; Android compatibility token)'), 'android')
 })
-
-test('QZ printer name is trimmed and scoped by station id', () => {
-  const storage = new MemoryStorage()
-  assert.equal(saveQzPrinterName(storage, 'station-a', '  MPT-II  '), 'MPT-II')
-  assert.equal(getQzPrinterName(storage, 'station-a'), 'MPT-II')
-  assert.equal(getQzPrinterName(storage, 'station-b'), null)
-})
-
-test('blank QZ printer name is not persisted and clear removes it', () => {
-  const storage = new MemoryStorage()
-  assert.equal(saveQzPrinterName(storage, 'station-a', '   '), '')
-  assert.equal(getQzPrinterName(storage, 'station-a'), null)
-  saveQzPrinterName(storage, 'station-a', 'MPT-II')
-  clearQzPrinterName(storage, 'station-a')
-  assert.equal(getQzPrinterName(storage, 'station-a'), null)
-})

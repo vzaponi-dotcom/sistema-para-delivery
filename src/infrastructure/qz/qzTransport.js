@@ -1,3 +1,11 @@
+import qz from 'qz-tray'
+import { createQzStatusMonitor } from './qzStatusMonitor.js'
+import {
+  clearQzPrinterName,
+  getQzPrinterName,
+  saveQzPrinterName,
+} from './qzLocalPreferences.js'
+
 const qzError = (code, message, cause) => Object.assign(new Error(message), { code, cause })
 
 export const deriveQzOperationalState = ({
@@ -125,5 +133,30 @@ export const printQzRawBytes = async (qzApi, printerName, bytes, { jobName } = {
       'O QZ Tray não conseguiu enviar a impressão para a MPT-II.',
       cause,
     )
+  }
+}
+
+
+export const createQzTransport = ({
+  getCertificate,
+  signPayload,
+  storage = globalThis.localStorage,
+  qzApi = qz,
+} = {}) => {
+  const readiness = createQzReadinessController()
+  return {
+    kind: 'qz',
+    configureSecurity: () => configureQzSecurity({ qzApi, getCertificate, signPayload }),
+    isConnected: () => Boolean(qzApi.websocket?.isActive?.()),
+    connect: () => ensureQzConnected(qzApi),
+    onClosed: (callback) => qzApi.websocket?.setClosedCallbacks?.([callback]),
+    readiness,
+    listPrinters: () => listQzPrinters(qzApi),
+    resolvePrinter: (name) => resolveQzPrinter(qzApi, name),
+    print: (printerName, bytes, options) => printQzRawBytes(qzApi, printerName, bytes, options),
+    createStatusMonitor: (args) => createQzStatusMonitor({ qzApi, ...args }),
+    readPrinterName: (stationId) => getQzPrinterName(storage, stationId),
+    savePrinterName: (stationId, name) => saveQzPrinterName(storage, stationId, name),
+    clearPrinterName: (stationId) => clearQzPrinterName(storage, stationId),
   }
 }

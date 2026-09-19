@@ -36,9 +36,11 @@ import {
 import {
   detectPrintStationPlatform,
   getOrCreateLocalPrintStationId,
+} from './localPrintStation.js'
+import {
   getQzPrinterName,
   saveQzPrinterName,
-} from './localPrintStation.js'
+} from '../infrastructure/qz/qzLocalPreferences.js'
 import {
   canConsumeAutomaticPrintJob, canExecuteSecondCopy, canInitializeBackgroundPhysicalTransport,
   canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, canRunSingleRecoveryCopy,
@@ -56,8 +58,8 @@ import {
   listQzPrinters,
   printQzRawBytes,
   resolveQzPrinter,
-} from './qzTrayTransport.js'
-import { createQzStatusMonitor } from './qzStatusMonitor.js'
+} from '../infrastructure/qz/qzTransport.js'
+import { createQzStatusMonitor } from '../infrastructure/qz/qzStatusMonitor.js'
 
 export const PRINT_JOB_POLL_MS = 2_000
 export const PRINT_STATE_POLL_MS = 5_000
