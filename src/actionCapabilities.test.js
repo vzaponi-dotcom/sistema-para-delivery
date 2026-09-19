@@ -397,7 +397,8 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
     Promise.all([
       h.load('/src/domains/orders/ui/Orders.jsx'),
       h.load('/src/domains/orders/ui/OrderHistory.jsx'),
-      ...['Clients', 'Products'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+      h.load('/src/domains/customers/ui/Clients.jsx'),
+      h.load('/src/pages/Products.jsx'),
       h.load('/src/domains/finance/ui/Receivables.jsx'),
       h.load('/src/domains/finance/ui/Finance.jsx'),
       h.load('/src/pages/PrintQueue.jsx'),
