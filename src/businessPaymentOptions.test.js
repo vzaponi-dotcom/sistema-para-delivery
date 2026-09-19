@@ -37,7 +37,7 @@ test('effective payment projection produces ordered value, label and stable code
 
 test('an open comanda payment keeps its choice across default changes and warns if it becomes inactive', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/TableTabPaymentDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
   const detail = { id: 'tab-42', number: 42, table: { name: 'Mesa 7' }, status: 'open', orderCount: 1, totalCents: 2500 }
   const confirmations = []
   const props = { open: true, detail, currency: String, paymentOptions: options, defaultPaymentMethod: 'Pix', onClose() {}, onConfirm: (...args) => confirmations.push(args) }
@@ -60,7 +60,7 @@ test('an open comanda payment keeps its choice across default changes and warns 
 
 test('a newly opened payment uses the latest default instead of a Pix fallback', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/TableTabPaymentDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
   const detail = { id: 'tab-42', number: 42, table: { name: 'Mesa 7' }, status: 'open', orderCount: 1, totalCents: 2500 }
   const screen = await h.render(Dialog, { open: false, detail, currency: String, paymentOptions: options, defaultPaymentMethod: 'Dinheiro', onClose() {}, onConfirm() {} })
   await act(async () => screen.update(React.createElement(Dialog, { open: true, detail, currency: String, paymentOptions: options, defaultPaymentMethod: 'Dinheiro', onClose() {}, onConfirm() {} })))

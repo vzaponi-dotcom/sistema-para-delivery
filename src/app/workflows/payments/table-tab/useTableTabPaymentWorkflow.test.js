@@ -116,8 +116,15 @@ test('accepted table-tab payment applies official effects and settles immediatel
 
 test('reconciliation performs a mandatory second read when the first cannot prove settlement', async () => {
   const receipts = [staleReceipt(), settledReceipt()]
+  let revision = 10
   const probe = await mountWorkflow({
-    getOfficialRevision: () => 11,
+    api: {
+      registerTableTabPayment: async () => {
+        revision = 11
+        return paidResult()
+      },
+    },
+    getOfficialRevision: () => revision,
     refreshOfficialData: async () => receipts.shift(),
   })
 
@@ -134,14 +141,16 @@ test('reconciliation performs a mandatory second read when the first cannot prov
 test('failed two-read reconciliation exposes retry without charging again', async () => {
   let paymentCalls = 0
   const refreshReceipts = [staleReceipt(), staleReceipt(), settledReceipt()]
+  let revision = 10
   const probe = await mountWorkflow({
     api: {
       registerTableTabPayment: async () => {
         paymentCalls += 1
+        revision = 11
         return paidResult()
       },
     },
-    getOfficialRevision: () => 11,
+    getOfficialRevision: () => revision,
     refreshOfficialData: async () => refreshReceipts.shift() || settledReceipt(),
   })
 

@@ -127,7 +127,7 @@ test('physical popup remains separate from remote queue decisions', async () => 
 
 test('successful active order creation confirms queueing without invoking a local transport', () => {
   const start = app.indexOf('newOrderDraftTargetsRef.current = {')
-  const end = app.indexOf('const publishPaymentSync', start)
+  const end = app.indexOf('function showApiError', start)
   assert.notEqual(start, -1)
   assert.notEqual(end, -1)
   const checkout = app.slice(start, end)
