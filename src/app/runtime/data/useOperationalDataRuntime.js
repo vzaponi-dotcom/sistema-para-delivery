@@ -147,30 +147,6 @@ export function useOperationalDataRuntime({
     }
   }, [commitTables])
 
-  const updateCollection = useCallback((collection, updater) => {
-    if (collection === 'tables') {
-      syncGuardRef.current.markMutation(['tables'])
-      officialRevisionRef.current += 1
-      const next = typeof updater === 'function' ? updater(officialTablesRef.current) : updater
-      commitTables(next)
-      return true
-    }
-    const setters = {
-      clients: setClients,
-      products: setProducts,
-      orders: setOrders,
-      tableTabs: setTableTabs,
-      movements: setMovements,
-      financeSettings: setFinanceSettings,
-    }
-    const setter = setters[collection]
-    if (!setter) return false
-    syncGuardRef.current.markMutation([collection])
-    if (PAYMENT_COLLECTIONS.includes(collection)) officialRevisionRef.current += 1
-    setter(updater)
-    return true
-  }, [commitTables])
-
   const refreshBootstrap = useCallback(({ background = false } = {}) => {
     if (bootstrapSyncInFlightRef.current) return bootstrapSyncInFlightRef.current
     const guard = syncGuardRef.current
@@ -272,7 +248,6 @@ export function useOperationalDataRuntime({
     refreshBootstrapSilently,
     refreshOrders,
     applyOfficialEffects,
-    updateCollection,
     resetOperationalData,
     getSyncGuard: () => syncGuardRef.current,
     getOfficialRevision: () => officialRevisionRef.current,
@@ -292,6 +267,5 @@ export function useOperationalDataRuntime({
     resetOperationalData,
     tableTabs,
     tables,
-    updateCollection,
   ])
 }
