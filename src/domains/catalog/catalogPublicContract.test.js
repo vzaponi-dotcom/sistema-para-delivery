@@ -46,10 +46,11 @@ test('C8 Task 1 App and all Orders consumers use the Catalog public entry', () =
   assert.match(read('src/domains/orders/domain/orderCart.js'), /from ['"]\.\.\/\.\.\/catalog\/index\.js['"]/)
   assert.match(read('src/domains/orders/ui/components/OrderProductCatalog.jsx'), /from ['"]\.\.\/\.\.\/\.\.\/catalog\/index\.js['"]/)
   assert.match(read('src/domains/orders/ui/components/OrderCart.jsx'), /from ['"]\.\.\/\.\.\/\.\.\/catalog\/index\.js['"]/)
-  // CRUD/editor ownership intentionally remains in App until later approved tasks.
+  // Editor coordination intentionally remains in App until Task 4, while mutations now belong to Catalog.
   assert.match(app, /handleAddProduct/)
   assert.match(app, /handleDeleteProduct/)
-  assert.match(app, /updateCollection\('products'/)
+  assert.match(app, /useCatalogCommands/)
+  assert.doesNotMatch(app, /updateCollection\s*\(\s*['\"]products['\"]/)
 })
 
 test('C8 Task 1 inventories and rejects remaining production shared-product bypasses', () => {

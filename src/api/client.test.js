@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createProduct, deleteProduct, getBootstrap, getSession, login, logout, updateProduct } from './client.js'
+import { getBootstrap, getSession, login, logout } from './client.js'
 import { ordersApi } from '../domains/orders/index.js'
 
 const withFetch = async (implementation, callback) => {
@@ -27,7 +27,7 @@ test('API errors preserve status and code', async () => {
   })
 })
 
-test('auth and product CRUD endpoint helpers use the expected routes and methods', async () => {
+test('auth and bootstrap endpoint helpers use the expected routes and methods', async () => {
   const calls = []
   await withFetch(async (...args) => {
     calls.push(args)
@@ -40,9 +40,6 @@ test('auth and product CRUD endpoint helpers use the expected routes and methods
     await login('4827')
     await logout()
     await getBootstrap()
-    await createProduct({ category: 'Bebida', size: '350ml', name: 'Coca', price: 8.5 })
-    await updateProduct('p1', { category: 'Bebida', size: 'Lata', name: 'Coca', price: 9 })
-    await deleteProduct('p1')
   })
 
   assert.deepEqual(calls.map(([path, options]) => [path, options?.method || 'GET']), [
@@ -51,9 +48,6 @@ test('auth and product CRUD endpoint helpers use the expected routes and methods
     ['/api/auth/session', 'GET'],
     ['/api/auth/logout', 'POST'],
     ['/api/bootstrap', 'GET'],
-    ['/api/products', 'POST'],
-    ['/api/products/p1', 'PATCH'],
-    ['/api/products/p1', 'DELETE'],
   ])
 })
 
