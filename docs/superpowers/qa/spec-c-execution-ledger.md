@@ -463,3 +463,17 @@ The repository and current GitHub state are the source of truth for Spec C conti
 
 - C9 documentary baseline `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1` passed Validate #1465 / run `35473924686` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
 - Draft PR #53 is open for C9. This run validates the pre-Task-1 documentary baseline; Task 1 remains NOT STARTED until this evidence-only follow-up HEAD receives its own Validate.
+
+
+---
+
+# C9 — Task 1 closure — 2026-09-19
+
+- Task 1: **COMPLETE / GREEN**.
+- RED: `f174e57fc45809b053aba6ce86298ac61990e27c`; Validate #1467 / run `35474709352` — expected failure with **1,865 tests / 1,860 pass / 4 fail / 1 skipped**, proving the new Printing domain owners were absent while the copy-policy characterization remained green.
+- Corrective purity RED: `4a064b9ee3d6f001cbca762ebe1ec31f7fc0a300`; Validate #1473 / run `35475160919` exposed the real legacy browser dependency `globalThis.document` in the moved renderer. Ruling: browser defaults stay outside the pure domain in temporary, ledgered adapters.
+- Final GREEN: `42a0a1f9e1062ee8230dbd92e4c8f79cb5891fca`; Validate #1475 / run `35475383919` — **SUCCESS**, **1,866 tests / 1,865 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
+- Printing now owns pure eligibility/recovery/second-copy/station-policy/rendering contracts under `src/domains/printing/domain/**`.
+- Current copy semantics remain unchanged and explicitly covered: Local without table uses `orderDefaultCopies`; table-linked orders and `table-tab` use `tableTabDefaultCopies`; each supports 1 or 2 copies.
+- Task 1 did not move Printing API or QZ infrastructure. Task 2 and beyond remain not started by this checkpoint.
+- Staging: NO. Merge: NO. Production: NO.

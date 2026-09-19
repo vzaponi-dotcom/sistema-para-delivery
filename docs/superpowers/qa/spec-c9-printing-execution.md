@@ -73,3 +73,44 @@ The current policy is authoritative:
 - **Why:** domain purity is binding architecture; moving browser globals into the domain merely to satisfy the planned path would be a folder-only refactor.
 - **Cost if wrong:** two small legacy browser adapters survive temporarily, but are ledgered with exact removal tasks and preserve current physical/PDF behavior.
 - Corrected purity RED: Validate #1473 / run `35475160919` failed on the real `globalThis.document` renderer dependency; stale ownership source-tests were separately aligned.
+
+
+## Task 1 — Printing domain rules and rendering ownership
+
+**Status:** COMPLETE / GREEN
+
+### RED
+
+- Commit: `f174e57fc45809b053aba6ce86298ac61990e27c`.
+- Validate #1467 / run `35474709352` — **FAIL as intended**.
+- Suite: **1,865 tests / 1,860 pass / 4 fail / 1 skipped**.
+- The four failures were the new C9 ownership contract proving that `printingEligibility.js`, `printRecovery.js`, `stationPolicy.js`/renderer owner and domain source did not yet exist. The copy-policy characterization passed in the same run.
+
+### Corrective RED / ruling
+
+- The initial ownership move exposed a real spec/plan conflict: legacy renderer defaults pulled `globalThis.document` into `domains/printing/domain/**`.
+- Corrected purity RED: `4a064b9ee3d6f001cbca762ebe1ec31f7fc0a300`; Validate #1473 / run `35475160919` failed on the real `globalThis.document` dependency, plus stale ownership source-tests that were then aligned.
+- Ruling already recorded above: pure renderer code stays under Printing domain; browser canvas/PDF download defaults remain thin, temporary legacy adapters with exact removal tasks.
+
+### GREEN
+
+- Final Task 1 code SHA: `42a0a1f9e1062ee8230dbd92e4c8f79cb5891fca`.
+- Validate #1475 / run `35475383919` — **SUCCESS** on exact head SHA.
+- Suite: **1,866 tests / 1,865 pass / 0 fail / 1 skipped**.
+- `Frontend architecture boundaries: OK`.
+- lint ✅
+- build ✅
+- production Worker dry-run ✅
+- staging Worker dry-run ✅
+- local D1 ✅
+- Spec B D1 ✅
+
+### Result
+
+- Printing now owns pure transport/eligibility, recovery, second-copy, station-policy and rendering contracts under `src/domains/printing/domain/**`.
+- `App.jsx` and manager consumers use the new Printing public boundary for the extracted pure rules.
+- The current copy policy remains unchanged: Local without table/tab → `orderDefaultCopies`; table-linked order / `table-tab` → `tableTabDefaultCopies`; both remain 1/2-copy settings.
+- No Printing API was moved in Task 1; that remains Task 2.
+- No QZ transport adapter was introduced in Task 1; that remains Task 3.
+- Temporary browser adapters for ESC/POS canvas and PDF download are ledgered and scheduled for removal during the later C9 migration.
+- Task 2 is **NOT STARTED**.
