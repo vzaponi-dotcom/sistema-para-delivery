@@ -1,7 +1,7 @@
 # Spec C8 — Catalog
 
 **Data:** 2026-09-19  
-**Status:** **DRAFT** — design escrito sobre a base pós-C7; aguardando autorrevisão formal e aprovação explícita do usuário  
+**Status:** **AUTO-REVISADA** — design consolidado sobre a base pós-C7; aguardando aprovação explícita do usuário  
 **Branch:** `feature/spec-c8-catalog`  
 **Base:** `master` em `a7a8285ee125d90058c739f52daba6c170921adb`  
 **Base validation:** Validate application #1429 / run `35459175985` — SUCCESS  
@@ -60,6 +60,20 @@ Evidência validada em GitHub:
 
 A C8 parte exatamente dessa `master`.
 
+### 3.1 Reconciliação documental obrigatória
+
+A auditoria da base encontrou uma defasagem documental esperada do fechamento: os arquivos de rollout/execution ledger presentes no merge ainda descrevem C7 como homologada com merge pendente, embora o GitHub já prove que o PR #51 foi mergeado e que o Validate pós-merge passou no novo `master`.
+
+Pela própria regra do execution ledger, quando ledger e GitHub divergem, o estado real do GitHub deve ser inspecionado e o ledger reconciliado antes da implementação.
+
+Portanto, antes da Task 1 funcional da C8, a branch deve atualizar pelo menos:
+
+- rollout da Spec C: C7 → **MERGED / COMPLETE** e C8 → slice ativa de design/plano;
+- execution ledger: PR #51 merged, master `a7a8285ee125d90058c739f52daba6c170921adb`, Validate #1429 verde e C8 em planejamento;
+- compatibility ledger somente no que for necessário para refletir o início da C8, sem marcar debts como removidos antes da implementação.
+
+Essa reconciliação documental não muda a base técnica aprovada e não autoriza código funcional.
+
 ## 4. Restrições globais
 
 A C8 deve preservar as regras da Spec C:
@@ -80,7 +94,7 @@ A C8 deve preservar as regras da Spec C:
 
 Catalog é dono, no frontend, de:
 
-- catálogo/produtos oficiais consumidos pela UI;
+- regras, projeções, UI e comandos que operam sobre o catálogo/produtos oficiais recebidos do runtime;
 - tela administrativa Produtos;
 - busca, filtro e agrupamento da tela Produtos;
 - cadastro de produto;
@@ -94,6 +108,8 @@ Catalog é dono, no frontend, de:
 - formatação/apresentação de catálogo exposta aos consumidores frontend através do public entry;
 - API frontend de produtos;
 - comandos de mutação de produtos.
+
+O `products[]` oficial continua pertencendo ao operational runtime/bootstrap. Catalog não cria store oficial paralelo, não substitui os sync guards e não passa a ser fonte de verdade da coleção.
 
 Catalog não é dono de:
 
@@ -664,9 +680,20 @@ Preservar a estratégia atual:
 - iterar ids selecionados;
 - chamar delete individual sequencialmente;
 - usar os mesmos efeitos oficiais e feedbacks de cada delete;
-- manter semântica atual de finalização da seleção após a rodada.
+- cada comando de delete absorve o erro pelo canal global e resolve como falha controlada, de modo que a iteração atual segue para os próximos ids;
+- ao terminar a iteração, a seleção é cancelada/limpa como hoje.
 
 Melhorias de atomicidade, resumo agregado de erros ou API bulk são fora de escopo.
+
+### 19.2 Fechamento das confirmações de exclusão
+
+Preservar também a semântica observável atual dos dialogs:
+
+- na exclusão simples, depois que `onDelete(productId)` resolve, o candidato de exclusão é limpo e o dialog fecha mesmo quando o callback retorna `false`; o erro já foi encaminhado pelo canal global;
+- C8 não transforma retorno `false` em um dialog de retry persistente;
+- exceções inesperadas continuam respeitando o `finally` de pending existente e não devem ser usadas para inventar uma UX nova.
+
+Qualquer mudança nessa experiência deve ser uma melhoria funcional separada, não consequência da modularização.
 
 ## 20. Busca, filtro e agrupamento
 
@@ -737,7 +764,7 @@ Orders não pode importar:
 - internals de listagem;
 - UI administrativa de Produtos.
 
-Catalog não deve importar Orders.
+Catalog não deve importar Orders **de nenhuma forma**, nem mesmo seu public entry: não existe dependência legítima de Catalog → Orders nesta slice. A dependência permitida é unidirecional: Orders → `domains/catalog/index.js`.
 
 ### 21.2 Semântica a preservar em Novo Pedido
 
@@ -933,7 +960,7 @@ C8 deve adicionar checks permanentes.
 No mínimo:
 
 1. consumidores externos de Catalog não podem deep-importar internals;
-2. Catalog não importa internals de Orders;
+2. Catalog não importa Orders de nenhuma forma;
 3. Orders só cruza Catalog pelo public entry;
 4. `src/pages/Products.jsx` não pode reaparecer como owner;
 5. `src/components/ProductForm.jsx` não pode reaparecer como owner;
@@ -1192,7 +1219,7 @@ C8 só pode ser considerada pronta para homologação quando:
 7. `src/pages/Products.jsx` legado não é owner;
 8. `src/components/ProductForm.jsx` legado não é owner;
 9. Orders não importa Catalog internals/infrastructure;
-10. Catalog não importa Orders internals;
+10. Catalog não importa Orders de nenhuma forma;
 11. Orders consome os helpers públicos de catálogo via `domains/catalog/index.js`;
 12. `updateCollection('products', ...)` não existe;
 13. runtime suporta `deletedProductId`;
@@ -1268,3 +1295,52 @@ Após aprovação desta spec:
 5. somente então iniciar Task 1 RED.
 
 Nenhuma task funcional da C8 começa durante a fase de design.
+
+## 43. Autorrevisão formal — 2026-09-19
+
+A spec foi revisada contra o estado real do repositório e os contratos existentes antes de ser apresentada para aprovação.
+
+### 43.1 Fontes revisadas
+
+- Spec C arquitetural;
+- rollout C1–C10;
+- execution ledger;
+- compatibility facade ledger;
+- PR #51 e merge pós-C7 no GitHub;
+- Validate application #1429 / run `35459175985`;
+- `src/App.jsx`;
+- `src/pages/Products.jsx`;
+- `src/components/ProductForm.jsx`;
+- `src/app/runtime/data/useOperationalDataRuntime.js`;
+- `src/api/client.js`;
+- `shared/productCatalog.js`;
+- `worker/index.js`;
+- `worker/validation.js`;
+- `worker/repositories.js`;
+- testes de produto do Worker;
+- `src/domains/orders/ui/components/OrderProductCatalog.jsx`;
+- query state de navegação;
+- architecture checker e seus testes;
+- characterization/UI regressions atuais de Produtos.
+
+### 43.2 Achados e resoluções
+
+1. **Base confirmada.** PR #51 está mergeado/fechado e o novo master exato é `a7a8285ee125d90058c739f52daba6c170921adb`; Validate #1429 passou nesse SHA.
+2. **Ledger pós-merge está defasado.** A spec tornou a reconciliação documental um pré-requisito explícito antes da Task 1 funcional.
+3. **`shared/productCatalog.js` tem consumidores Worker reais.** Portanto ele não pode ser movido integralmente para Catalog.
+4. **Há metadata apenas frontend dentro do shared.** Ícones, options, fallback visual e sugestão de apresentação devem receber owner em Catalog, mantendo shared restrito ao contrato cross-runtime.
+5. **Delete é o último debt documentado de `updateCollection`.** A solução normativa é `deletedProductId` em official effects e remoção do escape hatch do runtime após migrar products.
+6. **`OrderProductCatalog` deve continuar em Orders.** Ele coordena seleção e carrinho do pedido; apenas seus contratos de apresentação de produto passam a vir do public entry de Catalog.
+7. **Não há dependência legítima Catalog → Orders.** A direção é unidirecional Orders → Catalog public entry.
+8. **Query state de Produtos já pertence à navegação.** C8 não deve mover `search/categoryFilter` para uma store de domínio; Catalog recebe estado e callbacks e possui a projeção.
+9. **Nenhuma mudança de Worker/schema/migration é necessária.** O contrato atual já cobre categorias/apresentações e soft delete.
+10. **A Spec D permanece fora de escopo.** Variantes, grupos de opções e pricing extensível não são antecipados.
+11. **O preço inicial tinha um detalhe interno enganoso.** App semeia um valor antigo, mas `ProductForm` normaliza o novo produto para `R$ 0,00`; a spec preserva o comportamento observável, não o seed invisível.
+12. **Exclusão possui edge cases observáveis.** O dialog simples fecha após callback resolvido mesmo em falha controlada, e o bulk segue sequencialmente; ambos foram explicitados para a refatoração não alterar UX por acidente.
+13. **Não foi encontrada contradição arquitetural pendente** após essas correções.
+
+### 43.3 Conclusão da autorrevisão
+
+Com os ajustes acima, esta spec está internamente consistente com a Spec C, com a base pós-C7 e com o código real auditado.
+
+Ela está pronta para aprovação de design. O plano detalhado C8 só deve ser escrito após essa aprovação, e código funcional continua bloqueado até aprovação subsequente do plano.
