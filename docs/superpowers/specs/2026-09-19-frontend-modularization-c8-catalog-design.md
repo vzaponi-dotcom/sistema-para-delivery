@@ -39,7 +39,7 @@ Ao final da C8:
 7. `updateCollection('products', ...)` desaparece e o escape hatch `updateCollection` deixa de fazer parte do runtime de produção;
 8. Novo Pedido continua consumindo produtos oficiais e metadata/presentation do Catalog por contrato público;
 9. Orders não importa internals nem infrastructure de Catalog;
-10. Catalog não importa internals de Orders;
+10. Catalog não importa Orders de nenhuma forma;
 11. `shared/productCatalog.js` permanece somente como contrato cross-runtime necessário a frontend/Worker, sem continuar acumulando metadata exclusiva da UI;
 12. todas as experiências atuais permanecem observacionalmente equivalentes.
 
