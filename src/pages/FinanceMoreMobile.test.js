@@ -45,9 +45,9 @@ test('App derives pending refunds and applies the authoritative deferred refund 
 
   assert.match(app, /getOrderRefundState/)
   assert.match(app, /pendingRefundOrders/)
-  assert.match(app, /refundOrderApi/)
-  assert.match(app, /const \{ order, movement \} = await refundOrderApi/)
-  assert.match(app, /applyOfficialEffects\(\{ order, movement \}\)/)
+  assert.match(app, /useRefundWorkflow/)
+  assert.match(app, /onRequestRefund=\{refund\.request\}/)
+  assert.match(app, /applyOfficialEffects/)
   assert.doesNotMatch(app, /refundStatus/)
 })
 
