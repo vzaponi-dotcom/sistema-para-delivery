@@ -1,10 +1,10 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: EXECUTION ACTIVE — Tasks 1–8 COMPLETE / GREEN; Task 9 NOT STARTED. Design and plan approved 2026-09-19.**
+> **STATUS: STAGING HOMOLOGATED — Tasks 1–9 COMPLETE; Task 10 closure/merge handoff active. Design and plan approved 2026-09-19.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
-> Tasks 1–8 are complete and the exact-head pre-staging gate is green. Task 9 (staging + manual homologation) is the next execution step.
+> Tasks 1–9 are complete. Staging homologation closed at 29 PASS / 0 FAIL / 1 BLOCKED. Task 10 is preparing the final exact-head merge gate; no merge occurs without explicit authorization.
 
 **Goal:** Establish `src/domains/customers` as the frontend owner of customer duplicate rules, CRUD/API, customer list/editor UI and customer commands; remove customer CRUD/editor/duplicate orchestration from `App.jsx`; preserve quick-create integration with Orders without allowing Orders to own Customers infrastructure.
 
@@ -27,7 +27,7 @@
 - Post-merge `master` Validate: #1392 / run `35448223721` — SUCCESS.
 - Work branch: `feature/spec-c7-customers`.
 - C7 design approval commit: `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-- Functional implementation: **Tasks 1–8 COMPLETE / GREEN; Task 9 NOT STARTED**.
+- Functional implementation: **Tasks 1–9 COMPLETE; STAGING HOMOLOGATED; Task 10 closure active**.
 - Production deployment: **NO** unless separately authorized.
 
 ## Task 1 evidence
@@ -178,8 +178,11 @@
   - no customer visual redesign and no CSS file changes;
   - no new compatibility facade or architecture allowlist entry;
   - App contains no customer editor/list/CRUD/duplicate business ownership.
-- Staging deployment: **NOT STARTED**.
-- Task 9: **NOT STARTED**.
+- Staging deployment: **COMPLETE / SUCCESS** at homologated SHA `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; Deploy staging #185 / run `35457821403`.
+- Staging Worker version: `c404e7b9-d32d-4faa-baaf-21e2f0e4f52d`; readiness attempt 1/6; real login smoke HTTP 200; no remote migrations pending.
+- Manual homologation: **29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 30 is BLOCKED because staging has no suitable restricted/read-only identity; automated capability coverage remains green.
+- Task 9: **COMPLETE / HOMOLOGATED**.
+- Task 10: **CLOSURE ACTIVE — QA/docs + final exact-head Validate + explicit merge authorization**.
 
 ## Current ownership/debt snapshot
 
@@ -625,7 +628,7 @@ Audit:
 
 ---
 
-## Task 9 — Staging deployment and manual homologation
+## Task 9 — Staging deployment and manual homologation — COMPLETE / HOMOLOGATED
 
 After exact-SHA Validate is green, manually dispatch `Deploy staging` for `feature/spec-c7-customers`.
 
@@ -666,7 +669,7 @@ No production deployment.
 
 ---
 
-## Task 10 — C7 closure and merge handoff
+## Task 10 — C7 closure and merge handoff — ACTIVE
 
 - Create/update `docs/superpowers/qa/spec-c7-customers-qa.md`.
 - Update execution ledger with every RED/GREEN SHA/run.
