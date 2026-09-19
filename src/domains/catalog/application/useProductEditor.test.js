@@ -114,10 +114,12 @@ test('product editor blocks opening and submitting without capability or while w
   }
 })
 
-test('Task 4 App no longer owns product draft or editor handlers', () => {
+test('Task 5 keeps product editor internals in Catalog and removes them from App', () => {
   const app = readFileSync(new URL('../../../App.jsx', import.meta.url), 'utf8')
-  assert.match(app, /useProductEditor/)
-  assert.match(app, /ProductEditorDialog/)
+  const workspace = readFileSync(new URL('../ui/CatalogWorkspace.jsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(app, /useProductEditor|ProductEditorDialog/)
+  assert.match(workspace, /useProductEditor/)
+  assert.match(workspace, /ProductEditorDialog/)
   for (const token of [
     'editingProductId', 'showProductForm', 'newProduct', 'emptyProduct',
     'productPayload', 'handleAddProduct', 'handleEditProduct', 'handleCancelProductEdit',

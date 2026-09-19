@@ -23,56 +23,47 @@ test('C8 Task 5 public entry is Node-safe and exposes only final external contra
   assert.equal(catalog.categoryForUi('Categoria antiga'), 'Outros')
 })
 
-test('C8 Task 1 removes legacy Products and ProductForm owners without compatibility facades', () => {
+test('C8 removes legacy Products and ProductForm owners without compatibility facades', () => {
   for (const path of ['src/pages/Products.jsx', 'src/components/ProductForm.jsx']) {
     assert.equal(existsSync(join(root, path)), false, `Legacy owner still exists: ${path}`)
   }
-  for (const path of ['src/domains/catalog/ui/Products.jsx', 'src/domains/catalog/ui/ProductForm.jsx']) {
+  for (const path of ['src/domains/catalog/ui/Products.jsx', 'src/domains/catalog/ui/ProductForm.jsx', 'src/domains/catalog/ui/CatalogWorkspace.jsx']) {
     assert.equal(existsSync(join(root, path)), true, `Catalog UI owner is missing: ${path}`)
   }
 })
 
-test('C8 Task 1 keeps only the cross-runtime product contracts in shared', () => {
+test('C8 keeps only the cross-runtime product contracts in shared', () => {
   assert.deepEqual(Object.keys(shared).sort(), [
     'PRODUCT_CATEGORIES', 'deriveLegacySize', 'validateProductPresentation', 'formatProductPresentation',
   ].sort())
 })
 
-test('C8 Task 1 App and all Orders consumers use the Catalog public entry', () => {
+test('C8 Task 5 App and all Orders consumers use the Catalog public entry', () => {
   const app = read('src/App.jsx')
   assert.match(app, /from ['"]\.\/domains\/catalog\/index\.js['"]/)
-  assert.doesNotMatch(app, /from ['"]\.\/(?:pages\/Products|components\/ProductForm)/)
+  assert.match(app, /CatalogWorkspace/)
+  assert.doesNotMatch(app, /\b(?:Products|ProductForm|ProductEditorDialog|useCatalogCommands|useProductEditor)\b/)
   assert.match(read('src/domains/orders/domain/orderCart.js'), /from ['"]\.\.\/\.\.\/catalog\/index\.js['"]/)
   assert.match(read('src/domains/orders/ui/components/OrderProductCatalog.jsx'), /from ['"]\.\.\/\.\.\/\.\.\/catalog\/index\.js['"]/)
   assert.match(read('src/domains/orders/ui/components/OrderCart.jsx'), /from ['"]\.\.\/\.\.\/\.\.\/catalog\/index\.js['"]/)
-  assert.match(app, /useCatalogCommands/)
-  assert.match(app, /useProductEditor/)
-  assert.match(app, /ProductEditorDialog/)
-  assert.doesNotMatch(app, /updateCollection\s*\(\s*['\"]products['\"]/)
+  assert.doesNotMatch(app, /updateCollection\s*\(\s*['"]products['"]/)
 })
 
-test('C8 Task 1 inventories and rejects remaining production shared-product bypasses', () => {
+test('C8 rejects remaining production shared-product bypasses', () => {
   const bypasses = filesUnder(join(root, 'src'))
     .filter((path) => /\.(?:js|jsx|mjs)$/.test(path) && !/\.(?:test|spec)\./.test(path))
-    .map((path) => relative(root, path).replaceAll('\\', '/'))
+    .map((path) => relative(root, path).replaceAll('\\\\', '/'))
     .filter((path) => !path.startsWith('src/domains/catalog/') && /from\s+['"][^'"]*shared\/productCatalog\.js['"]/.test(read(path)))
   assert.deepEqual(bypasses, [], `Production consumers to migrate: ${bypasses.join(', ')}`)
 })
 
-
-test('C8 Task 4 moves product editor state and payload ownership out of App', () => {
+test('C8 Task 5 removes product editor state, handlers and temporary composition from App', () => {
   const app = read('src/App.jsx')
-  assert.match(app, /ProductEditorDialog/)
-  assert.match(app, /useProductEditor/)
+  assert.match(app, /CatalogWorkspace/)
   for (const token of [
-    'editingProductId',
-    'showProductForm',
-    'newProduct',
-    'emptyProduct',
-    'productPayload',
-    'handleAddProduct',
-    'handleEditProduct',
-    'handleCancelProductEdit',
+    'editingProductId', 'showProductForm', 'newProduct', 'emptyProduct', 'productPayload',
+    'handleAddProduct', 'handleEditProduct', 'handleDeleteProduct', 'handleCancelProductEdit',
+    'ProductEditorDialog', 'useProductEditor', 'useCatalogCommands',
   ]) {
     assert.doesNotMatch(app, new RegExp(`\\b${token}\\b`), `App still owns ${token}`)
   }

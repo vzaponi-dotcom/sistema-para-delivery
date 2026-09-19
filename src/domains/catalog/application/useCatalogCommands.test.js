@@ -144,11 +144,12 @@ test('Task 2 removes product HTTP and collection mutation ownership from App and
   const app = read('src/App.jsx')
   const legacyApi = read('src/api/client.js')
 
-  assert.match(app, /useCatalogCommands/)
-  assert.doesNotMatch(app, /\b(?:createProductApi|updateProductApi|deleteProductApi)\b/)
+  const workspace = read('src/domains/catalog/ui/CatalogWorkspace.jsx')
+  assert.match(app, /CatalogWorkspace/)
+  assert.doesNotMatch(app, /\b(?:createProductApi|updateProductApi|deleteProductApi|useCatalogCommands|useProductEditor)\b/)
   assert.doesNotMatch(app, /updateCollection\s*\(\s*['"]products['"]/)
-  assert.match(app, /useProductEditor/)
-  assert.match(app, /catalogCommands\.deleteProduct/)
+  assert.match(workspace, /useCatalogCommands/)
+  assert.match(workspace, /commands\.deleteProduct/)
 
   for (const name of ['createProduct', 'updateProduct', 'deleteProduct']) {
     assert.doesNotMatch(legacyApi, new RegExp(`export\\s+(?:const|function)\\s+${name}\\b`))

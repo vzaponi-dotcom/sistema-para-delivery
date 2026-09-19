@@ -4,6 +4,10 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { createUiHarness } from '../test-support/harness.js'
 
+const nodeText = (node) => (node?.children ?? [])
+  .map((child) => typeof child === 'string' ? child : nodeText(child))
+  .join('')
+
 const product = {
   id: 'p1',
   name: 'Água',
@@ -46,7 +50,7 @@ test('CatalogWorkspace preserves editor state while hidden and resets it after u
   let renderer
   await act(async () => { renderer = create(React.createElement(Workspace, baseProps)) })
 
-  const addButton = renderer.root.findAllByType('button').find((node) => node.children?.includes('Adicionar produto'))
+  const addButton = renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Adicionar produto'))
   assert.ok(addButton)
   await act(async () => addButton.props.onClick())
 
@@ -81,13 +85,13 @@ test('CatalogWorkspace unmounts list-local selection while hidden but preserves 
 
   const props = {
     ...baseProps,
-    search: 'agua',
+    search: 'água',
     queryState: { categoryFilter: 'Bebidas' },
   }
   let renderer
   await act(async () => { renderer = create(React.createElement(Workspace, props)) })
 
-  assert.equal(renderer.root.findByProps({ type: 'search' }).props.value, 'agua')
+  assert.equal(renderer.root.findByProps({ type: 'search' }).props.value, 'água')
   await act(async () => renderer.root.findByProps({ className: 'product-select-mode-button' }).props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Selecionar Água' }).props.onClick({ stopPropagation() {} }))
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 1)
@@ -96,7 +100,7 @@ test('CatalogWorkspace unmounts list-local selection while hidden but preserves 
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 0)
 
   await act(async () => renderer.update(React.createElement(Workspace, props)))
-  assert.equal(renderer.root.findByProps({ type: 'search' }).props.value, 'agua')
+  assert.equal(renderer.root.findByProps({ type: 'search' }).props.value, 'água')
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 0)
 
   await act(async () => renderer.unmount())
