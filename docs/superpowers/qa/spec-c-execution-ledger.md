@@ -23,7 +23,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
-| C7 | Customers | **TASK 8 COMPLETE / GREEN — READY FOR STAGING** | `feature/spec-c7-customers` / draft PR #51 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
+| C7 | Customers | **STAGING HOMOLOGATED — MERGE GATE PENDING AUTHORIZATION** | `feature/spec-c7-customers` / draft PR #51 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
@@ -262,7 +262,7 @@ These remain mandatory for C2-C10:
 - Post-merge `master` Validate: #1392 / run `35448223721` — **SUCCESS**.
 - Production deployment: **NO**.
 
-# C7 — Customers — ACTIVE / TASK 8 COMPLETE — READY FOR STAGING
+# C7 — Customers — STAGING HOMOLOGATED / TASK 10 MERGE GATE
 
 - Base/master SHA: `5b101800fe29d02dd4543e184cca9e06d659a445` (C6 merge).
 - Post-C6 master Validate: #1392 / run `35448223721` — **SUCCESS**.
@@ -303,8 +303,12 @@ These remain mandatory for C2-C10:
 - Task 7 GREEN: `6402496c078ca817572e6e375beec9f4ffbe557a`; Validate #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**; no allowlist expansion.
 - Task 7 architecture result: Customers deep imports, Orders↔Customers internals, legacy owners/API exports, App customer ownership, client `updateCollection`, frontend duplicate rules in shared, and domain→infrastructure imports are permanently rejected.
 - Task 8 exact-head pre-staging gate and diff audit: `6402496c078ca817572e6e375beec9f4ffbe557a` / Validate #1419 — **SUCCESS**; no Worker/schema/migration/Finance/Table Service functional diff; Orders production diff is limited to Customers public-contract consumption; no CSS redesign/move; no new facade.
-- Functional implementation: **Tasks 1–8 COMPLETE / GREEN; Task 9 NOT STARTED**.
-- Next step: **Task 9 — manual staging deploy on the exact validated SHA, then the approved 30-item homologation matrix**.
+- Task 9 homologated SHA: `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; Validate #1420 / run `35457535163` and Deploy staging #185 / run `35457821403` — **SUCCESS**.
+- Task 9 manual QA: **29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; the blocked capability/read-only case has no suitable staging account and is not counted as PASS.
+- QA record: `docs/superpowers/qa/spec-c7-customers-qa.md`.
+- Functional implementation + staging: **Tasks 1–9 COMPLETE / C7 HOMOLOGATED**.
+- Task 10: **QA/docs closure + final exact-head Validate + explicit merge authorization pending**.
+- Master drift before closure: **none**; `master` remains `5b101800fe29d02dd4543e184cca9e06d659a445`.
 - Approval gate: **satisfied**.
 - Production deployment: **NO**.
 
@@ -321,7 +325,7 @@ The active slice is C7 after C6 merged successfully. GitHub state wins over this
 5. Treat `5b101800fe29d02dd4543e184cca9e06d659a445` as the approved C7 base unless GitHub proves an intentional later reconciliation.
 6. C6 merged by PR #50; final branch Validate #1391 and post-merge Validate #1392 are green.
 7. Read `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; it is formally self-reviewed and **APPROVED**, with approval recorded at `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; Tasks 1–8 are complete/green and Task 9 staging/homologation is next. Continue only from this recorded checkpoint.
+8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` and `docs/superpowers/qa/spec-c7-customers-qa.md`; C7 is staging-homologated and Task 10 exact-head merge gate is active. Continue only from this recorded checkpoint.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
