@@ -1,10 +1,10 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: APPROVED FOR EXECUTION — reconciled + formally self-reviewed against the approved design. User approval granted 2026-09-19.**
+> **STATUS: EXECUTION ACTIVE — Task 1 COMPLETE / GREEN. Design and plan approved 2026-09-19.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
-> Do not begin Task 1 RED until this plan is explicitly approved by the user.
+> Task 1 is complete. Do not start Task 2 unless it is the explicitly requested next step.
 
 **Goal:** Establish `src/domains/customers` as the frontend owner of customer duplicate rules, CRUD/API, customer list/editor UI and customer commands; remove customer CRUD/editor/duplicate orchestration from `App.jsx`; preserve quick-create integration with Orders without allowing Orders to own Customers infrastructure.
 
@@ -27,8 +27,27 @@
 - Post-merge `master` Validate: #1392 / run `35448223721` — SUCCESS.
 - Work branch: `feature/spec-c7-customers`.
 - C7 design approval commit: `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-- Functional implementation: **NOT STARTED**.
+- Functional implementation: **Task 1 COMPLETE / GREEN**.
 - Production deployment: **NO** unless separately authorized.
+
+## Task 1 evidence
+
+- Draft PR: #51 — `Spec C7: Customers domain extraction`.
+- RED commit: `6202678292c36deb7f76f9ed48478458af33c7cd`.
+- RED Validate: #1394 / run `35450264188` — **FAIL as intended** at Test with exactly two C7 missing-boundary failures:
+  - missing `src/domains/customers/index.js`;
+  - missing `src/domains/customers/domain/clientDuplicates.js`.
+- RED failure class: `ERR_MODULE_NOT_FOUND`; no parser/test-harness defect.
+- GREEN commit: `7c3a9842be653dec619263b595cd4b54003a3bcc`.
+- GREEN Validate: #1395 / run `35450437897` — **SUCCESS**.
+- GREEN suite: **1,774 tests / 1,773 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- Delivered boundary:
+  - Customers now owns frontend `normalizeClientName` + `findClientDuplicates`;
+  - App and Orders consume duplicate rules via `src/domains/customers/index.js`;
+  - `shared/clientIdentity.js` retains only the cross-runtime phone primitives used by the Worker;
+  - no Worker/schema/API behavior changed.
+- Task 2: **NOT STARTED**.
 
 ## Current ownership/debt snapshot
 
@@ -149,7 +168,7 @@ If local execution is unavailable/untrustworthy, use the green post-C6 master Va
 
 ---
 
-## Task 1 — Establish Customers public boundary and frontend duplicate rules
+## Task 1 — Establish Customers public boundary and frontend duplicate rules — COMPLETE / GREEN
 
 **Files**
 - Create `src/domains/customers/index.js`
