@@ -1,7 +1,7 @@
 # Spec C9 — Printing and QZ separation
 
 **Data:** 2026-09-19  
-**Status:** **READY FOR WRITTEN REVIEW** — design consolidado e aprovado em conversa; documento autorrevisado, aguardando aprovação explícita desta spec escrita  
+**Status:** **APPROVED** — design consolidado, autorrevisado e aprovado explicitamente pelo usuário em 2026-09-19  
 **Branch:** `feature/spec-c9-printing`  
 **Base:** `master` em `91fb5581cea1616f438c13dfac28cfb38345fa59`  
 **Base validation:** Validate application #1464 / run `35471894412` — SUCCESS no merge SHA exato da C8  
@@ -1334,6 +1334,6 @@ A complexidade é alta, mas todas as mudanças compartilham a mesma fronteira op
 
 ### 48.5 Estado deste documento
 
-O design foi aprovado em conversa, mas **esta versão escrita ainda requer aprovação explícita do usuário** antes da criação do plano de implementação.
+A versão escrita foi aprovada explicitamente pelo usuário em 2026-09-19. O próximo estágio permitido é o plano de implementação; esta aprovação não autoriza implementação, staging, merge ou produção.
 
 Nenhuma implementação, staging, merge ou produção é autorizada por este documento.
