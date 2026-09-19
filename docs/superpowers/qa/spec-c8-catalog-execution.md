@@ -2,7 +2,7 @@
 
 ## Approval and scope — 2026-09-19
 
-The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, Task 5, and Task 6. **Tasks 1–6 are now complete/green. Task 7 has not started.** Staging, merge and production remain unauthorized/not executed.
+The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, Task 5, Task 6, Tasks 7–8, and Task 9. **Tasks 1–8 are complete/green. Task 9 is in progress but blocked before staging dispatch by the currently available tooling.** Merge and production remain unauthorized/not executed.
 
 - Design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`.
 - Approved plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` at `20abf94359e0e2883fc3b870c69688f8eeabc12c`.
@@ -26,7 +26,10 @@ A fresh local clone was attempted outside the user's workspace and failed becaus
 - Task 4: **COMPLETE / GREEN** at `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309`; Validate #1450 / run `35466359982` SUCCESS.
 - Task 5: **COMPLETE / GREEN** at `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`; Validate #1453 / run `35467142766` SUCCESS.
 - Task 6: **COMPLETE / GREEN** at `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` SUCCESS.
-- Task 7–10: NOT STARTED.
+- Task 7: **COMPLETE / GREEN** at `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; Validate #1460 / run `35469241957` SUCCESS after authoritative RED #1458.
+- Task 8: **COMPLETE / GREEN AUDIT** on candidate `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`.
+- Task 9: **IN PROGRESS / BLOCKED BEFORE DEPLOY**; QA matrix prepared, no staging run dispatched.
+- Task 10: NOT STARTED.
 - Merge/deploy: NONE.
 
 This file supplements, and does not replace, the canonical Spec C execution and compatibility ledgers. Their stale pre-merge/pre-approval wording must be reconciled; historical evidence must be preserved.
@@ -118,3 +121,34 @@ The user intentionally deferred canonical documentation updates during Tasks 2�
 - The generic runtime `updateCollection` block, returned property and `useMemo` dependency were removed. No alternative generic mutation setter was introduced.
 - Existing official effects remain the mutation contract, including `deletedClientId`, `deletedProductId`, product/client upserts, Finance effects and payment/table receipts.
 - C8 Task 7 is responsible for permanent architecture enforcement against reintroduction; Task 6 itself does not change the allowlist or checker.
+
+
+## Task 7 — permanent Catalog architecture enforcement
+
+- RED: `c242e48dbcae61f72fe5eb5a6ecfccb68a76c474`; Validate #1458 / run `35469069713` — **FAIL as intended** at Test.
+- RED totals: **1,860 tests / 1,853 pass / 6 fail / 1 skipped**. The six failures were the expected absent C8 guards: deep imports/cross-domain restrictions, legacy owners/API, App/runtime ownership, shared bypass/metadata and Catalog-domain browser access. The positive fixture passed.
+- Enforcement commit: `faff34de29eb12a882177d9b7700bbbb9cd1f51c`.
+- Corrective normal commit: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`, fixing the shared-catalog guard scope after review; no history rewrite/force push.
+- Validate #1460 / run `35469241957`: **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**. Architecture/lint/build/production Worker dry-run/staging Worker dry-run/local D1/Spec B D1 all passed.
+- Permanent rules now reject: external Catalog deep imports; Catalog imports from Orders/Finance/Table Service/Printing/QZ; legacy Products/ProductForm owners; legacy product CRUD API exports including aliases; product editor/command ownership returning to App; production `updateCollection`; direct frontend `shared/productCatalog.js` bypasses; frontend metadata returning to shared; browser/fetch usage in Catalog domain.
+- Positive paths remain allowed: Orders → Catalog public entry, Catalog internal imports, Catalog → shared cross-runtime product contract.
+- `scripts/architecture/legacy-import-allowlist.json` was not changed.
+
+## Task 8 — full gate and candidate audit
+
+- Candidate: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`.
+- Validate #1460 / run `35469241957` SUCCESS with **1,860 / 1,859 / 0 / 1**.
+- Full workflow gates: tests PASS; architecture PASS; lint PASS; build PASS; Wrangler 4.128.0 production dry-run PASS; Wrangler 4.128.0 staging dry-run PASS; local D1 migrations PASS; Spec B D1 clean-install/upgrade PASS with 25 migrations.
+- Diff audit against base `a7a8285ee125d90058c739f52daba6c170921adb`: no Worker, migrations, workflows, `package.json`, lockfile, `src/product-form.css`, `src/product-selection.css` or `src/components/Modal.jsx` changes. Orders changes are only public-entry import rewrites plus proportional tests; cart and checkout logic are unchanged.
+- Shared removes frontend-only Catalog metadata while keeping the cross-runtime category/validation/formatting contract. Legacy product CRUD remains absent from `src/api/client.js`; runtime `updateCollection` remains absent.
+- The PR event #1460 checked out merge-ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`. GitHub commit metadata confirms its tree `b2a2376a65270f50f891c06196b9acb7a3637134` is identical to the feature HEAD tree. We therefore record equivalent tested contents without falsely claiming a branch `workflow_dispatch` run.
+
+## Task 9 — staging and proportional QA
+
+- Status: **IN PROGRESS / BLOCKED BEFORE DEPLOY**.
+- Required deployment target remains `feature/spec-c8-catalog` through the existing `.github/workflows/deploy-staging.yml` workflow.
+- The workflow only auto-runs on `feature/spec-b-settings-policies`; C8 requires `workflow_dispatch`.
+- The connected GitHub toolset can read workflow runs/jobs/logs but does not expose workflow dispatch. The isolated execution shell has no `gh`, `GH_TOKEN`, `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` credentials.
+- We did **not** alter workflow triggers, secrets or deployment code to bypass the intended control.
+- No staging deployment has occurred for C8 yet. Therefore no manual case is marked PASS by inference. The QA matrix is created at `docs/superpowers/qa/spec-c8-catalog-qa.md` with all cases PENDING until a real staging run exists.
+- Production remains untouched; PR #52 remains draft/open; no merge.

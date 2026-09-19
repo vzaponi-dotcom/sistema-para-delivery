@@ -183,3 +183,15 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Customers had already removed/enforced its caller in C7; Catalog removed the last product caller in C8 Task 2. Task 6 therefore closes the physical compatibility debt without introducing a replacement generic setter.
 - Permanent checker enforcement against reintroduction belongs to **C8 Task 7**. Until Task 7 GREEN, status is **removed but not yet C8 architecture-enforced**.
 - Generic/auth reexports remain C10 debt; Printing remains C9 debt.
+
+
+## C8 Task 7 — permanent enforcement — 2026-09-19
+
+- The generic runtime `updateCollection` debt is now both **physically removed** (Task 6) and **architecture-enforced against reintroduction** (Task 7).
+- Legacy Catalog UI owners `src/pages/Products.jsx` and `src/components/ProductForm.jsx` are forbidden from returning; no compatibility facade exists at those paths.
+- Legacy product CRUD exports `createProduct`, `updateProduct`, and `deleteProduct` are forbidden in `src/api/client.js`, including declaration and named-reexport forms/aliases.
+- External frontend production consumers must use `src/domains/catalog/index.js`; Catalog deep imports and direct `shared/productCatalog.js` bypasses outside Catalog are rejected.
+- Catalog is prohibited from depending on Orders, Finance, Table Service, Printing or QZ, including their public entries; Catalog domain is kept free of React, UI/infrastructure, browser globals and `fetch`.
+- `shared/productCatalog.js` remains a permanent cross-runtime contract and is enforced against frontend-only metadata returning there.
+- Final Catalog public entry remains: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- No allowlist expansion was required. Generic/auth reexports remain C10 debt; Printing remains C9 debt.

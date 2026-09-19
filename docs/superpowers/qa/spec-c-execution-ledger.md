@@ -388,3 +388,17 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - `updateCollection` is physically absent from the operational runtime contract. Customers callers were removed in C7 and the product caller was removed in C8 Task 2. No generic replacement setter was added.
 - Permanent C8 architecture enforcement is still pending Task 7; do not describe the C8 debt as architecture-enforced until that task passes.
 - Task 7–10, staging, merge and production remain not started/not authorized by this checkpoint.
+
+
+---
+
+# C8 — Tasks 7–8 closure / Task 9 pre-deploy — 2026-09-19
+
+- Branch: `feature/spec-c8-catalog`; PR #52 remains draft/open; base `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Task 7 RED: `c242e48dbcae61f72fe5eb5a6ecfccb68a76c474`; Validate #1458 / run `35469069713` — **FAIL as intended**, **1,860 tests / 1,853 pass / 6 fail / 1 skipped**. Failures were confined to the six newly required C8 architecture protections; the positive fixture remained green.
+- Task 7 final GREEN: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; Validate #1460 / run `35469241957` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 passed.
+- Task 7 permanently enforces the Catalog public boundary, forbidden cross-domain dependencies, legacy owner/API absence, App ownership absence, `updateCollection` absence, shared-product frontend routing and pure Catalog domain rules. No architecture allowlist expansion occurred.
+- Task 8 candidate/audit: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`. No Worker/migrations/workflow/dependency/CSS/Modal diff. Orders contains only Catalog public-entry import migration and proportional tests, not cart/checkout behavior changes.
+- Validate #1460 is a PR event and checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`. GitHub reports that merge ref and feature HEAD share the exact tree `b2a2376a65270f50f891c06196b9acb7a3637134`; this evidence is recorded without mislabeling the event as `workflow_dispatch`.
+- Task 9: **IN PROGRESS / BLOCKED BEFORE DEPLOY**. A real staging run cannot be dispatched from the currently available GitHub connector, and the isolated shell has neither GitHub nor Cloudflare credentials. The approved `deploy-staging.yml` was not modified to create a bypass. QA file exists with all manual cases PENDING until staging is deployed.
+- Production: **NO DEPLOY**. Merge: **NO**.

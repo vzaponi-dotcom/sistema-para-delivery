@@ -744,7 +744,7 @@ Depois da remoção, só podem restar assertions negativas em testes; nenhum cal
 
 **Interfaces:** usar `collectImportEdges`/`findArchitectureViolations({rootDir, allowlist})` existentes. Não criar checker paralelo nem dependência pesada.
 
-- [ ] **Step 1 — RED com fixtures negativas e positivas.** Cada violação precisa de teste que injete uma árvore mínima e invoque o checker: App → Catalog internal; Orders → Catalog API/internal; Catalog → Orders public e internal; Catalog → Finance/Table Service/Printing/QZ; owners legados Products/ProductForm; product CRUD reexportado no API legado; handlers/state de produto no App; `updateCollection` de volta em runtime/produção; import shared de produto por frontend fora de Catalog; retorno de metadata frontend ao shared; domain React/UI/infrastructure/browser/fetch. Testes positivos: Orders → Catalog index, Catalog → shared cross-runtime, imports internos Catalog e shared mantido puro.
+- [x] **Step 1 — RED com fixtures negativas e positivas.** Cada violação precisa de teste que injete uma árvore mínima e invoque o checker: App → Catalog internal; Orders → Catalog API/internal; Catalog → Orders public e internal; Catalog → Finance/Table Service/Printing/QZ; owners legados Products/ProductForm; product CRUD reexportado no API legado; handlers/state de produto no App; `updateCollection` de volta em runtime/produção; import shared de produto por frontend fora de Catalog; retorno de metadata frontend ao shared; domain React/UI/infrastructure/browser/fetch. Testes positivos: Orders → Catalog index, Catalog → shared cross-runtime, imports internos Catalog e shared mantido puro.
 
 Exemplo, usando `createFixture(t)` e `write` confirmados no teste existente do checker:
 
@@ -760,8 +760,8 @@ test('C8 forbids Catalog depending on Orders even through its public entry', asy
 
 O helper existente `createFixture` retorna `{rootDir, write}` e registra cleanup com `t.after`; reutilizá-lo sem criar um segundo harness. O RED deve ser a aresta proibida, não um erro de setup.
 
-- [ ] **Step 2 — RED.** `node --test scripts/architecture/check-import-boundaries.test.mjs` deve falhar nas novas proteções. Gate normal da árvore real continua válido até inserir fixtures proibidas.
-- [ ] **Step 3 — GREEN estrutural.** Acrescentar checks no loop de arestas existente:
+- [x] **Step 2 — RED.** `node --test scripts/architecture/check-import-boundaries.test.mjs` deve falhar nas novas proteções. Gate normal da árvore real continua válido até inserir fixtures proibidas.
+- [x] **Step 3 — GREEN estrutural.** Acrescentar checks no loop de arestas existente:
 
 ```js
 if (!edge.from.startsWith('src/domains/catalog/')
@@ -783,8 +783,8 @@ Completar guards de owners/API/state com os mecanismos já existentes, cobrindo 
 
 `catalogPublicContract.test.js` compara `Object.keys(catalog).sort()` com `['CatalogWorkspace','CATEGORY_ICON_NAMES','PRODUCT_CATEGORIES','categoryForUi','formatProductPresentation'].sort()`. Tests internos acessam arquivos internos; produção externa não. Verificar também wrappers auxiliares sem exports intermediários sobreviventes.
 
-- [ ] **Step 4 — GREEN.** Rodar suite do checker, public/extraction contracts, `npm run test:architecture`, lint/build e suite completa. Diff da allowlist deve estar vazio.
-- [ ] **Step 5 — Commit/gate.** `test: enforce c8 catalog boundaries`; `feat: enforce catalog architecture boundaries`. Marcar debts C8 como removidos/enforced, sem encerrar C9/C10.
+- [x] **Step 4 — GREEN.** Rodar suite do checker, public/extraction contracts, `npm run test:architecture`, lint/build e suite completa. Diff da allowlist deve estar vazio.
+- [x] **Step 5 — Commit/gate.** `test: enforce c8 catalog boundaries`; `feat: enforce catalog architecture boundaries`. Marcar debts C8 como removidos/enforced, sem encerrar C9/C10.
 
 ## Task 8 — Gate completo e auditoria do candidato
 
@@ -792,7 +792,7 @@ Completar guards de owners/API/state com os mecanismos já existentes, cobrindo 
 
 **Interfaces:** consome Tasks 1–7 GREEN; produz SHA candidato exato, run Validate SUCCESS e auditoria de diff.
 
-- [ ] Executar todos os gates existentes, sem substituir teste completo por focused:
+- [x] Executar todos os gates existentes, sem substituir teste completo por focused:
 
 ```bash
 npm ci
@@ -806,8 +806,8 @@ npm run d1:migrate:local
 node scripts/infra/spec-b-d1-gate.mjs
 ```
 
-- [ ] Confirmar no GitHub `head_sha`, `conclusion=success`, steps e contagens reais. Para evidência estrita do branch SHA, usar `workflow_dispatch` do `validate.yml` no ref exato; não confundir merge-ref sintético do PR com o SHA executável da feature.
-- [ ] Auditar diff:
+- [x] Confirmar no GitHub `head_sha`, `conclusion=success`, steps e contagens reais. Para evidência estrita do branch SHA, usar `workflow_dispatch` do `validate.yml` no ref exato; não confundir merge-ref sintético do PR com o SHA executável da feature.
+- [x] Auditar diff:
 
 ```bash
 BASE=a7a8285ee125d90058c739f52daba6c170921adb
@@ -819,10 +819,12 @@ git diff "$BASE" HEAD -- src/domains/orders
 ```
 
 Worker/migrations/workflows/deps/CSS/Modal sem diff; Orders só imports públicos e testes proporcionais, sem lógica de carrinho/checkout alterada. Shared retira somente metadata frontend; API shape inalterado. Não contar redução de App como prova suficiente.
-- [ ] Registrar fechamento de exports temporários, ausência de owners/API legados e runtime escape hatch, public entry mínimo e sync guard testado.
-- [ ] Commits documentais posteriores exigem validar seu próprio HEAD antes de staging/merge; não atribuir run antigo a commit novo. Não executar deploy nesta task.
+- [x] Registrar fechamento de exports temporários, ausência de owners/API legados e runtime escape hatch, public entry mínimo e sync guard testado.
+- [x] Commits documentais posteriores exigem validar seu próprio HEAD antes de staging/merge; não atribuir run antigo a commit novo. Não executar deploy nesta task.
 
 ## Task 9 — Staging e homologação proporcional
+
+**Task 9 status — 2026-09-19:** **IN PROGRESS / BLOCKED BEFORE DEPLOY**. The code candidate `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb` is GREEN. Validate #1460 / run `35469241957` succeeded with 1,860 tests / 1,859 pass / 0 fail / 1 skipped and all workflow gates green. The PR run checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`; GitHub confirms that ref and the feature HEAD have the identical tree `b2a2376a65270f50f891c06196b9acb7a3637134`. No staging deploy has occurred yet because the available GitHub integration does not expose `workflow_dispatch`, and the isolated execution shell has no GitHub/Cloudflare credentials. Workflow triggers were not modified to bypass this control. QA matrix is created at `docs/superpowers/qa/spec-c8-catalog-qa.md` with all manual cases PENDING until a real staging deployment exists.
 
 **Files:** criar `docs/superpowers/qa/spec-c8-catalog-qa.md`; atualizar plano/execution ledger com evidência real.
 
@@ -983,3 +985,15 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 - The operational runtime no longer defines or exposes the generic `updateCollection` escape hatch. Official effects remain the only production mutation contract for the migrated collections.
 - Compatibility ledger now marks the physical debt **REMOVED IN C8 Task 6**. Permanent C8 architecture enforcement remains Task 7 work; the existing C7 Customers rule remains intact.
 - No staging, merge or production deploy occurred. No Worker/schema/migration/CSS/workflow/allowlist change was introduced by Task 6.
+
+
+## Execution checkpoint — after Task 8 / Task 9 pre-deploy — 2026-09-19
+
+- **Tasks 1–8: COMPLETE / GREEN. Task 9: IN PROGRESS / BLOCKED BEFORE DEPLOY.**
+- Task 7 RED: `c242e48dbcae61f72fe5eb5a6ecfccb68a76c474`; Validate #1458 / run `35469069713` — **FAIL as intended**, 1,860 tests / 1,853 pass / 6 fail / 1 skipped. The six failures were the intended missing C8 architecture guards; the positive fixture passed.
+- Task 7 GREEN path: enforcement commit `faff34de29eb12a882177d9b7700bbbb9cd1f51c`, followed by normal corrective commit `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb` fixing the shared-catalog guard scope without rewriting history.
+- Final candidate `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; Validate #1460 / run `35469241957` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture/lint/build/production Worker dry-run/staging Worker dry-run/local D1/Spec B D1 all green.
+- Permanent C8 checker rules reject Catalog deep imports, Catalog dependencies on Orders/Finance/Table Service/Printing/QZ, legacy Products/ProductForm owners, legacy product CRUD exports, App product ownership, production `updateCollection`, frontend shared-product bypasses, frontend metadata returning to shared, and browser/fetch usage in Catalog domain. Positive public/internal/shared contracts remain allowed. Architecture allowlist was not expanded.
+- Task 8 diff audit: no Worker, migrations, workflow, dependency, product CSS, selection CSS or `Modal.jsx` changes. Orders changes are public-entry import rewrites plus proportional characterizations; cart/checkout logic is unchanged.
+- The PR-triggered #1460 checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`; its Git tree is exactly the feature candidate tree `b2a2376a65270f50f891c06196b9acb7a3637134`. This is recorded explicitly rather than claiming a workflow-dispatch branch checkout that did not occur.
+- Task 9 staging dispatch remains blocked by tooling: this GitHub connector supports run reads but not workflow dispatch, and the isolated shell has no GitHub/Cloudflare credentials. No workflow trigger was altered. No staging, merge or production deploy occurred in this checkpoint.
