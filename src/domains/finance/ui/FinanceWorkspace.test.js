@@ -35,4 +35,10 @@ test('FinanceWorkspace renders the finance surface and owns the movement dialog 
 
   await act(async () => newMovement.props.onClick())
   assert.match(nodeText(screen.root), /Registrar movimento/)
+
+  const openingBalance = buttonNamed(screen.root, 'Saldo inicial')
+  assert.ok(openingBalance)
+
+  await act(async () => openingBalance.props.onClick())
+  assert.match(nodeText(screen.root), /Configurar saldo inicial/)
 })
