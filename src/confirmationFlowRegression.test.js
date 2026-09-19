@@ -46,9 +46,11 @@ test('manual financial movement gets a review confirmation before persistence', 
 })
 
 test('successful client and product deletions show centered success feedback', async () => {
-  const app = await read('./App.jsx')
-  const clientDelete = app.slice(app.indexOf('const handleDeleteClient'), app.indexOf('const handleCancelClientEdit'))
+  const [app, customerCommands] = await Promise.all([
+    read('./App.jsx'),
+    read('./domains/customers/application/useCustomerCommands.js'),
+  ])
   const productDelete = app.slice(app.indexOf('const handleDeleteProduct'), app.indexOf('const handleCancelProductEdit'))
-  assert.match(clientDelete, /showSuccessMessage\(/)
+  assert.match(customerCommands, /onSuccess\('Cliente excluído com sucesso'\)/)
   assert.match(productDelete, /showSuccessMessage\(/)
 })
