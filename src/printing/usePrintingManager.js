@@ -32,7 +32,7 @@ import {
   signQzPayload,
   setPrintStationRecovery,
   upsertPrintStation,
-} from '../api/client.js'
+} from '../domains/printing/infrastructure/printingApi.js'
 import {
   detectPrintStationPlatform,
   getOrCreateLocalPrintStationId,

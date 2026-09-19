@@ -14,7 +14,7 @@ import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
 import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
 import { PRINT_QUEUE_ORIGIN_FILTERS, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
-import { getPrintJobs, getPrintQueueSummary } from '../api/client.js'
+import { getPrintJobs, getPrintQueueSummary } from '../domains/printing/infrastructure/printingApi.js'
 import { sortPrintQueueJobsForDisplay, togglePrintQueueSort, updatePrintQueueQuery } from './printQueueQuery.js'
 
 const formatJobTime = (createdAt) => {
