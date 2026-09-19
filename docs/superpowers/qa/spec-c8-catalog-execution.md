@@ -19,8 +19,8 @@ A fresh local clone was attempted outside the user's workspace and failed becaus
 ## Current state
 
 - Approval: RECORDED.
-- Canonical spec/plan/rollout/ledger status reconciliation: **COMPLETE in the next documentary commit after RED**.
-- Task 1: **RED CONFIRMED** at `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` failed with 7 intended failures.
+- Canonical spec/plan/rollout/ledger status reconciliation: **COMPLETE** at `e91a65b0ad76007b69424ee4cd8e1ed5dfe58b43`.
+- Task 1: **COMPLETE / GREEN** at `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` SUCCESS.
 - Tasks 2–10: NOT STARTED.
 - Merge/deploy: NONE.
 
@@ -48,3 +48,16 @@ Move only the Catalog public boundary, frontend metadata and existing Products/P
 - Inventory found the planned App/ProductForm/Products/orderCart/OrderProductCatalog consumers plus `src/domains/orders/ui/components/OrderCart.jsx`.
 - **Ruling:** export `CATEGORY_ICON_NAMES` from the Catalog public entry for the real OrderCart consumer. The map remains owned by Catalog; Orders must not duplicate it or deep-import Catalog/shared internals. Cost if wrong: one additional visual metadata export becomes part of the C8 public contract.
 - No parser/harness failure caused the authoritative RED. The Catalog harness characterization itself passed.
+
+
+## Task 1 GREEN evidence
+
+- Production move: `f8090972de496effa31cc391c3e71f9956021a03` — Catalog metadata/UI owners created, shared narrowed and production consumers migrated.
+- Validate #1434 on that candidate found **5 stale characterization paths/assertions only**; no production failure was identified.
+- Test-only alignment: `c868ba99f0f3afdd28237528fb925f9ce99eb5f9`. Validate #1435 made the entire `npm test` step green, then correctly rejected `catalogOrdersIntegration.test.js` because a Catalog-located test deep-imported Orders internals.
+- Ownership-only alignment: `bdd73ada270c705e8c739ea785a56b8f5afa7cab` moved that characterization under Orders and changed only its local import.
+- Validate #1436 / run `35462681394`: **SUCCESS**.
+- Final suite: **1,818 tests / 1,817 pass / 0 fail / 1 skipped**.
+- Architecture: PASS; lint: PASS; build: PASS; Worker production dry-run: PASS; Worker staging dry-run: PASS; local D1: PASS; Spec B D1 clean install/upgrade: PASS.
+- No Worker, schema, migration, CSS, workflow or allowlist behavior was changed by Task 1.
+- Task 2 remains **NOT STARTED / NOT AUTHORIZED**. Staging, merge and production remain **NONE**.

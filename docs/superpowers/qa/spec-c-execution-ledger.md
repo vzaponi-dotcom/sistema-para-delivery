@@ -24,7 +24,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
-| C8 | Catalog | **ACTIVE — TASK 1 RED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
+| C8 | Catalog | **ACTIVE — TASK 1 COMPLETE / GREEN; TASK 2 NOT STARTED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
@@ -345,3 +345,16 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Inventory additionally found `src/domains/orders/ui/components/OrderCart.jsx` as a legitimate consumer of category icons. **Ruling:** Catalog will expose `CATEGORY_ICON_NAMES` through its public entry because this is a real external frontend consumer; duplicating the map in Orders or allowing a deep/shared bypass would violate the approved ownership direction. Cost if wrong: Catalog's public API includes one visual metadata map until a future narrower UI contract is justified.
 - App product CRUD/editor ownership and `updateCollection('products', ...)` deliberately remain through Task 1; they belong to later C8 tasks.
 - Tasks 2–10, staging, merge and production are not authorized in the current round.
+
+
+## C8 Task 1 closure — 2026-09-19
+
+- RED `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` failed as intended with **1,818 tests / 1,810 pass / 7 fail / 1 skipped**.
+- GREEN production candidate `f8090972de496effa31cc391c3e71f9956021a03`; #1434 exposed five stale moved-path/import characterizations only.
+- Test alignment `c868ba99f0f3afdd28237528fb925f9ce99eb5f9`; #1435 passed tests and exposed only the characterization file violating the existing Orders deep-import architecture boundary.
+- Final test-ownership alignment `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` — **SUCCESS**, **1,818 tests / 1,817 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Catalog now owns frontend category metadata and the Products/ProductForm UI. `shared/productCatalog.js` retains only the cross-runtime product contracts used by frontend/Worker.
+- App plus Orders `orderCart.js`, `OrderProductCatalog.jsx` and `OrderCart.jsx` consume Catalog through `domains/catalog/index.js`.
+- Legacy `src/pages/Products.jsx` and `src/components/ProductForm.jsx` are removed with no compatibility reexport. No architecture allowlist expansion occurred.
+- App product CRUD/editor, legacy product API exports and `updateCollection('products', ...)` remain intentional C8 debt for later tasks.
+- Task 2 and beyond: **NOT STARTED / NOT AUTHORIZED IN THIS ROUND**. No staging, merge or production deploy.

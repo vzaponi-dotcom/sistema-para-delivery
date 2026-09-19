@@ -19,7 +19,7 @@
 - C5 — Table Service is **MERGED / COMPLETE** by PR #49 at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`. Final branch Validate #1341 / run `35400357800` passed; post-merge Validate #1342 / run `35401628448` passed on the exact merge commit. Manual staging QA closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. No production deploy occurred.
 - C6 is **MERGED / COMPLETE** by PR #50 at `5b101800fe29d02dd4543e184cca9e06d659a445`.
 - C7 — Customers is **MERGED / COMPLETE** by PR #51 at `a7a8285ee125d90058c739f52daba6c170921adb`; post-merge Validate #1429 / run `35459175985` passed on the exact merge SHA. No production deploy occurred.
-- Active slice: **C8 — Catalog**, branch `feature/spec-c8-catalog`, base `master` `a7a8285ee125d90058c739f52daba6c170921adb`, draft PR #52. Design and plan are **APPROVED**. Task 1 RED is active at `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 failed at Test for the intended missing Catalog boundary/legacy-owner reasons. No staging or production deploy occurred.
+- Active slice: **C8 — Catalog**, branch `feature/spec-c8-catalog`, base `master` `a7a8285ee125d90058c739f52daba6c170921adb`, draft PR #52. Design/plan approved; **Task 1 COMPLETE / GREEN** at `bdd73ada270c705e8c739ea785a56b8f5afa7cab` with Validate #1436 / run `35462681394` SUCCESS. Tasks 2–10 remain not started; no staging or production deploy occurred.
 - C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
 - C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
 - C5 Task 3 — table-tab detail controller — is **COMPLETE / GREEN**. RED `8f460f139845e2288abe1d454d5d83c89643fb7b` failed Validate #1300 for the intended missing-controller reason; GREEN `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 with **1,712 tests / 1,711 pass / 0 fail / 1 skipped**.
@@ -420,7 +420,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Do not:** implement Spec D entities or pricing engine.
 
-**Current status — 2026-09-19:** design and implementation plan are **APPROVED**; draft PR #52 is open. Documentary baseline Validate #1430 passed on plan HEAD `20abf94359e0e2883fc3b870c69688f8eeabc12c`. Task 1 RED commit `11e84f3badf1ffcca0fd71bb2ccd46588017e88b` failed Validate #1432 with 7 expected Catalog-boundary/legacy-owner failures. Task 1 only is authorized; Tasks 2–10, staging, merge and production remain out of scope for this round.
+**Current status — 2026-09-19:** design and implementation plan are **APPROVED**; draft PR #52 is open. Task 1 is **COMPLETE / GREEN** at `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` passed with **1,818 tests / 1,817 pass / 0 fail / 1 skipped** and all workflow gates green. Catalog now owns frontend metadata and Products/ProductForm UI; App retains CRUD/editor and `updateCollection('products', ...)` intentionally for later C8 tasks. No staging, merge or production deploy occurred.
 
 ### C9 — Printing and QZ separation
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **STATUS: APPROVED — plano autorrevisado e aprovado explicitamente pelo usuário em 2026-09-19. Task 1 em RED; Tasks 2–10 não iniciadas.**
+> **STATUS: APPROVED — Task 1 COMPLETE / GREEN em `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Tasks 2–10 não iniciadas.**
 > **Design C8: APPROVED pelo usuário em 2026-09-19**, após a autorrevisão no HEAD `4466944a8aadecd667270c2c20f98450e254af32`.
 > **Plano C8: APPROVED pelo usuário em 2026-09-19** no HEAD documental `20abf94359e0e2883fc3b870c69688f8eeabc12c`. A aprovação não autoriza merge, staging, produção nem Tasks 2–10.
 
@@ -53,7 +53,7 @@ Cada foco tem testes atribuídos abaixo; nenhum fica apenas como recomendação 
 | Último HEAD documental inspecionado antes deste plano | `4466944a8aadecd667270c2c20f98450e254af32` |
 | Design C8 | **APPROVED**, 2026-09-19 |
 | Plano C8 | **APPROVED**, 2026-09-19 |
-| Tasks funcionais C8 | **Task 1 RED em execução**; Tasks 2–10 não iniciadas |
+| Tasks funcionais C8 | **Task 1 COMPLETE / GREEN**; Tasks 2–10 não iniciadas |
 | Deploy desta rodada de planejamento | Nenhum |
 
 A base tinha rollout/ledger ainda indicando merge pendente de C7. O estado correto acima está reconciliado com o GitHub; **a atualização dos arquivos canônicos é a preparação documental obrigatória descrita abaixo**, não uma tarefa funcional já executada. Não considerar o texto antigo uma revogação da aprovação do design.
@@ -207,11 +207,11 @@ Validar esse harness primeiro com componente existente: uma falha do harness nã
 
 **Deliverable:** Catalog passa a possuir metadata e UI; App ainda coordena CRUD/editor. A UI de Orders e o carrinho usam o contrato público. Nenhum comportamento administrativo é reescrito nesta task.
 
-**Files:** criar `domain/catalogPresentation.js`, `domain/catalogPresentation.test.js`, `index.js`, `ui/catalogSurfaces.js`, `catalogPublicContract.test.js`, `test-support/harness.js` sob `src/domains/catalog/`; mover `src/pages/Products.jsx` e `src/components/ProductForm.jsx` para `src/domains/catalog/ui/`; modificar `shared/productCatalog.js`, `shared/productCatalog.test.js`, `src/App.jsx`, os dois consumidores Orders listados na seção 2 e seus testes. Alinhar/mover as characterizations da seção 4.
+**Files:** criar `domain/catalogPresentation.js`, `domain/catalogPresentation.test.js`, `index.js`, `ui/catalogSurfaces.js`, `catalogPublicContract.test.js`, `test-support/harness.js` sob `src/domains/catalog/`; mover `src/pages/Products.jsx` e `src/components/ProductForm.jsx` para `src/domains/catalog/ui/`; modificar `shared/productCatalog.js`, `shared/productCatalog.test.js`, `src/App.jsx`, os três consumidores Orders listados na seção 2 e seus testes. Alinhar/mover as characterizations da seção 4.
 
-**Interfaces:** consome o shared atual; produz os três helpers públicos finais mais `Products`/`ProductForm` temporários. Metadata de ícones/options/sugestão permanece interna.
+**Interfaces:** consome o shared atual; produz os quatro contratos públicos frontend necessários nesta fase (`PRODUCT_CATEGORIES`, `formatProductPresentation`, `CATEGORY_ICON_NAMES`, `categoryForUi`) mais `Products`/`ProductForm` temporários. `PRODUCT_CATEGORY_OPTIONS` e `suggestPresentationType` permanecem internos.
 
-- [ ] **Step 1 — RED de ownership e contratos puros.** Em `catalogPublicContract.test.js`:
+- [x] **Step 1 — RED de ownership e contratos puros.** Em `catalogPublicContract.test.js`:
 
 ```js
 import test from 'node:test'
@@ -239,7 +239,7 @@ test('Catalog owns UI and keeps the Worker contract intact', () => {
 
 Em `catalogPresentation.test.js`, tabelar as nove categorias, ícones e sugestões exatas do shared atual. Migrar suas assertions frontend do teste shared; manter ali validação/formatter/legacy size. Em `orders/domain/orderCart.test.js`, provar `addCartItem([], unitProduct)[0].size === 'Un'` e volume `1,5 L`, categoria/nome/preço preservados, segundo add aumenta quantidade, decremento mantém regras existentes.
 
-- [ ] **Step 2 — Executar e registrar RED.**
+- [x] **Step 2 — Executar e registrar RED.**
 
 ```bash
 node --test src/domains/catalog/catalogPublicContract.test.js src/domains/catalog/domain/catalogPresentation.test.js
@@ -247,7 +247,7 @@ node --test src/domains/catalog/catalogPublicContract.test.js src/domains/catalo
 
 Esperado: módulo público/metadata ausente. Comprovar também que os testes antigos permanecem verdes antes da movimentação; não usar falha do Vite como evidência.
 
-- [ ] **Step 3 — GREEN mecânico e atômico.**
+- [x] **Step 3 — GREEN mecânico e atômico.**
 
 ```bash
 mkdir -p src/domains/catalog/ui
@@ -273,7 +273,7 @@ export function ProductForm(props) { return React.createElement(load('./ProductF
 
 O `import.meta.glob` só é chamado ao renderizar pelo Vite, não na importação Node do public entry. App importa esses componentes e `categoryForUi` pelo index. `orderCart.js` passa a `../../catalog/index.js`; `OrderProductCatalog.jsx` passa a `../../../catalog/index.js`. Remover o import shared antigo de App. Nenhuma outra lógica Orders muda.
 
-- [ ] **Step 4 — GREEN focado e auditoria.**
+- [x] **Step 4 — GREEN focado e auditoria.**
 
 ```bash
 node --test src/domains/catalog/catalogPublicContract.test.js src/domains/catalog/domain/catalogPresentation.test.js shared/productCatalog.test.js worker/productValidation.test.js worker/productPresentationRepository.test.js worker/productPresentationMigration.test.js src/domains/orders/domain/orderCart.test.js
@@ -284,7 +284,20 @@ npm run build
 
 Provar que index carrega em Node sem avaliar JSX; build prova carregamento real dos wrappers. Executar também as characterizations realocadas. Nenhum owner legado ou reexport nesses paths sobrevive.
 
-- [ ] **Step 5 — Commit e gate remoto.** Commits separados `test: define c8 catalog boundary` e `refactor: move catalog presentation and UI ownership`; push normal, Validate em cada SHA, registrar evidência. Registrar exports públicos intermediários com remoção na Task 5.
+- [x] **Step 5 — Commit e gate remoto.** Commits separados `test: define c8 catalog boundary` e `refactor: move catalog presentation and UI ownership`; push normal, Validate em cada SHA, registrar evidência. Registrar exports públicos intermediários com remoção na Task 5.
+
+### Task 1 evidence — COMPLETE / GREEN
+
+- RED: `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` — **FAIL as intended**, **1,818 tests / 1,810 pass / 7 fail / 1 skipped**.
+- Production GREEN candidate: `f8090972de496effa31cc391c3e71f9956021a03`; Validate #1434 reached Test and exposed exactly five stale path/import characterizations after the owner move.
+- Test-path alignment: `c868ba99f0f3afdd28237528fb925f9ce99eb5f9`; Validate #1435 passed the full test suite, then architecture correctly rejected the Catalog-located characterization deep-importing Orders internals.
+- Architecture test ownership alignment: `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; the characterization moved under Orders ownership with no production change.
+- Final Task 1 Validate #1436 / run `35462681394` — **SUCCESS**, **1,818 tests / 1,817 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1 clean-install/upgrade: **all green**.
+- Delivered: Catalog public boundary; frontend category metadata moved out of shared; Products/ProductForm owners moved under Catalog; App and all three Orders consumers use the Catalog public entry; legacy UI owner paths removed; no compatibility reexport/allowlist expansion.
+- Intentionally still present for later tasks: App product CRUD/editor orchestration, product API exports and `updateCollection('products', ...)`.
+- Task 2: **NOT STARTED / NOT AUTHORIZED IN THIS ROUND**.
+- Staging/merge/production: **NONE**.
 
 ## Task 2 — API, comandos e efeito oficial de exclusão
 
@@ -943,4 +956,4 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 
 **Limite da validação nesta entrega:** revisão documental, consistência dos contratos/paths e conferência remota da base. Os trechos de código são instruções para futuras tasks, não implementação executada. A aplicação não foi testada localmente nesta rodada de planejamento. O baseline de aplicação citado pertence ao merge C7; não constitui GREEN de C8.
 
-**Estado atual deste plano:** APPROVED. A preparação documental canônica foi reconciliada no início da execução; Task 1 possui RED autoritativo no commit `11e84f3badf1ffcca0fd71bb2ccd46588017e88b` / Validate #1432. Tasks 2–10 continuam não executadas e não autorizadas nesta rodada.
+**Estado atual deste plano:** APPROVED. Preparação documental concluída; Task 1 COMPLETE / GREEN em `bdd73ada270c705e8c739ea785a56b8f5afa7cab` / Validate #1436. Tasks 2–10 continuam não executadas e não autorizadas nesta rodada.

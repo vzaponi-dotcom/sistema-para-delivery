@@ -153,8 +153,11 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 ## C8 active status — 2026-09-19
 
 - C8 design and plan are **APPROVED**; branch `feature/spec-c8-catalog`, draft PR #52, base `a7a8285ee125d90058c739f52daba6c170921adb`.
-- Task 1 is in authoritative RED at `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 failed for the intended Catalog boundary/ownership reasons.
+- Task 1 is **COMPLETE / GREEN** at `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` passed all gates with **1,818 tests / 1,817 pass / 0 fail / 1 skipped**.
 - `updateCollection` remains an active compatibility debt for Catalog/products. It is **not removed in Task 1** and must not be marked removed before Task 6 GREEN.
 - `shared/productCatalog.js` is a permanent cross-runtime contract for the exports genuinely used by the Worker; C8 Task 1 narrows frontend-only metadata into Catalog. It is not a temporary facade.
 - Generic/auth reexports in `src/api/client.js` remain scheduled for C10; Printing API debt remains C9.
 - C8 Task 1 introduces no compatibility reexport at the legacy Products/ProductForm paths and does not expand the architecture allowlist.
+
+- C8 Task 1 removed the legacy Products/ProductForm owners with no compatibility reexport and narrowed frontend access to the Catalog public entry.
+- Temporary Task 1 public exports `Products` / `ProductForm` remain deliberate while App is migrated; removal is scheduled for Task 5. `CATEGORY_ICON_NAMES` is a real Orders consumer contract and remains public unless a later approved boundary replaces it.
