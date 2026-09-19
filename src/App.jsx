@@ -68,16 +68,10 @@ import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
-import { ProductForm, Products, categoryForUi } from './domains/catalog/index.js'
+import { ProductForm, Products, categoryForUi, useCatalogCommands } from './domains/catalog/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
-import { removeById } from './utils/dataSync.js'
 import { formatBRLCurrencyValue, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import {
-  createProduct as createProductApi,
-  deleteProduct as deleteProductApi,
-  updateProduct as updateProductApi,
-} from './api/client'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
@@ -221,7 +215,6 @@ function App({ capabilities } = {}) {
     refreshBootstrap,
     refreshBootstrapSilently,
     applyOfficialEffects,
-    updateCollection,
     resetOperationalData,
     getSyncGuard,
     getOfficialRevision,
@@ -309,6 +302,14 @@ function App({ capabilities } = {}) {
     onError: (error) => orderCommandTargetsRef.current.onError(error),
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
+  const catalogCommands = useCatalogCommands({
+    writesBlocked,
+    canManageProducts,
+    applyOfficialEffects,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+  })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
     writesBlocked,
     canManageClients,
@@ -710,8 +711,29 @@ function App({ capabilities } = {}) {
   const openNewProduct = () => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(true); return true }
   const handleEditProduct = (product) => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(product.id); setShowProductForm(true); const legacySized = Boolean(product.size && !['Un', 'Unidade'].includes(product.size)); setNewProduct({ category: categoryForUi(product.category), presentationType: product.presentationType || (legacySized ? 'size' : 'unit'), presentationValue: product.presentationValue ?? (legacySized ? product.size : ''), presentationUnit: product.presentationUnit || '', name: product.name, price: formatBRLCurrencyValue(product.price) }); return true }
   const productPayload = () => ({ category: newProduct.category, presentationType: newProduct.presentationType, presentationValue: newProduct.presentationValue, presentationUnit: newProduct.presentationUnit, name: newProduct.name.trim(), price: parseBRLCurrencyInput(newProduct.price) })
-  const handleAddProduct = async () => { if (!canManageProducts || writesBlocked || !newProduct.name.trim()) return false; const editing = editingProductId; setRequestKey(editing ? `product:update:${editing}` : 'product:create'); try { if (editing) { const { product } = await updateProductApi(editing, productPayload()); applyOfficialEffects({ product }); setEditingProductId(null); showSuccessMessage('Produto atualizado com sucesso') } else { const { product } = await createProductApi(productPayload()); applyOfficialEffects({ product }); showSuccessMessage('Produto adicionado com sucesso') } setNewProduct(emptyProduct()); setShowProductForm(false); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
-  const handleDeleteProduct = async (productId) => { if (!canManageProducts || writesBlocked) return false; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); updateCollection('products', (current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleAddProduct = async () => {
+    if (!canManageProducts || writesBlocked || !newProduct.name.trim()) return false
+    const editing = editingProductId
+    const product = editing
+      ? await catalogCommands.updateProduct(editing, productPayload())
+      : await catalogCommands.createProduct(productPayload())
+    if (!product) return false
+    if (editing) setEditingProductId(null)
+    setNewProduct(emptyProduct())
+    setShowProductForm(false)
+    return true
+  }
+  const handleDeleteProduct = async (productId) => {
+    if (!canManageProducts || writesBlocked) return false
+    const deleted = await catalogCommands.deleteProduct(productId)
+    if (!deleted) return false
+    if (editingProductId === productId) {
+      setEditingProductId(null)
+      setNewProduct(emptyProduct())
+      setShowProductForm(false)
+    }
+    return true
+  }
   const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
 
   const activeMobileEntry = activeTab === 'new-order' ? newOrderDraft.context?.returnDestination : undefined

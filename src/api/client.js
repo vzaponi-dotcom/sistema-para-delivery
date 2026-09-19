@@ -8,9 +8,6 @@ export const getBootstrap = (knownEffectiveConfigVersion) => {
   if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
   return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
 }
-export const createProduct = (product) => apiRequest('/api/products', withJson('POST', product))
-export const updateProduct = (id, product) => apiRequest(`/api/products/${encodeURIComponent(id)}`, withJson('PATCH', product))
-export const deleteProduct = (id) => apiRequest(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
 
 // Compatibility-only export while App.jsx is migrated away from its old handler.
 // It never issues DELETE and therefore cannot erase an order.

@@ -12,3 +12,5 @@ export {
   ProductForm,
   Products,
 } from './ui/catalogSurfaces.js'
+
+export { useCatalogCommands } from './application/useCatalogCommands.js'
