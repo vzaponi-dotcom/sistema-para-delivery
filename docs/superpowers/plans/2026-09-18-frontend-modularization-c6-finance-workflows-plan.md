@@ -21,6 +21,7 @@
 - Task 2 evidence: RED `bc52cdb8b60e8c79a6390b51b5b973fbe0ee8ef4` → Validate #1349 / run `35404405552` failed for the intended missing Finance Settings ownership. GREEN candidate `68ba38df6165171686ab91a27550b410df5ba892` → Validate #1350 exposed only stale path contracts and the need for a Node-safe `.js` public surface wrapper. Fix `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5` → Validate #1351 / run `35405016988` SUCCESS with **1,731 tests / 1,730 pass / 0 fail / 1 skipped** and all remaining gates green.
 - Task 3 evidence: RED `8bfc9926e6f9718fb461e41f59ce54a351fd2f8d` → Validate #1353 / run `35405851531` failed for the intended missing `cashFlow.js` and `receivables.js` modules. GREEN `54dcbd1ff44f2dc715a469bc60c78c458ac42318` → Validate #1354 / run `35406034390` SUCCESS with **1,745 tests / 1,744 pass / 0 fail / 1 skipped** and all remaining gates green. Ruling: Finance receivable helpers receive `isOrderCancelled`, `isOrderPaid`, and `getPendingAmount` as injected rules instead of importing Orders; this preserves the no-cycle spec and keeps Orders lifecycle ownership intact.
 - Task 4 evidence: RED `f5fe1563d871c3cb5135cb06e86be58e80f57877` → Validate #1356 / run `35407256910` failed for the intended missing `financeApi`, `useFinanceCommands`, and `FinanceWorkspace` owners. GREEN candidate `9974799a3440ae9bbe59ba0e80d28c9b70b5112e` → Validate #1357 exposed stale extraction/UI/capability characterizations after the ownership move. Fix `2665e82a97207eb118497b8f3e2cf44cda5ccc39` aligned extraction/UI tests but Validate #1358 still found two capability characterizations tied to App-local handlers. Final fix `f76b223245f1a2fcaaf981694d052365e5ca9ffb` aligned those capability contracts; Validate #1359 / run `35408051011` SUCCESS with **1,750 tests / 1,749 pass / 0 fail / 1 skipped** and all remaining gates green.
+- Task 5 evidence: RED `d26a537cb8d5487a23aa48430e816feadf49cbfb` → Validate #1361 / run `35409142816` failed for the intended missing `ReceivablesSurface`, `useOrderPaymentPromise`, and `ordersApi.updatePaymentPromise` contracts. GREEN candidate `675b66c2746681421b15dfa8bab9383aa7f4d2f6` moved A Receber/supporting UI into Finance, moved payment-promise coordination into Orders and created the app-owned Finance↔Orders composition; Validate #1362 exposed stale test paths plus two test-only assertion mismatches. Fix `895690be64baa8284b0e5b31dda1969f1f9dadb5` aligned those characterizations; Validate #1363 / run `35409732928` SUCCESS with **1,755 tests / 1,754 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: no legacy Receivables/supporting UI paths remain, App no longer owns payment-promise writes, and Finance UI contains zero Orders imports.
 
 ## Global Constraints
 
@@ -783,7 +784,7 @@ Expected Validate: SUCCESS.
 
 ---
 
-### Task 5: Migrate Receivables UI and payment-promise ownership without Finance → Orders imports
+### Task 5: Migrate Receivables UI and payment-promise ownership without Finance → Orders imports — COMPLETE / GREEN
 
 **Files:**
 - Move: `src/pages/Receivables.jsx` → `src/domains/finance/ui/Receivables.jsx`
@@ -814,7 +815,7 @@ Expected Validate: SUCCESS.
 - `Receivables` accepts `renderOrderDetail(order, onClose)` instead of importing `OrderDetail`.
 - `ReceivablesSurface` is app-owned and imports public Finance + public Orders contracts.
 
-- [ ] **Step 1: Write RED proving Finance no longer owns Orders imports**
+- [x] **Step 1: Write RED proving Finance no longer owns Orders imports**
 
 Create `ReceivablesSurface.test.js` that renders the surface with one pending order and proves "Ver pedido" reaches the supplied Orders detail.
 
@@ -843,7 +844,7 @@ test('ordersApi owns payment-promise writes', async () => {
 })
 ```
 
-- [ ] **Step 2: Run RED, commit, push**
+- [x] **Step 2: Run RED, commit, push**
 
 ```bash
 node --test   src/app/surfaces/finance/ReceivablesSurface.test.js   src/domains/orders/application/useOrderPaymentPromise.test.js   src/domains/orders/infrastructure/ordersApi.test.js
@@ -851,7 +852,7 @@ node --test   src/app/surfaces/finance/ReceivablesSurface.test.js   src/domains/
 
 Expected missing new surface/hook/API method.
 
-- [ ] **Step 3: Extend Orders API and implement payment-promise command**
+- [x] **Step 3: Extend Orders API and implement payment-promise command**
 
 Add to `createOrdersApi`:
 
@@ -873,7 +874,7 @@ and emits the existing messages:
 - `Data prometida atualizada`
 - `Data prometida removida`
 
-- [ ] **Step 4: Move Receivables and replace Orders imports with injected presentation**
+- [x] **Step 4: Move Receivables and replace Orders imports with injected presentation**
 
 At the top of Finance-owned Receivables, there must be no Orders import. Use:
 
@@ -891,7 +892,7 @@ Replace inline `<OrderDetail ... />` with:
 {detailOrder && renderOrderDetail?.(detailOrder, () => setDetailOrder(null))}
 ```
 
-- [ ] **Step 5: Create app-owned ReceivablesSurface**
+- [x] **Step 5: Create app-owned ReceivablesSurface**
 
 The surface imports:
 
@@ -921,11 +922,11 @@ renderOrderDetail={(order, onClose) => (
 
 It receives `onRegisterPayment` from the order-payment workflow (Task 6 will replace the temporary App callback).
 
-- [ ] **Step 6: Replace App Receivables composition**
+- [x] **Step 6: Replace App Receivables composition**
 
 App renders `ReceivablesSurface` and no longer owns `handleUpdatePaymentPromise`.
 
-- [ ] **Step 7: Run full Receivables regression set**
+- [x] **Step 7: Run full Receivables regression set**
 
 ```bash
 node --test   src/app/surfaces/finance/ReceivablesSurface.test.js   src/domains/orders/application/useOrderPaymentPromise.test.js   src/AppReceivablesPromise.test.js   src/pages/ReceivablesConsumer.test.js   src/pages/ReceivablesDetails.test.js   src/pages/ReceivablesForecast.test.js   src/pages/ReceivablesMobile.test.js   src/pages/ReceivablesRedesign.test.js
@@ -934,7 +935,7 @@ npm run test:architecture
 
 Use moved test paths where files were moved. Expected: PASS and no Finance → Orders import.
 
-- [ ] **Step 8: Commit GREEN + Validate**
+- [x] **Step 8: Commit GREEN + Validate**
 
 ```bash
 git add -A src/domains/finance src/domains/orders src/app/surfaces/finance src/App.jsx src/pages src/components

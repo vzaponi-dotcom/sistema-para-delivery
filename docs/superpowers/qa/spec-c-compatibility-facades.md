@@ -99,6 +99,10 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - C6 Task 4 is **COMPLETE / GREEN** at `f76b223245f1a2fcaaf981694d052365e5ca9ffb`; Validate #1359 / run `35408051011` passed with **1,750 tests / 1,749 pass / 0 fail / 1 skipped**.
 - Finance UI, movement/opening-balance dialogs, Finance API and Finance commands moved to `domains/finance` with no compatibility reexport. Legacy C6 finance API exports remain intentionally present in `src/api/client.js` until Task 9, while App no longer imports or owns those finance CRUD operations.
 - Refund remains a cross-domain workflow debt for Task 8; Finance only emits `onRequestRefund` intent and has no Orders import.
+- C6 Task 5 is **COMPLETE / GREEN** at `895690be64baa8284b0e5b31dda1969f1f9dadb5`; Validate #1363 / run `35409732928` passed with **1,755 tests / 1,754 pass / 0 fail / 1 skipped**.
+- `src/pages/Receivables.jsx` and its finance-exclusive supporting component owners are removed with no compatibility reexport. `ReceivablesSurface` is the app-owned composition boundary, while Finance receives Orders presentation/state rules by injection and contains zero Orders imports.
+- Payment-promise coordination moved out of App to Orders. The legacy `updateOrderPaymentPromise` export in `src/api/client.js` remains intentionally present only until Task 9 removes all C6 legacy API exports.
+- Task 5 created no runtime bridge; the operational payment-receipt bridge remains intentionally active until Task 7.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
