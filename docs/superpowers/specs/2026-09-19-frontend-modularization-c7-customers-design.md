@@ -1,7 +1,7 @@
 # Spec C7 — Customers
 
 **Data:** 2026-09-19  
-**Status:** design consolidado; aguardando revisão e aprovação explícita do usuário  
+**Status:** design consolidado e autorrevisado; aguardando aprovação explícita do usuário  
 **Branch:** `feature/spec-c7-customers`  
 **Base:** `master` em `5b101800fe29d02dd4543e184cca9e06d659a445`  
 **Base validation:** Validate application #1392 / run `35448223721` — SUCCESS  
@@ -174,7 +174,11 @@ C7 formaliza essa exceção.
 - `normalizeClientPhone`;
 - `formatClientPhone`.
 
-`normalizeClientName` pode permanecer nesse módulo se continuar sendo uma primitiva compartilhada consumida pela regra frontend de duplicidade. Não é obrigatório movê-la apenas por estética arquitetural.
+Na base C7 auditada, o Worker consome `shared/clientIdentity.js` somente para `normalizeClientPhone` e `formatClientPhone`. Portanto:
+
+- `normalizeClientPhone` e `formatClientPhone` permanecem no módulo cross-runtime compartilhado;
+- `normalizeClientName` passa a Customers, pois não há consumidor backend/Worker atual que justifique mantê-la em `shared`;
+- qualquer desvio dessa decisão durante implementação exige prova de um consumidor cross-runtime real, não conveniência de import.
 
 ### 7.2 Regra que pertence a Customers
 
@@ -182,7 +186,7 @@ C7 formaliza essa exceção.
 
 `src/domains/customers/domain/`
 
-Ela pode consumir as primitivas puras de `shared/clientIdentity.js`.
+Ela deve usar `normalizeClientName` owned por Customers e pode consumir `normalizeClientPhone` do contrato cross-runtime compartilhado.
 
 ### 7.3 Worker
 
@@ -282,7 +286,10 @@ Candidatos:
 - `CustomersWorkspace`;
 - regra pública de detecção de duplicidade necessária por Novo Pedido;
 - hook/comando público mínimo necessário para quick-create;
+- `ClientDuplicateModal`, porque Novo Pedido é um consumidor externo real dessa UI customer-specific;
 - eventualmente formatação/identity projection somente se existir consumidor real.
+
+Como os testes Node carregam os public entries dos domínios, exports públicos de UI devem seguir o padrão Node-safe já estabelecido por Orders/Table Service/Finance (`*.js` surface wrapper com carregamento do JSX), se a exportação direta de `.jsx` quebrar o harness.
 
 Não reexportar:
 
@@ -411,11 +418,12 @@ Uma application layer de Customers deve possuir operações equivalentes a:
 - update;
 - delete.
 
-Pode receber por injeção:
+Deve receber por injeção:
 
 - `applyOfficialEffects`;
 - estado `writesBlocked`;
 - capability de gestão;
+- `setRequestKey`, preservando a serialização global de writes já existente;
 - feedback de sucesso;
 - tratamento de erro.
 
@@ -425,6 +433,9 @@ Preservar:
 
 - nenhuma escrita offline;
 - nenhuma escrita sem `clients.manage`;
+- os request keys atuais: `client:create`, `client:create:quick`, `client:update:<id>` e `client:delete:<id>`;
+- enquanto qualquer um desses request keys estiver ativo, o `writesBlocked` global continua bloqueando outras escritas como hoje;
+- não substituir essa semântica apenas por pending local do domínio;
 - request/submitting state equivalente;
 - create aplica cliente oficial;
 - update aplica cliente oficial;
@@ -460,11 +471,19 @@ Preservar exatamente:
 - ações Cancelar / Adicionar cliente / Salvar alterações;
 - disable atual quando nome está vazio, offline ou submit está em andamento.
 
+Semântica de payload também é parte do comportamento preservado:
+
+- cadastro/edição normal envia `name.trim()`;
+- mantém o telefone atual do draft ou `''`;
+- endereço vazio no editor normal continua sendo enviado como a string `Sem endereço`, como ocorre hoje;
+- o quick-create de Novo Pedido continua enviando `address: ''`, não `Sem endereço`;
+- não normalizar essas duas rotas para o mesmo payload durante C7.
+
 O editor deve limpar corretamente estado ao cancelar/fechar.
 
 ## 15. Duplicate modal
 
-`ClientDuplicateModal` migra para Customers.
+`ClientDuplicateModal` migra para Customers e passa a ser um contrato público deliberado porque também é usado pela UI de quick-create de Orders. Orders deve importá-lo somente pelo `domains/customers/index.js` (ou wrapper público equivalente), nunca pelo caminho interno do componente.
 
 Preservar:
 
@@ -499,6 +518,7 @@ Preservar:
 - action sheet;
 - editar;
 - confirmação de exclusão;
+- após uma tentativa de exclusão disparada pelo action sheet, o action sheet continua fechando ao terminar o callback, inclusive quando o callback resolve `false`; C7 não deve alterar silenciosamente essa UX;
 - estado vazio;
 - touch targets atuais;
 - comportamento mobile e desktop;
@@ -548,7 +568,7 @@ Preservar:
 - busca case-insensitive;
 - combinação de nome + telefone + endereço;
 - trim da busca;
-- sort usando nome;
+- sort usando nome com a semântica atual de `localeCompare`;
 - opções atuais de ordenação.
 
 O query state global pode continuar no mecanismo de navegação/App, porque persistência de query por destino é responsabilidade de navegação/composição. Customers recebe `search`, `sort` e callbacks.
@@ -578,6 +598,7 @@ Orders possui:
 A preferência arquitetural é:
 
 - Orders pode consumir a regra pura de duplicidade através do **public entry** de Customers;
+- Orders também pode consumir `ClientDuplicateModal` através desse mesmo public entry, pois a UI é customer-specific e já é compartilhada entre os dois fluxos;
 - a mutação quick-create é fornecida a Orders por callback/comando público injetado pela composição do App;
 - Orders não importa `customersApi.js`;
 - Orders não importa internals de Customers;
@@ -589,10 +610,13 @@ Isso preserva uma dependência controlada e evita API cross-domain dentro da UI 
 
 Preservar:
 
-- telefone duplicado bloqueia;
+- telefone duplicado no editor principal usa feedback global `Telefone já cadastrado para <nome>.`;
+- telefone duplicado no quick-create usa o erro inline atual `Telefone já cadastrado para <nome>. Selecione esse cliente na busca acima.`;
+- esses dois canais de feedback não devem ser unificados acidentalmente;
 - nome duplicado abre modal;
-- `Usar cliente existente` seleciona o existente;
-- `Cadastrar mesmo assim` cria e seleciona o novo;
+- no quick-create, `Usar cliente existente` seleciona o cliente encontrado e fecha o quick-create;
+- no editor da tela Clientes, `Usar cliente existente` fecha duplicate/editor e atualiza a busca da tela para o nome do cliente encontrado; não existe seleção de cliente nesse contexto;
+- `Cadastrar mesmo assim` cria e seleciona o novo no quick-create, ou persiste create/update no editor principal conforme a ação original;
 - Cancelar quick-create limpa somente:
   - open;
   - name;
@@ -662,7 +686,9 @@ Preservar o tratamento global atual.
 
 Se a validação frontend estiver stale e o Worker retornar `409 CLIENT_PHONE_EXISTS`:
 
-- exibir o erro normalizado atual;
+- exibir o erro normalizado pelo canal atual (`showApiError`/feedback global para a falha de API);
+- no quick-create, manter o formulário aberto e não selecionar cliente;
+- no editor principal, manter o editor aberto;
 - não aplicar cliente local;
 - não fechar editor como sucesso.
 
@@ -783,7 +809,7 @@ No mínimo:
 2. Customers não importa internals de Orders;
 3. Orders não importa internals de Customers;
 4. `src/pages/Clients.jsx` não pode reaparecer como owner;
-5. `src/components/ClientDuplicateModal.jsx` não pode reaparecer como owner;
+5. `src/components/ClientDuplicateModal.jsx` não pode reaparecer como owner; Orders deve consumir o modal somente pelo public entry de Customers;
 6. `src/api/client.js` não pode reexportar customer CRUD;
 7. `App.jsx` não pode recuperar handlers/state de CRUD/editor/duplicidade;
 8. `App.jsx` não pode voltar a chamar `updateCollection('clients', ...)`;
@@ -990,7 +1016,7 @@ C7 só pode ser considerada pronta para homologação quando:
 11. quick-create continua via public contract/composição;
 12. `updateCollection('clients', ...)` não existe em App/Customers;
 13. runtime aceita exclusão oficial de cliente sem callback bridge;
-14. `shared/clientIdentity.js` permanece válido para Worker sem virar dumping ground;
+14. `shared/clientIdentity.js` fica restrito às primitivas cross-runtime realmente usadas pelo Worker (`normalizeClientPhone` / `formatClientPhone`), enquanto normalização de nome e duplicate lookup pertencem a Customers;
 15. architecture gates bloqueiam reintrodução do debt C7;
 16. full gates estão verdes.
 
@@ -1062,3 +1088,33 @@ Após aprovação desta spec, ele deve ser revisado contra estas decisões, espe
 - manter quick-create API por injeção e regra pura via public entry.
 
 Somente após essa reconciliação e aprovação do plano revisado deve começar Task 1 RED.
+
+## 40. Autorrevisão formal — 2026-09-19
+
+A spec foi revisada após a primeira gravação contra:
+
+- Spec C arquitetural;
+- rollout C1–C10;
+- compatibility ledger;
+- `App.jsx` real da base C7;
+- `Clients.jsx`;
+- `NewOrder.jsx`;
+- `shared/clientIdentity.js` e seus testes;
+- `worker/repositories.js` e unicidade de cliente;
+- operational runtime `applyOfficialEffects` / `updateCollection`;
+- patterns já consolidados em Orders, Table Service e Finance.
+
+Correções incorporadas nesta autorrevisão:
+
+1. restringir `shared/clientIdentity.js` às primitivas realmente cross-runtime e mover normalização de nome + duplicate lookup para Customers;
+2. declarar `ClientDuplicateModal` como contrato público Customer consumido por Orders;
+3. exigir wrapper de UI Node-safe se necessário, seguindo C4–C6;
+4. preservar os request keys globais de clientes e, portanto, o bloqueio transversal de writes;
+5. registrar a diferença atual de payload de endereço entre editor normal e quick-create;
+6. distinguir os canais de feedback de telefone duplicado no editor principal e no quick-create;
+7. registrar a semântica exata de “usar cliente existente” em cada contexto;
+8. preservar a semântica atual de fechamento do action sheet após tentativa de delete;
+9. explicitar o `localeCompare` atual na ordenação;
+10. confirmar que `deletedClientId` é a extensão apropriada de official effects e não um novo runtime bridge.
+
+Após essas correções, não ficou bloqueador arquitetural conhecido na spec. O plano pré-spec ainda precisa ser reconciliado com esta versão antes de qualquer Task 1 RED.
