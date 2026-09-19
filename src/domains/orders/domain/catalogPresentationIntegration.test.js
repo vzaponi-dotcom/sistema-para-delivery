@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { addCartItem, decrementCartProduct, getCartProductQuantity, buildOrderPayload } from '../orders/domain/orderCart.js'
+import { addCartItem, decrementCartProduct, getCartProductQuantity, buildOrderPayload } from './orderCart.js'
 
 const base = { id: 'p1', name: 'Água', category: 'Bebidas', price: 3.5 }
 
