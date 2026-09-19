@@ -1,6 +1,6 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: RECONCILED + FORMALLY SELF-REVIEWED AGAINST THE APPROVED DESIGN — AWAITING EXPLICIT PLAN APPROVAL.**
+> **STATUS: APPROVED FOR EXECUTION — reconciled + formally self-reviewed against the approved design. User approval granted 2026-09-19.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
@@ -532,7 +532,7 @@ No production deployment.
 
 The C7 design is **APPROVED**. This plan has now been reconciled with that design.
 
-**Do not begin Task 1 until the user explicitly approves this reconciled plan.**
+**Plan approved by the user on 2026-09-19. Task 1 may begin under strict RED → GREEN TDD.**
 
 ## Formal plan self-review — 2026-09-19
 
