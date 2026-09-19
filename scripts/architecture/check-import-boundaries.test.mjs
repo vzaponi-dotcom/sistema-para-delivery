@@ -320,16 +320,16 @@ test('C7 rejects updateCollection clients inside Customers', async (t) => {
 
 test('C7 keeps frontend duplicate/name rules out of shared while allowing permanent phone primitives', async (t) => {
   const { rootDir, write } = await createFixture(t)
-  await write('src/shared/clientIdentity.js', [
+  await write('shared/clientIdentity.js', [
     'export const normalizeClientPhone = (value) => value',
     'export const formatClientPhone = (value) => value',
     'export const normalizeClientName = (value) => value',
     'export const findClientDuplicates = () => ({})',
   ].join('\n'))
   let violations = await findArchitectureViolations({ rootDir, allowlist: {} })
-  assert.ok(violations.includes('c7-shared-customer-duplicate: src/shared/clientIdentity.js'))
+  assert.ok(violations.includes('c7-shared-customer-duplicate: shared/clientIdentity.js'))
 
-  await write('src/shared/clientIdentity.js', [
+  await write('shared/clientIdentity.js', [
     'export const normalizeClientPhone = (value) => value',
     'export const formatClientPhone = (value) => value',
   ].join('\n'))
