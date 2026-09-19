@@ -316,7 +316,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. The dedicated C7 design and detailed plan are approved. Tasks 1–8 are complete/green. The exact executable pre-staging HEAD is `6402496c078ca817572e6e375beec9f4ffbe557a`, with Validate #1419 / run `35456801774` successful at 1,807 tests / 1,806 pass / 0 fail / 1 skipped and every architecture/lint/build/Worker/D1 gate green. Task 9 has not started.
+The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C7 Tasks 1–9 are complete and staging is homologated at `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`: Validate #1420 and Deploy staging #185 are green, and manual QA closed at 29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING. Task 10 is the active merge handoff: require a green Validate on the QA/docs closure HEAD, then request explicit merge authorization. Production remains untouched.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
