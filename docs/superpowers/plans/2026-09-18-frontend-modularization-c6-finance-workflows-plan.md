@@ -1695,7 +1695,7 @@ Require Validate SUCCESS before Task 11.
 
 ---
 
-### Task 11: Full gates, staging deployment, manual homologation, QA record, and merge handoff
+### Task 11: Full gates, staging deployment, manual homologation, QA record, and merge handoff — IN PROGRESS / STAGING DEPLOYED
 
 **Files:**
 - Create: `docs/superpowers/qa/spec-c6-finance-workflows-qa.md`
@@ -1709,7 +1709,7 @@ Require Validate SUCCESS before Task 11.
 - Produces exact evidence for merge authorization.
 - Payment-receipt bridge must be marked **REMOVED IN C6** only after physical/architecture audits pass.
 
-- [ ] **Step 1: Verify final diff scope**
+- [x] **Step 1: Verify final diff scope**
 
 ```bash
 git status --short
@@ -1725,7 +1725,7 @@ Expected:
 - no printing/QZ ownership moved;
 - no Customer/Catalog implementation.
 
-- [ ] **Step 2: Run complete local gates where a reliable worktree exists**
+- [x] **Step 2: Run complete local gates where a reliable worktree exists**
 
 ```bash
 npm test
@@ -1740,7 +1740,7 @@ node scripts/infra/spec-b-d1-gate.mjs
 
 Record exact test totals and intentional skips. If not run locally, label them runner-only; do not claim local PASS.
 
-- [ ] **Step 3: Validate exact executable HEAD in GitHub**
+- [x] **Step 3: Validate exact executable HEAD in GitHub**
 
 Push normally. Require `Validate application` SUCCESS on the exact branch SHA.
 
@@ -1757,7 +1757,7 @@ Record:
 
 Any failure stops staging.
 
-- [ ] **Step 4: Deploy exact validated SHA to staging**
+- [x] **Step 4: Deploy exact validated SHA to staging**
 
 Dispatch `Deploy staging` manually using `feature/spec-c6-finance-workflows`.
 
@@ -1770,6 +1770,8 @@ Require the workflow to prove:
 - real login smoke.
 
 Do not deploy production.
+
+Task 11 checkpoint: executable staging SHA `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711` passed Validate #1386 / run `35417003680` with **1,770 tests / 1,769 pass / 0 fail / 1 skipped** and all remaining gates green. Manual Deploy staging #183 / run `35417329071` deployed that exact SHA successfully; remote staging reported **no migrations to apply**, readiness succeeded on attempt **1/6**, and real login smoke returned **HTTP 200**. Manual QA is now **0 PASS / 0 FAIL / 0 BLOCKED / 24 PENDING**. Production remains untouched.
 
 - [ ] **Step 5: Execute manual staging matrix**
 
