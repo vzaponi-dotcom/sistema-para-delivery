@@ -17,7 +17,8 @@ test('Task 3 removes the legacy Clients owner and App-owned list projection', as
 
   assert.equal(existsSync(fileURLToPath(legacyClients)), false)
   assert.doesNotMatch(app, /from ['"]\.\/pages\/Clients['"]/)
-  assert.doesNotMatch(app, /const filteredClients\s*=/)
+  assert.doesNotMatch(app, /clients\.filter\(/)
+  assert.doesNotMatch(app, /localeCompare\(/)
   assert.match(app, /filterAndSortClients/)
 })
 

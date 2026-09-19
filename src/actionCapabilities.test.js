@@ -175,7 +175,7 @@ test('6. finance.receivables sem payments.receive preserva consulta e bloqueia r
 
 test('7. clients.view mantÃ©m consulta e bloqueia CRUD sem clients.manage', async (t) => {
   const { h, renderer, requests } = await appWorkspace(t, new Set(['clients.view']))
-  const { default: Clients } = await h.load('/src/pages/Clients.jsx')
+  const { default: Clients } = await h.load('/src/domains/customers/ui/Clients.jsx')
   const page = renderer.root.findByType(Clients)
   assert.match(nodeText(renderer.root), /Ana Souza/)
   assert.equal(Boolean(buttonNamed(renderer.root, 'Novo cliente')), false)
@@ -411,7 +411,7 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
 
 test('19. capability desconhecida nÃ£o concede aÃ§Ã£o nem invalida conhecida', async (t) => {
   const { h, renderer } = await appWorkspace(t, new Set(['clients.view', 'unknown.capability']))
-  const { default: Clients } = await h.load('/src/pages/Clients.jsx')
+  const { default: Clients } = await h.load('/src/domains/customers/ui/Clients.jsx')
   assert.ok(renderer.root.findByType(Clients))
   assert.match(nodeText(renderer.root), /Ana Souza/)
   assert.equal(Boolean(buttonNamed(renderer.root, 'Novo cliente')), false)
@@ -423,7 +423,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
   const modules = Object.fromEntries(await Promise.all([
     ['OrderHistory', '/src/domains/orders/ui/OrderHistory.jsx'],
     ['Dashboard', '/src/pages/Dashboard.jsx'],
-    ['Clients', '/src/pages/Clients.jsx'],
+    ['Clients', '/src/domains/customers/ui/Clients.jsx'],
     ['Products', '/src/pages/Products.jsx'],
     ['Receivables', '/src/domains/finance/ui/Receivables.jsx'],
     ['Finance', '/src/domains/finance/ui/Finance.jsx'],

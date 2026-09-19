@@ -29,7 +29,7 @@ test('all app-facing JSX uses SystemSelect instead of native select', async () =
 
 test('order payment dialog and Clients use the shared SystemSelect', async () => {
   const paymentDialog = await readFile(join(srcDir, 'app/workflows/payments/order/OrderPaymentDialog.jsx'), 'utf8')
-  const clients = await readFile(join(srcDir, 'pages/Clients.jsx'), 'utf8')
+  const clients = await readFile(join(srcDir, 'domains/customers/ui/Clients.jsx'), 'utf8')
   assert.match(paymentDialog, /import SystemSelect/)
   assert.match(clients, /import SystemSelect/)
 })

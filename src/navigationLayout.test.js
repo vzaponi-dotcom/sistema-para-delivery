@@ -199,7 +199,7 @@ test('AreaNavigation preserva labels, callbacks e aria-current de todos os desti
 test('Cadastros permanece sem AreaNavigation', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Clients }, { default: Products }, { Tables }] = await Promise.all([
-    h.load('/src/pages/Clients.jsx'), h.load('/src/pages/Products.jsx'), h.load('/src/domains/table-service/index.js'),
+    h.load('/src/domains/customers/ui/Clients.jsx'), h.load('/src/pages/Products.jsx'), h.load('/src/domains/table-service/index.js'),
   ])
   const callbacks = { onAdd() {}, onEdit() {}, onDelete() {} }
   const renderers = [
