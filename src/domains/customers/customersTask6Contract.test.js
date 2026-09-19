@@ -38,7 +38,7 @@ test('Task 6 keeps Orders on the Customers public contract and preserves quick-c
   assert.match(orders, /Telefone já cadastrado para \$\{duplicate\.phone\.name\}\. Selecione esse cliente na busca acima\./)
   assert.match(orders, /handleUseExistingDuplicate/)
   assert.match(orders, /handleConfirmDuplicate/)
-  assert.match(orders, /setSelectedClientId\(/)
+  assert.match(orders, /const finishQuickClient = \(client\) => \{[\s\S]*selectClient\(client\)[\s\S]*closeQuickClient\(\)/)
   assert.match(orders, /closeQuickClient/)
   assert.match(orders, /setQuickClient\(\{ open: false, name: '', phone: '' \}\)/)
   assert.match(orders, /setQuickClientError\(''\)/)
