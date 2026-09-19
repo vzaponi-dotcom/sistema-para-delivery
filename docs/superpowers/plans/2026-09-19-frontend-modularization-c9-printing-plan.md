@@ -58,6 +58,7 @@ src/domains/printing/
       pdfOrderRenderer.js
   application/
     physicalOperation.js
+    printingPlatform.js
     printJobRunner.js
     usePrintingManager.js
     usePrintingOverlays.js
@@ -144,10 +145,10 @@ createQzTransport({
   isConnected(): boolean,
   connect(): Promise<void>,
   onClosed(callback): void,
-  createReadinessController(): QzReadinessController,
+  readiness: QzReadinessController,
   listPrinters(): Promise<string[]>,
   resolvePrinter(name: string): Promise<string>,
-  print(bytes: Uint8Array, options?: { jobName?: string }): Promise<void>,
+  print(printerName: string, bytes: Uint8Array, options?: { jobName?: string }): Promise<void>,
   createStatusMonitor(args): QzStatusMonitor,
   readPrinterName(stationId: string): string|null,
   savePrinterName(stationId: string, name: string): string,
@@ -250,7 +251,25 @@ Expected: FAIL because the new Printing domain modules do not exist.
 
 - [ ] **Step 3: Move the pure modules and rendering code without changing behavior**
 
-Move the existing implementations, preserving source logic. Split browser defaults out of localPrintStation:
+Move the existing implementations, preserving source logic. Extract the pure manager guards into printingEligibility.js:
+
+~~~js
+export const getPrintingTransportKind = (platform) => (
+  platform === 'windows' ? 'qz' : 'queue-only'
+)
+
+export const getRendererCompatibilityMode = (transportKind) => (
+  transportKind === 'qz' ? 'mpt2-bitmap' : null
+)
+
+export const isPrintingTransportSupported = (platform) => (
+  getPrintingTransportKind(platform) === 'qz'
+)
+~~~
+
+Keep canConsumeAutomaticPrintJob, canExecuteSecondCopy, canPresentSecondCopyPrompt, canKeepSecondCopyPromptOpen, canInitializeBackgroundPhysicalTransport and canSendPrintStationHeartbeat behavior byte-for-byte equivalent to their current manager definitions.
+
+Split browser defaults out of localPrintStation:
 
 ~~~js
 // stationPolicy.js
@@ -266,6 +285,41 @@ export const isQzPrintStationEligible = ({ platform, qzPrinterName } = {}) => (
 ~~~
 
 Move recovery functions verbatim into printRecovery.js and second-copy pure functions into secondCopy.js. Storage functions do not move into domain.
+
+The Task 1 transitional public entry is explicit and temporary:
+
+~~~js
+export {
+  getPrintingTransportKind,
+  getRendererCompatibilityMode,
+  isPrintingTransportSupported,
+  canConsumeAutomaticPrintJob,
+  canExecuteSecondCopy,
+  canPresentSecondCopyPrompt,
+  canKeepSecondCopyPromptOpen,
+  canInitializeBackgroundPhysicalTransport,
+  canSendPrintStationHeartbeat,
+} from './domain/printingEligibility.js'
+export {
+  deriveRecoveryView,
+  nextRecoveryState,
+  canRunSingleRecoveryCopy,
+  runSingleRecoveryCopy,
+} from './domain/printRecovery.js'
+export {
+  isSecondCopyPromptEligible,
+  getSecondCopyPromptTitle,
+  acknowledgeAndOpenSecondCopyPrompt,
+  findOriginSecondCopyPrompt,
+} from './domain/secondCopy.js'
+export {
+  getDefaultPrintStationName,
+  isQzPrintStationEligible,
+} from './domain/stationPolicy.js'
+export { renderEscPos58mm } from './domain/rendering/escpos58mm.js'
+~~~
+
+These temporary helper exports exist only so legacy App/manager consumers can migrate without deep imports. Task 8 removes them from the public entry.
 
 - [ ] **Step 4: Move/align the existing focused tests**
 
@@ -471,10 +525,10 @@ export const createQzTransport = ({
     isConnected: () => Boolean(qzApi.websocket?.isActive?.()),
     connect: () => ensureQzConnected(qzApi),
     onClosed: (callback) => qzApi.websocket?.setClosedCallbacks?.([callback]),
-    createReadinessController: () => readiness,
+    readiness,
     listPrinters: () => listQzPrinters(qzApi),
     resolvePrinter: (name) => resolveQzPrinter(qzApi, name),
-    print: (bytes, options) => printQzRawBytes(qzApi, options?.printerName, bytes, options),
+    print: (printerName, bytes, options) => printQzRawBytes(qzApi, printerName, bytes, options),
     createStatusMonitor: (args) => createQzStatusMonitor({ qzApi, ...args }),
     readPrinterName: (stationId) => getQzPrinterName(storage, stationId),
     savePrinterName: (stationId, name) => saveQzPrinterName(storage, stationId, name),
@@ -530,6 +584,8 @@ git commit -m "refactor: isolate qz transport infrastructure"
 **Files:**
 - Create: src/domains/printing/application/physicalOperation.js
 - Create: src/domains/printing/application/physicalOperation.test.js
+- Create: src/domains/printing/application/printingPlatform.js
+- Create: src/domains/printing/application/printingPlatform.test.js
 - Create: src/domains/printing/application/printJobRunner.js
 - Move/align: src/printing/printJobRunner.test.js
 - Create: src/domains/printing/application/usePrintingManager.js
@@ -589,6 +645,8 @@ Keep PRINT_OPERATION_BUSY behavior exactly.
 printingLocalPreferences.js owns:
 - delivery-print-station-id
 - printing-origin-order-ids
+
+printingPlatform.js owns detectPrintStationPlatform(userAgent = globalThis.navigator?.userAgent || '') and detectPrintStationUiPlatform(userAgent = globalThis.navigator?.userAgent || ''). This keeps browser user-agent access out of the pure domain.
 
 qzLocalPreferences owns:
 - delivery-qz-printer-name:<stationId>
@@ -722,6 +780,7 @@ git commit -m "refactor: move print queue into printing domain"
 - Create/move: src/domains/printing/infrastructure/printingPolicy.js
 - Create: src/domains/printing/infrastructure/printingPolicy.test.js
 - Create/move: src/domains/printing/ui/PrintingSettingsContent.jsx
+- Move: src/printing/printing.css → src/domains/printing/ui/printing.css
 - Move/align: src/components/PrintingSettings.test.js, PrintingSettingsRedesign.test.js, PrintingConflictRecovery.test.js as appropriate
 - Modify: src/app/surfaces/settings/policies/registry.js
 - Modify: src/app/surfaces/settings/SettingsSurface.jsx
@@ -783,6 +842,8 @@ import {
 Do not move createPathPolicyAdapter or policyEditing engine.
 
 - [ ] **Step 5: Move PrintingSettingsContent and keep three-resource independence**
+
+Move printing.css with PrintingSettingsContent and keep the CSS import at the same component boundary so bundle order remains equivalent. Verify the existing semantic-token/responsive tests after the move.
 
 Preserve:
 - business policy card;
@@ -957,7 +1018,7 @@ git commit -m "refactor: move printing overlays out of app"
 - Remove: src/pages/PrintQueue.jsx and src/pages/printQueue*.js
 - Remove: src/components/PrintingSettings.jsx
 - Remove: src/components/PrintingSettingsContent.jsx
-- Move printing.css to src/domains/printing/ui/printing.css only if import/cascade equivalence is proven; otherwise keep existing global CSS path and document it for C10.
+- Keep src/print-queue.css at its existing global path in C9; it is not under the legacy src/printing owner and moving it is unnecessary cascade risk.
 - Modify all stale test paths/imports.
 - Modify: src/domains/printing/index.js to final exports only.
 - Modify: docs/superpowers/qa/spec-c-compatibility-facades.md to close any temporary C9 facade introduced in Tasks 1–7.
@@ -1012,9 +1073,9 @@ Expected: FAIL because temporary exports/legacy paths still exist.
 
 Do not leave compatibility reexports. A test that referenced the old owner must be moved/aligned to the new owner or changed to a negative legacy assertion.
 
-- [ ] **Step 4: Decide CSS conservatively**
+- [ ] **Step 4: Verify CSS ownership/cascade**
 
-If moving CSS changes import order relative to App/global styles, leave the CSS at its current global path for C10 and record that as permanent-at-C9 layout debt, not a facade. If import order is byte-equivalent, move it with the UI.
+Confirm src/printing/printing.css is gone because it moved in Task 6. Confirm src/print-queue.css remains unchanged at its existing global path. Run the existing Printing Settings and PrintQueue responsive/style source tests to prove no token, breakpoint or action-order regression.
 
 - [ ] **Step 5: Run GREEN**
 
@@ -1364,7 +1425,7 @@ Every normative spec section maps to at least one task above. No spec requiremen
 
 ### Placeholder scan
 
-No TBD, TODO, “implement later”, “similar to Task N” or unspecified error-handling steps are intentionally present. Execution commands, ownership targets and critical signatures are explicit.
+The forbidden-placeholder scan is clean: every implementation step has a concrete action, command, expected result and/or code shape; no deferred-fill markers or vague test/error-handling instructions remain.
 
 ### Type/interface consistency
 
@@ -1390,7 +1451,7 @@ All five Review Focus items have explicit tests or manual cases in their owning 
 1. **Policy adapters are public Printing contracts.** Settings registry is a real consumer, so printingPolicy/stationConfigurationPolicy/stationPrimaryPolicy belong in the final public entry. Cost if wrong: three stable adapter exports remain public until C10 can prove a narrower registry contract.
 2. **printingSettingsAdapter stays in Settings.** It is a thin composition bridge over the generic policy engine and the Printing manager; moving it adds no domain value. Cost if wrong: one small Settings-owned adapter remains coupled to Printing public contracts.
 3. **Origin-order storage is Printing infrastructure, not QZ infrastructure.** Only printer-name storage belongs to qzLocalPreferences. Cost if wrong: a small local preference helper may be relocated in C10 without changing behavior.
-4. **CSS movement is conditional on cascade proof.** C9 will not trade architecture purity for a visual regression. Cost if wrong: a CSS path may remain global until C10.
+4. **Only Printing Settings CSS moves in C9.** src/printing/printing.css must move with its owner so the legacy src/printing tree can disappear; src/print-queue.css remains global because moving it adds cascade risk without closing a C9 ownership debt. Cost if wrong: C10 may later relocate the global queue stylesheet after a dedicated cascade audit.
 
 ## Execution handoff
 
