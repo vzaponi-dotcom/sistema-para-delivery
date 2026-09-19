@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createOrderPrintDocument } from '../../shared/orderPrintDocument.js'
+import { createOrderPrintDocument } from '../../../../../shared/orderPrintDocument.js'
 import { encodeCp860 } from './cp860.js'
 import { renderEscPos58mm, wrapPrintText } from './escpos58mm.js'
 import { MTP5_PROFILE } from './mtp5Profile.js'
