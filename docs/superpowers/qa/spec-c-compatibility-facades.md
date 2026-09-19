@@ -134,10 +134,10 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Merge authorization for C6 was explicitly granted by the user on 2026-09-19. Production remains untouched.
 
 
-## C7 pre-staging status — 2026-09-19
+## C7 homologation / closure status — 2026-09-19
 
-- C7 functional Tasks 1–8 are **COMPLETE / GREEN** on branch `feature/spec-c7-customers`; draft PR #51 remains open.
-- Exact executable pre-staging SHA: `6402496c078ca817572e6e375beec9f4ffbe557a`.
+- C7 Tasks 1–9 are **COMPLETE / STAGING HOMOLOGATED** on branch `feature/spec-c7-customers`; draft PR #51 remains open.
+- Homologated staging SHA: `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; final code-changing SHA: `6402496c078ca817572e6e375beec9f4ffbe557a`.
 - Validate #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
 - Customer CRUD no longer uses the `updateCollection` escape hatch. Customer delete is represented by the official `deletedClientId` effect, and Task 7 permanently rejects reintroduction of `updateCollection('clients', ...)` in App or Customers.
 - The global `updateCollection` escape hatch is **not globally removed**: Catalog/product CRUD remains scheduled for C8, with final closure enforcement in C10.
@@ -147,4 +147,4 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Frontend-only `normalizeClientName` and `findClientDuplicates` belong to Customers and are architecture-enforced out of the shared contract.
 - Generic/auth reexports in `src/api/client.js` remain scheduled for C10 at latest.
 - C7 introduced **no surviving temporary compatibility facade** and did not broaden the architecture allowlist.
-- Next step is Task 9 staging/manual homologation. Production remains untouched.
+- C7 has no surviving temporary compatibility facade. Task 10 exact-head merge gate is active; production remains untouched.
