@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
-import { workspaceHarness, nodeText, buttonNamed } from '../test-support/renderWorkspace.js'
-import { comandaDetail, deferred } from '../test-support/comandaFixtures.js'
+import { workspaceHarness, nodeText, buttonNamed } from '../../../../test-support/renderWorkspace.js'
+import { comandaDetail, deferred } from '../../../../test-support/comandaFixtures.js'
 
 test('mounted mobile payment and method sheet release locks together and preserve nested focus', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: Dialog } = await h.load('/src/components/TableTabPaymentDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
   h.document.body.style.overflow = 'scroll'
   const focusable = (name) => ({ name, focus() { h.document.activeElement = this } })
   const launcher = focusable('payment launcher')
@@ -42,7 +42,7 @@ test('mounted mobile payment and method sheet release locks together and preserv
 
 for (const mobile of [false, true]) test(`full payment dialog uses official methods and prevents duplicate submission (${mobile ? 'mobile' : 'desktop'})`, async (t) => {
   const h = await workspaceHarness(t, { mobile })
-  const { default: Dialog } = await h.load('/src/components/TableTabPaymentDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
   const pending = deferred(), calls = []
   const props = { open: true, detail: comandaDetail, currency: (v) => v.toFixed(2), onClose() {}, onConfirm: (...args) => { calls.push(args); return pending.promise } }
   const r = await h.render(Dialog, props)

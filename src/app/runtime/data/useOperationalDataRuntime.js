@@ -10,8 +10,6 @@ const DATA_COLLECTIONS = ['clients', 'products', 'orders', 'tables', 'tableTabs'
 const PAYMENT_COLLECTIONS = ['orders', 'movements', 'tableTabs', 'tables']
 
 const defaultApi = { getBootstrap, getOrders: ordersApi.getOrders }
-const defaultLegacyBridges = Object.freeze({})
-
 export const createRefreshSubscription = ({
   run,
   intervalMs,
@@ -51,7 +49,6 @@ export function useOperationalDataRuntime({
   globalSyncEnabled = false,
   ordersSyncEnabled = false,
   effectiveConfigVersion = null,
-  legacyBridges = defaultLegacyBridges,
 } = {}) {
   const [bootstrapEffectiveConfig, setBootstrapEffectiveConfig] = useState(null)
   const [bootstrapState, setBootstrapState] = useState('idle')
@@ -68,12 +65,10 @@ export function useOperationalDataRuntime({
   const ordersSyncInFlightRef = useRef(false)
   const officialRevisionRef = useRef(0)
   const officialTablesRef = useRef([])
-  const legacyBridgesRef = useRef(legacyBridges)
   const effectiveConfigVersionRef = useRef(effectiveConfigVersion)
   const onUnauthorizedRef = useRef(onUnauthorized)
   const apiRef = useRef(api)
 
-  useEffect(() => { legacyBridgesRef.current = legacyBridges }, [legacyBridges])
   useEffect(() => { effectiveConfigVersionRef.current = effectiveConfigVersion }, [effectiveConfigVersion])
   useEffect(() => { onUnauthorizedRef.current = onUnauthorized }, [onUnauthorized])
   useEffect(() => { apiRef.current = api }, [api])
@@ -176,7 +171,6 @@ export function useOperationalDataRuntime({
     if (bootstrapSyncInFlightRef.current) return bootstrapSyncInFlightRef.current
     const guard = syncGuardRef.current
     const token = guard.beginRead(DATA_COLLECTIONS)
-    const paymentOwners = legacyBridgesRef.current.capturePaymentOwners?.() ?? []
     if (!background) setBootstrapState('loading')
 
     const read = async () => {
@@ -185,7 +179,6 @@ export function useOperationalDataRuntime({
         const data = await apiRef.current.getBootstrap(background ? configVersion : undefined)
         if (guard !== syncGuardRef.current) return false
         const receipt = applyBootstrapCollections(data, token)
-        legacyBridgesRef.current.settlePaymentOwners?.(paymentOwners, receipt)
         if (!background) setBootstrapState('ready')
         return receipt
       } catch (error) {

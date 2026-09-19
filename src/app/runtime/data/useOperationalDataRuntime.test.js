@@ -33,7 +33,6 @@ const deferred = () => {
 
 function createHarness({
   api,
-  legacyBridges = {},
   onUnauthorized = () => {},
   globalSyncEnabled = false,
   ordersSyncEnabled = false,
@@ -43,7 +42,6 @@ function createHarness({
   const Harness = () => {
     current = useOperationalDataRuntime({
       api,
-      legacyBridges,
       onUnauthorized,
       globalSyncEnabled,
       ordersSyncEnabled,

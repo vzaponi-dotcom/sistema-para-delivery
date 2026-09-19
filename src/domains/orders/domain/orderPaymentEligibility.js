@@ -1,5 +1,7 @@
 import { hasCapability } from '../../../app/access.js'
 
+export const isOrderPaid = (order) => order?.paymentStatus === 'Pago'
+
 const sourceCapability = Object.freeze({
   orders: 'orders.view',
   history: 'orders.history',
@@ -21,7 +23,7 @@ export function canReceiveStandaloneOrder(order, granted, source) {
     && viewCapability
     && hasCapability(granted, viewCapability)
     && hasCapability(granted, 'payments.receive')
-    && order.paymentStatus === 'Pendente'
+    && !isOrderPaid(order)
     && order.status !== 'Cancelado'
     && !hasTableRelationship(order),
   )

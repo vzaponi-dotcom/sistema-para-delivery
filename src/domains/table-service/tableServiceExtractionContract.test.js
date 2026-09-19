@@ -24,12 +24,16 @@ test('App no longer owns Table Service implementation details', () => {
   for (const token of forbidden) assert.equal(source.includes(token), false, token)
 })
 
-test('App intentionally retains deferred payment ownership for C6', () => {
+test('App no longer owns deferred table-tab payment implementation', () => {
   for (const token of [
     'handleRegisterTableTabPayment',
     'settleAcceptedPayment',
+    'reconcileTableTabPayment',
     'registerTableTabPaymentApi',
+    'paymentSyncRef',
+    'tableTabPaymentRef',
   ]) {
-    assert.equal(source.includes(token), true, token)
+    assert.equal(source.includes(token), false, token)
   }
+  assert.equal(source.includes('useTableTabPaymentWorkflow'), true)
 })

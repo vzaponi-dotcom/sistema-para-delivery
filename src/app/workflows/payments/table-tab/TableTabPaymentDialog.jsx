@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import Button from './Button'
-import Modal from './Modal'
-import SystemSelect from './SystemSelect'
+import Button from '../../../../components/Button'
+import Modal from '../../../../components/Modal'
+import SystemSelect from '../../../../components/SystemSelect'
 import {
   PAYMENT_METHOD_OPTIONS,
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
-} from '../utils/paymentMethodOptions.js'
+} from '../../../../domains/finance/index.js'
 
 function PaymentForm({ detail, currency, disabled, onClose, onConfirm, paymentOptions, defaultPaymentMethod }) {
   const [method, setMethod] = useState(defaultPaymentMethod || '')
