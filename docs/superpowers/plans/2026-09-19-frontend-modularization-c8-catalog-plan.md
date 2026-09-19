@@ -711,7 +711,7 @@ Index passa aos quatro exports finais; `catalogSurfaces.js` contém apenas o wra
 
 **Interfaces:** `applyOfficialEffects`, `refreshBootstrap`, receipts e getters continuam iguais, com efeito C8 da Task 2; `updateCollection` deixa de existir.
 
-- [ ] **Step 1 — RED de ausência real.** Adicionar ao arquivo de teste de runtime existente:
+- [x] **Step 1 — RED de ausência real.** Adicionar ao arquivo de teste de runtime existente:
 
 ```js
 test('C8 removes the collection escape hatch from the runtime contract', async (t) => {
@@ -726,8 +726,8 @@ test('C8 removes the collection escape hatch from the runtime contract', async (
 
 Inventariar toda referência em produção antes de remover. Teste que usava o escape hatch para preparar fixture passa a usar bootstrap/efeitos oficiais correspondentes, sem perder a assertion de proteção de sync.
 
-- [ ] **Step 2 — RED confirmado.** `node --test src/app/runtime/data/useOperationalDataRuntime.test.js` deve falhar apenas na ausência exigida, pois o método ainda está no runtime.
-- [ ] **Step 3 — GREEN de remoção.** Apagar integralmente o bloco `const updateCollection = useCallback`, a propriedade retornada e a dependência no `useMemo`. Não apagar setters nem `removeById`, ainda necessários a outros efeitos oficiais.
+- [x] **Step 2 — RED confirmado.** `node --test src/app/runtime/data/useOperationalDataRuntime.test.js` deve falhar apenas na ausência exigida, pois o método ainda está no runtime.
+- [x] **Step 3 — GREEN de remoção.** Apagar integralmente o bloco `const updateCollection = useCallback`, a propriedade retornada e a dependência no `useMemo`. Não apagar setters nem `removeById`, ainda necessários a outros efeitos oficiais.
 
 ```bash
 git grep -n 'updateCollection' -- src
@@ -735,8 +735,8 @@ git grep -n 'updateCollection' -- src
 
 Depois da remoção, só podem restar assertions negativas em testes; nenhum caller/retorno de produção. Se houver consumidor de produção não inventariado, migrá-lo por efeito oficial existente e teste de equivalência antes de concluir; não ampliar escopo silenciosamente com um setter alternativo.
 
-- [ ] **Step 4 — GREEN de todos os runtimes e regressões próximas.** `node --test src/app/runtime/data/useOperationalDataRuntime.test.js`, `npm test`, architecture/lint/build. Verificar especialmente effects de Customers/Finance e receipts de pagamentos.
-- [ ] **Step 5 — Commit/gate.** `test: require removal of runtime collection escape hatch`; `refactor: remove updateCollection runtime escape hatch`. Só depois de GREEN marcar `REMOVED IN C8` no ledger; enforcement permanente vem na Task 7. Generic/auth e Printing permanecem debts futuros.
+- [x] **Step 4 — GREEN de todos os runtimes e regressões próximas.** `node --test src/app/runtime/data/useOperationalDataRuntime.test.js`, `npm test`, architecture/lint/build. Verificar especialmente effects de Customers/Finance e receipts de pagamentos.
+- [x] **Step 5 — Commit/gate.** `test: require removal of runtime collection escape hatch`; `refactor: remove updateCollection runtime escape hatch`. Só depois de GREEN marcar `REMOVED IN C8` no ledger; enforcement permanente vem na Task 7. Generic/auth e Printing permanecem debts futuros.
 
 ## Task 7 — Enforcement arquitetural permanente
 
@@ -973,3 +973,13 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 - Product CRUD API/commands/editor/list projection/UI owners are under Catalog. Legacy product CRUD exports are absent from `src/api/client.js`.
 - Product use of `updateCollection('products', ...)` was removed in Task 2, but the generic `updateCollection` method still physically exists in the operational runtime. **Do not mark this debt removed before Task 6 GREEN.**
 - No staging, merge or production deployment occurred. No Worker/schema/migration/CSS/workflow/allowlist functional changes were introduced by Tasks 2–5.
+
+
+## Execution checkpoint — after Task 6 — 2026-09-19
+
+- **Tasks 1–6: COMPLETE / GREEN. Task 7: NOT STARTED.**
+- Task 6 RED: `6e743157df04a584086e693dd284f6fb23cf0be6`; Validate #1455 / run `35468303745` failed on exactly one intended contract assertion because `updateCollection` still existed.
+- Task 6 GREEN: `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` — **SUCCESS**, **1,853 tests / 1,852 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- The operational runtime no longer defines or exposes the generic `updateCollection` escape hatch. Official effects remain the only production mutation contract for the migrated collections.
+- Compatibility ledger now marks the physical debt **REMOVED IN C8 Task 6**. Permanent C8 architecture enforcement remains Task 7 work; the existing C7 Customers rule remains intact.
+- No staging, merge or production deploy occurred. No Worker/schema/migration/CSS/workflow/allowlist change was introduced by Task 6.

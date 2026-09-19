@@ -2,7 +2,7 @@
 
 ## Approval and scope — 2026-09-19
 
-The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, and Task 5. **Tasks 1–5 are now complete/green. Task 6 has not started.** Staging, merge and production remain unauthorized/not executed.
+The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, Task 5, and Task 6. **Tasks 1–6 are now complete/green. Task 7 has not started.** Staging, merge and production remain unauthorized/not executed.
 
 - Design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`.
 - Approved plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` at `20abf94359e0e2883fc3b870c69688f8eeabc12c`.
@@ -25,7 +25,8 @@ A fresh local clone was attempted outside the user's workspace and failed becaus
 - Task 3: **COMPLETE / GREEN** at `01c10746aa1bf24c406b634d8b53efd5a69aff6f`; Validate #1447 / run `35464678996` SUCCESS.
 - Task 4: **COMPLETE / GREEN** at `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309`; Validate #1450 / run `35466359982` SUCCESS.
 - Task 5: **COMPLETE / GREEN** at `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`; Validate #1453 / run `35467142766` SUCCESS.
-- Task 6–10: NOT STARTED.
+- Task 6: **COMPLETE / GREEN** at `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` SUCCESS.
+- Task 7–10: NOT STARTED.
 - Merge/deploy: NONE.
 
 This file supplements, and does not replace, the canonical Spec C execution and compatibility ledgers. Their stale pre-merge/pre-approval wording must be reconciled; historical evidence must be preserved.
@@ -106,3 +107,14 @@ The user intentionally deferred canonical documentation updates during Tasks 2�
 - App now owns only Catalog composition inputs: official `products[]`, query state/callbacks, capability, writesBlocked, official effects/request key and global feedback callbacks.
 - Temporary Catalog public exports are removed. Final public entry: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
 - Task 6 is next and owns physical removal of the generic runtime `updateCollection` escape hatch.
+
+
+## Task 6 — physical removal of updateCollection
+
+- RED: `6e743157df04a584086e693dd284f6fb23cf0be6`; Validate #1455 / run `35468303745` — expected single runtime-contract failure because `updateCollection` still existed.
+- RED totals: **1,853 tests / 1,851 pass / 1 fail / 1 skipped**.
+- GREEN: `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` — **SUCCESS**, **1,853 tests / 1,852 pass / 0 fail / 1 skipped**.
+- Full gates green: architecture, lint, frontend build, production Worker dry-run, staging Worker dry-run, local D1 migrations and Spec B D1 clean-install/upgrade.
+- The generic runtime `updateCollection` block, returned property and `useMemo` dependency were removed. No alternative generic mutation setter was introduced.
+- Existing official effects remain the mutation contract, including `deletedClientId`, `deletedProductId`, product/client upserts, Finance effects and payment/table receipts.
+- C8 Task 7 is responsible for permanent architecture enforcement against reintroduction; Task 6 itself does not change the allowlist or checker.

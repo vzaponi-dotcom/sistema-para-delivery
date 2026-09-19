@@ -376,3 +376,15 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Product CRUD exports are absent from `src/api/client.js`; delete uses official `deletedProductId`.
 - `updateCollection('products', ...)` has no production caller, but the generic runtime `updateCollection` method remains physically present. **Task 6 owns its removal; Task 7 owns permanent enforcement.**
 - Task 6 is NOT STARTED. No staging, merge or production deployment has occurred.
+
+
+---
+
+# C8 — Task 6 checkpoint — 2026-09-19
+
+- Tasks 1–6: **COMPLETE / GREEN** on `feature/spec-c8-catalog`; draft PR #52 remains open.
+- Task 6 RED: `6e743157df04a584086e693dd284f6fb23cf0be6`; Validate #1455 / run `35468303745` — **FAIL as intended**, exactly one new failure requiring removal of the runtime collection escape hatch.
+- Task 6 GREEN: `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` — **SUCCESS**, **1,853 tests / 1,852 pass / 0 fail / 1 skipped**; all remaining workflow gates green.
+- `updateCollection` is physically absent from the operational runtime contract. Customers callers were removed in C7 and the product caller was removed in C8 Task 2. No generic replacement setter was added.
+- Permanent C8 architecture enforcement is still pending Task 7; do not describe the C8 debt as architecture-enforced until that task passes.
+- Task 7–10, staging, merge and production remain not started/not authorized by this checkpoint.

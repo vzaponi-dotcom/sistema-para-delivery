@@ -7,7 +7,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
-| `updateCollection` runtime escape hatch | official effects per domain | **Customers caller removed/enforced in C7; Catalog/products caller removed in C8 Task 2; generic runtime method still physically present** | C8 Task 6 removes runtime method; Task 7 enforces absence |
+| `updateCollection` runtime escape hatch | official effects per domain | **none — physically removed in C8 Task 6** | **C8 — REMOVED; Task 7 architecture enforcement pending** |
 
 ## C1 status — 2026-09-16
 
@@ -172,3 +172,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - The final public Catalog entry contains five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, and `formatProductPresentation`. `CATEGORY_ICON_NAMES` remains public because Orders/OrderCart is a real consumer.
 - `shared/productCatalog.js` is a permanent cross-runtime contract, not a compatibility facade. Frontend-only icons/options/fallback/suggestion metadata remains owned by Catalog.
 - No new temporary compatibility facade was introduced in Tasks 2–5. Generic/auth reexports remain C10 debt; Printing remains C9 debt.
+
+
+## C8 Task 6 — runtime escape hatch removed — 2026-09-19
+
+- RED: `6e743157df04a584086e693dd284f6fb23cf0be6`; Validate #1455 / run `35468303745` failed at Test for the single intended reason: the runtime contract still exposed `updateCollection`.
+- RED suite: **1,853 tests / 1,851 pass / 1 fail / 1 skipped**.
+- GREEN: `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` — **SUCCESS**, **1,853 tests / 1,852 pass / 0 fail / 1 skipped**; architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 all passed.
+- `useOperationalDataRuntime` no longer defines, returns or memo-depends on `updateCollection`. Official effects, sync guards, receipts, official revision getters and table snapshots remain intact.
+- Customers had already removed/enforced its caller in C7; Catalog removed the last product caller in C8 Task 2. Task 6 therefore closes the physical compatibility debt without introducing a replacement generic setter.
+- Permanent checker enforcement against reintroduction belongs to **C8 Task 7**. Until Task 7 GREEN, status is **removed but not yet C8 architecture-enforced**.
+- Generic/auth reexports remain C10 debt; Printing remains C9 debt.
