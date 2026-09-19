@@ -55,6 +55,7 @@ export default function FinanceWorkspace({
         onAddMovement={commands.openNewMovement}
         onEditMovement={commands.openEditMovement}
         onDeleteMovement={commands.deleteMovement}
+        onConfigureOpeningBalance={commands.openOpeningBalance}
         pendingRefundOrders={pendingRefundOrders}
         onRequestRefund={onRequestRefund}
         formatCancellationDate={formatCancellationDate}

@@ -7,14 +7,24 @@ import ConfirmationDialog from '../../../components/ConfirmationDialog'
 import StatCard from '../../../components/StatCard'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
-function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, pendingRefundOrders = [], onRequestRefund, formatCancellationDate = () => 'Data não informada', canManageMovements = true, canRefundPayments = true }) {
+function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, onConfigureOpeningBalance, pendingRefundOrders = [], onRequestRefund, formatCancellationDate = () => 'Data não informada', canManageMovements = true, canRefundPayments = true }) {
   const [movementPendingDelete, setMovementPendingDelete] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
 
   return (
     <>
       <AreaNavigation area="finance" />
-      <PageHeader eyebrow="Financeiro" title="Fluxo de caixa" description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber." actions={canManageMovements ? <Button icon="plus" onClick={() => { if (canManageMovements) onAddMovement?.() }} disabled={writeDisabled}>Novo movimento</Button> : null} />
+      <PageHeader
+        eyebrow="Financeiro"
+        title="Fluxo de caixa"
+        description="Visualize entradas, saídas e saldo. Pagamentos de pedidos entram automaticamente quando forem confirmados em A Receber."
+        actions={canManageMovements ? (
+          <>
+            <Button variant="secondary" icon="wallet" onClick={() => { if (canManageMovements) onConfigureOpeningBalance?.() }} disabled={writeDisabled}>Saldo inicial</Button>
+            <Button icon="plus" onClick={() => { if (canManageMovements) onAddMovement?.() }} disabled={writeDisabled}>Novo movimento</Button>
+          </>
+        ) : null}
+      />
       <section className="stats-grid stats-grid-three" aria-label="Resumo financeiro">
         <StatCard label="Entradas" value={currency(totals.entries)} helper="Receita registrada" icon="arrow-up" tone="success" />
         <StatCard label="Saídas" value={currency(totals.exits)} helper="Despesas registradas" icon="arrow-down" tone="danger" />
