@@ -103,6 +103,10 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - `src/pages/Receivables.jsx` and its finance-exclusive supporting component owners are removed with no compatibility reexport. `ReceivablesSurface` is the app-owned composition boundary, while Finance receives Orders presentation/state rules by injection and contains zero Orders imports.
 - Payment-promise coordination moved out of App to Orders. The legacy `updateOrderPaymentPromise` export in `src/api/client.js` remains intentionally present only until Task 9 removes all C6 legacy API exports.
 - Task 5 created no runtime bridge; the operational payment-receipt bridge remains intentionally active until Task 7.
+- C6 Task 6 is **COMPLETE / GREEN** at `c2ece77fe403f72f88c42af9fb060fe1352d5fe3`; Validate #1367 / run `35411096051` passed with **1,762 tests / 1,761 pass / 0 fail / 1 skipped**.
+- Standalone order-payment coordination and modal ownership moved from App to `src/app/workflows/payments/order/`; `src/app/workflows/payments/paymentApi.js` owns the order payment route and already defines the table-tab route for Task 7. No replacement runtime bridge was introduced.
+- Legacy `registerPayment` and `registerTableTabPayment` exports remain physically present in `src/api/client.js` until the scheduled Task 9 cleanup; App no longer consumes `registerPayment`.
+- The operational payment-receipt bridge remains intentionally active only for table-tab accepted-payment reconciliation and is still targeted for removal in Task 7.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.

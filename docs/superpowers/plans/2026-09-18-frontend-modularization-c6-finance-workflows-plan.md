@@ -22,6 +22,7 @@
 - Task 3 evidence: RED `8bfc9926e6f9718fb461e41f59ce54a351fd2f8d` → Validate #1353 / run `35405851531` failed for the intended missing `cashFlow.js` and `receivables.js` modules. GREEN `54dcbd1ff44f2dc715a469bc60c78c458ac42318` → Validate #1354 / run `35406034390` SUCCESS with **1,745 tests / 1,744 pass / 0 fail / 1 skipped** and all remaining gates green. Ruling: Finance receivable helpers receive `isOrderCancelled`, `isOrderPaid`, and `getPendingAmount` as injected rules instead of importing Orders; this preserves the no-cycle spec and keeps Orders lifecycle ownership intact.
 - Task 4 evidence: RED `f5fe1563d871c3cb5135cb06e86be58e80f57877` → Validate #1356 / run `35407256910` failed for the intended missing `financeApi`, `useFinanceCommands`, and `FinanceWorkspace` owners. GREEN candidate `9974799a3440ae9bbe59ba0e80d28c9b70b5112e` → Validate #1357 exposed stale extraction/UI/capability characterizations after the ownership move. Fix `2665e82a97207eb118497b8f3e2cf44cda5ccc39` aligned extraction/UI tests but Validate #1358 still found two capability characterizations tied to App-local handlers. Final fix `f76b223245f1a2fcaaf981694d052365e5ca9ffb` aligned those capability contracts; Validate #1359 / run `35408051011` SUCCESS with **1,750 tests / 1,749 pass / 0 fail / 1 skipped** and all remaining gates green.
 - Task 5 evidence: RED `d26a537cb8d5487a23aa48430e816feadf49cbfb` → Validate #1361 / run `35409142816` failed for the intended missing `ReceivablesSurface`, `useOrderPaymentPromise`, and `ordersApi.updatePaymentPromise` contracts. GREEN candidate `675b66c2746681421b15dfa8bab9383aa7f4d2f6` moved A Receber/supporting UI into Finance, moved payment-promise coordination into Orders and created the app-owned Finance↔Orders composition; Validate #1362 exposed stale test paths plus two test-only assertion mismatches. Fix `895690be64baa8284b0e5b31dda1969f1f9dadb5` aligned those characterizations; Validate #1363 / run `35409732928` SUCCESS with **1,755 tests / 1,754 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: no legacy Receivables/supporting UI paths remain, App no longer owns payment-promise writes, and Finance UI contains zero Orders imports.
+- Task 6 evidence: RED `6fba4beac9686a0ecf0053b04a76a56aaeb92581` → Validate #1365 / run `35410717018` failed for the intended missing `paymentApi.js` and `useOrderPaymentWorkflow.js` modules. GREEN candidate `bab27fc3d33ffede2be2ab96a91ec94441b7c6e9` extracted the standalone order-payment owner/modal and removed App payment refs/handlers; Validate #1366 found only four stale UI characterizations still reading the modal/SystemSelect from `App.jsx`. Test-alignment fix `c2ece77fe403f72f88c42af9fb060fe1352d5fe3` preserved those assertions against `OrderPaymentDialog.jsx`; Validate #1367 / run `35411096051` SUCCESS with **1,762 tests / 1,761 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: App no longer owns standalone order payment attempt/selection refs or submit logic; `paymentApi.registerOrderPayment` is live, `registerTableTabPayment` is defined but not yet wired, and the runtime payment-receipt bridge remains intentionally active until Task 7.
 
 ## Global Constraints
 
@@ -947,7 +948,7 @@ Expected Validate: SUCCESS.
 
 ---
 
-### Task 6: Extract the standalone order-payment workflow and modal from App
+### Task 6: Extract the standalone order-payment workflow and modal from App — COMPLETE / GREEN
 
 **Files:**
 - Create: `src/app/workflows/payments/paymentApi.js`
@@ -970,7 +971,7 @@ Expected Validate: SUCCESS.
 - `OrderPaymentDialog` owns current standalone payment modal markup.
 - Consumers call `orderPayment.open(orderId, source)`.
 
-- [ ] **Step 1: Write behavioral RED by extracting current operational-payment cases into hook tests**
+- [x] **Step 1: Write behavioral RED by extracting current operational-payment cases into hook tests**
 
 The hook harness must prove:
 - double submit → one API call;
@@ -1003,7 +1004,7 @@ test('double submit sends one request and applies official response once', async
 })
 ```
 
-- [ ] **Step 2: Run RED + authoritative remote RED**
+- [x] **Step 2: Run RED + authoritative remote RED**
 
 ```bash
 node --test src/app/workflows/payments/paymentApi.test.js src/app/workflows/payments/order/useOrderPaymentWorkflow.test.js
@@ -1013,7 +1014,7 @@ Expected missing modules.
 
 Commit/push RED and record run.
 
-- [ ] **Step 3: Implement paymentApi**
+- [x] **Step 3: Implement paymentApi**
 
 ```js
 import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
@@ -1032,7 +1033,7 @@ export const createPaymentApi = ({ request = apiRequest, json = withJson } = {})
 export const paymentApi = createPaymentApi()
 ```
 
-- [ ] **Step 4: Implement owner-based order workflow**
+- [x] **Step 4: Implement owner-based order workflow**
 
 Use owner objects rather than component-global booleans:
 
@@ -1072,7 +1073,7 @@ try {
 
 Use `canReceiveStandaloneOrder` only for sources `orders`/`history`; A Receber passes no operational source.
 
-- [ ] **Step 5: Move modal markup to OrderPaymentDialog**
+- [x] **Step 5: Move modal markup to OrderPaymentDialog**
 
 Preserve exact existing text:
 - title `Registrar pagamento`;
@@ -1081,7 +1082,7 @@ Preserve exact existing text:
 - inactive method warning;
 - Cancelar / Confirmar pagamento.
 
-- [ ] **Step 6: Wire App + ReceivablesSurface to the workflow**
+- [x] **Step 6: Wire App + ReceivablesSurface to the workflow**
 
 App may instantiate the workflow hook, but must not contain the refs/submit logic. Pass:
 - `orderPayment.open` to Orders/History;
@@ -1098,7 +1099,7 @@ Delete from App:
 - `closePaymentModal`;
 - `handleRegisterPayment`.
 
-- [ ] **Step 7: Run operational payment regressions**
+- [x] **Step 7: Run operational payment regressions**
 
 ```bash
 node --test   src/app/workflows/payments/paymentApi.test.js   src/app/workflows/payments/order/useOrderPaymentWorkflow.test.js   src/operationalPayment.test.js   src/businessPaymentOptions.test.js
@@ -1107,7 +1108,7 @@ npm run test:architecture
 
 Expected: PASS, including all old race cases.
 
-- [ ] **Step 8: Commit GREEN + Validate**
+- [x] **Step 8: Commit GREEN + Validate**
 
 ```bash
 git add -A src/app/workflows/payments src/app/surfaces/finance src/App.jsx src/operationalPayment.test.js
