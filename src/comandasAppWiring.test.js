@@ -339,7 +339,7 @@ test('unresolved accepted payment survives leaving Comandas after obsolete visua
   assert.doesNotMatch(nodeText(r.root), /recebido via Pix/)
 })
 
-test('periodic applied settlement resolves an earlier failed payment reconciliation', async (t) => {
+test('periodic refresh stays payment-agnostic and explicit retry settles an earlier failed reconciliation', async (t) => {
   const { h, r, state, pay } = await paymentWorkspace(t)
   await pay()
   await act(async () => h.fireInterval(5000))
@@ -349,6 +349,8 @@ test('periodic applied settlement resolves an earlier failed payment reconciliat
   state.bootstrapError = null
   state.bootstrapData = { ...paidResult(), tableTabs: [paidResult().tableTab] }
   await act(async () => h.fireInterval(5000))
+  assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'generic polling cannot settle payment after the runtime bridge is removed')
+  await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
   assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
   const { Comandas } = await h.load('/src/domains/table-service/index.js')
   assert.equal(r.root.findByType(Comandas).props.selection, null)
