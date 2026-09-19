@@ -15,10 +15,12 @@ const filesUnder = (directory) => readdirSync(directory, { withFileTypes: true }
 test('C8 Task 1 public entry is Node-safe and exposes only the current external contracts', async () => {
   const catalog = await import('./index.js')
   assert.deepEqual(Object.keys(catalog).sort(), [
-    'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm', 'useCatalogCommands',
+    'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm', 'ProductEditorDialog', 'useCatalogCommands', 'useProductEditor',
   ].sort())
   assert.equal(typeof catalog.Products, 'function')
   assert.equal(typeof catalog.ProductForm, 'function')
+  assert.equal(typeof catalog.ProductEditorDialog, 'function')
+  assert.equal(typeof catalog.useProductEditor, 'function')
   assert.strictEqual(catalog.PRODUCT_CATEGORIES, shared.PRODUCT_CATEGORIES)
   assert.strictEqual(catalog.formatProductPresentation, shared.formatProductPresentation)
   assert.equal(catalog.categoryForUi('Categoria antiga'), 'Outros')
@@ -59,4 +61,23 @@ test('C8 Task 1 inventories and rejects remaining production shared-product bypa
     .map((path) => relative(root, path).replaceAll('\\', '/'))
     .filter((path) => !path.startsWith('src/domains/catalog/') && /from\s+['"][^'"]*shared\/productCatalog\.js['"]/.test(read(path)))
   assert.deepEqual(bypasses, [], `Production consumers to migrate: ${bypasses.join(', ')}`)
+})
+
+
+test('C8 Task 4 moves product editor state and payload ownership out of App', () => {
+  const app = read('src/App.jsx')
+  assert.match(app, /ProductEditorDialog/)
+  assert.match(app, /useProductEditor/)
+  for (const token of [
+    'editingProductId',
+    'showProductForm',
+    'newProduct',
+    'emptyProduct',
+    'productPayload',
+    'handleAddProduct',
+    'handleEditProduct',
+    'handleCancelProductEdit',
+  ]) {
+    assert.doesNotMatch(app, new RegExp(`\\b${token}\\b`), `App still owns ${token}`)
+  }
 })
