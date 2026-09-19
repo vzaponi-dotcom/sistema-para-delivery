@@ -11,7 +11,7 @@ const receivables = readFileSync(new URL('./domains/finance/ui/Receivables.jsx',
 const repositories = readFileSync(new URL('../worker/repositories.js', import.meta.url), 'utf8')
 
 test('approved catalog and local-order round stays wired across app surfaces', () => {
-  assert.match(app, /ProductForm/)
+  assert.match(app, /ProductEditorDialog/)
   assert.match(appShell, /DashboardPeriodProvider/)
   assert.match(newOrder, /customerIdentity/)
   assert.match(newOrder, /tableId: selectedTableId/)

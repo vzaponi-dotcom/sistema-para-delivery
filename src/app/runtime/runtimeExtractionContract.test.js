@@ -31,7 +31,6 @@ test('App routes successful-login cleanup to sync state without broad applicatio
 
 test('App retains responsibilities intentionally deferred beyond C1', () => {
   const deferred = [
-    'handleAddProduct',
     'handleGlobalSecondCopy',
   ]
 
