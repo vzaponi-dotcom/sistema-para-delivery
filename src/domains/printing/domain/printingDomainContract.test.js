@@ -79,6 +79,11 @@ test('printing domain source stays free of React, QZ, browser globals and fetch'
     './printRecovery.js',
     './secondCopy.js',
     './stationPolicy.js',
+    './rendering/cp860.js',
+    './rendering/mtp5Profile.js',
+    './rendering/escpos58mm.js',
+    './rendering/manualPrintDocument.js',
+    './rendering/pdfOrderRenderer.js',
   ]) {
     const source = await readFile(new URL(relative, import.meta.url), 'utf8')
     assert.doesNotMatch(source, /from ['"]react(?:\/[^'"]*)?['"]|from ['"]qz-tray['"]/)
