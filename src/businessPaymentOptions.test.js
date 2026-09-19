@@ -22,7 +22,7 @@ const effective = (methods = options, defaultMethod = 'pix') => ({
 })
 
 test('effective payment projection produces ordered value, label and stable code for active choices', async () => {
-  const { paymentOptionsFromEffective, paymentDefaultFromEffective } = await import('./utils/paymentMethodOptions.js')
+  const { paymentOptionsFromEffective, paymentDefaultFromEffective } = await import('./domains/finance/index.js')
   const config = effective([
     { value: 'Dinheiro', label: 'Dinheiro', code: 'cash' },
     { value: 'Pix', label: 'Pix', code: 'pix' },

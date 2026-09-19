@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createClient, createMovement, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, registerPayment, registerTableTabPayment, updateClient, updateProduct } from './client.js'
+import { createClient, createProduct, deleteClient, deleteProduct, getBootstrap, getSession, login, logout, updateClient, updateProduct } from './client.js'
 import { ordersApi } from '../domains/orders/index.js'
 
 const withFetch = async (implementation, callback) => {
@@ -112,8 +112,6 @@ test('order helper sends the cart unchanged with one stable idempotency key', as
       paymentMethod: 'Pix',
     }, 'checkout-key')
     await ordersApi.updateOrderStatus('o1', 'Finalizado')
-    await registerPayment('o1', 'Pix')
-    await createMovement({ type: 'saida', category: 'Insumos', description: 'Arroz', value: 20 })
   })
 
   const [orderPath, orderOptions] = calls[0]
@@ -124,22 +122,6 @@ test('order helper sends the cart unchanged with one stable idempotency key', as
   assert.equal(JSON.parse(orderOptions.body).paymentMethod, 'Pix')
   assert.deepEqual(calls.slice(1).map(([path, options]) => [path, options.method]), [
     ['/api/orders/o1/status', 'PATCH'],
-    ['/api/orders/o1/payment', 'POST'],
-    ['/api/movements', 'POST'],
   ])
 })
 
-test('table tab payment helper encodes the id and posts the payment method', async () => {
-  const calls = []
-  await withFetch(async (...args) => {
-    calls.push(args)
-    return new Response('{}', { status: 201, headers: { 'content-type': 'application/json' } })
-  }, async () => {
-    await registerTableTabPayment('tab 1', 'Pix')
-  })
-
-  const [path, options] = calls.at(-1)
-  assert.equal(path, '/api/table-tabs/tab%201/payment')
-  assert.equal(options.method, 'POST')
-  assert.deepEqual(JSON.parse(options.body), { method: 'Pix' })
-})

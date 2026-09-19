@@ -19,7 +19,7 @@ export {
   isOrderCancelled,
   isOrderFinished,
 } from './domain/orderLifecycle.js'
-export { canReceiveStandaloneOrder, isOrderPaid } from './domain/orderPaymentEligibility.js'
+export { canReceiveStandaloneOrder, getPendingAmount, isOrderPaid } from './domain/orderPaymentEligibility.js'
 export { calculateOperationalMetrics, filterOrdersByPeriod, getDashboardDateRange } from './domain/orderHistoryAnalysis.js'
 export {
   formatCancellationDate,

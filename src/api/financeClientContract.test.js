@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { access } from 'node:fs/promises'
-import { createMovement, deleteMovement, saveFinanceSettings, updateMovement } from './client.js'
+import { access, readFile } from 'node:fs/promises'
+import { financeApi } from '../domains/finance/infrastructure/financeApi.js'
 
 const withFetch = async (callback) => {
   const calls = []
@@ -16,10 +16,10 @@ const withFetch = async (callback) => {
 test('finance client exposes create, update, delete and settings routes', async () => {
   await withFetch(async (calls) => {
     const movement = { type: 'saida', category: 'packaging', description: 'Caixas', value: 25, movementDate: '2026-09-02', paymentMethod: 'Pix' }
-    await createMovement(movement)
-    await updateMovement('m 1', movement)
-    await deleteMovement('m 1')
-    await saveFinanceSettings({ openingBalance: -10, openingDate: '2026-09-01' })
+    await financeApi.createMovement(movement)
+    await financeApi.updateMovement('m 1', movement)
+    await financeApi.deleteMovement('m 1')
+    await financeApi.saveFinanceSettings({ openingBalance: -10, openingDate: '2026-09-01' })
 
     assert.deepEqual(calls.map(([path, options]) => [path, options.method]), [
       ['/api/movements', 'POST'],
@@ -33,7 +33,7 @@ test('finance client exposes create, update, delete and settings routes', async 
 })
 
 test('legacy C6 finance API exports and utility owners are absent', async () => {
-  const source = await (await import('node:fs/promises')).readFile(new URL('./client.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('./client.js', import.meta.url), 'utf8')
   for (const name of [
     'registerPayment',
     'registerTableTabPayment',

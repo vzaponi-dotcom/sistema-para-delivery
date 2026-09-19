@@ -6,7 +6,7 @@ import {
   PAYMENT_METHOD_OPTIONS,
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
-} from '../../../../utils/paymentMethodOptions.js'
+} from '../../../finance/index.js'
 
 const ADJUSTMENT_OPTIONS = [
   { value: 'none', label: 'Nenhum' },

@@ -1,4 +1,11 @@
-import { FinanceWorkspace, calculateReceivedToday } from './domains/finance/index.js'
+import {
+  FinanceWorkspace,
+  calculateReceivedToday,
+  financeCategoryOptionsFromEffective,
+  financeCategoryRevisionFromEffective,
+  paymentDefaultFromEffective,
+  paymentOptionsFromEffective,
+} from './domains/finance/index.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './central-data.css'
@@ -19,9 +26,11 @@ import {
   cancellationOptionsFromEffective,
   cancellationRevisionFromEffective,
   formatCancellationDate,
+  getPendingAmount,
   getOrderRefundState,
   isOrderActive,
   isOrderCancelled,
+  isOrderPaid,
   NewOrderRoute,
   OrderHistory,
   Orders,
@@ -39,11 +48,6 @@ import {
   useComandaSelection,
   useTableServiceCommands,
 } from './domains/table-service/index.js'
-import {
-  paymentDefaultFromEffective,
-  paymentOptionsFromEffective,
-} from './utils/paymentMethodOptions.js'
-import { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } from './utils/financeCategoryOptions.js'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Products from './pages/Products'
@@ -73,7 +77,6 @@ import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSeco
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { removeById } from './utils/dataSync.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import { getPendingAmount, isOrderPaid } from './utils/paymentWorkflow'
 import {
   createClient as createClientApi,
   createProduct as createProductApi,

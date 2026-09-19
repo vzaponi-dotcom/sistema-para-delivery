@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { refundOrder } from './client.js'
 import { ordersApi } from '../domains/orders/index.js'
 
 const withFetchStub = async (run) => {
@@ -31,12 +30,3 @@ test('cancelOrder posts semantic cancellation payload to encoded order endpoint'
   })
 })
 
-test('refundOrder posts refund method only to semantic refund endpoint', async () => {
-  await withFetchStub(async (calls) => {
-    await refundOrder('pedido/2', { refundMethod: 'Pix' })
-    assert.equal(calls.length, 1)
-    assert.equal(calls[0].path, '/api/orders/pedido%2F2/refund')
-    assert.equal(calls[0].options.method, 'POST')
-    assert.deepEqual(JSON.parse(calls[0].options.body), { refundMethod: 'Pix' })
-  })
-})

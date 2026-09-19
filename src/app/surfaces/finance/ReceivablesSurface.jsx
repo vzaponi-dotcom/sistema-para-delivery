@@ -3,12 +3,13 @@ import { Receivables } from '../../../domains/finance/index.js'
 import {
   OrderDetail,
   formatOrderDate,
+  getPendingAmount,
   getOrderItemsSearchText,
   getOrderItemsSummary,
   isOrderCancelled,
+  isOrderPaid,
   useOrderPaymentPromise,
 } from '../../../domains/orders/index.js'
-import { getPendingAmount, isOrderPaid } from '../../../utils/paymentWorkflow.js'
 
 export default function ReceivablesSurface({
   orders,

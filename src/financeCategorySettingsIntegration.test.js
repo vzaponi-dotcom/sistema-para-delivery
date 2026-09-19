@@ -13,7 +13,7 @@ const categories = [
 const movement = { id: 'm1', source: 'manual', type: 'saida', category: 'legacy-events', categoryLabel: 'Eventos antigos', description: 'Feira', value: 25, movementDate: '2026-09-13', paymentMethod: 'Pix' }
 
 test('effective projection returns only server-provided active categories by type and accepts revision zero', async () => {
-  const { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } = await import('./utils/financeCategoryOptions.js')
+  const { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } = await import('./domains/finance/index.js')
   assert.deepEqual(financeCategoryOptionsFromEffective(effective(categories), 'entrada'), [{ value: 'projects', id: 'projects', type: 'entrada', label: 'Projetos' }])
   assert.deepEqual(financeCategoryOptionsFromEffective(effective(categories), 'saida'), [{ value: 'marketing', id: 'marketing', type: 'saida', label: 'Marketing' }])
   assert.deepEqual(financeCategoryOptionsFromEffective(null, 'saida'), [])

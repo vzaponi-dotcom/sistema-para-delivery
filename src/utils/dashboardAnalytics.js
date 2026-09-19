@@ -3,8 +3,8 @@ import {
   getDashboardDateRange,
   getOrderItemDisplayName,
   getOrderItems,
+  isOrderPaid,
 } from '../domains/orders/index.js'
-import { isOrderPaid } from './paymentWorkflow.js'
 const safeMoney = (value) => {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? number : 0
