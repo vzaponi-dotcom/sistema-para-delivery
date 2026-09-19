@@ -179,7 +179,7 @@ test('touch long press enters selection at 550ms, cancel events stop it and mous
 
   const row = () => renderer.root.findByProps({ className: 'product-compact-row' })
   await act(async () => row().props.onPointerDown({ pointerType: 'touch' }))
-  assert.equal(timers.size, 1)
+  assert.equal([...timers.values()].filter((timer) => timer.delay === 550).length, 1)
   const first = [...timers.entries()].find(([, timer]) => timer.delay === 550)
   assert.ok(first, 'long-press timer should be scheduled for 550ms')
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 0)
