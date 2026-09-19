@@ -1304,7 +1304,7 @@ Revisão feita contra:
 
 ### 48.1 Placeholder scan
 
-- nenhum TBD/TODO de requisito;
+- nenhum marcador de pendência ou requisito em aberto;
 - nenhum path essencial ficou indefinido;
 - nomes internos podem ser refinados no plano, mas ownership e direção estão fechados.
 
