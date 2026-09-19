@@ -60,5 +60,5 @@ test('ReceivablesSurface composes Finance with Orders detail without a Finance -
   assert.ok(viewOrder)
   await act(async () => viewOrder.props.onClick())
   assert.match(nodeText(screen.root), /Resumo/)
-  assert.ok(buttonNamed(screen.root, 'Imprimir pedido'))
+  assert.ok(buttonNamed(screen.root, 'Reimprimir'))
 })

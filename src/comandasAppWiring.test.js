@@ -121,7 +121,7 @@ for (const syncOutcome of ['success', 'failure']) test(`accepted payment reconci
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
   assert.equal(buttonNamed(r.root, 'Tentar sincronizar'), undefined)
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
   assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
 })
@@ -149,7 +149,7 @@ for (const readState of ['started', 'failed']) test(`partial free-table reconcil
   assert.doesNotMatch(nodeText(r.root), /recebido via Pix/)
   assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'free tables alone cannot discharge financial synchronization')
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, unpaid)
   if (readState === 'started') await act(async () => newerOrders.reject(new Error('Leitura mais recente falhou')))
   await navigate('Comandas')
@@ -186,7 +186,7 @@ for (const stale of ['orders', 'movements', 'tableTabs']) test(`a fully applied 
   await act(async () => buttonNamed(r.root, 'Tentar sincronizar').props.onClick())
   assert.equal(r.root.findByType(Comandas).props.selection, null)
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
   assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
 })
@@ -225,7 +225,7 @@ test('a newer cancellation rejects three financial collections without free tabl
   assert.ok(buttonNamed(r.root, 'Tentar sincronizar'), 'tables applied alone must not complete accepted payment')
   assert.doesNotMatch(nodeText(r.root), /recebido via/)
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.equal(r.root.findByType(Receivables).props.orders.find((order) => order.id === 'paid-order').paymentStatus, 'Pendente')
   assert.equal(r.root.findByType(Receivables).props.orders.find((order) => order.id === 'order-77').status, 'Cancelado')
   assert.deepEqual(r.root.findByType(Receivables).props.movements, [refund])
@@ -283,7 +283,7 @@ for (const readState of ['started', 'failed']) test(`payment applies official ef
   assert.equal(r.root.findByType(Comandas).props.selection, null)
   if (readState === 'started') await act(async () => read.resolve(jsonResponse({ tables: workspaceTables, orders: [], tableTabs: [], movements: [] })))
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
   assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
 })
@@ -414,7 +414,7 @@ for (const mobile of [false, true]) test(`official full payment releases table a
   assert.equal(r.root.findByType(Comandas).props.selection, null)
   assert.ok(!r.root.findByProps({ className: 'comandas-page' }).props.className.includes('has-mobile-detail'))
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
   assert.deepEqual(r.root.findByType(Receivables).props.movements, paidResult().movements)
   await navigate('Comandas')
@@ -483,7 +483,7 @@ for (const outcome of ['success', 'error']) test(`old-session payment ${outcome}
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Ocupada/)
   assert.doesNotMatch(nodeText(r.root), /Erro antigo|Pagamento de/)
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, [])
   assert.deepEqual(r.root.findByType(Receivables).props.movements, [])
   await navigate('Comandas')
@@ -504,7 +504,7 @@ test('payment settling after selection of another table keeps that detail and ap
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 43.*Terraço/)
   assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Mesas ativas' })), /Mesa 7Livre/)
   await navigate('A receber')
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   assert.deepEqual(r.root.findByType(Receivables).props.orders, paidResult().orders)
 })
 
@@ -873,7 +873,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   const harness = await workspaceHarness(t)
   const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
   const { Comandas } = await harness.load('/src/domains/table-service/index.js')
-  const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await harness.load('/src/domains/finance/ui/Receivables.jsx')
   let sessionExpired = false
   let relogged = false
   const orderResolvers = []
@@ -975,7 +975,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
 test('a deferred stale checkout rejection cannot clear or report over a newer relogged checkout', async (t) => {
   const harness = await workspaceHarness(t)
   const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
-  const { default: Receivables } = await harness.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await harness.load('/src/domains/finance/ui/Receivables.jsx')
   let sessionExpired = false
   let relogged = false
   const orderResolvers = []

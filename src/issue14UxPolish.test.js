@@ -4,7 +4,7 @@ import fs from 'node:fs'
 
 const tables = fs.readFileSync(new URL('./domains/table-service/ui/Tables.jsx', import.meta.url), 'utf8')
 const tableStyles = fs.readFileSync(new URL('./table-management.css', import.meta.url), 'utf8')
-const detail = fs.readFileSync(new URL('./components/ReceivableDetail.jsx', import.meta.url), 'utf8')
+const detail = fs.readFileSync(new URL('./domains/finance/ui/ReceivableDetail.jsx', import.meta.url), 'utf8')
 
 test('tables routes occupied-table work to the protected Comandas flow', () => {
   const occupiedActions = tables.match(/<div className="table-occupied-actions">([\s\S]*?)<\/div>/)?.[1] ?? ''

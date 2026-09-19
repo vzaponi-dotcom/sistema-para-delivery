@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 test('receivables exposes an accessible forecast action backed by seven-day domain forecast', async () => {
   const page = await read('./Receivables.jsx')
   assert.match(page, /aria-label="Previsão de recebimentos"/)
-  assert.match(page, /buildReceivablesForecast\\(orders, today, 7, orderRules\\)/)
+  assert.match(page, /buildReceivablesForecast\(orders, today, 7, orderRules\)/)
   assert.match(page, /calculateReceivedToday\(movements, today\)/)
 })
 

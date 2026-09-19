@@ -161,7 +161,7 @@ test('5. payments.receive abre recebimento no HistÃ³rico sem finance.receivabl
 
 test('6. finance.receivables sem payments.receive preserva consulta e bloqueia recebimento', async (t) => {
   const { h, renderer, requests } = await appWorkspace(t, new Set(['finance.receivables']))
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   const page = renderer.root.findByType(Receivables)
   assert.match(nodeText(renderer.root), /A receber/)
   assert.equal(page.props.canReceivePayments, false)
@@ -257,7 +257,7 @@ test('12. finance.movements preserva consulta e bloqueia mutaÃ§Ã£o sem manag
 
 test('13. finance.receivables bloqueia promessa sem finance.promises.manage', async (t) => {
   const { h, renderer, requests } = await appWorkspace(t, new Set(['finance.receivables']))
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   const page = renderer.root.findByType(Receivables)
   assert.equal(page.props.canManagePaymentPromises, false)
   const before = mutations(requests).length
@@ -397,7 +397,8 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
     Promise.all([
       h.load('/src/domains/orders/ui/Orders.jsx'),
       h.load('/src/domains/orders/ui/OrderHistory.jsx'),
-      ...['Clients', 'Products', 'Receivables'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+      ...['Clients', 'Products'].map((name) => h.load(`/src/pages/${name}.jsx`)),
+      h.load('/src/domains/finance/ui/Receivables.jsx'),
       h.load('/src/domains/finance/ui/Finance.jsx'),
       h.load('/src/pages/PrintQueue.jsx'),
     ]),
@@ -424,7 +425,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
     ['Dashboard', '/src/pages/Dashboard.jsx'],
     ['Clients', '/src/pages/Clients.jsx'],
     ['Products', '/src/pages/Products.jsx'],
-    ['Receivables', '/src/pages/Receivables.jsx'],
+    ['Receivables', '/src/domains/finance/ui/Receivables.jsx'],
     ['Finance', '/src/domains/finance/ui/Finance.jsx'],
   ].map(async ([name, path]) => [name, (await h.load(path)).default])))
   modules.Tables = (await h.load('/src/domains/table-service/index.js')).Tables
