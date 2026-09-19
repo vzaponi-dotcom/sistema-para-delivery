@@ -19,7 +19,7 @@ export {
   isOrderCancelled,
   isOrderFinished,
 } from './domain/orderLifecycle.js'
-export { canReceiveStandaloneOrder } from './domain/orderPaymentEligibility.js'
+export { canReceiveStandaloneOrder, getPendingAmount, isOrderPaid } from './domain/orderPaymentEligibility.js'
 export { calculateOperationalMetrics, filterOrdersByPeriod, getDashboardDateRange } from './domain/orderHistoryAnalysis.js'
 export {
   formatCancellationDate,
@@ -64,5 +64,6 @@ export { cancellationReasonsPolicy } from './infrastructure/cancellationReasonsP
 export { createNewOrderDraftController } from './application/newOrderDraft.js'
 export { useNewOrderDraft } from './application/useNewOrderDraft.js'
 export { useOrderCommands } from './application/useOrderCommands.js'
+export { useOrderPaymentPromise } from './application/useOrderPaymentPromise.js'
 export { NewOrderRoute } from './ui/NewOrderRoute.js'
 export { OrderDetail, OrderHistory, Orders } from './ui/orderSurfaces.js'

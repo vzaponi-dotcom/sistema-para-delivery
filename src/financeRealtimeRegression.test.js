@@ -20,11 +20,23 @@ test('operational runtime owns finance settings and merges authoritative finance
   assert.match(runtime, /guard\.canApply\(token, 'movements'\)\) setMovements\(Array\.isArray\(data\?\.movements\) \? data\.movements : \[\]\)/)
 })
 
-test('legacy movement modal state is removed from App in favor of reviewed finance dialogs', async () => {
-  const app = await read('./App.jsx')
-  assert.doesNotMatch(app, /showMovementModal/)
-  assert.doesNotMatch(app, /newMovement/)
-  assert.doesNotMatch(app, /movementReview/)
-  assert.match(app, /MovementDialog/)
-  assert.match(app, /OpeningBalanceDialog/)
+test('App delegates movement and opening-balance ownership to FinanceWorkspace', async () => {
+  const [app, workspace] = await Promise.all([
+    read('./App.jsx'),
+    read('./domains/finance/ui/FinanceWorkspace.jsx'),
+  ])
+  for (const token of [
+    'movementDialogOpen',
+    'editingMovement',
+    'openingBalanceDialogOpen',
+    'handleSaveMovement',
+    'handleDeleteMovement',
+    'handleSaveFinanceSettings',
+    '<MovementDialog',
+    '<OpeningBalanceDialog',
+  ]) assert.equal(app.includes(token), false, token)
+  assert.match(app, /FinanceWorkspace/)
+  assert.match(workspace, /useFinanceCommands/)
+  assert.match(workspace, /MovementDialog/)
+  assert.match(workspace, /OpeningBalanceDialog/)
 })

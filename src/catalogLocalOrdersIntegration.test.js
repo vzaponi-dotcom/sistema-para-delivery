@@ -7,7 +7,7 @@ const appShell = readFileSync(new URL('./app/shell/AppShell.jsx', import.meta.ur
 const newOrder = readFileSync(new URL('./domains/orders/ui/NewOrder.jsx', import.meta.url), 'utf8')
 const newOrderCustomerStep = readFileSync(new URL('./domains/orders/ui/components/NewOrderCustomerStep.jsx', import.meta.url), 'utf8')
 const localTableSelector = readFileSync(new URL('./domains/table-service/ui/LocalTableSelector.jsx', import.meta.url), 'utf8')
-const receivables = readFileSync(new URL('./pages/Receivables.jsx', import.meta.url), 'utf8')
+const receivables = readFileSync(new URL('./domains/finance/ui/Receivables.jsx', import.meta.url), 'utf8')
 const repositories = readFileSync(new URL('../worker/repositories.js', import.meta.url), 'utf8')
 
 test('approved catalog and local-order round stays wired across app surfaces', () => {

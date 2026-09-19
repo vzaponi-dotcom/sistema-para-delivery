@@ -21,8 +21,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C2 | Navigation and App composition | **MERGED — COMPLETE** | `feature/spec-c2-navigation-composition` / PR #46 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c2-navigation-composition-plan.md` |
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
-| C5 | Table Service | **HOMOLOGATED — 22 PASS / 0 FAIL / 1 BLOCKED — AWAITING MERGE AUTHORIZATION** | `feature/spec-c5-table-service` / PR #49 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | NOT STARTED | — | Write after C5 merge |
+| C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **HOMOLOGATED — 23 PASS / 0 FAIL / 1 BLOCKED / MERGE AUTHORIZED / FINAL EXACT-HEAD VALIDATE PENDING** | `feature/spec-c6-finance-workflows` / PR #50 | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -146,7 +146,7 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 
 ---
 
-# C5 — Table Service — IMPLEMENTATION IN PROGRESS
+# C5 — Table Service — MERGED / COMPLETE
 
 ## Current state
 
@@ -154,10 +154,12 @@ C4 established `src/domains/orders/` as the Orders owner and is the approved C5 
 - Branch: `feature/spec-c5-table-service`
 - Design: `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`
-- Implementation: **Tasks 1–10 COMPLETE / GREEN; Task 11 NOT STARTED**
-- PR: #49 — draft
+- Implementation: **Tasks 1–11 COMPLETE / HOMOLOGATED / MERGED**
+- PR: #49 — merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`
+- Final branch Validate: #1341 / run `35400357800` — SUCCESS
+- Post-merge Validate: #1342 / run `35401628448` — SUCCESS
 - Production deploy: **NO**
-- C6: **NOT STARTED**
+- C6: **ACTIVE — Task 1 COMPLETE / GREEN**
 
 ## Execution checkpoint — after Task 2
 
@@ -188,7 +190,7 @@ Task 9 RED commit `1756611e7603991927b45b576637880d06f117a2` was confirmed by Va
 
 Task 10 RED commit `b24def5f6cbe29f2e7b0ae8b9d305980a0c44dde` was confirmed by Validate #1337 with five intended failures: missing `table-service-deep-import`, missing `table-service-orders-import`, missing legacy-owner rejection, missing C5 legacy-API rejection, and extra public exports. GREEN commit `bf871adb3c21de2cd3c6143214d12a5e825c1bda` added all permanent checker rules, `tableServiceExtractionContract.test.js`, and trimmed the public entry to `Comandas`, `LocalTableSelector`, `Tables`, `resolveOpenComanda`, `useComandaSelection` and `useTableServiceCommands`. Validate #1338 / run `35391943036` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped** and architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green. Physical/API/import audits also passed; the runtime table-commit bridge is formally removed in C5.
 
-Task 11 pre-staging gate used executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**, architecture/lint/build, production+staging Worker dry-runs, local D1 and Spec B D1 all green. Manual Deploy staging #182 / run `35393748126` deployed that exact SHA, reported no pending remote staging migrations, completed staging migration application, and passed the real login smoke with HTTP 200. Manual QA then closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 (capability/read-only) is BLOCKED because staging has no real restricted-capability identity; it is not promoted to manual PASS. C5 is homologated and awaits final docs-only validation plus explicit merge authorization. Production remains untouched.
+Task 11 pre-staging gate used executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`. Validate #1339 / run `35392353832` passed with **1,724 tests / 1,723 pass / 0 fail / 1 skipped**, architecture/lint/build, production+staging Worker dry-runs, local D1 and Spec B D1 all green. Manual Deploy staging #182 / run `35393748126` deployed that exact SHA, reported no pending remote staging migrations, completed staging migration application, and passed the real login smoke with HTTP 200. Manual QA then closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Item 19 (capability/read-only) is BLOCKED because staging has no real restricted-capability identity; it is not promoted to manual PASS. QA/ledger Validate #1340 and final branch Validate #1341 passed; PR #49 then merged to `master` at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`, and post-merge Validate #1342 passed. C5 is **MERGED / COMPLETE**. Production remained untouched.
 
 ---
 
@@ -207,18 +209,70 @@ These remain mandatory for C2-C10:
 - compatibility facades/bridges are temporary, tracked and removed by their target slice;
 - C10 cannot close with unexplained temporary facades, prohibited imports, cycles or architecture violations.
 
+# C6 — Finance + Cross-Domain Payment Workflows — ACTIVE
+
+- Base: post-C5 master `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
+- Branch: `feature/spec-c6-finance-workflows`; draft PR #50.
+- Design and detailed plan: **APPROVED**.
+- Task 1 RED: `9476b0b74d7c18305466eb6079314f8b24d8ae00`; Validate #1344 / run `35403401486` failed at Test for the intended missing `domains/finance` modules.
+- Task 1 GREEN: `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf`; Validate #1345 / run `35403573350` — **SUCCESS**, **1,729 tests / 1,728 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Task 1 introduced the Finance public boundary plus payment-method and finance-category pure projections/policy adapters. No legacy facade was removed yet.
+- Task 2 RED: `bc52cdb8b60e8c79a6390b51b5b973fbe0ee8ef4`; Validate #1349 / run `35404405552` failed for the intended missing public Settings editors and legacy owner presence.
+- Task 2 GREEN candidate: `68ba38df6165171686ab91a27550b410df5ba892`; Validate #1350 exposed only stale path-based tests and the direct `.jsx` public-entry loading problem.
+- Task 2 final GREEN: `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5`; Validate #1351 / run `35405016988` — **SUCCESS**, **1,731 tests / 1,730 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- PaymentSettings, FinanceCategorySettings, and paymentSettingsModel now live under `domains/finance/ui/settings`; the app-owned copies and the two app-owned finance policy adapters are absent.
+- Task 3 RED: `8bfc9926e6f9718fb461e41f59ce54a351fd2f8d`; Validate #1353 / run `35405851531` failed for the intended missing `cashFlow.js` and `receivables.js` modules.
+- Task 3 final GREEN: `54dcbd1ff44f2dc715a469bc60c78c458ac42318`; Validate #1354 / run `35406034390` — **SUCCESS**, **1,745 tests / 1,744 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Ruling: receivable projections accept Orders financial-state predicates by injection. This avoids a Finance → Orders dependency and avoids duplicating Orders lifecycle rules inside Finance; if wrong, Task 5 composition would need interface rework, but no current behavior is changed.
+- Task 4 RED: `f5fe1563d871c3cb5135cb06e86be58e80f57877`; Validate #1356 / run `35407256910` failed for the intended missing `financeApi`, `useFinanceCommands`, and `FinanceWorkspace` ownership.
+- Task 4 first GREEN candidate: `9974799a3440ae9bbe59ba0e80d28c9b70b5112e`; Validate #1357 failed only on stale extraction/UI/capability characterizations after the move.
+- Task 4 intermediate fix: `2665e82a97207eb118497b8f3e2cf44cda5ccc39`; Validate #1358 reduced the remaining failures to two App-local capability characterizations.
+- Task 4 final GREEN: `f76b223245f1a2fcaaf981694d052365e5ca9ffb`; Validate #1359 / run `35408051011` — **SUCCESS**, **1,750 tests / 1,749 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Finance UI, MovementDialog, OpeningBalanceDialog, Finance API and finance commands now belong to `domains/finance`; App no longer owns movement/opening-balance state or finance CRUD handlers. Refund coordination remains outside Finance and is still scheduled for Task 8.
+- Task 5 RED: `d26a537cb8d5487a23aa48430e816feadf49cbfb`; Validate #1361 / run `35409142816` failed for the intended missing `ReceivablesSurface`, `useOrderPaymentPromise`, and `ordersApi.updatePaymentPromise` contracts.
+- Task 5 GREEN candidate: `675b66c2746681421b15dfa8bab9383aa7f4d2f6`; Validate #1362 found stale shared-test paths to `src/pages/Receivables.jsx` plus two assertion mismatches after the ownership move.
+- Task 5 final GREEN: `895690be64baa8284b0e5b31dda1969f1f9dadb5`; Validate #1363 / run `35409732928` — **SUCCESS**, **1,755 tests / 1,754 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- A Receber and its finance-exclusive dialogs/details now belong to Finance; payment-promise mutation/command belongs to Orders; `ReceivablesSurface` composes the two. Finance has zero Orders imports and App no longer owns `handleUpdatePaymentPromise`.
+- Task 6 RED: `6fba4beac9686a0ecf0053b04a76a56aaeb92581`; Validate #1365 / run `35410717018` failed for the intended missing `paymentApi.js` and `useOrderPaymentWorkflow.js` modules.
+- Task 6 GREEN candidate: `bab27fc3d33ffede2be2ab96a91ec94441b7c6e9`; the new workflow/API tests were green and Validate #1366 found only four stale modal/SystemSelect source characterizations.
+- Task 6 final GREEN: `c2ece77fe403f72f88c42af9fb060fe1352d5fe3`; Validate #1367 / run `35411096051` — **SUCCESS**, **1,762 tests / 1,761 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Standalone order payment now belongs to `app/workflows/payments/order`; `App.jsx` has no `paymentTarget`, `paymentDialogRef`, `paymentAttemptRef`, `paymentSequenceRef`, `openPaymentModal`, `closePaymentModal` or `handleRegisterPayment`. Order payment API uses the new app workflow adapter. Table-tab payment and the runtime payment-receipt bridge remain untouched for Task 7.
+- Task 7 RED: `de0d4532238d446147c3dffde54680ea24fd764d`; Validate #1369 / run `35412249051` failed for the intended missing `tableTabPaymentReconciliation.js` / `useTableTabPaymentWorkflow.js` modules and because runtime payment `legacyBridges` still existed.
+- Task 7 GREEN candidate: `fd240fc85c871cd67b2e47952fb90dcbaf7a2db3`; it physically removed the runtime bridge and App-owned table-tab payment owners, moved the dialog, and added owner-based two-read reconciliation. Validate #1370 exposed two revision-race test setup mistakes plus stale path/source characterizations.
+- Task 7 test alignment: `3bd62597baabc147d925ba7f0ab42248bb7ea704`; Validate #1371 was externally interrupted twice while `comandasAppWiring.test.js` was running, with no new assertion failure before shutdown.
+- Task 7 final GREEN: `c7e2fcbc32c387eb7e52765014d00241102f19b7`; Validate #1372 / run `35413040640` — **SUCCESS**, **1,773 tests / 1,772 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Runtime audit: `useOperationalDataRuntime.js` has no `legacyBridges`, `capturePaymentOwners` or `settlePaymentOwners`; App has no `tableTabPaymentRef`, `paymentSyncRef`, `tableTabSync`, `publishPaymentSync`, `settleAcceptedPayment`, `reconcileTableTabPayment` or `handleRegisterTableTabPayment`. The new workflow owns accepted obligations, mandatory two-read reconciliation and explicit retry without a second payment POST.
+- Task 8 final GREEN: RED `cdbb857918254f6010619b69553d53af22e6577f`; Validate #1374 / run `35414009138` failed at Test with the intended `ERR_MODULE_NOT_FOUND` for `refundApi.js` and `useRefundWorkflow.js`. GREEN `55e674fac1bcb9f275863916739dcd6b3b5d9271` was followed by stale-characterization alignment `8848bcaff0819048fdcb175d02694b80e8d4e2eb`; final Validate #1376 / run `35414468722` **SUCCESS**, **1,775 tests / 1,775 pass / 0 fail / 1 skipped**, all architecture/lint/build/Worker/D1 gates green.
+- Task 8 ownership audit: `refundApi.js`, `useRefundWorkflow.js`, and `RegisterRefundDialog.jsx` belong to `src/app/workflows/refunds`; `src/components/RegisterRefundDialog.jsx` is absent; Finance emits only `onRequestRefund`; App has no `handleRegisterRefund`, `refundSubmitting`, or legacy refund API call. Official `{ order, movement }` is applied once, double confirm is blocked, and capability/offline guards remain enforced.
+- C6 Tasks 1–8 are **COMPLETE / GREEN** through Task 8 final GREEN `8848bcaff0819048fdcb175d02694b80e8d4e2eb` / Validate #1376 / run `35414468722`.
+- Task 9 is **COMPLETE / GREEN**: RED `841566efc06d9b31f937c0f9140dba85823d2839` / Validate #1378 / run `35415173295` failed for the intended legacy API/utility absence assertions; GREEN `279f409c5f2322d273ea3c36b1ad16136c1c9d12` / Validate #1379 / run `35415603078` **SUCCESS**, **1,760 tests / 1,760 pass / 0 fail / 0 skipped**. The eight C6 `src/api/client.js` exports and five legacy `src/utils` owners were removed, consumers migrated to Finance/Orders public contracts, and no Worker/D1 behavior changed.
+- Task 10 RED: `54712144e65838b1a61e9151be48ff970f44995d`; Validate #1381 / run `35416212191` failed for the intended missing permanent C6 architecture rules.
+- Task 10 GREEN candidate: `2a098d64c63d0e90d05f38e4aa51dc50dbc350f0`; full tests passed, while `test:architecture` correctly found one stale external test deep-importing Finance infrastructure.
+- Task 10 final GREEN: `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9`; Validate #1383 / run `35416528098` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Permanent C6 enforcement now rejects external Finance deep imports, Finance→Orders/Table Service imports, legacy C6 owners/API exports, cross-domain payment/refund workflow ownership under domains, and Finance/payment-workflow printing internals. The Finance public entry was reduced to actual external consumers.
+- Task 11 initial pre-staging gate: executable SHA `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711`; Validate #1386 / run `35417003680` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Task 11 QA fix: RED `71b6a1de2c043b7f089a1566767eea362c2f0687` required a visible opening-balance entry point; GREEN `ebf9439d85115c422b3df8175b3d24429a77aed9` restored only the `Saldo inicial` action. Validate #1389 / run `35442758266` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**.
+- Task 11 initial staging: Deploy staging #183 / run `35417329071` — **SUCCESS** on `caa7b9a7...`.
+- Task 11 corrected staging: Deploy staging #184 / run `35443025995` — **SUCCESS** on exact homologated SHA `ebf9439d85115c422b3df8175b3d24429a77aed9`; no pending remote staging migrations; readiness attempt 1/6; real login smoke HTTP 200; staging URL `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
+- Task 11 manual QA: **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED item is read-only/capability behavior because staging has no suitable restricted identity/session.
+- QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112` — **SUCCESS**.
+- User merge authorization: **GRANTED 2026-09-19**.
+- Final status-only exact-HEAD Validate: **pending**.
+- Production deployment: **NO**.
+- Production deployment: **NO**.
+
 # New-session resume protocol
 
-The active slice is C5 after successful staging homologation. Task 11 manual QA has 22 PASS / 0 FAIL / 1 BLOCKED. QA/ledger commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340 / run `35400039611`; C5 now waits at the explicit merge-authorization gate. GitHub state wins over this file if the branch advances after this documentation commit.
+The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; Task 11 manual QA is complete at 23 PASS / 0 FAIL / 1 BLOCKED. QA/docs closure Validate #1390 is green and merge authorization is granted; await the final status-only exact-HEAD Validate, then merge PR #50.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
-3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c5-table-service-design.md`.
+3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c6-finance-workflows-design.md`; it is explicitly approved.
 4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
-5. Inspect `master` and `feature/spec-c5-table-service` on GitHub.
-6. Treat `a0b4f5dac865ae54ad9bec7086139b280ffda5f4` as the approved C5 base unless GitHub proves the branch was intentionally reconciled later.
-7. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md`; Tasks 1–10 are complete and Task 11 staging/manual homologation is complete.
-8. Read `docs/superpowers/qa/spec-c5-table-service-qa.md`; QA/ledger commit `61bc0461677fd643e7cf07920a81518a6272bbd8` passed Validate #1340. Confirm the current status-only closure HEAD also has a successful exact-HEAD Validate before merge.
-9. Do not begin C6, merge, or deploy production before explicit user approval.
+5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
+6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
+7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; Task 11 is homologated with 0 FAIL. QA/docs closure Validate #1390 is green and merge authorization is granted; await the final status-only exact-HEAD Validate.
+9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

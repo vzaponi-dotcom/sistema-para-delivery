@@ -22,7 +22,7 @@ const effective = (methods = options, defaultMethod = 'pix') => ({
 })
 
 test('effective payment projection produces ordered value, label and stable code for active choices', async () => {
-  const { paymentOptionsFromEffective, paymentDefaultFromEffective } = await import('./utils/paymentMethodOptions.js')
+  const { paymentOptionsFromEffective, paymentDefaultFromEffective } = await import('./domains/finance/index.js')
   const config = effective([
     { value: 'Dinheiro', label: 'Dinheiro', code: 'cash' },
     { value: 'Pix', label: 'Pix', code: 'pix' },
@@ -37,7 +37,7 @@ test('effective payment projection produces ordered value, label and stable code
 
 test('an open comanda payment keeps its choice across default changes and warns if it becomes inactive', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/TableTabPaymentDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
   const detail = { id: 'tab-42', number: 42, table: { name: 'Mesa 7' }, status: 'open', orderCount: 1, totalCents: 2500 }
   const confirmations = []
   const props = { open: true, detail, currency: String, paymentOptions: options, defaultPaymentMethod: 'Pix', onClose() {}, onConfirm: (...args) => confirmations.push(args) }
@@ -60,7 +60,7 @@ test('an open comanda payment keeps its choice across default changes and warns 
 
 test('a newly opened payment uses the latest default instead of a Pix fallback', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/TableTabPaymentDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
   const detail = { id: 'tab-42', number: 42, table: { name: 'Mesa 7' }, status: 'open', orderCount: 1, totalCents: 2500 }
   const screen = await h.render(Dialog, { open: false, detail, currency: String, paymentOptions: options, defaultPaymentMethod: 'Dinheiro', onClose() {}, onConfirm() {} })
   await act(async () => screen.update(React.createElement(Dialog, { open: true, detail, currency: String, paymentOptions: options, defaultPaymentMethod: 'Dinheiro', onClose() {}, onConfirm() {} })))
@@ -69,7 +69,7 @@ test('a newly opened payment uses the latest default instead of a Pix fallback',
 
 test('historical refund keeps the persisted original method even when it is inactive', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/RegisterRefundDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/refunds/RegisterRefundDialog.jsx')
   const order = { id: 'order-1', orderNumber: 1, client: 'Ana', paymentMethod: 'Transferência', paidAmount: 40 }
   const confirmations = []
   const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm: (payload) => confirmations.push(payload) })
@@ -87,7 +87,7 @@ test('historical refund keeps the persisted original method even when it is inac
 
 test('a new cash movement remains empty and requires an explicit active payment choice', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const screen = await h.render(Dialog, {
     open: true, today: '2026-09-13', paymentOptions: [options[1]], defaultPaymentMethod: 'Dinheiro', onClose() {}, onSubmit() {},
   })
@@ -192,7 +192,7 @@ test('App never exposes a Pix default while effective payment configuration is u
 
 test('movement keeps a persisted inactive method but blocks a newly inactive choice through review', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const movement = {
     id: 'movement-1', source: 'manual', type: 'saida', category: 'supplies', description: 'Compra',
     value: 25, movementDate: '2026-09-13', paymentMethod: 'Transferência',

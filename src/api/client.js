@@ -16,11 +16,6 @@ export const createProduct = (product) => apiRequest('/api/products', withJson('
 export const updateProduct = (id, product) => apiRequest(`/api/products/${encodeURIComponent(id)}`, withJson('PATCH', product))
 export const deleteProduct = (id) => apiRequest(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
 
-export const updateOrderPaymentPromise = (id, promisedPaymentDate) => apiRequest(
-  `/api/orders/${encodeURIComponent(id)}/payment-promise`,
-  withJson('PATCH', { promisedPaymentDate }),
-)
-export const refundOrder = (id, payload) => apiRequest(`/api/orders/${encodeURIComponent(id)}/refund`, withJson('POST', payload))
 // Compatibility-only export while App.jsx is migrated away from its old handler.
 // It never issues DELETE and therefore cannot erase an order.
 export const deleteOrder = async () => {
@@ -28,15 +23,9 @@ export const deleteOrder = async () => {
   error.code = 'ORDER_DELETE_REMOVED'
   throw error
 }
-export const registerPayment = (id, method) => apiRequest(`/api/orders/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
-export const registerTableTabPayment = (id, method) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/payment`, withJson('POST', { method }))
 export const getTableTabPrintDocument = (id) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-document`)
 export const createManualTableTabPrintJob = (id, copies) => apiRequest(`/api/table-tabs/${encodeURIComponent(id)}/print-jobs`, withJson('POST', { copies }))
 
-export const createMovement = (movement) => apiRequest('/api/movements', withJson('POST', movement))
-export const updateMovement = (id, movement) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, withJson('PATCH', movement))
-export const deleteMovement = (id) => apiRequest(`/api/movements/${encodeURIComponent(id)}`, { method: 'DELETE' })
-export const saveFinanceSettings = (settings) => apiRequest('/api/finance-settings', withJson('PUT', settings))
 
 export const getPrintSettings = () => apiRequest('/api/printing/settings')
 export const savePrintSettings = (settings) => apiRequest('/api/printing/settings', withJson('PUT', settings))

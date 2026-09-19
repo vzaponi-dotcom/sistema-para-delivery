@@ -14,7 +14,7 @@ test('desktop settings tables do not clip their three-dot action menus', async (
 })
 
 test('non-default payment methods leave the default column empty instead of rendering a dash', async () => {
-  const source = await read('./PaymentSettings.jsx')
+  const source = await read('../../../domains/finance/ui/settings/PaymentSettings.jsx')
   assert.doesNotMatch(source, /payment-default-dash/)
   assert.doesNotMatch(source, />—<\/span>/)
 })

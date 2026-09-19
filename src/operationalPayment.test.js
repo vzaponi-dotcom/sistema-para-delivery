@@ -282,7 +282,7 @@ test('resultado incerto faz leitura oficial, não repete POST e não marca Pago 
 test('A receber continua abrindo o mesmo diálogo central sem passar pela elegibilidade operacional', async (t) => {
   const order = standaloneOrder('901')
   const { h, renderer, navigate } = await operationalWorkspace(t, { orders: [order] })
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
 
   await navigate('A receber')
   await act(async () => renderer.root.findByType(Receivables).props.onRegisterPayment(order.id))

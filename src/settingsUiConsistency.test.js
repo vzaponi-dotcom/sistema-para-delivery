@@ -67,9 +67,9 @@ test('all completed settings editors expose the same visual back affordance', as
   const h = await workspaceHarness(t)
   const modules = await Promise.all([
     h.load('/src/app/surfaces/settings/OperationSettings.jsx'),
-    h.load('/src/app/surfaces/settings/PaymentSettings.jsx'),
+    h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx'),
     h.load('/src/app/surfaces/settings/CancellationSettings.jsx'),
-    h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx'),
+    h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx'),
   ])
   const cases = [
     ['operation', modules[0].default, operationState()],
@@ -129,9 +129,9 @@ test('activation controls share one switch contract while preserving each busine
   const h = await workspaceHarness(t)
   const [{ default: OperationSettings }, { default: PaymentSettings }, { default: CancellationSettings }, { default: FinanceCategorySettings }] = await Promise.all([
     h.load('/src/app/surfaces/settings/OperationSettings.jsx'),
-    h.load('/src/app/surfaces/settings/PaymentSettings.jsx'),
+    h.load('/src/domains/finance/ui/settings/PaymentSettings.jsx'),
     h.load('/src/app/surfaces/settings/CancellationSettings.jsx'),
-    h.load('/src/app/surfaces/settings/FinanceCategorySettings.jsx'),
+    h.load('/src/domains/finance/ui/settings/FinanceCategorySettings.jsx'),
   ])
 
   const operation = await h.render(OperationSettings, {

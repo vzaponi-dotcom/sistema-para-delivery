@@ -18,3 +18,18 @@ test('orders api preserves lifecycle routes and idempotency', async () => {
   assert.equal(JSON.parse(calls[2][1].body).status, 'Finalizado')
   assert.equal(calls[3][0], '/api/orders/order%20%2F%201/cancel')
 })
+
+test('ordersApi owns payment-promise writes', async () => {
+  const calls = []
+  const api = createOrdersApi({
+    request: async (...args) => { calls.push(args); return { order: { id: 'o1' } } },
+    json: (method, body) => ({ method, body: JSON.stringify(body) }),
+    randomUUID: () => 'unused',
+  })
+
+  await api.updatePaymentPromise('o 1', '2026-09-20')
+
+  assert.equal(calls[0][0], '/api/orders/o%201/payment-promise')
+  assert.equal(calls[0][1].method, 'PATCH')
+  assert.deepEqual(JSON.parse(calls[0][1].body), { promisedPaymentDate: '2026-09-20' })
+})

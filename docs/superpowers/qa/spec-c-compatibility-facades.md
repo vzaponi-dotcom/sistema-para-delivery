@@ -5,7 +5,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | Old path/bridge | New owner/path | Remaining consumers | Removal slice |
 |---|---|---|---|
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
-| operational data runtime payment-receipt bridge | App-owned payment reconciliation | C1 legacy payment workflow | C6 |
+| operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
 | `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
 
@@ -15,7 +15,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 6 session extraction (`useSessionRuntime`) introduced **no new compatibility facade or cross-slice bridge**.
 - Task 7 runtime-boundary cleanup and `runtimeExtractionContract.test.js` introduced **no new compatibility facade or cross-slice bridge**.
 - The generic/auth reexports in `src/api/client.js` remain temporary while later Spec C slices migrate consumers.
-- The payment-receipt bridge still targets removal in C6.
+- The payment-receipt bridge is **REMOVED IN C6**; permanent architecture checks reject its legacy ownership/callback shape.
 - The table-commit bridge still targets removal in C5.
 - The `updateCollection` escape hatch still targets reduction through C4-C8 and final enforcement no later than C10.
 - Homologated C1 HEAD `b6e8de4bf3c64652dff7352e4ff744017cff10e5` passed Validate application #1201 / run `35104869996`.
@@ -42,9 +42,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Generic/auth `src/api/client.js` reexports remain scheduled for C10 at latest.
 - `updateCollection` remains for later Customers/Catalog migration, with final enforcement no later than C10.
 
-## C5 execution status — 2026-09-18
+## C5 final status — 2026-09-18
 
-- Branch: `feature/spec-c5-table-service`; draft PR #49.
+- Branch: `feature/spec-c5-table-service`; PR #49 merged to `master` at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
 - Base: C4 merge/master `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`.
 - Written design and detailed implementation plan are **APPROVED**.
 - Task 1 is **COMPLETE / GREEN** at `e8f490808900d56c2c23d6683ed5365da4921b80`; it introduced no temporary compatibility facade.
@@ -76,7 +76,59 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - `updateCollection` remains tracked for later Customers/Catalog cleanup and final C10 enforcement.
 - C5 staging homologation completed at executable SHA `f0db4d8bc8c17196cd7070e4766363f9d66a8f7b`: Validate #1339 and Deploy staging #182 are green; manual QA is **22 PASS / 0 FAIL / 1 BLOCKED**.
 - The table-commit bridge remains **REMOVED / architecture-enforced**. The payment-receipt bridge remains intentionally active for C6; generic/auth reexports remain tracked for C10; `updateCollection` remains for later Customers/Catalog cleanup and C10 enforcement.
-- C5 must not opportunistically move table-tab payment APIs (C6) or table-tab printing APIs (C9).
+- C5 final branch HEAD `5c86585e10ad04e36fcb507cbfee7bbc1e84c767` passed Validate #1341 / run `35400357800`; post-merge `master` `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` passed Validate #1342 / run `35401628448`.
+- C5 is **MERGED / COMPLETE**. It did not move table-tab payment APIs (C6) or table-tab printing APIs (C9).
+
+## C6 planning status — 2026-09-18
+
+- Branch: `feature/spec-c6-finance-workflows`.
+- Base: post-C5 `master` `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
+- Written design `docs/superpowers/specs/2026-09-18-frontend-modularization-c6-finance-workflows-design.md` is **APPROVED**.
+- The operational data runtime payment-receipt bridge is still physically present at C6 start and is the explicit compatibility debt C6 must remove.
+- No replacement payment bridge is approved. Payment reconciliation moves to app-owned workflows while the operational runtime remains generic.
+- Generic/auth reexports remain scheduled for C10; `updateCollection` remains for C7/C8 cleanup and final C10 enforcement.
+- Detailed C6 plan is **APPROVED** and implementation is active in draft PR #50.
+- Task 1 is **COMPLETE / GREEN** at `2fa0ce1e27e4992d4eb904cce6a85cbb89ea0eaf`; Validate #1345 / run `35403573350` passed with **1,729 tests / 1,728 pass / 0 fail / 1 skipped**.
+- Task 1 added the new Finance public boundary and Finance-owned payment/finance-category policy adapters without removing any compatibility facade. The payment-receipt bridge remains intentionally active until Task 7.
+- Task 2 is **COMPLETE / GREEN** at `1f38c21c56af2d2dda7ed292365c9685b5ce6ad5`; Validate #1351 / run `35405016988` passed with **1,731 tests / 1,730 pass / 0 fail / 1 skipped**.
+- Task 2 moved Payment Settings and Finance Category Settings ownership plus their policy adapters behind the Finance public entry. The former app-owned UI/model/policy paths are removed with no compatibility reexport.
+- Task 2 created no surviving temporary facade. The operational payment-receipt bridge remains intentionally active until Task 7.
+- Task 3 is **COMPLETE / GREEN** at `54dcbd1ff44f2dc715a469bc60c78c458ac42318`; Validate #1354 / run `35406034390` passed with **1,745 tests / 1,744 pass / 0 fail / 1 skipped**.
+- Task 3 added no compatibility facade. Finance receivable projections take Orders financial-state rules by injection, preserving the no-cycle boundary; legacy `src/utils/finance.js`, `src/utils/receivables.js`, and `src/utils/paymentWorkflow.js` remain intentionally present until Task 9 as planned.
+- The operational payment-receipt bridge remains active until Task 7.
+- C6 Task 4 is **COMPLETE / GREEN** at `f76b223245f1a2fcaaf981694d052365e5ca9ffb`; Validate #1359 / run `35408051011` passed with **1,750 tests / 1,749 pass / 0 fail / 1 skipped**.
+- Finance UI, movement/opening-balance dialogs, Finance API and Finance commands moved to `domains/finance` with no compatibility reexport. Legacy C6 finance API exports remain intentionally present in `src/api/client.js` until Task 9, while App no longer imports or owns those finance CRUD operations.
+- Refund remains a cross-domain workflow debt for Task 8; Finance only emits `onRequestRefund` intent and has no Orders import.
+- C6 Task 5 is **COMPLETE / GREEN** at `895690be64baa8284b0e5b31dda1969f1f9dadb5`; Validate #1363 / run `35409732928` passed with **1,755 tests / 1,754 pass / 0 fail / 1 skipped**.
+- `src/pages/Receivables.jsx` and its finance-exclusive supporting component owners are removed with no compatibility reexport. `ReceivablesSurface` is the app-owned composition boundary, while Finance receives Orders presentation/state rules by injection and contains zero Orders imports.
+- Payment-promise coordination moved out of App to Orders. The legacy `updateOrderPaymentPromise` export in `src/api/client.js` remains intentionally present only until Task 9 removes all C6 legacy API exports.
+- Task 5 created no runtime bridge; the operational payment-receipt bridge remains intentionally active until Task 7.
+- C6 Task 6 is **COMPLETE / GREEN** at `c2ece77fe403f72f88c42af9fb060fe1352d5fe3`; Validate #1367 / run `35411096051` passed with **1,762 tests / 1,761 pass / 0 fail / 1 skipped**.
+- Standalone order-payment coordination and modal ownership moved from App to `src/app/workflows/payments/order/`; `src/app/workflows/payments/paymentApi.js` owns the order payment route and already defines the table-tab route for Task 7. No replacement runtime bridge was introduced.
+- Legacy `registerPayment` and `registerTableTabPayment` exports remain physically present in `src/api/client.js` until the scheduled Task 9 cleanup; App no longer consumes `registerPayment`.
+- C6 Task 7 is **COMPLETE / GREEN** at `c7e2fcbc32c387eb7e52765014d00241102f19b7`; Validate #1372 / run `35413040640` passed with **1,773 tests / 1,772 pass / 0 fail / 1 skipped**.
+- The operational payment-receipt bridge is **REMOVED IN C6 TASK 7**. `useOperationalDataRuntime.js` no longer accepts `legacyBridges` and contains no `capturePaymentOwners` / `settlePaymentOwners` callback path. Accepted table-tab payment obligations and two-read reconciliation now live entirely in `app/workflows/payments/table-tab/`.
+- `TableTabPaymentDialog` moved to the app payment workflow with no legacy-path compatibility reexport. App no longer owns the table-tab payment refs/state/handlers. Legacy `registerTableTabPayment` remains only as scheduled API export debt in `src/api/client.js` until Task 9.
+- C6 Task 8 is **COMPLETE / GREEN** at final code/docs predecessor `8848bcaff0819048fdcb175d02694b80e8d4e2eb`; Validate #1376 / run `35414468722` passed with **1,775 tests / 1,775 pass / 0 fail / 1 skipped**. Refund ownership is now `src/app/workflows/refunds/` (`refundApi`, `useRefundWorkflow`, `RegisterRefundDialog`); Finance emits only `onRequestRefund`, and App composes the workflow. No compatibility facade was introduced. Remaining C6 API/utility debt is reserved for Task 9.
+- C6 Task 9 is **COMPLETE / GREEN** at `279f409c5f2322d273ea3c36b1ad16136c1c9d12`; RED `841566efc06d9b31f937c0f9140dba85823d2839` / Validate #1378 / run `35415173295` failed for the intended absence assertions, and GREEN Validate #1379 / run `35415603078` passed with **1,760 tests / 1,760 pass / 0 fail / 0 skipped**. The eight C6 legacy API exports were removed from `src/api/client.js`; `paymentMethodOptions.js`, `financeCategoryOptions.js`, `finance.js`, `receivables.js`, and `paymentWorkflow.js` plus superseded tests were removed. Final consumers use Finance/Orders public contracts and app payment/refund workflow adapters; no C6 compatibility facade survives. Generic/auth/client/catalog/printing debt scheduled for later slices remains intact.
+- Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
 
+
+- C6 Task 10 is **COMPLETE / GREEN** at `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9`; Validate #1383 / run `35416528098` passed with **1,770 tests / 1,769 pass / 0 fail / 1 skipped**.
+- C6 architecture debt is now permanently enforced: external Finance consumers must use `domains/finance/index.js`; Finance cannot import Orders or Table Service; removed C6 owners/API exports cannot reappear; cross-domain payment/refund workflows cannot move under domains; Finance/payment workflows cannot import printing/QZ internals. The Finance public entry is restricted to actual external consumers.
+- Task 10 introduced no compatibility facade. With the payment-receipt bridge already removed in Task 7 and C6 legacy API/utils removed in Task 9, no temporary C6 compatibility facade remains before staging/manual QA.
+
+
+## C6 homologation closure — 2026-09-19
+
+- C6 staging homologation completed at corrected executable SHA `ebf9439d85115c422b3df8175b3d24429a77aed9`: Validate #1389 / run `35442758266` and Deploy staging #184 / run `35443025995` are **SUCCESS**.
+- Manual QA closed at **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The sole BLOCKED case is restricted/read-only capability behavior because staging has no suitable restricted identity/session; it is not counted as PASS.
+- The operational payment-receipt bridge remains **REMOVED IN C6 / architecture-enforced**. The table-commit bridge remains **REMOVED IN C5**.
+- Generic/auth `src/api/client.js` reexports remain scheduled for **C10**.
+- `updateCollection` remains for Customers/Catalog migration in **C7/C8**, with final enforcement no later than **C10**.
+- No C6 compatibility facade survives. Production deployment remains **NO**.
+
+- QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112`.
+- Merge authorization for C6 was explicitly granted by the user on 2026-09-19. Production remains untouched.

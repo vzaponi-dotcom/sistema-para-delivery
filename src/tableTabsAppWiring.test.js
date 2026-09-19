@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-const api = fs.readFileSync(new URL('./api/client.js', import.meta.url), 'utf8')
+const api = fs.readFileSync(new URL('./app/workflows/payments/paymentApi.js', import.meta.url), 'utf8')
 
 test('frontend exposes the consolidated table tab payment API helper', () => {
-  assert.match(api, /export const registerTableTabPayment = \(id, method\)/)
+  assert.match(api, /registerTableTabPayment: \(id, method\)/)
   assert.match(api, /\/api\/table-tabs\/\$\{encodeURIComponent\(id\)\}\/payment/)
-  assert.match(api, /withJson\('POST', \{ method \}\)/)
+  assert.match(api, /json\('POST', \{ method \}\)/)
 })
 
 test('legacy API no longer owns C5 table management or transfer commands', () => {

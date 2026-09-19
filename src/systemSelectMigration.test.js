@@ -27,22 +27,21 @@ test('all app-facing JSX uses SystemSelect instead of native select', async () =
   assert.deepEqual(offenders, [])
 })
 
-test('App and Clients use the shared SystemSelect', async () => {
-  const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
+test('order payment dialog and Clients use the shared SystemSelect', async () => {
+  const paymentDialog = await readFile(join(srcDir, 'app/workflows/payments/order/OrderPaymentDialog.jsx'), 'utf8')
   const clients = await readFile(join(srcDir, 'pages/Clients.jsx'), 'utf8')
-  assert.match(app, /import SystemSelect/)
+  assert.match(paymentDialog, /import SystemSelect/)
   assert.match(clients, /import SystemSelect/)
 })
 
 test('App write selectors preserve blocked state and approved labels', async () => {
-  const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
-  const movementDialog = await readFile(join(srcDir, 'components/MovementDialog.jsx'), 'utf8')
-  const lines = app.split('\n')
-  const paymentSelector = lines.find((line) => line.includes('<SystemSelect') && line.includes('label="Forma de pagamento"'))
-  assert.ok(paymentSelector, 'missing SystemSelect for Forma de pagamento')
-  assert.match(paymentSelector, /disabled=\{writesBlocked\}/)
+  const paymentDialog = await readFile(join(srcDir, 'app/workflows/payments/order/OrderPaymentDialog.jsx'), 'utf8')
+  const movementDialog = await readFile(join(srcDir, 'domains/finance/ui/MovementDialog.jsx'), 'utf8')
+  const financeWorkspace = await readFile(join(srcDir, 'domains/finance/ui/FinanceWorkspace.jsx'), 'utf8')
+  assert.match(paymentDialog, /label="Forma de pagamento"/)
+  assert.match(paymentDialog, /disabled=\{dialog\.writesBlocked \|\| dialog\.submitting\}/)
 
-  assert.match(app, /<MovementDialog[^>]*disabled=\{writesBlocked\}/)
+  assert.match(financeWorkspace, /<MovementDialog[\s\S]*?disabled=\{writesBlocked\}/)
   for (const label of ['Tipo do movimento', 'Categoria']) {
     assert.match(movementDialog, new RegExp(`label="${label}"[\\s\\S]*?disabled=\\{locked\\}`))
   }

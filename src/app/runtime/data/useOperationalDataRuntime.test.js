@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
+import { readFile } from 'node:fs/promises'
 import { act, create } from 'react-test-renderer'
 import {
   GLOBAL_SYNC_INTERVAL_MS,
@@ -32,7 +33,6 @@ const deferred = () => {
 
 function createHarness({
   api,
-  legacyBridges = {},
   onUnauthorized = () => {},
   globalSyncEnabled = false,
   ordersSyncEnabled = false,
@@ -42,7 +42,6 @@ function createHarness({
   const Harness = () => {
     current = useOperationalDataRuntime({
       api,
-      legacyBridges,
       onUnauthorized,
       globalSyncEnabled,
       ordersSyncEnabled,
@@ -149,32 +148,28 @@ test('a stale bootstrap cannot overwrite a newer official mutation', async (t) =
   assert.equal(harness.getCurrent().orders[0].status, 'Finalizado')
 })
 
-test('bootstrap uses the payment-owner snapshot captured when the read starts', async (t) => {
-  const ownerA = { id: 'owner-a' }
-  const ownerB = { id: 'owner-b' }
-  let captureResult = [ownerA]
-  const settlements = []
-  const pending = deferred()
+test('bootstrap refresh is payment-agnostic and returns its official receipt', async (t) => {
   const harness = await mountHarness(t, {
     api: {
-      getBootstrap: async () => pending.promise,
+      getBootstrap: async () => bootstrapFixture(),
       getOrders: async () => ({ orders: [] }),
-    },
-    legacyBridges: {
-      capturePaymentOwners: () => captureResult,
-      settlePaymentOwners: (owners, receipt) => settlements.push({ owners, receipt }),
     },
   })
 
-  let refreshPromise
-  await act(async () => { refreshPromise = harness.getCurrent().refreshBootstrapSilently() })
-  captureResult = [ownerB]
-  pending.resolve(bootstrapFixture())
-  await act(async () => { await refreshPromise })
+  let receipt
+  await act(async () => {
+    receipt = await harness.getCurrent().refreshBootstrapSilently()
+  })
 
-  assert.equal(settlements.length, 1)
-  assert.deepEqual(settlements[0].owners, [ownerA])
-  assert.ok(settlements[0].receipt.applied.includes('orders'))
+  assert.ok(receipt.applied.includes('orders'))
+  assert.ok(receipt.applied.includes('movements'))
+  assert.ok(receipt.applied.includes('tableTabs'))
+  assert.ok(receipt.applied.includes('tables'))
+
+  const source = await readFile(new URL('./useOperationalDataRuntime.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /legacyBridges/)
+  assert.doesNotMatch(source, /capturePaymentOwners/)
+  assert.doesNotMatch(source, /settlePaymentOwners/)
 })
 
 test('table commits update the official snapshot without invoking domain behavior', async (t) => {

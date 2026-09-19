@@ -1,6 +1,5 @@
 import { cancellationReasonsPolicy, operationsPolicy } from '../../../../domains/orders/index.js'
-import { financeCategoriesPolicy } from './financeCategoriesPolicy.js'
-import { paymentMethodsPolicy } from './paymentMethodsPolicy.js'
+import { financeCategoriesPolicy, paymentMethodsPolicy } from '../../../../domains/finance/index.js'
 import { printingPolicy, stationConfigurationPolicy, stationPrimaryPolicy } from './printingPolicy.js'
 
 const policies = Object.freeze([
