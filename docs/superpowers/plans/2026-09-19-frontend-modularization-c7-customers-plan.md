@@ -1,10 +1,10 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: EXECUTION ACTIVE — Tasks 1–2 COMPLETE / GREEN. Design and plan approved 2026-09-19.**
+> **STATUS: EXECUTION ACTIVE — Tasks 1–3 COMPLETE / GREEN. Design and plan approved 2026-09-19.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
-> Tasks 1–2 are complete. Do not start Task 3 unless it is the explicitly requested next step.
+> Tasks 1–3 are complete. Do not start Task 4 unless it is the explicitly requested next step.
 
 **Goal:** Establish `src/domains/customers` as the frontend owner of customer duplicate rules, CRUD/API, customer list/editor UI and customer commands; remove customer CRUD/editor/duplicate orchestration from `App.jsx`; preserve quick-create integration with Orders without allowing Orders to own Customers infrastructure.
 
@@ -27,7 +27,7 @@
 - Post-merge `master` Validate: #1392 / run `35448223721` — SUCCESS.
 - Work branch: `feature/spec-c7-customers`.
 - C7 design approval commit: `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-- Functional implementation: **Tasks 1–2 COMPLETE / GREEN; Task 3 NOT STARTED**.
+- Functional implementation: **Tasks 1–3 COMPLETE / GREEN; Task 4 NOT STARTED**.
 - Production deployment: **NO** unless separately authorized.
 
 ## Task 1 evidence
@@ -71,6 +71,30 @@
   - App no longer directly calls customer APIs or `updateCollection('clients', ...)`;
   - no Worker/schema/API contract changed.
 - Task 3: **NOT STARTED**.
+
+## Task 3 evidence
+
+- RED commit: `e2f1e7c07abb935697da5c76c97ee40e56d11456`.
+- RED Validate: #1402 / run `35451679029` — **FAIL as intended**, with 5 Task 3 failures:
+  - missing `clientList.js`;
+  - `Clients` absent from Customers public entry;
+  - legacy `src/pages/Clients.jsx` still present;
+  - moved UI path absent;
+  - App still owned the inline list projection.
+- GREEN production candidate: `3865590fea1552d28279c30b84513c770663db66`.
+- Candidate Validate #1403 exposed only stale tests that still loaded `/src/pages/Clients.jsx`, plus an over-literal Task 3 contract that rejected the local variable name `filteredClients` even though the filtering logic had moved.
+- Test/path alignment: `f86201b4cb032d7740e9ecc080fbad3e9d40f9d3`; Validate #1404 reduced the remaining failure to one dynamically generated legacy Clients path inside `actionCapabilities.test.js`.
+- Final test-path alignment: `36cbdbd325a1614fb95b2bb3b80de8f3f51589bc`.
+- Final GREEN Validate: #1405 / run `35452215359` — **SUCCESS**, **1,785 tests / 1,784 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- Delivered ownership:
+  - `filterAndSortClients` now belongs to `domains/customers/domain/clientList.js`;
+  - App delegates the existing search/sort semantics to that domain projection;
+  - `Clients.jsx` moved from `src/pages` to `src/domains/customers/ui`;
+  - Customers exports `Clients` through a Node-safe `customerSurfaces.js` wrapper;
+  - legacy `src/pages/Clients.jsx` is removed;
+  - phonebook/action-sheet/delete-confirmation markup and current CSS file location remain unchanged.
+- Task 4: **NOT STARTED**.
 
 ## Current ownership/debt snapshot
 
@@ -292,7 +316,7 @@ npm run test:architecture
 
 ---
 
-## Task 3 — Move Clients UI and customer list projection
+## Task 3 — Move Clients UI and customer list projection — COMPLETE / GREEN
 
 **Files**
 - Create `src/domains/customers/domain/clientList.js`
