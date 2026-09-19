@@ -1,13 +1,9 @@
 import { useEffect, useState } from 'react'
-import Button from './Button'
-import Modal from './Modal'
-import SystemSelect from './SystemSelect'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
-import {
-  PAYMENT_METHOD_OPTIONS,
-  paymentOptionsWithSelection,
-  paymentSelectionNeedsReview,
-} from '../utils/paymentMethodOptions.js'
+import Button from '../../../components/Button'
+import Modal from '../../../components/Modal'
+import SystemSelect from '../../../components/SystemSelect'
+import { PAYMENT_METHOD_OPTIONS, paymentOptionsWithSelection, paymentSelectionNeedsReview } from '../../../domains/finance/index.js'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
@@ -40,22 +36,13 @@ function RegisterRefundDialog({ open, order, onClose, onConfirm, submitting = fa
           <strong>{currency(amount)}</strong>
           <small>O valor integral pago será registrado como estorno e aparecerá como saída no Financeiro.</small>
         </div>
-
         <div className="form-field">
           <span>Forma de estorno</span>
-          <SystemSelect
-            value={refundMethod}
-            options={visibleOptions}
-            onChange={setRefundMethod}
-            placeholder="Selecione a forma do estorno"
-            label="Forma de estorno"
-            disabled={submitting}
-          />
+          <SystemSelect value={refundMethod} options={visibleOptions} onChange={setRefundMethod} placeholder="Selecione a forma do estorno" label="Forma de estorno" disabled={submitting} />
           {originalMethodInactive && <small className="form-error" role="alert">{preservingOriginalMethod
             ? 'O método original está inativo hoje e foi preservado como referência. Escolha uma forma ativa para registrar o estorno.'
             : 'A forma escolhida ficou inativa. Escolha outra forma ativa para registrar o estorno.'}</small>}
         </div>
-
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>Voltar</Button>
           <Button type="submit" disabled={submitting || !refundMethod || originalMethodInactive}>{submitting ? 'Registrando…' : 'Confirmar estorno'}</Button>

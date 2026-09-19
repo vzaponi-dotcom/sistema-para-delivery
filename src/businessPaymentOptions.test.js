@@ -69,7 +69,7 @@ test('a newly opened payment uses the latest default instead of a Pix fallback',
 
 test('historical refund keeps the persisted original method even when it is inactive', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/RegisterRefundDialog.jsx')
+  const { default: Dialog } = await h.load('/src/app/workflows/refunds/RegisterRefundDialog.jsx')
   const order = { id: 'order-1', orderNumber: 1, client: 'Ana', paymentMethod: 'Transferência', paidAmount: 40 }
   const confirmations = []
   const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm: (payload) => confirmations.push(payload) })
