@@ -405,7 +405,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Must preserve:** duplicate phone/name semantics, use-existing flow, create/update/delete behavior, search/sort, current mobile/desktop UI.
 
-**Current status — 2026-09-19:** Tasks 1–8 are **COMPLETE / GREEN** on `feature/spec-c7-customers`. Exact executable pre-staging SHA `6402496c078ca817572e6e375beec9f4ffbe557a` passed Validate #1419 / run `35456801774` with **1,807 tests / 1,806 pass / 0 fail / 1 skipped** and all architecture/lint/build/Worker/D1 gates green. Customers now owns duplicate/name rules, CRUD/API, list/editor UI, workspace composition and quick-create mutation command; App retains only application composition/query/capability/runtime injection. Permanent C7 architecture enforcement is active with no allowlist expansion. Task 9 staging/manual homologation is next; production remains untouched.
+**Current status — 2026-09-19:** C7 Tasks 1–9 are **COMPLETE / STAGING HOMOLOGATED** on `feature/spec-c7-customers`. Last code-changing SHA `6402496c078ca817572e6e375beec9f4ffbe557a` passed Validate #1419. Homologated staging SHA `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3` passed Validate #1420 and Deploy staging #185 / run `35457821403`; manual QA closed at **29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Customers owns duplicate/name rules, CRUD/API, list/editor UI, workspace composition and quick-create mutation command; App retains application composition/query/capability/runtime injection only. Permanent C7 architecture enforcement is active with no allowlist expansion. Task 10 final exact-head merge gate is active; production remains untouched.
 
 ### C8 — Catalog
 
@@ -561,4 +561,4 @@ Compare final `master` architecture against `docs/superpowers/specs/2026-09-15-f
 Do not mark Spec C complete solely because `App.jsx` is smaller or files were moved.
 
 
-C7 pre-staging handoff: C6 is merged at master `5b101800fe29d02dd4543e184cca9e06d659a445`. C7 Tasks 1–8 are complete/green; executable SHA `6402496c078ca817572e6e375beec9f4ffbe557a` passed Validate #1419 / run `35456801774` with all gates green. The next step is Task 9: manual Deploy staging on the exact validated C7 branch/head followed by the approved homologation matrix. PR #51 remains draft; no merge or production deploy is authorized yet.
+C7 homologation handoff: master remains `5b101800fe29d02dd4543e184cca9e06d659a445`. C7 is staging-homologated at `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; Validate #1420 and Deploy staging #185 are green, and manual QA is 29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING. Task 10 requires a final Validate on the QA/docs closure HEAD and explicit user merge authorization. PR #51 remains draft; production remains untouched.
