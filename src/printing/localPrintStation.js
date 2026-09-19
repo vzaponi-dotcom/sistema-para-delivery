@@ -17,16 +17,6 @@ export const detectPrintStationUiPlatform = (userAgent = globalThis.navigator?.u
   return 'other'
 }
 
-export const getDefaultPrintStationName = (platform) => {
-  if (platform === 'windows') return 'Cozinha · Windows'
-  if (platform === 'android') return 'Cozinha · Android'
-  return 'Cozinha · Navegador'
-}
-
-export const isQzPrintStationEligible = ({ platform, qzPrinterName } = {}) => (
-  platform === 'windows' && Boolean(String(qzPrinterName ?? '').trim())
-)
-
 export const getOrCreateLocalPrintStationId = (
   storage = globalThis.localStorage,
   randomUUID = () => globalThis.crypto.randomUUID(),

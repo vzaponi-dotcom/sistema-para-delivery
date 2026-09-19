@@ -69,8 +69,12 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
-import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
-import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
+import {
+  acknowledgeAndOpenSecondCopyPrompt, canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt,
+  findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible,
+} from './domains/printing/index.js'
+import { readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
+import { usePrintingManager } from './printing/usePrintingManager'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
