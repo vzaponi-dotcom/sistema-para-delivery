@@ -5,7 +5,7 @@ import {
   canConsumeAutomaticPrintJob,
   getPrintingTransportKind,
   isPrintingTransportSupported,
-} from './usePrintingManager.js'
+} from '../domains/printing/index.js'
 
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')

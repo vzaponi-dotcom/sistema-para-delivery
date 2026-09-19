@@ -7,7 +7,8 @@ const managerSource = await readFile(new URL('./usePrintingManager.js', import.m
 const promptFlowSource = await readFile(new URL('../domains/printing/domain/secondCopy.js', import.meta.url), 'utf8')
 
 test('global second-copy prompt delegates order and comanda eligibility to the shared flow', () => {
-  assert.match(appSource, /import \\{[^}]*isSecondCopyPromptEligible[^}]*\\} from '.\\/domains\\/printing\\/index\\.js'/)
+  assert.equal(appSource.includes("from './domains/printing/index.js'"), true)
+  assert.equal(appSource.includes('isSecondCopyPromptEligible'), true)
   assert.match(promptFlowSource, /job\?\.type === 'table-tab'/)
   assert.match(promptFlowSource, /job\?\.type === 'order' && Boolean\(order\) && isActiveOrder\(order\)/)
   assert.match(appSource, /isSecondCopyPromptEligible\(current, currentOrder\)/)

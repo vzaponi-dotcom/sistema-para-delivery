@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { canConsumeAutomaticPrintJob } from './usePrintingManager.js'
+import { canConsumeAutomaticPrintJob } from '../domains/printing/index.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 
 const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
