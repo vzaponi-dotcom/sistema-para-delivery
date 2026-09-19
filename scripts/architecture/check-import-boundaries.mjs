@@ -32,6 +32,28 @@ const C5_LEGACY_TABLE_SERVICE_OWNERS = new Set([
   'src/components/TableTransferDialog.jsx',
   'src/components/LocalTableSelector.jsx',
 ])
+const C6_LEGACY_FINANCE_OWNERS = new Set([
+  'src/pages/Finance.jsx',
+  'src/pages/Receivables.jsx',
+  'src/components/MovementDialog.jsx',
+  'src/components/OpeningBalanceDialog.jsx',
+  'src/components/PaymentPromiseDialog.jsx',
+  'src/components/ReceivableDetail.jsx',
+  'src/components/ReceivablesForecastDialog.jsx',
+  'src/components/ReceivablesQuickPaymentDialog.jsx',
+  'src/components/RegisterRefundDialog.jsx',
+  'src/components/TableTabPaymentDialog.jsx',
+  'src/app/surfaces/settings/PaymentSettings.jsx',
+  'src/app/surfaces/settings/FinanceCategorySettings.jsx',
+  'src/app/surfaces/settings/paymentSettingsModel.js',
+  'src/app/surfaces/settings/policies/paymentMethodsPolicy.js',
+  'src/app/surfaces/settings/policies/financeCategoriesPolicy.js',
+  'src/utils/paymentMethodOptions.js',
+  'src/utils/financeCategoryOptions.js',
+  'src/utils/finance.js',
+  'src/utils/receivables.js',
+  'src/utils/paymentWorkflow.js',
+])
 const C4_LEGACY_ORDERS_OWNERS = new Set([
   'src/pages/NewOrder.jsx',
   'src/pages/NewOrderRoute.jsx',
@@ -147,6 +169,16 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
   for (const legacyOwner of C5_LEGACY_TABLE_SERVICE_OWNERS) {
     if (sourcePaths.has(legacyOwner)) violations.push(`c5-legacy-table-service-owner: ${legacyOwner}`)
   }
+  for (const legacyOwner of C6_LEGACY_FINANCE_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c6-legacy-finance-owner: ${legacyOwner}`)
+  }
+
+  for (const sourcePath of sourcePaths) {
+    if (/^src\/domains\/[^/]+\/.*\/workflows\/(?:payments|refunds)\//.test(sourcePath)
+      || /^src\/domains\/[^/]+\/workflows\/(?:payments|refunds)\//.test(sourcePath)) {
+      violations.push(`c6-domain-workflow-owner: ${sourcePath}`)
+    }
+  }
 
   try {
     const legacyApiClient = await readFile(path.join(rootDir, 'src/api/client.js'), 'utf8')
@@ -157,6 +189,10 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     const migratedTableServiceApiPattern = /export\s+const\s+(createTable|updateTable|reorderTables|transferTableTab|getTableTabDetail)\b/
     if (migratedTableServiceApiPattern.test(legacyApiClient)) {
       violations.push('c5-legacy-table-service-api: src/api/client.js')
+    }
+    const migratedFinanceApiPattern = /export\s+const\s+(registerPayment|registerTableTabPayment|refundOrder|createMovement|updateMovement|deleteMovement|saveFinanceSettings|updateOrderPaymentPromise)\b/
+    if (migratedFinanceApiPattern.test(legacyApiClient)) {
+      violations.push('c6-legacy-finance-api: src/api/client.js')
     }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
@@ -201,6 +237,21 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && edge.resolvedPath?.startsWith('src/domains/orders/')) {
       violations.push(`table-service-orders-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
+    if (!edge.from.startsWith('src/domains/finance/')
+      && edge.resolvedPath?.startsWith('src/domains/finance/')
+      && edge.resolvedPath !== 'src/domains/finance/index.js') {
+      violations.push(`finance-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/finance/')
+      && edge.resolvedPath?.startsWith('src/domains/orders/')) {
+      violations.push(`finance-orders-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/finance/')
+      && edge.resolvedPath?.startsWith('src/domains/table-service/')) {
+      violations.push(`finance-table-service-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
 
     if (fromDomain && targetDomain && fromDomain !== targetDomain) {
       const publicEntry = `src/domains/${targetDomain}/index.js`
@@ -214,6 +265,16 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && !edge.from.startsWith('src/infrastructure/qz/')
       && !exactAllowed(allowlist, 'qzDirectImports', edge.from)) {
       violations.push(`qz-direct: ${edge.from} -> qz-tray`)
+    }
+    const c6FinanceOrWorkflow = edge.from.startsWith('src/domains/finance/')
+      || edge.from.startsWith('src/app/workflows/payments/')
+      || edge.from.startsWith('src/app/workflows/refunds/')
+    if (c6FinanceOrWorkflow
+      && !isTestFile(edge.from)
+      && (edge.specifier === 'qz-tray'
+        || edge.resolvedPath?.startsWith('src/printing/')
+        || edge.resolvedPath?.startsWith('src/infrastructure/qz/'))) {
+      violations.push(`c6-finance-payment-printing-import: ${edge.from} -> ${edge.resolvedPath || edge.specifier}`)
     }
 
     if (edge.from.startsWith('src/app/policy-editing/')) {
