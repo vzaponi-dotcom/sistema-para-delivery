@@ -190,3 +190,76 @@ test('legacy API client cannot reintroduce migrated Table Service exports', asyn
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.ok(violations.includes('c5-legacy-table-service-api: src/api/client.js'))
 })
+
+
+test('external consumers cannot deep import Finance internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import Finance from './domains/finance/ui/Finance.jsx'\n")
+  await write('src/domains/finance/ui/Finance.jsx', 'export default function Finance() {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((item) => item.startsWith('finance-deep-import:')))
+})
+
+test('Finance cannot import Orders even through its public entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/finance/ui/x.js', "import { Orders } from '../../orders/index.js'\n")
+  await write('src/domains/orders/index.js', 'export const Orders = () => null\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((item) => item.startsWith('finance-orders-import:')))
+})
+
+test('Finance cannot import Table Service even through its public entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/finance/ui/x.js', "import { Tables } from '../../table-service/index.js'\n")
+  await write('src/domains/table-service/index.js', 'export const Tables = () => null\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((item) => item.startsWith('finance-table-service-import:')))
+})
+
+test('C6 legacy Finance owners are rejected when they reappear', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  for (const legacyOwner of [
+    'src/pages/Finance.jsx',
+    'src/pages/Receivables.jsx',
+    'src/components/MovementDialog.jsx',
+    'src/components/OpeningBalanceDialog.jsx',
+    'src/components/PaymentPromiseDialog.jsx',
+    'src/components/ReceivableDetail.jsx',
+    'src/components/ReceivablesForecastDialog.jsx',
+    'src/components/ReceivablesQuickPaymentDialog.jsx',
+    'src/components/RegisterRefundDialog.jsx',
+    'src/components/TableTabPaymentDialog.jsx',
+    'src/utils/paymentMethodOptions.js',
+    'src/utils/financeCategoryOptions.js',
+    'src/utils/finance.js',
+    'src/utils/receivables.js',
+    'src/utils/paymentWorkflow.js',
+  ]) await write(legacyOwner, 'export const legacy = true\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.filter((item) => item.startsWith('c6-legacy-finance-owner:')).length, 15)
+})
+
+test('legacy API client cannot reintroduce C6 migrated exports', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/client.js', 'export const registerPayment = () => {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c6-legacy-finance-api: src/api/client.js'))
+})
+
+test('cross-domain payment and refund workflows cannot move under domains', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/orders/workflows/payments/useOrderPaymentWorkflow.js', 'export const x = 1\n')
+  await write('src/domains/finance/workflows/refunds/useRefundWorkflow.js', 'export const y = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.filter((item) => item.startsWith('c6-domain-workflow-owner:')).length, 2)
+})
+
+test('Finance and payment workflows cannot import printing internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/finance/ui/x.js', "import { print } from '../../../printing/usePrintingManager.js'\n")
+  await write('src/app/workflows/payments/order/x.js', "import { print } from '../../../../printing/qzTrayTransport.js'\n")
+  await write('src/printing/usePrintingManager.js', 'export const print = () => {}\n')
+  await write('src/printing/qzTrayTransport.js', 'export const print = () => {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.filter((item) => item.startsWith('c6-finance-payment-printing-import:')).length, 2)
+})
