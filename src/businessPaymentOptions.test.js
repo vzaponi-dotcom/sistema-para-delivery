@@ -87,7 +87,7 @@ test('historical refund keeps the persisted original method even when it is inac
 
 test('a new cash movement remains empty and requires an explicit active payment choice', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const screen = await h.render(Dialog, {
     open: true, today: '2026-09-13', paymentOptions: [options[1]], defaultPaymentMethod: 'Dinheiro', onClose() {}, onSubmit() {},
   })
@@ -192,7 +192,7 @@ test('App never exposes a Pix default while effective payment configuration is u
 
 test('movement keeps a persisted inactive method but blocks a newly inactive choice through review', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const movement = {
     id: 'movement-1', source: 'manual', type: 'saida', category: 'supplies', description: 'Compra',
     value: 25, movementDate: '2026-09-13', paymentMethod: 'Transferência',

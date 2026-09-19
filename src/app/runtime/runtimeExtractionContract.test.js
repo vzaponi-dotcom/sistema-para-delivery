@@ -35,7 +35,6 @@ test('App retains responsibilities intentionally deferred beyond C1', () => {
     'handleRegisterTableTabPayment',
     'handleAddClient',
     'handleAddProduct',
-    'handleSaveMovement',
     'handleGlobalSecondCopy',
   ]
 

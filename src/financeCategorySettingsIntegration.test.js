@@ -22,7 +22,7 @@ test('effective projection returns only server-provided active categories by typ
 
 test('new movement receives active categories only for its type and submits their revision', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const submissions = []
   const screen = await h.render(Dialog, {
     open: true, today: '2026-09-13', categoryOptions: categories.map((item) => ({ ...item, value: item.id })), categoryRevision: 8,
@@ -47,7 +47,7 @@ test('new movement receives active categories only for its type and submits thei
 
 test('empty active group blocks only new creation for that type without fallback', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const screen = await h.render(Dialog, {
     open: true, today: '2026-09-13', categoryOptions: [{ value: 'marketing', id: 'marketing', type: 'saida', label: 'Marketing' }],
     categoryRevision: 8, paymentOptions: [{ value: 'Pix', label: 'Pix' }], onClose() {}, onSubmit() {},
@@ -62,7 +62,7 @@ test('empty active group blocks only new creation for that type without fallback
 
 test('editing preserves an inactive historical category and label when it is not changed', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const submissions = []
   const screen = await h.render(Dialog, {
     open: true, movement, today: '2026-09-13', categoryOptions: [{ value: 'marketing', id: 'marketing', type: 'saida', label: 'Marketing' }],
@@ -79,7 +79,7 @@ test('editing preserves an inactive historical category and label when it is not
 
 test('changing an old movement requires a category that remains active through confirmation', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Dialog } = await h.load('/src/components/MovementDialog.jsx')
+  const { default: Dialog } = await h.load('/src/domains/finance/ui/MovementDialog.jsx')
   const active = { value: 'marketing', id: 'marketing', type: 'saida', label: 'Marketing' }
   const props = {
     open: true, movement, today: '2026-09-13', categoryOptions: [active], categoryRevision: 8,
@@ -108,7 +108,7 @@ test('first-use conflict preserves a finance rename intention for explicit revie
 
 test('finance history displays the worker-resolved label instead of an inactive custom id', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Finance } = await h.load('/src/pages/Finance.jsx')
+  const { default: Finance } = await h.load('/src/domains/finance/ui/Finance.jsx')
   const screen = await renderWithNavigation(h, Finance, {
     totals: { entries: 0, exits: 25, balance: -25 }, movements: [movement], currency: (value) => `R$ ${value}`,
     paymentOptions: [], granted: new Set(), implemented: new Set(['finance']), onNavigate() {}, activeTab: 'finance', canManageMovements: false,
@@ -119,7 +119,7 @@ test('finance history displays the worker-resolved label instead of an inactive 
 
 test('finance history exposes edit and confirmed delete only for manual movements', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Finance } = await h.load('/src/pages/Finance.jsx')
+  const { default: Finance } = await h.load('/src/domains/finance/ui/Finance.jsx')
   const edits = []
   const deletes = []
   const automatic = { ...movement, id: 'sale', source: 'order-payment', category: 'sales', categoryLabel: 'Vendas', description: 'Venda' }

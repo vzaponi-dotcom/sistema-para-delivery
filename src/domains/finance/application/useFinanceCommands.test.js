@@ -85,7 +85,11 @@ test('finance commands apply only authoritative effects and preserve request key
 
   await act(async () => {
     assert.equal(await probe.getLatest().saveMovement({ value: 10 }), true)
+  })
+  await act(async () => {
     assert.equal(probe.getLatest().openEditMovement(manual), true)
+  })
+  await act(async () => {
     assert.equal(await probe.getLatest().saveMovement({ value: 20 }), true)
     assert.equal(await probe.getLatest().deleteMovement('m-1'), true)
     assert.equal(await probe.getLatest().saveOpeningBalance(officialSettings), true)

@@ -36,7 +36,7 @@ test('App and Clients use the shared SystemSelect', async () => {
 
 test('App write selectors preserve blocked state and approved labels', async () => {
   const app = await readFile(join(srcDir, 'App.jsx'), 'utf8')
-  const movementDialog = await readFile(join(srcDir, 'components/MovementDialog.jsx'), 'utf8')
+  const movementDialog = await readFile(join(srcDir, 'domains/finance/ui/MovementDialog.jsx'), 'utf8')
   const lines = app.split('\n')
   const paymentSelector = lines.find((line) => line.includes('<SystemSelect') && line.includes('label="Forma de pagamento"'))
   assert.ok(paymentSelector, 'missing SystemSelect for Forma de pagamento')

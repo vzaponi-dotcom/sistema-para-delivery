@@ -246,7 +246,7 @@ test('11. comandas.transfer continua disponÃ­vel sem tables.manage', async (t)
 
 test('12. finance.movements preserva consulta e bloqueia mutaÃ§Ã£o sem manage', async (t) => {
   const { h, renderer, requests } = await appWorkspace(t, new Set(['finance.movements']))
-  const { default: Finance } = await h.load('/src/pages/Finance.jsx')
+  const { default: Finance } = await h.load('/src/domains/finance/ui/Finance.jsx')
   const page = renderer.root.findByType(Finance)
   assert.match(nodeText(renderer.root), /Caixa/)
   assert.equal(Boolean(buttonNamed(renderer.root, 'Novo movimento')), false)
@@ -423,7 +423,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
     ['Clients', '/src/pages/Clients.jsx'],
     ['Products', '/src/pages/Products.jsx'],
     ['Receivables', '/src/pages/Receivables.jsx'],
-    ['Finance', '/src/pages/Finance.jsx'],
+    ['Finance', '/src/domains/finance/ui/Finance.jsx'],
   ].map(async ([name, path]) => [name, (await h.load(path)).default])))
   modules.Tables = (await h.load('/src/domains/table-service/index.js')).Tables
   modules.NewOrderRoute = (await h.load('/src/domains/orders/ui/NewOrderRoute.jsx')).NewOrderRoute

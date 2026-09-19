@@ -32,14 +32,17 @@ test('deleting a product requires confirmation before invoking the delete callba
 })
 
 test('manual financial movement gets a review confirmation before persistence', async () => {
-  const app = await read('./App.jsx')
-  const movementDialog = await read('./components/MovementDialog.jsx')
+  const [movementDialog, commands, workspace] = await Promise.all([
+    read('./domains/finance/ui/MovementDialog.jsx'),
+    read('./domains/finance/application/useFinanceCommands.js'),
+    read('./domains/finance/ui/FinanceWorkspace.jsx'),
+  ])
   assert.match(movementDialog, /ConfirmationDialog/)
   assert.match(movementDialog, /setReview/)
   assert.match(movementDialog, /Confirmar movimentação/)
   assert.match(movementDialog, /onSubmit\?\.\(review\)/)
-  assert.match(app, /createMovementApi/)
-  assert.match(app, /<MovementDialog[^>]*onSubmit=\{handleSaveMovement\}/)
+  assert.match(commands, /api\.createMovement\(payload\)/)
+  assert.match(workspace, /onSubmit=\{commands\.saveMovement\}/)
 })
 
 test('successful client and product deletions show centered success feedback', async () => {
