@@ -273,3 +273,35 @@ test('a stale orders refresh cannot overwrite a newer official mutation', async 
 
   assert.equal(harness.getCurrent().orders[0].status, 'Finalizado')
 })
+
+
+test('deletedClientId removes the accepted client and protects it from a stale bootstrap', async (t) => {
+  const initial = bootstrapFixture()
+  const pending = deferred()
+  let bootstrapCalls = 0
+  const harness = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => {
+        bootstrapCalls += 1
+        return bootstrapCalls === 1 ? initial : pending.promise
+      },
+      getOrders: async () => ({ orders: [] }),
+    },
+  })
+
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  assert.deepEqual(harness.getCurrent().clients.map(({ id }) => id), ['client-1'])
+
+  let refreshPromise
+  await act(async () => {
+    refreshPromise = harness.getCurrent().refreshBootstrapSilently()
+  })
+  await act(async () => {
+    harness.getCurrent().applyOfficialEffects({ deletedClientId: 'client-1' })
+  })
+
+  pending.resolve(initial)
+  await act(async () => { await refreshPromise })
+
+  assert.deepEqual(harness.getCurrent().clients, [])
+})

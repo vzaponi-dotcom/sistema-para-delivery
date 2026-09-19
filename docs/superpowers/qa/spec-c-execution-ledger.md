@@ -13,7 +13,7 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-18
+## Program status — 2026-09-19
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
@@ -22,8 +22,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | **HOMOLOGATED — 23 PASS / 0 FAIL / 1 BLOCKED / MERGE AUTHORIZED / FINAL EXACT-HEAD VALIDATE PENDING** | `feature/spec-c6-finance-workflows` / PR #50 | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
-| C7 | Customers | NOT STARTED | — | Write after C6 merge |
+| C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
+| C7 | Customers | **STAGING HOMOLOGATED — MERGE GATE PENDING AUTHORIZATION** | `feature/spec-c7-customers` / draft PR #51 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
@@ -209,7 +209,7 @@ These remain mandatory for C2-C10:
 - compatibility facades/bridges are temporary, tracked and removed by their target slice;
 - C10 cannot close with unexplained temporary facades, prohibited imports, cycles or architecture violations.
 
-# C6 — Finance + Cross-Domain Payment Workflows — ACTIVE
+# C6 — Finance + Cross-Domain Payment Workflows — MERGED / COMPLETE
 
 - Base: post-C5 master `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
 - Branch: `feature/spec-c6-finance-workflows`; draft PR #50.
@@ -257,22 +257,75 @@ These remain mandatory for C2-C10:
 - Task 11 manual QA: **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED item is read-only/capability behavior because staging has no suitable restricted identity/session.
 - QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112` — **SUCCESS**.
 - User merge authorization: **GRANTED 2026-09-19**.
-- Final status-only exact-HEAD Validate: **pending**.
+- Final status-only exact-HEAD Validate: #1391 / run `35448041000` — **SUCCESS** on branch HEAD `d59fe0d804ec77de02fd0f34e1342e3189e35339`.
+- PR #50 merged to `master` at `5b101800fe29d02dd4543e184cca9e06d659a445`.
+- Post-merge `master` Validate: #1392 / run `35448223721` — **SUCCESS**.
 - Production deployment: **NO**.
+
+# C7 — Customers — STAGING HOMOLOGATED / TASK 10 MERGE GATE
+
+- Base/master SHA: `5b101800fe29d02dd4543e184cca9e06d659a445` (C6 merge).
+- Post-C6 master Validate: #1392 / run `35448223721` — **SUCCESS**.
+- Branch: `feature/spec-c7-customers`.
+- Dedicated design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`.
+- Initial design commit: `e8d6da08495aa94231359291a95cfa3506ce80dc`.
+- Formal self-review commit: `12ae8699e7b5f78b1e9a2ba7634ca588f3a9517a`.
+- Design approval commit: `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`; user approval granted 2026-09-19.
+- Design status: **APPROVED**.
+- Reconciled detailed plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`.
+- Plan reconciliation commit: `8fa979de36829dc1158f32faccb74598f8451b83`.
+- Formal plan self-review commit: `dd1c033c91629592bf28bc0a135c4c8d2d8dfead`.
+- Plan status: **APPROVED FOR EXECUTION**; user approval granted 2026-09-19.
+- Draft PR: #51 — `Spec C7: Customers domain extraction`.
+- Task 1 RED: `6202678292c36deb7f76f9ed48478458af33c7cd`; Validate #1394 / run `35450264188` failed at Test for the intended missing `domains/customers/index.js` and `domain/clientDuplicates.js` boundaries (`ERR_MODULE_NOT_FOUND`).
+- Task 1 GREEN: `7c3a9842be653dec619263b595cd4b54003a3bcc`; Validate #1395 / run `35450437897` — **SUCCESS**, **1,774 tests / 1,773 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Task 1 ownership result: frontend name normalization + duplicate lookup now belong to Customers; App and Orders consume them through the Customers public entry; shared client identity retains the Worker-used phone normalization/formatting primitives.
+- Task 2 RED: `d83abfcd8f88ef3e620a9519b77ac52eb184a6c0`; Validate #1398 / run `35450909294` failed for the intended missing Customers API/commands, legacy ownership and missing `deletedClientId` runtime behavior.
+- Task 2 GREEN candidate: `048d2c0048f6a54d4a4d2620f2ba655216573907`; Validate #1399 found only one stale source characterization requiring client deletion success feedback inside App.
+- Task 2 test alignment: `7431745d6ff817b76126dc7da090b270ccf57268` moved that assertion to the new Customers command owner.
+- Task 2 final GREEN: Validate #1400 / run `35451281055` — **SUCCESS**, **1,779 tests / 1,778 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Task 2 ownership result: customer CRUD API/commands belong to Customers; legacy customer API exports are absent; App uses the public command hook and no longer calls `updateCollection('clients', ...)`; runtime applies `deletedClientId` as an official effect with sync-guard protection.
+- Task 3 RED: `e2f1e7c07abb935697da5c76c97ee40e56d11456`; Validate #1402 / run `35451679029` failed for the intended missing list projection/public UI/new owner plus legacy ownership still present.
+- Task 3 GREEN production candidate: `3865590fea1552d28279c30b84513c770663db66`; Validate #1403 found stale test paths to `src/pages/Clients.jsx` and one over-literal source assertion.
+- Task 3 test/path alignment: `f86201b4cb032d7740e9ecc080fbad3e9d40f9d3`; Validate #1404 reduced the remaining failure to one dynamically generated old Clients path.
+- Task 3 final alignment: `36cbdbd325a1614fb95b2bb3b80de8f3f51589bc`; Validate #1405 / run `35452215359` — **SUCCESS**, **1,785 tests / 1,784 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Task 3 ownership result: customer list search/sort projection and Clients UI now belong to Customers; App consumes public contracts; legacy `src/pages/Clients.jsx` is absent; CSS location/cascade remain unchanged.
+- Task 4 RED: `4dc6cc388c88314f036635ad9f1de49660a9421c`; Validate #1408 / run `35452912084` failed on the intended missing editor/public-modal boundaries.
+- Task 4 GREEN candidate `88b9294769e3be1009439c5fe97c58dfa153fc46` exposed a real stale session-cleanup setter regression. Final fix `9ede1b45a1748a48c155162e1db99253083eb819`; Validate #1410 / run `35453407335` — **SUCCESS**, **1,792 tests / 1,791 pass / 0 fail / 1 skipped**.
+- Task 4 ownership result: customer editor state/validation and duplicate modal belong to Customers; the modal is public for Orders; App no longer owns the editor/duplicate state.
+- Task 5 RED: `09b75fca20173c4ecccdbab0dd04fd7b22336caf`; Validate #1411 / run `35453671174` failed only for missing `CustomersWorkspace` and App-owned list projection.
+- Task 5 GREEN: `e483b95dcc69aa9c18f5ff6d15d73f7851c44e0b`; Validate #1412 / run `35453918508` — **SUCCESS**, **1,795 tests / 1,794 pass / 0 fail / 1 skipped**.
+- Task 5 ownership result: `CustomersWorkspace` owns list/editor/modal/commands/filter-sort composition; App retains capability/query/runtime injection only; transient customer state resets naturally by unmount.
+- Task 6 initial RED `666ea1e3f20af47dd4562454b86cac17d5a94609` exposed one invalid test characterization. Corrected RED `7c940bf2f7687cbe129a7d75d7e64a104c202278`; Validate #1415 / run `35454263216` failed on exactly 3 intended quick-create ownership gaps.
+- Task 6 GREEN: `07206c58a967970def07654851a919d0ff2aa99c`; Validate #1416 / run `35454440071` — **SUCCESS**, **1,800 tests / 1,799 pass / 0 fail / 1 skipped**.
+- Task 6 ownership result: quick-create mutation contract belongs to Customers; App only composes the public callback into Orders; Orders owns no Customers HTTP/internals.
+- Task 7 RED `35205baeccaaced0dd1b759a34f087c2ddb3e61a` was path-aligned at `86c43cc1de46652a684a998473f53bed6c07df58`; authoritative Validate #1418 / run `35456631629` failed on exactly 7 planned architecture protections.
+- Task 7 GREEN: `6402496c078ca817572e6e375beec9f4ffbe557a`; Validate #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**; no allowlist expansion.
+- Task 7 architecture result: Customers deep imports, Orders↔Customers internals, legacy owners/API exports, App customer ownership, client `updateCollection`, frontend duplicate rules in shared, and domain→infrastructure imports are permanently rejected.
+- Task 8 exact-head pre-staging gate and diff audit: `6402496c078ca817572e6e375beec9f4ffbe557a` / Validate #1419 — **SUCCESS**; no Worker/schema/migration/Finance/Table Service functional diff; Orders production diff is limited to Customers public-contract consumption; no CSS redesign/move; no new facade.
+- Task 9 homologated SHA: `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; Validate #1420 / run `35457535163` and Deploy staging #185 / run `35457821403` — **SUCCESS**.
+- Task 9 manual QA: **29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; the blocked capability/read-only case has no suitable staging account and is not counted as PASS.
+- QA record: `docs/superpowers/qa/spec-c7-customers-qa.md`.
+- Functional implementation + staging: **Tasks 1–9 COMPLETE / C7 HOMOLOGATED**.
+- Task 10: **QA/docs closure + final exact-head Validate + explicit merge authorization pending**.
+- Master drift before closure: **none**; `master` remains `5b101800fe29d02dd4543e184cca9e06d659a445`.
+- Approval gate: **satisfied**.
 - Production deployment: **NO**.
+
+---
 
 # New-session resume protocol
 
-The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; Task 11 manual QA is complete at 23 PASS / 0 FAIL / 1 BLOCKED. QA/docs closure Validate #1390 is green and merge authorization is granted; await the final status-only exact-HEAD Validate, then merge PR #50.
+The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C7 Tasks 1–9 are complete and staging is homologated at `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`: Validate #1420 and Deploy staging #185 are green, and manual QA closed at 29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING. Task 10 is the active merge handoff: require a green Validate on the QA/docs closure HEAD, then request explicit merge authorization. Production remains untouched.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
-3. Read `docs/superpowers/specs/2026-09-18-frontend-modularization-c6-finance-workflows-design.md`; it is explicitly approved.
-4. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
-5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
-6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
-7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; Task 11 is homologated with 0 FAIL. QA/docs closure Validate #1390 is green and merge authorization is granted; await the final status-only exact-HEAD Validate.
+3. Read `docs/superpowers/qa/spec-c-compatibility-facades.md`.
+4. Inspect `master` and `feature/spec-c7-customers` on GitHub.
+5. Treat `5b101800fe29d02dd4543e184cca9e06d659a445` as the approved C7 base unless GitHub proves an intentional later reconciliation.
+6. C6 merged by PR #50; final branch Validate #1391 and post-merge Validate #1392 are green.
+7. Read `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; it is formally self-reviewed and **APPROVED**, with approval recorded at `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
+8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` and `docs/superpowers/qa/spec-c7-customers-qa.md`; C7 is staging-homologated and Task 10 exact-head merge gate is active. Continue only from this recorded checkpoint.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

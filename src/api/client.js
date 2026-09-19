@@ -8,10 +8,6 @@ export const getBootstrap = (knownEffectiveConfigVersion) => {
   if (knownEffectiveConfigVersion) params.set('knownEffectiveConfigVersion', knownEffectiveConfigVersion)
   return apiRequest(`/api/bootstrap${params.size ? `?${params}` : ''}`)
 }
-export const createClient = (client) => apiRequest('/api/clients', withJson('POST', client))
-export const updateClient = (id, client) => apiRequest(`/api/clients/${encodeURIComponent(id)}`, withJson('PATCH', client))
-export const deleteClient = (id) => apiRequest(`/api/clients/${encodeURIComponent(id)}`, { method: 'DELETE' })
-
 export const createProduct = (product) => apiRequest('/api/products', withJson('POST', product))
 export const updateProduct = (id, product) => apiRequest(`/api/products/${encodeURIComponent(id)}`, withJson('PATCH', product))
 export const deleteProduct = (id) => apiRequest(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' })

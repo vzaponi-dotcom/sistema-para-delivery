@@ -157,7 +157,7 @@ test('only deduplicated physical job failures surface a human queue-attention to
 
 test('a failed physical second copy closes its prompt instead of keeping a blocking retry loop', () => {
   const start = app.indexOf('const handleGlobalSecondCopy = async')
-  const end = app.indexOf('const validateClientIdentity', start)
+  const end = app.indexOf('const handleNewOrder', start)
   assert.notEqual(start, -1)
   assert.notEqual(end, -1)
   const handler = app.slice(start, end)

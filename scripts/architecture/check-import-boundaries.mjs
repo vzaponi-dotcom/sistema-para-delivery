@@ -32,6 +32,38 @@ const C5_LEGACY_TABLE_SERVICE_OWNERS = new Set([
   'src/components/TableTransferDialog.jsx',
   'src/components/LocalTableSelector.jsx',
 ])
+const C7_LEGACY_CUSTOMERS_OWNERS = new Set([
+  'src/pages/Clients.jsx',
+  'src/components/ClientDuplicateModal.jsx',
+])
+const C7_APP_CUSTOMER_OWNER_PATTERNS = [
+  /\bnewClient\b/,
+  /\beditingClientId\b/,
+  /\bshowClientForm\b/,
+  /\bduplicateClientDialog\b/,
+  /\bvalidateClientIdentity\b/,
+  /\bresetClientForm\b/,
+  /\bopenNewClient\b/,
+  /\bhandleEditClient\b/,
+  /\bclientPayload\b/,
+  /\bpersistNewClient\b/,
+  /\bpersistClientUpdate\b/,
+  /\bhandleAddClient\b/,
+  /\bhandleSaveClient\b/,
+  /\bhandleUseExistingClient\b/,
+  /\bhandleConfirmDuplicateClient\b/,
+  /\bhandleDeleteClient\b/,
+  /\bhandleCancelClientEdit\b/,
+  /\buseCustomerEditor\b/,
+  /\buseCustomerCommands\b/,
+  /\bfilterAndSortClients\b/,
+  /\bfindClientDuplicates\b/,
+  /\bClientDuplicateModal\b/,
+  /\bCustomerEditorDialog\b/,
+]
+const C7_CLIENT_COLLECTION_MUTATION_PATTERN = /updateCollection\s*\(\s*['"]clients['"]/
+const C7_SHARED_DUPLICATE_PATTERN = /\b(?:normalizeClientName|findClientDuplicates)\b/
+
 const C6_LEGACY_FINANCE_OWNERS = new Set([
   'src/pages/Finance.jsx',
   'src/pages/Receivables.jsx',
@@ -173,6 +205,10 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (sourcePaths.has(legacyOwner)) violations.push(`c6-legacy-finance-owner: ${legacyOwner}`)
   }
 
+  for (const legacyOwner of C7_LEGACY_CUSTOMERS_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c7-legacy-customers-owner: ${legacyOwner}`)
+  }
+
   for (const sourcePath of sourcePaths) {
     if (/^src\/domains\/[^/]+\/.*\/workflows\/(?:payments|refunds)\//.test(sourcePath)
       || /^src\/domains\/[^/]+\/workflows\/(?:payments|refunds)\//.test(sourcePath)) {
@@ -194,6 +230,39 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (migratedFinanceApiPattern.test(legacyApiClient)) {
       violations.push('c6-legacy-finance-api: src/api/client.js')
     }
+    const migratedCustomerApiPattern = /export\s+(?:const\s+|function\s+)(createClient|updateClient|deleteClient)\b/
+    if (migratedCustomerApiPattern.test(legacyApiClient)) {
+      violations.push('c7-legacy-customers-api: src/api/client.js')
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+
+  try {
+    const appSource = await readFile(path.join(rootDir, 'src/App.jsx'), 'utf8')
+    if (C7_APP_CUSTOMER_OWNER_PATTERNS.some((pattern) => pattern.test(appSource))) {
+      violations.push('c7-app-customer-owner: src/App.jsx')
+    }
+    if (C7_CLIENT_COLLECTION_MUTATION_PATTERN.test(appSource)) {
+      violations.push('c7-customer-update-collection: src/App.jsx')
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+
+  for (const sourcePath of sourcePaths) {
+    if (!sourcePath.startsWith('src/domains/customers/') || isTestFile(sourcePath)) continue
+    const customerSource = await readFile(path.join(rootDir, sourcePath), 'utf8')
+    if (C7_CLIENT_COLLECTION_MUTATION_PATTERN.test(customerSource)) {
+      violations.push(`c7-customer-update-collection: ${sourcePath}`)
+    }
+  }
+
+  try {
+    const sharedIdentity = await readFile(path.join(rootDir, 'shared/clientIdentity.js'), 'utf8')
+    if (C7_SHARED_DUPLICATE_PATTERN.test(sharedIdentity)) {
+      violations.push('c7-shared-customer-duplicate: shared/clientIdentity.js')
+    }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
   }
@@ -209,7 +278,8 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       if (edge.specifier === 'qz-tray') {
         violations.push(`domain-qz: ${edge.from} -> ${edge.specifier}`)
       }
-      if (edge.resolvedPath?.startsWith('src/infrastructure/')) {
+      if (edge.resolvedPath?.startsWith('src/infrastructure/')
+        || /^src\/domains\/[^/]+\/infrastructure\//.test(edge.resolvedPath || '')) {
         violations.push(`domain-infrastructure: ${edge.from} -> ${edge.resolvedPath}`)
       }
       if (/^src\/domains\/[^/]+\/ui\//.test(edge.resolvedPath || '')) {
@@ -225,6 +295,24 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && edge.resolvedPath?.startsWith('src/domains/orders/')
       && edge.resolvedPath !== 'src/domains/orders/index.js') {
       violations.push(`orders-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!edge.from.startsWith('src/domains/customers/')
+      && edge.resolvedPath?.startsWith('src/domains/customers/')
+      && edge.resolvedPath !== 'src/domains/customers/index.js') {
+      violations.push(`customers-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/customers/')
+      && edge.resolvedPath?.startsWith('src/domains/orders/')
+      && edge.resolvedPath !== 'src/domains/orders/index.js') {
+      violations.push(`customers-orders-internal: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/orders/')
+      && edge.resolvedPath?.startsWith('src/domains/customers/')
+      && edge.resolvedPath !== 'src/domains/customers/index.js') {
+      violations.push(`orders-customers-internal: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
     if (!edge.from.startsWith('src/domains/table-service/')

@@ -4,17 +4,19 @@ import { readFileSync } from 'node:fs'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
-test('normal client form blocks duplicate phones and opens the in-app duplicate-name modal', () => {
-  const app = source('./App.jsx')
+test('normal client form delegates duplicate validation and editor state to Customers', () => {
+  const workspace = source('./domains/customers/ui/CustomersWorkspace.jsx')
+  const editor = source('./domains/customers/application/useCustomerEditor.js')
 
-  assert.match(app, /findClientDuplicates/)
-  assert.match(app, /Telefone já cadastrado para/)
-  assert.match(app, /ClientDuplicateModal/)
-  assert.match(app, /duplicateClientDialog/)
-  assert.match(app, /handleUseExistingClient/)
-  assert.match(app, /handleConfirmDuplicateClient/)
-  assert.doesNotMatch(app, /window\.confirm/)
-  assert.doesNotMatch(app, /phone:\s*newClient\.phone\s*\|\|\s*['"]\(00\) 00000-0000['"]/)
+  assert.match(editor, /findClientDuplicates/)
+  assert.match(editor, /Telefone já cadastrado para/)
+  assert.match(editor, /duplicateDialog/)
+  assert.match(workspace, /ClientDuplicateModal/)
+  assert.match(workspace, /CustomerEditorDialog/)
+  assert.match(workspace, /useCustomerEditor/)
+  assert.doesNotMatch(workspace, /duplicateClientDialog/)
+  assert.doesNotMatch(workspace, /window\.confirm/)
+  assert.doesNotMatch(editor, /phone:\s*draft\.phone\s*\|\|\s*['"]\(00\) 00000-0000['"]/)
 })
 
 test('quick client inside new order can use the existing client or continue duplicate-name registration', () => {
@@ -30,13 +32,11 @@ test('quick client inside new order can use the existing client or continue dupl
   assert.match(page, /role="alert"/)
 })
 
-test('duplicate client modal shows the existing client and all three choices', () => {
-  const app = source('./App.jsx')
-  const page = source('./domains/orders/ui/NewOrder.jsx')
+test('public duplicate client modal shows the existing client and all three choices', () => {
+  const modal = source('./domains/customers/ui/ClientDuplicateModal.jsx')
 
-  for (const content of [app, page]) {
-    assert.match(content, /Cancelar/)
-    assert.match(content, /Usar cliente existente/)
-    assert.match(content, /Cadastrar mesmo assim/)
-  }
+  assert.match(modal, /Cancelar/)
+  assert.match(modal, /Usar cliente existente/)
+  assert.match(modal, /Cadastrar mesmo assim/)
+  assert.match(modal, /Encontramos um cliente com este nome/)
 })

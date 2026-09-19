@@ -107,6 +107,7 @@ export function useOperationalDataRuntime({
     tables: nextTables,
     tableTab,
     client,
+    deletedClientId,
     product,
   }) => {
     const changed = []
@@ -115,7 +116,7 @@ export function useOperationalDataRuntime({
     if (nextFinanceSettings !== undefined) changed.push('financeSettings')
     if (table || Array.isArray(nextTables)) changed.push('tables')
     if (tableTab) changed.push('tableTabs')
-    if (client) changed.push('clients')
+    if (client || deletedClientId) changed.push('clients')
     if (product) changed.push('products')
 
     syncGuardRef.current.markMutation(changed)
@@ -130,6 +131,7 @@ export function useOperationalDataRuntime({
     if (Array.isArray(nextTables)) commitTables(nextTables)
     if (tableTab) setTableTabs((current) => upsertById(current, tableTab))
     if (client) setClients((current) => upsertById(current, client))
+    if (deletedClientId) setClients((current) => removeById(current, deletedClientId))
     if (product) setProducts((current) => upsertById(current, product))
 
     return {

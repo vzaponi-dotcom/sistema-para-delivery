@@ -263,3 +263,84 @@ test('Finance and payment workflows cannot import printing internals', async (t)
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.equal(violations.filter((item) => item.startsWith('c6-finance-payment-printing-import:')).length, 2)
 })
+
+
+test('C7 external consumers cannot deep import Customers internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import Clients from './domains/customers/ui/Clients.jsx'\n")
+  await write('src/domains/customers/ui/Clients.jsx', 'export default function Clients() {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('customers-deep-import: src/App.jsx -> src/domains/customers/ui/Clients.jsx'))
+})
+
+test('C7 Customers and Orders may only cross through the Customers public contract', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/customers/ui/x.js', "import { isOrderActive } from '../../orders/domain/orderLifecycle.js'\n")
+  await write('src/domains/orders/domain/orderLifecycle.js', 'export const isOrderActive = () => true\n')
+  await write('src/domains/orders/ui/y.js', "import { customersApi } from '../../customers/infrastructure/customersApi.js'\n")
+  await write('src/domains/customers/infrastructure/customersApi.js', 'export const customersApi = {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('customers-orders-internal: src/domains/customers/ui/x.js -> src/domains/orders/domain/orderLifecycle.js'))
+  assert.ok(violations.includes('orders-customers-internal: src/domains/orders/ui/y.js -> src/domains/customers/infrastructure/customersApi.js'))
+})
+
+test('C7 legacy Customers owners and API exports are permanently rejected', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/pages/Clients.jsx', 'export default function Clients() {}\n')
+  await write('src/components/ClientDuplicateModal.jsx', 'export default function ClientDuplicateModal() {}\n')
+  await write('src/api/client.js', [
+    'export const createClient = () => {}',
+    'export const updateClient = () => {}',
+    'export const deleteClient = () => {}',
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c7-legacy-customers-owner: src/pages/Clients.jsx'))
+  assert.ok(violations.includes('c7-legacy-customers-owner: src/components/ClientDuplicateModal.jsx'))
+  assert.ok(violations.includes('c7-legacy-customers-api: src/api/client.js'))
+})
+
+test('C7 rejects customer ownership and client collection mutation returning to App', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', [
+    'const handleAddClient = () => {}',
+    'const duplicateClientDialog = {}',
+    "updateCollection('clients', () => [])",
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c7-app-customer-owner: src/App.jsx'))
+  assert.ok(violations.includes('c7-customer-update-collection: src/App.jsx'))
+})
+
+test('C7 rejects updateCollection clients inside Customers', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/customers/application/x.js', "updateCollection('clients', () => [])\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c7-customer-update-collection: src/domains/customers/application/x.js'))
+})
+
+test('C7 keeps frontend duplicate/name rules out of shared while allowing permanent phone primitives', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('shared/clientIdentity.js', [
+    'export const normalizeClientPhone = (value) => value',
+    'export const formatClientPhone = (value) => value',
+    'export const normalizeClientName = (value) => value',
+    'export const findClientDuplicates = () => ({})',
+  ].join('\n'))
+  let violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c7-shared-customer-duplicate: shared/clientIdentity.js'))
+
+  await write('shared/clientIdentity.js', [
+    'export const normalizeClientPhone = (value) => value',
+    'export const formatClientPhone = (value) => value',
+  ].join('\n'))
+  violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((item) => item.startsWith('c7-shared-customer-duplicate:')), false)
+})
+
+test('domain layer cannot import same-domain infrastructure', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/customers/domain/rules.js', "import { api } from '../infrastructure/customersApi.js'\n")
+  await write('src/domains/customers/infrastructure/customersApi.js', 'export const api = {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('domain-infrastructure: src/domains/customers/domain/rules.js -> src/domains/customers/infrastructure/customersApi.js'))
+})

@@ -7,7 +7,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
-| `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
+| `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | **Customers removed + architecture-enforced in C7; Catalog/products remain** | C8, with final enforcement C10 |
 
 ## C1 status — 2026-09-16
 
@@ -132,3 +132,19 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 
 - QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112`.
 - Merge authorization for C6 was explicitly granted by the user on 2026-09-19. Production remains untouched.
+
+
+## C7 homologation / closure status — 2026-09-19
+
+- C7 Tasks 1–9 are **COMPLETE / STAGING HOMOLOGATED** on branch `feature/spec-c7-customers`; draft PR #51 remains open.
+- Homologated staging SHA: `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; final code-changing SHA: `6402496c078ca817572e6e375beec9f4ffbe557a`.
+- Validate #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Customer CRUD no longer uses the `updateCollection` escape hatch. Customer delete is represented by the official `deletedClientId` effect, and Task 7 permanently rejects reintroduction of `updateCollection('clients', ...)` in App or Customers.
+- The global `updateCollection` escape hatch is **not globally removed**: Catalog/product CRUD remains scheduled for C8, with final closure enforcement in C10.
+- Legacy customer CRUD exports `createClient`, `updateClient`, `deleteClient` are absent from `src/api/client.js`; Task 7 rejects their reintroduction.
+- Legacy UI owners `src/pages/Clients.jsx` and `src/components/ClientDuplicateModal.jsx` are removed with no compatibility reexport; their Customers owners are architecture-enforced.
+- `shared/clientIdentity.js` is a **permanent cross-runtime contract**, not a compatibility facade. It deliberately retains only `normalizeClientPhone` and `formatClientPhone`, which are consumed by frontend/Worker behavior.
+- Frontend-only `normalizeClientName` and `findClientDuplicates` belong to Customers and are architecture-enforced out of the shared contract.
+- Generic/auth reexports in `src/api/client.js` remain scheduled for C10 at latest.
+- C7 introduced **no surviving temporary compatibility facade** and did not broaden the architecture allowlist.
+- C7 has no surviving temporary compatibility facade. Task 10 exact-head merge gate is active; production remains untouched.
