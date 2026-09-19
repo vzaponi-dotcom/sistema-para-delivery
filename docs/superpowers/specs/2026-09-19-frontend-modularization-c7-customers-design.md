@@ -1,7 +1,7 @@
 # Spec C7 — Customers
 
 **Data:** 2026-09-19  
-**Status:** design consolidado e autorrevisado; aguardando aprovação explícita do usuário  
+**Status:** **APPROVED** — design consolidado, autorrevisado e aprovado explicitamente pelo usuário em 2026-09-19  
 **Branch:** `feature/spec-c7-customers`  
 **Base:** `master` em `5b101800fe29d02dd4543e184cca9e06d659a445`  
 **Base validation:** Validate application #1392 / run `35448223721` — SUCCESS  
@@ -1117,4 +1117,4 @@ Correções incorporadas nesta autorrevisão:
 9. explicitar o `localeCompare` atual na ordenação;
 10. confirmar que `deletedClientId` é a extensão apropriada de official effects e não um novo runtime bridge.
 
-Após essas correções, não ficou bloqueador arquitetural conhecido na spec. O plano pré-spec ainda precisa ser reconciliado com esta versão antes de qualquer Task 1 RED.
+Após essas correções, não ficou bloqueador arquitetural conhecido na spec. O usuário aprovou explicitamente esta versão em 2026-09-19. O plano pré-spec ainda precisa ser reconciliado com esta versão e aprovado separadamente antes de qualquer Task 1 RED.
