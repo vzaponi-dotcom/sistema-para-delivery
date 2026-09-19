@@ -24,6 +24,11 @@ test('Task 4 moves the customer editor and duplicate modal behind the Customers 
   const orders = source('../orders/ui/NewOrder.jsx')
   assert.match(orders, /import\s*\{[^}]*ClientDuplicateModal[^}]*\}\s*from\s*['"]\.\.\/\.\.\/customers\/index\.js['"]/s)
   assert.doesNotMatch(orders, /components\/ClientDuplicateModal/)
+  const clearStart = app.indexOf('const clearBusinessData = () =>')
+  const clearEnd = app.indexOf('sessionRuntimeTargetsRef.current.clearApplicationState', clearStart)
+  assert.notEqual(clearStart, -1)
+  assert.notEqual(clearEnd, -1)
+  assert.match(app.slice(clearStart, clearEnd), /customerEditor\.cancel\(\)/)
 })
 
 test('Task 4 preserves the customer editor labels, input semantics and actions', () => {
