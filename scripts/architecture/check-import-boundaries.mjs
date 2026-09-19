@@ -325,7 +325,6 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (error?.code !== 'ENOENT') throw error
   }
 
-  for (const edge of edges) {
   try {
     const sharedProductCatalog = await readFile(path.join(rootDir, 'shared/productCatalog.js'), 'utf8')
     if (C8_SHARED_METADATA_PATTERN.test(sharedProductCatalog)) {
