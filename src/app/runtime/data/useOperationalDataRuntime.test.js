@@ -388,3 +388,18 @@ test('C8 deleting a missing product is locally idempotent and non-financial', as
   assert.deepEqual(harness.getCurrent().products, before)
   assert.equal(harness.getCurrent().getOfficialRevision(), revision)
 })
+
+
+test('C8 removes the collection escape hatch from the runtime contract', async (t) => {
+  const h = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => bootstrapFixture(),
+      getOrders: async () => ({ orders: [] }),
+    },
+  })
+
+  assert.equal(Object.hasOwn(h.getCurrent(), 'updateCollection'), false)
+
+  const source = await readFile(new URL('./useOperationalDataRuntime.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /\bupdateCollection\b/)
+})
