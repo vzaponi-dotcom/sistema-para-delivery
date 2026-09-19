@@ -12,15 +12,12 @@ const filesUnder = (directory) => readdirSync(directory, { withFileTypes: true }
   return entry.isDirectory() ? filesUnder(path) : [path]
 })
 
-test('C8 Task 1 public entry is Node-safe and exposes only the current external contracts', async () => {
+test('C8 Task 5 public entry is Node-safe and exposes only final external contracts', async () => {
   const catalog = await import('./index.js')
   assert.deepEqual(Object.keys(catalog).sort(), [
-    'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm', 'ProductEditorDialog', 'useCatalogCommands', 'useProductEditor',
+    'CatalogWorkspace', 'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation',
   ].sort())
-  assert.equal(typeof catalog.Products, 'function')
-  assert.equal(typeof catalog.ProductForm, 'function')
-  assert.equal(typeof catalog.ProductEditorDialog, 'function')
-  assert.equal(typeof catalog.useProductEditor, 'function')
+  assert.equal(typeof catalog.CatalogWorkspace, 'function')
   assert.strictEqual(catalog.PRODUCT_CATEGORIES, shared.PRODUCT_CATEGORIES)
   assert.strictEqual(catalog.formatProductPresentation, shared.formatProductPresentation)
   assert.equal(catalog.categoryForUi('Categoria antiga'), 'Outros')
