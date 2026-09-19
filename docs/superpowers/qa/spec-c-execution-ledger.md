@@ -13,7 +13,7 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-18
+## Program status — 2026-09-19
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
