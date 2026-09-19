@@ -4,7 +4,7 @@ import {
   deriveRecoveryView,
   nextRecoveryState,
   runSingleRecoveryCopy,
-} from './printRecoveryFlow.js'
+} from './printRecovery.js'
 
 test('a ready pending safe backlog prompts once while deferred recovery stays closed until a new cycle', () => {
   assert.deepEqual(deriveRecoveryView({ recoveryState: 'pending', physicalReady: true, safeBacklog: 2 }), {

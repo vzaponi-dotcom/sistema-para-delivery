@@ -11,12 +11,14 @@ import {
   canKeepSecondCopyPromptOpen,
   canPresentSecondCopyPrompt,
   canConsumeAutomaticPrintJob,
-  claimAndExecuteSecondCopy,
-  createPhysicalJobFailureNotifier,
   getPrintingTransportKind,
   getRendererCompatibilityMode,
-  initializeBackgroundPhysicalTransport,
   isPrintingTransportSupported,
+} from '../domains/printing/index.js'
+import {
+  claimAndExecuteSecondCopy,
+  createPhysicalJobFailureNotifier,
+  initializeBackgroundPhysicalTransport,
   usePrintingManager,
 } from './usePrintingManager.js'
 import { runClaimedPrintJob } from './printJobRunner.js'

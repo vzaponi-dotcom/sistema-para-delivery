@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { getSecondCopyPromptTitle, isSecondCopyPromptEligible } from './secondCopyPromptFlow.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
-import { renderEscPos58mm } from './escpos58mm.js'
+import {
+  getSecondCopyPromptTitle,
+  isSecondCopyPromptEligible,
+  renderEscPos58mm,
+} from '../domains/printing/index.js'
 
 const tabDocument = { version: 1, type: 'table-tab', tableTab: { id: 'tab-17', number: 17, tableName: 'Mesa 7' }, items: [] }
 const awaitingTab = {
