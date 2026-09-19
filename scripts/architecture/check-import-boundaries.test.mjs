@@ -344,3 +344,114 @@ test('domain layer cannot import same-domain infrastructure', async (t) => {
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.ok(violations.includes('domain-infrastructure: src/domains/customers/domain/rules.js -> src/domains/customers/infrastructure/customersApi.js'))
 })
+
+
+test('C8 external consumers cannot deep import Catalog internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import Products from './domains/catalog/ui/Products.jsx'\n")
+  await write('src/domains/orders/ui/x.js', "import { catalogApi } from '../../catalog/infrastructure/catalogApi.js'\n")
+  await write('src/domains/catalog/ui/Products.jsx', 'export default function Products() {}\n')
+  await write('src/domains/catalog/infrastructure/catalogApi.js', 'export const catalogApi = {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('catalog-deep-import: src/App.jsx -> src/domains/catalog/ui/Products.jsx'))
+  assert.ok(violations.includes('catalog-deep-import: src/domains/orders/ui/x.js -> src/domains/catalog/infrastructure/catalogApi.js'))
+})
+
+test('C8 Catalog cannot depend on Orders, Finance, Table Service, Printing or QZ', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/catalog/application/x.js', [
+    "import { Orders } from '../../orders/index.js'",
+    "import { Finance } from '../../finance/index.js'",
+    "import { Tables } from '../../table-service/index.js'",
+    "import { print } from '../../../printing/runtime.js'",
+    "import { qz } from '../../../infrastructure/qz/runtime.js'",
+    "import tray from 'qz-tray'",
+  ].join('\n'))
+  await write('src/domains/orders/index.js', 'export const Orders = {}\n')
+  await write('src/domains/finance/index.js', 'export const Finance = {}\n')
+  await write('src/domains/table-service/index.js', 'export const Tables = {}\n')
+  await write('src/printing/runtime.js', 'export const print = () => {}\n')
+  await write('src/infrastructure/qz/runtime.js', 'export const qz = {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('catalog-orders-import: src/domains/catalog/application/x.js -> src/domains/orders/index.js'))
+  assert.ok(violations.includes('catalog-finance-import: src/domains/catalog/application/x.js -> src/domains/finance/index.js'))
+  assert.ok(violations.includes('catalog-table-service-import: src/domains/catalog/application/x.js -> src/domains/table-service/index.js'))
+  assert.ok(violations.includes('catalog-printing-import: src/domains/catalog/application/x.js -> src/printing/runtime.js'))
+  assert.ok(violations.includes('catalog-qz-import: src/domains/catalog/application/x.js -> src/infrastructure/qz/runtime.js'))
+  assert.ok(violations.includes('catalog-qz-import: src/domains/catalog/application/x.js -> qz-tray'))
+})
+
+test('C8 legacy Catalog owners and product CRUD exports are permanently rejected', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/pages/Products.jsx', 'export default function Products() {}\n')
+  await write('src/components/ProductForm.jsx', 'export default function ProductForm() {}\n')
+  await write('src/api/client.js', [
+    'export function createProduct() {}',
+    'export const updateProduct = () => {}',
+    "export { deleteProduct as removeLegacyProduct } from './legacyProducts.js'",
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c8-legacy-catalog-owner: src/pages/Products.jsx'))
+  assert.ok(violations.includes('c8-legacy-catalog-owner: src/components/ProductForm.jsx'))
+  assert.ok(violations.includes('c8-legacy-catalog-api: src/api/client.js'))
+})
+
+test('C8 rejects product ownership returning to App and updateCollection returning to production', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', [
+    'const editingProductId = null',
+    'const handleAddProduct = () => {}',
+    'const useCatalogCommands = () => {}',
+  ].join('\n'))
+  await write('src/app/runtime/data/useOperationalDataRuntime.js', [
+    'export const updateCollection = () => {}',
+    "updateCollection('products', () => [])",
+  ].join('\n'))
+  await write('src/app/runtime/data/useOperationalDataRuntime.test.js', "assert.doesNotMatch(source, /\\bupdateCollection\\b/)\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c8-app-catalog-owner: src/App.jsx'))
+  assert.ok(violations.includes('c8-update-collection: src/app/runtime/data/useOperationalDataRuntime.js'))
+  assert.equal(violations.some((value) => value.includes('useOperationalDataRuntime.test.js') && value.startsWith('c8-update-collection:')), false)
+})
+
+test('C8 keeps frontend consumers behind Catalog and frontend metadata out of shared', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/orders/domain/x.js', "import { PRODUCT_CATEGORIES } from '../../../../shared/productCatalog.js'\n")
+  await write('shared/productCatalog.js', [
+    "export const PRODUCT_CATEGORIES = ['Outros']",
+    "export const CATEGORY_ICON_NAMES = { Outros: 'package' }",
+    'export const categoryForUi = () => "Outros"',
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('catalog-shared-bypass: src/domains/orders/domain/x.js -> shared/productCatalog.js'))
+  assert.ok(violations.includes('c8-shared-catalog-metadata: shared/productCatalog.js'))
+})
+
+test('C8 Catalog domain remains free of React, UI, infrastructure and browser APIs', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/catalog/domain/rules.js', [
+    "import React from 'react'",
+    "import { api } from '../infrastructure/catalogApi.js'",
+    "import ProductForm from '../ui/ProductForm.jsx'",
+    'export const browserRead = () => window.localStorage.getItem("x")',
+    'export const remoteRead = () => fetch("/api/products")',
+  ].join('\n'))
+  await write('src/domains/catalog/infrastructure/catalogApi.js', 'export const api = {}\n')
+  await write('src/domains/catalog/ui/ProductForm.jsx', 'export default function ProductForm() {}\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some((value) => value.startsWith('domain-react: src/domains/catalog/domain/rules.js')))
+  assert.ok(violations.some((value) => value.startsWith('domain-infrastructure: src/domains/catalog/domain/rules.js')))
+  assert.ok(violations.some((value) => value.startsWith('domain-ui: src/domains/catalog/domain/rules.js')))
+  assert.ok(violations.includes('catalog-domain-browser: src/domains/catalog/domain/rules.js'))
+})
+
+test('C8 allows Orders through Catalog public entry plus Catalog internal and shared contracts', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/orders/domain/x.js', "import { formatProductPresentation } from '../../catalog/index.js'\n")
+  await write('src/domains/catalog/index.js', "export { formatProductPresentation } from '../../../shared/productCatalog.js'\n")
+  await write('src/domains/catalog/application/x.js', "import { categoryForUi } from '../domain/catalogPresentation.js'\n")
+  await write('src/domains/catalog/domain/catalogPresentation.js', "import { PRODUCT_CATEGORIES } from '../../../../shared/productCatalog.js'\nexport const categoryForUi = () => PRODUCT_CATEGORIES[0]\n")
+  await write('shared/productCatalog.js', "export const PRODUCT_CATEGORIES = ['Outros']\nexport const formatProductPresentation = () => 'Unidade'\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((value) => /^(?:catalog-|c8-)/.test(value)), false)
+})
