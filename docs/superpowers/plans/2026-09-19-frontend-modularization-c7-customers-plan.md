@@ -1,10 +1,10 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: EXECUTION ACTIVE — Task 1 COMPLETE / GREEN. Design and plan approved 2026-09-19.**
+> **STATUS: EXECUTION ACTIVE — Tasks 1–2 COMPLETE / GREEN. Design and plan approved 2026-09-19.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
-> Task 1 is complete. Do not start Task 2 unless it is the explicitly requested next step.
+> Tasks 1–2 are complete. Do not start Task 3 unless it is the explicitly requested next step.
 
 **Goal:** Establish `src/domains/customers` as the frontend owner of customer duplicate rules, CRUD/API, customer list/editor UI and customer commands; remove customer CRUD/editor/duplicate orchestration from `App.jsx`; preserve quick-create integration with Orders without allowing Orders to own Customers infrastructure.
 
@@ -27,7 +27,7 @@
 - Post-merge `master` Validate: #1392 / run `35448223721` — SUCCESS.
 - Work branch: `feature/spec-c7-customers`.
 - C7 design approval commit: `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-- Functional implementation: **Task 1 COMPLETE / GREEN**.
+- Functional implementation: **Tasks 1–2 COMPLETE / GREEN; Task 3 NOT STARTED**.
 - Production deployment: **NO** unless separately authorized.
 
 ## Task 1 evidence
@@ -48,6 +48,29 @@
   - `shared/clientIdentity.js` retains only the cross-runtime phone primitives used by the Worker;
   - no Worker/schema/API behavior changed.
 - Task 2: **NOT STARTED**.
+
+## Task 2 evidence
+
+- RED commit: `d83abfcd8f88ef3e620a9519b77ac52eb184a6c0`.
+- RED Validate: #1398 / run `35450909294` — **FAIL as intended**, **1,778 tests / 1,773 pass / 4 fail / 1 skipped**.
+- RED failures were limited to the intended Task 2 debt:
+  - missing `customersApi.js`;
+  - missing `useCustomerCommands.js`;
+  - legacy customer CRUD exports/App collection ownership still present;
+  - runtime did not yet apply/protect `deletedClientId`.
+- GREEN candidate: `048d2c0048f6a54d4a4d2620f2ba655216573907`.
+- Candidate Validate: #1399 / run `35451130365` — implementation tests passed; one stale characterization remained in `confirmationFlowRegression.test.js`, which still expected client deletion success feedback inside `App.jsx`.
+- Test-ownership alignment: `7431745d6ff817b76126dc7da090b270ccf57268` moved that assertion to `useCustomerCommands.js` without changing production behavior.
+- Final GREEN Validate: #1400 / run `35451281055` — **SUCCESS**, **1,779 tests / 1,778 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- Delivered ownership:
+  - customer POST/PATCH/DELETE now belong to `domains/customers/infrastructure/customersApi.js`;
+  - `useCustomerCommands` owns create/quick-create/update/delete request keys, official effects and success/error routing;
+  - `src/api/client.js` no longer exports customer CRUD;
+  - delete applies `{ deletedClientId }` through `applyOfficialEffects`, and the runtime marks/protects/removes the client from the official collection;
+  - App no longer directly calls customer APIs or `updateCollection('clients', ...)`;
+  - no Worker/schema/API contract changed.
+- Task 3: **NOT STARTED**.
 
 ## Current ownership/debt snapshot
 
@@ -210,7 +233,7 @@ npm run test:architecture
 
 ---
 
-## Task 2 — Move Customers API/commands and add official delete effect
+## Task 2 — Move Customers API/commands and add official delete effect — COMPLETE / GREEN
 
 **Files**
 - Create `src/domains/customers/infrastructure/customersApi.js`
