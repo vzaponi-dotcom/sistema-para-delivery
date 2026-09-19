@@ -51,7 +51,9 @@
 
 The rollout contracts below are unchanged; this block is execution status only.
 
-C6 Task 8 — refund workflow and dialog extraction — is **COMPLETE / GREEN**. RED `cdbb857918254f6010619b69553d53af22e6577f` failed Validate #1374 / run `35414009138` for the intended missing refund workflow modules. GREEN `55e674fac1bcb9f275863916739dcd6b3b5d9271` passed focused/local gates but Validate #1375 / run `35414347727` exposed one stale `refundOrderApi` characterization; `8848bcaff0819048fdcb175d02694b80e8d4e2eb` aligned it and passed Validate #1376 / run `35414468722` with **1,775 tests / 1,775 pass / 0 fail / 1 skipped** and all remaining gates green. Task 9 remains not started; no staging or production deploy occurred.
+C6 Task 8 — refund workflow and dialog extraction — is **COMPLETE / GREEN**. RED `cdbb857918254f6010619b69553d53af22e6577f` failed Validate #1374 / run `35414009138` for the intended missing refund workflow modules. GREEN `55e674fac1bcb9f275863916739dcd6b3b5d9271` passed focused/local gates but Validate #1375 / run `35414347727` exposed one stale `refundOrderApi` characterization; `8848bcaff0819048fdcb175d02694b80e8d4e2eb` aligned it and passed Validate #1376 / run `35414468722` with **1,775 tests / 1,775 pass / 0 fail / 1 skipped** and all remaining gates green.
+
+C6 Task 9 — legacy finance API/util cleanup — is **COMPLETE / GREEN**. RED `841566efc06d9b31f937c0f9140dba85823d2839` failed Validate #1378 / run `35415173295` for the intended absence assertions. GREEN `279f409c5f2322d273ea3c36b1ad16136c1c9d12` passed Validate #1379 / run `35415603078` with **1,760 tests / 1,760 pass / 0 fail / 0 skipped** and all remaining gates green. The eight C6 exports were removed from `src/api/client.js`; the five legacy `src/utils` owners and superseded tests were removed; final consumers use Finance/Orders public contracts and app payment/refund workflows. No staging or production deploy occurred.
 
 ## Global Constraints
 

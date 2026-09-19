@@ -27,6 +27,8 @@
 
 Task 8 evidence: RED `cdbb857918254f6010619b69553d53af22e6577f` → Validate #1374 / run `35414009138` failed at Test for the intended missing `refundApi.js` and `useRefundWorkflow.js` modules. GREEN `55e674fac1bcb9f275863916739dcd6b3b5d9271` → Validate #1375 / run `35414347727` exposed one stale App ownership characterization; alignment `8848bcaff0819048fdcb175d02694b80e8d4e2eb` → Validate #1376 / run `35414468722` **SUCCESS** with **1,775 tests / 1,775 pass / 0 fail / 1 skipped** and all gates green. Refund now belongs to `src/app/workflows/refunds`; Finance emits only `onRequestRefund`, App composes the workflow dialog, and no Worker/D1 behavior changed.
 
+Task 9 evidence: RED `841566efc06d9b31f937c0f9140dba85823d2839` → Validate #1378 / run `35415173295` failed for the intended legacy API export and utility-owner absence assertions. GREEN `279f409c5f2322d273ea3c36b1ad16136c1c9d12` → Validate #1379 / run `35415603078` **SUCCESS** with **1,760 tests / 1,760 pass / 0 fail / 0 skipped** and all gates green. Removed the eight C6 exports from `src/api/client.js` and the five legacy utility owners plus their superseded tests. Final consumers use Finance public projections, Orders `getPendingAmount`/`isOrderPaid`, Orders payment-promise contracts, and app workflow payment/refund adapters. `paymentWorkflow.js` was emptied by ownership: `calculateReceivedToday` remains Finance-owned, `isOrderPaid`/`getPendingAmount` are Orders-owned, and unconsumed `normalizePayment`/`createOrderPaymentMovement` were removed as dead code. No Worker/D1 behavior changed.
+
 ## Global Constraints
 
 - Preserve current visual behavior and business behavior; no redesign, new UX, new feature, or deliberate rule change.
@@ -1427,7 +1429,7 @@ Expected Validate: SUCCESS. Achieved at final code/docs predecessor `8848bcaff08
 
 ---
 
-### Task 9: Remove C6 legacy API exports, legacy utility owners, and stale paths
+### Task 9: Remove C6 legacy API exports, legacy utility owners, and stale paths — COMPLETE / GREEN
 
 **Files:**
 - Modify: `src/api/client.js`
@@ -1456,7 +1458,7 @@ Expected Validate: SUCCESS. Achieved at final code/docs predecessor `8848bcaff08
   - `updateOrderPaymentPromise`
 - Generic/auth exports remain.
 
-- [ ] **Step 1: Audit consumers before deleting**
+- [x] **Step 1: Audit consumers before deleting**
 
 Run:
 
@@ -1468,7 +1470,7 @@ rg -n "pages/(Finance|Receivables)|components/(MovementDialog|OpeningBalanceDial
 
 Expected before deletion: only new-owner tests or stale imports explicitly scheduled to be corrected in this task.
 
-- [ ] **Step 2: Write RED extraction contract**
+- [x] **Step 2: Write RED extraction contract**
 
 Create/update a source contract:
 
@@ -1492,11 +1494,11 @@ Add absence assertions for each physically moved legacy owner.
 
 Run it before deletion; expected FAIL.
 
-- [ ] **Step 3: Commit/push RED**
+- [x] **Step 3: Commit/push RED**
 
 Commit only extraction tests; remote RED must fail because legacy exports/owners still exist.
 
-- [ ] **Step 4: Delete exports/files and migrate final consumers**
+- [x] **Step 4: Delete exports/files and migrate final consumers**
 
 Remove exactly the C6 exports from `src/api/client.js`; do not touch printing/generic/auth/client/product exports scheduled later.
 
@@ -1504,7 +1506,7 @@ Remove legacy files only after `rg` proves production consumers are migrated.
 
 Update test imports to the new public contracts; do not weaken business assertions.
 
-- [ ] **Step 5: Re-run audits and focused suite**
+- [x] **Step 5: Re-run audits and focused suite**
 
 ```bash
 rg -n "registerPayment|registerTableTabPayment|refundOrder|createMovement|updateMovement|deleteMovement|saveFinanceSettings|updateOrderPaymentPromise" src/api/client.js
@@ -1517,7 +1519,7 @@ Expected:
 - first two audits return no prohibited production matches;
 - full tests PASS.
 
-- [ ] **Step 6: Commit GREEN + Validate**
+- [x] **Step 6: Commit GREEN + Validate**
 
 ```bash
 git add -A src
@@ -1525,7 +1527,7 @@ git commit -m "refactor: remove c6 legacy finance facades"
 git push origin feature/spec-c6-finance-workflows
 ```
 
-Expected Validate: SUCCESS.
+Expected Validate: SUCCESS. Achieved at `279f409c5f2322d273ea3c36b1ad16136c1c9d12` / Validate #1379 / run `35415603078`.
 
 ---
 
