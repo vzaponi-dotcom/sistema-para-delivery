@@ -177,7 +177,7 @@ test('touch long press enters selection at 550ms, cancel events stop it and mous
   const { renderer } = await renderProducts(t, { products: [products[0]] })
   await expandOnlyCategory(renderer)
 
-  const row = () => renderer.root.findByProps({ className: 'product-compact-row' })
+  const row = () => renderer.root.findAllByType('article').find((node) => String(node.props.className || '').startsWith('product-compact-row'))
   await act(async () => row().props.onPointerDown({ pointerType: 'touch' }))
   assert.equal([...timers.values()].filter((timer) => timer.delay === 550).length, 1)
   const first = [...timers.entries()].find(([, timer]) => timer.delay === 550)
