@@ -274,7 +274,8 @@ These remain mandatory for C2-C10:
 - Design status: **APPROVED**.
 - Reconciled detailed plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`.
 - Plan reconciliation commit: `8fa979de36829dc1158f32faccb74598f8451b83`.
-- Plan status: **RECONCILED / AWAITING EXPLICIT USER APPROVAL**.
+- Formal plan self-review commit: `dd1c033c91629592bf28bc0a135c4c8d2d8dfead`.
+- Plan status: **RECONCILED + FORMALLY SELF-REVIEWED / AWAITING EXPLICIT USER APPROVAL**.
 - Functional implementation: **NOT STARTED**.
 - Approval gate: **do not begin Task 1 RED until the reconciled plan is explicitly approved**.
 - Production deployment: **NO**.
@@ -283,7 +284,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. The dedicated C7 design is written, formally self-reviewed and explicitly approved. The detailed C7 plan has been reconciled to that approved design and now awaits explicit plan approval. Do not start Task 1 RED before plan approval.
+The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. The dedicated C7 design is written, formally self-reviewed and explicitly approved. The detailed C7 plan has been reconciled to that approved design, formally self-reviewed, and now awaits explicit plan approval. Do not start Task 1 RED before plan approval.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -292,7 +293,7 @@ The active slice is C7 after C6 merged successfully. GitHub state wins over this
 5. Treat `5b101800fe29d02dd4543e184cca9e06d659a445` as the approved C7 base unless GitHub proves an intentional later reconciliation.
 6. C6 merged by PR #50; final branch Validate #1391 and post-merge Validate #1392 are green.
 7. Read `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; it is formally self-reviewed and **APPROVED**, with approval recorded at `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; it is reconciled to the approved design at `8fa979de36829dc1158f32faccb74598f8451b83` and awaits explicit plan approval. Functional C7 implementation has not started.
+8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; it is reconciled to the approved design and formally self-reviewed at `dd1c033c91629592bf28bc0a135c4c8d2d8dfead`. It awaits explicit plan approval. Functional C7 implementation has not started.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
