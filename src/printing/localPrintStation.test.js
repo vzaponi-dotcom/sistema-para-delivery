@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  clearQzPrinterName,
   detectPrintStationPlatform,
   getOrCreateLocalPrintStationId,
-  getQzPrinterName,
-  saveQzPrinterName,
 } from './localPrintStation.js'
 
 class MemoryStorage {
