@@ -885,11 +885,13 @@ Para induzir falhas, usar request blocking ou fixture em staging, nunca apagar/a
 
 ## Task 10 — Fechamento documental e merge autorizado
 
+**Task 10 status — 2026-09-19:** **PRE-MERGE CLOSURE IN PROGRESS**. Tasks 1–9 are complete and staging-homologated. This step prepares the final documentation-only merge-gate commit. The exact HEAD created by this step must receive its own full Validate before merge authorization is requested. Approval to execute Task 10 is explicitly **not** treated as merge authorization. Production remains untouched and C9 must not start automatically.
+
 **Files:** QA C8, execution ledger, compatibility ledger, rollout e este plano. PR da própria C8.
 
 **Interfaces:** consome homologação concluída sem FAIL/PENDING; produz handoff de merge e, só com autorização específica, master pós-C8 validada.
 
-- [ ] Atualizar documentos com cada evidência RED/GREEN, último SHA funcional, staging, matriz e bloqueios aceitos; estado de C7 fechado e C8 correto. Preservar histórico e não falsificar testes não executados.
+- [x] Atualizar documentos com cada evidência RED/GREEN, último SHA funcional, staging, matriz e bloqueios aceitos; estado de C7 fechado e C8 correto. Preservar histórico e não falsificar testes não executados.
 - [ ] Comitar docs de fechamento, push normal e executar Validate no **HEAD final exato**. Revalidar SHA/CI/estado draft do PR imediatamente antes do merge.
 - [ ] Pedir autorização explícita de merge da C8. Aprovação da spec, do plano, de uma task ou de teste manual não é autorização de merge.
 - [ ] Somente após autorização + gates verdes, merge sem force-push; registrar merge SHA e confirmar Validate pós-merge nesse SHA. Se o run ainda estiver em andamento, registrar pendência real e parar, sem promessa de acompanhamento em background.
@@ -1008,3 +1010,13 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 - Remote staging D1 reported no pending migrations; readiness succeeded on attempt 1/6 and login smoke returned HTTP 200.
 - Manual QA: **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Case 30 only is BLOCKED because no restricted/read-only identity with the needed capability profile is available in staging. User explicitly reported all other cases PASS.
 - No corrective code changes were needed during homologation. Production remains untouched. PR #52 remains draft/open; no merge.
+
+
+## Task 10 pre-merge handoff — 2026-09-19
+
+- Tasks 1–9 are complete; Task 9 is staging-homologated at `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` with manual QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Last code-changing SHA remains `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; all commits after the homologated SHA are documentation-only.
+- Post-homologation documentation closure parent `fa7a14fd46df5133cce5073dd5bdf3c3242776a7` passed Validate #1462 / run `35471370382` — SUCCESS, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**, all gates green.
+- PR #52 has no review threads or submitted reviews pending. It remains draft/open and unmerged.
+- This commit is the final pre-merge documentation update. Its own exact HEAD Validate is required before requesting explicit merge authorization; that future run belongs to GitHub/PR evidence and does not change the staging-homologated executable SHA.
+- No production deploy. Do not start C9 automatically.

@@ -419,3 +419,17 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Cases 1–29 and 31–35: **PASS** as explicitly reported by the user. No corrective code change was required.
 - Production deploy: **NO**. Merge: **NO**. PR #52 remains draft/open.
 - Any later documentation-only commit is not the staged executable; retain `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` as the homologated SHA.
+
+
+---
+
+# C8 — Task 10 pre-merge closure — 2026-09-19
+
+- C8 Tasks 1–9 are **COMPLETE**; Task 9 is **STAGING HOMOLOGATED**.
+- Homologated/staged executable SHA remains `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Deploy staging #186 / run `35469861985` SUCCESS; manual QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Last code-changing SHA: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`.
+- Post-homologation docs closure `fa7a14fd46df5133cce5073dd5bdf3c3242776a7` passed Validate #1462 / run `35471370382` — SUCCESS, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**, all gates green.
+- Compare `8a43d10e...` → `fa7a14fd...`: documentation-only changes; no application/Worker/migration/workflow/dependency code changed after homologation.
+- PR #52 review state: draft/open, unmerged, no review threads and no submitted reviews pending.
+- Task 10 ruling: authorization to execute Task 10 is **not merge authorization**. Merge requires a separate explicit user authorization after the exact final documentation HEAD passes Validate.
+- Production remains untouched. C9 must not start automatically.

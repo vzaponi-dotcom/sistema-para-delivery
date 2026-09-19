@@ -167,3 +167,14 @@ The user intentionally deferred canonical documentation updates during Tasks 2�
 - No code correction was needed, so no re-stage cycle was required.
 - Staged/homologated SHA remains `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`. The following documentation closure commit is intentionally later and must not replace the homologated executable SHA in evidence.
 - Production remains untouched; PR #52 remains draft/open; no merge.
+
+
+## Task 10 — pre-merge closure
+
+- Input state: Tasks 1–9 complete; staging homologated at `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Last application-code change remains `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`. No code correction occurred during or after homologation.
+- Documentation-only closure commit before this final pre-merge update: `fa7a14fd46df5133cce5073dd5bdf3c3242776a7`; Validate #1462 / run `35471370382` SUCCESS with **1,860 / 1,859 / 0 / 1** and all workflow gates green.
+- Git comparison from staged SHA to that docs closure contains documentation files only. PR #52 has no unresolved review threads or submitted reviews.
+- Compatibility audit: C8 has no surviving temporary facade; legacy product owners/API exports and runtime `updateCollection` are removed and architecture-enforced; Catalog public entry is minimal and deliberate.
+- Merge gate protocol: create this final documentation-only HEAD, run full Validate on that exact HEAD, re-check PR SHA/state/draft, then request separate explicit user merge authorization. Task approval is not merge approval.
+- No production deploy and no automatic C9 start.

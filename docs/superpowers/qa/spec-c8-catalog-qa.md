@@ -70,3 +70,12 @@
 Task 9 is **COMPLETE / STAGING HOMOLOGATED**. Final manual result: **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single accepted BLOCKED is case 30 because there is no suitable restricted/read-only capability identity in staging; it is not counted as PASS. No corrective code changes were required. Hardware printing remains outside this proportional C8 matrix and was not inferred from print-queue visibility.
 
 The staged/homologated executable is SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`. Documentation-only commits after this point must be recorded separately and validated on their own HEAD before merge.
+
+
+## Task 10 handoff
+
+- Manual QA is closed at **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Homologated executable remains `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; later commits are documentation-only and do not replace the staged SHA.
+- Case 30 remains the single accepted BLOCKED due to missing restricted/read-only capability identity; no FAIL/PENDING remains.
+- No code change was required after staging. Production was not deployed.
+- Before merge, the final documentation-only branch HEAD must pass the full Validate workflow and merge requires a separate explicit user authorization.

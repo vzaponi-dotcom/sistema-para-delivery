@@ -195,3 +195,15 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - `shared/productCatalog.js` remains a permanent cross-runtime contract and is enforced against frontend-only metadata returning there.
 - Final Catalog public entry remains: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
 - No allowlist expansion was required. Generic/auth reexports remain C10 debt; Printing remains C9 debt.
+
+
+## C8 closure status — pre-merge gate — 2026-09-19
+
+- C8 introduces **no surviving temporary compatibility facade**.
+- Legacy `Products` / `ProductForm` paths are removed and architecture-enforced; temporary Catalog public exports used during migration were removed in Task 5.
+- Legacy product CRUD exports in `src/api/client.js` are removed and architecture-enforced.
+- The generic runtime `updateCollection` escape hatch is removed and architecture-enforced against production reintroduction.
+- `shared/productCatalog.js` is a permanent cross-runtime contract, not a compatibility facade; frontend metadata is owned by Catalog and guarded from returning to shared.
+- Final Catalog public entry remains exactly the five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- No C8 allowlist expansion survives. C8's compatibility debt is closed.
+- Remaining program debts are outside C8: Printing belongs to C9; generic/auth API reexports and final architecture cleanup remain C10 scope.
