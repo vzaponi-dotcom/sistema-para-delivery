@@ -68,7 +68,7 @@ import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
-import { ProductEditorDialog, Products, useCatalogCommands, useProductEditor } from './domains/catalog/index.js'
+import { CatalogWorkspace } from './domains/catalog/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 
@@ -297,20 +297,6 @@ function App({ capabilities } = {}) {
     onError: (error) => orderCommandTargetsRef.current.onError(error),
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
-  const catalogCommands = useCatalogCommands({
-    writesBlocked,
-    canManageProducts,
-    applyOfficialEffects,
-    setRequestKey,
-    onSuccess: showSuccessMessage,
-    onError: showApiError,
-  })
-  const productEditor = useProductEditor({
-    createProduct: catalogCommands.createProduct,
-    updateProduct: catalogCommands.updateProduct,
-    writesBlocked,
-    canManageProducts,
-  })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
     writesBlocked,
     canManageClients,
@@ -402,7 +388,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    newOrderDraft.reset(); refund.close(); productEditor.cancel(); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); refund.close(); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -742,7 +728,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canManageClients={canManageClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
-        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={productEditor.openNewProduct} onEdit={productEditor.editProduct} onDelete={async (productId) => { const deleted = await catalogCommands.deleteProduct(productId); if (deleted) productEditor.closeIfEditing(productId); return deleted }} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
+        <CatalogWorkspace visible={activeTab === 'products'} products={products} search={query.products.search} queryState={query.products} onSearchChange={(search) => patchQuery('products', { search })} onQueryChange={(patch) => patchQuery('products', patch)} currency={currency} writesBlocked={writesBlocked} canManageProducts={canManageProducts} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
         {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
         {activeTab === 'finance' && <FinanceWorkspace movements={movements} financeSettings={financeSettings} today={todayValue} currency={currency} pendingRefundOrders={pendingRefundOrders} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} writesBlocked={writesBlocked} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} formatCancellationDate={formatCancellationDate} onRequestRefund={refund.request} />}
@@ -804,7 +790,6 @@ function App({ capabilities } = {}) {
 
         {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
 
-        {canManageProducts && <ProductEditorDialog editor={productEditor} writesBlocked={writesBlocked} />}
         <RegisterRefundDialog open={canRefundPayments && Boolean(refund.refundOrder)} order={refund.refundOrder} paymentOptions={paymentOptions} onClose={refund.close} onConfirm={refund.confirm} submitting={refund.submitting} />
       </AppShell>
       </NavigationProvider>
