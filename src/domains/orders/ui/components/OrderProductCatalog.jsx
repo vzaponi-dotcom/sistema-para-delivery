@@ -3,7 +3,7 @@ import {
   PRODUCT_CATEGORIES,
   categoryForUi,
   formatProductPresentation,
-} from '../../../../../shared/productCatalog.js'
+} from '../../../catalog/index.js'
 import { getCartProductQuantity } from '../../domain/orderCart.js'
 import Button from '../../../../components/Button'
 

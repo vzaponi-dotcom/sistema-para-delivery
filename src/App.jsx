@@ -20,7 +20,6 @@ import ConfirmationDialog from './components/ConfirmationDialog'
 import Modal from './components/Modal'
 import RegisterRefundDialog from './app/workflows/refunds/RegisterRefundDialog.jsx'
 import { useRefundWorkflow } from './app/workflows/refunds/useRefundWorkflow.js'
-import ProductForm from './components/ProductForm'
 import {
   cancellationOptionsFromEffective,
   cancellationRevisionFromEffective,
@@ -48,7 +47,6 @@ import {
   useTableServiceCommands,
 } from './domains/table-service/index.js'
 import Dashboard from './pages/Dashboard'
-import Products from './pages/Products'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
@@ -70,7 +68,7 @@ import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
-import { categoryForUi } from '../shared/productCatalog.js'
+import { ProductForm, Products, categoryForUi } from './domains/catalog/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
 import { removeById } from './utils/dataSync.js'

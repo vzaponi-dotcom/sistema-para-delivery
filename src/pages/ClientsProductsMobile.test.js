@@ -31,7 +31,7 @@ test('product list moves actions out of the compressed name column on narrow scr
 
 test('client and product inputs expose mobile keyboard and autocomplete hints', async () => {
   const customerEditor = await read('../domains/customers/ui/CustomerEditorDialog.jsx')
-  const productForm = await read('../components/ProductForm.jsx')
+  const productForm = await read('../domains/catalog/ui/ProductForm.jsx')
 
   assert.match(customerEditor, /<input[^>]*type="text"[^>]*autoComplete="name"[^>]*placeholder="Ex: Maria Silva"/)
   assert.match(customerEditor, /<input[^>]*type="tel"[^>]*inputMode="tel"[^>]*autoComplete="tel"/)

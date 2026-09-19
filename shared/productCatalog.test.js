@@ -1,17 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  categoryForUi,
+  PRODUCT_CATEGORIES,
+  deriveLegacySize,
   formatProductPresentation,
-  suggestPresentationType,
   validateProductPresentation,
 } from './productCatalog.js'
 
-test('categories use approved fallback and default presentation', () => {
-  assert.equal(categoryForUi('Bebidas'), 'Bebidas')
-  assert.equal(categoryForUi('Categoria antiga'), 'Outros')
-  assert.equal(suggestPresentationType('Bebidas'), 'volume')
-  assert.equal(suggestPresentationType('Refeições'), 'size')
+test('cross-runtime product catalog keeps the approved category contract', () => {
+  assert.deepEqual(PRODUCT_CATEGORIES, [
+    'Refeições', 'Lanches', 'Combos', 'Porções', 'Bebidas',
+    'Sobremesas', 'Adicionais', 'Molhos', 'Outros',
+  ])
 })
 
 test('volume and weight normalize comma and format pt-BR', () => {
@@ -22,6 +22,7 @@ test('volume and weight normalize comma and format pt-BR', () => {
     value: { presentationType: 'volume', presentationValue: '1.5', presentationUnit: 'L', size: '1,5 L' },
   })
   assert.equal(formatProductPresentation({ presentationType: 'weight', presentationValue: '0.5', presentationUnit: 'kg' }), '0,5 kg')
+  assert.equal(deriveLegacySize({ presentationType: 'unit', presentationValue: '', presentationUnit: '' }), 'Un')
 })
 
 test('invalid presentation values are rejected', () => {

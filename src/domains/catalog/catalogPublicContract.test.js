@@ -15,7 +15,7 @@ const filesUnder = (directory) => readdirSync(directory, { withFileTypes: true }
 test('C8 Task 1 public entry is Node-safe and exposes only the current external contracts', async () => {
   const catalog = await import('./index.js')
   assert.deepEqual(Object.keys(catalog).sort(), [
-    'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm',
+    'CATEGORY_ICON_NAMES', 'PRODUCT_CATEGORIES', 'categoryForUi', 'formatProductPresentation', 'Products', 'ProductForm',
   ].sort())
   assert.equal(typeof catalog.Products, 'function')
   assert.equal(typeof catalog.ProductForm, 'function')
@@ -39,12 +39,13 @@ test('C8 Task 1 keeps only the cross-runtime product contracts in shared', () =>
   ].sort())
 })
 
-test('C8 Task 1 App and both Orders consumers use the Catalog public entry', () => {
+test('C8 Task 1 App and all Orders consumers use the Catalog public entry', () => {
   const app = read('src/App.jsx')
   assert.match(app, /from ['"]\.\/domains\/catalog\/index\.js['"]/)
   assert.doesNotMatch(app, /from ['"]\.\/(?:pages\/Products|components\/ProductForm)/)
   assert.match(read('src/domains/orders/domain/orderCart.js'), /from ['"]\.\.\/\.\.\/catalog\/index\.js['"]/)
   assert.match(read('src/domains/orders/ui/components/OrderProductCatalog.jsx'), /from ['"]\.\.\/\.\.\/\.\.\/catalog\/index\.js['"]/)
+  assert.match(read('src/domains/orders/ui/components/OrderCart.jsx'), /from ['"]\.\.\/\.\.\/\.\.\/catalog\/index\.js['"]/)
   // CRUD/editor ownership intentionally remains in App until later approved tasks.
   assert.match(app, /handleAddProduct/)
   assert.match(app, /handleDeleteProduct/)

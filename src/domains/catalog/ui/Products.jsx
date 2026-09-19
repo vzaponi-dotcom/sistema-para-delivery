@@ -1,16 +1,16 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import Button from '../components/Button'
-import ConfirmationDialog from '../components/ConfirmationDialog'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import SystemSelect from '../components/SystemSelect'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Icon from '../../../components/Icon'
+import PageHeader from '../../../components/PageHeader'
+import SystemSelect from '../../../components/SystemSelect'
 import {
   CATEGORY_ICON_NAMES,
   PRODUCT_CATEGORY_OPTIONS,
   categoryForUi,
-  formatProductPresentation,
-} from '../../shared/productCatalog.js'
+} from '../domain/catalogPresentation.js'
+import { formatProductPresentation } from '../../../../shared/productCatalog.js'
 
 const CATEGORY_FILTER_OPTIONS = [{ value: 'Todos', label: 'Todos' }, ...PRODUCT_CATEGORY_OPTIONS]
 const LONG_PRESS_MS = 550

@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react'
-import Button from './Button'
-import Icon from './Icon'
+import Button from '../../../components/Button'
+import Icon from '../../../components/Icon'
 import {
   CATEGORY_ICON_NAMES,
-  PRODUCT_CATEGORIES,
   categoryForUi,
-  formatProductPresentation,
   suggestPresentationType,
+} from '../domain/catalogPresentation.js'
+import {
+  PRODUCT_CATEGORIES,
+  formatProductPresentation,
   validateProductPresentation,
-} from '../../shared/productCatalog.js'
-import { formatBRLCurrencyInput, formatBRLCurrencyValue } from '../utils/formFormatting.js'
+} from '../../../../shared/productCatalog.js'
+import { formatBRLCurrencyInput, formatBRLCurrencyValue } from '../../../utils/formFormatting.js'
 
 const PRESENTATION_OPTIONS = [
   { value: 'unit', label: 'Unidade' },

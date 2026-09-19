@@ -15,7 +15,7 @@ test('modal focus lifecycle does not restart when an inline onClose callback cha
 })
 
 test('new product form normalizes its initial price to zero while editing keeps the existing price', async () => {
-  const form = await read('./components/ProductForm.jsx')
+  const form = await read('./domains/catalog/ui/ProductForm.jsx')
   const app = await read('./App.jsx')
 
   assert.match(form, /const initializedNewPriceRef = useRef\(false\)/)

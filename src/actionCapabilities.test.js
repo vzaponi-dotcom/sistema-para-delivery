@@ -188,7 +188,7 @@ test('7. clients.view mantÃ©m consulta e bloqueia CRUD sem clients.manage', as
 
 test('8. products.view mantÃ©m catÃ¡logo e bloqueia CRUD sem products.manage', async (t) => {
   const { h, renderer, requests } = await appWorkspace(t, new Set(['products.view']))
-  const { default: Products } = await h.load('/src/pages/Products.jsx')
+  const { default: Products } = await h.load('/src/domains/catalog/ui/Products.jsx')
   const page = renderer.root.findByType(Products)
   assert.match(nodeText(renderer.root), /Produtos e pre.os/)
   assert.equal(Boolean(buttonNamed(renderer.root, 'Adicionar produto')), false)
@@ -398,7 +398,7 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
       h.load('/src/domains/orders/ui/Orders.jsx'),
       h.load('/src/domains/orders/ui/OrderHistory.jsx'),
       h.load('/src/domains/customers/ui/Clients.jsx'),
-      h.load('/src/pages/Products.jsx'),
+      h.load('/src/domains/catalog/ui/Products.jsx'),
       h.load('/src/domains/finance/ui/Receivables.jsx'),
       h.load('/src/domains/finance/ui/Finance.jsx'),
       h.load('/src/pages/PrintQueue.jsx'),
@@ -425,7 +425,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
     ['OrderHistory', '/src/domains/orders/ui/OrderHistory.jsx'],
     ['Dashboard', '/src/pages/Dashboard.jsx'],
     ['Clients', '/src/domains/customers/ui/Clients.jsx'],
-    ['Products', '/src/pages/Products.jsx'],
+    ['Products', '/src/domains/catalog/ui/Products.jsx'],
     ['Receivables', '/src/domains/finance/ui/Receivables.jsx'],
     ['Finance', '/src/domains/finance/ui/Finance.jsx'],
   ].map(async ([name, path]) => [name, (await h.load(path)).default])))
