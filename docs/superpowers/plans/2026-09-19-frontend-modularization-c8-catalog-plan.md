@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **STATUS: AUTO-REVISADO — aguardando aprovação explícita deste plano.**
-> **Design C8: APROVADO pelo usuário em 2026-09-19**, após a autorrevisão no HEAD `4466944a8aadecd667270c2c20f98450e254af32`.
-> Este registro documenta a aprovação do design, não a aprovação do plano nem o início da implementação.
+> **STATUS: APPROVED — plano autorrevisado e aprovado explicitamente pelo usuário em 2026-09-19. Task 1 em RED; Tasks 2–10 não iniciadas.**
+> **Design C8: APPROVED pelo usuário em 2026-09-19**, após a autorrevisão no HEAD `4466944a8aadecd667270c2c20f98450e254af32`.
+> **Plano C8: APPROVED pelo usuário em 2026-09-19** no HEAD documental `20abf94359e0e2883fc3b870c69688f8eeabc12c`. A aprovação não autoriza merge, staging, produção nem Tasks 2–10.
 
 **Goal:** Estabelecer Catalog como owner frontend do catálogo atual, retirar CRUD/editor de produto do App e encerrar `updateCollection`, preservando comportamento e contratos existentes.
 
@@ -51,9 +51,9 @@ Cada foco tem testes atribuídos abaixo; nenhum fica apenas como recomendação 
 | C7 | PR #51 MERGED / COMPLETE |
 | Validate pós-merge C7 | #1429 / run `35459175985` — SUCCESS na base exata |
 | Último HEAD documental inspecionado antes deste plano | `4466944a8aadecd667270c2c20f98450e254af32` |
-| Design C8 | APROVADO nesta conversa, 2026-09-19 |
-| Plano C8 | AUTO-REVISADO; aprovação ainda pendente |
-| Tasks funcionais C8 | NÃO INICIADAS |
+| Design C8 | **APPROVED**, 2026-09-19 |
+| Plano C8 | **APPROVED**, 2026-09-19 |
+| Tasks funcionais C8 | **Task 1 RED em execução**; Tasks 2–10 não iniciadas |
 | Deploy desta rodada de planejamento | Nenhum |
 
 A base tinha rollout/ledger ainda indicando merge pendente de C7. O estado correto acima está reconciliado com o GitHub; **a atualização dos arquivos canônicos é a preparação documental obrigatória descrita abaixo**, não uma tarefa funcional já executada. Não considerar o texto antigo uma revogação da aprovação do design.
@@ -62,11 +62,11 @@ A base tinha rollout/ledger ainda indicando merge pendente de C7. O estado corre
 
 **Arquivos:** a spec C8 acima; `docs/superpowers/qa/spec-c-execution-ledger.md`; `docs/superpowers/qa/spec-c-compatibility-facades.md`; `docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md`; este plano.
 
-- [ ] Registrar a aprovação deste plano somente depois de o usuário concedê-la. No cabeçalho da spec, registrar a aprovação do design já concedida, preservando integralmente as decisões aprovadas.
-- [ ] Reconciliar C7 como MERGED / COMPLETE, PR #51 fechado, base e Validate acima. Marcar C8 como DESIGN/PLAN APPROVED, implementação ainda não iniciada. Preservar evidências históricas; não reescrever resultados antigos como se fossem execuções novas.
-- [ ] Manter `updateCollection` como debt **ainda presente** até Task 6 e os reexports generic/auth para C10. Nada nesta preparação remove código.
-- [ ] Ler integralmente spec C, rollout, execution ledger, compatibility ledger, spec C8 e este plano antes de alterar código.
-- [ ] Confirmar branch/HEAD remoto novamente. Usar workspace isolada; não executar `reset`, `restore`, `clean`, `stash` ou force-push na workspace antiga do usuário.
+- [x] Registrar a aprovação deste plano somente depois de o usuário concedê-la. No cabeçalho da spec, registrar a aprovação do design já concedida, preservando integralmente as decisões aprovadas.
+- [x] Reconciliar C7 como MERGED / COMPLETE, PR #51 fechado, base e Validate acima. Marcar C8 como DESIGN/PLAN APPROVED, implementação ainda não iniciada. Preservar evidências históricas; não reescrever resultados antigos como se fossem execuções novas.
+- [x] Manter `updateCollection` como debt **ainda presente** até Task 6 e os reexports generic/auth para C10. Nada nesta preparação remove código.
+- [x] Ler integralmente spec C, rollout, execution ledger, compatibility ledger, spec C8 e este plano antes de alterar código.
+- [x] Confirmar branch/HEAD remoto novamente. Usar workspace isolada; não executar `reset`, `restore`, `clean`, `stash` ou force-push na workspace antiga do usuário.
 
 ```bash
 git fetch origin
@@ -81,9 +81,9 @@ git status --short
 
 Se `master` ou a feature divergirem do handoff, inspecionar commits/diff antes de escrever; não assumir que divergência equivale a corrupção. Antes do primeiro RED, o diff desta fatia deve ser apenas documental. Registrar o HEAD realmente encontrado, sem substituir pelo SHA histórico acima.
 
-- [ ] Abrir um PR **draft** da feature para `master` antes do RED funcional. A abertura não autoriza merge. `validate.yml` roda em PR para `master`; push isolado nesta feature não dispara Validate automaticamente.
-- [ ] Usar Node 22 e `npm ci`; confirmar baseline por Validate no SHA atual. Se o ambiente local não executar testes, usar o CI existente e declarar isso; não registrar GREEN local inexistente.
-- [ ] Inventariar consumidores de produção e testes; busca remota vazia não prova ausência:
+- [x] Abrir/reutilizar um PR **draft** da feature para `master` antes do RED funcional. A abertura não autoriza merge. `validate.yml` roda em PR para `master`; push isolado nesta feature não dispara Validate automaticamente.
+- [x] Usar Node 22 e `npm ci`; confirmar baseline por Validate no SHA atual. Se o ambiente local não executar testes, usar o CI existente e declarar isso; não registrar GREEN local inexistente.
+- [x] Inventariar consumidores de produção e testes; busca remota vazia não prova ausência:
 
 ```bash
 git grep -nE 'productCatalog\.js|updateCollection|createProduct|updateProduct|deleteProduct' -- src shared worker
@@ -112,18 +112,19 @@ Manter no plano/ledger os caminhos adicionais realmente encontrados e migrá-los
 
 **Permanece:** `shared/productCatalog.js` com `PRODUCT_CATEGORIES`, `deriveLegacySize`, `validateProductPresentation`, `formatProductPresentation` e seus helpers privados. Não duplicar validação/formatação do Worker em Catalog.
 
-**Consumidores Orders já confirmados:**
+**Consumidores Orders confirmados pelo RED/inventário:**
 
 - `src/domains/orders/ui/components/OrderProductCatalog.jsx` — categorias, fallback e formatter;
-- `src/domains/orders/domain/orderCart.js` — formatter usado por `addCartItem`.
+- `src/domains/orders/domain/orderCart.js` — formatter usado por `addCartItem`;
+- `src/domains/orders/ui/components/OrderCart.jsx` — ícone da categoria e fallback visual.
 
-Ambos passam pelo `src/domains/catalog/index.js`. Não mover esses arquivos nem mudar cálculos, merge de linhas, notas, decremento ou payload de checkout.
+Os três passam pelo `src/domains/catalog/index.js`. Não mover esses arquivos nem mudar cálculos, merge de linhas, notas, decremento ou payload de checkout.
 
 **Contrato público final exato:**
 
 ```js
 export { PRODUCT_CATEGORIES, formatProductPresentation } from '../../../shared/productCatalog.js'
-export { categoryForUi } from './domain/catalogPresentation.js'
+export { CATEGORY_ICON_NAMES, categoryForUi } from './domain/catalogPresentation.js'
 export { CatalogWorkspace } from './ui/catalogSurfaces.js'
 ```
 
@@ -767,7 +768,7 @@ if (!isTestFile(edge.from) && !edge.from.startsWith('src/domains/catalog/')
 
 Completar guards de owners/API/state com os mecanismos já existentes, cobrindo `export const`, `export function` e named reexport, inclusive aliases. Não rejeitar docs/testes só porque citam token proibido. Gate de domínio puro deve rejeitar React/UI/infrastructure/browser/fetch; o shared root pode ser lido explicitamente como o checker C7 já faz, sem fazer Worker importar `src`. Não bloquear os quatro exports cross-runtime permitidos.
 
-`catalogPublicContract.test.js` compara `Object.keys(catalog).sort()` com `['CatalogWorkspace','PRODUCT_CATEGORIES','categoryForUi','formatProductPresentation'].sort()`. Tests internos acessam arquivos internos; produção externa não. Verificar também wrappers auxiliares sem exports intermediários sobreviventes.
+`catalogPublicContract.test.js` compara `Object.keys(catalog).sort()` com `['CatalogWorkspace','CATEGORY_ICON_NAMES','PRODUCT_CATEGORIES','categoryForUi','formatProductPresentation'].sort()`. Tests internos acessam arquivos internos; produção externa não. Verificar também wrappers auxiliares sem exports intermediários sobreviventes.
 
 - [ ] **Step 4 — GREEN.** Rodar suite do checker, public/extraction contracts, `npm run test:architecture`, lint/build e suite completa. Diff da allowlist deve estar vazio.
 - [ ] **Step 5 — Commit/gate.** `test: enforce c8 catalog boundaries`; `feat: enforce catalog architecture boundaries`. Marcar debts C8 como removidos/enforced, sem encerrar C9/C10.
@@ -942,4 +943,4 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 
 **Limite da validação nesta entrega:** revisão documental, consistência dos contratos/paths e conferência remota da base. Os trechos de código são instruções para futuras tasks, não implementação executada. A aplicação não foi testada localmente nesta rodada de planejamento. O baseline de aplicação citado pertence ao merge C7; não constitui GREEN de C8.
 
-**Estado final deste plano:** pronto para revisão/aprovação do usuário. Preparação documental canônica e Tasks 1–10 continuam não executadas. Após aprovação, executar somente a preparação e as tasks autorizadas; não inferir autorização para completar toda a fatia.
+**Estado atual deste plano:** APPROVED. A preparação documental canônica foi reconciliada no início da execução; Task 1 possui RED autoritativo no commit `11e84f3badf1ffcca0fd71bb2ccd46588017e88b` / Validate #1432. Tasks 2–10 continuam não executadas e não autorizadas nesta rodada.

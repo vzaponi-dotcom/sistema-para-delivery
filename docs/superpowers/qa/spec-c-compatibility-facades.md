@@ -136,7 +136,7 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 
 ## C7 homologation / closure status — 2026-09-19
 
-- C7 Tasks 1–9 are **COMPLETE / STAGING HOMOLOGATED** on branch `feature/spec-c7-customers`; draft PR #51 remains open.
+- C7 is **MERGED / COMPLETE** by PR #51 at `a7a8285ee125d90058c739f52daba6c170921adb`; post-merge Validate #1429 / run `35459175985` passed on the exact merge SHA.
 - Homologated staging SHA: `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; final code-changing SHA: `6402496c078ca817572e6e375beec9f4ffbe557a`.
 - Validate #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
 - Customer CRUD no longer uses the `updateCollection` escape hatch. Customer delete is represented by the official `deletedClientId` effect, and Task 7 permanently rejects reintroduction of `updateCollection('clients', ...)` in App or Customers.
@@ -147,4 +147,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Frontend-only `normalizeClientName` and `findClientDuplicates` belong to Customers and are architecture-enforced out of the shared contract.
 - Generic/auth reexports in `src/api/client.js` remain scheduled for C10 at latest.
 - C7 introduced **no surviving temporary compatibility facade** and did not broaden the architecture allowlist.
-- C7 has no surviving temporary compatibility facade. Task 10 exact-head merge gate is active; production remains untouched.
+- C7 has no surviving temporary compatibility facade. Production remained untouched.
+
+
+## C8 active status — 2026-09-19
+
+- C8 design and plan are **APPROVED**; branch `feature/spec-c8-catalog`, draft PR #52, base `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Task 1 is in authoritative RED at `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 failed for the intended Catalog boundary/ownership reasons.
+- `updateCollection` remains an active compatibility debt for Catalog/products. It is **not removed in Task 1** and must not be marked removed before Task 6 GREEN.
+- `shared/productCatalog.js` is a permanent cross-runtime contract for the exports genuinely used by the Worker; C8 Task 1 narrows frontend-only metadata into Catalog. It is not a temporary facade.
+- Generic/auth reexports in `src/api/client.js` remain scheduled for C10; Printing API debt remains C9.
+- C8 Task 1 introduces no compatibility reexport at the legacy Products/ProductForm paths and does not expand the architecture allowlist.

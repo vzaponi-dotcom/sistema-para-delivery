@@ -19,8 +19,8 @@ A fresh local clone was attempted outside the user's workspace and failed becaus
 ## Current state
 
 - Approval: RECORDED.
-- Canonical spec/plan/rollout/ledger status reconciliation: IN PROGRESS, not yet claimed complete.
-- Task 1: NOT STARTED.
+- Canonical spec/plan/rollout/ledger status reconciliation: **COMPLETE in the next documentary commit after RED**.
+- Task 1: **RED CONFIRMED** at `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` failed with 7 intended failures.
 - Tasks 2–10: NOT STARTED.
 - Merge/deploy: NONE.
 
@@ -37,3 +37,14 @@ Move only the Catalog public boundary, frontend metadata and existing Products/P
 - Task 4 supplies editor contracts; Task 5 absorbs composition. Task 1 preserves existing App state and ProductForm price initialization.
 - Task 6 removes `updateCollection`; it remains present throughout Task 1.
 - Task 7 enforces final architecture; no allowlist expansion in Task 1.
+
+
+## Task 1 RED evidence and ruling
+
+- RED SHA: `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`.
+- Validate #1432 / run `35461496338`: **FAIL as intended** at Test.
+- Suite: **1,818 tests / 1,810 pass / 7 fail / 1 skipped**.
+- Intended failures: missing `domains/catalog/index.js`, missing `catalogPresentation.js`, legacy Products/ProductForm paths still present, frontend-only metadata still exported by shared, App/Orders not yet consuming the Catalog entry, and production shared bypasses still present.
+- Inventory found the planned App/ProductForm/Products/orderCart/OrderProductCatalog consumers plus `src/domains/orders/ui/components/OrderCart.jsx`.
+- **Ruling:** export `CATEGORY_ICON_NAMES` from the Catalog public entry for the real OrderCart consumer. The map remains owned by Catalog; Orders must not duplicate it or deep-import Catalog/shared internals. Cost if wrong: one additional visual metadata export becomes part of the C8 public contract.
+- No parser/harness failure caused the authoritative RED. The Catalog harness characterization itself passed.

@@ -1,7 +1,7 @@
 # Spec C8 — Catalog
 
 **Data:** 2026-09-19  
-**Status:** **AUTO-REVISADA** — design consolidado sobre a base pós-C7; aguardando aprovação explícita do usuário  
+**Status:** **APPROVED** — design consolidado, autorrevisado e aprovado explicitamente pelo usuário em 2026-09-19  
 **Branch:** `feature/spec-c8-catalog`  
 **Base:** `master` em `a7a8285ee125d90058c739f52daba6c170921adb`  
 **Base validation:** Validate application #1429 / run `35459175985` — SUCCESS  

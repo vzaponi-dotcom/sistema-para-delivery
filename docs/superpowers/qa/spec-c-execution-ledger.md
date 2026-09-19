@@ -23,8 +23,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
-| C7 | Customers | **STAGING HOMOLOGATED — MERGE GATE PENDING AUTHORIZATION** | `feature/spec-c7-customers` / draft PR #51 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
-| C8 | Catalog | NOT STARTED | — | Write after C7 merge |
+| C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
+| C8 | Catalog | **ACTIVE — TASK 1 RED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
@@ -329,3 +329,19 @@ The active slice is C7 after C6 merged successfully. GitHub state wins over this
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
+
+
+---
+
+# C7 — Customers — CLOSED / C8 handoff — 2026-09-19
+
+- C7 PR #51 merged to `master` at `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Post-merge Validate #1429 / run `35459175985` — **SUCCESS** on the exact merge SHA.
+- Production deployment: **NO**.
+- C8 branch: `feature/spec-c8-catalog`; draft PR #52.
+- C8 design and implementation plan: **APPROVED** explicitly by the user.
+- Documentary baseline Validate #1430 / run `35461113886` — **SUCCESS** on plan HEAD `20abf94359e0e2883fc3b870c69688f8eeabc12c`.
+- Task 1 RED: `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` — **FAIL as intended**, **1,818 tests / 1,810 pass / 7 fail / 1 skipped**. Failures are limited to the missing Catalog public/domain boundary, legacy Products/ProductForm owners, frontend metadata still in shared, and unmigrated frontend consumers.
+- Inventory additionally found `src/domains/orders/ui/components/OrderCart.jsx` as a legitimate consumer of category icons. **Ruling:** Catalog will expose `CATEGORY_ICON_NAMES` through its public entry because this is a real external frontend consumer; duplicating the map in Orders or allowing a deep/shared bypass would violate the approved ownership direction. Cost if wrong: Catalog's public API includes one visual metadata map until a future narrower UI contract is justified.
+- App product CRUD/editor ownership and `updateCollection('products', ...)` deliberately remain through Task 1; they belong to later C8 tasks.
+- Tasks 2–10, staging, merge and production are not authorized in the current round.
