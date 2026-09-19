@@ -557,3 +557,6 @@ Require GitHub validation dry-runs/gates, final staging deployment, and the fina
 Compare final `master` architecture against `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md` and explicitly verify all 18 final success criteria in the spec.
 
 Do not mark Spec C complete solely because `App.jsx` is smaller or files were moved.
+
+
+C6 merge handoff: QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112`. The user explicitly authorized merging PR #50 on 2026-09-19. A final status-only exact-HEAD Validate is required immediately before merge. Production remains untouched; C7 remains not started.

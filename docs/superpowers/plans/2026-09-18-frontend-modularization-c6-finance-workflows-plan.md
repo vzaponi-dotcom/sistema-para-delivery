@@ -1695,7 +1695,7 @@ Require Validate SUCCESS before Task 11.
 
 ---
 
-### Task 11: Full gates, staging deployment, manual homologation, QA record, and merge handoff — HOMOLOGATED / FINAL DOCS VALIDATE PENDING
+### Task 11: Full gates, staging deployment, manual homologation, QA record, and merge handoff — HOMOLOGATED / MERGE AUTHORIZED / FINAL EXACT-HEAD VALIDATE PENDING
 
 **Files:**
 - Create: `docs/superpowers/qa/spec-c6-finance-workflows-qa.md`
@@ -1772,6 +1772,8 @@ Require the workflow to prove:
 Do not deploy production.
 
 Task 11 evidence: initial executable `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711` passed Validate #1386 / run `35417003680` and Deploy staging #183 / run `35417329071`. Manual QA item 16 exposed the inaccessible opening-balance dialog; RED `71b6a1de2c043b7f089a1566767eea362c2f0687` required the visible `Saldo inicial` action and GREEN `ebf9439d85115c422b3df8175b3d24429a77aed9` restored that entry point only. Corrected SHA `ebf9439d...` passed Validate #1389 / run `35442758266` with **1,770 tests / 1,769 pass / 0 fail / 1 skipped** and Deploy staging #184 / run `35443025995`, with no remote migrations pending, readiness 1/6, and login smoke HTTP 200. Manual QA closed at **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The sole BLOCKED item is restricted/read-only capability behavior because staging has no suitable restricted identity/session. Production remains untouched. Step 9 now requires Validate on the docs-only closure HEAD produced by this documentation update; report that result externally rather than creating a self-referential documentation loop.
+QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112` — **SUCCESS**. The user explicitly granted merge authorization on 2026-09-19. This status-only commit must itself pass Validate before PR #50 is merged.
+
 
 - [x] **Step 5: Execute manual staging matrix**
 
@@ -1835,13 +1837,13 @@ At successful staging homologation with 0 FAIL:
 - production = NO;
 - record exact executable SHA and QA totals.
 
-- [ ] **Step 9: Validate final docs-only HEAD**
+- [x] **Step 9: Validate final docs-only HEAD**
 
 After QA/ledger commits, run/observe `Validate application` on the exact final branch HEAD. A previous executable SHA is not the final merge gate.
 
 If a final status-only commit is created after recording a prior docs validation, validate that exact status-only HEAD and report it in the PR handoff rather than creating an infinite self-referential documentation loop.
 
-- [ ] **Step 10: Stop at merge authorization**
+- [x] **Step 10: Stop at merge authorization**
 
 Present:
 - final branch HEAD;

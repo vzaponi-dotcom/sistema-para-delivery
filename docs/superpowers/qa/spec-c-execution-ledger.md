@@ -22,7 +22,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | **HOMOLOGATED — 23 PASS / 0 FAIL / 1 BLOCKED / FINAL DOCS VALIDATE PENDING** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **HOMOLOGATED — 23 PASS / 0 FAIL / 1 BLOCKED / MERGE AUTHORIZED / FINAL EXACT-HEAD VALIDATE PENDING** | `feature/spec-c6-finance-workflows` / PR #50 | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -255,12 +255,15 @@ These remain mandatory for C2-C10:
 - Task 11 initial staging: Deploy staging #183 / run `35417329071` — **SUCCESS** on `caa7b9a7...`.
 - Task 11 corrected staging: Deploy staging #184 / run `35443025995` — **SUCCESS** on exact homologated SHA `ebf9439d85115c422b3df8175b3d24429a77aed9`; no pending remote staging migrations; readiness attempt 1/6; real login smoke HTTP 200; staging URL `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
 - Task 11 manual QA: **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED item is read-only/capability behavior because staging has no suitable restricted identity/session.
+- QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112` — **SUCCESS**.
+- User merge authorization: **GRANTED 2026-09-19**.
+- Final status-only exact-HEAD Validate: **pending**.
 - Production deployment: **NO**.
 - Production deployment: **NO**.
 
 # New-session resume protocol
 
-The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; Task 11 manual QA is complete at 23 PASS / 0 FAIL / 1 BLOCKED. Await the exact docs-only HEAD Validate, then explicit merge authorization.
+The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; Task 11 manual QA is complete at 23 PASS / 0 FAIL / 1 BLOCKED. QA/docs closure Validate #1390 is green and merge authorization is granted; await the final status-only exact-HEAD Validate, then merge PR #50.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -269,7 +272,7 @@ The active slice is C6 after C5 merged successfully. GitHub state wins over this
 5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
 6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
 7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; Task 11 is homologated with 0 FAIL. Await exact docs-only HEAD Validate and explicit merge authorization.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; Task 11 is homologated with 0 FAIL. QA/docs closure Validate #1390 is green and merge authorization is granted; await the final status-only exact-HEAD Validate.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

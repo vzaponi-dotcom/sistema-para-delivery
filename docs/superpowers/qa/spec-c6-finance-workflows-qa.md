@@ -105,7 +105,7 @@ For continuity, the earlier pre-fix staging checkpoint was Validate #1386 / run 
 - Corrected Deploy staging: **#184 / 35443025995 — SUCCESS**
 - Production touched: **NO**
 - C7: **NOT STARTED**
-- Merge authorization: **NOT YET GRANTED**
+- Merge authorization: **GRANTED by the user on 2026-09-19**
 
 This QA/ledger documentation commit changes the Git SHA by definition. The exact docs-only HEAD created after this file must itself receive a successful **Validate application** before merge. That exact final validation is reported in the PR/merge handoff without creating an infinite self-referential documentation loop.
 

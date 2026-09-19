@@ -129,3 +129,6 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Generic/auth `src/api/client.js` reexports remain scheduled for **C10**.
 - `updateCollection` remains for Customers/Catalog migration in **C7/C8**, with final enforcement no later than **C10**.
 - No C6 compatibility facade survives. Production deployment remains **NO**.
+
+- QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112`.
+- Merge authorization for C6 was explicitly granted by the user on 2026-09-19. Production remains untouched.
