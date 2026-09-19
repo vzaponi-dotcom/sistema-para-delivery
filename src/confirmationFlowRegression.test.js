@@ -24,7 +24,7 @@ test('finalizing an order requires a review confirmation before the write callba
 })
 
 test('deleting a product requires confirmation before invoking the delete callback', async () => {
-  const products = await read('./pages/Products.jsx')
+  const products = await read('./domains/catalog/ui/Products.jsx')
   assert.match(products, /ConfirmationDialog/)
   assert.match(products, /deleteCandidate/)
   assert.match(products, /Confirmar exclusão/)

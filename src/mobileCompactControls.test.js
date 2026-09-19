@@ -43,7 +43,7 @@ test('mobile cart matches the approved compact icon-and-pill layout without chan
   const cart = await read('./domains/orders/ui/components/OrderCart.jsx')
 
   assert.match(cart, /import Icon from '[^']*components\/Icon'/)
-  assert.match(cart, /import \{ CATEGORY_ICON_NAMES, categoryForUi \} from '[^']*shared\/productCatalog\.js'/)
+  assert.match(cart, /import \{ CATEGORY_ICON_NAMES, categoryForUi \} from '[^']*catalog\/index\.js'/)
   assert.match(cart, /className="new-order-cart-category-icon"/)
   assert.match(cart, /<Icon name=\{CATEGORY_ICON_NAMES\[categoryForUi\(item\.category\)\]\} size=\{22\} \/>/)
 

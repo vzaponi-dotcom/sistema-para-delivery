@@ -119,7 +119,7 @@ test('cart item layout is horizontal and compact with quantity on the left', () 
 
 test('product form uses a BRL formatted text input', () => {
   const app = source('../../../App.jsx')
-  const form = source('../../../components/ProductForm.jsx')
+  const form = source('../../catalog/ui/ProductForm.jsx')
 
   assert.match(form, /formatBRLCurrencyInput/)
   assert.match(app, /parseBRLCurrencyInput/)
