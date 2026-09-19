@@ -184,6 +184,7 @@ test('touch long press enters selection at 550ms, cancel events stop it and mous
   assert.ok(first, 'long-press timer should be scheduled for 550ms')
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 0)
 
+  timers.delete(first[0])
   await act(async () => first[1].callback())
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 1)
   assert.ok(renderer.root.findByProps({ 'aria-label': 'Desmarcar Água' }))
