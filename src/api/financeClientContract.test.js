@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { access } from 'node:fs/promises'
 import { createMovement, deleteMovement, saveFinanceSettings, updateMovement } from './client.js'
 
 const withFetch = async (callback) => {
@@ -29,4 +30,30 @@ test('finance client exposes create, update, delete and settings routes', async 
     assert.deepEqual(JSON.parse(calls[1][1].body), movement)
     assert.deepEqual(JSON.parse(calls[3][1].body), { openingBalance: -10, openingDate: '2026-09-01' })
   })
+})
+
+test('legacy C6 finance API exports and utility owners are absent', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('./client.js', import.meta.url), 'utf8')
+  for (const name of [
+    'registerPayment',
+    'registerTableTabPayment',
+    'refundOrder',
+    'createMovement',
+    'updateMovement',
+    'deleteMovement',
+    'saveFinanceSettings',
+    'updateOrderPaymentPromise',
+  ]) {
+    assert.doesNotMatch(source, new RegExp(`export\\s+const\\s+${name}\\b`), name)
+  }
+
+  for (const path of [
+    './utils/paymentMethodOptions.js',
+    './utils/financeCategoryOptions.js',
+    './utils/finance.js',
+    './utils/receivables.js',
+    './utils/paymentWorkflow.js',
+  ]) {
+    await assert.rejects(access(new URL(path, import.meta.url)), /ENOENT/)
+  }
 })
