@@ -23,7 +23,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
-| C7 | Customers | **DESIGN + PLAN APPROVED — TASK 1 STARTING** | `feature/spec-c7-customers` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
+| C7 | Customers | **TASK 1 COMPLETE / GREEN** | `feature/spec-c7-customers` / draft PR #51 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
@@ -262,7 +262,7 @@ These remain mandatory for C2-C10:
 - Post-merge `master` Validate: #1392 / run `35448223721` — **SUCCESS**.
 - Production deployment: **NO**.
 
-# C7 — Customers — DESIGN APPROVED / PLAN REVIEW
+# C7 — Customers — ACTIVE / TASK 1 COMPLETE
 
 - Base/master SHA: `5b101800fe29d02dd4543e184cca9e06d659a445` (C6 merge).
 - Post-C6 master Validate: #1392 / run `35448223721` — **SUCCESS**.
@@ -276,7 +276,11 @@ These remain mandatory for C2-C10:
 - Plan reconciliation commit: `8fa979de36829dc1158f32faccb74598f8451b83`.
 - Formal plan self-review commit: `dd1c033c91629592bf28bc0a135c4c8d2d8dfead`.
 - Plan status: **APPROVED FOR EXECUTION**; user approval granted 2026-09-19.
-- Functional implementation: **Task 1 starting; no functional commit yet at this ledger update**.
+- Draft PR: #51 — `Spec C7: Customers domain extraction`.
+- Task 1 RED: `6202678292c36deb7f76f9ed48478458af33c7cd`; Validate #1394 / run `35450264188` failed at Test for the intended missing `domains/customers/index.js` and `domain/clientDuplicates.js` boundaries (`ERR_MODULE_NOT_FOUND`).
+- Task 1 GREEN: `7c3a9842be653dec619263b595cd4b54003a3bcc`; Validate #1395 / run `35450437897` — **SUCCESS**, **1,774 tests / 1,773 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Task 1 ownership result: frontend name normalization + duplicate lookup now belong to Customers; App and Orders consume them through the Customers public entry; shared client identity retains the Worker-used phone normalization/formatting primitives.
+- Functional implementation: **Task 1 COMPLETE / GREEN; Task 2 NOT STARTED**.
 - Approval gate: **satisfied**.
 - Production deployment: **NO**.
 
@@ -284,7 +288,7 @@ These remain mandatory for C2-C10:
 
 # New-session resume protocol
 
-The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. The dedicated C7 design is written, formally self-reviewed and explicitly approved. The detailed C7 plan has been reconciled to that approved design, formally self-reviewed, and explicitly approved. Task 1 may now execute under strict RED → GREEN TDD.
+The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. The dedicated C7 design is written, formally self-reviewed and explicitly approved. The detailed C7 plan is approved. Task 1 is complete/green at `7c3a9842be653dec619263b595cd4b54003a3bcc` with Validate #1395 successful. Task 2 has not started.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -293,7 +297,7 @@ The active slice is C7 after C6 merged successfully. GitHub state wins over this
 5. Treat `5b101800fe29d02dd4543e184cca9e06d659a445` as the approved C7 base unless GitHub proves an intentional later reconciliation.
 6. C6 merged by PR #50; final branch Validate #1391 and post-merge Validate #1392 are green.
 7. Read `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; it is formally self-reviewed and **APPROVED**, with approval recorded at `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; it is reconciled, formally self-reviewed, and **APPROVED FOR EXECUTION**. Continue only from the recorded task checkpoint.
+8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; Task 1 is complete/green and Task 2 is not started. Continue only from this recorded checkpoint.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
