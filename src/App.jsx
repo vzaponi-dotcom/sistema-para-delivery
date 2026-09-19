@@ -70,7 +70,7 @@ import { useOperationalDataRuntime } from './app/runtime/data/useOperationalData
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
-import { findClientDuplicates } from '../shared/clientIdentity.js'
+import { findClientDuplicates } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'

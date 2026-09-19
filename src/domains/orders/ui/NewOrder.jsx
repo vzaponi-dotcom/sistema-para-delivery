@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { findClientDuplicates } from '../../../../shared/clientIdentity.js'
+import { findClientDuplicates } from '../../customers/index.js'
 import { getBusinessDate } from '../../../../shared/finance.js'
 import { validateCustomerIdentity } from '../../../../shared/orderCustomerIdentity.js'
 import Button from '../../../components/Button'
