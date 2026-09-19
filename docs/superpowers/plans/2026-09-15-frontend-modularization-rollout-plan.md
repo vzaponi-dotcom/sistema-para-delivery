@@ -51,6 +51,8 @@
 
 The rollout contracts below are unchanged; this block is execution status only.
 
+C6 Task 8 — refund workflow and dialog extraction — is **COMPLETE / GREEN**. RED `cdbb857918254f6010619b69553d53af22e6577f` failed Validate #1374 / run `35414009138` for the intended missing refund workflow modules. GREEN `55e674fac1bcb9f275863916739dcd6b3b5d9271` passed focused/local gates but Validate #1375 / run `35414347727` exposed one stale `refundOrderApi` characterization; `8848bcaff0819048fdcb175d02694b80e8d4e2eb` aligned it and passed Validate #1376 / run `35414468722` with **1,775 tests / 1,775 pass / 0 fail / 1 skipped** and all remaining gates green. Task 9 remains not started; no staging or production deploy occurred.
+
 ## Global Constraints
 
 - Preserve current visual behavior and business behavior; no redesign, new UX, new feature, or deliberate rule change.

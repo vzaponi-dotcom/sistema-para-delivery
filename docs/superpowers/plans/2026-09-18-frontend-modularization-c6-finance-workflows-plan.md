@@ -25,6 +25,8 @@
 - Task 6 evidence: RED `6fba4beac9686a0ecf0053b04a76a56aaeb92581` → Validate #1365 / run `35410717018` failed for the intended missing `paymentApi.js` and `useOrderPaymentWorkflow.js` modules. GREEN candidate `bab27fc3d33ffede2be2ab96a91ec94441b7c6e9` extracted the standalone order-payment owner/modal and removed App payment refs/handlers; Validate #1366 found only four stale UI characterizations still reading the modal/SystemSelect from `App.jsx`. Test-alignment fix `c2ece77fe403f72f88c42af9fb060fe1352d5fe3` preserved those assertions against `OrderPaymentDialog.jsx`; Validate #1367 / run `35411096051` SUCCESS with **1,762 tests / 1,761 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: App no longer owns standalone order payment attempt/selection refs or submit logic; `paymentApi.registerOrderPayment` is live, `registerTableTabPayment` is defined but not yet wired, and the runtime payment-receipt bridge remains intentionally active until Task 7.
 - Task 7 evidence: RED `de0d4532238d446147c3dffde54680ea24fd764d` → Validate #1369 / run `35412249051` failed for the intended missing table-tab reconciliation/workflow modules and for the still-present runtime `legacyBridges` payment callback. GREEN candidate `fd240fc85c871cd67b2e47952fb90dcbaf7a2db3` moved `TableTabPaymentDialog`, introduced pure settlement + owner-based workflow, removed App table-tab payment owners and physically removed the runtime bridge; Validate #1370 exposed two incorrect revision-race test setups plus stale dialog/printing characterizations. Fix `3bd62597baabc147d925ba7f0ab42248bb7ea704` aligned those tests; #1371 was externally interrupted twice by the runner while `comandasAppWiring.test.js` was still executing, with no new assertion failure. Final test-ownership alignment `c7e2fcbc32c387eb7e52765014d00241102f19b7` removed the obsolete expectation that generic polling settles payment; Validate #1372 / run `35413040640` SUCCESS with **1,773 tests / 1,772 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: runtime contains zero `legacyBridges` / `capturePaymentOwners` / `settlePaymentOwners` tokens, App contains zero table-tab payment owner/reconciliation tokens, and retry uses the accepted owner without another POST.
 
+Task 8 evidence: RED `cdbb857918254f6010619b69553d53af22e6577f` → Validate #1374 / run `35414009138` failed at Test for the intended missing `refundApi.js` and `useRefundWorkflow.js` modules. GREEN `55e674fac1bcb9f275863916739dcd6b3b5d9271` → Validate #1375 / run `35414347727` exposed one stale App ownership characterization; alignment `8848bcaff0819048fdcb175d02694b80e8d4e2eb` → Validate #1376 / run `35414468722` **SUCCESS** with **1,775 tests / 1,775 pass / 0 fail / 1 skipped** and all gates green. Refund now belongs to `src/app/workflows/refunds`; Finance emits only `onRequestRefund`, App composes the workflow dialog, and no Worker/D1 behavior changed.
+
 ## Global Constraints
 
 - Preserve current visual behavior and business behavior; no redesign, new UX, new feature, or deliberate rule change.
@@ -761,7 +763,7 @@ In `App.jsx`:
 - remove movement/opening handlers;
 - remove direct finance API imports;
 - render `FinanceWorkspace` from the Finance public entry;
-- pass `applyOfficialEffects`, capabilities, payment/category projections, feedback callbacks, and `formatCancellationDate`; keep the existing App `handleRegisterRefund` as the temporary `onRequestRefund` callback only until Task 8 removes it.
+- pass `applyOfficialEffects`, capabilities, payment/category projections, feedback callbacks, and `formatCancellationDate`; before Task 8, App temporarily supplied refund intent handling, which Task 8 now replaces with `onRequestRefund={refund.request}`.
 
 - [x] **Step 7: Run focused regressions**
 
@@ -1339,7 +1341,7 @@ Expected Validate: SUCCESS before Task 8.
   - `confirm(payload)`
 - Finance emits `onRequestRefund(order)`; workflow owns target/dialog/API/effect application.
 
-- [ ] **Step 1: Write RED API/workflow tests**
+- [x] **Step 1: Write RED API/workflow tests**
 
 API:
 
@@ -1358,7 +1360,7 @@ test('refundApi posts the existing refund payload', async () => {
 
 Workflow test proves official `order + movement` are both applied and double confirm is blocked by `submitting`.
 
-- [ ] **Step 2: Run RED + commit/push**
+- [x] **Step 2: Run RED + commit/push**
 
 ```bash
 node --test src/app/workflows/refunds/refundApi.test.js src/app/workflows/refunds/useRefundWorkflow.test.js
@@ -1366,7 +1368,7 @@ node --test src/app/workflows/refunds/refundApi.test.js src/app/workflows/refund
 
 Expected: missing modules.
 
-- [ ] **Step 3: Implement API and workflow**
+- [x] **Step 3: Implement API and workflow**
 
 API:
 
@@ -1391,7 +1393,7 @@ return true
 
 Use capability/offline guard passed into the hook. On error, preserve target and call existing error feedback.
 
-- [ ] **Step 4: Move dialog and compose it outside Finance**
+- [x] **Step 4: Move dialog and compose it outside Finance**
 
 Move the existing dialog byte-for-behavior, preserving:
 - original payment method suggestion;
@@ -1404,7 +1406,7 @@ Render the workflow dialog from App/app workflow composition, while Finance rece
 
 Delete App `handleRegisterRefund`.
 
-- [ ] **Step 5: Run refund/finance regressions**
+- [x] **Step 5: Run refund/finance regressions**
 
 ```bash
 node --test   src/app/workflows/refunds/refundApi.test.js   src/app/workflows/refunds/useRefundWorkflow.test.js   src/app/workflows/refunds/RegisterRefundDialog.test.js   src/businessPaymentOptions.test.js   src/domains/finance/domain/cashFlow.test.js
@@ -1413,7 +1415,7 @@ npm run test:architecture
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit GREEN + Validate**
+- [x] **Step 6: Commit GREEN + Validate**
 
 ```bash
 git add -A src/app/workflows/refunds src/domains/finance src/App.jsx src/components
@@ -1421,7 +1423,7 @@ git commit -m "refactor: extract refund workflow"
 git push origin feature/spec-c6-finance-workflows
 ```
 
-Expected Validate: SUCCESS.
+Expected Validate: SUCCESS. Achieved at final code/docs predecessor `8848bcaff0819048fdcb175d02694b80e8d4e2eb` / Validate #1376 / run `35414468722`.
 
 ---
 
