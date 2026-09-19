@@ -7,7 +7,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
-| `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | **Customers removed + architecture-enforced in C7; Catalog/products remain** | C8, with final enforcement C10 |
+| `updateCollection` runtime escape hatch | official effects per domain | **Customers caller removed/enforced in C7; Catalog/products caller removed in C8 Task 2; generic runtime method still physically present** | C8 Task 6 removes runtime method; Task 7 enforces absence |
 
 ## C1 status — 2026-09-16
 
@@ -161,3 +161,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 
 - C8 Task 1 removed the legacy Products/ProductForm owners with no compatibility reexport and narrowed frontend access to the Catalog public entry.
 - Temporary Task 1 public exports `Products` / `ProductForm` remain deliberate while App is migrated; removal is scheduled for Task 5. `CATEGORY_ICON_NAMES` is a real Orders consumer contract and remains public unless a later approved boundary replaces it.
+
+
+## C8 checkpoint after Task 5 — 2026-09-19
+
+- Product CRUD ownership moved to Catalog in Task 2; legacy `createProduct`, `updateProduct`, and `deleteProduct` exports are absent from `src/api/client.js`.
+- Product deletion uses the official `deletedProductId` effect. The former `updateCollection('products', ...)` caller is gone.
+- The generic runtime `updateCollection` method is **still physically present** and remains an open C8 debt until Task 6. Do not mark it REMOVED IN C8 before that GREEN.
+- Task 5 removed the temporary Catalog public exports `Products`, `ProductForm`, `ProductEditorDialog`, `useCatalogCommands`, and `useProductEditor`; App now consumes only `CatalogWorkspace`.
+- The final public Catalog entry contains five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, and `formatProductPresentation`. `CATEGORY_ICON_NAMES` remains public because Orders/OrderCart is a real consumer.
+- `shared/productCatalog.js` is a permanent cross-runtime contract, not a compatibility facade. Frontend-only icons/options/fallback/suggestion metadata remains owned by Catalog.
+- No new temporary compatibility facade was introduced in Tasks 2–5. Generic/auth reexports remain C10 debt; Printing remains C9 debt.

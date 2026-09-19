@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **STATUS: APPROVED — Task 1 COMPLETE / GREEN em `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Tasks 2–10 não iniciadas.**
+> **STATUS: APPROVED — Tasks 1–5 COMPLETE / GREEN; Task 6 é a próxima task e ainda não foi iniciada.**
 > **Design C8: APPROVED pelo usuário em 2026-09-19**, após a autorrevisão no HEAD `4466944a8aadecd667270c2c20f98450e254af32`.
 > **Plano C8: APPROVED pelo usuário em 2026-09-19** no HEAD documental `20abf94359e0e2883fc3b870c69688f8eeabc12c`. A aprovação não autoriza merge, staging, produção nem Tasks 2–10.
 
@@ -53,7 +53,7 @@ Cada foco tem testes atribuídos abaixo; nenhum fica apenas como recomendação 
 | Último HEAD documental inspecionado antes deste plano | `4466944a8aadecd667270c2c20f98450e254af32` |
 | Design C8 | **APPROVED**, 2026-09-19 |
 | Plano C8 | **APPROVED**, 2026-09-19 |
-| Tasks funcionais C8 | **Task 1 COMPLETE / GREEN**; Tasks 2–10 não iniciadas |
+| Tasks funcionais C8 | **Tasks 1–5 COMPLETE / GREEN**; Task 6 próxima/não iniciada; Tasks 7–10 não iniciadas |
 | Deploy desta rodada de planejamento | Nenhum |
 
 A base tinha rollout/ledger ainda indicando merge pendente de C7. O estado correto acima está reconciliado com o GitHub; **a atualização dos arquivos canônicos é a preparação documental obrigatória descrita abaixo**, não uma tarefa funcional já executada. Não considerar o texto antigo uma revogação da aprovação do design.
@@ -305,7 +305,7 @@ Provar que index carrega em Node sem avaliar JSX; build prova carregamento real 
 
 **Interfaces:** produz `createCatalogApi({request?, json?})`, `catalogApi`, `useCatalogCommands` com resultados da seção 2 e `{deletedProductId}` no runtime. App usa temporariamente o hook público, mantendo apenas coordenação do editor até Task 4. `updateCollection` continua fisicamente no runtime até Task 6, sem consumidor App depois desta task.
 
-- [ ] **Step 1 — RED de rotas, comandos e corrida de sync.** O adapter deve provar encoding de `id = 'p / 1'`, corpos inalterados e erro propagado. Teste representativo:
+- [x] **Step 1 — RED de rotas, comandos e corrida de sync.** O adapter deve provar encoding de `id = 'p / 1'`, corpos inalterados e erro propagado. Teste representativo:
 
 ```js
 import test from 'node:test'
@@ -358,7 +358,7 @@ test('C8 accepted product delete survives an older bootstrap', async (t) => {
 
 Adicionar caso análogo para upsert de produto, preservação de outras coleções e delete id ausente idempotente local. Produto não pertence a `PAYMENT_COLLECTIONS`; delete isolado não incrementa revision financeira.
 
-- [ ] **Step 2 — RED confirmado.**
+- [x] **Step 2 — RED confirmado.**
 
 ```bash
 node --test src/domains/catalog/infrastructure/catalogApi.test.js src/domains/catalog/application/useCatalogCommands.test.js src/app/runtime/data/useOperationalDataRuntime.test.js
@@ -366,7 +366,7 @@ node --test src/domains/catalog/infrastructure/catalogApi.test.js src/domains/ca
 
 Esperado: API/commands ausentes, produto não removido ou ressuscitado por ausência de efeito. Não aceitar regressão das proteções C5/C6/C7 como RED pretendido.
 
-- [ ] **Step 3 — GREEN com contratos existentes.** Adapter:
+- [x] **Step 3 — GREEN com contratos existentes.** Adapter:
 
 ```js
 import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
@@ -419,8 +419,8 @@ No runtime acrescentar `deletedProductId` ao argumento de `applyOfficialEffects`
 
 App chama commands, trata sucesso pelos resultados e mantém somente reset do editor. Retirar APIs de produto de `src/api/client.js`, seus imports no App, aplicação duplicada de efeitos/sucessos e `updateCollection('products', ...)`. Nenhum reexport de API legado.
 
-- [ ] **Step 4 — GREEN focado.** Reexecutar comando RED, testes Customers/Finance/runtime e `npm run test:architecture`, `npm run lint`, `npm run build`. Auditar `finally` e todos os canais de erro.
-- [ ] **Step 5 — Commit/gate.** `test: define c8 product commands and delete effect`; `refactor: move product mutations to catalog`; Validate por SHA, registrar Task 2 e debt de runtime ainda fisicamente presente.
+- [x] **Step 4 — GREEN focado.** Reexecutar comando RED, testes Customers/Finance/runtime e `npm run test:architecture`, `npm run lint`, `npm run build`. Auditar `finally` e todos os canais de erro.
+- [x] **Step 5 — Commit/gate.** `test: define c8 product commands and delete effect`; `refactor: move product mutations to catalog`; Validate por SHA, registrar Task 2 e debt de runtime ainda fisicamente presente.
 
 ## Task 3 — Projeção administrativa e regressões de interação
 
@@ -428,7 +428,7 @@ App chama commands, trata sucesso pelos resultados e mantém somente reset do ed
 
 **Interfaces:** consome metadata Catalog e formatter shared; produz `projectCatalogList`. UI/selection permanecem locais a Products e não são exportados como regra Orders.
 
-- [ ] **Step 1 — RED da projeção e caracterizações do comportamento.**
+- [x] **Step 1 — RED da projeção e caracterizações do comportamento.**
 
 ```js
 import test from 'node:test'
@@ -495,7 +495,7 @@ test('single delete closes confirmation after a controlled false result', async 
 
 Testar long press por timers simulados: 549 ms não entra; 550 ms entra; pointer cancel/up/leave antes do limite cancela; clique posterior ao long press não desfaz a seleção inicial. Mouse não inicia timer. Não substituir por atraso real no teste.
 
-- [ ] **Step 2 — RED específico.**
+- [x] **Step 2 — RED específico.**
 
 ```bash
 node --test src/domains/catalog/domain/catalogList.test.js src/domains/catalog/ui/Products.test.js
@@ -503,7 +503,7 @@ node --test src/domains/catalog/domain/catalogList.test.js src/domains/catalog/u
 
 A ausência de `catalogList.js` é o RED da extração. Caracterizações de exclusão/long press devem passar no owner movido antes de alterar projeção; não forçar sua falha artificialmente.
 
-- [ ] **Step 3 — GREEN mínimo.**
+- [x] **Step 3 — GREEN mínimo.**
 
 ```js
 import { categoryForUi } from './catalogPresentation.js'
@@ -530,8 +530,8 @@ export function projectCatalogList(products, { search = '', categoryFilter = 'To
 
 Products substitui somente os blocos de filtro/reduce por `projectCatalogList(products, {search, categoryFilter})`. Manter expansão automática quando busca/filtro ativo; `selectedProductIds`, `pendingId`, menus, portals, temporizadores e loops atuais. Não usar a projeção administrativa na busca Orders: naquela tela busca não inclui preço e busca preenchida tem precedência sobre categoria.
 
-- [ ] **Step 4 — GREEN.** Reexecutar os dois testes, characterizations e architecture/lint/build. Garantir nenhum sort, mudança de markup ou CSS.
-- [ ] **Step 5 — Commit/gate.** `test: characterize c8 catalog list and bulk behavior`; `refactor: isolate catalog list projection`; registrar RED/GREEN e os casos de falha controlada.
+- [x] **Step 4 — GREEN.** Reexecutar os dois testes, characterizations e architecture/lint/build. Garantir nenhum sort, mudança de markup ou CSS.
+- [x] **Step 5 — Commit/gate.** `test: characterize c8 catalog list and bulk behavior`; `refactor: isolate catalog list projection`; registrar RED/GREEN e os casos de falha controlada.
 
 ## Task 4 — Draft, editor e modal de produto
 
@@ -539,7 +539,7 @@ Products substitui somente os blocos de filtro/reduce por `projectCatalogList(pr
 
 **Interfaces:** consome commands Task 2; produz editor da seção 2 e `ProductEditorDialog({editor, writesBlocked})`. App mantém temporariamente chamada ao hook público + composição do dialog, mas perde todo state/payload/handler de produto.
 
-- [ ] **Step 1 — RED de estado/payload.** Testar novo → editar → cancelar → novo, erro create/update mantendo aberto, sucesso limpando editor, bloqueios e exclusão por id. `closeIfEditing(outroId)` não fecha; id atual fecha. O payload deve ser exatamente o objeto abaixo:
+- [x] **Step 1 — RED de estado/payload.** Testar novo → editar → cancelar → novo, erro create/update mantendo aberto, sucesso limpando editor, bloqueios e exclusão por id. `closeIfEditing(outroId)` não fecha; id atual fecha. O payload deve ser exatamente o objeto abaixo:
 
 ```js
 assert.deepEqual(productPayloadFromDraft({
@@ -555,7 +555,7 @@ O draft envia `1,5` como hoje; o Worker normaliza. Não adicionar `size` ao payl
 
 `ProductForm.test.js`: novo inicia com zero após mount, segundo render/digitação não zera novamente; edição mantém preço. Validar unit, size P/M/G/Outro (1–24 caracteres), volume/peso positivos, vírgula/ponto e unidades corretas, inválidos bloqueados e erro inline. Troca de categoria/tipo mantém os resets atuais. Input de nome/preço deve conservar identidade entre rerenders, sem nova key por tecla.
 
-- [ ] **Step 2 — RED autoritativo.**
+- [x] **Step 2 — RED autoritativo.**
 
 ```bash
 node --test src/domains/catalog/domain/productDraft.test.js src/domains/catalog/application/useProductEditor.test.js src/domains/catalog/ui/ProductForm.test.js
@@ -563,7 +563,7 @@ node --test src/domains/catalog/domain/productDraft.test.js src/domains/catalog/
 
 Esperado: helpers/hook ausentes. As characterizations do ProductForm já movido não precisam falhar.
 
-- [ ] **Step 3 — GREEN, preservando defaults reais.** Helpers de draft:
+- [x] **Step 3 — GREEN, preservando defaults reais.** Helpers de draft:
 
 ```js
 import { categoryForUi } from './catalogPresentation.js'
@@ -640,8 +640,8 @@ export default function ProductEditorDialog({ editor, writesBlocked }) {
 
 App usa hook/dialog públicos temporários, remove `newProduct`, `editingProductId`, `showProductForm`, `emptyProduct`, payload e handlers antigos. Atualizar `clearBusinessData`: até Task 5 ele pode chamar `editor.cancel()` pelo contrato, nunca setters apagados. Remover essa ponte transitória na Task 5.
 
-- [ ] **Step 4 — GREEN e regressões.** Rodar os três testes, characterizations de foco/preço e `npm run test:architecture`, lint, build. Verificar nenhuma alteração em `Modal.jsx`/CSS e nenhum reset por tecla.
-- [ ] **Step 5 — Commit/gate.** `test: define c8 product editor lifecycle`; `refactor: move product editor into catalog`; registrar exports/ponte temporários, todos com remoção Task 5.
+- [x] **Step 4 — GREEN e regressões.** Rodar os três testes, characterizations de foco/preço e `npm run test:architecture`, lint, build. Verificar nenhuma alteração em `Modal.jsx`/CSS e nenhum reset por tecla.
+- [x] **Step 5 — Commit/gate.** `test: define c8 product editor lifecycle`; `refactor: move product editor into catalog`; registrar exports/ponte temporários, todos com remoção Task 5.
 
 ## Task 5 — CatalogWorkspace e encerramento do ownership no App
 
@@ -649,7 +649,7 @@ App usa hook/dialog públicos temporários, remove `newProduct`, `editingProduct
 
 **Interfaces:** contrato final da seção 2. `visible` controla só a lista; o workspace permanece montado dentro da árvore autenticada do AppRoot. Isso preserva o lifetime global do editor que existia no App. Não criar state de navegação dentro de Catalog.
 
-- [ ] **Step 1 — RED de composição e lifetime.** Testar ausência no App dos estados/handlers/payload/APIs/imports de produto; presença de `CatalogWorkspace` e query/capability/runtime injetados. Em UI, montar workspace com `visible=true`, abrir editor, preencher, alternar `visible=false/true` e confirmar draft/modal preservados; unmount + novo mount começa fechado. Lista desmonta quando invisível, limpando seleção/accordion como o destino anterior. Query controlada por App permanece ao voltar. Contexto read-only não apresenta ações/editor.
+- [x] **Step 1 — RED de composição e lifetime.** Testar ausência no App dos estados/handlers/payload/APIs/imports de produto; presença de `CatalogWorkspace` e query/capability/runtime injetados. Em UI, montar workspace com `visible=true`, abrir editor, preencher, alternar `visible=false/true` e confirmar draft/modal preservados; unmount + novo mount começa fechado. Lista desmonta quando invisível, limpando seleção/accordion como o destino anterior. Query controlada por App permanece ao voltar. Contexto read-only não apresenta ações/editor.
 
 ```js
 const forbidden = /\b(?:editingProductId|showProductForm|newProduct|emptyProduct|productPayload|handleAddProduct|handleEditProduct|handleDeleteProduct|handleCancelProductEdit|useProductEditor|useCatalogCommands)\b/
@@ -661,7 +661,7 @@ assert.match(appSource, /query\.products/)
 
 No final desta task substituir o contrato temporário de exports da Task 1 por conjunto exato de quatro exports: workspace e três helpers. Testes internos importam seus owners relativos; não manter public export apenas para teste.
 
-- [ ] **Step 2 — RED.**
+- [x] **Step 2 — RED.**
 
 ```bash
 node --test src/domains/catalog/catalogExtractionContract.test.js src/domains/catalog/ui/CatalogWorkspace.test.js src/domains/catalog/catalogPublicContract.test.js
@@ -669,7 +669,7 @@ node --test src/domains/catalog/catalogExtractionContract.test.js src/domains/ca
 
 Esperado: workspace ausente, App ainda compõe editor/hook e entry intermediário ainda amplo.
 
-- [ ] **Step 3 — GREEN da composição.**
+- [x] **Step 3 — GREEN da composição.**
 
 ```jsx
 import { useCatalogCommands } from '../application/useCatalogCommands.js'
@@ -702,8 +702,8 @@ Substituir o bloco condicional de Products no App por workspace estável com `vi
 
 Index passa aos quatro exports finais; `catalogSurfaces.js` contém apenas o wrapper de `CatalogWorkspace`, seguindo o padrão Node-safe da Task 1. Remover imports e helpers de produto sobrando no App. CSS continua importado na posição anterior.
 
-- [ ] **Step 4 — GREEN.** Reexecutar testes acima, Products/ProductForm/editor/commands e integração Orders. Revisar ciclo completo AppRoot/logout e retorno à tela; zero store/cópia oficial local.
-- [ ] **Step 5 — Commit/gate.** `test: define c8 catalog workspace boundary`; `refactor: compose catalog workspace from app`; registrar remoção de todos os exports/ponte intermediários.
+- [x] **Step 4 — GREEN.** Reexecutar testes acima, Products/ProductForm/editor/commands e integração Orders. Revisar ciclo completo AppRoot/logout e retorno à tela; zero store/cópia oficial local.
+- [x] **Step 5 — Commit/gate.** `test: define c8 catalog workspace boundary`; `refactor: compose catalog workspace from app`; registrar remoção de todos os exports/ponte intermediários.
 
 ## Task 6 — Remover fisicamente updateCollection
 
@@ -957,3 +957,19 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 **Limite da validação nesta entrega:** revisão documental, consistência dos contratos/paths e conferência remota da base. Os trechos de código são instruções para futuras tasks, não implementação executada. A aplicação não foi testada localmente nesta rodada de planejamento. O baseline de aplicação citado pertence ao merge C7; não constitui GREEN de C8.
 
 **Estado atual deste plano:** APPROVED. Preparação documental concluída; Task 1 COMPLETE / GREEN em `bdd73ada270c705e8c739ea785a56b8f5afa7cab` / Validate #1436. Tasks 2–10 continuam não executadas e não autorizadas nesta rodada.
+
+
+---
+
+## Execution checkpoint — after Task 5 — 2026-09-19
+
+- **Tasks 1–5: COMPLETE / GREEN. Task 6: NOT STARTED.**
+- Task 2 RED `cd2ed96624b29793d289e5d3405fecb5f8c1d704` / Validate #1438 / run `35463215995`: expected product-command/API/deletion-effect failures. Task 2 final GREEN `8f7cfca4c0a4b03477955d1b3b0646b9ad35b165` / Validate #1440 / run `35463540113`: **SUCCESS**, 1,828 tests / 1,827 pass / 0 fail / 1 skipped.
+- Task 3 authoritative RED `6cf21d7a6930f8ba22063ed76fc2c497b6d5f4fd` / Validate #1445 / run `35464412859`: exactly one intended missing-`catalogList.js` failure after correcting the test harness. Task 3 final GREEN `01c10746aa1bf24c406b634d8b53efd5a69aff6f` / Validate #1447 / run `35464678996`: **SUCCESS**, 1,836 tests / 1,835 pass / 0 fail / 1 skipped.
+- Task 4 RED `33155835d2105681ee3bd9a826295ff920a04eb2` / Validate #1448 / run `35464932138`: four expected missing editor/draft/public-boundary failures. Task 4 final GREEN `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309` / Validate #1450 / run `35466359982`: **SUCCESS**, 1,848 tests / 1,847 pass / 0 fail / 1 skipped.
+- Task 5 RED `26da9d33c316edd1d6a825960bea2fcbe93dc9ac` / Validate #1451 / run `35466813331`: five intended workspace/public-entry/composition failures. Production GREEN `27e8312630736f1ff467cb39c4a7587f4672445e`; final test-ownership alignment `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`; Validate #1453 / run `35467142766`: **SUCCESS**, 1,852 tests / 1,851 pass / 0 fail / 1 skipped.
+- Final Catalog public entry after Task 5: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`. The icon map is intentionally public because Orders/OrderCart is a real consumer discovered in Task 1.
+- App now composes Catalog only through the stable `CatalogWorkspace`; product list visibility is controlled by `visible`, so editor lifetime survives navigation within the authenticated tree while list-local selection/accordion state resets when hidden.
+- Product CRUD API/commands/editor/list projection/UI owners are under Catalog. Legacy product CRUD exports are absent from `src/api/client.js`.
+- Product use of `updateCollection('products', ...)` was removed in Task 2, but the generic `updateCollection` method still physically exists in the operational runtime. **Do not mark this debt removed before Task 6 GREEN.**
+- No staging, merge or production deployment occurred. No Worker/schema/migration/CSS/workflow/allowlist functional changes were introduced by Tasks 2–5.

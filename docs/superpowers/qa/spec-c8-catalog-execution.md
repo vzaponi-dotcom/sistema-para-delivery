@@ -2,7 +2,7 @@
 
 ## Approval and scope — 2026-09-19
 
-The user explicitly approved the C8 design and the implementation plan. Approval is not pending. This round authorizes the documentary preparation and **Task 1 only**. Tasks 2–10, merge, staging and production are not authorized in this round.
+The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, and Task 5. **Tasks 1–5 are now complete/green. Task 6 has not started.** Staging, merge and production remain unauthorized/not executed.
 
 - Design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`.
 - Approved plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` at `20abf94359e0e2883fc3b870c69688f8eeabc12c`.
@@ -21,7 +21,11 @@ A fresh local clone was attempted outside the user's workspace and failed becaus
 - Approval: RECORDED.
 - Canonical spec/plan/rollout/ledger status reconciliation: **COMPLETE** at `e91a65b0ad76007b69424ee4cd8e1ed5dfe58b43`.
 - Task 1: **COMPLETE / GREEN** at `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` SUCCESS.
-- Tasks 2–10: NOT STARTED.
+- Task 2: **COMPLETE / GREEN** at `8f7cfca4c0a4b03477955d1b3b0646b9ad35b165`; Validate #1440 / run `35463540113` SUCCESS.
+- Task 3: **COMPLETE / GREEN** at `01c10746aa1bf24c406b634d8b53efd5a69aff6f`; Validate #1447 / run `35464678996` SUCCESS.
+- Task 4: **COMPLETE / GREEN** at `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309`; Validate #1450 / run `35466359982` SUCCESS.
+- Task 5: **COMPLETE / GREEN** at `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`; Validate #1453 / run `35467142766` SUCCESS.
+- Task 6–10: NOT STARTED.
 - Merge/deploy: NONE.
 
 This file supplements, and does not replace, the canonical Spec C execution and compatibility ledgers. Their stale pre-merge/pre-approval wording must be reconciled; historical evidence must be preserved.
@@ -61,3 +65,44 @@ Move only the Catalog public boundary, frontend metadata and existing Products/P
 - Architecture: PASS; lint: PASS; build: PASS; Worker production dry-run: PASS; Worker staging dry-run: PASS; local D1: PASS; Spec B D1 clean install/upgrade: PASS.
 - No Worker, schema, migration, CSS, workflow or allowlist behavior was changed by Task 1.
 - Task 2 remains **NOT STARTED / NOT AUTHORIZED**. Staging, merge and production remain **NONE**.
+
+
+## Tasks 2–5 consolidated evidence
+
+The user intentionally deferred canonical documentation updates during Tasks 2–4 and requested consolidation at Task 5. The following evidence is recorded now without rewriting historical commits.
+
+### Task 2 — Catalog API, commands and official deletion effect
+
+- RED: `cd2ed96624b29793d289e5d3405fecb5f8c1d704`; Validate #1438 / run `35463215995` — expected command/API/`deletedProductId` failures.
+- Production GREEN candidate: `61a46701e666b6bfc3acc3b8c3352c106471d66f`.
+- Final characterization alignment: `8f7cfca4c0a4b03477955d1b3b0646b9ad35b165`.
+- Validate #1440 / run `35463540113`: **SUCCESS**, 1,828 tests / 1,827 pass / 0 fail / 1 skipped.
+- `catalogApi` and `useCatalogCommands` own create/update/delete; legacy product APIs are absent from `src/api/client.js`; delete applies `{ deletedProductId }`.
+- Product caller of `updateCollection` is removed, but the runtime method itself remains for Task 6.
+
+### Task 3 — Administrative projection and interaction regression protection
+
+- Early characterization commits exposed test-harness assumptions around navigator/timers; those were corrected before accepting the authoritative RED.
+- Authoritative RED: `6cf21d7a6930f8ba22063ed76fc2c497b6d5f4fd`; Validate #1445 / run `35464412859` — exactly one intended missing-`catalogList.js` failure.
+- Production projection: `bb174bdd0eb30fcca2b246ee150575712901ce03`; final alignment: `01c10746aa1bf24c406b634d8b53efd5a69aff6f`.
+- Validate #1447 / run `35464678996`: **SUCCESS**, 1,836 tests / 1,835 pass / 0 fail / 1 skipped.
+- Search/filter/grouping preserves pt-BR lowercasing, no accent folding, price `String(price)` matching, legacy `Outros` fallback and original official order. Delete/bulk/long-press behavior is characterized without UX change.
+
+### Task 4 — Draft/editor/dialog ownership
+
+- RED: `33155835d2105681ee3bd9a826295ff920a04eb2`; Validate #1448 / run `35464932138` — four intended missing draft/editor/dialog/public-boundary failures.
+- Production GREEN candidate: `f31d4cda695c613c6d1e8bfd7f796be1d5b239be`; final ownership-characterization alignment: `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309`.
+- Validate #1450 / run `35466359982`: **SUCCESS**, 1,848 tests / 1,847 pass / 0 fail / 1 skipped.
+- Catalog owns `productDraft`, `useProductEditor`, and `ProductEditorDialog`. The internal new-product seed remains 32 while ProductForm preserves the observed one-time `R$ 0,00` display for a new item; edit price is preserved. Legacy size/category fallbacks remain equivalent.
+
+### Task 5 — Stable CatalogWorkspace and final public boundary
+
+- RED: `26da9d33c316edd1d6a825960bea2fcbe93dc9ac`; Validate #1451 / run `35466813331` — five intended workspace/public-entry/App-composition failures.
+- Production GREEN: `27e8312630736f1ff467cb39c4a7587f4672445e`.
+- Validate #1452 identified only stale ownership characterizations plus two defects in new test assumptions (custom Button text nesting and unsupported accent-folding expectation); production was not changed for those.
+- Final test alignment: `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`.
+- Validate #1453 / run `35467142766`: **SUCCESS**, 1,852 tests / 1,851 pass / 0 fail / 1 skipped; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- `CatalogWorkspace` stays mounted within the authenticated App tree. `visible` controls only Products list rendering, preserving editor draft/modal across normal navigation while resetting list-local selection/accordion state; authenticated-tree unmount resets the editor.
+- App now owns only Catalog composition inputs: official `products[]`, query state/callbacks, capability, writesBlocked, official effects/request key and global feedback callbacks.
+- Temporary Catalog public exports are removed. Final public entry: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- Task 6 is next and owns physical removal of the generic runtime `updateCollection` escape hatch.

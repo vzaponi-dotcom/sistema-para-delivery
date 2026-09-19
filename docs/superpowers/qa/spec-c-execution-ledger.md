@@ -24,7 +24,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
-| C8 | Catalog | **ACTIVE — TASK 1 COMPLETE / GREEN; TASK 2 NOT STARTED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
+| C8 | Catalog | **ACTIVE — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
@@ -358,3 +358,21 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Legacy `src/pages/Products.jsx` and `src/components/ProductForm.jsx` are removed with no compatibility reexport. No architecture allowlist expansion occurred.
 - App product CRUD/editor, legacy product API exports and `updateCollection('products', ...)` remain intentional C8 debt for later tasks.
 - Task 2 and beyond: **NOT STARTED / NOT AUTHORIZED IN THIS ROUND**. No staging, merge or production deploy.
+
+
+---
+
+# C8 — Catalog checkpoint after Task 5 — 2026-09-19
+
+- Branch: `feature/spec-c8-catalog`; draft PR #52; base/master remains `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Task 1 final GREEN: `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` — SUCCESS.
+- Task 2 RED: `cd2ed96624b29793d289e5d3405fecb5f8c1d704`; Validate #1438 / run `35463215995` — expected failures. Task 2 final GREEN: `8f7cfca4c0a4b03477955d1b3b0646b9ad35b165`; Validate #1440 / run `35463540113` — **SUCCESS**, 1,828 tests / 1,827 pass / 0 fail / 1 skipped.
+- Task 3 authoritative RED: `6cf21d7a6930f8ba22063ed76fc2c497b6d5f4fd`; Validate #1445 / run `35464412859` — one intended missing-`catalogList.js` failure. Task 3 final GREEN: `01c10746aa1bf24c406b634d8b53efd5a69aff6f`; Validate #1447 / run `35464678996` — **SUCCESS**, 1,836 tests / 1,835 pass / 0 fail / 1 skipped.
+- Task 4 RED: `33155835d2105681ee3bd9a826295ff920a04eb2`; Validate #1448 / run `35464932138` — four intended draft/editor/public-boundary failures. Task 4 final GREEN: `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309`; Validate #1450 / run `35466359982` — **SUCCESS**, 1,848 tests / 1,847 pass / 0 fail / 1 skipped.
+- Task 5 RED: `26da9d33c316edd1d6a825960bea2fcbe93dc9ac`; Validate #1451 / run `35466813331` — five intended workspace/composition failures. Task 5 production candidate: `27e8312630736f1ff467cb39c4a7587f4672445e`; final alignment: `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`; Validate #1453 / run `35467142766` — **SUCCESS**, 1,852 tests / 1,851 pass / 0 fail / 1 skipped; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Catalog now owns frontend metadata, product API/commands, administrative list projection, draft/editor/dialog, Products/ProductForm UI and stable workspace composition.
+- App now composes only `CatalogWorkspace` plus query/capability/runtime/feedback injection; temporary public `Products`, `ProductForm`, `ProductEditorDialog`, `useCatalogCommands` and `useProductEditor` exports are removed.
+- Final public entry after Task 5 has five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- Product CRUD exports are absent from `src/api/client.js`; delete uses official `deletedProductId`.
+- `updateCollection('products', ...)` has no production caller, but the generic runtime `updateCollection` method remains physically present. **Task 6 owns its removal; Task 7 owns permanent enforcement.**
+- Task 6 is NOT STARTED. No staging, merge or production deployment has occurred.
