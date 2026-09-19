@@ -106,7 +106,9 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - C6 Task 6 is **COMPLETE / GREEN** at `c2ece77fe403f72f88c42af9fb060fe1352d5fe3`; Validate #1367 / run `35411096051` passed with **1,762 tests / 1,761 pass / 0 fail / 1 skipped**.
 - Standalone order-payment coordination and modal ownership moved from App to `src/app/workflows/payments/order/`; `src/app/workflows/payments/paymentApi.js` owns the order payment route and already defines the table-tab route for Task 7. No replacement runtime bridge was introduced.
 - Legacy `registerPayment` and `registerTableTabPayment` exports remain physically present in `src/api/client.js` until the scheduled Task 9 cleanup; App no longer consumes `registerPayment`.
-- The operational payment-receipt bridge remains intentionally active only for table-tab accepted-payment reconciliation and is still targeted for removal in Task 7.
+- C6 Task 7 is **COMPLETE / GREEN** at `c7e2fcbc32c387eb7e52765014d00241102f19b7`; Validate #1372 / run `35413040640` passed with **1,773 tests / 1,772 pass / 0 fail / 1 skipped**.
+- The operational payment-receipt bridge is **REMOVED IN C6 TASK 7**. `useOperationalDataRuntime.js` no longer accepts `legacyBridges` and contains no `capturePaymentOwners` / `settlePaymentOwners` callback path. Accepted table-tab payment obligations and two-read reconciliation now live entirely in `app/workflows/payments/table-tab/`.
+- `TableTabPaymentDialog` moved to the app payment workflow with no legacy-path compatibility reexport. App no longer owns the table-tab payment refs/state/handlers. Legacy `registerTableTabPayment` remains only as scheduled API export debt in `src/api/client.js` until Task 9.
 - Production remains untouched.
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.

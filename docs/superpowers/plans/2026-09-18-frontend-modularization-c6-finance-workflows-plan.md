@@ -23,6 +23,7 @@
 - Task 4 evidence: RED `f5fe1563d871c3cb5135cb06e86be58e80f57877` → Validate #1356 / run `35407256910` failed for the intended missing `financeApi`, `useFinanceCommands`, and `FinanceWorkspace` owners. GREEN candidate `9974799a3440ae9bbe59ba0e80d28c9b70b5112e` → Validate #1357 exposed stale extraction/UI/capability characterizations after the ownership move. Fix `2665e82a97207eb118497b8f3e2cf44cda5ccc39` aligned extraction/UI tests but Validate #1358 still found two capability characterizations tied to App-local handlers. Final fix `f76b223245f1a2fcaaf981694d052365e5ca9ffb` aligned those capability contracts; Validate #1359 / run `35408051011` SUCCESS with **1,750 tests / 1,749 pass / 0 fail / 1 skipped** and all remaining gates green.
 - Task 5 evidence: RED `d26a537cb8d5487a23aa48430e816feadf49cbfb` → Validate #1361 / run `35409142816` failed for the intended missing `ReceivablesSurface`, `useOrderPaymentPromise`, and `ordersApi.updatePaymentPromise` contracts. GREEN candidate `675b66c2746681421b15dfa8bab9383aa7f4d2f6` moved A Receber/supporting UI into Finance, moved payment-promise coordination into Orders and created the app-owned Finance↔Orders composition; Validate #1362 exposed stale test paths plus two test-only assertion mismatches. Fix `895690be64baa8284b0e5b31dda1969f1f9dadb5` aligned those characterizations; Validate #1363 / run `35409732928` SUCCESS with **1,755 tests / 1,754 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: no legacy Receivables/supporting UI paths remain, App no longer owns payment-promise writes, and Finance UI contains zero Orders imports.
 - Task 6 evidence: RED `6fba4beac9686a0ecf0053b04a76a56aaeb92581` → Validate #1365 / run `35410717018` failed for the intended missing `paymentApi.js` and `useOrderPaymentWorkflow.js` modules. GREEN candidate `bab27fc3d33ffede2be2ab96a91ec94441b7c6e9` extracted the standalone order-payment owner/modal and removed App payment refs/handlers; Validate #1366 found only four stale UI characterizations still reading the modal/SystemSelect from `App.jsx`. Test-alignment fix `c2ece77fe403f72f88c42af9fb060fe1352d5fe3` preserved those assertions against `OrderPaymentDialog.jsx`; Validate #1367 / run `35411096051` SUCCESS with **1,762 tests / 1,761 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: App no longer owns standalone order payment attempt/selection refs or submit logic; `paymentApi.registerOrderPayment` is live, `registerTableTabPayment` is defined but not yet wired, and the runtime payment-receipt bridge remains intentionally active until Task 7.
+- Task 7 evidence: RED `de0d4532238d446147c3dffde54680ea24fd764d` → Validate #1369 / run `35412249051` failed for the intended missing table-tab reconciliation/workflow modules and for the still-present runtime `legacyBridges` payment callback. GREEN candidate `fd240fc85c871cd67b2e47952fb90dcbaf7a2db3` moved `TableTabPaymentDialog`, introduced pure settlement + owner-based workflow, removed App table-tab payment owners and physically removed the runtime bridge; Validate #1370 exposed two incorrect revision-race test setups plus stale dialog/printing characterizations. Fix `3bd62597baabc147d925ba7f0ab42248bb7ea704` aligned those tests; #1371 was externally interrupted twice by the runner while `comandasAppWiring.test.js` was still executing, with no new assertion failure. Final test-ownership alignment `c7e2fcbc32c387eb7e52765014d00241102f19b7` removed the obsolete expectation that generic polling settles payment; Validate #1372 / run `35413040640` SUCCESS with **1,773 tests / 1,772 pass / 0 fail / 1 skipped** and all remaining gates green. Audit: runtime contains zero `legacyBridges` / `capturePaymentOwners` / `settlePaymentOwners` tokens, App contains zero table-tab payment owner/reconciliation tokens, and retry uses the accepted owner without another POST.
 
 ## Global Constraints
 
@@ -1148,7 +1149,7 @@ Expected Validate: SUCCESS.
 - The hook consumes `refreshOfficialData()` which returns the runtime receipt already returned by `refreshBootstrapSilently()`.
 - No callback from runtime back into payment workflow.
 
-- [ ] **Step 1: Write RED pure settlement tests**
+- [x] **Step 1: Write RED pure settlement tests**
 
 ```js
 test('settlement requires all payment collections and authoritative closed tab', () => {
@@ -1184,7 +1185,7 @@ Add cases:
 - old tab still open → not settled;
 - table reoccupied with a different tab → settled with `replaced: true`.
 
-- [ ] **Step 2: Write RED runtime bridge-removal test**
+- [x] **Step 2: Write RED runtime bridge-removal test**
 
 Replace the current runtime test that expects capture/settle with:
 
@@ -1201,7 +1202,7 @@ test('bootstrap refresh is payment-agnostic and returns its official receipt', a
 
 and a source assertion that `legacyBridges`, `capturePaymentOwners`, and `settlePaymentOwners` are absent from `useOperationalDataRuntime.js`.
 
-- [ ] **Step 3: Run RED, commit, push**
+- [x] **Step 3: Run RED, commit, push**
 
 ```bash
 node --test   src/app/workflows/payments/table-tab/tableTabPaymentReconciliation.test.js   src/app/workflows/payments/table-tab/useTableTabPaymentWorkflow.test.js   src/app/runtime/data/useOperationalDataRuntime.test.js
@@ -1209,13 +1210,13 @@ node --test   src/app/workflows/payments/table-tab/tableTabPaymentReconciliation
 
 Expected: missing workflow plus runtime bridge test failure.
 
-- [ ] **Step 4: Implement pure settlement**
+- [x] **Step 4: Implement pure settlement**
 
 Do not read global UI selection in the pure function. Validate only receipt authority and owner/result identity.
 
 Import `isOrderPaid` from `src/domains/orders/index.js` in the app-owned table-tab payment workflow and use it to verify every returned order in the authoritative receipt. Finance remains free of Orders imports.
 
-- [ ] **Step 5: Implement reconciliation hook preserving the two-read race**
+- [x] **Step 5: Implement reconciliation hook preserving the two-read race**
 
 Core logic:
 
@@ -1264,7 +1265,7 @@ if (!owner.settled) await reconcileOwner(owner)
 return true
 ```
 
-- [ ] **Step 6: Remove runtime payment bridge**
+- [x] **Step 6: Remove runtime payment bridge**
 
 From `useOperationalDataRuntime`:
 - remove `legacyBridges` argument/ref;
@@ -1285,7 +1286,7 @@ From App:
 
 Instantiate/use the table-tab workflow and pass its public callbacks/state into `TableServiceExternalActions` / `Comandas`.
 
-- [ ] **Step 7: Move TableTabPaymentDialog to workflow ownership**
+- [x] **Step 7: Move TableTabPaymentDialog to workflow ownership**
 
 Update `TableServiceExternalActions` import to:
 
@@ -1295,7 +1296,7 @@ import TableTabPaymentDialog from '../../workflows/payments/table-tab/TableTabPa
 
 Preserve all current focus-lock, default-method, inactive-selection, and double-submit tests.
 
-- [ ] **Step 8: Run focused race/regression suite**
+- [x] **Step 8: Run focused race/regression suite**
 
 ```bash
 node --test   src/app/workflows/payments/table-tab/tableTabPaymentReconciliation.test.js   src/app/workflows/payments/table-tab/useTableTabPaymentWorkflow.test.js   src/app/workflows/payments/table-tab/TableTabPaymentDialog.test.js   src/app/runtime/data/useOperationalDataRuntime.test.js   src/app/runtime/runtimeExtractionContract.test.js   src/domains/table-service/tableServiceExtractionContract.test.js   src/comandasAppWiring.test.js   src/actionCapabilities.test.js
@@ -1304,7 +1305,7 @@ npm run test:architecture
 
 Expected: PASS and zero runtime payment bridge tokens.
 
-- [ ] **Step 9: Commit GREEN + Validate**
+- [x] **Step 9: Commit GREEN + Validate**
 
 ```bash
 git add -A src/app/workflows/payments src/app/runtime src/app/surfaces/table-service src/domains/table-service src/App.jsx src/components

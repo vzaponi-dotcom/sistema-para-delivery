@@ -22,7 +22,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | **IN PROGRESS — TASKS 1–6 COMPLETE / GREEN** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **IN PROGRESS — TASKS 1–7 COMPLETE / GREEN** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -237,7 +237,12 @@ These remain mandatory for C2-C10:
 - Task 6 GREEN candidate: `bab27fc3d33ffede2be2ab96a91ec94441b7c6e9`; the new workflow/API tests were green and Validate #1366 found only four stale modal/SystemSelect source characterizations.
 - Task 6 final GREEN: `c2ece77fe403f72f88c42af9fb060fe1352d5fe3`; Validate #1367 / run `35411096051` — **SUCCESS**, **1,762 tests / 1,761 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
 - Standalone order payment now belongs to `app/workflows/payments/order`; `App.jsx` has no `paymentTarget`, `paymentDialogRef`, `paymentAttemptRef`, `paymentSequenceRef`, `openPaymentModal`, `closePaymentModal` or `handleRegisterPayment`. Order payment API uses the new app workflow adapter. Table-tab payment and the runtime payment-receipt bridge remain untouched for Task 7.
-- Task 7 has **NOT STARTED**.
+- Task 7 RED: `de0d4532238d446147c3dffde54680ea24fd764d`; Validate #1369 / run `35412249051` failed for the intended missing `tableTabPaymentReconciliation.js` / `useTableTabPaymentWorkflow.js` modules and because runtime payment `legacyBridges` still existed.
+- Task 7 GREEN candidate: `fd240fc85c871cd67b2e47952fb90dcbaf7a2db3`; it physically removed the runtime bridge and App-owned table-tab payment owners, moved the dialog, and added owner-based two-read reconciliation. Validate #1370 exposed two revision-race test setup mistakes plus stale path/source characterizations.
+- Task 7 test alignment: `3bd62597baabc147d925ba7f0ab42248bb7ea704`; Validate #1371 was externally interrupted twice while `comandasAppWiring.test.js` was running, with no new assertion failure before shutdown.
+- Task 7 final GREEN: `c7e2fcbc32c387eb7e52765014d00241102f19b7`; Validate #1372 / run `35413040640` — **SUCCESS**, **1,773 tests / 1,772 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Runtime audit: `useOperationalDataRuntime.js` has no `legacyBridges`, `capturePaymentOwners` or `settlePaymentOwners`; App has no `tableTabPaymentRef`, `paymentSyncRef`, `tableTabSync`, `publishPaymentSync`, `settleAcceptedPayment`, `reconcileTableTabPayment` or `handleRegisterTableTabPayment`. The new workflow owns accepted obligations, mandatory two-read reconciliation and explicit retry without a second payment POST.
+- Task 8 has **NOT STARTED**.
 - Production deployment: **NO**.
 
 # New-session resume protocol
@@ -251,7 +256,7 @@ The active slice is C6 after C5 merged successfully. GitHub state wins over this
 5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
 6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
 7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–6 are complete/green; resume at Task 7 only after the user asks to continue.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–7 are complete/green; resume at Task 8 only after the user asks to continue.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
