@@ -224,12 +224,6 @@ const renderTableTabCopy = (document) => {
   return flattenBytes(parts)
 }
 
-const defaultCanvasFactory = () => {
-  const canvas = globalThis.document?.createElement?.('canvas')
-  if (!canvas) throw new Error('Canvas is unavailable for MPT-II bitmap rendering')
-  return canvas
-}
-
 const parseTextLines = (bytes) => {
   let currentAlign = 0
   let currentBold = false
@@ -305,7 +299,8 @@ const isDarkPixel = (data, offset) => {
   return ((data[offset] + data[offset + 1] + data[offset + 2]) / 3) < 200
 }
 
-const rasterizeMpt2TextBytes = (bytes, createCanvas = defaultCanvasFactory) => {
+const rasterizeMpt2TextBytes = (bytes, createCanvas) => {
+  if (typeof createCanvas !== 'function') throw new Error('Canvas is unavailable for MPT-II bitmap rendering')
   const width = MTP5_PROFILE.dotsPerLine
   const normalCellWidth = width / MTP5_PROFILE.fontAColumns
   const bandHeight = 24
@@ -376,7 +371,7 @@ export const renderEscPos58mm = (document, {
   copyNumber = null,
   totalCopies = null,
   compatibilityMode = null,
-  createCanvas = defaultCanvasFactory,
+  createCanvas = null,
 } = {}) => {
   const count = Number(copies)
   if (count !== 1 && count !== 2) throw new RangeError('copies must be 1 or 2')

@@ -44,8 +44,9 @@ import {
   canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, canRunSingleRecoveryCopy,
   canSendPrintStationHeartbeat, deriveRecoveryView, getDefaultPrintStationName,
   getPrintingTransportKind, getRendererCompatibilityMode, isPrintingTransportSupported,
-  nextRecoveryState, renderEscPos58mm, runSingleRecoveryCopy,
+  nextRecoveryState, runSingleRecoveryCopy,
 } from '../domains/printing/index.js'
+import { renderEscPos58mm } from './escpos58mm.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 import {
   configureQzSecurity,

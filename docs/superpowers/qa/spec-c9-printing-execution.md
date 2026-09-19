@@ -64,3 +64,12 @@ The current policy is authoritative:
 - Physical QA: **NOT STARTED**.
 - Merge: **NOT AUTHORIZED**.
 - Production: **NO DEPLOY**.
+
+
+## Task 1 ruling — renderer browser boundary
+
+- **Ruling:** the literal plan placement of the existing renderer files under `domains/printing/domain/rendering` conflicted with the approved spec's domain-purity rule because the legacy ESC/POS renderer supplied a default canvas through `globalThis.document` and the PDF module also owned DOM download behavior.
+- **Decision:** keep only pure rendering logic under `domain/rendering`; retain thin temporary browser adapters at the legacy ESC/POS and PDF paths until their real consumers migrate in Task 4/Task 8.
+- **Why:** domain purity is binding architecture; moving browser globals into the domain merely to satisfy the planned path would be a folder-only refactor.
+- **Cost if wrong:** two small legacy browser adapters survive temporarily, but are ledgered with exact removal tasks and preserve current physical/PDF behavior.
+- Corrected purity RED: Validate #1473 / run `35475160919` failed on the real `globalThis.document` renderer dependency; stale ownership source-tests were separately aligned.

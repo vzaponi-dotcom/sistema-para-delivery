@@ -225,3 +225,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - `shared/printQueue.js`, `shared/printQueueActions.js`, and `shared/printContextPolicy.js` are permanent cross-runtime contracts, not compatibility facades.
 - Generic/auth reexports in `src/api/client.js` remain C10 debt and must not be mixed into C9 opportunistically.
 - Production remains untouched.
+
+
+### C9 Task 1 temporary browser adapters — ACTIVE
+
+| Old path | New owner/path | Remaining consumers | Removal slice |
+|---|---|---|---|
+| `src/printing/escpos58mm.js` | Pure renderer: `src/domains/printing/domain/rendering/escpos58mm.js`; legacy file is only the browser canvas adapter | `src/printing/usePrintingManager.js` until manager/browser transport extraction | C9 Task 4 (Task 8 absolute latest) |
+| `src/printing/pdfOrderRenderer.js` | Pure PDF renderer: `src/domains/printing/domain/rendering/pdfOrderRenderer.js`; legacy file is only the browser download adapter | Orders `OrderDetail.jsx` | C9 Task 8 |
+
+- These two adapters preserve existing browser behavior while keeping `domains/printing/domain/**` free of browser globals.
+- They are explicit temporary C9 compatibility debt, not permanent public contracts.

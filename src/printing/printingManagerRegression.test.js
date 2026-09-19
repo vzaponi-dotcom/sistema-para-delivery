@@ -172,7 +172,10 @@ test('printing manager centralizes approved poll and heartbeat cadences', () => 
 })
 
 test('App mounts one printing manager and passes it to Orders without changing order sync detection', () => {
-  assert.match(app, /import \{ canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager \} from '\.\/printing\/usePrintingManager'/)
+  assert.equal(app.includes("from './domains/printing/index.js'"), true)
+  assert.equal(app.includes("import { usePrintingManager } from './printing/usePrintingManager'"), true)
+  assert.equal(app.includes('canKeepSecondCopyPromptOpen'), true)
+  assert.equal(app.includes('canPresentSecondCopyPrompt'), true)
   const hookCalls = app.match(/usePrintingManager\(/g) || []
   assert.equal(hookCalls.length, 1)
   assert.match(app, /const printing = usePrintingManager\(/)

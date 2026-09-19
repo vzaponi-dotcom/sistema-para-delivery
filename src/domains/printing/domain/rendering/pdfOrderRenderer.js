@@ -104,26 +104,3 @@ export const renderOrderPdf = (document, { jsPDFFactory = (options) => new jsPDF
   write(document.message || '', { size: 10, gapAfter: 1 })
   return pdf.output('arraybuffer')
 }
-
-export const downloadOrderPdf = (document, {
-  render = renderOrderPdf,
-  urlApi = globalThis.URL,
-  documentApi = globalThis.document,
-} = {}) => {
-  if (!documentApi?.createElement || !urlApi?.createObjectURL) throw new Error('Download de PDF indisponível neste ambiente.')
-  const bytes = render(document)
-  const blob = new Blob([bytes], { type: 'application/pdf' })
-  const url = urlApi.createObjectURL(blob)
-  const anchor = documentApi.createElement('a')
-  anchor.href = url
-  anchor.download = getOrderPdfFilename(document)
-  anchor.style.display = 'none'
-  documentApi.body?.appendChild?.(anchor)
-  try {
-    anchor.click()
-  } finally {
-    anchor.remove?.()
-    urlApi.revokeObjectURL(url)
-  }
-  return { filename: anchor.download, bytes }
-}
