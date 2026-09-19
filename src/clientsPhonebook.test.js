@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 const read = (path) => readFileSync(resolve(path), 'utf8')
 
 test('clients list uses compact full-row phonebook interactions without avatar action icons', () => {
-  const source = read('src/pages/Clients.jsx')
+  const source = read('src/domains/customers/ui/Clients.jsx')
   assert.match(source, /BottomSheet/)
   assert.match(source, /selectedClient/)
   assert.match(source, /client-phonebook-row/)
@@ -15,7 +15,7 @@ test('clients list uses compact full-row phonebook interactions without avatar a
 })
 
 test('client action sheet offers edit and confirmed delete actions', () => {
-  const source = read('src/pages/Clients.jsx')
+  const source = read('src/domains/customers/ui/Clients.jsx')
   assert.match(source, /Editar cliente/)
   assert.match(source, /Excluir cliente/)
   assert.match(source, /confirmDelete|deleteConfirm/)

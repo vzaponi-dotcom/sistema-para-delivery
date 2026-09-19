@@ -49,7 +49,6 @@ import {
   useTableServiceCommands,
 } from './domains/table-service/index.js'
 import Dashboard from './pages/Dashboard'
-import Clients from './pages/Clients'
 import Products from './pages/Products'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
@@ -70,7 +69,7 @@ import { useOperationalDataRuntime } from './app/runtime/data/useOperationalData
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
-import { findClientDuplicates, useCustomerCommands } from './domains/customers/index.js'
+import { Clients, filterAndSortClients, findClientDuplicates, useCustomerCommands } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
@@ -565,7 +564,10 @@ function App({ capabilities } = {}) {
     return { salesToday, receivedToday, receivables, activeOrders }
   }, [movements, orders, todayValue])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
-  const filteredClients = useMemo(() => { const normalizedSearch = query.clients.search.trim().toLowerCase(); const filtered = clients.filter((client) => !normalizedSearch || [client.name, client.phone, client.address].join(' ').toLowerCase().includes(normalizedSearch)); return [...filtered].sort((a, b) => query.clients.sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)) }, [clients, query.clients.search, query.clients.sort])
+  const filteredClients = useMemo(
+    () => filterAndSortClients(clients, { search: query.clients.search, sort: query.clients.sort }),
+    [clients, query.clients.search, query.clients.sort],
+  )
 
   const dismissSecondCopyPrompt = () => {
     if (recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob?.id) {
