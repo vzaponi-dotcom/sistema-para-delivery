@@ -1,10 +1,10 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: EXECUTION ACTIVE — Tasks 1–3 COMPLETE / GREEN. Design and plan approved 2026-09-19.**
+> **STATUS: EXECUTION ACTIVE — Tasks 1–8 COMPLETE / GREEN; Task 9 NOT STARTED. Design and plan approved 2026-09-19.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
-> Tasks 1–3 are complete. Do not start Task 4 unless it is the explicitly requested next step.
+> Tasks 1–8 are complete and the exact-head pre-staging gate is green. Task 9 (staging + manual homologation) is the next execution step.
 
 **Goal:** Establish `src/domains/customers` as the frontend owner of customer duplicate rules, CRUD/API, customer list/editor UI and customer commands; remove customer CRUD/editor/duplicate orchestration from `App.jsx`; preserve quick-create integration with Orders without allowing Orders to own Customers infrastructure.
 
@@ -27,7 +27,7 @@
 - Post-merge `master` Validate: #1392 / run `35448223721` — SUCCESS.
 - Work branch: `feature/spec-c7-customers`.
 - C7 design approval commit: `ba8ffe3f196332334b8d9d0c6d8a352fe7ae0248`.
-- Functional implementation: **Tasks 1–3 COMPLETE / GREEN; Task 4 NOT STARTED**.
+- Functional implementation: **Tasks 1–8 COMPLETE / GREEN; Task 9 NOT STARTED**.
 - Production deployment: **NO** unless separately authorized.
 
 ## Task 1 evidence
@@ -94,7 +94,92 @@
   - Customers exports `Clients` through a Node-safe `customerSurfaces.js` wrapper;
   - legacy `src/pages/Clients.jsx` is removed;
   - phonebook/action-sheet/delete-confirmation markup and current CSS file location remain unchanged.
-- Task 4: **NOT STARTED**.
+- Task 4: **COMPLETE / GREEN**.
+
+## Task 4 evidence
+
+- RED commit: `4dc6cc388c88314f036635ad9f1de49660a9421c`.
+- RED Validate: #1408 / run `35452912084` — **FAIL as intended** at Test with 3 Task 4 boundary failures: missing `useCustomerEditor.js`, missing `CustomerEditorDialog.jsx`, and the Customers public UI/moved duplicate-modal contract not yet present.
+- GREEN candidate: `88b9294769e3be1009439c5fe97c58dfa153fc46`; Validate #1409 exposed a real session-cleanup regression because `clearBusinessData` still called removed editor setters, plus source-characterization tests that still pointed at the old owner.
+- Final fix/alignment: `9ede1b45a1748a48c155162e1db99253083eb819`.
+- Final GREEN Validate: #1410 / run `35453407335` — **SUCCESS**, **1,792 tests / 1,791 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- Delivered ownership:
+  - `useCustomerEditor` owns editor state, payload rules and duplicate flow;
+  - `CustomerEditorDialog.jsx` owns the editor UI with unchanged labels/input semantics/phone formatting;
+  - `ClientDuplicateModal.jsx` moved under Customers and is public because Orders is a real consumer;
+  - App no longer owns `newClient`, `editingClientId`, `showClientForm` or `duplicateClientDialog`;
+  - Orders imports the duplicate modal only through `domains/customers/index.js`.
+- Task 5: **COMPLETE / GREEN**.
+
+## Task 5 evidence
+
+- RED commit: `09b75fca20173c4ecccdbab0dd04fd7b22336caf`.
+- RED Validate: #1411 / run `35453671174` — **FAIL as intended** with exactly 2 Task 5 failures: missing `CustomersWorkspace` and list projection still owned by App.
+- GREEN commit: `e483b95dcc69aa9c18f5ff6d15d73f7851c44e0b`.
+- GREEN Validate: #1412 / run `35453918508` — **SUCCESS**, **1,795 tests / 1,794 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- Delivered ownership:
+  - public `CustomersWorkspace` composes Clients + editor + duplicate modal + customer commands;
+  - filter/sort projection, delete coordination and transient customer UI state no longer belong to App;
+  - App retains capability derivation, navigation query state and injected runtime/feedback dependencies;
+  - editor/duplicate state now disappears naturally when the Customers workspace unmounts across session transitions; no customer reset bridge survives.
+- Task 6: **COMPLETE / GREEN**.
+
+## Task 6 evidence
+
+- Initial RED commits: `c0374e71d2039d2effbfc1fcb084f0a0f9fda7ec` and `666ea1e3f20af47dd4562454b86cac17d5a94609`; Validate #1414 / run `35454118807` exposed the intended missing quick-create boundary plus one invalid test assumption about the current Orders selection setter.
+- Test-characterization alignment: `7c940bf2f7687cbe129a7d75d7e64a104c202278`.
+- Authoritative RED Validate: #1415 / run `35454263216` — **FAIL as intended**, **1,799 tests / 1,795 pass / 3 fail / 1 skipped**, limited to missing public quick-create command and App-owned quick-create orchestration.
+- GREEN commit: `07206c58a967970def07654851a919d0ff2aa99c`.
+- GREEN Validate: #1416 / run `35454440071` — **SUCCESS**, **1,800 tests / 1,799 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- Delivered ownership:
+  - `useQuickCreateCustomerCommand` is a minimal Customers public mutation contract;
+  - App no longer defines `handleQuickCreateClient` or consumes `useCustomerCommands` for this flow;
+  - quick-create preserves `name.trim()`, `phone || ''`, `address: ''` and request key `client:create:quick`;
+  - Orders keeps duplicate UI/rules through the Customers public entry and owns no Customers HTTP/infrastructure.
+- Task 7: **COMPLETE / GREEN**.
+
+## Task 7 evidence
+
+- Initial RED commit: `35205baeccaaced0dd1b759a34f087c2ddb3e61a`; Validate #1417 / run `35456538694` failed on the seven new architecture protections.
+- RED path alignment: `86c43cc1de46652a684a998473f53bed6c07df58` corrected the cross-runtime contract path to root-level `shared/clientIdentity.js`.
+- Authoritative RED Validate: #1418 / run `35456631629` — **FAIL as intended**, **1,807 tests / 1,799 pass / 7 fail / 1 skipped**, exactly on:
+  - external Customers deep imports;
+  - Customers ↔ Orders internal imports;
+  - legacy Customers UI/API owners;
+  - customer ownership returning to App;
+  - `updateCollection('clients', ...)` in App/Customers;
+  - frontend duplicate/name rules returning to `shared/clientIdentity.js`;
+  - domain-layer imports of infrastructure.
+- GREEN commit: `6402496c078ca817572e6e375beec9f4ffbe557a`.
+- GREEN Validate: #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1: **all green**.
+- No architecture allowlist expansion was introduced.
+- Permanent C7 enforcement now rejects all seven regression classes above.
+- Compatibility result:
+  - Customers use of `updateCollection` is removed and architecture-enforced;
+  - Catalog/product use remains C8 debt;
+  - generic/auth legacy API reexports remain C10 debt;
+  - root `shared/clientIdentity.js` is a permanent cross-runtime phone contract, not a compatibility facade.
+- Task 8: **COMPLETE / GREEN**.
+
+## Task 8 evidence
+
+- Exact candidate SHA: `6402496c078ca817572e6e375beec9f4ffbe557a`.
+- Validate #1419 / run `35456801774` serves as the exact-SHA full pre-staging gate and is **SUCCESS**.
+- Full gate: **1,807 tests / 1,806 pass / 0 fail / 1 skipped**, architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 all green.
+- Diff audit against C7 base `5b101800fe29d02dd4543e184cca9e06d659a445`:
+  - no Worker functional files changed;
+  - no schema or migration files changed;
+  - no Finance or Table Service functional files changed;
+  - Orders production change is limited to consuming `findClientDuplicates` + `ClientDuplicateModal` from the Customers public entry;
+  - no customer visual redesign and no CSS file changes;
+  - no new compatibility facade or architecture allowlist entry;
+  - App contains no customer editor/list/CRUD/duplicate business ownership.
+- Staging deployment: **NOT STARTED**.
+- Task 9: **NOT STARTED**.
 
 ## Current ownership/debt snapshot
 
@@ -348,7 +433,7 @@ Prove:
 
 ---
 
-## Task 4 — Move customer editor and make duplicate modal a public Customers UI contract
+## Task 4 — Move customer editor and make duplicate modal a public Customers UI contract — COMPLETE / GREEN
 
 **Files**
 - Move `src/components/ClientDuplicateModal.jsx` → `src/domains/customers/ui/ClientDuplicateModal.jsx`
@@ -389,7 +474,7 @@ Characterize:
 
 ---
 
-## Task 5 — Compose CustomersWorkspace and finish App customer ownership removal
+## Task 5 — Compose CustomersWorkspace and finish App customer ownership removal — COMPLETE / GREEN
 
 **Files**
 - Create `src/domains/customers/ui/CustomersWorkspace.jsx`
@@ -433,7 +518,7 @@ Also prove:
 
 ---
 
-## Task 6 — Remove App-owned quick-create API orchestration while preserving Orders behavior
+## Task 6 — Remove App-owned quick-create API orchestration while preserving Orders behavior — COMPLETE / GREEN
 
 **Files**
 - Modify Customers command/public contract as needed.
@@ -471,7 +556,7 @@ Prove:
 
 ---
 
-## Task 7 — Permanent C7 architecture enforcement and compatibility-ledger cleanup
+## Task 7 — Permanent C7 architecture enforcement and compatibility-ledger cleanup — COMPLETE / GREEN
 
 **Files**
 - Modify `scripts/architecture/check-import-boundaries.mjs`
@@ -512,7 +597,7 @@ Explicitly permit the documented cross-runtime shared primitives:
 
 ---
 
-## Task 8 — Full pre-staging gate and diff audit
+## Task 8 — Full pre-staging gate and diff audit — COMPLETE / GREEN
 
 Run on exact candidate SHA:
 

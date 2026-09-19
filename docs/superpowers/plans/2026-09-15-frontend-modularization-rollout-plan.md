@@ -405,6 +405,8 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Must preserve:** duplicate phone/name semantics, use-existing flow, create/update/delete behavior, search/sort, current mobile/desktop UI.
 
+**Current status — 2026-09-19:** Tasks 1–8 are **COMPLETE / GREEN** on `feature/spec-c7-customers`. Exact executable pre-staging SHA `6402496c078ca817572e6e375beec9f4ffbe557a` passed Validate #1419 / run `35456801774` with **1,807 tests / 1,806 pass / 0 fail / 1 skipped** and all architecture/lint/build/Worker/D1 gates green. Customers now owns duplicate/name rules, CRUD/API, list/editor UI, workspace composition and quick-create mutation command; App retains only application composition/query/capability/runtime injection. Permanent C7 architecture enforcement is active with no allowlist expansion. Task 9 staging/manual homologation is next; production remains untouched.
+
 ### C8 — Catalog
 
 **Branch:** `feature/spec-c8-catalog`
@@ -559,4 +561,4 @@ Compare final `master` architecture against `docs/superpowers/specs/2026-09-15-f
 Do not mark Spec C complete solely because `App.jsx` is smaller or files were moved.
 
 
-C6 merge handoff: QA/docs closure commit `7c59972cd88f3b74d8e5f00b05353da5413896b7` passed Validate #1390 / run `35447678112`. The user explicitly authorized merging PR #50 on 2026-09-19. A final status-only exact-HEAD Validate is required immediately before merge. Production remains untouched; C7 remains not started.
+C7 pre-staging handoff: C6 is merged at master `5b101800fe29d02dd4543e184cca9e06d659a445`. C7 Tasks 1–8 are complete/green; executable SHA `6402496c078ca817572e6e375beec9f4ffbe557a` passed Validate #1419 / run `35456801774` with all gates green. The next step is Task 9: manual Deploy staging on the exact validated C7 branch/head followed by the approved homologation matrix. PR #51 remains draft; no merge or production deploy is authorized yet.
