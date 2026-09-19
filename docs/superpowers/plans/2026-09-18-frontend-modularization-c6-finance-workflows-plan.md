@@ -29,6 +29,8 @@ Task 8 evidence: RED `cdbb857918254f6010619b69553d53af22e6577f` → Validate #13
 
 Task 9 evidence: RED `841566efc06d9b31f937c0f9140dba85823d2839` → Validate #1378 / run `35415173295` failed for the intended legacy API export and utility-owner absence assertions. GREEN `279f409c5f2322d273ea3c36b1ad16136c1c9d12` → Validate #1379 / run `35415603078` **SUCCESS** with **1,760 tests / 1,760 pass / 0 fail / 0 skipped** and all gates green. Removed the eight C6 exports from `src/api/client.js` and the five legacy utility owners plus their superseded tests. Final consumers use Finance public projections, Orders `getPendingAmount`/`isOrderPaid`, Orders payment-promise contracts, and app workflow payment/refund adapters. `paymentWorkflow.js` was emptied by ownership: `calculateReceivedToday` remains Finance-owned, `isOrderPaid`/`getPendingAmount` are Orders-owned, and unconsumed `normalizePayment`/`createOrderPaymentMovement` were removed as dead code. No Worker/D1 behavior changed.
 
+Task 10 evidence: RED `54712144e65838b1a61e9151be48ff970f44995d` → Validate #1381 / run `35416212191` failed at Test for the intended seven missing architecture rules: Finance deep imports, Finance→Orders, Finance→Table Service, C6 legacy owners, C6 legacy API exports, cross-domain payment/refund workflows under domains, and Finance/payment workflow printing-internal imports. GREEN candidate `2a098d64c63d0e90d05f38e4aa51dc50dbc350f0` implemented permanent checker enforcement and tightened the Finance public entry; Validate #1382 passed the full test suite but architecture correctly rejected one stale external test deep-importing `financeApi.js`. Alignment `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9` removed that duplicate deep import while preserving route coverage in the co-located Finance infrastructure test. Validate #1383 / run `35416528098` **SUCCESS** with **1,770 tests / 1,769 pass / 0 fail / 1 skipped** and all remaining gates green. Finance public exports are now limited to real external consumers; App/runtime extraction contracts remain green.
+
 ## Global Constraints
 
 - Preserve current visual behavior and business behavior; no redesign, new UX, new feature, or deliberate rule change.
@@ -1531,7 +1533,7 @@ Expected Validate: SUCCESS. Achieved at `279f409c5f2322d273ea3c36b1ad16136c1c9d1
 
 ---
 
-### Task 10: Permanently enforce C6 architecture and App/runtime extraction
+### Task 10: Permanently enforce C6 architecture and App/runtime extraction — COMPLETE / GREEN
 
 **Files:**
 - Modify: `scripts/architecture/check-import-boundaries.mjs`
@@ -1552,7 +1554,7 @@ Expected Validate: SUCCESS. Achieved at `279f409c5f2322d273ea3c36b1ad16136c1c9d1
 - app payment workflows cannot be placed under domains;
 - Finance/payment workflows cannot import `qz-tray` or legacy printing internals.
 
-- [ ] **Step 1: Write architecture RED fixtures**
+- [x] **Step 1: Write architecture RED fixtures**
 
 Add tests:
 
@@ -1591,7 +1593,7 @@ test('legacy API client cannot reintroduce C6 exports', async (t) => {
 
 Add legacy-owner fixture for `src/pages/Finance.jsx`.
 
-- [ ] **Step 2: Write App/runtime extraction RED**
+- [x] **Step 2: Write App/runtime extraction RED**
 
 `financeExtractionContract.test.js`:
 
@@ -1629,7 +1631,7 @@ test('operational runtime is payment agnostic', () => {
 })
 ```
 
-- [ ] **Step 3: Run architecture RED and commit/push**
+- [x] **Step 3: Run architecture RED and commit/push**
 
 ```bash
 node --test scripts/architecture/check-import-boundaries.test.mjs src/domains/finance/financeExtractionContract.test.js
@@ -1637,7 +1639,7 @@ node --test scripts/architecture/check-import-boundaries.test.mjs src/domains/fi
 
 Expected: new architecture fixture failures until checker rules are implemented; extraction failures only if real ownership remains.
 
-- [ ] **Step 4: Implement checker rules**
+- [x] **Step 4: Implement checker rules**
 
 Add `C6_LEGACY_FINANCE_OWNERS` for actual moved paths, including at least:
 - `src/pages/Finance.jsx`
@@ -1661,7 +1663,7 @@ Add import-edge rules:
 
 Do not ban app surfaces/workflows from public domain imports.
 
-- [ ] **Step 5: Tighten public Finance entry**
+- [x] **Step 5: Tighten public Finance entry**
 
 Audit:
 
@@ -1671,7 +1673,7 @@ rg -n "domains/finance/index" src --glob '!src/domains/finance/index.js'
 
 Keep only exports consumed by those external callers. Internal Finance UI should deep-import its own domain/application files.
 
-- [ ] **Step 6: Run final architecture/focused GREEN**
+- [x] **Step 6: Run final architecture/focused GREEN**
 
 ```bash
 node --test   scripts/architecture/check-import-boundaries.test.mjs   src/domains/finance/financeExtractionContract.test.js   src/app/runtime/runtimeExtractionContract.test.js   src/domains/table-service/tableServiceExtractionContract.test.js
@@ -1681,7 +1683,7 @@ npm test
 
 Expected: all PASS.
 
-- [ ] **Step 7: Commit GREEN + exact-SHA Validate**
+- [x] **Step 7: Commit GREEN + exact-SHA Validate**
 
 ```bash
 git add scripts/architecture src/domains/finance src/app/runtime src/domains/table-service src/App.jsx

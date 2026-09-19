@@ -246,12 +246,16 @@ These remain mandatory for C2-C10:
 - Task 8 ownership audit: `refundApi.js`, `useRefundWorkflow.js`, and `RegisterRefundDialog.jsx` belong to `src/app/workflows/refunds`; `src/components/RegisterRefundDialog.jsx` is absent; Finance emits only `onRequestRefund`; App has no `handleRegisterRefund`, `refundSubmitting`, or legacy refund API call. Official `{ order, movement }` is applied once, double confirm is blocked, and capability/offline guards remain enforced.
 - C6 Tasks 1–8 are **COMPLETE / GREEN** through Task 8 final GREEN `8848bcaff0819048fdcb175d02694b80e8d4e2eb` / Validate #1376 / run `35414468722`.
 - Task 9 is **COMPLETE / GREEN**: RED `841566efc06d9b31f937c0f9140dba85823d2839` / Validate #1378 / run `35415173295` failed for the intended legacy API/utility absence assertions; GREEN `279f409c5f2322d273ea3c36b1ad16136c1c9d12` / Validate #1379 / run `35415603078` **SUCCESS**, **1,760 tests / 1,760 pass / 0 fail / 0 skipped**. The eight C6 `src/api/client.js` exports and five legacy `src/utils` owners were removed, consumers migrated to Finance/Orders public contracts, and no Worker/D1 behavior changed.
-- Task 10 is **NOT STARTED**.
+- Task 10 RED: `54712144e65838b1a61e9151be48ff970f44995d`; Validate #1381 / run `35416212191` failed for the intended missing permanent C6 architecture rules.
+- Task 10 GREEN candidate: `2a098d64c63d0e90d05f38e4aa51dc50dbc350f0`; full tests passed, while `test:architecture` correctly found one stale external test deep-importing Finance infrastructure.
+- Task 10 final GREEN: `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9`; Validate #1383 / run `35416528098` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
+- Permanent C6 enforcement now rejects external Finance deep imports, Finance→Orders/Table Service imports, legacy C6 owners/API exports, cross-domain payment/refund workflow ownership under domains, and Finance/payment-workflow printing internals. The Finance public entry was reduced to actual external consumers.
+- Task 11 has **NOT STARTED**.
 - Production deployment: **NO**.
 
 # New-session resume protocol
 
-The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–9 are complete/green; resume at Task 10 only after the user asks to continue.
+The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; resume at Task 11 only after the user asks to continue.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -260,7 +264,7 @@ The active slice is C6 after C5 merged successfully. GitHub state wins over this
 5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
 6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
 7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–9 are complete/green; resume at Task 10 only after the user asks to continue.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; resume at Task 11 only after the user asks to continue.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.

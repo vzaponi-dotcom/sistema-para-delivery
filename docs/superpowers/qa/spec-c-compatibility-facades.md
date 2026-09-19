@@ -115,3 +115,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 
 Do not remove or broaden these compatibility paths opportunistically. Their removal belongs to the scheduled slice unless a separately approved architectural change updates this ledger first.
 
+
+- C6 Task 10 is **COMPLETE / GREEN** at `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9`; Validate #1383 / run `35416528098` passed with **1,770 tests / 1,769 pass / 0 fail / 1 skipped**.
+- C6 architecture debt is now permanently enforced: external Finance consumers must use `domains/finance/index.js`; Finance cannot import Orders or Table Service; removed C6 owners/API exports cannot reappear; cross-domain payment/refund workflows cannot move under domains; Finance/payment workflows cannot import printing/QZ internals. The Finance public entry is restricted to actual external consumers.
+- Task 10 introduced no compatibility facade. With the payment-receipt bridge already removed in Task 7 and C6 legacy API/utils removed in Task 9, no temporary C6 compatibility facade remains before staging/manual QA.
