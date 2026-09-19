@@ -23,8 +23,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
-| C7 | Customers | **STAGING HOMOLOGATED — MERGE GATE PENDING AUTHORIZATION** | `feature/spec-c7-customers` / draft PR #51 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
-| C8 | Catalog | NOT STARTED | — | Write after C7 merge |
+| C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
+| C8 | Catalog | **ACTIVE — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
@@ -329,3 +329,107 @@ The active slice is C7 after C6 merged successfully. GitHub state wins over this
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
+
+
+---
+
+# C7 — Customers — CLOSED / C8 handoff — 2026-09-19
+
+- C7 PR #51 merged to `master` at `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Post-merge Validate #1429 / run `35459175985` — **SUCCESS** on the exact merge SHA.
+- Production deployment: **NO**.
+- C8 branch: `feature/spec-c8-catalog`; draft PR #52.
+- C8 design and implementation plan: **APPROVED** explicitly by the user.
+- Documentary baseline Validate #1430 / run `35461113886` — **SUCCESS** on plan HEAD `20abf94359e0e2883fc3b870c69688f8eeabc12c`.
+- Task 1 RED: `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` — **FAIL as intended**, **1,818 tests / 1,810 pass / 7 fail / 1 skipped**. Failures are limited to the missing Catalog public/domain boundary, legacy Products/ProductForm owners, frontend metadata still in shared, and unmigrated frontend consumers.
+- Inventory additionally found `src/domains/orders/ui/components/OrderCart.jsx` as a legitimate consumer of category icons. **Ruling:** Catalog will expose `CATEGORY_ICON_NAMES` through its public entry because this is a real external frontend consumer; duplicating the map in Orders or allowing a deep/shared bypass would violate the approved ownership direction. Cost if wrong: Catalog's public API includes one visual metadata map until a future narrower UI contract is justified.
+- App product CRUD/editor ownership and `updateCollection('products', ...)` deliberately remain through Task 1; they belong to later C8 tasks.
+- Tasks 2–10, staging, merge and production are not authorized in the current round.
+
+
+## C8 Task 1 closure — 2026-09-19
+
+- RED `11e84f3badf1ffcca0fd71bb2ccd46588017e88b`; Validate #1432 / run `35461496338` failed as intended with **1,818 tests / 1,810 pass / 7 fail / 1 skipped**.
+- GREEN production candidate `f8090972de496effa31cc391c3e71f9956021a03`; #1434 exposed five stale moved-path/import characterizations only.
+- Test alignment `c868ba99f0f3afdd28237528fb925f9ce99eb5f9`; #1435 passed tests and exposed only the characterization file violating the existing Orders deep-import architecture boundary.
+- Final test-ownership alignment `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` — **SUCCESS**, **1,818 tests / 1,817 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Catalog now owns frontend category metadata and the Products/ProductForm UI. `shared/productCatalog.js` retains only the cross-runtime product contracts used by frontend/Worker.
+- App plus Orders `orderCart.js`, `OrderProductCatalog.jsx` and `OrderCart.jsx` consume Catalog through `domains/catalog/index.js`.
+- Legacy `src/pages/Products.jsx` and `src/components/ProductForm.jsx` are removed with no compatibility reexport. No architecture allowlist expansion occurred.
+- App product CRUD/editor, legacy product API exports and `updateCollection('products', ...)` remain intentional C8 debt for later tasks.
+- Task 2 and beyond: **NOT STARTED / NOT AUTHORIZED IN THIS ROUND**. No staging, merge or production deploy.
+
+
+---
+
+# C8 — Catalog checkpoint after Task 5 — 2026-09-19
+
+- Branch: `feature/spec-c8-catalog`; draft PR #52; base/master remains `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Task 1 final GREEN: `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` — SUCCESS.
+- Task 2 RED: `cd2ed96624b29793d289e5d3405fecb5f8c1d704`; Validate #1438 / run `35463215995` — expected failures. Task 2 final GREEN: `8f7cfca4c0a4b03477955d1b3b0646b9ad35b165`; Validate #1440 / run `35463540113` — **SUCCESS**, 1,828 tests / 1,827 pass / 0 fail / 1 skipped.
+- Task 3 authoritative RED: `6cf21d7a6930f8ba22063ed76fc2c497b6d5f4fd`; Validate #1445 / run `35464412859` — one intended missing-`catalogList.js` failure. Task 3 final GREEN: `01c10746aa1bf24c406b634d8b53efd5a69aff6f`; Validate #1447 / run `35464678996` — **SUCCESS**, 1,836 tests / 1,835 pass / 0 fail / 1 skipped.
+- Task 4 RED: `33155835d2105681ee3bd9a826295ff920a04eb2`; Validate #1448 / run `35464932138` — four intended draft/editor/public-boundary failures. Task 4 final GREEN: `f85a6aa8623f2cf79fdf0a9a8115d69bc5226309`; Validate #1450 / run `35466359982` — **SUCCESS**, 1,848 tests / 1,847 pass / 0 fail / 1 skipped.
+- Task 5 RED: `26da9d33c316edd1d6a825960bea2fcbe93dc9ac`; Validate #1451 / run `35466813331` — five intended workspace/composition failures. Task 5 production candidate: `27e8312630736f1ff467cb39c4a7587f4672445e`; final alignment: `ca26a0f48527a0e8f5371655bec0cc6c59b3a951`; Validate #1453 / run `35467142766` — **SUCCESS**, 1,852 tests / 1,851 pass / 0 fail / 1 skipped; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Catalog now owns frontend metadata, product API/commands, administrative list projection, draft/editor/dialog, Products/ProductForm UI and stable workspace composition.
+- App now composes only `CatalogWorkspace` plus query/capability/runtime/feedback injection; temporary public `Products`, `ProductForm`, `ProductEditorDialog`, `useCatalogCommands` and `useProductEditor` exports are removed.
+- Final public entry after Task 5 has five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- Product CRUD exports are absent from `src/api/client.js`; delete uses official `deletedProductId`.
+- `updateCollection('products', ...)` has no production caller, but the generic runtime `updateCollection` method remains physically present. **Task 6 owns its removal; Task 7 owns permanent enforcement.**
+- Task 6 is NOT STARTED. No staging, merge or production deployment has occurred.
+
+
+---
+
+# C8 — Task 6 checkpoint — 2026-09-19
+
+- Tasks 1–6: **COMPLETE / GREEN** on `feature/spec-c8-catalog`; draft PR #52 remains open.
+- Task 6 RED: `6e743157df04a584086e693dd284f6fb23cf0be6`; Validate #1455 / run `35468303745` — **FAIL as intended**, exactly one new failure requiring removal of the runtime collection escape hatch.
+- Task 6 GREEN: `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` — **SUCCESS**, **1,853 tests / 1,852 pass / 0 fail / 1 skipped**; all remaining workflow gates green.
+- `updateCollection` is physically absent from the operational runtime contract. Customers callers were removed in C7 and the product caller was removed in C8 Task 2. No generic replacement setter was added.
+- Permanent C8 architecture enforcement is still pending Task 7; do not describe the C8 debt as architecture-enforced until that task passes.
+- Task 7–10, staging, merge and production remain not started/not authorized by this checkpoint.
+
+
+---
+
+# C8 — Tasks 7–8 closure / Task 9 pre-deploy — 2026-09-19
+
+- Branch: `feature/spec-c8-catalog`; PR #52 remains draft/open; base `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Task 7 RED: `c242e48dbcae61f72fe5eb5a6ecfccb68a76c474`; Validate #1458 / run `35469069713` — **FAIL as intended**, **1,860 tests / 1,853 pass / 6 fail / 1 skipped**. Failures were confined to the six newly required C8 architecture protections; the positive fixture remained green.
+- Task 7 final GREEN: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; Validate #1460 / run `35469241957` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 passed.
+- Task 7 permanently enforces the Catalog public boundary, forbidden cross-domain dependencies, legacy owner/API absence, App ownership absence, `updateCollection` absence, shared-product frontend routing and pure Catalog domain rules. No architecture allowlist expansion occurred.
+- Task 8 candidate/audit: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`. No Worker/migrations/workflow/dependency/CSS/Modal diff. Orders contains only Catalog public-entry import migration and proportional tests, not cart/checkout behavior changes.
+- Validate #1460 is a PR event and checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`. GitHub reports that merge ref and feature HEAD share the exact tree `b2a2376a65270f50f891c06196b9acb7a3637134`; this evidence is recorded without mislabeling the event as `workflow_dispatch`.
+- Task 9: **IN PROGRESS / BLOCKED BEFORE DEPLOY**. A real staging run cannot be dispatched from the currently available GitHub connector, and the isolated shell has neither GitHub nor Cloudflare credentials. The approved `deploy-staging.yml` was not modified to create a bypass. QA file exists with all manual cases PENDING until staging is deployed.
+- Production: **NO DEPLOY**. Merge: **NO**.
+
+
+---
+
+# C8 — Task 9 staging homologation closure — 2026-09-19
+
+- Tasks 1–9: **COMPLETE**; Task 9 is **STAGING HOMOLOGATED**.
+- Staged/homologated SHA: `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` (documentation checkpoint on top of last code SHA `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`).
+- Validate immediately before staging: #1461 / run `35469623626` — **SUCCESS**, all workflow gates green.
+- Deploy staging #186 / run `35469861985` — **SUCCESS** on exact SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`.
+- Staging Worker version: `28e2622f-c904-4959-8433-33c9691661f3`; URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
+- Staging migration steps completed successfully and reported **No migrations to apply**; readiness succeeded at attempt 1/6; login smoke returned **HTTP 200**.
+- Manual QA closed at **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Accepted BLOCKED: case 30 restricted/read-only capability — staging has no suitable restricted identity/capability fixture. This is recorded as BLOCKED, not inferred PASS.
+- Cases 1–29 and 31–35: **PASS** as explicitly reported by the user. No corrective code change was required.
+- Production deploy: **NO**. Merge: **NO**. PR #52 remains draft/open.
+- Any later documentation-only commit is not the staged executable; retain `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` as the homologated SHA.
+
+
+---
+
+# C8 — Task 10 pre-merge closure — 2026-09-19
+
+- C8 Tasks 1–9 are **COMPLETE**; Task 9 is **STAGING HOMOLOGATED**.
+- Homologated/staged executable SHA remains `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Deploy staging #186 / run `35469861985` SUCCESS; manual QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Last code-changing SHA: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`.
+- Post-homologation docs closure `fa7a14fd46df5133cce5073dd5bdf3c3242776a7` passed Validate #1462 / run `35471370382` — SUCCESS, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**, all gates green.
+- Compare `8a43d10e...` → `fa7a14fd...`: documentation-only changes; no application/Worker/migration/workflow/dependency code changed after homologation.
+- PR #52 review state: draft/open, unmerged, no review threads and no submitted reviews pending.
+- Task 10 ruling: authorization to execute Task 10 is **not merge authorization**. Merge requires a separate explicit user authorization after the exact final documentation HEAD passes Validate.
+- Production remains untouched. C9 must not start automatically.

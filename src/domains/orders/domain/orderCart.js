@@ -1,4 +1,4 @@
-import { formatProductPresentation } from '../../../../shared/productCatalog.js'
+import { formatProductPresentation } from '../../catalog/index.js'
 
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 const toNonNegativeNumber = (value) => {

@@ -20,7 +20,6 @@ import ConfirmationDialog from './components/ConfirmationDialog'
 import Modal from './components/Modal'
 import RegisterRefundDialog from './app/workflows/refunds/RegisterRefundDialog.jsx'
 import { useRefundWorkflow } from './app/workflows/refunds/useRefundWorkflow.js'
-import ProductForm from './components/ProductForm'
 import {
   cancellationOptionsFromEffective,
   cancellationRevisionFromEffective,
@@ -48,7 +47,6 @@ import {
   useTableServiceCommands,
 } from './domains/table-service/index.js'
 import Dashboard from './pages/Dashboard'
-import Products from './pages/Products'
 import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
@@ -70,16 +68,9 @@ import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
-import { categoryForUi } from '../shared/productCatalog.js'
+import { CatalogWorkspace } from './domains/catalog/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
-import { removeById } from './utils/dataSync.js'
-import { formatBRLCurrencyValue, parseBRLCurrencyInput } from './utils/formFormatting.js'
-import {
-  createProduct as createProductApi,
-  deleteProduct as deleteProductApi,
-  updateProduct as updateProductApi,
-} from './api/client'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
@@ -89,13 +80,9 @@ const readKitchenSoundPreference = () => {
   if (typeof window === 'undefined') return true
   try { return window.localStorage.getItem(KITCHEN_SOUND_STORAGE_KEY) !== 'false' } catch { return true }
 }
-const emptyProduct = () => ({ category: 'Refeições', presentationType: 'size', presentationValue: 'P', presentationUnit: '', name: '', price: formatBRLCurrencyValue(32) })
 
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
-  const [editingProductId, setEditingProductId] = useState(null)
-  const [showProductForm, setShowProductForm] = useState(false)
-  const [newProduct, setNewProduct] = useState(emptyProduct)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
   const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
@@ -223,7 +210,6 @@ function App({ capabilities } = {}) {
     refreshBootstrap,
     refreshBootstrapSilently,
     applyOfficialEffects,
-    updateCollection,
     resetOperationalData,
     getSyncGuard,
     getOfficialRevision,
@@ -402,7 +388,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    newOrderDraft.reset(); refund.close(); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); refund.close(); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -709,13 +695,6 @@ function App({ capabilities } = {}) {
     if (!requestNavigation('comandas')) return false
     return selectComanda(identity, currentTables)
   }
-  const openNewProduct = () => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(true); return true }
-  const handleEditProduct = (product) => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(product.id); setShowProductForm(true); const legacySized = Boolean(product.size && !['Un', 'Unidade'].includes(product.size)); setNewProduct({ category: categoryForUi(product.category), presentationType: product.presentationType || (legacySized ? 'size' : 'unit'), presentationValue: product.presentationValue ?? (legacySized ? product.size : ''), presentationUnit: product.presentationUnit || '', name: product.name, price: formatBRLCurrencyValue(product.price) }); return true }
-  const productPayload = () => ({ category: newProduct.category, presentationType: newProduct.presentationType, presentationValue: newProduct.presentationValue, presentationUnit: newProduct.presentationUnit, name: newProduct.name.trim(), price: parseBRLCurrencyInput(newProduct.price) })
-  const handleAddProduct = async () => { if (!canManageProducts || writesBlocked || !newProduct.name.trim()) return false; const editing = editingProductId; setRequestKey(editing ? `product:update:${editing}` : 'product:create'); try { if (editing) { const { product } = await updateProductApi(editing, productPayload()); applyOfficialEffects({ product }); setEditingProductId(null); showSuccessMessage('Produto atualizado com sucesso') } else { const { product } = await createProductApi(productPayload()); applyOfficialEffects({ product }); showSuccessMessage('Produto adicionado com sucesso') } setNewProduct(emptyProduct()); setShowProductForm(false); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
-  const handleDeleteProduct = async (productId) => { if (!canManageProducts || writesBlocked) return false; setRequestKey(`product:delete:${productId}`); try { await deleteProductApi(productId); updateCollection('products', (current) => removeById(current, productId)); if (editingProductId === productId) { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) } showSuccessMessage('Produto excluído com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
-  const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
-
   const activeMobileEntry = activeTab === 'new-order' ? newOrderDraft.context?.returnDestination : undefined
 
   return (
@@ -749,7 +728,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canManageClients={canManageClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
-        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
+        <CatalogWorkspace visible={activeTab === 'products'} products={products} search={query.products.search} queryState={query.products} onSearchChange={(search) => patchQuery('products', { search })} onQueryChange={(patch) => patchQuery('products', patch)} currency={currency} writesBlocked={writesBlocked} canManageProducts={canManageProducts} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
         {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
         {activeTab === 'finance' && <FinanceWorkspace movements={movements} financeSettings={financeSettings} today={todayValue} currency={currency} pendingRefundOrders={pendingRefundOrders} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} writesBlocked={writesBlocked} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} formatCancellationDate={formatCancellationDate} onRequestRefund={refund.request} />}
@@ -811,7 +790,6 @@ function App({ capabilities } = {}) {
 
         {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
 
-        {canManageProducts && showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
         <RegisterRefundDialog open={canRefundPayments && Boolean(refund.refundOrder)} order={refund.refundOrder} paymentOptions={paymentOptions} onClose={refund.close} onConfirm={refund.confirm} submitting={refund.submitting} />
       </AppShell>
       </NavigationProvider>

@@ -7,7 +7,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
-| `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | **Customers removed + architecture-enforced in C7; Catalog/products remain** | C8, with final enforcement C10 |
+| `updateCollection` runtime escape hatch | official effects per domain | **none — physically removed in C8 Task 6** | **C8 — REMOVED; Task 7 architecture enforcement pending** |
 
 ## C1 status — 2026-09-16
 
@@ -136,7 +136,7 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 
 ## C7 homologation / closure status — 2026-09-19
 
-- C7 Tasks 1–9 are **COMPLETE / STAGING HOMOLOGATED** on branch `feature/spec-c7-customers`; draft PR #51 remains open.
+- C7 is **MERGED / COMPLETE** by PR #51 at `a7a8285ee125d90058c739f52daba6c170921adb`; post-merge Validate #1429 / run `35459175985` passed on the exact merge SHA.
 - Homologated staging SHA: `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; final code-changing SHA: `6402496c078ca817572e6e375beec9f4ffbe557a`.
 - Validate #1419 / run `35456801774` — **SUCCESS**, **1,807 tests / 1,806 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
 - Customer CRUD no longer uses the `updateCollection` escape hatch. Customer delete is represented by the official `deletedClientId` effect, and Task 7 permanently rejects reintroduction of `updateCollection('clients', ...)` in App or Customers.
@@ -147,4 +147,63 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Frontend-only `normalizeClientName` and `findClientDuplicates` belong to Customers and are architecture-enforced out of the shared contract.
 - Generic/auth reexports in `src/api/client.js` remain scheduled for C10 at latest.
 - C7 introduced **no surviving temporary compatibility facade** and did not broaden the architecture allowlist.
-- C7 has no surviving temporary compatibility facade. Task 10 exact-head merge gate is active; production remains untouched.
+- C7 has no surviving temporary compatibility facade. Production remained untouched.
+
+
+## C8 active status — 2026-09-19
+
+- C8 design and plan are **APPROVED**; branch `feature/spec-c8-catalog`, draft PR #52, base `a7a8285ee125d90058c739f52daba6c170921adb`.
+- Task 1 is **COMPLETE / GREEN** at `bdd73ada270c705e8c739ea785a56b8f5afa7cab`; Validate #1436 / run `35462681394` passed all gates with **1,818 tests / 1,817 pass / 0 fail / 1 skipped**.
+- `updateCollection` remains an active compatibility debt for Catalog/products. It is **not removed in Task 1** and must not be marked removed before Task 6 GREEN.
+- `shared/productCatalog.js` is a permanent cross-runtime contract for the exports genuinely used by the Worker; C8 Task 1 narrows frontend-only metadata into Catalog. It is not a temporary facade.
+- Generic/auth reexports in `src/api/client.js` remain scheduled for C10; Printing API debt remains C9.
+- C8 Task 1 introduces no compatibility reexport at the legacy Products/ProductForm paths and does not expand the architecture allowlist.
+
+- C8 Task 1 removed the legacy Products/ProductForm owners with no compatibility reexport and narrowed frontend access to the Catalog public entry.
+- Temporary Task 1 public exports `Products` / `ProductForm` remain deliberate while App is migrated; removal is scheduled for Task 5. `CATEGORY_ICON_NAMES` is a real Orders consumer contract and remains public unless a later approved boundary replaces it.
+
+
+## C8 checkpoint after Task 5 — 2026-09-19
+
+- Product CRUD ownership moved to Catalog in Task 2; legacy `createProduct`, `updateProduct`, and `deleteProduct` exports are absent from `src/api/client.js`.
+- Product deletion uses the official `deletedProductId` effect. The former `updateCollection('products', ...)` caller is gone.
+- The generic runtime `updateCollection` method is **still physically present** and remains an open C8 debt until Task 6. Do not mark it REMOVED IN C8 before that GREEN.
+- Task 5 removed the temporary Catalog public exports `Products`, `ProductForm`, `ProductEditorDialog`, `useCatalogCommands`, and `useProductEditor`; App now consumes only `CatalogWorkspace`.
+- The final public Catalog entry contains five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, and `formatProductPresentation`. `CATEGORY_ICON_NAMES` remains public because Orders/OrderCart is a real consumer.
+- `shared/productCatalog.js` is a permanent cross-runtime contract, not a compatibility facade. Frontend-only icons/options/fallback/suggestion metadata remains owned by Catalog.
+- No new temporary compatibility facade was introduced in Tasks 2–5. Generic/auth reexports remain C10 debt; Printing remains C9 debt.
+
+
+## C8 Task 6 — runtime escape hatch removed — 2026-09-19
+
+- RED: `6e743157df04a584086e693dd284f6fb23cf0be6`; Validate #1455 / run `35468303745` failed at Test for the single intended reason: the runtime contract still exposed `updateCollection`.
+- RED suite: **1,853 tests / 1,851 pass / 1 fail / 1 skipped**.
+- GREEN: `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` — **SUCCESS**, **1,853 tests / 1,852 pass / 0 fail / 1 skipped**; architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 all passed.
+- `useOperationalDataRuntime` no longer defines, returns or memo-depends on `updateCollection`. Official effects, sync guards, receipts, official revision getters and table snapshots remain intact.
+- Customers had already removed/enforced its caller in C7; Catalog removed the last product caller in C8 Task 2. Task 6 therefore closes the physical compatibility debt without introducing a replacement generic setter.
+- Permanent checker enforcement against reintroduction belongs to **C8 Task 7**. Until Task 7 GREEN, status is **removed but not yet C8 architecture-enforced**.
+- Generic/auth reexports remain C10 debt; Printing remains C9 debt.
+
+
+## C8 Task 7 — permanent enforcement — 2026-09-19
+
+- The generic runtime `updateCollection` debt is now both **physically removed** (Task 6) and **architecture-enforced against reintroduction** (Task 7).
+- Legacy Catalog UI owners `src/pages/Products.jsx` and `src/components/ProductForm.jsx` are forbidden from returning; no compatibility facade exists at those paths.
+- Legacy product CRUD exports `createProduct`, `updateProduct`, and `deleteProduct` are forbidden in `src/api/client.js`, including declaration and named-reexport forms/aliases.
+- External frontend production consumers must use `src/domains/catalog/index.js`; Catalog deep imports and direct `shared/productCatalog.js` bypasses outside Catalog are rejected.
+- Catalog is prohibited from depending on Orders, Finance, Table Service, Printing or QZ, including their public entries; Catalog domain is kept free of React, UI/infrastructure, browser globals and `fetch`.
+- `shared/productCatalog.js` remains a permanent cross-runtime contract and is enforced against frontend-only metadata returning there.
+- Final Catalog public entry remains: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- No allowlist expansion was required. Generic/auth reexports remain C10 debt; Printing remains C9 debt.
+
+
+## C8 closure status — pre-merge gate — 2026-09-19
+
+- C8 introduces **no surviving temporary compatibility facade**.
+- Legacy `Products` / `ProductForm` paths are removed and architecture-enforced; temporary Catalog public exports used during migration were removed in Task 5.
+- Legacy product CRUD exports in `src/api/client.js` are removed and architecture-enforced.
+- The generic runtime `updateCollection` escape hatch is removed and architecture-enforced against production reintroduction.
+- `shared/productCatalog.js` is a permanent cross-runtime contract, not a compatibility facade; frontend metadata is owned by Catalog and guarded from returning to shared.
+- Final Catalog public entry remains exactly the five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
+- No C8 allowlist expansion survives. C8's compatibility debt is closed.
+- Remaining program debts are outside C8: Printing belongs to C9; generic/auth API reexports and final architecture cleanup remain C10 scope.

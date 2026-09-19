@@ -63,6 +63,29 @@ const C7_APP_CUSTOMER_OWNER_PATTERNS = [
 ]
 const C7_CLIENT_COLLECTION_MUTATION_PATTERN = /updateCollection\s*\(\s*['"]clients['"]/
 const C7_SHARED_DUPLICATE_PATTERN = /\b(?:normalizeClientName|findClientDuplicates)\b/
+const C8_LEGACY_CATALOG_OWNERS = new Set([
+  'src/pages/Products.jsx',
+  'src/components/ProductForm.jsx',
+])
+const C8_APP_CATALOG_OWNER_PATTERNS = [
+  /\beditingProductId\b/,
+  /\bshowProductForm\b/,
+  /\bnewProduct\b/,
+  /\bemptyProduct\b/,
+  /\bproductPayload\b/,
+  /\bhandleAddProduct\b/,
+  /\bhandleEditProduct\b/,
+  /\bhandleDeleteProduct\b/,
+  /\bhandleCancelProductEdit\b/,
+  /\bProductEditorDialog\b/,
+  /\bProductForm\b/,
+  /\buseProductEditor\b/,
+  /\buseCatalogCommands\b/,
+]
+const C8_PRODUCT_CRUD_EXPORTS = new Set(['createProduct', 'updateProduct', 'deleteProduct'])
+const C8_UPDATE_COLLECTION_PATTERN = /\bupdateCollection\b/
+const C8_SHARED_METADATA_PATTERN = /\b(?:CATEGORY_ICON_NAMES|PRODUCT_CATEGORY_OPTIONS|categoryForUi|suggestPresentationType|DEFAULT_PRESENTATION)\b/
+const C8_DOMAIN_BROWSER_PATTERN = /\b(?:window|document|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
 
 const C6_LEGACY_FINANCE_OWNERS = new Set([
   'src/pages/Finance.jsx',
@@ -185,6 +208,20 @@ const isReactSpecifier = (specifier) => specifier === 'react'
 
 const exactAllowed = (allowlist, key, value) => Array.isArray(allowlist?.[key]) && allowlist[key].includes(value)
 
+const exportMentionsAny = (source, names) => {
+  for (const match of source.matchAll(/\bexport\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) {
+    if (names.has(match[1])) return true
+  }
+  for (const match of source.matchAll(/\bexport\s*\{([^}]+)\}(?:\s+from\s+['"][^'"]+['"])?/gs)) {
+    for (const rawSpecifier of match[1].split(',')) {
+      const specifier = rawSpecifier.trim().replace(/\s+/g, ' ')
+      const named = specifier.match(/^([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/)
+      if (named && (names.has(named[1]) || names.has(named[2]))) return true
+    }
+  }
+  return false
+}
+
 export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) => {
   const edges = await collectImportEdges(rootDir)
   const sourcePaths = new Set((await listSourceFiles(path.join(rootDir, 'src'))).map((file) => repoRelative(rootDir, file)))
@@ -207,6 +244,10 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
 
   for (const legacyOwner of C7_LEGACY_CUSTOMERS_OWNERS) {
     if (sourcePaths.has(legacyOwner)) violations.push(`c7-legacy-customers-owner: ${legacyOwner}`)
+  }
+
+  for (const legacyOwner of C8_LEGACY_CATALOG_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c8-legacy-catalog-owner: ${legacyOwner}`)
   }
 
   for (const sourcePath of sourcePaths) {
@@ -234,6 +275,9 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (migratedCustomerApiPattern.test(legacyApiClient)) {
       violations.push('c7-legacy-customers-api: src/api/client.js')
     }
+    if (exportMentionsAny(legacyApiClient, C8_PRODUCT_CRUD_EXPORTS)) {
+      violations.push('c8-legacy-catalog-api: src/api/client.js')
+    }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
   }
@@ -245,6 +289,9 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     }
     if (C7_CLIENT_COLLECTION_MUTATION_PATTERN.test(appSource)) {
       violations.push('c7-customer-update-collection: src/App.jsx')
+    }
+    if (C8_APP_CATALOG_OWNER_PATTERNS.some((pattern) => pattern.test(appSource))) {
+      violations.push('c8-app-catalog-owner: src/App.jsx')
     }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
@@ -258,10 +305,30 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     }
   }
 
+  for (const sourcePath of sourcePaths) {
+    if (isTestFile(sourcePath)) continue
+    const source = await readFile(path.join(rootDir, sourcePath), 'utf8')
+    if (C8_UPDATE_COLLECTION_PATTERN.test(source)) {
+      violations.push(`c8-update-collection: ${sourcePath}`)
+    }
+    if (sourcePath.startsWith('src/domains/catalog/domain/') && C8_DOMAIN_BROWSER_PATTERN.test(source)) {
+      violations.push(`catalog-domain-browser: ${sourcePath}`)
+    }
+  }
+
   try {
     const sharedIdentity = await readFile(path.join(rootDir, 'shared/clientIdentity.js'), 'utf8')
     if (C7_SHARED_DUPLICATE_PATTERN.test(sharedIdentity)) {
       violations.push('c7-shared-customer-duplicate: shared/clientIdentity.js')
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+
+  try {
+    const sharedProductCatalog = await readFile(path.join(rootDir, 'shared/productCatalog.js'), 'utf8')
+    if (C8_SHARED_METADATA_PATTERN.test(sharedProductCatalog)) {
+      violations.push('c8-shared-catalog-metadata: shared/productCatalog.js')
     }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
@@ -301,6 +368,43 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && edge.resolvedPath?.startsWith('src/domains/customers/')
       && edge.resolvedPath !== 'src/domains/customers/index.js') {
       violations.push(`customers-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!edge.from.startsWith('src/domains/catalog/')
+      && edge.resolvedPath?.startsWith('src/domains/catalog/')
+      && edge.resolvedPath !== 'src/domains/catalog/index.js') {
+      violations.push(`catalog-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/catalog/')
+      && edge.resolvedPath?.startsWith('src/domains/orders/')) {
+      violations.push(`catalog-orders-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/catalog/')
+      && edge.resolvedPath?.startsWith('src/domains/finance/')) {
+      violations.push(`catalog-finance-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/catalog/')
+      && edge.resolvedPath?.startsWith('src/domains/table-service/')) {
+      violations.push(`catalog-table-service-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/catalog/')
+      && edge.resolvedPath?.startsWith('src/printing/')) {
+      violations.push(`catalog-printing-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/catalog/')
+      && (edge.specifier === 'qz-tray' || edge.resolvedPath?.startsWith('src/infrastructure/qz/'))) {
+      violations.push(`catalog-qz-import: ${edge.from} -> ${edge.resolvedPath || edge.specifier}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/catalog/')
+      && edge.resolvedPath === 'shared/productCatalog.js') {
+      violations.push(`catalog-shared-bypass: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
     if (edge.from.startsWith('src/domains/customers/')

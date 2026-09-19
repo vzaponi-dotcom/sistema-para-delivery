@@ -10,37 +10,7 @@ export const PRODUCT_CATEGORIES = [
   'Outros',
 ]
 
-export const CATEGORY_ICON_NAMES = {
-  Refeições: 'meal',
-  Lanches: 'snack',
-  Combos: 'combo',
-  Porções: 'portion',
-  Bebidas: 'drink',
-  Sobremesas: 'dessert',
-  Adicionais: 'plus',
-  Molhos: 'sauce',
-  Outros: 'package',
-}
-
-export const PRODUCT_CATEGORY_OPTIONS = PRODUCT_CATEGORIES.map((value) => ({ value, label: value }))
-
-const CATEGORY_SET = new Set(PRODUCT_CATEGORIES)
 const PRESENTATION_TYPES = new Set(['unit', 'size', 'volume', 'weight'])
-const DEFAULT_PRESENTATION = {
-  Refeições: 'size',
-  Lanches: 'size',
-  Combos: 'unit',
-  Porções: 'size',
-  Bebidas: 'volume',
-  Sobremesas: 'unit',
-  Adicionais: 'unit',
-  Molhos: 'unit',
-  Outros: 'unit',
-}
-
-export const categoryForUi = (category) => CATEGORY_SET.has(category) ? category : 'Outros'
-
-export const suggestPresentationType = (category) => DEFAULT_PRESENTATION[categoryForUi(category)] || 'unit'
 
 const localizedDecimal = (value) => String(Number(value)).replace('.', ',')
 
@@ -55,41 +25,25 @@ export const validateProductPresentation = (input = {}) => {
   if (!PRESENTATION_TYPES.has(presentationType)) {
     return { ok: false, field: 'presentationType', message: 'Selecione uma apresentação válida.' }
   }
-
   if (presentationType === 'unit') {
-    return {
-      ok: true,
-      value: { presentationType: 'unit', presentationValue: '', presentationUnit: '', size: 'Un' },
-    }
+    return { ok: true, value: { presentationType: 'unit', presentationValue: '', presentationUnit: '', size: 'Un' } }
   }
-
   if (presentationType === 'size') {
     const presentationValue = String(input.presentationValue ?? '').trim()
     if (!presentationValue || presentationValue.length > 24) {
       return { ok: false, field: 'presentationValue', message: 'Informe um tamanho com até 24 caracteres.' }
     }
-    return {
-      ok: true,
-      value: { presentationType: 'size', presentationValue, presentationUnit: '', size: presentationValue },
-    }
+    return { ok: true, value: { presentationType: 'size', presentationValue, presentationUnit: '', size: presentationValue } }
   }
-
   const normalized = String(input.presentationValue ?? '').trim().replace(',', '.')
   if (!/^\d+(?:\.\d+)?$/.test(normalized) || Number(normalized) <= 0) {
     return { ok: false, field: 'presentationValue', message: 'Informe um valor maior que zero.' }
   }
-
   const allowedUnits = presentationType === 'volume' ? ['ml', 'L'] : ['g', 'kg']
   if (!allowedUnits.includes(input.presentationUnit)) {
     return { ok: false, field: 'presentationUnit', message: 'Selecione uma unidade válida.' }
   }
-
-  const value = {
-    presentationType,
-    presentationValue: String(Number(normalized)),
-    presentationUnit: input.presentationUnit,
-  }
-
+  const value = { presentationType, presentationValue: String(Number(normalized)), presentationUnit: input.presentationUnit }
   return { ok: true, value: { ...value, size: deriveLegacySize(value) } }
 }
 

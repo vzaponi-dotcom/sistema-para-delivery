@@ -46,7 +46,7 @@ test('App write selectors preserve blocked state and approved labels', async () 
     assert.match(movementDialog, new RegExp(`label="${label}"[\\s\\S]*?disabled=\\{locked\\}`))
   }
 
-  const productForm = await readFile(join(srcDir, 'components/ProductForm.jsx'), 'utf8')
+  const productForm = await readFile(join(srcDir, 'domains/catalog/ui/ProductForm.jsx'), 'utf8')
   assert.match(productForm, /product-category-grid/)
   assert.match(productForm, /disabled=\{disabled\}/)
 })

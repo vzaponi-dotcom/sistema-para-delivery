@@ -28,7 +28,7 @@ test('products support explicit multi-select plus long press and bulk delete con
 
 test('multi-select keeps a comfortable touch target while showing a compact selection marker', async () => {
   const products = await read('./Products.jsx')
-  const css = await read('../product-form.css')
+  const css = await read('../../../product-form.css')
 
   assert.match(products, /product-select-checkbox-mark/)
   assert.match(css, /\.product-select-checkbox\s*\{[^}]*width:\s*44px[^}]*height:\s*44px[^}]*border:\s*0[^}]*background:\s*transparent/s)
@@ -36,15 +36,15 @@ test('multi-select keeps a comfortable touch target while showing a compact sele
 })
 
 test('bulk selection actions stay accessible while scrolling on desktop', async () => {
-  const css = await read('../product-selection.css')
+  const css = await read('../../../product-selection.css')
 
   assert.match(css, /\.product-selection-toolbar\s*\{[^}]*position:\s*sticky[^}]*top:\s*12px[^}]*z-index:\s*30/s)
 })
 
 test('mobile bulk actions render through a body portal instead of inside the transformed page transition', async () => {
   const products = await read('./Products.jsx')
-  const shell = await read('../app/shell/AppShell.jsx')
-  const css = await read('../product-selection.css')
+  const shell = await read('../../../app/shell/AppShell.jsx')
+  const css = await read('../../../product-selection.css')
 
   assert.match(shell, /className="app-content page-transition"/)
   assert.match(products, /import \{ createPortal \} from 'react-dom'/)
@@ -58,8 +58,8 @@ test('mobile bulk actions render through a body portal instead of inside the tra
 })
 
 test('product form uses option B segmented presentation control and horizontal size choices', async () => {
-  const form = await read('../components/ProductForm.jsx')
-  const css = await read('../product-form.css')
+  const form = await read('./ProductForm.jsx')
+  const css = await read('../../../product-form.css')
 
   assert.match(form, /product-presentation-segmented/)
   assert.match(form, /Escolha como este produto será apresentado no cardápio\./)
@@ -70,8 +70,8 @@ test('product form uses option B segmented presentation control and horizontal s
 })
 
 test('volume and weight use compact horizontal unit segments instead of stacked full-width buttons', async () => {
-  const form = await read('../components/ProductForm.jsx')
-  const css = await read('../product-form.css')
+  const form = await read('./ProductForm.jsx')
+  const css = await read('../../../product-form.css')
 
   assert.match(form, /product-measure-unit-segmented/)
   assert.match(css, /\.product-measure-unit-segmented\s*\{[^}]*display:\s*flex[^}]*overflow:\s*hidden/s)

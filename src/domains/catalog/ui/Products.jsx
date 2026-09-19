@@ -1,16 +1,16 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import Button from '../components/Button'
-import ConfirmationDialog from '../components/ConfirmationDialog'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import SystemSelect from '../components/SystemSelect'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Icon from '../../../components/Icon'
+import PageHeader from '../../../components/PageHeader'
+import SystemSelect from '../../../components/SystemSelect'
 import {
   CATEGORY_ICON_NAMES,
   PRODUCT_CATEGORY_OPTIONS,
-  categoryForUi,
-  formatProductPresentation,
-} from '../../shared/productCatalog.js'
+} from '../domain/catalogPresentation.js'
+import { projectCatalogList } from '../domain/catalogList.js'
+import { formatProductPresentation } from '../../../../shared/productCatalog.js'
 
 const CATEGORY_FILTER_OPTIONS = [{ value: 'Todos', label: 'Todos' }, ...PRODUCT_CATEGORY_OPTIONS]
 const LONG_PRESS_MS = 550
@@ -29,23 +29,10 @@ function Products({ products, search, currency, onSearchChange, onAdd, onEdit, o
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingId !== null
 
-  const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR')
-  const visibleProducts = products.filter((product) => {
-    const uiCategory = categoryForUi(product.category)
-    const categoryMatch = categoryFilter === 'Todos' || uiCategory === categoryFilter
-    const searchText = [product.name, uiCategory, formatProductPresentation(product), String(product.price)]
-      .join(' ')
-      .toLocaleLowerCase('pt-BR')
-    return categoryMatch && (!normalizedSearch || searchText.includes(normalizedSearch))
+  const { normalizedSearch, visibleProducts, groupedProducts } = projectCatalogList(products, {
+    search,
+    categoryFilter,
   })
-
-  const groupedProducts = visibleProducts.reduce((groups, product) => {
-    const category = categoryForUi(product.category)
-    const current = groups.find((group) => group.category === category)
-    if (current) current.products.push(product)
-    else groups.push({ category, products: [product] })
-    return groups
-  }, [])
 
   const clearLongPress = () => {
     if (!longPressTimerRef.current) return
