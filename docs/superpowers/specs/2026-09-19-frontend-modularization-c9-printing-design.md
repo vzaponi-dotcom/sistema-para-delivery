@@ -261,7 +261,6 @@ src/domains/printing/
     usePrintingManager.js
     printJobRunner.js
     printingCommands.js
-    PrintingOverlays.jsx
 
   infrastructure/
     printingApi.js
@@ -269,6 +268,7 @@ src/domains/printing/
   ui/
     PrintQueue.jsx
     PrintingSettingsContent.jsx
+    PrintingOverlays.jsx
     printQueueDetails.js
     printQueueFilters.js
     printQueueQuery.js
@@ -1264,7 +1264,7 @@ Motivo: isso deixaria QZ, browser e domínio misturados e não cumpriria a Spec 
 
 Rejeitado criar abstração ampla para múltiplos transports futuros.
 
-Motivo: YAGNI. Um objeto/adpater pequeno é suficiente para proteger a fronteira atual.
+Motivo: YAGNI. Um objeto/adapter pequeno é suficiente para proteger a fronteira atual.
 
 ### 47.3 Shared real permanece shared
 
