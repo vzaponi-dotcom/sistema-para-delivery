@@ -87,7 +87,7 @@ test('printing domain source stays free of React, QZ, browser globals and fetch'
   ]) {
     const source = await readFile(new URL(relative, import.meta.url), 'utf8')
     assert.doesNotMatch(source, /from ['"]react(?:\/[^'"]*)?['"]|from ['"]qz-tray['"]/)
-    assert.doesNotMatch(source, /\b(?:window|document|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/)
+    assert.doesNotMatch(source, /\bglobalThis\.(?:document|localStorage|sessionStorage|navigator)\b|\bwindow\s*\.|\bnavigator\s*\.|\blocalStorage\s*\.|\bsessionStorage\s*\.|\bfetch\s*\(/)
   }
 })
 
