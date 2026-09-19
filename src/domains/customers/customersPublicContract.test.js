@@ -7,3 +7,9 @@ test('Customers exposes the frontend duplicate contracts through its public entr
   assert.equal(typeof customers.normalizeClientName, 'function')
   assert.equal(typeof customers.findClientDuplicates, 'function')
 })
+
+
+test('Customers exposes Clients UI from the public entry', async () => {
+  const customers = await import('./index.js')
+  assert.equal(typeof customers.Clients, 'function')
+})
