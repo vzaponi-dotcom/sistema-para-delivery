@@ -18,6 +18,6 @@ test('product form contains category, presentation, preview and cancel', () => {
 test('products screen combines category filter and presentation display', () => {
   assert.match(products, /categoryFilter/)
   assert.match(products, /Todos/)
-  assert.match(products, /categoryForUi/)
+  assert.match(products, /projectCatalogList/)
   assert.match(products, /formatProductPresentation/)
 })
