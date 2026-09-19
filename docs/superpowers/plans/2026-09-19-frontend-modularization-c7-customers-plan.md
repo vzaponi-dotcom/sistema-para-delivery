@@ -1,6 +1,6 @@
 # Spec C7 Customers Implementation Plan
 
-> **STATUS: RECONCILED WITH APPROVED DESIGN — AWAITING EXPLICIT PLAN APPROVAL.**
+> **STATUS: RECONCILED + FORMALLY SELF-REVIEWED AGAINST THE APPROVED DESIGN — AWAITING EXPLICIT PLAN APPROVAL.**
 >
 > Normative design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`
 >
@@ -96,6 +96,46 @@ src/domains/customers/
 
 Do **not** create `app/surfaces/customers` unless execution proves a real cross-domain composition need.
 
+## Execution setup before Task 1
+
+Before any functional RED:
+
+```bash
+git fetch origin
+git switch feature/spec-c7-customers
+git status --short
+git rev-parse HEAD
+git rev-parse origin/master
+git merge-base HEAD origin/master
+```
+
+Required state:
+
+- working tree clean in the execution environment used;
+- branch is `feature/spec-c7-customers`;
+- `origin/master` remains `5b101800fe29d02dd4543e184cca9e06d659a445` unless GitHub proves an intentional later master change that must be reconciled first;
+- merge-base is the approved C7 base;
+- branch contains only C7 documentation/planning commits beyond that base before Task 1.
+
+Before pushing the authoritative Task 1 RED:
+
+- open a **draft PR** `feature/spec-c7-customers -> master` if one does not exist;
+- state in the PR body that it exists early for exact-SHA TDD runner evidence;
+- do not mark ready/merge before staging, QA, final exact-head Validate and explicit merge authorization.
+
+If a trustworthy local worktree exists, baseline:
+
+```bash
+npm test
+npm run test:architecture
+npm run lint
+npm run build
+```
+
+If local execution is unavailable/untrustworthy, use the green post-C6 master Validate #1392 as base evidence and future exact-SHA GitHub runs; never invent local PASS.
+
+---
+
 ## Global execution rules
 
 - Strict TDD RED → GREEN.
@@ -144,7 +184,8 @@ Expected RED: Customers domain/public entry does not yet exist.
 ### Focused gate
 
 ```bash
-node --test   src/domains/customers/domain/clientDuplicates.test.js   src/domains/customers/customersPublicContract.test.js   shared/clientIdentity.test.js   src/clientDuplicateUi.test.js   src/quickClientCancel.test.js
+node --test   src/domains/customers/domain/clientDuplicates.test.js   src/domains/customers/customersPublicContract.test.js   shared/clientIdentity.test.js   src/clientDuplicateUi.test.js   src/quickClientCancel.test.js \
+  worker/clientUniqueness.test.js
 npm run test:architecture
 ```
 
@@ -492,3 +533,23 @@ No production deployment.
 The C7 design is **APPROVED**. This plan has now been reconciled with that design.
 
 **Do not begin Task 1 until the user explicitly approves this reconciled plan.**
+
+## Formal plan self-review — 2026-09-19
+
+The reconciled plan was reviewed against the approved C7 design and the current post-C6 code. Review outcomes:
+
+1. Task ordering is dependency-safe: public duplicate boundary → API/official effects → list UI → editor/public modal → workspace/App cleanup → Orders quick-create → architecture enforcement → staging/closure.
+2. No task requires a Worker/schema/migration change.
+3. The Worker dependency on shared phone primitives is explicitly protected and its uniqueness test is included in focused Task 1 evidence.
+4. The plan does not create a mandatory app Customers surface; the public workspace remains single-domain.
+5. Delete cleanup uses `deletedClientId` official effects and removes customer-specific `updateCollection` usage without claiming the Catalog debt is already gone.
+6. Orders consumes Customers only through the public entry and receives mutation capability by composition; no Customers infrastructure import is permitted.
+7. `ClientDuplicateModal` is deliberately public because Orders is a real consumer.
+8. Global customer request keys and global write blocking are preserved.
+9. Normal-editor and quick-create address payload differences are explicitly tested.
+10. Existing duplicate-phone feedback differences are explicitly tested.
+11. Node-safe public UI wrappers are planned to avoid repeating the direct-JSX export problem encountered in prior slices.
+12. Execution setup now requires base verification + draft PR before the first authoritative RED.
+13. No implementation task begins before explicit plan approval.
+
+No known planning blocker remains after this review.
