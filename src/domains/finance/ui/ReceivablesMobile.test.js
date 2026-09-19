@@ -27,9 +27,9 @@ test('shared modal footer stacks safely on mobile', async () => {
 })
 
 test('ordinary payment flow keeps the shared modal select architecture', async () => {
-  const app = await read('../../../App.jsx')
+  const dialog = await read('../../../app/workflows/payments/order/OrderPaymentDialog.jsx')
 
-  assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect[\s\S]*label="Forma de pagamento"/)
+  assert.match(dialog, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect[\s\S]*label="Forma de pagamento"/)
 })
 
 test('receivables mobile detail reuses the portal-backed shared BottomSheet', async () => {

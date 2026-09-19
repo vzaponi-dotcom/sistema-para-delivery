@@ -57,7 +57,7 @@ test('quick payment delegates to the existing App payment flow and excludes tabl
   const quickUrl = new URL('./ReceivablesQuickPaymentDialog.jsx', import.meta.url)
   await assert.doesNotReject(() => access(quickUrl))
   const quick = await read('./ReceivablesQuickPaymentDialog.jsx')
-  const app = await read('../../../App.jsx')
+  const paymentDialog = await read('../../../app/workflows/payments/order/OrderPaymentDialog.jsx')
 
   assert.match(page, /Registrar recebimento/)
   assert.match(page, /quickPaymentEntries/)
@@ -71,6 +71,6 @@ test('quick payment delegates to the existing App payment flow and excludes tabl
   assert.ok(selectIndex >= 0 && closeIndex > selectIndex, 'quick selector must delegate before closing itself')
   assert.match(quick, /Nenhum pedido pendente encontrado\./)
   assert.doesNotMatch(quick, /table_tab/)
-  assert.match(app, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect/)
+  assert.match(paymentDialog, /<Modal title="Registrar pagamento"[\s\S]*<SystemSelect/)
   assert.doesNotMatch(quick, /registerPaymentApi|\/payment/)
 })
