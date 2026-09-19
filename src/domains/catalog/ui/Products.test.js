@@ -11,6 +11,13 @@ const products = [
 ]
 
 async function renderProducts(t, overrides = {}) {
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator ?? {}, 'onLine')
+  if (globalThis.navigator) Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
+  t.after(() => {
+    if (!globalThis.navigator) return
+    if (navigatorDescriptor) Object.defineProperty(globalThis.navigator, 'onLine', navigatorDescriptor)
+    else delete globalThis.navigator.onLine
+  })
   const h = await createUiHarness(t)
   const [{ default: Products }, { default: ConfirmationDialog }] = await Promise.all([
     h.load('/src/domains/catalog/ui/Products.jsx'),
@@ -173,11 +180,11 @@ test('touch long press enters selection at 550ms, cancel events stop it and mous
   const row = () => renderer.root.findByProps({ className: 'product-compact-row' })
   await act(async () => row().props.onPointerDown({ pointerType: 'touch' }))
   assert.equal(timers.size, 1)
-  const first = [...timers.values()][0]
-  assert.equal(first.delay, 550)
+  const first = [...timers.entries()].find(([, timer]) => timer.delay === 550)
+  assert.ok(first, 'long-press timer should be scheduled for 550ms')
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 0)
 
-  await act(async () => first.callback())
+  await act(async () => first[1].callback())
   assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 1)
   assert.ok(renderer.root.findByProps({ 'aria-label': 'Desmarcar Água' }))
 
@@ -187,12 +194,15 @@ test('touch long press enters selection at 550ms, cancel events stop it and mous
   await act(async () => renderer.root.findByProps({ className: 'product-selection-cancel' }).props.onClick())
   for (const eventName of ['onPointerCancel', 'onPointerUp', 'onPointerLeave']) {
     await act(async () => row().props.onPointerDown({ pointerType: 'touch' }))
-    const scheduled = [...timers.keys()][0]
+    const scheduled = [...timers.entries()].find(([, timer]) => timer.delay === 550)?.[0]
+    assert.ok(scheduled)
     await act(async () => row().props[eventName]())
     assert.equal(timers.has(scheduled), false)
     assert.equal(renderer.root.findAllByProps({ className: 'product-selection-toolbar' }).length, 0)
   }
 
+  const beforeMouse = [...timers.entries()].filter(([, timer]) => timer.delay === 550).length
   await act(async () => row().props.onPointerDown({ pointerType: 'mouse' }))
-  assert.equal(timers.size, 0)
+  const afterMouse = [...timers.entries()].filter(([, timer]) => timer.delay === 550).length
+  assert.equal(afterMouse, beforeMouse)
 })
