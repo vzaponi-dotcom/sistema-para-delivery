@@ -11,4 +11,5 @@ export {
   ClientDuplicateModal,
   Clients,
   CustomerEditorDialog,
+  CustomersWorkspace,
 } from './ui/customerSurfaces.js'

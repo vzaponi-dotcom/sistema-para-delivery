@@ -5,17 +5,17 @@ import { readFileSync } from 'node:fs'
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('normal client form delegates duplicate validation and editor state to Customers', () => {
-  const app = source('./App.jsx')
+  const workspace = source('./domains/customers/ui/CustomersWorkspace.jsx')
   const editor = source('./domains/customers/application/useCustomerEditor.js')
 
   assert.match(editor, /findClientDuplicates/)
   assert.match(editor, /Telefone já cadastrado para/)
   assert.match(editor, /duplicateDialog/)
-  assert.match(app, /ClientDuplicateModal/)
-  assert.match(app, /CustomerEditorDialog/)
-  assert.match(app, /customerEditor/)
-  assert.doesNotMatch(app, /duplicateClientDialog/)
-  assert.doesNotMatch(app, /window\.confirm/)
+  assert.match(workspace, /ClientDuplicateModal/)
+  assert.match(workspace, /CustomerEditorDialog/)
+  assert.match(workspace, /useCustomerEditor/)
+  assert.doesNotMatch(workspace, /duplicateClientDialog/)
+  assert.doesNotMatch(workspace, /window\.confirm/)
   assert.doesNotMatch(editor, /phone:\s*draft\.phone\s*\|\|\s*['"]\(00\) 00000-0000['"]/)
 })
 

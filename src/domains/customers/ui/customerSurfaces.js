@@ -5,6 +5,7 @@ const load = (path) => {
     './Clients.jsx',
     './ClientDuplicateModal.jsx',
     './CustomerEditorDialog.jsx',
+    './CustomersWorkspace.jsx',
   ], { eager: true })
   return modules[path]?.default
 }
@@ -21,5 +22,10 @@ export function ClientDuplicateModal(props) {
 
 export function CustomerEditorDialog(props) {
   const Component = load('./CustomerEditorDialog.jsx')
+  return React.createElement(Component, props)
+}
+
+export function CustomersWorkspace(props) {
+  const Component = load('./CustomersWorkspace.jsx')
   return React.createElement(Component, props)
 }

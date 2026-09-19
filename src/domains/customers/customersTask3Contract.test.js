@@ -19,7 +19,9 @@ test('Task 3 removes the legacy Clients owner and App-owned list projection', as
   assert.doesNotMatch(app, /from ['"]\.\/pages\/Clients['"]/)
   assert.doesNotMatch(app, /clients\.filter\(/)
   assert.doesNotMatch(app, /localeCompare\(/)
-  assert.match(app, /filterAndSortClients/)
+  assert.doesNotMatch(app, /filterAndSortClients/)
+  const workspace = await read('./ui/CustomersWorkspace.jsx')
+  assert.match(workspace, /filterAndSortClients/)
 })
 
 test('moved Clients UI preserves phonebook action-sheet and delete-confirmation behavior', async () => {
