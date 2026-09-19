@@ -14,11 +14,9 @@ import ConfirmationDialog from './components/ConfirmationDialog'
 import Modal from './components/Modal'
 import RegisterRefundDialog from './components/RegisterRefundDialog'
 import ProductForm from './components/ProductForm'
-import SystemSelect from './components/SystemSelect'
 import {
   cancellationOptionsFromEffective,
   cancellationRevisionFromEffective,
-  canReceiveStandaloneOrder,
   formatCancellationDate,
   getOrderRefundState,
   isOrderActive,
@@ -43,8 +41,6 @@ import {
 import {
   paymentDefaultFromEffective,
   paymentOptionsFromEffective,
-  paymentOptionsWithSelection,
-  paymentSelectionNeedsReview,
 } from './utils/paymentMethodOptions.js'
 import { financeCategoryOptionsFromEffective, financeCategoryRevisionFromEffective } from './utils/financeCategoryOptions.js'
 import Dashboard from './pages/Dashboard'
@@ -55,6 +51,8 @@ import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBounda
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
 import TableServiceExternalActions from './app/surfaces/table-service/TableServiceExternalActions.jsx'
 import ReceivablesSurface from './app/surfaces/finance/ReceivablesSurface.jsx'
+import OrderPaymentDialog from './app/workflows/payments/order/OrderPaymentDialog.jsx'
+import { useOrderPaymentWorkflow } from './app/workflows/payments/order/useOrderPaymentWorkflow.js'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
@@ -80,7 +78,6 @@ import {
   deleteClient as deleteClientApi,
   deleteProduct as deleteProductApi,
   refundOrder as refundOrderApi,
-  registerPayment as registerPaymentApi,
   registerTableTabPayment as registerTableTabPaymentApi,
   updateClient as updateClientApi,
   updateProduct as updateProductApi,
@@ -106,8 +103,6 @@ function App({ capabilities } = {}) {
   const [editingProductId, setEditingProductId] = useState(null)
   const [showProductForm, setShowProductForm] = useState(false)
   const [newProduct, setNewProduct] = useState(emptyProduct)
-  const [paymentTarget, setPaymentTarget] = useState(null)
-  const [paymentMethod, setPaymentMethod] = useState('')
   const [refundOrder, setRefundOrder] = useState(null)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
@@ -130,9 +125,6 @@ function App({ capabilities } = {}) {
   const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
   const recoveryPromptSeenRef = useRef(false)
   const tableTabPaymentRef = useRef(null)
-  const paymentDialogRef = useRef(null)
-  const paymentAttemptRef = useRef(null)
-  const paymentSequenceRef = useRef(0)
   // Accepted financial obligations outlive dialog/selection ownership. More than
   // one can exist when another comanda starts payment before the first responds.
   const paymentSyncRef = useRef(new Set())
@@ -301,8 +293,6 @@ function App({ capabilities } = {}) {
   })) ?? [], [businessConfig])
   const defaultModality = businessConfig?.operations?.defaultModality
   const currentTiming = businessConfig?.operations?.timing
-  const paymentMethodNeedsReview = paymentSelectionNeedsReview(paymentOptions, paymentMethod)
-  const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, paymentMethod)
   useEffect(() => {
     effectiveConfigVersionRef.current = effectiveConfig.config?.version || null
   }, [effectiveConfig.config])
@@ -327,10 +317,6 @@ function App({ capabilities } = {}) {
   const canOpenComanda = resolveDestination('comandas', granted, IMPLEMENTED_DESTINATIONS).status === 'allowed'
 
   const todayValue = toLocalDateValue()
-  const paymentOrder = orders.find((order) => order.id === paymentTarget?.orderId) ?? null
-  const paymentOrderEligible = paymentOrder && (paymentTarget?.source
-    ? canReceiveStandaloneOrder(paymentOrder, granted, paymentTarget.source)
-    : !isOrderPaid(paymentOrder) && !isOrderCancelled(paymentOrder))
   const writesBlockedWithoutOrderCommands = !isOnline || requestKey !== null || newOrderDraft.checkoutPending
   const orderCommands = useOrderCommands({
     orders,
@@ -344,6 +330,20 @@ function App({ capabilities } = {}) {
     onError: (error) => orderCommandTargetsRef.current.onError(error),
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
+  const orderPayment = useOrderPaymentWorkflow({
+    orders,
+    granted,
+    canReceivePayments,
+    writesBlocked,
+    paymentOptions,
+    defaultPaymentMethod,
+    getSyncGuard,
+    applyOfficialEffects,
+    refreshOfficialData: refreshBootstrapSilently,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+  })
   const handlePhysicalJobFailure = useCallback(() => {
     setToastMessage('Impressão requer atenção na fila')
   }, [setToastMessage])
@@ -380,8 +380,7 @@ function App({ capabilities } = {}) {
 
   const resetSyncState = () => {
     tableTabPaymentRef.current = null
-    paymentDialogRef.current = null
-    paymentAttemptRef.current = null
+    orderPayment.close()
     paymentSyncRef.current = new Set()
     setTableTabSync(null)
     effectiveConfigVersionRef.current = null
@@ -395,7 +394,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    newOrderDraft.reset(); setPaymentTarget(null); setPaymentMethod(''); setRefundOrder(null); setRefundSubmitting(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); setRefundOrder(null); setRefundSubmitting(false); setShowClientForm(false); setDuplicateClientDialog(null); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -482,7 +481,7 @@ function App({ capabilities } = {}) {
   operationalBridgeTargetsRef.current.onUnauthorized = expireSession
   operationalBridgeTargetsRef.current.settlePaymentOwners = (owners, receipt) => owners.forEach((owner) => settleAcceptedPayment(owner, receipt))
 
-  const showApiError = (error) => {
+  function showApiError(error) {
     if (error?.status === 401) return expireSession()
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
@@ -745,60 +744,6 @@ function App({ capabilities } = {}) {
     return completeNavigation('new-order')
   }
   const handleQuickCreateClient = async ({ name, phone }) => { if (!canManageClients || writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
-  const openPaymentModal = (orderId, source) => {
-    if (!canReceivePayments || writesBlocked) return false
-    const order = orders.find((item) => item.id === orderId)
-    const operational = source === 'orders' || source === 'history'
-    if (!order || (operational ? !canReceiveStandaloneOrder(order, granted, source) : isOrderPaid(order) || isOrderCancelled(order))) return false
-    const owner = { token: ++paymentSequenceRef.current, guard: getSyncGuard(), orderId, source: operational ? source : null, submitting: false, requestKey: null, method: null }
-    paymentDialogRef.current = owner
-    setPaymentTarget({ orderId, source: owner.source, token: owner.token })
-    setPaymentMethod(defaultPaymentMethod)
-    return true
-  }
-  const closePaymentModal = (expectedOwner = paymentDialogRef.current) => {
-    if (expectedOwner && paymentDialogRef.current !== expectedOwner) return false
-    paymentDialogRef.current = null
-    if (paymentAttemptRef.current === expectedOwner) paymentAttemptRef.current = null
-    setPaymentTarget(null)
-    setPaymentMethod('')
-    if (expectedOwner?.requestKey) setRequestKey((current) => current === expectedOwner.requestKey ? null : current)
-    return true
-  }
-  const handleRegisterPayment = async (event) => {
-    event.preventDefault()
-    const owner = paymentDialogRef.current
-    const currentOrder = owner ? orders.find((order) => order.id === owner.orderId) : null
-    const eligible = currentOrder && (owner.source
-      ? canReceiveStandaloneOrder(currentOrder, granted, owner.source)
-      : !isOrderPaid(currentOrder) && !isOrderCancelled(currentOrder))
-    if (!canReceivePayments || !owner || owner.guard !== getSyncGuard() || owner.submitting || writesBlocked || !eligible || !paymentMethod || paymentMethodNeedsReview) return false
-    owner.submitting = true
-    owner.method = paymentMethod
-    owner.requestKey = `payment:${owner.orderId}:${owner.token}`
-    paymentAttemptRef.current = owner
-    setRequestKey(owner.requestKey)
-    try {
-      const { order, movement, tableTab } = await registerPaymentApi(owner.orderId, owner.method)
-      if (owner.guard !== getSyncGuard()) return false
-      applyOfficialEffects({ order, movement, tableTab })
-      if (paymentDialogRef.current === owner) {
-        closePaymentModal(owner)
-        showSuccessMessage(`Pagamento recebido via ${owner.method}`)
-      }
-      return true
-    } catch (error) {
-      if (owner.guard !== getSyncGuard()) return false
-      if (error?.status === 409 || !Number.isInteger(error?.status) || error.status >= 500) await refreshBootstrapSilently()
-      if (owner.guard !== getSyncGuard()) return false
-      if (paymentDialogRef.current === owner) showApiError(error)
-      return false
-    } finally {
-      owner.submitting = false
-      if (paymentAttemptRef.current === owner) paymentAttemptRef.current = null
-      setRequestKey((current) => current === owner.requestKey ? null : current)
-    }
-  }
   const reconcileTableTabPayment = async (owner) => {
     if (!owner) return Promise.all([...paymentSyncRef.current].map((pending) => reconcileTableTabPayment(pending)))
     if (owner.guard !== getSyncGuard() || !paymentSyncRef.current.has(owner)) return false
@@ -939,13 +884,13 @@ function App({ capabilities } = {}) {
       <NavigationProvider activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
       <AppShell onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
         {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
-        {activeTab === 'orders' && <Orders orders={orders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={orderCommands.finalizeOrder} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
-        {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={openPaymentModal} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'orders' && <Orders orders={orders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={orderCommands.finalizeOrder} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
+        {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={handleQuickCreateClient} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <Clients clients={filteredClients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} onAdd={openNewClient} onEdit={handleEditClient} onDelete={handleDeleteClient} canManageClients={canManageClients} />}
         {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
-        {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={openPaymentModal} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
+        {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
         {activeTab === 'finance' && <FinanceWorkspace movements={movements} financeSettings={financeSettings} today={todayValue} currency={currency} pendingRefundOrders={pendingRefundOrders} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} writesBlocked={writesBlocked} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} formatCancellationDate={formatCancellationDate} onRequestRefund={openRefundDialog} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={tableServiceCommands.createTable} onRename={tableServiceCommands.renameTable} onSetActive={tableServiceCommands.setTableActive} onReorder={tableServiceCommands.reorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
         {activeTab === 'comandas' && (
@@ -1003,7 +948,7 @@ function App({ capabilities } = {}) {
           </Modal>
         )}
 
-        {paymentOrderEligible && <Modal title="Registrar pagamento" onClose={() => closePaymentModal()}><form className="form-stack" onSubmit={handleRegisterPayment}><div className="payment-summary-card"><span>{paymentOrder.client} · {formatOrderDisplayNumber(paymentOrder)}</span><strong>{currency(paymentOrder.total)}</strong><small>O pagamento será lançado automaticamente como entrada no Financeiro.</small></div><div className="form-field"><span>Forma de pagamento</span><SystemSelect value={paymentMethod} options={visiblePaymentOptions} onChange={setPaymentMethod} disabled={writesBlocked} label="Forma de pagamento" /></div>{paymentMethodNeedsReview && <p className="form-error" role="alert">A forma escolhida não está mais ativa. Revise a seleção antes de confirmar.</p>}<div className="form-actions"><Button type="button" variant="secondary" onClick={() => closePaymentModal()}>Cancelar</Button><Button type="submit" disabled={writesBlocked || !paymentMethod || paymentMethodNeedsReview}>Confirmar pagamento</Button></div></form></Modal>}
+        {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
 
         {canManageClients && showClientForm && <Modal title={editingClientId !== null ? 'Editar cliente' : 'Novo cliente'} onClose={handleCancelClientEdit}><div className="form-stack"><label className="form-field"><span>Nome</span><input type="text" autoComplete="name" placeholder="Ex: Maria Silva" value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label><label className="form-field"><span>Telefone</span><input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: formatPhone(event.target.value) }))} /></label><label className="form-field"><span>Endereço</span><input type="text" autoComplete="street-address" placeholder="Bairro ou endereço" value={newClient.address} onChange={(event) => setNewClient((current) => ({ ...current, address: event.target.value }))} /></label><div className="form-actions"><Button type="button" variant="secondary" onClick={handleCancelClientEdit}>Cancelar</Button><Button type="button" disabled={writesBlocked || !newClient.name.trim()} onClick={editingClientId !== null ? handleSaveClient : handleAddClient}>{editingClientId !== null ? 'Salvar alterações' : 'Adicionar cliente'}</Button></div></div></Modal>}
         {canManageClients && duplicateClientDialog && <ClientDuplicateModal client={duplicateClientDialog.client} onCancel={() => setDuplicateClientDialog(null)} onUseExisting={handleUseExistingClient} onConfirm={handleConfirmDuplicateClient} disabled={writesBlocked} cancelLabel="Cancelar" useExistingLabel="Usar cliente existente" confirmLabel="Cadastrar mesmo assim" />}
