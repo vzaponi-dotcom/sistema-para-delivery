@@ -17,6 +17,10 @@ export const createOrdersApi = ({ request = apiRequest, json = withJson, randomU
     `/api/orders/${encodeURIComponent(id)}/cancel`,
     json('POST', payload),
   ),
+  updatePaymentPromise: (id, promisedPaymentDate) => request(
+    `/api/orders/${encodeURIComponent(id)}/payment-promise`,
+    json('PATCH', { promisedPaymentDate }),
+  ),
 })
 
 export const ordersApi = createOrdersApi()

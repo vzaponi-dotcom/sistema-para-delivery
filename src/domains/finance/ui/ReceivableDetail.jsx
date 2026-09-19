@@ -1,8 +1,7 @@
-import Button from './Button'
-import { formatOrderDate } from '../domains/orders/index.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import Button from '../../../components/Button'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
-const timingText = (entry) => {
+const timingText = (entry, formatOrderDate) => {
   if (entry.order?.paymentStatus === 'Pago') return 'Quitado'
   if (entry.timing?.status === 'overdue') return `Em atraso há ${entry.timing.daysOverdue} dia(s)`
   if (entry.timing?.status === 'today') return entry.order?.promisedPaymentDate ? 'Prometido para hoje' : 'Pagamento esperado hoje'
@@ -19,9 +18,11 @@ function ReceivableDetail({
   onRegisterPayment,
   onEditPaymentPromise,
   onViewOrder,
+  orderPresentation,
 }) {
   if (!entry) return <div className="receivable-detail-empty">Selecione um recebimento para ver os detalhes.</div>
 
+  const { formatOrderDate } = orderPresentation
   const order = entry.order
   const paid = order?.paymentStatus === 'Pago'
   const promise = order?.promisedPaymentDate || null
@@ -38,7 +39,7 @@ function ReceivableDetail({
 
       <div className={`receivable-detail-status receivable-detail-status-${entry.timing?.status || (paid ? 'paid' : 'pending')}`}>
         <span>Situação</span>
-        <strong>{timingText(entry)}</strong>
+        <strong>{timingText(entry, formatOrderDate)}</strong>
       </div>
 
       <div className="receivable-detail-meta">

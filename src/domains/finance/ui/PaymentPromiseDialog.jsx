@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import Button from './Button'
-import Modal from './Modal'
+import Button from '../../../components/Button'
+import Modal from '../../../components/Modal'
 
 const isRealDate = (value) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false

@@ -1,28 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import '../../shared/finance.js'
-import '../receivables.css'
-import '../receivables-forecast.css'
-import BottomSheet from '../components/BottomSheet'
-import Button from '../components/Button'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
-import PaymentPromiseDialog from '../components/PaymentPromiseDialog'
-import ReceivableDetail from '../components/ReceivableDetail'
-import ReceivablesForecastDialog from '../components/ReceivablesForecastDialog'
-import ReceivablesQuickPaymentDialog from '../components/ReceivablesQuickPaymentDialog'
-import SystemSelect from '../components/SystemSelect'
-import { getBusinessDate } from '../../shared/finance.js'
-import { formatOrderDate, getOrderItemsSearchText, getOrderItemsSummary, OrderDetail } from '../domains/orders/index.js'
-import { calculateReceivedToday } from '../utils/paymentWorkflow.js'
+import '../../../../shared/finance.js'
+import '../../../receivables.css'
+import '../../../receivables-forecast.css'
+import BottomSheet from '../../../components/BottomSheet'
+import Button from '../../../components/Button'
+import Icon from '../../../components/Icon'
+import PageHeader from '../../../components/PageHeader'
+import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
+import PaymentPromiseDialog from './PaymentPromiseDialog'
+import ReceivableDetail from './ReceivableDetail'
+import ReceivablesForecastDialog from './ReceivablesForecastDialog'
+import ReceivablesQuickPaymentDialog from './ReceivablesQuickPaymentDialog'
+import SystemSelect from '../../../components/SystemSelect'
+import { getBusinessDate } from '../../../../shared/finance.js'
+import { calculateReceivedToday } from '../domain/cashFlow.js'
 import {
   buildPendingReceivableEntries,
   buildReceivablesForecast,
   calculateReceivableSummary,
   getPaidReceivableOrders,
   sortReceivableEntries,
-} from '../utils/receivables.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+} from '../domain/receivables.js'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 const PRIMARY_VIEWS = ['pending', 'paid']
 const TIMING_FILTERS = ['all', 'today', 'upcoming', 'overdue']
@@ -32,10 +31,10 @@ const SORT_OPTIONS = [
   { value: 'recent', label: 'Mais recente' },
   { value: 'value-desc', label: 'Maior valor' },
 ]
-const entrySearchText = (entry) => entry.orders.map((order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ')).join(' ').toLowerCase()
-const orderSearchText = (order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ').toLowerCase()
+const entrySearchText = (entry, getOrderItemsSearchText) => entry.orders.map((order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ')).join(' ').toLowerCase()
+const orderSearchText = (order, getOrderItemsSearchText) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ').toLowerCase()
 
-const timingLabel = (entry) => {
+const timingLabel = (entry, formatOrderDate) => {
   if (entry.timing.status === 'overdue') {
     const days = entry.timing.daysOverdue
     return `Atrasado há ${days} ${days === 1 ? 'dia' : 'dias'}`
@@ -76,7 +75,11 @@ function Receivables({
   onUpdatePaymentPromise,
   queryState,
   onQueryChange,
+  orderPresentation,
+  orderRules,
+  renderOrderDetail,
 }) {
+  const { formatOrderDate, getOrderItemsSearchText, getOrderItemsSummary } = orderPresentation
   const { search, activeView, timingFilter, sortMode, exactDateFilter, selectedEntryKey } = queryState
   const patchQuery = (patch) => onQueryChange(patch)
   const [today, setToday] = useState(() => getBusinessDate())
@@ -106,16 +109,16 @@ function Receivables({
     return () => media.removeEventListener?.('change', sync)
   }, [])
 
-  const summary = useMemo(() => calculateReceivableSummary(orders, today), [orders, today])
-  const forecast = useMemo(() => buildReceivablesForecast(orders, today, 7), [orders, today])
+  const summary = useMemo(() => calculateReceivableSummary(orders, today, orderRules), [orders, today])
+  const forecast = useMemo(() => buildReceivablesForecast(orders, today, 7, orderRules), [orders, today])
   const receivedToday = useMemo(() => calculateReceivedToday(movements, today), [movements, today])
-  const pendingEntries = useMemo(() => buildPendingReceivableEntries(orders, today), [orders, today])
+  const pendingEntries = useMemo(() => buildPendingReceivableEntries(orders, today, orderRules), [orders, today])
   const quickPaymentEntries = useMemo(() => pendingEntries.filter((entry) => entry.kind === 'order'), [pendingEntries])
-  const allPaidOrders = useMemo(() => getPaidReceivableOrders(orders), [orders])
+  const allPaidOrders = useMemo(() => getPaidReceivableOrders(orders, orderRules), [orders])
 
   const visiblePendingEntries = useMemo(() => {
     const filtered = pendingEntries.filter((entry) => {
-      if (normalizedSearch && !entrySearchText(entry).includes(normalizedSearch)) return false
+      if (normalizedSearch && !entrySearchText(entry, getOrderItemsSearchText).includes(normalizedSearch)) return false
       if (timingFilter !== 'all' && entry.timing.status !== timingFilter) return false
       if (exactDateFilter && entry.expectedDate !== exactDateFilter) return false
       return true
@@ -124,7 +127,7 @@ function Receivables({
   }, [pendingEntries, normalizedSearch, timingFilter, exactDateFilter, sortMode])
 
   const visiblePaidOrders = useMemo(() => allPaidOrders
-    .filter((order) => !normalizedSearch || orderSearchText(order).includes(normalizedSearch))
+    .filter((order) => !normalizedSearch || orderSearchText(order, getOrderItemsSearchText).includes(normalizedSearch))
     .sort((left, right) => String(right.paidAt || '').localeCompare(String(left.paidAt || ''))), [allPaidOrders, normalizedSearch])
 
   const selectedEntry = useMemo(() => {
@@ -204,6 +207,7 @@ function Receivables({
 
   const detail = selectedEntry ? (
     <ReceivableDetail
+      orderPresentation={orderPresentation}
       entry={selectedEntry}
       currency={currency}
       disabled={writeDisabled}
@@ -282,7 +286,7 @@ function Receivables({
                 <div className="receivable-ledger-item" key={entry.key}>
                   <button type="button" className="receivable-ledger-row" aria-pressed={selectedEntryKey === entry.key} onClick={() => openOrderDetail(entry)}>
                     <span className="receivable-ledger-avatar">{entry.label.charAt(0).toUpperCase()}</span>
-                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{`${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry)}</span></span>
+                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{`${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry, formatOrderDate)}</span></span>
                     <strong className="receivable-ledger-amount">{currency(entry.total)}</strong><Icon name="details" size={18} />
                   </button>
                 </div>
@@ -323,6 +327,7 @@ function Receivables({
 
       <BottomSheet open={Boolean(selectedEntry) && mobileDetailOpen && isMobileDetail} title="Detalhes do recebimento" onClose={closeMobileDetail}>
         <ReceivableDetail
+      orderPresentation={orderPresentation}
           entry={selectedEntry}
           currency={currency}
           disabled={writeDisabled}
@@ -336,6 +341,7 @@ function Receivables({
 
       {forecastOpen && (
         <ReceivablesForecastDialog
+          orderPresentation={orderPresentation}
           forecast={forecast}
           receivedToday={receivedToday}
           currency={currency}
@@ -346,6 +352,7 @@ function Receivables({
 
       {canReceivePayments && quickPaymentOpen && (
         <ReceivablesQuickPaymentDialog
+          orderPresentation={orderPresentation}
           open={quickPaymentOpen}
           entries={quickPaymentEntries}
           currency={currency}
@@ -356,7 +363,7 @@ function Receivables({
       )}
 
       {canManagePaymentPromises && promiseOrder && <PaymentPromiseDialog order={promiseOrder} today={today} disabled={writeDisabled} onSave={(...args) => canManagePaymentPromises ? onUpdatePaymentPromise?.(...args) : false} onClose={() => setPromiseOrder(null)} />}
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} canExecutePrinting={canExecutePrinting} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && renderOrderDetail?.(detailOrder, () => setDetailOrder(null))}
 
     </>
   )

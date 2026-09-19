@@ -13,7 +13,7 @@ test('receivables reuses one detail component in bottom sheet and desktop panel'
 })
 
 test('order detail exposes payment promise and view-order actions only where allowed', () => {
-  const detail = source('../components/ReceivableDetail.jsx')
+  const detail = source('./ReceivableDetail.jsx')
   assert.match(detail, /Registrar recebimento/)
   assert.match(detail, /Definir data prometida|Alterar data prometida/)
   assert.match(detail, /Ver pedido/)
@@ -30,7 +30,7 @@ test('detail actions replace the current detail overlay before opening the next 
 })
 
 test('payment promise dialog supports save and removal with overdue warning', () => {
-  const dialog = source('../components/PaymentPromiseDialog.jsx')
+  const dialog = source('./PaymentPromiseDialog.jsx')
   assert.match(dialog, /Data prometida de pagamento/)
   assert.match(dialog, /min=\{today\}/)
   assert.match(dialog, /Remover data prometida/)

@@ -42,4 +42,4 @@ export {
   sortReceivableEntries,
 } from './domain/receivables.js'
 
-export { FinanceWorkspace } from './ui/financeSurfaces.js'
+export { FinanceWorkspace, Receivables } from './ui/financeSurfaces.js'

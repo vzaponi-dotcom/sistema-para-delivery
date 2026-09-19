@@ -1,5 +1,4 @@
-import Modal from './Modal'
-import { formatOrderDate } from '../domains/orders/index.js'
+import Modal from '../../../components/Modal'
 
 const countLabel = (count) => `${count} ${count === 1 ? 'recebimento' : 'recebimentos'}`
 
@@ -13,7 +12,8 @@ function ForecastMetric({ label, amount, count, currency, tone = '' }) {
   )
 }
 
-function ReceivablesForecastDialog({ forecast, receivedToday, currency, onClose, onSelectDate }) {
+function ReceivablesForecastDialog({ forecast, receivedToday, currency, onClose, onSelectDate, orderPresentation }) {
+  const { formatOrderDate } = orderPresentation
   const dayAmounts = forecast?.days?.map((day) => Number(day.amount || 0)) || []
   const maxDayAmount = Math.max(...dayAmounts, 1)
 

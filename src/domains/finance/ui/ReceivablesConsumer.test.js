@@ -3,13 +3,24 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { createServer } from 'vite'
-import { getBusinessDate } from '../../shared/finance.js'
-import { workspaceHarness } from '../test-support/renderWorkspace.js'
+import { getBusinessDate } from '../../../../shared/finance.js'
+import { workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const textContent = (node) => JSON.stringify(node)
 const nodeText = (node) => node.children.map((child) => typeof child === 'string' ? child : nodeText(child)).join('')
+
+const orderPresentation = {
+  formatOrderDate: (value) => value || '',
+  getOrderItemsSearchText: () => '',
+  getOrderItemsSummary: () => 'Itens',
+}
+const orderRules = {
+  isOrderCancelled: (order) => order?.status === 'Cancelado',
+  isOrderPaid: (order) => order?.paymentStatus === 'Pago',
+  getPendingAmount: (order) => order?.paymentStatus === 'Pago' ? 0 : Math.max(0, Number(order?.total) || 0),
+}
 
 const order = (id, client, overrides = {}) => ({
   id,
@@ -27,7 +38,7 @@ const order = (id, client, overrides = {}) => ({
 
 test('A Receber renders only ordinary pending and paid orders from a mixed dataset', async () => {
   const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
-  const { default: Receivables } = await vite.ssrLoadModule('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await vite.ssrLoadModule('/src/domains/finance/ui/Receivables.jsx')
   const { NavigationProvider } = await vite.ssrLoadModule('/src/app/navigation/NavigationContext.jsx')
   const hadWindow = Object.hasOwn(globalThis, 'window')
   const originalWindow = globalThis.window
@@ -57,7 +68,7 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
       selectedEntryKey: null,
     })
     const onQueryChange = (patch) => setQueryState((current) => ({ ...current, ...patch }))
-    return React.createElement(Receivables, { ...props, queryState, onQueryChange })
+    return React.createElement(Receivables, { ...props, queryState, onQueryChange, orderPresentation, orderRules })
   }
 
   try {
@@ -105,7 +116,7 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
 
 test('A Receber preserva a seleção mobile sem reabrir o detalhe ao retornar', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  const { default: Receivables } = await h.load('/src/pages/Receivables.jsx')
+  const { default: Receivables } = await h.load('/src/domains/finance/ui/Receivables.jsx')
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const api = React.createRef()
 
@@ -127,6 +138,8 @@ test('A Receber preserva a seleção mobile sem reabrir o detalhe ao retornar', 
       children: React.createElement(Receivables, {
         orders: [order('mobile-pending', 'Cliente mobile')],
         currency: (value) => `R$ ${value.toFixed(2)}`,
+        orderPresentation,
+        orderRules,
         queryState,
         onQueryChange: (patch) => setQueryState((current) => ({ ...current, ...patch })),
       }),

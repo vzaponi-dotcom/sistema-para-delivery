@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react'
-import Icon from './Icon'
-import Modal from './Modal'
-import { getOrderItemsSearchText, getOrderItemsSummary } from '../domains/orders/index.js'
-import { formatOrderDate } from '../domains/orders/index.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import Icon from '../../../components/Icon'
+import Modal from '../../../components/Modal'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 
 function ReceivablesQuickPaymentDialog({
@@ -13,7 +11,9 @@ function ReceivablesQuickPaymentDialog({
   disabled = false,
   onClose,
   onSelect,
+  orderPresentation,
 }) {
+  const { formatOrderDate, getOrderItemsSearchText, getOrderItemsSummary } = orderPresentation
   const [search, setSearch] = useState('')
   const normalizedSearch = search.trim().toLowerCase()
 

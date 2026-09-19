@@ -64,5 +64,6 @@ export { cancellationReasonsPolicy } from './infrastructure/cancellationReasonsP
 export { createNewOrderDraftController } from './application/newOrderDraft.js'
 export { useNewOrderDraft } from './application/useNewOrderDraft.js'
 export { useOrderCommands } from './application/useOrderCommands.js'
+export { useOrderPaymentPromise } from './application/useOrderPaymentPromise.js'
 export { NewOrderRoute } from './ui/NewOrderRoute.js'
 export { OrderDetail, OrderHistory, Orders } from './ui/orderSurfaces.js'

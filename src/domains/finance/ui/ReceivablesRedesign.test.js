@@ -54,10 +54,10 @@ test('receivables controls remain semantic and keyboard accessible', async () =>
 
 test('quick payment delegates to the existing App payment flow and excludes table tabs', async () => {
   const page = await read('./Receivables.jsx')
-  const quickUrl = new URL('../components/ReceivablesQuickPaymentDialog.jsx', import.meta.url)
+  const quickUrl = new URL('./ReceivablesQuickPaymentDialog.jsx', import.meta.url)
   await assert.doesNotReject(() => access(quickUrl))
-  const quick = await read('../components/ReceivablesQuickPaymentDialog.jsx')
-  const app = await read('../App.jsx')
+  const quick = await read('./ReceivablesQuickPaymentDialog.jsx')
+  const app = await read('../../../App.jsx')
 
   assert.match(page, /Registrar recebimento/)
   assert.match(page, /quickPaymentEntries/)
