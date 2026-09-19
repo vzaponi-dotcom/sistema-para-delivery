@@ -10,15 +10,15 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`
 
-## Current rollout status — 2026-09-18
+## Current rollout status — 2026-09-19
 
 - C1 — Runtime central is **RELEASED / COMPLETE** on `master` at `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`.
 - C2 — Navigation and App composition is **MERGED / COMPLETE** by PR #46 at `de24b2ceb807440d4c339200b44ae2ed6583b27a`.
 - C3 — Settings surface and versioned policy engine is **MERGED / COMPLETE** by PR #47 at `737beeac2150aabeb39024af823f2f60fee25108`.
 - C4 — Orders is **MERGED / COMPLETE** by PR #48 at `a0b4f5dac865ae54ad9bec7086139b280ffda5f4`. Staging #181 / run `35303388467` passed; manual QA closed at **19 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; final branch Validate #1290 and post-merge Validate #1291 passed. No production deploy occurred.
 - C5 — Table Service is **MERGED / COMPLETE** by PR #49 at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`. Final branch Validate #1341 / run `35400357800` passed; post-merge Validate #1342 / run `35401628448` passed on the exact merge commit. Manual staging QA closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. No production deploy occurred.
-- Active slice: **C6 — Finance and cross-domain payment workflows**, branch `feature/spec-c6-finance-workflows`, base `master` `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`.
-- C6 written design and implementation plan are **APPROVED**. Implementation is active on `feature/spec-c6-finance-workflows` with draft PR #50.
+- Active slice: **C7 — Customers**, branch `feature/spec-c7-customers`, base `master` `5b101800fe29d02dd4543e184cca9e06d659a445`; staging homologated and Task 10 merge gate active.
+- C6 is **MERGED / COMPLETE** by PR #50 at `5b101800fe29d02dd4543e184cca9e06d659a445`. C7 design/plan are approved; PR #51 remains draft pending final exact-head Validate and explicit merge authorization.
 - C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
 - C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
 - C5 Task 3 — table-tab detail controller — is **COMPLETE / GREEN**. RED `8f460f139845e2288abe1d454d5d83c89643fb7b` failed Validate #1300 for the intended missing-controller reason; GREEN `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 with **1,712 tests / 1,711 pass / 0 fail / 1 skipped**.
