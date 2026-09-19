@@ -420,7 +420,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Do not:** implement Spec D entities or pricing engine.
 
-**Current status — 2026-09-19:** **Tasks 1–9 COMPLETE / STAGING HOMOLOGATED; Task 10 PRE-MERGE GATE ACTIVE** on draft PR #52. C8 architecture enforcement is permanent without allowlist expansion; C8 has no surviving temporary compatibility facade. Last code SHA `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; homologated/staged SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Deploy staging #186 / run `35469861985` SUCCESS; manual QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Post-homologation docs closure `fa7a14fd46df5133cce5073dd5bdf3c3242776a7` passed Validate #1462 / run `35471370382`. No code changed after staging; final Task 10 documentation-only HEAD must pass its own exact-head Validate before a separate explicit merge authorization is requested. No production deploy has occurred. C9 must not start automatically.
+**Current status — 2026-09-19:** **MERGED / COMPLETE** by PR #52. Merge/master SHA `91fb5581cea1616f438c13dfac28cfb38345fa59`; post-merge Validate #1464 / run `35471894412` — **SUCCESS** on that exact SHA. Staging/manual QA remained **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; the single BLOCKED case was restricted/read-only capability without a suitable staging identity. Permanent C8 architecture enforcement remains active, C8 has no surviving temporary compatibility facade, and production was not deployed.
 
 ### C9 — Printing and QZ separation
 
@@ -435,6 +435,8 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 **Must preserve:** primary station, queue-only remote behavior, auto print, 1/2 copies, second-copy prompts, recovery affinity, unknown-result handling, retry/reprint, physical status, QZ security/signing.
 
 **Physical QA:** required proportional hardware round before merge.
+
+**Current status — 2026-09-19:** **DESIGN + PLAN APPROVED / PREPARATION ACTIVE** on `feature/spec-c9-printing`, based on `master` `91fb5581cea1616f438c13dfac28cfb38345fa59`. Written spec: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; implementation plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md`. Task 1 has not started. The active debt is Printing ownership/API/App overlay extraction plus isolation of `qz-tray` into `src/infrastructure/qz/`; physical QA remains mandatory before merge. Production remains untouched.
 
 ### C10 — Closure and cleanup
 

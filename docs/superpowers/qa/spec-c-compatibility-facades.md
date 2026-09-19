@@ -207,3 +207,21 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Final Catalog public entry remains exactly the five real external contracts: `CatalogWorkspace`, `CATEGORY_ICON_NAMES`, `PRODUCT_CATEGORIES`, `categoryForUi`, `formatProductPresentation`.
 - No C8 allowlist expansion survives. C8's compatibility debt is closed.
 - Remaining program debts are outside C8: Printing belongs to C9; generic/auth API reexports and final architecture cleanup remain C10 scope.
+
+
+## C9 preparation status — 2026-09-19
+
+- C8 compatibility debt is closed; PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` and post-merge Validate #1464 / run `35471894412` passed on that exact SHA.
+- C9 is active on `feature/spec-c9-printing`; design and plan are approved, but Task 1 has not started at this checkpoint.
+- Existing C9 migration debt remains **ACTIVE / NOT REMOVED**:
+  - legacy production ownership under `src/printing/**`;
+  - `src/pages/PrintQueue.jsx` and `src/pages/printQueue*.js`;
+  - `src/components/PrintingSettings.jsx` and `src/components/PrintingSettingsContent.jsx`;
+  - Printing-specific endpoint helpers in `src/api/client.js`;
+  - second-copy/recovery/QZ coordination still owned by `App.jsx`;
+  - architecture allowlist `qzDirectImports` still contains `src/printing/usePrintingManager.js`.
+- C9 target is zero surviving Printing compatibility facade and zero QZ direct-import allowance after permanent enforcement.
+- Any temporary C9 compatibility reexport introduced while migrating consumers must be recorded in this ledger in the same commit with its exact removal task (Task 8 at latest).
+- `shared/printQueue.js`, `shared/printQueueActions.js`, and `shared/printContextPolicy.js` are permanent cross-runtime contracts, not compatibility facades.
+- Generic/auth reexports in `src/api/client.js` remain C10 debt and must not be mixed into C9 opportunistically.
+- Production remains untouched.

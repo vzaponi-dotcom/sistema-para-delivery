@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Status:** DRAFT FOR USER REVIEW — implementation is not authorized until this written plan is approved.
+**Status:** **APPROVED FOR EXECUTION** — approved explicitly by the user on 2026-09-19; Native/inline execution selected. Preparation checkpoint runs before Task 1.
 
 **Goal:** Establish domains/printing as the frontend owner of operational printing while isolating qz-tray under src/infrastructure/qz, preserving every current queue, copies, recovery, unknown-outcome, settings, capability and physical-print behavior.
 

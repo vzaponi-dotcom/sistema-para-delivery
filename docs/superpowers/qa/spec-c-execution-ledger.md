@@ -433,3 +433,30 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - PR #52 review state: draft/open, unmerged, no review threads and no submitted reviews pending.
 - Task 10 ruling: authorization to execute Task 10 is **not merge authorization**. Merge requires a separate explicit user authorization after the exact final documentation HEAD passes Validate.
 - Production remains untouched. C9 must not start automatically.
+
+
+---
+
+# C8 — merge closure — 2026-09-19
+
+- PR #52 is **MERGED / CLOSED**.
+- Merge/master SHA: `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- Post-merge Validate #1464 / run `35471894412` — **SUCCESS** on exact SHA `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- C8 staging/manual QA remains **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- C8 has no surviving temporary compatibility facade; permanent Catalog architecture enforcement remains active.
+- Production was **NOT** deployed.
+
+---
+
+# C9 — preparation checkpoint — 2026-09-19
+
+- Branch: `feature/spec-c9-printing`.
+- Base/master: `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- Written design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md` — **APPROVED**.
+- Implementation plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` — **APPROVED FOR EXECUTION**; Native/inline execution selected.
+- Pre-preparation branch HEAD: `af7d32b821ac5d475bbd00981fedf673f3a5e49f`; compare against base contained only the C9 spec and plan, with no application code changes.
+- C9 authority explicitly preserves the current copy policy: Local without table uses `orderDefaultCopies`; table-linked orders and `table-tab` jobs use `tableTabDefaultCopies`; each supports 1 or 2 copies.
+- Active C9 debts at start: `src/printing/**` mixed ownership, `src/pages/PrintQueue.jsx`, `src/components/PrintingSettings*.jsx`, Printing-specific exports in `src/api/client.js`, App second-copy/recovery/QZ coordination, and the direct-QZ allowlist exception for `src/printing/usePrintingManager.js`.
+- Permanent cross-runtime contracts `shared/printQueue.js`, `shared/printQueueActions.js`, and `shared/printContextPolicy.js` are not compatibility facades and remain shared.
+- Task 1: **NOT STARTED** at this checkpoint.
+- Staging: **NO**. Merge: **NO**. Production: **NO**.
