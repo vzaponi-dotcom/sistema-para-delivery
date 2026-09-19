@@ -5,7 +5,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | Old path/bridge | New owner/path | Remaining consumers | Removal slice |
 |---|---|---|---|
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
-| operational data runtime payment-receipt bridge | App-owned payment reconciliation | C1 legacy payment workflow | C6 |
+| operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
 | `updateCollection` runtime escape hatch | temporary legacy App CRUD handlers | clients/products handlers not migrated yet | C8, with final enforcement C10 |
 
@@ -15,7 +15,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 - Task 6 session extraction (`useSessionRuntime`) introduced **no new compatibility facade or cross-slice bridge**.
 - Task 7 runtime-boundary cleanup and `runtimeExtractionContract.test.js` introduced **no new compatibility facade or cross-slice bridge**.
 - The generic/auth reexports in `src/api/client.js` remain temporary while later Spec C slices migrate consumers.
-- The payment-receipt bridge still targets removal in C6.
+- The payment-receipt bridge is **REMOVED IN C6**; permanent architecture checks reject its legacy ownership/callback shape.
 - The table-commit bridge still targets removal in C5.
 - The `updateCollection` escape hatch still targets reduction through C4-C8 and final enforcement no later than C10.
 - Homologated C1 HEAD `b6e8de4bf3c64652dff7352e4ff744017cff10e5` passed Validate application #1201 / run `35104869996`.
@@ -119,3 +119,13 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - C6 Task 10 is **COMPLETE / GREEN** at `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9`; Validate #1383 / run `35416528098` passed with **1,770 tests / 1,769 pass / 0 fail / 1 skipped**.
 - C6 architecture debt is now permanently enforced: external Finance consumers must use `domains/finance/index.js`; Finance cannot import Orders or Table Service; removed C6 owners/API exports cannot reappear; cross-domain payment/refund workflows cannot move under domains; Finance/payment workflows cannot import printing/QZ internals. The Finance public entry is restricted to actual external consumers.
 - Task 10 introduced no compatibility facade. With the payment-receipt bridge already removed in Task 7 and C6 legacy API/utils removed in Task 9, no temporary C6 compatibility facade remains before staging/manual QA.
+
+
+## C6 homologation closure — 2026-09-19
+
+- C6 staging homologation completed at corrected executable SHA `ebf9439d85115c422b3df8175b3d24429a77aed9`: Validate #1389 / run `35442758266` and Deploy staging #184 / run `35443025995` are **SUCCESS**.
+- Manual QA closed at **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The sole BLOCKED case is restricted/read-only capability behavior because staging has no suitable restricted identity/session; it is not counted as PASS.
+- The operational payment-receipt bridge remains **REMOVED IN C6 / architecture-enforced**. The table-commit bridge remains **REMOVED IN C5**.
+- Generic/auth `src/api/client.js` reexports remain scheduled for **C10**.
+- `updateCollection` remains for Customers/Catalog migration in **C7/C8**, with final enforcement no later than **C10**.
+- No C6 compatibility facade survives. Production deployment remains **NO**.

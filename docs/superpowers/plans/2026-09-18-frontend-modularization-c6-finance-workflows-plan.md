@@ -1695,7 +1695,7 @@ Require Validate SUCCESS before Task 11.
 
 ---
 
-### Task 11: Full gates, staging deployment, manual homologation, QA record, and merge handoff — IN PROGRESS / STAGING DEPLOYED
+### Task 11: Full gates, staging deployment, manual homologation, QA record, and merge handoff — HOMOLOGATED / FINAL DOCS VALIDATE PENDING
 
 **Files:**
 - Create: `docs/superpowers/qa/spec-c6-finance-workflows-qa.md`
@@ -1771,9 +1771,9 @@ Require the workflow to prove:
 
 Do not deploy production.
 
-Task 11 checkpoint: executable staging SHA `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711` passed Validate #1386 / run `35417003680` with **1,770 tests / 1,769 pass / 0 fail / 1 skipped** and all remaining gates green. Manual Deploy staging #183 / run `35417329071` deployed that exact SHA successfully; remote staging reported **no migrations to apply**, readiness succeeded on attempt **1/6**, and real login smoke returned **HTTP 200**. Manual QA is now **0 PASS / 0 FAIL / 0 BLOCKED / 24 PENDING**. Production remains untouched.
+Task 11 evidence: initial executable `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711` passed Validate #1386 / run `35417003680` and Deploy staging #183 / run `35417329071`. Manual QA item 16 exposed the inaccessible opening-balance dialog; RED `71b6a1de2c043b7f089a1566767eea362c2f0687` required the visible `Saldo inicial` action and GREEN `ebf9439d85115c422b3df8175b3d24429a77aed9` restored that entry point only. Corrected SHA `ebf9439d...` passed Validate #1389 / run `35442758266` with **1,770 tests / 1,769 pass / 0 fail / 1 skipped** and Deploy staging #184 / run `35443025995`, with no remote migrations pending, readiness 1/6, and login smoke HTTP 200. Manual QA closed at **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The sole BLOCKED item is restricted/read-only capability behavior because staging has no suitable restricted identity/session. Production remains untouched. Step 9 now requires Validate on the docs-only closure HEAD produced by this documentation update; report that result externally rather than creating a self-referential documentation loop.
 
-- [ ] **Step 5: Execute manual staging matrix**
+- [x] **Step 5: Execute manual staging matrix**
 
 Record each as PASS, FAIL, or BLOCKED:
 
@@ -1804,7 +1804,7 @@ Record each as PASS, FAIL, or BLOCKED:
 
 A BLOCKED item remains BLOCKED with reason. Automated coverage does not convert it to manual PASS.
 
-- [ ] **Step 6: Write QA evidence**
+- [x] **Step 6: Write QA evidence**
 
 `spec-c6-finance-workflows-qa.md` must include:
 - C6 base SHA `e8ec2304...`;
@@ -1817,7 +1817,7 @@ A BLOCKED item remains BLOCKED with reason. Automated coverage does not convert 
 - production deployment: **NO**;
 - explicit architecture evidence that payment bridge is absent.
 
-- [ ] **Step 7: Reconcile compatibility ledger**
+- [x] **Step 7: Reconcile compatibility ledger**
 
 Mark:
 - operational payment-receipt bridge: **REMOVED IN C6**;
@@ -1827,7 +1827,7 @@ Mark:
 
 Do not declare a bridge removed from intent alone; cite the architecture/source audit.
 
-- [ ] **Step 8: Reconcile execution ledger/rollout**
+- [x] **Step 8: Reconcile execution ledger/rollout**
 
 At successful staging homologation with 0 FAIL:
 - C6 = **HOMOLOGATED / AWAITING EXPLICIT MERGE AUTHORIZATION**;

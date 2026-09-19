@@ -22,7 +22,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C3 | Settings surface + generic policy editing engine | **MERGED — COMPLETE** | `feature/spec-c3-settings-surface` / PR #47 merged | `docs/superpowers/plans/2026-09-16-frontend-modularization-c3-settings-surface-plan.md` |
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
-| C6 | Finance + cross-domain payment workflows | **IN PROGRESS — TASKS 1–10 COMPLETE / TASK 11 STAGING DEPLOYED / MANUAL QA PENDING** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
+| C6 | Finance + cross-domain payment workflows | **HOMOLOGATED — 23 PASS / 0 FAIL / 1 BLOCKED / FINAL DOCS VALIDATE PENDING** | `feature/spec-c6-finance-workflows` / PR #50 draft | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | NOT STARTED | — | Write after C6 merge |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
@@ -250,15 +250,17 @@ These remain mandatory for C2-C10:
 - Task 10 GREEN candidate: `2a098d64c63d0e90d05f38e4aa51dc50dbc350f0`; full tests passed, while `test:architecture` correctly found one stale external test deep-importing Finance infrastructure.
 - Task 10 final GREEN: `28dbb138a8ebfca6a20ddf68d4a3bf65e77638e9`; Validate #1383 / run `35416528098` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 all green.
 - Permanent C6 enforcement now rejects external Finance deep imports, Finance→Orders/Table Service imports, legacy C6 owners/API exports, cross-domain payment/refund workflow ownership under domains, and Finance/payment-workflow printing internals. The Finance public entry was reduced to actual external consumers.
-- Task 11 pre-staging gate: executable SHA `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711`; Validate #1386 / run `35417003680` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
-- Task 11 staging: Deploy staging #183 / run `35417329071` — **SUCCESS** on the same executable SHA; no pending remote staging migrations; readiness attempt 1/6; real login smoke HTTP 200; staging URL `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
-- Task 11 manual QA: **0 PASS / 0 FAIL / 0 BLOCKED / 24 PENDING**.
+- Task 11 initial pre-staging gate: executable SHA `caa7b9a7bf39f2c56526cf4b44b3e90ac1798711`; Validate #1386 / run `35417003680` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- Task 11 QA fix: RED `71b6a1de2c043b7f089a1566767eea362c2f0687` required a visible opening-balance entry point; GREEN `ebf9439d85115c422b3df8175b3d24429a77aed9` restored only the `Saldo inicial` action. Validate #1389 / run `35442758266` — **SUCCESS**, **1,770 tests / 1,769 pass / 0 fail / 1 skipped**.
+- Task 11 initial staging: Deploy staging #183 / run `35417329071` — **SUCCESS** on `caa7b9a7...`.
+- Task 11 corrected staging: Deploy staging #184 / run `35443025995` — **SUCCESS** on exact homologated SHA `ebf9439d85115c422b3df8175b3d24429a77aed9`; no pending remote staging migrations; readiness attempt 1/6; real login smoke HTTP 200; staging URL `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
+- Task 11 manual QA: **23 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. The single BLOCKED item is read-only/capability behavior because staging has no suitable restricted identity/session.
 - Production deployment: **NO**.
 - Production deployment: **NO**.
 
 # New-session resume protocol
 
-The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; Task 11 is in progress with staging deployed and manual QA pending.
+The active slice is C6 after C5 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 Tasks 1–10 are complete/green; Task 11 manual QA is complete at 23 PASS / 0 FAIL / 1 BLOCKED. Await the exact docs-only HEAD Validate, then explicit merge authorization.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -267,7 +269,7 @@ The active slice is C6 after C5 merged successfully. GitHub state wins over this
 5. Inspect `master` and `feature/spec-c6-finance-workflows` on GitHub.
 6. Treat `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` as the approved C6 base unless GitHub proves the branch was intentionally reconciled later.
 7. C5 merged by PR #49; final branch Validate #1341 and post-merge Validate #1342 are green.
-8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; Task 11 staging is deployed and manual QA is pending.
+8. Read `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md`; it is approved. Tasks 1–10 are complete/green; Task 11 is homologated with 0 FAIL. Await exact docs-only HEAD Validate and explicit merge authorization.
 9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
