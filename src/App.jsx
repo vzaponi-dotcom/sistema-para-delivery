@@ -68,10 +68,9 @@ import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
-import { ProductForm, Products, categoryForUi, useCatalogCommands } from './domains/catalog/index.js'
+import { ProductEditorDialog, Products, useCatalogCommands, useProductEditor } from './domains/catalog/index.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager } from './printing/usePrintingManager'
-import { formatBRLCurrencyValue, parseBRLCurrencyInput } from './utils/formFormatting.js'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
@@ -81,13 +80,9 @@ const readKitchenSoundPreference = () => {
   if (typeof window === 'undefined') return true
   try { return window.localStorage.getItem(KITCHEN_SOUND_STORAGE_KEY) !== 'false' } catch { return true }
 }
-const emptyProduct = () => ({ category: 'Refeições', presentationType: 'size', presentationValue: 'P', presentationUnit: '', name: '', price: formatBRLCurrencyValue(32) })
 
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
-  const [editingProductId, setEditingProductId] = useState(null)
-  const [showProductForm, setShowProductForm] = useState(false)
-  const [newProduct, setNewProduct] = useState(emptyProduct)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
   const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
@@ -310,6 +305,12 @@ function App({ capabilities } = {}) {
     onSuccess: showSuccessMessage,
     onError: showApiError,
   })
+  const productEditor = useProductEditor({
+    createProduct: catalogCommands.createProduct,
+    updateProduct: catalogCommands.updateProduct,
+    writesBlocked,
+    canManageProducts,
+  })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
     writesBlocked,
     canManageClients,
@@ -401,7 +402,7 @@ function App({ capabilities } = {}) {
     resetSyncState()
     resetOrderArrivals()
     dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    newOrderDraft.reset(); refund.close(); setShowProductForm(false); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); refund.close(); productEditor.cancel(); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -708,34 +709,6 @@ function App({ capabilities } = {}) {
     if (!requestNavigation('comandas')) return false
     return selectComanda(identity, currentTables)
   }
-  const openNewProduct = () => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(true); return true }
-  const handleEditProduct = (product) => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(product.id); setShowProductForm(true); const legacySized = Boolean(product.size && !['Un', 'Unidade'].includes(product.size)); setNewProduct({ category: categoryForUi(product.category), presentationType: product.presentationType || (legacySized ? 'size' : 'unit'), presentationValue: product.presentationValue ?? (legacySized ? product.size : ''), presentationUnit: product.presentationUnit || '', name: product.name, price: formatBRLCurrencyValue(product.price) }); return true }
-  const productPayload = () => ({ category: newProduct.category, presentationType: newProduct.presentationType, presentationValue: newProduct.presentationValue, presentationUnit: newProduct.presentationUnit, name: newProduct.name.trim(), price: parseBRLCurrencyInput(newProduct.price) })
-  const handleAddProduct = async () => {
-    if (!canManageProducts || writesBlocked || !newProduct.name.trim()) return false
-    const editing = editingProductId
-    const product = editing
-      ? await catalogCommands.updateProduct(editing, productPayload())
-      : await catalogCommands.createProduct(productPayload())
-    if (!product) return false
-    if (editing) setEditingProductId(null)
-    setNewProduct(emptyProduct())
-    setShowProductForm(false)
-    return true
-  }
-  const handleDeleteProduct = async (productId) => {
-    if (!canManageProducts || writesBlocked) return false
-    const deleted = await catalogCommands.deleteProduct(productId)
-    if (!deleted) return false
-    if (editingProductId === productId) {
-      setEditingProductId(null)
-      setNewProduct(emptyProduct())
-      setShowProductForm(false)
-    }
-    return true
-  }
-  const handleCancelProductEdit = () => { setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(false) }
-
   const activeMobileEntry = activeTab === 'new-order' ? newOrderDraft.context?.returnDestination : undefined
 
   return (
@@ -769,7 +742,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canManageClients={canManageClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
-        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={openNewProduct} onEdit={handleEditProduct} onDelete={handleDeleteProduct} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
+        {activeTab === 'products' && <Products products={products} search={query.products.search} currency={currency} onSearchChange={(search) => patchQuery('products', { search })} onAdd={productEditor.openNewProduct} onEdit={productEditor.editProduct} onDelete={async (productId) => { const deleted = await catalogCommands.deleteProduct(productId); if (deleted) productEditor.closeIfEditing(productId); return deleted }} queryState={query.products} onQueryChange={(patch) => patchQuery('products', patch)} canManageProducts={canManageProducts} />}
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} />}
         {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
         {activeTab === 'finance' && <FinanceWorkspace movements={movements} financeSettings={financeSettings} today={todayValue} currency={currency} pendingRefundOrders={pendingRefundOrders} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} writesBlocked={writesBlocked} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} formatCancellationDate={formatCancellationDate} onRequestRefund={refund.request} />}
@@ -831,7 +804,7 @@ function App({ capabilities } = {}) {
 
         {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
 
-        {canManageProducts && showProductForm && <Modal title={editingProductId !== null ? 'Editar produto' : 'Novo produto'} onClose={handleCancelProductEdit}><ProductForm value={newProduct} onChange={setNewProduct} onSubmit={handleAddProduct} onCancel={handleCancelProductEdit} disabled={writesBlocked} editing={editingProductId !== null} /></Modal>}
+        {canManageProducts && <ProductEditorDialog editor={productEditor} writesBlocked={writesBlocked} />}
         <RegisterRefundDialog open={canRefundPayments && Boolean(refund.refundOrder)} order={refund.refundOrder} paymentOptions={paymentOptions} onClose={refund.close} onConfirm={refund.confirm} submitting={refund.submitting} />
       </AppShell>
       </NavigationProvider>

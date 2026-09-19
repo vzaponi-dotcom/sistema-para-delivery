@@ -14,3 +14,6 @@ export {
 } from './ui/catalogSurfaces.js'
 
 export { useCatalogCommands } from './application/useCatalogCommands.js'
+
+export { useProductEditor } from './application/useProductEditor.js'
+export { ProductEditorDialog } from './ui/catalogSurfaces.js'
