@@ -1,6 +1,8 @@
 # Spec C7 Customers Implementation Plan
 
-> **For agentic workers:** implement task-by-task with strict RED → GREEN TDD. Do not start functional code before this plan is explicitly approved.
+> **STATUS: PRE-SPEC DRAFT — NOT APPROVED FOR EXECUTION.** This plan was drafted before the dedicated C7 design. The normative design now exists at `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md` and is awaiting explicit user approval. After that approval, reconcile this plan with the design before any Task 1 RED.
+
+> **For agentic workers:** implement task-by-task with strict RED → GREEN TDD. Do not start functional code before both the C7 design and the reconciled implementation plan are explicitly approved.
 
 **Goal:** Establish `src/domains/customers` as the owner of customer identity, duplicate detection, customer CRUD/API, customer list UI and customer edit/create workflow; remove customer CRUD/duplicate orchestration from `App.jsx`; preserve current customer behavior and UI exactly.
 
@@ -9,6 +11,7 @@
 **Tech stack:** React 19, Vite 8, Node 22 `node:test`, oxlint, Cloudflare Worker/D1, GitHub Actions, existing operational runtime.
 
 **Normative references:**
+- `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md` — dedicated C7 design, awaiting explicit approval
 - `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`
 - `docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md`
 - `docs/superpowers/qa/spec-c-execution-ledger.md`
@@ -369,4 +372,4 @@ No production deployment.
 
 ## Approval checkpoint
 
-This plan is the required C7 planning checkpoint from the rollout. **Do not begin Task 1 until the user explicitly approves this plan.**
+This document is currently a pre-spec draft. The dedicated C7 design must be approved first. Then this plan must be reconciled with that approved design, including the shared Worker identity contract, `deletedClientId` official effect, no mandatory Customers app surface, and quick-create dependency direction. **Do not begin Task 1 until the user explicitly approves both the C7 design and the reconciled plan.**
