@@ -460,3 +460,6 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Permanent cross-runtime contracts `shared/printQueue.js`, `shared/printQueueActions.js`, and `shared/printContextPolicy.js` are not compatibility facades and remain shared.
 - Task 1: **NOT STARTED** at this checkpoint.
 - Staging: **NO**. Merge: **NO**. Production: **NO**.
+
+- C9 documentary baseline `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1` passed Validate #1465 / run `35473924686` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
+- Draft PR #53 is open for C9. This run validates the pre-Task-1 documentary baseline; Task 1 remains NOT STARTED until this evidence-only follow-up HEAD receives its own Validate.

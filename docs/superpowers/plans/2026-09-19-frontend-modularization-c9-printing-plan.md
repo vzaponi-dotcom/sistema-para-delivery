@@ -171,6 +171,15 @@ The object is intentionally small and concrete. Do not create base classes or a 
 - Record the exact baseline run and SHA in the C9 execution record created at docs/superpowers/qa/spec-c9-printing-execution.md.
 - No staging or production in this preparation.
 
+## Preparation evidence — 2026-09-19
+
+- Draft PR: #53.
+- Documentary baseline commit: `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1`.
+- Validate #1465 / run `35473924686`: **SUCCESS**.
+- Suite: **1,860 tests / 1,859 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1: green.
+- Task 1 remains **NOT STARTED** until the documentation-only evidence HEAD created from this checkpoint receives exact-head Validate.
+
 ---
 
 ### Task 1: Establish Printing domain rules and rendering ownership

@@ -54,7 +54,11 @@ The current policy is authoritative:
 
 ## Validation
 
-- Documentary preparation baseline: **PENDING** until the first PR Validate run completes.
+- Documentary preparation baseline commit: `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1`.
+- Draft PR: #53 — `Spec C9: Printing and QZ separation`.
+- Validate #1465 / run `35473924686` — **SUCCESS** on exact head SHA `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1`.
+- Baseline suite: **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1 and Spec B D1 all green.
+- This evidence commit is documentation-only and must itself receive exact-head Validate before Task 1.
 - Task 1: **NOT STARTED**.
 - Staging: **NOT STARTED**.
 - Physical QA: **NOT STARTED**.

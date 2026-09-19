@@ -436,7 +436,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Physical QA:** required proportional hardware round before merge.
 
-**Current status — 2026-09-19:** **DESIGN + PLAN APPROVED / PREPARATION ACTIVE** on `feature/spec-c9-printing`, based on `master` `91fb5581cea1616f438c13dfac28cfb38345fa59`. Written spec: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; implementation plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md`. Task 1 has not started. The active debt is Printing ownership/API/App overlay extraction plus isolation of `qz-tray` into `src/infrastructure/qz/`; physical QA remains mandatory before merge. Production remains untouched.
+**Current status — 2026-09-19:** **DESIGN + PLAN APPROVED / PREPARATION VALIDATING** on draft PR #53, branch `feature/spec-c9-printing`, based on `master` `91fb5581cea1616f438c13dfac28cfb38345fa59`. Documentary baseline `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1` passed Validate #1465 / run `35473924686` with **1,860 tests / 1,859 pass / 0 fail / 1 skipped** and all remaining gates green. Task 1 has not started. The active debt is Printing ownership/API/App overlay extraction plus isolation of `qz-tray` into `src/infrastructure/qz/`; physical QA remains mandatory before merge. Production remains untouched.
 
 ### C10 — Closure and cleanup
 
