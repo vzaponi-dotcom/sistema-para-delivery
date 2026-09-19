@@ -824,13 +824,13 @@ Worker/migrations/workflows/deps/CSS/Modal sem diff; Orders só imports público
 
 ## Task 9 — Staging e homologação proporcional
 
-**Task 9 status — 2026-09-19:** **IN PROGRESS / BLOCKED BEFORE DEPLOY**. The code candidate `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb` is GREEN. Validate #1460 / run `35469241957` succeeded with 1,860 tests / 1,859 pass / 0 fail / 1 skipped and all workflow gates green. The PR run checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`; GitHub confirms that ref and the feature HEAD have the identical tree `b2a2376a65270f50f891c06196b9acb7a3637134`. No staging deploy has occurred yet because the available GitHub integration does not expose `workflow_dispatch`, and the isolated execution shell has no GitHub/Cloudflare credentials. Workflow triggers were not modified to bypass this control. QA matrix is created at `docs/superpowers/qa/spec-c8-catalog-qa.md` with all manual cases PENDING until a real staging deployment exists.
+**Task 9 status — 2026-09-19:** **COMPLETE / STAGING HOMOLOGATED**. The exact feature HEAD `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` passed Validate #1461 / run `35469623626` and was deployed by Deploy staging #186 / run `35469861985` — **SUCCESS**. Staging migrations were already current, deploy version `28e2622f-c904-4959-8433-33c9691661f3` became ready on attempt 1/6, and login smoke returned HTTP 200. Manual QA closed at **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; only case 30 (restricted/read-only capability) is BLOCKED because staging has no suitable identity/capability fixture. No production deploy or merge occurred. The next commit after this homologated SHA is documentation-only and must not be described as the staged executable.
 
 **Files:** criar `docs/superpowers/qa/spec-c8-catalog-qa.md`; atualizar plano/execution ledger com evidência real.
 
 **Interfaces:** consome candidato validado; produz staging no mesmo SHA e matriz manual com PASS/FAIL/BLOCKED/PENDING.
 
-- [ ] Confirmar feature HEAD = candidato; dispatch manual `deploy-staging.yml` para `feature/spec-c8-catalog`. Sem alterar triggers nem executar deploy-production. Em ambiente com `gh`, comando equivalente:
+- [x] Confirmar feature HEAD = candidato; dispatch manual `deploy-staging.yml` para `feature/spec-c8-catalog`. Sem alterar triggers nem executar deploy-production. Em ambiente com `gh`, comando equivalente:
 
 ```bash
 gh workflow run deploy-staging.yml --repo vzaponi-dotcom/sistema-para-delivery --ref feature/spec-c8-catalog
@@ -838,7 +838,7 @@ gh workflow run deploy-staging.yml --repo vzaponi-dotcom/sistema-para-delivery -
 
 O executor via plugin usa o action documentado correspondente. Registrar run real, SHA, readiness, migrations e real login smoke. Se HEAD mudar entre Validate e dispatch, validar o novo SHA; não homologar um executável diferente sem declarar.
 
-- [ ] Executar matriz, inicialmente toda PENDING, sem presumir PASS por CI:
+- [x] Executar matriz, inicialmente toda PENDING, sem presumir PASS por CI:
 
 | Nº | Caso | Resultado esperado |
 |---|---|---|
@@ -880,8 +880,8 @@ O executor via plugin usa o action documentado correspondente. Registrar run rea
 
 Para induzir falhas, usar request blocking ou fixture em staging, nunca apagar/alterar dados de produção. Hardware físico fica na rodada proporcional C9; não declarar impressão física testada por ver item na fila.
 
-- [ ] Registrar casos bloqueados separadamente; legacy/capabilities sem fixture não recebem PASS. Nenhum FAIL/PENDING pode ser encerrado por inferência. Correção de código exige RED/GREEN, novo Validate, novo staging e repetição dos casos afetados.
-- [ ] Registrar último SHA de código, SHA efetivamente homologado e eventuais commits documentais posteriores. Não iniciar C9.
+- [x] Registrar casos bloqueados separadamente; legacy/capabilities sem fixture não recebem PASS. Nenhum FAIL/PENDING pode ser encerrado por inferência. Correção de código exige RED/GREEN, novo Validate, novo staging e repetição dos casos afetados.
+- [x] Registrar último SHA de código, SHA efetivamente homologado e eventuais commits documentais posteriores. Não iniciar C9.
 
 ## Task 10 — Fechamento documental e merge autorizado
 
@@ -997,3 +997,14 @@ Revisão confrontada com o design C8 aprovado, Spec C, trecho normativo C8 do ro
 - Task 8 diff audit: no Worker, migrations, workflow, dependency, product CSS, selection CSS or `Modal.jsx` changes. Orders changes are public-entry import rewrites plus proportional characterizations; cart/checkout logic is unchanged.
 - The PR-triggered #1460 checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`; its Git tree is exactly the feature candidate tree `b2a2376a65270f50f891c06196b9acb7a3637134`. This is recorded explicitly rather than claiming a workflow-dispatch branch checkout that did not occur.
 - Task 9 staging dispatch remains blocked by tooling: this GitHub connector supports run reads but not workflow dispatch, and the isolated shell has no GitHub/Cloudflare credentials. No workflow trigger was altered. No staging, merge or production deploy occurred in this checkpoint.
+
+
+## Execution checkpoint — after Task 9 — 2026-09-19
+
+- **Tasks 1–9: COMPLETE; Task 9 STAGING HOMOLOGATED. Task 10: NOT STARTED.**
+- Last code-changing candidate: `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; Validate #1460 / run `35469241957` — SUCCESS.
+- Pre-staging documentation checkpoint / staged SHA: `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Validate #1461 / run `35469623626` — SUCCESS with the complete gate set.
+- Deploy staging #186 / run `35469861985` — **SUCCESS** on exact SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Cloudflare version `28e2622f-c904-4959-8433-33c9691661f3`; staging URL `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
+- Remote staging D1 reported no pending migrations; readiness succeeded on attempt 1/6 and login smoke returned HTTP 200.
+- Manual QA: **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Case 30 only is BLOCKED because no restricted/read-only identity with the needed capability profile is available in staging. User explicitly reported all other cases PASS.
+- No corrective code changes were needed during homologation. Production remains untouched. PR #52 remains draft/open; no merge.

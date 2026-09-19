@@ -402,3 +402,20 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Validate #1460 is a PR event and checked out synthetic merge ref `8ef861e5facb7326b27dcdab120a0e10ffa59cad`. GitHub reports that merge ref and feature HEAD share the exact tree `b2a2376a65270f50f891c06196b9acb7a3637134`; this evidence is recorded without mislabeling the event as `workflow_dispatch`.
 - Task 9: **IN PROGRESS / BLOCKED BEFORE DEPLOY**. A real staging run cannot be dispatched from the currently available GitHub connector, and the isolated shell has neither GitHub nor Cloudflare credentials. The approved `deploy-staging.yml` was not modified to create a bypass. QA file exists with all manual cases PENDING until staging is deployed.
 - Production: **NO DEPLOY**. Merge: **NO**.
+
+
+---
+
+# C8 — Task 9 staging homologation closure — 2026-09-19
+
+- Tasks 1–9: **COMPLETE**; Task 9 is **STAGING HOMOLOGATED**.
+- Staged/homologated SHA: `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` (documentation checkpoint on top of last code SHA `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`).
+- Validate immediately before staging: #1461 / run `35469623626` — **SUCCESS**, all workflow gates green.
+- Deploy staging #186 / run `35469861985` — **SUCCESS** on exact SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`.
+- Staging Worker version: `28e2622f-c904-4959-8433-33c9691661f3`; URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`.
+- Staging migration steps completed successfully and reported **No migrations to apply**; readiness succeeded at attempt 1/6; login smoke returned **HTTP 200**.
+- Manual QA closed at **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- Accepted BLOCKED: case 30 restricted/read-only capability — staging has no suitable restricted identity/capability fixture. This is recorded as BLOCKED, not inferred PASS.
+- Cases 1–29 and 31–35: **PASS** as explicitly reported by the user. No corrective code change was required.
+- Production deploy: **NO**. Merge: **NO**. PR #52 remains draft/open.
+- Any later documentation-only commit is not the staged executable; retain `8a43d10e02821aca2a839394e3bd6d1daf15fdc8` as the homologated SHA.

@@ -2,7 +2,7 @@
 
 ## Approval and scope — 2026-09-19
 
-The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, Task 5, Task 6, Tasks 7–8, and Task 9. **Tasks 1–8 are complete/green. Task 9 is in progress but blocked before staging dispatch by the currently available tooling.** Merge and production remain unauthorized/not executed.
+The user explicitly approved the C8 design and implementation plan. Subsequent explicit authorizations covered Task 2, Tasks 3–4 in sequence, Task 5, Task 6, Tasks 7–8, and Task 9. **Tasks 1–9 are complete; Task 9 is staging-homologated.** Merge and production remain unauthorized/not executed.
 
 - Design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`.
 - Approved plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` at `20abf94359e0e2883fc3b870c69688f8eeabc12c`.
@@ -28,7 +28,7 @@ A fresh local clone was attempted outside the user's workspace and failed becaus
 - Task 6: **COMPLETE / GREEN** at `91b60e61064a660ca942ef61d3b2b968ffc654da`; Validate #1456 / run `35468442271` SUCCESS.
 - Task 7: **COMPLETE / GREEN** at `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; Validate #1460 / run `35469241957` SUCCESS after authoritative RED #1458.
 - Task 8: **COMPLETE / GREEN AUDIT** on candidate `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`.
-- Task 9: **IN PROGRESS / BLOCKED BEFORE DEPLOY**; QA matrix prepared, no staging run dispatched.
+- Task 9: **COMPLETE / STAGING HOMOLOGATED** on SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Deploy staging #186 / run `35469861985` SUCCESS; manual QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
 - Task 10: NOT STARTED.
 - Merge/deploy: NONE.
 
@@ -151,4 +151,19 @@ The user intentionally deferred canonical documentation updates during Tasks 2�
 - The connected GitHub toolset can read workflow runs/jobs/logs but does not expose workflow dispatch. The isolated execution shell has no `gh`, `GH_TOKEN`, `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` credentials.
 - We did **not** alter workflow triggers, secrets or deployment code to bypass the intended control.
 - No staging deployment has occurred for C8 yet. Therefore no manual case is marked PASS by inference. The QA matrix is created at `docs/superpowers/qa/spec-c8-catalog-qa.md` with all cases PENDING until a real staging run exists.
+- Production remains untouched; PR #52 remains draft/open; no merge.
+
+
+## Task 9 closure — staging deployed and manual QA complete
+
+- The user manually dispatched `.github/workflows/deploy-staging.yml` on `feature/spec-c8-catalog` after the tooling blocker was documented.
+- Deploy staging #186 / run `35469861985`: **SUCCESS** with `head_sha=8a43d10e02821aca2a839394e3bd6d1daf15fdc8`.
+- The workflow reran tests, architecture, lint, build, local D1 and staging Worker dry-run successfully before deploying.
+- Remote staging D1 showed no pending migrations during both listing/application steps. Staging PIN configuration succeeded.
+- Staging deployment succeeded at `https://sistema-para-delivery-staging.vzaponi.workers.dev`; Cloudflare Current Version ID: `28e2622f-c904-4959-8433-33c9691661f3`.
+- Readiness succeeded on attempt 1/6; actual staging login smoke returned HTTP 200.
+- Manual QA execution: cases 1–29 and 31–35 were explicitly reported **PASS** by the user. Case 30 (restricted/read-only capability) is **BLOCKED** because staging has no suitable capability-restricted identity. Final matrix: **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- The blocked capability case is accepted as a fixture limitation, not converted to PASS. No FAIL/PENDING remains.
+- No code correction was needed, so no re-stage cycle was required.
+- Staged/homologated SHA remains `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`. The following documentation closure commit is intentionally later and must not replace the homologated executable SHA in evidence.
 - Production remains untouched; PR #52 remains draft/open; no merge.
