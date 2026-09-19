@@ -70,7 +70,7 @@ import { useOperationalDataRuntime } from './app/runtime/data/useOperationalData
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
-import { findClientDuplicates } from './domains/customers/index.js'
+import { findClientDuplicates, useCustomerCommands } from './domains/customers/index.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { categoryForUi } from '../shared/productCatalog.js'
 import { acknowledgeAndOpenSecondCopyPrompt, findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible, readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
@@ -78,11 +78,8 @@ import { canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingMan
 import { removeById } from './utils/dataSync.js'
 import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from './utils/formFormatting.js'
 import {
-  createClient as createClientApi,
   createProduct as createProductApi,
-  deleteClient as deleteClientApi,
   deleteProduct as deleteProductApi,
-  updateClient as updateClientApi,
   updateProduct as updateProductApi,
 } from './api/client'
 
@@ -320,6 +317,14 @@ function App({ capabilities } = {}) {
     onError: (error) => orderCommandTargetsRef.current.onError(error),
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
+  const customerCommands = useCustomerCommands({
+    writesBlocked,
+    canManageClients,
+    applyOfficialEffects,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+  })
   const orderPayment = useOrderPaymentWorkflow({
     orders,
     granted,
@@ -708,7 +713,7 @@ function App({ capabilities } = {}) {
     newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
     return completeNavigation('new-order')
   }
-  const handleQuickCreateClient = async ({ name, phone }) => { if (!canManageClients || writesBlocked || !name.trim()) return null; setRequestKey('client:create:quick'); try { const { client } = await createClientApi({ name: name.trim(), phone: phone || '', address: '' }); applyOfficialEffects({ client }); return client } catch (error) { showApiError(error); return null } finally { setRequestKey(null) } }
+  const handleQuickCreateClient = async ({ name, phone }) => { if (!canManageClients || writesBlocked || !name.trim()) return null; return customerCommands.quickCreateClient({ name: name.trim(), phone: phone || '', address: '' }) }
   const handleOpenComanda = (target) => {
     if (!canOpenComanda) return false
     const currentTables = getOfficialTables()
@@ -725,13 +730,13 @@ function App({ capabilities } = {}) {
   const openNewClient = () => { if (!canManageClients || writesBlocked) return false; setDuplicateClientDialog(null); setEditingClientId(null); setNewClient({ name: '', phone: '', address: '' }); setShowClientForm(true); return true }
   const handleEditClient = (client) => { if (!canManageClients || writesBlocked) return false; setDuplicateClientDialog(null); setEditingClientId(client.id); setShowClientForm(true); setNewClient({ name: client.name, phone: client.phone, address: client.address }); return true }
   const clientPayload = () => ({ name: newClient.name.trim(), phone: newClient.phone || '', address: newClient.address || 'Sem endereço' })
-  const persistNewClient = async () => { if (!canManageClients || writesBlocked || !newClient.name.trim()) return false; setRequestKey('client:create'); try { const { client } = await createClientApi(clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente adicionado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
-  const persistClientUpdate = async () => { if (!canManageClients || writesBlocked || !editingClientId || !newClient.name.trim()) return false; const id = editingClientId; setRequestKey(`client:update:${id}`); try { const { client } = await updateClientApi(id, clientPayload()); applyOfficialEffects({ client }); resetClientForm(); showSuccessMessage('Cliente atualizado com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const persistNewClient = async () => { if (!canManageClients || writesBlocked || !newClient.name.trim()) return false; const client = await customerCommands.createClient(clientPayload()); if (!client) return false; resetClientForm(); return true }
+  const persistClientUpdate = async () => { if (!canManageClients || writesBlocked || !editingClientId || !newClient.name.trim()) return false; const client = await customerCommands.updateClient(editingClientId, clientPayload()); if (!client) return false; resetClientForm(); return true }
   const handleAddClient = async () => { if (!canManageClients || writesBlocked || !newClient.name.trim() || !validateClientIdentity(newClient, null, 'create')) return false; return persistNewClient() }
   const handleSaveClient = async () => { if (!canManageClients || writesBlocked || !editingClientId || !newClient.name.trim() || !validateClientIdentity(newClient, editingClientId, 'update')) return false; return persistClientUpdate() }
   const handleUseExistingClient = () => { const existing = duplicateClientDialog?.client; setDuplicateClientDialog(null); if (existing?.name) patchQuery('clients', { search: existing.name }); resetClientForm() }
   const handleConfirmDuplicateClient = async () => { if (!canManageClients) return false; const action = duplicateClientDialog?.action; setDuplicateClientDialog(null); if (action === 'update') return persistClientUpdate(); if (action === 'create') return persistNewClient(); return false }
-  const handleDeleteClient = async (clientId) => { if (!canManageClients || writesBlocked) return false; setRequestKey(`client:delete:${clientId}`); try { await deleteClientApi(clientId); updateCollection('clients', (current) => removeById(current, clientId)); if (editingClientId === clientId) resetClientForm(); showSuccessMessage('Cliente excluído com sucesso'); return true } catch (error) { showApiError(error); return false } finally { setRequestKey(null) } }
+  const handleDeleteClient = async (clientId) => { if (!canManageClients || writesBlocked) return false; const deleted = await customerCommands.deleteClient(clientId); if (!deleted) return false; if (editingClientId === clientId) resetClientForm(); return true }
   const handleCancelClientEdit = () => { setDuplicateClientDialog(null); resetClientForm() }
 
   const openNewProduct = () => { if (!canManageProducts || writesBlocked) return false; setEditingProductId(null); setNewProduct(emptyProduct()); setShowProductForm(true); return true }
