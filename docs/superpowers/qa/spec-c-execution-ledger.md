@@ -23,7 +23,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C4 | Orders | **MERGED — COMPLETE** | `feature/spec-c4-orders` / PR #48 merged | `docs/superpowers/plans/2026-09-17-frontend-modularization-c4-orders-plan.md` |
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
-| C7 | Customers | **PLANNING — AWAITING PLAN APPROVAL** | `feature/spec-c7-customers` | `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
+| C7 | Customers | **SPEC WRITTEN — AWAITING DESIGN APPROVAL** | `feature/spec-c7-customers` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan draft: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | NOT STARTED | — | Write after C7 merge |
 | C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
@@ -262,22 +262,24 @@ These remain mandatory for C2-C10:
 - Post-merge `master` Validate: #1392 / run `35448223721` — **SUCCESS**.
 - Production deployment: **NO**.
 
-# C7 — Customers — PLANNING
+# C7 — Customers — SPEC REVIEW
 
 - Base/master SHA: `5b101800fe29d02dd4543e184cca9e06d659a445` (C6 merge).
 - Post-C6 master Validate: #1392 / run `35448223721` — **SUCCESS**.
 - Branch: `feature/spec-c7-customers`.
-- Detailed plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`.
-- Plan commit: `bb22062518844b54a333045b0085d86141ba9117`.
+- Dedicated design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`.
+- Design commit: `e8d6da08495aa94231359291a95cfa3506ce80dc`.
+- Design status: **WRITTEN / AWAITING EXPLICIT USER APPROVAL**.
+- Existing detailed plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` is a **pre-spec draft** and must be reconciled after design approval.
 - Functional implementation: **NOT STARTED**.
-- Approval gate: **await explicit user approval of the C7 plan before Task 1 RED**.
+- Approval gate: **do not begin Task 1 RED until design approval + reconciled plan approval**.
 - Production deployment: **NO**.
 
 ---
 
 # New-session resume protocol
 
-The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. C7 is in planning on `feature/spec-c7-customers`; do not start Task 1 until the detailed C7 plan is explicitly approved.
+The active slice is C7 after C6 merged successfully. GitHub state wins over this file if the branch advances after this documentation commit. C6 is merged/complete at master `5b101800fe29d02dd4543e184cca9e06d659a445`; final branch Validate #1391 and post-merge Validate #1392 are green. The dedicated C7 design is written and awaiting explicit approval. The current C7 plan is a pre-spec draft; reconcile and approve it only after the design is approved. Do not start Task 1 RED before both approvals.
 
 1. Read the Spec C design and rollout plan.
 2. Read this execution ledger.
@@ -285,7 +287,8 @@ The active slice is C7 after C6 merged successfully. GitHub state wins over this
 4. Inspect `master` and `feature/spec-c7-customers` on GitHub.
 5. Treat `5b101800fe29d02dd4543e184cca9e06d659a445` as the approved C7 base unless GitHub proves an intentional later reconciliation.
 6. C6 merged by PR #50; final branch Validate #1391 and post-merge Validate #1392 are green.
-7. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; it awaits explicit approval. Functional C7 implementation has not started.
-8. Do not deploy production without separate explicit user authorization.
+7. Read `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; it is written and awaiting explicit approval.
+8. Read `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md`; it is a pre-spec draft and must be reconciled only after design approval. Functional C7 implementation has not started.
+9. Do not deploy production without separate explicit user authorization.
 
 The repository and current GitHub state are the source of truth for Spec C continuity, not any individual chat.
