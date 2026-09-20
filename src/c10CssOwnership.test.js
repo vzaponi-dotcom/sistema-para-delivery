@@ -33,7 +33,8 @@ test('C10 assigns legacy CSS to the owning surface without byte changes', () => 
   for (const [legacyName, ownerPath, consumerPath, importStatement] of surfaces) {
     assert.equal(fs.existsSync(path.join(root, ownerPath)), true, `${ownerPath} must exist`)
     assert.equal(fs.existsSync(path.join(root, `src/${legacyName}`)), false, `${legacyName} must leave src root`)
-    assert.equal(crypto.createHash('sha256').update(read(ownerPath)).digest('hex'), hashes[legacyName])
+    const normalizedCss = read(ownerPath).replaceAll('\r\n', '\n')
+    assert.equal(crypto.createHash('sha256').update(normalizedCss).digest('hex'), hashes[legacyName])
     assert.match(read(consumerPath), new RegExp(importStatement.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
     assert.doesNotMatch(app, new RegExp(`['"]\./${legacyName}['"]`))
   }
