@@ -436,7 +436,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Physical QA:** required proportional hardware round before merge.
 
-**Current status — 2026-09-19:** **DESIGN + PLAN APPROVED / PREPARATION VALIDATING** on draft PR #53, branch `feature/spec-c9-printing`, based on `master` `91fb5581cea1616f438c13dfac28cfb38345fa59`. Documentary baseline `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1` passed Validate #1465 / run `35473924686` with **1,860 tests / 1,859 pass / 0 fail / 1 skipped** and all remaining gates green. Task 1 has not started. The active debt is Printing ownership/API/App overlay extraction plus isolation of `qz-tray` into `src/infrastructure/qz/`; physical QA remains mandatory before merge. Production remains untouched.
+**Current status — 2026-09-19:** **TASKS 1–5 COMPLETE / GREEN; Task 6 NOT STARTED** on draft PR #53, branch `feature/spec-c9-printing`. Latest code SHA `154d934bb1ecaf25f203cdbad727106cb91317fd` passed Validate #1488 / run `35480148771` with **1,870 tests / 1,869 pass / 0 fail / 1 skipped** and all remaining gates green. Printing API ownership, QZ infrastructure, application manager and PrintQueue ownership are extracted. Temporary C9 facades remain explicitly ledgered for Settings/App/browser adapters and must be removed by Tasks 6–8; the stale direct-QZ allowlist entry is removed in Task 9. No staging or production deploy has occurred.
 
 ### C10 — Closure and cleanup
 

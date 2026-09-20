@@ -24,8 +24,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
-| C8 | Catalog | **ACTIVE — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
+| C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
+| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
@@ -477,3 +477,20 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Current copy semantics remain unchanged and explicitly covered: Local without table uses `orderDefaultCopies`; table-linked orders and `table-tab` use `tableTabDefaultCopies`; each supports 1 or 2 copies.
 - Task 1 did not move Printing API or QZ infrastructure. Task 2 and beyond remain not started by this checkpoint.
 - Staging: NO. Merge: NO. Production: NO.
+
+
+---
+
+# C9 — Tasks 2–5 checkpoint — 2026-09-19
+
+- Tasks 1–5: **COMPLETE / GREEN**. Task 6: **NOT STARTED**.
+- Task 2 RED `7f6a6ee2774d5cac721598325fab103a33005a2b` → Validate #1477 / run `35476189280`, 2 intended failures. GREEN `6329ea548d63e77e059b968d1eba04fedb472662` → Validate #1478 / run `35476339868` SUCCESS, **1,860 / 1,859 / 0 / 1**.
+- Task 3 RED `13524d0142ff1b0c981d6285e019d71b8e557b88` → Validate #1479 / run `35476455924`, 1 intended failure. Final GREEN `4674f78ad707d1fa2473cd7f0cbf0c17b857c7eb` → Validate #1481 / run `35476714703` SUCCESS, **1,862 / 1,861 / 0 / 1**.
+- Task 4 RED `fcefaa8e24bf7af18b7539b7b250c0a73c3a0042` → Validate #1482 / run `35478031958`, 4 intended failures. Final GREEN `17db6f5c8424d0921a8d03539ce242650612c22e` → Validate #1485 / run `35478529333` SUCCESS, **1,869 / 1,868 / 0 / 1**.
+- Task 5 RED `8ab81d7ac8fcf8b9aac915bba53f922678e35aff` → Validate #1486 / run `35478729026`, 1 intended failure. Final GREEN `154d934bb1ecaf25f203cdbad727106cb91317fd` → Validate #1488 / run `35480148771` SUCCESS, **1,870 / 1,869 / 0 / 1**.
+- Printing-specific HTTP exports are removed from `src/api/client.js`.
+- QZ transport/status/attempt/local-printer preference ownership is under `src/infrastructure/qz/`.
+- `usePrintingManager` production ownership is under `src/domains/printing/application/` and uses `createQzTransport`; the application manager does not directly import `qz-tray`.
+- PrintQueue and its projections are owned by `src/domains/printing/ui/`; old `src/pages/PrintQueue*` production paths are removed.
+- Public UI export uses the established node-safe surface wrapper pattern. `DEFAULT_PRINT_QUEUE_QUERY` is retained as a real public contract because App navigation consumes it.
+- No C9 staging, merge or production deploy has occurred.

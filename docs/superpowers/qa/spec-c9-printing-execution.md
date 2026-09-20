@@ -114,3 +114,65 @@ The current policy is authoritative:
 - No QZ transport adapter was introduced in Task 1; that remains Task 3.
 - Temporary browser adapters for ESC/POS canvas and PDF download are ledgered and scheduled for removal during the later C9 migration.
 - Task 2 is **NOT STARTED**.
+
+
+## Tasks 2–5 checkpoint — 2026-09-19
+
+### Task 2 — Printing HTTP ownership
+
+**Status:** COMPLETE / GREEN
+
+- RED: `7f6a6ee2774d5cac721598325fab103a33005a2b`; Validate #1477 / run `35476189280` — expected failure, **1,868 tests / 1,865 pass / 2 fail / 1 skipped**. The two intended failures proved `printingApi.js` was absent and Printing exports still existed in `src/api/client.js`.
+- GREEN: `6329ea548d63e77e059b968d1eba04fedb472662`; Validate #1478 / run `35476339868` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; all remaining gates green.
+- Result: `src/domains/printing/infrastructure/printingApi.js` owns the full Printing HTTP contract; manager and PrintQueue consume it; Printing-specific exports are absent from `src/api/client.js`.
+- Endpoint paths, methods, URLSearchParams ordering, heartbeat payloads, reprint payload `{ copies }`, table-tab print routes, QZ certificate/sign routes and same-origin behavior are preserved.
+- Six legacy API test files were replaced only after equivalent coverage existed under the new owner.
+
+### Task 3 — QZ infrastructure
+
+**Status:** COMPLETE / GREEN
+
+- RED: `13524d0142ff1b0c981d6285e019d71b8e557b88`; Validate #1479 / run `35476455924` — expected failure, **1,861 tests / 1,859 pass / 1 fail / 1 skipped**, with the single missing `src/infrastructure/qz/qzTransport.js` owner.
+- GREEN candidate: `c79cb04cefa070f7f6d8c26e6c3b7286b8795e58`; Validate #1480 found one stale `localPrintStation.test.js` import after QZ preference ownership moved.
+- Final GREEN: `4674f78ad707d1fa2473cd7f0cbf0c17b857c7eb`; Validate #1481 / run `35476714703` — **SUCCESS**, **1,862 tests / 1,861 pass / 0 fail / 1 skipped**; all remaining gates green.
+- Result: QZ transport, status monitor, attempt controller and printer-local preferences live under `src/infrastructure/qz/`.
+- Unknown physical outcome, no silent resend, status classification, readiness single-flight/stale invalidation, RAW/Base64 bytes and certificate/sign callbacks remain covered.
+- The architecture allowlist entry was intentionally not removed yet; Task 9 owns permanent enforcement.
+
+### Task 4 — manager application ownership and QZ adapter injection
+
+**Status:** COMPLETE / GREEN
+
+- RED: `fcefaa8e24bf7af18b7539b7b250c0a73c3a0042`; Validate #1482 / run `35478031958` — expected failure, **1,866 tests / 1,861 pass / 4 fail / 1 skipped**, proving the application manager, physical-operation, platform and local-preference owners were absent.
+- Production extraction: `d32c99242f5d2dc6319ad6ce0f50289b1ba29a4b` moved the manager/runner, introduced `createQzTransport` injection and removed the production manager's direct `qz-tray` dependency.
+- Validate #1483 exposed stale ownership/source characterizations; `707ae66edf08e5fc93ec0b28d942275db03974dc` aligned them, and #1484 identified the remaining QZ-adapter/manager source assumptions.
+- Final test alignment: `17db6f5c8424d0921a8d03539ce242650612c22e`.
+- Final GREEN: Validate #1485 / run `35478529333` — **SUCCESS**, **1,869 tests / 1,868 pass / 0 fail / 1 skipped**; all remaining gates green.
+- Result: `usePrintingManager`, `printJobRunner`, physical-operation locking, platform detection and Printing local preferences now have domain/application ownership.
+- Poll cadences remain exactly 2s / 5s / 15s. The existing stale-generation printer-selection regression remains covered.
+- `rememberOriginOrder(orderId)` exists on the manager; the App migration to that command remains intentionally scheduled in Task 7 together with overlay ownership.
+- Small legacy reexport facades remain temporarily for consumers/tests scheduled in Tasks 6–8; they are tracked in the compatibility ledger.
+
+### Task 5 — PrintQueue UI ownership
+
+**Status:** COMPLETE / GREEN
+
+- RED: `8ab81d7ac8fcf8b9aac915bba53f922678e35aff`; Validate #1486 / run `35478729026` — expected failure, **1,870 tests / 1,868 pass / 1 fail / 1 skipped**, proving `PrintQueue` had not yet moved behind the Printing public boundary.
+- Initial move: `9a1e6f236415d94158ce880c841a71f5fd73ba2d`; Validate #1487 failed because a static `.jsx` reexport made Node-only tests load JSX through `domains/printing/index.js`.
+- Root cause: the public entry is shared by Vite runtime and plain `node --test`; direct JSX exports are not Node-safe.
+- Fix: `154d934bb1ecaf25f203cdbad727106cb91317fd` added `ui/printingSurfaces.js` using the established `import.meta.glob(..., { eager: true })` surface pattern already used by Catalog/Orders/Finance/Table Service.
+- Final GREEN: Validate #1488 / run `35480148771` — **SUCCESS**, **1,870 tests / 1,869 pass / 0 fail / 1 skipped**; architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1 all green.
+- Result: `PrintQueue.jsx`, details, filters, query and summary now live under `src/domains/printing/ui/`; legacy `src/pages/PrintQueue.jsx` and `src/pages/printQueue*.js` paths are removed.
+- App consumes `PrintQueue` through `src/domains/printing/index.js`.
+- `src/print-queue.css` intentionally stays at its existing global path, preserving cascade.
+- `DEFAULT_PRINT_QUEUE_QUERY` is a real external Printing contract consumed by `app/navigation/queryContext.js`; it is therefore exported through the public entry instead of being deep-imported or duplicated.
+
+## Current C9 checkpoint after Task 5
+
+- Tasks 1–5: **COMPLETE / GREEN**.
+- Task 6: **NOT STARTED**.
+- Last code-changing SHA: `154d934bb1ecaf25f203cdbad727106cb91317fd`.
+- Latest executable validation: Validate #1488 / run `35480148771` — **SUCCESS**, **1,870 tests / 1,869 pass / 0 fail / 1 skipped**, all workflow gates green.
+- No staging deploy has occurred for C9.
+- No merge authorization has been requested or granted.
+- Production remains untouched.

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Status:** **APPROVED FOR EXECUTION** — approved explicitly by the user on 2026-09-19; Native/inline execution selected. Preparation checkpoint runs before Task 1.
+**Status:** **APPROVED FOR EXECUTION — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** — Native/inline execution.
 
 **Goal:** Establish domains/printing as the frontend owner of operational printing while isolating qz-tray under src/infrastructure/qz, preserving every current queue, copies, recovery, unknown-outcome, settings, capability and physical-print behavior.
 
@@ -99,7 +99,8 @@ The Settings generic engine remains under app/policy-editing. The thin app/surfa
 Final public entry src/domains/printing/index.js must expose only real external contracts:
 
 ~~~js
-export { default as PrintQueue } from './ui/PrintQueue.jsx'
+export { PrintQueue } from './ui/printingSurfaces.js'
+export { DEFAULT_PRINT_QUEUE_QUERY } from './ui/printQueueQuery.js'
 export { default as PrintingSettingsContent } from './ui/PrintingSettingsContent.jsx'
 export { default as PrintingOverlays } from './ui/PrintingOverlays.jsx'
 export { usePrintingManager } from './application/usePrintingManager.js'
@@ -783,6 +784,22 @@ git commit -m "refactor: move print queue into printing domain"
 
 ---
 
+## Execution checkpoint after Task 5 — 2026-09-19
+
+- Tasks 1–5 are **COMPLETE / GREEN**.
+- Task 2: RED `7f6a6ee2...` / #1477 → GREEN `6329ea54...` / #1478 SUCCESS.
+- Task 3: RED `13524d01...` / #1479 → GREEN `4674f78a...` / #1481 SUCCESS.
+- Task 4: RED `fcefaa8e...` / #1482 → GREEN `17db6f5c...` / #1485 SUCCESS.
+- Task 5: RED `8ab81d7a...` / #1486 → GREEN `154d934b...` / #1488 SUCCESS.
+- Latest executable suite: **1,870 tests / 1,869 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 green.
+- Ruling: Printing public React UI uses a node-safe surface wrapper (`ui/printingSurfaces.js`) matching the existing Catalog/Orders/Finance/Table Service pattern.
+- Ruling: `DEFAULT_PRINT_QUEUE_QUERY` is a real public contract because `app/navigation/queryContext.js` consumes it; keep it in the final public entry rather than deep-importing or duplicating it.
+- Temporary C9 facades are tracked in the compatibility ledger; no new untracked facade is allowed.
+- Task 6 is **NOT STARTED**.
+- Staging: NO. Merge: NO. Production: NO.
+
+---
+
 ### Task 6: Move Printing policy and Settings UI ownership
 
 **Files:**
@@ -1057,6 +1074,7 @@ Create src/domains/printing/printingPublicContract.test.js:
 test('printing public entry stays minimal', async () => {
   const mod = await import('./index.js')
   assert.deepEqual(Object.keys(mod).sort(), [
+    'DEFAULT_PRINT_QUEUE_QUERY',
     'PrintQueue',
     'PrintingOverlays',
     'PrintingSettingsContent',
