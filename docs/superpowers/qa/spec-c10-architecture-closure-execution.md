@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **PLANNING / NOT STARTED**  
+**Status:** **DESIGN REVIEW / NOT STARTED**  
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -41,4 +41,6 @@ Await explicit approval of:
 - `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`;
 - `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md`.
 
-No C10 implementation task has started.
+Design refinement commit: `0c0e8fea5321cd0519d8b2849915e1ff6eb6b472`.
+
+The existing implementation-plan file is **preliminary and requires realignment after design approval**. No C10 implementation task has started.

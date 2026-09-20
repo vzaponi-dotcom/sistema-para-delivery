@@ -2,10 +2,12 @@
 
 > Execute task-by-task with strict RED→GREEN. Do not deploy production.
 
-**Status:** **DRAFT FOR APPROVAL — NOT STARTED**  
+**Status:** **PRELIMINARY DRAFT — DESIGN UPDATED; REALIGN AFTER DESIGN APPROVAL — NOT STARTED**  
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Design:** `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`
+
+> **Planning note — 2026-09-20:** the design was tightened after this first task draft to close `src/components/`, `src/hooks/`, `src/utils/` and establish `src/shared/{ui,hooks,utils}` by real ownership. This task list is therefore **non-executable preliminary material** until it is realigned after explicit design approval.
 
 ## Global constraints
 
@@ -408,4 +410,4 @@ Not expected:
 
 ## Approval gate
 
-This plan is a draft. **Task 1 implementation does not start until the user explicitly approves the C10 design/plan.**
+This plan is preliminary and not yet aligned to the latest design. **Task 1 implementation does not start until the user explicitly approves the C10 design and then the realigned implementation plan.**
