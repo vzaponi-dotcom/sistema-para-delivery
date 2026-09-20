@@ -1,4 +1,4 @@
-import { formatPrintMoneyCents } from '../../shared/orderPrintDocument.js'
+import { formatPrintMoneyCents } from '../../../../shared/orderPrintDocument.js'
 
 const clean = (value) => String(value ?? '').trim()
 

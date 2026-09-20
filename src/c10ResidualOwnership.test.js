@@ -1,9 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
-const srcRoot = path.resolve(new URL('.', import.meta.url).pathname, '..')
+const srcRoot = path.dirname(fileURLToPath(import.meta.url))
 
 const productionFilesUnder = (relativeRoot) => {
   const root = path.join(srcRoot, relativeRoot)

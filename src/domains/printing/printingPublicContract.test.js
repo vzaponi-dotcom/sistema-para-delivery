@@ -5,9 +5,12 @@ test('printing public entry stays minimal', async () => {
   const mod = await import('./index.js')
   assert.deepEqual(Object.keys(mod).sort(), [
     'DEFAULT_PRINT_QUEUE_QUERY',
+    'OrderTicketPreview',
     'PrintQueue',
+    'PrintStatusBadge',
     'PrintingOverlays',
     'PrintingSettingsContent',
+    'TableTabTicketPreview',
     'printingPolicy',
     'stationConfigurationPolicy',
     'stationPrimaryPolicy',

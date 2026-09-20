@@ -43,7 +43,7 @@ test('Operation and Modalities routes open one shared operations resource', asyn
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
     h.load('/src/test-support/SettingsSurfaceTestContext.jsx'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const loaded = []
   const operations = {
@@ -73,7 +73,7 @@ test('confirmed operation save reports success and failed save stays silent', as
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const messages = []
   let saveResult = true
@@ -103,7 +103,7 @@ test('operation Cancel delegates to the explicit discard-and-return action', asy
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const navigations = []
   const controller = {
@@ -126,7 +126,7 @@ test('switching between Operation and Modalities preserves one draft in both dir
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   function RoutedSettings() {
     const [section, setSection] = React.useState('settings-operations')
@@ -285,7 +285,7 @@ test('review action presents the conflict returned by the shared controller', as
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const review = { reviewId: 'review-2', resource: 'operations' }
   const presented = []
@@ -397,7 +397,7 @@ test('printing settings route remains available and separate from operations', a
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const printingSettings = {
     resources: {

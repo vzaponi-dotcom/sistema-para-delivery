@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getBootstrap } from '../../../infrastructure/api/bootstrapApi.js'
 import { ordersApi } from '../../../domains/orders/index.js'
-import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from '../../../utils/dataSync.js'
+import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './dataSync.js'
 
 export const GLOBAL_SYNC_INTERVAL_MS = 5_000
 export const ORDER_SYNC_INTERVAL_MS = 2_000

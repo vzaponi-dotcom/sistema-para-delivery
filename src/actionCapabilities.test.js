@@ -82,7 +82,7 @@ async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData 
 
   const [{ default: App }, themeModule] = await Promise.all([
     h.load('/src/App.jsx'),
-    withTheme ? h.load('/src/components/ThemeProvider.jsx') : Promise.resolve(null),
+    withTheme ? h.load('/src/app/shell/theme/ThemeProvider.jsx') : Promise.resolve(null),
   ])
   if (withTheme) h.document.documentElement.dataset = {}
   const Root = withTheme

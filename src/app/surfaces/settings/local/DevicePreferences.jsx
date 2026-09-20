@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from '../../../../shared/ui/Icon.jsx'
 import PageHeader from '../../../../shared/ui/PageHeader.jsx'
-import { useTheme } from '../../../../components/themeContext.js'
+import { useTheme } from '../../../shell/theme/themeContext.js'
 import { SettingsBackLink, SettingsSwitch } from '../components/SettingsBackAndSwitchControls.jsx'
 import {
   formatDeviceTimestamp,

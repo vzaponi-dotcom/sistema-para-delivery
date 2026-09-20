@@ -112,7 +112,7 @@ test('settings home style uses existing theme tokens and a mobile one-column gri
 test('renders theme-aware Home cards under both document themes without inline palette values', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: SettingsHome }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/app/surfaces/settings/SettingsHome.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/surfaces/settings/SettingsHome.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   for (const theme of ['light', 'dark']) {
     h.document.documentElement.dataset = {}

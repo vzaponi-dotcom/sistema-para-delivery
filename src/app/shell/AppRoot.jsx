@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom'
 import Button from '../../shared/ui/Button'
-import ConnectionBanner from '../../components/ConnectionBanner'
+import ConnectionBanner from './ConnectionBanner'
 import Icon from '../../shared/ui/Icon'
-import LoginScreen from '../../components/LoginScreen'
+import LoginScreen from './LoginScreen'
 
 const Toast = ({ message }) => <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{message}</div>
 const Success = ({ message }) => <div className="success-confirmation-overlay" role="status" aria-live="polite"><div className="success-confirmation-card"><span className="success-confirmation-icon"><Icon name="check" size={30} /></span><strong>{message}</strong></div></div>

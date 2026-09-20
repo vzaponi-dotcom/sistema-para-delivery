@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import BrandLogo from './BrandLogo'
-import Button from '../shared/ui/Button'
+import Button from '../../shared/ui/Button'
 
 function LoginScreen({ onLogin, loading = false, error = '', disabled = false }) {
   const [pin, setPin] = useState('')

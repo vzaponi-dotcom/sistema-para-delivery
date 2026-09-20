@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-const badge = await readFile(new URL('../components/PrintStatusBadge.jsx', import.meta.url), 'utf8')
+const badge = await readFile(new URL('../domains/printing/ui/PrintStatusBadge.jsx', import.meta.url), 'utf8')
 const orders = await readFile(new URL('../domains/orders/ui/Orders.jsx', import.meta.url), 'utf8')
 const detail = await readFile(new URL('../domains/orders/ui/components/OrderDetail.jsx', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')

@@ -13,7 +13,7 @@ const optionalSource = (relativePath) => {
 
 const loadThemeModule = async () => {
   try {
-    return await import('./utils/theme.js')
+    return await import('./app/shell/theme/theme.js')
   } catch {
     return null
   }
@@ -69,14 +69,14 @@ test('theme is initialized before the React app renders', () => {
   const initializeIndex = main.indexOf('initializeTheme()')
   const renderIndex = main.indexOf('createRoot(')
 
-  assert.match(main, /from ['"]\.\/utils\/theme\.js['"]/)
+  assert.match(main, /from ['"]\.\/app\/shell\/theme\/theme\.js['"]/)
   assert.match(main, /ThemeProvider/)
   assert.ok(initializeIndex >= 0, 'main should initialize the stored theme')
   assert.ok(renderIndex > initializeIndex, 'theme should initialize before React renders')
 })
 
 test('global provider exposes persistent Claro Escuro and Automático controls', () => {
-  const provider = optionalSource('./components/ThemeProvider.jsx')
+  const provider = optionalSource('./app/shell/theme/ThemeProvider.jsx')
   const settings = source('./app/surfaces/settings/local/DevicePreferences.jsx')
 
   assert.match(provider, /themePreference/)
@@ -177,7 +177,7 @@ test('kitchen board text colors remain readable when light surfaces replace the 
 
 test('dark login brand uses semantic foreground colors without changing shared logo defaults', () => {
   const css = source('./theme.css')
-  const brand = source('./components/BrandLogo.jsx')
+  const brand = source('./app/shell/BrandLogo.jsx')
 
   assert.match(css, /\[data-theme=['"]dark['"]\]\s+\.login-brand\s+text:first-of-type\s*\{[^}]*fill:\s*var\(--text\);[^}]*\}/s)
   assert.match(css, /\[data-theme=['"]dark['"]\]\s+\.login-brand\s+text:last-of-type\s*\{[^}]*fill:\s*var\(--muted\);[^}]*\}/s)
