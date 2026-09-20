@@ -26,7 +26,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **DESIGN APPROVED — IMPLEMENTATION PLAN DRAFTED FOR APPROVAL; IMPLEMENTATION NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **PLAN APPROVED — TASK 1 BASELINE RECORDED / VALIDATE PENDING; TASK 2 NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -557,5 +557,6 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Branch: `feature/spec-c10-architecture-closure`.
 - Base: post-C9 master `2b5060c8293fec6756b286627212b740b3147e53`.
 - C10 design is **APPROVED** by the user on 2026-09-20 and includes frontend shared ownership closure (`src/shared/{ui,hooks,utils}`), residual generic-root ownership, generic domain-purity enforcement and cycle detection.
-- The implementation plan has been fully realigned to the approved design and is **DRAFT FOR APPROVAL**.
-- Implementation: **NOT STARTED** pending explicit approval of the implementation plan.
+- The implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
+- Task 1 dependency-map/baseline evidence has been recorded on the C10 branch; its exact-head Validate is pending.
+- Task 2 and all functional code changes are **NOT STARTED**.

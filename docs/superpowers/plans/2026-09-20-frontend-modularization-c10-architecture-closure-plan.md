@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **DRAFT FOR APPROVAL — NOT STARTED**  
+**Status:** **APPROVED — TASK 1 BASELINE CHECKPOINT / VALIDATE PENDING**  
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
@@ -27,7 +27,7 @@ C10 is architectural closure. It must not change business behavior, API contract
 - Do not keep compatibility reexports merely to make a commit green.
 - C9 hardware remains `DEFERRED-PRODUCTION` and is never inferred PASS.
 - Every behavior defect found during implementation/QA gets focused RED → GREEN.
-- Implementation starts only after explicit approval of this plan.
+- Implementation plan approved explicitly by the user on 2026-09-20. Task 1 is the only task active in this checkpoint.
 
 ---
 
@@ -493,6 +493,6 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 
 ## Approval gate
 
-This implementation plan is **DRAFT FOR APPROVAL**.
+This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
-No Task 1 execution begins until the user explicitly approves this plan.
+Task 1 is the active task. Task 2 must not start until Task 1's exact-head documentation gate is green.
