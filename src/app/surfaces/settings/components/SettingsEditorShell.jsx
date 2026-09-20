@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 import '../../../../settings.css'
 import '../../../../settings-table-polish.css'
 import '../../../../settings-save-feedback.css'

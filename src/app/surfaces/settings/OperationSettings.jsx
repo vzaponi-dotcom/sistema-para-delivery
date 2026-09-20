@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
-import Icon from '../../../components/Icon.jsx'
+import Icon from '../../../shared/ui/Icon.jsx'
 import '../../../operation-settings.css'
-import Button from '../../../components/Button.jsx'
+import Button from '../../../shared/ui/Button.jsx'
 import SettingsEditorShell from './components/SettingsEditorShell.jsx'
 import { SettingsBackLink, SettingsSwitch } from './components/SettingsBackAndSwitchControls.jsx'
 

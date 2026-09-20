@@ -1,5 +1,5 @@
-import Button from '../../../components/Button'
-import Modal from '../../../components/Modal'
+import Button from '../../../shared/ui/Button'
+import Modal from '../../../shared/ui/Modal'
 
 function ClientDuplicateModal({
   client,

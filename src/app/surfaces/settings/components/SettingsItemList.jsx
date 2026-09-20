@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 import '../../../../settings.css'
 
 function SettingsItemList({ items, getActions, onAction, label }) {

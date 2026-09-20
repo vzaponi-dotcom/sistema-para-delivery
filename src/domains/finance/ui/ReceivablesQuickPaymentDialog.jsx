@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import Icon from '../../../components/Icon'
-import Modal from '../../../components/Modal'
+import Icon from '../../../shared/ui/Icon'
+import Modal from '../../../shared/ui/Modal'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 

@@ -1,4 +1,4 @@
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 import NewOrderCartSummary from './NewOrderCartSummary'
 import OrderProductCatalog from './OrderProductCatalog'
 

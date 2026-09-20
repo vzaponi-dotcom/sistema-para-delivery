@@ -1,4 +1,4 @@
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 import OrderCart from './OrderCart'
 import OrderCheckoutSummary from './OrderCheckoutSummary'
 import { FINANCE_TIME_ZONE } from '../../../../../shared/finance.js'

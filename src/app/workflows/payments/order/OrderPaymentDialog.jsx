@@ -1,6 +1,6 @@
-import Button from '../../../../components/Button.jsx'
-import Modal from '../../../../components/Modal.jsx'
-import SystemSelect from '../../../../components/SystemSelect.jsx'
+import Button from '../../../../shared/ui/Button.jsx'
+import Modal from '../../../../shared/ui/Modal.jsx'
+import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
 import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 
 export default function OrderPaymentDialog({ dialog, currency }) {

@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { resolvePolicyConflict } from '../../../policy-editing/policyConflict.js'
 import { conflictReviewSummary, describeSettingsConflict } from '../conflicts/settingsConflictPresentation.js'
-import Button from '../../../../components/Button'
-import Modal from '../../../../components/Modal'
+import Button from '../../../../shared/ui/Button'
+import Modal from '../../../../shared/ui/Modal'
 
 const operationConflictKey = (conflict) => conflict.segments.map((segment) => (
   typeof segment === 'object' ? `[${segment.id}]` : segment

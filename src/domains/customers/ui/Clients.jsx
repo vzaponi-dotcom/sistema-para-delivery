@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import '../../../clients-phonebook.css'
-import BottomSheet from '../../../components/BottomSheet'
-import Button from '../../../components/Button'
-import Icon from '../../../components/Icon'
-import PageHeader from '../../../components/PageHeader'
-import SystemSelect from '../../../components/SystemSelect'
+import BottomSheet from '../../../shared/ui/BottomSheet'
+import Button from '../../../shared/ui/Button'
+import Icon from '../../../shared/ui/Icon'
+import PageHeader from '../../../shared/ui/PageHeader'
+import SystemSelect from '../../../shared/ui/SystemSelect'
 
 const SORT_OPTIONS = [
   { value: 'name-asc', label: 'Nome A–Z' },

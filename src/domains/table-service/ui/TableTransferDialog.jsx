@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
-import Button from '../../../components/Button'
-import ConfirmationDialog from '../../../components/ConfirmationDialog'
-import Modal from '../../../components/Modal'
+import Button from '../../../shared/ui/Button'
+import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
+import Modal from '../../../shared/ui/Modal'
 import { getTransferDestinations } from '../domain/tableTransfer.js'
 
 function TableTransferDialog({ sourceTable, tables, disabled, onClose, onTransfer }) {

@@ -1,4 +1,4 @@
-import Modal from '../../../components/Modal'
+import Modal from '../../../shared/ui/Modal'
 
 const countLabel = (count) => `${count} ${count === 1 ? 'recebimento' : 'recebimentos'}`
 

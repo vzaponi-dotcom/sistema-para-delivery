@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ClientDuplicateModal, findClientDuplicates } from '../../customers/index.js'
 import { getBusinessDate } from '../../../../shared/finance.js'
 import { validateCustomerIdentity } from '../../../../shared/orderCustomerIdentity.js'
-import Button from '../../../components/Button'
+import Button from '../../../shared/ui/Button'
 import NewOrderCustomerStep from './components/NewOrderCustomerStep'
 import NewOrderProductsStep from './components/NewOrderProductsStep'
 import NewOrderReviewStep from './components/NewOrderReviewStep'
 import NewOrderStepIndicator from './components/NewOrderStepIndicator'
-import PageHeader from '../../../components/PageHeader'
+import PageHeader from '../../../shared/ui/PageHeader'
 import {
   addCartItem,
   buildOrderPayload,
@@ -18,7 +18,7 @@ import {
   removeCartItem,
   updateCartItem,
 } from '../domain/orderCart.js'
-import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../../../utils/formFormatting.js'
+import { formatBRLCurrencyValue, formatPhone, parseBRLCurrencyInput } from '../../../shared/utils/formFormatting.js'
 import {
   NEW_ORDER_STEPS,
   canNavigateToNewOrderStep,

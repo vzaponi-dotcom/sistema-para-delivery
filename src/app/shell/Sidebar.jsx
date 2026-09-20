@@ -1,4 +1,4 @@
-import Icon from '../../components/Icon'
+import Icon from '../../shared/ui/Icon'
 import { DESKTOP_NAV_GROUPS, destinationById } from '../navigation/registry.js'
 import { resolveNavigationEntry } from '../navigation/resolution.js'
 import { useNavigation } from '../navigation/NavigationContext.jsx'

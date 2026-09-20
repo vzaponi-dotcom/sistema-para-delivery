@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import '../system-select.css'
+import '../../system-select.css'
 import BottomSheet from './BottomSheet'
 import Icon from './Icon'
 

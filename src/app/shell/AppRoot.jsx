@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
-import Button from '../../components/Button'
+import Button from '../../shared/ui/Button'
 import ConnectionBanner from '../../components/ConnectionBanner'
-import Icon from '../../components/Icon'
+import Icon from '../../shared/ui/Icon'
 import LoginScreen from '../../components/LoginScreen'
 
 const Toast = ({ message }) => <div className="toast-success" role="status"><span className="toast-icon"><Icon name="dashboard" size={17} /></span>{message}</div>

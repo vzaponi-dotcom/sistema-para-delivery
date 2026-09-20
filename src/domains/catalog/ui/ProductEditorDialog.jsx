@@ -1,4 +1,4 @@
-import Modal from '../../../components/Modal'
+import Modal from '../../../shared/ui/Modal'
 import ProductForm from './ProductForm.jsx'
 
 export default function ProductEditorDialog({ editor, writesBlocked }) {

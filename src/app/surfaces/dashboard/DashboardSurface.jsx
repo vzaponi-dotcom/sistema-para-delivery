@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import '../../../dashboard.css'
-import DashboardBarChart from '../../../components/DashboardBarChart'
-import DashboardPeriodSelector from '../../../components/DashboardPeriodSelector'
-import Icon from '../../../components/Icon'
-import PageHeader from '../../../components/PageHeader'
-import StatCard from '../../../components/StatCard'
+import DashboardBarChart from '../../../shared/ui/DashboardBarChart'
+import DashboardPeriodSelector from '../../../shared/ui/DashboardPeriodSelector'
+import Icon from '../../../shared/ui/Icon'
+import PageHeader from '../../../shared/ui/PageHeader'
+import StatCard from '../../../shared/ui/StatCard'
 import { calculateReceivedToday } from '../../../domains/finance/index.js'
 import {
   getPendingAmount,

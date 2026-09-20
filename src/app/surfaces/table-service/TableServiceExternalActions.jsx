@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Modal from '../../../components/Modal'
+import Modal from '../../../shared/ui/Modal'
 import TableTabPaymentDialog from '../../workflows/payments/table-tab/TableTabPaymentDialog.jsx'
 import TableTabTicketPreview from '../../../components/TableTabTicketPreview'
 

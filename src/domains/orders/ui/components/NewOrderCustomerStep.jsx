@@ -1,6 +1,6 @@
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 import { LocalTableSelector } from '../../../table-service/index.js'
-import { formatScheduledTimeInput } from '../../../../utils/formFormatting.js'
+import { formatScheduledTimeInput } from '../../../../shared/utils/formFormatting.js'
 import { ORDER_TYPE_OPTIONS } from '../../domain/orderTypeOptions.js'
 
 function NewOrderCustomerStep({

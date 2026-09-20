@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import Button from '../../../../components/Button'
-import SystemSelect from '../../../../components/SystemSelect'
-import { formatBRLCurrencyInput } from '../../../../utils/formFormatting.js'
+import Button from '../../../../shared/ui/Button'
+import SystemSelect from '../../../../shared/ui/SystemSelect'
+import { formatBRLCurrencyInput } from '../../../../shared/utils/formFormatting.js'
 import {
   PAYMENT_METHOD_OPTIONS,
   paymentOptionsWithSelection,

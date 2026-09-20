@@ -1,6 +1,6 @@
-import Button from '../../../components/Button'
-import Modal from '../../../components/Modal'
-import { formatPhone } from '../../../utils/formFormatting.js'
+import Button from '../../../shared/ui/Button'
+import Modal from '../../../shared/ui/Modal'
+import { formatPhone } from '../../../shared/utils/formFormatting.js'
 
 function CustomerEditorDialog({
   open,

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import '../bottom-sheet.css'
+import '../../bottom-sheet.css'
 import Icon from './Icon'
 import { acquireScrollLock } from './scrollLock.js'
 
