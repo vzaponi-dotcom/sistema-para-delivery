@@ -91,6 +91,8 @@ const C10_LEGACY_API_FACADES = new Set([
   'src/api/effectiveConfigClient.js',
 ])
 const C10_RUNTIME_LEGACY_BRIDGE_PATTERN = /\b(?:legacyBridges|capturePaymentOwners|settlePaymentOwners)\b/
+const C10_LEGACY_PRODUCTION_ROOTS = ['api', 'pages', 'printing', 'components', 'hooks', 'utils']
+const C10_DOMAIN_BROWSER_PATTERN = /\b(?:window|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
 
 const C9_LEGACY_PRINTING_OWNERS = new Set([
   'src/pages/PrintQueue.jsx',
@@ -278,6 +280,37 @@ const isReactSpecifier = (specifier) => specifier === 'react'
   || specifier === 'react-dom'
   || specifier.startsWith('react-dom/')
 
+const usesDomainBrowserApi = (source) => C10_DOMAIN_BROWSER_PATTERN.test(source)
+  || (/\bdocument\s*\./.test(source) && !/[({,]\s*document\s*(?:[,)=])/.test(source))
+
+const findDomainCycle = (domainEdges) => {
+  const visited = new Set()
+  const active = []
+  const activeIndex = new Map()
+  const visit = (domain) => {
+    visited.add(domain)
+    activeIndex.set(domain, active.length)
+    active.push(domain)
+    for (const target of [...(domainEdges.get(domain) ?? [])].sort()) {
+      if (activeIndex.has(target)) return [...active.slice(activeIndex.get(target)), target]
+      if (!visited.has(target)) {
+        const cycle = visit(target)
+        if (cycle) return cycle
+      }
+    }
+    active.pop()
+    activeIndex.delete(domain)
+    return null
+  }
+  for (const domain of [...domainEdges.keys()].sort()) {
+    if (!visited.has(domain)) {
+      const cycle = visit(domain)
+      if (cycle) return cycle
+    }
+  }
+  return null
+}
+
 const exportMentionsAny = (source, names) => {
   for (const match of source.matchAll(/\bexport\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) {
     if (names.has(match[1])) return true
@@ -328,6 +361,9 @@ export const findArchitectureViolations = async ({ rootDir }) => {
     if (sourcePaths.has(legacyOwner)) violations.push(`c9-legacy-printing-owner: ${legacyOwner}`)
   }
   for (const sourcePath of sourcePaths) {
+    if (!isTestFile(sourcePath) && C10_LEGACY_PRODUCTION_ROOTS.some((root) => sourcePath.startsWith(`src/${root}/`))) {
+      violations.push(`legacy-production-root: ${sourcePath}`)
+    }
     if (sourcePath.startsWith('src/printing/') && !isTestFile(sourcePath)) {
       violations.push(`c9-legacy-printing-owner: ${sourcePath}`)
     }
@@ -411,6 +447,9 @@ export const findArchitectureViolations = async ({ rootDir }) => {
     if (sourcePath.startsWith('src/domains/catalog/domain/') && C8_DOMAIN_BROWSER_PATTERN.test(source)) {
       violations.push(`catalog-domain-browser: ${sourcePath}`)
     }
+    if (isDomainLayer(sourcePath) && usesDomainBrowserApi(source)) {
+      violations.push(`domain-browser: ${sourcePath}`)
+    }
     if (sourcePath.startsWith('src/domains/printing/domain/') && C9_PRINTING_DOMAIN_BROWSER_PATTERN.test(source)) {
       violations.push(`c9-printing-domain-browser: ${sourcePath}`)
     }
@@ -434,6 +473,7 @@ export const findArchitectureViolations = async ({ rootDir }) => {
     if (error?.code !== 'ENOENT') throw error
   }
 
+  const domainEdges = new Map()
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
@@ -484,6 +524,29 @@ export const findArchitectureViolations = async ({ rootDir }) => {
 
     if (edge.from.startsWith('src/shared/') && edge.resolvedPath?.startsWith('src/domains/')) {
       violations.push(`shared-domain: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && targetDomain
+      && fromDomain !== targetDomain
+      && edge.resolvedPath !== `src/domains/${targetDomain}/index.js`) {
+      violations.push(`domain-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && edge.from === 'src/App.jsx'
+      && C10_LEGACY_PRODUCTION_ROOTS.some((root) => edge.resolvedPath?.startsWith(`src/${root}/`))) {
+      violations.push(`app-legacy-root-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && fromDomain
+      && targetDomain
+      && fromDomain !== targetDomain
+      && edge.resolvedPath === `src/domains/${targetDomain}/index.js`) {
+      if (!domainEdges.has(fromDomain)) domainEdges.set(fromDomain, new Set())
+      domainEdges.get(fromDomain).add(targetDomain)
+      if (!domainEdges.has(targetDomain)) domainEdges.set(targetDomain, new Set())
     }
 
     if (!edge.from.startsWith('src/domains/orders/')
@@ -621,6 +684,9 @@ export const findArchitectureViolations = async ({ rootDir }) => {
       }
     }
   }
+
+  const domainCycle = findDomainCycle(domainEdges)
+  if (domainCycle) violations.push(`domain-cycle: ${domainCycle.join(' -> ')}`)
 
   return [...new Set(violations)].sort()
 }
