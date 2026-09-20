@@ -21,7 +21,7 @@ test('dashboard charts are local SVG/CSS components without a chart dependency',
 })
 
 test('monetary chart accessibility copy changes when values are hidden', () => {
-  const line = source('./components/DashboardLineChart.jsx')
+  const line = source('./app/surfaces/dashboard/DashboardLineChart.jsx')
   const payment = source('./app/surfaces/dashboard/DashboardPaymentMix.jsx')
 
   assert.match(line, /Valores ocultos/)
