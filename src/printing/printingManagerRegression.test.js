@@ -7,7 +7,7 @@ import {
   isPrintingTransportSupported,
 } from '../domains/printing/index.js'
 
-const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+const manager = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
 const operationalRuntime = await readFile(new URL('../app/runtime/data/useOperationalDataRuntime.js', import.meta.url), 'utf8')
 const orderArrivals = await readFile(new URL('../domains/orders/application/useOrderArrivals.js', import.meta.url), 'utf8')

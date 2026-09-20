@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import qz from 'qz-tray'
-import { workspaceHarness } from '../test-support/renderWorkspace.js'
+import { workspaceHarness } from '../../../test-support/renderWorkspace.js'
 import {
   canExecuteSecondCopy,
   canInitializeBackgroundPhysicalTransport,
@@ -14,7 +14,7 @@ import {
   getPrintingTransportKind,
   getRendererCompatibilityMode,
   isPrintingTransportSupported,
-} from '../domains/printing/index.js'
+} from '../index.js'
 import {
   claimAndExecuteSecondCopy,
   createPhysicalJobFailureNotifier,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { canSendPrintStationHeartbeat } from '../domains/printing/index.js'
-import * as printingManager from './usePrintingManager.js'
+import * as printingManager from '../domains/printing/application/usePrintingManager.js'
 
 const primaryWindows = {
   id: 'kitchen',

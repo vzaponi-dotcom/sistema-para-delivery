@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const appSource = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
-const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+const managerSource = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 const promptFlowSource = await readFile(new URL('../domains/printing/domain/secondCopy.js', import.meta.url), 'utf8')
 
 test('global second-copy prompt delegates order and comanda eligibility to the shared flow', () => {

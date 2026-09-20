@@ -11,3 +11,5 @@ export {
 } from './domain/secondCopy.js'
 export { getDefaultPrintStationName, isQzPrintStationEligible } from './domain/stationPolicy.js'
 export { renderEscPos58mm } from './domain/rendering/escpos58mm.js'
+
+export { usePrintingManager } from './application/usePrintingManager.js'

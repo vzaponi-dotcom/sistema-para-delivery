@@ -72,9 +72,9 @@ import { CatalogWorkspace } from './domains/catalog/index.js'
 import {
   acknowledgeAndOpenSecondCopyPrompt, canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt,
   findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible,
+  usePrintingManager,
 } from './domains/printing/index.js'
 import { readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
-import { usePrintingManager } from './printing/usePrintingManager'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])

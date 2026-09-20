@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { canConsumeAutomaticPrintJob } from '../domains/printing/index.js'
-import { runClaimedPrintJob } from './printJobRunner.js'
+import { runClaimedPrintJob } from '../domains/printing/application/printJobRunner.js'
 
-const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+const manager = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 
 const readyConsumer = (overrides = {}) => ({
   authenticated: true,

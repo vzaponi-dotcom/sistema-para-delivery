@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { runClaimedPrintJob } from './printJobRunner.js'
-import { createPhysicalJobFailureNotifier } from './usePrintingManager.js'
+import { createPhysicalJobFailureNotifier } from './physicalOperation.js'
 
 const baseJob = {
   id: 'job-1',

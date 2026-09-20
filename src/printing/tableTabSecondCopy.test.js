@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { runClaimedPrintJob } from './printJobRunner.js'
+import { runClaimedPrintJob } from '../domains/printing/application/printJobRunner.js'
 import {
   getSecondCopyPromptTitle,
   isSecondCopyPromptEligible,
