@@ -19,14 +19,14 @@ export const heartbeatPrintStation = (id, health = {}) => apiRequest(
   }),
 )
 export const makePrimaryPrintStation = (id) => apiRequest(`/api/printing/stations/${encodeURIComponent(id)}/make-primary`, { method: 'POST' })
-export const getPrintJobs = (options = {}) => {
+export const getPrintJobs = (options = {}, requestOptions = {}) => {
   const params = new URLSearchParams()
   for (const key of ['orderId', 'limit', 'scope', 'page', 'pageSize', 'sortBy', 'sortDir', 'status', 'trigger', 'search']) {
     if (options[key] != null && String(options[key]).trim() !== '') params.set(key, String(options[key]))
   }
-  return apiRequest(`/api/printing/jobs${params.size ? `?${params}` : ''}`)
+  return apiRequest(`/api/printing/jobs${params.size ? `?${params}` : ''}`, requestOptions)
 }
-export const getPrintQueueSummary = () => apiRequest('/api/printing/jobs/summary')
+export const getPrintQueueSummary = (requestOptions = {}) => apiRequest('/api/printing/jobs/summary', requestOptions)
 export const createPrintAttempt = (jobId, stationId, copyNumber) => apiRequest(
   `/api/printing/jobs/${encodeURIComponent(jobId)}/attempts`, withJson('POST', { stationId, copyNumber }),
 )

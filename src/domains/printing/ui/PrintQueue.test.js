@@ -406,7 +406,7 @@ test('print queue reads only the paginated main list and summary', async () => {
   assert.doesNotMatch(page, /filterPrintQueueJobs\(jobs/)
 })
 
-test('print queue status filter exposes only jobs that still require operational follow-up', () => {
+test('print queue status filter exposes operational follow-up plus retained terminal history', () => {
   assert.deepEqual(PRINT_QUEUE_STATUS_FILTERS.map(({ value, label }) => ({ value, label })), [
     { value: 'all', label: 'Todos' },
     { value: 'queued', label: 'Na fila' },
@@ -415,6 +415,8 @@ test('print queue status filter exposes only jobs that still require operational
     { value: 'waiting_confirmation', label: 'Aguardando confirmação' },
     { value: 'waiting_second_copy', label: 'Aguardando 2ª via' },
     { value: 'attention', label: 'Requer atenção' },
+    { value: 'printed', label: 'Impresso' },
+    { value: 'discarded', label: 'Descartado' },
   ])
 })
 

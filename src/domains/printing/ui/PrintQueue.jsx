@@ -52,8 +52,13 @@ const getPrintJobView = (job, stationReady, order) => {
 
 const EXECUTE_ACTIONS = new Set(['printNow', 'retry', 'forcePrint', 'requestSecondCopy', 'reprint'])
 const DISCARD_ACTIONS = new Set(['discard', 'skipSecondCopy'])
+const SEARCH_DEBOUNCE_MS = 300
+const OFFLINE_MUTATION_MESSAGE = 'Você está offline. Reconecte para alterar a fila de impressão.'
+const cacheKeyForQuery = (query) => JSON.stringify([
+  query.page, query.pageSize, query.sortBy, query.sortDir, query.status, query.trigger, query.search,
+])
 
-function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true }) {
+function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, isOnline = true }) {
   const station = printing?.localStation ?? null
   const stationSummary = getPrintStationSummary(station)
   const stationReady = Boolean(station?.health?.ready)
@@ -69,35 +74,99 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   const [showTicket, setShowTicket] = useState(false)
   const [unknownConfirmation, setUnknownConfirmation] = useState(null)
   const [recoveryPending, setRecoveryPending] = useState(false)
+  const [searchInput, setSearchInput] = useState(query.search)
   const generationRef = useRef(0)
-  const refreshPanel = useCallback(async () => {
-    const generation = ++generationRef.current
-    setPanelLoading(true)
-    try {
-      const [operationalPayload, summaryPayload] = await Promise.all([
-        getPrintJobs(query),
-        getPrintQueueSummary(),
-      ])
-      if (generation !== generationRef.current) return
-      setOperationalPage({
-        jobs: Array.isArray(operationalPayload?.jobs) ? operationalPayload.jobs : [],
-        pageInfo: operationalPayload?.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 },
+  const refreshAbortRef = useRef(null)
+  const pageCacheRef = useRef(new Map())
+  const updateQuery = useCallback((changes) => onQueryChange(updatePrintQueueQuery(query, changes)), [onQueryChange, query])
+
+  const prefetchAdjacentPages = useCallback((pageInfo, signal) => {
+    const current = Number(pageInfo?.page) || 1
+    const total = Number(pageInfo?.totalPages) || 1
+    const adjacent = [current - 1, current + 1].filter((pageNumber) => pageNumber >= 1 && pageNumber <= total)
+    for (const pageNumber of adjacent) {
+      const nextQuery = { ...query, page: pageNumber }
+      const key = cacheKeyForQuery(nextQuery)
+      if (pageCacheRef.current.has(key)) continue
+      void getPrintJobs(nextQuery, { signal }).then((payload) => {
+        if (signal?.aborted) return
+        pageCacheRef.current.set(key, {
+          jobs: Array.isArray(payload?.jobs) ? payload.jobs : [],
+          pageInfo: payload?.pageInfo || { page: pageNumber, pageSize: 10, totalItems: 0, totalPages: 1 },
+        })
+      }).catch((error) => {
+        if (error?.name !== 'AbortError') onToast?.(error?.message || 'Não foi possível pré-carregar a fila de impressão.')
       })
-      setSummary(summaryPayload?.summary || buildPrintQueueSummary(operationalPayload?.jobs))
-    } catch (error) {
-      if (generation === generationRef.current) onToast?.(error?.message || 'Não foi possível atualizar a fila de impressão.')
-    } finally {
-      if (generation === generationRef.current) setPanelLoading(false)
     }
   }, [onToast, query])
+
+  const refreshPanel = useCallback(async () => {
+    if (!isOnline) {
+      setPanelLoading(false)
+      return
+    }
+    const generation = ++generationRef.current
+    const key = cacheKeyForQuery(query)
+    const cached = pageCacheRef.current.get(key)
+    if (cached) {
+      setOperationalPage(cached)
+      setPanelLoading(false)
+    } else {
+      setPanelLoading(true)
+    }
+    refreshAbortRef.current?.abort()
+    const controller = new AbortController()
+    refreshAbortRef.current = controller
+    try {
+      const [operationalPayload, summaryPayload] = await Promise.all([
+        getPrintJobs(query, { signal: controller.signal }),
+        getPrintQueueSummary({ signal: controller.signal }),
+      ])
+      if (generation !== generationRef.current || controller.signal.aborted) return
+      const nextPage = {
+        jobs: Array.isArray(operationalPayload?.jobs) ? operationalPayload.jobs : [],
+        pageInfo: operationalPayload?.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 },
+      }
+      pageCacheRef.current.set(key, nextPage)
+      setOperationalPage(nextPage)
+      setSummary(summaryPayload?.summary || buildPrintQueueSummary(operationalPayload?.jobs))
+      prefetchAdjacentPages(nextPage.pageInfo, controller.signal)
+    } catch (error) {
+      if (error?.name !== 'AbortError' && generation === generationRef.current) {
+        onToast?.(error?.message || 'Não foi possível atualizar a fila de impressão.')
+      }
+    } finally {
+      if (refreshAbortRef.current === controller) refreshAbortRef.current = null
+      if (generation === generationRef.current) setPanelLoading(false)
+    }
+  }, [isOnline, onToast, prefetchAdjacentPages, query])
+
   useEffect(() => {
+    setSearchInput(query.search)
+  }, [query.search])
+
+  useEffect(() => {
+    if (searchInput === query.search) return undefined
+    const timer = globalThis.setTimeout?.(() => {
+      onQueryChange(updatePrintQueueQuery(query, { search: searchInput }))
+    }, SEARCH_DEBOUNCE_MS)
+    return () => { if (timer) globalThis.clearTimeout?.(timer) }
+  }, [onQueryChange, query, searchInput])
+
+  useEffect(() => {
+    if (!isOnline) {
+      refreshAbortRef.current?.abort()
+      setPanelLoading(false)
+      return undefined
+    }
     void refreshPanel()
     const timer = globalThis.setInterval?.(() => { void refreshPanel() }, 10000)
     return () => {
       generationRef.current += 1
+      refreshAbortRef.current?.abort()
       if (timer) globalThis.clearInterval?.(timer)
     }
-  }, [refreshPanel])
+  }, [isOnline, refreshPanel])
   const ordersById = new Map(orders.map((order) => [String(order.id), order]))
   const operationalJobs = sortPrintQueueJobsForDisplay(
     Array.isArray(operationalPage.jobs) ? operationalPage.jobs : [],
@@ -105,10 +174,9 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   )
   const jobRows = operationalJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const pageInfo = operationalPage.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 }
-  const hasActiveFilters = Boolean(query.search.trim()) || Boolean(query.status) || Boolean(query.trigger)
+  const hasActiveFilters = Boolean(searchInput.trim()) || Boolean(query.status) || Boolean(query.trigger)
   const physicalReady = printing?.printerHealth?.state === 'ready'
   const recoveryState = printing?.recoveryState || station?.recoveryState || 'normal'
-  const updateQuery = (changes) => onQueryChange(updatePrintQueueQuery(query, changes))
   const selectedDetails = selectedJob ? getPrintJobDetails(selectedJob, {
     order: ordersById.get(String(selectedJob.orderId)),
     stations: printing?.stations,
@@ -123,19 +191,24 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   }
   const getUnknownAttempt = (job) => job?.attempt || job?.attempts?.find((attempt) => attempt?.status === 'unknown' && !attempt?.resolution) || null
   const runAction = async (action) => {
+    if (!isOnline) {
+      onToast?.(OFFLINE_MUTATION_MESSAGE)
+      return false
+    }
     if ((EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting) || !selectedJob || actionPending) return false
     setActionPending(true)
     try {
-      if (action === 'printNow') await printing?.requestPrintNow?.(selectedJob)
-      if (action === 'retry') await printing?.requestRetry?.(selectedJob)
-      if (action === 'discard') await printing?.requestDiscard?.(selectedJob)
-      if (action === 'forcePrint') await printing?.requestForcePrint?.(selectedJob)
-      if (action === 'requestSecondCopy') await printing?.requestSecondCopy?.(selectedJob)
-      if (action === 'skipSecondCopy') await printing?.skipSecondCopy?.(selectedJob)
-      if (action === 'confirmPrinted') await printing?.confirmUnknownPrinted?.(selectedJob, getUnknownAttempt(selectedJob))
-      if (action === 'confirmNotPrinted') await printing?.confirmUnknownNotPrinted?.(selectedJob, getUnknownAttempt(selectedJob))
+      if (action === 'printNow') await printing?.requestPrintNow?.(selectedJob, { refreshManager: false })
+      if (action === 'retry') await printing?.requestRetry?.(selectedJob, { refreshManager: false })
+      if (action === 'discard') await printing?.requestDiscard?.(selectedJob, { refreshManager: false })
+      if (action === 'forcePrint') await printing?.requestForcePrint?.(selectedJob, { refreshManager: false })
+      if (action === 'requestSecondCopy') await printing?.requestSecondCopy?.(selectedJob, { refreshManager: false })
+      if (action === 'skipSecondCopy') await printing?.skipSecondCopy?.(selectedJob, { refreshManager: false })
+      if (action === 'confirmPrinted') await printing?.confirmUnknownPrinted?.(selectedJob, getUnknownAttempt(selectedJob), { refreshManager: false })
+      if (action === 'confirmNotPrinted') await printing?.confirmUnknownNotPrinted?.(selectedJob, getUnknownAttempt(selectedJob), { refreshManager: false })
       onToast?.({ printNow: 'Pedido priorizado na fila', retry: 'Nova tentativa enviada para a fila', discard: 'Trabalho de impressão descartado', forcePrint: 'Impressão autorizada e enviada para a fila', requestSecondCopy: '2ª via enviada para a fila', skipSecondCopy: '2ª via dispensada', confirmPrinted: 'Via confirmada como impressa', confirmNotPrinted: 'Via reenviada para a fila' }[action])
       closeDetails()
+      pageCacheRef.current.clear()
       await refreshPanel()
     } catch (error) {
       onToast?.(error?.message || 'Não foi possível concluir a operação.')
@@ -145,6 +218,10 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
     }
   }
   const requestAction = (action) => {
+    if (!isOnline) {
+      onToast?.(OFFLINE_MUTATION_MESSAGE)
+      return false
+    }
     if ((EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting)) return false
     if (action === 'discard' || action === 'forcePrint' || action === 'requestSecondCopy' || action === 'skipSecondCopy') setConfirmation(action)
     else if (action === 'confirmNotPrinted') setUnknownConfirmation(action)
@@ -155,12 +232,17 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
     else void runAction(action)
   }
   const confirmReprint = async () => {
+    if (!isOnline) {
+      onToast?.(OFFLINE_MUTATION_MESSAGE)
+      return false
+    }
     if (!canExecutePrinting || !selectedJob || !reprintCopies || actionPending) return false
     setActionPending(true)
     try {
-      await printing?.requestReprint?.(selectedJob, reprintCopies)
+      await printing?.requestReprint?.(selectedJob, reprintCopies, { refreshManager: false })
       onToast?.('Reimpressão adicionada à fila')
       closeDetails()
+      pageCacheRef.current.clear()
       await refreshPanel()
     } catch (error) {
       onToast?.(error?.message || 'Não foi possível concluir a reimpressão.')
@@ -169,11 +251,16 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
     }
   }
   const runRecoveryAction = async (action) => {
+    if (!isOnline) {
+      onToast?.(OFFLINE_MUTATION_MESSAGE)
+      return
+    }
     if (recoveryPending) return
     setRecoveryPending(true)
     try {
       if (action === 'resume') await printing?.resumeRecovery?.()
       if (action === 'next') await printing?.printNextRecovery?.()
+      pageCacheRef.current.clear()
       await refreshPanel()
     } catch (error) {
       onToast?.(error?.message || 'Não foi possível continuar a recuperação da impressão.')
@@ -224,8 +311,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
         <section className="print-queue-recovery-banner" aria-live="polite">
           <div><strong>Recuperação de impressão em andamento</strong><span>O consumidor normal permanece pausado até a conclusão segura.</span></div>
           <div className="print-queue-recovery-actions">
-            {recoveryState === 'deferred' && <Button type="button" variant="secondary" onClick={() => void runRecoveryAction('resume')} disabled={recoveryPending}>Retomar recuperação</Button>}
-            <Button type="button" onClick={() => void runRecoveryAction('next')} disabled={recoveryPending || recoveryState !== 'active'}>Imprimir próxima via</Button>
+            {recoveryState === 'deferred' && <Button type="button" variant="secondary" onClick={() => void runRecoveryAction('resume')} disabled={recoveryPending || !isOnline}>Retomar recuperação</Button>}
+            <Button type="button" onClick={() => void runRecoveryAction('next')} disabled={recoveryPending || !isOnline || recoveryState !== 'active'}>Imprimir próxima via</Button>
           </div>
         </section>
       )}
@@ -250,8 +337,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
               type="search"
               aria-label="Buscar pedido, cliente ou mesa"
               placeholder="Buscar pedido, cliente ou mesa"
-              value={query.search}
-              onChange={(event) => updateQuery({ search: event.target.value })}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
             />
           </label>
           <label className="print-queue-filter-control">
@@ -318,8 +405,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
           <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">
             <Button type="button" variant="secondary" className="print-queue-detail-close" onClick={closeDetails} disabled={actionPending}>Fechar</Button>
             {selectedJob?.type === 'order' && selectedJob?.document?.type === 'order' && <Button type="button" variant="secondary" className="print-queue-detail-ticket" onClick={() => setShowTicket(true)} disabled={actionPending}>Ver ticket</Button>}
-            {selectedDetails.actions.filter((action) => ['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending || !canDiscardPrinting}>{action.label}</Button>)}
-            {selectedDetails.actions.filter((action) => !['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending || (EXECUTE_ACTIONS.has(action.key) && !canExecutePrinting)}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => ['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending || !isOnline || !canDiscardPrinting}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => !['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending || !isOnline || (EXECUTE_ACTIONS.has(action.key) && !canExecutePrinting)}>{action.label}</Button>)}
           </div>}>
           {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
           <div className="print-queue-detail-sections">
@@ -342,7 +429,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       )}
       {canExecutePrinting && showReprint && selectedDetails && <Modal title={`Reimprimir ${selectedDetails.title}`} onClose={() => setShowReprint(false)} footer={<div className="print-queue-reprint-actions">
         <Button type="button" variant="secondary" onClick={() => setShowReprint(false)} disabled={actionPending}>Cancelar</Button>
-        <Button type="button" onClick={() => void confirmReprint()} disabled={!reprintCopies || actionPending}>Confirmar reimpressão</Button>
+        <Button type="button" onClick={() => void confirmReprint()} disabled={!reprintCopies || actionPending || !isOnline}>Confirmar reimpressão</Button>
       </div>}>
         <p className="print-queue-reprint-copy">Escolha a quantidade de vias para o novo trabalho.</p>
         <div className="print-queue-reprint-options" role="group" aria-label="Quantidade de vias">
@@ -360,7 +447,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
         confirmVariant={confirmation === 'requestSecondCopy' ? 'primary' : confirmation === 'skipSecondCopy' ? 'danger' : confirmation === 'discard' ? 'secondary' : undefined}
         onClose={() => setConfirmation(null)}
         onConfirm={() => void runAction(confirmation)}
-        disabled={actionPending || (EXECUTE_ACTIONS.has(confirmation) && !canExecutePrinting) || (DISCARD_ACTIONS.has(confirmation) && !canDiscardPrinting)}
+        disabled={actionPending || !isOnline || (EXECUTE_ACTIONS.has(confirmation) && !canExecutePrinting) || (DISCARD_ACTIONS.has(confirmation) && !canDiscardPrinting)}
       />}
       {unknownConfirmation === 'confirmNotPrinted' && selectedDetails?.unknownOutcome && <ConfirmationDialog
         title="Reenviar esta via?"

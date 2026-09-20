@@ -673,17 +673,17 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response
   }, [refresh, updateLocalStation])
 
-  const confirmUnknownPrinted = useCallback(async (job, attempt) => {
+  const confirmUnknownPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
     if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
     const response = await resolvePrintOutcome(job.id, attempt.id, 'manual_printed')
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const confirmUnknownNotPrinted = useCallback(async (job, attempt) => {
+  const confirmUnknownNotPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
     if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
     const response = await resolvePrintOutcome(job.id, attempt.id, 'manual_not_printed')
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
@@ -714,61 +714,61 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     },
   }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
-  const requestPrintNow = useCallback(async (jobOrId) => {
+  const requestPrintNow = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await prioritizePrintJob(jobId)
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const requestRetry = useCallback(async (jobOrId) => {
+  const requestRetry = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await retryPrintJob(jobId)
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const requestDiscard = useCallback(async (jobOrId) => {
+  const requestDiscard = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await discardPrintJob(jobId)
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const requestSecondCopy = useCallback(async (jobOrId) => {
+  const requestSecondCopy = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await requestSecondCopyApi(jobId)
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const skipSecondCopy = useCallback(async (jobOrId) => {
+  const skipSecondCopy = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await skipSecondCopyApi(jobId)
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const requestForcePrint = useCallback(async (jobOrId) => {
+  const requestForcePrint = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     const response = await forcePrintJobApi(jobId)
-    await refresh()
+    if (refreshManager) await refresh()
     return response
   }, [refresh])
 
-  const requestReprint = useCallback(async (jobOrId, copies) => {
+  const requestReprint = useCallback(async (jobOrId, copies, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
     if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
     try {
       return await reprintPrintJob(jobId, copies)
     } finally {
-      await refresh()
+      if (refreshManager) await refresh()
     }
   }, [refresh])
 
