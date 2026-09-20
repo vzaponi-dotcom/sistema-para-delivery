@@ -337,9 +337,24 @@ The current policy is authoritative:
 - QZ certificate/sign remain `/api/printing/qz/certificate` and POST `/api/printing/qz/sign` with `{ toSign }`; QZ security uses SHA512 and the same certificate/sign callbacks.
 - `printing.css` and `print-queue.css` are content/hash-identical to C8. CP860, MTP5 profile, manual renderer, recovery rules, QZ status monitor and QZ attempt controller are also content-identical after ownership moves.
 - No production direct `qz-tray` import exists outside `src/infrastructure/qz/`, enforced by the candidate architecture gate.
-- Staging: **NOT STARTED**.
-- Functional QA: **NOT STARTED**.
-- Physical QZ QA: **NOT STARTED**.
-- Merge: **NOT AUTHORIZED**.
-- Production: **NO DEPLOY**.
-- Next task: **Task 11 — staging + functional QA**.
+- Staging: **DEPLOYED / GREEN** on exact code SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71` by run `35512327093`; Worker `b88c06e5-2165-428e-8af7-d6ab8271fada`; no migrations; readiness 1/6; login HTTP 200.
+- Functional QA: **CLOSED UNDER REVISED RELEASE POLICY** — **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING**.
+- Physical QZ QA: **20 DEFERRED-PRODUCTION**. This is not PASS. It is a hard pre-production release gate to be executed on the final post-C10 staging release candidate.
+- Merge: **NOT AUTHORIZED**; final docs/policy HEAD still requires Validate before merge authorization is requested.
+- Production: **NO DEPLOY / HARD BLOCKED BY DEFERRED C9 RELEASE GATE**.
+- Next task: **Task 12 — validate docs closure, then request explicit C9 merge authorization and hand off C10**.
+
+
+## Task 11 / Task 12 release-policy checkpoint — 2026-09-20
+
+- User-approved policy change: physical QZ output no longer blocks **C9 merge or C10 execution**; it blocks **production**.
+- Last code-changing SHA: `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71`.
+- Validate #1511 / run `35512044736`: SUCCESS, **1,911 tests / 1,910 pass / 0 fail / 1 skipped**; architecture/lint/build/Worker dry-runs/local D1/Spec B D1 green.
+- Deploy staging run `35512327093`: SUCCESS on exact SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71`; no migrations; Worker `b88c06e5-2165-428e-8af7-d6ab8271fada`; readiness 1/6; login HTTP 200.
+- Manual improvements verified in staging: faster pagination, debounced search, faster prioritize/discard path, offline mutation guard, printed/discarded filters, and explicit neutral `Descartado` badge.
+- Task 11 totals: **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING**.
+- Accepted BLOCKED: #35 restricted capabilities — no suitable identity.
+- Deferred functional rows: #12, #14–21, #24, #30, #31.
+- Physical P1–P20: **20 DEFERRED-PRODUCTION**.
+- Required pre-production rule: after C10, deploy the final release candidate to staging and execute all deferred functional rows plus P1–P20. Every one must PASS before production can be authorized.
+- Any hardware-round defect reopens implementation: write/adjust RED, implement GREEN, run full Validate, redeploy staging and repeat affected cases.

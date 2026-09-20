@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Status:** **APPROVED FOR EXECUTION — TASKS 1–10 COMPLETE / GREEN; TASK 11 NOT STARTED** — Native/inline execution.
+**Status:** **TASKS 1–11 FUNCTIONALLY CLOSED UNDER REVISED RELEASE POLICY; TASK 12 PRE-MERGE CLOSURE ACTIVE; PHYSICAL QA DEFERRED TO PRE-PRODUCTION** — Native/inline execution.
 
 **Goal:** Establish domains/printing as the frontend owner of operational printing while isolating qz-tray under src/infrastructure/qz, preserving every current queue, copies, recovery, unknown-outcome, settings, capability and physical-print behavior.
 
@@ -29,7 +29,7 @@
 - Preserve current CSS behavior, light/dark, breakpoints and functional text. No redesign.
 - Worker, migrations, D1 schema and workflows are unchanged unless a proven blocker requires a ledgered ruling.
 - qz-tray production import must end exclusively under src/infrastructure/qz.
-- No production deploy. Merge requires separate explicit authorization after staging and physical QA.
+- No production deploy. Merge still requires separate explicit authorization after staging functional QA and final Validate. By explicit project decision on 2026-09-20, real-hardware/QZ QA may be recorded as `DEFERRED-PRODUCTION` and does not block C9 merge or C10 execution; it remains a hard production gate and must be executed on the final post-C10 staging release candidate before any production authorization.
 
 ## Review Focus
 
@@ -1301,7 +1301,7 @@ Any docs commit after the candidate changes HEAD and therefore requires its own 
 - Consumes exact validated feature HEAD.
 - Produces exact staged SHA and functional QA matrix.
 
-- [ ] **Step 1: Dispatch staging on exact feature branch**
+- [x] **Step 1: Dispatch staging on exact feature branch**
 
 Use .github/workflows/deploy-staging.yml via workflow_dispatch. Do not modify triggers.
 
@@ -1315,7 +1315,7 @@ Record:
 
 If HEAD differs from the validated candidate, validate the new SHA before treating it as staged candidate.
 
-- [ ] **Step 2: Execute functional manual matrix**
+- [x] **Step 2: Execute functional manual matrix**
 
 Start every row PENDING. Record only PASS/FAIL/BLOCKED actually observed.
 
@@ -1361,15 +1361,17 @@ Minimum matrix:
 | 36 | App navigation/orders/history/table-service smoke | Printing actions still available through public contract |
 | 37 | UTF-8 / light-dark / responsive smoke | No visual/copy regression |
 
-- [ ] **Step 3: Functional closure rule**
+- [x] **Step 3: Functional closure rule — revised 2026-09-20**
 
-Functional QA requires 0 FAIL / 0 PENDING. Capability-only cases may be accepted BLOCKED if the fixture does not exist. Physical cases are not part of this exception; Task 12 must execute them.
+Functional QA may close for C9 merge with **0 FAIL** when every unexecuted hardware/QZ-dependent row is explicitly classified `DEFERRED-PRODUCTION` and mapped to the mandatory pre-production gate below. Capability-only cases may remain `BLOCKED` when the fixture does not exist. `DEFERRED-PRODUCTION` is not PASS and cannot satisfy production readiness.
 
-Any code fix requires RED→GREEN, new Validate, new staging and repeat affected cases.
+Current functional result on staged SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71`: **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING**. The capability case is #35. Deferred rows are #12, #14–21, #24, #30 and #31.
+
+Any code fix still requires RED→GREEN, new Validate, new staging and repeat of affected cases. Any defect found during the deferred hardware round must be fixed before production.
 
 ---
 
-### Task 12: Perform mandatory physical QZ QA and close C9 for merge
+### Task 12: Close C9 for merge and register mandatory physical QA as a pre-production gate
 
 **Files:**
 - Update: docs/superpowers/qa/spec-c9-printing-qa.md
@@ -1381,19 +1383,20 @@ Any code fix requires RED→GREEN, new Validate, new staging and repeat affected
 - Update PR body.
 
 **Interfaces:**
-- Consumes staging-functional GREEN candidate.
-- Produces physical acceptance evidence and pre-merge handoff.
-- Does not merge until separate explicit authorization.
+- Consumes the staging-functional C9 candidate.
+- Produces a truthful pre-merge handoff with hardware QA explicitly deferred, never inferred PASS.
+- Allows C10 to start from post-C9 master after explicit C9 merge authorization.
+- Keeps production hard-blocked until the deferred matrix passes on the final post-C10 staging release candidate.
 
-- [ ] **Step 1: Execute the physical matrix on the exact staged SHA**
+- [x] **Step 1: Ratify the 2026-09-20 physical-QA deferral decision**
 
-Required real hardware/QZ cases:
+The previously required real-hardware matrix remains mandatory, but its timing moves from **pre-C9-merge** to **pre-production**. All rows begin and remain `DEFERRED-PRODUCTION` until physically executed:
 
-| # | Physical case | Required result |
+| # | Physical case | Required result before production |
 |---:|---|---|
 | P1 | Entrega/Retirada default 1 | Exactly one physical copy |
 | P2 | Entrega/Retirada default 2 | 1/2 then 2/2 only after decision |
-| P3 | Local without table | Follows orderDefaultCopies |
+| P3 | Local without table | Follows orderDefaultCopies; use a controlled API/fixture if the current UI has no no-table Local path |
 | P4 | Table-linked order default 1 | Exactly one copy |
 | P5 | Table-linked order default 2 | 1/2 then 2/2 |
 | P6 | Table-tab summary default 1 | Exactly one copy |
@@ -1412,32 +1415,30 @@ Required real hardware/QZ cases:
 | P19 | Physical non-ready state | No new claim/send |
 | P20 | SPOOLING without COMPLETE | No silent retry/duplicate |
 
-All P1–P20 must be PASS. They are not merge-acceptable BLOCKED cases.
+The functional Task 11 rows **#12, #14–21, #24, #30 and #31** are also carried into the same pre-production staging round because they require a known failure, second-copy/unknown/recovery state, a controlled no-table fixture, or an eligible Windows/QZ station.
 
-- [ ] **Step 2: Reconcile final docs**
+**Merge rule after this decision:** C9 may merge with those rows marked `DEFERRED-PRODUCTION` if there are **0 FAIL / 0 PENDING**, all non-hardware functional rows are PASS or the capability-only row is accepted BLOCKED, the final documentation HEAD passes Validate, and the user separately authorizes merge.
+
+**Production rule:** no production authorization or deploy is permitted while any deferred functional row or P1–P20 remains unexecuted or non-PASS. The hardware round must run on the **final release candidate after C10**, not merely on the historical C9 SHA. If it finds a defect: RED→GREEN fix → full Validate → redeploy staging → repeat affected physical cases → only then reconsider production.
+
+- [x] **Step 2: Reconcile the release-policy documents**
 
 Record:
-- last code-changing SHA;
-- exact staged/homologated SHA;
-- functional QA totals;
-- physical QA totals;
-- accepted capability BLOCKED, if any;
-- no surviving C9 temporary facade;
-- qz allowlist debt removed;
-- no production deploy.
+- last code-changing SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71`;
+- exact latest staged C9 SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71`;
+- Deploy staging run `35512327093`, Worker version `b88c06e5-2165-428e-8af7-d6ab8271fada`, readiness 1/6, login HTTP 200, no migrations to apply;
+- functional QA **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING**;
+- physical P1–P20 **20 DEFERRED-PRODUCTION**;
+- no surviving C9 temporary facade and empty direct-QZ allowlist debt;
+- production remains untouched.
 
-- [ ] **Step 3: Commit final docs and Validate the exact final HEAD**
+- [ ] **Step 3: Validate the exact documentation-closure HEAD**
 
-After documentation closure, run the full Validate workflow on that exact HEAD. Reconfirm:
-- PR head SHA;
-- Validate SUCCESS;
-- mergeable state;
-- no unresolved review thread;
-- master unchanged since branch base or resolve any drift before merge.
+Run the full Validate workflow on the exact docs/policy HEAD. Reconfirm PR head SHA, SUCCESS, mergeable state, no unresolved review thread, and master/base drift before asking for merge authorization.
 
 - [ ] **Step 4: Ask for explicit merge authorization**
 
-Task/spec/plan/QA approval is not merge authorization.
+Task/spec/plan/QA approval and the physical-QA deferral decision are **not** merge authorization.
 
 Only after the user explicitly authorizes merge:
 - mark PR ready if still draft;
@@ -1446,9 +1447,9 @@ Only after the user explicitly authorizes merge:
 - confirm master at that SHA;
 - confirm post-merge Validate on the exact merge SHA.
 
-- [ ] **Step 5: Stop after post-merge validation**
+- [ ] **Step 5: Stop after post-merge validation and hand off C10**
 
-Do not deploy production. Do not start C10 automatically. C10 handoff uses the actual validated post-C9 master.
+Do not deploy production. C10 starts from the actual validated post-C9 master. The deferred C9 hardware matrix remains a program-level pre-production release gate through C10 closure.
 
 ---
 

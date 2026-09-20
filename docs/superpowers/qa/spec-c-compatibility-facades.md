@@ -294,3 +294,11 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Task 9 made the empty state permanent through the architecture checker and removed the stale direct-QZ allowlist debt.
 - Task 10 audit confirmed no unexplained C9 facade, no production owner under `src/printing/`, no Printing API export in `src/api/client.js`, no production direct `qz-tray` outside QZ infrastructure, and no semantic drift in the preserved polling/storage/API/QZ/CSS contracts.
 - Remaining compatibility work in the program is unrelated C10 generic/auth closure; it is not C9 Printing debt.
+
+
+## C9 status / pre-production release gate — 2026-09-20
+
+- C9 leaves **no temporary Printing compatibility facade**. Legacy Printing production owners and Printing-specific `src/api/client.js` exports remain physically removed and architecture-enforced.
+- Production `qz-tray` imports remain confined to `src/infrastructure/qz/`; the direct-QZ migration allowlist debt is empty.
+- The only surviving top-level compatibility row relevant to C10 is the generic/auth `src/api/client.js` reexport row already listed above.
+- Physical QZ QA is **not a compatibility facade** and is not recorded as architectural PASS. By explicit project decision, P1–P20 and the hardware-dependent Task 11 rows are `DEFERRED-PRODUCTION`; they must all pass on the final post-C10 staging release candidate before production.
