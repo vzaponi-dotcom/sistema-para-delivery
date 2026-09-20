@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **PLAN APPROVED / TASKS 1–2 COMPLETE / TASK 3 NOT STARTED**  
+**Status:** **PLAN APPROVED / TASKS 1–4 COMPLETE / TASK 5 NOT STARTED**  
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -275,6 +275,58 @@ Task 1 is **COMPLETE**. No production code changed.
 
 Task 2 is **COMPLETE / GREEN**.
 
+## Task 3 — Dashboard app surface
+
+### RED
+- SHA: `bf22c259b625c53390c26b6c002b232fdc106aa7`.
+- Validate #1525 / run `35519040678`: **FAIL as intended**.
+- Suite: **1,915 tests / 1,912 pass / 2 fail / 1 skipped**.
+
+### GREEN
+- First implementation: `48fcd7c748bfd7d132fd257a38cf4b3c3701f301`; #1526 found one stale test path only.
+- Final GREEN: `93e1b007460593f298a251261f61b01db897c8e2`.
+- Validate #1527 / run `35519448927`: **SUCCESS**, **1,915 tests / 1,914 pass / 0 fail / 1 skipped**.
+- All architecture/lint/build/Worker/D1 gates: **PASS**.
+
+### Result
+- Dashboard owner: `src/app/surfaces/dashboard/DashboardSurface.jsx`.
+- Dashboard analytics + line/payment charts are co-located with the surface.
+- `src/pages/Dashboard.jsx`, `src/utils/dashboardAnalytics.js`, DashboardPeriodProvider/context and Dashboard-only component owners are removed.
+- period/privacy continue in query context; AppShell has no Dashboard-specific provider.
+- Dashboard totals moved out of App and are projected inside the surface from official orders/movements.
+- Task 3: **COMPLETE / GREEN**.
+
+## Task 4 — frontend shared ownership
+
+### RED
+- SHA: `19e9b181ad7e20606055cbcbfac4cc73bf76830a`.
+- Validate #1528 / run `35519614298`: **FAIL as intended**.
+- Suite: **1,918 tests / 1,914 pass / 3 fail / 1 skipped**.
+- Intended failures required shared UI, shared hook/util owners and no domain import from frontend shared.
+
+### GREEN
+- Ownership move candidate: `da28f9b635632169b75c1ee0145f8d2fd7b004a6`; #1529 exposed remaining old paths.
+- Production/test path alignment: `01f66ab8081b52a66d7cb04bbe93762d09de4dbf`; #1530 left two stale source assertions.
+- Final assertion alignment: `0afe78933848e5fa12f291ea8ed9698ca9c63d97`.
+- Validate #1531 / run `35524322503`: **SUCCESS**, **1,918 tests / 1,917 pass / 0 fail / 1 skipped**.
+- Frontend architecture boundaries: **OK**.
+- lint: **0 errors**.
+- build: **PASS**.
+- production Worker dry-run: **PASS**.
+- staging Worker dry-run: **PASS**.
+- local D1: **PASS**.
+- Spec B D1 clean install/upgrade: **PASS**.
+
+### Result
+- `src/shared/ui`: BottomSheet, Button, ConfirmationDialog, Icon, Modal, PageHeader, StatCard, StatusBadge, SystemSelect, scrollLock, DashboardBarChart, DashboardPeriodSelector.
+- `src/shared/hooks/useMediaQuery.js`.
+- `src/shared/utils/formFormatting.js`.
+- Production consumers use final shared paths.
+- Old owners under `src/components`, `src/hooks` and `src/utils/formFormatting.js` are physically absent.
+- No domain import exists from `src/shared/**`.
+- No compatibility facade was introduced.
+- Task 4: **COMPLETE / GREEN**.
+
 ## Next action
 
-**Task 3 — Establish Dashboard as an app surface — is NOT STARTED.**
+**Task 5 — Close residual `src/components` / `src/utils` ownership — is NOT STARTED.**

@@ -321,3 +321,12 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - The compatibility-only `deleteOrder` export no longer exists.
 - **Active temporary compatibility facade inventory is now zero.**
 - Task 8 still owns deletion of the semantically-empty migration allowlist and permanent final scaffolding closure; this Task 2 checkpoint does not pre-claim Task 8.
+
+
+## C10 Tasks 3–4 compatibility checkpoint — 2026-09-20
+
+- Task 3 Dashboard ownership move introduced **no compatibility facade**; legacy Dashboard page/util/provider owners were removed directly.
+- Task 4 frontend shared ownership move introduced **no compatibility reexport or mega shared barrel**; consumers were migrated directly to final `src/shared/{ui,hooks,utils}` paths.
+- Final Task 4 GREEN: `0afe78933848e5fa12f291ea8ed9698ca9c63d97` / Validate #1531 — **SUCCESS**.
+- Active temporary compatibility facade inventory remains **zero**.
+- Migration allowlist deletion remains Task 8 scope.

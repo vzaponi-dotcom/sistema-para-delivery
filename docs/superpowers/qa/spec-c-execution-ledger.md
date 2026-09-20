@@ -26,7 +26,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–2 COMPLETE / GREEN; TASK 3 NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–4 COMPLETE / GREEN; TASK 5 NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -564,3 +564,17 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Task 2 GREEN `9dc095ad235ddcf10074058e42b5a49d76323dab` / Validate #1522 — **SUCCESS**, **1,913 tests / 1,912 pass / 0 fail / 1 skipped**, all gates green.
 - The final `src/api/client.js` / `src/api/effectiveConfigClient.js` production facade is physically removed. Bootstrap/effective-config now belong to `src/infrastructure/api/`; auth remains under `src/infrastructure/auth/`.
 - Task 3 is **NOT STARTED**.
+
+
+# C10 — Tasks 3–4 checkpoint — 2026-09-20
+
+- Task 3 RED `bf22c259b625c53390c26b6c002b232fdc106aa7` / Validate #1525 — intended Dashboard-owner failures.
+- Task 3 final GREEN `93e1b007460593f298a251261f61b01db897c8e2` / Validate #1527 — **SUCCESS**, **1,915 tests / 1,914 pass / 0 fail / 1 skipped**; all gates green.
+- Dashboard production ownership is now under `src/app/surfaces/dashboard/`; the legacy page/util/provider owners are absent; App no longer computes Dashboard totals.
+- Task 4 RED `19e9b181ad7e20606055cbcbfac4cc73bf76830a` / Validate #1528 — **FAIL as intended**, **1,918 tests / 1,914 pass / 3 fail / 1 skipped** for missing frontend shared owners/boundary.
+- Task 4 migration `da28f9b635632169b75c1ee0145f8d2fd7b004a6` and path-alignment `01f66ab8081b52a66d7cb04bbe93762d09de4dbf` exposed and removed only stale old-path dependencies/assertions.
+- Task 4 final GREEN `0afe78933848e5fa12f291ea8ed9698ca9c63d97` / Validate #1531 — **SUCCESS**, **1,918 tests / 1,917 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
+- Frontend shared ownership now exists at `src/shared/{ui,hooks,utils}`; no mega barrel and no domain import from `src/shared/**`.
+- No staging or production deploy occurred.
+- Tasks 1–4: **COMPLETE / GREEN**.
+- Task 5: **NOT STARTED**.

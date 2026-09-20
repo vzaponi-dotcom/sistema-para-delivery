@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **APPROVED — TASKS 1–2 COMPLETE / TASK 3 NOT STARTED**  
+**Status:** **APPROVED — TASKS 1–4 COMPLETE / TASK 5 NOT STARTED**  
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
@@ -27,7 +27,7 @@ C10 is architectural closure. It must not change business behavior, API contract
 - Do not keep compatibility reexports merely to make a commit green.
 - C9 hardware remains `DEFERRED-PRODUCTION` and is never inferred PASS.
 - Every behavior defect found during implementation/QA gets focused RED → GREEN.
-- Implementation plan approved explicitly by the user on 2026-09-20. Tasks 1–2 are complete and green; Task 3 is not started.
+- Implementation plan approved explicitly by the user on 2026-09-20. Tasks 1–4 are complete and green; Task 5 is not started.
 
 ---
 
@@ -150,6 +150,14 @@ Run Dashboard + shell/navigation regressions, then full Validate.
 
 **Exit:** `src/pages` has no production owner.
 
+**Task 3 evidence — COMPLETE / GREEN**
+- RED: `bf22c259b625c53390c26b6c002b232fdc106aa7`; Validate #1525 / run `35519040678` — **FAIL as intended**, **1,915 tests / 1,912 pass / 2 fail / 1 skipped**. The new Dashboard surface owner was absent and the legacy page/provider ownership still existed.
+- GREEN candidate: `48fcd7c748bfd7d132fd257a38cf4b3c3701f301`; Validate #1526 found one stale chart-path characterization after the owner move.
+- Final GREEN: `93e1b007460593f298a251261f61b01db897c8e2`; Validate #1527 / run `35519448927` — **SUCCESS**, **1,915 tests / 1,914 pass / 0 fail / 1 skipped**.
+- architecture ✅; lint 0 errors ✅; build ✅; production Worker dry-run ✅; staging Worker dry-run ✅; local D1 ✅; Spec B D1 clean-install/upgrade ✅.
+- Dashboard production ownership is now `src/app/surfaces/dashboard/`; AppShell no longer carries a Dashboard-specific provider; App no longer computes Dashboard totals; Dashboard consumes official `orders`, `movements` and query state through public domain contracts.
+- No staging or production deploy occurred.
+
 ---
 
 ## Task 4 — Establish frontend `src/shared/{ui,hooks,utils}`
@@ -195,6 +203,18 @@ Path-only ownership move; preserve props, DOM/accessibility, focus/scroll-lock b
 Run shared/component, Table Service responsive, Orders analysis, Settings, Finance and Catalog regressions; then full Validate.
 
 **Exit:** reusable frontend primitives live in `src/shared`; `src/hooks` has no production owner.
+
+**Task 4 evidence — COMPLETE / GREEN**
+- RED: `19e9b181ad7e20606055cbcbfac4cc73bf76830a`; Validate #1528 / run `35519614298` — **FAIL as intended**, **1,918 tests / 1,914 pass / 3 fail / 1 skipped**. The failures required `src/shared/ui`, `src/shared/hooks`, `src/shared/utils` and the no-domain-import shared boundary.
+- GREEN candidate: `da28f9b635632169b75c1ee0145f8d2fd7b004a6`; Validate #1529 exposed legacy test paths plus a few remaining production references to moved primitives.
+- Path-alignment fix: `01f66ab8081b52a66d7cb04bbe93762d09de4dbf`; Validate #1530 reduced the suite to two stale source-contract assertions.
+- Final GREEN: `0afe78933848e5fa12f291ea8ed9698ca9c63d97`; Validate #1531 / run `35524322503` — **SUCCESS**, **1,918 tests / 1,917 pass / 0 fail / 1 skipped**.
+- architecture ✅; lint 0 errors ✅; build ✅; production Worker dry-run ✅; staging Worker dry-run ✅; local D1 ✅; Spec B D1 clean-install/upgrade ✅.
+- Shared UI now owns BottomSheet, Button, ConfirmationDialog, Icon, Modal, PageHeader, StatCard, StatusBadge, SystemSelect, scrollLock, DashboardBarChart and DashboardPeriodSelector.
+- Shared hooks now owns `useMediaQuery`; shared utils owns pure `formFormatting`.
+- Production consumers were re-pointed to final owners with no compatibility facade or mega shared barrel.
+- `src/shared/**` remains domain-independent and the moved formatting utility remains free of React/browser/fetch ownership.
+- No staging or production deploy occurred.
 
 ---
 
@@ -502,4 +522,4 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 
 This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
-Task 1 is the active task. Task 2 must not start until Task 1's exact-head documentation gate is green.
+Tasks 1–4 are complete and green. Task 5 is not started.
