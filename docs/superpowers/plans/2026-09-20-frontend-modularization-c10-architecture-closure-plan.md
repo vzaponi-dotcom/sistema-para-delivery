@@ -523,3 +523,11 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
 Tasks 1–4 are complete and green. Task 5 is not started.
+
+## Final implementation status — 2026-09-20
+
+- Tasks 1–4 remain **COMPLETE / GREEN** as recorded above.
+- Task 5 is **COMPLETE / GREEN**: RED `adae7ba752601b136ffaa8900101ff7456af9be9` / Validate run `35529236782` failed as intended; final GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / run `35529844889` passed with **1,920 tests / 1,919 pass / 0 fail / 1 skipped** and all gates green.
+- Task 6 is **COMPLETE / GREEN**: RED `e06379a25954d600471a82d819f9cf984849f53b` / run `35530065644` failed as intended; final GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977` passed with **1,926 tests / 1,925 pass / 0 fail / 1 skipped** and all gates green.
+- Task 7 is **COMPLETE / GREEN**: RED `85da4cc8beab137b56631cae49e1c30896f24311` / run `35530720316` failed as intended; final GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891` passed with **1,927 tests / 1,926 pass / 0 fail / 1 skipped** and all gates green.
+- Task 8 is **NOT STARTED**. No allowlist deletion, deploy, merge, or post-merge work was performed.

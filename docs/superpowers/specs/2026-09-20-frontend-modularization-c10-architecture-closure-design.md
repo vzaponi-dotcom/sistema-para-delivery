@@ -401,3 +401,7 @@ C10 is complete only when:
 - post-merge master Validate is green.
 
 At that point **Spec C architecture is complete**. Production readiness still requires the deferred C9 physical release gate.
+
+## C10 implementation closure checkpoint — 2026-09-20
+
+Tasks 1–7 are **COMPLETE / GREEN** on `feature/spec-c10-architecture-closure`. Tasks 5–7 closed residual frontend ownership without Worker, migration, D1 schema, API, polling, capability, QZ or business-rule changes. Browser storage is isolated under `src/infrastructure/storage/`, residual shell/theme/data-sync and presentation owners are in their final app/domain paths, and targeted CSS was relocated byte-equivalently with platform-neutral baseline assertions. Task 8 remains **NOT STARTED** by explicit scope; no production or staging deploy occurred.

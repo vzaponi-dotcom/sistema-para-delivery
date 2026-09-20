@@ -578,3 +578,11 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - No staging or production deploy occurred.
 - Tasks 1–4: **COMPLETE / GREEN**.
 - Task 5: **NOT STARTED**.
+
+## C10 — Tasks 5–7 closure — 2026-09-20
+
+- Task 5: RED `adae7ba752601b136ffaa8900101ff7456af9be9` / run `35529236782` failed as intended; GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / run `35529844889` passed **1,920 / 1,919 / 0 / 1**. Residual app shell/theme/runtime data-sync, Orders/Printing presentation ownership and dead `bodyScrollLock` were closed.
+- Task 6: RED `e06379a25954d600471a82d819f9cf984849f53b` / run `35530065644` failed as intended; candidate `7339a2a8447993958e02452495b84e57ad07ecf7` / run `35530250443` exposed one stale kitchen-storage characterization; final GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977` passed **1,926 / 1,925 / 0 / 1**.
+- Task 7: RED `85da4cc8beab137b56631cae49e1c30896f24311` / run `35530720316` failed as intended; final GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891` passed **1,927 / 1,926 / 0 / 1**.
+- Every GREEN run passed frontend architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 gates. No staging or production deploy occurred; no Worker or migration files changed.
+- C10 Tasks 1–7: **COMPLETE / GREEN**. Task 8: **NOT STARTED**.

@@ -448,6 +448,8 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Current status — 2026-09-20:** draft PR #54 is open from the exact post-C9 base `2b5060c8293fec6756b286627212b740b3147e53`. The C10 design is **APPROVED** and establishes frontend `src/shared/{ui,hooks,utils}`, closes residual generic roots by real ownership, removes the final API facade/migration allowlist, and adds generic domain-purity/cycle gates. The detailed implementation plan was **APPROVED explicitly by the user on 2026-09-20**. Tasks 1–4 are **COMPLETE / GREEN**. Task 3 final GREEN `93e1b007460593f298a251261f61b01db897c8e2` passed Validate #1527 with **1,915 tests / 1,914 pass / 0 fail / 1 skipped** and moved Dashboard to `src/app/surfaces/dashboard/` without behavior drift. Task 4 final GREEN `0afe78933848e5fa12f291ea8ed9698ca9c63d97` passed Validate #1531 with **1,918 tests / 1,917 pass / 0 fail / 1 skipped** and established frontend `src/shared/{ui,hooks,utils}` with no compatibility facade. Task 5 has not started.
 
+**Current status update — 2026-09-20:** C10 Tasks 1–7 are **COMPLETE / GREEN**. Task 5 final GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / Validate run `35529844889` passed **1,920 / 1,919 / 0 / 1**; Task 6 final GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977` passed **1,926 / 1,925 / 0 / 1**; Task 7 final GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891` passed **1,927 / 1,926 / 0 / 1**. All runs passed architecture/lint/build/Worker dry-run/D1 gates. No deploy occurred. Task 8 is **NOT STARTED** and no merge was performed.
+
 **Must end with:**
 
 - temporary facade ledger empty;

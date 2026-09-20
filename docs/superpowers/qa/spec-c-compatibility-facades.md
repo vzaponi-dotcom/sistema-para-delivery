@@ -330,3 +330,10 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Final Task 4 GREEN: `0afe78933848e5fa12f291ea8ed9698ca9c63d97` / Validate #1531 — **SUCCESS**.
 - Active temporary compatibility facade inventory remains **zero**.
 - Migration allowlist deletion remains Task 8 scope.
+
+## C10 Tasks 5–7 compatibility closure — 2026-09-20
+
+- Tasks 5–7 introduced **no compatibility facade**. Residual shell/theme/runtime, storage, Orders/Printing presentation and targeted CSS ownership moved directly to final owners.
+- Task 5 GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / Validate run `35529844889`; Task 6 GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977`; Task 7 GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891`.
+- Active temporary compatibility facade inventory remains **zero**. Direct browser storage is no longer owned by App, and targeted legacy CSS roots are absent.
+- Task 8 remains **NOT STARTED** and was not claimed by this implementation.
