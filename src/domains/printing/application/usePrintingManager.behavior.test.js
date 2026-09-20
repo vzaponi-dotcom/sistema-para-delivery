@@ -20,7 +20,7 @@ import {
   initializeBackgroundPhysicalTransport,
   usePrintingManager,
 } from './usePrintingManager.js'
-import { createPhysicalJobFailureNotifier } from './physicalOperation.js'
+import { createPhysicalJobFailureNotifier, runExclusivePrintOperation } from './physicalOperation.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 
 const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
@@ -94,7 +94,7 @@ test('a non-normal recovery state pauses the normal consumer while the manager u
 })
 
 test('manager installs spooler monitoring before QZ jobs and routes QZ execution through persisted attempts', () => {
-  assert.match(managerSource, /createQzStatusMonitor/)
+  assert.match(managerSource, /qzTransport\.createStatusMonitor/)
   assert.match(managerSource, /executeQzPrintAttempt|qzAttempt/)
   assert.match(managerSource, /createPrintAttempt/)
   assert.match(managerSource, /markPrintAttemptSubmitting/)
@@ -106,7 +106,7 @@ test('manager installs spooler monitoring before QZ jobs and routes QZ execution
 })
 
 test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {
-  assert.equal(typeof managerModule.runExclusivePrintOperation, 'function')
+  assert.equal(typeof runExclusivePrintOperation, 'function')
   let activeOwner = null
   let releaseFirst
   const firstPending = new Promise((resolve) => { releaseFirst = resolve })
@@ -119,14 +119,14 @@ test('one shared operation gate rejects overlapping physical workflows and relea
     if (activeOwner === owner) activeOwner = null
   }
 
-  const first = managerModule.runExclusivePrintOperation({ acquire, release, operation: () => firstPending })
+  const first = runExclusivePrintOperation({ acquire, release, operation: () => firstPending })
   await assert.rejects(
-    () => managerModule.runExclusivePrintOperation({ acquire, release, operation: async () => 'overlap' }),
+    () => runExclusivePrintOperation({ acquire, release, operation: async () => 'overlap' }),
     (error) => error.code === 'PRINT_OPERATION_BUSY',
   )
   releaseFirst('first')
   assert.equal(await first, 'first')
-  assert.equal(await managerModule.runExclusivePrintOperation({ acquire, release, operation: async () => 'next' }), 'next')
+  assert.equal(await runExclusivePrintOperation({ acquire, release, operation: async () => 'next' }), 'next')
 })
 
 test('every manual physical workflow acquires the shared operation gate before claiming', () => {
@@ -161,8 +161,8 @@ test('transport support alone cannot bypass station and local-readiness guards',
 })
 
 test('QZ close invalidates readiness and heartbeat responses cannot overwrite newer state', () => {
-  assert.match(managerSource, /setClosedCallbacks/)
-  assert.match(managerSource, /qzReadinessRef\.current\.invalidate\(\)/)
+  assert.match(managerSource, /qzTransport\.onClosed/)
+  assert.match(managerSource, /qzReadinessRef\.current\?\.invalidate\?\.\(\)/)
   assert.match(managerSource, /const heartbeatSequenceRef = useRef\(0\)/)
   assert.match(managerSource, /heartbeatInFlightRef\.current/)
   assert.match(managerSource, /sequence === heartbeatSequenceRef\.current/)
