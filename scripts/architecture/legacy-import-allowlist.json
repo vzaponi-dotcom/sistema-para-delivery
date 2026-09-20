@@ -1,6 +1,4 @@
 {
-  "qzDirectImports": [
-    "src/printing/usePrintingManager.js"
-  ],
+  "qzDirectImports": [],
   "crossDomainInternals": []
 }

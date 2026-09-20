@@ -87,6 +87,73 @@ const C8_UPDATE_COLLECTION_PATTERN = /\bupdateCollection\b/
 const C8_SHARED_METADATA_PATTERN = /\b(?:CATEGORY_ICON_NAMES|PRODUCT_CATEGORY_OPTIONS|categoryForUi|suggestPresentationType|DEFAULT_PRESENTATION)\b/
 const C8_DOMAIN_BROWSER_PATTERN = /\b(?:window|document|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
 
+const C9_LEGACY_PRINTING_OWNERS = new Set([
+  'src/pages/PrintQueue.jsx',
+  'src/pages/printQueueDetails.js',
+  'src/pages/printQueueFilters.js',
+  'src/pages/printQueueQuery.js',
+  'src/pages/printQueueSummary.js',
+  'src/components/PrintingSettings.jsx',
+  'src/components/PrintingSettingsContent.jsx',
+])
+const C9_PRINTING_API_EXPORTS = new Set([
+  'getTableTabPrintDocument',
+  'createManualTableTabPrintJob',
+  'getPrintSettings',
+  'savePrintSettings',
+  'getPrintStations',
+  'upsertPrintStation',
+  'heartbeatPrintStation',
+  'makePrimaryPrintStation',
+  'getPrintJobs',
+  'getPrintQueueSummary',
+  'createPrintAttempt',
+  'markPrintAttemptSubmitting',
+  'recordPrintAttemptEvent',
+  'resolvePrintOutcome',
+  'setPrintStationRecovery',
+  'claimNextRecoveryPrintJob',
+  'discardPendingPrintJobs',
+  'createManualPrintJob',
+  'createTestPrintJob',
+  'claimNextPrintJob',
+  'claimPrintJob',
+  'acknowledgeSecondCopyPrompt',
+  'requestSecondCopy',
+  'skipSecondCopy',
+  'completePrintJob',
+  'failPrintJob',
+  'retryPrintJob',
+  'discardPrintJob',
+  'prioritizePrintJob',
+  'forcePrintJob',
+  'reprintPrintJob',
+  'getOrderPrintDocument',
+  'getQzCertificate',
+  'signQzPayload',
+])
+const C9_PRINTING_PEER_DOMAINS = new Set(['orders', 'finance', 'table-service', 'customers', 'catalog'])
+const C9_APP_PRINTING_OWNER_PATTERNS = [
+  /\bsecondCopyPromptJobId\b/,
+  /\boriginSecondCopyPromptJobId\b/,
+  /\brecoveryDialogMode\b/,
+  /\bpausedRecoverySecondCopyJobIdRef\b/,
+  /\brecoveryPromptSeenRef\b/,
+  /\bpreviousRecoveryStateRef\b/,
+  /\bcanPresentSecondCopyPrompt\b/,
+  /\bcanKeepSecondCopyPromptOpen\b/,
+  /\backnowledgeAndOpenSecondCopyPrompt\b/,
+  /\bfindOriginSecondCopyPrompt\b/,
+  /\breadOriginOrderIds\b/,
+  /\brememberOriginOrderId\b/,
+  /\bqzTransport\b/,
+  /\bcreateQzTransport\b/,
+  /\bgetQzCertificate\b/,
+  /\bsignQzPayload\b/,
+  /['"]qz-tray['"]/,
+]
+const C9_PRINTING_DOMAIN_BROWSER_PATTERN = /\bglobalThis\.(?:window|document|localStorage|sessionStorage|navigator)\b|\b(?:window|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
+
 const C6_LEGACY_FINANCE_OWNERS = new Set([
   'src/pages/Finance.jsx',
   'src/pages/Receivables.jsx',
@@ -250,6 +317,15 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (sourcePaths.has(legacyOwner)) violations.push(`c8-legacy-catalog-owner: ${legacyOwner}`)
   }
 
+  for (const legacyOwner of C9_LEGACY_PRINTING_OWNERS) {
+    if (sourcePaths.has(legacyOwner)) violations.push(`c9-legacy-printing-owner: ${legacyOwner}`)
+  }
+  for (const sourcePath of sourcePaths) {
+    if (sourcePath.startsWith('src/printing/') && !isTestFile(sourcePath)) {
+      violations.push(`c9-legacy-printing-owner: ${sourcePath}`)
+    }
+  }
+
   for (const sourcePath of sourcePaths) {
     if (/^src\/domains\/[^/]+\/.*\/workflows\/(?:payments|refunds)\//.test(sourcePath)
       || /^src\/domains\/[^/]+\/workflows\/(?:payments|refunds)\//.test(sourcePath)) {
@@ -278,6 +354,9 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (exportMentionsAny(legacyApiClient, C8_PRODUCT_CRUD_EXPORTS)) {
       violations.push('c8-legacy-catalog-api: src/api/client.js')
     }
+    if (exportMentionsAny(legacyApiClient, C9_PRINTING_API_EXPORTS)) {
+      violations.push('c9-legacy-printing-api: src/api/client.js')
+    }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
   }
@@ -292,6 +371,9 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     }
     if (C8_APP_CATALOG_OWNER_PATTERNS.some((pattern) => pattern.test(appSource))) {
       violations.push('c8-app-catalog-owner: src/App.jsx')
+    }
+    if (C9_APP_PRINTING_OWNER_PATTERNS.some((pattern) => pattern.test(appSource))) {
+      violations.push('c9-app-printing-owner: src/App.jsx')
     }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
@@ -313,6 +395,9 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     }
     if (sourcePath.startsWith('src/domains/catalog/domain/') && C8_DOMAIN_BROWSER_PATTERN.test(source)) {
       violations.push(`catalog-domain-browser: ${sourcePath}`)
+    }
+    if (sourcePath.startsWith('src/domains/printing/domain/') && C9_PRINTING_DOMAIN_BROWSER_PATTERN.test(source)) {
+      violations.push(`c9-printing-domain-browser: ${sourcePath}`)
     }
   }
 
@@ -337,6 +422,34 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
+
+    const printingDomainLayer = edge.from.startsWith('src/domains/printing/domain/')
+    if (printingDomainLayer && isReactSpecifier(edge.specifier)) {
+      violations.push(`c9-printing-domain-react: ${edge.from} -> ${edge.specifier}`)
+    }
+    if (printingDomainLayer && edge.specifier === 'qz-tray') {
+      violations.push(`c9-printing-domain-qz: ${edge.from} -> ${edge.specifier}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/printing/')
+      && edge.resolvedPath?.startsWith('src/domains/printing/')
+      && edge.resolvedPath !== 'src/domains/printing/index.js') {
+      violations.push(`c9-printing-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (edge.from.startsWith('src/domains/printing/')
+      && targetDomain
+      && C9_PRINTING_PEER_DOMAINS.has(targetDomain)
+      && edge.resolvedPath !== `src/domains/${targetDomain}/index.js`) {
+      violations.push(`c9-printing-cross-domain-internal: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && edge.from.startsWith('src/infrastructure/qz/')
+      && /^src\/domains\/printing\/(?:domain|application|ui)\//.test(edge.resolvedPath || '')) {
+      violations.push(`c9-qz-printing-internal: ${edge.from} -> ${edge.resolvedPath}`)
+    }
 
     if (isDomainLayer(edge.from)) {
       if (isReactSpecifier(edge.specifier)) {
