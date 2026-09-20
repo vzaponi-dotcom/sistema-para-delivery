@@ -27,10 +27,11 @@ test('App enables the orders runtime only for Cozinha while the runtime owns the
 
 test('kitchen UI supports one-time visual alerts and a persisted sound toggle', () => {
   const app = read('src/App.jsx')
+  const storage = read('src/infrastructure/storage/kitchenSoundPreference.js')
   const arrivals = read('src/domains/orders/application/useOrderArrivals.js')
   const orders = read('src/domains/orders/ui/Orders.jsx')
   const css = read('src/order-operations.css')
-  assert.match(app, /kitchen-sound-enabled/)
+  assert.match(storage, /kitchen-sound-enabled/)
   assert.match(app, /useOrderArrivals\(/)
   assert.doesNotMatch(app, /alertedOrderIdsRef|knownOperationalOrderIdsRef|detectOperationalArrivals/)
   assert.match(arrivals, /const alertedRef = useRef\(new Set\(\)\)/)
