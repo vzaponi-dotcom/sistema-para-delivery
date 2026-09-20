@@ -17,12 +17,12 @@ const surfaces = [
 ]
 
 const hashes = {
-  'dashboard.css': 'ea5e1a06085b92d30ba08a4dc6a935223c237640adc50c763b01ca0a31c9659b',
-  'new-order.css': '9ead7a064dba979f968786bb36f0c85e97c12b6d65c4e37c931ea93c94dad5e2',
-  'client-duplicate.css': '33d65415d08928620e18d2fbbff139ac846ed586ef6ca57c864e8d740f5037f0',
-  'product-form.css': '5a54b8f1df9a4da21ce30c700e8fb209faa3c907b886d852ef86c945caccaa08',
-  'finance-mobile.css': '8dfa97f5a5bfdc5466a5b6278f0298f26d4e3bcbc58f711902dc5f84f26f2d2a',
-  'print-queue.css': '3fbd01dcda285cd5b07a79d978f5f5ae01ee33e317aaca6a03d25008c3eee8e6',
+  'dashboard.css': '17f34866a7f5d0b02bd7f12f2e2e80a9e575afe61919bb09667047581bbdf9b6',
+  'new-order.css': 'e9f7198f0c48fb9d29fb6b3e5c945b9cf4a3565429344267bffc3040d3429a94',
+  'client-duplicate.css': '28fca2cef6d7d3efd625ac1ee714fe9d15b2334a4e0a6cbde8b7cd71cc9a7985',
+  'product-form.css': 'b3864196ccdc1a074689a729ea75e34c601eb874e663cf0b2153b4fbc3dd86a1',
+  'finance-mobile.css': '57fc021f88cc1bb69d82a0f3fff7d40de9366b2b9fe609436eb7041d8eaf7a22',
+  'print-queue.css': 'de48b856a0ae8890b3e2f23119da303400418eda3ff64fbe6b453d8bce27e575',
 }
 
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8')
