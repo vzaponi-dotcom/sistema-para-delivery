@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **APPROVED — TASKS 1–10 COMPLETE / TASK 11 CANDIDATE PREPARATION / TASK 12 NOT STARTED**
+**Status:** **APPROVED — TASKS 1–11 COMPLETE / GREEN; TASK 12 NOT STARTED**
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
@@ -528,7 +528,7 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 
 This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
-Tasks 1–10 are complete and green. Task 11 is preparing the exact executable candidate; Task 12 is not started.
+Tasks 1–11 are complete and green. Task 12 is not started.
 
 ## Final implementation status — 2026-09-20
 
@@ -550,4 +550,5 @@ Tasks 1–10 are complete and green. Task 11 is preparing the exact executable c
 - The full local suite passed **1,933 tests / 1,933 pass / 0 fail / 0 skipped**. The focused final architecture audit passed **69/69**, and lint, architecture, build, production dry-run, staging dry-run, local D1 and the Spec B D1 gate are green.
 - The diff audit against `2b5060c8293fec6756b286627212b740b3147e53` found no Worker, migration, schema, dependency, API-contract, polling, capability, storage-key, QZ/copy-semantics, targeted-CSS-content or newly introduced UTF-8 drift.
 - The 18-criterion audit records **17 PASS / 0 FAIL / 1 PENDING TASK 12**. Criterion 15 remains pending because staging homologation belongs exclusively to Task 12; C9 hardware evidence remains `DEFERRED-PRODUCTION` and was not inferred as PASS.
-- The Task 11 executable commit SHA and its authoritative GitHub Validate run will be recorded after the candidate is committed, pushed and green. No staging deploy, production deploy, remote migration, merge or Task 12 action has occurred.
+- Executable candidate `060468703f39c716d997025ab0ed99063cdd2fae` passed Validate application #1550 / run `35541850517` on the exact SHA with **1,933 tests / 1,932 pass / 0 fail / 1 skipped** and every official gate green.
+- Task 11 is **COMPLETE / GREEN**. No staging deploy, production deploy, remote migration, merge or Task 12 action has occurred.

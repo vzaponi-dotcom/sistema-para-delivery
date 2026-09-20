@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **TASKS 1–10 COMPLETE / GREEN; TASK 11 candidate preparation in progress; TASK 12 NOT STARTED**
+**Status:** **TASKS 1–11 COMPLETE / GREEN; TASK 12 NOT STARTED**
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -398,10 +398,14 @@ Task 2 is **COMPLETE / GREEN**.
 - `npm run d1:migrate:local`: npm/npx wrapper was blocked before Wrangler by sandbox registry/cache access. The already-cached exact Wrangler 4.128.0 executed the same local migration target directly: **PASS / No migrations to apply**. Candidate GitHub Validate remains authoritative for the exact npm-script gate.
 - `node scripts/infra/spec-b-d1-gate.mjs`: **PASS**, local D1 Worker, 25 migrations and every reported check true.
 
-### Candidate state
+### Executable candidate
 
-The audit found no implementation defect, so no focused RED → GREEN fix was required. The first Task 11 documentation commit will be the **C10 executable candidate** because its application tree is the fully audited Tasks 1–10 implementation and Task 11 introduces evidence only. After that SHA passes authoritative GitHub Validate, a documentation-only closure commit may record the candidate SHA/run without replacing the executable selected for Task 12.
+- Candidate: `060468703f39c716d997025ab0ed99063cdd2fae`.
+- Validate application #1550 / run `35541850517`: **SUCCESS** on that exact SHA.
+- Official test summary: **1,933 tests / 1,932 pass / 0 fail / 1 skipped**.
+- Architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 all passed in the authoritative workflow.
+- The audit found no implementation defect, so no focused RED → GREEN fix was required. This closure update is documentation-only and does not replace the executable candidate selected for Task 12.
 
 ## Next action
 
-Commit and push the Task 11 candidate, require exact-SHA GitHub Validate SUCCESS, record the result and update PR #54 while keeping it **OPEN / DRAFT**. Then stop before Task 12.
+Keep PR #54 **OPEN / DRAFT** and stop before Task 12. Staging deployment and homologation require a separate Task 12 instruction.

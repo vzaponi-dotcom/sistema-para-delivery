@@ -1,6 +1,6 @@
 # Spec C10 — final architecture audit
 
-**Status:** Task 11 audit complete locally; exact-candidate GitHub Validate pending.
+**Status:** Task 11 **COMPLETE / GREEN**; exact executable candidate and GitHub Validate recorded.
 **Audited implementation HEAD:** `6b0512efda1bc3e20c28770c23e91c7a4301204f`.
 **Comparison base:** post-C9 `2b5060c8293fec6756b286627212b740b3147e53`.
 **Scope:** production source, architecture contracts, test ownership, release evidence and the 18 criteria from parent Spec C §28.
@@ -24,7 +24,7 @@ Task 12 has not started. No staging deployment, manual staging homologation, rem
 | 11 | **PASS** | `scripts/architecture/check-import-boundaries.mjs`; 57/57 architecture unit tests; `npm run test:architecture` = `Frontend architecture boundaries: OK`. | Generic gates cover legacy roots, App imports, shared boundary, domain purity/browser/fetch, external public entries, QZ confinement and deterministic domain cycles. |
 | 12 | **PASS** | Co-located test counts: runtime 6, navigation 7, surfaces 18, workflows 8, Orders 32, Table Service 12, Finance 21, Customers 12, Catalog 15, Printing 27, infrastructure 13, frontend shared 3, checker 1. | Architecture tests remain with the checker; cross-owner integration tests remain global where appropriate. No aesthetic mass move was made. |
 | 13 | **PASS** | `spec-c-compatibility-facades.md`; `c10ResidualOwnership.test.js`; deleted migration allowlist. | Active compatibility facades = 0; migration allowlists = 0; legacy production roots contain 0 JS/JSX/MJS owners. |
-| 14 | **PASS** | Local Task 11 gates below; initial exact-head Validate #1549/run `35539502743` was green before Task 11; candidate Validate is still required before the executable SHA is final. | Full suite, lint, architecture, build, both Worker dry-runs, local D1 engine and Spec B D1 are green. GitHub Validate on the candidate commit remains the authoritative closure evidence. |
+| 14 | **PASS** | Local Task 11 gates below; exact candidate `060468703f39c716d997025ab0ed99063cdd2fae`; Validate #1550/run `35541850517` **SUCCESS**. | Authoritative GitHub gates passed: 1,933 tests / 1,932 pass / 0 fail / 1 skipped, architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1. |
 | 15 | **PENDING TASK 12** | Task 12 staging deploy/homologation has not been executed. | **Release gate not executed yet.** This is not `DEFERRED-PRODUCTION`, not PASS and does not make Spec C complete. |
 | 16 | **PASS** | Base-to-candidate diff audit below; 1,933/1,933 tests; CSS blob identity; no Worker/schema/package/polling/capability/QZ-core diff. | No unauthorized functional or visual change was found. Physical output is not inferred. |
 | 17 | **PASS** | Parent Spec C §25; open Issues #43/#44; rollout and C9 QA records. | React Router (#43) and users/profiles (#44) remain explicitly deferred; Kitchen TV, Spec D and professional-printer evolution remain out of scope. C9 hardware and restricted-identity limitations remain truthfully recorded. |
@@ -104,4 +104,4 @@ Important new/final owners have focused tests beside them: runtime/navigation, D
 
 ## Candidate handoff
 
-The Task 11 audit found no architecture FAIL and required no implementation fix. The executable candidate SHA and its authoritative GitHub Validate run are recorded after the candidate commit is created and pushed. Any later documentation-only successor must continue to name that executable SHA; it does not replace the code selected for Task 12 staging.
+The Task 11 audit found no architecture FAIL and required no implementation fix. The immutable executable candidate is `060468703f39c716d997025ab0ed99063cdd2fae`; Validate application #1550 / run `35541850517` completed **SUCCESS** on that exact SHA with **1,933 tests / 1,932 pass / 0 fail / 1 skipped** and every workflow gate green. This documentation-only closure successor does not replace the executable SHA selected for Task 12 staging.
