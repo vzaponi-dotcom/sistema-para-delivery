@@ -5,7 +5,7 @@ import {
   calculatePeriodMetrics,
   getPaymentMix,
   getTopProducts,
-} from './dashboardAnalytics.js'
+} from '../app/surfaces/dashboard/dashboardAnalytics.js'
 import {
   calculateOperationalMetrics,
   filterOrdersByPeriod,

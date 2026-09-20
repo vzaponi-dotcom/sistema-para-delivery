@@ -1,21 +1,26 @@
 import { useMemo } from 'react'
-import '../dashboard.css'
-import DashboardBarChart from '../components/DashboardBarChart'
-import DashboardLineChart from '../components/DashboardLineChart'
-import DashboardPaymentMix from '../components/DashboardPaymentMix'
-import DashboardPeriodSelector from '../components/DashboardPeriodSelector'
-import PageHeader from '../components/PageHeader'
-import AreaNavigation from '../app/navigation/AreaNavigation.jsx'
-import StatCard from '../components/StatCard'
-import Icon from '../components/Icon'
-import { useDashboardPeriod } from '../components/dashboardPeriodContext.js'
+import '../../../dashboard.css'
+import DashboardBarChart from '../../../components/DashboardBarChart'
+import DashboardPeriodSelector from '../../../components/DashboardPeriodSelector'
+import Icon from '../../../components/Icon'
+import PageHeader from '../../../components/PageHeader'
+import StatCard from '../../../components/StatCard'
+import { calculateReceivedToday } from '../../../domains/finance/index.js'
+import {
+  getPendingAmount,
+  isOrderCancelled,
+  isOrderPaid,
+  toLocalDateValue,
+} from '../../../domains/orders/index.js'
+import AreaNavigation from '../../navigation/AreaNavigation.jsx'
+import DashboardLineChart from './DashboardLineChart.jsx'
+import DashboardPaymentMix from './DashboardPaymentMix.jsx'
 import {
   buildDailySeries,
   calculatePeriodMetrics,
   getPaymentMix,
   getTopProducts,
-} from '../utils/dashboardAnalytics.js'
-import { toLocalDateValue } from '../domains/orders/index.js'
+} from './dashboardAnalytics.js'
 
 const MONEY_MASK = '••••••'
 const PERIOD_HELPERS = {
@@ -32,10 +37,24 @@ const compactMoneyFormatter = new Intl.NumberFormat('pt-BR', {
 })
 
 const formatCompactAxisValue = (value) => compactMoneyFormatter.format(Number(value) || 0)
-function Dashboard({ totals, orders, currency, queryState, onQueryChange }) {
-  const { period, setPeriod } = useDashboardPeriod()
+
+function DashboardSurface({ orders, movements, currency, queryState, onQueryChange }) {
+  const period = queryState.period
   const valuesVisible = queryState.valuesVisible
+  const setPeriod = (nextPeriod) => onQueryChange({ period: nextPeriod })
   const todayValue = toLocalDateValue()
+
+  const totals = useMemo(() => {
+    const validOrders = orders.filter((order) => !isOrderCancelled(order))
+    const salesToday = validOrders
+      .filter((order) => order.orderDate === todayValue)
+      .reduce((total, order) => total + Number(order.total || 0), 0)
+    const receivedToday = calculateReceivedToday(movements, todayValue)
+    const receivables = validOrders
+      .filter((order) => !isOrderPaid(order))
+      .reduce((total, order) => total + getPendingAmount(order), 0)
+    return { salesToday, receivedToday, receivables }
+  }, [movements, orders, todayValue])
 
   const analytics = useMemo(() => {
     const now = new Date(`${todayValue}T12:00:00`)
@@ -126,9 +145,8 @@ function Dashboard({ totals, orders, currency, queryState, onQueryChange }) {
           <DashboardPaymentMix data={paymentMix} formatValue={currency} valuesVisible={valuesVisible} ariaLabel="Valores recebidos por forma de pagamento" />
         </article>
       </section>
-
     </>
   )
 }
 
-export default Dashboard
+export default DashboardSurface

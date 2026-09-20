@@ -80,8 +80,8 @@ test('dashboard chart styling uses theme variables instead of hard-coded chart c
 })
 
 test('hidden monetary chart copy never exposes exact values through aria labels', () => {
-  const line = source('./components/DashboardLineChart.jsx')
-  const payment = source('./components/DashboardPaymentMix.jsx')
+  const line = source('./app/surfaces/dashboard/DashboardLineChart.jsx')
+  const payment = source('./app/surfaces/dashboard/DashboardPaymentMix.jsx')
 
   assert.match(line, /valuesVisible \? ariaLabel : `\$\{ariaLabel\}\. Valores ocultos\.`/)
   assert.match(payment, /valuesVisible[\s\S]*Valores ocultos\./)

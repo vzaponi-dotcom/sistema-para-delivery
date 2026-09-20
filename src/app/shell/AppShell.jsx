@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import '../../order-cancellation.css'
-import { DashboardPeriodProvider } from '../../components/DashboardPeriodProvider'
 import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
 import { useNavigation } from '../navigation/NavigationContext.jsx'
 import { getMobilePageDirection } from '../navigation/resolution.js'
 
-function AppShell({ onLogout, logoutDisabled = false, dashboardPeriod, onDashboardPeriodChange, children }) {
+function AppShell({ onLogout, logoutDisabled = false, children }) {
   const { activeTab } = useNavigation()
   const previousTab = useRef(activeTab)
   const contentRef = useRef(null)
@@ -19,8 +18,7 @@ function AppShell({ onLogout, logoutDisabled = false, dashboardPeriod, onDashboa
   }, [activeTab])
 
   return (
-    <DashboardPeriodProvider period={dashboardPeriod} onPeriodChange={onDashboardPeriodChange}>
-      <div className="app-shell">
+    <div className="app-shell">
         <Sidebar onLogout={onLogout} logoutDisabled={logoutDisabled} />
         <main className="app-main">
           <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>
@@ -28,8 +26,7 @@ function AppShell({ onLogout, logoutDisabled = false, dashboardPeriod, onDashboa
           </div>
         </main>
         <MobileNavigation onLogout={onLogout} logoutDisabled={logoutDisabled} />
-      </div>
-    </DashboardPeriodProvider>
+    </div>
   )
 }
 

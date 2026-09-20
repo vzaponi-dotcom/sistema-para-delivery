@@ -6,7 +6,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('dashboard period selector remains touch friendly without a financial FAB', async () => {
   const css = await read('../dashboard.css')
-  const page = await read('./Dashboard.jsx')
+  const page = await read('../app/surfaces/dashboard/DashboardSurface.jsx')
 
   assert.match(css, /\.dashboard-period-option\s*\{[^}]*min-height:\s*44px/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.dashboard-period-selector\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s)
@@ -14,8 +14,8 @@ test('dashboard period selector remains touch friendly without a financial FAB',
 })
 
 test('dashboard charts use compact sales-axis labels and compensate for SVG scaling on small screens', async () => {
-  const page = await read('./Dashboard.jsx')
-  const lineChart = await read('../components/DashboardLineChart.jsx')
+  const page = await read('../app/surfaces/dashboard/DashboardSurface.jsx')
+  const lineChart = await read('../app/surfaces/dashboard/DashboardLineChart.jsx')
   const css = await read('../dashboard.css')
 
   assert.match(page, /formatCompactAxisValue/)
@@ -28,7 +28,7 @@ test('dashboard charts use compact sales-axis labels and compensate for SVG scal
 
 test('dashboard removes recent operational orders and their dedicated responsive rules', async () => {
   const css = await read('../dashboard.css')
-  const page = await read('./Dashboard.jsx')
+  const page = await read('../app/surfaces/dashboard/DashboardSurface.jsx')
 
   assert.doesNotMatch(page, /Pedidos recentes|recent-orders/)
   assert.doesNotMatch(css, /dashboard-recent-section/)

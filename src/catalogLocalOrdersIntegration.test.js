@@ -12,7 +12,8 @@ const repositories = readFileSync(new URL('../worker/repositories.js', import.me
 
 test('approved catalog and local-order round stays wired across app surfaces', () => {
   assert.match(app, /CatalogWorkspace/)
-  assert.match(appShell, /DashboardPeriodProvider/)
+  assert.doesNotMatch(appShell, /DashboardPeriodProvider/)
+  assert.match(app, /DashboardSurface/)
   assert.match(newOrder, /customerIdentity/)
   assert.match(newOrder, /tableId: selectedTableId/)
   assert.match(newOrder, /registered_client/)

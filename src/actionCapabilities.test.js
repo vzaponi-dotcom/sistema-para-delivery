@@ -423,7 +423,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
   const { h, renderer, requests } = await appWorkspace(t, capabilities)
   const modules = Object.fromEntries(await Promise.all([
     ['OrderHistory', '/src/domains/orders/ui/OrderHistory.jsx'],
-    ['Dashboard', '/src/pages/Dashboard.jsx'],
+    ['Dashboard', '/src/app/surfaces/dashboard/DashboardSurface.jsx'],
     ['Clients', '/src/domains/customers/ui/Clients.jsx'],
     ['Products', '/src/domains/catalog/ui/Products.jsx'],
     ['Receivables', '/src/domains/finance/ui/Receivables.jsx'],
@@ -454,7 +454,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
   await act(async () => { assert.equal(page.props.onAddMovement(), false); assert.equal(page.props.onRequestRefund(paidOrder), false) })
   await navigate(h, 'dashboard')
   page = renderer.root.findByType(modules.Dashboard)
-  await act(async () => { assert.equal(page.props.onNewOrder(), false) })
+  assert.equal(page.props.onNewOrder, undefined)
   assert.equal(renderer.root.findAllByType(modules.NewOrderRoute).length, 0)
   assert.equal(mutations(requests).length, before)
 })
