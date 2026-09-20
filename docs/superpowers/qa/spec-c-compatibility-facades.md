@@ -4,7 +4,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 
 | Old path/bridge | New owner/path | Remaining consumers | Removal slice |
 |---|---|---|---|
-| `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
+| `src/api/client.js` generic/auth/bootstrap facade + `src/api/effectiveConfigClient.js` | `src/infrastructure/api/httpClient.js`, `bootstrapApi.js`, `effectiveConfigApi.js` + `src/infrastructure/auth/sessionApi.js` | **none — physically removed in C10 Task 2** | **C10 Task 2 — REMOVED** |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
 | `updateCollection` runtime escape hatch | official effects per domain | **none — removed and architecture-enforced in C8** | **C8 — REMOVED / ENFORCED** |
@@ -310,3 +310,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - The sole unresolved temporary facade remains the generic/auth/bootstrap `src/api/client.js` row at the top of this ledger; C10 Task 2 owns its physical removal.
 - `scripts/architecture/legacy-import-allowlist.json` is already semantically empty and C10 Task 6 owns deleting the file.
 - No new compatibility facade is approved for C10.
+
+
+## C10 Task 2 compatibility checkpoint — 2026-09-20
+
+- RED `a3618a4a92d3152dfb3486dfab94374a21ee974a` / Validate #1521 proved the final infrastructure owners were absent and the legacy API facade still existed.
+- GREEN `9dc095ad235ddcf10074058e42b5a49d76323dab` / Validate #1522 passed **1,913 tests / 1,912 pass / 0 fail / 1 skipped** with all gates green.
+- `src/api/client.js` and `src/api/effectiveConfigClient.js` are physically absent.
+- Generic HTTP stays at `src/infrastructure/api/httpClient.js`; bootstrap and effective-config have focused infrastructure adapters; session/auth stays at `src/infrastructure/auth/sessionApi.js`.
+- The compatibility-only `deleteOrder` export no longer exists.
+- **Active temporary compatibility facade inventory is now zero.**
+- Task 8 still owns deletion of the semantically-empty migration allowlist and permanent final scaffolding closure; this Task 2 checkpoint does not pre-claim Task 8.

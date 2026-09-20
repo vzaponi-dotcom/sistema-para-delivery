@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **APPROVED — TASK 1 COMPLETE / TASK 2 NOT STARTED**  
+**Status:** **APPROVED — TASKS 1–2 COMPLETE / TASK 3 NOT STARTED**  
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
@@ -100,6 +100,13 @@ Move only HTTP ownership. Preserve exactly:
 Focused tests include httpClient, sessionApi, both new adapters, operational runtime, effective config and settings session recovery. Then full Validate.
 
 **Exit:** no production dependency on `src/api/**`.
+
+**Task 2 evidence — COMPLETE / GREEN**
+- RED: `a3618a4a92d3152dfb3486dfab94374a21ee974a`; Validate #1521 / run `35517483314` — **FAIL as intended**, **1,915 tests / 1,910 pass / 4 fail / 1 skipped**. Failures were exactly the missing `bootstrapApi.js`, missing `effectiveConfigApi.js`, legacy runtime/effective-config imports and still-present legacy facade files.
+- GREEN: `9dc095ad235ddcf10074058e42b5a49d76323dab`; Validate #1522 / run `35517751802` — **SUCCESS**, **1,913 tests / 1,912 pass / 0 fail / 1 skipped**.
+- architecture ✅; lint 0 errors ✅; build ✅; production Worker dry-run ✅; staging Worker dry-run ✅; local D1 ✅; Spec B D1 clean-install/upgrade ✅.
+- `src/api/client.js` and `src/api/effectiveConfigClient.js` are physically absent; bootstrap/effective-config ownership is under `src/infrastructure/api/`; auth remains under `src/infrastructure/auth/sessionApi.js`.
+- No Worker, migration, schema or production deployment change occurred.
 
 ---
 

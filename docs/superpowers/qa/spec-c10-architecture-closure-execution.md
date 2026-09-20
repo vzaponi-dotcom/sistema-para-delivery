@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **PLAN APPROVED / TASK 1 COMPLETE / TASK 2 NOT STARTED**  
+**Status:** **PLAN APPROVED / TASKS 1–2 COMPLETE / TASK 3 NOT STARTED**  
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -235,6 +235,46 @@ The post-C9 tree matches the approved C10 design:
 
 Task 1 is **COMPLETE**. No production code changed.
 
+## Task 2 — final legacy API facade removal
+
+### RED
+
+- RED SHA: `a3618a4a92d3152dfb3486dfab94374a21ee974a`.
+- Validate #1521 / run `35517483314`: **FAIL as intended**.
+- Suite: **1,915 tests / 1,910 pass / 4 fail / 1 skipped**.
+- Intended failures:
+  - missing `src/infrastructure/api/bootstrapApi.js`;
+  - missing `src/infrastructure/api/effectiveConfigApi.js`;
+  - runtime/effective-config still importing legacy owners;
+  - `src/api/client.js` and `src/api/effectiveConfigClient.js` still physically present.
+
+### GREEN
+
+- GREEN SHA: `9dc095ad235ddcf10074058e42b5a49d76323dab`.
+- Validate #1522 / run `35517751802`: **SUCCESS**.
+- Suite: **1,913 tests / 1,912 pass / 0 fail / 1 skipped**.
+- Frontend architecture boundaries: **OK**.
+- lint: **0 errors**.
+- build: **PASS**.
+- production Worker dry-run: **PASS**.
+- staging Worker dry-run: **PASS**.
+- local D1: **PASS**.
+- Spec B D1 clean install/upgrade: **PASS**.
+
+### Result
+
+- `bootstrapApi.js` owns `/api/bootstrap` and preserves `knownEffectiveConfigVersion` encoding.
+- `effectiveConfigApi.js` owns `/api/settings/effective` and preserves `knownVersion` encoding.
+- Both use `infrastructure/api/httpClient.js`, preserving HTTP status/code/message semantics.
+- `useOperationalDataRuntime` consumes the bootstrap infrastructure owner directly.
+- `useEffectiveBusinessConfig` consumes the effective-config infrastructure owner directly.
+- session/auth consumers use `infrastructure/auth/sessionApi.js` directly.
+- Legacy `src/api/client.js`, its compatibility-only `deleteOrder`, and `src/api/effectiveConfigClient.js` are physically removed.
+- Equivalent auth/order/bootstrap/effective-config coverage exists under final owners; obsolete facade tests were removed.
+- No production deploy occurred.
+
+Task 2 is **COMPLETE / GREEN**.
+
 ## Next action
 
-**Task 2 — Remove the final legacy API facade — is NOT STARTED.**
+**Task 3 — Establish Dashboard as an app surface — is NOT STARTED.**

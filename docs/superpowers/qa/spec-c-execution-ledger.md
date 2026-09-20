@@ -26,7 +26,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **PLAN APPROVED — TASK 1 COMPLETE; TASK 2 NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–2 COMPLETE / GREEN; TASK 3 NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -560,4 +560,7 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - The implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 - Task 1 dependency-map/baseline evidence commit `264399e14ad82833c93143bd262c0018bd17376e` passed Validate #1519 / run `35517045330` with **1,911 tests / 1,910 pass / 0 fail / 1 skipped** and all gates green.
 - Task 1 is **COMPLETE**; no production code changed.
-- Task 2 and all functional code changes are **NOT STARTED**.
+- Task 2 RED `a3618a4a92d3152dfb3486dfab94374a21ee974a` / Validate #1521 failed for the four intended final-API ownership gaps.
+- Task 2 GREEN `9dc095ad235ddcf10074058e42b5a49d76323dab` / Validate #1522 — **SUCCESS**, **1,913 tests / 1,912 pass / 0 fail / 1 skipped**, all gates green.
+- The final `src/api/client.js` / `src/api/effectiveConfigClient.js` production facade is physically removed. Bootstrap/effective-config now belong to `src/infrastructure/api/`; auth remains under `src/infrastructure/auth/`.
+- Task 3 is **NOT STARTED**.
