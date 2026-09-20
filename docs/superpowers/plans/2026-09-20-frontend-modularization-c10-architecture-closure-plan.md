@@ -27,7 +27,7 @@ C10 is architectural closure. It must not change business behavior, API contract
 - Do not keep compatibility reexports merely to make a commit green.
 - C9 hardware remains `DEFERRED-PRODUCTION` and is never inferred PASS.
 - Every behavior defect found during implementation/QA gets focused RED → GREEN.
-- Implementation plan approved explicitly by the user on 2026-09-20. Task 1 is the only task active in this checkpoint.
+- Implementation plan approved explicitly by the user on 2026-09-20. Tasks 1–2 are complete and green; Task 3 is not started.
 
 ---
 
