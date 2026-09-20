@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getBootstrap } from '../../../api/client.js'
+import { getBootstrap } from '../../../infrastructure/api/bootstrapApi.js'
 import { ordersApi } from '../../../domains/orders/index.js'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from '../../../utils/dataSync.js'
 

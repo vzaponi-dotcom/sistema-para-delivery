@@ -34,3 +34,21 @@ test('login rejects an incomplete authenticated context', async () => {
     (error) => error.code === 'SESSION_CONTEXT_UNAVAILABLE',
   )
 })
+
+test('session API preserves GET session and POST logout routes', async () => {
+  const calls = []
+  const api = createSessionApi({
+    request: async (path, options = {}) => {
+      calls.push([path, options.method || 'GET'])
+      return path === '/api/auth/session' ? { authenticated: false } : { ok: true }
+    },
+  })
+
+  await api.getSession()
+  await api.logout()
+
+  assert.deepEqual(calls, [
+    ['/api/auth/session', 'GET'],
+    ['/api/auth/logout', 'POST'],
+  ])
+})

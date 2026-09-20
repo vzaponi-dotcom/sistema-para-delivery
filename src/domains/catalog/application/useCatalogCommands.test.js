@@ -142,8 +142,6 @@ test('catalog command errors preserve the original error and never apply success
 test('Task 2 removes product HTTP and collection mutation ownership from App and legacy API', async () => {
   await loadHook()
   const app = read('src/App.jsx')
-  const legacyApi = read('src/api/client.js')
-
   const workspace = read('src/domains/catalog/ui/CatalogWorkspace.jsx')
   assert.match(app, /CatalogWorkspace/)
   assert.doesNotMatch(app, /\b(?:createProductApi|updateProductApi|deleteProductApi|useCatalogCommands|useProductEditor)\b/)
@@ -151,7 +149,5 @@ test('Task 2 removes product HTTP and collection mutation ownership from App and
   assert.match(workspace, /useCatalogCommands/)
   assert.match(workspace, /commands\.deleteProduct/)
 
-  for (const name of ['createProduct', 'updateProduct', 'deleteProduct']) {
-    assert.doesNotMatch(legacyApi, new RegExp(`export\\s+(?:const|function)\\s+${name}\\b`))
-  }
+  assert.equal(existsSync(new URL('../../../api/client.js', import.meta.url)), false)
 })

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const read = (path) => readFileSync(resolve(path), 'utf8')
@@ -8,10 +8,9 @@ const read = (path) => readFileSync(resolve(path), 'utf8')
 test('worker and Orders adapter expose an orders-only GET refresh path', () => {
   const worker = read('worker/index.js')
   const ordersApiSource = read('src/domains/orders/infrastructure/ordersApi.js')
-  const client = read('src/api/client.js')
   assert.match(worker, /url\.pathname === ['"]\/api\/orders['"] && request\.method === ['"]GET['"]/)
   assert.match(ordersApiSource, /getOrders:\s*\(\)\s*=>\s*request\(['"]\/api\/orders['"]\)/)
-  assert.doesNotMatch(client, /export const getOrders\b/)
+  assert.equal(existsSync('src/api/client.js'), false)
 })
 
 test('App enables the orders runtime only for Cozinha while the runtime owns the two-second refresh and focus behavior', () => {
