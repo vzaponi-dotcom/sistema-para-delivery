@@ -217,3 +217,44 @@ The current policy is authoritative:
 - The legacy `src/components/PrintingSettings.jsx` wrapper is intentionally retained until Task 8.
 - `orderDefaultCopies` and `tableTabDefaultCopies` remain independent; existing jobs retain their snapshotted copy count after later policy changes.
 - Task 7 is **NOT STARTED**. Staging, physical QA, merge and production remain untouched.
+
+
+## Task 7 — second-copy/recovery overlays ownership
+
+**Status:** COMPLETE / GREEN
+
+### RED
+
+- RED SHA: `10bc6f08a0b26eeb03291f1077d209dda1a45bb0`.
+- Validate #1494 / run `35483743546` — **FAIL as intended**.
+- Suite: **1,882 tests / 1,875 pass / 6 fail / 1 skipped**.
+- The six failures proved exactly the planned gaps: no public `PrintingOverlays`, App still owned overlay state/storage/helpers, `usePrintingOverlays.js` was absent, deferred-recovery affinity owner was absent, overlay UI was absent and App had no single composition point.
+
+### Production candidate and review
+
+- Candidate SHA: `8636f66a68b9e3471bcf0191a15ab40bed4d1135`.
+- Candidate moved prompt/recovery orchestration and dialogs into Printing, changed origin tracking to `printing.rememberOriginOrder(order.id)`, and reduced App to public composition.
+- Validate #1495 / run `35483978407` failed with **5 stale source characterizations only**; the new Task 7 tests, including deferred copy-2 affinity, were already green.
+- Review also found an async-cadence risk: `showApiError/showSuccessMessage` identities can change across App renders. The final corrective commit stores them in refs so the prompt ACK effect is not retriggered by callback identity while still invoking the latest callback.
+
+### GREEN
+
+- Final GREEN SHA: `7a0785ca454ecde0f0f18cce6f1370911c3edc63`.
+- Validate #1496 / run `35484090583` — **SUCCESS**.
+- Suite: **1,882 tests / 1,881 pass / 0 fail / 1 skipped**.
+- architecture ✅
+- lint ✅
+- build ✅
+- production Worker dry-run ✅
+- staging Worker dry-run ✅
+- local D1 ✅
+- Spec B D1 clean install/upgrade ✅
+
+### Result
+
+- `usePrintingOverlays` owns second-copy prompt, origin prompt, busy state, recovery mode/discard confirmation, dismissed-origin IDs, recovery-prompt seen state, paused-recovery second-copy ID and previous recovery state.
+- `PrintingOverlays` owns the existing modal/confirmation UI and unchanged text; it is exported through the node-safe Printing public surface.
+- App no longer owns or imports `canPresentSecondCopyPrompt`, `canKeepSecondCopyPromptOpen`, prompt-flow storage helpers or overlay state/handlers.
+- App records newly-created origin orders only through `printing.rememberOriginOrder(order.id)` and renders one `PrintingOverlays` composition point.
+- Deferred recovery remains affinity-safe: copy 2/2 of `recoveryJobId` is selected before any other pending job, and paused affinity is cleared only when recovery resumes/normalizes or the copy completes.
+- Task 8 is **NOT STARTED**. No staging, physical QA, merge or production deployment has occurred.

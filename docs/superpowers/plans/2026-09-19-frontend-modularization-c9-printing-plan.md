@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Status:** **APPROVED FOR EXECUTION — TASKS 1–6 COMPLETE / GREEN; TASK 7 NOT STARTED** — Native/inline execution.
+**Status:** **APPROVED FOR EXECUTION — TASKS 1–7 COMPLETE / GREEN; TASK 8 NOT STARTED** — Native/inline execution.
 
 **Goal:** Establish domains/printing as the frontend owner of operational printing while isolating qz-tray under src/infrastructure/qz, preserving every current queue, copies, recovery, unknown-outcome, settings, capability and physical-print behavior.
 
@@ -931,7 +931,7 @@ git commit -m "refactor: move printing settings ownership"
 - usePrintingManager.rememberOriginOrder(orderId) replaces App localStorage ownership after a new order commit.
 - App retains only composition and feedback callbacks.
 
-- [ ] **Step 1: Write RED for overlays owner**
+- [x] **Step 1: Write RED for overlays owner**
 
 ~~~js
 import { PrintingOverlays } from '../index.js'
@@ -956,7 +956,7 @@ for (const token of [
 
 Expected RED because App still owns these.
 
-- [ ] **Step 2: Move in-memory prompt/recovery state into usePrintingOverlays**
+- [x] **Step 2: Move in-memory prompt/recovery state into usePrintingOverlays**
 
 The hook owns:
 - selected second-copy prompt;
@@ -971,7 +971,7 @@ The hook owns:
 
 It derives current jobs/orders from props and printing.
 
-- [ ] **Step 3: Preserve deferred recovery affinity**
+- [x] **Step 3: Preserve deferred recovery affinity**
 
 Add exact regression:
 
@@ -988,7 +988,7 @@ const jobs = [
 // reopening/resuming chooses job-a copy 2 before job-b
 ~~~
 
-- [ ] **Step 4: Move dialog rendering into PrintingOverlays**
+- [x] **Step 4: Move dialog rendering into PrintingOverlays**
 
 Preserve exact functional copy:
 - Impressora disponível novamente
@@ -1001,7 +1001,7 @@ Preserve exact functional copy:
 
 No redesign.
 
-- [ ] **Step 5: Replace App new-order storage call**
+- [x] **Step 5: Replace App new-order storage call**
 
 Change:
 
@@ -1017,7 +1017,7 @@ printing.rememberOriginOrder(order.id)
 
 App does not import the storage helper.
 
-- [ ] **Step 6: Render one PrintingOverlays composition point**
+- [x] **Step 6: Render one PrintingOverlays composition point**
 
 App renders:
 
@@ -1033,7 +1033,7 @@ App renders:
 />
 ~~~
 
-- [ ] **Step 7: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 ~~~bash
 node --test   src/domains/printing/application/usePrintingOverlays.test.js   src/domains/printing/ui/PrintingOverlays.test.js   src/domains/printing/application/usePrintingManager.test.js   src/printing/finalizedOrderSecondCopyPrompt.test.js   src/printRecoveryUi.test.js
@@ -1041,12 +1041,26 @@ node --test   src/domains/printing/application/usePrintingOverlays.test.js   src
 
 If the final two tests move ownership, update their paths without deleting assertions.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ~~~bash
 git add src/domains/printing src/App.jsx src/printing src/printRecoveryUi.test.js
 git commit -m "refactor: move printing overlays out of app"
 ~~~
+
+---
+
+## Execution checkpoint after Task 7 — 2026-09-19
+
+- Task 7 is **COMPLETE / GREEN**. Task 8 is **NOT STARTED**.
+- RED: `10bc6f08a0b26eeb03291f1077d209dda1a45bb0`; Validate #1494 / run `35483743546` — expected **6 ownership failures**, totals **1,882 / 1,875 / 6 / 1**.
+- Production candidate: `8636f66a68b9e3471bcf0191a15ab40bed4d1135`; Validate #1495 / run `35483978407` found only five stale App-ownership characterizations after the extraction.
+- Final corrective GREEN: `7a0785ca454ecde0f0f18cce6f1370911c3edc63`; Validate #1496 / run `35484090583` — **SUCCESS**, **1,882 / 1,881 / 0 / 1**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 green.
+- `usePrintingOverlays` owns prompt/recovery state and recovery affinity; `PrintingOverlays` owns rendering; App retains only public composition and callbacks.
+- New-order origin tracking now calls `printing.rememberOriginOrder(order.id)`; App no longer imports the browser-storage compatibility facade.
+- Recovery affinity regression proves deferred/reopened copy 2/2 of the current recovery job is handled before another queued job.
+- Callback refs preserve the former effect cadence and avoid duplicate prompt ACK from unstable App callback identity.
+- No staging, physical QA, merge or production deployment has occurred.
 
 ---
 

@@ -25,7 +25,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–6 COMPLETE / GREEN; TASK 7 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
+| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–7 COMPLETE / GREEN; TASK 8 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
@@ -508,3 +508,18 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - `printingSettingsAdapter.js` deliberately remains in Settings as the approved thin composition bridge. The legacy `src/components/PrintingSettings.jsx` wrapper remains until Task 8.
 - Copy-policy behavior is unchanged and covered: `orderDefaultCopies` and `tableTabDefaultCopies` remain independent 1/2-copy settings; existing jobs keep their recorded `copiesRequested` after later policy changes.
 - Task 7: **NOT STARTED**. No C9 staging, physical QA, merge or production deploy has occurred.
+
+
+---
+
+# C9 — Task 7 closure — 2026-09-19
+
+- Task 7 RED: `10bc6f08a0b26eeb03291f1077d209dda1a45bb0`; Validate #1494 / run `35483743546` — **FAIL as intended**, **1,882 tests / 1,875 pass / 6 fail / 1 skipped**. The six failures were exactly the absent Printing overlay/public owner, App-owned prompt/recovery state/storage, missing affinity hook, missing overlay UI and missing App composition point.
+- Production candidate: `8636f66a68b9e3471bcf0191a15ab40bed4d1135`; Validate #1495 / run `35483978407` reached the new implementation and failed only on **5 stale ownership characterizations** that still expected second-copy/recovery implementation inside `App.jsx`.
+- Corrective/final GREEN: `7a0785ca454ecde0f0f18cce6f1370911c3edc63`; Validate #1496 / run `35484090583` — **SUCCESS**, **1,882 tests / 1,881 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- `usePrintingOverlays` now owns second-copy prompt selection, origin prompt, recovery dialog/busy state, dismissed-origin memory, prompt-seen state, paused recovery second-copy affinity and previous recovery state.
+- `PrintingOverlays` owns the existing recovery/second-copy dialogs with unchanged functional copy and is exposed through the node-safe Printing public surface.
+- App no longer imports or owns second-copy/recovery helpers or browser storage. After order creation it delegates origin ownership through `printing.rememberOriginOrder(order.id)` and renders one `<PrintingOverlays ... />` composition point.
+- Deferred recovery affinity remains explicit: when recovery points at a two-copy job awaiting copy 2/2, that same job is selected before any next queued job; pausing prevents immediate re-open until recovery resumes.
+- The corrective commit also keeps `onError`/`onSuccess` in refs so unstable App callback identities cannot retrigger the prompt-selection ACK effect while an acknowledgement is in flight.
+- Task 8 is **NOT STARTED**. No staging, physical QA, merge or production deploy has occurred.

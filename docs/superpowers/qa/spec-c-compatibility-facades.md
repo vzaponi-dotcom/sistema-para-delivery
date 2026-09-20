@@ -253,7 +253,7 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 |---|---|---|---|
 | `src/printing/usePrintingManager.js` | `src/domains/printing/application/usePrintingManager.js` + `physicalOperation.js` | Compatibility/source-test bridge; App already uses the Printing public entry | Task 8 |
 | `src/printing/localPrintStation.js` | `src/domains/printing/application/printingPlatform.js` + `infrastructure/printingLocalPreferences.js` | Settings no longer consumes it after Task 6; only compatibility/source-test debt may remain | Delete by Task 8 |
-| `src/printing/secondCopyPromptFlow.js` | `src/domains/printing/infrastructure/printingLocalPreferences.js` for origin IDs; second-copy rules already live in Printing domain | `App.jsx` still owns origin prompt/recovery composition until Task 7 | Task 7, delete facade by Task 8 |
+| `src/printing/secondCopyPromptFlow.js` | `src/domains/printing/infrastructure/printingLocalPreferences.js` for origin IDs; second-copy rules live in Printing domain/application | no production consumer after Task 7; legacy tests/facade only | Delete in Task 8 |
 | `src/printing/escpos58mm.js` | Pure renderer: `domains/printing/domain/rendering/escpos58mm.js` | Browser Canvas default needed by current manager execution | Task 8 |
 | `src/printing/pdfOrderRenderer.js` | Pure renderer: `domains/printing/domain/rendering/pdfOrderRenderer.js` | Orders detail still owns browser download call | Task 8 |
 
@@ -273,3 +273,13 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - `src/components/PrintingSettings.jsx` remains a deliberate legacy wrapper until Task 8, now consuming `PrintingSettingsContent` through the Printing public entry.
 - `src/printing/localPrintStation.js` is no longer a production dependency of Printing Settings; deletion remains scheduled no later than Task 8 together with the other legacy Printing facades.
 - Task 7 still owns App second-copy/recovery overlay extraction. Task 8 owns final legacy path removal; Task 9 owns permanent enforcement and stale QZ allowlist removal.
+
+
+## C9 Task 7 compatibility checkpoint — 2026-09-19
+
+- **App second-copy/recovery ownership — CLOSED:** all prompt/recovery state, eligibility orchestration and physical/remote second-copy handlers moved to `src/domains/printing/application/usePrintingOverlays.js`; dialog rendering moved to `src/domains/printing/ui/PrintingOverlays.jsx`.
+- App now has one public `PrintingOverlays` composition point and no direct imports of second-copy/recovery rules or `secondCopyPromptFlow.js`.
+- **Origin-order browser storage ownership — CLOSED in App:** new-order commit calls `printing.rememberOriginOrder(order.id)`; the manager/local-preference layer owns the persistence contract.
+- `src/printing/secondCopyPromptFlow.js` now has no production consumer and survives only as a temporary compatibility/test facade scheduled for deletion in Task 8.
+- Recovery affinity, pause/resume semantics, unknown physical outcome behavior and second-copy prompt copy remain preserved by focused regressions.
+- Remaining C9 compatibility work belongs to Task 8 (legacy production/browser paths and wrappers) and Task 9 (permanent architecture enforcement + stale QZ allowlist removal).
