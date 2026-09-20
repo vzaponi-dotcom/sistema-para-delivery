@@ -37,9 +37,9 @@ test('generic hook and pure formatting utilities live under frontend shared owne
   ])
 
   assert.match(comandas, /shared\/hooks\/useMediaQuery\.js/)
-  assert.doesNotMatch(comandas, /hooks\/useMediaQuery\.js/)
+  assert.doesNotMatch(comandas, /from ['"]\.\.\/\.\.\/\.\.\/hooks\/useMediaQuery\.js['"]/)
   assert.match(productDraft, /shared\/utils\/formFormatting\.js/)
-  assert.doesNotMatch(productDraft, /utils\/formFormatting\.js/)
+  assert.doesNotMatch(productDraft, /from ['"]\.\.\/\.\.\/\.\.\/utils\/formFormatting\.js['"]/)
   assert.doesNotMatch(formatting, /from ['"]react|window|document|localStorage|sessionStorage|navigator|fetch\s*\(/)
   assert.match(media, /useSyncExternalStore/)
   await absent('../hooks/useMediaQuery.js')
