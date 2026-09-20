@@ -581,3 +581,9 @@ Do not mark Spec C complete solely because `App.jsx` is smaller or files were mo
 
 
 C7 homologation handoff: master remains `5b101800fe29d02dd4543e184cca9e06d659a445`. C7 is staging-homologated at `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; Validate #1420 and Deploy staging #185 are green, and manual QA is 29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING. Task 10 requires a final Validate on the QA/docs closure HEAD and explicit user merge authorization. PR #51 remains draft; production remains untouched.
+## C10 Tasks 9–10 closure — 2026-09-20
+
+- C10 Tasks 1–10 are **COMPLETE / GREEN** on `feature/spec-c10-architecture-closure`; Task 11 is **NOT STARTED**.
+- Task 9 GREEN `e35b606` enforces the final permanent architecture contract; allowlists and compatibility facades remain **0**.
+- Task 10 reduced Orders and Customers public contracts to actual production consumers and recorded the final architecture audit. Full local gates and both production/staging Worker `--dry-run` checks passed.
+- No staging deploy, production deploy, remote migration or merge occurred. The C9 deferred hardware matrix remains a hard pre-production gate.

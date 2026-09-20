@@ -549,19 +549,22 @@ export const findArchitectureViolations = async ({ rootDir }) => {
       if (!domainEdges.has(targetDomain)) domainEdges.set(targetDomain, new Set())
     }
 
-    if (!edge.from.startsWith('src/domains/orders/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/orders/')
       && edge.resolvedPath?.startsWith('src/domains/orders/')
       && edge.resolvedPath !== 'src/domains/orders/index.js') {
       violations.push(`orders-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/customers/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/customers/')
       && edge.resolvedPath?.startsWith('src/domains/customers/')
       && edge.resolvedPath !== 'src/domains/customers/index.js') {
       violations.push(`customers-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/catalog/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/catalog/')
       && edge.resolvedPath?.startsWith('src/domains/catalog/')
       && edge.resolvedPath !== 'src/domains/catalog/index.js') {
       violations.push(`catalog-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
@@ -610,7 +613,8 @@ export const findArchitectureViolations = async ({ rootDir }) => {
       violations.push(`orders-customers-internal: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/table-service/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/table-service/')
       && edge.resolvedPath?.startsWith('src/domains/table-service/')
       && edge.resolvedPath !== 'src/domains/table-service/index.js') {
       violations.push(`table-service-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
@@ -620,7 +624,8 @@ export const findArchitectureViolations = async ({ rootDir }) => {
       && edge.resolvedPath?.startsWith('src/domains/orders/')) {
       violations.push(`table-service-orders-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
-    if (!edge.from.startsWith('src/domains/finance/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/finance/')
       && edge.resolvedPath?.startsWith('src/domains/finance/')
       && edge.resolvedPath !== 'src/domains/finance/index.js') {
       violations.push(`finance-deep-import: ${edge.from} -> ${edge.resolvedPath}`)

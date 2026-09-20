@@ -537,3 +537,9 @@ Tasks 1–4 are complete and green. Task 5 is not started.
 - Task 6 is **COMPLETE / GREEN**: RED `e06379a25954d600471a82d819f9cf984849f53b` / run `35530065644` failed as intended; final GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977` passed with **1,926 tests / 1,925 pass / 0 fail / 1 skipped** and all gates green.
 - Task 7 is **COMPLETE / GREEN**: RED `85da4cc8beab137b56631cae49e1c30896f24311` / run `35530720316` failed as intended; final GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891` passed with **1,927 tests / 1,926 pass / 0 fail / 1 skipped** and all gates green.
 - Task 8 is **NOT STARTED**. No allowlist deletion, deploy, merge, or post-merge work was performed.
+## Tasks 9–10 closure — 2026-09-20
+
+- Task 9 is **COMPLETE / GREEN**. RED `aeabd3b` required the permanent final architecture gates; GREEN `e35b606` added generic legacy-root, App, frontend-shared, domain-purity/browser/fetch, public-entry, QZ and cycle protection. All migration allowlists and compatibility facades remain **0**.
+- Task 10 is **COMPLETE / GREEN**. Its focused audit RED identified 40 surplus Orders exports and six surplus Customers exports. GREEN limits each public entry to real production consumers, keeps unit tests at their owner modules, and adds a test-file exemption to the production-only deep-import checker.
+- The final audit is `docs/superpowers/qa/spec-c10-final-architecture-audit.md`. Full suite, architecture, lint, build, local D1 and Spec B D1 passed; production and staging Worker dry-runs passed using `--dry-run` only.
+- No staging deploy, production deploy, remote migration, merge or production action occurred. **Task 11 is NOT STARTED.**

@@ -12,8 +12,6 @@ test('Task 4 moves the customer editor and duplicate modal behind the Customers 
   assert.equal(existsSync(fileUrl('../../components/ClientDuplicateModal.jsx')), false)
 
   const publicEntry = source('./index.js')
-  assert.match(publicEntry, /useCustomerEditor/)
-  assert.match(publicEntry, /CustomerEditorDialog/)
   assert.match(publicEntry, /ClientDuplicateModal/)
 
   const app = source('../../App.jsx')

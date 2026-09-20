@@ -111,6 +111,14 @@ test('non-Orders consumers cannot deep import Orders internals', async (t) => {
   assert.ok(violations.some((item) => item.startsWith('orders-deep-import:')))
 })
 
+test('test files do not turn internal domain units into production public contracts', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/ordersBehavior.test.js', "import { isOrderActive } from './domains/orders/domain/orderLifecycle.js'\n")
+  await write('src/domains/orders/domain/orderLifecycle.js', 'export const isOrderActive = () => true\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((item) => item.startsWith('orders-deep-import:')), false)
+})
+
 test('C4 legacy Orders owners are rejected when they reappear', async (t) => {
   const { rootDir, write } = await createFixture(t)
   await write('src/pages/Orders.jsx', 'export default function Orders() {}\n')

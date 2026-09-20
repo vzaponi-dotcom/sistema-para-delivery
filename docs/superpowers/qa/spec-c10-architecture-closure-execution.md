@@ -337,6 +337,25 @@ Task 2 is **COMPLETE / GREEN**.
 - C10 Tasks 1-8 are **COMPLETE / GREEN**. Task 9 is **NOT STARTED**. No staging deploy, production deploy or merge occurred.
 - Task 4: **COMPLETE / GREEN**.
 
+## Tasks 9–10 — final architecture enforcement and audit
+
+### Task 9
+
+- RED `aeabd3b`; the final generic C10 guards were intentionally absent.
+- GREEN `e35b606`; architecture enforcement rejects legacy roots, App legacy-root imports, shared→domain imports, domain React/infrastructure/UI/QZ/browser/fetch impurity, production deep domain imports, QZ escapes and public-entry cycles. Positive fixtures preserve allowed public-entry, shared and QZ-infrastructure edges.
+- Migration allowlists and compatibility facades remain **0**.
+
+### Task 10
+
+- RED: `src/c10FinalArchitectureAudit.test.js` failed on the expected 40 surplus Orders exports and six surplus Customers exports.
+- GREEN: Orders and Customers public entries now expose only real external production contracts; internal tests import their owner module directly.
+- The checker explicitly excludes `*.test.*` from production deep-import findings while retaining the same production guard.
+- Final audit: `docs/superpowers/qa/spec-c10-final-architecture-audit.md`.
+- Local gates: full suite, architecture unit suite, `test:architecture`, lint, build, local D1 and Spec B D1 gate passed.
+- Worker dry-runs: production and staging both passed with `--dry-run`; no deployment, remote migration, merge or production action occurred.
+
+**Tasks 1–10 are COMPLETE / GREEN. Task 11 is NOT STARTED.**
+
 ## Next action
 
 **Task 5 — Close residual `src/components` / `src/utils` ownership — is NOT STARTED.**

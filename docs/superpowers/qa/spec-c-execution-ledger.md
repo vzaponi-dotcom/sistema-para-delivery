@@ -595,3 +595,9 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Full Validate passed architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1. Staging: **NOT DEPLOYED**. Production: **NOT DEPLOYED**. Merge: **NOT PERFORMED**.
 - Tasks 1-8: **COMPLETE / GREEN**. Task 9: **NOT STARTED**.
 - C10 Tasks 1–7: **COMPLETE / GREEN**. Task 8: **NOT STARTED**.
+## C10 — Tasks 9–10 closure — 2026-09-20
+
+- **Task 9 COMPLETE / GREEN.** RED `aeabd3b` required the final generic architecture protections; GREEN `e35b606` installed permanent legacy-root, App, shared/domain-purity, browser/fetch, deep-import, QZ and public-entry cycle checks. Migration allowlists and compatibility facades: **0**.
+- **Task 10 COMPLETE / GREEN.** Focused RED found 40 unused Orders exports and six unused Customers exports. GREEN reduced both public entries to real production consumers and kept internal-unit tests direct to their owner modules. The production checker excludes `*.test.*` only; production deep imports remain rejected.
+- Full suite, architecture unit/gate, lint, build, local D1 and Spec B D1 all passed. Production and staging Worker dry-runs passed with `--dry-run`; neither deployed or applied remote migrations.
+- No staging deploy, production deploy or merge occurred. **Task 11 is NOT STARTED.**
