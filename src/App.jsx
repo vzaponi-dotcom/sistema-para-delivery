@@ -62,15 +62,11 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
 import { PrintQueue, PrintingOverlays, usePrintingManager } from './domains/printing/index.js'
+import { readKitchenSoundPreference, writeKitchenSoundPreference } from './infrastructure/storage/kitchenSoundPreference.js'
+import { getSessionStorage } from './infrastructure/storage/sessionStorage.js'
 
-const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-
-const readKitchenSoundPreference = () => {
-  if (typeof window === 'undefined') return true
-  try { return window.localStorage.getItem(KITCHEN_SOUND_STORAGE_KEY) !== 'false' } catch { return true }
-}
 
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
@@ -413,7 +409,7 @@ function App({ capabilities } = {}) {
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
     const nextEnabled = Boolean(enabled)
-    try { window.localStorage.setItem(KITCHEN_SOUND_STORAGE_KEY, String(nextEnabled)) } catch {
+    try { writeKitchenSoundPreference(nextEnabled) } catch {
       setToastMessage('Não foi possível salvar esta preferência neste dispositivo.')
       return false
     }
@@ -475,7 +471,7 @@ function App({ capabilities } = {}) {
     >
       <SettingsPolicyBoundary
         effectiveConfigOwner={effectiveConfigOwner}
-        storage={typeof window === 'undefined' ? undefined : window.sessionStorage}
+        storage={getSessionStorage()}
         navigationBridge={policyNavigationBridge}
         onFeedback={(feedback) => {
           if (feedback?.status === 401) showApiError(feedback)
