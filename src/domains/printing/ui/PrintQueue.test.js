@@ -506,3 +506,39 @@ test('operational summary and unknown physical outcome use the approved safety l
     duplicateRisk: 'Reenviar pode gerar uma impressão duplicada.',
   })
 })
+
+
+test('print queue exposes retained terminal history through printed and discarded filters', () => {
+  assert.ok(PRINT_QUEUE_STATUS_FILTERS.some(({ value, label }) => value === 'printed' && label === 'Impresso'))
+  assert.ok(PRINT_QUEUE_STATUS_FILTERS.some(({ value, label }) => value === 'discarded' && label === 'Descartado'))
+})
+
+test('print queue blocks server mutations while offline with friendly Portuguese feedback', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /isOnline = true/)
+  assert.match(page, /Você está offline\. Reconecte para alterar a fila de impressão\./)
+  assert.match(page, /!isOnline/)
+})
+
+test('print queue debounces search input and aborts stale panel reads', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /SEARCH_DEBOUNCE_MS = 300/)
+  assert.match(page, /searchInput/)
+  assert.match(page, /AbortController/)
+  assert.match(page, /controller\.abort\(\)/)
+  assert.match(page, /getPrintJobs\([^\n]+\{ signal:/)
+  assert.match(page, /getPrintQueueSummary\(\{ signal:/)
+})
+
+test('print queue actions skip manager refresh because the panel refreshes once itself', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  for (const command of [
+    'requestPrintNow', 'requestRetry', 'requestDiscard', 'requestForcePrint',
+    'requestSecondCopy', 'skipSecondCopy',
+  ]) {
+    assert.match(page, new RegExp(`${command}\\?\\.\\(selectedJob, \\{ refreshManager: false \\}\\)`))
+  }
+  assert.match(page, /confirmUnknownPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\), \{ refreshManager: false \}\)/)
+  assert.match(page, /confirmUnknownNotPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\), \{ refreshManager: false \}\)/)
+  assert.match(page, /requestReprint\?\.\(selectedJob, reprintCopies, \{ refreshManager: false \}\)/)
+})

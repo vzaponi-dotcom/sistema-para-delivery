@@ -20,3 +20,24 @@ test('manager exposes origin-order ownership through one public command', async 
   assert.match(source, /rememberOriginOrderId/)
   assert.match(source, /rememberOriginOrder/)
 })
+
+
+test('remote queue mutations can skip the manager-wide refresh when a caller owns its refresh', async () => {
+  const source = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+  assert.match(source, /refreshManager/)
+  for (const marker of [
+    'const requestPrintNow = useCallback',
+    'const requestRetry = useCallback',
+    'const requestDiscard = useCallback',
+    'const requestSecondCopy = useCallback',
+    'const skipSecondCopy = useCallback',
+    'const requestForcePrint = useCallback',
+    'const requestReprint = useCallback',
+  ]) {
+    const start = source.indexOf(marker)
+    assert.notEqual(start, -1)
+    const next = source.indexOf('\n  const ', start + marker.length)
+    const block = source.slice(start, next === -1 ? undefined : next)
+    assert.match(block, /refreshManager/)
+  }
+})

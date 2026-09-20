@@ -136,3 +136,14 @@ test('QZ certificate and signing helpers preserve plain-text transport and struc
     })
   })
 })
+
+
+test('paginated queue reads forward an AbortSignal to fetch', async () => {
+  const controller = new AbortController()
+  const calls = await captureCalls(async () => {
+    await client.getPrintJobs({ page: 2 }, { signal: controller.signal })
+    await client.getPrintQueueSummary({ signal: controller.signal })
+  })
+  assert.equal(calls[0][1].signal, controller.signal)
+  assert.equal(calls[1][1].signal, controller.signal)
+})
