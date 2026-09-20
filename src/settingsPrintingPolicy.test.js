@@ -9,7 +9,7 @@ import { createPrintingSettingsAdapter } from './app/surfaces/settings/printingS
 import { resolvePrintCopies } from '../shared/printContextPolicy.js'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 
-const managerSource = await readFile(new URL('./printing/usePrintingManager.js', import.meta.url), 'utf8')
+const managerSource = await readFile(new URL('./domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 
 const admin = (resource, revision, data, scopeId) => ({
   resource,

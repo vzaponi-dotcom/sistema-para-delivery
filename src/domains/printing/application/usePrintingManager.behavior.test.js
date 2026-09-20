@@ -17,10 +17,10 @@ import {
 } from '../index.js'
 import {
   claimAndExecuteSecondCopy,
-  createPhysicalJobFailureNotifier,
   initializeBackgroundPhysicalTransport,
   usePrintingManager,
 } from './usePrintingManager.js'
+import { createPhysicalJobFailureNotifier } from './physicalOperation.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
 
 const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')

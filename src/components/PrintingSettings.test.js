@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const settings = await readFile(new URL('./PrintingSettingsContent.jsx', import.meta.url), 'utf8')
 const orders = await readFile(new URL('../domains/orders/ui/Orders.jsx', import.meta.url), 'utf8')
-const manager = await readFile(new URL('../printing/usePrintingManager.js', import.meta.url), 'utf8')
+const manager = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 const adapter = await readFile(new URL('../app/surfaces/settings/printingSettingsAdapter.js', import.meta.url), 'utf8')
 const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
 

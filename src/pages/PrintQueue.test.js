@@ -350,7 +350,7 @@ test('print queue modal orders actions by primary, destructive, ticket, close on
 
 test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
   const page = await readSource('./PrintQueue.jsx')
-  const manager = await readSource('../printing/usePrintingManager.js')
+  const manager = await readSource('../domains/printing/application/usePrintingManager.js')
   assert.match(page, /Trabalho de impressão descartado/)
   assert.match(page, /Impressão autorizada e enviada para a fila/)
   assert.doesNotMatch(page, /Ãƒ|Ã‚|ï¿½/)
@@ -360,7 +360,7 @@ test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
 test('7F-B1 keeps reprint and ticket preview in the detail modal, using the immutable job snapshot', async () => {
   const [page, manager, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../printing/usePrintingManager.js'),
+    readSource('../domains/printing/application/usePrintingManager.js'),
     readSource('../print-queue.css'),
   ])
 

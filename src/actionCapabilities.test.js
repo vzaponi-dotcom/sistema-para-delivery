@@ -489,11 +489,9 @@ test('21. printing.execute protege a entrada manual global de segunda via na UI 
     plugins: [
       {
         name: 'action-capabilities-printing-boundary', enforce: 'pre',
-        resolveId: (id) => id.endsWith('/printing/usePrintingManager') || id === './printing/usePrintingManager' ? '\0action-capabilities-printing' : null,
+        resolveId: (id) => id.endsWith('/domains/printing/application/usePrintingManager.js') || id.endsWith('/domains/printing/application/usePrintingManager') ? '\0action-capabilities-printing' : null,
         load: (id) => id === '\0action-capabilities-printing' ? `
           export const usePrintingManager = () => globalThis.__actionCapabilitiesPrinting
-          export const canPresentSecondCopyPrompt = () => true
-          export const canKeepSecondCopyPromptOpen = () => true
         ` : null,
       },
       {
