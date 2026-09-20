@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **PLAN APPROVED / TASK 1 BASELINE RECORDED / EXACT-HEAD VALIDATE PENDING**  
+**Status:** **PLAN APPROVED / TASK 1 COMPLETE / TASK 2 NOT STARTED**  
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -219,7 +219,22 @@ The post-C9 tree matches the approved C10 design:
 - repository-level shared code has real Worker consumers;
 - no production deploy occurred.
 
+## Task 1 validation
+
+- Task 1 evidence commit: `264399e14ad82833c93143bd262c0018bd17376e`.
+- Validate #1519 / run `35517045330`: **SUCCESS** on that exact SHA.
+- Test suite: **1,911 tests / 1,910 pass / 0 fail / 1 skipped**.
+- Frontend architecture boundaries: **OK**.
+- lint: **0 errors** (existing warnings only).
+- build: **PASS**.
+- production Worker dry-run: **PASS**.
+- staging Worker dry-run: **PASS**.
+- local D1: **PASS**.
+- Spec B D1 clean install/upgrade: **PASS**.
+- Production deploy: **NO**.
+
+Task 1 is **COMPLETE**. No production code changed.
+
 ## Next action
 
-Task 1 documentation gate is pending on the exact commit that records this dependency map.  
-**Task 2 must not start until that Validate is SUCCESS.**
+**Task 2 — Remove the final legacy API facade — is NOT STARTED.**

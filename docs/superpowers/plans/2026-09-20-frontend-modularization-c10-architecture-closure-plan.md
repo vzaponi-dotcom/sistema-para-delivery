@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **APPROVED — TASK 1 BASELINE CHECKPOINT / VALIDATE PENDING**  
+**Status:** **APPROVED — TASK 1 COMPLETE / TASK 2 NOT STARTED**  
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
