@@ -135,7 +135,8 @@ test('successful active order creation confirms queueing without invoking a loca
 
   assert.match(checkout, /Pedido enviado para a fila da cozinha/)
   assert.match(checkout, /showSuccessMessage/)
-  assert.doesNotMatch(checkout, /\bprinting\.|printOrder|printSecondCopy|claimPrintJob|claimNextPrintJob|dispatchRawBt|writeSerialBytes|\bqz\./)
+  assert.match(checkout, /printing\.rememberOriginOrder\(order\.id\)/)
+  assert.doesNotMatch(checkout, /printOrder|printSecondCopy|claimPrintJob|claimNextPrintJob|dispatchRawBt|writeSerialBytes|\bqz\./)
 })
 
 test('remote order actions announce approved queue outcomes and never retain a local printing error', () => {

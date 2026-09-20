@@ -65,6 +65,10 @@ export function usePrintingOverlays({
   const recoveryPromptSeenRef = useRef(false)
   const pausedRecoverySecondCopyJobIdRef = useRef(null)
   const previousRecoveryStateRef = useRef(null)
+  const onErrorRef = useRef(onError)
+  const onSuccessRef = useRef(onSuccess)
+  onErrorRef.current = onError
+  onSuccessRef.current = onSuccess
 
   const secondCopyPromptJob = jobs.find((job) => job?.id === secondCopyPromptJobId) ?? null
   const secondCopyPromptOrder = orders.find((order) => order?.id === secondCopyPromptJob?.orderId) ?? null
@@ -131,12 +135,11 @@ export function usePrintingOverlays({
       acknowledge: printing.acknowledgeSecondCopyPrompt,
       openPrompt: setSecondCopyPromptJobId,
       reopenAcknowledged: hasRecoveryAffinity,
-    }).catch((error) => onError?.(error))
+    }).catch((error) => onErrorRef.current?.(error))
   }, [
     authenticated,
     jobs,
     localStation,
-    onError,
     orders,
     printerBlocked,
     printing?.acknowledgeSecondCopyPrompt,
@@ -215,11 +218,11 @@ export function usePrintingOverlays({
       pausedRecoverySecondCopyJobIdRef.current = null
       setSecondCopyPromptJobId(null)
       if (isRecoverySecondCopy) setRecoveryDialogMode('progress')
-      onSuccess?.('2ª via enviada para impressão')
+      onSuccessRef.current?.('2ª via enviada para impressão')
       return true
     } catch (error) {
       setSecondCopyPromptJobId(null)
-      onError?.(error)
+      onErrorRef.current?.(error)
       return false
     } finally {
       setSecondCopyPromptBusy(false)
@@ -235,7 +238,7 @@ export function usePrintingOverlays({
       return result
     } catch (error) {
       setRecoveryDialogMode(null)
-      onError?.(error)
+      onErrorRef.current?.(error)
       return false
     } finally {
       setRecoveryBusy(false)
@@ -250,7 +253,7 @@ export function usePrintingOverlays({
       await printing.deferRecovery()
       return true
     } catch (error) {
-      onError?.(error)
+      onErrorRef.current?.(error)
       return false
     } finally {
       setRecoveryBusy(false)
@@ -268,7 +271,7 @@ export function usePrintingOverlays({
       return result
     } catch (error) {
       setRecoveryDialogMode(null)
-      onError?.(error)
+      onErrorRef.current?.(error)
       return false
     } finally {
       setRecoveryBusy(false)
@@ -284,7 +287,7 @@ export function usePrintingOverlays({
       setRecoveryDialogMode(null)
       return true
     } catch (error) {
-      onError?.(error)
+      onErrorRef.current?.(error)
       return false
     } finally {
       setRecoveryBusy(false)
@@ -309,10 +312,10 @@ export function usePrintingOverlays({
     try {
       await printing.requestSecondCopy(originSecondCopyPromptJob)
       setOriginSecondCopyPromptJobId(null)
-      onSuccess?.('2ª via enviada para a fila da cozinha')
+      onSuccessRef.current?.('2ª via enviada para a fila da cozinha')
       return true
     } catch (error) {
-      onError?.(error)
+      onErrorRef.current?.(error)
       return false
     } finally {
       setOriginSecondCopyPromptBusy(false)

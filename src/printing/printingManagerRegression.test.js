@@ -9,6 +9,7 @@ import {
 
 const manager = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
+const overlays = await readFile(new URL('../domains/printing/application/usePrintingOverlays.js', import.meta.url), 'utf8')
 const operationalRuntime = await readFile(new URL('../app/runtime/data/useOperationalDataRuntime.js', import.meta.url), 'utf8')
 const orderArrivals = await readFile(new URL('../domains/orders/application/useOrderArrivals.js', import.meta.url), 'utf8')
 
@@ -171,8 +172,10 @@ test('printing manager centralizes approved poll and heartbeat cadences', () => 
 test('App mounts one printing manager and passes it to Orders without changing order sync detection', () => {
   assert.equal(app.includes("from './domains/printing/index.js'"), true)
   assert.equal(app.includes('usePrintingManager'), true)
-  assert.equal(app.includes('canKeepSecondCopyPromptOpen'), true)
-  assert.equal(app.includes('canPresentSecondCopyPrompt'), true)
+  assert.equal(app.includes('canKeepSecondCopyPromptOpen'), false)
+  assert.equal(app.includes('canPresentSecondCopyPrompt'), false)
+  assert.equal(overlays.includes('canKeepSecondCopyPromptOpen'), true)
+  assert.equal(overlays.includes('canPresentSecondCopyPrompt'), true)
   const hookCalls = app.match(/usePrintingManager\(/g) || []
   assert.equal(hookCalls.length, 1)
   assert.match(app, /const printing = usePrintingManager\(/)

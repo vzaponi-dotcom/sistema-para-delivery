@@ -19,8 +19,8 @@ test('global second-copy prompt delegates order and comanda eligibility to the s
 
 test('second-copy prompt is acknowledged once by the eligible primary QZ station', () => {
   assert.match(promptFlowSource, /job\?\.status === 'awaiting_second_copy'/)
-  assert.match(hookSource, /canPresentSecondCopyPrompt\(\{\s*isQz: printTransportKind === 'qz',\s*transportReady: printTransportReady,\s*printerBlocked,\s*station: localPrintStation,\s*job,/)
-  assert.match(hookSource, /acknowledgeAndOpenSecondCopyPrompt\(\{[\s\S]*acknowledge: acknowledgeSecondCopyPrompt/)
+  assert.match(hookSource, /canPresentSecondCopyPrompt\(\{\s*isQz: transportKind === 'qz',\s*transportReady,\s*printerBlocked,\s*station: localStation,\s*job,/)
+  assert.match(hookSource, /acknowledgeAndOpenSecondCopyPrompt\(\{[\s\S]*acknowledge: printing\.acknowledgeSecondCopyPrompt/)
   assert.match(overlaySource, /'Parar por agora' : 'Depois'/)
   assert.doesNotMatch(hookSource, /dismissedSecondCopyJobIdsRef/)
 })
@@ -44,7 +44,7 @@ test('second-copy prompt eligibility reacts when local QZ readiness changes', ()
 })
 
 test('an already-open second-copy prompt is revalidated before display and before physical confirmation', () => {
-  assert.match(appSource, /if \(!isSecondCopyPromptEligible\(current, currentOrder\) \|\| !canKeepSecondCopyPromptOpen\(/)
+  assert.match(hookSource, /if \(!isSecondCopyPromptEligible\(current, currentOrder\) \|\| !canKeepSecondCopyPromptOpen\(/)
   assert.match(hookSource, /const handleGlobalSecondCopy = async \(\) => \{[\s\S]*canKeepSecondCopyPromptOpen\(/)
   assert.match(hookSource, /setSecondCopyPromptJobId\(null\)[\s\S]*return/)
 })
