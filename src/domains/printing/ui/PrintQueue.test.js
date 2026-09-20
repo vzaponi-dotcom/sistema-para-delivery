@@ -542,3 +542,12 @@ test('print queue actions skip manager refresh because the panel refreshes once 
   assert.match(page, /confirmUnknownNotPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\), \{ refreshManager: false \}\)/)
   assert.match(page, /requestReprint\?\.\(selectedJob, reprintCopies, \{ refreshManager: false \}\)/)
 })
+
+
+test('print queue warms adjacent pages so pagination can render cached jobs immediately', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /pageCacheRef/)
+  assert.match(page, /prefetchAdjacentPages/)
+  assert.match(page, /pageInfo\.totalPages/)
+  assert.match(page, /cacheKeyForQuery/)
+})
