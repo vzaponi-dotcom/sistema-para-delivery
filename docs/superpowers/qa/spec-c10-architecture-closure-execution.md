@@ -17,15 +17,20 @@
 ## Initial C10 dependency audit
 
 Remaining production ownership debts:
-- `src/api/client.js`;
-- `src/api/effectiveConfigClient.js`;
-- `src/pages/Dashboard.jsx`;
-- `src/utils/dashboardAnalytics.js`;
+- `src/api/client.js` and `src/api/effectiveConfigClient.js`;
+- `src/pages/Dashboard.jsx` and `src/utils/dashboardAnalytics.js`;
+- generic production ownership still split across `src/components/`, `src/hooks/` and `src/utils/`;
+- `src/hooks/useMediaQuery.js` is a frontend-shared hook candidate;
+- `src/utils/formFormatting.js` is a pure multi-domain helper and is currently imported by Catalog `domain/`;
+- `src/utils/dataSync.js` is runtime-owned;
+- login/theme/connection presentation in `src/components/` is app-shell-owned;
+- payment/printing/Dashboard-only presentation modules in `src/components/` have clear domain/surface owners;
+- `src/utils/bodyScrollLock.js` had zero production consumers in the initial audit and must be reconfirmed before deletion;
 - Dashboard provider dependency inside `AppShell`;
 - App direct `localStorage/sessionStorage` access;
 - six clearly-owned root CSS files;
 - empty `legacy-import-allowlist.json`;
-- architecture checker lacks final generic legacy-root + domain-cycle rules.
+- architecture checker lacks final generic legacy-root, frontend-shared, generic domain browser/fetch purity and domain-cycle rules.
 
 Already clean:
 - six domain roots established;
@@ -33,14 +38,14 @@ Already clean:
 - QZ isolated under infrastructure;
 - cross-domain internal allowlist empty;
 - direct QZ allowlist empty;
-- root semantic `shared/` modules all have Worker consumers and may remain cross-runtime.
+- repository-level semantic `shared/` modules have real Worker consumers and remain cross-runtime by design.
 
 ## Next action
 
-Await explicit approval of:
-- `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`;
-- `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md`.
+- C10 design: **APPROVED** by the user on 2026-09-20.
+- Implementation plan: **DRAFT FOR APPROVAL**, fully realigned to the approved design.
+- Implementation: **NOT STARTED**.
+- Next permitted action: obtain explicit approval of the implementation plan, then begin Task 1.
 
 Design refinement commit: `0c0e8fea5321cd0519d8b2849915e1ff6eb6b472`.
-
-The C10 design was explicitly approved by the user on 2026-09-20. The implementation plan has now been realigned to that approved design and is **DRAFT FOR APPROVAL**. No C10 implementation task has started.
+Plan realignment commit: `a70d15232d9dfaedd6a9f84256b478b4d4302608`.
