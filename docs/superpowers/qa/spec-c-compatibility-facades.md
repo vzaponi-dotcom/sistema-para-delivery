@@ -7,7 +7,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 | `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
-| `updateCollection` runtime escape hatch | official effects per domain | **none — physically removed in C8 Task 6** | **C8 — REMOVED; Task 7 architecture enforcement pending** |
+| `updateCollection` runtime escape hatch | official effects per domain | **none — removed and architecture-enforced in C8** | **C8 — REMOVED / ENFORCED** |
 
 ## C1 status — 2026-09-16
 
@@ -209,10 +209,11 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Remaining program debts are outside C8: Printing belongs to C9; generic/auth API reexports and final architecture cleanup remain C10 scope.
 
 
-## C9 preparation status — 2026-09-19
+## C9 preparation status — historical checkpoint — 2026-09-19
 
+- This subsection records the pre-implementation C9 snapshot; newer C9 checkpoints below are authoritative for current execution state.
 - C8 compatibility debt is closed; PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` and post-merge Validate #1464 / run `35471894412` passed on that exact SHA.
-- C9 is active on `feature/spec-c9-printing`; design and plan are approved, but Task 1 has not started at this checkpoint.
+- At this historical checkpoint, C9 was active on `feature/spec-c9-printing`; design and plan were approved and Task 1 had not started yet.
 - Existing C9 migration debt remains **ACTIVE / NOT REMOVED**:
   - legacy production ownership under `src/printing/**`;
   - `src/pages/PrintQueue.jsx` and `src/pages/printQueue*.js`;
