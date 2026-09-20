@@ -14,5 +14,5 @@ export { renderEscPos58mm } from './domain/rendering/escpos58mm.js'
 
 export { usePrintingManager } from './application/usePrintingManager.js'
 
-export { default as PrintQueue } from './ui/PrintQueue.jsx'
+export { PrintQueue } from './ui/printingSurfaces.js'
 export { DEFAULT_PRINT_QUEUE_QUERY } from './ui/printQueueQuery.js'
