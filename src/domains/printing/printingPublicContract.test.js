@@ -14,3 +14,16 @@ test('printing public entry stays minimal', async () => {
     'usePrintingManager',
   ].sort())
 })
+
+
+test('printing public entry does not expose internal helpers by name', async () => {
+  const mod = await import('./index.js')
+  for (const internal of [
+    'canConsumeAutomaticPrintJob',
+    'canPresentSecondCopyPrompt',
+    'deriveRecoveryView',
+    'renderEscPos58mm',
+    'getPrintJobs',
+    'createQzTransport',
+  ]) assert.equal(Object.hasOwn(mod, internal), false, internal)
+})

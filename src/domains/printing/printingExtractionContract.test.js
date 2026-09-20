@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 
 const legacyProductionPaths = [
   '../../printing/cp860.js',
@@ -30,4 +30,18 @@ test('Printing CSS ownership keeps only the approved locations', () => {
   assert.equal(existsSync(new URL('../../printing/printing.css', import.meta.url)), false)
   assert.equal(existsSync(new URL('../printing/ui/printing.css', import.meta.url)), true)
   assert.equal(existsSync(new URL('../../print-queue.css', import.meta.url)), true)
+})
+
+
+test('legacy src/printing tree contains tests only', () => {
+  const entries = readdirSync(new URL('../../printing/', import.meta.url), { withFileTypes: true })
+  const production = entries
+    .filter((entry) => entry.isFile() && !entry.name.endsWith('.test.js'))
+    .map((entry) => entry.name)
+  assert.deepEqual(production, [])
+})
+
+test('C9 removes the historical direct-QZ allowlist exception', () => {
+  const allowlist = JSON.parse(readFileSync(new URL('../../../scripts/architecture/legacy-import-allowlist.json', import.meta.url), 'utf8'))
+  assert.equal((allowlist.qzDirectImports || []).includes('src/printing/usePrintingManager.js'), false)
 })

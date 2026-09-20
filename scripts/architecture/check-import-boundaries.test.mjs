@@ -455,3 +455,119 @@ test('C8 allows Orders through Catalog public entry plus Catalog internal and sh
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.equal(violations.some((value) => /^(?:catalog-|c8-)/.test(value)), false)
 })
+
+
+test('C9 App cannot deep import Printing internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import { x } from './domains/printing/application/usePrintingManager.js'\n")
+  await write('src/domains/printing/application/usePrintingManager.js', 'export const x = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-printing-deep-import: src/App.jsx -> src/domains/printing/application/usePrintingManager.js'))
+})
+
+test('C9 Settings cannot deep import Printing internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/surfaces/settings/SettingsSurface.jsx', "import { x } from '../../../domains/printing/ui/PrintingSettingsContent.jsx'\n")
+  await write('src/domains/printing/ui/PrintingSettingsContent.jsx', 'export const x = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-printing-deep-import: src/app/surfaces/settings/SettingsSurface.jsx -> src/domains/printing/ui/PrintingSettingsContent.jsx'))
+})
+
+test('C9 Printing domain remains React-free', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/printing/domain/rules.js', "import React from 'react'\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-printing-domain-react: src/domains/printing/domain/rules.js -> react'))
+})
+
+test('C9 Printing domain cannot import qz-tray', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/printing/domain/rules.js', "import qz from 'qz-tray'\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-printing-domain-qz: src/domains/printing/domain/rules.js -> qz-tray'))
+})
+
+test('C9 Printing domain remains browser and fetch free', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/printing/domain/rules.js', "export const x = () => globalThis.localStorage.getItem('x') || fetch('/x')\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-printing-domain-browser: src/domains/printing/domain/rules.js'))
+})
+
+test('C9 Printing cannot deep import another domain internal', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/printing/application/x.js', "import { y } from '../../orders/domain/orderLifecycle.js'\n")
+  await write('src/domains/orders/domain/orderLifecycle.js', 'export const y = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-printing-cross-domain-internal: src/domains/printing/application/x.js -> src/domains/orders/domain/orderLifecycle.js'))
+})
+
+test('C9 qz-tray imports outside infrastructure/qz remain rejected', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/qzOwner.js', "import qz from 'qz-tray'\n")
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('qz-direct: src/app/qzOwner.js -> qz-tray'))
+})
+
+test('C9 QZ infrastructure cannot depend on Printing application internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/infrastructure/qz/qzTransport.js', "import { x } from '../../domains/printing/application/usePrintingManager.js'\n")
+  await write('src/domains/printing/application/usePrintingManager.js', 'export const x = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-qz-printing-internal: src/infrastructure/qz/qzTransport.js -> src/domains/printing/application/usePrintingManager.js'))
+})
+
+test('C9 legacy src/printing production owner cannot return', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/printing/runtime.js', 'export const legacy = true\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-legacy-printing-owner: src/printing/runtime.js'))
+})
+
+test('C9 legacy API client cannot reintroduce Printing exports', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/client.js', [
+    'export const getPrintJobs = () => {}',
+    'export { signQzPayload } from "./legacyPrinting.js"',
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-legacy-printing-api: src/api/client.js'))
+})
+
+test('C9 App cannot regain second-copy recovery or QZ ownership', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', [
+    'const secondCopyPromptJobId = null',
+    'const recoveryDialogMode = null',
+    'const canPresentSecondCopyPrompt = () => true',
+    'const qzTransport = {}',
+  ].join('\n'))
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.includes('c9-app-printing-owner: src/App.jsx'))
+})
+
+test('C9 App and Settings may consume only the Printing public entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/App.jsx', "import { usePrintingManager } from './domains/printing/index.js'\n")
+  await write('src/app/surfaces/settings/SettingsSurface.jsx', "import { PrintingSettingsContent } from '../../../domains/printing/index.js'\n")
+  await write('src/domains/printing/index.js', 'export const usePrintingManager = () => {}\nexport const PrintingSettingsContent = () => null\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((value) => value.startsWith('c9-printing-deep-import:')), false)
+})
+
+test('C9 Printing may consume permanent shared print contracts', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/printing/domain/rules.js', "import { x } from '../../../../shared/printQueue.js'\n")
+  await write('shared/printQueue.js', 'export const x = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((value) => value.startsWith('c9-printing-')), false)
+})
+
+test('C9 Printing application may consume first-class QZ infrastructure modules', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/printing/application/manager.js', "import { createQzTransport } from '../../../infrastructure/qz/qzTransport.js'\n")
+  await write('src/infrastructure/qz/qzTransport.js', 'export const createQzTransport = () => ({})\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((value) => value.startsWith('c9-printing-qz-infra:')), false)
+  assert.equal(violations.some((value) => value.startsWith('c9-qz-printing-internal:')), false)
+})
