@@ -1,0 +1,24 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import {
+  usePrintingManager,
+  canConsumeAutomaticPrintJob,
+} from '../index.js'
+
+test('printing application owns the manager without importing qz-tray directly', async () => {
+  assert.equal(typeof usePrintingManager, 'function')
+  assert.equal(typeof canConsumeAutomaticPrintJob, 'function')
+  const source = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /from ['"]qz-tray['"]/)
+  assert.match(source, /createQzTransport/)
+  assert.match(source, /PRINT_JOB_POLL_MS = 2_000/)
+  assert.match(source, /PRINT_STATE_POLL_MS = 5_000/)
+  assert.match(source, /STATION_HEARTBEAT_MS = 15_000/)
+})
+
+test('manager exposes origin-order ownership through one public command', async () => {
+  const source = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+  assert.match(source, /rememberOriginOrderId/)
+  assert.match(source, /rememberOriginOrder/)
+})
