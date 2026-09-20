@@ -44,7 +44,7 @@ const grants = new Set(['printing.settings', 'printing.station.configure', 'prin
 
 test('printing conflict stays human-readable and can reopen review after Continue editing', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { default: PrintingSettingsContent } = await h.load('/src/domains/printing/ui/PrintingSettingsContent.jsx')
   const review = { resource: 'printingPolicy', conflicts: [] }
   const opened = []
   let reviewCalls = 0
@@ -80,7 +80,7 @@ test('printing conflict stays human-readable and can reopen review after Continu
 
 test('station configuration conflict uses the same review recovery instead of a raw backend error', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { default: PrintingSettingsContent } = await h.load('/src/domains/printing/ui/PrintingSettingsContent.jsx')
   const review = { resource: 'stationConfiguration', conflicts: [{ id: 'name' }] }
   const opened = []
   let reviewCalls = 0
@@ -116,7 +116,7 @@ test('station configuration conflict uses the same review recovery instead of a 
 
 test('primary station conflict remains reopenable after the review modal is closed', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { default: PrintingSettingsContent } = await h.load('/src/domains/printing/ui/PrintingSettingsContent.jsx')
   const review = { resource: 'stationPrimary', conflicts: [{ id: 'primary' }] }
   const opened = []
   let reviewCalls = 0

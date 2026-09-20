@@ -5,7 +5,8 @@ import { act } from 'react-test-renderer'
 import qz from 'qz-tray'
 
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
-import { PRINT_JOB_POLL_MS, usePrintingManager } from './printing/usePrintingManager.js'
+import { usePrintingManager } from './domains/printing/index.js'
+import { PRINT_JOB_POLL_MS } from './domains/printing/application/usePrintingManager.js'
 
 const flushMicrotasks = async () => {
   for (let index = 0; index < 30; index += 1) await Promise.resolve()

@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import * as client from './client.js'
 import { getBootstrap, getSession, login, logout } from './client.js'
 import { ordersApi } from '../domains/orders/index.js'
 
@@ -96,3 +97,16 @@ test('order helper sends the cart unchanged with one stable idempotency key', as
   ])
 })
 
+
+
+test('legacy api client does not own Printing exports', () => {
+  for (const name of [
+    'getPrintJobs',
+    'claimPrintJob',
+    'reprintPrintJob',
+    'getQzCertificate',
+    'signQzPayload',
+    'getTableTabPrintDocument',
+    'createManualTableTabPrintJob',
+  ]) assert.equal(Object.hasOwn(client, name), false, name)
+})

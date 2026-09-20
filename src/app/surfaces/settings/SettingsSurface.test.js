@@ -86,7 +86,7 @@ test('passes the provider-backed printing adapter to the printing content', asyn
   const { calls, screen, h } = await renderSection(t, 'settings-printing', {
     granted: new Set(['printing.settings.view', 'printing.station.view']),
   })
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { PrintingSettingsContent } = await h.load('/src/domains/printing/index.js')
   const [content] = screen.root.findAllByType(PrintingSettingsContent)
 
   assert.ok(content.props.settings)

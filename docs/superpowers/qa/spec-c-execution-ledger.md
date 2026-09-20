@@ -24,8 +24,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C5 | Table Service | **MERGED — COMPLETE** | `feature/spec-c5-table-service` / PR #49 merged at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c5-table-service-plan.md` |
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
-| C8 | Catalog | **ACTIVE — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** | `feature/spec-c8-catalog` / draft PR #52 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | NOT STARTED | — | Write after C8 merge |
+| C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
+| C9 | Printing domain + QZ separation | **STAGING FUNCTIONAL QA CLOSED — 24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING; TASK 12 PRE-MERGE DOCS GATE** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
@@ -433,3 +433,113 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - PR #52 review state: draft/open, unmerged, no review threads and no submitted reviews pending.
 - Task 10 ruling: authorization to execute Task 10 is **not merge authorization**. Merge requires a separate explicit user authorization after the exact final documentation HEAD passes Validate.
 - Production remains untouched. C9 must not start automatically.
+
+
+---
+
+# C8 — merge closure — 2026-09-19
+
+- PR #52 is **MERGED / CLOSED**.
+- Merge/master SHA: `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- Post-merge Validate #1464 / run `35471894412` — **SUCCESS** on exact SHA `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- C8 staging/manual QA remains **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**.
+- C8 has no surviving temporary compatibility facade; permanent Catalog architecture enforcement remains active.
+- Production was **NOT** deployed.
+
+---
+
+# C9 — preparation checkpoint — 2026-09-19
+
+- Branch: `feature/spec-c9-printing`.
+- Base/master: `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- Written design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md` — **APPROVED**.
+- Implementation plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` — **APPROVED FOR EXECUTION**; Native/inline execution selected.
+- Pre-preparation branch HEAD: `af7d32b821ac5d475bbd00981fedf673f3a5e49f`; compare against base contained only the C9 spec and plan, with no application code changes.
+- C9 authority explicitly preserves the current copy policy: Local without table uses `orderDefaultCopies`; table-linked orders and `table-tab` jobs use `tableTabDefaultCopies`; each supports 1 or 2 copies.
+- Active C9 debts at start: `src/printing/**` mixed ownership, `src/pages/PrintQueue.jsx`, `src/components/PrintingSettings*.jsx`, Printing-specific exports in `src/api/client.js`, App second-copy/recovery/QZ coordination, and the direct-QZ allowlist exception for `src/printing/usePrintingManager.js`.
+- Permanent cross-runtime contracts `shared/printQueue.js`, `shared/printQueueActions.js`, and `shared/printContextPolicy.js` are not compatibility facades and remain shared.
+- Task 1: **NOT STARTED** at this checkpoint.
+- Staging: **NO**. Merge: **NO**. Production: **NO**.
+
+- C9 documentary baseline `010e9ef8f46c0a46eb82dfa5c85c79d5c4bc16f1` passed Validate #1465 / run `35473924686` — **SUCCESS**, **1,860 tests / 1,859 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
+- Draft PR #53 is open for C9. This run validates the pre-Task-1 documentary baseline; Task 1 remains NOT STARTED until this evidence-only follow-up HEAD receives its own Validate.
+
+
+---
+
+# C9 — Task 1 closure — 2026-09-19
+
+- Task 1: **COMPLETE / GREEN**.
+- RED: `f174e57fc45809b053aba6ce86298ac61990e27c`; Validate #1467 / run `35474709352` — expected failure with **1,865 tests / 1,860 pass / 4 fail / 1 skipped**, proving the new Printing domain owners were absent while the copy-policy characterization remained green.
+- Corrective purity RED: `4a064b9ee3d6f001cbca762ebe1ec31f7fc0a300`; Validate #1473 / run `35475160919` exposed the real legacy browser dependency `globalThis.document` in the moved renderer. Ruling: browser defaults stay outside the pure domain in temporary, ledgered adapters.
+- Final GREEN: `42a0a1f9e1062ee8230dbd92e4c8f79cb5891fca`; Validate #1475 / run `35475383919` — **SUCCESS**, **1,866 tests / 1,865 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
+- Printing now owns pure eligibility/recovery/second-copy/station-policy/rendering contracts under `src/domains/printing/domain/**`.
+- Current copy semantics remain unchanged and explicitly covered: Local without table uses `orderDefaultCopies`; table-linked orders and `table-tab` use `tableTabDefaultCopies`; each supports 1 or 2 copies.
+- Task 1 did not move Printing API or QZ infrastructure. Task 2 and beyond remain not started by this checkpoint.
+- Staging: NO. Merge: NO. Production: NO.
+
+
+---
+
+# C9 — Tasks 2–5 checkpoint — 2026-09-19
+
+- Tasks 1–5: **COMPLETE / GREEN**. Task 6: **NOT STARTED**.
+- Task 2 RED `7f6a6ee2774d5cac721598325fab103a33005a2b` → Validate #1477 / run `35476189280`, 2 intended failures. GREEN `6329ea548d63e77e059b968d1eba04fedb472662` → Validate #1478 / run `35476339868` SUCCESS, **1,860 / 1,859 / 0 / 1**.
+- Task 3 RED `13524d0142ff1b0c981d6285e019d71b8e557b88` → Validate #1479 / run `35476455924`, 1 intended failure. Final GREEN `4674f78ad707d1fa2473cd7f0cbf0c17b857c7eb` → Validate #1481 / run `35476714703` SUCCESS, **1,862 / 1,861 / 0 / 1**.
+- Task 4 RED `fcefaa8e24bf7af18b7539b7b250c0a73c3a0042` → Validate #1482 / run `35478031958`, 4 intended failures. Final GREEN `17db6f5c8424d0921a8d03539ce242650612c22e` → Validate #1485 / run `35478529333` SUCCESS, **1,869 / 1,868 / 0 / 1**.
+- Task 5 RED `8ab81d7ac8fcf8b9aac915bba53f922678e35aff` → Validate #1486 / run `35478729026`, 1 intended failure. Final GREEN `154d934bb1ecaf25f203cdbad727106cb91317fd` → Validate #1488 / run `35480148771` SUCCESS, **1,870 / 1,869 / 0 / 1**.
+- Printing-specific HTTP exports are removed from `src/api/client.js`.
+- QZ transport/status/attempt/local-printer preference ownership is under `src/infrastructure/qz/`.
+- `usePrintingManager` production ownership is under `src/domains/printing/application/` and uses `createQzTransport`; the application manager does not directly import `qz-tray`.
+- PrintQueue and its projections are owned by `src/domains/printing/ui/`; old `src/pages/PrintQueue*` production paths are removed.
+- Public UI export uses the established node-safe surface wrapper pattern. `DEFAULT_PRINT_QUEUE_QUERY` is retained as a real public contract because App navigation consumes it.
+- No C9 staging, merge or production deploy has occurred.
+
+
+---
+
+# C9 — Task 6 closure — 2026-09-19
+
+- Documentation reconciliation before Task 6: HEAD `4ab00cc81ad3098fbf33a411f400a4c6fcb15822`; Validate #1490 / run `35482571979` — **SUCCESS**.
+- Task 6 RED HEAD: `c95f2509083aad63f47443065d28363cf6c01a80`; Validate #1491 / run `35482680005` — **FAIL as intended**, **1,876 tests / 1,870 pass / 5 fail / 1 skipped**. The five failures were limited to absent Printing policy/UI ownership and the still-legacy Settings imports.
+- Task 6 GREEN: `a02b9af0612353e445bf3997095da18bff2e5118`; Validate #1492 / run `35482900556` — **SUCCESS**, **1,876 tests / 1,875 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- `printingPolicy`, `stationConfigurationPolicy` and `stationPrimaryPolicy` now belong to `src/domains/printing/infrastructure/printingPolicy.js` and are consumed through the Printing public entry.
+- `PrintingSettingsContent.jsx` and its `printing.css` now belong to `src/domains/printing/ui/`; `SettingsSurface` consumes the Printing UI only through `src/domains/printing/index.js`.
+- `printingSettingsAdapter.js` deliberately remains in Settings as the approved thin composition bridge. The legacy `src/components/PrintingSettings.jsx` wrapper remains until Task 8.
+- Copy-policy behavior is unchanged and covered: `orderDefaultCopies` and `tableTabDefaultCopies` remain independent 1/2-copy settings; existing jobs keep their recorded `copiesRequested` after later policy changes.
+- Task 7: **NOT STARTED**. No C9 staging, physical QA, merge or production deploy has occurred.
+
+
+---
+
+# C9 — Task 7 closure — 2026-09-19
+
+- Task 7 RED: `10bc6f08a0b26eeb03291f1077d209dda1a45bb0`; Validate #1494 / run `35483743546` — **FAIL as intended**, **1,882 tests / 1,875 pass / 6 fail / 1 skipped**. The six failures were exactly the absent Printing overlay/public owner, App-owned prompt/recovery state/storage, missing affinity hook, missing overlay UI and missing App composition point.
+- Production candidate: `8636f66a68b9e3471bcf0191a15ab40bed4d1135`; Validate #1495 / run `35483978407` reached the new implementation and failed only on **5 stale ownership characterizations** that still expected second-copy/recovery implementation inside `App.jsx`.
+- Corrective/final GREEN: `7a0785ca454ecde0f0f18cce6f1370911c3edc63`; Validate #1496 / run `35484090583` — **SUCCESS**, **1,882 tests / 1,881 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- `usePrintingOverlays` now owns second-copy prompt selection, origin prompt, recovery dialog/busy state, dismissed-origin memory, prompt-seen state, paused recovery second-copy affinity and previous recovery state.
+- `PrintingOverlays` owns the existing recovery/second-copy dialogs with unchanged functional copy and is exposed through the node-safe Printing public surface.
+- App no longer imports or owns second-copy/recovery helpers or browser storage. After order creation it delegates origin ownership through `printing.rememberOriginOrder(order.id)` and renders one `<PrintingOverlays ... />` composition point.
+- Deferred recovery affinity remains explicit: when recovery points at a two-copy job awaiting copy 2/2, that same job is selected before any next queued job; pausing prevents immediate re-open until recovery resumes.
+- The corrective commit also keeps `onError`/`onSuccess` in refs so unstable App callback identities cannot retrigger the prompt-selection ACK effect while an acknowledgement is in flight.
+- Task 8 is **NOT STARTED**. No staging, physical QA, merge or production deploy has occurred.
+
+
+---
+
+# C9 — Tasks 8–10 closure — 2026-09-19
+
+- **Task 8 COMPLETE / GREEN.** RED `dbd54d10efe2651eadb0716757278fc10fd4a9ba` → Validate #1498 / run `35484636722`, **1,885 / 1,882 / 2 / 1**, proving legacy production owners and temporary public exports still existed.
+- Task 8 production candidate `c2e5e061be1e15fe46491e939eef93dfe4651dfe` removed the remaining 10 legacy production owners/facades, left `src/printing/` test-only, removed `src/components/PrintingSettings.jsx`, moved PDF/ESC-POS browser composition behind Printing ownership and reduced the public entry to the eight approved external contracts. Validate #1499 exposed one stale QZ test import only.
+- Task 8 final GREEN `b51c89d754739bc0a51e5e8044d7a70fe3efc58f` → Validate #1500 / run `35484888185` — **SUCCESS**, **1,885 / 1,884 / 0 / 1**, all gates green.
+- **Task 9 COMPLETE / GREEN.** RED `dd4d111c4ed175132ec0007435cd8a345b1ad26a` → Validate #1501 / run `35485126897`, **1,902 / 1,890 / 11 / 1**; the three positive architecture fixtures passed while the eleven intended permanent-C9 rules were absent.
+- Task 9 GREEN `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` → Validate #1502 / run `35485255788` — **SUCCESS**, **1,902 / 1,901 / 0 / 1**, all gates green. Permanent enforcement now protects Printing public-boundary use, Printing-domain purity, QZ isolation, App overlay ownership, legacy owner/API removal and reverse QZ→Printing dependencies. `qzDirectImports` is now empty.
+- **Task 10 COMPLETE / GREEN candidate audit.** Final executable candidate remains `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f`, 46 commits ahead / 0 behind base `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- Task 10 diff audit: no changes under `worker/`, `migrations/`, `.github/workflows/`, `package.json`, `package-lock.json` or `shared/`; polling remains 2s/5s/15s; storage keys remain `delivery-print-station-id`, `delivery-qz-printer-name:<stationId>`, `printing-origin-order-ids`; operational/QZ error-code set is unchanged.
+- All **34** migrated Printing API exports have text-equivalent request expressions versus the C8 base. QZ certificate/sign endpoints and payloads are unchanged; QZ security still uses SHA512. `printing.css` and `print-queue.css` are content/hash-identical to the base (the former only moved owner).
+- PR Validate #1502 is a `pull_request` event, not workflow_dispatch. The tested synthetic merge ref `78cfaa7660fc339f8f13dc8d4bfc913b79762689` and exact feature HEAD `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` share tree `c71841307119d258d1b0aa0622be30a8a618950a`, so the validated content is byte-for-byte identical to the feature candidate.
+- Task 11 is now **FUNCTIONALLY CLOSED UNDER THE 2026-09-20 REVISED RELEASE POLICY**. Latest code-changing SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71` passed Validate #1511 / run `35512044736` with **1,911 / 1,910 / 0 / 1** and all gates green. Deploy staging run `35512327093` succeeded on that exact SHA; remote staging reported no migrations, Worker version `b88c06e5-2165-428e-8af7-d6ab8271fada`, readiness 1/6 and login HTTP 200.
+- Manual functional QA: **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING**. #35 is BLOCKED because no restricted-capability identity exists. Deferred rows are #12, #14–21, #24, #30 and #31.
+- Physical QZ matrix P1–P20: **0 PASS / 0 FAIL / 20 DEFERRED-PRODUCTION**. The user explicitly approved moving this real-hardware round from the pre-C9-merge gate to a hard **pre-production gate** so C9 can merge and C10 can proceed. No deferred row is represented as PASS.
+- Before production, the **final post-C10 release candidate** must be staged and all 12 deferred functional rows plus P1–P20 must PASS. Any defect requires RED→GREEN, full Validate, staging redeploy and affected physical rerun.
+- Production remains **NO DEPLOY**. C9 merge still requires final docs Validate and separate explicit user authorization.

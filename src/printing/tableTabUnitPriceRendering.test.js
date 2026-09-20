@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { encodeCp860 } from './cp860.js'
-import { renderEscPos58mm } from './escpos58mm.js'
+import { encodeCp860 } from '../domains/printing/domain/rendering/cp860.js'
+import { renderEscPos58mm } from '../domains/printing/domain/rendering/escpos58mm.js'
 
 const includesBytes = (haystack, needle) => {
   const source = [...haystack]

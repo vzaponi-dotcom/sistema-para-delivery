@@ -276,7 +276,7 @@ async function printQueueWorkspace(t, { canExecutePrinting, canDiscardPrinting }
     if (url === '/api/printing/jobs/summary') return response({ summary: { pending: 1, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 0 } })
     throw new Error(`Unexpected request: ${url}`)
   }
-  const { default: PrintQueue } = await h.load('/src/pages/PrintQueue.jsx')
+  const { default: PrintQueue } = await h.load('/src/domains/printing/ui/PrintQueue.jsx')
   const calls = { execute: 0, discard: 0 }
   const printing = {
     localStation: null, printerHealth: { state: 'verifying' }, stations: [],
@@ -313,7 +313,7 @@ test('15. printing.execute permite execuÃ§Ã£o e printing.discard ausente blo
 
 test('16. printing.settings permite vias e bloqueia estação sem station.configure', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { PrintingSettingsContent } = await h.load('/src/domains/printing/index.js')
   const policy = {
     status: 'ready',
     confirmed: { data: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 } },
@@ -347,7 +347,7 @@ test('16. printing.settings permite vias e bloqueia estação sem station.config
 
 test('16b. printing.execute permite testar sem conceder configuração da estação', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { PrintingSettingsContent } = await h.load('/src/domains/printing/index.js')
   let tests = 0
   const settings = {
     policyState: () => null,
@@ -401,7 +401,7 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
       h.load('/src/domains/catalog/ui/Products.jsx'),
       h.load('/src/domains/finance/ui/Receivables.jsx'),
       h.load('/src/domains/finance/ui/Finance.jsx'),
-      h.load('/src/pages/PrintQueue.jsx'),
+      h.load('/src/domains/printing/ui/PrintQueue.jsx'),
     ]),
     h.load('/src/domains/table-service/index.js'),
   ])
@@ -489,11 +489,9 @@ test('21. printing.execute protege a entrada manual global de segunda via na UI 
     plugins: [
       {
         name: 'action-capabilities-printing-boundary', enforce: 'pre',
-        resolveId: (id) => id.endsWith('/printing/usePrintingManager') || id === './printing/usePrintingManager' ? '\0action-capabilities-printing' : null,
+        resolveId: (id) => id === './application/usePrintingManager.js' || id.endsWith('/domains/printing/application/usePrintingManager.js') || id.endsWith('/domains/printing/application/usePrintingManager') ? '\0action-capabilities-printing' : null,
         load: (id) => id === '\0action-capabilities-printing' ? `
           export const usePrintingManager = () => globalThis.__actionCapabilitiesPrinting
-          export const canPresentSecondCopyPrompt = () => true
-          export const canKeepSecondCopyPromptOpen = () => true
         ` : null,
       },
       {

@@ -29,14 +29,9 @@ test('App routes successful-login cleanup to sync state without broad applicatio
   }
 })
 
-test('App retains responsibilities intentionally deferred beyond C1', () => {
-  const deferred = [
-    'handleGlobalSecondCopy',
-  ]
-
-  for (const token of deferred) {
-    assert.equal(source.includes(token), true, token)
-  }
+test('App no longer owns the Printing overlay responsibility previously deferred beyond C1', () => {
+  assert.equal(source.includes('handleGlobalSecondCopy'), false)
+  assert.equal(source.includes('<PrintingOverlays'), true)
 })
 
 test('App no longer owns the payment-receipt bridge or table-tab payment reconciliation', () => {

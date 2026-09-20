@@ -9,7 +9,7 @@ import { createPrintingSettingsAdapter } from './app/surfaces/settings/printingS
 import { resolvePrintCopies } from '../shared/printContextPolicy.js'
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
 
-const managerSource = await readFile(new URL('./printing/usePrintingManager.js', import.meta.url), 'utf8')
+const managerSource = await readFile(new URL('./domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 
 const admin = (resource, revision, data, scopeId) => ({
   resource,
@@ -124,7 +124,7 @@ test('station save and primary election are separate revisioned resources', asyn
 
 test('printing page renders three responsibilities and asks before electing the real station', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { default: PrintingSettingsContent } = await h.load('/src/domains/printing/ui/PrintingSettingsContent.jsx')
   const { adapter, calls, printing } = await printingFixture()
   const screen = await h.render(PrintingSettingsContent, {
     printing,

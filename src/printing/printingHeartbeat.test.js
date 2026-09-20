@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import * as printingManager from './usePrintingManager.js'
+import { canSendPrintStationHeartbeat } from '../domains/printing/domain/printingEligibility.js'
+import * as printingManager from '../domains/printing/application/usePrintingManager.js'
 
 const primaryWindows = {
   id: 'kitchen',
@@ -10,7 +11,7 @@ const primaryWindows = {
 }
 
 test('only the authenticated online primary Windows QZ station sends physical heartbeat', () => {
-  assert.equal(typeof printingManager.canSendPrintStationHeartbeat, 'function')
+  assert.equal(typeof canSendPrintStationHeartbeat, 'function')
   const eligible = {
     authenticated: true,
     isOnline: true,
@@ -19,13 +20,13 @@ test('only the authenticated online primary Windows QZ station sends physical he
     station: primaryWindows,
   }
 
-  assert.equal(printingManager.canSendPrintStationHeartbeat(eligible), true)
-  assert.equal(printingManager.canSendPrintStationHeartbeat({ ...eligible, authenticated: false }), false)
-  assert.equal(printingManager.canSendPrintStationHeartbeat({ ...eligible, isOnline: false }), false)
-  assert.equal(printingManager.canSendPrintStationHeartbeat({ ...eligible, browserOnline: false }), false)
-  assert.equal(printingManager.canSendPrintStationHeartbeat({ ...eligible, isQz: false }), false)
-  assert.equal(printingManager.canSendPrintStationHeartbeat({ ...eligible, station: { ...primaryWindows, isPrimary: false } }), false)
-  assert.equal(printingManager.canSendPrintStationHeartbeat({ ...eligible, station: { ...primaryWindows, platform: 'android' } }), false)
+  assert.equal(canSendPrintStationHeartbeat(eligible), true)
+  assert.equal(canSendPrintStationHeartbeat({ ...eligible, authenticated: false }), false)
+  assert.equal(canSendPrintStationHeartbeat({ ...eligible, isOnline: false }), false)
+  assert.equal(canSendPrintStationHeartbeat({ ...eligible, browserOnline: false }), false)
+  assert.equal(canSendPrintStationHeartbeat({ ...eligible, isQz: false }), false)
+  assert.equal(canSendPrintStationHeartbeat({ ...eligible, station: { ...primaryWindows, isPrimary: false } }), false)
+  assert.equal(canSendPrintStationHeartbeat({ ...eligible, station: { ...primaryWindows, platform: 'android' } }), false)
 })
 
 test('QZ heartbeat distinguishes QZ connectivity from configured printer readiness', () => {

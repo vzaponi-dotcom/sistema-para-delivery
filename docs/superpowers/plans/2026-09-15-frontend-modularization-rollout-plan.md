@@ -4,7 +4,7 @@
 
 **Goal:** Reorganize the administrative frontend into a modular, domain-oriented architecture while preserving the current UX, business behavior, synchronization semantics, and release safety.
 
-**Architecture:** Keep the Worker/backend contract stable and refactor the frontend incrementally. Central application runtime owns session/bootstrap/synchronization, domain modules own business rules and domain-specific APIs/UI, cross-domain operations live in `app/workflows`, and infrastructure adapters isolate HTTP/browser/QZ details. Each slice is independently testable, staged, homologated, and merged before the next slice starts.
+**Architecture:** Keep the Worker/backend contract stable and refactor the frontend incrementally. Central application runtime owns session/bootstrap/synchronization, domain modules own business rules and domain-specific APIs/UI, cross-domain operations live in `app/workflows`, and infrastructure adapters isolate HTTP/browser/QZ details. Each slice is independently testable, staged, homologated, and merged before the next slice starts. C9 has one explicitly approved 2026-09-20 release-policy exception: real-hardware QZ output may be deferred beyond the C9 merge so C10 can proceed, but that deferred matrix becomes a hard pre-production gate on the final post-C10 staging release candidate.
 
 **Tech Stack:** React 19, Vite 8, Node 22 `node:test`, oxlint, Cloudflare Worker/D1, QZ Tray 2.2.6, GitHub Actions.
 
@@ -19,7 +19,7 @@
 - C5 — Table Service is **MERGED / COMPLETE** by PR #49 at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`. Final branch Validate #1341 / run `35400357800` passed; post-merge Validate #1342 / run `35401628448` passed on the exact merge commit. Manual staging QA closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. No production deploy occurred.
 - C6 is **MERGED / COMPLETE** by PR #50 at `5b101800fe29d02dd4543e184cca9e06d659a445`.
 - C7 — Customers is **MERGED / COMPLETE** by PR #51 at `a7a8285ee125d90058c739f52daba6c170921adb`; post-merge Validate #1429 / run `35459175985` passed on the exact merge SHA. No production deploy occurred.
-- Active slice: **C8 — Catalog**, branch `feature/spec-c8-catalog`, base `master` `a7a8285ee125d90058c739f52daba6c170921adb`, draft PR #52. Design/plan approved; **Tasks 1–5 COMPLETE / GREEN**. Latest executable GREEN is `ca26a0f48527a0e8f5371655bec0cc6c59b3a951` with Validate #1453 / run `35467142766` SUCCESS. Task 6 is next/not started; no staging, merge or production deploy occurred.
+- Active slice: **C9 — Printing and QZ separation**, branch `feature/spec-c9-printing`, base `master` `91fb5581cea1616f438c13dfac28cfb38345fa59`, draft PR #53. Code-changing HEAD `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71` is staged by Deploy staging run `35512327093` (Worker `b88c06e5-2165-428e-8af7-d6ab8271fada`, readiness 1/6, login HTTP 200, no migrations). Functional QA is **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING** after the approved 2026-09-20 release-policy revision. Physical P1–P20 are not PASS; all 20 are explicitly `DEFERRED-PRODUCTION` and hard-block production, while C9 merge/C10 may proceed after docs Validate and explicit merge authorization. Production remains untouched.
 - C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
 - C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
 - C5 Task 3 — table-tab detail controller — is **COMPLETE / GREEN**. RED `8f460f139845e2288abe1d454d5d83c89643fb7b` failed Validate #1300 for the intended missing-controller reason; GREEN `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 with **1,712 tests / 1,711 pass / 0 fail / 1 skipped**.
@@ -75,6 +75,7 @@ C6 Task 11 — staging homologation is **COMPLETE / 0 FAIL / FINAL DOCS VALIDATE
 - Spec D remains outside Spec C; `catalog` is only prepared as a clean ownership boundary.
 - Implementation never happens directly on `master`; each slice uses a fresh branch/worktree from the latest merged `master`.
 - Production requires separate explicit authorization.
+- The C9 deferred release gate is mandatory before production: the final post-C10 release candidate must be deployed to staging, Task 11 deferred rows #12/#14–21/#24/#30/#31 must pass, and physical P1–P20 must all pass. Any defect restarts RED→GREEN → Validate → staging for the affected surface.
 - Before completing any slice: focused tests, proportional regression tests, `npm test`, `npm run lint`, `npm run test:architecture` once introduced, `npm run build`, `npm run d1:migrate:local`, diff review, staging, and proportional homologation.
 
 ---
@@ -420,7 +421,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Do not:** implement Spec D entities or pricing engine.
 
-**Current status — 2026-09-19:** **Tasks 1–9 COMPLETE / STAGING HOMOLOGATED; Task 10 PRE-MERGE GATE ACTIVE** on draft PR #52. C8 architecture enforcement is permanent without allowlist expansion; C8 has no surviving temporary compatibility facade. Last code SHA `ae4d09d44b1012fadf6cabcbe6eb190ef9ef4bfb`; homologated/staged SHA `8a43d10e02821aca2a839394e3bd6d1daf15fdc8`; Deploy staging #186 / run `35469861985` SUCCESS; manual QA **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. Post-homologation docs closure `fa7a14fd46df5133cce5073dd5bdf3c3242776a7` passed Validate #1462 / run `35471370382`. No code changed after staging; final Task 10 documentation-only HEAD must pass its own exact-head Validate before a separate explicit merge authorization is requested. No production deploy has occurred. C9 must not start automatically.
+**Current status — 2026-09-19:** **MERGED / COMPLETE** by PR #52. Merge/master SHA `91fb5581cea1616f438c13dfac28cfb38345fa59`; post-merge Validate #1464 / run `35471894412` — **SUCCESS** on that exact SHA. Staging/manual QA remained **34 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**; the single BLOCKED case was restricted/read-only capability without a suitable staging identity. Permanent C8 architecture enforcement remains active, C8 has no surviving temporary compatibility facade, and production was not deployed.
 
 ### C9 — Printing and QZ separation
 
@@ -434,7 +435,9 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Must preserve:** primary station, queue-only remote behavior, auto print, 1/2 copies, second-copy prompts, recovery affinity, unknown-result handling, retry/reprint, physical status, QZ security/signing.
 
-**Physical QA:** required proportional hardware round before merge.
+**Physical QA:** mandatory before production. By explicit 2026-09-20 project decision, the C9 hardware round may remain `DEFERRED-PRODUCTION` through C9 merge and C10 implementation; it is never inferred PASS and must execute on the final post-C10 staging release candidate.
+
+**Current status — 2026-09-20:** C9 implementation and non-hardware staging QA are functionally closed on code SHA `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71`. Validate #1511 passed **1,911 tests / 1,910 pass / 0 fail / 1 skipped** before the final staging deploy. Deploy staging run `35512327093` succeeded on that exact SHA with no migrations, Worker `b88c06e5-2165-428e-8af7-d6ab8271fada`, readiness 1/6 and login HTTP 200. Manual functional QA is **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING**; capability #35 is BLOCKED for lack of a restricted identity, and hardware/QZ-dependent rows are explicitly deferred. Physical P1–P20 are **20 DEFERRED-PRODUCTION** under the revised release policy. Printing ownership/QZ isolation/architecture gates remain complete; production is blocked until the full deferred matrix passes on the final post-C10 staging release candidate.
 
 ### C10 — Closure and cleanup
 
@@ -522,7 +525,7 @@ Do not remove tests merely to reduce runtime. After domain boundaries stabilize,
 3. Require all existing staging gates: tests, lint, build, local D1, Worker dry-run, remote staging migrations, deploy, real login smoke.
 4. Execute the slice-specific manual matrix recorded in its detailed plan.
 5. Record run ID, SHA, tested surfaces, and user acceptance in a Cn QA ledger.
-6. Merge only after explicit approval.
+6. Merge only after explicit approval. A slice-specific documented release-policy exception may defer hardware-only QA past merge, but must preserve truthful `DEFERRED-PRODUCTION` status and a hard pre-production gate.
 7. Do not deploy production as part of a normal Cn slice.
 
 ---
@@ -558,6 +561,8 @@ npm run d1:migrate:local
 ```
 
 Require GitHub validation dry-runs/gates, final staging deployment, and the final manual regression matrix.
+
+Before any production authorization, execute the deferred C9 release gate on that **final post-C10 staging candidate**: functional rows #12/#14–21/#24/#30/#31 and physical P1–P20 must all be PASS. `DEFERRED-PRODUCTION` is acceptable for architecture/slice completion but not for production readiness. Any failure requires a fix, full Validate, staging redeploy and affected-case rerun.
 
 Compare final `master` architecture against `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md` and explicitly verify all 18 final success criteria in the spec.
 

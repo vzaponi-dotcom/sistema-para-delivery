@@ -5,10 +5,11 @@ import {
   canConsumeAutomaticPrintJob,
   getPrintingTransportKind,
   isPrintingTransportSupported,
-} from './usePrintingManager.js'
+} from '../domains/printing/domain/printingEligibility.js'
 
-const manager = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+const manager = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
+const overlays = await readFile(new URL('../domains/printing/application/usePrintingOverlays.js', import.meta.url), 'utf8')
 const operationalRuntime = await readFile(new URL('../app/runtime/data/useOperationalDataRuntime.js', import.meta.url), 'utf8')
 const orderArrivals = await readFile(new URL('../domains/orders/application/useOrderArrivals.js', import.meta.url), 'utf8')
 
@@ -69,33 +70,30 @@ test('QZ uses MPT-II bitmap rendering and queue-only platforms do not render phy
   const block = manager.slice(start, end)
 
   assert.match(block, /compatibilityMode:\s*getRendererCompatibilityMode\(transportKind\)/)
-  assert.match(block, /printQzRawBytes\(qz, configuredPrinterNameRef\.current, bytes\)/)
+  assert.match(block, /qzTransport\.print\(configuredPrinterNameRef\.current, bytes\)/)
   assert.doesNotMatch(block, /writeSerialBytes|MTP5_PROFILE\.serial/)
 })
 
 test('Windows QZ lifecycle configures signed security and exposes explicit local queue setup', () => {
-  assert.match(manager, /import qz from 'qz-tray'/)
+  assert.doesNotMatch(manager, /from 'qz-tray'/)
+  assert.match(manager, /createQzTransport/)
   assert.match(manager, /getQzCertificate/)
   assert.match(manager, /signQzPayload/)
-  for (const qzName of [
-    'configureQzSecurity',
-    'ensureQzConnected',
-    'listQzPrinters',
-    'resolveQzPrinter',
-    'printQzRawBytes',
-  ]) assert.match(manager, new RegExp(`\\b${qzName}\\b`))
-  assert.match(manager, /getQzPrinterName/)
-  assert.match(manager, /saveQzPrinterName/)
+  for (const qzName of ['configureSecurity', 'connect', 'listPrinters', 'resolvePrinter', 'print']) {
+    assert.match(manager, new RegExp(`qzTransport\\.${qzName}`))
+  }
+  assert.match(manager, /qzTransport\.readPrinterName/)
+  assert.match(manager, /qzTransport\.savePrinterName/)
 
   assert.match(manager, /const \[availablePrinters, setAvailablePrinters\] = useState\(\[\]\)/)
   assert.match(manager, /const \[configuredPrinterName, setConfiguredPrinterName\] = useState\(null\)/)
   assert.match(manager, /const \[transportReady, setTransportReady\] = useState\(/)
   assert.match(manager, /const refreshPrinters = useCallback\(async \(\) =>/)
   assert.match(manager, /const selectPrinter = useCallback\(async \(printerName\) =>/)
-  assert.match(manager, /configureQzSecurity\(\{[\s\S]*qzApi:\s*qz,[\s\S]*getCertificate:\s*getQzCertificate,[\s\S]*signPayload:\s*signQzPayload/)
-  assert.match(manager, /ensureQzConnected\(qz\)/)
-  assert.match(manager, /resolveQzPrinter\(qz, savedPrinterName\)/)
-  assert.match(manager, /saveQzPrinterName\(globalThis\.localStorage, stationId, selectedPrinter\)/)
+  assert.match(manager, /createQzTransport\(\{[\s\S]*getCertificate:\s*getQzCertificate,[\s\S]*signPayload:\s*signQzPayload/)
+  assert.match(manager, /qzTransport\.connect\(\)/)
+  assert.match(manager, /qzTransport\.resolvePrinter\(savedPrinterName\)/)
+  assert.match(manager, /qzTransport\.savePrinterName\(stationId, selectedPrinter\)/)
 
   const explicitPortStart = manager.indexOf('const getExplicitPort = useCallback')
   assert.notEqual(explicitPortStart, -1)
@@ -172,7 +170,12 @@ test('printing manager centralizes approved poll and heartbeat cadences', () => 
 })
 
 test('App mounts one printing manager and passes it to Orders without changing order sync detection', () => {
-  assert.match(app, /import \{ canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt, usePrintingManager \} from '\.\/printing\/usePrintingManager'/)
+  assert.equal(app.includes("from './domains/printing/index.js'"), true)
+  assert.equal(app.includes('usePrintingManager'), true)
+  assert.equal(app.includes('canKeepSecondCopyPromptOpen'), false)
+  assert.equal(app.includes('canPresentSecondCopyPrompt'), false)
+  assert.equal(overlays.includes('canKeepSecondCopyPromptOpen'), true)
+  assert.equal(overlays.includes('canPresentSecondCopyPrompt'), true)
   const hookCalls = app.match(/usePrintingManager\(/g) || []
   assert.equal(hookCalls.length, 1)
   assert.match(app, /const printing = usePrintingManager\(/)

@@ -101,7 +101,7 @@ test('dark theme defines a complete global palette', () => {
 
 test('printing settings consume the shared semantic palette in both themes', () => {
   const themeCss = source('./index.css')
-  const printingCss = source('./printing/printing.css')
+  const printingCss = source('./domains/printing/ui/printing.css')
 
   for (const token of ['surface', 'surface-soft', 'text', 'muted', 'border', 'primary', 'success', 'success-soft', 'danger', 'danger-soft', 'info', 'info-soft']) {
     assert.match(themeCss, new RegExp(`--${token}:`))
