@@ -253,6 +253,12 @@
   color: var(--danger);
 }
 
+.print-status-discarded {
+  border-color: var(--border-strong);
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
 .printing-queue-pill {
   border-color: var(--border-strong);
   background: var(--surface-strong);

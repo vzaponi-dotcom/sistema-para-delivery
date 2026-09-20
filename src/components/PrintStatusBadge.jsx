@@ -6,6 +6,7 @@ const STATUS_LABELS = {
   printed: 'Impresso',
   failed: 'Falha na impressão',
   requires_attention: 'Requer atenção',
+  discarded: 'Descartado',
 }
 
 function PrintStatusBadge({ job }) {
