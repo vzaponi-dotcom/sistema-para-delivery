@@ -325,6 +325,16 @@ Task 2 is **COMPLETE / GREEN**.
 - Old owners under `src/components`, `src/hooks` and `src/utils/formFormatting.js` are physically absent.
 - No domain import exists from `src/shared/**`.
 - No compatibility facade was introduced.
+
+## Task 8 - Migration scaffolding and compatibility-facade closure
+
+- RED `6c8b8b760f3e75edb2c91b5d62fd26572efb3c4c`; Validate run `35532503944` - **FAIL as intended**: 54 focused architecture tests, 53 pass / 1 fail. The only new failure proved that `scripts/architecture/legacy-import-allowlist.json` still existed; it was not a parser, syntax, fixture or path failure.
+- GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c`; Validate run `35532635340` - **SUCCESS**, **1,928 tests / 1,927 pass / 0 fail / 1 skipped**.
+- `legacy-import-allowlist.json` is deleted. The checker no longer reads an allowlist and direct QZ plus cross-domain-internal migration exceptions cannot be reintroduced through that mechanism.
+- Explicit C10 guards reject the return of `src/api/client.js`, `src/api/effectiveConfigClient.js`, the historical payment-receipt bridge, and `updateCollection`; existing C3-C9 guards remain active.
+- Architecture, lint, build, production Worker dry-run, staging Worker dry-run, local D1, and Spec B D1 clean-install/upgrade all passed in the authoritative Validate. No replacement allowlist exists.
+- Active temporary compatibility facade inventory: **0**. Physical C9 QA remains `DEFERRED-PRODUCTION`, not a compatibility facade or architectural debt.
+- C10 Tasks 1-8 are **COMPLETE / GREEN**. Task 9 is **NOT STARTED**. No staging deploy, production deploy or merge occurred.
 - Task 4: **COMPLETE / GREEN**.
 
 ## Next action

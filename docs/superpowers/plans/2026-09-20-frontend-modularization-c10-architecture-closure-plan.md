@@ -520,6 +520,12 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 
 ## Approval gate
 
+## Task 8 closure update - 2026-09-20
+
+- Task 8 is **COMPLETE / GREEN**: RED `6c8b8b760f3e75edb2c91b5d62fd26572efb3c4c` / Validate run `35532503944` failed as intended because the legacy migration allowlist still existed; GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` passed **1,928 tests / 1,927 pass / 0 fail / 1 skipped** and every Validate gate.
+- Task 8 deleted `scripts/architecture/legacy-import-allowlist.json`, removed checker support for QZ/cross-domain migration allowances, retained historical removal guards, and closed the compatibility inventory at **0**. No replacement allowlist, deploy, merge, Worker, migration, D1, API, polling, capability or business-rule change was introduced.
+- Task 9 is **NOT STARTED**.
+
 This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
 Tasks 1–4 are complete and green. Task 5 is not started.

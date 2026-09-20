@@ -573,5 +573,11 @@ Compare final `master` architecture against `docs/superpowers/specs/2026-09-15-f
 
 Do not mark Spec C complete solely because `App.jsx` is smaller or files were moved.
 
+## C10 Task 8 status update - 2026-09-20
+
+- Task 8 is **COMPLETE / GREEN**. RED `6c8b8b760f3e75edb2c91b5d62fd26572efb3c4c` / Validate run `35532503944` failed only because the obsolete migration scaffolding remained; GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` passed **1,928 / 1,927 / 0 / 1** and all architecture/lint/build/Worker/D1 gates.
+- C10 no longer has `legacy-import-allowlist.json` or any replacement migration allowlist. Direct QZ and cross-domain internal migration allowances are closed; the active temporary compatibility facade inventory is **0**.
+- Tasks 1-8 are **COMPLETE / GREEN**. Task 9 is **NOT STARTED**. No staging deploy, production deploy or merge occurred.
+
 
 C7 homologation handoff: master remains `5b101800fe29d02dd4543e184cca9e06d659a445`. C7 is staging-homologated at `c01d90c6ea3a286a601f8efea51ec5ee28ff52d3`; Validate #1420 and Deploy staging #185 are green, and manual QA is 29 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING. Task 10 requires a final Validate on the QA/docs closure HEAD and explicit user merge authorization. PR #51 remains draft; production remains untouched.

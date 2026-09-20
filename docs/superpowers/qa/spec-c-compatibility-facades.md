@@ -336,4 +336,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Tasks 5–7 introduced **no compatibility facade**. Residual shell/theme/runtime, storage, Orders/Printing presentation and targeted CSS ownership moved directly to final owners.
 - Task 5 GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / Validate run `35529844889`; Task 6 GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977`; Task 7 GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891`.
 - Active temporary compatibility facade inventory remains **zero**. Direct browser storage is no longer owned by App, and targeted legacy CSS roots are absent.
+
+## C10 Task 8 - final compatibility-facade ledger closure - 2026-09-20
+
+- `src/api/client.js` - **REMOVED IN C10**.
+- `src/api/effectiveConfigClient.js` - **REMOVED IN C10**.
+- payment-receipt bridge - **REMOVED**; table-commit bridge - **REMOVED**; `updateCollection` - **REMOVED / ENFORCED**.
+- Printing temporary facades - **0**. C9 physical QA is not a compatibility facade and is not architectural debt.
+- `scripts/architecture/legacy-import-allowlist.json` - **REMOVED IN C10**; no replacement allowlist exists.
+- **Active temporary compatibility facade inventory = 0.**
+- Task 8 GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` - **SUCCESS**. Task 9 remains **NOT STARTED**.
 - Task 8 remains **NOT STARTED** and was not claimed by this implementation.
