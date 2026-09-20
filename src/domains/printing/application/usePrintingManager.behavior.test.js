@@ -14,7 +14,7 @@ import {
   getPrintingTransportKind,
   getRendererCompatibilityMode,
   isPrintingTransportSupported,
-} from '../index.js'
+} from '../domain/printingEligibility.js'
 import {
   claimAndExecuteSecondCopy,
   initializeBackgroundPhysicalTransport,

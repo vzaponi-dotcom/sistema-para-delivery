@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rememberOriginOrderId, readOriginOrderIds } from './secondCopyPromptFlow.js'
+import { rememberOriginOrderId, readOriginOrderIds } from '../domains/printing/infrastructure/printingLocalPreferences.js'
 
 test('persists only the creating browser order ids used to target remote prompts', () => {
   const values = new Map()

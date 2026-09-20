@@ -1,10 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import {
-  usePrintingManager,
-  canConsumeAutomaticPrintJob,
-} from '../index.js'
+import { usePrintingManager } from '../index.js'
+import { canConsumeAutomaticPrintJob } from '../domain/printingEligibility.js'
 
 test('printing application owns the manager without importing qz-tray directly', async () => {
   assert.equal(typeof usePrintingManager, 'function')

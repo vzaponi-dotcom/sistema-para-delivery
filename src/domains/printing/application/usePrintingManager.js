@@ -50,7 +50,8 @@ import {
 } from '../domain/printRecovery.js'
 import { getDefaultPrintStationName } from '../domain/stationPolicy.js'
 import { getPrintingTransportKind, getRendererCompatibilityMode, isPrintingTransportSupported } from '../domain/printingEligibility.js'
-import { renderEscPos58mm } from '../../../printing/escpos58mm.js'
+import { renderEscPos58mm } from '../domain/rendering/escpos58mm.js'
+import { getOrderPdfFilename, renderOrderPdf } from '../domain/rendering/pdfOrderRenderer.js'
 import { createQzTransport, deriveQzOperationalState } from '../../../infrastructure/qz/qzTransport.js'
 import { createPhysicalJobFailureNotifier, runExclusivePrintOperation } from './physicalOperation.js'
 import { runClaimedPrintJob } from './printJobRunner.js'
@@ -68,6 +69,38 @@ const QZ_BLOCKING_ERROR_CODES = new Set([
   'QZ_PRINTER_NOT_FOUND',
   'QZ_PRINT_FAILED',
 ])
+
+const createBrowserCanvas = () => {
+  const canvas = globalThis.document?.createElement?.('canvas')
+  if (!canvas) throw new Error('Canvas is unavailable for MPT-II bitmap rendering')
+  return canvas
+}
+
+const downloadOrderPdfDocument = (document, {
+  render = renderOrderPdf,
+  urlApi = globalThis.URL,
+  documentApi = globalThis.document,
+  BlobApi = globalThis.Blob,
+} = {}) => {
+  if (!documentApi?.createElement || !urlApi?.createObjectURL || typeof BlobApi !== 'function') {
+    throw new Error('Download de PDF indisponível neste ambiente.')
+  }
+  const bytes = render(document)
+  const blob = new BlobApi([bytes], { type: 'application/pdf' })
+  const url = urlApi.createObjectURL(blob)
+  const anchor = documentApi.createElement('a')
+  anchor.href = url
+  anchor.download = getOrderPdfFilename(document)
+  anchor.style.display = 'none'
+  documentApi.body?.appendChild?.(anchor)
+  try {
+    anchor.click()
+  } finally {
+    anchor.remove?.()
+    urlApi.revokeObjectURL(url)
+  }
+  return { filename: anchor.download, bytes }
+}
 
 export const initializeBackgroundPhysicalTransport = async ({
   authenticated,
@@ -474,6 +507,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         renderer: (document, options) => renderEscPos58mm(document, {
           ...options,
           compatibilityMode: getRendererCompatibilityMode(transportKind),
+          createCanvas: options?.createCanvas ?? createBrowserCanvas,
         }),
         transport: async (_selectedPort, bytes) => {
           if (typeof preparePort === 'function') await preparePort()
@@ -743,6 +777,8 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response.document
   }, [])
 
+  const downloadOrderPdf = useCallback((document) => downloadOrderPdfDocument(document), [])
+
   const getTableTabPreviewDocument = useCallback(async (tableTabId) => {
     const response = await getTableTabPrintDocument(tableTabId)
     return response.document
@@ -976,6 +1012,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     requestForcePrint,
     requestReprint,
     getPreviewDocument,
+    downloadOrderPdf,
     getTableTabPreviewDocument,
     printTableTab,
     rememberOriginOrder,

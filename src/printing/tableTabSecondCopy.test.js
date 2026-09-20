@@ -4,8 +4,8 @@ import { runClaimedPrintJob } from '../domains/printing/application/printJobRunn
 import {
   getSecondCopyPromptTitle,
   isSecondCopyPromptEligible,
-  renderEscPos58mm,
-} from '../domains/printing/index.js'
+} from '../domains/printing/domain/secondCopy.js'
+import { renderEscPos58mm } from '../domains/printing/domain/rendering/escpos58mm.js'
 
 const tabDocument = { version: 1, type: 'table-tab', tableTab: { id: 'tab-17', number: 17, tableName: 'Mesa 7' }, items: [] }
 const awaitingTab = {

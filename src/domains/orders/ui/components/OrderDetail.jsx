@@ -7,7 +7,6 @@ import OrderTicketPreview from '../../../../components/OrderTicketPreview'
 import PaymentBadge from '../../../../components/PaymentBadge'
 import PrintStatusBadge from '../../../../components/PrintStatusBadge'
 import StatusBadge from '../../../../components/StatusBadge'
-import { downloadOrderPdf } from '../../../../printing/pdfOrderRenderer.js'
 import { getOrderItemDisplayName, getOrderItems } from '../../domain/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../../domain/orderWorkflow.js'
 import { FINANCE_TIME_ZONE } from '../../../../../shared/finance.js'
@@ -85,7 +84,8 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
   const handlePdf = () => runPrintingAction('pdf', async () => {
     const document = await loadCurrentPrintDocument()
-    downloadOrderPdf(document)
+    if (!printing?.downloadOrderPdf) throw new Error('Download de PDF indisponível neste ambiente.')
+    printing.downloadOrderPdf(document)
   })
 
   const handleFirstPrint = () => runPrintingAction('print', () => printing?.printOrder?.(order.id, defaultCopies), 'Pedido enviado para a fila da cozinha')

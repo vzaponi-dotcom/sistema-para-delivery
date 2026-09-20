@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  detectPrintStationPlatform,
-  getOrCreateLocalPrintStationId,
-} from './localPrintStation.js'
+import { detectPrintStationPlatform } from '../domains/printing/application/printingPlatform.js'
+import { getOrCreateLocalPrintStationId } from '../domains/printing/infrastructure/printingLocalPreferences.js'
 
 class MemoryStorage {
   constructor() { this.values = new Map() }
