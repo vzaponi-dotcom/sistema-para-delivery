@@ -26,7 +26,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–4 COMPLETE / GREEN; TASK 5 NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–10 COMPLETE / GREEN; TASK 11 CANDIDATE PREPARATION; TASK 12 NOT STARTED** | `feature/spec-c10-architecture-closure` / draft PR #54 | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -601,3 +601,17 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - **Task 10 COMPLETE / GREEN.** Focused RED found 40 unused Orders exports and six unused Customers exports. GREEN reduced both public entries to real production consumers and kept internal-unit tests direct to their owner modules. The production checker excludes `*.test.*` only; production deep imports remain rejected.
 - Full suite, architecture unit/gate, lint, build, local D1 and Spec B D1 all passed. Production and staging Worker dry-runs passed with `--dry-run`; neither deployed or applied remote migrations.
 - No staging deploy, production deploy or merge occurred. **Task 11 is NOT STARTED.**
+
+## C10 — Task 11 executable-candidate preparation — 2026-09-20
+
+- Initial exact local/remote HEAD: `6b0512efda1bc3e20c28770c23e91c7a4301204f`; PR #54 is OPEN/DRAFT against exact post-C9 base `2b5060c8293fec6756b286627212b740b3147e53`.
+- Initial Validate application #1549 / run `35539502743`: **SUCCESS** on `6b0512ef...`.
+- Formal Spec C §28 result before staging: **17 PASS / 1 PENDING TASK 12 / 0 FAIL**. Criterion 15 is `PENDING TASK 12`; Spec C is not complete.
+- Full Task 11 local suite: **1,933 tests / 1,933 pass / 0 fail / 0 skipped**. Focused final audit: **69/69 PASS**. Lint, architecture and build passed.
+- Production and staging Wrangler 4.128.0 dry-runs passed and exited at `--dry-run`; no deploy occurred.
+- Local D1 migration engine reported **No migrations to apply** with cached exact Wrangler 4.128.0. The npm/npx wrapper itself was sandbox-blocked before Wrangler by registry/cache access, so exact npm-script evidence remains delegated to authoritative candidate Validate.
+- Spec B D1 gate passed against local D1 Worker with **25 migrations** and every reported check true.
+- Diff audit is clean for Worker, migrations/schema, packages, polling, capabilities and QZ/Printing core. API ownership changed without contract drift; storage keys are unchanged; all relocated CSS blobs are byte-identical; no C10-introduced mojibake was found.
+- C9 hardware-dependent functional rows and P1–P20 remain **DEFERRED-PRODUCTION**. Restricted-capability staging case #35 remains BLOCKED for lack of a suitable identity; it is not counted as PASS.
+- Task 12, staging deploy/homologation, remote migrations, production deploy and merge remain **NOT STARTED / NOT PERFORMED**.
+- Next gate: create/push the Task 11 executable-candidate commit, require exact-SHA GitHub Validate SUCCESS, then record that immutable SHA/run in a docs-only closure commit and PR #54.

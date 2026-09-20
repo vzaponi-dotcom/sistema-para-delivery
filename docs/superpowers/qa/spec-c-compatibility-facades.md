@@ -345,5 +345,5 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Printing temporary facades - **0**. C9 physical QA is not a compatibility facade and is not architectural debt.
 - `scripts/architecture/legacy-import-allowlist.json` - **REMOVED IN C10**; no replacement allowlist exists.
 - **Active temporary compatibility facade inventory = 0.**
-- Task 8 GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` - **SUCCESS**. Task 9 remains **NOT STARTED**.
-- Task 8 remains **NOT STARTED** and was not claimed by this implementation.
+- Task 8 GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` - **SUCCESS**.
+- Tasks 9–10 are **COMPLETE / GREEN**. Task 11 reconfirmed the final active temporary compatibility-facade inventory at **0**; Task 12 is not started.

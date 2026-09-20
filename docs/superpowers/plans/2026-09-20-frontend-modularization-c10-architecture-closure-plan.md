@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **APPROVED — TASKS 1–4 COMPLETE / TASK 5 NOT STARTED**  
+**Status:** **APPROVED — TASKS 1–10 COMPLETE / TASK 11 CANDIDATE PREPARATION / TASK 12 NOT STARTED**
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
@@ -528,7 +528,7 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 
 This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
-Tasks 1–4 are complete and green. Task 5 is not started.
+Tasks 1–10 are complete and green. Task 11 is preparing the exact executable candidate; Task 12 is not started.
 
 ## Final implementation status — 2026-09-20
 
@@ -543,3 +543,11 @@ Tasks 1–4 are complete and green. Task 5 is not started.
 - Task 10 is **COMPLETE / GREEN**. Its focused audit RED identified 40 surplus Orders exports and six surplus Customers exports. GREEN limits each public entry to real production consumers, keeps unit tests at their owner modules, and adds a test-file exemption to the production-only deep-import checker.
 - The final audit is `docs/superpowers/qa/spec-c10-final-architecture-audit.md`. Full suite, architecture, lint, build, local D1 and Spec B D1 passed; production and staging Worker dry-runs passed using `--dry-run` only.
 - No staging deploy, production deploy, remote migration, merge or production action occurred. **Task 11 is NOT STARTED.**
+
+## Task 11 candidate preparation — 2026-09-20
+
+- Starting implementation HEAD `6b0512efda1bc3e20c28770c23e91c7a4301204f` is the exact remote PR #54 HEAD and passed Validate #1549 / run `35539502743`.
+- The full local suite passed **1,933 tests / 1,933 pass / 0 fail / 0 skipped**. The focused final architecture audit passed **69/69**, and lint, architecture, build, production dry-run, staging dry-run, local D1 and the Spec B D1 gate are green.
+- The diff audit against `2b5060c8293fec6756b286627212b740b3147e53` found no Worker, migration, schema, dependency, API-contract, polling, capability, storage-key, QZ/copy-semantics, targeted-CSS-content or newly introduced UTF-8 drift.
+- The 18-criterion audit records **17 PASS / 0 FAIL / 1 PENDING TASK 12**. Criterion 15 remains pending because staging homologation belongs exclusively to Task 12; C9 hardware evidence remains `DEFERRED-PRODUCTION` and was not inferred as PASS.
+- The Task 11 executable commit SHA and its authoritative GitHub Validate run will be recorded after the candidate is committed, pushed and green. No staging deploy, production deploy, remote migration, merge or Task 12 action has occurred.

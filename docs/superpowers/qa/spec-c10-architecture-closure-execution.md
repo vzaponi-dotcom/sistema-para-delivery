@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **PLAN APPROVED / TASKS 1–4 COMPLETE / TASK 5 NOT STARTED**  
+**Status:** **TASKS 1–10 COMPLETE / GREEN; TASK 11 candidate preparation in progress; TASK 12 NOT STARTED**
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -356,6 +356,52 @@ Task 2 is **COMPLETE / GREEN**.
 
 **Tasks 1–10 are COMPLETE / GREEN. Task 11 is NOT STARTED.**
 
+## Task 11 — final Spec C verification and executable candidate
+
+### Initial checkpoint
+
+- Local and remote branch HEAD before Task 11: `6b0512efda1bc3e20c28770c23e91c7a4301204f`.
+- Branch: `feature/spec-c10-architecture-closure`; development did not use `master`.
+- PR #54: **OPEN / DRAFT**, base `master` at `2b5060c8293fec6756b286627212b740b3147e53`.
+- Initial Validate application #1549 / run `35539502743`: **SUCCESS** on exact HEAD `6b0512ef...`.
+- Tasks 1–10 were reconfirmed complete; no staging/production deployment or remote migration had occurred.
+
+### Audit result
+
+- Parent Spec C §28: **17 PASS / 1 PENDING TASK 12 / 0 FAIL**.
+- Criterion 15 is explicitly **PENDING TASK 12 / release gate not executed yet**. It is not PASS and is not mislabeled `DEFERRED-PRODUCTION`.
+- C9 functional rows #12, #14–21, #24, #30 and #31 plus physical P1–P20 remain **DEFERRED-PRODUCTION** and block production.
+- Restricted-capability staging case #35 remains BLOCKED for lack of a suitable identity; automated capability coverage is green but no manual PASS is inferred.
+- Issues #43 and #44 remain open; Kitchen TV, Spec D and professional-printer evolution remain deliberately deferred.
+- Final audit: `docs/superpowers/qa/spec-c10-final-architecture-audit.md`.
+
+### Diff audit against post-C9 base
+
+- Worker/migrations/schema/workflows/packages: no diff.
+- API: only bootstrap/effective-config ownership moved from the deleted facade to focused infrastructure adapters; route, method, query and HTTP error semantics remain equivalent. Other HTTP adapters are unchanged.
+- Polling: global 5s, Kitchen/orders 2s, printing 2s/5s/15s and Print Queue 10s remain unchanged.
+- Storage keys and fallbacks: unchanged; `kitchen-sound-enabled` moved behind the storage adapter.
+- Capabilities: access/navigation/session contracts unchanged.
+- QZ/printing core: zero diff in QZ infrastructure and Printing application/domain/infrastructure; copy/retry/recovery/primary-station semantics unchanged. No physical inference was made.
+- CSS: all nine relocated CSS blobs are byte-identical to the base.
+- UTF-8/copy: no mojibake-like line introduced by the C10 diff; historical test-name mojibake predates C10.
+
+### Local candidate gates
+
+- `npm test`: **PASS**, 1,933 tests / 1,933 pass / 0 fail / 0 skipped.
+- focused final audit: **69/69 PASS**.
+- `npm run lint`: **PASS**, exit 0, no errors; existing warnings only.
+- `npm run test:architecture`: **PASS**, `Frontend architecture boundaries: OK`.
+- `npm run build`: **PASS**, 499 modules transformed.
+- production Wrangler 4.128.0 `deploy --dry-run`: **PASS / NO DEPLOY**.
+- staging Wrangler 4.128.0 `deploy --dry-run --env staging`: **PASS / NO DEPLOY**.
+- `npm run d1:migrate:local`: npm/npx wrapper was blocked before Wrangler by sandbox registry/cache access. The already-cached exact Wrangler 4.128.0 executed the same local migration target directly: **PASS / No migrations to apply**. Candidate GitHub Validate remains authoritative for the exact npm-script gate.
+- `node scripts/infra/spec-b-d1-gate.mjs`: **PASS**, local D1 Worker, 25 migrations and every reported check true.
+
+### Candidate state
+
+The audit found no implementation defect, so no focused RED → GREEN fix was required. The first Task 11 documentation commit will be the **C10 executable candidate** because its application tree is the fully audited Tasks 1–10 implementation and Task 11 introduces evidence only. After that SHA passes authoritative GitHub Validate, a documentation-only closure commit may record the candidate SHA/run without replacing the executable selected for Task 12.
+
 ## Next action
 
-**Task 5 — Close residual `src/components` / `src/utils` ownership — is NOT STARTED.**
+Commit and push the Task 11 candidate, require exact-SHA GitHub Validate SUCCESS, record the result and update PR #54 while keeping it **OPEN / DRAFT**. Then stop before Task 12.

@@ -20,7 +20,7 @@
 - C6 is **MERGED / COMPLETE** by PR #50 at `5b101800fe29d02dd4543e184cca9e06d659a445`.
 - C7 — Customers is **MERGED / COMPLETE** by PR #51 at `a7a8285ee125d90058c739f52daba6c170921adb`; post-merge Validate #1429 / run `35459175985` passed on the exact merge SHA. No production deploy occurred.
 - C9 — Printing and QZ separation is **MERGED / COMPLETE FOR ARCHITECTURE** by PR #53 at `2b5060c8293fec6756b286627212b740b3147e53`; post-merge Validate #1513 / run `35514989203` passed with **1,911 tests / 1,910 pass / 0 fail / 1 skipped**. Functional QA remains **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING** and physical P1–P20 remain **20 DEFERRED-PRODUCTION** as a hard pre-production gate. Production remains untouched.
-- Active slice: **C10 — Architectural closure and cleanup**, branch `feature/spec-c10-architecture-closure`, base `master` `2b5060c8293fec6756b286627212b740b3147e53`. Design and implementation plan are written as **DRAFT FOR REVIEW**; implementation has not started.
+- Active slice: **C10 — Architectural closure and cleanup**, branch `feature/spec-c10-architecture-closure`, base `master` `2b5060c8293fec6756b286627212b740b3147e53`. Design/plan are approved; Tasks 1–10 are complete/green; Task 11 executable-candidate preparation is active; Task 12 is not started.
 - C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
 - C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
 - C5 Task 3 — table-tab detail controller — is **COMPLETE / GREEN**. RED `8f460f139845e2288abe1d454d5d83c89643fb7b` failed Validate #1300 for the intended missing-controller reason; GREEN `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 with **1,712 tests / 1,711 pass / 0 fail / 1 skipped**.
@@ -587,3 +587,12 @@ C7 homologation handoff: master remains `5b101800fe29d02dd4543e184cca9e06d659a44
 - Task 9 GREEN `e35b606` enforces the final permanent architecture contract; allowlists and compatibility facades remain **0**.
 - Task 10 reduced Orders and Customers public contracts to actual production consumers and recorded the final architecture audit. Full local gates and both production/staging Worker `--dry-run` checks passed.
 - No staging deploy, production deploy, remote migration or merge occurred. The C9 deferred hardware matrix remains a hard pre-production gate.
+
+## C10 Task 11 executable-candidate preparation — 2026-09-20
+
+- Spec C §28 was audited against the real post-C9 diff and final source tree: **17 PASS / 1 PENDING TASK 12 / 0 FAIL**.
+- Criterion 15 remains **PENDING TASK 12 / release gate not executed yet**. Task 11 did not deploy or homologate staging and did not mark Spec C complete.
+- Local gates: **1,933/1,933 tests**, focused audit **69/69**, lint exit 0, architecture OK, build PASS, production/staging Worker dry-runs PASS, local D1 reports no pending migration, Spec B D1 PASS with 25 migrations.
+- Candidate diff audit found no Worker/migration/schema/package/polling/capability/QZ-core drift; API/storage ownership changes preserve contracts; relocated CSS is byte-identical; no introduced mojibake was found.
+- C9 functional rows #12/#14–21/#24/#30/#31 and physical P1–P20 remain **DEFERRED-PRODUCTION** and block production. Restricted-capability manual QA remains recorded as BLOCKED where no suitable identity exists.
+- The executable-candidate SHA is assigned by the next Task 11 commit and must pass exact-SHA GitHub Validate before being handed to Task 12. PR #54 remains open/draft; production, merge and remote migrations remain untouched.
