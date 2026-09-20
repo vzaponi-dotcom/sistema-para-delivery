@@ -41,3 +41,23 @@ test('remote queue mutations can skip the manager-wide refresh when a caller own
     assert.match(block, /refreshManager/)
   }
 })
+
+
+test('job mutation synchronization replaces existing state and prepends a new reprint without a full refresh', async () => {
+  const { mergePrintJobMutation } = await import('./usePrintingManager.js')
+  const current = [
+    { id: 'job-a', status: 'pending', queueState: 'queued', copiesRequested: 1 },
+    { id: 'job-b', status: 'pending', queueState: 'queued', copiesRequested: 1 },
+  ]
+  assert.deepEqual(
+    mergePrintJobMutation(current, { id: 'job-a', status: 'discarded' }).map(({ id, status, queueState }) => ({ id, status, queueState })),
+    [
+      { id: 'job-a', status: 'discarded', queueState: 'queued' },
+      { id: 'job-b', status: 'pending', queueState: 'queued' },
+    ],
+  )
+  assert.deepEqual(
+    mergePrintJobMutation(current, { id: 'job-new', status: 'pending' }, { prepend: true }).map(({ id }) => id),
+    ['job-new', 'job-a', 'job-b'],
+  )
+})

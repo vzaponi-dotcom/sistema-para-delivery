@@ -540,8 +540,8 @@ test('print queue actions skip manager refresh because the panel refreshes once 
   ]) {
     assert.match(page, new RegExp(`${command}\\?\\.\\(selectedJob, \\{ refreshManager: false \\}\\)`))
   }
-  assert.match(page, /confirmUnknownPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\), \{ refreshManager: false \}\)/)
-  assert.match(page, /confirmUnknownNotPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\), \{ refreshManager: false \}\)/)
+  assert.match(page, /confirmUnknownPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\)\)/)
+  assert.match(page, /confirmUnknownNotPrinted\?\.\(selectedJob, getUnknownAttempt\(selectedJob\)\)/)
   assert.match(page, /requestReprint\?\.\(selectedJob, reprintCopies, \{ refreshManager: false \}\)/)
 })
 
