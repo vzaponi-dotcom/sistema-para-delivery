@@ -20,7 +20,7 @@ test('navigation overlays floating action and toast use one shared layer scale',
   const foundationCss = await read('./mobile-foundation.css')
   const navCss = await read('./mobile-navigation.css')
   const sheetCss = await read('./bottom-sheet.css')
-  const dashboardCss = await read('./dashboard.css')
+  const dashboardCss = await read('./app/surfaces/dashboard/dashboard.css')
 
   assert.match(foundationCss, /--layer-mobile-nav:\s*60/)
   assert.match(foundationCss, /--layer-floating-action:\s*70/)
@@ -45,13 +45,13 @@ test('shared overlays remain dynamic-viewport sized and safe-area aware', async 
 
 test('screen-specific narrow rules cover the audited 320 to 480px range', async () => {
   const files = await Promise.all([
-    read('./new-order.css'),
+    read('./domains/orders/ui/new-order.css'),
     read('./order-operations-compact.css'),
     read('./receivables.css'),
     read('./clients-phonebook.css'),
-    read('./product-form.css'),
-    read('./dashboard.css'),
-    read('./finance-mobile.css'),
+    read('./domains/catalog/ui/product-form.css'),
+    read('./app/surfaces/dashboard/dashboard.css'),
+    read('./domains/finance/ui/finance-mobile.css'),
     read('./mobile-navigation.css'),
   ])
 

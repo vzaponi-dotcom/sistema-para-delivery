@@ -29,7 +29,7 @@ test('legacy Printing production owners are physically absent', () => {
 test('Printing CSS ownership keeps only the approved locations', () => {
   assert.equal(existsSync(new URL('../../printing/printing.css', import.meta.url)), false)
   assert.equal(existsSync(new URL('../printing/ui/printing.css', import.meta.url)), true)
-  assert.equal(existsSync(new URL('../../print-queue.css', import.meta.url)), true)
+  assert.equal(existsSync(new URL('./ui/print-queue.css', import.meta.url)), true)
 })
 
 

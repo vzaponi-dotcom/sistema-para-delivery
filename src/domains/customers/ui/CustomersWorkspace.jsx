@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import './client-duplicate.css'
 import { useCustomerCommands } from '../application/useCustomerCommands.js'
 import { useCustomerEditor } from '../application/useCustomerEditor.js'
 import { filterAndSortClients } from '../domain/clientList.js'

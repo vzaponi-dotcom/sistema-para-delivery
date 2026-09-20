@@ -18,7 +18,7 @@ test('order type choices stay three-across and compact on mobile', async () => {
 })
 
 test('registered table choices stay readable and tappable on mobile', async () => {
-  const css = await read('./local-order-identity.css')
+  const css = await read('./domains/catalog/ui/local-order-identity.css')
   const selector = await read('./domains/table-service/ui/LocalTableSelector.jsx')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-table-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const form = fs.readFileSync(new URL('./ProductForm.jsx', import.meta.url), 'utf8')
-const css = fs.readFileSync(new URL('../../../product-form.css', import.meta.url), 'utf8')
+const css = fs.readFileSync(new URL('./product-form.css', import.meta.url), 'utf8')
 
 test('selected product controls use check plus strong filled state', () => {
   assert.match(form, /product-selection-check/)

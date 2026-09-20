@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import './new-order.css'
 import { ClientDuplicateModal, findClientDuplicates } from '../../customers/index.js'
 import { getBusinessDate } from '../../../../shared/finance.js'
 import { validateCustomerIdentity } from '../../../../shared/orderCustomerIdentity.js'

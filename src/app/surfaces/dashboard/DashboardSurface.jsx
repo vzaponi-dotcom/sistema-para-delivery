@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import '../../../dashboard.css'
+import './dashboard.css'
 import DashboardBarChart from '../../../shared/ui/DashboardBarChart'
 import DashboardPeriodSelector from '../../../shared/ui/DashboardPeriodSelector'
 import Icon from '../../../shared/ui/Icon'

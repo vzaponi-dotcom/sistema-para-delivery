@@ -82,7 +82,7 @@ test('print queue renders station health and a responsive four-card summary', as
   const [app, page, styles] = await Promise.all([
     readSource('../../../App.jsx'),
     readSource('./PrintQueue.jsx'),
-    readSource('../../../print-queue.css'),
+    readSource('./print-queue.css'),
   ])
 
   for (const label of ['Cozinha PC', 'Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
@@ -120,7 +120,7 @@ test('print queue job rows expose identity, origin, copies, status, time and sta
 test('print queue keeps structured desktop rows and compact mobile cards without horizontal overflow', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../../../print-queue.css'),
+    readSource('./print-queue.css'),
   ])
 
   assert.match(page, /print-queue-jobs-table/)
@@ -231,7 +231,7 @@ test('print queue exposes responsive filter controls without structural horizont
   const [page, filters, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
     readSource('./printQueueFilters.js'),
-    readSource('../../../print-queue.css'),
+    readSource('./print-queue.css'),
   ])
 
   assert.match(page, /Buscar pedido, cliente ou mesa/)
@@ -339,7 +339,7 @@ test('print queue opens details from desktop rows and mobile cards, with actions
 test('print queue modal orders actions by primary, destructive, ticket, close on mobile and close, ticket, destructive, primary on desktop', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../../../print-queue.css'),
+    readSource('./print-queue.css'),
   ])
 
   assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
@@ -361,7 +361,7 @@ test('7F-B1 keeps reprint and ticket preview in the detail modal, using the immu
   const [page, manager, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
     readSource('../application/usePrintingManager.js'),
-    readSource('../../../print-queue.css'),
+    readSource('./print-queue.css'),
   ])
 
   assert.match(page, /import OrderTicketPreview/)
@@ -423,7 +423,7 @@ test('print queue status filter exposes operational follow-up plus retained term
 test('main panel exposes sortable backend columns and page-aware mobile cards without a recent section', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../../../print-queue.css'),
+    readSource('./print-queue.css'),
   ])
 
   for (const label of ['Pedido', 'Job', 'Status', 'Origem', 'Data/Hora']) assert.match(page, new RegExp(label))

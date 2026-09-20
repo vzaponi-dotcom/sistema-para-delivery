@@ -14,7 +14,7 @@ const assertApprovedMoreEntries = (source) => {
 
 test('finance rows keep long movement copy readable at 320px', async () => {
   const appCss = await read('../App.css')
-  const financeCss = await read('../finance-mobile.css')
+  const financeCss = await read('../domains/finance/ui/finance-mobile.css')
 
   assert.match(appCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-row\s*\{[^}]*grid-template-columns:\s*38px\s+minmax\(0,\s*1fr\)/s)
   assert.match(financeCss, /@media\s*\(max-width:\s*640px\)[\s\S]*\.movement-title-line strong\s*\{[^}]*min-width:\s*0[^}]*overflow-wrap:\s*anywhere/s)

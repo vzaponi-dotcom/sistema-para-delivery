@@ -17,7 +17,7 @@ test('mobile shell prevents horizontal viewport drift without blocking horizonta
 
 test('dashboard removes the FAB while preserving shared mobile clearance tokens', async () => {
   const dashboard = await read('./app/surfaces/dashboard/DashboardSurface.jsx')
-  const dashboardCss = await read('./dashboard.css')
+  const dashboardCss = await read('./app/surfaces/dashboard/dashboard.css')
   const foundationCss = await read('./mobile-foundation.css')
   const mobileCss = await read('./mobile-navigation.css')
 

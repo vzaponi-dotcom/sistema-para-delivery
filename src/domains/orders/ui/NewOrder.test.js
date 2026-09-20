@@ -54,7 +54,7 @@ test('product catalog replaces added action with synchronized quantity controls'
   const page = source('./NewOrder.jsx')
   const productsStep = source('./components/NewOrderProductsStep.jsx')
   const catalog = source('./components/OrderProductCatalog.jsx')
-  const css = source('../../../new-order.css')
+  const css = source('./new-order.css')
 
   assert.match(page, /decrementCartProduct/)
   assert.match(page, /onDecrease=\{\(productId\) => setItems/)
@@ -109,7 +109,7 @@ test('item observation stays collapsed until requested and collapses to a summar
 
 test('cart item layout is horizontal and compact with quantity on the left', () => {
   const cart = source('./components/OrderCart.jsx')
-  const css = source('../../../new-order.css')
+  const css = source('./new-order.css')
 
   assert.match(cart, /new-order-cart-quantity/)
   assert.match(cart, /new-order-cart-content/)

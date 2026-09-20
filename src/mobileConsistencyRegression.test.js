@@ -17,7 +17,7 @@ test('mobile toast is viewport anchored and cannot stretch between top and botto
   const appRoot = await read('./app/shell/AppRoot.jsx')
   const foundation = await read('./mobile-foundation.css')
   const interactions = await read('./mobile-interactions.css')
-  const polish = await read('./ui-polish.css')
+  const polish = await read('./domains/orders/ui/ui-polish.css')
 
   assert.match(appRoot, /import\s+\{\s*createPortal\s*\}\s+from\s+'react-dom'/)
   assert.match(appRoot, /const portal = .*createPortal\(node, document\.body\)/)

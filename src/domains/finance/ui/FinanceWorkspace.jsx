@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import './finance-mobile.css'
 import { calculateCurrentBalance } from '../domain/cashFlow.js'
 import { useFinanceCommands } from '../application/useFinanceCommands.js'
 import Finance from './Finance.jsx'

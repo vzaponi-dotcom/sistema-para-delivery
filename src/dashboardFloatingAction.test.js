@@ -6,7 +6,7 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 
 test('financial overview removes the duplicated new-order floating action', () => {
   const page = source('./app/surfaces/dashboard/DashboardSurface.jsx')
-  const css = source('./dashboard.css')
+  const css = source('./app/surfaces/dashboard/dashboard.css')
 
   assert.doesNotMatch(page, /Novo pedido|onNewOrder|dashboard-new-order-fab/)
   assert.doesNotMatch(css, /dashboard-new-order-fab/)

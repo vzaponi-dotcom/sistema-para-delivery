@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('dashboard period selector remains touch friendly without a financial FAB', async () => {
-  const css = await read('../dashboard.css')
+  const css = await read('../app/surfaces/dashboard/dashboard.css')
   const page = await read('../app/surfaces/dashboard/DashboardSurface.jsx')
 
   assert.match(css, /\.dashboard-period-option\s*\{[^}]*min-height:\s*44px/s)
@@ -16,7 +16,7 @@ test('dashboard period selector remains touch friendly without a financial FAB',
 test('dashboard charts use compact sales-axis labels and compensate for SVG scaling on small screens', async () => {
   const page = await read('../app/surfaces/dashboard/DashboardSurface.jsx')
   const lineChart = await read('../app/surfaces/dashboard/DashboardLineChart.jsx')
-  const css = await read('../dashboard.css')
+  const css = await read('../app/surfaces/dashboard/dashboard.css')
 
   assert.match(page, /formatCompactAxisValue/)
   assert.match(page, /formatAxisValue=\{formatCompactAxisValue\}/)
@@ -27,7 +27,7 @@ test('dashboard charts use compact sales-axis labels and compensate for SVG scal
 })
 
 test('dashboard removes recent operational orders and their dedicated responsive rules', async () => {
-  const css = await read('../dashboard.css')
+  const css = await read('../app/surfaces/dashboard/dashboard.css')
   const page = await read('../app/surfaces/dashboard/DashboardSurface.jsx')
 
   assert.doesNotMatch(page, /Pedidos recentes|recent-orders/)
