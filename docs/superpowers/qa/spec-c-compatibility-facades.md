@@ -302,3 +302,11 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Production `qz-tray` imports remain confined to `src/infrastructure/qz/`; the direct-QZ migration allowlist debt is empty.
 - The only surviving top-level compatibility row relevant to C10 is the generic/auth `src/api/client.js` reexport row already listed above.
 - Physical QZ QA is **not a compatibility facade** and is not recorded as architectural PASS. By explicit project decision, P1–P20 and the hardware-dependent Task 11 rows are `DEFERRED-PRODUCTION`; they must all pass on the final post-C10 staging release candidate before production.
+
+
+## C10 preparation — 2026-09-20
+
+- C9 merged at `2b5060c8293fec6756b286627212b740b3147e53`.
+- The sole unresolved temporary facade remains the generic/auth/bootstrap `src/api/client.js` row at the top of this ledger; C10 Task 2 owns its physical removal.
+- `scripts/architecture/legacy-import-allowlist.json` is already semantically empty and C10 Task 6 owns deleting the file.
+- No new compatibility facade is approved for C10.

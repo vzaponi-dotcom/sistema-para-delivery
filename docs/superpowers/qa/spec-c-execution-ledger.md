@@ -13,7 +13,7 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-19
+## Program status — 2026-09-20
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
@@ -25,8 +25,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | **STAGING FUNCTIONAL QA CLOSED — 24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING; TASK 12 PRE-MERGE DOCS GATE** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
+| C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **PLANNING — DESIGN/PLAN DRAFTED; IMPLEMENTATION NOT STARTED** | `feature/spec-c10-architecture-closure` | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -543,3 +543,18 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Physical QZ matrix P1–P20: **0 PASS / 0 FAIL / 20 DEFERRED-PRODUCTION**. The user explicitly approved moving this real-hardware round from the pre-C9-merge gate to a hard **pre-production gate** so C9 can merge and C10 can proceed. No deferred row is represented as PASS.
 - Before production, the **final post-C10 release candidate** must be staged and all 12 deferred functional rows plus P1–P20 must PASS. Any defect requires RED→GREEN, full Validate, staging redeploy and affected physical rerun.
 - Production remains **NO DEPLOY**. C9 merge still requires final docs Validate and separate explicit user authorization.
+
+
+# C9 — Merge closure — 2026-09-20
+
+- PR #53 merged to `master` at `2b5060c8293fec6756b286627212b740b3147e53`.
+- Post-merge Validate #1513 / run `35514989203` — **SUCCESS**, **1,911 tests / 1,910 pass / 0 fail / 1 skipped**.
+- Production was not deployed.
+- Deferred pre-production gate remains authoritative: Task 11 hardware-dependent rows plus P1–P20 must pass on the final post-C10 staging release candidate before production.
+
+# C10 — Preparation checkpoint — 2026-09-20
+
+- Branch: `feature/spec-c10-architecture-closure`.
+- Base: post-C9 master `2b5060c8293fec6756b286627212b740b3147e53`.
+- Design and plan drafted from the real post-C9 repository state.
+- Implementation: **NOT STARTED** pending explicit approval.

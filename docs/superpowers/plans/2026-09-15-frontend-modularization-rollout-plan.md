@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-15-frontend-modularization-design.md`
 
-## Current rollout status — 2026-09-19
+## Current rollout status — 2026-09-20
 
 - C1 — Runtime central is **RELEASED / COMPLETE** on `master` at `f5d8b7267cdbf91a7d254a3c1546464d4d9b0210`.
 - C2 — Navigation and App composition is **MERGED / COMPLETE** by PR #46 at `de24b2ceb807440d4c339200b44ae2ed6583b27a`.
@@ -19,7 +19,8 @@
 - C5 — Table Service is **MERGED / COMPLETE** by PR #49 at `e8ec2304ec9613a30b9a7f9b395bc9935a3abdd3`. Final branch Validate #1341 / run `35400357800` passed; post-merge Validate #1342 / run `35401628448` passed on the exact merge commit. Manual staging QA closed at **22 PASS / 0 FAIL / 1 BLOCKED / 0 PENDING**. No production deploy occurred.
 - C6 is **MERGED / COMPLETE** by PR #50 at `5b101800fe29d02dd4543e184cca9e06d659a445`.
 - C7 — Customers is **MERGED / COMPLETE** by PR #51 at `a7a8285ee125d90058c739f52daba6c170921adb`; post-merge Validate #1429 / run `35459175985` passed on the exact merge SHA. No production deploy occurred.
-- Active slice: **C9 — Printing and QZ separation**, branch `feature/spec-c9-printing`, base `master` `91fb5581cea1616f438c13dfac28cfb38345fa59`, draft PR #53. Code-changing HEAD `c90ef83775cf3ca66771c1b6ae0cc27ec4516d71` is staged by Deploy staging run `35512327093` (Worker `b88c06e5-2165-428e-8af7-d6ab8271fada`, readiness 1/6, login HTTP 200, no migrations). Functional QA is **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING** after the approved 2026-09-20 release-policy revision. Physical P1–P20 are not PASS; all 20 are explicitly `DEFERRED-PRODUCTION` and hard-block production, while C9 merge/C10 may proceed after docs Validate and explicit merge authorization. Production remains untouched.
+- C9 — Printing and QZ separation is **MERGED / COMPLETE FOR ARCHITECTURE** by PR #53 at `2b5060c8293fec6756b286627212b740b3147e53`; post-merge Validate #1513 / run `35514989203` passed with **1,911 tests / 1,910 pass / 0 fail / 1 skipped**. Functional QA remains **24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING** and physical P1–P20 remain **20 DEFERRED-PRODUCTION** as a hard pre-production gate. Production remains untouched.
+- Active slice: **C10 — Architectural closure and cleanup**, branch `feature/spec-c10-architecture-closure`, base `master` `2b5060c8293fec6756b286627212b740b3147e53`. Design and implementation plan are written as **DRAFT FOR REVIEW**; implementation has not started.
 - C5 Task 1 — public Table Service boundary + pure domain rules — is **COMPLETE / GREEN**. RED `9d247b31e2ff15589eddc84d4da8b3cf96ee91aa` failed Validate #1293 for the intended missing-module reason; GREEN `e8f490808900d56c2c23d6683ed5365da4921b80` passed Validate #1294 with **1,698 tests / 1,697 pass / 0 fail / 1 skipped**.
 - C5 Task 2 — controlled comanda selection + runtime table-commit bridge removal — is **COMPLETE / GREEN**. Final fix `1eb0f4b51283ad2f6274720a6eaafa63156fbe00` passed Validate #1298 with **1,702 tests / 1,701 pass / 0 fail / 1 skipped** and all remaining workflow gates green.
 - C5 Task 3 — table-tab detail controller — is **COMPLETE / GREEN**. RED `8f460f139845e2288abe1d454d5d83c89643fb7b` failed Validate #1300 for the intended missing-controller reason; GREEN `4fcfff12a3357dfbeb1587142b643a0db55702bf` passed Validate #1306 with **1,712 tests / 1,711 pass / 0 fail / 1 skipped**.
