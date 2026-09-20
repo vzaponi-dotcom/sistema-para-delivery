@@ -124,7 +124,7 @@ test('station save and primary election are separate revisioned resources', asyn
 
 test('printing page renders three responsibilities and asks before electing the real station', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { default: PrintingSettingsContent } = await h.load('/src/domains/printing/ui/PrintingSettingsContent.jsx')
   const { adapter, calls, printing } = await printingFixture()
   const screen = await h.render(PrintingSettingsContent, {
     printing,

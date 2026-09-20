@@ -313,7 +313,7 @@ test('15. printing.execute permite execuÃ§Ã£o e printing.discard ausente blo
 
 test('16. printing.settings permite vias e bloqueia estação sem station.configure', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { PrintingSettingsContent } = await h.load('/src/domains/printing/index.js')
   const policy = {
     status: 'ready',
     confirmed: { data: { orderDefaultCopies: 1, tableTabDefaultCopies: 2 } },
@@ -347,7 +347,7 @@ test('16. printing.settings permite vias e bloqueia estação sem station.config
 
 test('16b. printing.execute permite testar sem conceder configuração da estação', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: PrintingSettingsContent } = await h.load('/src/components/PrintingSettingsContent.jsx')
+  const { PrintingSettingsContent } = await h.load('/src/domains/printing/index.js')
   let tests = 0
   const settings = {
     policyState: () => null,

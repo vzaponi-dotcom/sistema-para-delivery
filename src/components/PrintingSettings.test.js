@@ -2,11 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-const settings = await readFile(new URL('./PrintingSettingsContent.jsx', import.meta.url), 'utf8')
+const settings = await readFile(new URL('../domains/printing/ui/PrintingSettingsContent.jsx', import.meta.url), 'utf8')
 const orders = await readFile(new URL('../domains/orders/ui/Orders.jsx', import.meta.url), 'utf8')
 const manager = await readFile(new URL('../domains/printing/application/usePrintingManager.js', import.meta.url), 'utf8')
 const adapter = await readFile(new URL('../app/surfaces/settings/printingSettingsAdapter.js', import.meta.url), 'utf8')
-const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
+const css = await readFile(new URL('../domains/printing/ui/printing.css', import.meta.url), 'utf8')
 
 test('printing settings keep the three scoped responsibilities explicit in compact cards', () => {
   for (const label of ['Política de impressão do negócio', 'Pedidos', 'Mesas / Comandas', 'Estação', 'Impressora local (QZ Tray)']) {

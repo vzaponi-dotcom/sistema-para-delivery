@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import * as localStation from '../printing/localPrintStation.js'
+import * as localStation from '../domains/printing/application/printingPlatform.js'
 
-const content = await readFile(new URL('./PrintingSettingsContent.jsx', import.meta.url), 'utf8')
+const content = await readFile(new URL('../domains/printing/ui/PrintingSettingsContent.jsx', import.meta.url), 'utf8')
 const page = await readFile(new URL('../app/surfaces/settings/SettingsSurface.jsx', import.meta.url), 'utf8')
 const icons = await readFile(new URL('./Icon.jsx', import.meta.url), 'utf8')
-const css = await readFile(new URL('../printing/printing.css', import.meta.url), 'utf8')
+const css = await readFile(new URL('../domains/printing/ui/printing.css', import.meta.url), 'utf8')
 
 test('visual platform detection recognizes Windows Android and iPhone without changing transport platform semantics', () => {
   const detect = localStation.detectPrintStationUiPlatform

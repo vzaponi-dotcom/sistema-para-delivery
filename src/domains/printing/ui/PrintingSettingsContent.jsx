@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
-import Button from './Button'
-import ConfirmationDialog from './ConfirmationDialog'
-import Icon from './Icon'
-import SystemSelect from './SystemSelect'
-import '../printing/printing.css'
-import { hasCapability } from '../app/access.js'
-import { detectPrintStationUiPlatform } from '../printing/localPrintStation.js'
+import Button from '../../../components/Button'
+import ConfirmationDialog from '../../../components/ConfirmationDialog'
+import Icon from '../../../components/Icon'
+import SystemSelect from '../../../components/SystemSelect'
+import './printing.css'
+import { hasCapability } from '../../../app/access.js'
+import { detectPrintStationUiPlatform } from '../application/printingPlatform.js'
 
 const PLATFORM_LABELS = {
   windows: 'Windows',

@@ -1,5 +1,5 @@
 import Modal from './Modal'
-import PrintingSettingsContent from './PrintingSettingsContent'
+import { PrintingSettingsContent } from '../domains/printing/index.js'
 
 function PrintingSettings({ printing, settings, granted, onClose }) {
   return (
