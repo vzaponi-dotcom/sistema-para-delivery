@@ -276,7 +276,7 @@ async function printQueueWorkspace(t, { canExecutePrinting, canDiscardPrinting }
     if (url === '/api/printing/jobs/summary') return response({ summary: { pending: 1, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 0 } })
     throw new Error(`Unexpected request: ${url}`)
   }
-  const { default: PrintQueue } = await h.load('/src/pages/PrintQueue.jsx')
+  const { default: PrintQueue } = await h.load('/src/domains/printing/ui/PrintQueue.jsx')
   const calls = { execute: 0, discard: 0 }
   const printing = {
     localStation: null, printerHealth: { state: 'verifying' }, stations: [],
@@ -401,7 +401,7 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
       h.load('/src/domains/catalog/ui/Products.jsx'),
       h.load('/src/domains/finance/ui/Receivables.jsx'),
       h.load('/src/domains/finance/ui/Finance.jsx'),
-      h.load('/src/pages/PrintQueue.jsx'),
+      h.load('/src/domains/printing/ui/PrintQueue.jsx'),
     ]),
     h.load('/src/domains/table-service/index.js'),
   ])

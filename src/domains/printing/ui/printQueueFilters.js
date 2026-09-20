@@ -1,5 +1,5 @@
-import { PRINT_QUEUE_STATES, resolvePrintQueueState } from '../../shared/printQueue.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
+import { PRINT_QUEUE_STATES, resolvePrintQueueState } from '../../../../shared/printQueue.js'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 const getHumanIdentifiers = (job, ordersById) => {
   const document = job?.document || {}

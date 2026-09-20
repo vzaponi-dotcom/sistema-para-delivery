@@ -1,7 +1,7 @@
-import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
-import { formatOrderDisplayNumber } from '../../shared/orderDisplayNumber.js'
-import { getPrintQueueLabel, resolvePrintQueueState } from '../../shared/printQueue.js'
-import { getPrintJobActions } from '../../shared/printQueueActions.js'
+import { formatOrderCustomerIdentity } from '../../../../shared/orderPrintDocument.js'
+import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import { getPrintQueueLabel, resolvePrintQueueState } from '../../../../shared/printQueue.js'
+import { getPrintJobActions } from '../../../../shared/printQueueActions.js'
 
 const presentText = (value) => {
   const text = String(value ?? '').trim()

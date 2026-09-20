@@ -47,7 +47,6 @@ import {
   useTableServiceCommands,
 } from './domains/table-service/index.js'
 import Dashboard from './pages/Dashboard'
-import PrintQueue from './pages/PrintQueue'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
 import TableServiceExternalActions from './app/surfaces/table-service/TableServiceExternalActions.jsx'
@@ -72,7 +71,7 @@ import { CatalogWorkspace } from './domains/catalog/index.js'
 import {
   acknowledgeAndOpenSecondCopyPrompt, canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt,
   findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible,
-  usePrintingManager,
+  PrintQueue, usePrintingManager,
 } from './domains/printing/index.js'
 import { readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
 

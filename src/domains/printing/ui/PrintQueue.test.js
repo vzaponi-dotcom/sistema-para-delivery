@@ -5,10 +5,10 @@ import React, { useState } from 'react'
 import { act } from 'react-test-renderer'
 import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
-import { formatOrderCustomerIdentity } from '../../shared/orderPrintDocument.js'
+import { formatOrderCustomerIdentity } from '../../../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
 import { DEFAULT_PRINT_QUEUE_QUERY, sortPrintQueueJobsForDisplay } from './printQueueQuery.js'
-import { nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -26,12 +26,12 @@ test('print queue page provides the initial structural heading', async () => {
 
 test('desktop navigation opens the queue and its settings shortcut opens the printing section', async () => {
   const [app, sidebar, orders] = await Promise.all([
-    readSource('../App.jsx'),
-    readSource('../app/navigation/registry.js'),
-    readSource('../domains/orders/ui/Orders.jsx'),
+    readSource('../../../App.jsx'),
+    readSource('../../../app/navigation/registry.js'),
+    readSource('../../orders/ui/Orders.jsx'),
   ])
 
-  assert.match(app, /import PrintQueue from '\.\/pages\/PrintQueue'/)
+  assert.match(app, /PrintQueue[\s\S]*from '\.\/domains\/printing\/index\.js'/)
   assert.match(app, /activeTab === 'print-queue' && <PrintQueue/)
   assert.match(app, /onOpenPrintingSettings=\{\(\) => requestNavigation\('settings-printing'\)\}/)
   assert.match(sidebar, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
@@ -40,7 +40,7 @@ test('desktop navigation opens the queue and its settings shortcut opens the pri
 })
 
 test('mobile keeps five bottom tabs and exposes the print queue through Mais', async () => {
-  const mobileNavigation = await readSource('../app/navigation/registry.js')
+  const mobileNavigation = await readSource('../../../app/navigation/registry.js')
 
   assert.match(mobileNavigation, /MOBILE_DIRECT_ENTRIES = Object\.freeze\(\[[\s\S]*?\{ area: 'orders', label: 'Pedidos', icon: 'orders' \}[\s\S]*?\{ id: 'comandas', label: 'Comandas', icon: 'clipboard' \}[\s\S]*?\{ area: 'finance', label: 'Financeiro', icon: 'finance' \}/)
   assert.match(mobileNavigation, /MOBILE_MORE_ENTRIES = Object\.freeze\(\[[\s\S]*?\{ id: 'print-queue', icon: 'printer' \}[\s\S]*?\{ id: 'clients', icon: 'clients' \}[\s\S]*?\{ id: 'products', icon: 'products' \}/)
@@ -80,9 +80,9 @@ test('print station summary reports available health without inventing an online
 
 test('print queue renders station health and a responsive four-card summary', async () => {
   const [app, page, styles] = await Promise.all([
-    readSource('../App.jsx'),
+    readSource('../../../App.jsx'),
     readSource('./PrintQueue.jsx'),
-    readSource('../print-queue.css'),
+    readSource('../../../print-queue.css'),
   ])
 
   for (const label of ['Cozinha PC', 'Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
@@ -120,7 +120,7 @@ test('print queue job rows expose identity, origin, copies, status, time and sta
 test('print queue keeps structured desktop rows and compact mobile cards without horizontal overflow', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../print-queue.css'),
+    readSource('../../../print-queue.css'),
   ])
 
   assert.match(page, /print-queue-jobs-table/)
@@ -231,7 +231,7 @@ test('print queue exposes responsive filter controls without structural horizont
   const [page, filters, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
     readSource('./printQueueFilters.js'),
-    readSource('../print-queue.css'),
+    readSource('../../../print-queue.css'),
   ])
 
   assert.match(page, /Buscar pedido, cliente ou mesa/)
@@ -339,7 +339,7 @@ test('print queue opens details from desktop rows and mobile cards, with actions
 test('print queue modal orders actions by primary, destructive, ticket, close on mobile and close, ticket, destructive, primary on desktop', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../print-queue.css'),
+    readSource('../../../print-queue.css'),
   ])
 
   assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
@@ -350,7 +350,7 @@ test('print queue modal orders actions by primary, destructive, ticket, close on
 
 test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
   const page = await readSource('./PrintQueue.jsx')
-  const manager = await readSource('../domains/printing/application/usePrintingManager.js')
+  const manager = await readSource('../application/usePrintingManager.js')
   assert.match(page, /Trabalho de impressão descartado/)
   assert.match(page, /Impressão autorizada e enviada para a fila/)
   assert.doesNotMatch(page, /Ãƒ|Ã‚|ï¿½/)
@@ -360,8 +360,8 @@ test('7F-A queue messages use UTF-8 Portuguese strings', async () => {
 test('7F-B1 keeps reprint and ticket preview in the detail modal, using the immutable job snapshot', async () => {
   const [page, manager, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../domains/printing/application/usePrintingManager.js'),
-    readSource('../print-queue.css'),
+    readSource('../application/usePrintingManager.js'),
+    readSource('../../../print-queue.css'),
   ])
 
   assert.match(page, /import OrderTicketPreview/)
@@ -421,7 +421,7 @@ test('print queue status filter exposes only jobs that still require operational
 test('main panel exposes sortable backend columns and page-aware mobile cards without a recent section', async () => {
   const [page, styles] = await Promise.all([
     readSource('./PrintQueue.jsx'),
-    readSource('../print-queue.css'),
+    readSource('../../../print-queue.css'),
   ])
 
   for (const label of ['Pedido', 'Job', 'Status', 'Origem', 'Data/Hora']) assert.match(page, new RegExp(label))
@@ -451,7 +451,7 @@ test('print queue identifies and sorts consolidated comandas from their immutabl
 
 test('clicking a column header immediately reorders the displayed jobs even when the backend response order is stale', async (t) => {
   const harness = await workspaceHarness(t)
-  const { default: PrintQueue } = await harness.load('/src/pages/PrintQueue.jsx')
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
   const jobs = [
     { id: 'job-72', orderId: 'order-72', status: 'pending', trigger: 'automatic', copiesRequested: 1, copiesPrinted: 0, createdAt: '2026-09-10T22:42:00.000Z', document: { type: 'order', customer: {}, order: { id: 'order-72' } } },
     { id: 'job-71', orderId: 'order-71', status: 'pending', trigger: 'automatic', copiesRequested: 1, copiesPrinted: 0, createdAt: '2026-09-10T22:41:00.000Z', document: { type: 'order', customer: {}, order: { id: 'order-71' } } },

@@ -115,8 +115,8 @@ test('the originating non-QZ device can request, but never execute, its second c
 })
 
 test('physical popup remains separate from remote queue decisions', async () => {
-  const queue = await readFile(new URL('../pages/PrintQueue.jsx', import.meta.url), 'utf8')
-  const details = await readFile(new URL('../pages/printQueueDetails.js', import.meta.url), 'utf8')
+  const queue = await readFile(new URL('../domains/printing/ui/PrintQueue.jsx', import.meta.url), 'utf8')
+  const details = await readFile(new URL('../domains/printing/ui/printQueueDetails.js', import.meta.url), 'utf8')
   assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
   assert.match(app, /cancelLabel="Depois"/)
   assert.match(queue, /printing\?\.requestSecondCopy\?\.\(selectedJob\)/)
