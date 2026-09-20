@@ -252,7 +252,7 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 | Temporary path | Real owner | Remaining production consumer / reason | Removal task |
 |---|---|---|---|
 | `src/printing/usePrintingManager.js` | `src/domains/printing/application/usePrintingManager.js` + `physicalOperation.js` | Compatibility/source-test bridge; App already uses the Printing public entry | Task 8 |
-| `src/printing/localPrintStation.js` | `src/domains/printing/application/printingPlatform.js` + `infrastructure/printingLocalPreferences.js` | `src/components/PrintingSettingsContent.jsx` still consumes UI platform detection until Settings ownership moves | Task 6, delete facade by Task 8 |
+| `src/printing/localPrintStation.js` | `src/domains/printing/application/printingPlatform.js` + `infrastructure/printingLocalPreferences.js` | Settings no longer consumes it after Task 6; only compatibility/source-test debt may remain | Delete by Task 8 |
 | `src/printing/secondCopyPromptFlow.js` | `src/domains/printing/infrastructure/printingLocalPreferences.js` for origin IDs; second-copy rules already live in Printing domain | `App.jsx` still owns origin prompt/recovery composition until Task 7 | Task 7, delete facade by Task 8 |
 | `src/printing/escpos58mm.js` | Pure renderer: `domains/printing/domain/rendering/escpos58mm.js` | Browser Canvas default needed by current manager execution | Task 8 |
 | `src/printing/pdfOrderRenderer.js` | Pure renderer: `domains/printing/domain/rendering/pdfOrderRenderer.js` | Orders detail still owns browser download call | Task 8 |
@@ -262,3 +262,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - `legacy-import-allowlist.json` may still contain the historical `qzDirectImports` exception for `src/printing/usePrintingManager.js`, even though the real application manager no longer imports `qz-tray`. This stale allowance is removed in Task 9 together with permanent enforcement; do not widen it.
 - `DEFAULT_PRINT_QUEUE_QUERY` is **not a facade**. It is a real public Printing UI/query contract consumed by `app/navigation/queryContext.js`; the public entry exposes it to avoid a deep import or duplicated default.
 - Generic/auth compatibility exports in `src/api/client.js` remain C10 debt and are outside C9.
+
+
+## C9 Task 6 compatibility checkpoint — 2026-09-19
+
+- **Printing policy legacy owner — CLOSED:** the three versioned policy adapters moved from `src/app/surfaces/settings/policies/printingPolicy.js` to `src/domains/printing/infrastructure/printingPolicy.js`; the Settings registry consumes them through `domains/printing/index.js`.
+- **Printing Settings content legacy owner — CLOSED:** `src/components/PrintingSettingsContent.jsx` is removed; the owner is `src/domains/printing/ui/PrintingSettingsContent.jsx`.
+- **Printing Settings stylesheet owner — CLOSED:** `src/printing/printing.css` moved with its UI owner to `src/domains/printing/ui/printing.css`; the existing semantic/responsive tests were path-aligned without visual redesign.
+- `src/app/surfaces/settings/printingSettingsAdapter.js` remains intentionally as a thin app composition bridge and is **not** a Printing compatibility facade.
+- `src/components/PrintingSettings.jsx` remains a deliberate legacy wrapper until Task 8, now consuming `PrintingSettingsContent` through the Printing public entry.
+- `src/printing/localPrintStation.js` is no longer a production dependency of Printing Settings; deletion remains scheduled no later than Task 8 together with the other legacy Printing facades.
+- Task 7 still owns App second-copy/recovery overlay extraction. Task 8 owns final legacy path removal; Task 9 owns permanent enforcement and stale QZ allowlist removal.

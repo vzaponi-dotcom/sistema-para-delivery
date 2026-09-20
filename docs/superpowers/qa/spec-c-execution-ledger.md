@@ -25,7 +25,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
+| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–6 COMPLETE / GREEN; TASK 7 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
@@ -494,3 +494,17 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - PrintQueue and its projections are owned by `src/domains/printing/ui/`; old `src/pages/PrintQueue*` production paths are removed.
 - Public UI export uses the established node-safe surface wrapper pattern. `DEFAULT_PRINT_QUEUE_QUERY` is retained as a real public contract because App navigation consumes it.
 - No C9 staging, merge or production deploy has occurred.
+
+
+---
+
+# C9 — Task 6 closure — 2026-09-19
+
+- Documentation reconciliation before Task 6: HEAD `4ab00cc81ad3098fbf33a411f400a4c6fcb15822`; Validate #1490 / run `35482571979` — **SUCCESS**.
+- Task 6 RED HEAD: `c95f2509083aad63f47443065d28363cf6c01a80`; Validate #1491 / run `35482680005` — **FAIL as intended**, **1,876 tests / 1,870 pass / 5 fail / 1 skipped**. The five failures were limited to absent Printing policy/UI ownership and the still-legacy Settings imports.
+- Task 6 GREEN: `a02b9af0612353e445bf3997095da18bff2e5118`; Validate #1492 / run `35482900556` — **SUCCESS**, **1,876 tests / 1,875 pass / 0 fail / 1 skipped**; architecture/lint/build/production+staging Worker dry-runs/local D1/Spec B D1 all green.
+- `printingPolicy`, `stationConfigurationPolicy` and `stationPrimaryPolicy` now belong to `src/domains/printing/infrastructure/printingPolicy.js` and are consumed through the Printing public entry.
+- `PrintingSettingsContent.jsx` and its `printing.css` now belong to `src/domains/printing/ui/`; `SettingsSurface` consumes the Printing UI only through `src/domains/printing/index.js`.
+- `printingSettingsAdapter.js` deliberately remains in Settings as the approved thin composition bridge. The legacy `src/components/PrintingSettings.jsx` wrapper remains until Task 8.
+- Copy-policy behavior is unchanged and covered: `orderDefaultCopies` and `tableTabDefaultCopies` remain independent 1/2-copy settings; existing jobs keep their recorded `copiesRequested` after later policy changes.
+- Task 7: **NOT STARTED**. No C9 staging, physical QA, merge or production deploy has occurred.

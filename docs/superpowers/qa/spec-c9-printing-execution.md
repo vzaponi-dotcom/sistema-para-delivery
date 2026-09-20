@@ -176,3 +176,44 @@ The current policy is authoritative:
 - No staging deploy has occurred for C9.
 - No merge authorization has been requested or granted.
 - Production remains untouched.
+
+
+## Task 6 — Printing policy and Settings UI ownership
+
+**Status:** COMPLETE / GREEN
+
+### Pre-task documentation gate
+
+- Canonical-doc reconciliation HEAD: `4ab00cc81ad3098fbf33a411f400a4c6fcb15822`.
+- Validate #1490 / run `35482571979` — **SUCCESS** on that exact HEAD.
+
+### RED
+
+- Authoritative RED HEAD: `c95f2509083aad63f47443065d28363cf6c01a80`.
+- Validate #1491 / run `35482680005` — **FAIL as intended**.
+- Suite: **1,876 tests / 1,870 pass / 5 fail / 1 skipped**.
+- The five failures were exactly the planned ownership gaps: three Printing policy exports/owner, Printing Settings UI owner/public surface, and SettingsSurface still using the legacy component path.
+- The new cross-runtime copy-policy characterization was already green in RED: changed defaults apply to new contexts while an existing job fixture retains its recorded copy count.
+
+### GREEN
+
+- GREEN SHA: `a02b9af0612353e445bf3997095da18bff2e5118`.
+- Validate #1492 / run `35482900556` — **SUCCESS**.
+- Suite: **1,876 tests / 1,875 pass / 0 fail / 1 skipped**.
+- architecture ✅
+- lint ✅
+- build ✅
+- production Worker dry-run ✅
+- staging Worker dry-run ✅
+- local D1 ✅
+- Spec B D1 clean install/upgrade ✅
+
+### Result
+
+- `printingPolicy`, `stationConfigurationPolicy`, and `stationPrimaryPolicy` are now Printing infrastructure contracts exported through `src/domains/printing/index.js`.
+- `PrintingSettingsContent.jsx` and `printing.css` moved together under `src/domains/printing/ui/`; texts, three-card hierarchy, light/dark/responsive CSS, QZ/queue-only controls and save separation were preserved.
+- `SettingsSurface` and the Settings policy registry consume Printing only through the public entry.
+- The generic policy-editing engine remains app-owned, and `printingSettingsAdapter.js` remains the approved thin composition bridge.
+- The legacy `src/components/PrintingSettings.jsx` wrapper is intentionally retained until Task 8.
+- `orderDefaultCopies` and `tableTabDefaultCopies` remain independent; existing jobs retain their snapshotted copy count after later policy changes.
+- Task 7 is **NOT STARTED**. Staging, physical QA, merge and production remain untouched.

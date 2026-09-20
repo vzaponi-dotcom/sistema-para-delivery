@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Status:** **APPROVED FOR EXECUTION — TASKS 1–5 COMPLETE / GREEN; TASK 6 NOT STARTED** — Native/inline execution.
+**Status:** **APPROVED FOR EXECUTION — TASKS 1–6 COMPLETE / GREEN; TASK 7 NOT STARTED** — Native/inline execution.
 
 **Goal:** Establish domains/printing as the frontend owner of operational printing while isolating qz-tray under src/infrastructure/qz, preserving every current queue, copies, recovery, unknown-outcome, settings, capability and physical-print behavior.
 
@@ -818,7 +818,7 @@ git commit -m "refactor: move print queue into printing domain"
 - Generic policyEditing remains in app.
 - SettingsSurface imports all Printing contracts only from domains/printing/index.js.
 
-- [ ] **Step 1: Write RED for policy ownership**
+- [x] **Step 1: Write RED for policy ownership**
 
 ~~~js
 import {
@@ -833,7 +833,7 @@ assert.equal(stationConfigurationPolicy.id, 'stationConfiguration')
 assert.equal(stationPrimaryPolicy.id, 'stationPrimary')
 ~~~
 
-- [ ] **Step 2: Add current copy-policy safety test**
+- [x] **Step 2: Add current copy-policy safety test**
 
 Assert the UI still binds the independent fields:
 
@@ -843,7 +843,7 @@ assert.match(settingsSource, /tableTabDefaultCopies/)
 assert.match(settingsSource, /Apenas novas solicitações de impressão/)
 ~~~
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 ~~~bash
 node --test   src/domains/printing/infrastructure/printingPolicy.test.js   src/domains/printing/ui/PrintingSettingsContent.test.js
@@ -851,7 +851,7 @@ node --test   src/domains/printing/infrastructure/printingPolicy.test.js   src/d
 
 Expected: FAIL because ownership has not moved.
 
-- [ ] **Step 4: Move the policies and update registry**
+- [x] **Step 4: Move the policies and update registry**
 
 registry.js becomes:
 
@@ -867,7 +867,7 @@ import {
 
 Do not move createPathPolicyAdapter or policyEditing engine.
 
-- [ ] **Step 5: Move PrintingSettingsContent and keep three-resource independence**
+- [x] **Step 5: Move PrintingSettingsContent and keep three-resource independence**
 
 Move printing.css with PrintingSettingsContent and keep the CSS import at the same component boundary so bundle order remains equivalent. Verify the existing semantic-token/responsive tests after the move.
 
@@ -881,11 +881,11 @@ Preserve:
 - physical status labels;
 - responsive CSS.
 
-- [ ] **Step 6: Review Focus policy-change test**
+- [x] **Step 6: Review Focus policy-change test**
 
 Add a cross-runtime characterization proving resolver behavior and that UI edits do not mutate an already-created job fixture's copiesRequested.
 
-- [ ] **Step 7: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 ~~~bash
 node --test   src/domains/printing/infrastructure/printingPolicy.test.js   src/domains/printing/ui/PrintingSettingsContent.test.js   src/app/surfaces/settings/SettingsSurface.test.js   src/app/surfaces/settings/printingSettingsAdapter.test.js   shared/printContextPolicy.test.js   worker/printContextPolicy.test.js
@@ -893,12 +893,25 @@ node --test   src/domains/printing/infrastructure/printingPolicy.test.js   src/d
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ~~~bash
 git add src/domains/printing src/app/surfaces/settings src/components
 git commit -m "refactor: move printing settings ownership"
 ~~~
+
+---
+
+## Execution checkpoint after Task 6 — 2026-09-19
+
+- Task 6 is **COMPLETE / GREEN**. Task 7 is **NOT STARTED**.
+- Pre-task documentary reconciliation: `4ab00cc81ad3098fbf33a411f400a4c6fcb15822`; Validate #1490 / run `35482571979` SUCCESS.
+- RED: `c95f2509083aad63f47443065d28363cf6c01a80`; Validate #1491 / run `35482680005` failed with exactly **5 intended ownership failures**; totals **1,876 / 1,870 / 5 / 1**.
+- GREEN: `a02b9af0612353e445bf3997095da18bff2e5118`; Validate #1492 / run `35482900556` — **SUCCESS**, **1,876 / 1,875 / 0 / 1**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 green.
+- Printing owns the three versioned Printing policies plus `PrintingSettingsContent` and `printing.css`; Settings consumes these through the Printing public entry.
+- The approved `printingSettingsAdapter.js` composition bridge remains in Settings, and `src/components/PrintingSettings.jsx` remains until Task 8.
+- Independent order/table copy defaults and immutable existing-job copy snapshots remain covered with no behavioral change.
+- No staging, physical QA, merge or production deployment has occurred.
 
 ---
 
