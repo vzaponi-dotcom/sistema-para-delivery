@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { executeQzPrintAttempt } from './qzPrintAttemptController.js'
-import { renderEscPos58mm } from '../../domains/printing/index.js'
+import { renderEscPos58mm } from '../../domains/printing/domain/rendering/escpos58mm.js'
 
 const job = { id: 'job-1', document: { type: 'order' }, copiesRequested: 2, copiesPrinted: 0 }
 const attempt = { id: 'attempt-1', spoolJobName: 'GESTAO-DELIVERY:job-1:COPY:1:ATTEMPT:1' }
