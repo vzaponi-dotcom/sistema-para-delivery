@@ -446,7 +446,7 @@ This rollout plan defines slice contracts and acceptance. `C1` has a detailed ex
 
 **Goal:** Remove remaining temporary facades, finish `shared`/infrastructure ownership, perform safe CSS relocation only where justified, and make architectural gates reflect the final target rather than migration allowances.
 
-**Current status — 2026-09-20:** draft PR #54 is open from the exact post-C9 base `2b5060c8293fec6756b286627212b740b3147e53`. The C10 design is **DRAFT FOR REVIEW** and has been tightened to establish frontend `src/shared/{ui,hooks,utils}`, close residual generic roots by real ownership, remove the final API facade/migration allowlist, and add generic domain-purity/cycle gates. The existing task plan is preliminary and must be realigned after explicit design approval. Implementation has not started.
+**Current status — 2026-09-20:** draft PR #54 is open from the exact post-C9 base `2b5060c8293fec6756b286627212b740b3147e53`. The C10 design is **APPROVED** and establishes frontend `src/shared/{ui,hooks,utils}`, closes residual generic roots by real ownership, removes the final API facade/migration allowlist, and adds generic domain-purity/cycle gates. The detailed implementation plan has been realigned to the approved design and is **DRAFT FOR APPROVAL**. Implementation has not started.
 
 **Must end with:**
 

@@ -1,413 +1,498 @@
+
 # Spec C10 — Architectural Closure and Cleanup Implementation Plan
 
-> Execute task-by-task with strict RED→GREEN. Do not deploy production.
+> Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **PRELIMINARY DRAFT — DESIGN UPDATED; REALIGN AFTER DESIGN APPROVAL — NOT STARTED**  
+**Status:** **DRAFT FOR APPROVAL — NOT STARTED**  
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
-**Design:** `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`
+**Draft PR:** #54  
+**Design:** `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md` — **APPROVED 2026-09-20**  
+**Pre-plan docs HEAD:** `66c477ce4aee9907a4a3f3139dbaf009084c9c68`; Validate #1516 / run `35516273036` — **SUCCESS**  
+**Production:** **NO DEPLOY**
 
-> **Planning note — 2026-09-20:** the design was tightened after this first task draft to close `src/components/`, `src/hooks/`, `src/utils/` and establish `src/shared/{ui,hooks,utils}` by real ownership. This task list is therefore **non-executable preliminary material** until it is realigned after explicit design approval.
+## Goal
+
+Close Spec C against the real post-C9 tree: remove the final compatibility facade and migration scaffolding, establish the frontend-only shared layer, move residual generic owners to their true app/domain/surface owners, finish Dashboard and storage boundaries, perform only justified CSS relocation, replace migration-era architecture allowances with permanent generic gates, audit public contracts and all 18 parent-Spec criteria, then homologate the final C10 staging candidate.
+
+C10 is architectural closure. It must not change business behavior, API contracts, polling, capabilities, visual design, Worker behavior or the approved C9 deferred-production release policy.
 
 ## Global constraints
 
-- Never implement on `master`.
-- Preserve all business behavior, API routes/payloads, polling, storage keys, capabilities, copy policy and synchronization semantics.
-- No Worker/migration/schema change unless a proven blocker is separately approved.
-- No production deploy.
-- C9 hardware QA remains `DEFERRED-PRODUCTION`; C10 must not mark it PASS.
-- Any behavior-changing QA fix requires RED→GREEN, Validate, staging redeploy and affected retest.
-- C10 implementation must not begin until this plan is explicitly approved.
+- Never implement on `master`; use only `feature/spec-c10-architecture-closure`.
+- Preserve API route/method/query/body/error semantics, polling, storage keys, capabilities and synchronization.
+- No Worker/migration/schema change without a separately approved blocker ruling.
+- No React Router, state-library migration, Spec D, users/profiles or new print transport.
+- No redesign or opportunistic polish.
+- Do not keep compatibility reexports merely to make a commit green.
+- C9 hardware remains `DEFERRED-PRODUCTION` and is never inferred PASS.
+- Every behavior defect found during implementation/QA gets focused RED → GREEN.
+- Implementation starts only after explicit approval of this plan.
 
 ---
 
-## Task 1 — Baseline, dependency map and C9→C10 handoff
+## Task 1 — Freeze the C10 baseline and dependency map
 
-**Files**
-- Create/update `docs/superpowers/qa/spec-c10-architecture-closure-execution.md`
-- Update `docs/superpowers/plans/2026-09-15-frontend-modularization-rollout-plan.md`
-- Update `docs/superpowers/qa/spec-c-execution-ledger.md`
+**Nature:** evidence/documentation only.
 
-### RED / evidence
-No behavior RED. This is an evidence checkpoint.
+**Update**
+- `docs/superpowers/qa/spec-c10-architecture-closure-execution.md`
+- `docs/superpowers/qa/spec-c-execution-ledger.md`
+- rollout
+- PR #54 body
 
-Record:
-- base/master `2b5060c8293fec6756b286627212b740b3147e53`;
-- post-C9 Validate #1513 / run `35514989203`;
-- current branch HEAD;
-- no production deploy;
-- C9 deferred physical gate still active.
+Record exact base, branch HEAD, C9 merge/post-merge Validate, #1516, no production deploy and the C9 deferred physical gate.
 
-Refresh the dependency map:
-- App imports;
-- all production consumers of `src/api/*`;
-- production files under `src/pages`, `src/api`, `src/printing`;
-- App direct browser/storage accesses;
-- domain-to-domain import graph;
+Refresh the production dependency map for:
+- App imports and direct browser APIs;
+- production files under `src/api`, `src/pages`, `src/printing`, `src/components`, `src/hooks` and `src/utils`;
+- all six domain public entries and external production consumers;
+- domain-to-domain public-entry edges;
+- infrastructure dependencies;
+- frontend `src/shared` and repository-level `shared`;
+- App storage access;
 - clearly-owned root CSS;
-- root `shared/` Worker consumers.
+- Worker consumers of repository-level `shared`;
+- zero-consumer candidates, especially `src/utils/bodyScrollLock.js`.
 
-### GREEN
-Commit the evidence-only baseline and require full Validate on exact branch HEAD.
+**Gate:** docs-only Validate on exact Task 1 HEAD.
 
-**Exit:** baseline green, no code changed.
+**Exit:** current dependency map recorded; no production code changed.
 
 ---
 
-## Task 2 — Remove the legacy API facade
+## Task 2 — Remove the final legacy API facade
 
 **Create**
-- `src/infrastructure/api/bootstrapApi.js`
-- `src/infrastructure/api/bootstrapApi.test.js`
-- `src/infrastructure/api/effectiveConfigApi.js`
-- `src/infrastructure/api/effectiveConfigApi.test.js`
+- `src/infrastructure/api/bootstrapApi.js` + test
+- `src/infrastructure/api/effectiveConfigApi.js` + test
 
 **Modify**
-- `src/app/runtime/data/useOperationalDataRuntime.js`
-- `src/app/useEffectiveBusinessConfig.js`
-- source-contract tests that import the old facade
-- architecture checker tests
+- `src/app/runtime/data/useOperationalDataRuntime.js` + tests
+- `src/app/useEffectiveBusinessConfig.js` + tests
+- `src/settingsSessionRecovery.test.js`
+- path/source-contract tests
 
-**Delete**
-- `src/api/client.js`
-- `src/api/effectiveConfigClient.js`
-- obsolete old-owner tests, after equivalent coverage exists
+**Delete after equivalent coverage**
+- `src/api/client.js` + obsolete facade tests
+- `src/api/effectiveConfigClient.js` + tests
 
 ### RED
-Add tests asserting:
-- runtime bootstrap comes from `infrastructure/api/bootstrapApi.js`;
-- effective config comes from `infrastructure/api/effectiveConfigApi.js`;
-- neither adapter imports `src/api/client.js`;
-- old production files are absent;
-- auth still comes from `infrastructure/auth/sessionApi.js`;
-- `deleteOrder` compatibility export is absent.
 
-Expected RED: old files/imports still exist.
+Prove:
+- bootstrap comes from `infrastructure/api/bootstrapApi.js`;
+- effective config comes from `infrastructure/api/effectiveConfigApi.js`;
+- both use `httpClient.js`;
+- auth remains in `infrastructure/auth/sessionApi.js`;
+- `deleteOrder` compatibility export is absent;
+- old production API facade paths are absent.
+
+RED must fail because the new owners are missing and/or old owners still exist.
 
 ### GREEN
-Move request code without changing:
-- `/api/bootstrap`;
-- `knownEffectiveConfigVersion`;
-- `/api/settings/effective`;
-- `knownVersion`;
-- HTTP error semantics.
 
-Run focused API/runtime tests, then full Validate.
+Move only HTTP ownership. Preserve exactly:
+- `/api/bootstrap` + `knownEffectiveConfigVersion`;
+- `/api/settings/effective` + `knownVersion`;
+- auth routes;
+- HTTP status/code/message semantics.
 
-**Exit:** no production code depends on `src/api/client.js`; compatibility-ledger row can be closed.
+Focused tests include httpClient, sessionApi, both new adapters, operational runtime, effective config and settings session recovery. Then full Validate.
+
+**Exit:** no production dependency on `src/api/**`.
 
 ---
 
-## Task 3 — Establish the Dashboard application surface and remove App-owned Dashboard rules
+## Task 3 — Establish Dashboard as an app surface
 
-**Create/move**
+**Move/create**
 - `src/app/surfaces/dashboard/DashboardSurface.jsx`
-- `src/app/surfaces/dashboard/dashboardAnalytics.js`
-- focused surface/tests
+- `dashboardAnalytics.js`
+- Dashboard-only `DashboardLineChart.jsx`
+- Dashboard-only `DashboardPaymentMix.jsx`
+- focused tests
 
 **Modify**
 - `src/App.jsx`
 - `src/app/shell/AppShell.jsx`
-- Dashboard tests
-- query/source-contract tests
+- Dashboard/query/navigation regressions
 
 **Delete**
 - `src/pages/Dashboard.jsx`
 - `src/utils/dashboardAnalytics.js`
 - `src/components/DashboardPeriodProvider.jsx`
-- `src/components/dashboardPeriodContext.js` if no consumer remains
+- `src/components/dashboardPeriodContext.js`
 
 ### RED
-Add ownership tests asserting:
-- no production `src/pages/Dashboard.jsx`;
-- no `src/utils/dashboardAnalytics.js`;
-- AppShell has no Dashboard-specific provider;
-- App has no Dashboard `totals` projection;
-- DashboardSurface consumes `queryState.period` and public domain contracts.
 
-Expected RED: all old ownership is still present.
+Require:
+- no production Dashboard under `src/pages`;
+- no Dashboard analytics under `src/utils`;
+- AppShell has no Dashboard-specific provider;
+- App no longer computes/passes Dashboard `totals`;
+- DashboardSurface consumes official orders/movements and existing query state;
+- calculations use public Orders/Finance contracts.
 
 ### GREEN
-Move the Dashboard page/analytics and calculate Dashboard totals inside the surface.
 
-Preserve:
-- period values `today/7d/30d`;
-- privacy eye behavior;
-- labels;
-- charts;
-- cancelled-order exclusion;
-- payment mix;
-- date/local-time semantics.
+Preserve period values/initial period, privacy eye, labels, charts, cancelled-order exclusion, totals, top products, payment mix and local-date semantics.
 
-Keep shared chart primitives in `src/components` when they have non-Dashboard consumers.
+Keep `DashboardBarChart` and `DashboardPeriodSelector` generic because Operational History also consumes them; Task 4 moves them to shared.
 
-Run Dashboard tests + navigation/shell tests + full Validate.
+Run Dashboard + shell/navigation regressions, then full Validate.
 
-**Exit:** `src/pages/` contains no production page.
+**Exit:** `src/pages` has no production owner.
 
 ---
 
-## Task 4 — Isolate App browser-storage details
+## Task 4 — Establish frontend `src/shared/{ui,hooks,utils}`
 
 **Create**
-- `src/infrastructure/storage/kitchenSoundPreference.js`
-- `src/infrastructure/storage/kitchenSoundPreference.test.js`
-- `src/infrastructure/storage/sessionStorage.js`
-- focused tests
+- `src/shared/ui`
+- `src/shared/hooks`
+- `src/shared/utils`
+
+### Move to shared UI
+
+- BottomSheet
+- Button
+- ConfirmationDialog
+- Icon
+- Modal
+- PageHeader
+- StatCard
+- StatusBadge
+- SystemSelect
+- active `scrollLock.js`
+- DashboardBarChart
+- DashboardPeriodSelector
+
+### Move to shared hooks
+
+- `src/hooks/useMediaQuery.js`
+
+### Move to shared utils
+
+- `src/utils/formFormatting.js` + focused tests
+
+Update all app/domain/surface/workflow consumers. Do **not** create a mega shared barrel.
+
+### RED
+
+A shared-ownership contract must require new owner paths, reject old production paths, prove `formFormatting` remains pure, prove `src/shared/**` imports no domain, prove Catalog domain no longer imports `src/utils/formFormatting.js` and prove `src/hooks` no longer owns `useMediaQuery`.
+
+### GREEN
+
+Path-only ownership move; preserve props, DOM/accessibility, focus/scroll-lock behavior, SystemSelect, analytics chart behavior, formatting/parsing and media-query SSR behavior.
+
+Run shared/component, Table Service responsive, Orders analysis, Settings, Finance and Catalog regressions; then full Validate.
+
+**Exit:** reusable frontend primitives live in `src/shared`; `src/hooks` has no production owner.
+
+---
+
+## Task 5 — Close residual `src/components` / `src/utils` ownership
+
+### App shell
+
+Move BrandLogo, ConnectionBanner and LoginScreen into `src/app/shell`.
+
+### App theme
+
+Move ThemeProvider, themeContext and `src/utils/theme.js` into `src/app/shell/theme`; update `main.jsx` and Device Preferences.
+
+### Runtime
+
+Move `src/utils/dataSync.js` + test into `src/app/runtime/data`.
+
+### Orders
+
+Move PaymentBadge + `payment.css` into Orders UI.
+
+### Printing
+
+Move OrderTicketPreview, PrintStatusBadge and TableTabTicketPreview (+ focused tests) into Printing UI.
+
+Export from `domains/printing/index.js` **only** the presentation contracts that still have real external consumers:
+- OrderTicketPreview if Orders consumes it;
+- PrintStatusBadge if Orders consumes it;
+- TableTabTicketPreview if Table Service app composition consumes it.
+
+### Dead-code ruling
+
+Reconfirm `src/utils/bodyScrollLock.js` has zero production consumers. If zero, delete it; otherwise assign a real owner before moving.
+
+### RED
+
+Require:
+- no production JS/JSX/MJS in `src/components`;
+- no production JS/JSX/MJS in `src/utils`;
+- declared app/domain owners exist;
+- external consumers use Printing public entry, not deep UI imports;
+- dead duplicate absent if still unused.
+
+### GREEN
+
+Move without behavior change. Preserve theme behavior, overlay behavior, Orders badges/previews, table-tab preview and printing queue/status semantics.
+
+Run shell/theme, overlays, Orders, Table Service, Printing and runtime-data regressions; then full Validate.
+
+**Exit:** `src/components` and `src/utils` contain no production owner.
+
+---
+
+## Task 6 — Isolate App browser storage
+
+**Create**
+- `src/infrastructure/storage/kitchenSoundPreference.js` + test
+- `src/infrastructure/storage/sessionStorage.js` + test
 
 **Modify**
 - `src/App.jsx`
-- settings policy boundary composition tests
+- settings policy-boundary tests
+- kitchen sound behavior/source tests
 
 ### RED
-Require:
-- App source contains no `localStorage` or `sessionStorage`;
-- kitchen sound storage key remains exactly `kitchen-sound-enabled`;
-- read fallback remains enabled on storage failure;
-- write failure still yields the same user-facing feedback;
-- settings policy pending storage receives the same browser session storage instance through the adapter.
+
+Prove:
+- App contains no `localStorage` or `sessionStorage` token;
+- key remains `kitchen-sound-enabled`;
+- failed/missing read defaults sound enabled;
+- failed write preserves exact feedback text;
+- enabling still previews sound;
+- `preferences.local` capability still gates persistence;
+- policy editing receives the same browser session storage through the adapter;
+- SSR/test environment is safe.
 
 ### GREEN
-Move only environmental access. Do not move policy semantics or sound behavior.
 
-The existing focus restoration using DOM/requestAnimationFrame remains app-shell UI composition unless a focused test proves moving it is necessary.
+Move only environmental access. Do not create a storage framework.
 
-Run focused storage/settings/sound tests + full Validate.
+App focus restoration via document/requestAnimationFrame remains app UI composition.
 
-**Exit:** App no longer owns persistent browser-storage mechanics.
+Run settings/device/session/kitchen regressions + full Validate.
+
+**Exit:** App owns no persistent browser-storage mechanics.
 
 ---
 
-## Task 5 — Perform targeted CSS ownership relocation
+## Task 7 — Relocate only clearly-owned CSS
 
 **Move byte-equivalently**
-- `src/dashboard.css` → `src/app/surfaces/dashboard/dashboard.css`
-- `src/new-order.css` → `src/domains/orders/ui/new-order.css`
-- `src/client-duplicate.css` → `src/domains/customers/ui/client-duplicate.css`
-- `src/product-form.css` → `src/domains/catalog/ui/product-form.css`
-- `src/finance-mobile.css` → `src/domains/finance/ui/finance-mobile.css`
-- `src/print-queue.css` → `src/domains/printing/ui/print-queue.css`
+- `src/dashboard.css` → Dashboard surface
+- `src/new-order.css` → Orders UI
+- `src/client-duplicate.css` → Customers UI
+- `src/product-form.css` → Catalog UI
+- `src/finance-mobile.css` → Finance UI
+- `src/print-queue.css` → Printing UI
 
-**Modify**
-- imports only;
-- path-sensitive CSS/source tests.
+Owner modules import the moved CSS. App must not deep-import domain CSS.
 
 ### RED
-Add a relocation contract that:
-- requires new paths;
-- rejects old root paths;
-- requires the same import ordering for the files still imported from App;
-- asserts no CSS contents are intentionally changed.
+
+Require new paths, reject old paths, prove content hashes/bytes match the C10 base, prove owner imports exist and prove no unrelated global CSS moved.
 
 ### GREEN
-Move files mechanically and update imports.
 
-Do not relocate unrelated root CSS.
+Mechanical moves only. No selector/declaration changes. Inspect built CSS ordering; if cascade changes, restore equivalent ordering through owner imports rather than redesigning styles.
 
-Run mobile/light-dark source regressions, build, then full Validate.
+Run mobile/responsive/light-dark and affected surface regressions + build + full Validate.
 
-**Exit:** clearly-owned C10 CSS debt closed with no redesign.
+**Exit:** targeted CSS ownership closed without visual drift.
 
 ---
 
-## Task 6 — Remove migration scaffolding and close the facade ledger
-
-**Modify**
-- architecture checker loader/tests
-- `docs/superpowers/qa/spec-c-compatibility-facades.md`
+## Task 8 — Remove migration scaffolding and close the facade ledger
 
 **Delete**
 - `scripts/architecture/legacy-import-allowlist.json`
 
+**Modify**
+- checker + tests
+- compatibility ledger
+- C10 execution ledger
+
 ### RED
-Add tests asserting:
-- the allowlist file is absent;
-- missing allowlist behaves as an empty object;
-- no temporary facade row remains in the compatibility ledger;
-- old API compatibility exports cannot be reintroduced.
+
+Prove:
+- checker works with no allowlist file;
+- no QZ/cross-domain migration allowance is needed;
+- `src/api/client.js` cannot return;
+- removed bridges/`updateCollection` remain protected;
+- active compatibility inventory is zero after Task 2.
 
 ### GREEN
-Delete the empty allowlist and mark the final `src/api/client.js` compatibility row REMOVED IN C10.
 
-Do not delete historical ledger evidence; the active temporary table must contain zero unresolved rows.
+Delete the empty allowlist and do not replace it.
 
-Run architecture tests + full Validate.
+Compatibility ledger preserves history but marks final generic/auth/bootstrap API facade **REMOVED IN C10**; unresolved temporary facades = **0**.
 
-**Exit:** migration compatibility debt = zero.
+Run architecture tests, `npm run test:architecture` and full Validate.
+
+**Exit:** migration compatibility scaffolding = zero.
 
 ---
 
-## Task 7 — Add final generic architecture gates and domain-cycle detection
+## Task 9 — Add final generic architecture enforcement
 
 **Modify**
 - `scripts/architecture/check-import-boundaries.mjs`
-- `scripts/architecture/check-import-boundaries.test.mjs`
+- its tests
 
-### RED
-Add negative fixtures for:
-1. production `src/api/foo.js`;
-2. production `src/pages/Foo.jsx`;
-3. production `src/printing/foo.js`;
-4. App import from a legacy production root;
-5. domain A → domain B public entry + domain B → domain A public entry cycle;
-6. direct external deep import into any domain;
-7. QZ import outside `src/infrastructure/qz/`.
+### RED fixtures
 
-Expected RED: at least the generic legacy-root and cycle fixtures are not rejected yet.
+Reject:
+1. production source under `src/api`;
+2. `src/pages`;
+3. `src/printing`;
+4. `src/components`;
+5. `src/hooks`;
+6. `src/utils`;
+7. App importing a legacy root;
+8. frontend `src/shared` importing a domain;
+9. any domain layer importing React;
+10. any domain layer importing infrastructure;
+11. any domain layer importing UI;
+12. any domain layer importing QZ;
+13. any domain layer using browser globals/direct fetch;
+14. external deep import into any domain;
+15. production QZ import outside `src/infrastructure/qz`;
+16. public-entry domain cycle A → B → A.
+
+Positive fixtures prove App → domain public entry, allowed one-way domain public-entry use, shared UI/hooks → React, pure shared utils and QZ infrastructure → qz-tray remain valid.
 
 ### GREEN
-Implement generic checks without weakening C3–C9 enforcement.
 
-Cycle detection should operate on the **domain dependency graph**, not on arbitrary React component imports, and should produce a stable, readable violation.
+Implement generic legacy-root, shared-boundary, domain-purity/browser/fetch, external public-entry, cycle-detection and QZ rules. Preserve stricter C3–C9 rules where they still add value.
+
+Cycle detection uses production domain-to-domain edges and emits stable readable violations.
 
 Run architecture unit tests + `npm run test:architecture` + full Validate.
 
-**Exit:** final architecture is enforced independently of migration-era allowlists.
+**Exit:** final architecture is enforced without migration allowances.
 
 ---
 
-## Task 8 — Final public-contract, shared-code and App audit
+## Task 10 — Audit/minimize public contracts and shared code
 
-**Files**
-- Create `docs/superpowers/qa/spec-c10-final-architecture-audit.md`
-- focused source-contract test if needed
-
-### Evidence audit
-Record:
-- public exports of all six domain `index.js` files and real external consumers;
-- no external deep imports;
-- no production legacy roots;
-- App imports only public domain contracts and app/infrastructure composition modules;
-- no CRUD/API endpoint implementation in App;
-- Dashboard projection removed from App;
-- root `shared/` semantic modules retained only because each has Worker consumers;
-- no Worker/backend refactor introduced.
-
-For root `shared/`, explicitly list the Worker-consumed families:
-business policies, client identity, finance, order identity/display/timing/print, print context/queue/actions/station health, product catalog, settings access/catalogs, and table-tab print document.
-
-### GREEN
-If audit finds a real owner leak, write a focused RED before fixing it. Do not perform speculative moves.
-
-Run full gate.
-
-**Exit:** final dependency map is local/predictable and documented.
-
----
-
-## Task 9 — Verify all 18 Spec C success criteria and run the exact-head gate
-
-**Create/update**
+**Create**
 - `docs/superpowers/qa/spec-c10-final-architecture-audit.md`
-- `docs/superpowers/qa/spec-c10-architecture-closure-execution.md`
-- rollout/ledger
 
-### Audit
-For each criterion 1–18 in the parent Spec C design, record:
-- PASS + concrete evidence;
-- FAIL if unresolved;
-- `DEFERRED-PRODUCTION` only for the previously-approved physical release gate where relevant.
+For each domain index (Orders, Table Service, Finance, Customers, Catalog, Printing):
+- list public exports;
+- list external **production** consumers;
+- classify real public vs internal/test-only;
+- remove unused public exports only after a focused RED.
 
-No criterion may be silently skipped.
+Audit frontend `src/shared`:
+- real multi-owner consumers;
+- no domain imports;
+- no business rule moved to shared merely for reuse.
 
-### Full gate
-Run:
-- focused tests;
-- `npm test`;
-- `npm run lint`;
-- `npm run test:architecture`;
-- `npm run build`;
-- production Worker dry-run;
-- staging Worker dry-run;
-- local D1;
-- Spec B D1 install/upgrade.
+Audit repository-level `shared` and reconfirm Worker/frontend consumers for business policies, identities, finance/date, order display/timing/print, print context/queue/actions/health, product catalog, settings contracts and table-tab print document. Do not move real cross-runtime modules.
 
-Review diff against base `2b5060c8293fec6756b286627212b740b3147e53`.
+Audit App: no CRUD implementation, endpoint implementation, Dashboard calculation, persistent storage mechanics, QZ/recovery internals, legacy-root production import or deep domain import.
 
-**Exit:** executable C10 candidate GREEN.
+Run focused source-contract/architecture tests + full Validate.
+
+**Exit:** public API is deliberate; final dependency map is documented.
 
 ---
 
-## Task 10 — Final staging homologation and Spec C closure
+## Task 11 — Verify all 18 Spec C criteria and produce executable candidate
+
+**Update**
+- final architecture audit
+- C10 execution
+- Spec C ledger
+- rollout
+
+For every criterion in parent Spec C `28, record PASS with evidence, FAIL if unresolved, and `DEFERRED-PRODUCTION` only where the approved C9 hardware gate is specifically relevant.
+
+Run/record:
+~~~bash
+npm test
+npm run lint
+npm run test:architecture
+npm run build
+npx --yes wrangler@4.128.0 deploy --dry-run
+npx --yes wrangler@4.128.0 deploy --dry-run --env staging
+npm run d1:migrate:local
+node scripts/infra/spec-b-d1-gate.mjs
+~~~
+
+GitHub Validate is authoritative.
+
+Diff-audit against `2b5060c8293fec6756b286627212b740b3147e53` for Worker/migrations, API drift, polling, storage keys, capabilities, QZ/copy semantics, CSS content, packages, UTF-8 and functional copy.
+
+**Exit:** exact executable C10 candidate GREEN; architecture audit has no FAIL.
+
+---
+
+## Task 12 — Final staging homologation and merge handoff
 
 **Create**
 - `docs/superpowers/qa/spec-c10-architecture-closure-qa.md`
 
-### Step 1 — Deploy exact C10 candidate to staging
-Record exact SHA, run ID, migrations, Worker version, readiness and login HTTP.
+### Deploy
 
-### Step 2 — Manual final smoke matrix
+Manual staging deploy on exact executable SHA. Record run ID, migration status, Worker version, readiness and login smoke. Docs-only successor commits never replace the staged SHA in evidence.
 
-Minimum matrix:
+### Manual C10 smoke matrix
+
+At minimum:
 1. login/bootstrap/logout;
 2. desktop navigation;
 3. mobile navigation;
 4. Dashboard period/privacy/charts/totals;
-5. New Order + Kitchen;
-6. History/cancellation;
-7. Tables + Comandas;
-8. Finance + A Receber;
-9. Customers;
-10. Catalog;
-11. Settings policy save/reload;
-12. Printing Settings;
-13. Print Queue operational filters/history filters;
-14. offline/online recovery smoke;
-15. light mode;
-16. dark mode;
-17. mobile/responsive/UTF-8;
-18. restricted capability case — BLOCKED allowed only if no suitable identity.
+5. New Order;
+6. Kitchen lifecycle/sound;
+7. History/cancellation/refund entry;
+8. Tables;
+9. Comandas + preview/payment/print-entry UI;
+10. Finance/movements;
+11. A Receber;
+12. Customers;
+13. Catalog;
+14. Settings operations/modalities;
+15. Settings payments/finance categories;
+16. Settings printing;
+17. Settings device/theme/sound;
+18. Print Queue non-physical search/filter/sort/pagination/detail/actions;
+19. offline → online smoke;
+20. light theme;
+21. dark theme;
+22. representative mobile/responsive/UTF-8;
+23. restricted capability case — BLOCKED allowed only if no suitable staging identity exists.
 
-Physical QZ P1–P20 remain `DEFERRED-PRODUCTION` under the approved policy and are **not** converted to PASS by this matrix.
+No C10 row remains PENDING at merge handoff.
 
-### Step 3 — Documentation closure
-Update:
-- execution ledger;
-- rollout;
-- compatibility ledger;
-- final architecture audit;
-- PR body.
+### C9 pre-production gate
 
-### Step 4 — Final docs Validate
-Require exact-head SUCCESS and mergeable PR with no unresolved review thread.
+Do not convert deferred C9 hardware rows to PASS. Before production, on the final post-C10 staging release candidate, C9 functional rows #12/#14–21/#24/#30/#31 and physical P1–P20 must all PASS.
 
-### Step 5 — Explicit merge authorization
-Do not merge until user explicitly authorizes.
+A hardware defect reopens implementation: RED → GREEN → full Validate → staging redeploy → affected rerun.
 
-After merge:
-- confirm `master` exact SHA;
-- run/confirm post-merge Validate;
-- mark **Spec C architecture COMPLETE**.
+### Closure
 
-### Step 6 — Production gate handoff
-Do **not** deploy production.
+Update QA, execution, audit, ledger, rollout, compatibility ledger and PR body. Run final docs Validate. Require mergeable PR/no unresolved review thread/no production deploy.
 
-Record a hard release blocker:
-- final post-C10 staging release candidate;
-- C9 deferred functional rows #12/#14–21/#24/#30/#31;
-- physical P1–P20;
-- all must PASS before production authorization.
+**Stop for explicit user merge authorization.** Do not merge automatically.
+
+After authorization only: merge PR #54, confirm exact master SHA and post-merge Validate, then mark **C10 MERGED / COMPLETE** and **Spec C architecture COMPLETE**.
+
+Production remains separately blocked until the deferred C9 release matrix passes.
 
 ---
 
-## Expected C10 code-diff boundaries
+## Expected code-diff boundaries
 
-Expected production changes:
-- frontend only;
-- infrastructure API/storage adapters;
-- Dashboard surface ownership;
-- targeted CSS file moves;
-- architecture checker.
+Expected: frontend architecture only; API/storage adapters; Dashboard surface; frontend shared layer; app-shell/theme/runtime ownership; Orders/Printing presentation ownership; targeted CSS paths; architecture checker.
 
-Not expected:
-- `worker/`;
-- `migrations/`;
-- D1 schema;
-- API routes/payloads;
-- polling constants;
-- QZ execution semantics;
-- business-rule changes.
+Not expected: Worker functional changes, migrations, D1 schema, API contract changes, polling/capability changes, QZ behavior changes, business-rule changes or new dependencies.
 
 ## Approval gate
 
-This plan is preliminary and not yet aligned to the latest design. **Task 1 implementation does not start until the user explicitly approves the C10 design and then the realigned implementation plan.**
+This implementation plan is **DRAFT FOR APPROVAL**.
+
+No Task 1 execution begins until the user explicitly approves this plan.

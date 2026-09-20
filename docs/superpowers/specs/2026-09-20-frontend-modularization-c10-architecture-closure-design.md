@@ -5,7 +5,7 @@
 **Date:** 2026-09-20  
 **Base:** post-C9 `master` at `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
-**Status:** **DRAFT FOR REVIEW — implementation not started**
+**Status:** **APPROVED — design approved explicitly by the user on 2026-09-20; implementation not started**
 
 ## 1. Purpose
 

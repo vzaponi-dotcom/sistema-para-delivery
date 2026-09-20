@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **DESIGN REVIEW / NOT STARTED**  
+**Status:** **DESIGN APPROVED / PLAN DRAFT FOR APPROVAL / NOT STARTED**  
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -43,4 +43,4 @@ Await explicit approval of:
 
 Design refinement commit: `0c0e8fea5321cd0519d8b2849915e1ff6eb6b472`.
 
-The existing implementation-plan file is **preliminary and requires realignment after design approval**. No C10 implementation task has started.
+The C10 design was explicitly approved by the user on 2026-09-20. The implementation plan has now been realigned to that approved design and is **DRAFT FOR APPROVAL**. No C10 implementation task has started.
