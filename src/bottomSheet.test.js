@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('BottomSheet is focus-trapped and dismissible', async () => {
-  const source = await read('./components/BottomSheet.jsx')
+  const source = await read('./shared/ui/BottomSheet.jsx')
   assert.match(source, /role="dialog"/)
   assert.match(source, /aria-modal="true"/)
   assert.match(source, /event\.key === 'Escape'/)
@@ -13,7 +13,7 @@ test('BottomSheet is focus-trapped and dismissible', async () => {
 })
 
 test('Modal keeps its accessible dialog behavior', async () => {
-  const source = await read('./components/Modal.jsx')
+  const source = await read('./shared/ui/Modal.jsx')
   assert.match(source, /modal-backdrop/)
   assert.match(source, /role="dialog"/)
   assert.match(source, /aria-modal="true"/)

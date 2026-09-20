@@ -7,8 +7,8 @@ import { workspaceHarness } from '../test-support/renderWorkspace.js'
 for (const mountOrder of ['modal-sheet', 'sheet-modal']) {
   for (const firstRelease of [0, 1]) test(`overlay locks: ${mountOrder}, release ${firstRelease} first`, async (t) => {
     const h = await workspaceHarness(t, { mobile: true })
-    const { default: Modal } = await h.load('/src/components/Modal.jsx')
-    const { default: Sheet } = await h.load('/src/components/BottomSheet.jsx')
+    const { default: Modal } = await h.load('/src/shared/ui/Modal.jsx')
+    const { default: Sheet } = await h.load('/src/shared/ui/BottomSheet.jsx')
     h.document.body.style.overflow = 'scroll'
     const components = mountOrder === 'modal-sheet' ? [Modal, Sheet] : [Sheet, Modal]
     const mounted = []
@@ -23,8 +23,8 @@ for (const mountOrder of ['modal-sheet', 'sheet-modal']) {
 
 for (const order of ['modal-sheet', 'sheet-modal']) test(`simultaneous overlay teardown restores original overflow (${order})`, async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Modal } = await h.load('/src/components/Modal.jsx')
-  const { default: Sheet } = await h.load('/src/components/BottomSheet.jsx')
+  const { default: Modal } = await h.load('/src/shared/ui/Modal.jsx')
+  const { default: Sheet } = await h.load('/src/shared/ui/BottomSheet.jsx')
   h.document.body.style.overflow = 'auto'
   const components = order === 'modal-sheet' ? [Modal, Sheet] : [Sheet, Modal]
   function Overlays() { return React.createElement(React.Fragment, null, ...components.map((Component, index) => React.createElement(Component, { key: index, title: 'Overlay', open: true, onClose() {} }))) }

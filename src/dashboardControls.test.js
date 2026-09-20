@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('dashboard period selector exposes Hoje 7 dias and 30 dias as pressed buttons', () => {
-  const selector = source('./components/DashboardPeriodSelector.jsx')
+  const selector = source('./shared/ui/DashboardPeriodSelector.jsx')
 
   assert.match(selector, /Hoje/)
   assert.match(selector, /7 dias/)
@@ -16,7 +16,7 @@ test('dashboard period selector exposes Hoje 7 dias and 30 dias as pressed butto
 })
 
 test('icon set includes visible and hidden eye icons', () => {
-  const icon = source('./components/Icon.jsx')
+  const icon = source('./shared/ui/Icon.jsx')
 
   assert.match(icon, /eye:/)
   assert.match(icon, /['"]eye-off['"]:/)

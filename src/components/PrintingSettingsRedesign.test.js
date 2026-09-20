@@ -5,7 +5,7 @@ import * as localStation from '../domains/printing/application/printingPlatform.
 
 const content = await readFile(new URL('../domains/printing/ui/PrintingSettingsContent.jsx', import.meta.url), 'utf8')
 const page = await readFile(new URL('../app/surfaces/settings/SettingsSurface.jsx', import.meta.url), 'utf8')
-const icons = await readFile(new URL('./Icon.jsx', import.meta.url), 'utf8')
+const icons = await readFile(new URL('../shared/ui/Icon.jsx', import.meta.url), 'utf8')
 const css = await readFile(new URL('../domains/printing/ui/printing.css', import.meta.url), 'utf8')
 
 test('visual platform detection recognizes Windows Android and iPhone without changing transport platform semantics', () => {

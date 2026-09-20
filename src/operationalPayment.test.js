@@ -185,7 +185,7 @@ test('resposta de A aplica efeitos oficiais mas não fecha nem altera método do
   const orderA = standaloneOrder('501')
   const orderB = standaloneOrder('502', { status: 'Finalizado', finishedAt: '2026-09-11T13:00:00.000Z' })
   const { h, renderer, state, navigate, openKitchenDetail, openHistoryDetail, openOperationalPayment, submitPayment } = await operationalWorkspace(t, { orders: [orderA, orderB] })
-  const { default: SystemSelect } = await h.load('/src/components/SystemSelect.jsx')
+  const { default: SystemSelect } = await h.load('/src/shared/ui/SystemSelect.jsx')
 
   await openKitchenDetail()
   await openOperationalPayment()

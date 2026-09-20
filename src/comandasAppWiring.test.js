@@ -205,7 +205,7 @@ test('a newer cancellation rejects three financial collections without free tabl
   await act(async () => buttonNamed(r.root.findByProps({ 'aria-label': 'Navegação de Pedidos' }), 'Histórico').props.onClick())
   const otherRow = r.root.findAllByType('article').find((row) => nodeText(row).includes('Outro pedido'))
   await act(async () => buttonNamed(otherRow, 'Cancelar pedido').props.onClick())
-  const { default: SystemSelect } = await h.load('/src/components/SystemSelect.jsx')
+  const { default: SystemSelect } = await h.load('/src/shared/ui/SystemSelect.jsx')
   await act(async () => r.root.findByType(SystemSelect).props.onChange('duplicate_order'))
   await act(async () => buttonNamed(r.root, 'Sim').props.onClick())
   await act(async () => r.root.findAllByType(SystemSelect).find((select) => select.props.label === 'Forma do estorno').props.onChange('Pix'))

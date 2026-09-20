@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('SystemSelect exposes accessible combobox and listbox behavior', async () => {
-  const source = await read('./components/SystemSelect.jsx')
+  const source = await read('./shared/ui/SystemSelect.jsx')
   assert.match(source, /role="combobox"/)
   assert.match(source, /aria-expanded=/)
   assert.match(source, /role="listbox"/)
@@ -18,7 +18,7 @@ test('SystemSelect exposes accessible combobox and listbox behavior', async () =
 })
 
 test('SystemSelect renders one presentation for the current viewport and reuses BottomSheet on mobile', async () => {
-  const source = await read('./components/SystemSelect.jsx')
+  const source = await read('./shared/ui/SystemSelect.jsx')
   assert.match(source, /BottomSheet/)
   assert.match(source, /const mobileQuery = '\(max-width: 820px\)'/)
   assert.match(source, /matchMedia\(mobileQuery\)/)

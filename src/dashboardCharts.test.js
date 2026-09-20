@@ -6,7 +6,7 @@ const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.
 
 test('dashboard charts are local SVG/CSS components without a chart dependency', () => {
   const line = source('./app/surfaces/dashboard/DashboardLineChart.jsx')
-  const bar = source('./components/DashboardBarChart.jsx')
+  const bar = source('./shared/ui/DashboardBarChart.jsx')
   const payment = source('./app/surfaces/dashboard/DashboardPaymentMix.jsx')
   const combined = `${line}\n${bar}\n${payment}`
 

@@ -116,7 +116,7 @@ test('1. orders.view consulta a Cozinha sem oferecer ou iniciar novo pedido', as
 test('2. orders.view sem orders.finalize bloqueia UI e handler de finalizaÃ§Ã£o', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: KitchenTicket }, { default: ConfirmationDialog }] = await Promise.all([
-    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/KitchenTicket.jsx'), h.load('/src/components/ConfirmationDialog.jsx'),
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/KitchenTicket.jsx'), h.load('/src/shared/ui/ConfirmationDialog.jsx'),
   ])
   let finalizations = 0
   const renderer = await renderWithNavigation(h, Orders, {
@@ -138,7 +138,7 @@ test('3. orders.history continua visÃ­vel sem orders.analysis', async (t) => {
 
 test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx'), h.load('/src/components/SystemSelect.jsx')])
+  const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx'), h.load('/src/shared/ui/SystemSelect.jsx')])
   const confirmed = []
   const renderer = await h.render(CancelOrderDialog, {
     open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload),

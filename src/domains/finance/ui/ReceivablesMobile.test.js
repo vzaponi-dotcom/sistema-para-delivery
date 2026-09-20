@@ -34,7 +34,7 @@ test('ordinary payment flow keeps the shared modal select architecture', async (
 
 test('receivables mobile detail reuses the portal-backed shared BottomSheet', async () => {
   const page = await read('./Receivables.jsx')
-  const sheet = await read('../../../components/BottomSheet.jsx')
+  const sheet = await read('../../../shared/ui/BottomSheet.jsx')
 
   assert.match(page, /import BottomSheet/)
   assert.match(page, /<BottomSheet[\s\S]*Detalhes do recebimento/)
