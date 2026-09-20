@@ -86,6 +86,11 @@ const C8_PRODUCT_CRUD_EXPORTS = new Set(['createProduct', 'updateProduct', 'dele
 const C8_UPDATE_COLLECTION_PATTERN = /\bupdateCollection\b/
 const C8_SHARED_METADATA_PATTERN = /\b(?:CATEGORY_ICON_NAMES|PRODUCT_CATEGORY_OPTIONS|categoryForUi|suggestPresentationType|DEFAULT_PRESENTATION)\b/
 const C8_DOMAIN_BROWSER_PATTERN = /\b(?:window|document|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
+const C10_LEGACY_API_FACADES = new Set([
+  'src/api/client.js',
+  'src/api/effectiveConfigClient.js',
+])
+const C10_RUNTIME_LEGACY_BRIDGE_PATTERN = /\b(?:legacyBridges|capturePaymentOwners|settlePaymentOwners)\b/
 
 const C9_LEGACY_PRINTING_OWNERS = new Set([
   'src/pages/PrintQueue.jsx',
@@ -273,8 +278,6 @@ const isReactSpecifier = (specifier) => specifier === 'react'
   || specifier === 'react-dom'
   || specifier.startsWith('react-dom/')
 
-const exactAllowed = (allowlist, key, value) => Array.isArray(allowlist?.[key]) && allowlist[key].includes(value)
-
 const exportMentionsAny = (source, names) => {
   for (const match of source.matchAll(/\bexport\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) {
     if (names.has(match[1])) return true
@@ -289,10 +292,14 @@ const exportMentionsAny = (source, names) => {
   return false
 }
 
-export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) => {
+export const findArchitectureViolations = async ({ rootDir }) => {
   const edges = await collectImportEdges(rootDir)
   const sourcePaths = new Set((await listSourceFiles(path.join(rootDir, 'src'))).map((file) => repoRelative(rootDir, file)))
   const violations = []
+
+  for (const legacyFacade of C10_LEGACY_API_FACADES) {
+    if (sourcePaths.has(legacyFacade)) violations.push(`c10-legacy-api-facade: ${legacyFacade}`)
+  }
 
   for (const legacyOwner of C3_LEGACY_SETTINGS_OWNERS) {
     if (sourcePaths.has(legacyOwner)) violations.push(`c3-legacy-owner: ${legacyOwner}`)
@@ -390,6 +397,14 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
   for (const sourcePath of sourcePaths) {
     if (isTestFile(sourcePath)) continue
     const source = await readFile(path.join(rootDir, sourcePath), 'utf8')
+    if (sourcePath === 'src/app/runtime/data/useOperationalDataRuntime.js'
+      && C10_RUNTIME_LEGACY_BRIDGE_PATTERN.test(source)) {
+      violations.push(`c10-legacy-payment-receipt-bridge: ${sourcePath}`)
+    }
+    if (sourcePath === 'src/app/runtime/data/useOperationalDataRuntime.js'
+      && C8_UPDATE_COLLECTION_PATTERN.test(source)) {
+      violations.push(`c10-legacy-update-collection: ${sourcePath}`)
+    }
     if (C8_UPDATE_COLLECTION_PATTERN.test(source)) {
       violations.push(`c8-update-collection: ${sourcePath}`)
     }
@@ -560,15 +575,14 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
 
     if (fromDomain && targetDomain && fromDomain !== targetDomain) {
       const publicEntry = `src/domains/${targetDomain}/index.js`
-      if (edge.resolvedPath !== publicEntry && !exactAllowed(allowlist, 'crossDomainInternals', `${edge.from} -> ${edge.resolvedPath}`)) {
+      if (edge.resolvedPath !== publicEntry) {
         violations.push(`cross-domain-internal: ${edge.from} -> ${edge.resolvedPath}`)
       }
     }
 
     if (edge.specifier === 'qz-tray'
       && !isTestFile(edge.from)
-      && !edge.from.startsWith('src/infrastructure/qz/')
-      && !exactAllowed(allowlist, 'qzDirectImports', edge.from)) {
+      && !edge.from.startsWith('src/infrastructure/qz/')) {
       violations.push(`qz-direct: ${edge.from} -> qz-tray`)
     }
     const c6FinanceOrWorkflow = edge.from.startsWith('src/domains/finance/')
@@ -611,21 +625,10 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
   return [...new Set(violations)].sort()
 }
 
-const loadDefaultAllowlist = async (rootDir) => {
-  const file = path.join(rootDir, 'scripts/architecture/legacy-import-allowlist.json')
-  try {
-    return JSON.parse(await readFile(file, 'utf8'))
-  } catch (error) {
-    if (error?.code === 'ENOENT') return {}
-    throw error
-  }
-}
-
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 if (isMain) {
   const rootDir = process.cwd()
-  const allowlist = await loadDefaultAllowlist(rootDir)
-  const violations = await findArchitectureViolations({ rootDir, allowlist })
+  const violations = await findArchitectureViolations({ rootDir })
   if (violations.length) {
     for (const violation of violations) console.error(violation)
     process.exitCode = 1

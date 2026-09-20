@@ -41,7 +41,8 @@ test('legacy src/printing tree contains tests only', () => {
   assert.deepEqual(production, [])
 })
 
-test('C9 removes the historical direct-QZ allowlist exception', () => {
-  const allowlist = JSON.parse(readFileSync(new URL('../../../scripts/architecture/legacy-import-allowlist.json', import.meta.url), 'utf8'))
-  assert.equal((allowlist.qzDirectImports || []).includes('src/printing/usePrintingManager.js'), false)
+test('C9 keeps direct QZ imports confined without migration scaffolding', () => {
+  assert.equal(existsSync(new URL('../../../scripts/architecture/legacy-import-allowlist.json', import.meta.url)), false)
+  const checker = readFileSync(new URL('../../../scripts/architecture/check-import-boundaries.mjs', import.meta.url), 'utf8')
+  assert.doesNotMatch(checker, /qzDirectImports|allowlist/)
 })
