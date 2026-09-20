@@ -16,7 +16,6 @@ import './finance-mobile.css'
 import AppShell from './app/shell/AppShell.jsx'
 import AppRoot from './app/shell/AppRoot.jsx'
 import Button from './components/Button'
-import ConfirmationDialog from './components/ConfirmationDialog'
 import Modal from './components/Modal'
 import RegisterRefundDialog from './app/workflows/refunds/RegisterRefundDialog.jsx'
 import { useRefundWorkflow } from './app/workflows/refunds/useRefundWorkflow.js'
@@ -66,14 +65,8 @@ import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
-import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
-import {
-  acknowledgeAndOpenSecondCopyPrompt, canKeepSecondCopyPromptOpen, canPresentSecondCopyPrompt,
-  findOriginSecondCopyPrompt, getSecondCopyPromptTitle, isSecondCopyPromptEligible,
-  PrintQueue, usePrintingManager,
-} from './domains/printing/index.js'
-import { readOriginOrderIds, rememberOriginOrderId } from './printing/secondCopyPromptFlow.js'
+import { PrintQueue, PrintingOverlays, usePrintingManager } from './domains/printing/index.js'
 
 const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
@@ -87,14 +80,6 @@ const readKitchenSoundPreference = () => {
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
-  const [secondCopyPromptJobId, setSecondCopyPromptJobId] = useState(null)
-  const [secondCopyPromptBusy, setSecondCopyPromptBusy] = useState(false)
-  const [originSecondCopyPromptJobId, setOriginSecondCopyPromptJobId] = useState(null)
-  const [originSecondCopyPromptBusy, setOriginSecondCopyPromptBusy] = useState(false)
-  const [recoveryDialogMode, setRecoveryDialogMode] = useState(null)
-  const [recoveryBusy, setRecoveryBusy] = useState(false)
-  const [recoveryDiscardConfirmation, setRecoveryDiscardConfirmation] = useState(false)
-  const [originOrderIds, setOriginOrderIds] = useState(() => readOriginOrderIds(typeof window === 'undefined' ? null : window.localStorage))
   const isOnline = useOnlineStatus()
   const {
     toastMessage,
@@ -103,10 +88,6 @@ function App({ capabilities } = {}) {
     setSuccessMessage,
     showSuccessMessage,
   } = useFeedbackRuntime()
-  const dismissedOriginSecondCopyJobIdsRef = useRef(new Set())
-  const recoveryPromptSeenRef = useRef(false)
-  const pausedRecoverySecondCopyJobIdRef = useRef(null)
-  const previousRecoveryStateRef = useRef(null)
   const effectiveConfigVersionRef = useRef(null)
   const operationalRuntimeTargetsRef = useRef({ onUnauthorized: null })
   const sessionRuntimeTargetsRef = useRef({
@@ -352,32 +333,12 @@ function App({ capabilities } = {}) {
     window.requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())
   }, [cancelDiscard])
   const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
-  const {
-    jobs: printJobs,
-    transportKind: printTransportKind,
-    transportReady: printTransportReady,
-    printerBlocked,
-    printerHealth,
-    recoveryState,
-    recoveryPendingCount,
-    recoveryPromptEligible,
-    localStation: localPrintStation,
-    acknowledgeSecondCopyPrompt,
-  } = printing
-  const physicalPrinterReady = printerHealth?.state === 'ready'
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders', currentTiming })
   const {
     newOrderIds,
     previewSound: previewKitchenOrderSound,
     reset: resetOrderArrivals,
   } = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, soundEnabled: kitchenSoundEnabled })
-  const secondCopyPromptJob = printJobs.find((job) => job.id === secondCopyPromptJobId) ?? null
-  const secondCopyPromptOrder = orders.find((order) => order.id === secondCopyPromptJob?.orderId) ?? null
-  const secondCopyPromptOrderNumber = getSecondCopyPromptTitle(secondCopyPromptJob, secondCopyPromptOrder)
-  const originSecondCopyPromptJob = printJobs.find((job) => job.id === originSecondCopyPromptJobId) ?? null
-  const originSecondCopyPromptOrder = orders.find((order) => order.id === originSecondCopyPromptJob?.orderId) ?? null
-  const originSecondCopyPromptOrderNumber = originSecondCopyPromptOrder ? formatOrderDisplayNumber(originSecondCopyPromptOrder) : 'Pedido'
-
   const resetSyncState = () => {
     orderPayment.close()
     effectiveConfigVersionRef.current = null
@@ -390,8 +351,7 @@ function App({ capabilities } = {}) {
     resetComandaSelection()
     resetSyncState()
     resetOrderArrivals()
-    dismissedOriginSecondCopyJobIdsRef.current = new Set()
-    newOrderDraft.reset(); refund.close(); setSecondCopyPromptJobId(null); setSecondCopyPromptBusy(false); setRecoveryDialogMode(null); setRecoveryBusy(false); setRecoveryDiscardConfirmation(false); recoveryPromptSeenRef.current = false; pausedRecoverySecondCopyJobIdRef.current = null; previousRecoveryStateRef.current = null
+    newOrderDraft.reset(); refund.close()
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -420,7 +380,7 @@ function App({ capabilities } = {}) {
           : null
         if (identity) selectComanda(identity, nextTables)
       }
-      if (order?.id) setOriginOrderIds(rememberOriginOrderId(order.id, typeof window === 'undefined' ? null : window.localStorage))
+      if (order?.id) printing.rememberOriginOrder(order.id)
       completeNavigation(context.returnDestination)
     },
     onSuccess: (order) => {
@@ -467,202 +427,11 @@ function App({ capabilities } = {}) {
     return true
   }
 
-  useEffect(() => {
-    const recoveryJobId = localPrintStation?.recoveryJobId ?? null
-    const hasRecoveryAffinity = recoveryState !== 'normal' && Boolean(recoveryJobId)
-    const resumedRecovery = previousRecoveryStateRef.current === 'deferred' && recoveryState === 'active'
-    previousRecoveryStateRef.current = recoveryState
-    if (resumedRecovery) pausedRecoverySecondCopyJobIdRef.current = null
-    if (recoveryState === 'normal') pausedRecoverySecondCopyJobIdRef.current = null
-    if (secondCopyPromptJobId) {
-      const current = printJobs.find((job) => job.id === secondCopyPromptJobId)
-      const currentOrder = orders.find((order) => order.id === current?.orderId)
-      if (!isSecondCopyPromptEligible(current, currentOrder) || !canKeepSecondCopyPromptOpen({
-        isQz: printTransportKind === 'qz',
-        transportReady: printTransportReady,
-        printerBlocked,
-        station: localPrintStation,
-        job: current,
-      })) setSecondCopyPromptJobId(null)
-      return
-    }
-    if (hasRecoveryAffinity && pausedRecoverySecondCopyJobIdRef.current === recoveryJobId) return
-    if (recoveryState !== 'normal' && !hasRecoveryAffinity) return
-    const candidates = hasRecoveryAffinity ? printJobs.filter((job) => job.id === recoveryJobId) : printJobs
-    const next = candidates.find((job) => {
-      const order = orders.find((candidate) => candidate.id === job.orderId)
-      return isSecondCopyPromptEligible(job, order) && canPresentSecondCopyPrompt({
-        isQz: printTransportKind === 'qz',
-        transportReady: printTransportReady,
-        printerBlocked,
-        station: localPrintStation,
-        job,
-      })
-    })
-    if (!next?.id) return
-    void acknowledgeAndOpenSecondCopyPrompt({
-      job: next,
-      acknowledge: acknowledgeSecondCopyPrompt,
-      openPrompt: setSecondCopyPromptJobId,
-      reopenAcknowledged: hasRecoveryAffinity,
-    }).catch(showApiError)
-  }, [printJobs, printTransportKind, localPrintStation, acknowledgeSecondCopyPrompt, orders, recoveryState, secondCopyPromptJobId, printTransportReady, printerBlocked])
-
-  useEffect(() => {
-    if (!physicalPrinterReady) {
-      setRecoveryDialogMode(null)
-      setRecoveryDiscardConfirmation(false)
-      return
-    }
-    if (recoveryState === 'normal') {
-      recoveryPromptSeenRef.current = false
-      setRecoveryDialogMode(null)
-      return
-    }
-    if (recoveryPromptEligible && !recoveryPromptSeenRef.current) {
-      recoveryPromptSeenRef.current = true
-      setRecoveryDialogMode('prompt')
-    }
-  }, [physicalPrinterReady, recoveryPromptEligible, recoveryState])
-
-  useEffect(() => {
-    if (printTransportKind === 'qz') return
-    if (originSecondCopyPromptJobId) {
-      const current = printJobs.find((job) => job.id === originSecondCopyPromptJobId)
-      const currentOrder = orders.find((order) => order.id === current?.orderId)
-      if (!isSecondCopyPromptEligible(current, currentOrder)) setOriginSecondCopyPromptJobId(null)
-      return
-    }
-    const next = findOriginSecondCopyPrompt({
-      jobs: printJobs,
-      orders,
-      originOrderIds,
-      dismissedJobIds: dismissedOriginSecondCopyJobIdsRef.current,
-    })
-    if (next?.id) setOriginSecondCopyPromptJobId(next.id)
-  }, [originOrderIds, originSecondCopyPromptJobId, orders, printJobs, printTransportKind])
-
   const totals = useMemo(() => {
     const validOrders = orders.filter((order) => !isOrderCancelled(order)); const salesToday = validOrders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0); const receivedToday = calculateReceivedToday(movements, todayValue); const receivables = validOrders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0); const activeOrders = orders.filter(isOrderActive).length
     return { salesToday, receivedToday, receivables, activeOrders }
   }, [movements, orders, todayValue])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
-  const dismissSecondCopyPrompt = () => {
-    if (recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob?.id) {
-      pausedRecoverySecondCopyJobIdRef.current = secondCopyPromptJob.id
-      if (recoveryState === 'active') void printing.deferRecovery()
-    }
-    setSecondCopyPromptJobId(null)
-  }
-
-  const handleGlobalSecondCopy = async () => {
-    if (!canExecutePrinting || !secondCopyPromptJob || secondCopyPromptBusy) return false
-    if (!canKeepSecondCopyPromptOpen({
-      isQz: printTransportKind === 'qz',
-      transportReady: printTransportReady,
-      printerBlocked,
-      station: localPrintStation,
-      job: secondCopyPromptJob,
-    })) {
-      setSecondCopyPromptJobId(null)
-      return
-    }
-    const isRecoverySecondCopy = recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob.id
-    setSecondCopyPromptBusy(true)
-    try {
-      const result = await printing.printSecondCopy(secondCopyPromptJob)
-      if (result?.status !== 'printed') {
-        setSecondCopyPromptJobId(null)
-        return
-      }
-      pausedRecoverySecondCopyJobIdRef.current = null
-      setSecondCopyPromptJobId(null)
-      if (isRecoverySecondCopy) setRecoveryDialogMode('progress')
-      showSuccessMessage('2ª via enviada para impressão')
-    } catch (error) {
-      setSecondCopyPromptJobId(null)
-      showApiError(error)
-    } finally {
-      setSecondCopyPromptBusy(false)
-    }
-  }
-
-  const handleStartRecovery = async () => {
-    if (!canExecutePrinting || recoveryBusy || !physicalPrinterReady) return false
-    setRecoveryBusy(true)
-    try {
-      const result = await printing.startRecovery()
-      setRecoveryDialogMode(result?.status === 'printed' && result?.job?.status !== 'awaiting_second_copy' ? 'progress' : null)
-    } catch (error) {
-      setRecoveryDialogMode(null)
-      showApiError(error)
-    } finally {
-      setRecoveryBusy(false)
-    }
-  }
-
-  const handleDeferRecovery = async () => {
-    if (recoveryBusy) return
-    setRecoveryDialogMode(null)
-    setRecoveryBusy(true)
-    try {
-      await printing.deferRecovery()
-    } catch (error) {
-      showApiError(error)
-    } finally {
-      setRecoveryBusy(false)
-    }
-  }
-
-  const handleNextRecovery = async () => {
-    if (recoveryBusy || !physicalPrinterReady) return
-    setRecoveryBusy(true)
-    try {
-      pausedRecoverySecondCopyJobIdRef.current = null
-      await printing.resumeRecovery()
-      const result = await printing.printNextRecovery()
-      setRecoveryDialogMode(result?.status === 'printed' && result?.job?.status !== 'awaiting_second_copy' ? 'progress' : null)
-    } catch (error) {
-      setRecoveryDialogMode(null)
-      showApiError(error)
-    } finally {
-      setRecoveryBusy(false)
-    }
-  }
-
-  const handleDiscardRecoveryBacklog = async () => {
-    if (!canDiscardPrinting || recoveryBusy || !physicalPrinterReady) return false
-    setRecoveryBusy(true)
-    try {
-      await printing.discardRecoveryBacklog()
-      setRecoveryDiscardConfirmation(false)
-      setRecoveryDialogMode(null)
-    } catch (error) {
-      showApiError(error)
-    } finally {
-      setRecoveryBusy(false)
-    }
-  }
-
-  const dismissOriginSecondCopyPrompt = () => {
-    if (originSecondCopyPromptJob?.id) dismissedOriginSecondCopyJobIdsRef.current.add(originSecondCopyPromptJob.id)
-    setOriginSecondCopyPromptJobId(null)
-  }
-
-  const handleOriginSecondCopyRequest = async () => {
-    if (!canExecutePrinting || !originSecondCopyPromptJob || originSecondCopyPromptBusy) return false
-    setOriginSecondCopyPromptBusy(true)
-    try {
-      await printing.requestSecondCopy(originSecondCopyPromptJob)
-      setOriginSecondCopyPromptJobId(null)
-      showSuccessMessage('2ª via enviada para a fila da cozinha')
-    } catch (error) {
-      showApiError(error)
-    } finally {
-      setOriginSecondCopyPromptBusy(false)
-    }
-  }
-
   const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
     if (!canCreateOrders || writesBlocked) return false
     let currentTableId = tableId
@@ -798,64 +567,15 @@ function App({ capabilities } = {}) {
       </NavigationProvider>
       </SettingsPolicyBoundary>
 
-      {recoveryPromptEligible && physicalPrinterReady && recoveryDialogMode === 'prompt' && (
-        <Modal title="Impressora disponível novamente" onClose={() => { void handleDeferRecovery() }}>
-          <div className="form-stack">
-            <p>{`Há ${recoveryPendingCount} trabalhos aguardando impressão.`}</p>
-            <p>Como a impressora não possui corte automático, as vias serão impressas uma de cada vez.</p>
-            <div className="form-actions">
-              <Button type="button" variant="secondary" onClick={() => { void handleDeferRecovery() }} disabled={recoveryBusy}>Agora não</Button>
-              <Button type="button" variant="secondary" onClick={() => { if (!canDiscardPrinting) return; setRecoveryDialogMode(null); setRecoveryDiscardConfirmation(true) }} disabled={recoveryBusy || !canDiscardPrinting}>Descartar todas</Button>
-              <Button type="button" onClick={() => { void handleStartRecovery() }} disabled={recoveryBusy || !canExecutePrinting}>Imprimir agora</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
-      {recoveryDialogMode === 'progress' && physicalPrinterReady && recoveryState === 'deferred' && recoveryPendingCount > 0 && (
-        <ConfirmationDialog
-          title="Via impressa"
-          message="Separe o papel antes de continuar."
-          confirmLabel="Imprimir próxima"
-          cancelLabel="Parar por agora"
-          confirmVariant="secondary"
-          onClose={() => { void handleDeferRecovery() }}
-          onConfirm={() => { void handleNextRecovery() }}
-          disabled={recoveryBusy || Boolean(printing.busyJobId)}
-        />
-      )}
-      {recoveryDiscardConfirmation && physicalPrinterReady && (
-        <ConfirmationDialog
-          title={`Descartar ${recoveryPendingCount} trabalhos?`}
-          message="Somente trabalhos pendentes sem envio físico serão descartados."
-          confirmLabel="Descartar todas"
-          cancelLabel="Voltar"
-          onClose={() => setRecoveryDiscardConfirmation(false)}
-          onConfirm={() => { void handleDiscardRecoveryBacklog() }}
-          disabled={recoveryBusy || !canDiscardPrinting}
-        />
-      )}
-      {secondCopyPromptJob && (
-        <ConfirmationDialog
-          title={`${secondCopyPromptOrderNumber} · 1ª via impressa`}
-          message="Destaque o papel na serrilha antes de continuar."
-          confirmLabel="Imprimir 2ª via"
-          cancelLabel={recoveryState !== 'normal' && localPrintStation?.recoveryJobId === secondCopyPromptJob.id ? 'Parar por agora' : 'Depois'}
-          onClose={dismissSecondCopyPrompt}
-          onConfirm={handleGlobalSecondCopy}
-          disabled={secondCopyPromptBusy || Boolean(printing.busyJobId) || !canExecutePrinting}
-        />
-      )}
-      {originSecondCopyPromptJob && (
-        <ConfirmationDialog
-          title={`${originSecondCopyPromptOrderNumber} · 1ª via impressa`}
-          message="A segunda via será solicitada para a fila da cozinha."
-          confirmLabel="Solicitar 2ª via"
-          cancelLabel="Depois"
-          onClose={dismissOriginSecondCopyPrompt}
-          onConfirm={handleOriginSecondCopyRequest}
-          disabled={originSecondCopyPromptBusy || !canExecutePrinting}
-        />
-      )}
+      <PrintingOverlays
+        printing={printing}
+        orders={orders}
+        authenticated={authState === 'authenticated'}
+        canExecutePrinting={canExecutePrinting}
+        canDiscardPrinting={canDiscardPrinting}
+        onError={showApiError}
+        onSuccess={showSuccessMessage}
+      />
     </AppRoot>
   )
 }

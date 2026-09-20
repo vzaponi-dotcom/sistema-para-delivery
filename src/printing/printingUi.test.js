@@ -6,6 +6,8 @@ const badge = await readFile(new URL('../components/PrintStatusBadge.jsx', impor
 const orders = await readFile(new URL('../domains/orders/ui/Orders.jsx', import.meta.url), 'utf8')
 const detail = await readFile(new URL('../domains/orders/ui/components/OrderDetail.jsx', import.meta.url), 'utf8')
 const app = await readFile(new URL('../App.jsx', import.meta.url), 'utf8')
+const overlays = await readFile(new URL('../domains/printing/ui/PrintingOverlays.jsx', import.meta.url), 'utf8')
+const overlayHook = await readFile(new URL('../domains/printing/application/usePrintingOverlays.js', import.meta.url), 'utf8')
 
 test('print status badge exposes all friendly persisted job states', () => {
   for (const label of [
@@ -94,31 +96,30 @@ test('future automatic jobs show scheduling and use central priority', () => {
 })
 
 test('app globally prompts an unacknowledged waiting second copy and persists the acknowledgment', () => {
-  assert.match(app, /import ConfirmationDialog from '\.\/components\/ConfirmationDialog'/)
-  assert.match(app, /secondCopyPromptJobId/)
-  assert.match(app, /canPresentSecondCopyPrompt/)
-  assert.match(app, /acknowledgeAndOpenSecondCopyPrompt\(\{[\s\S]*acknowledge: acknowledgeSecondCopyPrompt/)
-  assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
-  assert.match(app, /confirmLabel="Imprimir 2ª via"/)
-  assert.match(app, /cancelLabel="Depois"/)
-  assert.match(app, /Destaque o papel na serrilha antes de continuar\./)
-  assert.doesNotMatch(app, /dismissedSecondCopyJobIdsRef/)
+  assert.match(app, /<PrintingOverlays/)
+  assert.match(overlayHook, /canPresentSecondCopyPrompt/)
+  assert.match(overlayHook, /acknowledgeAndOpenSecondCopyPrompt\(\{[\s\S]*acknowledge: printing\.acknowledgeSecondCopyPrompt/)
+  assert.match(overlayHook, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
+  assert.match(overlays, /confirmLabel="Imprimir 2ª via"/)
+  assert.match(overlays, /'Parar por agora' : 'Depois'/)
+  assert.match(overlays, /Destaque o papel na serrilha antes de continuar\./)
+  assert.doesNotMatch(overlayHook, /dismissedSecondCopyJobIdsRef/)
 })
 
 test('the originating non-QZ device can request, but never execute, its second copy', () => {
-  assert.match(app, /findOriginSecondCopyPrompt/)
-  assert.match(app, /rememberOriginOrderId\(order\.id/)
-  assert.match(app, /printTransportKind === 'qz'/)
-  assert.match(app, /confirmLabel="Solicitar 2ª via"/)
-  assert.match(app, /printing\.requestSecondCopy\(originSecondCopyPromptJob\)/)
-  assert.doesNotMatch(app, /printing\.printSecondCopy\(originSecondCopyPromptJob\)/)
+  assert.match(overlayHook, /findOriginSecondCopyPrompt/)
+  assert.match(app, /printing\.rememberOriginOrder\(order\.id\)/)
+  assert.match(overlayHook, /transportKind === 'qz'/)
+  assert.match(overlays, /confirmLabel="Solicitar 2ª via"/)
+  assert.match(overlayHook, /printing\.requestSecondCopy\(originSecondCopyPromptJob\)/)
+  assert.doesNotMatch(overlayHook, /printing\.printSecondCopy\(originSecondCopyPromptJob\)/)
 })
 
 test('physical popup remains separate from remote queue decisions', async () => {
   const queue = await readFile(new URL('../domains/printing/ui/PrintQueue.jsx', import.meta.url), 'utf8')
   const details = await readFile(new URL('../domains/printing/ui/printQueueDetails.js', import.meta.url), 'utf8')
-  assert.match(app, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
-  assert.match(app, /cancelLabel="Depois"/)
+  assert.match(overlayHook, /printing\.printSecondCopy\(secondCopyPromptJob\)/)
+  assert.match(overlays, /'Parar por agora' : 'Depois'/)
   assert.match(queue, /printing\?\.requestSecondCopy\?\.\(selectedJob\)/)
   assert.match(queue, /printing\?\.skipSecondCopy\?\.\(selectedJob\)/)
   assert.doesNotMatch(queue, /printSecondCopy\(/)
@@ -156,11 +157,11 @@ test('only deduplicated physical job failures surface a human queue-attention to
 })
 
 test('a failed physical second copy closes its prompt instead of keeping a blocking retry loop', () => {
-  const start = app.indexOf('const handleGlobalSecondCopy = async')
-  const end = app.indexOf('const handleNewOrder', start)
+  const start = overlayHook.indexOf('const handleGlobalSecondCopy = async')
+  const end = overlayHook.indexOf('const handleStartRecovery = async', start)
   assert.notEqual(start, -1)
   assert.notEqual(end, -1)
-  const handler = app.slice(start, end)
+  const handler = overlayHook.slice(start, end)
 
   assert.match(handler, /if \(result\?\.status !== 'printed'\) \{\s*setSecondCopyPromptJobId\(null\)/)
   assert.match(handler, /catch \(error\) \{\s*setSecondCopyPromptJobId\(null\)/)

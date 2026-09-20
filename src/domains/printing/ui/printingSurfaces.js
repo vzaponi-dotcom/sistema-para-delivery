@@ -10,6 +10,11 @@ const loadPrintingSettingsContent = () => {
   return modules['./PrintingSettingsContent.jsx']?.default
 }
 
+const loadPrintingOverlays = () => {
+  const modules = import.meta.glob('./PrintingOverlays.jsx', { eager: true })
+  return modules['./PrintingOverlays.jsx']?.default
+}
+
 export function PrintQueue(props) {
   const Component = loadPrintQueue()
   return React.createElement(Component, props)
@@ -17,5 +22,10 @@ export function PrintQueue(props) {
 
 export function PrintingSettingsContent(props) {
   const Component = loadPrintingSettingsContent()
+  return React.createElement(Component, props)
+}
+
+export function PrintingOverlays(props) {
+  const Component = loadPrintingOverlays()
   return React.createElement(Component, props)
 }
