@@ -775,7 +775,7 @@ node --test   src/domains/printing/ui/PrintQueue.test.js   src/domains/printing/
 
 Expected: PASS after moving any stale path assertions.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ~~~bash
 git add src/domains/printing/ui src/pages src/App.jsx
