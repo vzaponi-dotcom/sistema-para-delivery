@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Status:** **APPROVED FOR EXECUTION — TASKS 1–7 COMPLETE / GREEN; TASK 8 NOT STARTED** — Native/inline execution.
+**Status:** **APPROVED FOR EXECUTION — TASKS 1–10 COMPLETE / GREEN; TASK 11 NOT STARTED** — Native/inline execution.
 
 **Goal:** Establish domains/printing as the frontend owner of operational printing while isolating qz-tray under src/infrastructure/qz, preserving every current queue, copies, recovery, unknown-outcome, settings, capability and physical-print behavior.
 
@@ -1093,7 +1093,7 @@ export {
 
 No helper/recovery/QZ/renderer/API exports.
 
-- [ ] **Step 1: Write RED cleanup contract**
+- [x] **Step 1: Write RED cleanup contract**
 
 Create src/domains/printing/printingPublicContract.test.js:
 
@@ -1115,7 +1115,7 @@ test('printing public entry stays minimal', async () => {
 
 Create printingExtractionContract.test.js asserting legacy production paths do not exist.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ~~~bash
 node --test   src/domains/printing/printingPublicContract.test.js   src/domains/printing/printingExtractionContract.test.js
@@ -1123,19 +1123,19 @@ node --test   src/domains/printing/printingPublicContract.test.js   src/domains/
 
 Expected: FAIL because temporary exports/legacy paths still exist.
 
-- [ ] **Step 3: Remove legacy files and update all tests**
+- [x] **Step 3: Remove legacy files and update all tests**
 
 Do not leave compatibility reexports. A test that referenced the old owner must be moved/aligned to the new owner or changed to a negative legacy assertion.
 
-- [ ] **Step 4: Verify CSS ownership/cascade**
+- [x] **Step 4: Verify CSS ownership/cascade**
 
 Confirm src/printing/printing.css is gone because it moved in Task 6. Confirm src/print-queue.css remains unchanged at its existing global path. Run the existing Printing Settings and PrintQueue responsive/style source tests to prove no token, breakpoint or action-order regression.
 
-- [ ] **Step 5: Run GREEN**
+- [x] **Step 5: Run GREEN**
 
 Run the extraction/public contract tests plus all moved Printing tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~bash
 git add -A src docs/superpowers/qa/spec-c-compatibility-facades.md
@@ -1165,7 +1165,7 @@ git commit -m "refactor: remove legacy printing owners"
   - src/api/client.js cannot regain Printing API exports;
   - legacy owners cannot return.
 
-- [ ] **Step 1: Add failing checker fixtures**
+- [x] **Step 1: Add failing checker fixtures**
 
 Add separate fixtures for:
 1. App → Printing deep import rejected.
@@ -1182,7 +1182,7 @@ Add separate fixtures for:
 12. positive Printing → shared print contracts allowed.
 13. positive Printing application → src/infrastructure/qz public module allowed.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ~~~bash
 node --test scripts/architecture/check-import-boundaries.test.mjs
@@ -1190,19 +1190,19 @@ node --test scripts/architecture/check-import-boundaries.test.mjs
 
 Expected: the new negative fixtures fail because C9 rules are absent; positive fixtures pass.
 
-- [ ] **Step 3: Implement checker rules**
+- [x] **Step 3: Implement checker rules**
 
 Use exact path/pattern sets rather than wildcards that mask future regressions.
 
 For legacy API detection, use the existing exportMentionsAny helper with a C9_PRINTING_API_EXPORTS set containing all names migrated in Task 2.
 
-- [ ] **Step 4: Remove the qzDirectImports allowlist exception**
+- [x] **Step 4: Remove the qzDirectImports allowlist exception**
 
 Final legacy-import-allowlist.json must not list src/printing/usePrintingManager.js. If no other migration debt remains, qzDirectImports is [] or the key is removed according to checker conventions.
 
 Do not add src/infrastructure/qz to the allowlist; it is a first-class allowed location in the checker.
 
-- [ ] **Step 5: Run GREEN**
+- [x] **Step 5: Run GREEN**
 
 ~~~bash
 node --test scripts/architecture/check-import-boundaries.test.mjs
@@ -1211,7 +1211,7 @@ npm run test:architecture
 
 Expected: PASS and Frontend architecture boundaries: OK.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ~~~bash
 git add scripts/architecture src/domains/printing
@@ -1230,7 +1230,7 @@ git commit -m "feat: enforce printing and qz architecture boundaries"
 - Consumes final implementation candidate.
 - Produces exact candidate SHA, CI run IDs and diff audit.
 
-- [ ] **Step 1: Run/obtain the exact full gate**
+- [x] **Step 1: Run/obtain the exact full gate**
 
 Required:
 
@@ -1248,7 +1248,7 @@ node scripts/infra/spec-b-d1-gate.mjs
 
 Prefer repository Validate CI as authoritative evidence. Record exact test/pass/fail/skipped counts.
 
-- [ ] **Step 2: Audit the branch diff against 91fb5581...**
+- [x] **Step 2: Audit the branch diff against 91fb5581...**
 
 Explicitly verify:
 - worker/: no functional diff;
@@ -1265,13 +1265,28 @@ Explicitly verify:
 - CSS order/visual behavior unchanged;
 - no direct qz-tray import outside src/infrastructure/qz.
 
-- [ ] **Step 3: Verify exact-head evidence**
+- [x] **Step 3: Verify exact-head evidence**
 
 PR Validate often checks a synthetic merge ref. If workflow_dispatch for the feature SHA is unavailable, compare the tested merge-ref tree to the exact feature HEAD tree and record the evidence honestly, as in C8. Never label a PR event as branch workflow_dispatch.
 
-- [ ] **Step 4: Commit evidence-only docs if needed**
+- [x] **Step 4: Commit evidence-only docs if needed**
 
 Any docs commit after the candidate changes HEAD and therefore requires its own Validate before staging.
+
+---
+
+## Execution checkpoint after Task 10 — 2026-09-19
+
+- Tasks 8, 9 and 10 are **COMPLETE / GREEN**. Task 11 is **NOT STARTED**.
+- Task 8: RED `dbd54d10efe2651eadb0716757278fc10fd4a9ba` / Validate #1498; candidate `c2e5e061be1e15fe46491e939eef93dfe4651dfe` / #1499; final GREEN `b51c89d754739bc0a51e5e8044d7a70fe3efc58f` / Validate #1500, **1,885 / 1,884 / 0 / 1**.
+- Task 8 removed all remaining legacy Printing production owners/facades. `src/printing/` is test-only; `src/components/PrintingSettings.jsx` is absent; PDF/ESC-POS browser composition is owned by Printing; public entry exposes exactly eight approved contracts while retaining the established node-safe surface wrapper.
+- Task 9: RED `dd4d111c4ed175132ec0007435cd8a345b1ad26a` / Validate #1501, **1,902 / 1,890 / 11 / 1**; GREEN `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` / Validate #1502, **1,902 / 1,901 / 0 / 1**. Permanent C9 architecture enforcement is active and `qzDirectImports: []`.
+- Task 10 candidate gate uses `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f`: tests, architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 all green.
+- Diff audit versus base `91fb5581cea1616f438c13dfac28cfb38345fa59`: 46 commits ahead / 0 behind; no `worker/`, `migrations/`, workflow, dependency or `shared/` changes. Polling constants, three storage keys and 12 operational/QZ error codes are unchanged.
+- All 34 Printing API request expressions are equivalent to the C8 base. QZ certificate/sign routes and payloads remain unchanged; security remains SHA512. Printing Settings CSS and global PrintQueue CSS are content/hash-identical to base.
+- Exact-content evidence: Validate #1502 is a PR-event run. Synthetic merge ref `78cfaa7660fc339f8f13dc8d4bfc913b79762689` and feature candidate `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` have identical tree `c71841307119d258d1b0aa0622be30a8a618950a`.
+- This checkpoint is an evidence-only documentation update; its resulting HEAD must pass Validate before Task 11 staging.
+- Staging, manual functional QA, physical QZ QA, merge and production are still **NOT STARTED**.
 
 ---
 

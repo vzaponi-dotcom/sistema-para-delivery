@@ -258,3 +258,88 @@ The current policy is authoritative:
 - App records newly-created origin orders only through `printing.rememberOriginOrder(order.id)` and renders one `PrintingOverlays` composition point.
 - Deferred recovery remains affinity-safe: copy 2/2 of `recoveryJobId` is selected before any other pending job, and paused affinity is cleared only when recovery resumes/normalizes or the copy completes.
 - Task 8 is **NOT STARTED**. No staging, physical QA, merge or production deployment has occurred.
+
+
+## Task 8 — legacy Printing owner removal and final public entry
+
+**Status:** COMPLETE / GREEN
+
+### RED
+
+- RED SHA: `dbd54d10efe2651eadb0716757278fc10fd4a9ba`.
+- Validate #1498 / run `35484636722` — **FAIL as intended**.
+- Suite: **1,885 tests / 1,882 pass / 2 fail / 1 skipped**.
+- The two failures proved that legacy production owners/facades still existed and the Printing public entry still exported transient helpers.
+
+### GREEN
+
+- Production candidate: `c2e5e061be1e15fe46491e939eef93dfe4651dfe`. Validate #1499 failed only because one QZ infrastructure test still imported `renderEscPos58mm` through the now-minimal public entry.
+- Final alignment: `b51c89d754739bc0a51e5e8044d7a70fe3efc58f`.
+- Validate #1500 / run `35484888185` — **SUCCESS**, **1,885 tests / 1,884 pass / 0 fail / 1 skipped**; all gates green.
+
+### Result
+
+- Ten remaining production owners/facades were physically removed. `src/printing/` now contains tests only.
+- `src/components/PrintingSettings.jsx` is removed.
+- The public entry exposes exactly: `DEFAULT_PRINT_QUEUE_QUERY`, `PrintQueue`, `PrintingOverlays`, `PrintingSettingsContent`, `printingPolicy`, `stationConfigurationPolicy`, `stationPrimaryPolicy`, `usePrintingManager`.
+- The established node-safe `printingSurfaces.js` wrapper is deliberately retained because plain `node --test` cannot statically load JSX through the public entry.
+- ESC/POS pure rendering stays in Printing domain; browser Canvas creation is injected at application level. PDF pure rendering stays in Printing domain; OrderDetail delegates browser download through the Printing manager surface.
+- `src/print-queue.css` remains at its global path and `printing.css` remains with Printing Settings UI.
+
+## Task 9 — permanent Printing/QZ architecture enforcement
+
+**Status:** COMPLETE / GREEN
+
+### RED
+
+- RED SHA: `dd4d111c4ed175132ec0007435cd8a345b1ad26a`.
+- Validate #1501 / run `35485126897` — **FAIL as intended**.
+- Suite: **1,902 tests / 1,890 pass / 11 fail / 1 skipped**.
+- Eleven negative fixtures failed for the missing permanent C9 rules; all three positive fixtures already passed.
+
+### GREEN
+
+- GREEN SHA: `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f`.
+- Validate #1502 / run `35485255788` — **SUCCESS**.
+- Suite: **1,902 tests / 1,901 pass / 0 fail / 1 skipped**.
+- architecture ✅
+- lint ✅
+- build ✅
+- production Worker dry-run ✅
+- staging Worker dry-run ✅
+- local D1 ✅
+- Spec B D1 clean install/upgrade ✅
+
+### Result
+
+- External production consumers must use `domains/printing/index.js`.
+- Printing domain is permanently guarded from React, qz-tray, browser globals/fetch and infrastructure/UI dependencies.
+- Printing cannot deep-import peer-domain internals.
+- QZ infrastructure cannot depend on Printing domain/application/UI internals.
+- Legacy `src/printing/` production owners and Printing-specific `src/api/client.js` exports cannot return.
+- App cannot regain second-copy/recovery/QZ ownership.
+- Production `qz-tray` imports are restricted to `src/infrastructure/qz/`.
+- `legacy-import-allowlist.json` now has `qzDirectImports: []`.
+
+## Task 10 — complete candidate gate and diff audit
+
+**Status:** COMPLETE / GREEN CANDIDATE
+
+- Executable candidate SHA: `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f`.
+- Authoritative Validate: #1502 / run `35485255788` (`pull_request` event) — **SUCCESS**, **1,902 / 1,901 / 0 / 1**, with every required gate green.
+- Exact-content proof: PR synthetic merge `78cfaa7660fc339f8f13dc8d4bfc913b79762689` has tree `c71841307119d258d1b0aa0622be30a8a618950a`; feature HEAD `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` has the same tree. The run is not mislabeled as workflow_dispatch.
+- Compare against C8 base `91fb5581cea1616f438c13dfac28cfb38345fa59`: **46 ahead / 0 behind**.
+- No diff under `worker/`, `migrations/`, `.github/workflows/`, `package.json`, `package-lock.json` or any `shared/` file.
+- Polling constants remain `PRINT_JOB_POLL_MS = 2_000`, `PRINT_STATE_POLL_MS = 5_000`, `STATION_HEARTBEAT_MS = 15_000`.
+- Storage keys remain `delivery-print-station-id`, `delivery-qz-printer-name:<stationId>`, `printing-origin-order-ids`.
+- Preserved error-code set is identical: `PRINT_ATTEMPT_NOT_FOUND`, `PRINT_JOB_NOT_FOUND`, `PRINT_OPERATION_BUSY`, `PRINT_QUEUE_ONLY`, `PRINT_SECOND_COPY_NOT_READY`, `PRINT_STATION_NOT_READY`, `QZ_OBSERVATION_LOST`, `QZ_PRINTER_NOT_CONFIGURED`, `QZ_PRINTER_NOT_FOUND`, `QZ_PRINT_FAILED`, `QZ_STALE_PROBE`, `QZ_UNAVAILABLE`.
+- All 34 Printing API export request expressions are text-equivalent to the base owner; route/method/payload contract tests are green.
+- QZ certificate/sign remain `/api/printing/qz/certificate` and POST `/api/printing/qz/sign` with `{ toSign }`; QZ security uses SHA512 and the same certificate/sign callbacks.
+- `printing.css` and `print-queue.css` are content/hash-identical to C8. CP860, MTP5 profile, manual renderer, recovery rules, QZ status monitor and QZ attempt controller are also content-identical after ownership moves.
+- No production direct `qz-tray` import exists outside `src/infrastructure/qz/`, enforced by the candidate architecture gate.
+- Staging: **NOT STARTED**.
+- Functional QA: **NOT STARTED**.
+- Physical QZ QA: **NOT STARTED**.
+- Merge: **NOT AUTHORIZED**.
+- Production: **NO DEPLOY**.
+- Next task: **Task 11 — staging + functional QA**.

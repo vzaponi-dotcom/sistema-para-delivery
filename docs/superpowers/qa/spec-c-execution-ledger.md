@@ -25,7 +25,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–7 COMPLETE / GREEN; TASK 8 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
+| C9 | Printing domain + QZ separation | **ACTIVE — TASKS 1–10 COMPLETE / GREEN; TASK 11 NOT STARTED** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
 | C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
@@ -523,3 +523,19 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Deferred recovery affinity remains explicit: when recovery points at a two-copy job awaiting copy 2/2, that same job is selected before any next queued job; pausing prevents immediate re-open until recovery resumes.
 - The corrective commit also keeps `onError`/`onSuccess` in refs so unstable App callback identities cannot retrigger the prompt-selection ACK effect while an acknowledgement is in flight.
 - Task 8 is **NOT STARTED**. No staging, physical QA, merge or production deploy has occurred.
+
+
+---
+
+# C9 — Tasks 8–10 closure — 2026-09-19
+
+- **Task 8 COMPLETE / GREEN.** RED `dbd54d10efe2651eadb0716757278fc10fd4a9ba` → Validate #1498 / run `35484636722`, **1,885 / 1,882 / 2 / 1**, proving legacy production owners and temporary public exports still existed.
+- Task 8 production candidate `c2e5e061be1e15fe46491e939eef93dfe4651dfe` removed the remaining 10 legacy production owners/facades, left `src/printing/` test-only, removed `src/components/PrintingSettings.jsx`, moved PDF/ESC-POS browser composition behind Printing ownership and reduced the public entry to the eight approved external contracts. Validate #1499 exposed one stale QZ test import only.
+- Task 8 final GREEN `b51c89d754739bc0a51e5e8044d7a70fe3efc58f` → Validate #1500 / run `35484888185` — **SUCCESS**, **1,885 / 1,884 / 0 / 1**, all gates green.
+- **Task 9 COMPLETE / GREEN.** RED `dd4d111c4ed175132ec0007435cd8a345b1ad26a` → Validate #1501 / run `35485126897`, **1,902 / 1,890 / 11 / 1**; the three positive architecture fixtures passed while the eleven intended permanent-C9 rules were absent.
+- Task 9 GREEN `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` → Validate #1502 / run `35485255788` — **SUCCESS**, **1,902 / 1,901 / 0 / 1**, all gates green. Permanent enforcement now protects Printing public-boundary use, Printing-domain purity, QZ isolation, App overlay ownership, legacy owner/API removal and reverse QZ→Printing dependencies. `qzDirectImports` is now empty.
+- **Task 10 COMPLETE / GREEN candidate audit.** Final executable candidate remains `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f`, 46 commits ahead / 0 behind base `91fb5581cea1616f438c13dfac28cfb38345fa59`.
+- Task 10 diff audit: no changes under `worker/`, `migrations/`, `.github/workflows/`, `package.json`, `package-lock.json` or `shared/`; polling remains 2s/5s/15s; storage keys remain `delivery-print-station-id`, `delivery-qz-printer-name:<stationId>`, `printing-origin-order-ids`; operational/QZ error-code set is unchanged.
+- All **34** migrated Printing API exports have text-equivalent request expressions versus the C8 base. QZ certificate/sign endpoints and payloads are unchanged; QZ security still uses SHA512. `printing.css` and `print-queue.css` are content/hash-identical to the base (the former only moved owner).
+- PR Validate #1502 is a `pull_request` event, not workflow_dispatch. The tested synthetic merge ref `78cfaa7660fc339f8f13dc8d4bfc913b79762689` and exact feature HEAD `8824ae94f3e4d49a44b51825bd232b8c8dc0b27f` share tree `c71841307119d258d1b0aa0622be30a8a618950a`, so the validated content is byte-for-byte identical to the feature candidate.
+- Task 11 is **NOT STARTED**. Staging, manual functional QA, physical QZ QA, merge and production remain untouched.
