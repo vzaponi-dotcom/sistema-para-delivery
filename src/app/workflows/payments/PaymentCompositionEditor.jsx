@@ -1,6 +1,7 @@
 import Button from '../../../shared/ui/Button.jsx'
 import SystemSelect from '../../../shared/ui/SystemSelect.jsx'
-import { formatBRLCurrencyInput, formatBRLCurrencyValue, parseBRLCurrencyInput } from '../../../shared/utils/formFormatting.js'\nimport { paymentLabel } from '../../../../shared/businessPolicies.js'
+import { formatBRLCurrencyInput, formatBRLCurrencyValue, parseBRLCurrencyInput } from '../../../shared/utils/formFormatting.js'
+import { paymentLabel } from '../../../../shared/businessPolicies.js'
 import {
   addPaymentAllocation,
   paymentMethodCode,
