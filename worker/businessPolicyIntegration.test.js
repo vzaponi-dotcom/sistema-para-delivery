@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSettingsDb } from './test-support/settingsDb.js'
-import { createOrder, registerOrderPayment, registerTableTabPayment, updateOrderStatus } from './repositories.js'
+import { createOrder, registerTableTabPayment, updateOrderStatus } from './repositories.js'\nimport { registerOrderPayment } from './paymentRepository.js'
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { createManualMovement, updateManualMovement } from './financeRepository.js'
 import { loadOperations, saveOperations } from './operationSettingsRepository.js'
@@ -91,7 +91,7 @@ test('inactive payment method blocks standalone payment, refund and manual movem
   await cancelOrder(db, BUSINESS, paid.id, { reason: 'other', note: 'Teste', refundNow: false }, new Date(+NOW + 1000))
   await disablePayment(db, 'cash', 'disable-cash-all')
 
-  await assert.rejects(registerOrderPayment(db, BUSINESS, unpaid.id, 'Dinheiro', new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
+  await assert.rejects(registerOrderPayment(db, BUSINESS, unpaid.id, [{ methodCode: 'cash', amountCents: 2500 }], new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
   await assert.rejects(registerOrderRefund(db, BUSINESS, paid.id, { refundMethod: 'Dinheiro' }, new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
   await assert.rejects(createManualMovement(db, BUSINESS, {
     type: 'saida', category: 'supplies', description: 'Compra', valueCents: 1000,
