@@ -90,7 +90,7 @@ test('whole-table dialog submits a structured Dinheiro + Pix composition instead
   assert.equal(r.root.findByProps({ 'aria-label': 'Valor da forma de pagamento 1' }).props.inputMode, 'decimal')
   assert.match(nodeText(r.root), /Restante.*R\$ 0,00/s)
 
-  await act(async () => buttonNamed(r.root, 'Adicionar forma de pagamento').props.onClick())
+  await act(async () => buttonNamed(r.root, 'Adicionar outra forma').props.onClick())
   let inputs = r.root.findAll((node) => node.type === 'input' && String(node.props?.['aria-label'] || '').startsWith('Valor da forma de pagamento'))
   await act(async () => inputs[0].props.onChange({ target: { value: 'R$ 30,00' } }))
 
