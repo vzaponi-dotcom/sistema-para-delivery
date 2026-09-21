@@ -49,7 +49,7 @@ test('whole-table split payment creates one receipt, N pending-order payments an
   assert.equal(result.tableTab.status, 'closed')
 
   const payments = db.sqlite.prepare("SELECT order_id, receipt_id, amount_cents, method FROM payments WHERE receipt_id = ? ORDER BY order_id").all(result.receipt.id)
-  assert.deepEqual(payments, [
+  assert.deepEqual(payments.map((row) => ({ ...row })), [
     { order_id: 'o2', receipt_id: result.receipt.id, amount_cents: 3000, method: null },
     { order_id: 'o3', receipt_id: result.receipt.id, amount_cents: 5000, method: null },
   ])
