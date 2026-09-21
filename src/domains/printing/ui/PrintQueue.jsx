@@ -8,7 +8,9 @@ import OrderTicketPreview from './OrderTicketPreview.jsx'
 import SystemSelect from '../../../shared/ui/SystemSelect'
 import PrintStatusBadge from './PrintStatusBadge.jsx'
 import './print-queue.css'
-import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
+import { buildPrintQueueSummary } from './printQueueSummary.js'
+import { derivePrintOperationalStatus } from '../domain/printOperationalStatus.js'
+import { buildPrintOperationalView } from './printOperationalView.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../../../shared/printQueue.js'
 import { formatOrderCustomerIdentity } from '../../../../shared/orderPrintDocument.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
@@ -60,8 +62,6 @@ const cacheKeyForQuery = (query) => JSON.stringify([
 
 function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, isOnline = true }) {
   const station = printing?.localStation ?? null
-  const stationSummary = getPrintStationSummary(station)
-  const stationReady = Boolean(station?.health?.ready)
   const query = queryState
   const [operationalPage, setOperationalPage] = useState({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } })
   const [summary, setSummary] = useState(() => buildPrintQueueSummary())
@@ -167,6 +167,21 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       if (timer) globalThis.clearInterval?.(timer)
     }
   }, [isOnline, refreshPanel])
+  const operationalStatus = derivePrintOperationalStatus({
+    stations: printing?.stations,
+    localStation: station,
+    transportKind: printing?.transportKind,
+    printerState: printing?.printerState,
+    qzConnected: printing?.qzConnected,
+    configuredPrinterName: printing?.configuredPrinterName,
+    printerQueueFound: printing?.printerQueueFound,
+    printerHealth: printing?.printerHealth,
+  })
+  const operationalView = buildPrintOperationalView(operationalStatus, {
+    pendingCount: summary.pending,
+    localPrinterName: printing?.configuredPrinterName,
+  })
+  const stationReady = operationalStatus.code === 'ready'
   const ordersById = new Map(orders.map((order) => [String(order.id), order]))
   const operationalJobs = sortPrintQueueJobsForDisplay(
     Array.isArray(operationalPage.jobs) ? operationalPage.jobs : [],
@@ -175,7 +190,6 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   const jobRows = operationalJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const pageInfo = operationalPage.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 }
   const hasActiveFilters = Boolean(searchInput.trim()) || Boolean(query.status) || Boolean(query.trigger)
-  const physicalReady = printing?.printerHealth?.state === 'ready'
   const recoveryState = printing?.recoveryState || station?.recoveryState || 'normal'
   const selectedDetails = selectedJob ? getPrintJobDetails(selectedJob, {
     order: ordersById.get(String(selectedJob.orderId)),
@@ -290,23 +304,18 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
           </Button>
         )}
       />
-      <section className="print-queue-station-card" aria-label="Status da estação de impressão">
-        <div className="print-queue-station-copy">
-          <strong>Cozinha PC</strong>
-          <span>{station?.name || 'Estação não identificada'}</span>
-        </div>
-        <div className="print-queue-station-health">
-          <strong>{stationSummary.onlineLabel}</strong>
-          {stationSummary.qzLabel && <span>{stationSummary.qzLabel}</span>}
-          {stationSummary.printerLabel && <span>{stationSummary.printerLabel}</span>}
+      <section
+        className={`print-queue-operational-card is-${operationalView.tone}`}
+        aria-label="Status operacional da impressão"
+        data-status={operationalView.code}
+      >
+        <div className="print-queue-operational-copy">
+          <strong>{operationalView.title}</strong>
+          {operationalView.description && <span>{operationalView.description}</span>}
+          {operationalView.helper && <small>{operationalView.helper}</small>}
         </div>
       </section>
 
-      {!physicalReady && summary.pending > 0 && (
-        <section className="print-queue-offline-banner" aria-live="polite">
-          Impressora indisponível · {summary.pending} {summary.pending === 1 ? 'trabalho aguardando impressão' : 'trabalhos aguardando impressão'}
-        </section>
-      )}
       {['active', 'deferred'].includes(recoveryState) && (
         <section className="print-queue-recovery-banner" aria-live="polite">
           <div><strong>Recuperação de impressão em andamento</strong><span>O consumidor normal permanece pausado até a conclusão segura.</span></div>
