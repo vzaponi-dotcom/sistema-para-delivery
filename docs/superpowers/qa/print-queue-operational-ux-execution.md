@@ -343,3 +343,53 @@ Validated against Deploy staging #191 / runtime SHA `309fe9134d4dee499835782ef5e
   - explicit `0` in Aguardando 2ª via;
   - real Android / queue-only contextual Settings behavior.
 
+
+
+## Manual staging QA — round 2
+
+Validated against Deploy staging #192 / runtime SHA `ff2bf230c6cabdf5fa59c2a265cd1ccd9a3fb41e`.
+
+### PASS
+
+- **Aguardando 2ª via renders explicit 0** — PASS.
+- **Android / queue-only contextual Settings** — PASS:
+  - third card uses **Impressão do negócio**;
+  - no local Testar impressão / Trocar impressora controls;
+  - queue-only behavior matches the approved design.
+
+### Remaining FAIL
+
+- **Windows primary QZ-disconnected status still flickers** between `QZ Tray desconectado na estação principal` and `Verificando impressão` in both Queue and Settings.
+- The same Windows device is stable when it is not primary, confirming the issue is specific to the local-primary QZ path.
+
+### Root cause refinement
+
+The first fix suppressed retries that failed before establishing a websocket. Round 2 proved another transient path:
+
+1. background poll opens the QZ websocket;
+2. the manager publishes/derives a transient connected/verifying state before printer resolution + status-monitor startup are durably established;
+3. the QZ command/observation fails or closes;
+4. UI returns to QZ unavailable;
+5. next poll repeats the visible transition.
+
+### TDD round 2
+
+- RED: `c1dd3de92597da1a05f6922db1d575f9722dd635`
+- Validate #1578 / run `35555867761`: **EXPECTED FAILURE**
+- Suite: **1,975 tests / 1,972 pass / 2 fail / 1 skipped**
+- Failing contracts:
+  - configured local primary must remain `qz_unavailable` while reconnect health is only transiently verifying;
+  - configured background reconnect must not publish QZ connected before printer resolution + monitor startup.
+
+- GREEN: `7c612a9930fc418440c3cc7340c506688c533968`
+- Validate #1579 / run `35556022465`: **SUCCESS**
+- Suite: **1,975 tests / 1,974 pass / 0 fail / 1 skipped**
+- Architecture, lint, build, Worker production/staging dry-runs, local D1 and Spec B D1: **SUCCESS**.
+
+### Round 3 candidate
+
+- `staging/print-queue-operational-ux` advanced to exact GREEN SHA `7c612a9930fc418440c3cc7340c506688c533968`.
+- Only the Windows-primary flicker needs manual re-verification after re-deploy.
+- Second-copy zero and Android queue-only acceptance remain PASS because the round-2 fix did not touch those UI contracts.
+- Production: **NOT TOUCHED**.
+
