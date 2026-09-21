@@ -272,3 +272,57 @@ Hardening coverage explicitly confirms:
 
 Manual QA remains the only open part of Task 6 before final documentary closure + final Validate.
 
+
+
+## Manual staging QA — round 1 findings
+
+Validated against Deploy staging #191 / runtime SHA `309fe9134d4dee499835782ef5e60afcfc974e90`.
+
+### PASS
+
+- Mobile/responsive header uses compact settings gear.
+- Legacy `Cozinha PC / PC Victor / Offline / QZ desconectado / Fila indisponível` block is gone from Queue.
+- Search, filters and jobs remain usable without horizontal overflow.
+- Settings gear routes to the existing Printing Settings page.
+- Summary visual hierarchy and attention emphasis are present.
+
+### Findings requiring correction
+
+1. **Status flicker on Windows primary** — FAIL
+   - UI alternated briefly between `QZ Tray desconectado na estação principal` and `Verificando impressão`.
+   - Reproduced in both Queue and Printing Settings because both correctly share the same operational state.
+   - Root cause: the 5-second background state sync exposed transient `printerState = connecting` on every failed QZ reconnect attempt.
+   - Fix: restore the saved local printer identity before QZ reconnect and do not expose `connecting` during recurring retries for a configured printer. A real successful reconnect may enter verifying while resolving readiness.
+
+2. **Aguardando 2ª via missing explicit zero** — FAIL
+   - Backend summary contract returns `awaitingSecondCopy`.
+   - Queue UI canonical summary uses `waitingSecondCopy`.
+   - Directly assigning the server summary left the UI counter undefined.
+   - Fix: normalize the server summary at the UI boundary and explicitly map `awaitingSecondCopy -> waitingSecondCopy`.
+
+3. **Queue-only Settings check was performed on Windows, not Android** — NOT A FAILURE
+   - Screenshot showed `Plataforma: Windows` and `Principal`.
+   - For Windows, **Impressão nesta estação**, Testar impressão and Trocar impressora are the expected behavior.
+   - The **Impressão do negócio** / no physical controls acceptance row remains pending on a real Android / queue-only station.
+
+### TDD correction evidence
+
+- RED: `483e780ab7fd08505705c176c94476ffb65a3519`
+- Validate #1574 / run `35554880250`: **EXPECTED FAILURE**
+- Suite: **1,973 tests / 1,969 pass / 3 fail / 1 skipped**
+- Failing regressions:
+  - configured disconnected QZ retry was not stable;
+  - server `awaitingSecondCopy` did not render explicit 0;
+  - `normalizePrintQueueSummary` contract did not exist.
+
+- GREEN: `ff2bf230c6cabdf5fa59c2a265cd1ccd9a3fb41e`
+- Validate #1575 / run `35555014653`: **SUCCESS**
+- Suite: **1,973 tests / 1,972 pass / 0 fail / 1 skipped**
+- Architecture, lint, build, Worker production/staging dry-runs, local D1 and Spec B D1: **SUCCESS**.
+
+### Re-deploy candidate
+
+- `staging/print-queue-operational-ux` advanced to exact GREEN SHA `ff2bf230c6cabdf5fa59c2a265cd1ccd9a3fb41e`.
+- Staging re-deploy: **PENDING workflow_dispatch**.
+- Production: **NOT TOUCHED**.
+
