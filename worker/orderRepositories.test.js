@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { OperationalDb } from './test-support/operationalDb.js'
-import { createMovement, createOrder, registerOrderPayment, updateOrderStatus } from './repositories.js'
+import { createMovement, createOrder, updateOrderStatus } from './repositories.js'\nimport { registerOrderPayment } from './paymentRepository.js'
 
 class OrderDb extends OperationalDb {
   constructor() {
@@ -68,15 +68,15 @@ test('number uniqueness is prioritized over gapless sequencing after a failed cr
 
 test('payment uses official total and duplicate payment creates no second movement', async () => {
   const db = new OrderDb(); const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 2, orderDate: '2026-09-01', idempotencyKey: 'pay-order' }, new Date('2026-09-01T20:00:00.000Z'))
-  const result = await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix', new Date('2026-09-01T20:05:00.000Z'))
-  assert.equal(result.payment.amount, 64); assert.equal(result.movement.value, 64); assert.equal(result.order.paymentStatus, 'Pago'); assert.equal(db.all('SELECT * FROM movements').length, 1)
-  await assert.rejects(() => registerOrderPayment(db, 'amor-e-sabor', order.id, 'Pix'), (error) => error.status === 409 && error.code === 'ORDER_ALREADY_PAID'); assert.equal(db.all('SELECT * FROM movements').length, 1)
+  const result = await registerOrderPayment(db, 'amor-e-sabor', order.id, [{ methodCode: 'pix', amountCents: 6400 }], new Date('2026-09-01T20:05:00.000Z'))
+  assert.equal(result.payment.amount, 64); assert.equal(result.movements[0].value, 64); assert.equal(result.order.paymentStatus, 'Pago'); assert.equal(db.all('SELECT * FROM movements').length, 1)
+  await assert.rejects(() => registerOrderPayment(db, 'amor-e-sabor', order.id, [{ methodCode: 'pix', amountCents: 6400 }]), (error) => error.status === 409 && error.code === 'ORDER_ALREADY_PAID'); assert.equal(db.all('SELECT * FROM movements').length, 1)
 })
 
 test('finalization is idempotent and preserves paid order audit history', async () => {
   const db = new OrderDb(); const order = await createOrder(db, 'amor-e-sabor', { clientId: 'c1', productId: 'p1', type: 'Entrega', quantity: 1, orderDate: '2026-09-01', idempotencyKey: 'finish' }, new Date('2026-09-01T20:00:00.000Z'))
   const finalized = await updateOrderStatus(db, 'amor-e-sabor', order.id, new Date('2026-09-01T20:10:00.000Z')); const again = await updateOrderStatus(db, 'amor-e-sabor', order.id, new Date('2026-09-01T20:20:00.000Z')); assert.equal(again.finishedAt, finalized.finishedAt)
-  await registerOrderPayment(db, 'amor-e-sabor', order.id, 'Dinheiro', new Date('2026-09-01T20:30:00.000Z')); assert.equal(db.all('SELECT * FROM orders').length, 1); assert.equal(db.all('SELECT * FROM movements').length, 1); assert.equal(db.all('SELECT * FROM movements')[0].source, 'order-payment')
+  await registerOrderPayment(db, 'amor-e-sabor', order.id, [{ methodCode: 'cash', amountCents: 3200 }], new Date('2026-09-01T20:30:00.000Z')); assert.equal(db.all('SELECT * FROM orders').length, 1); assert.equal(db.all('SELECT * FROM movements').length, 1); assert.equal(db.all('SELECT * FROM movements')[0].source, 'order-payment')
 })
 
 test('manual movement stores integer cents and business scope', async () => {
