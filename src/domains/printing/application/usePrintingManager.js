@@ -365,12 +365,13 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const resolveConfiguredQzPrinter = useCallback(async (stationId) => {
     if (!isQz || !stationId) return null
     configureQz()
-    if (!transportReadyRef.current) setPrinterState('connecting')
+    const savedPrinterName = qzTransport.readPrinterName(stationId)
+    updateConfiguredPrinterName(savedPrinterName)
+    if (!transportReadyRef.current && !savedPrinterName) setPrinterState('connecting')
     try {
       await qzTransport.connect()
+      if (!transportReadyRef.current) setPrinterState('connecting')
       updateQzConnected(Boolean(qzTransport?.isConnected()))
-      const savedPrinterName = qzTransport.readPrinterName(stationId)
-      updateConfiguredPrinterName(savedPrinterName)
       if (!savedPrinterName) {
         updatePrinterQueueFound(false)
         updateTransportReady(false)

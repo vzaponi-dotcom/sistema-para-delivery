@@ -740,7 +740,7 @@ test('QA regression: server awaitingSecondCopy summary renders an explicit zero 
   })
   await act(async () => { await Promise.resolve(); await Promise.resolve() })
 
-  const summaryCards = renderer.root.findAllByProps({ className: /print-queue-summary-card/ })
+  const summaryCards = renderer.root.findAll((node) => typeof node.props?.className === 'string' && node.props.className.includes('print-queue-summary-card'))
   const secondCopyCard = summaryCards.find((card) => nodeText(card).includes('AGUARDANDO 2ª VIA') || nodeText(card).includes('Aguardando 2ª via'))
   assert.ok(secondCopyCard)
   assert.match(nodeText(secondCopyCard), /0/)

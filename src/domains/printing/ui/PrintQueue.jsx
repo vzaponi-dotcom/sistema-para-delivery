@@ -8,7 +8,7 @@ import OrderTicketPreview from './OrderTicketPreview.jsx'
 import SystemSelect from '../../../shared/ui/SystemSelect'
 import PrintStatusBadge from './PrintStatusBadge.jsx'
 import './print-queue.css'
-import { buildPrintQueueSummary } from './printQueueSummary.js'
+import { buildPrintQueueSummary, normalizePrintQueueSummary } from './printQueueSummary.js'
 import { derivePrintOperationalStatus } from '../domain/printOperationalStatus.js'
 import { buildPrintOperationalView } from './printOperationalView.js'
 import { getPrintQueueLabel, resolvePrintQueueState } from '../../../../shared/printQueue.js'
@@ -129,7 +129,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       }
       pageCacheRef.current.set(key, nextPage)
       setOperationalPage(nextPage)
-      setSummary(summaryPayload?.summary || buildPrintQueueSummary(operationalPayload?.jobs))
+      setSummary(normalizePrintQueueSummary(summaryPayload?.summary || buildPrintQueueSummary(operationalPayload?.jobs)))
       prefetchAdjacentPages(nextPage.pageInfo, controller.signal)
     } catch (error) {
       if (error?.name !== 'AbortError' && generation === generationRef.current) {
