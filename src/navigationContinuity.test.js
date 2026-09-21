@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { act } from 'react-test-renderer'
 
-import { workspaceHarness, buttonNamed } from './test-support/renderWorkspace.js'
+import { workspaceHarness, buttonNamed, nodeText } from './test-support/renderWorkspace.js'
 import { deferred } from './test-support/comandaFixtures.js'
 import { authenticatedSession, effectivePaymentConfig } from './test-support/appSessionFixtures.js'
 
