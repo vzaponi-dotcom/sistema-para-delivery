@@ -3,7 +3,7 @@
 
 > Execute task-by-task with strict RED → GREEN for every code-changing boundary. Do not deploy production.
 
-**Status:** **APPROVED — TASKS 1–11 COMPLETE / GREEN; TASK 12 NOT STARTED**
+**Status:** **APPROVED — TASKS 1–12 COMPLETE / GREEN; MERGE AWAITING EXPLICIT AUTHORIZATION**
 **Base:** post-C9 `master` `2b5060c8293fec6756b286627212b740b3147e53`  
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Draft PR:** #54  
@@ -27,7 +27,7 @@ C10 is architectural closure. It must not change business behavior, API contract
 - Do not keep compatibility reexports merely to make a commit green.
 - C9 hardware remains `DEFERRED-PRODUCTION` and is never inferred PASS.
 - Every behavior defect found during implementation/QA gets focused RED → GREEN.
-- Implementation plan approved explicitly by the user on 2026-09-20. Tasks 1–4 are complete and green; Task 5 is not started.
+- Implementation plan approved explicitly by the user on 2026-09-20. Tasks 1–12 are now complete and green; the task sections below preserve their historical execution checkpoints.
 
 ---
 
@@ -528,15 +528,15 @@ Not expected: Worker functional changes, migrations, D1 schema, API contract cha
 
 This implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
 
-Tasks 1–11 are complete and green. Task 12 is not started.
+Tasks 1–12 are complete and green. Merge has not been executed and requires explicit user authorization.
 
-## Final implementation status — 2026-09-20
+## Tasks 5–7 closure checkpoint — 2026-09-20
 
 - Tasks 1–4 remain **COMPLETE / GREEN** as recorded above.
 - Task 5 is **COMPLETE / GREEN**: RED `adae7ba752601b136ffaa8900101ff7456af9be9` / Validate run `35529236782` failed as intended; final GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / run `35529844889` passed with **1,920 tests / 1,919 pass / 0 fail / 1 skipped** and all gates green.
 - Task 6 is **COMPLETE / GREEN**: RED `e06379a25954d600471a82d819f9cf984849f53b` / run `35530065644` failed as intended; final GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977` passed with **1,926 tests / 1,925 pass / 0 fail / 1 skipped** and all gates green.
 - Task 7 is **COMPLETE / GREEN**: RED `85da4cc8beab137b56631cae49e1c30896f24311` / run `35530720316` failed as intended; final GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891` passed with **1,927 tests / 1,926 pass / 0 fail / 1 skipped** and all gates green.
-- Task 8 is **NOT STARTED**. No allowlist deletion, deploy, merge, or post-merge work was performed.
+- At this Tasks 5–7 checkpoint, Task 8 was **NOT STARTED**. No allowlist deletion, deploy, merge, or post-merge work had been performed yet.
 ## Tasks 9–10 closure — 2026-09-20
 
 - Task 9 is **COMPLETE / GREEN**. RED `aeabd3b` required the permanent final architecture gates; GREEN `e35b606` added generic legacy-root, App, frontend-shared, domain-purity/browser/fetch, public-entry, QZ and cycle protection. All migration allowlists and compatibility facades remain **0**.
@@ -552,3 +552,14 @@ Tasks 1–11 are complete and green. Task 12 is not started.
 - The 18-criterion audit records **17 PASS / 0 FAIL / 1 PENDING TASK 12**. Criterion 15 remains pending because staging homologation belongs exclusively to Task 12; C9 hardware evidence remains `DEFERRED-PRODUCTION` and was not inferred as PASS.
 - Executable candidate `060468703f39c716d997025ab0ed99063cdd2fae` passed Validate application #1550 / run `35541850517` on the exact SHA with **1,933 tests / 1,932 pass / 0 fail / 1 skipped** and every official gate green.
 - Task 11 is **COMPLETE / GREEN**. No staging deploy, production deploy, remote migration, merge or Task 12 action has occurred.
+
+## Task 12 final staging homologation — 2026-09-20
+
+- Exact executable candidate `060468703f39c716d997025ab0ed99063cdd2fae` was deployed by `Deploy staging` #190 / run `35544795652`; workflow result **SUCCESS** and recorded `head_sha` exact match.
+- Automated evidence: **1,933 tests / 1,932 pass / 0 fail / 1 skipped**; architecture/lint/build/local D1/staging dry-run PASS; no remote migration pending; application `No migrations to apply`; Worker `f0f8c6a0-5e55-4894-9250-29d4b76aeae8`; readiness 1/6; login HTTP 200.
+- Temporary ref `staging/spec-c10-final-candidate` was removed after evidence capture.
+- Manual C10 matrix: **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**. Restricted-capability case 23 is **PASS**.
+- Criterion 15 is **PASS**; Spec C §28 is **18 PASS / 0 FAIL / 0 PENDING**.
+- Active compatibility facade inventory and migration allowlists remain **0**. Tasks 1–12 are **COMPLETE / GREEN**.
+- C9 functional rows #12/#14–21/#24/#30/#31 and physical P1–P20 remain **DEFERRED-PRODUCTION** and hard-block production; no physical result was inferred.
+- Production: **NO DEPLOY**. Merge: **NOT EXECUTED**. Stop pending explicit merge authorization.

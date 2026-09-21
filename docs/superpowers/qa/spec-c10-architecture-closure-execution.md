@@ -2,7 +2,7 @@
 
 **Branch:** `feature/spec-c10-architecture-closure`  
 **Base/master:** `2b5060c8293fec6756b286627212b740b3147e53`  
-**Status:** **TASKS 1–11 COMPLETE / GREEN; TASK 12 NOT STARTED**
+**Status:** **TASKS 1–12 COMPLETE / GREEN; MERGE AWAITING EXPLICIT AUTHORIZATION**
 **Production:** NO DEPLOY
 
 ## C9 handoff
@@ -406,6 +406,22 @@ Task 2 is **COMPLETE / GREEN**.
 - Architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 all passed in the authoritative workflow.
 - The audit found no implementation defect, so no focused RED → GREEN fix was required. This closure update is documentation-only and does not replace the executable candidate selected for Task 12.
 
+## Task 12 — final staging homologation and merge handoff
+
+- Immutable executable candidate: `060468703f39c716d997025ab0ed99063cdd2fae`.
+- Deploy staging #190 / run ID `35544795652`: **SUCCESS** on exact `head_sha` `060468703f39c716d997025ab0ed99063cdd2fae`.
+- Automated gates: **1,933 tests / 1,932 pass / 0 fail / 1 skipped**; architecture, lint, build, local D1 and staging dry-run **PASS**.
+- Remote staging migrations: none pending; migration application reported `No migrations to apply`.
+- Worker version: `f0f8c6a0-5e55-4894-9250-29d4b76aeae8`.
+- Readiness: **PASS** on attempt 1/6. Login smoke: **HTTP 200**.
+- Temporary ref `staging/spec-c10-final-candidate` was removed after evidence capture.
+- Manual C10 homologation: blocks A–D **5 PASS** each and block E **3 PASS**, total **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**. Restricted-capability case 23 is **PASS**.
+- Spec C §28 criterion 15: **PASS**. Final audit: **18 PASS / 0 FAIL / 0 PENDING**.
+- Active compatibility facade inventory: **0**. Migration allowlists: **0**.
+- Tasks 1–12: **COMPLETE / GREEN**.
+- C9 functional rows #12, #14–21, #24, #30 and #31 and physical P1–P20 remain **DEFERRED-PRODUCTION**. They are not C10 failures and do not block the architecture merge handoff, but remain a hard production blocker until real physical execution on the final release candidate.
+- Production: **NO DEPLOY**. Merge: **NOT EXECUTED**.
+
 ## Next action
 
-Keep PR #54 **OPEN / DRAFT** and stop before Task 12. Staging deployment and homologation require a separate Task 12 instruction.
+Keep PR #54 **OPEN** and stop for explicit user merge authorization. Do not merge and do not deploy production.

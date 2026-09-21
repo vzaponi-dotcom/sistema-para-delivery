@@ -346,4 +346,4 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - `scripts/architecture/legacy-import-allowlist.json` - **REMOVED IN C10**; no replacement allowlist exists.
 - **Active temporary compatibility facade inventory = 0.**
 - Task 8 GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` - **SUCCESS**.
-- Tasks 9–11 are **COMPLETE / GREEN**. Task 11 reconfirmed the final active temporary compatibility-facade inventory at **0** and candidate `060468703f39c716d997025ab0ed99063cdd2fae` passed Validate #1550 / run `35541850517`; Task 12 is not started.
+- Tasks 9–12 are **COMPLETE / GREEN**. Task 12 homologated candidate `060468703f39c716d997025ab0ed99063cdd2fae` with Deploy staging #190 / run `35544795652` and **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**. Final active temporary compatibility-facade inventory remains **0**; migration allowlists remain **0**. C9 physical QA remains `DEFERRED-PRODUCTION`, production is **NO DEPLOY**, and merge is **NOT EXECUTED**.

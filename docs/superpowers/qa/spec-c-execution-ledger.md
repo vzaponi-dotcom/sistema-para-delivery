@@ -26,7 +26,7 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
 | C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–11 COMPLETE / GREEN; TASK 12 NOT STARTED** | `feature/spec-c10-architecture-closure` / draft PR #54 | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–12 COMPLETE / GREEN; MERGE NOT EXECUTED** | `feature/spec-c10-architecture-closure` / PR #54 open | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -616,3 +616,14 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Task 12, staging deploy/homologation, remote migrations, production deploy and merge remain **NOT STARTED / NOT PERFORMED**.
 - Executable candidate `060468703f39c716d997025ab0ed99063cdd2fae`: Validate application #1550 / run `35541850517` **SUCCESS**, with **1,933 tests / 1,932 pass / 0 fail / 1 skipped** and all workflow gates green.
 - Task 11 is **COMPLETE / GREEN**. This documentation-only closure preserves that immutable candidate for Task 12; the next gate remains unstarted staging deployment/homologation.
+
+## C10 — Task 12 final staging homologation and merge handoff — 2026-09-20
+
+- Executable candidate `060468703f39c716d997025ab0ed99063cdd2fae` was deployed by `Deploy staging` #190 / run `35544795652`, whose recorded `head_sha` matches exactly; result **SUCCESS**.
+- Automated staging evidence: **1,933 tests / 1,932 pass / 0 fail / 1 skipped**; architecture, lint, build, local D1 and staging dry-run **PASS**; no pending remote migrations; migration application `No migrations to apply`; Worker `f0f8c6a0-5e55-4894-9250-29d4b76aeae8`; readiness 1/6; login HTTP 200.
+- Temporary ref `staging/spec-c10-final-candidate` was removed after deploy evidence was captured.
+- Manual C10 QA: **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**, including restricted-capability case 23.
+- Spec C §28: **18 PASS / 0 FAIL / 0 PENDING**; criterion 15 is **PASS**.
+- Tasks 1–12: **COMPLETE / GREEN**. Active compatibility facades: **0**. Migration allowlists: **0**.
+- C9 functional rows #12, #14–21, #24, #30 and #31 and physical P1–P20 remain **DEFERRED-PRODUCTION** and continue as a hard production blocker. No physical PASS was inferred.
+- Production: **NO DEPLOY**. Merge: **NOT EXECUTED**. PR #54 remains open awaiting explicit authorization.
