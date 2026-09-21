@@ -1,6 +1,6 @@
 # Gestão Delivery — Dashboard: Top 10 produtos e refeições vendidas — Design Spec
 
-Status: **draft auto-reviewed; aguardando aprovação do usuário**
+Status: **aprovada pelo usuário**
 
 Issue: #21 — Top 10 produtos e refeições vendidas no Dashboard  
 Branch: `feature/issue-21-dashboard-meal-metrics`  
@@ -16,7 +16,7 @@ Evoluir o Dashboard com duas melhorias operacionais pequenas e coesas:
 1. ampliar o ranking atual de **Top 5 produtos** para **Top 10 produtos**;
 2. adicionar o indicador **Refeições vendidas** à seção **Visão do período**.
 
-A nova métrica deve medir volume real de refeições produzidas/vendidas, somando unidades de itens que pertenciam à categoria **Refeições no momento da venda**.
+A nova métrica deve medir volume real de refeições produzidas/vendidas, somando unidades de itens cuja categoria snapshot seja **Refeições**. Para preservar vendas anteriores à padronização atual do catálogo, a categoria snapshot legada **Marmita** também conta.
 
 A implementação deve aproveitar os dados e filtros oficiais já existentes. Não deve criar classificação paralela no catálogo, migration desnecessária, regra por nome de produto ou novo domínio de analytics.
 
@@ -127,43 +127,37 @@ A categoria snapshot já atende à necessidade atual.
 Refeições vendidas =
 soma de item.quantity
 para cada item de cada pedido válido no período
-cuja categoria snapshot seja semanticamente "Refeições"
+cuja categoria snapshot seja "Refeições"
+ou a categoria histórica legada "Marmita"
 ```
 
-### 4.2 Normalização da categoria
+### 4.2 Categorias reconhecidas
 
-A comparação deve aceitar variações estritamente equivalentes de escrita causadas por caixa, espaços e acentuação.
+O catálogo atual não aceita categoria como texto livre. A seleção vem da lista oficial e usa exatamente `Refeições`.
 
-Exemplos equivalentes:
+Por isso, a regra deve ser simples e explícita:
 
-- `Refeições`
-- `refeições`
-- `Refeicoes`
-- `  REFEIÇÕES  `
-
-A normalização recomendada é:
-
-1. converter para string;
-2. `trim()`;
-3. normalização Unicode NFD;
-4. remover marcas diacríticas;
-5. `toLocaleLowerCase('pt-BR')`.
-
-Chave canônica esperada:
-
-```text
-refeicoes
+```js
+const MEAL_CATEGORIES = new Set(['Refeições', 'Marmita'])
 ```
 
-Não devem ser consideradas equivalentes automaticamente:
+Onde:
 
-- `Marmita`;
+- `Refeições` é a categoria oficial atual;
+- `Marmita` existe somente como compatibilidade para snapshots históricos anteriores à padronização do catálogo.
+
+Não normalizar acentos, caixa ou espaços e não tentar inferir categorias por nome do produto.
+
+Não devem contar automaticamente:
+
+- `Refeicoes`;
+- `refeições`;
 - `Pratos`;
 - `Lanches`;
 - `Combos`;
-- qualquer outra categoria semanticamente diferente.
+- qualquer outro valor fora do conjunto explícito.
 
-A feature não tentará inferir intenção por nome do produto.
+Se futuramente a taxonomia oficial do catálogo mudar, a regra deve ser revista deliberadamente em vez de aceitar variações silenciosamente.
 
 ### 4.3 Quantidade inválida
 
@@ -254,7 +248,7 @@ O nome exato do campo de categoria deve seguir o shape real retornado por `getOr
 
 ### 5.3 Helper de categoria
 
-A normalização pode permanecer privada ao módulo de analytics, a menos que a implementação encontre outro consumidor real.
+O conjunto explícito de categorias reconhecidas pode permanecer privado ao módulo de analytics, a menos que surja outro consumidor real.
 
 Não adicionar função ao contrato público de Catalog apenas para atender esta feature.
 
@@ -540,10 +534,10 @@ Refeições vendidas = 0
 
 O produto também não aparece no Top 10 daquele pedido.
 
-### 10.7 Categoria equivalente sem acento
+### 10.7 Categoria histórica legada
 
 ```text
-category = Refeicoes
+category = Marmita
 qty = 2
 ```
 
@@ -553,10 +547,12 @@ Resultado:
 Refeições vendidas = 2
 ```
 
-### 10.8 Categoria semanticamente diferente
+Esse caso existe somente para preservar snapshots históricos.
+
+### 10.8 Categoria fora do conjunto explícito
 
 ```text
-category = Marmita
+category = Refeicoes
 name = Marmita Especial
 qty = 2
 ```
@@ -567,7 +563,7 @@ Resultado:
 Refeições vendidas = 0
 ```
 
-A feature não infere categoria pelo nome.
+A feature não corrige grafia nem infere categoria pelo nome.
 
 ### 10.9 Histórico após edição de produto
 
@@ -609,8 +605,9 @@ Cobrir no mínimo:
 - `getMealsSold` soma `quantity`;
 - múltiplas linhas de Refeições são acumuladas;
 - itens não-Refeições são ignorados;
-- normalização aceita caixa/espaço/acento;
-- categoria `Marmita` não é inferida;
+- categoria atual `Refeições` é contabilizada;
+- categoria snapshot legada `Marmita` é contabilizada;
+- variações não oficiais como `Refeicoes` não são inferidas;
 - Entrega, Retirada e Local contam;
 - pedido cancelado é excluído;
 - período exclui datas fora da janela;
@@ -723,7 +720,7 @@ Sequência conceitual:
 1. RED para Top 10.
 2. GREEN mínimo para limite 10.
 3. RED para Refeições vendidas.
-4. GREEN da função pura e normalização.
+4. GREEN da função pura e compatibilidade explícita `Refeições`/`Marmita`.
 5. RED de integração/UI do Dashboard.
 6. GREEN visual/responsivo.
 7. regressão completa.
@@ -743,8 +740,9 @@ A feature estará pronta para merge quando:
 - [ ] Top Produtos mostrar no máximo 10 itens.
 - [ ] Ranking continuar baseado em unidades.
 - [ ] Refeições vendidas estiver na Visão do período.
-- [ ] A métrica somar unidades da categoria snapshot Refeições.
-- [ ] Normalização controlada de acento/caixa estiver testada.
+- [ ] A métrica somar unidades da categoria snapshot atual `Refeições`.
+- [ ] A compatibilidade histórica com categoria snapshot `Marmita` estiver testada.
+- [ ] Nenhuma normalização permissiva de grafia/acentuação tiver sido adicionada.
 - [ ] Nenhuma inferência por nome do produto existir.
 - [ ] Entrega, Retirada e Local/comanda estiverem cobertos.
 - [ ] Cancelados forem excluídos pela regra oficial existente.
@@ -794,10 +792,10 @@ A mudança permanece dentro da superfície Dashboard consumindo o contrato públ
 
 ### Risco principal
 
-O principal risco é confundir categorias legadas semanticamente diferentes com Refeições. Por isso a normalização é deliberadamente restrita a equivalência de escrita de `Refeições`, e não tenta reconhecer `Marmita` ou nomes de produtos.
+O principal risco é transformar compatibilidade histórica em heurística permanente. Por isso a regra aceita somente dois valores explícitos: `Refeições` (atual) e `Marmita` (snapshot legado), sem normalização ou inferência por nome.
 
 ### Resultado da auto-revisão
 
 Nenhum blocker de design identificado.
 
-A Spec está pronta para aprovação do usuário antes da escrita do plano.
+A Spec foi aprovada pelo usuário e está pronta para derivação do plano de implementação.
