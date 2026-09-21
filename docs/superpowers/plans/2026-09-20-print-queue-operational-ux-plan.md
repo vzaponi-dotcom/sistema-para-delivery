@@ -2,7 +2,7 @@
 
 > **Execution mode:** implement task-by-task with explicit RED → GREEN evidence. Do not collapse semantic-state work and visual polish into one unreviewable commit.
 
-**Status:** **DRAFT — aguardando aprovação explícita antes da Task 1**
+**Status:** **DRAFT — autorrevisado; aguardando aprovação explícita antes da Task 1**
 
 **Goal:** Fazer a Fila de impressão representar o estado operacional da estação principal do negócio, corrigir falsos estados de QZ/impressora em dispositivos queue-only e melhorar a hierarquia mobile, reutilizando a mesma projeção no terceiro card de Configurações → Impressão sem tocar no pipeline físico.
 
@@ -53,7 +53,7 @@ Na base atual:
 - Android/other usam `transportKind = queue-only`;
 - apenas Windows principal QZ envia heartbeat físico;
 - `printing.stations` já está disponível no manager;
-- heartbeat existente publica `online`, `qzReady`, `printerReady` e estado físico;
+- a projeção de saúde da estação exposta pelo backend deriva `online` do heartbeat/last-seen e carrega `qzReady`, `printerReady` e estado físico;
 - o nome QZ continua local em `delivery-qz-printer-name:<stationId>`;
 - Settings já separa policy, station e local printing, portanto será refinado, não duplicado.
 
@@ -554,7 +554,33 @@ This task does **not** change how the manager derives those underlying runtime v
 
 ---
 
-## 5. Expected commit sequence
+
+## 5. Plan self-review
+
+The plan was reconciled against the current post-C10 code before execution.
+
+Confirmed:
+
+- `PrintQueue.jsx` currently has the exact local-station coupling the spec intends to remove.
+- `usePrintingManager` already returns every input required by the resolver: `transportKind`, `localStation`, `stations`, `printerState`, `configuredPrinterName`, `qzConnected`, `printerQueueFound` and `printerHealth`.
+- No manager API extension is required.
+- Remote state can rely on the server-projected `station.health`; no new heartbeat payload is required.
+- `PrintingSettingsContent` already receives `printing`, so it can reuse the same resolver/view without changing the Settings adapter.
+- `StatCard` already accepts `className`, so zero/attention hierarchy can be implemented without changing the shared component.
+- The current global mobile rule makes page-action buttons full width, but a queue-scoped override is sufficient; no shared `PageHeader` API change is required.
+- Removing `getPrintStationSummary` is preferred to retaining a dead facade.
+- The plan does not require Worker, D1, migrations, QZ infrastructure or App navigation changes.
+- The separation between this slice's staging QA and C9/P1–P20 physical QA is explicit.
+
+Review adjustment:
+
+- “online” is not a field produced directly by `buildPrintStationHeartbeatHealth`; the backend station-health projection derives online/offline from heartbeat freshness. The plan therefore treats `primaryStation.health.online` as server-projected state and does not alter heartbeat payloads.
+
+No implementation blocker was found.
+
+---
+
+## 6. Expected commit sequence
 
 Names can vary slightly, but preserve task boundaries:
 
@@ -567,7 +593,7 @@ Names can vary slightly, but preserve task boundaries:
 
 Do not squash RED evidence away during task execution. Merge strategy can be decided only at final PR closure.
 
-## 6. Rollback strategy
+## 7. Rollback strategy
 
 Because no backend/schema contract changes are allowed, rollback is frontend-only:
 
@@ -580,7 +606,7 @@ Because no backend/schema contract changes are allowed, rollback is frontend-onl
 
 A rollback must not alter jobs already created or physical printing state because this slice does not own those transitions.
 
-## 7. Risk review
+## 8. Risk review
 
 ### Risk A — stale remote heartbeat
 
@@ -606,7 +632,7 @@ Do not “fix” QZ, heartbeat, printer name persistence or backend while workin
 
 Passing this slice does not mean C9/P1–P20 passed. Documentation must continue to distinguish functional UX QA from final hardware QA.
 
-## 8. Definition of done for this slice
+## 9. Definition of done for this slice
 
 The slice is merge-ready, subject to explicit user authorization, when:
 
