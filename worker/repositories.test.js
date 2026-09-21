@@ -52,6 +52,45 @@ test('paid order and movement map cents to current frontend numbers', () => {
   }).value, 42)
 })
 
+test('paid order maps one receipt allocation as structured data and a simple compatibility method', () => {
+  const order = mapOrderRow({
+    id: 'o-one', client_name_snapshot: 'Maria', type: 'Entrega', status: 'Finalizado', order_date: '2026-09-21',
+    total_cents: 4200, created_at: '2026-09-21T12:00:00.000Z', payment_id: 'pay-one', receipt_id: 'receipt-one',
+    payment_method: null, paid_at: '2026-09-21T12:01:00.000Z', paid_amount_cents: 4200,
+    payment_allocations_json: '[{"methodCode":"pix","methodLabel":"Pix","amountCents":4200}]',
+  })
+
+  assert.equal(order.paymentMethod, 'Pix')
+  assert.deepEqual(order.paymentAllocations, [{ methodCode: 'pix', methodLabel: 'Pix', amountCents: 4200 }])
+})
+
+test('paid order maps a mixed receipt without inventing a scalar payment method', () => {
+  const order = mapOrderRow({
+    id: 'o-mixed', client_name_snapshot: 'João', type: 'Retirada', status: 'Finalizado', order_date: '2026-09-21',
+    total_cents: 4200, created_at: '2026-09-21T12:00:00.000Z', payment_id: 'pay-mixed', receipt_id: 'receipt-mixed',
+    payment_method: 'Dinheiro + Pix', paid_at: '2026-09-21T12:01:00.000Z', paid_amount_cents: 4200,
+    payment_allocations_json: '[{"methodCode":"cash","methodLabel":"Dinheiro","amountCents":1200},{"methodCode":"pix","methodLabel":"Pix","amountCents":3000}]',
+  })
+
+  assert.equal(order.paymentMethod, null)
+  assert.deepEqual(order.paymentAllocations, [
+    { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 1200 },
+    { methodCode: 'pix', methodLabel: 'Pix', amountCents: 3000 },
+  ])
+})
+
+test('malformed receipt allocation JSON fails closed without inventing payment data', () => {
+  const order = mapOrderRow({
+    id: 'o-bad', client_name_snapshot: 'Bia', type: 'Entrega', status: 'Finalizado', order_date: '2026-09-21',
+    total_cents: 4200, created_at: '2026-09-21T12:00:00.000Z', payment_id: 'pay-bad', receipt_id: 'receipt-bad',
+    payment_method: 'Pix', paid_at: '2026-09-21T12:01:00.000Z', paid_amount_cents: 4200,
+    payment_allocations_json: '{bad json',
+  })
+
+  assert.equal(order.paymentMethod, null)
+  assert.deepEqual(order.paymentAllocations, [])
+})
+
 test('table tab rows expose stable numeric tab numbers', () => {
   assert.deepEqual(mapTableTabRow({
     id: 'tab-1', table_id: 'table-1', table_identifier: '04', tab_number: '1042', status: 'open',
