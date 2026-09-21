@@ -1,0 +1,99 @@
+name: Split payment polish staging
+
+on:
+  push:
+    branches:
+      - feature/split-payments
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy split payment polish to staging
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_PIN: ${{ secrets.STAGING_PIN }}
+      STAGING_URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate split payment polish
+        run: >-
+          node --test
+          src/app/workflows/payments/paymentComposition.test.js
+          src/app/workflows/payments/PaymentCompositionEditor.test.js
+          src/app/workflows/payments/table-tab/TableTabPaymentDialog.test.js
+          src/systemSelect.test.js
+          src/newOrderSystemSelect.test.js
+          src/navigationContinuity.test.js
+
+      - name: Validate frontend architecture
+        run: npm run test:architecture
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate staging Worker bundle
+        run: npx --yes wrangler@4.128.0 deploy --dry-run --env staging
+
+      - name: Confirm no pending staging migrations
+        run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery-staging --remote --env staging
+
+      - name: Deploy staging
+        run: npm run deploy:staging
+
+      - name: Verify staging
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const baseUrl = process.env.STAGING_URL
+          let ready = false
+          for (let attempt = 1; attempt <= 6; attempt += 1) {
+            try {
+              const response = await fetch(`${baseUrl}/api/auth/session`)
+              if (response.ok) {
+                console.log(`Staging ready on attempt ${attempt}/6`)
+                ready = true
+                break
+              }
+              console.log(`Readiness attempt ${attempt}/6: HTTP ${response.status}`)
+            } catch (error) {
+              console.log(`Readiness attempt ${attempt}/6: ${error.message}`)
+            }
+            if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, 5000))
+          }
+          if (!ready) process.exit(1)
+
+          const login = await fetch(`${baseUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: baseUrl },
+            body: JSON.stringify({ pin: process.env.STAGING_PIN }),
+          })
+          if (!login.ok) {
+            console.error(`Staging login failed with HTTP ${login.status}`)
+            process.exit(1)
+          }
+          console.log(`Staging login HTTP ${login.status}`)
+          NODE
