@@ -13,7 +13,7 @@ import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
-import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'\nimport { registerOrderPayment } from './paymentRepository.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
@@ -169,12 +169,9 @@ const authenticatedApi = async (request, env) => {
   const paymentMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment$/)
   if (paymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const { method } = await readJson(request)
-    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentMethod(method))
-    const tableTab = result.order?.tableTabId
-      ? await loadTableTabById(env.DB, session.businessId, result.order.tableTabId)
-      : null
-    return json({ ...result, tableTab }, { status: 201 })
+    const { allocations } = await readJson(request)
+    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), allocations)
+    return json(result, { status: 201 })
   }
   const paymentPromiseMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment-promise$/)
   if (paymentPromiseMatch && request.method === 'PATCH') {
