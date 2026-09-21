@@ -247,7 +247,7 @@ function PrintingSettingsContent({ printing, settings, granted, onReviewConflict
           <span className="printing-settings-card-icon"><Icon name="printer" size={22} /></span>
           <div>
             <h2 id="printing-local-title">{isQz ? 'Impressão nesta estação' : 'Impressão do negócio'}</h2>
-            <p>{isQz ? 'Configure e acompanhe a impressão física deste computador.' : 'Acompanhe a estação responsável pela impressão do negócio.'}</p>
+            <p>{isQz ? 'Configure e acompanhe a impressão física deste computador via QZ Tray.' : 'Acompanhe a estação responsável pela impressão do negócio.'}</p>
           </div>
           {waitingCount > 0 && <span className="printing-queue-pill"><Icon name="clipboard" size={15} />{countLabel(waitingCount, 'trabalho aguardando', 'trabalhos aguardando')}</span>}
         </header>
