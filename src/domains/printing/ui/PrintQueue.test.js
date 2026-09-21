@@ -720,3 +720,28 @@ test('task 5 settings shortcut remains a real accessible button with queue-scope
   assert.doesNotMatch(text, /\bundefined\b|\bnull\b/)
   assert.match(text, /Estação de impressão não configurada/)
 })
+
+
+test('QA regression: server awaitingSecondCopy summary renders an explicit zero for the second-copy card', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 3, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 8 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: { localStation: null, stations: [], printerHealth: { state: 'verifying' } },
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+  const summaryCards = renderer.root.findAllByProps({ className: /print-queue-summary-card/ })
+  const secondCopyCard = summaryCards.find((card) => nodeText(card).includes('AGUARDANDO 2ª VIA') || nodeText(card).includes('Aguardando 2ª via'))
+  assert.ok(secondCopyCard)
+  assert.match(nodeText(secondCopyCard), /0/)
+})

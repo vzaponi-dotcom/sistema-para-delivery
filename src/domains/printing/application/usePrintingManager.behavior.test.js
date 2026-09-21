@@ -462,3 +462,20 @@ test('table-tab preview remains a read while printing queues one job without loc
   assert.equal(printing().busyJobId, null)
   await act(async () => renderer.unmount())
 })
+
+
+test('QA regression: background QZ retries keep a configured disconnected station visually stable', () => {
+  const start = managerSource.indexOf('const resolveConfiguredQzPrinter = useCallback')
+  const end = managerSource.indexOf('const refreshPrinters = useCallback', start)
+  const block = managerSource.slice(start, end)
+
+  assert.notEqual(start, -1)
+  assert.notEqual(end, -1)
+  assert.match(block, /const savedPrinterName = qzTransport\.readPrinterName\(stationId\)/)
+  assert.ok(
+    block.indexOf('const savedPrinterName = qzTransport.readPrinterName(stationId)')
+      < block.indexOf('await qzTransport.connect()'),
+    'saved printer identity must be restored before attempting QZ reconnect',
+  )
+  assert.match(block, /if \(!transportReadyRef\.current && !savedPrinterName\) setPrinterState\('connecting'\)/)
+})
