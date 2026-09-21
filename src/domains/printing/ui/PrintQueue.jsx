@@ -327,10 +327,10 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       )}
 
       <section className="stats-grid print-queue-summary" aria-label="Resumo da fila de impressão">
-        <StatCard label="Aguardando impressão" value={summary.pending} icon="printer" />
-        <StatCard label="Aguardando confirmação" value={summary.awaitingConfirmation} icon="clock" />
-        <StatCard label="Aguardando 2ª via" value={summary.waitingSecondCopy} icon="receipt" />
-        <StatCard label="Requer atenção" value={summary.attention} icon="alert" tone={summary.attention ? 'danger' : 'neutral'} />
+        <StatCard label="Aguardando impressão" value={summary.pending} icon="printer" className={`print-queue-summary-card ${summary.pending === 0 ? 'is-zero' : 'has-value'}`} />
+        <StatCard label="Aguardando confirmação" value={summary.awaitingConfirmation} icon="clock" className={`print-queue-summary-card ${summary.awaitingConfirmation === 0 ? 'is-zero' : 'has-value'}`} />
+        <StatCard label="Aguardando 2ª via" value={summary.waitingSecondCopy} icon="receipt" className={`print-queue-summary-card ${summary.waitingSecondCopy === 0 ? 'is-zero' : 'has-value'}`} />
+        <StatCard label="Requer atenção" value={summary.attention} icon="alert" tone={summary.attention ? 'danger' : 'neutral'} className={`print-queue-summary-card ${summary.attention === 0 ? 'is-zero' : 'has-value has-attention'}`} />
       </section>
 
       <section className="print-queue-jobs-section" aria-label="Trabalhos da fila de impressão">
