@@ -28,8 +28,8 @@ export default function CheckoutPaymentComposition({
         disabled={disabled}
       />
       <div className="form-actions">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Voltar</Button>
         <Button type="button" onClick={() => payload && onConfirm?.(payload)} disabled={disabled || !payload}>Confirmar recebimento</Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Voltar</Button>
       </div>
     </div>
   )
