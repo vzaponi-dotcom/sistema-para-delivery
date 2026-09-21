@@ -133,7 +133,7 @@ try {
   const upgraded = await requestProbe(upgradedProbe.origin, '/print-context/verify-upgrade')
   await stopProbe(upgradedProbe)
   if (JSON.stringify(upgraded.preservedSnapshot) !== JSON.stringify(legacy.snapshot)) {
-    throw new Error(`D1 print history changed during 0025: ${JSON.stringify({ before: legacy.snapshot, after: upgraded.preservedSnapshot })}`)
+    throw new Error(`D1 print history changed during post-0024 migrations: ${JSON.stringify({ before: legacy.snapshot, after: upgraded.preservedSnapshot })}`)
   }
 
   const cleanPersist = join(temp, 'clean-state')
@@ -150,7 +150,7 @@ try {
     rowsPreserved: true,
     referencesPreserved: upgraded.constraints,
     cleanInstall: clean.cleanInstall,
-  }, wrangler: version, local: true, migrations: 25 }
+  }, wrangler: version, local: true, migrations: (await readdir(fullMigrations)).filter((name) => name.endsWith('.sql')).length }
 } catch (error) {
   failure = error
 } finally {
