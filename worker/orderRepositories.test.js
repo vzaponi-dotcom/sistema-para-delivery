@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { OperationalDb } from './test-support/operationalDb.js'
-import { createMovement, createOrder, updateOrderStatus } from './repositories.js'\nimport { registerOrderPayment } from './paymentRepository.js'
+import { createMovement, createOrder, updateOrderStatus } from './repositories.js'
+import { registerOrderPayment } from './paymentRepository.js'
 
 class OrderDb extends OperationalDb {
   constructor() {
