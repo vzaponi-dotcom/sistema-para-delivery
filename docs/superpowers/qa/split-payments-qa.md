@@ -341,3 +341,29 @@ The guided manual rounds are complete with **no observed functional failures**.
 The only manual BLOCKED case is the intentionally unreachable table-tab state where one order is already paid while sibling orders remain pending. The supported UI settles the whole open comanda and does not expose isolated payment of one order inside it. That state is covered automatically by `worker/tableTabSplitPayment.test.js`.
 
 No production deployment was performed.
+
+
+## Final technical closure
+
+Pre-documentation validation:
+- branch SHA: `47001287ed1bde4ab7b2f87287c28e6793769dff`
+- Validate application #1687 / run `35667025379`: **SUCCESS**
+- test shards: **8/8 SUCCESS**
+- frontend architecture: **PASS**
+- lint: **PASS**
+- build: **PASS**
+- production Worker dry-run: **PASS** — no production deploy
+- staging Worker dry-run: **PASS**
+- local D1 migrations: **PASS**
+- Spec B D1 clean-install/upgrade gate: **PASS**
+
+CI diagnosis and closure:
+- the prior `shutdown signal` sequence was isolated to `src/navigationContinuity.test.js`;
+- the test still asserted the pre-polish internal child shape of `SystemSelect`, so an assertion failure entered teardown without a visible TAP result before the runner was terminated;
+- the assertion now reads the visible label with the existing `nodeText` helper, matching the updated SystemSelect structure without changing runtime behavior;
+- the Node test suite is now split into eight CI shards, followed by the unchanged final `validate` gate for architecture, lint, build, Worker dry-runs and D1 checks.
+
+Manual staging homologation remains closed as recorded above.
+
+Merge: **NOT EXECUTED**.
+Production: **NOT DEPLOYED**.
