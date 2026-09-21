@@ -140,6 +140,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
   const tableTabsResult = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
   const tables = await listTables(db, businessId)
   const movementsResult = await db.prepare(`SELECT m.id, m.type, m.category, m.description, m.value_cents, m.source, m.order_id, m.payment_id,
+    m.receipt_id, m.payment_allocation_id,
     fc.label AS category_label,
     CASE WHEN m.source = 'order-payment' THEN COALESCE(m.payment_method, p.method) ELSE m.payment_method END AS payment_method,
     m.movement_date, m.created_at, m.updated_at
