@@ -251,3 +251,21 @@ The manually unreachable scenario is covered by `worker/tableTabSplitPayment.tes
 - the tab closes normally.
 
 Manual status remains BLOCKED because the product UI intentionally does not expose a path to construct that mixed historical state.
+
+
+## Manual homologation — round 4
+
+Date: 2026-09-21
+Environment: staging
+Result: **8 PASS / 0 FAIL / 0 BLOCKED**
+
+| # | Case | Result |
+| ---: | --- | --- |
+| B4-1 | Dashboard counts a mixed receipt total only once | PASS |
+| B4-2 | Dashboard payment-method mix uses allocation values | PASS |
+| B4-3 | Simple refund suggests the original payment method and uses the integral amount | PASS |
+| B4-4 | Mixed refund displays the original composition without inventing one original method | PASS |
+| B4-5 | Mixed refund requires an explicit active method and remains integral | PASS |
+| B4-6 | Finance shows the integral refund as an exit without duplicating the original sale | PASS |
+| B4-7 | Payment editor is responsive in mobile/desktop and light/dark themes | PASS |
+| B4-8 | No new console error observed; printing/queue/settings showed no software regression | PASS |
