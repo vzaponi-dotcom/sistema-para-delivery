@@ -220,3 +220,34 @@ Manual staging retest confirmed:
 - each payment method remains visible with its own amount;
 - examples verified include Pix + Cartão de crédito, Pix + Dinheiro and Pix + Cartão de débito;
 - simple single-method movements remain compact.
+
+
+## Manual homologation — round 3
+
+Date: 2026-09-21
+Environment: staging
+Result: **7 PASS / 0 FAIL / 1 BLOCKED manual**
+
+| # | Case | Result |
+| ---: | --- | --- |
+| B3-1 | Comanda — one pending order, simple payment | PASS |
+| B3-2 | Comanda — multiple pending orders, mixed payment | PASS |
+| B3-3 | Finance — mixed table-tab payment appears as one visible receipt with method breakdown | PASS |
+| B3-4 | Comanda — one already-paid order plus pending orders | BLOCKED MANUAL — supported UI pays the whole open comanda and does not expose isolated payment of one order inside it |
+| B3-5 | Comanda — three payment methods | PASS |
+| B3-6 | Comanda closes and table becomes free after full settlement | PASS |
+| B3-7 | Double submit does not duplicate payment/movements | PASS |
+| B3-8 | Mobile payment composition remains responsive with cards/icons/autofill | PASS |
+
+### B3-4 automated coverage
+
+The manually unreachable scenario is covered by `worker/tableTabSplitPayment.test.js`:
+- fixture contains order `o1` already paid separately;
+- only pending orders `o2` and `o3` participate in the new table-tab receipt;
+- authoritative payable total excludes `o1`;
+- the new receipt creates payments only for `o2` and `o3`;
+- `o1` keeps exactly one historical payment;
+- allocation movements are created once per payment method;
+- the tab closes normally.
+
+Manual status remains BLOCKED because the product UI intentionally does not expose a path to construct that mixed historical state.
