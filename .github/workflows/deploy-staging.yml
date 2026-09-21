@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - feature/spec-b-settings-policies
-      - feature/split-payments
   workflow_dispatch:
 
 permissions:
@@ -39,21 +38,7 @@ jobs:
         run: npm ci
 
       - name: Test
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF_NAME" == "feature/split-payments" ]]; then
-            node --test \
-              worker/repositories.test.js \
-              worker/financeRepository.test.js \
-              src/domains/finance/domain/movementPresentation.test.js \
-              src/domains/finance/ui/FinanceSplitPaymentPresentation.test.js \
-              src/pages/FinanceMoreMobile.test.js \
-              src/c10CssOwnership.test.js \
-              src/app/workflows/payments/paymentComposition.test.js \
-              src/app/workflows/payments/PaymentCompositionEditor.test.js
-          else
-            npm test
-          fi
+        run: npm test
 
       - name: Validate frontend architecture
         run: npm run test:architecture
