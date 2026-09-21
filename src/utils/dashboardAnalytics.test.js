@@ -102,16 +102,18 @@ test('top products aggregate repeated product identities, sum quantities, sort, 
   ])
 })
 
-test('payment mix uses paid orders only, groups by method, and falls back to total', () => {
-  const orders = [
-    makeOrder({ orderDate: '2026-09-02', total: 50, paymentStatus: 'Pago', paymentMethod: 'Pix', paidAmount: 50, paidAt: '2026-08-20T12:00:00.000Z' }),
-    makeOrder({ orderDate: '2026-09-01', total: 25, paymentStatus: 'Pago', paymentMethod: 'Pix', paidAmount: null }),
-    makeOrder({ orderDate: '2026-08-28', total: 20, paymentStatus: 'Pago', paymentMethod: 'Dinheiro', paidAmount: 20 }),
-    makeOrder({ orderDate: '2026-09-02', total: 40, paymentStatus: 'Pendente', paymentMethod: 'Pix' }),
-    makeOrder({ orderDate: '2026-08-03', total: 80, paymentStatus: 'Pago', paymentMethod: 'Cartão de crédito', paidAmount: 80 }),
+test('payment mix uses active sale movements once and filters by financial date', () => {
+  const movements = [
+    { id: 'pix-a', type: 'entrada', source: 'order-payment', paymentMethod: 'Pix', value: 50, movementDate: '2026-09-02' },
+    { id: 'pix-b', type: 'entrada', source: 'order-payment', paymentMethod: 'Pix', value: 25, movementDate: '2026-09-01' },
+    { id: 'cash', type: 'entrada', source: 'order-payment', paymentMethod: 'Dinheiro', value: 20, date: '2026-08-28' },
+    { id: 'refund', type: 'saida', source: 'order-refund', paymentMethod: 'Pix', value: 10, movementDate: '2026-09-02' },
+    { id: 'manual', type: 'entrada', source: 'manual', paymentMethod: 'Pix', value: 999, movementDate: '2026-09-02' },
+    { id: 'deleted', type: 'entrada', source: 'order-payment', paymentMethod: 'Pix', value: 999, movementDate: '2026-09-02', deletedAt: '2026-09-02T13:00:00.000Z' },
+    { id: 'outside', type: 'entrada', source: 'order-payment', paymentMethod: 'Cartão de crédito', value: 80, movementDate: '2026-08-03' },
   ]
 
-  assert.deepEqual(getPaymentMix(orders, '7d', now), [
+  assert.deepEqual(getPaymentMix(movements, '7d', now), [
     { method: 'Pix', amount: 75 },
     { method: 'Dinheiro', amount: 20 },
   ])

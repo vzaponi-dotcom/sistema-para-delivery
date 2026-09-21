@@ -660,3 +660,33 @@ test('C10 final generic guards allow production tests, public domain entries, sh
   const violations = await findArchitectureViolations({ rootDir })
   assert.deepEqual(violations, [])
 })
+
+test('split-payment guards reject obsolete scalar writers, owners, storage strings and Orders workflow imports', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/workflows/payments/paymentApi.js', `
+    export const paymentApi = {
+      registerOrderPayment: (id, method) => json('POST', { method }),
+      registerTableTabPayment: (id, method) => json('POST', { method }),
+    }
+  `)
+  await write('src/domains/orders/domain/orderCart.js', 'export const buildOrderPayload = () => ({ paymentMethod: "Pix" })\n')
+  await write('src/domains/orders/ui/invalid.jsx', "import Editor from '../../../app/workflows/payments/PaymentCompositionEditor.jsx'\nexport default Editor\n")
+  await write('src/app/workflows/payments/PaymentCompositionEditor.jsx', 'export default null\n')
+  await write('src/app/synthetic.js', 'export const stored = "Dinheiro + Pix"\n')
+  await write('worker/repositories.js', `
+    export const registerOrderPayment = () => {}
+    export const registerTableTabPayment = () => {}
+    const sql = 'INSERT INTO payments (id, method) VALUES (?, ?)'
+  `)
+
+  const violations = await findArchitectureViolations({ rootDir })
+  for (const code of [
+    'split-payment-api-order-method',
+    'split-payment-api-table-method',
+    'split-payment-checkout-scalar',
+    'split-payment-repository-owner',
+    'split-payment-method-write',
+    'split-payment-synthetic-storage',
+    'orders-payment-workflow-import',
+  ]) assert.ok(violations.some((value) => value.startsWith(code)), `missing ${code}`)
+})

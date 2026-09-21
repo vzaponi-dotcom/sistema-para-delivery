@@ -51,5 +51,15 @@ test('cancelled orders contribute zero to commercial dashboard analytics', () =>
   assert.equal(buildDailySeries(orders, 'today', now)[0].sales, 50)
   assert.equal(buildDailySeries(orders, 'today', now)[0].orders, 1)
   assert.deepEqual(getTopProducts(orders, 'today', now), [{ key: 'id:p1', label: 'Marmita', quantity: 1 }])
-  assert.deepEqual(getPaymentMix(orders, 'today', now), [{ method: 'Pix', amount: 50 }])
+  assert.deepEqual(getPaymentMix([
+    { id: 'sale', type: 'entrada', source: 'order-payment', paymentMethod: 'Pix', value: 50, movementDate: '2026-09-03' },
+    { id: 'cancel-refund', type: 'saida', source: 'order-refund', paymentMethod: 'Dinheiro', value: 80, movementDate: '2026-09-03' },
+  ], 'today', now), [{ method: 'Pix', amount: 50 }])
+})
+
+test('dashboard payment mix is wired to financial movements instead of scalar order payment fields', () => {
+  const page = source('../app/surfaces/dashboard/DashboardSurface.jsx')
+  assert.match(page, /getPaymentMix\(movements, period, now\)/)
+  assert.match(page, /Movimentos recebidos/)
+  assert.doesNotMatch(page, /getPaymentMix\(orders/)
 })

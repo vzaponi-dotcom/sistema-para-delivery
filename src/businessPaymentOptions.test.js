@@ -127,6 +127,27 @@ test('checkout delegates paid composition to the injected app renderer and submi
   ]])
 })
 
+test('mixed receipt refund shows its composition and requires an explicit active refund method', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Dialog } = await h.load('/src/app/workflows/refunds/RegisterRefundDialog.jsx')
+  const order = {
+    id: 'mixed-refund', orderNumber: 40, client: 'Marta', paymentMethod: null, paidAmount: 40,
+    paymentAllocations: [
+      { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 1000 },
+      { methodCode: 'pix', methodLabel: 'Pix', amountCents: 3000 },
+    ],
+  }
+  const confirmations = []
+  const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm: (payload) => confirmations.push(payload) })
+  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$ 10,00.*Pix.*R\$ 30,00/s)
+  assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de estorno' })), 'Selecione a forma do estorno')
+  assert.equal(buttonNamed(screen.root, 'Confirmar estorno').props.disabled, true)
+  await act(async () => screen.root.findByProps({ role: 'combobox' }).props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Pix').props.onClick())
+  await act(async () => screen.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  assert.deepEqual(confirmations, [{ refundMethod: 'Pix' }])
+})
+
 test('cancellation refund starts from the persisted method and never silently substitutes Pix', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
