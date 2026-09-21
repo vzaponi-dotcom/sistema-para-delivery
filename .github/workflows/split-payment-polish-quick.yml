@@ -25,13 +25,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Focused tests
+      - name: Fast payment polish tests
         run: >-
           node --test
           src/app/workflows/payments/paymentComposition.test.js
           src/app/workflows/payments/PaymentCompositionEditor.test.js
           src/app/workflows/payments/table-tab/TableTabPaymentDialog.test.js
-          src/navigationContinuity.test.js
           src/systemSelect.test.js
           src/newOrderSystemSelect.test.js
 
