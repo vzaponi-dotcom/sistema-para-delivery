@@ -13,11 +13,11 @@ import { listOrders } from './orderReadRepository.js'
 import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
-import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
-import { registerOrderPayment } from './paymentRepository.js'
+import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
 import { validatePaymentAllocations } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
-import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
+import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
@@ -223,8 +223,13 @@ const authenticatedApi = async (request, env) => {
   const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
   if (tableTabPaymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const { method } = await readJson(request)
-    const result = await registerTableTabPayment(env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method))
+    const { allocations } = await readJson(request)
+    const result = await registerTableTabPayment(
+      env.DB,
+      session.businessId,
+      decodeURIComponent(tableTabPaymentMatch[1]),
+      validatePaymentAllocations(allocations),
+    )
     return json({ ...result, tables: await listTables(env.DB, session.businessId) }, { status: 201 })
   }
 
