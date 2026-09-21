@@ -47,7 +47,11 @@ export function useTableTabPaymentWorkflow({
 
     if (!result.replaced && ownsSelection(owner, result.nextTables)) {
       clearSelection()
-      onSuccess('Pagamento de ' + formatTableIdentifierLabel(owner.tableIdentifier) + ' recebido via ' + owner.method)
+      const accepted = Array.isArray(owner.result?.allocations) ? owner.result.allocations : []
+      const suffix = accepted.length === 1
+        ? ' via ' + accepted[0].methodLabel
+        : ' em ' + accepted.length + ' formas'
+      onSuccess('Pagamento de ' + formatTableIdentifierLabel(owner.tableIdentifier) + ' recebido' + suffix)
     }
     return true
   }, [clearSelection, isLive, onSuccess, ownsSelection, publish])
@@ -70,7 +74,7 @@ export function useTableTabPaymentWorkflow({
     return false
   }, [isLive, publish, refreshOfficialData, trySettle])
 
-  const pay = useCallback(async (tableTabId, method, intent) => {
+  const pay = useCallback(async (tableTabId, allocations, intent) => {
     const currentTables = getOfficialTables()
     const selected = currentTables.find((table) => (
       table.id === intent?.tableId
@@ -85,6 +89,8 @@ export function useTableTabPaymentWorkflow({
       || activeOwnerRef.current
       || acceptedOwnersRef.current.size
       || !intent
+      || !Array.isArray(allocations)
+      || allocations.length === 0
       || !ownsSelection(intent, currentTables)
       || !selected
     ) return false
@@ -97,7 +103,7 @@ export function useTableTabPaymentWorkflow({
       tableId: intent.tableId,
       tableTabId: intent.tableTabId,
       tabId: intent.tableTabId,
-      method,
+      allocations: allocations.map((allocation) => ({ ...allocation })),
       requestKey: 'table-tab:payment:' + tableTabId,
       settled: false,
     }
@@ -109,7 +115,7 @@ export function useTableTabPaymentWorkflow({
     const ownsRequest = () => getSyncGuard() === guard && activeOwnerRef.current === owner
 
     try {
-      const result = await api.registerTableTabPayment(tableTabId, method)
+      const result = await api.registerTableTabPayment(tableTabId, owner.allocations)
       if (getSyncGuard() !== guard) return false
 
       owner.paid = true
