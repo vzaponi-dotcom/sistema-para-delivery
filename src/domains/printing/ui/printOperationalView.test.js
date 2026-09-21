@@ -110,3 +110,34 @@ test('verifying stays neutral and never invents an offline cause', () => {
     primaryStationName: 'Cozinha Windows',
   })
 })
+
+
+test('task 5 pending count changes urgency and helper without changing canonical status code', () => {
+  const offline = status('primary_offline')
+  const empty = buildPrintOperationalView(offline, { pendingCount: 0 })
+  const affected = buildPrintOperationalView(offline, { pendingCount: 4 })
+
+  assert.equal(empty.code, 'primary_offline')
+  assert.equal(affected.code, 'primary_offline')
+  assert.equal(empty.tone, 'warning')
+  assert.equal(affected.tone, 'danger')
+  assert.equal(empty.helper, null)
+  assert.match(affected.helper, /4 trabalhos aguardando a estação voltar/)
+
+  const generic = buildPrintOperationalView(status('printer_unavailable', { physicalState: null }), { pendingCount: 1 })
+  assert.equal(generic.description, 'A estação principal não consegue usar a impressora no momento.')
+})
+
+test('task 5 operational copy never leaks undefined or null strings and always carries textual status', () => {
+  for (const code of ['ready', 'no_primary', 'primary_offline', 'qz_unavailable', 'printer_unconfigured', 'printer_unavailable', 'verifying']) {
+    const input = code === 'no_primary'
+      ? { code, primaryStation: null, isLocalPrimary: false, source: 'none', physicalState: null }
+      : status(code, { primaryStation: { id: 'primary', name: '' } })
+    const view = buildPrintOperationalView(input, { pendingCount: 2 })
+    const serialized = JSON.stringify(view)
+    assert.equal(serialized.includes('undefined'), false)
+    assert.equal(serialized.includes('"null"'), false)
+    assert.equal(typeof view.title, 'string')
+    assert.ok(view.title.length > 0)
+  }
+})

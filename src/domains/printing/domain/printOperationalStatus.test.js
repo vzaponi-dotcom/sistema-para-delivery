@@ -240,3 +240,55 @@ test('local primary physical verification stays verifying', () => {
 
   assert.equal(result.code, 'verifying')
 })
+
+
+test('task 5 edge-state matrix keeps unknown, secondary and local transient states safe', () => {
+  const secondary = androidSecondary()
+  assert.equal(derivePrintOperationalStatus({
+    stations: [],
+    localStation: secondary,
+    transportKind: 'queue-only',
+  }).code, 'no_primary')
+
+  assert.equal(deriveRemote(remotePrimary({ health: undefined })).code, 'verifying')
+  assert.equal(deriveRemote(remotePrimary({ health: { online: true } })).code, 'verifying')
+  assert.equal(deriveRemote(remotePrimary({
+    health: { online: true, qzReady: false, printerReady: false, ready: false },
+  })).code, 'qz_unavailable')
+
+  const genericPrinterFailure = deriveRemote(remotePrimary({
+    physicalState: 'verifying',
+    health: { online: true, qzReady: true, printerReady: false, ready: false },
+  }))
+  assert.equal(genericPrinterFailure.code, 'printer_unavailable')
+
+  assert.equal(deriveLocalPrimary({
+    printerState: 'connecting',
+    qzConnected: false,
+    configuredPrinterName: null,
+    printerQueueFound: false,
+    printerHealth: { state: 'verifying', ready: false },
+  }).code, 'verifying')
+  assert.equal(deriveLocalPrimary({
+    printerState: 'disconnected',
+    qzConnected: false,
+  }).code, 'qz_unavailable')
+  assert.equal(deriveLocalPrimary({
+    printerState: 'unconfigured',
+    qzConnected: true,
+    configuredPrinterName: null,
+    printerQueueFound: false,
+  }).code, 'printer_unconfigured')
+  assert.equal(deriveLocalPrimary({
+    printerHealth: { state: 'printer_attention', ready: false },
+  }).code, 'printer_unavailable')
+
+  const offlineSecondary = androidSecondary({
+    health: { online: false, qzReady: false, printerReady: false, ready: false },
+  })
+  assert.equal(derivePrintOperationalStatus({
+    stations: [remotePrimary(), offlineSecondary],
+    localStation: offlineSecondary,
+    transportKind: 'queue-only',
+  }).code, 'ready')
+})

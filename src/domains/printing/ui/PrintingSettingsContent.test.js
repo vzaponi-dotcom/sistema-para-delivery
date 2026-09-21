@@ -147,3 +147,31 @@ test('task 4 settings source consumes the same operational resolver and view as 
   assert.match(source, /buildPrintOperationalView/)
   assert.doesNotMatch(source, /const operationalLabel = !isQz/)
 })
+
+
+test('task 5 contextual settings expose textual operational status without null or undefined leaks', async (t) => {
+  const h = await workspaceHarness(t, { userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 8)' })
+  const { default: PrintingSettingsContent } = await h.load('/src/domains/printing/ui/PrintingSettingsContent.jsx')
+  const local = { id: 'android-secondary', name: 'PC Victor', platform: 'android', isPrimary: false }
+  const screen = await h.render(PrintingSettingsContent, {
+    printing: {
+      transportKind: 'queue-only',
+      localStation: local,
+      stations: [local],
+      printerState: 'unsupported',
+      qzConnected: false,
+      configuredPrinterName: null,
+      printerQueueFound: false,
+      printerHealth: { state: 'verifying', ready: false },
+      jobs: [],
+    },
+    settings: settingsFixture({ station: local, primaryStationId: null }),
+    granted: new Set(['printing.station.view']),
+  })
+
+  const text = nodeText(screen.root)
+  assert.match(text, /Estação de impressão não configurada/)
+  assert.match(text, /Status da impressão/)
+  assert.doesNotMatch(text, /\bundefined\b|\bnull\b/)
+  assert.doesNotMatch(text, /Testar impressão|Trocar impressora/)
+})

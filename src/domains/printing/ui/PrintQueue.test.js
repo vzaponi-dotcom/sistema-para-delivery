@@ -673,3 +673,50 @@ test('task 3 mobile hierarchy keeps operational status, summary emphasis and set
   assert.doesNotMatch(styles, /\.print-queue-offline-banner/)
   assert.doesNotMatch(styles, /(^|\n)\.page-actions \.button\s*\{[^}]*width:\s*40px/m)
 })
+
+
+test('task 5 preserves recovery controls, offline mutation guard, capabilities and terminal history', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /Recuperação de impressão em andamento/)
+  assert.match(page, /runRecoveryAction\('resume'\)/)
+  assert.match(page, /runRecoveryAction\('next'\)/)
+  assert.match(page, /Você está offline\. Reconecte para alterar a fila de impressão\./)
+  assert.match(page, /EXECUTE_ACTIONS/)
+  assert.match(page, /DISCARD_ACTIONS/)
+  assert.match(page, /canExecutePrinting/)
+  assert.match(page, /canDiscardPrinting/)
+  assert.ok(PRINT_QUEUE_STATUS_FILTERS.some(({ value, label }) => value === 'printed' && label === 'Impresso'))
+  assert.ok(PRINT_QUEUE_STATUS_FILTERS.some(({ value, label }) => value === 'discarded' && label === 'Descartado'))
+})
+
+test('task 5 settings shortcut remains a real accessible button with queue-scoped semantics', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 0, awaitingConfirmation: 0, waitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+  let opens = 0
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: { localStation: null, stations: [], printerHealth: { state: 'verifying' } },
+    onOpenPrintingSettings: () => { opens += 1 },
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+  const button = renderer.root.findAllByType('button').find((node) => node.props['aria-label'] === 'Configurações, Impressão')
+  assert.ok(button)
+  assert.equal(button.props.type, 'button')
+  assert.equal(typeof button.props.onClick, 'function')
+  await act(async () => button.props.onClick())
+  assert.equal(opens, 1)
+
+  const text = nodeText(renderer.root)
+  assert.doesNotMatch(text, /\bundefined\b|\bnull\b/)
+  assert.match(text, /Estação de impressão não configurada/)
+})
