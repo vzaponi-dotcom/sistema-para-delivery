@@ -36,7 +36,7 @@ const input = (overrides = {}) => ({
   ],
   deliveryFeeCents: 800,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-  paymentMethod: 'Pix',
+  paymentAllocations: [{ methodCode: 'pix', amountCents: 7600 }],
   ...overrides,
 })
 
@@ -54,7 +54,7 @@ const automaticSnapshotCustomerName = async (overrides = {}) => {
   const db = seed()
   seedTableSeven(db)
   const order = await createOrder(db, 'amor-e-sabor', input({
-    paymentMethod: null,
+    paymentAllocations: null,
     ...overrides,
   }), new Date('2026-09-03T23:31:00.000Z'))
   const job = db.all(`SELECT snapshot_json FROM print_jobs WHERE order_id = '${order.id}'`)[0]
@@ -120,7 +120,7 @@ test('table checkout requests one automatic copy when the central default is two
   const order = await createOrder(db, 'amor-e-sabor', input({
     customerIdentity: { type: 'table', tableId: 'table-1' },
     type: 'Local',
-    paymentMethod: null,
+    paymentAllocations: null,
     idempotencyKey: 'table-one-copy',
   }), new Date('2026-09-03T23:31:00.000Z'))
 

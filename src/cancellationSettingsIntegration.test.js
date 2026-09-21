@@ -154,3 +154,23 @@ test('refund payment validation remains independent from cancellation reason sel
   assert.match(nodeText(screen.root), /método original.*inativo/i)
   assert.equal(buttonNamed(screen.root, 'Revisar cancelamento').props.disabled, true)
 })
+
+test('mixed receipt cancellation shows composition and never preselects an allocation as refund method', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Dialog } = await h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx')
+  const paid = {
+    ...order, paymentStatus: 'Pago', paymentMethod: null, paidAmount: 40,
+    paymentAllocations: [
+      { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 1000 },
+      { methodCode: 'pix', methodLabel: 'Pix', amountCents: 3000 },
+    ],
+  }
+  const screen = await h.render(Dialog, {
+    open: true, order: paid, reasonOptions: activeReasons.map((item) => ({ ...item, value: item.id })), reasonRevision: 7,
+    paymentOptions: [{ value: 'Pix', label: 'Pix', code: 'pix' }, { value: 'Dinheiro', label: 'Dinheiro', code: 'cash' }], onClose() {}, onConfirm() {},
+  })
+  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$\s*10,00.*Pix.*R\$\s*30,00/s)
+  await act(async () => buttonNamed(screen.root, 'Sim').props.onClick())
+  assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma do estorno' })), 'Selecione')
+  assert.equal(buttonNamed(screen.root, 'Revisar cancelamento').props.disabled, true)
+})

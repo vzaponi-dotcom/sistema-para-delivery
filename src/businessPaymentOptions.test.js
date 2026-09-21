@@ -95,23 +95,57 @@ test('a new cash movement remains empty and requires an explicit active payment 
   assert.equal(buttonNamed(screen.root, 'Revisar movimento').props.disabled, true)
 })
 
-test('checkout applies the current default only when opening a new payment choice', async (t) => {
+test('checkout delegates paid composition to the injected app renderer and submits allocations', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Checkout } = await h.load('/src/domains/orders/ui/components/OrderCheckoutSummary.jsx')
+  const submitted = []
+  const rendered = []
   const base = {
     draft: { type: 'Retirada', adjustment: { type: 'none', mode: 'fixed', value: '', reason: '' } },
     preview: { subtotal: 20, deliveryFee: 0, adjustmentAmount: 0, total: 20 },
     currency: String, canSubmit: true, paymentOptions: options, defaultPaymentMethod: 'Dinheiro',
-    onDeliveryFeeChange() {}, onAdjustmentChange() {}, onSavePending() {}, onSavePaid() {},
+    onDeliveryFeeChange() {}, onAdjustmentChange() {}, onSavePending() {}, onSavePaid: (allocations) => submitted.push(allocations),
+    renderPaymentComposition(props) {
+      rendered.push(props)
+      return React.createElement('button', {
+        type: 'button',
+        onClick: () => props.onConfirm([
+          { methodCode: 'cash', amountCents: 500 },
+          { methodCode: 'pix', amountCents: 1500 },
+        ]),
+      }, 'Confirmar composição de teste')
+    },
   }
   const screen = await h.render(Checkout, base)
   await act(async () => buttonNamed(screen.root, 'Salvar e receber').props.onClick())
-  assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' })), 'Dinheiro')
-  await act(async () => screen.update(React.createElement(Checkout, { ...base, defaultPaymentMethod: 'Pix' })))
-  assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' })), 'Dinheiro')
-  await act(async () => screen.update(React.createElement(Checkout, { ...base, paymentOptions: [options[0]], defaultPaymentMethod: 'Pix' })))
-  assert.match(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' })), /Dinheiro/)
-  assert.match(nodeText(screen.root), /não está mais ativa.*revise/i)
+  assert.equal(rendered.length, 1, 'the Orders checkout must render the app-injected payment composition')
+  assert.equal(rendered.at(-1).totalCents, 2000)
+  await act(async () => buttonNamed(screen.root, 'Confirmar composição de teste').props.onClick())
+  assert.deepEqual(submitted, [[
+    { methodCode: 'cash', amountCents: 500 },
+    { methodCode: 'pix', amountCents: 1500 },
+  ]])
+})
+
+test('mixed receipt refund shows its composition and requires an explicit active refund method', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Dialog } = await h.load('/src/app/workflows/refunds/RegisterRefundDialog.jsx')
+  const order = {
+    id: 'mixed-refund', orderNumber: 40, client: 'Marta', paymentMethod: null, paidAmount: 40,
+    paymentAllocations: [
+      { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 1000 },
+      { methodCode: 'pix', methodLabel: 'Pix', amountCents: 3000 },
+    ],
+  }
+  const confirmations = []
+  const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm: (payload) => confirmations.push(payload) })
+  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$\s*10,00.*Pix.*R\$\s*30,00/s)
+  assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de estorno' })), 'Selecione a forma do estorno')
+  assert.equal(buttonNamed(screen.root, 'Confirmar estorno').props.disabled, true)
+  await act(async () => screen.root.findByProps({ role: 'combobox' }).props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Pix').props.onClick())
+  await act(async () => screen.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+  assert.deepEqual(confirmations, [{ refundMethod: 'Pix' }])
 })
 
 test('cancellation refund starts from the persisted method and never silently substitutes Pix', async (t) => {

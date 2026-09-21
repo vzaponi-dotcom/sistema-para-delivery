@@ -3,7 +3,6 @@ import {
   getDashboardDateRange,
   getOrderItemDisplayName,
   getOrderItems,
-  isOrderPaid,
 } from '../../../domains/orders/index.js'
 
 const safeMoney = (value) => {
@@ -57,12 +56,15 @@ export const getTopProducts = (orders, period = '30d', now = new Date(), limit =
     .slice(0, Math.max(0, Math.trunc(Number(limit) || 0)))
 }
 
-export const getPaymentMix = (orders, period = '30d', now = new Date()) => {
+export const getPaymentMix = (movements, period = '30d', now = new Date()) => {
   const grouped = new Map()
-  for (const order of filterOrdersByPeriod(orders, period, now)) {
-    if (!isOrderPaid(order)) continue
-    const method = order.paymentMethod || 'Não informado'
-    const amount = safeMoney(order.paidAmount) || safeMoney(order.total)
+  const dates = new Set(getDashboardDateRange(period, now))
+  for (const movement of movements) {
+    if (movement?.type !== 'entrada' || movement?.source !== 'order-payment') continue
+    if (movement.deletedAt || movement.deleted_at) continue
+    if (!dates.has(movement.movementDate || movement.date)) continue
+    const method = movement.paymentMethod || 'Não informado'
+    const amount = safeMoney(movement.value)
     grouped.set(method, (grouped.get(method) ?? 0) + amount)
   }
   return [...grouped.entries()]

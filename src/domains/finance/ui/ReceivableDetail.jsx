@@ -1,5 +1,6 @@
 import Button from '../../../shared/ui/Button'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import { formatPaymentSummary } from '../domain/paymentPresentation.js'
 
 const timingText = (entry, formatOrderDate) => {
   if (entry.order?.paymentStatus === 'Pago') return 'Quitado'
@@ -46,7 +47,7 @@ function ReceivableDetail({
         <div><span>Pedido</span><strong>{formatOrderDisplayNumber(order)}</strong></div>
         <div><span>Data do pedido</span><strong>{formatOrderDate(order?.orderDate)}</strong></div>
         <div><span>Data prometida</span><strong>{promise ? formatOrderDate(promise) : 'Não definida'}</strong></div>
-        {paid && <div><span>Forma de pagamento</span><strong>{order?.paymentMethod || 'Não informada'}</strong></div>}
+        {paid && <div><span>Forma de pagamento</span><strong>{formatPaymentSummary(order?.paymentAllocations, order?.paymentMethod || 'Não informada')}</strong></div>}
       </div>
 
       <div className="receivable-detail-actions">

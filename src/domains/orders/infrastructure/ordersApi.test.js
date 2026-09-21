@@ -48,7 +48,7 @@ test('orders api preserves an explicit checkout idempotency key and payload', as
     items: [{ productId: 'p1', quantity: 2, note: 'sem cebola' }],
     deliveryFee: 8,
     adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: '' },
-    paymentMethod: 'Pix',
+    paymentAllocations: [{ methodCode: 'pix', amountCents: 7280 }],
   }
 
   await api.createOrder(payload, 'checkout-key')

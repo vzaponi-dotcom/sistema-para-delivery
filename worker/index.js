@@ -10,12 +10,14 @@ import { resolveSettingsAccess } from './settingsAccess.js'
 import { loadEffectiveBusinessConfig } from './effectiveBusinessConfig.js'
 import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
-import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
+import { loadMovementsByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
-import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerOrderPayment, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
+import { registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
+import { validatePaymentAllocations } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
-import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
+import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
@@ -153,14 +155,14 @@ const authenticatedApi = async (request, env) => {
     assertSameOriginMutation(request)
     const input = validateCheckoutInput(await readJson(request), request.headers.get('idempotency-key'))
     const order = await createOrder(env.DB, session.businessId, input)
-    const movement = input.paymentMethod
-      ? await loadMovementByOrderSource(env.DB, session.businessId, order.id, 'order-payment')
-      : null
+    const movements = input.paymentAllocations
+      ? await loadMovementsByOrderSource(env.DB, session.businessId, order.id, 'order-payment')
+      : []
     const tableTab = order.tableTabId
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
     const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
-    const response = { order, movement, tableTab, printJob }
+    const response = { order, movements, tableTab, printJob }
     if (order.tableTabId) response.tables = await listTables(env.DB, session.businessId)
     return json(response, { status: 201 })
   }
@@ -169,12 +171,9 @@ const authenticatedApi = async (request, env) => {
   const paymentMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment$/)
   if (paymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const { method } = await readJson(request)
-    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentMethod(method))
-    const tableTab = result.order?.tableTabId
-      ? await loadTableTabById(env.DB, session.businessId, result.order.tableTabId)
-      : null
-    return json({ ...result, tableTab }, { status: 201 })
+    const { allocations } = await readJson(request)
+    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentAllocations(allocations))
+    return json(result, { status: 201 })
   }
   const paymentPromiseMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment-promise$/)
   if (paymentPromiseMatch && request.method === 'PATCH') {
@@ -224,8 +223,13 @@ const authenticatedApi = async (request, env) => {
   const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
   if (tableTabPaymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const { method } = await readJson(request)
-    const result = await registerTableTabPayment(env.DB, session.businessId, decodeURIComponent(tableTabPaymentMatch[1]), validatePaymentMethod(method))
+    const { allocations } = await readJson(request)
+    const result = await registerTableTabPayment(
+      env.DB,
+      session.businessId,
+      decodeURIComponent(tableTabPaymentMatch[1]),
+      validatePaymentAllocations(allocations),
+    )
     return json({ ...result, tables: await listTables(env.DB, session.businessId) }, { status: 201 })
   }
 

@@ -35,7 +35,7 @@ import { ORDER_TYPE_OPTIONS } from '../domain/orderTypeOptions.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
 
-function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, paymentOptions, defaultPaymentMethod, modalityOptions, defaultModality, onPolicyChanged, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
+function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, renderPaymentComposition, modalityOptions, defaultModality, onPolicyChanged, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
   const activeModalityOptions = modalityOptions === undefined ? ORDER_TYPE_OPTIONS : modalityOptions
   const activeModalityValues = new Set(activeModalityOptions.map((option) => option.value))
   const initialCommonType = activeModalityValues.has(defaultModality)
@@ -311,10 +311,10 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     updateQuickClient(patch.phone === undefined ? patch : { ...patch, phone: formatPhone(patch.phone) })
   }
 
-  const save = async (paymentMethod) => {
+  const save = async (paymentAllocations) => {
     if (disabled || !canSubmit) return
     setCheckoutError('')
-    const result = await onSubmit(buildOrderPayload(numericDraft, paymentMethod))
+    const result = await onSubmit(buildOrderPayload(numericDraft, paymentAllocations))
     if (result?.code === 'POLICY_CHANGED') {
       setPolicyReviewError('A política de modalidades foi alterada. Revise o tipo do pedido antes de confirmar novamente.')
       await onPolicyChanged?.()
@@ -431,10 +431,9 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
               onDeliveryFeeChange: setDeliveryFee,
               onAdjustmentChange: handleAdjustmentChange,
               onSavePending: () => save(),
-              onSavePaid: (method) => save(method),
+              onSavePaid: (paymentAllocations) => save(paymentAllocations),
                allowImmediatePayment: type !== 'Local',
-               paymentOptions,
-               defaultPaymentMethod,
+               renderPaymentComposition,
              }}
           />
         )}

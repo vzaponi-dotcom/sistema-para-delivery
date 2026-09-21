@@ -27,19 +27,24 @@ test('all app-facing JSX uses SystemSelect instead of native select', async () =
   assert.deepEqual(offenders, [])
 })
 
-test('order payment dialog and Clients use the shared SystemSelect', async () => {
+test('order payment composition and Clients use the shared SystemSelect', async () => {
   const paymentDialog = await readFile(join(srcDir, 'app/workflows/payments/order/OrderPaymentDialog.jsx'), 'utf8')
+  const paymentEditor = await readFile(join(srcDir, 'app/workflows/payments/PaymentCompositionEditor.jsx'), 'utf8')
   const clients = await readFile(join(srcDir, 'domains/customers/ui/Clients.jsx'), 'utf8')
-  assert.match(paymentDialog, /import SystemSelect/)
+  assert.match(paymentDialog, /import PaymentCompositionEditor/)
+  assert.match(paymentDialog, /<PaymentCompositionEditor/)
+  assert.match(paymentEditor, /import SystemSelect/)
   assert.match(clients, /import SystemSelect/)
 })
 
 test('App write selectors preserve blocked state and approved labels', async () => {
   const paymentDialog = await readFile(join(srcDir, 'app/workflows/payments/order/OrderPaymentDialog.jsx'), 'utf8')
+  const paymentEditor = await readFile(join(srcDir, 'app/workflows/payments/PaymentCompositionEditor.jsx'), 'utf8')
   const movementDialog = await readFile(join(srcDir, 'domains/finance/ui/MovementDialog.jsx'), 'utf8')
   const financeWorkspace = await readFile(join(srcDir, 'domains/finance/ui/FinanceWorkspace.jsx'), 'utf8')
-  assert.match(paymentDialog, /label="Forma de pagamento"/)
-  assert.match(paymentDialog, /disabled=\{dialog\.writesBlocked \|\| dialog\.submitting\}/)
+  assert.match(paymentDialog, /<PaymentCompositionEditor[\s\S]*disabled=\{dialog\.writesBlocked \|\| dialog\.submitting\}/)
+  assert.match(paymentEditor, /label=\{label\}/)
+  assert.match(paymentEditor, /disabled=\{disabled\}/)
 
   assert.match(financeWorkspace, /<MovementDialog[\s\S]*?disabled=\{writesBlocked\}/)
   for (const label of ['Tipo do movimento', 'Categoria']) {

@@ -35,3 +35,13 @@ test('SystemSelect desktop dropdown is anchored and controls remain touch friend
   assert.match(css, /var\(--surface\)/)
   assert.match(css, /var\(--primary\)/)
 })
+
+
+test('SystemSelect desktop dropdown can widen to keep option labels readable', async () => {
+  const css = await read('./system-select.css')
+
+  assert.match(css, /\.system-select-dropdown\s*\{[\s\S]*width:\s*max-content/s)
+  assert.match(css, /\.system-select-dropdown\s*\{[\s\S]*min-width:\s*100%/s)
+  assert.match(css, /\.system-select-dropdown\s*\{[\s\S]*max-width:\s*min\(320px,\s*calc\(100vw - 32px\)\)/s)
+  assert.match(css, /\.system-select-dropdown\s+\.system-select-option-label\s*>\s*span:last-child\s*\{[\s\S]*text-overflow:\s*clip[\s\S]*white-space:\s*nowrap/s)
+})

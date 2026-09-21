@@ -25,7 +25,7 @@ const renderSurface = async (h, Component, props = {}) => {
     selection: selectionA,
     selectionGeneration: 4,
     disabled: false,
-    paymentOptions: [{ value: 'Pix', label: 'Pix' }],
+    paymentOptions: [{ value: 'Pix', label: 'Pix', code: 'pix' }],
     defaultPaymentMethod: 'Pix',
     currency: (value) => `R$ ${value.toFixed(2)}`,
     printing: {
@@ -57,7 +57,7 @@ test('payment intent is owned by canonical identity/generation and closes on rep
   await act(async () => actions().requestPayment({ ...intentA, detail: comandaDetail }))
   assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
   await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
-  assert.deepEqual(payments[0], ['tab-42', 'Pix', { ...intentA, detail: comandaDetail }])
+  assert.deepEqual(payments[0], ['tab-42', [{ methodCode: 'pix', amountCents: 12345 }], { ...intentA, detail: comandaDetail }])
 
   await update({ selection: selectionB, selectionGeneration: 5 })
   assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)

@@ -169,8 +169,14 @@ test('saving payment settings never rewrites historical payment or movement valu
     subtotal_cents, total_cents, created_at) VALUES ('history-order', ?, 'Cliente', 'Retirada',
     '2026-09-12', 'finalizado', 1000, 1000, ?)`)
     .run(BUSINESS, NOW.toISOString())
-  sqlite.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at)
-    VALUES ('history-payment', ?, 'history-order', 1000, 'Dinheiro', ?, ?)`)
+  sqlite.prepare(`INSERT INTO payment_receipts (id, business_id, total_cents, paid_at, created_at)
+    VALUES ('history-receipt', ?, 1000, ?, ?)`)
+    .run(BUSINESS, NOW.toISOString(), NOW.toISOString())
+  sqlite.prepare(`INSERT INTO payment_allocations (id, business_id, receipt_id, method_code, method_label,
+    amount_cents, created_at) VALUES ('history-allocation', ?, 'history-receipt', 'cash', 'Dinheiro', 1000, ?)`)
+    .run(BUSINESS, NOW.toISOString())
+  sqlite.prepare(`INSERT INTO payments (id, business_id, order_id, receipt_id, amount_cents, method, paid_at, created_at)
+    VALUES ('history-payment', ?, 'history-order', 'history-receipt', 1000, NULL, ?, ?)`)
     .run(BUSINESS, NOW.toISOString(), NOW.toISOString())
   for (const [index, value] of ['Dinheiro', 'Pix', 'debito', 'credito', 'Transferência', 'Outro'].entries()) {
     sqlite.prepare(`INSERT INTO movements (id, business_id, type, category, payment_method, description,
@@ -179,11 +185,13 @@ test('saving payment settings never rewrites historical payment or movement valu
       .run(`history-movement-${index}`, BUSINESS, value, NOW.toISOString())
   }
   const paymentBefore = sqlite.prepare("SELECT * FROM payments WHERE id = 'history-payment'").get()
+  const allocationBefore = sqlite.prepare("SELECT * FROM payment_allocations WHERE id = 'history-allocation'").get()
   const movementsBefore = sqlite.prepare("SELECT * FROM movements WHERE id LIKE 'history-movement-%' ORDER BY id").all()
 
   await savePaymentMethods(db, BUSINESS, input('preserve-history', changedPaymentMethods()), NOW)
 
   assert.deepEqual(sqlite.prepare("SELECT * FROM payments WHERE id = 'history-payment'").get(), paymentBefore)
+  assert.deepEqual(sqlite.prepare("SELECT * FROM payment_allocations WHERE id = 'history-allocation'").get(), allocationBefore)
   assert.deepEqual(sqlite.prepare("SELECT * FROM movements WHERE id LIKE 'history-movement-%' ORDER BY id").all(), movementsBefore)
 })
 

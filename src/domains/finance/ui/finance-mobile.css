@@ -81,3 +81,46 @@
     min-height: var(--mobile-touch-target, 44px);
   }
 }
+
+
+.movement-payment-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 7px;
+}
+
+.movement-payment-part {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  font-size: .74rem;
+  white-space: nowrap;
+}
+
+.movement-payment-part strong {
+  color: var(--text);
+  font-size: inherit;
+}
+
+.movement-payment-part span {
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .movement-payment-breakdown {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+  }
+
+  .movement-payment-part {
+    white-space: normal;
+  }
+}

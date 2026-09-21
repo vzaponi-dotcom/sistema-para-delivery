@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { act } from 'react-test-renderer'
 
-import { workspaceHarness, buttonNamed } from './test-support/renderWorkspace.js'
+import { workspaceHarness, buttonNamed, nodeText } from './test-support/renderWorkspace.js'
 import { deferred } from './test-support/comandaFixtures.js'
 import { authenticatedSession, effectivePaymentConfig } from './test-support/appSessionFixtures.js'
 
@@ -76,7 +76,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   state.settingsSave = deferred()
   state.settingsStarted = deferred()
   await act(async () => copySelector.props.onClick())
-  const secondCopy = renderer.root.findAllByProps({ role: 'option' }).find((option) => option.props.children[0].props.children === '2 vias')
+  const secondCopy = renderer.root.findAllByProps({ role: 'option' }).find((option) => nodeText(option) === '2 vias')
   await act(async () => { secondCopy.props.onClick() })
   assert.equal(state.settingsWrites, 0, 'editing a policy must not autosave')
   await act(async () => {
@@ -91,7 +91,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   })
   await navigate(h, 'settings-printing')
   assert.equal(state.settingsWrites, 1, 'leaving Settings must not resend its pending save')
-  assert.equal(renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' }).props.children[0].props.children, '2 vias')
+  assert.equal(nodeText(renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' })), '2 vias')
 
   await navigate(h, 'orders')
   const search = renderer.root.findByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' })

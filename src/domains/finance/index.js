@@ -20,4 +20,10 @@ export { calculateReceivedToday } from './domain/cashFlow.js'
 
 export { formatTableIdentifierLabel } from './domain/receivables.js'
 
+export {
+  formatPaymentSummary,
+  hasMixedPayment,
+  paymentSearchText,
+} from './domain/paymentPresentation.js'
+
 export { FinanceWorkspace, Receivables } from './ui/financeSurfaces.js'

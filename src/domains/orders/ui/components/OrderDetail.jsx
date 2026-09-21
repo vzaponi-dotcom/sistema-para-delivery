@@ -11,6 +11,7 @@ import { formatOrderDate, formatOrderTime } from '../../domain/orderWorkflow.js'
 import { FINANCE_TIME_ZONE } from '../../../../../shared/finance.js'
 import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 import { getPrintJobActions } from '../../../../../shared/printQueueActions.js'
+import { formatPaymentSummary } from '../../../finance/index.js'
 
 const adjustmentLabel = (adjustment, currency) => {
   if (!adjustment || adjustment.type === 'none') return ''
@@ -139,7 +140,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
               <div><span>Tipo</span><strong>{order.type}</strong></div>
               <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
               <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
-              <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? (order.paymentMethod || 'Não informada') : 'Pendente'}</strong></div>
+              <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? formatPaymentSummary(order.paymentAllocations, order.paymentMethod) : 'Pendente'}</strong></div>
               {order.status === 'Cancelado' && <div><span>Motivo do cancelamento</span><strong>{order.cancelReasonLabel || order.cancelReason || 'Não informado'}{order.cancelReasonNote ? ` · ${order.cancelReasonNote}` : ''}</strong></div>}
               {order.clientPhone && <div><span>Telefone</span><strong>{order.clientPhone}</strong></div>}
               {order.clientAddress && <div><span>Endereço</span><strong>{order.clientAddress}</strong></div>}
@@ -186,6 +187,17 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
             )}
             <div className="order-detail-total-final"><span>Total</span><strong>{currency(order.total)}</strong></div>
             </div>
+            {order.paymentStatus === 'Pago' && Array.isArray(order.paymentAllocations) && order.paymentAllocations.length > 0 && (
+              <div className="order-detail-totals payment-allocation-breakdown">
+                {order.paymentAllocations.map((allocation) => (
+                  <div key={`${allocation.methodCode}-${allocation.amountCents}`}>
+                    <span>{allocation.methodLabel}</span>
+                    <strong>{currency(Number(allocation.amountCents || 0) / 100)}</strong>
+                  </div>
+                ))}
+                <div className="order-detail-total-final"><span>Total recebido</span><strong>{currency(order.paidAmount || order.total || 0)}</strong></div>
+              </div>
+            )}
             {canRegisterPayment && <div className="order-detail-cancel-action"><Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button></div>}
             {canCancelOrders && onRequestCancel && <div className="order-detail-cancel-action"><Button type="button" variant="secondary" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button></div>}
           </section>

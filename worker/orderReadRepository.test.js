@@ -21,6 +21,9 @@ class OrderReadDb {
               assert.match(sql, /source = 'order-refund'/)
               assert.match(sql, /LEFT JOIN table_tabs tt ON tt\.id = o\.table_tab_id AND tt\.business_id = o\.business_id/)
               assert.match(sql, /tt\.table_identifier AS table_identifier/)
+              assert.match(sql, /payment_allocations/)
+              assert.match(sql, /p\.receipt_id/)
+              assert.match(sql, /payment_allocations_json/)
               return {
                 results: [
                   {
@@ -30,7 +33,8 @@ class OrderReadDb {
                     total_cents: 8000, created_at: '2026-09-03T12:00:00.000Z', finished_at: null,
                     scheduled_for: '2026-09-03T15:00:00.000Z', is_backdated: 0,
                     cancelled_at: '2026-09-03T13:00:00.000Z', cancel_reason: 'client_changed_mind', cancel_reason_label: 'Cliente desistiu', cancel_reason_note: null,
-                    payment_id: 'pay-1', payment_method: 'Pix', paid_at: '2026-09-03T12:05:00.000Z', paid_amount_cents: 8000,
+                    payment_id: 'pay-1', receipt_id: 'receipt-1', payment_method: null, paid_at: '2026-09-03T12:05:00.000Z', paid_amount_cents: 8000,
+                    payment_allocations_json: '[{"methodCode":"pix","methodLabel":"Pix","amountCents":8000}]',
                     refund_movement_id: 'refund-1', refund_created_at: '2026-09-03T13:05:00.000Z',
                   },
                   {
@@ -89,6 +93,8 @@ test('orders-only reads preserve official cancellation, table snapshots and hist
   assert.equal(order.refundMovementId, 'refund-1')
   assert.equal(order.refundedAt, '2026-09-03T13:05:00.000Z')
   assert.equal(order.refundState, 'refunded')
+  assert.equal(order.paymentMethod, 'Pix')
+  assert.deepEqual(order.paymentAllocations, [{ methodCode: 'pix', methodLabel: 'Pix', amountCents: 8000 }])
   assert.equal(order.scheduledFor, '2026-09-03T15:00:00.000Z')
   assert.equal(order.isBackdated, false)
   assert.equal(legacy.cancelledAt, null)

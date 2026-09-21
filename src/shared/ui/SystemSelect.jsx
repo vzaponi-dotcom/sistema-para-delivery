@@ -80,6 +80,13 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
     }
   }
 
+  const optionLabel = (option) => (
+    <span className="system-select-option-label">
+      {option?.icon && <Icon name={option.icon} size={18} className="system-select-option-icon" />}
+      <span>{option?.label}</span>
+    </span>
+  )
+
   const optionButtons = (className) => options.map((option, index) => (
     <button
       key={option.value}
@@ -90,7 +97,7 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
       onMouseEnter={() => setActiveIndex(index)}
       onClick={() => choose(option)}
     >
-      <span>{option.label}</span>
+      {optionLabel(option)}
       {option.value === value && <Icon name="check" size={17} />}
     </button>
   ))
@@ -111,7 +118,10 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
         onClick={() => open ? close() : openSelect()}
         onKeyDown={handleKeyDown}
       >
-        <span>{selected?.label || placeholder}</span>
+        <span className="system-select-value">
+          {selected?.icon && <Icon name={selected.icon} size={18} className="system-select-option-icon" />}
+          <span>{selected?.label || placeholder}</span>
+        </span>
         <Icon name="arrow-down" size={16} />
       </button>
 

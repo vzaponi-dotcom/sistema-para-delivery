@@ -5,6 +5,7 @@ import SystemSelect from '../../../../shared/ui/SystemSelect'
 import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 import {
   PAYMENT_METHOD_OPTIONS,
+  hasMixedPayment,
   paymentOptionsWithSelection,
   paymentSelectionNeedsReview,
 } from '../../../finance/index.js'
@@ -13,6 +14,12 @@ import {
   cancellationOptionsWithSelection,
   cancellationSelectionNeedsReview,
 } from '../../domain/cancellationReasonOptions.js'
+
+const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
+const originalRefundMethod = (order) => {
+  if (hasMixedPayment(order?.paymentAllocations)) return ''
+  return order?.paymentAllocations?.[0]?.methodLabel || order?.paymentMethod || ''
+}
 
 function CancelOrderDialog({
   open,
@@ -34,13 +41,14 @@ function CancelOrderDialog({
 
   useEffect(() => {
     if (!open || !order) return
-    setReason(''); setNote(''); setRefundNow(false); setRefundMethod(order.paymentMethod || ''); setError(''); setReviewPayload(null)
+    setReason(''); setNote(''); setRefundNow(false); setRefundMethod(originalRefundMethod(order)); setError(''); setReviewPayload(null)
   }, [open, order])
 
   if (!open || !order) return null
   const isPaid = order.paymentStatus === 'Pago'
   const originalMethodInactive = paymentSelectionNeedsReview(paymentOptions, refundMethod)
-  const preservingOriginalMethod = refundMethod === (order.paymentMethod || '')
+  const preservingOriginalMethod = Boolean(originalRefundMethod(order)) && refundMethod === originalRefundMethod(order)
+  const mixedPayment = hasMixedPayment(order.paymentAllocations)
   const reviewedMethodInactive = Boolean(reviewPayload?.refundNow
     && paymentSelectionNeedsReview(paymentOptions, reviewPayload.refundMethod))
   const visiblePaymentOptions = paymentOptionsWithSelection(paymentOptions, refundMethod)
@@ -111,6 +119,7 @@ function CancelOrderDialog({
         {isPaid && canRefundPayments && (
           <div className="cancel-refund-panel">
             <div><strong>Este pedido já foi pago.</strong><span>O valor já foi devolvido ao cliente?</span></div>
+            {mixedPayment && <div className="payment-summary-card"><strong>Composição original da venda</strong>{order.paymentAllocations.map((allocation) => <span key={`${allocation.methodCode}-${allocation.amountCents}`}>{allocation.methodLabel} · {currency(Number(allocation.amountCents || 0) / 100)}</span>)}<small>O estorno continua integral e exige uma única forma ativa.</small></div>}
             <div className="cancel-refund-choice" role="group" aria-label="Situação do estorno">
               <button type="button" className={!refundNow ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={!refundNow} onClick={() => { setRefundNow(false); setError('') }} disabled={submitting}>Ainda não</button>
               <button type="button" className={refundNow ? 'button button-secondary active' : 'button button-secondary'} aria-pressed={refundNow} onClick={() => { setRefundNow(true); setError('') }} disabled={submitting}>Sim</button>

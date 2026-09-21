@@ -4,6 +4,7 @@ import test from 'node:test'
 import { mapOrderRow } from './repositories.js'
 
 const repositoriesUrl = new URL('./repositories.js', import.meta.url)
+const paymentRepositoryUrl = new URL('./paymentRepository.js', import.meta.url)
 
 test('order mapping exposes cancellation and refund identity for bootstrap/history', () => {
   const order = mapOrderRow({
@@ -25,11 +26,11 @@ test('order mapping exposes cancellation and refund identity for bootstrap/histo
 
 test('order select and table-tab pending queries are cancellation aware', async () => {
   const source = await readFile(repositoriesUrl, 'utf8')
+  const paymentSource = await readFile(paymentRepositoryUrl, 'utf8')
   assert.match(source, /o\.cancelled_at[\s\S]*o\.cancel_reason[\s\S]*o\.cancel_reason_note/)
   assert.match(source, /cr\.label AS cancel_reason_label/)
   assert.match(source, /LEFT JOIN business_cancel_reasons cr/)
   assert.match(source, /r\.id AS refund_movement_id[\s\S]*source = 'order-refund'/)
-
-  const pendingClauses = source.match(/o\.status <> 'Cancelado'/g) ?? []
-  assert.ok(pendingClauses.length >= 2, 'closeTableTabIfSettled and registerTableTabPayment must both exclude Cancelado')
+  assert.match(source, /o\.status <> 'Cancelado'/, 'closeTableTabIfSettled excludes Cancelado')
+  assert.match(paymentSource, /o\.status <> 'Cancelado'/, 'registerTableTabPayment excludes Cancelado')
 })

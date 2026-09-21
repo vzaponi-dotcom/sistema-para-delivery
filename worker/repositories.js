@@ -6,13 +6,15 @@ import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
+import { assertPaymentAllocationTotal, validatePaymentAllocations } from './paymentValidation.js'
 import { prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { listTables, requireExpectedOpenTableTab, reserveNextTableTabNumber } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
-import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectation, readPrintingPolicyExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
+import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectations, readPrintingPolicyExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 import { loadOperations } from './operationSettingsRepository.js'
 import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
+import { mapOrderPaymentFields, PAYMENT_ALLOCATIONS_JSON_SELECT } from './orderPaymentReadModel.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
@@ -63,6 +65,7 @@ export const mapOrderItemRow = (row) => ({
 export const mapOrderRow = (row, items = []) => {
   const firstItem = items[0] ?? null
   const paid = Boolean(row.payment_id)
+  const payment = mapOrderPaymentFields(row)
   const refundMovementId = row.refund_movement_id ?? null
   const adjustmentMode = row.adjustment_mode || 'fixed'
   const adjustmentValue = adjustmentMode === 'percentage'
@@ -111,10 +114,7 @@ export const mapOrderRow = (row, items = []) => {
     cancelReasonLabel: row.cancel_reason_label ?? row.cancel_reason ?? null,
     cancelReasonNote: row.cancel_reason_note ?? '',
     timingPolicySnapshot: parseOrderTimingPolicySnapshot(row.timing_policy_snapshot_json),
-    paymentStatus: paid ? 'Pago' : 'Pendente',
-    paymentId: paid ? row.payment_id : null,
-    paymentMethod: paid ? row.payment_method : null,
-    paidAt: paid ? row.paid_at : null,
+    ...payment,
     paidAmount: paid ? centsToMoney(row.paid_amount_cents) : 0,
     refundMovementId,
     refundedAt: row.refund_created_at ?? null,
@@ -124,7 +124,7 @@ export const mapOrderRow = (row, items = []) => {
 }
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, cr.label AS cancel_reason_label, o.timing_policy_snapshot_json, p.id AS payment_id, p.method AS payment_method, p.paid_at, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN business_cancel_reasons cr ON cr.business_id = o.business_id AND cr.id = o.cancel_reason LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, cr.label AS cancel_reason_label, o.timing_policy_snapshot_json, p.id AS payment_id, p.method AS payment_method, p.paid_at, ${PAYMENT_ALLOCATIONS_JSON_SELECT}, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN business_cancel_reasons cr ON cr.business_id = o.business_id AND cr.id = o.cancel_reason LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -140,6 +140,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
   const tableTabsResult = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at FROM table_tabs WHERE business_id = ? ORDER BY opened_at DESC`).bind(businessId).all()
   const tables = await listTables(db, businessId)
   const movementsResult = await db.prepare(`SELECT m.id, m.type, m.category, m.description, m.value_cents, m.source, m.order_id, m.payment_id,
+    m.receipt_id, m.payment_allocation_id,
     fc.label AS category_label,
     CASE WHEN m.source = 'order-payment' THEN COALESCE(m.payment_method, p.method) ELSE m.payment_method END AS payment_method,
     m.movement_date, m.created_at, m.updated_at
@@ -304,7 +305,7 @@ const legacyCheckoutInput = (input) => ({
   items: [{ productId: input.productId, quantity: input.quantity, note: '' }],
   deliveryFeeCents: 0,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-  paymentMethod: null,
+  paymentAllocations: null,
 })
 
 export const createOrder = async (db, businessId, rawInput, now = new Date()) => {
@@ -315,12 +316,19 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (existing?.id) return loadOrderById(db, businessId, existing.id)
 
   const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
-  if (customerIdentity.type === 'table' && input.paymentMethod) {
+  const requestedAllocations = input.paymentAllocations == null ? null : validatePaymentAllocations(input.paymentAllocations)
+  if (customerIdentity.type === 'table' && requestedAllocations) {
     throw repositoryError(400, 'TABLE_ORDER_PAYMENT_NOT_ALLOWED', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
   }
   const policyExpectations = {}
   policyExpectations.operations = await readOrderModalityExpectation(db, businessId, input.type)
-  if (input.paymentMethod) policyExpectations.paymentMethods = await readPaymentMethodExpectation(db, businessId, input.paymentMethod)
+  if (requestedAllocations) {
+    policyExpectations.paymentMethods = await readPaymentMethodExpectations(
+      db,
+      businessId,
+      requestedAllocations.map(({ methodCode }) => methodCode),
+    )
+  }
   let clientId = null
   let clientSnapshot = ''
   let clientPhoneSnapshot = ''
@@ -402,6 +410,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const deliveryFeeCents = Number(input.deliveryFeeCents) || 0
   const adjustment = input.adjustment || { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
+  const paymentAllocations = requestedAllocations
+    ? assertPaymentAllocationTotal(requestedAllocations, totals.totalCents)
+    : null
   const orderId = crypto.randomUUID()
   const sequenceRow = await db.prepare(`INSERT INTO order_sequences (business_id, last_order_number)
     VALUES (?, 1)
@@ -478,14 +489,42 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     ))
   }
 
-  if (input.paymentMethod) {
+  let paymentLabels = null
+  if (paymentAllocations) {
+    paymentLabels = new Map(policyExpectations.paymentMethods.methods.map(({ code, label }) => [code, label]))
+    const receiptId = crypto.randomUUID()
     const paymentId = crypto.randomUUID()
-    const movementId = crypto.randomUUID()
     const paidAt = now.toISOString()
     const movementDate = getBusinessDate(now)
     const description = `${formatOrderDisplayNumber({ orderNumber }).replace('Pedido', 'Pagamento pedido')} · ${clientSnapshot}`
-    statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, totals.totalCents, input.paymentMethod, paidAt, paidAt))
-    statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt, input.paymentMethod, paidAt))
+    const movementStatements = []
+    statements.push(db.prepare(`INSERT INTO payment_receipts
+      (id, business_id, table_tab_id, total_cents, paid_at, created_at)
+      VALUES (?, ?, NULL, ?, ?, ?)`).bind(receiptId, businessId, totals.totalCents, paidAt, paidAt))
+    for (const allocation of paymentAllocations) {
+      const allocationId = crypto.randomUUID()
+      const methodLabel = paymentLabels.get(allocation.methodCode)
+      statements.push(db.prepare(`INSERT INTO payment_allocations
+        (id, business_id, receipt_id, method_code, method_label, amount_cents, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+        allocationId, businessId, receiptId, allocation.methodCode, methodLabel, allocation.amountCents, paidAt,
+      ))
+      statements.push(db.prepare(`UPDATE business_payment_methods SET first_used_at = ?
+        WHERE business_id = ? AND code = ? AND first_used_at IS NULL`).bind(paidAt, businessId, allocation.methodCode))
+      movementStatements.push(db.prepare(`INSERT INTO movements
+        (id, business_id, type, category, description, value_cents, source, order_id, payment_id,
+         movement_date, created_at, payment_method, updated_at, receipt_id, payment_allocation_id)
+        VALUES (?, ?, 'entrada', 'Vendas', ?, ?, 'order-payment', ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+        crypto.randomUUID(), businessId, description, allocation.amountCents, orderId, paymentId,
+        movementDate, paidAt, methodLabel, paidAt, receiptId, allocationId,
+      ))
+    }
+    statements.push(db.prepare(`INSERT INTO payments
+      (id, business_id, order_id, receipt_id, amount_cents, method, paid_at, created_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`).bind(
+      paymentId, businessId, orderId, receiptId, totals.totalCents, paidAt, paidAt,
+    ))
+    statements.push(...movementStatements)
   }
 
   if (status === 'Em preparo') {
@@ -521,8 +560,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       },
       totalCents: totals.totalCents,
       payment: {
-        status: input.paymentMethod ? 'Pago' : 'Pendente',
-        method: input.paymentMethod || '',
+        status: paymentAllocations ? 'Pago' : 'Pendente',
+        method: paymentAllocations?.length === 1 ? paymentLabels.get(paymentAllocations[0].methodCode) : '',
       },
     })
     statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
@@ -601,109 +640,6 @@ export const closeTableTabIfSettled = async (db, businessId, tableTabId, now = n
   const row = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at FROM table_tabs
     WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
   return row ? mapTableTabRow(row) : null
-}
-
-export const registerTableTabPayment = async (db, businessId, tableTabId, method, now = new Date()) => {
-  const tabRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
-    FROM table_tabs WHERE id = ? AND business_id = ? LIMIT 1`).bind(tableTabId, businessId).first()
-  if (!tabRow) throw repositoryError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda não encontrada.')
-  if (tabRow.status !== 'open') throw repositoryError(409, 'TABLE_TAB_ALREADY_CLOSED', 'Esta comanda já foi encerrada.')
-
-  const paymentExpectation = await readPaymentMethodExpectation(db, businessId, method)
-  const pendingResult = await db.prepare(`SELECT o.id, o.order_number, o.client_name_snapshot, o.total_cents
-    FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
-    WHERE o.business_id = ? AND o.table_tab_id = ? AND o.status <> 'Cancelado' AND p.id IS NULL
-    ORDER BY o.created_at ASC`).bind(businessId, tableTabId).all()
-  const pending = rows(pendingResult)
-  const paidAt = now.toISOString()
-  const movementDate = getBusinessDate(now)
-  const policyTxId = crypto.randomUUID()
-  const statements = preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId)
-  const movementRows = []
-
-  for (const orderRow of pending) {
-    const paymentId = crypto.randomUUID()
-    const movementId = crypto.randomUUID()
-    const description = `${formatOrderDisplayNumber(orderRow).replace('Pedido', 'Pagamento pedido')} · ${orderRow.client_name_snapshot}`
-    statements.push(
-      db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderRow.id, orderRow.total_cents, method, paidAt, paidAt),
-      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderRow.id, paymentId, movementDate, paidAt, method, paidAt),
-    )
-    movementRows.push({
-      id: movementId,
-      type: 'entrada',
-      category: 'Vendas',
-      description,
-      value_cents: orderRow.total_cents,
-      source: 'order-payment',
-      order_id: orderRow.id,
-      payment_id: paymentId,
-      payment_method: method,
-      movement_date: movementDate,
-      created_at: paidAt,
-      updated_at: paidAt,
-    })
-  }
-
-  const closeTableTabStatement = db.prepare(`UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ?
-    WHERE id = ? AND business_id = ? AND status = 'open'`).bind(paidAt, paidAt, tableTabId, businessId)
-  statements.push(closeTableTabStatement)
-  statements.push(clearSettingsAssertions(db, policyTxId))
-  let batchResults
-  try {
-    batchResults = await db.batch(statements)
-  } catch (error) {
-    const message = String(error?.message || '')
-    if (/TABLE_TAB_HAS_UNPAID_ORDERS|TABLE_TAB_PAYMENT_INVALID|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {
-      throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
-    }
-    if (message.includes('POLICY_CHANGED')) rethrowPolicyChange(error)
-    throw error
-  }
-  const closeResult = batchResults?.[statements.indexOf(closeTableTabStatement)]
-  if (closeResult?.meta && Number(closeResult.meta.changes || 0) !== 1) {
-    throw repositoryError(409, 'TABLE_TAB_PAYMENT_CONFLICT', 'A comanda foi alterada durante o pagamento. Atualize os dados e tente novamente.')
-  }
-
-  return {
-    tableTab: mapTableTabRow({ ...tabRow, status: 'closed', closed_at: paidAt }),
-    orders: await Promise.all(pending.map((order) => loadOrderById(db, businessId, order.id))),
-    movements: movementRows.map(mapMovementRow),
-  }
-}
-
-export const registerOrderPayment = async (db, businessId, orderId, method, now = new Date()) => {
-  const orderRow = await db.prepare(`SELECT o.id, o.order_number, o.status, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
-  if (!orderRow) throw repositoryError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
-  if (orderRow.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode receber pagamento.')
-  if (orderRow.payment_id) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
-
-  const paymentExpectation = await readPaymentMethodExpectation(db, businessId, method)
-  const paymentId = crypto.randomUUID()
-  const movementId = crypto.randomUUID()
-  const paidAt = now.toISOString()
-  const movementDate = getBusinessDate(now)
-  const description = `${formatOrderDisplayNumber(orderRow).replace('Pedido', 'Pagamento pedido')} · ${orderRow.client_name_snapshot}`
-
-  const policyTxId = crypto.randomUUID()
-  try {
-    await db.batch([
-      ...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId),
-      db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, orderRow.total_cents, method, paidAt, paidAt),
-      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderId, paymentId, movementDate, paidAt, method, paidAt),
-      clearSettingsAssertions(db, policyTxId),
-    ])
-  } catch (error) {
-    const existingPayment = await db.prepare('SELECT id FROM payments WHERE order_id = ? AND business_id = ? LIMIT 1').bind(orderId, businessId).first()
-    if (existingPayment) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
-    if (String(error?.message || '').includes('POLICY_CHANGED')) rethrowPolicyChange(error)
-    throw error
-  }
-
-  const payment = { id: paymentId, orderId, amount: centsToMoney(orderRow.total_cents), method, paidAt }
-  const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, payment_method: method, movement_date: movementDate, created_at: paidAt, updated_at: paidAt })
-  await closeTableTabIfSettled(db, businessId, orderRow.table_tab_id, now)
-  return { payment, movement, order: await loadOrderById(db, businessId, orderId) }
 }
 
 export const createMovement = async (db, businessId, input, now = new Date()) => {

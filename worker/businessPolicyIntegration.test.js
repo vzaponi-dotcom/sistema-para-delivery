@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSettingsDb } from './test-support/settingsDb.js'
-import { createOrder, registerOrderPayment, registerTableTabPayment, updateOrderStatus } from './repositories.js'
+import { createOrder, updateOrderStatus } from './repositories.js'
+import { registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { createManualMovement, updateManualMovement } from './financeRepository.js'
 import { loadOperations, saveOperations } from './operationSettingsRepository.js'
@@ -9,10 +10,10 @@ import { loadPaymentMethods, savePaymentMethods } from './paymentSettingsReposit
 
 const BUSINESS = 'amor-e-sabor'
 const NOW = new Date('2026-09-12T18:00:00.000Z')
-const orderInput = (idempotencyKey, { type = 'Entrega', paymentMethod = null } = {}) => ({
+const orderInput = (idempotencyKey, { type = 'Entrega', paymentAllocations = null } = {}) => ({
   customerIdentity: { type: 'guest_name', value: 'Cliente teste' }, type, orderDate: '2026-09-12',
   items: [{ productId: 'product-1', quantity: 1, note: '' }], deliveryFeeCents: 0,
-  adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }, paymentMethod, idempotencyKey,
+  adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }, paymentAllocations, idempotencyKey,
 })
 const setup = (t) => {
   const fixture = createSettingsDb()
@@ -31,11 +32,11 @@ const disablePayment = async (db, code, mutationId) => {
 
 test('accepted checkout replay survives later policy change while new paid checkout is rejected', async (t) => {
   const { db, sqlite } = setup(t)
-  const accepted = await createOrder(db, BUSINESS, orderInput('accepted', { paymentMethod: 'Dinheiro' }), NOW)
+  const accepted = await createOrder(db, BUSINESS, orderInput('accepted', { paymentAllocations: [{ methodCode: 'cash', amountCents: 2500 }] }), NOW)
   await disablePayment(db, 'cash', 'disable-cash')
-  const replay = await createOrder(db, BUSINESS, orderInput('accepted', { paymentMethod: 'Dinheiro' }), new Date(+NOW + 1000))
+  const replay = await createOrder(db, BUSINESS, orderInput('accepted', { paymentAllocations: [{ methodCode: 'cash', amountCents: 2500 }] }), new Date(+NOW + 1000))
   assert.equal(replay.id, accepted.id)
-  await assert.rejects(createOrder(db, BUSINESS, orderInput('rejected', { paymentMethod: 'Dinheiro' }), new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
+  await assert.rejects(createOrder(db, BUSINESS, orderInput('rejected', { paymentAllocations: [{ methodCode: 'cash', amountCents: 2500 }] }), new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM orders WHERE idempotency_key = 'rejected'").get().n, 0)
 })
 
@@ -87,11 +88,11 @@ test('concurrent Local deactivation returns policy conflict and rolls back a new
 test('inactive payment method blocks standalone payment, refund and manual movement without partial effects', async (t) => {
   const { db, sqlite } = setup(t)
   const unpaid = await createOrder(db, BUSINESS, orderInput('unpaid'), NOW)
-  const paid = await createOrder(db, BUSINESS, orderInput('paid', { paymentMethod: 'Pix' }), NOW)
+  const paid = await createOrder(db, BUSINESS, orderInput('paid', { paymentAllocations: [{ methodCode: 'pix', amountCents: 2500 }] }), NOW)
   await cancelOrder(db, BUSINESS, paid.id, { reason: 'other', note: 'Teste', refundNow: false }, new Date(+NOW + 1000))
   await disablePayment(db, 'cash', 'disable-cash-all')
 
-  await assert.rejects(registerOrderPayment(db, BUSINESS, unpaid.id, 'Dinheiro', new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
+  await assert.rejects(registerOrderPayment(db, BUSINESS, unpaid.id, [{ methodCode: 'cash', amountCents: 2500 }], new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
   await assert.rejects(registerOrderRefund(db, BUSINESS, paid.id, { refundMethod: 'Dinheiro' }, new Date(+NOW + 2000)), { code: 'POLICY_CHANGED' })
   await assert.rejects(createManualMovement(db, BUSINESS, {
     type: 'saida', category: 'supplies', description: 'Compra', valueCents: 1000,
@@ -148,7 +149,7 @@ test('inactive payment method blocks whole-table payment without closing the tab
     customerIdentity: { type: 'table', tableId: 'table-1', clientId: null },
   }, NOW)
   await disablePayment(db, 'cash', 'disable-table-cash')
-  await assert.rejects(registerTableTabPayment(db, BUSINESS, tableOrder.tableTabId, 'Dinheiro', new Date(+NOW + 1000)), { code: 'POLICY_CHANGED' })
+  await assert.rejects(registerTableTabPayment(db, BUSINESS, tableOrder.tableTabId, [{ methodCode: 'cash', amountCents: 2500 }], new Date(+NOW + 1000)), { code: 'POLICY_CHANGED' })
   assert.equal(sqlite.prepare('SELECT status FROM table_tabs WHERE id = ?').get(tableOrder.tableTabId).status, 'open')
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM payments WHERE order_id = ?').get(tableOrder.id).n, 0)
 })
@@ -164,7 +165,7 @@ test('policy change immediately before checkout commit rolls back order, items, 
     }
     return batch(statements)
   }
-  await assert.rejects(createOrder(db, BUSINESS, orderInput('raced-order', { paymentMethod: 'Dinheiro' }), NOW), { code: 'POLICY_CHANGED' })
+  await assert.rejects(createOrder(db, BUSINESS, orderInput('raced-order', { paymentAllocations: [{ methodCode: 'cash', amountCents: 2500 }] }), NOW), { code: 'POLICY_CHANGED' })
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM orders WHERE idempotency_key = 'raced-order'").get().n, 0)
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM order_items').get().n, 0)
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM payments').get().n, 0)

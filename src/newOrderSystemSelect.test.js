@@ -20,8 +20,12 @@ test('NewOrder customer step uses pressed options for order type', async () => {
   assert.doesNotMatch(customerStep, /<select/)
 })
 
-test('checkout uses SystemSelect for adjustment mode and payment', async () => {
-  const source = await read('./domains/orders/ui/components/OrderCheckoutSummary.jsx')
-  for (const label of ['Ajuste do pedido', 'Modo', 'Forma de pagamento']) assert.match(source, new RegExp(`label="${label}"`))
-  assert.doesNotMatch(source, /<select/)
+test('checkout keeps adjustment selects in orders and delegates payment composition to the app', async () => {
+  const checkout = await read('./domains/orders/ui/components/OrderCheckoutSummary.jsx')
+  const paymentComposition = await read('./app/workflows/payments/CheckoutPaymentComposition.jsx')
+  for (const label of ['Ajuste do pedido', 'Modo']) assert.match(checkout, new RegExp(`label="${label}"`))
+  assert.match(checkout, /renderPaymentComposition/)
+  assert.doesNotMatch(checkout, /Forma de pagamento/)
+  assert.match(paymentComposition, /PaymentCompositionEditor/)
+  assert.doesNotMatch(checkout, /<select/)
 })

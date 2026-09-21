@@ -42,13 +42,20 @@ test('manual movement CRUD persists metadata and soft deletion', async (t) => {
 
 test('system-managed movements cannot be edited or deleted', async (t) => {
   const { db, sqlite } = setup(t)
+  sqlite.prepare(`INSERT INTO payment_receipts (id, business_id, total_cents, paid_at, created_at)
+    VALUES ('managed-receipt', ?, 1000, ?, ?)`).run(BUSINESS, now.toISOString(), now.toISOString())
+  sqlite.prepare(`INSERT INTO payment_allocations (id, business_id, receipt_id, method_code, method_label,
+    amount_cents, created_at) VALUES ('managed-allocation', ?, 'managed-receipt', 'pix', 'Pix', 1000, ?)`)
+    .run(BUSINESS, now.toISOString())
   for (const source of ['order-payment', 'order-refund']) {
     const id = `m-${source}`
     sqlite.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source,
-      order_id, payment_id, payment_method, movement_date, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'Sistema', 1000, ?, NULL, NULL, 'Pix', '2026-09-03', ?, ?)`).run(
+      order_id, payment_id, payment_method, movement_date, created_at, updated_at, receipt_id, payment_allocation_id)
+      VALUES (?, ?, ?, ?, 'Sistema', 1000, ?, NULL, NULL, 'Pix', '2026-09-03', ?, ?, ?, ?)`).run(
       id, BUSINESS, source === 'order-payment' ? 'entrada' : 'saida',
       source === 'order-payment' ? 'Vendas' : 'Estornos', source, now.toISOString(), now.toISOString(),
+      source === 'order-payment' ? 'managed-receipt' : null,
+      source === 'order-payment' ? 'managed-allocation' : null,
     )
     await assert.rejects(() => updateManualMovement(db, BUSINESS, id, input, later),
       (error) => error?.status === 409 && error?.code === 'MOVEMENT_MANAGED_BY_SYSTEM')

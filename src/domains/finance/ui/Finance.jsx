@@ -6,10 +6,12 @@ import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
 import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
 import StatCard from '../../../shared/ui/StatCard'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import { groupFinanceMovementsForDisplay } from '../domain/movementPresentation.js'
 
 function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, onConfigureOpeningBalance, pendingRefundOrders = [], onRequestRefund, formatCancellationDate = () => 'Data não informada', canManageMovements = true, canRefundPayments = true }) {
   const [movementPendingDelete, setMovementPendingDelete] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
+  const displayMovements = groupFinanceMovementsForDisplay(movements)
 
   return (
     <>
@@ -45,17 +47,44 @@ function Finance({ totals, movements, currency, onAddMovement, onEditMovement, o
         </section>
       )}
       <section className="surface-card">
-        <div className="section-heading"><div><span className="section-kicker">Histórico</span><h2>Movimentações</h2></div><span className="toolbar-count">{movements.length} registro(s)</span></div>
+        <div className="section-heading"><div><span className="section-kicker">Histórico</span><h2>Movimentações</h2></div><span className="toolbar-count">{displayMovements.length} registro(s)</span></div>
         <div className="movement-list">
-          {movements.map((movement) => (
+          {displayMovements.map((movement) => (
             <article className="movement-row" key={movement.id}>
               <div className={movement.type === 'entrada' ? 'movement-icon incoming' : 'movement-icon outgoing'}><Icon name={movement.type === 'entrada' ? 'arrow-up' : 'arrow-down'} size={18} /></div>
-              <div className="movement-main"><div className="movement-title-line"><strong>{movement.description}</strong><span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>{movement.type === 'entrada' ? 'Entrada' : 'Saída'}</span>{movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}{movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}</div><span>{movement.categoryLabel || movement.category} · {movement.date}{movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}</span>{canManageMovements && movement.source === 'manual' && <div className="entity-actions movement-actions"><Button type="button" variant="secondary" aria-label={`Editar ${movement.description}`} disabled={writeDisabled} onClick={() => onEditMovement?.(movement)}>Editar</Button><Button type="button" variant="secondary" className="button-danger-outline" aria-label={`Excluir ${movement.description}`} disabled={writeDisabled} onClick={() => setMovementPendingDelete(movement)}>Excluir</Button></div>}</div>
+              <div className="movement-main">
+                <div className="movement-title-line">
+                  <strong>{movement.description}</strong>
+                  <span className={movement.type === 'entrada' ? 'movement-tag incoming' : 'movement-tag outgoing'}>{movement.type === 'entrada' ? 'Entrada' : 'Saída'}</span>
+                  {movement.source === 'order-payment' && <span className="movement-tag incoming">Pedido recebido</span>}
+                  {movement.source === 'order-refund' && <span className="movement-tag outgoing">Estorno de pedido</span>}
+                </div>
+                <span>
+                  {movement.categoryLabel || movement.category} · {movement.date}
+                  {movement.paymentBreakdown?.length > 1 ? ` · ${movement.paymentBreakdown.length} formas` : movement.paymentMethod ? ` · ${movement.paymentMethod}` : ''}
+                </span>
+                {movement.paymentBreakdown?.length > 1 && (
+                  <div className="movement-payment-breakdown" aria-label="Formas de pagamento">
+                    {movement.paymentBreakdown.map((part) => (
+                      <span className="movement-payment-part" key={part.movementId}>
+                        <strong>{part.methodLabel}</strong>
+                        <span>{currency(part.value)}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {canManageMovements && movement.source === 'manual' && (
+                  <div className="entity-actions movement-actions">
+                    <Button type="button" variant="secondary" aria-label={`Editar ${movement.description}`} disabled={writeDisabled} onClick={() => onEditMovement?.(movement)}>Editar</Button>
+                    <Button type="button" variant="secondary" className="button-danger-outline" aria-label={`Excluir ${movement.description}`} disabled={writeDisabled} onClick={() => setMovementPendingDelete(movement)}>Excluir</Button>
+                  </div>
+                )}
+              </div>
               <strong className={movement.type === 'entrada' ? 'movement-value positive' : 'movement-value negative'}>{movement.type === 'entrada' ? '+' : '-'}{currency(movement.value)}</strong>
             </article>
           ))}
         </div>
-        {!movements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
+        {!displayMovements.length && <div className="empty-state"><Icon name="finance" size={28} /><strong>Nenhuma movimentação registrada</strong><span>Registre uma entrada ou saída para começar o controle.</span></div>}
       </section>
       {movementPendingDelete && <ConfirmationDialog title="Excluir movimentação?" message={`A movimentação “${movementPendingDelete.description}” será removida do histórico visível.`} confirmLabel="Excluir movimentação" onConfirm={async () => { const deleted = await onDeleteMovement?.(movementPendingDelete.id); if (deleted !== false) setMovementPendingDelete(null) }} onClose={() => setMovementPendingDelete(null)} disabled={writeDisabled} />}
     </>

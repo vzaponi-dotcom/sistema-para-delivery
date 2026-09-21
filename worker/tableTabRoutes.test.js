@@ -125,7 +125,7 @@ test('delivery checkout retains its response contract and creates the centralize
   const createdPayload = await created.json()
   assert.equal(Object.hasOwn(createdPayload, 'tables'), false)
   assert.equal(createdPayload.order.type, 'Entrega')
-  assert.equal(createdPayload.movement, null)
+  assert.deepEqual(createdPayload.movements, [])
   assert.equal(createdPayload.tableTab, null)
   assert.equal(createdPayload.printJob.orderId, createdPayload.order.id)
   assert.equal(createdPayload.printJob.trigger, 'automatic')
@@ -165,7 +165,7 @@ test('a local order opens a fresh stable tab and returns its occupied pending su
   assert.equal(occupied.occupancy, 'occupied')
   assert.equal(occupied.openTableTabId, createdPayload.tableTab.id)
 
-  const paid = await request(env, cookie, 'POST', `/api/table-tabs/${createdPayload.tableTab.id}/payment`, { body: { method: 'Pix' } })
+  const paid = await request(env, cookie, 'POST', `/api/table-tabs/${createdPayload.tableTab.id}/payment`, { body: { allocations: [{ methodCode: 'pix', amountCents: 2500 }] } })
   assert.equal(paid.status, 201)
   const paidPayload = await paid.json()
   assert.equal(paidPayload.tables.find((table) => table.id === 'table-2').occupancy, 'free')
@@ -190,7 +190,7 @@ test('direct API rejects immediate payment for a table order', async () => {
 
 test('direct API returns a stable conflict when the expected comanda was replaced', async () => {
   const { env, cookie } = await authenticated()
-  const paid = await request(env, cookie, 'POST', '/api/table-tabs/tab-1/payment', { body: { method: 'Pix' } })
+  const paid = await request(env, cookie, 'POST', '/api/table-tabs/tab-1/payment', { body: { allocations: [{ methodCode: 'pix', amountCents: 2500 }] } })
   assert.equal(paid.status, 201)
   env.DB.sqlite.exec(`
     UPDATE table_tabs SET status = 'closed', closed_at = '${timestamp}' WHERE id = 'tab-1';
