@@ -80,8 +80,11 @@ async function paymentWorkspace(t, mobile = false) {
 }
 
 const paidResult = () => ({
+  receipt: { id: 'receipt-tab-42', totalCents: 12345, total: 123.45, tableTabId: 'tab-42' },
+  allocations: [{ id: 'allocation-tab-42', receiptId: 'receipt-tab-42', methodCode: 'pix', methodLabel: 'Pix', amountCents: 12345, amount: 123.45 }],
+  payments: [{ id: 'payment-tab-42', orderId: 'paid-order', receiptId: 'receipt-tab-42', amount: 123.45 }],
   orders: [{ id: 'paid-order', client: 'Mesa 7', total: 123.45, paymentStatus: 'Pago', status: 'Finalizado', type: 'Local' }],
-  movements: [{ id: 'paid-movement', description: 'Pagamento comanda', value: 123.45, type: 'entrada', date: '2026-09-10' }],
+  movements: [{ id: 'paid-movement', description: 'Pagamento comanda', value: 123.45, type: 'entrada', date: '2026-09-10', paymentMethod: 'Pix' }],
   tableTab: { id: 'tab-42', number: 42, tableId: 'occupied', tableIdentifier: 'Mesa 7', status: 'closed' },
   tables: workspaceTables.map((table) => table.id === 'occupied' ? { ...table, occupancy: 'free', openTableTab: null } : table),
 })
