@@ -1,7 +1,7 @@
 # Gestão Delivery — Pagamento dividido em múltiplas formas (Issue #30)
 
 **Data:** 2026-09-21  
-**Status:** design aprovado em conversa; consolidado e auto-revisado para aprovação escrita antes do plano de implementação  
+**Status:** APROVADO pelo usuário em 2026-09-21; plano de implementação escrito e aguardando aprovação  
 **Branch:** feature/split-payments  
 **Base:** master em 56c693ee505631191d4b09926fb6237d865910f5  
 **Base de origem:** merge do PR #55 — Print queue operational UX  
@@ -1226,6 +1226,9 @@ Resolvido: backfill 1 payment -> 1 receipt -> 1 allocation preserva bytes, valor
 Resolvido: payload e validação usam centavos inteiros.
 
 ## 37. Gate para o próximo passo
+
+**Plano escrito:** `docs/superpowers/plans/2026-09-21-split-payments-plan.md`
+
 
 Depois da aprovação explícita desta Spec:
 
