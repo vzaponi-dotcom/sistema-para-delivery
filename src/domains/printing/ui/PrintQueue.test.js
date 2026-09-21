@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import React, { useState } from 'react'
 import { act } from 'react-test-renderer'
-import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
+import { buildPrintQueueSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
@@ -63,31 +63,17 @@ test('print queue summary uses the four server operational counters', () => {
   })
 })
 
-test('print station summary reports available health without inventing an online state', () => {
-  assert.deepEqual(getPrintStationSummary({
-    health: { online: true, qzReady: true, printerReady: false },
-  }), {
-    onlineLabel: 'Online',
-    qzLabel: 'QZ conectado',
-    printerLabel: 'Fila indisponível',
-  })
-  assert.deepEqual(getPrintStationSummary(null), {
-    onlineLabel: 'Status indisponível',
-    qzLabel: null,
-    printerLabel: null,
-  })
-})
-
-test('print queue renders station health and a responsive four-card summary', async () => {
+test('print queue renders operational status and a responsive four-card summary', async () => {
   const [app, page, styles] = await Promise.all([
     readSource('../../../App.jsx'),
     readSource('./PrintQueue.jsx'),
     readSource('./print-queue.css'),
   ])
 
-  for (const label of ['Cozinha PC', 'Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
+  for (const label of ['Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
     assert.match(page, new RegExp(label))
   }
+  assert.match(page, /print-queue-operational-card/)
   assert.match(app, /<PrintQueue orders=\{orders\} printing=\{printing\}/)
   assert.match(styles, /\.print-queue-summary[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
