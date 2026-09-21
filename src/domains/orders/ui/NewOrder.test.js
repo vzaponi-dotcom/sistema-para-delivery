@@ -135,7 +135,7 @@ test('new order keeps money display formatted but normalizes preview and payload
   assert.match(page, /formatBRLCurrencyValue\(0\)/)
   assert.match(page, /numericDraft/)
   assert.match(page, /calculateOrderPreview\(numericDraft\)/)
-  assert.match(page, /buildOrderPayload\(numericDraft, paymentMethod\)/)
+  assert.match(page, /buildOrderPayload\(numericDraft, paymentAllocations\)/)
 })
 
 test('new order still exposes catalog, cart and both checkout actions', () => {
@@ -159,8 +159,9 @@ test('new order still exposes catalog, cart and both checkout actions', () => {
 test('wizard keeps checkout payload unchanged and never persists intermediate step metadata', () => {
   const page = source('./NewOrder.jsx')
 
-  assert.match(page, /buildOrderPayload\(numericDraft, paymentMethod\)/)
-  assert.match(page, /await onSubmit\(buildOrderPayload\(numericDraft, paymentMethod\)\)/)
+  assert.match(page, /buildOrderPayload\(numericDraft, paymentAllocations\)/)
+  assert.match(page, /await onSubmit\(buildOrderPayload\(numericDraft, paymentAllocations\)\)/)
+  assert.doesNotMatch(page, /app\/workflows\/payments/)
   assert.doesNotMatch(page, /step:\s*currentStep/)
   assert.doesNotMatch(page, /currentStep:\s*currentStep/)
 })

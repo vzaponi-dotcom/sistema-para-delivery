@@ -88,7 +88,7 @@ test('catalog decrement removes one unit and removes the final cart line at zero
   assert.deepEqual(decrementCartProduct(items, 'missing'), items)
 })
 
-test('percentage discount excludes delivery fee and payload contains no price', () => {
+test('percentage discount excludes delivery fee and paid payload uses structured allocations without prices', () => {
   const items = [...addCartItem([], marmita, ''), ...addCartItem([], coca, '')]
   const draft = {
     clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items,
@@ -96,10 +96,21 @@ test('percentage discount excludes delivery fee and payload contains no price', 
     adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: ' fidelidade ' },
   }
   assert.deepEqual(calculateOrderPreview(draft), { subtotal: 40, deliveryFee: 8, adjustmentAmount: 4, total: 44 })
-  const payload = buildOrderPayload(draft, 'Pix')
+  const paymentAllocations = [
+    { methodCode: 'cash', amountCents: 2000 },
+    { methodCode: 'pix', amountCents: 2400 },
+  ]
+  const payload = buildOrderPayload(draft, paymentAllocations)
   assert.equal(payload.items[0].unitPrice, undefined)
-  assert.equal(payload.paymentMethod, 'Pix')
+  assert.deepEqual(payload.paymentAllocations, paymentAllocations)
+  assert.equal(payload.paymentMethod, undefined)
   assert.equal(payload.adjustment.reason, 'fidelidade')
+})
+
+test('pending checkout omits payment allocations entirely', () => {
+  const payload = buildOrderPayload({ type: 'Retirada', orderDate: '2026-09-01', items: [] })
+  assert.equal(Object.hasOwn(payload, 'paymentAllocations'), false)
+  assert.equal(Object.hasOwn(payload, 'paymentMethod'), false)
 })
 
 test('payload includes scheduledFor only when provided', () => {

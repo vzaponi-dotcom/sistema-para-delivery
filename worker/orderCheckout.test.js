@@ -2,19 +2,26 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { calculateCheckoutTotals, validateCheckoutInput } from './orderCheckout.js'
 
-test('checkout converts fee and percentage to storage units', () => {
+test('checkout converts fee and percentage and validates structured payment allocations', () => {
   const input = validateCheckoutInput({
     clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01',
     items: [{ productId: 'p1', quantity: 2, note: ' sem   cebola ' }],
     deliveryFee: 8,
     adjustment: { type: 'discount', mode: 'percentage', value: 7.5, reason: ' fidelidade ' },
-    paymentMethod: 'Pix',
+    paymentAllocations: [
+      { methodCode: 'cash', amountCents: 3000 },
+      { methodCode: 'pix', amountCents: 5000 },
+    ],
   }, 'checkout-1')
   assert.equal(input.items[0].note, 'sem cebola')
   assert.equal(input.deliveryFeeCents, 800)
   assert.equal(input.adjustment.storedValue, 750)
   assert.equal(input.adjustment.reason, 'fidelidade')
-  assert.equal(input.paymentMethod, 'Pix')
+  assert.deepEqual(input.paymentAllocations, [
+    { methodCode: 'cash', amountCents: 3000 },
+    { methodCode: 'pix', amountCents: 5000 },
+  ])
+  assert.equal(input.paymentMethod, undefined)
 })
 
 test('checkout merges duplicate product and equivalent normalized note', () => {
@@ -38,9 +45,9 @@ test('checkout rejects empty cart, long note, bad percentage and fee outside Ent
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Retirada', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], deliveryFee: 5 }, 'k'))
 })
 
-test('checkout rejects malformed percentage precision and invalid payment', () => {
+test('checkout rejects malformed percentage precision and invalid payment allocations', () => {
   assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], adjustment: { type: 'discount', mode: 'percentage', value: 7.555 } }, 'k'))
-  assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], paymentMethod: 'Cheque' }, 'k'))
+  assert.throws(() => validateCheckoutInput({ clientId: 'c1', type: 'Entrega', orderDate: '2026-09-01', items: [{ productId: 'p1', quantity: 1 }], paymentAllocations: [{ methodCode: 'cheque', amountCents: 1000 }] }, 'k'))
 })
 
 test('checkout carries an expected table tab only for table orders', () => {
@@ -59,8 +66,8 @@ test('checkout carries an expected table tab only for table orders', () => {
 test('checkout rejects immediate payment for table orders', () => {
   assert.throws(() => validateCheckoutInput({
     customerIdentity: { type: 'table', tableId: 'table-1' }, type: 'Local', orderDate: '2026-09-01',
-    items: [{ productId: 'p1', quantity: 1 }], paymentMethod: 'Pix',
-  }, 'paid-table'), (error) => error.status === 400 && error.field === 'paymentMethod')
+    items: [{ productId: 'p1', quantity: 1 }], paymentAllocations: [{ methodCode: 'pix', amountCents: 1000 }],
+  }, 'paid-table'), (error) => error.status === 400 && error.field === 'paymentAllocations')
 })
 
 test('discount percentage applies to products only and cannot consume fee', () => {
