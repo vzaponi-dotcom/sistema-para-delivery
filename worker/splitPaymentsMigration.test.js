@@ -67,9 +67,9 @@ function seedHistoricalPayments(sqlite) {
     id: 'tab-history',
     business_id: BUSINESS,
     table_identifier: 'Mesa histórica',
-    status: 'closed',
+    status: 'open',
     opened_at: EARLY,
-    closed_at: LATE,
+    closed_at: null,
     created_at: EARLY,
     updated_at: LATE,
     table_id: tableId,
@@ -135,6 +135,9 @@ function seedHistoricalPayments(sqlite) {
       deleted_at: null,
     })
   }
+
+  sqlite.prepare("UPDATE table_tabs SET status = 'closed', closed_at = ?, updated_at = ? WHERE id = 'tab-history'")
+    .run(LATE, LATE)
 
   insert(sqlite, 'movements', {
     id: 'refund-pix',
