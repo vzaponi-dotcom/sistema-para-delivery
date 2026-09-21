@@ -52,7 +52,7 @@ test('multi-method policy expectation rejects one inactive selection and same-ba
 
   sqlite.exec("UPDATE business_payment_methods SET active = 1 WHERE code = 'cash'")
   const paymentMethods = await readPaymentMethodExpectations(db, BUSINESS, ['cash', 'pix'])
-  sqlite.exec("UPDATE business_payment_methods SET active = 0 WHERE code = 'pix'; UPDATE business_payment_settings SET revision = revision + 1")
+  sqlite.exec("BEGIN; UPDATE business_payment_settings SET default_method = 'cash', revision = revision + 1; UPDATE business_payment_methods SET active = 0 WHERE code = 'pix'; COMMIT")
   await assert.rejects(
     db.batch(preparePolicyGuards(db, BUSINESS, { paymentMethods }, 'multi-policy-race')),
     /POLICY_CHANGED/,
