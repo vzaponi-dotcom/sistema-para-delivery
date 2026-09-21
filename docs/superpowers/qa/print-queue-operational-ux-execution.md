@@ -326,3 +326,20 @@ Validated against Deploy staging #191 / runtime SHA `309fe9134d4dee499835782ef5e
 - Staging re-deploy: **PENDING workflow_dispatch**.
 - Production: **NOT TOUCHED**.
 
+
+
+## Staging re-deploy after QA fixes
+
+- Deploy staging **#192** / run `35555410207`: **SUCCESS**
+- Branch: `staging/print-queue-operational-ux`
+- Runtime SHA: `ff2bf230c6cabdf5fa59c2a265cd1ccd9a3fb41e`
+- Suite during deploy: **1,973 tests / 1,972 pass / 0 fail / 1 skipped**
+- Remote staging migrations: **none pending**
+- Worker Version ID: `5c729caa-b2fd-4971-9f3a-f0994f9ce9c2`
+- Readiness: **attempt 1/6**
+- Staging login smoke: **HTTP 200**
+- Re-QA pending for:
+  - stable QZ-disconnected message across repeated 5-second state polls;
+  - explicit `0` in Aguardando 2ª via;
+  - real Android / queue-only contextual Settings behavior.
+
