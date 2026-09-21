@@ -50,7 +50,7 @@ test('write-effect readers return mapped payment movement and current table tab'
 
   assert.deepEqual(movement, {
     id: 'm1', type: 'entrada', category: 'Vendas', categoryLabel: 'Vendas', description: 'Pagamento pedido', value: 80.5,
-    source: 'order-payment', orderId: 'o1', paymentId: 'p1', paymentMethod: null,
+    source: 'order-payment', orderId: 'o1', paymentId: 'p1', receiptId: null, paymentAllocationId: null, paymentMethod: null,
     movementDate: '2026-09-03', date: '2026-09-03', createdAt: '2026-09-03T15:00:00.000Z', updatedAt: '2026-09-03T15:00:00.000Z',
   })
   assert.deepEqual(tableTab, {

@@ -51,7 +51,7 @@ const checkout = (idempotencyKey, customerIdentity) => ({
   items: [{ productId: 'product-policy', quantity: 1, note: '' }],
   deliveryFeeCents: 0,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-  paymentMethod: null,
+  paymentAllocations: null,
   idempotencyKey,
 })
 

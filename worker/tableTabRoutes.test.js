@@ -125,7 +125,7 @@ test('delivery checkout retains its response contract and creates the centralize
   const createdPayload = await created.json()
   assert.equal(Object.hasOwn(createdPayload, 'tables'), false)
   assert.equal(createdPayload.order.type, 'Entrega')
-  assert.equal(createdPayload.movement, null)
+  assert.deepEqual(createdPayload.movements, [])
   assert.equal(createdPayload.tableTab, null)
   assert.equal(createdPayload.printJob.orderId, createdPayload.order.id)
   assert.equal(createdPayload.printJob.trigger, 'automatic')

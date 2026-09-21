@@ -23,7 +23,7 @@ const orderInput = (idempotencyKey) => ({
   items: [{ productId: 'timing-product', quantity: 1, note: '' }],
   deliveryFeeCents: 0,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-  paymentMethod: null,
+  paymentAllocations: null,
   idempotencyKey,
 })
 
@@ -47,7 +47,7 @@ const saveTiming = async (db, timing, mutationId, now = NOW) => {
 const createPaidCancelledOrder = async (t, idempotencyKey) => {
   const fixture = setup(t)
   const order = await createOrder(fixture.db, BUSINESS, {
-    ...orderInput(idempotencyKey), paymentMethod: 'Pix',
+    ...orderInput(idempotencyKey), paymentAllocations: [{ methodCode: 'pix', amountCents: 2500 }],
   }, NOW)
   await cancelOrder(fixture.db, BUSINESS, order.id, {
     reason: 'entry_error', expectedRevision: 1, refundNow: false,

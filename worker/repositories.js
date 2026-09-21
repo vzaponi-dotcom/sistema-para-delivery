@@ -6,11 +6,12 @@ import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
 import { calculateCheckoutTotals } from './orderCheckout.js'
+import { assertPaymentAllocationTotal, validatePaymentAllocations } from './paymentValidation.js'
 import { prepareAutomaticPrintJobStatement } from './orderPrintingRepository.js'
 import { listTables, requireExpectedOpenTableTab, reserveNextTableTabNumber } from './tableRepository.js'
 import { centsToMoney } from './validation.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
-import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectation, readPrintingPolicyExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
+import { preparePolicyGuards, readOrderModalityExpectation, readPaymentMethodExpectations, readPrintingPolicyExpectation, rethrowPolicyChange } from './operationalPolicyGuards.js'
 import { loadOperations } from './operationSettingsRepository.js'
 import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
 
@@ -304,7 +305,7 @@ const legacyCheckoutInput = (input) => ({
   items: [{ productId: input.productId, quantity: input.quantity, note: '' }],
   deliveryFeeCents: 0,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-  paymentMethod: null,
+  paymentAllocations: null,
 })
 
 export const createOrder = async (db, businessId, rawInput, now = new Date()) => {
@@ -315,12 +316,19 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (existing?.id) return loadOrderById(db, businessId, existing.id)
 
   const customerIdentity = input.customerIdentity ?? { type: 'registered_client', clientId: input.clientId }
-  if (customerIdentity.type === 'table' && input.paymentMethod) {
+  const requestedAllocations = input.paymentAllocations == null ? null : validatePaymentAllocations(input.paymentAllocations)
+  if (customerIdentity.type === 'table' && requestedAllocations) {
     throw repositoryError(400, 'TABLE_ORDER_PAYMENT_NOT_ALLOWED', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
   }
   const policyExpectations = {}
   policyExpectations.operations = await readOrderModalityExpectation(db, businessId, input.type)
-  if (input.paymentMethod) policyExpectations.paymentMethods = await readPaymentMethodExpectation(db, businessId, input.paymentMethod)
+  if (requestedAllocations) {
+    policyExpectations.paymentMethods = await readPaymentMethodExpectations(
+      db,
+      businessId,
+      requestedAllocations.map(({ methodCode }) => methodCode),
+    )
+  }
   let clientId = null
   let clientSnapshot = ''
   let clientPhoneSnapshot = ''
@@ -402,6 +410,9 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   const deliveryFeeCents = Number(input.deliveryFeeCents) || 0
   const adjustment = input.adjustment || { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }
   const totals = calculateCheckoutTotals(pricedItems, deliveryFeeCents, adjustment)
+  const paymentAllocations = requestedAllocations
+    ? assertPaymentAllocationTotal(requestedAllocations, totals.totalCents)
+    : null
   const orderId = crypto.randomUUID()
   const sequenceRow = await db.prepare(`INSERT INTO order_sequences (business_id, last_order_number)
     VALUES (?, 1)
@@ -478,14 +489,42 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     ))
   }
 
-  if (input.paymentMethod) {
+  let paymentLabels = null
+  if (paymentAllocations) {
+    paymentLabels = new Map(policyExpectations.paymentMethods.methods.map(({ code, label }) => [code, label]))
+    const receiptId = crypto.randomUUID()
     const paymentId = crypto.randomUUID()
-    const movementId = crypto.randomUUID()
     const paidAt = now.toISOString()
     const movementDate = getBusinessDate(now)
     const description = `${formatOrderDisplayNumber({ orderNumber }).replace('Pedido', 'Pagamento pedido')} · ${clientSnapshot}`
-    statements.push(db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, totals.totalCents, input.paymentMethod, paidAt, paidAt))
-    statements.push(db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, totals.totalCents, 'order-payment', orderId, paymentId, movementDate, paidAt, input.paymentMethod, paidAt))
+    const movementStatements = []
+    statements.push(db.prepare(`INSERT INTO payment_receipts
+      (id, business_id, table_tab_id, total_cents, paid_at, created_at)
+      VALUES (?, ?, NULL, ?, ?, ?)`).bind(receiptId, businessId, totals.totalCents, paidAt, paidAt))
+    for (const allocation of paymentAllocations) {
+      const allocationId = crypto.randomUUID()
+      const methodLabel = paymentLabels.get(allocation.methodCode)
+      statements.push(db.prepare(`INSERT INTO payment_allocations
+        (id, business_id, receipt_id, method_code, method_label, amount_cents, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+        allocationId, businessId, receiptId, allocation.methodCode, methodLabel, allocation.amountCents, paidAt,
+      ))
+      statements.push(db.prepare(`UPDATE business_payment_methods SET first_used_at = ?
+        WHERE business_id = ? AND code = ? AND first_used_at IS NULL`).bind(paidAt, businessId, allocation.methodCode))
+      movementStatements.push(db.prepare(`INSERT INTO movements
+        (id, business_id, type, category, description, value_cents, source, order_id, payment_id,
+         movement_date, created_at, payment_method, updated_at, receipt_id, payment_allocation_id)
+        VALUES (?, ?, 'entrada', 'Vendas', ?, ?, 'order-payment', ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+        crypto.randomUUID(), businessId, description, allocation.amountCents, orderId, paymentId,
+        movementDate, paidAt, methodLabel, paidAt, receiptId, allocationId,
+      ))
+    }
+    statements.push(db.prepare(`INSERT INTO payments
+      (id, business_id, order_id, receipt_id, amount_cents, method, paid_at, created_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`).bind(
+      paymentId, businessId, orderId, receiptId, totals.totalCents, paidAt, paidAt,
+    ))
+    statements.push(...movementStatements)
   }
 
   if (status === 'Em preparo') {
@@ -521,8 +560,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       },
       totalCents: totals.totalCents,
       payment: {
-        status: input.paymentMethod ? 'Pago' : 'Pendente',
-        method: input.paymentMethod || '',
+        status: paymentAllocations ? 'Pago' : 'Pendente',
+        method: paymentAllocations?.length === 1 ? paymentLabels.get(paymentAllocations[0].methodCode) : '',
       },
     })
     statements.push(prepareAutomaticPrintJobStatement(db, businessId, {

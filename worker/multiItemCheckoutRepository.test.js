@@ -33,7 +33,7 @@ const baseInput = (overrides = {}) => ({
   ],
   deliveryFeeCents: 800,
   adjustment: { type: 'discount', mode: 'percentage', storedValue: 1000, reason: '' },
-  paymentMethod: null,
+  paymentAllocations: null,
   ...overrides,
 })
 
@@ -45,7 +45,7 @@ const tableInput = (tableId, idempotencyKey, clientId) => baseInput({
   items: [{ productId: 'p1', quantity: 1, note: '' }],
   deliveryFeeCents: 0,
   adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-  paymentMethod: null,
+  paymentAllocations: null,
 })
 
 test('order/item mapping exposes delivery fee, note and friendly percentage', () => {
@@ -134,7 +134,7 @@ test('paid retry creates one order, payment and movement and stays Em preparo', 
     items: [{ productId: 'p1', quantity: 1, note: '' }],
     deliveryFeeCents: 0,
     adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' },
-    paymentMethod: 'Pix',
+    paymentAllocations: [{ methodCode: 'pix', amountCents: 3200 }],
   })
   const first = await createOrder(db, 'amor-e-sabor', payload, new Date('2026-09-01T20:00:00.000Z'))
   const second = await createOrder(db, 'amor-e-sabor', payload, new Date('2026-09-01T20:01:00.000Z'))
@@ -149,7 +149,7 @@ test('paid retry creates one order, payment and movement and stays Em preparo', 
 test('failed paid checkout rolls back order items payment and movement together', async () => {
   const db = new CheckoutDb()
   db.failNextBatch = true
-  await assert.rejects(() => createOrder(db, 'amor-e-sabor', baseInput({ paymentMethod: 'Pix' }), new Date('2026-09-01T20:00:00.000Z')))
+  await assert.rejects(() => createOrder(db, 'amor-e-sabor', baseInput({ paymentAllocations: [{ methodCode: 'pix', amountCents: 7280 }] }), new Date('2026-09-01T20:00:00.000Z')))
   assert.equal(db.all('SELECT * FROM orders').length, 0)
   assert.equal(db.all('SELECT * FROM order_items').length, 0)
   assert.equal(db.all('SELECT * FROM payments').length, 0)

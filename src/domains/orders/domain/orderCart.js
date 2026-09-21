@@ -141,7 +141,7 @@ export const calculateOrderPreview = (draft = {}) => {
   }
 }
 
-export const buildOrderPayload = (draft = {}, paymentMethod) => {
+export const buildOrderPayload = (draft = {}, paymentAllocations) => {
   const adjustment = draft.adjustment || {}
   const payload = {
     customerIdentity: draft.customerIdentity,
@@ -160,7 +160,9 @@ export const buildOrderPayload = (draft = {}, paymentMethod) => {
       reason: cleanSpaces(adjustment.reason).slice(0, 200),
     },
   }
-  if (paymentMethod) payload.paymentMethod = paymentMethod
+  if (Array.isArray(paymentAllocations) && paymentAllocations.length) {
+    payload.paymentAllocations = paymentAllocations.map(({ methodCode, amountCents }) => ({ methodCode, amountCents }))
+  }
   if (draft.expectedTableTabId) payload.expectedTableTabId = draft.expectedTableTabId
   if (draft.scheduledFor) payload.scheduledFor = draft.scheduledFor
   return payload

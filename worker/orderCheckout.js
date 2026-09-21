@@ -1,12 +1,12 @@
 import { validateCustomerIdentity } from '../shared/orderCustomerIdentity.js'
 import { getBusinessDate } from '../shared/finance.js'
+import { validatePaymentAllocations } from './paymentValidation.js'
 import {
   moneyToCents,
   optionalTextMax,
   requireNonEmpty,
   validateIsoDate,
   validateOrderType,
-  validatePaymentMethod,
   validatePositiveInteger,
 } from './validation.js'
 
@@ -102,11 +102,14 @@ export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date(
   }
 
   const adjustment = validateAdjustment(body.adjustment)
-  const paymentMethod = body.paymentMethod === undefined || body.paymentMethod === null || body.paymentMethod === ''
+  if (body.paymentMethod !== undefined) {
+    throw checkoutError('paymentMethod', 'Use paymentAllocations para receber o pedido.')
+  }
+  const paymentAllocations = body.paymentAllocations === undefined || body.paymentAllocations === null
     ? null
-    : validatePaymentMethod(body.paymentMethod)
-  if (customerIdentity.type === 'table' && paymentMethod) {
-    throw checkoutError('paymentMethod', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
+    : validatePaymentAllocations(body.paymentAllocations)
+  if (customerIdentity.type === 'table' && paymentAllocations) {
+    throw checkoutError('paymentAllocations', 'Pedidos de mesa devem ser recebidos pelo pagamento integral da comanda.')
   }
 
   const expectedTableTabId = body.expectedTableTabId === undefined || body.expectedTableTabId === null || body.expectedTableTabId === ''
@@ -123,7 +126,7 @@ export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date(
     items,
     deliveryFeeCents: type === 'Entrega' ? deliveryFeeCents : 0,
     adjustment,
-    paymentMethod,
+    paymentAllocations,
     expectedTableTabId,
     scheduledFor,
     idempotencyKey: stableKey,

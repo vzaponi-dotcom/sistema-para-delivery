@@ -153,7 +153,8 @@ test('new order still exposes catalog, cart and both checkout actions', () => {
   assert.match(cart, /Observação deste item/)
   assert.match(checkout, /Salvar pedido/)
   assert.match(checkout, /Salvar e receber/)
-  assert.match(checkout, /Forma de pagamento/)
+  assert.match(checkout, /renderPaymentComposition/)
+  assert.match(page, /renderPaymentComposition/)
 })
 
 test('wizard keeps checkout payload unchanged and never persists intermediate step metadata', () => {

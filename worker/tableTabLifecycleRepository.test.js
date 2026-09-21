@@ -64,7 +64,7 @@ const tableOrderInput = (expectedTableTabId = 'tab-1', key = crypto.randomUUID()
   customerIdentity: { type: 'table', tableId: 'table-1' }, expectedTableTabId,
   type: 'Local', orderDate: '2026-09-10', idempotencyKey: key,
   items: [{ productId: 'product-1', quantity: 1, note: '' }], deliveryFeeCents: 0,
-  adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }, paymentMethod: null,
+  adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }, paymentAllocations: null,
 })
 
 test('an added order racing full payment cannot leave a closed tab with unpaid work', async () => {
@@ -188,7 +188,7 @@ test('order insertion that loses a close race returns 409 and rolls back the who
 test('repository rejects immediate payment for a table order even without route validation', async () => {
   const db = new D1Sqlite({ withOrder: false })
   await assert.rejects(
-    () => createOrder(db, 'amor-e-sabor', { ...tableOrderInput('tab-1', 'paid-table-repository'), paymentMethod: 'Pix' }, new Date(timestamp)),
+    () => createOrder(db, 'amor-e-sabor', { ...tableOrderInput('tab-1', 'paid-table-repository'), paymentAllocations: [{ methodCode: 'pix', amountCents: 2500 }] }, new Date(timestamp)),
     (error) => error.status === 400 && error.code === 'TABLE_ORDER_PAYMENT_NOT_ALLOWED',
   )
   assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS count FROM orders').get().count, 0)

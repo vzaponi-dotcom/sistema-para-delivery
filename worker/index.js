@@ -10,7 +10,7 @@ import { resolveSettingsAccess } from './settingsAccess.js'
 import { loadEffectiveBusinessConfig } from './effectiveBusinessConfig.js'
 import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
-import { loadMovementByOrderSource, loadTableTabById } from './orderWriteEffects.js'
+import { loadMovementByOrderSource, loadMovementsByOrderSource, loadTableTabById } from './orderWriteEffects.js'
 import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
 import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
@@ -155,14 +155,14 @@ const authenticatedApi = async (request, env) => {
     assertSameOriginMutation(request)
     const input = validateCheckoutInput(await readJson(request), request.headers.get('idempotency-key'))
     const order = await createOrder(env.DB, session.businessId, input)
-    const movement = input.paymentMethod
-      ? await loadMovementByOrderSource(env.DB, session.businessId, order.id, 'order-payment')
-      : null
+    const movements = input.paymentAllocations
+      ? await loadMovementsByOrderSource(env.DB, session.businessId, order.id, 'order-payment')
+      : []
     const tableTab = order.tableTabId
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
     const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
-    const response = { order, movement, tableTab, printJob }
+    const response = { order, movements, tableTab, printJob }
     if (order.tableTabId) response.tables = await listTables(env.DB, session.businessId)
     return json(response, { status: 201 })
   }

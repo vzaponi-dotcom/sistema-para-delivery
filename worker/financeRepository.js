@@ -18,6 +18,8 @@ export const mapMovementRow = (row) => ({
   source: row.source || 'manual',
   orderId: row.order_id ?? null,
   paymentId: row.payment_id ?? null,
+  receiptId: row.receipt_id ?? null,
+  paymentAllocationId: row.payment_allocation_id ?? null,
   paymentMethod: row.payment_method ?? null,
   movementDate: row.movement_date,
   date: row.movement_date,

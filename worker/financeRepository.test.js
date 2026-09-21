@@ -9,7 +9,7 @@ test('movement mapper exposes finance metadata', () => {
     movement_date: '2026-09-03', created_at: 'created', updated_at: 'updated',
   }), {
     id: 'm1', type: 'entrada', category: 'projects', categoryLabel: 'Projetos', description: 'Pedido', value: 32.5,
-    source: 'order-payment', orderId: 'o1', paymentId: 'p1', paymentMethod: 'Pix',
+    source: 'order-payment', orderId: 'o1', paymentId: 'p1', receiptId: null, paymentAllocationId: null, paymentMethod: 'Pix',
     movementDate: '2026-09-03', date: '2026-09-03', createdAt: 'created', updatedAt: 'updated',
   })
 })
