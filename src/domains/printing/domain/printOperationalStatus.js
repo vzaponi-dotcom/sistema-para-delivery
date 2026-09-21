@@ -58,12 +58,18 @@ export const derivePrintOperationalStatus = ({
     const physicalState = localPhysicalState(printerHealth, primaryStation)
     const local = (code) => status(code, primaryStation, true, 'local', physicalState)
 
+    const hasConfiguredPrinter = Boolean(String(configuredPrinterName || '').trim())
+
+    // Once this station already has a configured printer, an unavailable QZ
+    // connection remains an operational QZ outage even if a reconnect attempt
+    // temporarily reports "connecting" or "verifying". This prevents polling
+    // retries from flashing a neutral state over a known outage.
+    if (!qzConnected && hasConfiguredPrinter) return local('qz_unavailable')
     if (printerState === 'connecting') return local('verifying')
     if (printerState === 'disconnected') return local('qz_unavailable')
 
-    // On startup Windows begins with an unconfigured-looking runtime state before
-    // QZ initialization completes. Do not turn that transient state into a false
-    // configuration error until QZ is positively connected.
+    // On first-time setup there is no configured printer identity yet, so keep
+    // the startup state neutral until QZ positively connects.
     if (!qzConnected) return local('verifying')
 
     if (!String(configuredPrinterName || '').trim()) return local('printer_unconfigured')

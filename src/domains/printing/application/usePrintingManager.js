@@ -370,9 +370,9 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     if (!transportReadyRef.current && !savedPrinterName) setPrinterState('connecting')
     try {
       await qzTransport.connect()
-      if (!transportReadyRef.current) setPrinterState('connecting')
-      updateQzConnected(Boolean(qzTransport?.isConnected()))
+      const qzActive = Boolean(qzTransport?.isConnected())
       if (!savedPrinterName) {
+        updateQzConnected(qzActive)
         updatePrinterQueueFound(false)
         updateTransportReady(false)
         setPrinterState('unconfigured')
@@ -384,6 +384,11 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       updateConfiguredPrinterName(resolvedPrinter)
       updatePrinterQueueFound(true)
       await ensureQzStatusMonitor(resolvedPrinter)
+
+      // For a configured station, publish the QZ connection only after printer
+      // resolution and monitor startup complete. A websocket that opens briefly
+      // and then fails a QZ command must not make the UI oscillate every poll.
+      updateQzConnected(Boolean(qzTransport?.isConnected()))
       updateBlocked(false)
       setPrinterState(printerHealthRef.current.state === 'ready' ? 'connected' : 'verifying')
       setLastError(null)
