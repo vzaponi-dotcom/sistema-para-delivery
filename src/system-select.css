@@ -114,3 +114,33 @@
     border-radius: 11px;
   }
 }
+
+
+.system-select-value,
+.system-select-option-label {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.system-select-value {
+  flex: 1 1 auto;
+}
+
+.system-select-value > span:last-child,
+.system-select-option-label > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-select-option-icon {
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+
+.system-select-option-label {
+  flex: 1 1 auto;
+}
