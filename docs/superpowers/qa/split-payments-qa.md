@@ -321,4 +321,23 @@ Official staging deployment:
 - login smoke PASS HTTP 200
 - production untouched
 
-Desktop dropdown visual status: **RETEST REQUIRED**.
+Desktop dropdown visual status: **PASS** — manual staging retest confirmed long payment-method labels remain fully readable in the desktop dropdown.
+
+
+## Guided manual QA closure
+
+Date: 2026-09-21
+Environment: staging
+
+The guided manual rounds are complete with **no observed functional failures**.
+
+- Round 1: 8 PASS / 0 FAIL / 0 BLOCKED
+- Round 2: 10 PASS after the Finance presentation correction
+- Round 3: 7 PASS / 0 FAIL / 1 BLOCKED MANUAL
+- Round 4: 8 PASS / 0 FAIL / 0 BLOCKED
+- Round 5: 7 PASS / 0 FAIL / 0 BLOCKED
+- Final desktop payment-method dropdown retest: PASS
+
+The only manual BLOCKED case is the intentionally unreachable table-tab state where one order is already paid while sibling orders remain pending. The supported UI settles the whole open comanda and does not expose isolated payment of one order inside it. That state is covered automatically by `worker/tableTabSplitPayment.test.js`.
+
+No production deployment was performed.
