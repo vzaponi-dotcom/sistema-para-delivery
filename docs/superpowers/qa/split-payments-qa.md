@@ -107,3 +107,20 @@ Pending exact-SHA staging deployment:
 - table-tab split movements are allocation-scoped and not duplicated per order.
 
 No business-sensitive raw rows will be copied into this report or the PR handoff.
+
+## Manual polish homologation — round 1
+
+Date: 2026-09-21
+Environment: staging
+Result: **8 PASS / 0 FAIL / 0 BLOCKED**
+
+| # | Case | Result |
+| ---: | --- | --- |
+| P1 | Single payment opens with default method and full amount prefilled | PASS |
+| P2 | Approved card-based layout, spacing, summary hierarchy and “Adicionar outra forma” | PASS |
+| P3 | Adding another method prefills the exact remaining amount | PASS |
+| P4 | Auto remainder follows edits to another row while still automatic | PASS |
+| P5 | Manual override of the remainder row stops automatic overwrite | PASS |
+| P6 | Payment methods and icons render correctly, including multi-method combinations | PASS |
+| P7 | Removing an allocation card recalculates the composition correctly | PASS |
+| P8 | Under/over/exact totals correctly disable/enable confirmation | PASS |
