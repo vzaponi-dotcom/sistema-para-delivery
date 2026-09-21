@@ -236,10 +236,6 @@
     align-items: flex-start;
   }
 
-  .payment-composition-primary-badge {
-    display: none;
-  }
-
   .payment-composition-remove.button {
     min-width: 40px;
     width: 40px;
