@@ -1,0 +1,28 @@
+name: Diagnose navigation continuity
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  navigation-continuity:
+    name: navigation-continuity
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run navigation continuity test
+        run: timeout 45s node --test src/navigationContinuity.test.js
