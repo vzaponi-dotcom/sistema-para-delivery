@@ -32,9 +32,10 @@ test('payment composition editor adds/removes rows and closes a Dinheiro + Pix c
   assert.match(nodeText(screen.root), /Total a receber.*R\$ 80,00/s)
   assert.match(nodeText(screen.root), /Restante.*R\$ 0,00/s)
 
-  await act(async () => buttonNamed(screen.root, 'Adicionar forma de pagamento').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Adicionar outra forma').props.onClick())
   assert.equal(latest.length, 2)
   assert.equal(screen.root.findAllByProps({ role: 'combobox' }).length, 2)
+  assert.equal(latest[1].amountCents, 0, 'when the first method already covers the total there is no remainder')
 
   let amountInputs = screen.root.findAll((node) => node.type === 'input' && String(node.props?.['aria-label'] || '').startsWith('Valor da forma de pagamento'))
   await act(async () => amountInputs[0].props.onChange({ target: { value: 'R$ 30,00' } }))
@@ -61,4 +62,31 @@ test('payment composition editor adds/removes rows and closes a Dinheiro + Pix c
   await act(async () => screen.root.findByProps({ 'aria-label': 'Remover forma de pagamento 2' }).props.onClick())
   assert.deepEqual(latest, [{ methodCode: 'cash', amountCents: 3000 }])
   assert.match(nodeText(screen.root), /Restante.*R\$ 50,00/s)
+})
+
+
+test('payment composition editor renders the approved payment hierarchy with cards, icons and summary rows', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Editor } = await h.load('/src/app/workflows/payments/PaymentCompositionEditor.jsx')
+
+  const screen = await h.render(Editor, {
+    totalCents: 8000,
+    allocations: [
+      { methodCode: 'cash', amountCents: 3000 },
+      { methodCode: 'pix', amountCents: 5000 },
+    ],
+    onChange() {},
+    paymentOptions: options,
+    disabled: false,
+  })
+
+  assert.equal(screen.root.findAllByProps({ className: 'payment-composition-line' }).length, 2)
+  assert.equal(screen.root.findAllByProps({ className: 'payment-composition-method-icon' }).length, 2)
+  assert.ok(screen.root.findByProps({ className: 'payment-composition-heading' }))
+  assert.ok(screen.root.findByProps({ className: 'payment-composition-summary' }))
+  assert.match(nodeText(screen.root), /Como o cliente vai pagar\?/)
+  assert.match(nodeText(screen.root), /Total a receber.*R\$ 80,00/s)
+  assert.match(nodeText(screen.root), /Total informado.*R\$ 80,00/s)
+  assert.match(nodeText(screen.root), /Restante.*R\$ 0,00/s)
+  assert.ok(screen.root.findByProps({ 'aria-label': 'Remover forma de pagamento 2' }))
 })
