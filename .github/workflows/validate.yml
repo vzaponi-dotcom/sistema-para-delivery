@@ -12,12 +12,12 @@ on:
 
 jobs:
   tests:
-    name: tests (${{ matrix.shard }}/4)
+    name: tests (${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Test shard
-        run: npm test -- --test-shard=${{ matrix.shard }}/4
+        run: npm test -- --test-shard=${{ matrix.shard }}/8
 
   validate:
     name: validate
