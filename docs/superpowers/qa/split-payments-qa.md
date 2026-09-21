@@ -207,4 +207,16 @@ Official staging deployment:
 
 The standard staging workflow was restored immediately afterward. Final branch HEAD differs from the staged executable only by CI workflow cleanup; application source is identical.
 
-B2-4 status remains **RETEST REQUIRED**.
+B2-4 status: **PASS** — manual retest confirmed one visible receipt row with the total shown once and the individual payment methods displayed inside the row.
+
+
+### B2-4 manual retest
+
+Result: **PASS**
+
+Manual staging retest confirmed:
+- one visible Finance movement per mixed receipt;
+- receipt total shown once;
+- each payment method remains visible with its own amount;
+- examples verified include Pix + Cartão de crédito, Pix + Dinheiro and Pix + Cartão de débito;
+- simple single-method movements remain compact.
