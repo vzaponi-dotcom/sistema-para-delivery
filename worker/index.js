@@ -15,6 +15,7 @@ import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
 import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, registerTableTabPayment, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
 import { registerOrderPayment } from './paymentRepository.js'
+import { validatePaymentAllocations } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validatePaymentMethod, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
@@ -171,7 +172,7 @@ const authenticatedApi = async (request, env) => {
   if (paymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
     const { allocations } = await readJson(request)
-    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), allocations)
+    const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentAllocations(allocations))
     return json(result, { status: 201 })
   }
   const paymentPromiseMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment-promise$/)
