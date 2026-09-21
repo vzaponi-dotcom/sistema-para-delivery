@@ -43,7 +43,8 @@ export const loadFinanceSettings = async (db, businessId) => {
 const MOVEMENT_COLUMNS = `id, business_id, type, category,
   (SELECT label FROM business_finance_categories fc
     WHERE fc.business_id = movements.business_id AND fc.id = movements.category) AS category_label,
-  description, value_cents, source, order_id, payment_id, payment_method, movement_date, created_at, updated_at`
+  description, value_cents, source, order_id, payment_id, receipt_id, payment_allocation_id,
+  payment_method, movement_date, created_at, updated_at`
 const loadActiveMovementRow = (db, businessId, id) => db.prepare(`SELECT ${MOVEMENT_COLUMNS}
   FROM movements WHERE id = ? AND business_id = ? AND deleted_at IS NULL LIMIT 1`).bind(id, businessId).first()
 
