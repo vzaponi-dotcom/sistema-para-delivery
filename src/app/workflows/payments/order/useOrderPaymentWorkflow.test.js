@@ -21,11 +21,45 @@ const order = (id, overrides = {}) => ({
   ...overrides,
 })
 
-const paidEffects = (source, method = 'Pix') => ({
-  order: { ...source, paymentStatus: 'Pago', paymentMethod: method, paidAmount: source.total },
-  movement: { id: `m-${source.id}`, type: 'entrada', value: source.total, source: 'order-payment' },
-  tableTab: null,
-})
+const labels = { pix: 'Pix', cash: 'Dinheiro' }
+const paidEffects = (source, allocations = [{ methodCode: 'pix', amountCents: Math.round(source.total * 100) }]) => {
+  const receiptId = `receipt-${source.id}`
+  const resolved = allocations.map((allocation, index) => ({
+    id: `allocation-${source.id}-${index}`,
+    receiptId,
+    methodCode: allocation.methodCode,
+    methodLabel: labels[allocation.methodCode] || allocation.methodCode,
+    amountCents: allocation.amountCents,
+    amount: allocation.amountCents / 100,
+  }))
+  const movements = resolved.map((allocation, index) => ({
+    id: `movement-${source.id}-${index}`,
+    type: 'entrada',
+    value: allocation.amount,
+    source: 'order-payment',
+    paymentMethod: allocation.methodLabel,
+  }))
+  return {
+    receipt: {
+      id: receiptId,
+      totalCents: Math.round(source.total * 100),
+      total: source.total,
+      paidAt: '2026-09-21T15:00:00.000Z',
+      tableTabId: null,
+      allocations: resolved,
+    },
+    allocations: resolved,
+    payment: { id: `payment-${source.id}`, orderId: source.id, receiptId, amount: source.total },
+    order: {
+      ...source,
+      paymentStatus: 'Pago',
+      paymentMethod: resolved.length === 1 ? resolved[0].methodLabel : null,
+      paidAmount: source.total,
+    },
+    movements,
+    tableTab: null,
+  }
+}
 
 const paymentOptions = [
   { code: 'pix', value: 'Pix', label: 'Pix' },
@@ -44,7 +78,7 @@ async function mountWorkflow(overrides = {}) {
   let guard = 1
   let orders = overrides.orders || [order('a')]
   const props = {
-    api: overrides.api || { registerOrderPayment: async () => paidEffects(orders[0]) },
+    api: overrides.api || { registerOrderPayment: async (id, allocations) => paidEffects(orders.find((item) => item.id === id) || orders[0], allocations) },
     orders,
     granted: overrides.granted || new Set(['orders.view', 'orders.history', 'payments.receive']),
     canReceivePayments: overrides.canReceivePayments ?? true,
@@ -88,7 +122,7 @@ async function mountWorkflow(overrides = {}) {
   }
 }
 
-test('double submit sends one request and applies the authoritative response once', async () => {
+test('double submit sends one canonical allocation request and applies plural authoritative movements once', async () => {
   const source = order('101')
   const pending = deferred()
   const calls = []
@@ -103,12 +137,13 @@ test('double submit sends one request and applies the authoritative response onc
   })
 
   await act(async () => assert.equal(probe.getLatest().open(source.id, 'orders'), true))
+  assert.deepEqual(probe.getLatest().dialog.allocations, [{ methodCode: 'pix', amountCents: 4000 }])
   let first
   await act(async () => {
     first = probe.getLatest().dialog.submit()
     assert.equal(await probe.getLatest().dialog.submit(), false)
   })
-  assert.equal(calls.length, 1)
+  assert.deepEqual(calls, [[source.id, [{ methodCode: 'pix', amountCents: 4000 }]]])
 
   const official = paidEffects(source)
   await act(async () => {
@@ -116,13 +151,48 @@ test('double submit sends one request and applies the authoritative response onc
     assert.equal(await first, true)
   })
 
-  assert.deepEqual(probe.effects, [official])
+  assert.deepEqual(probe.effects, [{
+    order: official.order,
+    movements: official.movements,
+    tableTab: official.tableTab,
+  }])
   assert.equal(probe.getLatest().dialog, null)
   assert.deepEqual(probe.successes, ['Pagamento recebido via Pix'])
   probe.unmount()
 })
 
-test('response A applies official effects without closing or changing target B', async () => {
+test('split composition sends canonical codes and reports a multi-form success without optimistic receipt state', async () => {
+  const source = order('150', { total: 80 })
+  const calls = []
+  const probe = await mountWorkflow({
+    orders: [source],
+    api: {
+      registerOrderPayment: async (id, allocations) => {
+        calls.push([id, allocations])
+        return paidEffects(source, allocations)
+      },
+    },
+  })
+
+  await act(async () => probe.getLatest().open(source.id, 'orders'))
+  await act(async () => probe.getLatest().dialog.setAllocations([
+    { methodCode: 'cash', amountCents: 3000 },
+    { methodCode: 'pix', amountCents: 5000 },
+  ]))
+  assert.equal(probe.getLatest().dialog.composition.valid, true)
+
+  await act(async () => assert.equal(await probe.getLatest().dialog.submit(), true))
+
+  assert.deepEqual(calls, [[source.id, [
+    { methodCode: 'cash', amountCents: 3000 },
+    { methodCode: 'pix', amountCents: 5000 },
+  ]]])
+  assert.deepEqual(probe.successes, ['Pagamento recebido em 2 formas'])
+  assert.equal(probe.effects[0].movements.length, 2)
+  probe.unmount()
+})
+
+test('response A applies official effects without closing or changing composition of target B', async () => {
   const orderA = order('201')
   const orderB = order('202', { status: 'Finalizado' })
   const pendingA = deferred()
@@ -131,8 +201,8 @@ test('response A applies official effects without closing or changing target B',
   const probe = await mountWorkflow({
     orders: [orderA, orderB],
     api: {
-      registerOrderPayment: (id, method) => {
-        calls.push([id, method])
+      registerOrderPayment: (id, allocations) => {
+        calls.push([id, allocations])
         return id === orderA.id ? pendingA.promise : pendingB.promise
       },
     },
@@ -143,25 +213,28 @@ test('response A applies official effects without closing or changing target B',
   await act(async () => { submissionA = probe.getLatest().dialog.submit() })
   await act(async () => probe.getLatest().close())
   await act(async () => probe.getLatest().open(orderB.id, 'history'))
-  await act(async () => probe.getLatest().dialog.setMethod('Dinheiro'))
+  await act(async () => probe.getLatest().dialog.setAllocations([{ methodCode: 'cash', amountCents: 4000 }]))
   let submissionB
   await act(async () => { submissionB = probe.getLatest().dialog.submit() })
 
   await act(async () => {
-    pendingA.resolve(paidEffects(orderA, 'Pix'))
+    pendingA.resolve(paidEffects(orderA))
     await submissionA
   })
 
   assert.equal(probe.getLatest().dialog.order.id, orderB.id)
-  assert.equal(probe.getLatest().dialog.method, 'Dinheiro')
+  assert.deepEqual(probe.getLatest().dialog.allocations, [{ methodCode: 'cash', amountCents: 4000 }])
   assert.equal(probe.getLatest().dialog.submitting, true)
   assert.deepEqual(probe.successes, [])
 
   await act(async () => {
-    pendingB.resolve(paidEffects(orderB, 'Dinheiro'))
+    pendingB.resolve(paidEffects(orderB, [{ methodCode: 'cash', amountCents: 4000 }]))
     await submissionB
   })
-  assert.deepEqual(calls, [[orderA.id, 'Pix'], [orderB.id, 'Dinheiro']])
+  assert.deepEqual(calls, [
+    [orderA.id, [{ methodCode: 'pix', amountCents: 4000 }]],
+    [orderB.id, [{ methodCode: 'cash', amountCents: 4000 }]],
+  ])
   probe.unmount()
 })
 
@@ -238,7 +311,7 @@ test('network uncertainty refreshes official data without optimistic payment or 
   probe.unmount()
 })
 
-test('Receivables opens the same workflow without operational source eligibility', async () => {
+test('Receivables opens the same workflow with the latest default and without operational source eligibility', async () => {
   const source = order('601', { status: 'Finalizado' })
   const probe = await mountWorkflow({
     orders: [source],
@@ -247,6 +320,6 @@ test('Receivables opens the same workflow without operational source eligibility
 
   await act(async () => assert.equal(probe.getLatest().open(source.id), true))
   assert.equal(probe.getLatest().dialog.order.id, source.id)
-  assert.equal(probe.getLatest().dialog.method, 'Pix')
+  assert.deepEqual(probe.getLatest().dialog.allocations, [{ methodCode: 'pix', amountCents: 4000 }])
   probe.unmount()
 })
