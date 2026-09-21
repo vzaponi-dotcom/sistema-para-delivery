@@ -65,3 +65,49 @@ for (const mobile of [false, true]) test(`full payment dialog uses official meth
   await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
   assert.equal(calls.length, 1)
 })
+
+
+test('whole-table dialog submits a structured Dinheiro + Pix composition instead of one method', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Dialog } = await h.load('/src/app/workflows/payments/table-tab/TableTabPaymentDialog.jsx')
+  const detail = { ...comandaDetail, id: 'tab-split', totalCents: 8000, status: 'open', orderCount: 2 }
+  const paymentOptions = [
+    { code: 'cash', value: 'Dinheiro', label: 'Dinheiro' },
+    { code: 'pix', value: 'Pix', label: 'Pix' },
+  ]
+  const calls = []
+  const r = await h.render(Dialog, {
+    open: true,
+    detail,
+    currency: (value) => `R$ ${value.toFixed(2)}`,
+    paymentOptions,
+    defaultPaymentMethod: 'Dinheiro',
+    onClose() {},
+    onConfirm: (...args) => { calls.push(args); return true },
+  })
+
+  assert.equal(nodeText(r.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' })), 'Dinheiro')
+  assert.equal(r.root.findByProps({ 'aria-label': 'Valor da forma de pagamento 1' }).props.inputMode, 'decimal')
+  assert.match(nodeText(r.root), /Restante.*R\$ 0,00/s)
+
+  await act(async () => buttonNamed(r.root, 'Adicionar forma de pagamento').props.onClick())
+  let inputs = r.root.findAll((node) => node.type === 'input' && String(node.props?.['aria-label'] || '').startsWith('Valor da forma de pagamento'))
+  await act(async () => inputs[0].props.onChange({ target: { value: 'R$ 30,00' } }))
+
+  const second = r.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento 2' })
+  await act(async () => second.props.onClick())
+  await act(async () => buttonNamed(r.root, 'Pix').props.onClick())
+
+  inputs = r.root.findAll((node) => node.type === 'input' && String(node.props?.['aria-label'] || '').startsWith('Valor da forma de pagamento'))
+  await act(async () => inputs[1].props.onChange({ target: { value: 'R$ 50,00' } }))
+
+  await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
+
+  assert.deepEqual(calls, [[
+    'tab-split',
+    [
+      { methodCode: 'cash', amountCents: 3000 },
+      { methodCode: 'pix', amountCents: 5000 },
+    ],
+  ]])
+})
