@@ -1,6 +1,6 @@
 import Button from '../../shared/ui/Button.jsx'
 import SystemSelect from '../../shared/ui/SystemSelect.jsx'
-import { formatBRLCurrencyInput, formatBRLCurrencyValue, parseBRLCurrencyInput } from '../../shared/utils/formFormatting.js'
+import { formatBRLCurrencyInput, formatBRLCurrencyValue, parseBRLCurrencyInput } from '../../shared/utils/formFormatting.js'\nimport { paymentLabel } from '../../../../shared/businessPolicies.js'
 import {
   addPaymentAllocation,
   paymentMethodCode,
@@ -11,7 +11,7 @@ import {
 } from './paymentComposition.js'
 
 const centsToDisplay = (cents) => formatBRLCurrencyValue((Number(cents) || 0) / 100)
-const optionValue = (paymentOptions, methodCode) => paymentOptions.find((option) => option.code === methodCode)?.value || methodCode || ''
+const optionValue = (paymentOptions, methodCode) => paymentOptions.find((option) => option.code === methodCode)?.value || paymentLabel(methodCode) || methodCode || ''
 
 export default function PaymentCompositionEditor({
   totalCents,
