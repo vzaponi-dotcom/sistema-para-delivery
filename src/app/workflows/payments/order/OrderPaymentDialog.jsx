@@ -1,7 +1,7 @@
 import Button from '../../../../shared/ui/Button.jsx'
 import Modal from '../../../../shared/ui/Modal.jsx'
-import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
 import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
+import PaymentCompositionEditor from '../PaymentCompositionEditor.jsx'
 
 export default function OrderPaymentDialog({ dialog, currency }) {
   if (!dialog?.order) return null
@@ -20,26 +20,18 @@ export default function OrderPaymentDialog({ dialog, currency }) {
           <strong>{currency(dialog.order.total)}</strong>
           <small>O pagamento será lançado automaticamente como entrada no Financeiro.</small>
         </div>
-        <div className="form-field">
-          <span>Forma de pagamento</span>
-          <SystemSelect
-            value={dialog.method}
-            options={dialog.visibleOptions}
-            onChange={dialog.setMethod}
-            disabled={dialog.writesBlocked || dialog.submitting}
-            label="Forma de pagamento"
-          />
-        </div>
-        {dialog.needsReview && (
-          <p className="form-error" role="alert">
-            A forma escolhida não está mais ativa. Revise a seleção antes de confirmar.
-          </p>
-        )}
+        <PaymentCompositionEditor
+          totalCents={dialog.totalCents}
+          allocations={dialog.allocations}
+          onChange={dialog.setAllocations}
+          paymentOptions={dialog.paymentOptions}
+          disabled={dialog.writesBlocked || dialog.submitting}
+        />
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={dialog.onClose}>Cancelar</Button>
           <Button
             type="submit"
-            disabled={dialog.writesBlocked || dialog.submitting || !dialog.method || dialog.needsReview}
+            disabled={dialog.writesBlocked || dialog.submitting || !dialog.composition.valid}
           >
             Confirmar pagamento
           </Button>

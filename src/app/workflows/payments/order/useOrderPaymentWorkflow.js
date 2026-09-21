@@ -1,15 +1,18 @@
 import { useCallback, useRef, useState } from 'react'
 import {
-  paymentOptionsWithSelection,
-  paymentSelectionNeedsReview,
-} from '../../../../domains/finance/index.js'
-import {
   canReceiveStandaloneOrder,
   isOrderCancelled,
 } from '../../../../domains/orders/index.js'
+import {
+  createInitialPaymentComposition,
+  paymentMethodLabel,
+  summarizePaymentComposition,
+  toPaymentAllocations,
+} from '../paymentComposition.js'
 import { paymentApi } from '../paymentApi.js'
 
 const operationalSources = new Set(['orders', 'history'])
+const orderTotalCents = (order) => Math.max(0, Math.round((Number(order?.total) || 0) * 100))
 
 export function useOrderPaymentWorkflow({
   api = paymentApi,
@@ -29,7 +32,7 @@ export function useOrderPaymentWorkflow({
   const sequenceRef = useRef(0)
   const dialogOwnerRef = useRef(null)
   const [dialogOwner, setDialogOwner] = useState(null)
-  const [method, setMethod] = useState('')
+  const [allocations, setAllocations] = useState([])
   const [, forceRender] = useState(0)
 
   const getOrder = useCallback(
@@ -53,7 +56,7 @@ export function useOrderPaymentWorkflow({
     const owner = dialogOwnerRef.current
     dialogOwnerRef.current = null
     setDialogOwner(null)
-    setMethod('')
+    setAllocations([])
     clearRequestKey(owner)
     return true
   }, [clearRequestKey])
@@ -70,42 +73,51 @@ export function useOrderPaymentWorkflow({
       source: operational ? source : null,
       submitting: false,
       requestKey: null,
-      method: null,
+      allocations: null,
     }
     dialogOwnerRef.current = owner
     setDialogOwner(owner)
-    setMethod(defaultPaymentMethod)
+    setAllocations(createInitialPaymentComposition({
+      totalCents: orderTotalCents(order),
+      defaultPaymentMethod,
+      paymentOptions,
+    }))
     return true
-  }, [canReceivePayments, defaultPaymentMethod, getOrder, getSyncGuard, isEligible, writesBlocked])
+  }, [canReceivePayments, defaultPaymentMethod, getOrder, getSyncGuard, isEligible, paymentOptions, writesBlocked])
 
   const submit = useCallback(async () => {
     const owner = dialogOwnerRef.current
     const currentOrder = owner ? getOrder(owner.orderId) : null
+    const totalCents = orderTotalCents(currentOrder)
+    const submittedAllocations = toPaymentAllocations(allocations, totalCents, paymentOptions)
     if (
       !owner
       || owner.guard !== getSyncGuard()
       || owner.submitting
       || writesBlocked
       || !isEligible(currentOrder, owner.source)
-      || !method
-      || paymentSelectionNeedsReview(paymentOptions, method)
+      || !submittedAllocations
     ) return false
 
     owner.submitting = true
-    owner.method = method
+    owner.allocations = submittedAllocations.map((allocation) => ({ ...allocation }))
     owner.requestKey = `payment:${owner.orderId}:${owner.token}`
     setRequestKey(owner.requestKey)
     forceRender((value) => value + 1)
 
     try {
-      const { order, movement, tableTab } = await api.registerOrderPayment(owner.orderId, owner.method)
+      const { order, movements = [], tableTab } = await api.registerOrderPayment(owner.orderId, owner.allocations)
       if (owner.guard !== getSyncGuard()) return false
 
-      applyOfficialEffects({ order, movement, tableTab })
+      applyOfficialEffects({ order, movements, tableTab })
 
       if (dialogOwnerRef.current === owner) {
+        const accepted = owner.allocations
+        const message = accepted.length === 1
+          ? `Pagamento recebido via ${paymentMethodLabel(paymentOptions, accepted[0].methodCode)}`
+          : `Pagamento recebido em ${accepted.length} formas`
         close(owner)
-        onSuccess(`Pagamento recebido via ${owner.method}`)
+        onSuccess(message)
       }
       return true
     } catch (error) {
@@ -122,6 +134,7 @@ export function useOrderPaymentWorkflow({
       if (dialogOwnerRef.current === owner) forceRender((value) => value + 1)
     }
   }, [
+    allocations,
     api,
     applyOfficialEffects,
     clearRequestKey,
@@ -129,7 +142,6 @@ export function useOrderPaymentWorkflow({
     getOrder,
     getSyncGuard,
     isEligible,
-    method,
     onError,
     onSuccess,
     paymentOptions,
@@ -140,15 +152,16 @@ export function useOrderPaymentWorkflow({
 
   const order = dialogOwner ? getOrder(dialogOwner.orderId) : null
   const eligible = dialogOwner ? isEligible(order, dialogOwner.source) : false
-  const needsReview = paymentSelectionNeedsReview(paymentOptions, method)
-  const visibleOptions = paymentOptionsWithSelection(paymentOptions, method)
+  const totalCents = orderTotalCents(order)
+  const composition = summarizePaymentComposition(allocations, totalCents, paymentOptions)
 
   const dialog = dialogOwner && eligible ? {
     order,
-    method,
-    setMethod,
-    visibleOptions,
-    needsReview,
+    totalCents,
+    allocations,
+    setAllocations,
+    paymentOptions,
+    composition,
     submitting: Boolean(dialogOwner.submitting),
     writesBlocked,
     onClose: () => close(dialogOwner),
