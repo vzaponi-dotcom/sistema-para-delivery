@@ -269,3 +269,56 @@ Result: **8 PASS / 0 FAIL / 0 BLOCKED**
 | B4-6 | Finance shows the integral refund as an exit without duplicating the original sale | PASS |
 | B4-7 | Payment editor is responsive in mobile/desktop and light/dark themes | PASS |
 | B4-8 | No new console error observed; printing/queue/settings showed no software regression | PASS |
+
+
+## Manual homologation — round 5
+
+Date: 2026-09-21
+Environment: staging
+Result: **7 PASS / 0 FAIL / 0 BLOCKED**
+
+| # | Case | Result |
+| ---: | --- | --- |
+| B5-1 | 100% Dinheiro receipt | PASS |
+| B5-2 | Zero-value allocation blocks confirmation | PASS |
+| B5-3 | Duplicate payment method is unavailable in another allocation | PASS |
+| B5-4 | Offline payment cannot create an unsafe write | PASS |
+| B5-5 | Method deactivated while payment is open requires review | PASS |
+| B5-6 | Paid checkout creates only one automatic print job | PASS |
+| B5-7 | Desktop keyboard/focus path remains usable | PASS |
+
+### Desktop payment-method dropdown polish
+
+Manual QA found one visual-only issue after the functional cases passed: on narrower desktop layouts, long payment-method labels could be truncated inside the anchored dropdown.
+
+Correction:
+- closed field remains compact;
+- desktop dropdown may expand wider than the field using content width;
+- width is capped at 320px and viewport width;
+- dropdown option labels no longer use ellipsis;
+- mobile BottomSheet behavior is unchanged.
+
+Focused remote gate:
+- Desktop payment select polish run `35664496257` — SUCCESS
+- 12 tests / 12 pass / 0 fail / 0 skipped
+- architecture PASS
+- lint PASS
+- build PASS
+
+Official staging deployment:
+- Deploy staging #197 / run `35664582730` — SUCCESS
+- staged executable SHA: `2ae65f6281617ebc935b5c8846b9e6d7ed66517c`
+- 13 tests / 13 pass / 0 fail / 0 skipped
+- architecture PASS
+- lint PASS
+- build PASS
+- local D1 PASS
+- staging Worker dry-run PASS
+- no pending staging migrations
+- deploy PASS
+- Worker version `8df3b9dd-5310-436b-9e90-43870408da6a`
+- readiness PASS attempt 1/6
+- login smoke PASS HTTP 200
+- production untouched
+
+Desktop dropdown visual status: **RETEST REQUIRED**.
