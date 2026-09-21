@@ -24,16 +24,21 @@ test('composition starts with the effective default and the full amount', () => 
   }), [{ methodCode: 'cash', amountCents: 8000 }])
 })
 
-test('adding a form never silently redistributes an existing amount', () => {
-  const initial = [{ methodCode: 'cash', amountCents: 8000 }]
-  assert.deepEqual(addPaymentAllocation(initial), [
+test('adding a form autofills the exact remaining amount without redistributing existing rows', () => {
+  const initial = [{ methodCode: 'cash', amountCents: 3000 }]
+  assert.deepEqual(addPaymentAllocation(initial, 8000), [
+    { methodCode: 'cash', amountCents: 3000 },
+    { methodCode: '', amountCents: 5000 },
+  ])
+
+  assert.deepEqual(addPaymentAllocation([{ methodCode: 'cash', amountCents: 8000 }], 8000), [
     { methodCode: 'cash', amountCents: 8000 },
     { methodCode: '', amountCents: 0 },
   ])
 })
 
 test('composition calculates exact entered, remaining, overage and valid state in cents', () => {
-  let allocations = addPaymentAllocation([{ methodCode: 'cash', amountCents: 8000 }])
+  let allocations = addPaymentAllocation([{ methodCode: 'cash', amountCents: 8000 }], 8000)
   allocations = updatePaymentAllocation(allocations, 0, { amountCents: 3000 })
   allocations = updatePaymentAllocation(allocations, 1, { methodCode: 'pix', amountCents: 5000 })
 
