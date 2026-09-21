@@ -2,7 +2,7 @@
 
 > **Execution mode:** implement task-by-task with explicit RED → GREEN evidence. Do not collapse semantic-state work and visual polish into one unreviewable commit.
 
-**Status:** **DRAFT — autorrevisado; aguardando aprovação explícita antes da Task 1**
+**Status:** **APPROVED** — plano autorrevisado e aprovado explicitamente pelo usuário em 2026-09-20; execução autorizada a partir da preparação e Task 1
 
 **Goal:** Fazer a Fila de impressão representar o estado operacional da estação principal do negócio, corrigir falsos estados de QZ/impressora em dispositivos queue-only e melhorar a hierarquia mobile, reutilizando a mesma projeção no terceiro card de Configurações → Impressão sem tocar no pipeline físico.
 
