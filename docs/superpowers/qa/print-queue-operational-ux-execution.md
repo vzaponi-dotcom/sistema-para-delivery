@@ -33,7 +33,7 @@
 | 3 — Mobile visual hierarchy | **COMPLETE / GREEN** | `ec19a82b54310c3137a5b125b540595ccddc3fed` | `2d48030d1a9bce748766873dced5afb797281e5a` | Compact mobile header, operational tones, summary hierarchy; C10 CSS snapshot intentionally advanced |
 | 4 — Contextual Settings | **COMPLETE / GREEN** | `2a802691b476e931e5ccbbff4576c593fd53867c` | `dd9742c780f191ab1cbd1757ec964ba66b736433` | Queue-only shows business status; QZ keeps local physical controls; same resolver/view reused |
 | 5 — Regression hardening | **COMPLETE / GREEN** | n/a — existing behavior already implemented | `309fe9134d4dee499835782ef5e60afcfc974e90` | Test-only hardening commit; no production code changes required |
-| 6 — Closure + staging QA | **ACTIVE / BLOCKED ON STAGING DISPATCH + MANUAL QA** | — | — | Candidate branch prepared at exact Task 5 SHA |
+| 6 — Closure + staging QA | **COMPLETE / GREEN** | — | final runtime `7c612a9930fc418440c3cc7340c506688c533968` | Staging #193 homologated; documentary closure pending final Validate |
 
 ## Task 1 evidence
 
@@ -392,4 +392,56 @@ The first fix suppressed retries that failed before establishing a websocket. Ro
 - Only the Windows-primary flicker needs manual re-verification after re-deploy.
 - Second-copy zero and Android queue-only acceptance remain PASS because the round-2 fix did not touch those UI contracts.
 - Production: **NOT TOUCHED**.
+
+
+
+## Manual staging QA — final round
+
+Final staging deployment:
+
+- Deploy staging **#193** / run `35556717804`: **SUCCESS**
+- Runtime SHA: `7c612a9930fc418440c3cc7340c506688c533968`
+- Worker Version ID: `353f4188-bb89-449f-abb7-921af81049d0`
+- Suite during deploy: **1,975 tests / 1,974 pass / 0 fail / 1 skipped**
+- Remote staging migrations: **none pending**
+- Readiness: **attempt 1/6**
+- Staging login smoke: **HTTP 200**
+
+User homologation result: **PASS**.
+
+Final accepted behavior:
+
+- compact mobile settings gear — PASS;
+- legacy local-device status block removed from Queue — PASS;
+- Queue represents business operational printing state — PASS;
+- Windows primary with QZ disconnected remains stable without polling flicker in Queue — PASS;
+- Windows primary with QZ disconnected remains stable without polling flicker in Printing Settings — PASS;
+- `Aguardando 2ª via` renders explicit `0` — PASS;
+- four summary cards preserve the approved mobile hierarchy — PASS;
+- search, filters, job list and responsive layout remain usable without horizontal overflow — PASS;
+- settings gear routes to the existing Printing Settings page — PASS;
+- Windows primary correctly renders **Impressão nesta estação** and retains physical controls — PASS;
+- Android / queue-only correctly renders **Impressão do negócio** — PASS;
+- Android / queue-only does not expose Testar impressão / Trocar impressora / local printer selector — PASS;
+- Android / queue-only explains that it follows the central queue and does not perform physical printing — PASS.
+
+The two defects found during staging QA were corrected with explicit RED → GREEN evidence:
+
+1. server `awaitingSecondCopy` → UI `waitingSecondCopy` normalization;
+2. local-primary QZ reconnect transient state no longer causes visible `QZ unavailable ↔ verifying` oscillation.
+
+## Slice closure
+
+- Tasks 1–6: **COMPLETE / GREEN**
+- Functional staging QA: **PASS**
+- Compatibility facades introduced: **0**
+- Migration allowlists introduced: **0**
+- Worker/backend/D1/schema changes in this slice: **0**
+- Production deployment: **NOT EXECUTED**
+- Production migrations: **NOT EXECUTED**
+- PR #55: **OPEN / DRAFT**
+- Merge: **NOT EXECUTED**
+- C9 physical functional rows + P1–P20: **DEFERRED-PRODUCTION**, still a hard blocker for the final production release candidate.
+- Homologated runtime SHA: `7c612a9930fc418440c3cc7340c506688c533968`
+- Final documentary closure SHA: pending the commit that records this section and its final Validate evidence.
 

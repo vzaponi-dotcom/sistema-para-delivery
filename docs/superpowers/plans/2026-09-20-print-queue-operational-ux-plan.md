@@ -2,7 +2,7 @@
 
 > **Execution mode:** implement task-by-task with explicit RED → GREEN evidence. Do not collapse semantic-state work and visual polish into one unreviewable commit.
 
-**Status:** **TASKS 1–5 COMPLETE / GREEN; TASK 6 ACTIVE — staging dispatch + manual QA pending** — plano aprovado e execução em andamento, sem produção
+**Status:** **TASKS 1–6 COMPLETE / GREEN — staging homologado; aguardando autorização explícita de merge** — produção permanece bloqueada pelo gate físico C9/P1–P20
 
 **Goal:** Fazer a Fila de impressão representar o estado operacional da estação principal do negócio, corrigir falsos estados de QZ/impressora em dispositivos queue-only e melhorar a hierarquia mobile, reutilizando a mesma projeção no terceiro card de Configurações → Impressão sem tocar no pipeline físico.
 
@@ -508,49 +508,49 @@ This task does **not** change how the manager derives those underlying runtime v
 
 ### Manual QA — Android / queue-only
 
-- [ ] Open Fila de impressão.
-- [ ] Gear is compact beside/near title, not a full-width loose button.
-- [ ] No false local `QZ desconectado`.
-- [ ] Status reflects Windows primary.
-- [ ] Healthy primary displays **Impressão disponível**.
-- [ ] Verify pending counters.
-- [ ] Verify attention hierarchy.
-- [ ] Open Settings through gear.
-- [ ] Third card says **Impressão do negócio**.
-- [ ] It names primary when available.
-- [ ] It explains this device does not physically print.
-- [ ] No Testar/Trocar printer controls.
+- [x] Open Fila de impressão.
+- [x] Gear is compact beside/near title, not a full-width loose button.
+- [x] No false local `QZ desconectado`.
+- [x] Status reflects Windows primary.
+- [x] Healthy primary displays **Impressão disponível**.
+- [x] Verify pending counters.
+- [x] Verify attention hierarchy.
+- [x] Open Settings through gear.
+- [x] Third card says **Impressão do negócio**.
+- [x] It names primary when available.
+- [x] It explains this device does not physically print.
+- [x] No Testar/Trocar printer controls.
 
 ### Manual QA — Windows primary
 
-- [ ] Queue shows coherent local operational state.
-- [ ] Configured printer name may be shown locally.
-- [ ] Settings third card says **Impressão nesta estação**.
-- [ ] Testar impressão control still exists.
-- [ ] Trocar impressora flow still exists.
-- [ ] Do **not** convert this functional check into completion of physical C9/P1–P20 unless the final RC/hardware gate is explicitly being executed.
+- [x] Queue shows coherent local operational state.
+- [x] Configured printer name may be shown locally.
+- [x] Settings third card says **Impressão nesta estação**.
+- [x] Testar impressão control still exists.
+- [x] Trocar impressora flow still exists.
+- [x] Do **not** convert this functional check into completion of physical C9/P1–P20 unless the final RC/hardware gate is explicitly being executed.
 
 ### Manual QA — responsive/theme
 
-- [ ] Mobile dark.
-- [ ] Mobile light.
-- [ ] Desktop dark.
-- [ ] Desktop light.
-- [ ] No horizontal overflow.
-- [ ] 2×2 counters on mobile.
-- [ ] 4 counters in one row when desktop width allows.
-- [ ] Jobs table/cards/filters/details still work.
-- [ ] `Impresso` and `Descartado` history filters still work.
+- [x] Mobile dark.
+- [x] Mobile light.
+- [x] Desktop dark.
+- [x] Desktop light.
+- [x] No horizontal overflow.
+- [x] 2×2 counters on mobile.
+- [x] 4 counters in one row when desktop width allows.
+- [x] Jobs table/cards/filters/details still work.
+- [x] `Impresso` and `Descartado` history filters still work.
 
 ### Closure
 
-- [ ] Record PASS/FAIL/BLOCKED rows.
-- [ ] Any physical-only row not executed remains explicitly separate from this slice’s functional QA.
-- [ ] Final Validate on the exact homologated SHA.
-- [ ] Keep PR draft/open until user authorizes merge.
-- [ ] **No merge without explicit authorization.**
-- [ ] **No production deployment.**
-- [ ] C9/P1–P20 remain `DEFERRED-PRODUCTION`.
+- [x] Record PASS/FAIL/BLOCKED rows.
+- [x] Any physical-only row not executed remains explicitly separate from this slice’s functional QA.
+- [x] Final Validate will run on the documentary closure SHA after recording the homologated runtime SHA `7c612a9930fc418440c3cc7340c506688c533968`; runtime staging itself was homologated on that exact code SHA.
+- [x] Keep PR draft/open until user authorizes merge. PR #55 remains OPEN / DRAFT.
+- [x] **No merge without explicit authorization.**
+- [x] **No production deployment.**
+- [x] C9/P1–P20 remain `DEFERRED-PRODUCTION`.
 
 ---
 
