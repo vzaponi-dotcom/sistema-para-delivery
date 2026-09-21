@@ -197,3 +197,62 @@ test('stale session ignores accepted response and never applies or reconciles it
   assert.equal(probe.getLatest().syncState, null)
   probe.unmount()
 })
+
+
+test('split table-tab payment keeps one owner, sends allocations and reports multi-form success', async () => {
+  const allocations = [
+    { methodCode: 'cash', amountCents: 3000 },
+    { methodCode: 'pix', amountCents: 5000 },
+  ]
+  const calls = []
+  const applied = []
+  const result = {
+    receipt: { id: 'receipt-1', totalCents: 8000, tableTabId: 'tab-1', allocations: [] },
+    allocations: [
+      { id: 'a1', methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 3000 },
+      { id: 'a2', methodCode: 'pix', methodLabel: 'Pix', amountCents: 5000 },
+    ],
+    payments: [{ id: 'p1', orderId: 'o1' }],
+    orders: [{ id: 'o1', paymentStatus: 'Pago' }],
+    movements: [{ id: 'm1' }, { id: 'm2' }],
+    tableTab: { id: 'tab-1', tableIdentifier: '7', status: 'closed' },
+    tables: [{ id: 'table-1', occupancy: 'free', openTableTab: null }],
+  }
+  const authoritative = {
+    applied: ['orders', 'movements', 'tableTabs', 'tables'],
+    data: {
+      orders: result.orders,
+      movements: result.movements,
+      tableTabs: [result.tableTab],
+      tables: result.tables,
+    },
+  }
+
+  const probe = await mountWorkflow({
+    api: {
+      registerTableTabPayment: async (...args) => {
+        calls.push(args)
+        return result
+      },
+    },
+    applyOfficialEffects: (effect) => {
+      applied.push(effect)
+      return authoritative
+    },
+  })
+
+  await act(async () => {
+    assert.equal(await probe.getLatest().pay('tab-1', allocations, intent), true)
+  })
+
+  assert.deepEqual(calls, [['tab-1', allocations]])
+  assert.deepEqual(applied, [{
+    orders: result.orders,
+    movements: result.movements,
+    tableTab: result.tableTab,
+    tables: result.tables,
+  }])
+  assert.deepEqual(probe.successes, ['Pagamento de Mesa 7 recebido em 2 formas'])
+  assert.equal(probe.getLatest().syncState, null)
+  probe.unmount()
+})
