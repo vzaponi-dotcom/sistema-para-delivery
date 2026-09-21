@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSettingsDb } from './test-support/settingsDb.js'
-import { createOrder, registerTableTabPayment, updateOrderStatus } from './repositories.js'
-import { registerOrderPayment } from './paymentRepository.js'
+import { createOrder, updateOrderStatus } from './repositories.js'
+import { registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { createManualMovement, updateManualMovement } from './financeRepository.js'
 import { loadOperations, saveOperations } from './operationSettingsRepository.js'
@@ -149,7 +149,7 @@ test('inactive payment method blocks whole-table payment without closing the tab
     customerIdentity: { type: 'table', tableId: 'table-1', clientId: null },
   }, NOW)
   await disablePayment(db, 'cash', 'disable-table-cash')
-  await assert.rejects(registerTableTabPayment(db, BUSINESS, tableOrder.tableTabId, 'Dinheiro', new Date(+NOW + 1000)), { code: 'POLICY_CHANGED' })
+  await assert.rejects(registerTableTabPayment(db, BUSINESS, tableOrder.tableTabId, [{ methodCode: 'cash', amountCents: 2500 }], new Date(+NOW + 1000)), { code: 'POLICY_CHANGED' })
   assert.equal(sqlite.prepare('SELECT status FROM table_tabs WHERE id = ?').get(tableOrder.tableTabId).status, 'open')
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM payments WHERE order_id = ?').get(tableOrder.id).n, 0)
 })
