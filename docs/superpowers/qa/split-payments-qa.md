@@ -124,3 +124,47 @@ Result: **8 PASS / 0 FAIL / 0 BLOCKED**
 | P6 | Payment methods and icons render correctly, including multi-method combinations | PASS |
 | P7 | Removing an allocation card recalculates the composition correctly | PASS |
 | P8 | Under/over/exact totals correctly disable/enable confirmation | PASS |
+
+
+## Manual homologation — round 2
+
+Date: 2026-09-21
+Environment: staging
+
+Initial result: **9 PASS / 0 FAIL / 1 UX adjustment identified**
+
+| # | Case | Result |
+| ---: | --- | --- |
+| B2-1 | Save and receive — simple payment | PASS |
+| B2-2 | Save and receive — mixed payment | PASS |
+| B2-3 | Mixed order detail shows allocation breakdown | PASS |
+| B2-4 | Finance presentation for a mixed receipt | UX ADJUSTMENT — underlying allocation movements were correct, but two visible rows looked like two sales |
+| B2-5 | Pending order payment from Kitchen | PASS |
+| B2-6 | Pending order payment from History | PASS |
+| B2-7 | Pending order payment from Receivables | PASS |
+| B2-8 | Paid order leaves pending Receivables state | PASS |
+| B2-9 | Search by each payment method finds the same mixed order | PASS |
+| B2-10 | Double submit does not duplicate receipt/movements | PASS |
+
+### B2-4 follow-up
+
+Presentation-only correction implemented after manual feedback:
+- allocation-backed movements remain separate in the financial model for exact per-method reporting;
+- Finance now groups `source='order-payment'` movements by the same `receiptId` into one visible receipt row;
+- the visible row shows the receipt total once plus the payment-method breakdown;
+- totals/entries/exits continue to use raw movements and are unchanged;
+- manual movements and legacy/simple order-payment movements remain unchanged.
+
+Remote focused evidence:
+- Split payment finance presentation run `35659953221` — SUCCESS
+- 24 tests / 24 pass / 0 fail / 0 skipped
+- architecture PASS
+- lint PASS (109 warnings / 0 errors)
+- build PASS
+- staging Worker dry-run PASS
+- staging deploy PASS
+- Worker version `5737cb5e-7261-4419-a2ac-70f1420136fd`
+- readiness PASS on attempt 1/4
+- login smoke PASS HTTP 200
+
+B2-4 status: **RETEST REQUIRED**.
