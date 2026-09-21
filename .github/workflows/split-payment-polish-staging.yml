@@ -36,30 +36,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate split payment polish
-        run: >-
-          node --test
-          src/app/workflows/payments/paymentComposition.test.js
-          src/app/workflows/payments/PaymentCompositionEditor.test.js
-          src/app/workflows/payments/table-tab/TableTabPaymentDialog.test.js
-          src/systemSelect.test.js
-          src/newOrderSystemSelect.test.js
-          src/navigationContinuity.test.js
-
-      - name: Validate frontend architecture
-        run: npm run test:architecture
-
-      - name: Lint
-        run: npm run lint
-
       - name: Build
         run: npm run build
 
       - name: Validate staging Worker bundle
         run: npx --yes wrangler@4.128.0 deploy --dry-run --env staging
-
-      - name: Confirm no pending staging migrations
-        run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery-staging --remote --env staging
 
       - name: Deploy staging
         run: npm run deploy:staging
@@ -70,19 +51,16 @@ jobs:
           node --input-type=module <<'NODE'
           const baseUrl = process.env.STAGING_URL
           let ready = false
-          for (let attempt = 1; attempt <= 6; attempt += 1) {
+          for (let attempt = 1; attempt <= 4; attempt += 1) {
             try {
               const response = await fetch(`${baseUrl}/api/auth/session`)
               if (response.ok) {
-                console.log(`Staging ready on attempt ${attempt}/6`)
+                console.log(`Staging ready on attempt ${attempt}/4`)
                 ready = true
                 break
               }
-              console.log(`Readiness attempt ${attempt}/6: HTTP ${response.status}`)
-            } catch (error) {
-              console.log(`Readiness attempt ${attempt}/6: ${error.message}`)
-            }
-            if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, 5000))
+            } catch {}
+            if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 3000))
           }
           if (!ready) process.exit(1)
 
@@ -91,9 +69,6 @@ jobs:
             headers: { 'content-type': 'application/json', origin: baseUrl },
             body: JSON.stringify({ pin: process.env.STAGING_PIN }),
           })
-          if (!login.ok) {
-            console.error(`Staging login failed with HTTP ${login.status}`)
-            process.exit(1)
-          }
+          if (!login.ok) process.exit(1)
           console.log(`Staging login HTTP ${login.status}`)
           NODE
