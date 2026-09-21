@@ -672,40 +672,6 @@ export const registerTableTabPayment = async (db, businessId, tableTabId, method
   }
 }
 
-export const registerOrderPayment = async (db, businessId, orderId, method, now = new Date()) => {
-  const orderRow = await db.prepare(`SELECT o.id, o.order_number, o.status, o.client_name_snapshot, o.table_tab_id, o.total_cents, p.id AS payment_id FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(orderId, businessId).first()
-  if (!orderRow) throw repositoryError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
-  if (orderRow.status === 'Cancelado') throw repositoryError(409, 'ORDER_ALREADY_CANCELLED', 'Pedido cancelado não pode receber pagamento.')
-  if (orderRow.payment_id) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
-
-  const paymentExpectation = await readPaymentMethodExpectation(db, businessId, method)
-  const paymentId = crypto.randomUUID()
-  const movementId = crypto.randomUUID()
-  const paidAt = now.toISOString()
-  const movementDate = getBusinessDate(now)
-  const description = `${formatOrderDisplayNumber(orderRow).replace('Pedido', 'Pagamento pedido')} · ${orderRow.client_name_snapshot}`
-
-  const policyTxId = crypto.randomUUID()
-  try {
-    await db.batch([
-      ...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId),
-      db.prepare(`INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(paymentId, businessId, orderId, orderRow.total_cents, method, paidAt, paidAt),
-      db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at, payment_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(movementId, businessId, 'entrada', 'Vendas', description, orderRow.total_cents, 'order-payment', orderId, paymentId, movementDate, paidAt, method, paidAt),
-      clearSettingsAssertions(db, policyTxId),
-    ])
-  } catch (error) {
-    const existingPayment = await db.prepare('SELECT id FROM payments WHERE order_id = ? AND business_id = ? LIMIT 1').bind(orderId, businessId).first()
-    if (existingPayment) throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Este pedido já foi pago.')
-    if (String(error?.message || '').includes('POLICY_CHANGED')) rethrowPolicyChange(error)
-    throw error
-  }
-
-  const payment = { id: paymentId, orderId, amount: centsToMoney(orderRow.total_cents), method, paidAt }
-  const movement = mapMovementRow({ id: movementId, type: 'entrada', category: 'Vendas', description, value_cents: orderRow.total_cents, source: 'order-payment', order_id: orderId, payment_id: paymentId, payment_method: method, movement_date: movementDate, created_at: paidAt, updated_at: paidAt })
-  await closeTableTabIfSettled(db, businessId, orderRow.table_tab_id, now)
-  return { payment, movement, order: await loadOrderById(db, businessId, orderId) }
-}
-
 export const createMovement = async (db, businessId, input, now = new Date()) => {
   const id = crypto.randomUUID()
   const createdAt = now.toISOString()
