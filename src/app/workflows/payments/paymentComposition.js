@@ -11,10 +11,31 @@ export const createInitialPaymentComposition = ({ totalCents = 0, defaultPayment
   return [{ methodCode: option?.code || '', amountCents: safeCents(totalCents) }]
 }
 
-export const addPaymentAllocation = (allocations = []) => [
-  ...(Array.isArray(allocations) ? allocations : []),
-  { methodCode: '', amountCents: 0 },
-]
+export const remainingPaymentCents = (allocations = [], totalCents = 0, excludeIndex = -1) => {
+  const authoritativeTotal = Number.isSafeInteger(totalCents) && totalCents > 0 ? totalCents : 0
+  let enteredCents = 0
+  for (const [index, allocation] of (Array.isArray(allocations) ? allocations : []).entries()) {
+    if (index === excludeIndex) continue
+    const amount = safeCents(allocation?.amountCents)
+    if (enteredCents > Number.MAX_SAFE_INTEGER - amount) return 0
+    enteredCents += amount
+  }
+  return Math.max(0, authoritativeTotal - enteredCents)
+}
+
+export const addPaymentAllocation = (allocations = [], totalCents = 0) => {
+  const rows = Array.isArray(allocations) ? allocations : []
+  return [
+    ...rows,
+    { methodCode: '', amountCents: remainingPaymentCents(rows, totalCents) },
+  ]
+}
+
+export const autofillPaymentRemainder = (allocations = [], totalCents = 0, index = -1) => (
+  updatePaymentAllocation(allocations, index, {
+    amountCents: remainingPaymentCents(allocations, totalCents, index),
+  })
+)
 
 export const removePaymentAllocation = (allocations = [], index) => (
   (Array.isArray(allocations) ? allocations : []).filter((_, position) => position !== index)
