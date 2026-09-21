@@ -31,7 +31,7 @@
 | 1 — Pure operational status | **COMPLETE / GREEN** | `1f79b2e8051942af82c3e925150faf0a49f208f7` | `475b81fe90316559fd97c90de381ce989df73197` | Pure domain resolver only; no UI/manager/backend/QZ changes |
 | 2 — Queue semantic integration | **COMPLETE / GREEN** | `13a1d4e7069332fac16f90bffa7b19aa694f6b2f` | `872701a573fa421e5ae2db43143fa0ca820d8ff1` | Shared operational view + primary-station Queue semantics; no executor changes |
 | 3 — Mobile visual hierarchy | **COMPLETE / GREEN** | `ec19a82b54310c3137a5b125b540595ccddc3fed` | `2d48030d1a9bce748766873dced5afb797281e5a` | Compact mobile header, operational tones, summary hierarchy; C10 CSS snapshot intentionally advanced |
-| 4 — Contextual Settings | PENDING | — | — | |
+| 4 — Contextual Settings | **COMPLETE / GREEN** | `2a802691b476e931e5ccbbff4576c593fd53867c` | `dd9742c780f191ab1cbd1757ec964ba66b736433` | Queue-only shows business status; QZ keeps local physical controls; same resolver/view reused |
 | 5 — Regression hardening | PENDING | — | — | |
 | 6 — Closure + staging QA | PENDING | — | — | |
 
@@ -143,6 +143,49 @@ No production UI was modified in Task 1.
   - mobile summary remains 2×2;
   - obsolete station/offline CSS is gone;
   - jobs table/cards, filters, detail modal and recovery CSS remain intact.
+
+
+
+## Task 4 evidence
+
+### RED
+
+- Commit: `2a802691b476e931e5ccbbff4576c593fd53867c`
+- Validate #1567 / run `35552641571`: **EXPECTED FAILURE**
+- Suite: **1,964 tests / 1,960 pass / 3 fail / 1 skipped**.
+- The three failing tests proved the intended missing behavior:
+  - queue-only Settings still rendered the old local-printer framing instead of **Impressão do negócio**;
+  - QZ Settings still rendered the old title instead of **Impressão nesta estação**;
+  - Settings did not yet consume `derivePrintOperationalStatus` + `buildPrintOperationalView`.
+
+### GREEN implementation
+
+- Main implementation commit: `369e4d30c8a2ddd3f3486a68bdfb5fb36c9926d2`.
+- Validate #1568 / run `35552801112`: all new Task 4 tests passed, but the full suite found one existing QZ UI contract expecting the text **QZ Tray** to remain explicit on Windows.
+- That was treated as a real compatibility expectation, not removed from the test. The QZ card description was refined to keep the QZ Tray context visible.
+- Final Task 4 SHA: `dd9742c780f191ab1cbd1757ec964ba66b736433`.
+- Validate #1569 / run `35552937534`: **SUCCESS**.
+- Suite: **1,964 tests / 1,963 pass / 0 fail / 1 skipped**.
+- Architecture: **SUCCESS**
+- Lint: **SUCCESS**
+- Build: **SUCCESS**
+- Worker production dry-run: **SUCCESS**
+- Worker staging dry-run: **SUCCESS**
+- Local D1 migrations: **SUCCESS**
+- Spec B D1 clean install/upgrade: **SUCCESS**
+
+Verified:
+
+- queue-only devices render **Impressão do negócio**;
+- queue-only devices reuse the primary-station operational status already used by Print Queue;
+- healthy remote primary renders **Impressão disponível** and identifies the responsible station;
+- queue-only devices no longer present local printer configuration, Testar impressão or Trocar impressora;
+- queue-only copy explicitly states that the station follows the central queue and does not perform physical printing;
+- QZ/Windows renders **Impressão nesta estação**;
+- QZ/Windows keeps configured printer identity, **Testar impressão**, **Trocar impressora**, printer discovery/save flow and explicit QZ Tray context;
+- policy and station save boundaries remain independent;
+- no change was made to `printingSettingsAdapter.js`, manager APIs, QZ transport, Worker, D1 or printing execution state machines;
+- Settings and Queue now share one operational state tree and one semantic view mapping.
 
 
 ## Guardrails
