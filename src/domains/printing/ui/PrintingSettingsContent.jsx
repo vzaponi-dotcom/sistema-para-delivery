@@ -6,6 +6,8 @@ import SystemSelect from '../../../shared/ui/SystemSelect'
 import './printing.css'
 import { hasCapability } from '../../../app/access.js'
 import { detectPrintStationUiPlatform } from '../application/printingPlatform.js'
+import { derivePrintOperationalStatus } from '../domain/printOperationalStatus.js'
+import { buildPrintOperationalView } from './printOperationalView.js'
 
 const PLATFORM_LABELS = {
   windows: 'Windows',
@@ -19,13 +21,6 @@ const PLATFORM_ICONS = {
   android: 'android',
   ios: 'apple',
   other: 'system',
-}
-
-const PHYSICAL_HEALTH_LABELS = {
-  ready: 'Pronta para imprimir',
-  verifying: 'Verificando impressora…',
-  printer_offline: 'Impressora desligada ou desconectada',
-  printer_attention: 'Atenção necessária na impressora',
 }
 
 const copyOptions = [
@@ -103,16 +98,6 @@ function PrintingSettingsContent({ printing, settings, granted, onReviewConflict
     settings?.editStation?.(next)
   }
 
-  const operationalLabel = !isQz
-    ? 'Fila central'
-    : !printing?.qzConnected
-      ? 'QZ Tray indisponível'
-      : !printing?.configuredPrinterName
-        ? 'Impressora não configurada'
-        : !printing?.printerQueueFound
-          ? 'Impressora não encontrada'
-          : PHYSICAL_HEALTH_LABELS[printing?.printerHealth?.state] || PHYSICAL_HEALTH_LABELS.verifying
-
   const runtimePlatform = detectPrintStationUiPlatform()
   const uiPlatform = runtimePlatform === 'other' && ['windows', 'android'].includes(station.platform)
     ? station.platform
@@ -125,6 +110,21 @@ function PrintingSettingsContent({ printing, settings, granted, onReviewConflict
   const pendingCount = jobs.filter((job) => job?.status === 'pending').length
   const awaitingConfirmationCount = jobs.filter((job) => job?.status === 'awaiting_confirmation').length
   const waitingCount = pendingCount + awaitingConfirmationCount
+  const operationalStatus = derivePrintOperationalStatus({
+    stations: printing?.stations,
+    localStation: printing?.localStation,
+    transportKind: printing?.transportKind,
+    printerState: printing?.printerState,
+    qzConnected: printing?.qzConnected,
+    configuredPrinterName: printing?.configuredPrinterName,
+    printerQueueFound: printing?.printerQueueFound,
+    printerHealth: printing?.printerHealth,
+  })
+  const operationalView = buildPrintOperationalView(operationalStatus, {
+    pendingCount,
+    localPrinterName: printing?.configuredPrinterName,
+  })
+  const operationalHealthClass = `printing-health is-${operationalView.tone}`
   const localBusy = ['discover', 'printer', 'test'].some((key) => busyKeys.has(key))
   const blockedStatuses = ['loading', 'saving', 'unconfirmed', 'conflict']
   const policyBlocked = !policyDraft || blockedStatuses.includes(policyState?.status)
@@ -246,8 +246,8 @@ function PrintingSettingsContent({ printing, settings, granted, onReviewConflict
         <header className="printing-settings-card-header">
           <span className="printing-settings-card-icon"><Icon name="printer" size={22} /></span>
           <div>
-            <h2 id="printing-local-title">Impressora local (QZ Tray)</h2>
-            <p>{isQz ? 'Configure a impressora instalada neste computador.' : 'Esta estação acompanha a fila central do negócio.'}</p>
+            <h2 id="printing-local-title">{isQz ? 'Impressão nesta estação' : 'Impressão do negócio'}</h2>
+            <p>{isQz ? 'Configure e acompanhe a impressão física deste computador.' : 'Acompanhe a estação responsável pela impressão do negócio.'}</p>
           </div>
           {waitingCount > 0 && <span className="printing-queue-pill"><Icon name="clipboard" size={15} />{countLabel(waitingCount, 'trabalho aguardando', 'trabalhos aguardando')}</span>}
         </header>
@@ -255,14 +255,18 @@ function PrintingSettingsContent({ printing, settings, granted, onReviewConflict
         <div className="printing-local-layout">
           <div className="printing-local-summary">
             <div className="printing-local-row">
-              <span>Status da impressora</span>
-              <strong className={printerReady ? 'printing-health is-ready' : 'printing-health'}><span aria-hidden="true">●</span>{operationalLabel}</strong>
+              <span>Status da impressão</span>
+              <strong className={operationalHealthClass}><span aria-hidden="true">●</span>{operationalView.title}</strong>
             </div>
-            <div className="printing-local-row">
+            {operationalView.description && <p className="printing-operational-description">{operationalView.description}</p>}
+            {isQz ? <div className="printing-local-row">
               <span>Impressora configurada</span>
-              <strong>{isQz ? (printing?.configuredPrinterName || 'Nenhuma impressora configurada') : 'Fila central'}</strong>
-            </div>
-            {!isQz && <p className="printing-central-note">A impressão física ocorre na estação Windows principal. Este dispositivo não executa impressão QZ local.</p>}
+              <strong>{printing?.configuredPrinterName || 'Nenhuma impressora configurada'}</strong>
+            </div> : <div className="printing-local-row">
+              <span>Estação responsável</span>
+              <strong>{operationalView.primaryStationName || 'Nenhuma estação principal configurada'}</strong>
+            </div>}
+            {!isQz && <p className="printing-central-note">Esta estação acompanha a fila central e não realiza impressão física.</p>}
             {pendingCount > 0 && <p className="printing-queue-detail">{countLabel(pendingCount, 'trabalho aguardando impressão', 'trabalhos aguardando impressão')}.</p>}
             {awaitingConfirmationCount > 0 && <p className="printing-queue-detail">{countLabel(awaitingConfirmationCount, 'via enviada aguardando confirmação', 'vias enviadas aguardando confirmação')}.</p>}
           </div>
