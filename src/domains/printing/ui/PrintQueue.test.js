@@ -643,3 +643,33 @@ test('remote primary offline with pending jobs explains the operational impact',
   assert.match(textContent, /Estação de impressão indisponível/)
   assert.match(textContent, /3 trabalhos aguardando a estação voltar/)
 })
+
+
+test('task 3 mobile hierarchy keeps operational status, summary emphasis and settings action queue-scoped', async () => {
+  const [page, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('./print-queue.css'),
+  ])
+
+  assert.match(page, /className=\{\`print-queue-summary-card/)
+  assert.match(page, /is-zero/)
+  assert.match(page, /has-value/)
+  assert.match(page, /has-attention/)
+  assert.match(page, /aria-label="Configurações, Impressão"/)
+
+  assert.match(styles, /\.print-queue-page\s*\{[^}]*max-width:\s*100%/)
+  assert.match(styles, /\.print-queue-operational-card\s*\{/)
+  for (const tone of ['success', 'warning', 'danger', 'neutral']) {
+    assert.match(styles, new RegExp(`\\.print-queue-operational-card\\.is-${tone}`))
+  }
+  assert.match(styles, /\.print-queue-summary-card\.is-zero/)
+  assert.match(styles, /\.print-queue-summary-card\.has-attention/)
+  assert.match(styles, /\.print-queue-summary-card \.stat-copy strong\s*\{[^}]*order:\s*-1/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-page > \.page-header\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 40px/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-page > \.page-header \.page-actions \.print-queue-settings-button\s*\{[^}]*width:\s*40px/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
+
+  assert.doesNotMatch(styles, /\.print-queue-station-card/)
+  assert.doesNotMatch(styles, /\.print-queue-offline-banner/)
+  assert.doesNotMatch(styles, /(^|\n)\.page-actions \.button\s*\{[^}]*width:\s*40px/m)
+})
