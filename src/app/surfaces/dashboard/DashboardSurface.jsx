@@ -62,9 +62,9 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
       metrics: calculatePeriodMetrics(orders, period, now),
       daily: buildDailySeries(orders, period, now),
       topProducts: getTopProducts(orders, period, now),
-      paymentMix: getPaymentMix(orders, period, now),
+      paymentMix: getPaymentMix(movements, period, now),
     }
-  }, [orders, period, todayValue])
+  }, [movements, orders, period, todayValue])
 
   const displayMoney = (value) => valuesVisible ? currency(value) : MONEY_MASK
   const privacyLabel = valuesVisible ? 'Ocultar valores' : 'Mostrar valores'
@@ -140,7 +140,7 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
         <article className="surface-card dashboard-chart-card">
           <div className="section-heading">
             <div><span className="section-kicker">Recebimentos</span><h2>Formas de pagamento</h2></div>
-            <div className="section-meta">Pedidos pagos</div>
+            <div className="section-meta">Movimentos recebidos</div>
           </div>
           <DashboardPaymentMix data={paymentMix} formatValue={currency} valuesVisible={valuesVisible} ariaLabel="Valores recebidos por forma de pagamento" />
         </article>

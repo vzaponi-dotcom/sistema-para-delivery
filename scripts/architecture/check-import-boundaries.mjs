@@ -330,6 +330,58 @@ export const findArchitectureViolations = async ({ rootDir }) => {
   const sourcePaths = new Set((await listSourceFiles(path.join(rootDir, 'src'))).map((file) => repoRelative(rootDir, file)))
   const violations = []
 
+  const readOptional = async (relativePath) => {
+    try {
+      return await readFile(path.join(rootDir, relativePath), 'utf8')
+    } catch (error) {
+      if (error?.code === 'ENOENT') return ''
+      throw error
+    }
+  }
+
+  const paymentApiSource = await readOptional('src/app/workflows/payments/paymentApi.js')
+  if (/registerOrderPayment\s*:[\s\S]{0,300}?json\s*\(\s*['"]POST['"]\s*,\s*\{\s*method\b/.test(paymentApiSource)) {
+    violations.push('split-payment-api-order-method: src/app/workflows/payments/paymentApi.js')
+  }
+  if (/registerTableTabPayment\s*:[\s\S]{0,300}?json\s*\(\s*['"]POST['"]\s*,\s*\{\s*method\b/.test(paymentApiSource)) {
+    violations.push('split-payment-api-table-method: src/app/workflows/payments/paymentApi.js')
+  }
+
+  const orderCartSource = await readOptional('src/domains/orders/domain/orderCart.js')
+  if (/\bpaymentMethod\s*:|payload\.paymentMethod\s*=/.test(orderCartSource)) {
+    violations.push('split-payment-checkout-scalar: src/domains/orders/domain/orderCart.js')
+  }
+
+  const paymentWriterPaths = ['worker/repositories.js', 'worker/paymentRepository.js']
+  for (const writerPath of paymentWriterPaths) {
+    const source = await readOptional(writerPath)
+    if (writerPath === 'worker/repositories.js'
+      && exportMentionsAny(source, new Set(['registerOrderPayment', 'registerTableTabPayment']))) {
+      violations.push(`split-payment-repository-owner: ${writerPath}`)
+    }
+    for (const match of source.matchAll(/INSERT\s+INTO\s+payments\s*\(([^)]*)\)\s*VALUES\s*\(([^)]*)\)/gi)) {
+      const columns = match[1].split(',').map((value) => value.trim().toLowerCase())
+      const values = match[2].split(',').map((value) => value.trim().toUpperCase())
+      const methodIndex = columns.indexOf('method')
+      if (methodIndex >= 0 && values[methodIndex] !== 'NULL') {
+        violations.push(`split-payment-method-write: ${writerPath}`)
+      }
+    }
+  }
+
+  const productionSources = [
+    ...await listSourceFiles(path.join(rootDir, 'src')),
+    ...await listSourceFiles(path.join(rootDir, 'worker')),
+  ]
+  for (const absolutePath of productionSources) {
+    const relativePath = repoRelative(rootDir, absolutePath)
+    if (isTestFile(relativePath)) continue
+    const source = await readFile(absolutePath, 'utf8')
+    if (/Dinheiro\s*\+\s*Pix|Múltiplas formas/i.test(source)) {
+      violations.push(`split-payment-synthetic-storage: ${relativePath}`)
+    }
+  }
+
   for (const legacyFacade of C10_LEGACY_API_FACADES) {
     if (sourcePaths.has(legacyFacade)) violations.push(`c10-legacy-api-facade: ${legacyFacade}`)
   }
@@ -477,6 +529,12 @@ export const findArchitectureViolations = async ({ rootDir }) => {
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
+
+    if (!isTestFile(edge.from)
+      && edge.from.startsWith('src/domains/orders/')
+      && edge.resolvedPath?.startsWith('src/app/workflows/payments/')) {
+      violations.push(`orders-payment-workflow-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
 
     const printingDomainLayer = edge.from.startsWith('src/domains/printing/domain/')
     if (printingDomainLayer && isReactSpecifier(edge.specifier)) {

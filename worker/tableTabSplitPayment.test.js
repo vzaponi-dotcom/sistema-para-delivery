@@ -18,8 +18,14 @@ class SplitTableTabDb extends OperationalDb {
       this.sqlite.prepare("INSERT INTO orders (id, business_id, client_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot, customer_identity_type, table_tab_id, type, order_date, status, scheduled_for, promised_payment_date, is_backdated, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, cancelled_at, cancel_reason, cancel_reason_note, idempotency_key, order_number) VALUES (?, ?, NULL, 'Mesa 1', '', '', 'table', 'tab-1', 'Local', '2026-09-21', 'Em preparo', NULL, NULL, 0, ?, 0, 'none', 'fixed', 0, 0, '', ?, ?, NULL, NULL, NULL, NULL, ?, ?)")
         .run(id, BUSINESS, total, total, ISO, 'key-' + id, number)
     }
-    this.sqlite.prepare("INSERT INTO payments (id, business_id, order_id, amount_cents, method, paid_at, created_at) VALUES ('pay-old', ?, 'o1', 2000, 'Dinheiro', ?, ?)")
-      .run(BUSINESS, ISO, ISO)
+    this.sqlite.exec(`
+      INSERT INTO payment_receipts (id, business_id, table_tab_id, total_cents, paid_at, created_at)
+      VALUES ('receipt-old', '${BUSINESS}', NULL, 2000, '${ISO}', '${ISO}');
+      INSERT INTO payment_allocations (id, business_id, receipt_id, method_code, method_label, amount_cents, created_at)
+      VALUES ('allocation-old', '${BUSINESS}', 'receipt-old', 'cash', 'Dinheiro', 2000, '${ISO}');
+      INSERT INTO payments (id, business_id, order_id, receipt_id, amount_cents, method, paid_at, created_at)
+      VALUES ('pay-old', '${BUSINESS}', 'o1', 'receipt-old', 2000, NULL, '${ISO}', '${ISO}');
+    `)
   }
 }
 
@@ -86,8 +92,8 @@ test('whole-table split payment rolls back receipt, allocations, payments and mo
 
   assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'open')
   assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payments").get().n, 1)
-  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payment_receipts").get().n, 0)
-  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payment_allocations").get().n, 0)
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payment_receipts").get().n, 1)
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payment_allocations").get().n, 1)
   assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM movements WHERE source = 'order-payment'").get().n, 0)
 })
 
@@ -101,7 +107,7 @@ test('whole-table split payment rejects an inactive selected method without part
   )
 
   assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payments").get().n, 1)
-  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payment_receipts").get().n, 0)
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payment_receipts").get().n, 1)
   assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM movements WHERE source = 'order-payment'").get().n, 0)
   assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'open')
 })

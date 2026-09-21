@@ -169,7 +169,7 @@ test('mixed receipt cancellation shows composition and never preselects an alloc
     open: true, order: paid, reasonOptions: activeReasons.map((item) => ({ ...item, value: item.id })), reasonRevision: 7,
     paymentOptions: [{ value: 'Pix', label: 'Pix', code: 'pix' }, { value: 'Dinheiro', label: 'Dinheiro', code: 'cash' }], onClose() {}, onConfirm() {},
   })
-  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$ 10,00.*Pix.*R\$ 30,00/s)
+  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$\s*10,00.*Pix.*R\$\s*30,00/s)
   await act(async () => buttonNamed(screen.root, 'Sim').props.onClick())
   assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma do estorno' })), 'Selecione')
   assert.equal(buttonNamed(screen.root, 'Revisar cancelamento').props.disabled, true)

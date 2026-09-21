@@ -139,7 +139,7 @@ test('mixed receipt refund shows its composition and requires an explicit active
   }
   const confirmations = []
   const screen = await h.render(Dialog, { open: true, order, paymentOptions: options, onClose() {}, onConfirm: (payload) => confirmations.push(payload) })
-  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$ 10,00.*Pix.*R\$ 30,00/s)
+  assert.match(nodeText(screen.root), /Composição original.*Dinheiro.*R\$\s*10,00.*Pix.*R\$\s*30,00/s)
   assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de estorno' })), 'Selecione a forma do estorno')
   assert.equal(buttonNamed(screen.root, 'Confirmar estorno').props.disabled, true)
   await act(async () => screen.root.findByProps({ role: 'combobox' }).props.onClick())
