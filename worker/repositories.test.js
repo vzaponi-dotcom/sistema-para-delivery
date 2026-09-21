@@ -166,6 +166,11 @@ test('loadBootstrap scopes every business-owned query and attaches order items a
   }])
   assert.deepEqual(result.movements, [])
 
+  const movementRead = db.calls.find((call) => call.sql.includes('FROM movements m'))
+  assert.ok(movementRead, 'bootstrap must load finance movements')
+  assert.match(movementRead.sql, /m\.receipt_id/)
+  assert.match(movementRead.sql, /m\.payment_allocation_id/)
+
   for (const call of db.calls) {
     assert.equal(call.values[0], 'amor-e-sabor')
     if (!call.sql.includes('FROM businesses')) assert.match(call.sql, /business_id/)
