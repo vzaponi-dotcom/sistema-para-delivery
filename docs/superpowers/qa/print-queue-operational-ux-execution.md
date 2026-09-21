@@ -229,8 +229,13 @@ Hardening coverage explicitly confirms:
 - Pre-staging Validate #1571 is fully GREEN.
 - Production deploy: **NOT EXECUTED**.
 - Production migrations: **NOT EXECUTED**.
-- Staging deploy: **PENDING workflow_dispatch**.
-- Manual staging QA: **PENDING after deploy**.
+- Staging deploy #191 / run `35553828854`: **SUCCESS** on exact runtime SHA `309fe9134d4dee499835782ef5e60afcfc974e90`.
+- Staging Worker Version ID: `ae6f6646-015b-415c-a3e9-e450a2a39f84`.
+- Staging D1 migrations: **NO MIGRATIONS TO APPLY**.
+- Staging readiness: **READY on attempt 1/6**.
+- Staging login smoke check: **HTTP 200**.
+- Staging suite during deploy: **1,970 tests / 1,969 pass / 0 fail / 1 skipped**.
+- Manual staging QA: **PENDING USER HOMOLOGATION**.
 - C9 physical functional rows + P1–P20 remain `DEFERRED-PRODUCTION` and are not satisfied by this slice.
 
 
@@ -243,3 +248,27 @@ Hardening coverage explicitly confirms:
 - No production deploy.
 - No merge without explicit user authorization.
 - C9/P1–P20 remains a final production hard gate.
+
+
+## Task 6 staging deployment evidence
+
+- Workflow: **Deploy staging #191**
+- Run: `35553828854`
+- Branch: `staging/print-queue-operational-ux`
+- Runtime SHA: `309fe9134d4dee499835782ef5e60afcfc974e90`
+- Result: **SUCCESS**
+- Tests: **1,970 / 1,969 pass / 0 fail / 1 skipped**
+- Architecture: **SUCCESS**
+- Lint: **SUCCESS**
+- Build: **SUCCESS**
+- Local D1: **SUCCESS**
+- Staging Worker dry-run: **SUCCESS**
+- Remote staging migrations: **none pending**
+- Deploy: **SUCCESS**
+- Worker Version ID: `ae6f6646-015b-415c-a3e9-e450a2a39f84`
+- Readiness check: **attempt 1/6**
+- Staging login: **HTTP 200**
+- Production deploy/migrations: **NOT EXECUTED**
+
+Manual QA remains the only open part of Task 6 before final documentary closure + final Validate.
+

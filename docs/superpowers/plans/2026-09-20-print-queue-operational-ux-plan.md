@@ -502,9 +502,9 @@ This task does **not** change how the manager derives those underlying runtime v
 
 ### Staging
 
-- [ ] Deploy **staging only** through the project’s existing deployment procedure. **PENDING manual workflow_dispatch**
-- [ ] Record staging SHA/deployment id. Candidate branch prepared: `staging/print-queue-operational-ux` at `309fe9134d4dee499835782ef5e60afcfc974e90`.
-- [ ] Do not run production deploy or production migrations.
+- [x] Deploy **staging only** through the project’s existing deployment procedure. Deploy staging #191 / run `35553828854` — **SUCCESS**.
+- [x] Record staging SHA/deployment id. Runtime SHA: `309fe9134d4dee499835782ef5e60afcfc974e90`; Worker Version ID: `ae6f6646-015b-415c-a3e9-e450a2a39f84`.
+- [x] Do not run production deploy or production migrations. Confirmed: none executed.
 
 ### Manual QA — Android / queue-only
 
