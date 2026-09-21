@@ -50,9 +50,9 @@ test('table-tab payment enforces business scope and closed-tab retry safety', as
     { status: 404, code: 'TABLE_TAB_NOT_FOUND' },
   )
 
-  db.sqlite.prepare("UPDATE table_tabs SET status = 'closed', closed_at = ? WHERE id = 'tab-1'").run(ISO)
+  const closedDb = new TableTabPaymentDb({ status: 'closed', withOrder: false })
   await assert.rejects(
-    registerTableTabPayment(db, BUSINESS, 'tab-1', pix, NOW),
+    registerTableTabPayment(closedDb, BUSINESS, 'tab-1', pix, NOW),
     { status: 409, code: 'TABLE_TAB_ALREADY_CLOSED' },
   )
 })
