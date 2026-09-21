@@ -48,6 +48,11 @@ test('payment composition editor adds/removes rows and closes a Dinheiro + Pix c
   amountInputs = screen.root.findAll((node) => node.type === 'input' && String(node.props?.['aria-label'] || '').startsWith('Valor da forma de pagamento'))
   await act(async () => amountInputs[1].props.onChange({ target: { value: 'R$ 50,00' } }))
 
+  amountInputs = screen.root.findAll((node) => node.type === 'input' && String(node.props?.['aria-label'] || '').startsWith('Valor da forma de pagamento'))
+  await act(async () => amountInputs[0].props.onChange({ target: { value: 'R$ 20,00' } }))
+  assert.equal(latest[1].amountCents, 5000, 'manual override stops automatic remainder tracking')
+  await act(async () => amountInputs[0].props.onChange({ target: { value: 'R$ 30,00' } }))
+
   assert.deepEqual(latest, [
     { methodCode: 'cash', amountCents: 3000 },
     { methodCode: 'pix', amountCents: 5000 },
