@@ -76,7 +76,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   state.settingsSave = deferred()
   state.settingsStarted = deferred()
   await act(async () => copySelector.props.onClick())
-  const secondCopy = renderer.root.findAllByProps({ role: 'option' }).find((option) => option.props.children[0].props.children === '2 vias')
+  const secondCopy = renderer.root.findAllByProps({ role: 'option' }).find((option) => nodeText(option) === '2 vias')
   await act(async () => { secondCopy.props.onClick() })
   assert.equal(state.settingsWrites, 0, 'editing a policy must not autosave')
   await act(async () => {
