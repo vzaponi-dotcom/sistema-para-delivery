@@ -133,7 +133,8 @@ test('payment that commits first preserves existing paid cancellation and deferr
   assert.equal(cancelled.order.refundState, 'pending')
   assert.equal(cancelled.movement, null)
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM payments WHERE order_id = 'order-1'").get().count, 1)
-  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE order_id = 'order-1' AND source = 'order-payment'").get().count, 1)
+  const paidReceiptId = db.sqlite.prepare("SELECT receipt_id FROM payments WHERE order_id = 'order-1'").get().receipt_id
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE receipt_id = ? AND source = 'order-payment' AND order_id IS NULL AND payment_id IS NULL").get(paidReceiptId).count, 1)
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM movements WHERE order_id = 'order-1' AND source = 'order-refund'").get().count, 0)
   assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'closed')
 })
