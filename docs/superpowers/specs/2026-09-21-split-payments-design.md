@@ -1,11 +1,11 @@
 # Gestão Delivery — Pagamento dividido em múltiplas formas (Issue #30)
 
-**Data:** 2026-09-21  
-**Status:** APROVADO pelo usuário em 2026-09-21; plano de implementação escrito e aguardando aprovação  
-**Branch:** feature/split-payments  
-**Base:** master em 56c693ee505631191d4b09926fb6237d865910f5  
-**Base de origem:** merge do PR #55 — Print queue operational UX  
-**Issue:** #30 — Permitir pagamento dividido em múltiplas formas na baixa  
+**Data:** 2026-09-21
+**Status:** APROVADO pelo usuário em 2026-09-21; plano de implementação escrito e aguardando aprovação
+**Branch:** feature/split-payments
+**Base:** master em 56c693ee505631191d4b09926fb6237d865910f5
+**Base de origem:** merge do PR #55 — Print queue operational UX
+**Issue:** #30 — Permitir pagamento dividido em múltiplas formas na baixa
 **Produção:** não tocar nesta feature sem autorização separada
 
 ## 1. Objetivo

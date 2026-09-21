@@ -87,9 +87,15 @@ test('blocks new selections when a type has no active categories without affecti
   const before = await loadFinanceCategories(db, BUSINESS)
   const disabled = await setActive(db, before,
     before.data.items.filter(({ type }) => type === 'saida').map(({ id }) => id), false, 'disable-expenses')
+  sqlite.prepare(`INSERT INTO payment_receipts (id, business_id, total_cents, paid_at, created_at)
+    VALUES ('sale-history-receipt', ?, 2000, ?, ?)`).run(BUSINESS, NOW.toISOString(), NOW.toISOString())
+  sqlite.prepare(`INSERT INTO payment_allocations (id, business_id, receipt_id, method_code, method_label,
+    amount_cents, created_at) VALUES ('sale-history-allocation', ?, 'sale-history-receipt', 'pix', 'Pix', 2000, ?)`)
+    .run(BUSINESS, NOW.toISOString())
   sqlite.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source,
-    movement_date, created_at, updated_at) VALUES ('sale-history', ?, 'entrada', 'Vendas', 'Venda', 2000,
-    'order-payment', '2026-09-12', ?, ?)`).run(BUSINESS, NOW.toISOString(), NOW.toISOString())
+    movement_date, created_at, updated_at, receipt_id, payment_allocation_id)
+    VALUES ('sale-history', ?, 'entrada', 'Vendas', 'Venda', 2000, 'order-payment', '2026-09-12', ?, ?,
+    'sale-history-receipt', 'sale-history-allocation')`).run(BUSINESS, NOW.toISOString(), NOW.toISOString())
 
   await assert.rejects(createManualMovement(db, BUSINESS,
     baseInput({ expectedRevision: disabled.resource.revision }), LATER), { code: 'POLICY_CHANGED', status: 409 })
