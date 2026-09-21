@@ -168,3 +168,43 @@ Remote focused evidence:
 - login smoke PASS HTTP 200
 
 B2-4 status: **RETEST REQUIRED**.
+
+
+### B2-4 root-cause correction
+
+Manual retest still showed the two allocation movements as separate rows. Root cause:
+- the Finance presentation grouping correctly used `receiptId`;
+- however `loadBootstrap()` and the Finance movement projection did not select `receipt_id` / `payment_allocation_id`;
+- therefore real bootstrap movements reached the frontend with `receiptId: null` and could not be grouped.
+
+Correction:
+- bootstrap movement SQL now selects `m.receipt_id` and `m.payment_allocation_id`;
+- Finance movement reads preserve the same identities;
+- persistence/accounting remains unchanged.
+
+Focused remote gate:
+- Finance receipt identity gate run `35661930004` — SUCCESS
+- 25 tests / 25 pass / 0 fail / 0 skipped
+- architecture PASS
+- lint PASS
+- build PASS
+
+Official staging deployment:
+- `Deploy staging #196` / run `35662233664` — SUCCESS
+- staged executable SHA: `af8d8172b82ad4f5c8f354684eb67bb560808038`
+- branch-specific bounded test step: 33 tests / 33 pass / 0 fail / 0 skipped
+- architecture PASS
+- lint PASS
+- build PASS
+- local D1 PASS
+- staging Worker dry-run PASS
+- no pending staging migrations
+- staging deploy PASS
+- Worker version `561d7ea7-7f1d-4d67-8841-f4939c5b83de`
+- readiness PASS attempt 1/6
+- login smoke PASS HTTP 200
+- production untouched
+
+The standard staging workflow was restored immediately afterward. Final branch HEAD differs from the staged executable only by CI workflow cleanup; application source is identical.
+
+B2-4 status remains **RETEST REQUIRED**.
