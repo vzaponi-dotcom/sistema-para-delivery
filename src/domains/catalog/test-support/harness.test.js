@@ -14,7 +14,7 @@ test('Catalog hook harness can mount and rerender an existing React hook without
 
 test('Catalog UI harness loads an existing Button through Vite and cleans up', async (t) => {
   const h = await createUiHarness(t)
-  const { default: Button } = await h.load('/src/components/Button.jsx')
+  const { default: Button } = await h.load('/src/shared/ui/Button.jsx')
   let renderer
   let clicks = 0
   await act(async () => {

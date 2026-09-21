@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import Button from '../../../components/Button'
-import Icon from '../../../components/Icon'
-import PageHeader from '../../../components/PageHeader'
+import Button from '../../../shared/ui/Button'
+import Icon from '../../../shared/ui/Icon'
+import PageHeader from '../../../shared/ui/PageHeader'
 import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
-import ConfirmationDialog from '../../../components/ConfirmationDialog'
-import StatCard from '../../../components/StatCard'
+import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
+import StatCard from '../../../shared/ui/StatCard'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 function Finance({ totals, movements, currency, onAddMovement, onEditMovement, onDeleteMovement, onConfigureOpeningBalance, pendingRefundOrders = [], onRequestRefund, formatCancellationDate = () => 'Data não informada', canManageMovements = true, canRefundPayments = true }) {

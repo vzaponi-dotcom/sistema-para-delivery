@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import Button from '../../../components/Button'
-import ConfirmationDialog from '../../../components/ConfirmationDialog'
-import Icon from '../../../components/Icon'
-import PageHeader from '../../../components/PageHeader'
-import SystemSelect from '../../../components/SystemSelect'
+import Button from '../../../shared/ui/Button'
+import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
+import Icon from '../../../shared/ui/Icon'
+import PageHeader from '../../../shared/ui/PageHeader'
+import SystemSelect from '../../../shared/ui/SystemSelect'
 import {
   CATEGORY_ICON_NAMES,
   PRODUCT_CATEGORY_OPTIONS,

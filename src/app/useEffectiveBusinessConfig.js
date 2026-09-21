@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getEffectiveConfig } from '../api/effectiveConfigClient.js'
+import { getEffectiveConfig } from '../infrastructure/api/effectiveConfigApi.js'
 
 const capabilityKey = (capabilities = []) => [...new Set(capabilities)].sort().join('\u001f')
 const ownerIdentity = (value) => {

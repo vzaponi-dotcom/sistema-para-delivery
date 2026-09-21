@@ -12,7 +12,7 @@ test('presents the established local device controls, diagnostics, and autosave 
   h.document.documentElement.dataset = {}
   const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
     h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const changes = []
   const screen = await h.render(() => React.createElement(ThemeProvider, null,
@@ -49,7 +49,7 @@ test('keeps safe values and reports persistence failures without a policy engine
   h.localStorage.setItem = () => { throw new Error('blocked') }
   const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
     h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   let soundCalls = 0
   const screen = await h.render(() => React.createElement(ThemeProvider, null,

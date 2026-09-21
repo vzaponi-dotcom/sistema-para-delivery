@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react'
-import Button from '../../../../components/Button'
-import Modal from '../../../../components/Modal'
-import SystemSelect from '../../../../components/SystemSelect'
+import Button from '../../../../shared/ui/Button'
+import Modal from '../../../../shared/ui/Modal'
+import SystemSelect from '../../../../shared/ui/SystemSelect'
 
 const details = {
   cancellation: { addTitle: 'Adicionar motivo de cancelamento', editTitle: 'Renomear motivo de cancelamento', label: 'Motivo' },

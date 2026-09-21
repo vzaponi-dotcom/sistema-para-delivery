@@ -29,7 +29,7 @@ test('legacy Printing production owners are physically absent', () => {
 test('Printing CSS ownership keeps only the approved locations', () => {
   assert.equal(existsSync(new URL('../../printing/printing.css', import.meta.url)), false)
   assert.equal(existsSync(new URL('../printing/ui/printing.css', import.meta.url)), true)
-  assert.equal(existsSync(new URL('../../print-queue.css', import.meta.url)), true)
+  assert.equal(existsSync(new URL('./ui/print-queue.css', import.meta.url)), true)
 })
 
 
@@ -41,7 +41,8 @@ test('legacy src/printing tree contains tests only', () => {
   assert.deepEqual(production, [])
 })
 
-test('C9 removes the historical direct-QZ allowlist exception', () => {
-  const allowlist = JSON.parse(readFileSync(new URL('../../../scripts/architecture/legacy-import-allowlist.json', import.meta.url), 'utf8'))
-  assert.equal((allowlist.qzDirectImports || []).includes('src/printing/usePrintingManager.js'), false)
+test('C9 keeps direct QZ imports confined without migration scaffolding', () => {
+  assert.equal(existsSync(new URL('../../../scripts/architecture/legacy-import-allowlist.json', import.meta.url)), false)
+  const checker = readFileSync(new URL('../../../scripts/architecture/check-import-boundaries.mjs', import.meta.url), 'utf8')
+  assert.doesNotMatch(checker, /qzDirectImports|allowlist/)
 })

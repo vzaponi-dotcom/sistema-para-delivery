@@ -1,5 +1,5 @@
 import { categoryForUi } from './catalogPresentation.js'
-import { formatBRLCurrencyValue, parseBRLCurrencyInput } from '../../../utils/formFormatting.js'
+import { formatBRLCurrencyValue, parseBRLCurrencyInput } from '../../../shared/utils/formFormatting.js'
 
 export const createProductDraft = () => ({
   category: 'Refeições',

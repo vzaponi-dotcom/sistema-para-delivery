@@ -33,3 +33,28 @@ test('ordersApi owns payment-promise writes', async () => {
   assert.equal(calls[0][1].method, 'PATCH')
   assert.deepEqual(JSON.parse(calls[0][1].body), { promisedPaymentDate: '2026-09-20' })
 })
+
+test('orders api preserves an explicit checkout idempotency key and payload', async () => {
+  const calls = []
+  const api = createOrdersApi({
+    request: async (...args) => { calls.push(args); return { order: { id: 'o1' } } },
+    json: (method, body) => ({ method, body: JSON.stringify(body), headers: { 'content-type': 'application/json' } }),
+    randomUUID: () => 'generated-key',
+  })
+  const payload = {
+    clientId: 'c1',
+    type: 'Entrega',
+    orderDate: '2026-09-01',
+    items: [{ productId: 'p1', quantity: 2, note: 'sem cebola' }],
+    deliveryFee: 8,
+    adjustment: { type: 'discount', mode: 'percentage', value: 10, reason: '' },
+    paymentMethod: 'Pix',
+  }
+
+  await api.createOrder(payload, 'checkout-key')
+
+  assert.equal(calls[0][0], '/api/orders')
+  assert.equal(calls[0][1].headers['idempotency-key'], 'checkout-key')
+  assert.equal(calls[0][1].headers['content-type'], 'application/json')
+  assert.deepEqual(JSON.parse(calls[0][1].body), payload)
+})

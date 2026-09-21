@@ -1,21 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { access, readFile } from 'node:fs/promises'
+import { access } from 'node:fs/promises'
 
 test('legacy C6 finance API exports and utility owners are absent', async () => {
-  const source = await readFile(new URL('./client.js', import.meta.url), 'utf8')
-  for (const name of [
-    'registerPayment',
-    'registerTableTabPayment',
-    'refundOrder',
-    'createMovement',
-    'updateMovement',
-    'deleteMovement',
-    'saveFinanceSettings',
-    'updateOrderPaymentPromise',
-  ]) {
-    assert.doesNotMatch(source, new RegExp(`export\\s+const\\s+${name}\\b`), name)
-  }
+  await assert.rejects(access(new URL('./client.js', import.meta.url)), (error) => error?.code === 'ENOENT')
 
   for (const path of [
     './utils/paymentMethodOptions.js',

@@ -14,7 +14,7 @@ test('print badges name confirmed copies as printed and keep confirmation waitin
 
 test('discarded print jobs render an explicit neutral badge', async () => {
   const badge = await readBadge()
-  const styles = await readFile(new URL('../domains/printing/ui/printing.css', import.meta.url), 'utf8')
+  const styles = await readFile(new URL('./printing.css', import.meta.url), 'utf8')
 
   assert.match(badge, /discarded:\s*'Descartado'/)
   assert.match(styles, /\.print-status-discarded/)

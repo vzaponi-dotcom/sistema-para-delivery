@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import PageHeader from '../../../components/PageHeader.jsx'
+import PageHeader from '../../../shared/ui/PageHeader.jsx'
 import AreaNavigation from '../../navigation/AreaNavigation.jsx'
 import { hasCapability } from '../../access.js'
 import { usePolicyEditing } from '../../policy-editing/policyEditingContext.js'

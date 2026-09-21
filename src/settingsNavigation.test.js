@@ -91,7 +91,7 @@ test('physical test or pending job does not block navigation', async (t) => {
 test('theme and sound stay local and synchronized with their existing application sources', async (t) => {
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
-  const { ThemeProvider } = await h.load('/src/components/ThemeProvider.jsx')
+  const { ThemeProvider } = await h.load('/src/app/shell/theme/ThemeProvider.jsx')
   const { default: App } = await h.load('/src/App.jsx')
   globalThis.fetch = async (path) => {
     const url = String(path)

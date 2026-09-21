@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { applyThemePreference, readThemePreference, saveThemePreference } from '../utils/theme.js'
+import { applyThemePreference, readThemePreference, saveThemePreference } from './theme.js'
 import { ThemeContext } from './themeContext.js'
 
 export function ThemeProvider({ children }) {

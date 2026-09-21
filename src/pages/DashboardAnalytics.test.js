@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildDailySeries, calculatePeriodMetrics, getPaymentMix, getTopProducts } from '../utils/dashboardAnalytics.js'
+import { buildDailySeries, calculatePeriodMetrics, getPaymentMix, getTopProducts } from '../app/surfaces/dashboard/dashboardAnalytics.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('dashboard keeps the approved financial summary and 30-day commercial period', () => {
-  const page = source('./Dashboard.jsx')
+  const page = source('../app/surfaces/dashboard/DashboardSurface.jsx')
   const query = source('../app/navigation/queryContext.js')
   assert.match(query, /dashboard: \{ period: '30d', valuesVisible: true \}/)
   for (const label of ['Vendas hoje', 'Recebido hoje', 'A receber', 'Vendas no período', 'Pedidos no período', 'Ticket médio']) assert.match(page, new RegExp(label))
@@ -15,7 +15,7 @@ test('dashboard keeps the approved financial summary and 30-day commercial perio
 })
 
 test('dashboard renders all four approved commercial visualizations', () => {
-  const page = source('./Dashboard.jsx')
+  const page = source('../app/surfaces/dashboard/DashboardSurface.jsx')
   for (const label of ['Vendas por dia', 'Pedidos por dia', 'Top 5 produtos', 'Formas de pagamento']) assert.match(page, new RegExp(label))
   assert.match(page, /DashboardLineChart/)
   assert.match(page, /DashboardBarChart/)
@@ -23,7 +23,7 @@ test('dashboard renders all four approved commercial visualizations', () => {
 })
 
 test('dashboard leaves operational timing and recent orders to history', () => {
-  const page = source('./Dashboard.jsx')
+  const page = source('../app/surfaces/dashboard/DashboardSurface.jsx')
   const analysis = source('../domains/orders/ui/components/OperationalHistoryAnalysis.jsx')
   assert.doesNotMatch(page, /calculateOperationalMetrics|Tempo operacional|Pedidos recentes/)
   assert.match(analysis, /calculateOperationalMetrics/)
@@ -33,7 +33,7 @@ test('dashboard leaves operational timing and recent orders to history', () => {
 })
 
 test('one global eye control masks dashboard money without persistence', () => {
-  const page = source('./Dashboard.jsx')
+  const page = source('../app/surfaces/dashboard/DashboardSurface.jsx')
   assert.match(page, /queryState\.valuesVisible/)
   assert.match(page, /Ocultar valores/)
   assert.match(page, /Mostrar valores/)

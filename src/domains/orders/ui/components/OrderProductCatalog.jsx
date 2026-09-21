@@ -5,7 +5,7 @@ import {
   formatProductPresentation,
 } from '../../../catalog/index.js'
 import { getCartProductQuantity } from '../../domain/orderCart.js'
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 
 function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd, onDecrease }) {
   const [search, setSearch] = useState('')

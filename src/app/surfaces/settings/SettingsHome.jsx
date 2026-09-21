@@ -1,5 +1,5 @@
-import Icon from '../../../components/Icon'
-import PageHeader from '../../../components/PageHeader'
+import Icon from '../../../shared/ui/Icon'
+import PageHeader from '../../../shared/ui/PageHeader'
 import '../../../settings.css'
 
 const cards = [

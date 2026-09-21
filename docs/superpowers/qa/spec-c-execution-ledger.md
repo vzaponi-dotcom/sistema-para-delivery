@@ -13,7 +13,7 @@ Before changing code in a new session, read:
 
 If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledger before implementation.
 
-## Program status — 2026-09-19
+## Program status — 2026-09-20
 
 | Slice | Scope | Status | Branch / PR | Detailed plan |
 |---|---|---|---|---|
@@ -25,8 +25,8 @@ If this ledger and GitHub disagree, inspect GitHub first and reconcile the ledge
 | C6 | Finance + cross-domain payment workflows | **MERGED — COMPLETE** | `feature/spec-c6-finance-workflows` / PR #50 merged at `5b101800fe29d02dd4543e184cca9e06d659a445` | `docs/superpowers/plans/2026-09-18-frontend-modularization-c6-finance-workflows-plan.md` |
 | C7 | Customers | **MERGED — COMPLETE** | `feature/spec-c7-customers` / PR #51 merged at `a7a8285ee125d90058c739f52daba6c170921adb` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c7-customers-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c7-customers-plan.md` |
 | C8 | Catalog | **MERGED — COMPLETE** | PR #52 merged at `91fb5581cea1616f438c13dfac28cfb38345fa59` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c8-catalog-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c8-catalog-plan.md` |
-| C9 | Printing domain + QZ separation | **STAGING FUNCTIONAL QA CLOSED — 24 PASS / 0 FAIL / 1 BLOCKED / 12 DEFERRED-PRODUCTION / 0 PENDING; TASK 12 PRE-MERGE DOCS GATE** | `feature/spec-c9-printing` / draft PR #53 | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
-| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | NOT STARTED | — | Write after C9 merge |
+| C9 | Printing domain + QZ separation | **MERGED — ARCHITECTURE COMPLETE; PHYSICAL RELEASE GATE DEFERRED TO PRE-PRODUCTION** | PR #53 merged at `2b5060c8293fec6756b286627212b740b3147e53` | design: `docs/superpowers/specs/2026-09-19-frontend-modularization-c9-printing-design.md`; plan: `docs/superpowers/plans/2026-09-19-frontend-modularization-c9-printing-plan.md` |
+| C10 | Architectural closure / facade removal / shared-CSS cleanup / final gates | **TASKS 1–12 COMPLETE / GREEN; MERGE NOT EXECUTED** | `feature/spec-c10-architecture-closure` / PR #54 open | design: `docs/superpowers/specs/2026-09-20-frontend-modularization-c10-architecture-closure-design.md`; plan: `docs/superpowers/plans/2026-09-20-frontend-modularization-c10-architecture-closure-plan.md` |
 
 The normative slice contracts remain in the rollout plan. This ledger records execution state only.
 
@@ -543,3 +543,87 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Physical QZ matrix P1–P20: **0 PASS / 0 FAIL / 20 DEFERRED-PRODUCTION**. The user explicitly approved moving this real-hardware round from the pre-C9-merge gate to a hard **pre-production gate** so C9 can merge and C10 can proceed. No deferred row is represented as PASS.
 - Before production, the **final post-C10 release candidate** must be staged and all 12 deferred functional rows plus P1–P20 must PASS. Any defect requires RED→GREEN, full Validate, staging redeploy and affected physical rerun.
 - Production remains **NO DEPLOY**. C9 merge still requires final docs Validate and separate explicit user authorization.
+
+
+# C9 — Merge closure — 2026-09-20
+
+- PR #53 merged to `master` at `2b5060c8293fec6756b286627212b740b3147e53`.
+- Post-merge Validate #1513 / run `35514989203` — **SUCCESS**, **1,911 tests / 1,910 pass / 0 fail / 1 skipped**.
+- Production was not deployed.
+- Deferred pre-production gate remains authoritative: Task 11 hardware-dependent rows plus P1–P20 must pass on the final post-C10 staging release candidate before production.
+
+# C10 — Preparation checkpoint — 2026-09-20
+
+- Branch: `feature/spec-c10-architecture-closure`.
+- Base: post-C9 master `2b5060c8293fec6756b286627212b740b3147e53`.
+- C10 design is **APPROVED** by the user on 2026-09-20 and includes frontend shared ownership closure (`src/shared/{ui,hooks,utils}`), residual generic-root ownership, generic domain-purity enforcement and cycle detection.
+- The implementation plan was **APPROVED explicitly by the user on 2026-09-20**.
+- Task 1 dependency-map/baseline evidence commit `264399e14ad82833c93143bd262c0018bd17376e` passed Validate #1519 / run `35517045330` with **1,911 tests / 1,910 pass / 0 fail / 1 skipped** and all gates green.
+- Task 1 is **COMPLETE**; no production code changed.
+- Task 2 RED `a3618a4a92d3152dfb3486dfab94374a21ee974a` / Validate #1521 failed for the four intended final-API ownership gaps.
+- Task 2 GREEN `9dc095ad235ddcf10074058e42b5a49d76323dab` / Validate #1522 — **SUCCESS**, **1,913 tests / 1,912 pass / 0 fail / 1 skipped**, all gates green.
+- The final `src/api/client.js` / `src/api/effectiveConfigClient.js` production facade is physically removed. Bootstrap/effective-config now belong to `src/infrastructure/api/`; auth remains under `src/infrastructure/auth/`.
+- Task 3 is **NOT STARTED**.
+
+
+# C10 — Tasks 3–4 checkpoint — 2026-09-20
+
+- Task 3 RED `bf22c259b625c53390c26b6c002b232fdc106aa7` / Validate #1525 — intended Dashboard-owner failures.
+- Task 3 final GREEN `93e1b007460593f298a251261f61b01db897c8e2` / Validate #1527 — **SUCCESS**, **1,915 tests / 1,914 pass / 0 fail / 1 skipped**; all gates green.
+- Dashboard production ownership is now under `src/app/surfaces/dashboard/`; the legacy page/util/provider owners are absent; App no longer computes Dashboard totals.
+- Task 4 RED `19e9b181ad7e20606055cbcbfac4cc73bf76830a` / Validate #1528 — **FAIL as intended**, **1,918 tests / 1,914 pass / 3 fail / 1 skipped** for missing frontend shared owners/boundary.
+- Task 4 migration `da28f9b635632169b75c1ee0145f8d2fd7b004a6` and path-alignment `01f66ab8081b52a66d7cb04bbe93762d09de4dbf` exposed and removed only stale old-path dependencies/assertions.
+- Task 4 final GREEN `0afe78933848e5fa12f291ea8ed9698ca9c63d97` / Validate #1531 — **SUCCESS**, **1,918 tests / 1,917 pass / 0 fail / 1 skipped**; architecture/lint/build/both Worker dry-runs/local D1/Spec B D1 all green.
+- Frontend shared ownership now exists at `src/shared/{ui,hooks,utils}`; no mega barrel and no domain import from `src/shared/**`.
+- No staging or production deploy occurred.
+- Tasks 1–4: **COMPLETE / GREEN**.
+- Task 5: **NOT STARTED**.
+
+## C10 — Tasks 5–7 closure — 2026-09-20
+
+- Task 5: RED `adae7ba752601b136ffaa8900101ff7456af9be9` / run `35529236782` failed as intended; GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / run `35529844889` passed **1,920 / 1,919 / 0 / 1**. Residual app shell/theme/runtime data-sync, Orders/Printing presentation ownership and dead `bodyScrollLock` were closed.
+- Task 6: RED `e06379a25954d600471a82d819f9cf984849f53b` / run `35530065644` failed as intended; candidate `7339a2a8447993958e02452495b84e57ad07ecf7` / run `35530250443` exposed one stale kitchen-storage characterization; final GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977` passed **1,926 / 1,925 / 0 / 1**.
+- Task 7: RED `85da4cc8beab137b56631cae49e1c30896f24311` / run `35530720316` failed as intended; final GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891` passed **1,927 / 1,926 / 0 / 1**.
+- Every GREEN run passed frontend architecture, lint, build, production/staging Worker dry-runs, local D1 and Spec B D1 gates. No staging or production deploy occurred; no Worker or migration files changed.
+
+## C10 Task 8 - migration-scaffolding closure - 2026-09-20
+
+- RED `6c8b8b760f3e75edb2c91b5d62fd26572efb3c4c`; Validate run `35532503944` - **FAIL as intended**, 54 focused architecture tests / 53 pass / 1 fail. The failure was exactly the still-present `legacy-import-allowlist.json` scaffolding.
+- GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c`; Validate run `35532635340` - **SUCCESS**, **1,928 tests / 1,927 pass / 0 fail / 1 skipped**.
+- The empty migration allowlist is physically removed, with no replacement allowlist. The checker has no migration allowance path for QZ direct imports or cross-domain internals.
+- `src/api/client.js`, `src/api/effectiveConfigClient.js`, historical payment-receipt/table-commit bridges, and `updateCollection` remain removed/protected by the retained C3-C9 guards plus explicit C10 closure guards.
+- Full Validate passed architecture, lint, build, both Worker dry-runs, local D1 and Spec B D1. Staging: **NOT DEPLOYED**. Production: **NOT DEPLOYED**. Merge: **NOT PERFORMED**.
+- Tasks 1-8: **COMPLETE / GREEN**. Task 9: **NOT STARTED**.
+- C10 Tasks 1–7: **COMPLETE / GREEN**. Task 8: **NOT STARTED**.
+## C10 — Tasks 9–10 closure — 2026-09-20
+
+- **Task 9 COMPLETE / GREEN.** RED `aeabd3b` required the final generic architecture protections; GREEN `e35b606` installed permanent legacy-root, App, shared/domain-purity, browser/fetch, deep-import, QZ and public-entry cycle checks. Migration allowlists and compatibility facades: **0**.
+- **Task 10 COMPLETE / GREEN.** Focused RED found 40 unused Orders exports and six unused Customers exports. GREEN reduced both public entries to real production consumers and kept internal-unit tests direct to their owner modules. The production checker excludes `*.test.*` only; production deep imports remain rejected.
+- Full suite, architecture unit/gate, lint, build, local D1 and Spec B D1 all passed. Production and staging Worker dry-runs passed with `--dry-run`; neither deployed or applied remote migrations.
+- No staging deploy, production deploy or merge occurred. **Task 11 is NOT STARTED.**
+
+## C10 — Task 11 executable-candidate preparation — 2026-09-20
+
+- Initial exact local/remote HEAD: `6b0512efda1bc3e20c28770c23e91c7a4301204f`; PR #54 is OPEN/DRAFT against exact post-C9 base `2b5060c8293fec6756b286627212b740b3147e53`.
+- Initial Validate application #1549 / run `35539502743`: **SUCCESS** on `6b0512ef...`.
+- Formal Spec C §28 result before staging: **17 PASS / 1 PENDING TASK 12 / 0 FAIL**. Criterion 15 is `PENDING TASK 12`; Spec C is not complete.
+- Full Task 11 local suite: **1,933 tests / 1,933 pass / 0 fail / 0 skipped**. Focused final audit: **69/69 PASS**. Lint, architecture and build passed.
+- Production and staging Wrangler 4.128.0 dry-runs passed and exited at `--dry-run`; no deploy occurred.
+- Local D1 migration engine reported **No migrations to apply** with cached exact Wrangler 4.128.0. The npm/npx wrapper itself was sandbox-blocked before Wrangler by registry/cache access, so exact npm-script evidence remains delegated to authoritative candidate Validate.
+- Spec B D1 gate passed against local D1 Worker with **25 migrations** and every reported check true.
+- Diff audit is clean for Worker, migrations/schema, packages, polling, capabilities and QZ/Printing core. API ownership changed without contract drift; storage keys are unchanged; all relocated CSS blobs are byte-identical; no C10-introduced mojibake was found.
+- C9 hardware-dependent functional rows and P1–P20 remain **DEFERRED-PRODUCTION**. Restricted-capability staging case #35 remains BLOCKED for lack of a suitable identity; it is not counted as PASS.
+- Task 12, staging deploy/homologation, remote migrations, production deploy and merge remain **NOT STARTED / NOT PERFORMED**.
+- Executable candidate `060468703f39c716d997025ab0ed99063cdd2fae`: Validate application #1550 / run `35541850517` **SUCCESS**, with **1,933 tests / 1,932 pass / 0 fail / 1 skipped** and all workflow gates green.
+- Task 11 is **COMPLETE / GREEN**. This documentation-only closure preserves that immutable candidate for Task 12; the next gate remains unstarted staging deployment/homologation.
+
+## C10 — Task 12 final staging homologation and merge handoff — 2026-09-20
+
+- Executable candidate `060468703f39c716d997025ab0ed99063cdd2fae` was deployed by `Deploy staging` #190 / run `35544795652`, whose recorded `head_sha` matches exactly; result **SUCCESS**.
+- Automated staging evidence: **1,933 tests / 1,932 pass / 0 fail / 1 skipped**; architecture, lint, build, local D1 and staging dry-run **PASS**; no pending remote migrations; migration application `No migrations to apply`; Worker `f0f8c6a0-5e55-4894-9250-29d4b76aeae8`; readiness 1/6; login HTTP 200.
+- Temporary ref `staging/spec-c10-final-candidate` was removed after deploy evidence was captured.
+- Manual C10 QA: **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**, including restricted-capability case 23.
+- Spec C §28: **18 PASS / 0 FAIL / 0 PENDING**; criterion 15 is **PASS**.
+- Tasks 1–12: **COMPLETE / GREEN**. Active compatibility facades: **0**. Migration allowlists: **0**.
+- C9 functional rows #12, #14–21, #24, #30 and #31 and physical P1–P20 remain **DEFERRED-PRODUCTION** and continue as a hard production blocker. No physical PASS was inferred.
+- Production: **NO DEPLOY**. Merge: **NOT EXECUTED**. PR #54 remains open awaiting explicit authorization.

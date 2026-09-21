@@ -5,12 +5,12 @@ import {
   calculatePeriodMetrics,
   getPaymentMix,
   getTopProducts,
-} from './dashboardAnalytics.js'
+} from '../app/surfaces/dashboard/dashboardAnalytics.js'
 import {
-  calculateOperationalMetrics,
   filterOrdersByPeriod,
   getDashboardDateRange,
-} from '../domains/orders/index.js'
+} from '../domains/orders/domain/orderHistoryAnalysis.js'
+import { calculateOperationalMetrics } from '../domains/orders/domain/orderHistoryAnalysis.js'
 
 const now = new Date(2026, 8, 2, 12, 0, 0)
 

@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildKitchenQueueModel, buildKitchenTimingCopy, getKitchenItemNotes } from './domains/orders/index.js'
+import { buildKitchenQueueModel } from './domains/orders/domain/kitchenQueue.js'
+import { buildKitchenTimingCopy, getKitchenItemNotes } from './domains/orders/domain/kitchenTicket.js'
 
 const read = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -120,8 +121,8 @@ test('ticket privacy stays operational while shared details retain contact and f
 })
 
 test('kitchen visual primitives expose the approved icon and StatCard contracts', () => {
-  const icon = read('./components/Icon.jsx')
-  const statCard = read('./components/StatCard.jsx')
+  const icon = read('./shared/ui/Icon.jsx')
+  const statCard = read('./shared/ui/StatCard.jsx')
   const packageJson = read('../package.json')
   const iconNames = ['kitchen', 'preparation', 'clock', 'alert', 'client', 'delivery', 'pickup', 'local', 'note', 'details', 'printer', 'volume-on', 'volume-off', 'cancel']
 

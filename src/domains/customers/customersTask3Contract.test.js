@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('Customers exposes the Clients UI through its Node-safe public entry', async () => {
+test('Customers exposes the composition workspace through its Node-safe public entry', async () => {
   const customers = await import('./index.js')
-  assert.equal(typeof customers.Clients, 'function')
+  assert.equal(typeof customers.CustomersWorkspace, 'function')
 })
 
 test('Task 3 removes the legacy Clients owner and App-owned list projection', async () => {

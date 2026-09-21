@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import Button from '../../../../components/Button'
-import Modal from '../../../../components/Modal'
-import SystemSelect from '../../../../components/SystemSelect'
+import Button from '../../../../shared/ui/Button'
+import Modal from '../../../../shared/ui/Modal'
+import SystemSelect from '../../../../shared/ui/SystemSelect'
 import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 import {
   PAYMENT_METHOD_OPTIONS,

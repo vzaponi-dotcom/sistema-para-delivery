@@ -18,7 +18,7 @@ test('order type choices stay three-across and compact on mobile', async () => {
 })
 
 test('registered table choices stay readable and tappable on mobile', async () => {
-  const css = await read('./local-order-identity.css')
+  const css = await read('./domains/catalog/ui/local-order-identity.css')
   const selector = await read('./domains/table-service/ui/LocalTableSelector.jsx')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-table-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
@@ -42,7 +42,7 @@ test('mobile cart matches the approved compact icon-and-pill layout without chan
   const css = await read('./mobile-compact-controls.css')
   const cart = await read('./domains/orders/ui/components/OrderCart.jsx')
 
-  assert.match(cart, /import Icon from '[^']*components\/Icon'/)
+  assert.match(cart, /import Icon from '[^']*shared\/ui\/Icon'/)
   assert.match(cart, /import \{ CATEGORY_ICON_NAMES, categoryForUi \} from '[^']*catalog\/index\.js'/)
   assert.match(cart, /className="new-order-cart-category-icon"/)
   assert.match(cart, /<Icon name=\{CATEGORY_ICON_NAMES\[categoryForUi\(item\.category\)\]\} size=\{22\} \/>/)

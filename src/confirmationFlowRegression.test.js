@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('a reusable confirmation dialog is available for significant actions', async () => {
-  const dialogUrl = new URL('./components/ConfirmationDialog.jsx', import.meta.url)
+  const dialogUrl = new URL('./shared/ui/ConfirmationDialog.jsx', import.meta.url)
   assert.equal(existsSync(fileURLToPath(dialogUrl)), true, 'ConfirmationDialog.jsx must exist')
-  const dialog = await read('./components/ConfirmationDialog.jsx')
+  const dialog = await read('./shared/ui/ConfirmationDialog.jsx')
   assert.match(dialog, /Modal/)
   assert.match(dialog, /confirmLabel/)
   assert.match(dialog, /onConfirm/)

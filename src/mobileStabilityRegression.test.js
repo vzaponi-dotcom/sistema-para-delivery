@@ -16,8 +16,8 @@ test('mobile shell prevents horizontal viewport drift without blocking horizonta
 })
 
 test('dashboard removes the FAB while preserving shared mobile clearance tokens', async () => {
-  const dashboard = await read('./pages/Dashboard.jsx')
-  const dashboardCss = await read('./dashboard.css')
+  const dashboard = await read('./app/surfaces/dashboard/DashboardSurface.jsx')
+  const dashboardCss = await read('./app/surfaces/dashboard/dashboard.css')
   const foundationCss = await read('./mobile-foundation.css')
   const mobileCss = await read('./mobile-navigation.css')
 
@@ -36,8 +36,8 @@ test('mobile page transition is smoother than the previous 200ms animation', asy
 })
 
 test('modal and bottom sheet render at document body so scrolling and page transforms cannot move them', async () => {
-  const modal = await read('./components/Modal.jsx')
-  const sheet = await read('./components/BottomSheet.jsx')
+  const modal = await read('./shared/ui/Modal.jsx')
+  const sheet = await read('./shared/ui/BottomSheet.jsx')
 
   for (const source of [modal, sheet]) {
     assert.match(source, /createPortal/)

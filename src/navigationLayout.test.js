@@ -160,17 +160,15 @@ test('AreaNavigation usa a barra leve comum em Pedidos, Financeiro e Configuraç
 
 test('uma única subnavegação precede o PageHeader nas áreas que mantêm subtabs', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: Orders }, { default: OrderHistory }, { default: Dashboard }, { default: Receivables }, { default: Finance }, { DashboardPeriodContext }] = await Promise.all([
-    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/OrderHistory.jsx'), h.load('/src/pages/Dashboard.jsx'), h.load('/src/domains/finance/ui/Receivables.jsx'), h.load('/src/domains/finance/ui/Finance.jsx'), h.load('/src/components/dashboardPeriodContext.js'),
+  const [{ default: Orders }, { default: OrderHistory }, { default: DashboardSurface }, { default: Receivables }, { default: Finance }] = await Promise.all([
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/OrderHistory.jsx'), h.load('/src/app/surfaces/dashboard/DashboardSurface.jsx'), h.load('/src/domains/finance/ui/Receivables.jsx'), h.load('/src/domains/finance/ui/Finance.jsx'),
   ])
   const navigationProps = { granted, implemented, onNavigate() {} }
   const currency = (value) => `R$ ${value}`
   const queryState = { search: '', activeView: 'pending', timingFilter: 'all', sortMode: 'urgency', exactDateFilter: null, selectedEntryKey: null }
-  const DashboardWithPeriod = (props) => React.createElement(DashboardPeriodContext.Provider, { value: { period: '30d', setPeriod() {} } }, React.createElement(Dashboard, props))
-
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos')
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, OrderHistory, { orders: [], queryState: { filter: 'all', analysisPeriod: '30d' }, onQueryChange() {}, ...navigationProps }), 'Navegação de Pedidos')
-  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, DashboardWithPeriod, { totals: { salesToday: 0, receivedToday: 0, receivables: 0 }, orders: [], currency, queryState: { valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, DashboardSurface, { orders: [], movements: [], currency, queryState: { period: '30d', valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Receivables, { orders: [], currency, queryState, onQueryChange() {}, orderPresentation: { formatOrderDate: (value) => value || '', getOrderItemsSearchText: () => '', getOrderItemsSummary: () => '' }, orderRules: { isOrderCancelled: () => false, isOrderPaid: () => false, getPendingAmount: () => 0 }, ...navigationProps }), 'Navegação de Financeiro')
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Finance, { totals: { entries: 0, exits: 0, balance: 0 }, movements: [], currency, onAddMovement() {}, ...navigationProps }), 'Navegação de Financeiro')
 })

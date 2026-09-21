@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('modal focus lifecycle does not restart when an inline onClose callback changes during typing', async () => {
-  const modal = await read('./components/Modal.jsx')
+  const modal = await read('./shared/ui/Modal.jsx')
 
   assert.match(modal, /const onCloseRef = useRef\(onClose\)/)
   assert.match(modal, /onCloseRef\.current = onClose/)

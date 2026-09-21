@@ -14,7 +14,6 @@ test('AppShell preserva direção e foco ao trocar de página', async (t) => {
     activeTab, granted, implemented, moreOpen: false,
     requestNavigation() {}, openMore() {}, closeMore() {},
     children: React.createElement(AppShell, {
-      dashboardPeriod: '30d', onDashboardPeriodChange() {},
       children: React.createElement('span', null, activeTab),
     }),
   })

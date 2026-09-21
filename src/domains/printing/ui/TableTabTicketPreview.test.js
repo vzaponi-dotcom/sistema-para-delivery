@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { workspaceHarness, nodeText } from '../test-support/renderWorkspace.js'
+import { workspaceHarness, nodeText } from '../../../test-support/renderWorkspace.js'
 
 const canonicalDocument = {
   type: 'table-tab',
@@ -16,7 +16,7 @@ const canonicalDocument = {
 
 test('preview faithfully renders every canonical line and authoritative total without regrouping', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Preview } = await h.load('/src/components/TableTabTicketPreview.jsx')
+  const { default: Preview } = await h.load('/src/domains/printing/ui/TableTabTicketPreview.jsx')
   const r = await h.render(Preview, { document: canonicalDocument })
   const text = nodeText(r.root)
 
@@ -30,7 +30,7 @@ test('preview faithfully renders every canonical line and authoritative total wi
 
 test('preview rejects non table-tab documents', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Preview } = await h.load('/src/components/TableTabTicketPreview.jsx')
+  const { default: Preview } = await h.load('/src/domains/printing/ui/TableTabTicketPreview.jsx')
   const r = await h.render(Preview, { document: { type: 'order' } })
   assert.equal(r.toJSON(), null)
 })

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Button from '../../../../components/Button'
-import Icon from '../../../../components/Icon'
+import Button from '../../../../shared/ui/Button'
+import Icon from '../../../../shared/ui/Icon'
 import { CATEGORY_ICON_NAMES, categoryForUi } from '../../../catalog/index.js'
 
 function OrderCart({

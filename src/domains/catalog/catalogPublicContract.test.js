@@ -52,7 +52,7 @@ test('C8 Task 5 App and all Orders consumers use the Catalog public entry', () =
 test('C8 rejects remaining production shared-product bypasses', () => {
   const bypasses = filesUnder(join(root, 'src'))
     .filter((path) => /\.(?:js|jsx|mjs)$/.test(path) && !/\.(?:test|spec)\./.test(path))
-    .map((path) => relative(root, path).replaceAll('\\\\', '/'))
+    .map((path) => relative(root, path).replaceAll('\\', '/'))
     .filter((path) => !path.startsWith('src/domains/catalog/') && /from\s+['"][^'"]*shared\/productCatalog\.js['"]/.test(read(path)))
   assert.deepEqual(bypasses, [], `Production consumers to migrate: ${bypasses.join(', ')}`)
 })

@@ -4,7 +4,7 @@ Temporary compatibility paths and bridges introduced during Spec C must be remov
 
 | Old path/bridge | New owner/path | Remaining consumers | Removal slice |
 |---|---|---|---|
-| `src/api/client.js` generic/auth reexports | `src/infrastructure/api/httpClient.js` + `src/infrastructure/auth/sessionApi.js` | legacy frontend imports during domain migration | C10 at latest |
+| `src/api/client.js` generic/auth/bootstrap facade + `src/api/effectiveConfigClient.js` | `src/infrastructure/api/httpClient.js`, `bootstrapApi.js`, `effectiveConfigApi.js` + `src/infrastructure/auth/sessionApi.js` | **none — physically removed in C10 Task 2** | **C10 Task 2 — REMOVED** |
 | operational data runtime payment-receipt bridge | App-owned payment reconciliation | **REMOVED IN C6**; architecture-enforced | C6 |
 | operational data runtime table-commit bridge | Table Service controlled selection observes official `tables[]` directly | **none — removed and architecture-enforced in C5** | **C5 — REMOVED** |
 | `updateCollection` runtime escape hatch | official effects per domain | **none — removed and architecture-enforced in C8** | **C8 — REMOVED / ENFORCED** |
@@ -302,3 +302,48 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - Production `qz-tray` imports remain confined to `src/infrastructure/qz/`; the direct-QZ migration allowlist debt is empty.
 - The only surviving top-level compatibility row relevant to C10 is the generic/auth `src/api/client.js` reexport row already listed above.
 - Physical QZ QA is **not a compatibility facade** and is not recorded as architectural PASS. By explicit project decision, P1–P20 and the hardware-dependent Task 11 rows are `DEFERRED-PRODUCTION`; they must all pass on the final post-C10 staging release candidate before production.
+
+
+## C10 preparation — 2026-09-20
+
+- C9 merged at `2b5060c8293fec6756b286627212b740b3147e53`.
+- The sole unresolved temporary facade remains the generic/auth/bootstrap `src/api/client.js` row at the top of this ledger; C10 Task 2 owns its physical removal.
+- `scripts/architecture/legacy-import-allowlist.json` is already semantically empty and C10 Task 6 owns deleting the file.
+- No new compatibility facade is approved for C10.
+
+
+## C10 Task 2 compatibility checkpoint — 2026-09-20
+
+- RED `a3618a4a92d3152dfb3486dfab94374a21ee974a` / Validate #1521 proved the final infrastructure owners were absent and the legacy API facade still existed.
+- GREEN `9dc095ad235ddcf10074058e42b5a49d76323dab` / Validate #1522 passed **1,913 tests / 1,912 pass / 0 fail / 1 skipped** with all gates green.
+- `src/api/client.js` and `src/api/effectiveConfigClient.js` are physically absent.
+- Generic HTTP stays at `src/infrastructure/api/httpClient.js`; bootstrap and effective-config have focused infrastructure adapters; session/auth stays at `src/infrastructure/auth/sessionApi.js`.
+- The compatibility-only `deleteOrder` export no longer exists.
+- **Active temporary compatibility facade inventory is now zero.**
+- Task 8 still owns deletion of the semantically-empty migration allowlist and permanent final scaffolding closure; this Task 2 checkpoint does not pre-claim Task 8.
+
+
+## C10 Tasks 3–4 compatibility checkpoint — 2026-09-20
+
+- Task 3 Dashboard ownership move introduced **no compatibility facade**; legacy Dashboard page/util/provider owners were removed directly.
+- Task 4 frontend shared ownership move introduced **no compatibility reexport or mega shared barrel**; consumers were migrated directly to final `src/shared/{ui,hooks,utils}` paths.
+- Final Task 4 GREEN: `0afe78933848e5fa12f291ea8ed9698ca9c63d97` / Validate #1531 — **SUCCESS**.
+- Active temporary compatibility facade inventory remains **zero**.
+- Migration allowlist deletion remains Task 8 scope.
+
+## C10 Tasks 5–7 compatibility closure — 2026-09-20
+
+- Tasks 5–7 introduced **no compatibility facade**. Residual shell/theme/runtime, storage, Orders/Printing presentation and targeted CSS ownership moved directly to final owners.
+- Task 5 GREEN `062bc537e7e62734a956abfd9dec5225a2038e7b` / Validate run `35529844889`; Task 6 GREEN `8eaae2680054e2e605866aba3cc05dcb6469ddfd` / run `35530541977`; Task 7 GREEN `72a2dead649fc4f3a33c3bc7d7cba02b13b50993` / run `35531294891`.
+- Active temporary compatibility facade inventory remains **zero**. Direct browser storage is no longer owned by App, and targeted legacy CSS roots are absent.
+
+## C10 Task 8 - final compatibility-facade ledger closure - 2026-09-20
+
+- `src/api/client.js` - **REMOVED IN C10**.
+- `src/api/effectiveConfigClient.js` - **REMOVED IN C10**.
+- payment-receipt bridge - **REMOVED**; table-commit bridge - **REMOVED**; `updateCollection` - **REMOVED / ENFORCED**.
+- Printing temporary facades - **0**. C9 physical QA is not a compatibility facade and is not architectural debt.
+- `scripts/architecture/legacy-import-allowlist.json` - **REMOVED IN C10**; no replacement allowlist exists.
+- **Active temporary compatibility facade inventory = 0.**
+- Task 8 GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` - **SUCCESS**.
+- Tasks 9–12 are **COMPLETE / GREEN**. Task 12 homologated candidate `060468703f39c716d997025ab0ed99063cdd2fae` with Deploy staging #190 / run `35544795652` and **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**. Final active temporary compatibility-facade inventory remains **0**; migration allowlists remain **0**. C9 physical QA remains `DEFERRED-PRODUCTION`, production is **NO DEPLOY**, and merge is **NOT EXECUTED**.

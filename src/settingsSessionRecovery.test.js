@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getSession, login, logout } from './api/client.js'
+import { getSession, login, logout } from './infrastructure/auth/sessionApi.js'
 import { createPolicyEditingController } from './app/policy-editing/policyEditingController.js'
 import { createSettingsPolicyAdapters } from './app/surfaces/settings/policies/registry.js'
 import { adminFixture, draftFixture } from './test-support/settingsFixtures.js'

@@ -204,7 +204,7 @@ test('payment save confirms only after success and Cancel discards then returns 
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const messages = []
   const calls = []
@@ -237,7 +237,7 @@ test('settings route loads and edits the single paymentMethods controller resour
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const loaded = []
   const edited = []

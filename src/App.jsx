@@ -1,6 +1,5 @@
 import {
   FinanceWorkspace,
-  calculateReceivedToday,
   financeCategoryOptionsFromEffective,
   financeCategoryRevisionFromEffective,
   paymentDefaultFromEffective,
@@ -9,25 +8,17 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './central-data.css'
-import './new-order.css'
-import './client-duplicate.css'
-import './product-form.css'
-import './finance-mobile.css'
 import AppShell from './app/shell/AppShell.jsx'
 import AppRoot from './app/shell/AppRoot.jsx'
-import Button from './components/Button'
-import Modal from './components/Modal'
+import Button from './shared/ui/Button'
+import Modal from './shared/ui/Modal'
 import RegisterRefundDialog from './app/workflows/refunds/RegisterRefundDialog.jsx'
 import { useRefundWorkflow } from './app/workflows/refunds/useRefundWorkflow.js'
 import {
   cancellationOptionsFromEffective,
   cancellationRevisionFromEffective,
   formatCancellationDate,
-  getPendingAmount,
   getOrderRefundState,
-  isOrderActive,
-  isOrderCancelled,
-  isOrderPaid,
   NewOrderRoute,
   OrderHistory,
   Orders,
@@ -45,7 +36,7 @@ import {
   useComandaSelection,
   useTableServiceCommands,
 } from './domains/table-service/index.js'
-import Dashboard from './pages/Dashboard'
+import DashboardSurface from './app/surfaces/dashboard/DashboardSurface.jsx'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
 import TableServiceExternalActions from './app/surfaces/table-service/TableServiceExternalActions.jsx'
@@ -67,15 +58,11 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
 import { PrintQueue, PrintingOverlays, usePrintingManager } from './domains/printing/index.js'
+import { readKitchenSoundPreference, writeKitchenSoundPreference } from './infrastructure/storage/kitchenSoundPreference.js'
+import { getSessionStorage } from './infrastructure/storage/sessionStorage.js'
 
-const KITCHEN_SOUND_STORAGE_KEY = 'kitchen-sound-enabled'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-
-const readKitchenSoundPreference = () => {
-  if (typeof window === 'undefined') return true
-  try { return window.localStorage.getItem(KITCHEN_SOUND_STORAGE_KEY) !== 'false' } catch { return true }
-}
 
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
@@ -418,7 +405,7 @@ function App({ capabilities } = {}) {
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
     const nextEnabled = Boolean(enabled)
-    try { window.localStorage.setItem(KITCHEN_SOUND_STORAGE_KEY, String(nextEnabled)) } catch {
+    try { writeKitchenSoundPreference(nextEnabled) } catch {
       setToastMessage('Não foi possível salvar esta preferência neste dispositivo.')
       return false
     }
@@ -427,10 +414,6 @@ function App({ capabilities } = {}) {
     return true
   }
 
-  const totals = useMemo(() => {
-    const validOrders = orders.filter((order) => !isOrderCancelled(order)); const salesToday = validOrders.filter((order) => order.orderDate === todayValue).reduce((total, order) => total + Number(order.total || 0), 0); const receivedToday = calculateReceivedToday(movements, todayValue); const receivables = validOrders.filter((order) => !isOrderPaid(order)).reduce((total, order) => total + getPendingAmount(order), 0); const activeOrders = orders.filter(isOrderActive).length
-    return { salesToday, receivedToday, receivables, activeOrders }
-  }, [movements, orders, todayValue])
   const pendingRefundOrders = useMemo(() => orders.filter((order) => getOrderRefundState(order) === 'pending'), [orders])
   const handleNewOrder = ({ tableId = '', expectedTableTabId = '', returnTab = 'orders' } = {}) => {
     if (!canCreateOrders || writesBlocked) return false
@@ -484,7 +467,7 @@ function App({ capabilities } = {}) {
     >
       <SettingsPolicyBoundary
         effectiveConfigOwner={effectiveConfigOwner}
-        storage={typeof window === 'undefined' ? undefined : window.sessionStorage}
+        storage={getSessionStorage()}
         navigationBridge={policyNavigationBridge}
         onFeedback={(feedback) => {
           if (feedback?.status === 401) showApiError(feedback)
@@ -494,8 +477,8 @@ function App({ capabilities } = {}) {
         onPolicyCommitted={() => effectiveConfig.refresh()}
       >
       <NavigationProvider activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
-      <AppShell onLogout={handleLogout} logoutDisabled={writesBlocked} dashboardPeriod={query.dashboard.period} onDashboardPeriodChange={(period) => patchQuery('dashboard', { period })}>
-        {activeTab === 'dashboard' && <Dashboard totals={totals} orders={orders} currency={currency} onNewOrder={handleNewOrder} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
+      <AppShell onLogout={handleLogout} logoutDisabled={writesBlocked}>
+        {activeTab === 'dashboard' && <DashboardSurface orders={orders} movements={movements} currency={currency} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
         {activeTab === 'orders' && <Orders orders={orders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={orderCommands.finalizeOrder} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}

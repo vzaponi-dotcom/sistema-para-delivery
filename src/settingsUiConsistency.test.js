@@ -100,7 +100,7 @@ test('printing header uses the same back control and returns to settings home', 
   const [{ default: SettingsSurface }, { PolicyEditingContext }, { ThemeProvider }] = await Promise.all([
     h.load('/src/app/surfaces/settings/SettingsSurface.jsx'),
     h.load('/src/app/policy-editing/policyEditingContext.js'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const navigations = []
   const policyEditing = {

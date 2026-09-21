@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('dashboard analytics stacks on mobile and keeps tap targets usable', () => {
-  const css = source('./dashboard.css')
+  const css = source('./app/surfaces/dashboard/dashboard.css')
 
   assert.match(css, /@media \(max-width: 820px\)/)
   assert.match(css, /@media \(max-width: 640px\)/)
@@ -69,7 +69,7 @@ test('area navigation hides vertical overflow and reserves extra space only for 
 })
 
 test('dashboard chart styling uses theme variables instead of hard-coded chart colors', () => {
-  const css = source('./dashboard.css')
+  const css = source('./app/surfaces/dashboard/dashboard.css')
 
   assert.match(css, /var\(--primary\)/)
   assert.match(css, /var\(--success\)/)
@@ -80,8 +80,8 @@ test('dashboard chart styling uses theme variables instead of hard-coded chart c
 })
 
 test('hidden monetary chart copy never exposes exact values through aria labels', () => {
-  const line = source('./components/DashboardLineChart.jsx')
-  const payment = source('./components/DashboardPaymentMix.jsx')
+  const line = source('./app/surfaces/dashboard/DashboardLineChart.jsx')
+  const payment = source('./app/surfaces/dashboard/DashboardPaymentMix.jsx')
 
   assert.match(line, /valuesVisible \? ariaLabel : `\$\{ariaLabel\}\. Valores ocultos\.`/)
   assert.match(payment, /valuesVisible[\s\S]*Valores ocultos\./)

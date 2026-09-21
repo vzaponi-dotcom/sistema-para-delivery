@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs'
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 test('dashboard charts are local SVG/CSS components without a chart dependency', () => {
-  const line = source('./components/DashboardLineChart.jsx')
-  const bar = source('./components/DashboardBarChart.jsx')
-  const payment = source('./components/DashboardPaymentMix.jsx')
+  const line = source('./app/surfaces/dashboard/DashboardLineChart.jsx')
+  const bar = source('./shared/ui/DashboardBarChart.jsx')
+  const payment = source('./app/surfaces/dashboard/DashboardPaymentMix.jsx')
   const combined = `${line}\n${bar}\n${payment}`
 
   assert.match(line, /<svg/)
@@ -21,8 +21,8 @@ test('dashboard charts are local SVG/CSS components without a chart dependency',
 })
 
 test('monetary chart accessibility copy changes when values are hidden', () => {
-  const line = source('./components/DashboardLineChart.jsx')
-  const payment = source('./components/DashboardPaymentMix.jsx')
+  const line = source('./app/surfaces/dashboard/DashboardLineChart.jsx')
+  const payment = source('./app/surfaces/dashboard/DashboardPaymentMix.jsx')
 
   assert.match(line, /Valores ocultos/)
   assert.match(payment, /Valores ocultos/)

@@ -4,11 +4,11 @@ import {
   formatBRLCurrencyInput,
   formatBRLCurrencyValue,
   parseBRLCurrencyInput,
-} from '../../../utils/formFormatting.js'
-import Button from '../../../components/Button'
-import ConfirmationDialog from '../../../components/ConfirmationDialog'
-import Modal from '../../../components/Modal'
-import SystemSelect from '../../../components/SystemSelect'
+} from '../../../shared/utils/formFormatting.js'
+import Button from '../../../shared/ui/Button'
+import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
+import Modal from '../../../shared/ui/Modal'
+import SystemSelect from '../../../shared/ui/SystemSelect'
 import { PAYMENT_METHOD_OPTIONS, paymentOptionsWithSelection, paymentSelectionNeedsReview } from '../domain/paymentMethods.js'
 import { financeCategoryOptionsWithSelection, financeCategorySelectionNeedsReview } from '../domain/financeCategories.js'
 

@@ -21,7 +21,7 @@ async function renderProducts(t, overrides = {}) {
   const h = await createUiHarness(t)
   const [{ default: Products }, { default: ConfirmationDialog }] = await Promise.all([
     h.load('/src/domains/catalog/ui/Products.jsx'),
-    h.load('/src/components/ConfirmationDialog.jsx'),
+    h.load('/src/shared/ui/ConfirmationDialog.jsx'),
   ])
   const props = {
     products,

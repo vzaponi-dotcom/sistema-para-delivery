@@ -1,4 +1,4 @@
-import Button from '../../../../components/Button'
+import Button from '../../../../shared/ui/Button'
 
 function NewOrderCartSummary({ items, itemCount, subtotal, currency, disabled, onReview }) {
   return (

@@ -20,8 +20,8 @@ test('mobile page transition is smooth and disabled for reduced motion', () => {
 })
 
 test('dashboard no longer retains the removed new-order FAB', () => {
-  const dashboard = read('src/pages/Dashboard.jsx')
-  const dashboardCss = read('src/dashboard.css')
+  const dashboard = read('src/app/surfaces/dashboard/DashboardSurface.jsx')
+  const dashboardCss = read('src/app/surfaces/dashboard/dashboard.css')
   assert.doesNotMatch(dashboard, /dashboard-new-order-fab/)
   assert.doesNotMatch(dashboardCss, /dashboard-new-order-fab/)
 })

@@ -9,7 +9,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('modal and bottom sheet lock background scroll and restore focus on Escape', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
-  for (const path of ['/src/components/Modal.jsx', '/src/components/BottomSheet.jsx']) {
+  for (const path of ['/src/shared/ui/Modal.jsx', '/src/shared/ui/BottomSheet.jsx']) {
     const { default: Overlay } = await h.load(path)
     const launcher = { focus() { h.document.activeElement = this } }
     const control = { focus() { h.document.activeElement = this } }
@@ -32,8 +32,8 @@ test('modal and bottom sheet lock background scroll and restore focus on Escape'
 })
 
 test('nested overlay keyboard handling belongs only to the topmost dialog', async () => {
-  const modal = await read('./components/Modal.jsx')
-  const sheet = await read('./components/BottomSheet.jsx')
+  const modal = await read('./shared/ui/Modal.jsx')
+  const sheet = await read('./shared/ui/BottomSheet.jsx')
   assert.match(modal, /isTopmostDialog/); assert.match(sheet, /isTopmostDialog/)
   assert.match(modal, /if \(!isTopmostDialog\(cardRef\.current\)\) return/)
   assert.match(sheet, /if \(!isTopmostDialog\(sheetRef\.current\)\) return/)
@@ -51,7 +51,7 @@ test('mobile overlays use dynamic viewport sizing and internal scrolling', async
 })
 
 test('new confirmation and cancellation review dialogs inherit the mobile-safe modal shell', async () => {
-  const confirmation = await read('./components/ConfirmationDialog.jsx')
+  const confirmation = await read('./shared/ui/ConfirmationDialog.jsx')
   const cancellation = await read('./domains/orders/ui/components/CancelOrderDialog.jsx')
   const foundation = await read('./mobile-foundation.css')
   const appCss = await read('./App.css')

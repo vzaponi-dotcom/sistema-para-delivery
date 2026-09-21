@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import '../../../../dashboard.css'
 import '../../../../area-navigation.css'
-import DashboardBarChart from '../../../../components/DashboardBarChart'
-import DashboardPeriodSelector from '../../../../components/DashboardPeriodSelector'
-import StatCard from '../../../../components/StatCard'
+import DashboardBarChart from '../../../../shared/ui/DashboardBarChart'
+import DashboardPeriodSelector from '../../../../shared/ui/DashboardPeriodSelector'
+import StatCard from '../../../../shared/ui/StatCard'
 import { calculateOperationalMetrics } from '../../domain/orderHistoryAnalysis.js'
 
 const PERIOD_HELPERS = {

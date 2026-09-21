@@ -8,6 +8,9 @@ export {
 
 export {
   PrintQueue,
+  OrderTicketPreview,
+  PrintStatusBadge,
+  TableTabTicketPreview,
   PrintingOverlays,
   PrintingSettingsContent,
 } from './ui/printingSurfaces.js'

@@ -1,4 +1,5 @@
 import { useCatalogCommands } from '../application/useCatalogCommands.js'
+import './product-form.css'
 import { useProductEditor } from '../application/useProductEditor.js'
 import Products from './Products.jsx'
 import ProductEditorDialog from './ProductEditorDialog.jsx'

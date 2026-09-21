@@ -1,6 +1,6 @@
 import '../../mobile-navigation.css'
-import BottomSheet from '../../components/BottomSheet'
-import Icon from '../../components/Icon'
+import BottomSheet from '../../shared/ui/BottomSheet'
+import Icon from '../../shared/ui/Icon'
 import { MOBILE_DIRECT_ENTRIES, MOBILE_MORE_ENTRIES, destinationById } from '../navigation/registry.js'
 import { resolveNavigationEntry } from '../navigation/resolution.js'
 import { useNavigation } from '../navigation/NavigationContext.jsx'

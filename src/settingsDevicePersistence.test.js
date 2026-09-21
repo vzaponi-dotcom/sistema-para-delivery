@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 
 import { buttonNamed, nodeText, workspaceHarness } from './test-support/renderWorkspace.js'
-import { saveThemePreference } from './utils/theme.js'
+import { saveThemePreference } from './app/shell/theme/theme.js'
 
 test('theme persistence reports a storage failure instead of returning a successful value', () => {
   const storage = { setItem() { throw new Error('blocked') } }
@@ -16,7 +16,7 @@ test('device page offers only light dark automatic and sound without any setting
   h.document.documentElement.dataset = {}
   const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
     h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   let sound = true
   let settingsCalls = 0
@@ -48,7 +48,7 @@ test('device page presents the approved local-preferences layout and confirms su
   h.document.documentElement.dataset = {}
   const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
     h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   let navigated = null
   let sound = true
@@ -83,7 +83,7 @@ test('failed theme or sound storage keeps the safe value and never announces Sav
   h.localStorage.setItem = () => { throw new Error('blocked') }
   const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
     h.load('/src/app/surfaces/settings/local/DevicePreferences.jsx'),
-    h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   let sound = true
   const DevicePage = () => React.createElement(ThemeProvider, null,

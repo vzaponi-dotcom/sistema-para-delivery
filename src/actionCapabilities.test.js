@@ -82,7 +82,7 @@ async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData 
 
   const [{ default: App }, themeModule] = await Promise.all([
     h.load('/src/App.jsx'),
-    withTheme ? h.load('/src/components/ThemeProvider.jsx') : Promise.resolve(null),
+    withTheme ? h.load('/src/app/shell/theme/ThemeProvider.jsx') : Promise.resolve(null),
   ])
   if (withTheme) h.document.documentElement.dataset = {}
   const Root = withTheme
@@ -116,7 +116,7 @@ test('1. orders.view consulta a Cozinha sem oferecer ou iniciar novo pedido', as
 test('2. orders.view sem orders.finalize bloqueia UI e handler de finalizaÃ§Ã£o', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: Orders }, { default: KitchenTicket }, { default: ConfirmationDialog }] = await Promise.all([
-    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/KitchenTicket.jsx'), h.load('/src/components/ConfirmationDialog.jsx'),
+    h.load('/src/domains/orders/ui/Orders.jsx'), h.load('/src/domains/orders/ui/components/KitchenTicket.jsx'), h.load('/src/shared/ui/ConfirmationDialog.jsx'),
   ])
   let finalizations = 0
   const renderer = await renderWithNavigation(h, Orders, {
@@ -138,7 +138,7 @@ test('3. orders.history continua visÃ­vel sem orders.analysis', async (t) => {
 
 test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx'), h.load('/src/components/SystemSelect.jsx')])
+  const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx'), h.load('/src/shared/ui/SystemSelect.jsx')])
   const confirmed = []
   const renderer = await h.render(CancelOrderDialog, {
     open: true, order: paidOrder, canRefundPayments: false, onClose() {}, onConfirm: (payload) => confirmed.push(payload),
@@ -423,7 +423,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
   const { h, renderer, requests } = await appWorkspace(t, capabilities)
   const modules = Object.fromEntries(await Promise.all([
     ['OrderHistory', '/src/domains/orders/ui/OrderHistory.jsx'],
-    ['Dashboard', '/src/pages/Dashboard.jsx'],
+    ['Dashboard', '/src/app/surfaces/dashboard/DashboardSurface.jsx'],
     ['Clients', '/src/domains/customers/ui/Clients.jsx'],
     ['Products', '/src/domains/catalog/ui/Products.jsx'],
     ['Receivables', '/src/domains/finance/ui/Receivables.jsx'],
@@ -454,7 +454,7 @@ test('20. callbacks diretos sem capability geram zero mutaÃ§Ãµes ou fluxos d
   await act(async () => { assert.equal(page.props.onAddMovement(), false); assert.equal(page.props.onRequestRefund(paidOrder), false) })
   await navigate(h, 'dashboard')
   page = renderer.root.findByType(modules.Dashboard)
-  await act(async () => { assert.equal(page.props.onNewOrder(), false) })
+  assert.equal(page.props.onNewOrder, undefined)
   assert.equal(renderer.root.findAllByType(modules.NewOrderRoute).length, 0)
   assert.equal(mutations(requests).length, before)
 })

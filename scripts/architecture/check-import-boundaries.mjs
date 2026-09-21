@@ -86,6 +86,13 @@ const C8_PRODUCT_CRUD_EXPORTS = new Set(['createProduct', 'updateProduct', 'dele
 const C8_UPDATE_COLLECTION_PATTERN = /\bupdateCollection\b/
 const C8_SHARED_METADATA_PATTERN = /\b(?:CATEGORY_ICON_NAMES|PRODUCT_CATEGORY_OPTIONS|categoryForUi|suggestPresentationType|DEFAULT_PRESENTATION)\b/
 const C8_DOMAIN_BROWSER_PATTERN = /\b(?:window|document|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
+const C10_LEGACY_API_FACADES = new Set([
+  'src/api/client.js',
+  'src/api/effectiveConfigClient.js',
+])
+const C10_RUNTIME_LEGACY_BRIDGE_PATTERN = /\b(?:legacyBridges|capturePaymentOwners|settlePaymentOwners)\b/
+const C10_LEGACY_PRODUCTION_ROOTS = ['api', 'pages', 'printing', 'components', 'hooks', 'utils']
+const C10_DOMAIN_BROWSER_PATTERN = /\b(?:window|localStorage|sessionStorage|navigator)\b|\bfetch\s*\(/
 
 const C9_LEGACY_PRINTING_OWNERS = new Set([
   'src/pages/PrintQueue.jsx',
@@ -273,7 +280,36 @@ const isReactSpecifier = (specifier) => specifier === 'react'
   || specifier === 'react-dom'
   || specifier.startsWith('react-dom/')
 
-const exactAllowed = (allowlist, key, value) => Array.isArray(allowlist?.[key]) && allowlist[key].includes(value)
+const usesDomainBrowserApi = (source) => C10_DOMAIN_BROWSER_PATTERN.test(source)
+  || (/\bdocument\s*\./.test(source) && !/[({,]\s*document\s*(?:[,)=])/.test(source))
+
+const findDomainCycle = (domainEdges) => {
+  const visited = new Set()
+  const active = []
+  const activeIndex = new Map()
+  const visit = (domain) => {
+    visited.add(domain)
+    activeIndex.set(domain, active.length)
+    active.push(domain)
+    for (const target of [...(domainEdges.get(domain) ?? [])].sort()) {
+      if (activeIndex.has(target)) return [...active.slice(activeIndex.get(target)), target]
+      if (!visited.has(target)) {
+        const cycle = visit(target)
+        if (cycle) return cycle
+      }
+    }
+    active.pop()
+    activeIndex.delete(domain)
+    return null
+  }
+  for (const domain of [...domainEdges.keys()].sort()) {
+    if (!visited.has(domain)) {
+      const cycle = visit(domain)
+      if (cycle) return cycle
+    }
+  }
+  return null
+}
 
 const exportMentionsAny = (source, names) => {
   for (const match of source.matchAll(/\bexport\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) {
@@ -289,10 +325,14 @@ const exportMentionsAny = (source, names) => {
   return false
 }
 
-export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) => {
+export const findArchitectureViolations = async ({ rootDir }) => {
   const edges = await collectImportEdges(rootDir)
   const sourcePaths = new Set((await listSourceFiles(path.join(rootDir, 'src'))).map((file) => repoRelative(rootDir, file)))
   const violations = []
+
+  for (const legacyFacade of C10_LEGACY_API_FACADES) {
+    if (sourcePaths.has(legacyFacade)) violations.push(`c10-legacy-api-facade: ${legacyFacade}`)
+  }
 
   for (const legacyOwner of C3_LEGACY_SETTINGS_OWNERS) {
     if (sourcePaths.has(legacyOwner)) violations.push(`c3-legacy-owner: ${legacyOwner}`)
@@ -321,6 +361,9 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (sourcePaths.has(legacyOwner)) violations.push(`c9-legacy-printing-owner: ${legacyOwner}`)
   }
   for (const sourcePath of sourcePaths) {
+    if (!isTestFile(sourcePath) && C10_LEGACY_PRODUCTION_ROOTS.some((root) => sourcePath.startsWith(`src/${root}/`))) {
+      violations.push(`legacy-production-root: ${sourcePath}`)
+    }
     if (sourcePath.startsWith('src/printing/') && !isTestFile(sourcePath)) {
       violations.push(`c9-legacy-printing-owner: ${sourcePath}`)
     }
@@ -390,11 +433,22 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
   for (const sourcePath of sourcePaths) {
     if (isTestFile(sourcePath)) continue
     const source = await readFile(path.join(rootDir, sourcePath), 'utf8')
+    if (sourcePath === 'src/app/runtime/data/useOperationalDataRuntime.js'
+      && C10_RUNTIME_LEGACY_BRIDGE_PATTERN.test(source)) {
+      violations.push(`c10-legacy-payment-receipt-bridge: ${sourcePath}`)
+    }
+    if (sourcePath === 'src/app/runtime/data/useOperationalDataRuntime.js'
+      && C8_UPDATE_COLLECTION_PATTERN.test(source)) {
+      violations.push(`c10-legacy-update-collection: ${sourcePath}`)
+    }
     if (C8_UPDATE_COLLECTION_PATTERN.test(source)) {
       violations.push(`c8-update-collection: ${sourcePath}`)
     }
     if (sourcePath.startsWith('src/domains/catalog/domain/') && C8_DOMAIN_BROWSER_PATTERN.test(source)) {
       violations.push(`catalog-domain-browser: ${sourcePath}`)
+    }
+    if (isDomainLayer(sourcePath) && usesDomainBrowserApi(source)) {
+      violations.push(`domain-browser: ${sourcePath}`)
     }
     if (sourcePath.startsWith('src/domains/printing/domain/') && C9_PRINTING_DOMAIN_BROWSER_PATTERN.test(source)) {
       violations.push(`c9-printing-domain-browser: ${sourcePath}`)
@@ -419,6 +473,7 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     if (error?.code !== 'ENOENT') throw error
   }
 
+  const domainEdges = new Map()
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
@@ -471,19 +526,45 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       violations.push(`shared-domain: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/orders/')
+    if (!isTestFile(edge.from)
+      && targetDomain
+      && fromDomain !== targetDomain
+      && edge.resolvedPath !== `src/domains/${targetDomain}/index.js`) {
+      violations.push(`domain-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && edge.from === 'src/App.jsx'
+      && C10_LEGACY_PRODUCTION_ROOTS.some((root) => edge.resolvedPath?.startsWith(`src/${root}/`))) {
+      violations.push(`app-legacy-root-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
+    if (!isTestFile(edge.from)
+      && fromDomain
+      && targetDomain
+      && fromDomain !== targetDomain
+      && edge.resolvedPath === `src/domains/${targetDomain}/index.js`) {
+      if (!domainEdges.has(fromDomain)) domainEdges.set(fromDomain, new Set())
+      domainEdges.get(fromDomain).add(targetDomain)
+      if (!domainEdges.has(targetDomain)) domainEdges.set(targetDomain, new Set())
+    }
+
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/orders/')
       && edge.resolvedPath?.startsWith('src/domains/orders/')
       && edge.resolvedPath !== 'src/domains/orders/index.js') {
       violations.push(`orders-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/customers/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/customers/')
       && edge.resolvedPath?.startsWith('src/domains/customers/')
       && edge.resolvedPath !== 'src/domains/customers/index.js') {
       violations.push(`customers-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/catalog/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/catalog/')
       && edge.resolvedPath?.startsWith('src/domains/catalog/')
       && edge.resolvedPath !== 'src/domains/catalog/index.js') {
       violations.push(`catalog-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
@@ -532,7 +613,8 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       violations.push(`orders-customers-internal: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
-    if (!edge.from.startsWith('src/domains/table-service/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/table-service/')
       && edge.resolvedPath?.startsWith('src/domains/table-service/')
       && edge.resolvedPath !== 'src/domains/table-service/index.js') {
       violations.push(`table-service-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
@@ -542,7 +624,8 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
       && edge.resolvedPath?.startsWith('src/domains/orders/')) {
       violations.push(`table-service-orders-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
-    if (!edge.from.startsWith('src/domains/finance/')
+    if (!isTestFile(edge.from)
+      && !edge.from.startsWith('src/domains/finance/')
       && edge.resolvedPath?.startsWith('src/domains/finance/')
       && edge.resolvedPath !== 'src/domains/finance/index.js') {
       violations.push(`finance-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
@@ -560,15 +643,14 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
 
     if (fromDomain && targetDomain && fromDomain !== targetDomain) {
       const publicEntry = `src/domains/${targetDomain}/index.js`
-      if (edge.resolvedPath !== publicEntry && !exactAllowed(allowlist, 'crossDomainInternals', `${edge.from} -> ${edge.resolvedPath}`)) {
+      if (edge.resolvedPath !== publicEntry) {
         violations.push(`cross-domain-internal: ${edge.from} -> ${edge.resolvedPath}`)
       }
     }
 
     if (edge.specifier === 'qz-tray'
       && !isTestFile(edge.from)
-      && !edge.from.startsWith('src/infrastructure/qz/')
-      && !exactAllowed(allowlist, 'qzDirectImports', edge.from)) {
+      && !edge.from.startsWith('src/infrastructure/qz/')) {
       violations.push(`qz-direct: ${edge.from} -> qz-tray`)
     }
     const c6FinanceOrWorkflow = edge.from.startsWith('src/domains/finance/')
@@ -608,24 +690,16 @@ export const findArchitectureViolations = async ({ rootDir, allowlist = {} }) =>
     }
   }
 
-  return [...new Set(violations)].sort()
-}
+  const domainCycle = findDomainCycle(domainEdges)
+  if (domainCycle) violations.push(`domain-cycle: ${domainCycle.join(' -> ')}`)
 
-const loadDefaultAllowlist = async (rootDir) => {
-  const file = path.join(rootDir, 'scripts/architecture/legacy-import-allowlist.json')
-  try {
-    return JSON.parse(await readFile(file, 'utf8'))
-  } catch (error) {
-    if (error?.code === 'ENOENT') return {}
-    throw error
-  }
+  return [...new Set(violations)].sort()
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 if (isMain) {
   const rootDir = process.cwd()
-  const allowlist = await loadDefaultAllowlist(rootDir)
-  const violations = await findArchitectureViolations({ rootDir, allowlist })
+  const violations = await findArchitectureViolations({ rootDir })
   if (violations.length) {
     for (const violation of violations) console.error(violation)
     process.exitCode = 1

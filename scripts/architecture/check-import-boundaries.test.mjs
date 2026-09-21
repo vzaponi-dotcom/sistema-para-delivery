@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -44,16 +45,11 @@ test('cross-domain consumers must use the public index entry point', async (t) =
   assert.equal(violations.some((value) => value.includes('cross-domain-internal')), false)
 })
 
-test('direct qz-tray imports require infrastructure/qz or an exact legacy allowance', async (t) => {
+test('direct qz-tray imports remain rejected outside infrastructure/qz without a migration allowance', async (t) => {
   const { rootDir, write } = await createFixture(t)
   await write('src/printing/usePrintingManager.js', "import qz from 'qz-tray'\n")
-  await write('src/printing/anotherManager.js', "import qz from 'qz-tray'\n")
-  const violations = await findArchitectureViolations({
-    rootDir,
-    allowlist: { qzDirectImports: ['src/printing/usePrintingManager.js'] },
-  })
-  assert.equal(violations.some((value) => value.includes('usePrintingManager.js') && value.includes('qz-direct')), false)
-  assert.ok(violations.some((value) => value.includes('anotherManager.js') && value.includes('qz-direct')))
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.ok(violations.includes('qz-direct: src/printing/usePrintingManager.js -> qz-tray'))
 })
 
 test('qz dependency imports in test files do not create production architecture violations', async (t) => {
@@ -113,6 +109,14 @@ test('non-Orders consumers cannot deep import Orders internals', async (t) => {
   await write('src/domains/orders/domain/orderLifecycle.js', 'export const isOrderActive = () => true\n')
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.ok(violations.some((item) => item.startsWith('orders-deep-import:')))
+})
+
+test('test files do not turn internal domain units into production public contracts', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/ordersBehavior.test.js', "import { isOrderActive } from './domains/orders/domain/orderLifecycle.js'\n")
+  await write('src/domains/orders/domain/orderLifecycle.js', 'export const isOrderActive = () => true\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.equal(violations.some((item) => item.startsWith('orders-deep-import:')), false)
 })
 
 test('C4 legacy Orders owners are rejected when they reappear', async (t) => {
@@ -494,6 +498,32 @@ test('C9 Printing domain remains browser and fetch free', async (t) => {
   assert.ok(violations.includes('c9-printing-domain-browser: src/domains/printing/domain/rules.js'))
 })
 
+test('C10 closes migration scaffolding and keeps final facade removals protected', async (t) => {
+  const repositoryRoot = process.cwd()
+  const architectureDir = path.join(repositoryRoot, 'scripts', 'architecture')
+  const checker = readFileSync(path.join(architectureDir, 'check-import-boundaries.mjs'), 'utf8')
+
+  assert.equal(existsSync(path.join(architectureDir, 'legacy-import-allowlist.json')), false)
+  assert.equal(readdirSync(architectureDir).some((name) => /allowlist/i.test(name)), false)
+  assert.doesNotMatch(checker, /allowlist/i)
+
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/client.js', 'export const apiRequest = () => {}\n')
+  await write('src/api/effectiveConfigClient.js', 'export const getEffectiveConfig = () => {}\n')
+  await write('src/app/runtime/data/useOperationalDataRuntime.js', [
+    'export const legacyBridges = {}',
+    'export const capturePaymentOwners = () => {}',
+    'export const settlePaymentOwners = () => {}',
+    'export const updateCollection = () => {}',
+  ].join('\n'))
+
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.ok(violations.includes('c10-legacy-api-facade: src/api/client.js'))
+  assert.ok(violations.includes('c10-legacy-api-facade: src/api/effectiveConfigClient.js'))
+  assert.ok(violations.includes('c10-legacy-payment-receipt-bridge: src/app/runtime/data/useOperationalDataRuntime.js'))
+  assert.ok(violations.includes('c10-legacy-update-collection: src/app/runtime/data/useOperationalDataRuntime.js'))
+})
+
 test('C9 Printing cannot deep import another domain internal', async (t) => {
   const { rootDir, write } = await createFixture(t)
   await write('src/domains/printing/application/x.js', "import { y } from '../../orders/domain/orderLifecycle.js'\n")
@@ -570,4 +600,63 @@ test('C9 Printing application may consume first-class QZ infrastructure modules'
   const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
   assert.equal(violations.some((value) => value.startsWith('c9-printing-qz-infra:')), false)
   assert.equal(violations.some((value) => value.startsWith('c9-qz-printing-internal:')), false)
+})
+
+test('C10 final generic guards reject legacy roots, App legacy imports, shared domain imports, generic domain impurity, external deep imports, QZ escapes, and public-entry cycles', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/runtime.js', 'export const legacy = true\n')
+  await write('src/pages/runtime.jsx', 'export default null\n')
+  await write('src/printing/runtime.js', 'export const legacy = true\n')
+  await write('src/components/runtime.jsx', 'export default null\n')
+  await write('src/hooks/runtime.js', 'export const legacy = true\n')
+  await write('src/utils/runtime.js', 'export const legacy = true\n')
+  await write('src/App.jsx', "import { legacy } from './utils/runtime.js'\n")
+  await write('src/shared/ui/invalid.jsx', "import { Orders } from '../../domains/orders/index.js'\n")
+  await write('src/domains/orders/domain/invalid.js', [
+    "import React from 'react'",
+    "import { api } from '../infrastructure/ordersApi.js'",
+    "import Panel from '../ui/Panel.jsx'",
+    "import qz from 'qz-tray'",
+    'export const invalid = () => window.localStorage.getItem("x") || document.title || sessionStorage.getItem("x") || navigator.language || fetch("/x")',
+  ].join('\n'))
+  await write('src/domains/orders/infrastructure/ordersApi.js', 'export const api = {}\n')
+  await write('src/domains/orders/ui/Panel.jsx', 'export default null\n')
+  await write('src/domains/catalog/domain/internal.js', 'export const internal = true\n')
+  await write('src/app/deep-import.js', "import { internal } from '../domains/catalog/domain/internal.js'\n")
+  await write('src/app/qz-owner.js', "import qz from 'qz-tray'\n")
+  await write('src/domains/orders/application/a.js', "import { b } from '../../catalog/index.js'\n")
+  await write('src/domains/catalog/application/b.js', "import { a } from '../../orders/index.js'\n")
+  await write('src/domains/orders/index.js', 'export const a = true\n')
+  await write('src/domains/catalog/index.js', 'export const b = true\n')
+
+  const violations = await findArchitectureViolations({ rootDir })
+  for (const root of ['api', 'pages', 'printing', 'components', 'hooks', 'utils']) {
+    assert.ok(violations.includes(`legacy-production-root: src/${root}/${root === 'pages' || root === 'components' ? 'runtime.jsx' : 'runtime.js'}`))
+  }
+  assert.ok(violations.includes('app-legacy-root-import: src/App.jsx -> src/utils/runtime.js'))
+  assert.ok(violations.includes('shared-domain: src/shared/ui/invalid.jsx -> src/domains/orders/index.js'))
+  assert.ok(violations.some((value) => value.startsWith('domain-react: src/domains/orders/domain/invalid.js')))
+  assert.ok(violations.includes('domain-infrastructure: src/domains/orders/domain/invalid.js -> src/domains/orders/infrastructure/ordersApi.js'))
+  assert.ok(violations.includes('domain-ui: src/domains/orders/domain/invalid.js -> src/domains/orders/ui/Panel.jsx'))
+  assert.ok(violations.some((value) => value.startsWith('domain-qz: src/domains/orders/domain/invalid.js')))
+  assert.ok(violations.includes('domain-browser: src/domains/orders/domain/invalid.js'))
+  assert.ok(violations.includes('domain-deep-import: src/app/deep-import.js -> src/domains/catalog/domain/internal.js'))
+  assert.ok(violations.includes('qz-direct: src/app/qz-owner.js -> qz-tray'))
+  assert.ok(violations.includes('domain-cycle: catalog -> orders -> catalog'))
+})
+
+test('C10 final generic guards allow production tests, public domain entries, shared React UI/hooks, pure shared utils, and QZ infrastructure', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/api/runtime.test.js', 'export const testOnly = true\n')
+  await write('src/App.jsx', "import { Catalog } from './domains/catalog/index.js'\n")
+  await write('src/domains/orders/application/catalog.js', "import { Catalog } from '../../catalog/index.js'\n")
+  await write('src/domains/orders/index.js', 'export const Orders = true\n')
+  await write('src/domains/catalog/index.js', 'export const Catalog = true\n')
+  await write('src/shared/ui/Button.jsx', "import React from 'react'\nexport default () => React.createElement('button')\n")
+  await write('src/shared/hooks/useValue.js', "import { useState } from 'react'\nexport const useValue = () => useState(0)\n")
+  await write('src/shared/utils/format.js', 'export const format = (value) => String(value).trim()\n')
+  await write('src/infrastructure/qz/transport.js', "import qz from 'qz-tray'\nexport { qz }\n")
+
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.deepEqual(violations, [])
 })

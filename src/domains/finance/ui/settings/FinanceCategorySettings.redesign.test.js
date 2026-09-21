@@ -129,7 +129,7 @@ test('settings finance category route uses breadcrumb layout instead of legacy s
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: Settings }, { ThemeProvider }] = await Promise.all([
-    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/components/ThemeProvider.jsx'),
+    h.load('/src/test-support/SettingsSurfaceTestContext.jsx'), h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const controller = {
     resources: { financeCategories: resourceState() },

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { nodeText, workspaceHarness } from '../test-support/renderWorkspace.js'
+import { nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const document = {
   type: 'table-tab',
@@ -16,7 +16,7 @@ const document = {
 
 test('table-tab preview shows unit price while keeping the authoritative line total', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Preview } = await h.load('/src/components/TableTabTicketPreview.jsx')
+  const { default: Preview } = await h.load('/src/domains/printing/ui/TableTabTicketPreview.jsx')
   const rendered = await h.render(Preview, { document })
   const text = nodeText(rendered.root).replace(/\u00a0/g, ' ')
 
@@ -27,7 +27,7 @@ test('table-tab preview shows unit price while keeping the authoritative line to
 
 test('table-tab preview uses only the header divider before the solid total rule', async (t) => {
   const h = await workspaceHarness(t)
-  const { default: Preview } = await h.load('/src/components/TableTabTicketPreview.jsx')
+  const { default: Preview } = await h.load('/src/domains/printing/ui/TableTabTicketPreview.jsx')
   const rendered = await h.render(Preview, { document })
 
   assert.equal(rendered.root.findAllByProps({ className: 'order-ticket-divider' }).length, 1)
