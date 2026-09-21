@@ -9,6 +9,7 @@ import { preparePolicyGuards, readPaymentMethodExpectation, rethrowPolicyChange 
 import { loadOperations } from './operationSettingsRepository.js'
 import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
 import { nativeCancellationReasons } from '../shared/settingsCatalogs.js'
+import { mapOrderPaymentFields, PAYMENT_ALLOCATIONS_JSON_SELECT } from './orderPaymentReadModel.js'
 
 const DEFAULT_CANCELLATION_REASONS = new Map(nativeCancellationReasons().items.map((item) => [item.id, item]))
 export const CANCEL_REASONS = [...DEFAULT_CANCELLATION_REASONS.keys()]
@@ -48,7 +49,7 @@ const normalizeRefundMethod = (value) => {
 const orderContextSql = `SELECT o.id, o.order_number, o.status, o.table_tab_id, o.client_name_snapshot,
   o.cancelled_at, o.cancel_reason, o.cancel_reason_note, o.timing_policy_snapshot_json,
   cr.label AS cancel_reason_label,
-  p.id AS payment_id, p.method AS payment_method, p.amount_cents AS paid_amount_cents, p.paid_at,
+  p.id AS payment_id, p.method AS payment_method, p.amount_cents AS paid_amount_cents, p.paid_at, ${PAYMENT_ALLOCATIONS_JSON_SELECT},
   r.id AS refund_movement_id, r.created_at AS refund_created_at
   FROM orders o
   LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
@@ -60,6 +61,7 @@ const readContext = (db, businessId, orderId) => db.prepare(orderContextSql).bin
 
 const mapContext = (row) => {
   if (!row) return null
+  const payment = mapOrderPaymentFields(row)
   const order = {
     id: row.id,
     orderNumber: row.order_number,
@@ -71,11 +73,8 @@ const mapContext = (row) => {
     cancelReasonLabel: row.cancel_reason_label ?? row.cancel_reason ?? null,
     cancelReasonNote: row.cancel_reason_note ?? '',
     timingPolicySnapshot: parseOrderTimingPolicySnapshot(row.timing_policy_snapshot_json),
-    paymentStatus: row.payment_id ? 'Pago' : 'Pendente',
-    paymentId: row.payment_id ?? null,
-    paymentMethod: row.payment_method ?? null,
+    ...payment,
     paidAmount: row.payment_id ? centsToMoney(row.paid_amount_cents) : 0,
-    paidAt: row.paid_at ?? null,
     refundMovementId: row.refund_movement_id ?? null,
     refundedAt: row.refund_created_at ?? null,
   }

@@ -42,6 +42,11 @@ test('paid split checkout atomically creates one receipt, allocations, payment, 
   const order = await createOrder(db, BUSINESS, input(), NOW)
 
   assert.equal(order.paymentStatus, 'Pago')
+  assert.equal(order.paymentMethod, null)
+  assert.deepEqual(order.paymentAllocations.toSorted((left, right) => left.methodCode.localeCompare(right.methodCode)), [
+    { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 3000 },
+    { methodCode: 'pix', methodLabel: 'Pix', amountCents: 5000 },
+  ])
   assert.equal(db.all('SELECT * FROM payment_receipts').length, 1)
   assert.deepEqual(db.all('SELECT amount_cents FROM payment_allocations ORDER BY amount_cents').map(({ amount_cents }) => amount_cents), [3000, 5000])
   const payment = db.all('SELECT * FROM payments')[0]

@@ -91,6 +91,18 @@ test('malformed receipt allocation JSON fails closed without inventing payment d
   assert.deepEqual(order.paymentAllocations, [])
 })
 
+test('legacy backfill keeps an unknown historical label as one structured allocation', () => {
+  const order = mapOrderRow({
+    id: 'o-legacy', client_name_snapshot: 'Histórico', type: 'Entrega', status: 'Finalizado', order_date: '2026-08-01',
+    total_cents: 2500, created_at: '2026-08-01T12:00:00.000Z', payment_id: 'pay-legacy', receipt_id: 'legacy-receipt:pay-legacy',
+    payment_method: 'Cheque legado', paid_at: '2026-08-01T12:01:00.000Z', paid_amount_cents: 2500,
+    payment_allocations_json: '[{"methodCode":null,"methodLabel":"Cheque legado","amountCents":2500}]',
+  })
+
+  assert.equal(order.paymentMethod, 'Cheque legado')
+  assert.deepEqual(order.paymentAllocations, [{ methodCode: null, methodLabel: 'Cheque legado', amountCents: 2500 }])
+})
+
 test('table tab rows expose stable numeric tab numbers', () => {
   assert.deepEqual(mapTableTabRow({
     id: 'tab-1', table_id: 'table-1', table_identifier: '04', tab_number: '1042', status: 'open',

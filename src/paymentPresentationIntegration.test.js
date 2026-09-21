@@ -51,12 +51,11 @@ test('A Receber shows mixed summary and finds the same paid order by either allo
   const renderWithSearch = (search) => React.createElement(NavigationProvider, {
     activeTab: 'receivables', granted: new Set(['finance.receivables']), implemented: new Set(['receivables']), moreOpen: false,
     requestNavigation() {}, openMore() {}, closeMore() {},
-    children: React.createElement(Receivables, {
+  }, React.createElement(Receivables, {
       orders: [paidOrder], movements: [], currency: String, orderPresentation, orderRules,
       queryState: { search, activeView: 'paid', timingFilter: 'all', sortMode: 'recent', exactDateFilter: null, selectedEntryKey: null },
       onQueryChange() {},
-    }),
-  })
+    }))
   const screen = await h.render(() => renderWithSearch('dinheiro'))
   assert.match(nodeText(screen.root), /Cliente misto/)
   assert.match(nodeText(screen.root), /Quitado · 2 formas/)

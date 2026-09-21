@@ -22,6 +22,7 @@ import {
   sortReceivableEntries,
 } from '../domain/receivables.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import { formatPaymentSummary, paymentSearchText } from '../domain/paymentPresentation.js'
 
 const PRIMARY_VIEWS = ['pending', 'paid']
 const TIMING_FILTERS = ['all', 'today', 'upcoming', 'overdue']
@@ -32,7 +33,14 @@ const SORT_OPTIONS = [
   { value: 'value-desc', label: 'Maior valor' },
 ]
 const entrySearchText = (entry, getOrderItemsSearchText) => entry.orders.map((order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ')).join(' ').toLowerCase()
-const orderSearchText = (order, getOrderItemsSearchText) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ').toLowerCase()
+const orderSearchText = (order, getOrderItemsSearchText) => [
+  order.client,
+  String(order.id),
+  order.type,
+  order.orderDate,
+  getOrderItemsSearchText(order),
+  paymentSearchText(order.paymentAllocations, order.paymentMethod),
+].join(' ').toLowerCase()
 
 const timingLabel = (entry, formatOrderDate) => {
   if (entry.timing.status === 'overdue') {
@@ -49,7 +57,7 @@ const timingLabel = (entry, formatOrderDate) => {
 
 const paidMeta = (order) => {
   const paidAt = order.paidAt ? new Date(order.paidAt).toLocaleString('pt-BR') : 'Data não informada'
-  return `Quitado · ${order.paymentMethod || 'Forma não informada'} · ${paidAt}`
+  return `Quitado · ${formatPaymentSummary(order.paymentAllocations, order.paymentMethod || 'Forma não informada')} · ${paidAt}`
 }
 
 const paidEntry = (order) => ({
