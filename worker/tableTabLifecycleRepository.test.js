@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { OperationalDb } from './test-support/operationalDb.js'
 import test from 'node:test'
 import { cancelOrder } from './orderCancellation.js'
-import { createOrder, registerTableTabPayment } from './repositories.js'
+import { createOrder } from './repositories.js'
+import { registerTableTabPayment } from './paymentRepository.js'
 
 const timestamp = '2026-09-10T18:00:00.000Z'
 
@@ -71,7 +72,7 @@ test('an added order racing full payment cannot leave a closed tab with unpaid w
   db.beforeBatch = async () => db.insertOrder('order-racing', 'tab-1', 'racing-order')
 
   await assert.rejects(
-    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp)),
+    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', [{ methodCode: 'pix', amountCents: 2500 }], new Date(timestamp)),
     (error) => error.status === 409 && error.code === 'TABLE_TAB_PAYMENT_CONFLICT',
   )
   assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'open')
@@ -83,8 +84,8 @@ test('an added order racing full payment cannot leave a closed tab with unpaid w
 test('two full payments produce one settlement and one stable conflict', async () => {
   const db = new D1Sqlite()
   const results = await Promise.allSettled([
-    registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp)),
-    registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Dinheiro', new Date(timestamp)),
+    registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', [{ methodCode: 'pix', amountCents: 2500 }], new Date(timestamp)),
+    registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', [{ methodCode: 'cash', amountCents: 2500 }], new Date(timestamp)),
   ])
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1)
   const rejected = results.find((result) => result.status === 'rejected')
@@ -106,7 +107,7 @@ test('cancellation that commits after the payment pre-read makes the whole payme
   )
 
   await assert.rejects(
-    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp)),
+    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', [{ methodCode: 'pix', amountCents: 2500 }], new Date(timestamp)),
     (error) => error.status === 409 && error.code === 'TABLE_TAB_PAYMENT_CONFLICT',
   )
   assert.equal(db.sqlite.prepare("SELECT status FROM orders WHERE id = 'order-1'").get().status, 'Cancelado')
@@ -117,7 +118,7 @@ test('cancellation that commits after the payment pre-read makes the whole payme
 
 test('payment that commits first preserves existing paid cancellation and deferred-refund behavior', async () => {
   const db = new D1Sqlite()
-  await registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp))
+  await registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', [{ methodCode: 'pix', amountCents: 2500 }], new Date(timestamp))
 
   const cancelled = await cancelOrder(
     db,
@@ -146,7 +147,7 @@ test('a stale full-tab batch cannot pay an unpaid order after its tab closes', a
   }
 
   await assert.rejects(
-    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', 'Pix', new Date(timestamp)),
+    () => registerTableTabPayment(db, 'amor-e-sabor', 'tab-1', [{ methodCode: 'pix', amountCents: 2500 }], new Date(timestamp)),
     (error) => error.status === 409 && error.code === 'TABLE_TAB_PAYMENT_CONFLICT',
   )
   assert.equal(db.sqlite.prepare("SELECT status FROM table_tabs WHERE id = 'tab-1'").get().status, 'closed')
