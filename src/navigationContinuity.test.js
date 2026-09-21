@@ -91,7 +91,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   })
   await navigate(h, 'settings-printing')
   assert.equal(state.settingsWrites, 1, 'leaving Settings must not resend its pending save')
-  assert.equal(renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' }).props.children[0].props.children, '2 vias')
+  assert.equal(nodeText(renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Vias de pedidos' })), '2 vias')
 
   await navigate(h, 'orders')
   const search = renderer.root.findByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' })
