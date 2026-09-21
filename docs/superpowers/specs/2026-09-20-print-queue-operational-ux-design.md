@@ -1,7 +1,7 @@
 # Print Queue Operational UX — Design Spec
 
 **Data:** 2026-09-20  
-**Status:** **DRAFT** — direção funcional aprovada em conversa; documento aguardando revisão/aprovação explícita antes do plano de implementação  
+**Status:** **APPROVED** — direção funcional e documento aprovados explicitamente pelo usuário em 2026-09-20; autorrevisão final concluída antes do plano de implementação  
 **Branch:** `feature/print-queue-operational-ux`  
 **Base:** `master` em `341881482389e872e6039b42395dbaee92fc81b2` — merge da Spec C10 / PR #54  
 **Produção:** não tocar sem autorização separada  
@@ -804,7 +804,30 @@ Explicitamente fora desta entrega:
 - mudar impressão física;
 - executar produção.
 
-## 32. Decisões consolidadas
+
+## 32. Autorrevisão final
+
+A autorrevisão pós-aprovação confirmou que a spec pode ser implementada sem ampliar o contrato físico de Printing.
+
+Pontos verificados:
+
+- a causa raiz é de **projeção de estado + UX**, não do executor físico;
+- `printing.stations` já fornece a coleção necessária para localizar a principal;
+- o heartbeat atual já distingue `online`, `qzReady`, `printerReady` e estado físico suficiente para uma leitura remota best-effort;
+- o nome da impressora continua corretamente local ao Windows, portanto não deve ser promovido para backend nesta slice;
+- o resolver operacional deve aceitar também `printerState` para distinguir estados locais transitórios (`connecting/verifying`) de falhas conhecidas, evitando flashes falsos de “não configurada” durante inicialização;
+- no viewer remoto, `printerReady === false` é indisponibilidade operacional best-effort, mas a UI só deve nomear a causa física quando `physicalState` fornecer evidência;
+- estado ausente/indeterminado continua neutro; não será tratado como offline;
+- o mesmo resolver será reutilizado pela Fila e pelo terceiro card de Settings para impedir duas árvores de decisão concorrentes;
+- a mudança do cabeçalho mobile será escopada por CSS/markup da Fila e não alterará globalmente `PageHeader`;
+- `buildPrintQueueSummary` preserva sua responsabilidade exclusiva de contagem dos jobs;
+- recovery e ações de jobs continuam fora da projeção operacional;
+- não há necessidade de migration, endpoint novo, payload novo, storage novo ou alteração em Worker;
+- o gate físico C9/P1–P20 permanece independente e obrigatório apenas no release candidate final.
+
+Nenhum bloqueador de design foi encontrado. O plano deve manter commits e gates TDD pequenos o suficiente para separar mudança semântica de mudança visual.
+
+## 33. Decisões consolidadas
 
 1. **Fila de impressão é uma tela operacional.**
 2. **Configurações → Impressão continua sendo a única tela de configuração.**
