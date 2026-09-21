@@ -38,7 +38,7 @@ test('whole-table split payment creates one receipt, N pending-order payments an
     { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 2500 },
     { methodCode: 'pix', methodLabel: 'Pix', amountCents: 5500 },
   ])
-  assert.deepEqual(result.orders.map(({ id, paymentStatus }) => [id, paymentStatus]), [['o2', 'Pago'], ['o3', 'Pago']])
+  assert.deepEqual(result.orders.map(({ id, paymentStatus }) => [id, paymentStatus]).sort(([a], [b]) => a.localeCompare(b)), [['o2', 'Pago'], ['o3', 'Pago']])
   assert.equal(result.payments.length, 2)
   assert.ok(result.payments.every((payment) => payment.receiptId === result.receipt.id))
   assert.equal(result.movements.length, 2)
