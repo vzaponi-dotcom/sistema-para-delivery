@@ -120,7 +120,7 @@ export default function PaymentCompositionEditor({
                     <Icon name={paymentIcon(allocation.methodCode)} size={18} />
                   </span>
                   <strong>Forma de pagamento {index + 1}</strong>
-                  {index === 0 && <span className="payment-composition-primary-badge">Principal</span>}
+                  {index === 0 && allocations.length === 1 && <span className="payment-composition-primary-badge">Principal</span>}
                 </div>
                 {allocations.length > 1 && (
                   <Button
