@@ -1,4 +1,4 @@
-.print-queue-page { min-width: 0; }
+.print-queue-page { min-width: 0; max-width: 100%; }
 .print-queue-settings-button { white-space: nowrap; }
 .print-queue-jobs-section { min-width: 0; margin-top: 18px; }
 .print-queue-jobs-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
@@ -42,13 +42,11 @@
 .print-queue-detail-sections p { display: flex; gap: 12px; justify-content: space-between; margin: 6px 0 0; color: var(--text-soft); }
 .print-queue-detail-sections p span { color: var(--muted); }
 
-.print-queue-station-card {
+.print-queue-operational-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   min-width: 0;
-  padding: 16px 18px;
+  padding: 15px 17px;
   margin-bottom: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -56,12 +54,26 @@
   box-shadow: var(--shadow-sm);
 }
 
-.print-queue-station-copy, .print-queue-station-health { display: grid; gap: 4px; min-width: 0; }
-.print-queue-station-copy span, .print-queue-station-health span { color: var(--text-soft); font-size: 0.82rem; }
-.print-queue-station-health { text-align: right; }
+.print-queue-operational-copy { display: grid; gap: 4px; min-width: 0; }
+.print-queue-operational-copy strong { color: var(--text); font-size: 0.96rem; }
+.print-queue-operational-copy span, .print-queue-operational-copy small { color: var(--text-soft); font-size: 0.82rem; line-height: 1.4; overflow-wrap: anywhere; }
+.print-queue-operational-copy small { color: var(--muted); font-weight: 750; }
+.print-queue-operational-card.is-success { border-color: var(--success); background: var(--success-soft); }
+.print-queue-operational-card.is-warning { border-color: var(--warning); background: var(--warning-soft); }
+.print-queue-operational-card.is-danger { border-color: var(--danger); background: var(--danger-soft); }
+.print-queue-operational-card.is-neutral { border-color: var(--border); background: var(--surface-soft); }
+.print-queue-operational-card.is-success .print-queue-operational-copy strong { color: var(--success); }
+.print-queue-operational-card.is-warning .print-queue-operational-copy strong { color: var(--warning); }
+.print-queue-operational-card.is-danger .print-queue-operational-copy strong { color: var(--danger); }
+
 .print-queue-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-.print-queue-offline-banner, .print-queue-recovery-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 13px 15px; border: 1px solid var(--warning); border-radius: var(--radius-lg); background: var(--warning-soft); color: var(--warning); font-weight: 800; }
-.print-queue-recovery-banner { border-color: var(--info); background: var(--info-soft); color: var(--info); }
+.print-queue-summary-card .stat-copy strong { order: -1; margin-top: 0; font-size: clamp(1.45rem, 2.4vw, 1.9rem); }
+.print-queue-summary-card .stat-copy > span { margin-top: 4px; font-size: 0.7rem; letter-spacing: 0.04em; }
+.print-queue-summary-card.is-zero { background: var(--surface-soft); box-shadow: none; }
+.print-queue-summary-card.is-zero .stat-icon { opacity: 0.65; }
+.print-queue-summary-card.is-zero .stat-copy strong { color: var(--muted); }
+.print-queue-summary-card.has-attention { border-color: var(--danger); background: var(--danger-soft); }
+.print-queue-recovery-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 13px 15px; border: 1px solid var(--info); border-radius: var(--radius-lg); background: var(--info-soft); color: var(--info); font-weight: 800; }
 .print-queue-recovery-banner > div:first-child { display: grid; gap: 3px; }
 .print-queue-recovery-banner span { color: var(--text-soft); font-size: .82rem; font-weight: 650; }
 .print-queue-recovery-actions, .print-queue-pagination { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
@@ -72,8 +84,25 @@
 .print-queue-unknown-outcome { border-color: var(--warning) !important; background: var(--warning-soft); padding: 12px; border-radius: var(--radius-md); }
 
 @media (max-width: 640px) {
-  .print-queue-settings-button { width: auto !important; padding: 0 12px; }
-  .print-queue-settings-button span { display: none; }
+  .print-queue-page > .page-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .print-queue-page > .page-header .page-header-copy { min-width: 0; }
+  .print-queue-page > .page-header .page-actions { width: 40px; min-width: 40px; align-self: start; justify-self: end; }
+  .print-queue-page > .page-header .page-actions .print-queue-settings-button {
+    width: 40px !important;
+    min-width: 40px;
+    min-height: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .print-queue-page > .page-header .print-queue-settings-button span { display: none; }
+  .print-queue-operational-card { padding: 13px 14px; margin-bottom: 12px; }
   .print-queue-jobs-heading { margin-bottom: 14px; }
   .print-queue-filters { align-items: stretch; flex-direction: column; gap: 12px; }
   .print-queue-search { width: 100%; flex-basis: auto; }
@@ -86,11 +115,13 @@
   .print-queue-job-customer { display: block; margin-top: 8px; color: var(--text); }
   .print-queue-job-meta { justify-content: flex-start; flex-wrap: wrap; margin-top: 8px; color: var(--muted); font-size: 0.78rem; }
   .print-queue-job-meta span { min-width: 0; overflow-wrap: anywhere; }
-  .print-queue-station-card { align-items: flex-start; flex-direction: column; }
-  .print-queue-station-health { text-align: left; }
   .print-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .print-queue-summary-card { min-height: 88px; gap: 8px; padding: 12px; }
+  .print-queue-summary-card .stat-icon { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; }
+  .print-queue-summary-card .stat-copy strong { font-size: 1.45rem; line-height: 1; }
+  .print-queue-summary-card .stat-copy > span { font-size: 0.66rem; line-height: 1.25; }
   .print-queue-detail-sections p { align-items: flex-start; flex-direction: column; gap: 2px; }
-  .print-queue-offline-banner, .print-queue-recovery-banner { align-items: stretch; flex-direction: column; }
+  .print-queue-recovery-banner { align-items: stretch; flex-direction: column; }
   .print-queue-recovery-actions, .print-queue-pagination { justify-content: stretch; }
   .print-queue-recovery-actions .button, .print-queue-pagination .button { flex: 1; }
   .print-queue-detail-actions { align-items: stretch; flex-direction: column; flex-wrap: nowrap; }

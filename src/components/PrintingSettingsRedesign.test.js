@@ -48,9 +48,11 @@ test('printing content renders three compact cards following the approved visual
     'Plataforma',
     'Estação principal',
     'Impressão automática',
-    'Impressora local \\(QZ Tray\\)',
-    'Status da impressora',
+    'Impressão nesta estação',
+    'Impressão do negócio',
+    'Status da impressão',
     'Impressora configurada',
+    'Estação responsável',
     'Testar impressão',
     'Trocar impressora',
   ]) assert.match(content, new RegExp(label))
@@ -69,7 +71,10 @@ test('printing redesign keeps policy station and local printer saves independent
 })
 
 test('queue-only devices stay honest while QZ devices expose physical printer controls', () => {
-  assert.match(content, /!isQz[\s\S]*Fila central/)
+  assert.match(content, /isQz \? 'Impressão nesta estação' : 'Impressão do negócio'/)
+  assert.match(content, /Esta estação acompanha a fila central e não realiza impressão física/)
+  assert.match(content, /derivePrintOperationalStatus/)
+  assert.match(content, /buildPrintOperationalView/)
   assert.match(content, /isQz[\s\S]*Trocar impressora/)
   assert.match(content, /canExecutePrinting[\s\S]*Testar impressão/)
   assert.match(content, /pendingCount/)

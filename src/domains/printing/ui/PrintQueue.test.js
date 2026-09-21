@@ -3,7 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import React, { useState } from 'react'
 import { act } from 'react-test-renderer'
-import { buildPrintQueueSummary, getPrintStationSummary } from './printQueueSummary.js'
+import { buildPrintQueueSummary } from './printQueueSummary.js'
 import { filterPrintQueueJobs, getPrintQueueSearchText, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { formatOrderCustomerIdentity } from '../../../../shared/orderPrintDocument.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
@@ -63,31 +63,17 @@ test('print queue summary uses the four server operational counters', () => {
   })
 })
 
-test('print station summary reports available health without inventing an online state', () => {
-  assert.deepEqual(getPrintStationSummary({
-    health: { online: true, qzReady: true, printerReady: false },
-  }), {
-    onlineLabel: 'Online',
-    qzLabel: 'QZ conectado',
-    printerLabel: 'Fila indisponível',
-  })
-  assert.deepEqual(getPrintStationSummary(null), {
-    onlineLabel: 'Status indisponível',
-    qzLabel: null,
-    printerLabel: null,
-  })
-})
-
-test('print queue renders station health and a responsive four-card summary', async () => {
+test('print queue renders operational status and a responsive four-card summary', async () => {
   const [app, page, styles] = await Promise.all([
     readSource('../../../App.jsx'),
     readSource('./PrintQueue.jsx'),
     readSource('./print-queue.css'),
   ])
 
-  for (const label of ['Cozinha PC', 'Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
+  for (const label of ['Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
     assert.match(page, new RegExp(label))
   }
+  assert.match(page, /print-queue-operational-card/)
   assert.match(app, /<PrintQueue orders=\{orders\} printing=\{printing\}/)
   assert.match(styles, /\.print-queue-summary[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
@@ -552,4 +538,210 @@ test('print queue warms adjacent pages so pagination can render cached jobs imme
   assert.match(page, /prefetchAdjacentPages/)
   assert.match(page, /pageInfo\.totalPages/)
   assert.match(page, /cacheKeyForQuery/)
+})
+
+
+test('task 2 queue source replaces local-station health with the shared operational projection', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /derivePrintOperationalStatus/)
+  assert.match(page, /buildPrintOperationalView/)
+  assert.match(page, /print-queue-operational-card/)
+  assert.doesNotMatch(page, /Cozinha PC/)
+  assert.doesNotMatch(page, /getPrintStationSummary/)
+  assert.doesNotMatch(page, /print-queue-station-card/)
+  assert.doesNotMatch(page, /!physicalReady && summary\.pending > 0/)
+  for (const label of ['Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
+    assert.match(page, new RegExp(label))
+  }
+})
+
+test('queue-only Android renders the healthy Windows primary instead of local QZ/offline state', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 3, awaitingConfirmation: 0, waitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  function ControlledPrintQueue(props) {
+    const [queryState, setQueryState] = useState(() => ({ ...DEFAULT_PRINT_QUEUE_QUERY }))
+    return React.createElement(PrintQueue, { ...props, queryState, onQueryChange: setQueryState })
+  }
+
+  const android = {
+    id: 'android-secondary',
+    name: 'PC Victor',
+    platform: 'android',
+    isPrimary: false,
+    health: { online: false, qzReady: false, printerReady: false, ready: false },
+  }
+  const primary = {
+    id: 'windows-primary',
+    name: 'Cozinha Windows',
+    platform: 'windows',
+    isPrimary: true,
+    physicalState: 'ready',
+    health: { online: true, qzReady: true, printerReady: true, ready: true },
+  }
+  const renderer = await harness.render(ControlledPrintQueue, {
+    printing: {
+      localStation: android,
+      stations: [android, primary],
+      transportKind: 'queue-only',
+      printerState: 'unsupported',
+      qzConnected: false,
+      configuredPrinterName: null,
+      printerQueueFound: false,
+      printerHealth: { state: 'verifying', ready: false },
+    },
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  const textContent = nodeText(renderer.root)
+
+  assert.match(textContent, /Impressão disponível/)
+  assert.match(textContent, /Gerenciada pela estação Cozinha Windows/)
+  assert.doesNotMatch(textContent, /QZ desconectado|Offline|Fila indisponível/)
+})
+
+test('remote primary offline with pending jobs explains the operational impact', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 3, awaitingConfirmation: 0, waitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  function ControlledPrintQueue(props) {
+    const [queryState, setQueryState] = useState(() => ({ ...DEFAULT_PRINT_QUEUE_QUERY }))
+    return React.createElement(PrintQueue, { ...props, queryState, onQueryChange: setQueryState })
+  }
+
+  const local = { id: 'android-secondary', name: 'PC Victor', platform: 'android', isPrimary: false }
+  const primary = {
+    id: 'windows-primary',
+    name: 'Cozinha Windows',
+    platform: 'windows',
+    isPrimary: true,
+    health: { online: false, qzReady: false, printerReady: false, ready: false },
+  }
+  const renderer = await harness.render(ControlledPrintQueue, {
+    printing: {
+      localStation: local,
+      stations: [local, primary],
+      transportKind: 'queue-only',
+      printerHealth: { state: 'verifying', ready: false },
+    },
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  const textContent = nodeText(renderer.root)
+
+  assert.match(textContent, /Estação de impressão indisponível/)
+  assert.match(textContent, /3 trabalhos aguardando a estação voltar/)
+})
+
+
+test('task 3 mobile hierarchy keeps operational status, summary emphasis and settings action queue-scoped', async () => {
+  const [page, styles] = await Promise.all([
+    readSource('./PrintQueue.jsx'),
+    readSource('./print-queue.css'),
+  ])
+
+  assert.match(page, /className=\{\`print-queue-summary-card/)
+  assert.match(page, /is-zero/)
+  assert.match(page, /has-value/)
+  assert.match(page, /has-attention/)
+  assert.match(page, /aria-label="Configurações, Impressão"/)
+
+  assert.match(styles, /\.print-queue-page\s*\{[^}]*max-width:\s*100%/)
+  assert.match(styles, /\.print-queue-operational-card\s*\{/)
+  for (const tone of ['success', 'warning', 'danger', 'neutral']) {
+    assert.match(styles, new RegExp(`\\.print-queue-operational-card\\.is-${tone}`))
+  }
+  assert.match(styles, /\.print-queue-summary-card\.is-zero/)
+  assert.match(styles, /\.print-queue-summary-card\.has-attention/)
+  assert.match(styles, /\.print-queue-summary-card \.stat-copy strong\s*\{[^}]*order:\s*-1/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-page > \.page-header\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 40px/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-page > \.page-header \.page-actions \.print-queue-settings-button\s*\{[^}]*width:\s*40px/)
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-summary\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
+
+  assert.doesNotMatch(styles, /\.print-queue-station-card/)
+  assert.doesNotMatch(styles, /\.print-queue-offline-banner/)
+  assert.doesNotMatch(styles, /(^|\n)\.page-actions \.button\s*\{[^}]*width:\s*40px/m)
+})
+
+
+test('task 5 preserves recovery controls, offline mutation guard, capabilities and terminal history', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /Recuperação de impressão em andamento/)
+  assert.match(page, /runRecoveryAction\('resume'\)/)
+  assert.match(page, /runRecoveryAction\('next'\)/)
+  assert.match(page, /Você está offline\. Reconecte para alterar a fila de impressão\./)
+  assert.match(page, /EXECUTE_ACTIONS/)
+  assert.match(page, /DISCARD_ACTIONS/)
+  assert.match(page, /canExecutePrinting/)
+  assert.match(page, /canDiscardPrinting/)
+  assert.ok(PRINT_QUEUE_STATUS_FILTERS.some(({ value, label }) => value === 'printed' && label === 'Impresso'))
+  assert.ok(PRINT_QUEUE_STATUS_FILTERS.some(({ value, label }) => value === 'discarded' && label === 'Descartado'))
+})
+
+test('task 5 settings shortcut remains a real accessible button with queue-scoped semantics', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 0, awaitingConfirmation: 0, waitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+  let opens = 0
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: { localStation: null, stations: [], printerHealth: { state: 'verifying' } },
+    onOpenPrintingSettings: () => { opens += 1 },
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+  const button = renderer.root.findAllByType('button').find((node) => node.props['aria-label'] === 'Configurações, Impressão')
+  assert.ok(button)
+  assert.equal(button.props.type, 'button')
+  assert.equal(typeof button.props.onClick, 'function')
+  await act(async () => button.props.onClick())
+  assert.equal(opens, 1)
+
+  const text = nodeText(renderer.root)
+  assert.doesNotMatch(text, /\bundefined\b|\bnull\b/)
+  assert.match(text, /Estação de impressão não configurada/)
+})
+
+
+test('QA regression: server awaitingSecondCopy summary renders an explicit zero for the second-copy card', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 3, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 8 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: { localStation: null, stations: [], printerHealth: { state: 'verifying' } },
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+  const summaryCards = renderer.root.findAll((node) => typeof node.props?.className === 'string' && node.props.className.includes('print-queue-summary-card'))
+  const secondCopyCard = summaryCards.find((card) => nodeText(card).includes('AGUARDANDO 2ª VIA') || nodeText(card).includes('Aguardando 2ª via'))
+  assert.ok(secondCopyCard)
+  assert.match(nodeText(secondCopyCard), /0/)
 })

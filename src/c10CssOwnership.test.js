@@ -22,12 +22,12 @@ const hashes = {
   'client-duplicate.css': '28fca2cef6d7d3efd625ac1ee714fe9d15b2334a4e0a6cbde8b7cd71cc9a7985',
   'product-form.css': 'b3864196ccdc1a074689a729ea75e34c601eb874e663cf0b2153b4fbc3dd86a1',
   'finance-mobile.css': '57fc021f88cc1bb69d82a0f3fff7d40de9366b2b9fe609436eb7041d8eaf7a22',
-  'print-queue.css': 'de48b856a0ae8890b3e2f23119da303400418eda3ff64fbe6b453d8bce27e575',
+  'print-queue.css': '597d9adaf73e30930ea46140a2704c96601e396bbe5a37302928986a21a1cad0',
 }
 
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8')
 
-test('C10 assigns legacy CSS to the owning surface without byte changes', () => {
+test('C10 keeps migrated CSS under the owning surface with approved byte snapshots', () => {
   const app = read('src/App.jsx')
 
   for (const [legacyName, ownerPath, consumerPath, importStatement] of surfaces) {

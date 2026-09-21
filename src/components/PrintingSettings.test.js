@@ -9,7 +9,7 @@ const adapter = await readFile(new URL('../app/surfaces/settings/printingSetting
 const css = await readFile(new URL('../domains/printing/ui/printing.css', import.meta.url), 'utf8')
 
 test('printing settings keep the three scoped responsibilities explicit in compact cards', () => {
-  for (const label of ['Política de impressão do negócio', 'Pedidos', 'Mesas / Comandas', 'Estação', 'Impressora local (QZ Tray)']) {
+  for (const label of ['Política de impressão do negócio', 'Pedidos', 'Mesas / Comandas', 'Estação', 'Impressão nesta estação', 'Impressão do negócio']) {
     assert.match(settings, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   }
   assert.equal((settings.match(/<section className="printing-settings-card/g) || []).length, 3)
@@ -44,17 +44,18 @@ test('automatic printing stays visible but disabled until this QZ station is pri
 })
 
 test('queue-only devices cannot expose physical or automatic printing controls', () => {
-  assert.match(settings, /!isQz[\s\S]*Fila central/)
+  assert.match(settings, /isQz \? 'Impressão nesta estação' : 'Impressão do negócio'/)
+  assert.match(settings, /Esta estação acompanha a fila central e não realiza impressão física/)
   assert.match(settings, /isQz && <label className="printing-switch-row"/)
   assert.match(settings, /isQz && \(canConfigureStation \|\| canExecutePrinting\)/)
   assert.match(settings, /isQz && canConfigureStation && printerEditing[\s\S]*<SystemSelect/)
   assert.match(settings, /canExecutePrinting && <Button[^>]*>[\s\S]*Testar impressão/)
 })
 
-test('physical status and pending attention remain visible without owning remote settings', () => {
-  for (const label of ['Pronta para imprimir', 'Verificando impressora…', 'Impressora desligada ou desconectada', 'Atenção necessária na impressora', 'QZ Tray indisponível', 'Impressora não encontrada']) {
-    assert.match(settings, new RegExp(label))
-  }
+test('operational status and pending attention remain visible without owning remote settings', () => {
+  assert.match(settings, /derivePrintOperationalStatus/)
+  assert.match(settings, /buildPrintOperationalView/)
+  assert.match(settings, /Status da impressão/)
   assert.match(settings, /pendingCount/)
   assert.match(settings, /awaitingConfirmationCount/)
   assert.match(settings, /trabalhos aguardando impressão/)

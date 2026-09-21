@@ -137,7 +137,7 @@ test('printing page renders three responsibilities and asks before electing the 
   assert.match(text, /Mesas \/ Comandas/)
   assert.match(text, /Estação/)
   assert.equal(screen.root.findByProps({ 'aria-label': 'Nome da estação' }).props.value, 'Caixa Windows')
-  assert.match(text, /Impressora local \(QZ Tray\)/)
+  assert.match(text, /Impressão nesta estação/)
   assert.match(text, /Apenas novas solicitações de impressão\. A fila existente mantém suas vias\./)
 
   const primarySwitch = screen.root.findAllByProps({ role: 'switch' })[0]
