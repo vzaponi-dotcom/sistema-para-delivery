@@ -553,3 +553,107 @@ test('print queue warms adjacent pages so pagination can render cached jobs imme
   assert.match(page, /pageInfo\.totalPages/)
   assert.match(page, /cacheKeyForQuery/)
 })
+
+
+test('task 2 queue source replaces local-station health with the shared operational projection', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+
+  assert.match(page, /derivePrintOperationalStatus/)
+  assert.match(page, /buildPrintOperationalView/)
+  assert.match(page, /print-queue-operational-card/)
+  assert.doesNotMatch(page, /Cozinha PC/)
+  assert.doesNotMatch(page, /getPrintStationSummary/)
+  assert.doesNotMatch(page, /print-queue-station-card/)
+  assert.doesNotMatch(page, /!physicalReady && summary\.pending > 0/)
+  for (const label of ['Aguardando impressão', 'Aguardando confirmação', 'Aguardando 2ª via', 'Requer atenção']) {
+    assert.match(page, new RegExp(label))
+  }
+})
+
+test('queue-only Android renders the healthy Windows primary instead of local QZ/offline state', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 3, awaitingConfirmation: 0, waitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  function ControlledPrintQueue(props) {
+    const [queryState, setQueryState] = useState(() => ({ ...DEFAULT_PRINT_QUEUE_QUERY }))
+    return React.createElement(PrintQueue, { ...props, queryState, onQueryChange: setQueryState })
+  }
+
+  const android = {
+    id: 'android-secondary',
+    name: 'PC Victor',
+    platform: 'android',
+    isPrimary: false,
+    health: { online: false, qzReady: false, printerReady: false, ready: false },
+  }
+  const primary = {
+    id: 'windows-primary',
+    name: 'Cozinha Windows',
+    platform: 'windows',
+    isPrimary: true,
+    physicalState: 'ready',
+    health: { online: true, qzReady: true, printerReady: true, ready: true },
+  }
+  const renderer = await harness.render(ControlledPrintQueue, {
+    printing: {
+      localStation: android,
+      stations: [android, primary],
+      transportKind: 'queue-only',
+      printerState: 'unsupported',
+      qzConnected: false,
+      configuredPrinterName: null,
+      printerQueueFound: false,
+      printerHealth: { state: 'verifying', ready: false },
+    },
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  const textContent = nodeText(renderer.root)
+
+  assert.match(textContent, /Impressão disponível/)
+  assert.match(textContent, /Gerenciada pela estação Cozinha Windows/)
+  assert.doesNotMatch(textContent, /QZ desconectado|Offline|Fila indisponível/)
+})
+
+test('remote primary offline with pending jobs explains the operational impact', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 3, awaitingConfirmation: 0, waitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  function ControlledPrintQueue(props) {
+    const [queryState, setQueryState] = useState(() => ({ ...DEFAULT_PRINT_QUEUE_QUERY }))
+    return React.createElement(PrintQueue, { ...props, queryState, onQueryChange: setQueryState })
+  }
+
+  const local = { id: 'android-secondary', name: 'PC Victor', platform: 'android', isPrimary: false }
+  const primary = {
+    id: 'windows-primary',
+    name: 'Cozinha Windows',
+    platform: 'windows',
+    isPrimary: true,
+    health: { online: false, qzReady: false, printerReady: false, ready: false },
+  }
+  const renderer = await harness.render(ControlledPrintQueue, {
+    printing: {
+      localStation: local,
+      stations: [local, primary],
+      transportKind: 'queue-only',
+      printerHealth: { state: 'verifying', ready: false },
+    },
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  const textContent = nodeText(renderer.root)
+
+  assert.match(textContent, /Estação de impressão indisponível/)
+  assert.match(textContent, /3 trabalhos aguardando a estação voltar/)
+})
