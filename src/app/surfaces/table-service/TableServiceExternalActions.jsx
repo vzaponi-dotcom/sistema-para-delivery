@@ -138,7 +138,7 @@ export default function TableServiceExternalActions({
         paymentOptions={paymentOptions}
         defaultPaymentMethod={defaultPaymentMethod}
         onClose={() => setPaymentIntent(null)}
-        onConfirm={(tableTabId, method) => onPay?.(tableTabId, method, paymentIntent) ?? false}
+        onConfirm={(tableTabId, allocations) => onPay?.(tableTabId, allocations, paymentIntent) ?? false}
       />
       {previewState && isCurrentOwner(previewState.owner) && (
         <Modal
