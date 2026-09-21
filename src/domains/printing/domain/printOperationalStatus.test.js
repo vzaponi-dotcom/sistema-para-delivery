@@ -292,3 +292,16 @@ test('task 5 edge-state matrix keeps unknown, secondary and local transient stat
     transportKind: 'queue-only',
   }).code, 'ready')
 })
+
+
+test('QA round 2: configured local primary stays QZ unavailable while reconnect health is transiently verifying', () => {
+  const result = deriveLocalPrimary({
+    printerState: 'verifying',
+    qzConnected: false,
+    configuredPrinterName: 'MPT-II',
+    printerQueueFound: true,
+    printerHealth: { state: 'verifying', ready: false },
+  })
+
+  assert.equal(result.code, 'qz_unavailable')
+})

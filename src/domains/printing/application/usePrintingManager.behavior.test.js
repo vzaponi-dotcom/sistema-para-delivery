@@ -479,3 +479,20 @@ test('QA regression: background QZ retries keep a configured disconnected statio
   )
   assert.match(block, /if \(!transportReadyRef\.current && !savedPrinterName\) setPrinterState\('connecting'\)/)
 })
+
+
+test('QA round 2: configured background reconnect publishes QZ connected only after printer resolution and monitor startup', () => {
+  const start = managerSource.indexOf('const resolveConfiguredQzPrinter = useCallback')
+  const end = managerSource.indexOf('const refreshPrinters = useCallback', start)
+  const block = managerSource.slice(start, end)
+
+  const connectIndex = block.indexOf('await qzTransport.connect()')
+  const resolveIndex = block.indexOf('qzReadinessRef.current.probe')
+  const monitorIndex = block.indexOf('await ensureQzStatusMonitor(resolvedPrinter)')
+  const publishConnectedIndex = block.indexOf('updateQzConnected(Boolean(qzTransport?.isConnected()))')
+
+  assert.ok(connectIndex >= 0)
+  assert.ok(resolveIndex > connectIndex)
+  assert.ok(monitorIndex > resolveIndex)
+  assert.ok(publishConnectedIndex > monitorIndex, 'configured reconnect must not publish transient QZ connected before the monitor is established')
+})
