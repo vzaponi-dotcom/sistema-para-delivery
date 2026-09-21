@@ -2,7 +2,7 @@
 
 > **Execution mode:** implement task-by-task with explicit RED → GREEN evidence. Do not collapse semantic-state work and visual polish into one unreviewable commit.
 
-**Status:** **APPROVED** — plano autorrevisado e aprovado explicitamente pelo usuário em 2026-09-20; execução autorizada a partir da preparação e Task 1
+**Status:** **TASKS 1–5 COMPLETE / GREEN; TASK 6 ACTIVE — staging dispatch + manual QA pending** — plano aprovado e execução em andamento, sem produção
 
 **Goal:** Fazer a Fila de impressão representar o estado operacional da estação principal do negócio, corrigir falsos estados de QZ/impressora em dispositivos queue-only e melhorar a hierarquia mobile, reutilizando a mesma projeção no terceiro card de Configurações → Impressão sem tocar no pipeline físico.
 
@@ -443,32 +443,32 @@ This task does **not** change how the manager derives those underlying runtime v
 
 ### Required edge cases
 
-- [ ] stations empty + local secondary → `no_primary`, not offline.
-- [ ] primary known but health absent → `verifying`.
-- [ ] primary online but readiness fields absent → `verifying`.
-- [ ] primary online + qz false → qz warning.
-- [ ] primary qz ready + printer not ready + no specific physical cause → generic printer unavailable.
-- [ ] local primary `connecting` does not flash “impressora não configurada”.
-- [ ] local primary `disconnected` reports QZ unavailable.
-- [ ] local primary QZ connected + no configured printer reports unconfigured.
-- [ ] local primary configured + printer health `printer_attention` reports printer unavailable/attention copy.
-- [ ] secondary offline is ignored while primary is ready.
-- [ ] pending=0 vs pending>0 changes urgency/helper but not canonical code.
-- [ ] recovery banner still renders and actions remain wired.
-- [ ] offline app mutation guard remains unchanged.
-- [ ] execute/discard capability guards remain unchanged.
-- [ ] history filters still include `Impresso` and `Descartado`.
-- [ ] settings gear retains keyboard/focus accessible button semantics.
-- [ ] status includes text, not color-only semantics.
-- [ ] no literal `undefined` / `null` leaks into UI copy.
+- [x] stations empty + local secondary → `no_primary`, not offline.
+- [x] primary known but health absent → `verifying`.
+- [x] primary online but readiness fields absent → `verifying`.
+- [x] primary online + qz false → qz warning.
+- [x] primary qz ready + printer not ready + no specific physical cause → generic printer unavailable.
+- [x] local primary `connecting` does not flash “impressora não configurada”.
+- [x] local primary `disconnected` reports QZ unavailable.
+- [x] local primary QZ connected + no configured printer reports unconfigured.
+- [x] local primary configured + printer health `printer_attention` reports printer unavailable/attention copy.
+- [x] secondary offline is ignored while primary is ready.
+- [x] pending=0 vs pending>0 changes urgency/helper but not canonical code.
+- [x] recovery banner still renders and actions remain wired.
+- [x] offline app mutation guard remains unchanged.
+- [x] execute/discard capability guards remain unchanged.
+- [x] history filters still include `Impresso` and `Descartado`.
+- [x] settings gear retains keyboard/focus accessible button semantics.
+- [x] status includes text, not color-only semantics.
+- [x] no literal `undefined` / `null` leaks into UI copy.
 
 ### Gates
 
-- [ ] `npm test`
-- [ ] `npm run test:architecture`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] Commit only actual hardening changes, if any; if no production changes are needed, use a test-only commit.
+- [x] `npm test`
+- [x] `npm run test:architecture`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] Commit only actual hardening changes, if any; if no production changes are needed, use a test-only commit.
 
 ---
 
@@ -484,12 +484,12 @@ This task does **not** change how the manager derives those underlying runtime v
 
 ### Before staging
 
-- [ ] Ensure branch is clean and pushed.
-- [ ] Ensure no migration/backend/Worker production behavior files were changed unexpectedly.
-- [ ] Compare branch against master and review changed-file list.
-- [ ] Confirm no compatibility facade or allowlist was introduced.
-- [ ] Confirm the exact code SHA under test.
-- [ ] Validate PR through **Validate application**:
+- [x] Ensure branch is clean and pushed.
+- [x] Ensure no migration/backend/Worker production behavior files were changed unexpectedly.
+- [x] Compare branch against master and review changed-file list.
+- [x] Confirm no compatibility facade or allowlist was introduced.
+- [x] Confirm the exact code SHA under test.
+- [x] Validate PR through **Validate application**:
   - npm tests;
   - frontend architecture;
   - lint;
@@ -498,12 +498,12 @@ This task does **not** change how the manager derives those underlying runtime v
   - Worker staging dry-run;
   - local D1 migrations;
   - Spec B D1 clean install/upgrade.
-- [ ] Require SUCCESS before staging.
+- [x] Require SUCCESS before staging.
 
 ### Staging
 
-- [ ] Deploy **staging only** through the project’s existing deployment procedure.
-- [ ] Record staging SHA/deployment id.
+- [ ] Deploy **staging only** through the project’s existing deployment procedure. **PENDING manual workflow_dispatch**
+- [ ] Record staging SHA/deployment id. Candidate branch prepared: `staging/print-queue-operational-ux` at `309fe9134d4dee499835782ef5e60afcfc974e90`.
 - [ ] Do not run production deploy or production migrations.
 
 ### Manual QA — Android / queue-only

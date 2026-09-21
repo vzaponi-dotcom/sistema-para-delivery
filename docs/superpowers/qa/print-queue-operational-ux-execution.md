@@ -32,8 +32,8 @@
 | 2 — Queue semantic integration | **COMPLETE / GREEN** | `13a1d4e7069332fac16f90bffa7b19aa694f6b2f` | `872701a573fa421e5ae2db43143fa0ca820d8ff1` | Shared operational view + primary-station Queue semantics; no executor changes |
 | 3 — Mobile visual hierarchy | **COMPLETE / GREEN** | `ec19a82b54310c3137a5b125b540595ccddc3fed` | `2d48030d1a9bce748766873dced5afb797281e5a` | Compact mobile header, operational tones, summary hierarchy; C10 CSS snapshot intentionally advanced |
 | 4 — Contextual Settings | **COMPLETE / GREEN** | `2a802691b476e931e5ccbbff4576c593fd53867c` | `dd9742c780f191ab1cbd1757ec964ba66b736433` | Queue-only shows business status; QZ keeps local physical controls; same resolver/view reused |
-| 5 — Regression hardening | PENDING | — | — | |
-| 6 — Closure + staging QA | PENDING | — | — | |
+| 5 — Regression hardening | **COMPLETE / GREEN** | n/a — existing behavior already implemented | `309fe9134d4dee499835782ef5e60afcfc974e90` | Test-only hardening commit; no production code changes required |
+| 6 — Closure + staging QA | **ACTIVE / BLOCKED ON STAGING DISPATCH + MANUAL QA** | — | — | Candidate branch prepared at exact Task 5 SHA |
 
 ## Task 1 evidence
 
@@ -186,6 +186,52 @@ Verified:
 - policy and station save boundaries remain independent;
 - no change was made to `printingSettingsAdapter.js`, manager APIs, QZ transport, Worker, D1 or printing execution state machines;
 - Settings and Queue now share one operational state tree and one semantic view mapping.
+
+
+
+## Task 5 evidence
+
+- Hardening commit: `309fe9134d4dee499835782ef5e60afcfc974e90`
+- This task required **tests only**; no production code change was necessary because Tasks 1–4 already satisfied the edge-state contract.
+- Validate #1571 / run `35553485328`: **SUCCESS**
+- Suite: **1,970 tests / 1,969 pass / 0 fail / 1 skipped**.
+- Architecture: **SUCCESS**
+- Lint: **SUCCESS**
+- Build: **SUCCESS**
+- Worker production dry-run: **SUCCESS**
+- Worker staging dry-run: **SUCCESS**
+- Local D1 migrations: **SUCCESS**
+- Spec B D1 clean install/upgrade: **SUCCESS**
+
+Hardening coverage explicitly confirms:
+
+- no-primary vs offline distinction;
+- missing/stale readiness remains `verifying`;
+- QZ unavailable, printer unavailable and printer attention remain distinct;
+- local startup does not flash a false unconfigured state;
+- secondary station health cannot degrade a healthy primary;
+- backlog affects urgency/helper without changing the canonical operational code;
+- recovery controls remain wired;
+- offline mutation guard remains present;
+- execute/discard capability guards remain present;
+- `Impresso` and `Descartado` history filters remain present;
+- settings shortcut remains an accessible real button;
+- operational state always has textual meaning, not color-only semantics;
+- Queue and contextual Settings do not leak literal `undefined` / `null` copy.
+
+## Task 6 pre-staging checkpoint
+
+- Exact runtime/test candidate SHA: `309fe9134d4dee499835782ef5e60afcfc974e90`.
+- Candidate branch: `staging/print-queue-operational-ux` → exact SHA above.
+- Feature branch was 0 commits behind master before staging preparation.
+- Changed-file review confirms **no Worker/backend/D1/migration/workflow production-behavior changes**.
+- No compatibility facade or migration allowlist introduced.
+- Pre-staging Validate #1571 is fully GREEN.
+- Production deploy: **NOT EXECUTED**.
+- Production migrations: **NOT EXECUTED**.
+- Staging deploy: **PENDING workflow_dispatch**.
+- Manual staging QA: **PENDING after deploy**.
+- C9 physical functional rows + P1–P20 remain `DEFERRED-PRODUCTION` and are not satisfied by this slice.
 
 
 ## Guardrails
