@@ -63,7 +63,8 @@ test('operational status and pending attention remain visible without owning rem
 
 test('Orders header keeps only the focused kitchen actions', () => {
   assert.doesNotMatch(orders, />Configurações</)
-  assert.match(orders, />Fila de impressão</)
+  assert.match(orders, /className="kitchen-print-queue-button"/)
+  assert.match(orders, />Fila de impressão\{activePrintJobs/)
   assert.match(orders, />Novo pedido</)
 })
 
