@@ -340,6 +340,7 @@ export const getPrintQueueSummary = async (db, businessId, now = new Date()) => 
   await purgeExpiredTerminalPrintJobs(db, businessId, at)
   const startOfToday = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate())).toISOString()
   const row = await db.prepare(`SELECT
+      SUM(CASE WHEN status NOT IN ('printed', 'discarded') THEN 1 ELSE 0 END) AS active,
       SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
       SUM(CASE WHEN status = 'awaiting_confirmation' THEN 1 ELSE 0 END) AS awaiting_confirmation,
       SUM(CASE WHEN status = 'awaiting_second_copy' THEN 1 ELSE 0 END) AS awaiting_second_copy,
@@ -353,6 +354,7 @@ export const getPrintQueueSummary = async (db, businessId, now = new Date()) => 
       ) THEN 1 ELSE 0 END) AS safe_backlog
     FROM print_jobs WHERE business_id = ?`).bind(startOfToday, businessId).first()
   return {
+    active: Number(row?.active || 0),
     pending: Number(row?.pending || 0),
     awaitingConfirmation: Number(row?.awaiting_confirmation || 0),
     awaitingSecondCopy: Number(row?.awaiting_second_copy || 0),

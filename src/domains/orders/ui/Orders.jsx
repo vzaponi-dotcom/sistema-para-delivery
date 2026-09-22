@@ -15,13 +15,14 @@ import { canReceiveStandaloneOrder } from '../domain/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 
 
-function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
+function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
   const writeDisabled = typeof navigator !== 'undefined' && !navigator.onLine
   const actionsDisabled = writeDisabled || pendingAction !== null
+  const activePrintJobs = Math.max(0, Math.floor(Number(printQueueActiveCount) || 0))
   const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search, currentTiming), [currentTiming, orders, now, search])
   const detailOrder = detailOrderId ? officialOrders.find((order) => order.id === detailOrderId) ?? null : null
   const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
@@ -80,7 +81,13 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                 <Icon name={soundEnabled ? 'volume-on' : 'volume-off'} size={17} />
                 <span>{soundEnabled ? 'Som ativado' : 'Som desligado'}</span>
               </button>}
-              {canViewPrintQueue && <Button type="button" variant="secondary" onClick={onNavigatePrintQueue}>Fila de impressão</Button>}
+              {canViewPrintQueue && <Button
+                type="button"
+                variant="secondary"
+                className="kitchen-print-queue-button"
+                aria-label={activePrintJobs > 0 ? `Fila de impressão, ${activePrintJobs} ${activePrintJobs === 1 ? 'job ativo' : 'jobs ativos'}` : 'Fila de impressão'}
+                onClick={onNavigatePrintQueue}
+              >Fila de impressão{activePrintJobs > 0 && <span className="kitchen-print-queue-badge" aria-hidden="true">{activePrintJobs > 99 ? '99+' : activePrintJobs}</span>}</Button>}
             </div>}
           </div>
         )}

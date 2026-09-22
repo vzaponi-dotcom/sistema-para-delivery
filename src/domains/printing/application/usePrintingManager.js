@@ -175,6 +175,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const [localStation, setLocalStation] = useState(null)
   const [stations, setStations] = useState([])
   const [jobs, setJobs] = useState([])
+  const [activeJobCount, setActiveJobCount] = useState(0)
   const [printerState, setPrinterState] = useState(supported ? 'unconfigured' : 'unsupported')
   const [printerBlocked, setPrinterBlocked] = useState(false)
   const [busyJobId, setBusyJobId] = useState(null)
@@ -352,6 +353,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     }
     setStations(nextStations)
     setJobs(nextJobs)
+    setActiveJobCount(Math.max(0, Number(summaryPayload?.summary?.active) || 0))
     setRecoveryPendingCount(Math.max(0, Number(summaryPayload?.summary?.safeBacklog) || 0))
     physicalJobFailureNotifier.synchronize(nextJobs)
     const stationId = localStationRef.current?.id
@@ -818,6 +820,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       updateLocalStation(null)
       setStations([])
       setJobs([])
+      setActiveJobCount(0)
       setAvailablePrinters([])
       portRef.current = null
       updateConfiguredPrinterName(null)
@@ -994,6 +997,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     localStation,
     stations,
     jobs,
+    activeJobCount,
     latestJobByOrderId,
     printerState,
     printerBlocked,

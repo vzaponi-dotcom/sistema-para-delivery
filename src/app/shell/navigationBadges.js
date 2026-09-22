@@ -6,6 +6,7 @@ const normalizedCount = (value) => {
 const copy = {
   orders: (count) => `${count} ${count === 1 ? 'pedido em andamento' : 'pedidos em andamento'}`,
   comandas: (count) => `${count} ${count === 1 ? 'comanda aberta' : 'comandas abertas'}`,
+  'print-queue': (count) => `${count} ${count === 1 ? 'job ativo' : 'jobs ativos'}`,
 }
 
 export const getNavigationBadge = (entry, badges = {}) => {
