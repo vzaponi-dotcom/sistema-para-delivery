@@ -358,3 +358,18 @@ The current policy is authoritative:
 - Physical P1–P20: **20 DEFERRED-PRODUCTION**.
 - Required pre-production rule: after C10, deploy the final release candidate to staging and execute all deferred functional rows plus P1–P20. Every one must PASS before production can be authorized.
 - Any hardware-round defect reopens implementation: write/adjust RED, implement GREEN, run full Validate, redeploy staging and repeat affected cases.
+
+## Final C9 hardware release gate — 2026-09-21
+
+The user completed all remaining hardware-dependent Printing tests on official staging #198 / run `35671044737`, executable SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`.
+
+- Deferred functional rows #12, #14–21, #24, #30 and #31: **12 PASS / 0 FAIL**.
+- Physical P1–P20: **20 PASS / 0 FAIL**.
+- Remaining `DEFERRED-PRODUCTION`: **0**.
+- Physical defects found: **0**.
+- Rework/redeploy required from this round: **no**.
+
+This supersedes the earlier production hard-block while preserving that earlier status as historical execution evidence.
+
+**C9 production release gate: PASS / CLEARED.**
+
