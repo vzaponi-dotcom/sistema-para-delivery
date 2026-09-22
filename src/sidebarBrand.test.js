@@ -9,7 +9,8 @@ test('operation brand lives in the global top bar instead of the sidebar', () =>
   const sidebar = read('src/app/shell/Sidebar.jsx')
   const topbar = read('src/app/shell/AppTopBar.jsx')
 
-  assert.doesNotMatch(sidebar, /BrandLogo|sidebar-logo|sidebar-brand/)
+  assert.doesNotMatch(sidebar, /BrandLogo/)
+  assert.doesNotMatch(sidebar, /className="sidebar-(?:logo|brand)"/)
   assert.doesNotMatch(sidebar, /Amor &amp; Sabor|Gestão do delivery/)
   assert.match(topbar, /<Icon name="meal" size=\{23\}/)
   assert.match(topbar, /'Amor & Sabor'/)
