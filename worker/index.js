@@ -19,6 +19,7 @@ import { validatePaymentAllocations } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
+import { handleKitchenTvAdminApi, handleKitchenTvPublicApi } from './kitchenTvApi.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -88,6 +89,9 @@ const authenticatedApi = async (request, env) => {
   if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
   const url = new URL(request.url)
   const context = await resolveRequestContext(env, session)
+
+  const kitchenTvResponse = await handleKitchenTvAdminApi(request, env, context, url)
+  if (kitchenTvResponse) return kitchenTvResponse
 
   const settingsResponse = await handleSettingsApi(request, env, context, url)
   if (settingsResponse) return settingsResponse
@@ -272,6 +276,8 @@ export const handleRequest = async (request, env) => {
     if (url.pathname === '/api/auth/login' && request.method === 'POST') return await login(request, env)
     if (url.pathname === '/api/auth/logout' && request.method === 'POST') return await logout(request, env)
     if (url.pathname === '/api/auth/session' && request.method === 'GET') return await sessionStatus(request, env)
+    const kitchenTvResponse = await handleKitchenTvPublicApi(request, env, url)
+    if (kitchenTvResponse) return kitchenTvResponse
     if (url.pathname.startsWith('/api/')) return await authenticatedApi(request, env)
     if (!env.ASSETS?.fetch) throw apiError(404, 'NOT_FOUND', 'Página não encontrada.')
     return env.ASSETS.fetch(request)
