@@ -290,11 +290,13 @@ Uma pessoa abrir a novidade no desktop não deve fazê-la desaparecer como lida 
 
 ### 9.2 Armazenamento
 
-Usar `localStorage` com chave namespaced e versionada por negócio, conceitualmente:
+Usar `localStorage` com chave namespaced e versionada por negócio, derivada do `businessId` autenticado, conceitualmente:
 
 ```text
-delivery-notifications:v1:amor-e-sabor
+delivery-notifications:v1:<businessId>
 ```
+
+Para Amor & Sabor, o valor atual resulta em `delivery-notifications:v1:amor-e-sabor`, mas a implementação não deve hardcodar esse identificador no módulo de notificações.
 
 O formato deve distinguir no mínimo:
 
@@ -316,10 +318,12 @@ Um dispositivo que inicializa a feature pela primeira vez não deve receber uma 
 
 Regra:
 
-- o release mais recente disponível é tratado como candidato ao aviso automático inicial;
-- releases anteriores permanecem acessíveis no histórico;
-- releases anteriores ao primeiro baseline do dispositivo não geram uma fila de modais automáticos;
-- após o baseline, qualquer novo ID adicionado ao catálogo volta a ser elegível como não lido/não apresentado.
+- na primeira inicialização do storage naquele dispositivo, o release mais recente disponível é o único candidato ao aviso automático inicial;
+- os releases mais antigos existentes naquele primeiro baseline são registrados como conhecidos, apresentados e lidos para não produzir uma falsa fila de pendências;
+- esses releases antigos continuam acessíveis no histórico, com aparência de lidos;
+- o release mais recente do baseline permanece não lido e não apresentado até seguir o fluxo normal do aviso;
+- após o baseline, qualquer novo ID adicionado ao catálogo nasce como conhecido apenas após ser detectado e permanece não lido/não apresentado até interação;
+- nunca abrir releases antigos em sequência apenas porque o dispositivo é novo.
 
 ## 10. Estados `presented` e `read`
 
@@ -582,43 +586,44 @@ Uma notificação inválida isolada não deve derrubar o shell. O catálogo deve
 ### Store/notificações
 
 10. catálogo ordena corretamente;
-11. estado é namespaced por negócio;
+11. estado é namespaced pelo `businessId` autenticado e não hardcoda Amor & Sabor;
 12. logout não apaga estado;
-13. fechar aviso automático marca `presented`, não `read`;
-14. `Entendi` marca ambos;
-15. abrir item pela Central marca `read`;
-16. item apresentado e não lido não reabre automaticamente;
-17. novo release posterior volta a abrir automaticamente;
-18. baseline inicial não cria sequência de releases antigos;
-19. IDs órfãos são limpos;
-20. falha de localStorage degrada sem quebrar a aplicação;
-21. lote inicial é 20;
-22. `Ver mais` adiciona 20;
-23. badge do sino usa `99+`.
+13. primeiro baseline marca releases antigos como conhecidos/apresentados/lidos e mantém somente o mais recente elegível para aviso;
+14. fechar aviso automático marca `presented`, não `read`;
+15. `Entendi` marca ambos;
+16. abrir item pela Central marca `read`;
+17. item apresentado e não lido não reabre automaticamente;
+18. novo release posterior volta a abrir automaticamente;
+19. baseline inicial não cria sequência de releases antigos nem contador artificialmente alto;
+20. IDs órfãos são limpos;
+21. falha de localStorage degrada sem quebrar a aplicação;
+22. lote inicial é 20;
+23. `Ver mais` adiciona 20;
+24. badge do sino usa `99+`.
 
 ### Shell/UI
 
-24. top bar existe em todas as telas internas;
-25. top bar não existe em login/checking/bootstrap loading/error;
-26. desktop mantém sidebar e top bar compacta;
-27. mobile mantém bottom navigation e top bar;
-28. menu AS não se apresenta como perfil pessoal;
-29. Configurações/Preferências respeitam resolução/capabilities existentes;
-30. clicar no atalho navega pelo controller oficial;
-31. menu e diálogos respondem a Escape/foco/outside click;
-32. Central desktop usa drawer;
-33. Central mobile usa BottomSheet;
-34. detalhe mobile troca lista/detalhe sem empilhar modal;
-35. temas claro e escuro mantêm contraste;
-36. badges possuem labels acessíveis.
+25. top bar existe em todas as telas internas;
+26. top bar não existe em login/checking/bootstrap loading/error;
+27. desktop mantém sidebar e top bar compacta;
+28. mobile mantém bottom navigation e top bar;
+29. menu AS não se apresenta como perfil pessoal;
+30. Configurações/Preferências respeitam resolução/capabilities existentes;
+31. clicar no atalho navega pelo controller oficial;
+32. menu e diálogos respondem a Escape/foco/outside click;
+33. Central desktop usa drawer;
+34. Central mobile usa BottomSheet;
+35. detalhe mobile troca lista/detalhe sem empilhar modal;
+36. temas claro e escuro mantêm contraste;
+37. badges possuem labels acessíveis.
 
 ### Regressão
 
-37. fluxos de Pedidos/Cozinha continuam com refresh existente;
-38. nenhuma chamada de rede nova é criada apenas pelo badge;
-39. login/logout continuam funcionais;
-40. navegação existente continua respeitando guards/capabilities;
-41. build, lint, architecture e suíte completa permanecem verdes.
+38. fluxos de Pedidos/Cozinha continuam com refresh existente;
+39. nenhuma chamada de rede nova é criada apenas pelo badge;
+40. login/logout continuam funcionais;
+41. navegação existente continua respeitando guards/capabilities;
+42. build, lint, architecture e suíte completa permanecem verdes.
 
 ## 20. Homologação manual
 
