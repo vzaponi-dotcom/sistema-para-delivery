@@ -627,3 +627,16 @@ The repository and current GitHub state are the source of truth for Spec C conti
 - Tasks 1–12: **COMPLETE / GREEN**. Active compatibility facades: **0**. Migration allowlists: **0**.
 - C9 functional rows #12, #14–21, #24, #30 and #31 and physical P1–P20 remain **DEFERRED-PRODUCTION** and continue as a hard production blocker. No physical PASS was inferred.
 - Production: **NO DEPLOY**. Merge: **NOT EXECUTED**. PR #54 remains open awaiting explicit authorization.
+
+## Production release closure — physical Printing QA — 2026-09-21
+
+Final release-gate evidence supplied by the user against official staging #198 / run `35671044737` (executable SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`):
+
+- C9 deferred functional rows #12, #14–21, #24, #30, #31: **12 PASS / 0 FAIL**;
+- C9 physical matrix P1–P20: **20 PASS / 0 FAIL**;
+- remaining `DEFERRED-PRODUCTION`: **0**;
+- hardware-round defects: **0**;
+- production hardware gate: **CLEARED**.
+
+This closes the final hardware-dependent blocker carried forward from C9 through C10. Earlier ledger entries remain historically accurate for their execution dates.
+
