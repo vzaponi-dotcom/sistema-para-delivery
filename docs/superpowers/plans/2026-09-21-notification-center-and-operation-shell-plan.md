@@ -512,6 +512,7 @@ git commit -m "feat: show operational navigation badges"
 **Interfaces:**
 - Produces:
   - `SYSTEM_NOTIFICATIONS: readonly Notification[]`
+  - `CURRENT_RELEASE: Notification`
   - `normalizeNotificationCatalog(items) -> Notification[]`
   - `notificationStorageKey(businessId) -> string | null`
   - `loadNotificationState({ storage, businessId, catalog }) -> NotificationState`
@@ -623,7 +624,7 @@ export const SYSTEM_NOTIFICATIONS = Object.freeze([
 ])
 ```
 
-`normalizeNotificationCatalog` must validate `id`, parseable `publishedAt`, non-empty `title` and `summary`, deduplicate by ID and sort descending by date then ID.
+`normalizeNotificationCatalog` must validate `id`, parseable `publishedAt`, non-empty `title` and `summary`, deduplicate by ID and sort descending by date then ID. Export `CURRENT_RELEASE = SYSTEM_NOTIFICATIONS[0]` so the operation menu can show current release information without reading `package.json.version`.
 
 - [ ] **Step 4: Implement storage reconciliation**
 
@@ -946,7 +947,7 @@ git commit -m "feat: add notification center experience"
 - Create: `src/app/shell/OperationMenu.test.js`
 - Create: `src/app/shell/AppTopBar.jsx`
 - Create: `src/app/shell/AppTopBar.test.js`
-- Modify: `src/app-top-bar.css`
+- Create: `src/app-top-bar.css`
 
 **Interfaces:**
 - Consumes: `useNavigation()`, `resolveNavigationEntry`, Task 6 `NotificationsEntryPoint`.
@@ -992,6 +993,21 @@ const deviceEntry = resolveNavigationEntry(
 ```
 
 Do not call `resolveDestination` with hardcoded capability checks.
+
+Import `CURRENT_RELEASE` from `../notifications/notificationCatalog.js`. The always-available `Sobre o Gestão Delivery` action opens the existing `Modal` with this exact information structure:
+
+```jsx
+<Modal title="Sobre o Gestão Delivery" onClose={closeAbout}>
+  <div className="operation-about-copy">
+    <strong>Gestão Delivery</strong>
+    <span>Operação atual: Amor &amp; Sabor</span>
+    <span>Atualização atual: {CURRENT_RELEASE.title}</span>
+    <span>{formatReleaseDate(CURRENT_RELEASE.publishedAt)}</span>
+  </div>
+</Modal>
+```
+
+Keep `formatReleaseDate` local and deterministic with `Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' })`.
 
 Use a trigger ref/root ref and the same outside-click pattern already used by `SystemSelect`. Escape calls `close()`, which restores focus with `requestAnimationFrame`.
 
@@ -1065,6 +1081,7 @@ git commit -m "feat: add global operation top bar"
 **Files:**
 - Modify: `src/app/shell/AppShell.jsx`
 - Modify: `src/app/shell/AppShell.test.js`
+- Modify: `src/app/shell/AppRoot.test.js`
 - Modify: `src/App.jsx`
 - Modify: `src/realtimeSyncRegression.test.js`
 - Modify: `src/actionCapabilities.test.js`
@@ -1112,6 +1129,8 @@ assert.match(app, /navigationBadges={{\s*orders:/)
 assert.match(app, /currentTiming={currentTiming}/)
 ```
 
+Extend `AppRoot.test.js` so checking, anonymous, bootstrap loading/error renders contain no `.app-topbar`, while the ready child path may contain it. This pins the spec rule that the utility bar exists only inside the authenticated ready shell.
+
 Keep the existing exact assertions:
 
 ```js
@@ -1124,7 +1143,7 @@ Also assert none of `AppTopBar.jsx`, `navigationBadges.js`, `comandaActivity.js`
 - [ ] **Step 3: Run RED**
 
 ```bash
-node --test src/app/shell/AppShell.test.js src/realtimeSyncRegression.test.js src/actionCapabilities.test.js
+node --test src/app/shell/AppShell.test.js src/app/shell/AppRoot.test.js src/realtimeSyncRegression.test.js src/actionCapabilities.test.js
 ```
 
 Expected: FAIL on missing AppShell props/top bar and App domain-count wiring.
@@ -1217,7 +1236,7 @@ Also prove a session without `comandas.view` has no Comandas entry/badge.
 - [ ] **Step 7: Run GREEN**
 
 ```bash
-node --test src/app/shell/AppShell.test.js src/realtimeSyncRegression.test.js src/actionCapabilities.test.js src/app/shell/NavigationBadgesUi.test.js
+node --test src/app/shell/AppShell.test.js src/app/shell/AppRoot.test.js src/realtimeSyncRegression.test.js src/actionCapabilities.test.js src/app/shell/NavigationBadgesUi.test.js
 ```
 
 Expected: PASS.
@@ -1225,7 +1244,7 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/app/shell/AppShell.jsx src/app/shell/AppShell.test.js src/App.jsx src/realtimeSyncRegression.test.js src/actionCapabilities.test.js
+git add src/app/shell/AppShell.jsx src/app/shell/AppShell.test.js src/app/shell/AppRoot.test.js src/App.jsx src/realtimeSyncRegression.test.js src/actionCapabilities.test.js
 git commit -m "feat: compose operation indicators in app shell"
 ```
 
@@ -1385,7 +1404,7 @@ Create `docs/superpowers/qa/notification-center-shell-qa.md` with:
 - Merge requires explicit authorization.
 ```
 
-During execution, replace the executable-SHA marker with the real SHA; this is evidence entry, not an implementation placeholder.
+During execution, write the exact verified SHA from `git rev-parse HEAD` into the evidence document before committing it.
 
 - [ ] **Step 3: Commit QA scaffold/evidence after automated gates**
 
