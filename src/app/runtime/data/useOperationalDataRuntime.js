@@ -50,6 +50,7 @@ export function useOperationalDataRuntime({
   ordersSyncEnabled = false,
   effectiveConfigVersion = null,
 } = {}) {
+  const [business, setBusiness] = useState(null)
   const [bootstrapEffectiveConfig, setBootstrapEffectiveConfig] = useState(null)
   const [bootstrapState, setBootstrapState] = useState('idle')
   const [products, setProducts] = useState([])
@@ -92,6 +93,7 @@ export function useOperationalDataRuntime({
     if (guard.canApply(token, 'tableTabs')) setTableTabs(Array.isArray(data?.tableTabs) ? data.tableTabs : [])
     if (guard.canApply(token, 'movements')) setMovements(Array.isArray(data?.movements) ? data.movements : [])
     if (guard.canApply(token, 'financeSettings')) setFinanceSettings(data?.financeSettings ?? null)
+    if (data?.business?.id && data?.business?.name) setBusiness(data.business)
     if (data?.effectiveBusinessConfig) setBootstrapEffectiveConfig(data.effectiveBusinessConfig)
     return receipt
   }, [commitTables])
@@ -207,6 +209,7 @@ export function useOperationalDataRuntime({
     ordersSyncInFlightRef.current = false
     officialRevisionRef.current = 0
     officialTablesRef.current = []
+    setBusiness(null)
     setBootstrapEffectiveConfig(null)
     setBootstrapState('idle')
     setClients([])
@@ -235,6 +238,7 @@ export function useOperationalDataRuntime({
   }, [bootstrapState, ordersSyncEnabled, refreshOrders])
 
   return useMemo(() => ({
+    business,
     bootstrapState,
     bootstrapEffectiveConfig,
     clients,
@@ -254,6 +258,7 @@ export function useOperationalDataRuntime({
     getOfficialTables: () => officialTablesRef.current,
   }), [
     applyOfficialEffects,
+    business,
     bootstrapEffectiveConfig,
     bootstrapState,
     clients,

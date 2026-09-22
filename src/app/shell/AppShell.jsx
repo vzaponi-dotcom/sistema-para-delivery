@@ -6,7 +6,7 @@ import AppTopBar from './AppTopBar.jsx'
 import { useNavigation } from '../navigation/NavigationContext.jsx'
 import { getMobilePageDirection } from '../navigation/resolution.js'
 
-function AppShell({ businessId, navigationBadges = {}, onLogout, logoutDisabled = false, children }) {
+function AppShell({ businessId, businessName, navigationBadges = {}, onLogout, logoutDisabled = false, children }) {
   const { activeTab } = useNavigation()
   const previousTab = useRef(activeTab)
   const contentRef = useRef(null)
@@ -20,7 +20,7 @@ function AppShell({ businessId, navigationBadges = {}, onLogout, logoutDisabled 
 
   return (
     <div className="app-shell">
-      <AppTopBar businessId={businessId} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+      <AppTopBar businessId={businessId} businessName={businessName} onLogout={onLogout} logoutDisabled={logoutDisabled} />
       <Sidebar badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
       <main className="app-main">
         <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>

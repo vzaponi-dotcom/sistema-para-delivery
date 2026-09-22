@@ -13,7 +13,9 @@ test('operation brand lives in the global top bar instead of the sidebar', () =>
   assert.doesNotMatch(sidebar, /className="sidebar-(?:logo|brand)"/)
   assert.doesNotMatch(sidebar, /Amor &amp; Sabor|Gestão do delivery/)
   assert.match(topbar, /<Icon name="meal" size=\{23\}/)
-  assert.match(topbar, /'Amor & Sabor'/)
+  assert.match(topbar, /businessName/)
+  assert.match(topbar, /operationName/)
+  assert.doesNotMatch(topbar, /'Amor & Sabor'/)
   assert.match(topbar, /'Gestão do delivery'/)
 })
 

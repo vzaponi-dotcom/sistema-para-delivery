@@ -4,9 +4,10 @@ import NotificationsEntryPoint from '../notifications/NotificationsEntryPoint.js
 import OperationMenu from './OperationMenu.jsx'
 import '../../app-top-bar.css'
 
-export default function AppTopBar({ businessId, onLogout, logoutDisabled = false }) {
+export default function AppTopBar({ businessId, businessName, onLogout, logoutDisabled = false }) {
   const mobile = useMediaQuery('(max-width: 820px)')
-  const brandTitle = mobile ? 'Gestão Delivery' : 'Amor & Sabor'
+  const operationName = String(businessName || '').trim() || 'Operação'
+  const brandTitle = mobile ? 'Gestão Delivery' : operationName
   const brandSubtitle = mobile ? 'Seu delivery no controle' : 'Gestão do delivery'
 
   return <header className="app-topbar">
@@ -19,7 +20,7 @@ export default function AppTopBar({ businessId, onLogout, logoutDisabled = false
     </div>
     <div className="app-topbar-actions">
       <NotificationsEntryPoint businessId={businessId} />
-      <OperationMenu onLogout={onLogout} logoutDisabled={logoutDisabled} />
+      <OperationMenu businessName={operationName} onLogout={onLogout} logoutDisabled={logoutDisabled} />
     </div>
   </header>
 }
