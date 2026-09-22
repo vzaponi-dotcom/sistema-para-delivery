@@ -1,11 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
+import * as dashboardAnalytics from '../app/surfaces/dashboard/dashboardAnalytics.js'
+const {
   buildDailySeries,
   calculatePeriodMetrics,
+  getMealsSold,
   getPaymentMix,
   getTopProducts,
-} from '../app/surfaces/dashboard/dashboardAnalytics.js'
+} = dashboardAnalytics
 import {
   filterOrdersByPeriod,
   getDashboardDateRange,
@@ -77,7 +79,7 @@ test('daily series keeps every selected day and zero-fills missing dates', () =>
   })
 })
 
-test('top products aggregate repeated product identities, sum quantities, sort, and limit to five', () => {
+test('top products return the ten highest quantities with identity aggregation and label tie-breaks', () => {
   const orders = [makeOrder({
     orderDate: '2026-09-02',
     items: [
@@ -87,6 +89,11 @@ test('top products aggregate repeated product identities, sum quantities, sort, 
       { productId: 'p4', name: 'Sobremesa', size: 'Un', quantity: 1 },
       { productId: 'p5', name: 'Água', size: '500ml', quantity: 1 },
       { productId: 'p6', name: 'Café', size: 'Un', quantity: 1 },
+      { productId: 'p7', name: 'Banana', quantity: 1 },
+      { productId: 'p8', name: 'Bolo', quantity: 1 },
+      { productId: 'p9', name: 'Doce', quantity: 1 },
+      { productId: 'p10', name: 'Empada', quantity: 1 },
+      { productId: 'p11', name: 'Zabaione', quantity: 1 },
     ],
   }), makeOrder({
     orderDate: '2026-09-01',
@@ -94,12 +101,40 @@ test('top products aggregate repeated product identities, sum quantities, sort, 
   })]
 
   const top = getTopProducts(orders, '7d', now)
-  assert.equal(top.length, 5)
+  assert.equal(top.length, 10)
   assert.deepEqual(top.slice(0, 3).map(({ label, quantity }) => ({ label, quantity })), [
     { label: 'Marmita P', quantity: 6 },
     { label: 'Marmita M', quantity: 4 },
     { label: 'Suco 500ml', quantity: 2 },
   ])
+  assert.deepEqual(top.slice(3).map(({ label }) => label), [
+    'Água 500ml', 'Banana', 'Bolo', 'Café Un', 'Doce', 'Empada', 'Sobremesa Un',
+  ])
+  assert.equal(top.some(({ label }) => label === 'Zabaione'), false)
+  assert.deepEqual(getTopProducts(orders, '7d', now, 3), top.slice(0, 3))
+})
+
+test('meals sold sums official and legacy category snapshots across order types', () => {
+  const orders = [
+    makeOrder({ type: 'Entrega', items: [
+      { category: 'Refeições', name: 'Prato', quantity: 3, product: { category: 'Bebidas' } },
+      { category: 'Bebidas', name: 'Suco', quantity: 4 },
+    ] }),
+    makeOrder({ type: 'Retirada', items: [
+      { category: 'Marmita', name: 'Marmita antiga', quantity: 2 },
+      { category: 'Refeicoes', name: 'Marmita Especial', quantity: 7 },
+      { category: 'refeições', name: 'Prato', quantity: 5 },
+    ] }),
+    makeOrder({ type: 'Local', tableId: 'mesa-1', items: [
+      { category: 'Refeições', name: 'Prato', quantity: 4 },
+      { category: 'Refeições', name: 'Outro prato', quantity: 1 },
+    ] }),
+    makeOrder({ status: 'Cancelado', items: [{ category: 'Refeições', quantity: 9 }] }),
+    makeOrder({ orderDate: '2026-08-26', items: [{ category: 'Refeições', quantity: 8 }] }),
+  ]
+
+  assert.equal(getMealsSold(orders, '7d', now), 10)
+  assert.equal(getMealsSold(orders, 'today', now), 10)
 })
 
 test('payment mix uses active sale movements once and filters by financial date', () => {

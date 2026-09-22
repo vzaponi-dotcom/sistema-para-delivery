@@ -10,6 +10,7 @@ const safeMoney = (value) => {
   return Number.isFinite(number) && number > 0 ? number : 0
 }
 const safeQuantity = (value) => Math.max(1, Math.trunc(Number(value) || 1))
+const MEAL_CATEGORIES = new Set(['Refeições', 'Marmita'])
 const dateLabel = (dateValue) => {
   const [, month, day] = String(dateValue).split('-')
   return `${day}/${month}`
@@ -40,7 +41,7 @@ export const buildDailySeries = (orders, period = '30d', now = new Date()) => {
   }))
 }
 
-export const getTopProducts = (orders, period = '30d', now = new Date(), limit = 5) => {
+export const getTopProducts = (orders, period = '30d', now = new Date(), limit = 10) => {
   const grouped = new Map()
   for (const order of filterOrdersByPeriod(orders, period, now)) {
     for (const item of getOrderItems(order)) {
@@ -54,6 +55,17 @@ export const getTopProducts = (orders, period = '30d', now = new Date(), limit =
   return [...grouped.values()]
     .sort((a, b) => b.quantity - a.quantity || a.label.localeCompare(b.label, 'pt-BR'))
     .slice(0, Math.max(0, Math.trunc(Number(limit) || 0)))
+}
+
+export const getMealsSold = (orders, period = '30d', now = new Date()) => {
+  let total = 0
+  for (const order of filterOrdersByPeriod(orders, period, now)) {
+    for (const item of getOrderItems(order)) {
+      if (!MEAL_CATEGORIES.has(item?.category)) continue
+      total += safeQuantity(item.quantity)
+    }
+  }
+  return total
 }
 
 export const getPaymentMix = (movements, period = '30d', now = new Date()) => {
