@@ -18,6 +18,7 @@ import DashboardPaymentMix from './DashboardPaymentMix.jsx'
 import {
   buildDailySeries,
   calculatePeriodMetrics,
+  getMealsSold,
   getPaymentMix,
   getTopProducts,
 } from './dashboardAnalytics.js'
@@ -62,13 +63,14 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
       metrics: calculatePeriodMetrics(orders, period, now),
       daily: buildDailySeries(orders, period, now),
       topProducts: getTopProducts(orders, period, now),
+      mealsSold: getMealsSold(orders, period, now),
       paymentMix: getPaymentMix(movements, period, now),
     }
   }, [movements, orders, period, todayValue])
 
   const displayMoney = (value) => valuesVisible ? currency(value) : MONEY_MASK
   const privacyLabel = valuesVisible ? 'Ocultar valores' : 'Mostrar valores'
-  const { metrics, daily, topProducts, paymentMix } = analytics
+  const { metrics, daily, topProducts, mealsSold, paymentMix } = analytics
 
   return (
     <>
@@ -105,10 +107,11 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
           <DashboardPeriodSelector value={period} onChange={setPeriod} />
         </div>
 
-        <div className="stats-grid stats-grid-three dashboard-period-stats">
+        <div className="stats-grid dashboard-period-stats">
           <StatCard label="Vendas no período" value={displayMoney(metrics.sales)} helper="Valor dos pedidos registrados" icon="receipt" tone="success" />
           <StatCard label="Pedidos no período" value={metrics.orderCount} helper="Quantidade de pedidos" icon="orders" />
           <StatCard label="Ticket médio" value={displayMoney(metrics.averageTicket)} helper="Venda média por pedido" icon="ticket" />
+          <StatCard label="Refeições vendidas" value={mealsSold} helper="Unidades da categoria Refeições" icon="meal" />
         </div>
       </section>
 
@@ -131,10 +134,10 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
 
         <article className="surface-card dashboard-chart-card">
           <div className="section-heading">
-            <div><span className="section-kicker">Produtos</span><h2>Top 5 produtos</h2></div>
+            <div><span className="section-kicker">Produtos</span><h2>Top 10 produtos</h2></div>
             <div className="section-meta">Por unidades vendidas</div>
           </div>
-          <DashboardBarChart data={topProducts} valueKey="quantity" labelKey="label" formatValue={(value) => `${value} un.`} orientation="horizontal" ariaLabel="Top 5 produtos por quantidade vendida" />
+          <DashboardBarChart data={topProducts} valueKey="quantity" labelKey="label" formatValue={(value) => `${value} un.`} orientation="horizontal" ariaLabel="Top 10 produtos por quantidade vendida" />
         </article>
 
         <article className="surface-card dashboard-chart-card">
