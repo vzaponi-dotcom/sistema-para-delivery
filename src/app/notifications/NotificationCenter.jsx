@@ -16,7 +16,7 @@ export default function NotificationCenter({ notifications, visibleCount, isRead
       {notifications.slice(0, visibleCount).map((item) => {
         const read = isRead(item.id)
         return <li key={item.id} className="notification-list-item">
-          <button type="button" className={read ? 'notification-item is-read' : 'notification-item is-unread'} aria-label={item.title} onClick={() => onOpen(item.id)}>
+          <button type="button" className={read ? 'notification-item is-read' : 'notification-item is-unread'} aria-label={`${item.title}, ${read ? 'lida' : 'n\u00e3o lida'}`} onClick={() => onOpen(item.id)}>
             <span className="notification-item-icon"><Icon name={item.type === 'release' ? 'bell' : 'details'} size={19} /></span>
             <span className="notification-item-copy">
               <strong>{item.title}</strong>

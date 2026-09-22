@@ -22,6 +22,9 @@ export const normalizeNotificationCatalog = (items = []) => {
       || typeof item.title !== 'string' || !item.title.trim()
       || typeof item.summary !== 'string' || !item.summary.trim()
       || typeof item.publishedAt !== 'string' || !Number.isFinite(Date.parse(item.publishedAt))) continue
+    if (item.sections !== undefined && (!Array.isArray(item.sections) || !item.sections.every((section) => section
+      && typeof section.title === 'string' && section.title.trim()
+      && typeof section.body === 'string' && section.body.trim()))) continue
     if (!byId.has(item.id)) byId.set(item.id, item)
   }
   return [...byId.values()].sort((left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt) || left.id.localeCompare(right.id))

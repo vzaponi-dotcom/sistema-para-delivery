@@ -46,6 +46,15 @@ test('invalid and duplicate catalog entries are ignored without crashing', () =>
   assert.equal(catalog[0].id, 'same')
 })
 
+test('invalid release sections are isolated from the renderable catalog', () => {
+  const catalog = normalizeNotificationCatalog([
+    { ...release('bad'), sections: [null] },
+    { ...release('also-bad'), sections: [{ title: 'Missing body' }] },
+    release('good'),
+  ])
+  assert.deepEqual(catalog.map((item) => item.id), ['good'])
+})
+
 test('persisted state prunes orphan IDs and discovers new releases unread', () => {
   const storage = memoryStorage({ 'delivery-notifications:v1:a': JSON.stringify({ version: 1, knownIds: ['old', 'orphan'], readIds: ['old', 'orphan'], presentedIds: ['old', 'orphan'] }) })
   const catalog = normalizeNotificationCatalog([release('new'), release('old', '2026-09-01T20:00:00-03:00')])
