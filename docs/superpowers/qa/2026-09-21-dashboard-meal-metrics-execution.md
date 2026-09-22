@@ -106,3 +106,16 @@ Result: **21 MANUAL PASS / 0 FAIL / 0 BLOCKED + 1 AUTOMATED PASS**.
 - PR #57 remains OPEN / DRAFT until final merge authorization.
 - **NO PRODUCTION DEPLOY.**
 - **MERGE NOT EXECUTED.**
+
+## Production release confirmation — 2026-09-21
+
+Issue #21 was included in the approved production release.
+
+- PR #57 merge commit: `a7a0a0dd01ddc965a5175da9229212059968744a`;
+- final production master after release-doc closure: `5540a9c11b17d028ff9e3126237e056949bae5e1`;
+- Deploy production #50 / run `35673385098`: **SUCCESS**;
+- production Worker version: `2e608341-b77a-472a-a432-978de02750e3`;
+- production login smoke: **HTTP 200**.
+
+Issue #21 is **CLOSED / COMPLETED** and the feature is now live in production.
+
