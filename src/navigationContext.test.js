@@ -203,6 +203,7 @@ test('App preserva consulta ao navegar e nova sessão rejeita callback da sessã
   await act(async () => buttonNamed(navigation(), 'Pedidos').props.onClick())
   assert.equal(kitchenSearch().props.value, 'maria')
 
+  await act(async () => renderer.root.findByProps({ className: 'operation-menu-trigger' }).props.onClick())
   await act(async () => buttonNamed(renderer.root, 'Sair do sistema').props.onClick())
   const pin = renderer.root.findByProps({ placeholder: 'Digite o PIN' })
   await act(async () => pin.props.onChange({ target: { value: '1234' } }))
