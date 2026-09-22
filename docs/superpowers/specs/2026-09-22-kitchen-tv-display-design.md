@@ -309,15 +309,15 @@ Gerar novo acesso deve invalidar qualquer link anterior e qualquer sessão TV an
 
 Formato conceitual:
 
-https://<host>/cozinha-tv?token=<segredo>
+https://<host>/cozinha-tv#token=<segredo>
 
-O token nunca deve permanecer na URL depois do pareamento bem-sucedido.
+O segredo deve viajar no fragmento da URL, não no query string. Fragmentos não são enviados ao servidor no request HTTP inicial e reduzem exposição em logs/referrers. O token nunca deve permanecer na URL depois do pareamento bem-sucedido.
 
 ### 8.5 Pareamento
 
 Ao abrir um link válido:
 
-1. frontend da TV envia o segredo ao endpoint de pareamento;
+1. frontend da TV lê o segredo de location.hash e envia ao endpoint de pareamento no corpo do POST;
 2. servidor compara hash;
 3. valida negócio, revogação e expiração;
 4. cria segredo de sessão TV independente;
