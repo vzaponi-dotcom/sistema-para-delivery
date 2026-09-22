@@ -606,3 +606,17 @@ C7 homologation handoff: master remains `5b101800fe29d02dd4543e184cca9e06d659a44
 - Spec C §28: **18 PASS / 0 FAIL / 0 PENDING**. Tasks 1–12: **COMPLETE / GREEN**. Compatibility facades and migration allowlists: **0**.
 - C9 functional rows #12/#14–21/#24/#30/#31 and physical P1–P20 remain **DEFERRED-PRODUCTION** and a hard pre-production gate; no physical PASS was inferred.
 - Production remains **NO DEPLOY**. PR #54 remains open; merge is **NOT EXECUTED** pending explicit authorization.
+
+## Final program production-readiness update — 2026-09-21
+
+The deferred C9 release gate required by §9 has now been executed on the current official staging release candidate #198 / run `35671044737`, SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`.
+
+- Functional rows #12/#14–21/#24/#30/#31: **12/12 PASS**.
+- Physical P1–P20: **20/20 PASS**.
+- Remaining deferred production rows: **0**.
+- Defects found in the hardware round: **0**.
+
+The exception that allowed C9/C10 architecture work to proceed without hardware access is therefore fully retired as a production blocker.
+
+**Spec C hardware pre-production gate: COMPLETE / GREEN.**
+
