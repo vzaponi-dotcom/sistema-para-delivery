@@ -14,7 +14,10 @@ function AppShell({ businessId, businessName, navigationBadges = {}, onLogout, l
 
   useEffect(() => {
     setPageDirection(getMobilePageDirection(previousTab.current, activeTab))
-    if (previousTab.current !== activeTab) contentRef.current?.focus?.()
+    if (previousTab.current !== activeTab) {
+      window?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' })
+      contentRef.current?.focus?.({ preventScroll: true })
+    }
     previousTab.current = activeTab
   }, [activeTab])
 
