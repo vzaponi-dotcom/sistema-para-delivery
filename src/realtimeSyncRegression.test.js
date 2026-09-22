@@ -10,6 +10,18 @@ const [app, runtime, onlineRuntime, newOrderDraft] = await Promise.all([
   read('./domains/orders/application/useNewOrderDraft.js'),
 ])
 
+test('operation indicators use domain selectors without new network or polling loops', async () => {
+  assert.match(app, /getOperationalOrderCount/)
+  assert.match(app, /getOpenComandaCount/)
+  assert.match(app, /businessId={sessionContext\?\.businessId/)
+  assert.match(app, /navigationBadges={{\s*orders:/)
+  assert.match(app, /currentTiming={currentTiming}/)
+  for (const path of ['./app/shell/AppTopBar.jsx', './app/shell/navigationBadges.js', './domains/table-service/domain/comandaActivity.js']) {
+    const source = await read(path)
+    assert.doesNotMatch(source, /setInterval|fetch\(|WebSocket|EventSource/)
+  }
+})
+
 test('App delegates official-data synchronization to the operational runtime', () => {
   assert.match(app, /useOperationalDataRuntime/)
   assert.match(app, /globalSyncEnabled: isOnline && authState === 'authenticated'/)

@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import '../../order-cancellation.css'
 import MobileNavigation from './MobileNavigation'
 import Sidebar from './Sidebar'
+import AppTopBar from './AppTopBar.jsx'
 import { useNavigation } from '../navigation/NavigationContext.jsx'
 import { getMobilePageDirection } from '../navigation/resolution.js'
 
-function AppShell({ onLogout, logoutDisabled = false, children }) {
+function AppShell({ businessId, navigationBadges = {}, onLogout, logoutDisabled = false, children }) {
   const { activeTab } = useNavigation()
   const previousTab = useRef(activeTab)
   const contentRef = useRef(null)
@@ -19,13 +20,14 @@ function AppShell({ onLogout, logoutDisabled = false, children }) {
 
   return (
     <div className="app-shell">
-        <Sidebar onLogout={onLogout} logoutDisabled={logoutDisabled} />
+        <Sidebar badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
         <main className="app-main">
+          <AppTopBar businessId={businessId} onLogout={onLogout} logoutDisabled={logoutDisabled} />
           <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>
             {children}
           </div>
         </main>
-        <MobileNavigation onLogout={onLogout} logoutDisabled={logoutDisabled} />
+        <MobileNavigation badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
     </div>
   )
 }
