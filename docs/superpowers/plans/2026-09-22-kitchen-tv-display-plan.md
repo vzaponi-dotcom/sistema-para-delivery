@@ -1480,6 +1480,17 @@ It does **not** authorize:
 
 ## 8. Implementation handoff note — 2026-09-22
 
+**This handoff note supersedes any Task 11/12 wording that tells the executor to deploy staging or claim manual/browser/TV QA as completed.**
+
+For this execution:
+- Task 11 means completing every automated/pre-staging gate that can be run locally, preparing the staging candidate, then performing the single final push and waiting for GitHub Validate.
+- Task 12 means closing the implementation evidence available at that point and preparing the manual staging QA matrix with browser/TV rows explicitly marked `PENDING-MANUAL`.
+- The executor must **not** dispatch staging.
+- The executor must **not** mark 1080p/720p/physical-TV/manual network checks as PASS without the product owner's evidence.
+- After GitHub CI is green, the product owner will deploy staging and perform the manual browser/TV homologation in a separate follow-up.
+- Merge and production remain later explicit gates.
+
+
 Product approved this plan.
 
 Execution protocol requested for Codex:
