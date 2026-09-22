@@ -33,4 +33,76 @@ The first local D1 attempt could not fetch Wrangler from npm inside the restrict
 
 No files changed in `worker/`, `migrations/`, Catalog, Finance, Table Service, printing, or QZ. No production deployment or merge was performed during local implementation.
 
-Remote CI, staging deployment, and user manual QA evidence will be recorded after those phases run. All visual scenarios remain `PENDING MANUAL USER QA`.
+## Remote CI
+
+- Validate application #1690 / run `35670838677`: **SUCCESS** on exact executable SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`.
+- 8/8 test shards: SUCCESS.
+- 2027 tests / 2026 pass / 0 fail / 1 skipped.
+- Frontend architecture: PASS.
+- Lint: PASS.
+- Build: PASS.
+- Production Worker dry-run: PASS.
+- Staging Worker dry-run: PASS.
+- Local D1: PASS.
+- Spec B D1 clean install/upgrade: PASS.
+
+## Official staging
+
+- Deploy staging #198 / run `35671044737`: **SUCCESS** on executable SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`.
+- Build: PASS.
+- Staging Worker dry-run: PASS.
+- No pending remote migration.
+- Deploy: PASS.
+- Worker version: `13c4d27c-b488-4655-9626-38906b739a12`.
+- Readiness: PASS on attempt 1/6.
+- Login smoke: HTTP 200.
+- Production untouched.
+
+## Guided manual QA closure
+
+Guided staging homologation was completed by the user on 2026-09-21.
+
+Result: **21 MANUAL PASS / 0 FAIL / 0 BLOCKED + 1 AUTOMATED PASS**.
+
+| # | Scenario | Result |
+| --- | --- | --- |
+| 1 | Dashboard opens without visual regression | PASS |
+| 2 | Refeições vendidas card is visible | PASS |
+| 3 | Today updates the counter | PASS |
+| 4 | 7 days updates the counter | PASS |
+| 5 | 30 days updates the counter | PASS |
+| 6 | One Refeições item contributes one unit | PASS |
+| 7 | Quantity greater than one contributes all units | PASS |
+| 8 | Mixed Refeição + Bebida counts only meals | PASS |
+| 9 | Local/table-tab order counts | PASS |
+| 10 | Bebidas/Adicionais do not increase meal count | PASS |
+| 11 | Legacy `Marmita` snapshot counts | PASS — automated coverage; no artificial legacy data created for manual QA |
+| 12 | Cancelled order does not participate | PASS |
+| 13 | Hiding monetary values keeps meal count visible | PASS |
+| 14 | Heading shows Top 10 produtos | PASS |
+| 15 | Positions beyond fifth are displayed when data exists | PASS |
+| 16 | Ranking remains sorted by quantity | PASS |
+| 17 | Quantities and labels remain legible | PASS |
+| 18 | Desktop displays four period cards correctly | PASS |
+| 19 | Mobile cards have no horizontal overflow | PASS |
+| 20 | Top 10 has no internal horizontal scrolling | PASS |
+| 21 | Light theme has no regression | PASS |
+| 22 | Dark theme has no regression | PASS |
+
+### Manual test notes
+
+- A controlled mixed order with two units of one `Refeições` product, one unit of another `Refeições` product, and two beverages increased the meal counter by exactly three; beverages did not contribute.
+- The same order remained included in 7-day and 30-day periods.
+- A Local/table-tab order with two meal units increased the metric by exactly two.
+- Cancelling the controlled meal order removed its three meal units and adjusted Top 10 accordingly.
+- More than five product positions were visible in the real staging dataset and ordering remained quantity-descending.
+- Mobile and desktop layouts, light/dark themes, period selector, privacy control, labels and quantities were all manually accepted.
+
+## Current closure state
+
+- Application executable remains the staging-homologated SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`.
+- No application correction was required during manual QA.
+- Issue #21 remains open until merge.
+- PR #57 remains OPEN / DRAFT until final merge authorization.
+- **NO PRODUCTION DEPLOY.**
+- **MERGE NOT EXECUTED.**
