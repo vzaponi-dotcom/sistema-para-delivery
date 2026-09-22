@@ -3,6 +3,7 @@ import { detectOperationalArrivals } from '../domains/orders/index.js'
 import { KitchenDisplayHttpError, readKitchenDisplayState } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
 import { bootstrapKitchenDisplay } from './kitchenDisplaySession.js'
+import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
 
 const defaultFullscreen = async () => {
   if (document.documentElement?.requestFullscreen) await document.documentElement.requestFullscreen()
@@ -137,17 +138,10 @@ export function KitchenDisplayApp({
   if (phase === 'unauthorized') return <main className="kds-shell"><h1>Painel não autorizado</h1><p>Gere um novo acesso no Gestão Delivery.</p></main>
   if (phase === 'start-required') return <main className="kds-shell"><button type="button" onClick={startPanel}>Iniciar painel da cozinha</button></main>
 
-  return <main className="kds-shell" data-stale={stale}>
-    <header>
-      <h1>Painel da cozinha ativo</h1>
-      <time dateTime={now.toISOString()}>{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
-    </header>
-    {stale && <p role="status">Dados temporariamente desatualizados{lastUpdatedAt ? ` · última atualização ${lastUpdatedAt.toLocaleTimeString('pt-BR')}` : ''}</p>}
-    {soundBlocked && <button type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
-    <section aria-label="Pedidos da cozinha">
-      {(snapshot?.orders || []).map((order) => <article key={order.id} data-order-id={String(order.id)} data-highlighted={highlightedIds.has(String(order.id))}>
-        Pedido {order.orderNumber || order.id}
-      </article>)}
-    </section>
+  return <main className="kds-shell kds-shell--live" data-stale={stale}>
+    <span className="kds-visually-hidden">Painel da cozinha ativo</span>
+    {stale && <p className="kds-last-updated">Dados temporariamente desatualizados{lastUpdatedAt ? ` · última atualização ${lastUpdatedAt.toLocaleTimeString('pt-BR')}` : ''}</p>}
+    {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
+    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} />
   </main>
 }

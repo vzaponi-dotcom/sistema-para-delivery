@@ -21,7 +21,7 @@ test('board renders normative header, six-card ceiling, overflow and empty state
   assert.match(text, /Atrasados0/)
   assert.match(text, /Agendados0/)
   assert.match(text, /\+ 1 pedido fora da tela/)
-  assert.equal(renderer.root.findAll((node) => node.props?.className?.includes('kds-card')).length, 6)
+  assert.equal(renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card')).length, 6)
 
   const empty = await h.render(KitchenDisplayBoard, { orders: [], timing, now, highlightedIds: new Set() })
   assert.match(nodeText(empty.root), /Nenhum pedido aguardando preparo\./)
