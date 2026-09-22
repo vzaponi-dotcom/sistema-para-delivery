@@ -1,27 +1,28 @@
-import { pairKitchenDisplay, readKitchenDisplayState } from './kitchenDisplayApi.js'
+import {
+  createKitchenDisplayPairingRequest,
+  readKitchenDisplayPairingStatus,
+  readKitchenDisplayState,
+} from './kitchenDisplayApi.js'
 
-export function readPairingToken(location = globalThis.location) {
-  const fragment = location?.hash?.startsWith('#') ? location.hash.slice(1) : ''
-  const token = new URLSearchParams(fragment).get('token')?.trim()
-  return token || null
-}
+const canRestartPairing = (error) => error?.status === 401 || error?.status === 410
 
 export async function bootstrapKitchenDisplay({
-  location = globalThis.location,
-  history = globalThis.history,
-  pair = pairKitchenDisplay,
   readState = readKitchenDisplayState,
+  readPairingStatus = readKitchenDisplayPairingStatus,
+  createPairingRequest = createKitchenDisplayPairingRequest,
 } = {}) {
-  const token = readPairingToken(location)
-  if (token) {
-    try {
-      await pair(token)
-    } catch (error) {
-      error.pairing = true
-      throw error
-    } finally {
-      history.replaceState(null, '', `${location.pathname || '/cozinha-tv'}${location.search || ''}`)
-    }
+  try {
+    return { kind: 'paired', state: await readState() }
+  } catch (error) {
+    if (error?.status !== 401 && error?.status !== 403) throw error
   }
-  return readState()
+
+  try {
+    const pairing = await readPairingStatus()
+    if (pairing?.paired) return { kind: 'paired', state: await readState() }
+    return { kind: 'pairing', pairing }
+  } catch (error) {
+    if (!canRestartPairing(error)) throw error
+    return { kind: 'pairing', pairing: await createPairingRequest() }
+  }
 }
