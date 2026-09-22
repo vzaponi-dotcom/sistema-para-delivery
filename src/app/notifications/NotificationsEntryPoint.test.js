@@ -126,3 +126,14 @@ test('mobile structured release keeps the existing sheet close flow without a ba
   assert.equal(buttonNamed(renderer.root, 'Voltar'), undefined)
   assert.equal(renderer.root.findByProps({ className: 'release-notes-list' }).type, 'ul')
 })
+
+
+test('automatic release notice omits the redundant one-time device message', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: catalog(1), storage: h.localStorage })
+
+  assert.ok(buttonNamed(renderer.root, 'Entendi'))
+  assert.ok(buttonNamed(renderer.root, 'Ver histórico'))
+  assert.doesNotMatch(nodeText(renderer.root), /Este aviso será exibido apenas uma vez neste dispositivo\./)
+})
