@@ -1472,3 +1472,34 @@ A descrição textual desta spec é normativa mesmo que o asset ainda não tenha
 A spec foi aprovada explicitamente pelo responsável do produto em 2026-09-22.
 
 Essa aprovação autoriza a escrita do plano detalhado de implementação. Não autoriza implementação automática, merge ou deploy de produção.
+
+
+## 39. Amendment — short-code TV-first pairing
+
+A homologação manual de 2026-09-22 mostrou que transferir um link secreto longo do celular para uma TV comum não é uma experiência aceitável. Esta emenda substitui, para a implementação final, qualquer seção anterior desta spec que descreva o pareamento por link `/cozinha-tv#token=...`.
+
+Fluxo normativo atualizado:
+
+1. a TV abre somente `/cozinha-tv`;
+2. se ainda não houver sessão TV válida, o backend cria uma solicitação temporária e devolve um código aleatório de 6 dígitos;
+3. a credencial real da solicitação fica em cookie temporário `HttpOnly`, `Secure`, `SameSite=Strict`;
+4. a TV exibe o código em tamanho grande e consulta o status aproximadamente a cada 2 s;
+5. em `Configurações > TV da Cozinha`, uma sessão com `orders.settings.manage` digita e aprova o código;
+6. o código sozinho não autentica nenhuma API pública e não entrega pedidos;
+7. depois da aprovação, a própria TV troca a solicitação temporária por sua sessão final restrita;
+8. a solicitação é consumida, o código expira em 30 minutos e refreshs seguintes usam somente a sessão final da TV;
+9. revogação invalida tanto sessão ativa quanto aprovação temporária ainda não consumida.
+
+A migration `0028_kitchen_tv_access.sql` permanece imutável. A evolução é aditiva em `0029_kitchen_tv_pairing_requests.sql`.
+
+Endpoints finais do frontend TV:
+
+- `POST /api/kitchen-tv/pairing-request`;
+- `GET /api/kitchen-tv/pairing-status`;
+- `GET /api/kitchen-tv/state`.
+
+Endpoint administrativo de aprovação:
+
+- `POST /api/kitchen-tv/approve`.
+
+Os antigos endpoints de link secreto não fazem parte do contrato final.
