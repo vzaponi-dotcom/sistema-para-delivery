@@ -32,7 +32,6 @@ function ScopedNotificationsEntryPoint({ businessId, catalog, storage }) {
     onOpen={openNotification}
     onLoadMore={() => setVisibleCount((count) => count + 20)}
     detailNotification={selected}
-    onBack={() => setSelectedId(null)}
     mobile={mobile}
   />
 

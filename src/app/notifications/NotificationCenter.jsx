@@ -3,9 +3,8 @@ import { ReleaseNotesContent } from './ReleaseNotesModal.jsx'
 
 const formatDate = (value) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(value))
 
-export default function NotificationCenter({ notifications, visibleCount, isRead, onOpen, onLoadMore, detailNotification, onBack, mobile = false }) {
+export default function NotificationCenter({ notifications, visibleCount, isRead, onOpen, onLoadMore, detailNotification, mobile = false }) {
   if (mobile && detailNotification) return <div className="notification-mobile-detail">
-    <button type="button" className="notification-back" onClick={onBack}>Voltar</button>
     <ReleaseNotesContent notification={detailNotification} />
   </div>
 
