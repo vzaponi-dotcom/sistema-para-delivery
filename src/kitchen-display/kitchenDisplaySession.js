@@ -64,8 +64,9 @@ export async function bootstrapKitchenDisplay({
   createPairingRequest = createKitchenDisplayPairingRequest,
 } = {}) {
   try {
+    const state = await readState()
     storageSet(storage, null)
-    return { kind: 'paired', state: await readState() }
+    return { kind: 'paired', state }
   } catch (error) {
     if (error?.status !== 401 && error?.status !== 403) throw error
   }
