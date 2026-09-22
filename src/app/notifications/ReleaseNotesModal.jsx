@@ -55,6 +55,5 @@ export default function ReleaseNotesModal({ notification, mode, onClose, onAckno
     </div> : undefined}
   >
     <ReleaseNotesContent notification={notification} showTitle={false} />
-    {automatic && <p className="release-notes-once">Este aviso será exibido apenas uma vez neste dispositivo.</p>}
   </Modal>
 }

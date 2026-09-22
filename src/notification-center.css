@@ -184,8 +184,7 @@
   line-height: 1.3;
 }
 
-.release-notes-item p,
-.release-notes-once {
+.release-notes-item p {
   color: var(--text-soft);
   line-height: 1.5;
 }
@@ -220,7 +219,6 @@
   background: var(--border);
 }
 
-.release-notes-once { margin-bottom: 0; font-size: 0.8rem; }
 .release-notes-actions { display: grid; gap: 8px; }
 .release-notes-actions .button { min-height: 44px; }
 
