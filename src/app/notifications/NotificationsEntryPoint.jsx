@@ -8,7 +8,12 @@ import NotificationCenter from './NotificationCenter.jsx'
 import ReleaseNotesModal from './ReleaseNotesModal.jsx'
 import '../../notification-center.css'
 
-export default function NotificationsEntryPoint({ businessId, catalog, storage }) {
+export default function NotificationsEntryPoint(props) {
+  if (!String(props.businessId || '').trim()) return null
+  return <ScopedNotificationsEntryPoint {...props} />
+}
+
+function ScopedNotificationsEntryPoint({ businessId, catalog, storage }) {
   const mobile = useMediaQuery('(max-width: 820px)')
   const { notifications, unreadCount, automaticNotification, isRead, markPresented, markRead } = useNotifications({ businessId, catalog, storage })
   const [centerOpen, setCenterOpen] = useState(false)

@@ -45,6 +45,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   const h = await workspaceHarness(t)
   const state = { copies: 1, revision: 1, requests: [], settingsWrites: 0, settingsSave: null, settingsStarted: null }
   globalThis.fetch = appApi(state)
+  h.localStorage.setItem('delivery-notifications:v1:amor-e-sabor', JSON.stringify({ version: 1, knownIds: ['release-2026-09-operation-shell'], presentedIds: ['release-2026-09-operation-shell'], readIds: ['release-2026-09-operation-shell'] }))
   const { default: App } = await h.load('/src/App.jsx')
   const renderer = await h.render(App, {}, {
     createNodeMock: (element) => element.props.role === 'combobox'

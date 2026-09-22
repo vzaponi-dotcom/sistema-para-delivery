@@ -17,6 +17,7 @@ test('C10 exposes only Orders contracts consumed outside the Orders domain', asy
     'formatCancellationDate',
     'formatOrderDate',
     'getDashboardDateRange',
+    'getOperationalOrderCount',
     'getOrderItemDisplayName',
     'getOrderItems',
     'getOrderItemsSearchText',

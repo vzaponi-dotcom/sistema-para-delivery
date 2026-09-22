@@ -9,6 +9,7 @@ test('table-service public contract exposes only real external consumers', () =>
       'Comandas',
       'LocalTableSelector',
       'Tables',
+      'getOpenComandaCount',
       'resolveOpenComanda',
       'useComandaSelection',
       'useTableServiceCommands',

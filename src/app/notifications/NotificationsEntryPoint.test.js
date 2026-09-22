@@ -66,3 +66,11 @@ test('bell visually caps unread count at 99+', async (t) => {
   assert.ok(buttonNamed(renderer.root, 'Notificações, 101 não lidas'))
   assert.equal(renderer.root.findByProps({ className: 'notification-bell-badge' }).children.join(''), '99+')
 })
+
+test('notification entry point waits for an authenticated business identity', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const renderer = await h.render(Entry, { catalog: catalog(1), storage: h.localStorage })
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.equal(renderer.root.findAllByProps({ className: 'notification-bell icon-button icon-button-neutral' }).length, 0)
+})
