@@ -3,7 +3,7 @@
 Data: 2026-09-22  
 Branch de design: feature/kitchen-tv-display-v2-design  
 Base: master em 7d5a9d2507968dd96dae81f5f1d61431a6e42292  
-Status: **APPROVED** pelo produto em 2026-09-22; plano de implementação em elaboração
+Status: **APPROVED** pelo produto em 2026-09-22; plano detalhado escrito e aguardando aprovação
 
 ## 1. Contexto e relação com documentos anteriores
 

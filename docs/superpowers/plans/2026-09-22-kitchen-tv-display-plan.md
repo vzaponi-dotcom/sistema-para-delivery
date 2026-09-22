@@ -4,7 +4,7 @@ Date: 2026-09-22
 Approved spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`  
 Design branch: `feature/kitchen-tv-display-v2-design`  
 Design base: `master@7d5a9d2507968dd96dae81f5f1d61431a6e42292`  
-Status: **READY FOR PRODUCT REVIEW — implementation not started**
+Status: **SELF-REVIEWED / AWAITING PRODUCT APPROVAL — implementation not started**
 
 ## 1. Goal
 
