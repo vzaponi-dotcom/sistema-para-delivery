@@ -640,3 +640,20 @@ Final release-gate evidence supplied by the user against official staging #198 /
 
 This closes the final hardware-dependent blocker carried forward from C9 through C10. Earlier ledger entries remain historically accurate for their execution dates.
 
+## Production deployment — 2026-09-21
+
+The final release was deployed to production after all architectural, staging, manual and physical Printing gates were green.
+
+- release master: `5540a9c11b17d028ff9e3126237e056949bae5e1`;
+- Validate application #1694 / run `35673095265`: **SUCCESS**;
+- Deploy production #50 / run `35673385098`: **SUCCESS**;
+- production suite: **2027 tests / 2026 pass / 0 fail / 1 skipped**;
+- production migrations `0026_split_payments.sql` and `0027_split_payments_hardening.sql`: **APPLIED / PASS**;
+- Worker version: `2e608341-b77a-472a-a432-978de02750e3`;
+- production login smoke: **HTTP 200**;
+- remaining `DEFERRED-PRODUCTION`: **0**.
+
+Authoritative release record: `docs/superpowers/qa/2026-09-21-production-release-execution.md`.
+
+**Spec C production release: COMPLETE / GREEN.**
+
