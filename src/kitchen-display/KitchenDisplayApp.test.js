@@ -19,7 +19,7 @@ test('successful bootstrap requires a gesture; start unlocks audio and survives 
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const events = []
   const renderer = await h.render(KitchenDisplayApp, {
-    bootstrap: async () => state(['existing']),
+    bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
     readState: async () => state(['existing']),
     audio: { unlock: async () => { events.push('audio'); return true }, playArrival: async () => true },
     requestFullscreen: async () => { events.push('fullscreen'); throw new Error('denied') },
@@ -37,7 +37,7 @@ test('live runtime polls only while visible and refreshes immediately on focus, 
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   let reads = 0
   const renderer = await h.render(KitchenDisplayApp, {
-    bootstrap: async () => state([]),
+    bootstrap: async () => ({ kind: 'paired', state: state([]) }),
     readState: async () => { reads += 1; return state([]) },
     audio: { unlock: async () => true, playArrival: async () => true },
     requestFullscreen: async () => {},
@@ -64,7 +64,7 @@ test('new arrivals alert once and highlight for exactly 2600ms; initial orders s
   let plays = 0
   const scheduled = []
   const renderer = await h.render(KitchenDisplayApp, {
-    bootstrap: async () => state(['existing']),
+    bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
     readState: async () => state(['existing', 'new-order']),
     audio: { unlock: async () => true, playArrival: async () => { plays += 1; return true } },
     requestFullscreen: async () => {},
@@ -88,7 +88,7 @@ test('transient failures preserve stale snapshot; 401 clears it and audio fallba
   const { KitchenDisplayHttpError } = await h.load('/src/kitchen-display/kitchenDisplayApi.js')
   const responses = [new Error('offline'), new KitchenDisplayHttpError(401, 'revoked')]
   const renderer = await h.render(KitchenDisplayApp, {
-    bootstrap: async () => state(['keep-me']),
+    bootstrap: async () => ({ kind: 'paired', state: state(['keep-me']) }),
     readState: async () => { throw responses.shift() },
     audio: { unlock: async () => false, playArrival: async () => false },
     requestFullscreen: async () => {},
@@ -104,13 +104,19 @@ test('transient failures preserve stale snapshot; 401 clears it and audio fallba
   assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'keep-me' }).length, 0)
 })
 
-test('pairing failure has a dedicated safe phase', async (t) => {
+test('unpaired TV shows a six-digit code and advances automatically after approval', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const renderer = await h.render(KitchenDisplayApp, {
-    bootstrap: async () => { const error = new Error('bad token'); error.pairing = true; throw error },
+    bootstrap: async () => ({ kind: 'pairing', pairing: { paired: false, code: '482731', expiresAt: '2026-09-22T20:30:00.000Z' } }),
+    readPairingStatus: async () => ({ paired: true }),
+    readState: async () => state([]),
     audio: { unlock: async () => true, playArrival: async () => true },
+    requestFullscreen: async () => {},
   })
   await flushEffects()
-  assert.match(nodeText(renderer.root), /Não foi possível configurar esta TV/)
+  assert.match(nodeText(renderer.root), /Conectar esta TV/)
+  assert.match(nodeText(renderer.root), /482 731/)
+  await act(async () => h.fireInterval(2000))
+  assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
 })
