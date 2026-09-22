@@ -10,7 +10,7 @@ import { resolveDestination } from '../../navigation/resolution.js'
 
 const allImplemented = new Set([
   'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments',
-  'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device',
+  'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])
 
 test('renders one operation card for timing and modalities even when the modalities deep link is implemented', async (t) => {
@@ -21,13 +21,14 @@ test('renders one operation card for timing and modalities even when the modalit
   const cards = screen.root.findByProps({ className: 'settings-home-grid' }).findAllByType('button')
   assert.deepEqual(cards.map((card) => card.props['aria-label']), [
     'Operação', 'Formas de pagamento', 'Motivos de cancelamento',
-    'Categorias financeiras', 'Impressão', 'Preferências deste dispositivo',
+    'Categorias financeiras', 'TV da Cozinha', 'Impressão', 'Preferências deste dispositivo',
   ])
   assert.deepEqual(cards.map((card) => nodeText(card)), [
     'OperaçãoTempos, modalidades e regras operacionais.',
     'Formas de pagamentoMétodos aceitos, ordem e padrão.',
     'Motivos de cancelamentoMotivos disponíveis ao cancelar pedidos.',
     'Categorias financeirasCategorias dos lançamentos manuais.',
+    'TV da CozinhaConecte uma TV para acompanhar os pedidos em tempo real.',
     'ImpressãoVias do negócio, estação e impressora local.',
     'Preferências deste dispositivoTema e som de novos pedidos.',
   ])
