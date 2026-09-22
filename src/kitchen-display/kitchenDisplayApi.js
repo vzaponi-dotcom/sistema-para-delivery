@@ -13,7 +13,7 @@ async function requestJson(path, init, fetchImpl) {
     let message = `Kitchen TV request failed (${response.status})`
     try {
       const payload = await response.json()
-      if (payload?.message) message = payload.message
+      if (payload?.error?.message || payload?.message) message = payload?.error?.message || payload.message
     } catch {
       // Status is the authoritative boundary when the server did not return JSON.
     }
@@ -22,10 +22,12 @@ async function requestJson(path, init, fetchImpl) {
   return response.json()
 }
 
-export const pairKitchenDisplay = (token, fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/pair', {
+export const createKitchenDisplayPairingRequest = (fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/pairing-request', {
   method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ token }),
+}, fetchImpl)
+
+export const readKitchenDisplayPairingStatus = (fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/pairing-status', {
+  method: 'GET',
 }, fetchImpl)
 
 export const readKitchenDisplayState = (fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/state', {
