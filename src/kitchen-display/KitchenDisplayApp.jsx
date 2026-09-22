@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectOperationalArrivals } from '../domains/orders/index.js'
-import { KitchenDisplayHttpError, readKitchenDisplayState } from './kitchenDisplayApi.js'
+import {
+  createKitchenDisplayPairingRequest,
+  KitchenDisplayHttpError,
+  readKitchenDisplayPairingStatus,
+  readKitchenDisplayState,
+} from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
 import { bootstrapKitchenDisplay } from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
@@ -12,9 +17,16 @@ const defaultFullscreen = async () => {
 const isDefinitive = (error) => error?.definitive === true
   || error instanceof KitchenDisplayHttpError && (error.status === 401 || error.status === 403)
 
+const formatPairingCode = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 6)
+  return digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits
+}
+
 export function KitchenDisplayApp({
   bootstrap = bootstrapKitchenDisplay,
   readState = readKitchenDisplayState,
+  readPairingStatus = readKitchenDisplayPairingStatus,
+  createPairingRequest = createKitchenDisplayPairingRequest,
   audio: suppliedAudio,
   requestFullscreen = defaultFullscreen,
   schedule = globalThis.setTimeout,
@@ -22,6 +34,7 @@ export function KitchenDisplayApp({
 }) {
   const audio = useMemo(() => suppliedAudio || createKitchenDisplayAudio(), [suppliedAudio])
   const [phase, setPhase] = useState('loading')
+  const [pairing, setPairing] = useState(null)
   const [snapshot, setSnapshot] = useState(null)
   const [now, setNow] = useState(() => new Date())
   const [stale, setStale] = useState(false)
@@ -65,17 +78,52 @@ export function KitchenDisplayApp({
       try {
         const initial = await bootstrap()
         if (!active) return
-        await applySnapshot(initial)
+        if (initial?.kind === 'pairing') {
+          setPairing(initial.pairing)
+          setPhase('pairing')
+          return
+        }
+        await applySnapshot(initial.state)
         if (active) setPhase('start-required')
-      } catch (error) {
+      } catch {
         if (!active) return
         setSnapshot(null)
-        setPhase(error?.pairing ? 'pairing-error' : isDefinitive(error) ? 'unauthorized' : 'pairing-error')
+        setPhase('pairing-error')
       }
     }
     void start()
     return () => { active = false }
   }, [applySnapshot, bootstrap])
+
+  useEffect(() => {
+    if (phase !== 'pairing') return undefined
+    let checking = false
+    const check = async () => {
+      if (checking) return
+      checking = true
+      try {
+        const next = await readPairingStatus()
+        if (next?.paired) {
+          await applySnapshot(await readState())
+          setPairing(null)
+          setPhase('start-required')
+        } else {
+          setPairing(next)
+        }
+      } catch (error) {
+        if (error?.status === 401 || error?.status === 410) {
+          try { setPairing(await createPairingRequest()) }
+          catch { setPhase('pairing-error') }
+        } else {
+          setPhase('pairing-error')
+        }
+      } finally {
+        checking = false
+      }
+    }
+    const poll = globalThis.setInterval(() => void check(), 2000)
+    return () => globalThis.clearInterval(poll)
+  }, [applySnapshot, createPairingRequest, phase, readPairingStatus, readState])
 
   const refresh = useCallback(async () => {
     try {
@@ -133,9 +181,18 @@ export function KitchenDisplayApp({
 
   const enableSound = async () => setSoundBlocked(!await audio.unlock())
 
-  if (phase === 'loading') return <main className="kds-shell"><p>Carregando painel da cozinha…</p></main>
-  if (phase === 'pairing-error') return <main className="kds-shell"><h1>Não foi possível configurar esta TV</h1><p>Gere um novo acesso no Gestão Delivery.</p></main>
-  if (phase === 'unauthorized') return <main className="kds-shell"><h1>Painel não autorizado</h1><p>Gere um novo acesso no Gestão Delivery.</p></main>
+  if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
+  if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
+  if (phase === 'pairing') return <main className="kds-shell">
+    <section className="kds-pairing-card" aria-label="Pareamento da TV da cozinha">
+      <p className="kds-pairing-kicker">Gestão Delivery</p>
+      <h1>Conectar esta TV</h1>
+      <p>Abra <strong>Configurações → TV da Cozinha</strong> no celular e digite o código abaixo.</p>
+      <strong className="kds-pairing-code" aria-label={`Código de pareamento ${pairing?.code || ''}`}>{formatPairingCode(pairing?.code)}</strong>
+      <p className="kds-pairing-help">O código é temporário e válido por até 30 minutos. Esta tela continuará automaticamente quando a conexão for autorizada.</p>
+    </section>
+  </main>
+  if (phase === 'unauthorized') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Painel não autorizado</h1><p>Atualize a página para conectar esta TV novamente.</p></section></main>
   if (phase === 'start-required') return <main className="kds-shell"><button type="button" onClick={startPanel}>Iniciar painel da cozinha</button></main>
 
   return <main className="kds-shell kds-shell--live" data-stale={stale}>
