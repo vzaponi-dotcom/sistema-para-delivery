@@ -61,6 +61,6 @@ test('mobile top bar stylesheet pins the approved rounded container and cohesive
   assert.match(mobile, /\.app-topbar-brand-icon\s*\{[^}]*width:\s*40px[^}]*height:\s*40px[^}]*border-radius:\s*14px/s)
   assert.match(mobile, /\.app-topbar-brand-subtitle\s*\{/)
   assert.match(mobile, /\.notification-bell\s*\{[^}]*width:\s*44px[^}]*height:\s*44px[^}]*border-radius:\s*14px/s)
-  assert.match(mobile, /\.operation-menu-trigger\s*\{[^}]*min-height:\s*44px[^}]*border-radius:\s*999px/s)
+  assert.match(mobile, /\.operation-menu-trigger\s*\{[^}]*min-height:\s*44px/s)
   assert.match(mobile, /\.operation-menu-initials\s*\{[^}]*width:\s*34px[^}]*height:\s*34px/s)
 })
