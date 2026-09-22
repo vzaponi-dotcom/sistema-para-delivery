@@ -22,7 +22,7 @@ test('Kitchen TV production source stays read-only and isolated behind public bo
 
   const api = sources.find(([file]) => file === 'kitchenDisplayApi.js')[1]
   assert.deepEqual([...api.matchAll(/['"](\/api\/[^'"]+)['"]/g)].map((match) => match[1]).sort(), [
-    '/api/kitchen-tv/pair', '/api/kitchen-tv/state',
+    '/api/kitchen-tv/pairing-request', '/api/kitchen-tv/pairing-status', '/api/kitchen-tv/state',
   ])
 })
 
