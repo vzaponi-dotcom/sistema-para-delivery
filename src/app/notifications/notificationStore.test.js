@@ -55,6 +55,44 @@ test('invalid release sections are isolated from the renderable catalog', () => 
   assert.deepEqual(catalog.map((item) => item.id), ['good'])
 })
 
+test('current release exposes reusable icon title and description items', () => {
+  const [releaseItem] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+
+  assert.deepEqual(releaseItem.items, [
+    {
+      icon: 'orders',
+      title: 'Pedidos e Comandas em andamento',
+      description: 'Os menus agora mostram quantos pedidos precisam de acompanhamento e quantas comandas estão abertas.',
+    },
+    {
+      icon: 'notifications',
+      title: 'Central de notificações',
+      description: 'O novo sino reúne novidades do sistema e mantém o histórico disponível neste dispositivo.',
+    },
+    {
+      icon: 'layout',
+      title: 'Nova barra superior',
+      description: 'A barra superior reúne notificações e atalhos da operação sem ocupar a área principal de trabalho.',
+    },
+  ])
+})
+
+test('legacy sections normalize into renderable items without weakening new item validation', () => {
+  const [legacy] = normalizeNotificationCatalog([{
+    ...release('legacy'),
+    sections: [{ title: 'Melhoria', body: 'Detalhe da melhoria' }],
+  }])
+  const invalidNew = normalizeNotificationCatalog([{
+    ...release('invalid-new'),
+    items: [{ icon: 'bell', title: 'Sem descrição', description: '' }],
+  }])
+
+  assert.deepEqual(legacy.items, [
+    { icon: 'details', title: 'Melhoria', description: 'Detalhe da melhoria' },
+  ])
+  assert.deepEqual(invalidNew, [])
+})
+
 test('persisted state prunes orphan IDs and discovers new releases unread', () => {
   const storage = memoryStorage({ 'delivery-notifications:v1:a': JSON.stringify({ version: 1, knownIds: ['old', 'orphan'], readIds: ['old', 'orphan'], presentedIds: ['old', 'orphan'] }) })
   const catalog = normalizeNotificationCatalog([release('new'), release('old', '2026-09-01T20:00:00-03:00')])

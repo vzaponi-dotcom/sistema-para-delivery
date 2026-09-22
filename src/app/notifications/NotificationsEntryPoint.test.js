@@ -12,6 +12,18 @@ const catalog = (count) => Array.from({ length: count }, (_, index) => ({
   sections: [{ title: 'Melhoria', body: 'Detalhe da melhoria' }],
 }))
 
+const structuredRelease = {
+  id: 'release-structured',
+  type: 'release',
+  publishedAt: '2026-09-21T20:00:00-03:00',
+  title: 'Novidades do Gestão Delivery',
+  summary: 'Resumo editorial da release.',
+  items: [
+    { icon: 'orders', title: 'Pedidos em andamento', description: 'Acompanhe pedidos que ainda precisam de atenção.' },
+    { icon: 'unknown-future-icon', title: 'Novidade futura', description: 'Continua legível mesmo com ícone desconhecido.' },
+  ],
+}
+
 test('desktop bell shows unread count, paginates 20 at a time and opens detail', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
@@ -86,4 +98,31 @@ test('center item labels announce whether each notification is read', async (t) 
   const items = renderer.root.findAllByProps({ className: 'notification-list-item' })
   assert.match(items[0].findByType('button').props['aria-label'] || '', /Release 2.*n\u00e3o lida/i)
   assert.match(items[1].findByType('button').props['aria-label'] || '', /Release 1.*lida/i)
+})
+
+test('release notes render structured items as a semantic list with configured and fallback icons', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: [structuredRelease], storage: h.localStorage })
+
+  assert.ok(buttonNamed(renderer.root, 'Fechar'))
+  const list = renderer.root.findByProps({ className: 'release-notes-list' })
+  assert.equal(list.type, 'ul')
+  const items = list.findAllByType('li')
+  assert.equal(items.length, 2)
+  assert.match(nodeText(items[0]), /Pedidos em andamento.*Acompanhe pedidos que ainda precisam de atenção\./)
+  assert.match(nodeText(items[1]), /Novidade futura.*Continua legível mesmo com ícone desconhecido\./)
+  assert.equal(items[0].findByProps({ className: 'release-notes-item-icon' }).props['data-icon'], 'orders')
+  assert.equal(items[1].findByProps({ className: 'release-notes-item-icon' }).props['data-icon'], 'details')
+  assert.equal(items.flatMap((item) => item.findAllByType('svg')).length, 2)
+})
+
+test('mobile structured release keeps the existing sheet close flow without a back action', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: [structuredRelease], storage: h.localStorage })
+
+  assert.ok(buttonNamed(renderer.root, 'Fechar'))
+  assert.equal(buttonNamed(renderer.root, 'Voltar'), undefined)
+  assert.equal(renderer.root.findByProps({ className: 'release-notes-list' }).type, 'ul')
 })
