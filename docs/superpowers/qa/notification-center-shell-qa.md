@@ -2,8 +2,7 @@
 
 ## Final product state
 
-- Final executable SHA: `37a16a79fbb8766059cdcc01f5b1512100cdde01`
-- Final product commit: `style: refine premium desktop sidebar`
+- Final executable SHA: `84ca50252a786e1ad90d9f790fdd9d7dddaa652c`
 - Pull request: #61
 - Production: **NOT DEPLOYED**
 - Merge: **NOT AUTHORIZED**
@@ -12,17 +11,17 @@
 
 Final GitHub Actions evidence:
 
-- Validate #1731 / run `35762073662`: **SUCCESS**
+- Validate #1738 / run `35770425761`: **SUCCESS**
 - 8/8 test shards: **SUCCESS**
 - aggregated `validate` job: **SUCCESS**
 
 The final validation ran against the exact executable SHA above.
 
-The feature remained migration-free. Later polish cycles preserved the previously approved application, worker, architecture, lint, build and D1 gates while adding focused RED → GREEN coverage for navigation, badges, notification behavior and desktop sidebar layout.
+The feature remained migration-free. Later polish cycles preserved the previously approved application, worker, architecture, lint, build and D1 gates while adding focused RED → GREEN coverage for navigation, badges, notification behavior, reusable release notes and desktop sidebar layout.
 
 ## Manual staging QA
 
-Manual homologation was completed cumulatively in staging from #200 through #208.
+Manual homologation was completed cumulatively in staging from #200 through #212.
 
 ### Notifications
 
@@ -34,8 +33,20 @@ Manual homologation was completed cumulatively in staging from #200 through #208
 - [x] Logout/login on the same device preserves local notification state.
 - [x] Desktop Notification Center: PASS.
 - [x] Mobile Notification Center: PASS.
-- [x] Mobile detail uses the BottomSheet close action; the former large `Voltar` button was intentionally removed.
+- [x] Mobile detail uses the BottomSheet close action; the former large `Voltar` button remains removed.
 - [x] Closing detail and reopening the Center returns to the list with the notification already read.
+
+### Reusable release notes presentation
+
+- [x] Minimalist premium release-notes layout approved on desktop.
+- [x] Release summary, semantic item list, configured icons, fallback icon and subtle dividers approved.
+- [x] Release notes render from structured catalog data without release-specific JSX changes.
+- [x] Light and dark themes approved.
+- [x] Mobile wrapping/responsiveness approved without horizontal overflow.
+- [x] Release-note icon container is vertically centered against multi-line copy.
+- [x] Redundant “Este aviso será exibido apenas uma vez neste dispositivo.” copy is removed.
+- [x] `Entendi` and `Ver histórico` remain unchanged.
+- [x] Presented/read persistence behavior remains unchanged.
 
 ### Global top bar and operation identity
 
@@ -71,21 +82,14 @@ Print queue:
 
 ### Navigation and sidebar polish
 
-Staging #206:
 - [x] Changing tabs resets the content scroll to the top.
 - [x] Sidebar follows light/dark theme.
 - [x] Configurações and Sair do sistema are absent from the sidebar and remain available from the top-bar operation menu.
-- [x] Print-queue counter behavior approved.
-- [x] Mobile regression pass.
-
-Staging #208 / final SHA `37a16a79fbb8766059cdcc01f5b1512100cdde01`:
-- [x] Desktop groups retain compact natural height and no longer stretch vertically.
+- [x] Desktop groups retain compact natural height and do not stretch vertically.
 - [x] Premium group hierarchy/dividers approved.
 - [x] Badge sits above the icon with the approved subtle offset.
 - [x] Badge does not sit between icon and text.
 - [x] Text alignment is identical for rows with and without badges.
-- [x] Light theme: PASS.
-- [x] Dark theme: PASS.
 - [x] Mobile remains visually unchanged: PASS.
 
 ## Final QA status
@@ -94,7 +98,8 @@ Staging #208 / final SHA `37a16a79fbb8766059cdcc01f5b1512100cdde01`:
 - Staging deployment: **PASS**
 - Manual desktop QA: **PASS**
 - Manual mobile QA: **PASS**
-- Final staging: **#208**
-- Final executable SHA: `37a16a79fbb8766059cdcc01f5b1512100cdde01`
+- Final staging: **#212**
+- Final staging run: `35770758391`
+- Final executable SHA: `84ca50252a786e1ad90d9f790fdd9d7dddaa652c`
 - Production: **NOT DEPLOYED**
 - Merge requires explicit authorization.
