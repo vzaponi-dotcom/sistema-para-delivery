@@ -79,3 +79,24 @@ button { font: inherit; }
   .kds-card__main { min-height: 38px; margin: 7px 0; }
   .kds-card__notes { min-height: 34px; padding-top: 6px; }
 }
+
+
+.kds-pairing-card {
+  width: min(760px, calc(100vw - 64px));
+  display: grid;
+  justify-items: center;
+  gap: clamp(16px, 2vh, 26px);
+  padding: clamp(32px, 5vw, 64px);
+  border: 1px solid var(--kds-line);
+  border-radius: 24px;
+  background: var(--kds-panel);
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .28);
+}
+
+.kds-pairing-card h1 { margin: 0; font-size: clamp(2.2rem, 4vw, 4rem); }
+.kds-pairing-card p { max-width: 620px; margin: 0; color: var(--kds-muted); font-size: clamp(1.1rem, 1.7vw, 1.55rem); line-height: 1.5; }
+.kds-pairing-card p strong { color: var(--kds-text); }
+.kds-pairing-kicker { color: var(--kds-blue) !important; font-size: clamp(.9rem, 1vw, 1.1rem) !important; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.kds-pairing-code { padding: .2em .45em; color: var(--kds-text); font-size: clamp(4rem, 9vw, 8rem); font-weight: 900; letter-spacing: .11em; line-height: 1; font-variant-numeric: tabular-nums; }
+.kds-pairing-help { font-size: clamp(.9rem, 1.2vw, 1.1rem) !important; }
