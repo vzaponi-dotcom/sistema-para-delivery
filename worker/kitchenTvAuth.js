@@ -1,7 +1,9 @@
 const TOKEN_BYTES = 32
 const PAIRING_TTL_MS = 30 * 60 * 1000
 const KITCHEN_TV_COOKIE_NAME = 'kitchen_tv_session'
+const KITCHEN_TV_PAIRING_COOKIE_NAME = 'kitchen_tv_pairing_request'
 const KITCHEN_TV_SESSION_MAX_AGE_SECONDS = 180 * 24 * 60 * 60
+const KITCHEN_TV_PAIRING_MAX_AGE_SECONDS = 30 * 60
 const encoder = new TextEncoder()
 
 const bytesToBase64Url = (bytes) => {
@@ -12,10 +14,25 @@ const bytesToBase64Url = (bytes) => {
 
 const bytesToHex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 
+const cookieValue = (request, name) => {
+  const header = request.headers.get('cookie') || ''
+  for (const part of header.split(';')) {
+    const [rawName, ...rawValue] = part.trim().split('=')
+    if (rawName === name) return rawValue.join('=') || null
+  }
+  return null
+}
+
 export const createKitchenTvToken = (cryptoApi = crypto) => {
   const bytes = new Uint8Array(TOKEN_BYTES)
   cryptoApi.getRandomValues(bytes)
   return bytesToBase64Url(bytes)
+}
+
+export const createKitchenTvPairingCode = (cryptoApi = crypto) => {
+  const values = new Uint32Array(1)
+  cryptoApi.getRandomValues(values)
+  return String(values[0] % 1_000_000).padStart(6, '0')
 }
 
 export const hashKitchenTvToken = async (token) => {
@@ -37,13 +54,13 @@ export const kitchenTvSessionCookie = (token, maxAgeSeconds = KITCHEN_TV_SESSION
 export const clearKitchenTvSessionCookie = () =>
   `${KITCHEN_TV_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
 
-export const readKitchenTvSessionToken = (request) => {
-  const header = request.headers.get('cookie') || ''
-  for (const part of header.split(';')) {
-    const [rawName, ...rawValue] = part.trim().split('=')
-    if (rawName === KITCHEN_TV_COOKIE_NAME) return rawValue.join('=') || null
-  }
-  return null
-}
+export const kitchenTvPairingRequestCookie = (token, maxAgeSeconds = KITCHEN_TV_PAIRING_MAX_AGE_SECONDS) =>
+  `${KITCHEN_TV_PAIRING_COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`
+
+export const clearKitchenTvPairingRequestCookie = () =>
+  `${KITCHEN_TV_PAIRING_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
+
+export const readKitchenTvSessionToken = (request) => cookieValue(request, KITCHEN_TV_COOKIE_NAME)
+export const readKitchenTvPairingRequestToken = (request) => cookieValue(request, KITCHEN_TV_PAIRING_COOKIE_NAME)
 
 export const KITCHEN_TV_SESSION_MAX_AGE = KITCHEN_TV_SESSION_MAX_AGE_SECONDS
