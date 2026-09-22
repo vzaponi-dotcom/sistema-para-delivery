@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
@@ -25,22 +26,35 @@ async function render(t, { granted = new Set(['orders.settings.manage']), state 
   return { h, screen, calls }
 }
 
-test('generates and copies a fragment-only one-time pairing link', async (t) => {
+test('generated access prioritizes copy, masks the secret and keeps the fragment contract', async (t) => {
   const { screen, calls } = await render(t)
   await act(async () => buttonNamed(screen.root, 'Gerar acesso da TV').props.onClick())
   const text = nodeText(screen.root)
-  assert.match(text, /Link de uso único/)
-  assert.match(text, /cozinha-tv#token=one-time/)
-  assert.ok(buttonNamed(screen.root, 'Copiar link'))
-  assert.ok(buttonNamed(screen.root, 'Gerar novo acesso'))
+  assert.match(text, /Link pronto para pareamento/)
+  assert.match(text, /cozinha-tv#token=••••••••/)
+  assert.doesNotMatch(text, /token=one-time/)
+  const copy = buttonNamed(screen.root, 'Copiar link')
+  const regenerate = buttonNamed(screen.root, 'Gerar novo link')
+  assert.match(copy.props.className, /button-primary/)
+  assert.match(regenerate.props.className, /button-secondary/)
+  assert.match(text, /Gerar outro link invalida este acesso/)
   assert.deepEqual(calls, ['generate'])
+})
+
+test('pairing layout contains long unbroken content on mobile instead of widening the page', async () => {
+  const css = await readFile(new URL('./kitchenTvSettings.css', import.meta.url), 'utf8')
+  assert.match(css, /\.kitchen-tv-settings-page[\s\S]*min-width:\s*0/)
+  assert.match(css, /\.kitchen-tv-access-card[\s\S]*min-width:\s*0/)
+  assert.match(css, /\.kitchen-tv-link-box[\s\S]*overflow:\s*hidden/)
+  assert.match(css, /\.kitchen-tv-link-box code[\s\S]*text-overflow:\s*ellipsis/)
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.kitchen-tv-actions[\s\S]*flex-direction:\s*column/)
 })
 
 test('view-only access sees status without mutation controls', async (t) => {
   const { screen } = await render(t, { granted: new Set(['orders.settings.view']), state: paired })
   assert.match(nodeText(screen.root), /TV da cozinha ativa/)
   assert.match(nodeText(screen.root), /Somente leitura/)
-  assert.equal(buttonNamed(screen.root, 'Gerar novo acesso'), undefined)
+  assert.equal(buttonNamed(screen.root, 'Gerar novo link'), undefined)
   assert.equal(buttonNamed(screen.root, 'Revogar acesso'), undefined)
 })
 
@@ -49,7 +63,7 @@ test('persisted pending pairing remains visible after reload without disclosing 
   const text = nodeText(screen.root)
   assert.match(text, /Aguardando pareamento/)
   assert.doesNotMatch(text, /TV ainda não configurada|cozinha-tv#token=/)
-  assert.equal(buttonNamed(screen.root, 'Gerar novo acesso'), undefined)
+  assert.equal(buttonNamed(screen.root, 'Gerar novo link'), undefined)
 })
 
 test('paired manager confirms revocation before removing access', async (t) => {

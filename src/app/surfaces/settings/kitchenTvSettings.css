@@ -1,0 +1,253 @@
+.kitchen-tv-settings-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 1040px;
+  overflow-x: clip;
+}
+
+.kitchen-tv-settings-page .page-header,
+.kitchen-tv-settings-page .page-header-copy {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.kitchen-tv-settings-page .page-description {
+  max-width: 680px;
+}
+
+.kitchen-tv-access-card {
+  width: min(100%, 760px);
+  min-width: 0;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.kitchen-tv-state-heading {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.kitchen-tv-state-heading > div {
+  min-width: 0;
+}
+
+.kitchen-tv-state-heading h2 {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: clamp(1.25rem, 3vw, 1.55rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.kitchen-tv-kicker {
+  margin: 0;
+  color: var(--primary);
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.kitchen-tv-status-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.kitchen-tv-status-dot.is-pending {
+  background: var(--warning);
+  box-shadow: 0 0 0 5px var(--warning-soft);
+}
+
+.kitchen-tv-status-dot.is-active {
+  background: var(--success);
+  box-shadow: 0 0 0 5px var(--success-soft);
+}
+
+.kitchen-tv-intro {
+  max-width: 620px;
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.kitchen-tv-link-box {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+.kitchen-tv-link-label {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.kitchen-tv-link-box code {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .88rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.kitchen-tv-link-box small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.kitchen-tv-expiry {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.kitchen-tv-expiry span {
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 650;
+}
+
+.kitchen-tv-expiry strong {
+  min-width: 0;
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.kitchen-tv-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.kitchen-tv-actions .button {
+  min-width: 0;
+}
+
+.kitchen-tv-actions.is-pairing .button-primary {
+  flex: 1 1 230px;
+}
+
+.kitchen-tv-actions.is-pairing .button-secondary {
+  flex: 0 1 auto;
+}
+
+.kitchen-tv-action-help {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.45;
+}
+
+.kitchen-tv-status-list {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0;
+}
+
+.kitchen-tv-status-list > div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.kitchen-tv-status-list dt {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.kitchen-tv-status-list dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+  font-weight: 750;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.kitchen-tv-feedback {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .kitchen-tv-settings-page {
+    overflow-x: hidden;
+  }
+
+  .kitchen-tv-access-card {
+    width: 100%;
+    gap: 16px;
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
+
+  .kitchen-tv-link-box {
+    padding: 13px 14px;
+  }
+
+  .kitchen-tv-link-box code {
+    font-size: .82rem;
+  }
+
+  .kitchen-tv-expiry,
+  .kitchen-tv-status-list > div {
+    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .kitchen-tv-expiry {
+    display: grid;
+  }
+
+  .kitchen-tv-expiry strong,
+  .kitchen-tv-status-list dd {
+    text-align: left;
+  }
+
+  .kitchen-tv-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .kitchen-tv-actions .button,
+  .kitchen-tv-actions.is-pairing .button-primary,
+  .kitchen-tv-actions.is-pairing .button-secondary {
+    width: 100%;
+    flex: none;
+  }
+}
