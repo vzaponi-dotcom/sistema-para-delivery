@@ -414,6 +414,9 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
   ])
   const pageTypes = [...pageModules.map((module) => module.default), tableService.Tables, tableService.Comandas]
   assert.equal(pageTypes.reduce((count, Component) => count + renderer.root.findAllByType(Component).length, 0), 0)
+  const operationMenu = renderer.root.findByProps({ className: 'operation-menu-trigger' })
+  assert.ok(operationMenu)
+  await act(async () => operationMenu.props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Sair do sistema'))
 })
 
