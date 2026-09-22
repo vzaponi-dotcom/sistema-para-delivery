@@ -52,8 +52,9 @@
 - `src/app/shell/OperationMenu.jsx` / test — `AS` menu, navigation shortcuts, about surface, logout.
 - `src/app/shell/AppTopBar.jsx` / test — global authenticated utility bar composition.
 - `src/app/shell/AppShell.jsx` / test — place top bar inside main shell and distribute badge props.
-- `src/app-top-bar.css` — top bar, operation menu and shell badge styling.
-- `src/mobile-navigation.css` — only the mobile navigation badge positioning needed by the existing bottom nav.
+- `src/navigation-badges.css` — shared desktop/mobile operational-badge positioning and visual treatment.
+- `src/app-top-bar.css` — top bar and operation-menu styling.
+- `src/mobile-navigation.css` — existing bottom-nav layout; modify only if badge fit needs a mobile-specific adjustment.
 - `src/shared/ui/Icon.jsx` — add bell/logout icons if absent.
 
 ### Notification ownership
@@ -63,7 +64,7 @@
 - `src/app/notifications/useNotifications.js` / test — React state wrapper around the pure store.
 - `src/app/notifications/NotificationCenter.jsx` — list, incremental 20-item window and mobile inline detail.
 - `src/app/notifications/ReleaseNotesModal.jsx` — automatic release notice and desktop detail modal body.
-- `src/app/notifications/NotificationsEntryPoint.jsx` / test — bell, unread badge, desktop drawer/mobile sheet, detail orchestration.
+- `src/app/notifications/NotificationsEntryPoint.jsx` / test — bell, unread badge, desktop drawer/mobile sheet, detail orchestration; accepts optional `catalog`/`storage` injection for deterministic tests.
 - `src/notification-center.css` — drawer, list/detail, unread and responsive styling.
 - `src/shared/ui/Modal.jsx` — optional backdrop class for right-side drawer placement without duplicating focus/scroll-lock behavior.
 - `src/bottomSheet.test.js` — preserve shared modal accessibility while adding the optional class.
@@ -353,7 +354,7 @@ git commit -m "feat: expose open comanda count"
 - Create: `src/app/shell/NavigationBadgesUi.test.js`
 - Modify: `src/app/shell/Sidebar.jsx`
 - Modify: `src/app/shell/MobileNavigation.jsx`
-- Modify: `src/app-top-bar.css`
+- Create: `src/navigation-badges.css`
 - Modify: `src/mobile-navigation.css`
 
 **Interfaces:**
@@ -482,7 +483,7 @@ const badge = getNavigationBadge(item, badges)
 
 Do not derive counts or statuses inside these components.
 
-Add CSS so the badge anchors to the icon and does not change nav-item width/height. Use existing `--primary`, `--surface`, `--text`/contrast tokens.
+Import `../../navigation-badges.css` from both navigation components (Vite will deduplicate the stylesheet). Add CSS so the badge anchors to the icon and does not change nav-item width/height. Use existing `--primary`, `--surface`, `--text`/contrast tokens.
 
 - [ ] **Step 7: Run GREEN**
 
@@ -495,7 +496,7 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/app/shell/navigationBadges.js src/app/shell/navigationBadges.test.js src/app/shell/NavigationBadgesUi.test.js src/app/shell/Sidebar.jsx src/app/shell/MobileNavigation.jsx src/app-top-bar.css src/mobile-navigation.css
+git add src/app/shell/navigationBadges.js src/app/shell/navigationBadges.test.js src/app/shell/NavigationBadgesUi.test.js src/app/shell/Sidebar.jsx src/app/shell/MobileNavigation.jsx src/navigation-badges.css src/mobile-navigation.css
 git commit -m "feat: show operational navigation badges"
 ```
 
@@ -759,7 +760,7 @@ git commit -m "feat: manage notification read state"
 
 **Interfaces:**
 - Consumes: Task 5 hook; existing `BottomSheet`, `Modal`, `useMediaQuery('(max-width: 820px)')`.
-- Produces: `<NotificationsEntryPoint businessId />`, fully owning bell/open/list/detail/automatic-notice UI state.
+- Produces: `<NotificationsEntryPoint businessId catalog? storage? />`, fully owning bell/open/list/detail/automatic-notice UI state; production callers pass only `businessId`.
 
 - [ ] **Step 1: Write RED for optional Modal backdrop class**
 
@@ -1234,6 +1235,7 @@ git commit -m "feat: compose operation indicators in app shell"
 
 **Files:**
 - Create: `src/appShellNotificationsRegression.test.js`
+- Modify: `src/navigation-badges.css`
 - Modify: `src/app-top-bar.css`
 - Modify: `src/notification-center.css`
 - Modify: `src/mobile-navigation.css` only if the regression exposes a real mobile issue.
@@ -1293,7 +1295,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/appShellNotificationsRegression.test.js src/app-top-bar.css src/notification-center.css src/mobile-navigation.css
+git add src/appShellNotificationsRegression.test.js src/navigation-badges.css src/app-top-bar.css src/notification-center.css src/mobile-navigation.css
 git commit -m "test: harden notification shell responsiveness"
 ```
 
@@ -1342,7 +1344,7 @@ Create `docs/superpowers/qa/notification-center-shell-qa.md` with:
 # Notification Center and Operation Shell QA
 
 ## Automated
-- Executable SHA: <record the actual SHA after running gates>
+- Executable SHA: copy the exact output of `git rev-parse HEAD` from the verified executable run
 - Full node:test: PASS
 - Architecture: PASS
 - Lint: PASS
