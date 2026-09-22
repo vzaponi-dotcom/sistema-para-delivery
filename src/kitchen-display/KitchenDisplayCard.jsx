@@ -13,26 +13,33 @@ const formatElapsed = (start, now) => {
   const hours = Math.floor(totalMinutes / 60)
   return hours ? `${hours}:${minutes}:${seconds}` : `${String(totalMinutes).padStart(2, '0')}:${seconds}`
 }
-const itemName = (item) => String(item?.name || 'Item').trim()
+const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
+const itemName = (item) => {
+  const name = cleanSpaces(item?.name || 'Item')
+  const size = cleanSpaces(item?.size)
+  if (!size) return name
+  const normalizedName = name.toLocaleLowerCase('pt-BR')
+  const normalizedSize = size.toLocaleLowerCase('pt-BR')
+  return normalizedName === normalizedSize || normalizedName.endsWith(` ${normalizedSize}`) ? name : `${name} ${size}`
+}
 const itemQuantity = (item) => Math.max(1, Math.trunc(Number(item?.quantity) || 1))
 const normalizedNote = (item) => String(item?.note || '').trim().replace(/\s+/g, ' ')
 
 export function KitchenDisplayCard({ entry, now = new Date() }) {
   const { order, state, phase } = entry
   const items = Array.isArray(order.items) ? order.items : []
-  const visibleItems = items.slice(0, 4)
+  const visibleItems = items.slice(0, items.length > 4 ? 3 : 4)
   const hiddenItems = items.length - visibleItems.length
   const notes = items.map(normalizedNote).filter(Boolean)
-  const visibleNotes = notes.slice(0, 2)
+  const visibleNotes = notes.slice(0, notes.length > 2 ? 1 : 2)
   const hiddenNotes = notes.length - visibleNotes.length
   const scheduled = phase === 'scheduled'
   const timing = scheduled ? timeFormatter.format(new Date(order.scheduledFor)) : formatElapsed(entry.operationalStartAt || order.createdAt, now)
   const typeIcon = order.type === 'Retirada' ? 'pickup' : order.type === 'Local' ? 'local' : 'delivery-bike'
 
   return <article className={`kds-card kds-card--${state}`} data-order-id={String(order.id)} data-highlighted={state === 'new'}>
-    <h2 className="kds-card__customer">{order.client || 'Cliente não informado'}</h2>
+    <div className="kds-card__main"><h2 className="kds-card__customer">{order.client || 'Cliente não informado'}</h2><span className="kds-card__timing">{scheduled && <span data-icon="clock"><Icon name="clock" size={24} /></span>}{timing}</span></div>
     <div className="kds-card__status"><span className="kds-card__status-copy"><span className="kds-card__dot" />{KITCHEN_DISPLAY_STATUS_LABELS[state]}</span><span className="kds-card__number">#{order.orderNumber || order.id}</span></div>
-    <div className="kds-card__main"><span className="kds-card__timing">{scheduled && <span data-icon="clock"><Icon name="clock" size={24} /></span>}{timing}</span></div>
     <div className="kds-card__body">
       <ul className="kds-card__items">
         {visibleItems.map((item, index) => <li key={`${itemName(item)}-${index}`}><strong>{itemQuantity(item)}x</strong><span>{itemName(item)}</span></li>)}

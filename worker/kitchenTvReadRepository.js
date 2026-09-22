@@ -11,7 +11,7 @@ const ACTIVE_ORDERS_SELECT = `SELECT id, order_number, client_name_snapshot, typ
     AND cancelled_at IS NULL
   ORDER BY created_at ASC, id ASC`
 
-const ACTIVE_ITEMS_SELECT = `SELECT i.order_id, i.quantity, i.name_snapshot, i.note
+const ACTIVE_ITEMS_SELECT = `SELECT i.order_id, i.quantity, i.name_snapshot, i.size_snapshot, i.note
   FROM order_items i
   INNER JOIN orders o ON o.id = i.order_id AND o.business_id = i.business_id
   WHERE i.business_id = ?
@@ -29,7 +29,7 @@ export async function loadKitchenTvState(db, businessId) {
   const itemsByOrder = new Map()
   for (const row of rows(itemsResult)) {
     const items = itemsByOrder.get(row.order_id) ?? []
-    items.push({ quantity: row.quantity, name: row.name_snapshot, note: row.note || '' })
+    items.push({ quantity: row.quantity, name: row.name_snapshot, size: row.size_snapshot || '', note: row.note || '' })
     itemsByOrder.set(row.order_id, items)
   }
 

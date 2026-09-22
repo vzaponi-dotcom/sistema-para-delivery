@@ -52,13 +52,13 @@ button { font: inherit; }
 .kds-card--late { --state: var(--kds-red); }
 .kds-card--near-limit { --state: var(--kds-amber); }
 .kds-card--scheduled { --state: var(--kds-scheduled); }
-.kds-card__customer { margin: clamp(10px, 1vh, 17px) 0 0; overflow: hidden; font-size: clamp(1.65rem, 2.2vw, 2.8rem); line-height: 1.08; letter-spacing: -.035em; white-space: nowrap; text-overflow: ellipsis; }
+.kds-card__customer { min-width: 0; margin: 0; overflow: hidden; font-size: clamp(1.65rem, 2.2vw, 2.8rem); line-height: 1.08; letter-spacing: -.035em; white-space: nowrap; text-overflow: ellipsis; }
 .kds-card__status { order: -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--state); font-size: clamp(.8rem, 1vw, 1.08rem); font-weight: 850; }
 .kds-card__status-copy { display: flex; align-items: center; gap: .65rem; white-space: nowrap; }
 .kds-card__dot { width: .85em; height: .85em; flex: none; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
 .kds-card__number { color: color-mix(in srgb, var(--state) 70%, var(--kds-muted)); font-weight: 650; }
-.kds-card__main { display: flex; justify-content: flex-end; min-height: clamp(30px, 3.5vh, 46px); }
-.kds-card__timing { display: inline-flex; align-items: center; gap: .35rem; color: var(--state); font-size: clamp(1.65rem, 2.25vw, 2.8rem); font-weight: 850; line-height: 1; }
+.kds-card__main { min-height: clamp(42px, 5vh, 58px); margin: clamp(10px, 1vh, 17px) 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.kds-card__timing { flex: none; display: inline-flex; align-items: center; gap: .35rem; color: var(--state); font-size: clamp(1.65rem, 2.25vw, 2.8rem); font-weight: 850; line-height: 1; }
 .kds-card__body { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .8rem; }
 .kds-card__items { min-width: 0; margin: 0; padding: 0; display: grid; gap: clamp(3px, .5vh, 8px); list-style: none; font-size: clamp(.95rem, 1.2vw, 1.45rem); }
 .kds-card__items li { min-width: 0; display: grid; grid-template-columns: 2.1em minmax(0, 1fr); gap: .35rem; }
@@ -76,7 +76,6 @@ button { font: inherit; }
   .kds-header { min-height: 70px; }
   .kds-brand__icon svg { width: 42px; height: 42px; }
   .kds-card { padding: 12px 16px; }
-  .kds-card__customer { margin-top: 7px; }
-  .kds-card__main { min-height: 27px; }
+  .kds-card__main { min-height: 38px; margin: 7px 0; }
   .kds-card__notes { min-height: 34px; padding-top: 6px; }
 }

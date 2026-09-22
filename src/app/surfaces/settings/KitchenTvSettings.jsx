@@ -87,6 +87,10 @@ function KitchenTvSettings({ granted, onNavigateHome, api = defaultApi }) {
           <Button type="button" variant="secondary" onClick={copy}>Copiar link</Button>
           <Button type="button" disabled={busy} onClick={generate}>Gerar novo acesso</Button>
         </div>
+      </> : status?.waitingPairing ? <>
+        <h2>Aguardando pareamento</h2>
+        <p>Um link de uso único já foi gerado. Por segurança, o segredo não pode ser exibido novamente.</p>
+        {canManage && <Button type="button" disabled={busy} onClick={generate}>Gerar novo acesso</Button>}
       </> : <>
         <h2>{status?.revokedAt ? 'Acesso revogado' : 'TV ainda não configurada'}</h2>
         <p>Gere um link temporário para parear o navegador da TV sem usar o PIN administrativo.</p>
