@@ -94,3 +94,26 @@ Resultado manual desta execução: **0 PASS / 0 FAIL / 20 PENDING-MANUAL**.
 - PR permanece: **DRAFT**.
 
 O proprietário do produto executará staging e homologação manual depois que o GitHub Validate do SHA final estiver verde.
+
+
+## Staging QA iteration — pairing settings polish
+
+Primeira publicação manual em staging: Deploy staging #213 / run `35794320970`, SHA `acb56ae1695005d7d075566857b954e6b8fc80bb`.
+
+Observação humana:
+- fluxo `Configurações > TV da Cozinha` abriu corretamente;
+- geração do link one-time funcionou e exibiu fragmento `#token=`;
+- a apresentação do estado gerado apresentou overflow horizontal no mobile e hierarquia inadequada das ações;
+- o comportamento de segurança/API não foi considerado defeituoso.
+
+Correção aplicada em `aa5c7bdd1f64859f3e93e9c056c32456ae46648b`:
+- card dedicado e responsivo para o acesso da TV;
+- segredo mascarado na UI, mantendo cópia integral somente pelo botão;
+- `Copiar link` como ação primária;
+- `Gerar novo link` como ação secundária com aviso de invalidação;
+- contenção explícita de conteúdo longo, ellipsis e `min-width: 0`;
+- ações empilhadas no mobile;
+- estados inicial, pendente e ativo alinhados à mesma hierarquia visual;
+- testes de semântica/overflow adicionados.
+
+Os itens manuais permanecem `PENDING-MANUAL` até republicação desse SHA ou posterior em staging.
