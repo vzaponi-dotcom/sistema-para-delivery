@@ -1,0 +1,87 @@
+.notification-bell {
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.notification-bell-badge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--surface);
+  font-size: 0.62rem;
+  line-height: 18px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.notification-center-backdrop {
+  place-items: stretch end;
+  padding: 0;
+}
+
+.notification-center-drawer {
+  width: min(420px, calc(100vw - 24px));
+  max-height: 100dvh;
+  height: 100dvh;
+  border-radius: 18px 0 0 18px;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.notification-center-drawer .modal-body {
+  display: flex;
+  padding: 0;
+  min-height: 0;
+}
+
+.notification-center {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+}
+
+.notification-center-intro { color: var(--muted); margin: 0 0 16px; }
+.notification-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.notification-list-item { min-width: 0; }
+.notification-item {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+  min-height: 88px;
+  padding: 14px;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.notification-item.is-unread { border-color: var(--primary-border); }
+.notification-item:focus-visible, .notification-load-more:focus-visible, .notification-back:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.notification-item-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 10px; color: var(--primary); background: var(--primary-soft); }
+.notification-item-copy { display: grid; min-width: 0; gap: 3px; }
+.notification-item-copy strong { overflow-wrap: anywhere; }
+.notification-item-copy time, .notification-item-summary { color: var(--muted); font-size: 0.78rem; }
+.notification-item-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.notification-unread-marker { color: var(--primary); font-size: 0.72rem; font-weight: 800; }
+.notification-load-more, .notification-back { min-height: 44px; width: 100%; margin-top: 14px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.notification-back { margin: 0 0 14px; }
+.release-notes-content { display: grid; gap: 12px; color: var(--text); }
+.release-notes-content time { color: var(--muted); font-size: 0.8rem; }
+.release-notes-content h3, .release-notes-content h4, .release-notes-content p { margin: 0; }
+.release-notes-content section { display: grid; gap: 5px; padding: 10px 0; border-top: 1px solid var(--border); }
+.release-notes-content p, .release-notes-once { color: var(--text-soft); line-height: 1.5; }
+.release-notes-once { margin-bottom: 0; font-size: 0.8rem; }
+.release-notes-actions { display: grid; gap: 8px; }
+.release-notes-actions .button { min-height: 44px; }

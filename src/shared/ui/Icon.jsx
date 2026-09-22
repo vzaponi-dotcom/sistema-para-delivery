@@ -15,6 +15,8 @@ const icons = {
   edit: <><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></>,
   trash: <><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v5M14 11v5"/></>,
   close: <path d="m6 6 12 12M18 6 6 18"/>,
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 10h18c0-2-3-3-3-10Z"/><path d="M10 21h4"/></>,
+  logout: <><path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/><path d="M13 16l4-4-4-4M8 12h9"/></>,
   check: <path d="m5 12 4 4L19 6"/>,
   shield: <path d="M12 3 19 6v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6Z"/>,
   wallet: <><path d="M4 6h14a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3h11"/><path d="M20 11h-5a2 2 0 0 0 0 4h5"/></>,

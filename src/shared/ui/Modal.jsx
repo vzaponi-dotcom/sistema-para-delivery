@@ -10,7 +10,7 @@ const isTopmostDialog = (element) => {
   return dialogs.at(-1) === element
 }
 
-function Modal({ title, onClose, children, footer, className = '', initialFocusSelector }) {
+function Modal({ title, onClose, children, footer, className = '', backdropClassName = '', initialFocusSelector }) {
   const cardRef = useRef(null)
   const previousFocus = useRef(null)
   const onCloseRef = useRef(onClose)
@@ -60,7 +60,7 @@ function Modal({ title, onClose, children, footer, className = '', initialFocusS
   }, [])
 
   const content = (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className={['modal-backdrop', backdropClassName].filter(Boolean).join(' ')} onMouseDown={onClose}>
       <div
         ref={cardRef}
         className={['modal-card', className].filter(Boolean).join(' ')}
