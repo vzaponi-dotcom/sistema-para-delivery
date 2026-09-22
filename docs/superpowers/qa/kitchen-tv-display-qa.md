@@ -6,7 +6,7 @@ PR: #62 (`DRAFT`)
 Spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`
 Plano: `docs/superpowers/plans/2026-09-22-kitchen-tv-display-plan.md`
 Referência visual aprovada: `docs/superpowers/references/kitchen-tv-32-approved-reference.jpg`
-SHA executável local antes do fechamento documental: `42d2d73`
+SHA executável local antes do fechamento documental: `32d49c2`
 Migration: `0028_kitchen_tv_access.sql`
 
 ## Escopo desta entrega
@@ -34,7 +34,7 @@ O handoff de 2026-09-22 substitui a homologação de staging prevista originalme
 
 ## Gate local final
 
-- `npm test`: PASS, 2147/2147;
+- `npm test`: PASS, 2149/2149;
 - `npm run test:architecture`: PASS;
 - `npm run lint`: PASS (avisos existentes, sem erro);
 - `npm run build`: PASS;
@@ -48,9 +48,11 @@ Build medido após a Task 10:
 
 | Artefato | Minificado | gzip |
 |---|---:|---:|
-| `KitchenDisplayRoot` JS | 10.93 kB | 4.16 kB |
+| `KitchenDisplayRoot` JS | 11.14 kB | 4.24 kB |
 | `kitchenQueue` público/puro JS | 20.76 kB | 7.00 kB |
-| Kitchen TV CSS | 6.56 kB | 2.07 kB |
+| Kitchen TV CSS | 6.60 kB | 2.07 kB |
+
+A revisão independente final encontrou e a implementação corrigiu, antes do push, a preservação de variações/tamanhos dos itens, os limites visuais de itens e observações, o estado persistido “Aguardando pareamento” e a composição nome+tempo na linha principal do card. O conjunto focado correspondente fechou em 40/40 PASS.
 
 O teste `kitchenDisplayBoundary.test.js` constrói o aplicativo em diretório temporário e percorre o manifest da entrada TV. O grafo rejeita `AdminBootstrap`, UI interna de Orders, Printing/QZ, jsPDF, Finance, Customers, Catalog UI, Table Service UI e Settings. O cliente HTTP da TV contém somente `/api/kitchen-tv/pair` e `/api/kitchen-tv/state`; `/api/bootstrap` é proibido por teste de fonte e pelo verificador de arquitetura.
 
