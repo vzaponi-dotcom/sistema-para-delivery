@@ -11,6 +11,7 @@ import {
 } from './useOperationalDataRuntime.js'
 
 const bootstrapFixture = () => ({
+  business: { id: 'amor-e-sabor', name: 'Amor & Sabor' },
   clients: [{ id: 'client-1', name: 'Ana' }],
   products: [{ id: 'product-1', name: 'Marmita' }],
   orders: [{ id: 'order-1', status: 'Em preparo' }],
@@ -116,6 +117,7 @@ test('refreshBootstrap loads every official collection and effective config', as
   await act(async () => { await harness.getCurrent().refreshBootstrap() })
   const current = harness.getCurrent()
   assert.equal(current.bootstrapState, 'ready')
+  assert.deepEqual(current.business, bootstrap.business)
   assert.deepEqual(current.bootstrapEffectiveConfig, bootstrap.effectiveBusinessConfig)
   assert.deepEqual(current.clients, bootstrap.clients)
   assert.deepEqual(current.products, bootstrap.products)
@@ -235,6 +237,7 @@ test('resetOperationalData clears official state, replaces the guard, and resets
   const current = harness.getCurrent()
 
   assert.equal(current.bootstrapState, 'idle')
+  assert.equal(current.business, null)
   assert.equal(current.bootstrapEffectiveConfig, null)
   assert.deepEqual(current.clients, [])
   assert.deepEqual(current.products, [])

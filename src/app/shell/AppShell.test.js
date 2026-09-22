@@ -20,7 +20,7 @@ test('AppShell preserva direção e foco ao trocar de página', async (t) => {
     activeTab, granted, implemented, moreOpen: false,
     requestNavigation() {}, openMore() {}, closeMore() {},
     children: React.createElement(AppShell, {
-      businessId: 'amor-e-sabor', navigationBadges,
+      businessId: 'amor-e-sabor', businessName: 'Pizzaria Bella', navigationBadges,
       children: React.createElement('span', null, activeTab),
     }),
   })
@@ -32,6 +32,7 @@ test('AppShell preserva direção e foco ao trocar de página', async (t) => {
   const beforeFocus = h.activitySnapshot().focus
   const shell = renderer.root.findByProps({ className: 'app-shell' })
   assert.equal(shell.children[0].type, AppTopBar)
+  assert.equal(shell.children[0].props.businessName, 'Pizzaria Bella')
   assert.equal(shell.children[1].type, Sidebar)
   assert.doesNotMatch(nodeText(renderer.root.findByType(Sidebar)), /Amor & Sabor|Gestão do delivery/)
   assert.equal(renderer.root.findByType(Sidebar).props.badges, navigationBadges)

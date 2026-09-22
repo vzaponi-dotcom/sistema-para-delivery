@@ -11,14 +11,16 @@ test('desktop top bar owns the business identity and operation utilities', async
   const renderer = await h.render(NavigationProvider, {
     activeTab: 'orders', granted: new Set(['orders.view']), implemented: new Set(['orders']), moreOpen: false,
     requestNavigation() {}, openMore() {}, closeMore() {},
-    children: React.createElement(AppTopBar, { businessId: 'amor-e-sabor' }),
+    children: React.createElement(AppTopBar, { businessId: 'pizzaria-bella', businessName: 'Pizzaria Bella' }),
   })
   assert.ok(renderer.root.findByProps({ className: 'app-topbar' }))
-  assert.match(nodeText(renderer.root), /Amor & Sabor/)
+  assert.match(nodeText(renderer.root), /Pizzaria Bella/)
+  assert.doesNotMatch(nodeText(renderer.root), /Amor & Sabor/)
   assert.match(nodeText(renderer.root), /Gestão do delivery/)
   assert.doesNotMatch(nodeText(renderer.root), /Seu delivery no controle/)
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))
-  assert.ok(buttonNamed(renderer.root, 'Amor & Sabor, operação atual'))
+  assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, operação atual'))
+  assert.equal(renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'PB')
 })
 
 test('mobile top bar exposes the approved premium product brand and subtitle', async (t) => {
@@ -28,7 +30,7 @@ test('mobile top bar exposes the approved premium product brand and subtitle', a
   const renderer = await h.render(NavigationProvider, {
     activeTab: 'orders', granted: new Set(['orders.view']), implemented: new Set(['orders']), moreOpen: false,
     requestNavigation() {}, openMore() {}, closeMore() {},
-    children: React.createElement(AppTopBar, { businessId: 'amor-e-sabor' }),
+    children: React.createElement(AppTopBar, { businessId: 'pizzaria-bella', businessName: 'Pizzaria Bella' }),
   })
 
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-brand-icon' }))
@@ -38,7 +40,8 @@ test('mobile top bar exposes the approved premium product brand and subtitle', a
   assert.doesNotMatch(nodeText(renderer.root), /Gestão do delivery/)
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-actions' }))
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))
-  assert.ok(buttonNamed(renderer.root, 'Amor & Sabor, operação atual'))
+  assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, operação atual'))
+  assert.equal(renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'PB')
 })
 
 test('desktop utilities reuse the premium visual language from mobile', async () => {

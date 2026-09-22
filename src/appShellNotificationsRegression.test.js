@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
-const [shell, topbar, entry, topbarCss, centerCss, badgesCss, mobileCss] = await Promise.all([
-  read('./app/shell/AppShell.jsx'), read('./app/shell/AppTopBar.jsx'), read('./app/notifications/NotificationsEntryPoint.jsx'),
+const [app, runtime, shell, topbar, entry, topbarCss, centerCss, badgesCss, mobileCss] = await Promise.all([
+  read('./App.jsx'), read('./app/runtime/data/useOperationalDataRuntime.js'), read('./app/shell/AppShell.jsx'), read('./app/shell/AppTopBar.jsx'), read('./app/notifications/NotificationsEntryPoint.jsx'),
   read('./app-top-bar.css'), read('./notification-center.css'), read('./navigation-badges.css'), read('./mobile-navigation.css'),
 ])
 
@@ -35,4 +35,13 @@ test('badges stay visible beside mobile icons without growing bottom navigation 
   assert.match(mobileCss, /grid-auto-columns:\s*minmax\(0,\s*1fr\)/)
   assert.match(badgesCss, /\.mobile-nav-item \.navigation-icon-wrap\s*\{[^}]*overflow:\s*visible/s)
   assert.match(badgesCss, /\.mobile-nav-item \.navigation-badge\s*\{[^}]*max-width:\s*none/s)
+})
+
+test('business display name flows from the official bootstrap into the global shell', () => {
+  assert.match(runtime, /const \[business, setBusiness\] = useState\(null\)/)
+  assert.match(runtime, /setBusiness\(data\.business\)/)
+  assert.match(app, /\bbusiness,\s*\n\s*bootstrapState/)
+  assert.match(app, /businessName=\{business\?\.name\}/)
+  assert.match(shell, /businessName/)
+  assert.doesNotMatch(topbar, /'Amor & Sabor'/)
 })
