@@ -1,5 +1,5 @@
-import { apiRequest } from '../../../infrastructure/api/httpClient.js'
+import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
 
 export const getKitchenTvSettings = () => apiRequest('/api/kitchen-tv/settings')
-export const generateKitchenTvAccess = () => apiRequest('/api/kitchen-tv/access', { method: 'POST' })
+export const approveKitchenTvPairing = (code) => apiRequest('/api/kitchen-tv/approve', withJson('POST', { code }))
 export const revokeKitchenTvAccess = () => apiRequest('/api/kitchen-tv/revoke', { method: 'POST' })
