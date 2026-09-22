@@ -12,7 +12,6 @@ function Sidebar({ onLogout, logoutDisabled = false, badges = {} }) {
     ? (item.area || item.id) === activeMobileEntry
     : item.area ? destinationById.get(activeTab)?.area === item.area : activeTab === item.id
   return <aside className="sidebar">
-    <div className="sidebar-brand"><div className="sidebar-logo" aria-hidden="true"><Icon name="meal" size={24} /></div><div><strong>Amor &amp; Sabor</strong><span>Gestão do delivery</span></div></div>
     <nav className="sidebar-nav" aria-label="Menu principal">
       {visibleGroups.map((group) => <section className="sidebar-group" key={group.label} aria-label={group.label}>
         <span className="sidebar-group-label">{group.label}</span>

@@ -1,40 +1,110 @@
 .app-topbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
   position: sticky;
   top: 0;
   z-index: 30;
-  min-height: 54px;
+  min-height: 56px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
-  padding: 5px 24px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
 }
 
-.app-topbar-brand { display: none; }
-.app-topbar-brand-copy { min-width: 0; }
-.app-topbar-brand-subtitle { display: none; }
-.app-topbar-actions { display: flex; align-items: center; gap: 8px; }
+.app-topbar-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.app-topbar-brand-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--primary-border);
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.app-topbar-brand-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  line-height: 1.08;
+}
+
+.app-topbar-brand strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.94rem;
+  letter-spacing: -0.015em;
+}
+
+.app-topbar-brand-subtitle {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 650;
+}
+
+.app-topbar-actions { display: flex; align-items: center; gap: 6px; }
+
+.app-topbar .notification-bell {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
 .operation-menu { position: relative; }
 .operation-menu-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 60px;
-  min-height: 44px;
-  padding: 0 9px;
+  min-width: 76px;
+  min-height: 40px;
+  padding: 3px 8px 3px 4px;
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text);
+  box-shadow: var(--shadow-sm);
   font: inherit;
   cursor: pointer;
 }
 .operation-menu-trigger:focus-visible, .operation-menu-popover button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.operation-menu-initials { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--surface-strong); font-size: 0.8rem; font-weight: 800; }
+.operation-menu-initials {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--primary-border);
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
 .operation-menu-popover {
   position: absolute;
   top: calc(100% + 8px);
@@ -74,49 +144,24 @@
   }
 
   .app-topbar-brand {
-    display: inline-flex;
     min-width: 0;
     flex: 1 1 auto;
-    align-items: center;
     gap: 8px;
-    color: var(--text);
   }
 
   .app-topbar-brand-icon {
     width: 40px;
     height: 40px;
     flex: 0 0 40px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--primary-border);
     border-radius: 14px;
-    background: var(--primary-soft);
-    color: var(--primary);
-  }
-
-  .app-topbar-brand-copy {
-    display: grid;
-    min-width: 0;
-    gap: 1px;
-    line-height: 1.08;
   }
 
   .app-topbar-brand strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     font-size: 0.94rem;
-    letter-spacing: -0.015em;
   }
 
   .app-topbar-brand-subtitle {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--muted);
     font-size: 0.62rem;
-    font-weight: 650;
   }
 
   .app-topbar-actions {
@@ -124,16 +169,12 @@
     gap: 5px;
   }
 
-  .notification-bell {
+  .app-topbar .notification-bell {
     width: 44px;
     min-width: 44px;
     height: 44px;
     min-height: 44px;
-    padding: 0;
-    border: 1px solid var(--border);
     border-radius: 14px;
-    background: var(--surface-soft);
-    color: var(--text);
     box-shadow: var(--shadow-md);
   }
 
@@ -147,18 +188,12 @@
     min-height: 44px;
     gap: 6px;
     padding: 3px 8px 3px 4px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface-soft);
     box-shadow: var(--shadow-md);
   }
 
   .operation-menu-initials {
     width: 34px;
     height: 34px;
-    border: 1px solid var(--primary-border);
-    background: var(--primary-soft);
-    color: var(--primary);
     font-size: 0.86rem;
   }
 
@@ -199,7 +234,7 @@
     gap: 3px;
   }
 
-  .notification-bell {
+  .app-topbar .notification-bell {
     width: 42px;
     min-width: 42px;
     height: 42px;

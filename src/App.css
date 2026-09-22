@@ -2,16 +2,19 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-rows: 56px minmax(0, 1fr);
   background: var(--bg);
 }
 
 .sidebar {
+  grid-column: 1;
+  grid-row: 2;
   position: sticky;
-  top: 0;
-  height: 100vh;
+  top: 56px;
+  height: calc(100vh - 56px);
   display: flex;
   flex-direction: column;
-  padding: 22px 16px;
+  padding: 18px 16px 22px;
   background: #211b1a;
   color: #fff;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -135,6 +138,8 @@
 }
 
 .app-main {
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
 }
 

@@ -20,14 +20,14 @@ function AppShell({ businessId, navigationBadges = {}, onLogout, logoutDisabled 
 
   return (
     <div className="app-shell">
-        <Sidebar badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
-        <main className="app-main">
-          <AppTopBar businessId={businessId} onLogout={onLogout} logoutDisabled={logoutDisabled} />
-          <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>
-            {children}
-          </div>
-        </main>
-        <MobileNavigation badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+      <AppTopBar businessId={businessId} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+      <Sidebar badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+      <main className="app-main">
+        <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>
+          {children}
+        </div>
+      </main>
+      <MobileNavigation badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
     </div>
   )
 }
