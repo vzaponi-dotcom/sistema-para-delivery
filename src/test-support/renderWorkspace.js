@@ -8,7 +8,12 @@ import { detailResponse } from './comandaFixtures.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 export const nodeText = (node) => typeof node === 'string' ? node : (node.children || []).map(nodeText).join('')
-export const buttonNamed = (root, name) => root.findAllByType('button').find((node) => (node.props['aria-label'] || nodeText(node)) === name)
+export const buttonNamed = (root, name) => root.findAllByType('button').find((node) => {
+  const accessibleName = node.props['aria-label'] || nodeText(node)
+  if (accessibleName === name) return true
+  const isNavigation = /(?:^|\s)(?:sidebar-link|mobile-nav-item)(?:\s|$)/.test(node.props.className || '')
+  return isNavigation && accessibleName.startsWith(`${name}, `)
+})
 
 export async function renderWithNavigation(h, Component, props = {}, options = {}) {
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')

@@ -224,6 +224,7 @@ test('resposta de pagamento da sessão antiga não altera nem desbloqueia o alvo
   await act(async () => buttonNamed(renderer.root, 'Cancelar').props.onClick())
   state.orders = [orderB]
   state.bootstrapOrders = [orderB]
+  await act(async () => renderer.root.findByProps({ className: 'operation-menu-trigger' }).props.onClick())
   await act(async () => buttonNamed(renderer.root, 'Sair do sistema').props.onClick())
   const pin = renderer.root.findByProps({ placeholder: 'Digite o PIN' })
   await act(async () => pin.props.onChange({ target: { value: '1234' } }))

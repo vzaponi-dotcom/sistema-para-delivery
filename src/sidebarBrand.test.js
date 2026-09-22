@@ -5,19 +5,25 @@ import { resolve } from 'node:path'
 
 const read = (path) => readFileSync(resolve(path), 'utf8')
 
-test('sidebar uses the compact meal icon instead of the detailed brand logo', () => {
-  const source = read('src/app/shell/Sidebar.jsx')
-  assert.doesNotMatch(source, /BrandLogo/)
-  assert.match(source, /className="sidebar-logo"[^>]*><Icon name="meal" size=\{24\}/)
-  assert.match(source, /Amor &amp; Sabor/)
-  assert.match(source, /Gestão do delivery/)
+test('operation brand lives in the global top bar instead of the sidebar', () => {
+  const sidebar = read('src/app/shell/Sidebar.jsx')
+  const topbar = read('src/app/shell/AppTopBar.jsx')
+
+  assert.doesNotMatch(sidebar, /BrandLogo/)
+  assert.doesNotMatch(sidebar, /className="sidebar-(?:logo|brand)"/)
+  assert.doesNotMatch(sidebar, /Amor &amp; Sabor|Gestão do delivery/)
+  assert.match(topbar, /<Icon name="meal" size=\{23\}/)
+  assert.match(topbar, /businessName/)
+  assert.match(topbar, /operationName/)
+  assert.doesNotMatch(topbar, /'Amor & Sabor'/)
+  assert.match(topbar, /'Gestão do delivery'/)
 })
 
-test('sidebar meal mark has a compact standalone treatment', () => {
-  const css = read('src/brand.css')
-  assert.match(css, /\.sidebar-logo[\s\S]*width:\s*40px/)
-  assert.match(css, /\.sidebar-logo[\s\S]*border-radius:\s*12px/)
-  assert.match(css, /\.sidebar-logo[\s\S]*display:\s*grid/)
-  assert.match(css, /\.sidebar-logo[\s\S]*color:\s*#fff/)
-  assert.match(css, /\.sidebar-logo svg[\s\S]*width:\s*24px/)
+test('global top bar meal mark has the compact premium treatment', () => {
+  const css = read('src/app-top-bar.css')
+
+  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s)
+  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*border-radius:\s*12px/s)
+  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*background:\s*var\(--primary-soft\)/s)
+  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*color:\s*var\(--primary\)/s)
 })

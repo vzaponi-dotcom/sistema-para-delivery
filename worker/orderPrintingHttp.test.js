@@ -632,7 +632,7 @@ test('operational printing API exposes scoped views and physical attempt routes 
   assert.equal(jobsBody.pageInfo.pageSize, 10)
   assert.ok(jobsBody.jobs.some((item) => item.id === job.id))
   const summary = await jsonRequest('/api/printing/jobs/summary', 'GET', cookie)
-  assert.deepEqual(Object.keys((await summary.json()).summary).sort(), ['attention', 'awaitingConfirmation', 'awaitingSecondCopy', 'completedToday', 'pending', 'safeBacklog'].sort())
+  assert.deepEqual(Object.keys((await summary.json()).summary).sort(), ['active', 'attention', 'awaitingConfirmation', 'awaitingSecondCopy', 'completedToday', 'pending', 'safeBacklog'].sort())
 
   const forbidden = await handleRequest(new Request(`https://delivery.example/api/printing/jobs/${job.id}/attempts`, {
     method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ stationId: 's1', copyNumber: 1 }),

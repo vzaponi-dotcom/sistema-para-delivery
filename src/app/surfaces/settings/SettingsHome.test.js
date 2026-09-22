@@ -47,21 +47,19 @@ test('offers only device preferences to a local-preferences-only user', async (t
   assert.equal(buttonNamed(screen.root, 'Formas de pagamento'), undefined)
 })
 
-test('sidebar keeps the single settings area active while the Home is open', async (t) => {
+test('desktop sidebar leaves settings and logout exclusively to the global top bar', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Sidebar } = await h.load('/src/app/shell/Sidebar.jsx')
-  const calls = []
   const screen = await renderWithNavigation(h, Sidebar, {
     activeTab: 'settings-home',
     granted: new Set(['preferences.local']),
     implemented: new Set(['settings-home', 'settings-device']),
-    onNavigate: (id) => calls.push(id),
+    onLogout() {},
   })
 
-  const settingsEntry = buttonNamed(screen.root.findByProps({ 'aria-label': 'Menu principal' }), 'Configurações')
-  assert.equal(settingsEntry.props['aria-current'], 'page')
-  await act(async () => settingsEntry.props.onClick())
-  assert.deepEqual(calls, ['settings-home'])
+  const navigation = screen.root.findByProps({ 'aria-label': 'Menu principal' })
+  assert.equal(buttonNamed(navigation, 'Configurações'), undefined)
+  assert.equal(buttonNamed(screen.root, 'Sair do sistema'), undefined)
 })
 
 test('omits unavailable future screens and activates an entire allowed card', async (t) => {

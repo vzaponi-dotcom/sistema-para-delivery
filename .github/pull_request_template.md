@@ -2,6 +2,29 @@
 
 Describe what changes, why it is needed, and whether it changes customer-facing behavior.
 
+## Comunicação ao usuário / Novidades
+
+Toda alteração deve avaliar explicitamente se possui impacto perceptível para o usuário final.
+
+- [ ] Esta PR **não** precisa aparecer em “Novidades do Gestão Delivery”
+- [ ] Esta PR **deve** aparecer em “Novidades do Gestão Delivery”
+
+Se deve aparecer:
+
+- [ ] A novidade foi adicionada ao catálogo da próxima release
+- [ ] Foi definido um ícone apropriado
+- [ ] O título é curto e orientado ao usuário
+- [ ] A descrição explica o benefício/comportamento, não detalhes técnicos
+- [ ] Alterações relacionadas foram agrupadas quando fizer sentido
+
+### Conteúdo sugerido
+
+**Ícone:**  
+**Título:**  
+**Descrição:**  
+
+> Não gerar automaticamente release notes a partir de commits. O catálogo é editorial: somente mudanças relevantes e perceptíveis ao usuário devem ser comunicadas.
+
 ## Validation
 - [ ] `npm test`
 - [ ] `npm run lint`

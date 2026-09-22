@@ -13,17 +13,19 @@ export const getNewActiveOrderIds = (previousIds, orders = []) => {
   return [...activeOrderIdSet(orders)].filter((id) => !knownIds.has(id))
 }
 
-export const operationalOrderIdSet = (orders = [], now = new Date()) => new Set(
-  orders.filter((order) => isActiveOrder(order) && !isScheduledWaiting(order, now)).map((order) => String(order.id)),
+export const operationalOrderIdSet = (orders = [], now = new Date(), currentTiming) => new Set(
+  orders.filter((order) => isActiveOrder(order) && !isScheduledWaiting(order, now, currentTiming)).map((order) => String(order.id)),
 )
 
-export const getNewOperationalOrderIds = (previousIds, orders = [], now = new Date()) => {
+export const getOperationalOrderCount = (orders = [], now = new Date(), currentTiming) => operationalOrderIdSet(orders, now, currentTiming).size
+
+export const getNewOperationalOrderIds = (previousIds, orders = [], now = new Date(), currentTiming) => {
   const knownIds = previousIds instanceof Set ? previousIds : new Set(previousIds ?? [])
-  return [...operationalOrderIdSet(orders, now)].filter((id) => !knownIds.has(id))
+  return [...operationalOrderIdSet(orders, now, currentTiming)].filter((id) => !knownIds.has(id))
 }
 
-export const detectOperationalArrivals = (previousIds, orders = [], now = new Date(), alertedIds = new Set()) => {
-  const currentIds = operationalOrderIdSet(orders, now)
+export const detectOperationalArrivals = (previousIds, orders = [], now = new Date(), alertedIds = new Set(), currentTiming) => {
+  const currentIds = operationalOrderIdSet(orders, now, currentTiming)
   if (previousIds === undefined || previousIds === null) return { currentIds, newIds: [] }
   const knownIds = previousIds instanceof Set ? previousIds : new Set(previousIds)
   const alreadyAlerted = alertedIds instanceof Set ? alertedIds : new Set(alertedIds ?? [])

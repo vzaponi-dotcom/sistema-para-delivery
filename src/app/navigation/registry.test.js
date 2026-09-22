@@ -26,7 +26,7 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
       'settings-finance-categories', 'settings-printing', 'settings-device',
     ],
   })
-  assert.deepEqual(DESKTOP_NAV_GROUPS.map(({ label }) => label), ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS', 'CONFIGURAÇÕES'])
+  assert.deepEqual(DESKTOP_NAV_GROUPS.map(({ label }) => label), ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS'])
   assert.deepEqual(MOBILE_DIRECT_ENTRIES.map((item) => item.area || item.id), ['orders', 'comandas', 'finance'])
   assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), ['print-queue', 'clients', 'products', 'tables', 'settings'])
   assert.deepEqual(MOBILE_SECTION_IDS, [

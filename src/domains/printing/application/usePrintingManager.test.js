@@ -61,3 +61,13 @@ test('job mutation synchronization replaces existing state and prepends a new re
     ['job-new', 'job-a', 'job-b'],
   )
 })
+
+test('manager exposes the authoritative active print-job count from the existing queue summary refresh', async () => {
+  const source = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
+  assert.match(source, /const \[activeJobCount, setActiveJobCount\] = useState\(0\)/)
+  assert.match(source, /setActiveJobCount\(Math\.max\(0, Number\(summaryPayload\?\.summary\?\.active\) \|\| 0\)\)/)
+  assert.match(source, /setActiveJobCount\(0\)/)
+  assert.match(source, /\bactiveJobCount,\s*\n/)
+  assert.match(source, /getPrintQueueSummary\(\)/)
+  assert.doesNotMatch(source, /ACTIVE_PRINT_JOB_POLL/)
+})

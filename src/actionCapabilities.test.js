@@ -136,6 +136,13 @@ test('3. orders.history continua visÃ­vel sem orders.analysis', async (t) => {
   assert.equal(renderer.root.findAllByType(OperationalHistoryAnalysis).length, 0)
 })
 
+test('restricted navigation never exposes operational badges from inaccessible areas', async (t) => {
+  const { renderer } = await appWorkspace(t, new Set(['orders.history']))
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Pedidos, 1 pedido em andamento' }).length, 0)
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Comandas, 1 comanda aberta' }).length, 0)
+  assert.equal(buttonNamed(renderer.root, 'Comandas'), undefined)
+})
+
 test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: CancelOrderDialog }, { default: SystemSelect }] = await Promise.all([h.load('/src/domains/orders/ui/components/CancelOrderDialog.jsx'), h.load('/src/shared/ui/SystemSelect.jsx')])
@@ -407,6 +414,9 @@ test('18. conjunto vazio nÃ£o recebe fallback de legacyCapabilities', async (t
   ])
   const pageTypes = [...pageModules.map((module) => module.default), tableService.Tables, tableService.Comandas]
   assert.equal(pageTypes.reduce((count, Component) => count + renderer.root.findAllByType(Component).length, 0), 0)
+  const operationMenu = renderer.root.findByProps({ className: 'operation-menu-trigger' })
+  assert.ok(operationMenu)
+  await act(async () => operationMenu.props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Sair do sistema'))
 })
 

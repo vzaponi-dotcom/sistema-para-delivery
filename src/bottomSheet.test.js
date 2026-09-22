@@ -19,6 +19,13 @@ test('Modal keeps its accessible dialog behavior', async () => {
   assert.match(source, /aria-modal="true"/)
 })
 
+test('Modal accepts an optional backdrop class without changing default accessibility', async () => {
+  const source = await read('./shared/ui/Modal.jsx')
+  assert.match(source, /backdropClassName/)
+  assert.match(source, /role="dialog"/)
+  assert.match(source, /aria-modal="true"/)
+})
+
 test('sheet CSS respects safe area and touch targets', async () => {
   const css = await read('./bottom-sheet.css')
   assert.match(css, /safe-area-inset-bottom/)

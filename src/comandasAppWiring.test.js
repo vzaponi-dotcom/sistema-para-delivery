@@ -1,9 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
-import { workspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
+import { workspaceHarness as createWorkspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
 import { comandaDetail, deferred, detailResponse } from './test-support/comandaFixtures.js'
 import { legacyCapabilities } from './app/access.js'
+
+const workspaceHarness = async (...args) => {
+  const harness = await createWorkspaceHarness(...args)
+  harness.localStorage.setItem('delivery-notifications:v1:amor-e-sabor', JSON.stringify({ version: 1, knownIds: ['release-2026-09-operation-shell'], presentedIds: ['release-2026-09-operation-shell'], readIds: ['release-2026-09-operation-shell'] }))
+  return harness
+}
 
 const authenticatedSession = {
   authenticated: true,

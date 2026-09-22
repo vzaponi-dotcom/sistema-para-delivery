@@ -36,7 +36,9 @@ test('desktop navigation opens the queue and its settings shortcut opens the pri
   assert.match(app, /onOpenPrintingSettings=\{\(\) => requestNavigation\('settings-printing'\)\}/)
   assert.match(sidebar, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
   assert.match(orders, /onNavigatePrintQueue/)
-  assert.match(orders, /onClick=\{onNavigatePrintQueue\}>Fila de impressão<\/Button>/)
+  assert.match(orders, /className="kitchen-print-queue-button"/)
+  assert.match(orders, /onClick=\{onNavigatePrintQueue\}/)
+  assert.match(orders, />Fila de impressão\{activePrintJobs/)
 })
 
 test('mobile keeps five bottom tabs and exposes the print queue through Mais', async () => {

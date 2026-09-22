@@ -21,6 +21,7 @@ test('mobile kitchen header separates the primary action without changing copy o
     onCancelOrder() {},
     onNavigate() {},
     onNavigatePrintQueue: () => calls.push('print-queue'),
+    printQueueActiveCount: 4,
     onSoundEnabledChange: (enabled) => calls.push(`sound:${enabled}`),
     granted: new Set(['orders.view', 'orders.history']),
     implemented: new Set(['orders', 'history']),
@@ -32,11 +33,14 @@ test('mobile kitchen header separates the primary action without changing copy o
   const primary = header.findByProps({ className: 'kitchen-header-primary-action' })
   const secondary = header.findByProps({ className: 'kitchen-header-secondary-actions' })
   assert.deepEqual(primary.findAllByType('button').map(nodeText), ['Novo pedido'])
-  assert.deepEqual(secondary.findAllByType('button').map(nodeText), ['Som ativado', 'Fila de impressão'])
+  assert.deepEqual(secondary.findAllByType('button').map(nodeText), ['Som ativado', 'Fila de impressão4'])
+  const printQueueButton = buttonNamed(secondary, 'Fila de impressão, 4 jobs ativos')
+  assert.ok(printQueueButton)
+  assert.equal(printQueueButton.findByProps({ className: 'kitchen-print-queue-badge' }).children.join(''), '4')
 
   await act(async () => buttonNamed(primary, 'Novo pedido').props.onClick())
   await act(async () => buttonNamed(secondary, 'Som ativado').props.onClick())
-  await act(async () => buttonNamed(secondary, 'Fila de impressão').props.onClick())
+  await act(async () => printQueueButton.props.onClick())
   assert.deepEqual(calls, ['new-order', 'sound:false', 'print-queue'])
 })
 
@@ -88,4 +92,10 @@ test('history text still wraps instead of clipping in the final compact cascade'
   const css = await read('../../../order-operations-compact.css')
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.order-history-main span\s*\{[^}]*white-space:\s*normal[^}]*overflow-wrap:\s*anywhere/s)
+})
+
+test('print queue action badge is anchored to the button without changing its size contract', async () => {
+  const css = await read('../../../order-operations.css')
+  assert.match(css, /\.kitchen-print-queue-button\s*\{[^}]*position:\s*relative/s)
+  assert.match(css, /\.kitchen-print-queue-badge\s*\{[^}]*position:\s*absolute[^}]*top:\s*-7px[^}]*right:\s*-7px[^}]*border:\s*0/s)
 })

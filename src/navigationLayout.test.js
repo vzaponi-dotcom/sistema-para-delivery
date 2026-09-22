@@ -48,10 +48,11 @@ test('sidebar exibe somente grupos e destinos aprovados, omitindo grupos vazios'
   const renderer = await renderWithNavigation(h, Sidebar, { activeTab: 'history', granted, implemented, onNavigate() {} })
   const nav = renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   const text = nodeText(nav)
-  for (const group of ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS', 'CONFIGURAÇÕES']) assert.match(text, new RegExp(group))
+  for (const group of ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS']) assert.match(text, new RegExp(group))
+  assert.doesNotMatch(text, /CONFIGURAÇÕES/)
   assert.deepEqual(nav.findAllByType('button').map(nodeText), [
     'Pedidos', 'Comandas', 'Fila de impressão', 'Visão geral', 'A receber',
-    'Movimentações', 'Clientes', 'Produtos e preços', 'Mesas', 'Configurações',
+    'Movimentações', 'Clientes', 'Produtos e preços', 'Mesas',
   ])
   assert.equal(buttonNamed(nav, 'Pedidos').props['aria-current'], 'page')
 
