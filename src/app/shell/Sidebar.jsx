@@ -5,7 +5,7 @@ import { useNavigation } from '../navigation/NavigationContext.jsx'
 import { getNavigationBadge } from './navigationBadges.js'
 import '../../navigation-badges.css'
 
-function Sidebar({ onLogout, logoutDisabled = false, badges = {} }) {
+function Sidebar({ badges = {} }) {
   const { activeTab, activeMobileEntry, granted, implemented, requestNavigation } = useNavigation()
   const visibleGroups = DESKTOP_NAV_GROUPS.map((group) => ({ ...group, items: group.items.map((item) => resolveNavigationEntry(item, granted, implemented)).filter(Boolean) })).filter((group) => group.items.length)
   const isActive = (item) => activeMobileEntry
@@ -18,7 +18,7 @@ function Sidebar({ onLogout, logoutDisabled = false, badges = {} }) {
         {group.items.map((item) => { const active = isActive(item); const badge = getNavigationBadge(item, badges); return <button key={item.id} type="button" className={active ? 'sidebar-link active' : 'sidebar-link'} aria-current={active ? 'page' : undefined} aria-label={badge?.ariaLabel} onClick={() => requestNavigation(item.id)}><span className="navigation-icon-wrap"><Icon name={item.icon} size={20} />{badge && <span className="navigation-badge" aria-hidden="true">{badge.text}</span>}</span><span>{item.label}</span></button> })}
       </section>)}
     </nav>
-    <div className="sidebar-footer"><span>Operação</span><strong>Comida caseira, gestão simples.</strong>{onLogout && <button className="sidebar-logout" type="button" onClick={onLogout} disabled={logoutDisabled}>Sair do sistema</button>}</div>
+    <div className="sidebar-footer"><span>Operação</span><strong>Comida caseira, gestão simples.</strong></div>
   </aside>
 }
 

@@ -8,21 +8,26 @@
 
 .navigation-badge {
   position: absolute;
-  top: -8px;
-  left: calc(100% - 3px);
+  top: -7px;
+  left: -9px;
   min-width: 19px;
   height: 19px;
   padding: 0 4px;
+  border: 0;
   border-radius: 999px;
   background: var(--primary);
-  color: var(--surface);
-  border: 1px solid var(--surface);
+  color: #fff;
   font-size: 0.65rem;
-  line-height: 17px;
+  line-height: 19px;
   font-weight: 800;
   text-align: center;
   white-space: nowrap;
   pointer-events: none;
+}
+
+.sidebar-link.active .navigation-badge {
+  background: #fff;
+  color: var(--primary);
 }
 
 @media (max-width: 820px) {

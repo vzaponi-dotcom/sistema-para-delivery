@@ -24,7 +24,7 @@ function AppShell({ businessId, businessName, navigationBadges = {}, onLogout, l
   return (
     <div className="app-shell">
       <AppTopBar businessId={businessId} businessName={businessName} onLogout={onLogout} logoutDisabled={logoutDisabled} />
-      <Sidebar badges={navigationBadges} onLogout={onLogout} logoutDisabled={logoutDisabled} />
+      <Sidebar badges={navigationBadges} />
       <main className="app-main">
         <div ref={contentRef} key={activeTab} className="app-content page-transition" data-direction={pageDirection} tabIndex={-1}>
           {children}
