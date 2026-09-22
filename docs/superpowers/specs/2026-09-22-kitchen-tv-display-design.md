@@ -1430,3 +1430,38 @@ Depois da aprovação:
 4. somente então iniciar implementação.
 
 A aprovação desta spec não autoriza merge nem deploy de produção.
+
+
+## 37. Auto-revisão da spec
+
+Revisão executada em 2026-09-22 contra master em 7d5a9d2507968dd96dae81f5f1d61431a6e42292.
+
+Verificações concluídas:
+
+- paths de Orders apontam para src/domains/orders, sem depender do antigo src/pages/Orders.jsx;
+- Kitchen TV permanece UI própria e não modo condicional dentro de Orders;
+- /cozinha-tv precisa selecionar bundle próprio antes de importar App;
+- /api/bootstrap é proibido na TV;
+- QZ/jsPDF/printing administrativo são proibidos no bundle TV;
+- sessão TV é separada de auth admin;
+- segredo de pareamento usa fragmento de URL e POST, evitando query string;
+- dados pessoais/financeiros possuem denylist explícita e o endpoint deve usar allowlist;
+- timing configurável atual do negócio é preservado;
+- “Novo pedido” é apresentação temporária de 2600 ms, não lifecycle;
+- “Próximo do limite” é apresentação local e não altera regras de domínio;
+- layout alvo está fixado em 3x2 com no máximo 6 cards;
+- nome do cliente é dominante e número do pedido secundário;
+- fonte Inter e estratégia de ícones são compatíveis com o código atual;
+- staging, merge e produção continuam gates separados.
+
+Não foram identificadas decisões de produto obrigatórias pendentes para escrever o plano.
+
+### 37.1 Referência visual versionada
+
+Antes da primeira tarefa de implementação da UI, o plano deve incluir um passo explícito para versionar no repositório uma cópia do mockup 32" aprovado em 2026-09-22, em pasta de referência documental, por exemplo:
+
+docs/superpowers/references/kitchen-tv-32-approved-reference.jpg
+
+A implementação e a homologação visual devem comparar a tela real contra esse asset.
+
+A descrição textual desta spec é normativa mesmo que o asset ainda não tenha sido adicionado na fase de design.
