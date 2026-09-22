@@ -6,6 +6,7 @@ export function useOrderArrivals({
   active,
   orders,
   now,
+  currentTiming,
   soundEnabled,
   playSound,
   highlightDurationMs = 2600,
@@ -35,7 +36,7 @@ export function useOrderArrivals({
       knownRef.current = undefined
       return
     }
-    const { currentIds, newIds } = detectOperationalArrivals(knownRef.current, orders, now, alertedRef.current)
+    const { currentIds, newIds } = detectOperationalArrivals(knownRef.current, orders, now, alertedRef.current, currentTiming)
     knownRef.current = currentIds
     if (!newIds.length) return
     newIds.forEach((id) => alertedRef.current.add(id))
@@ -46,7 +47,7 @@ export function useOrderArrivals({
       setNewOrderIds(new Set())
       timerRef.current = null
     }, highlightDurationMs)
-  }, [active, clearTimeoutFn, highlightDurationMs, now, orders, setTimeoutFn, soundEnabled])
+  }, [active, clearTimeoutFn, currentTiming, highlightDurationMs, now, orders, setTimeoutFn, soundEnabled])
 
   useEffect(() => {
     if (!soundEnabled || !globalThis.window) return undefined

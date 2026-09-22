@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { detectOperationalArrivals, getNewOperationalOrderIds, operationalOrderIdSet } from './orderRealtime.js'
+import { detectOperationalArrivals, getNewOperationalOrderIds, getOperationalOrderCount, operationalOrderIdSet } from './orderRealtime.js'
 
 const scheduled = {
   id: 'scheduled-1', type: 'Entrega', status: 'Em preparo', createdAt: '2026-09-04T12:00:00.000Z',
@@ -52,4 +52,22 @@ test('newly discovered immediate active orders exclude finished work', () => {
   ]
   assert.deepEqual(getNewOperationalOrderIds(baseline, orders, now), ['new-active'])
   assert.deepEqual([...operationalOrderIdSet(orders, now)], ['old-active', 'new-active'])
+})
+
+test('operational count uses the current timing policy and excludes future scheduled work', () => {
+  const order = { id: 'scheduled-policy', type: 'Entrega', status: 'Em preparo', createdAt: '2026-09-21T12:00:00.000Z', scheduledFor: '2026-09-21T15:00:00.000Z' }
+  const timing = { scheduledPrepLeadMinutes: 30, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 60 }
+  assert.equal(getOperationalOrderCount([order], new Date('2026-09-21T14:29:59.000Z'), timing), 0)
+  assert.equal(getOperationalOrderCount([order], new Date('2026-09-21T14:30:00.000Z'), timing), 1)
+})
+
+test('operational count excludes terminal and legacy finished statuses', () => {
+  const now = new Date('2026-09-21T18:00:00-03:00')
+  assert.equal(getOperationalOrderCount([
+    { id: 'active', status: 'Em preparo' },
+    { id: 'finalized', status: 'Finalizado' },
+    { id: 'cancelled', status: 'Cancelado' },
+    { id: 'delivered', status: 'Entregue' },
+    { id: 'dispatched', status: 'Despachado' },
+  ], now), 1)
 })
