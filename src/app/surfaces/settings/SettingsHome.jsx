@@ -7,6 +7,7 @@ const cards = [
   { id: 'settings-payments', title: 'Formas de pagamento', description: 'Métodos aceitos, ordem e padrão.', capability: 'payments.settings.view', icon: 'wallet' },
   { id: 'settings-cancellations', title: 'Motivos de cancelamento', description: 'Motivos disponíveis ao cancelar pedidos.', capability: 'orders.settings.view', icon: 'cancel' },
   { id: 'settings-finance-categories', title: 'Categorias financeiras', description: 'Categorias dos lançamentos manuais.', capability: 'finance.categories.view', icon: 'finance' },
+  { id: 'settings-kitchen-tv', title: 'TV da Cozinha', description: 'Conecte uma TV para acompanhar os pedidos em tempo real.', capability: 'orders.settings.view', icon: 'system' },
   { id: 'settings-printing', title: 'Impressão', description: 'Vias do negócio, estação e impressora local.', capabilities: ['printing.settings.view', 'printing.settings', 'printing.station.view'], icon: 'printer' },
   { id: 'settings-device', title: 'Preferências deste dispositivo', description: 'Tema e som de novos pedidos.', capability: 'preferences.local', icon: 'system' },
 ]

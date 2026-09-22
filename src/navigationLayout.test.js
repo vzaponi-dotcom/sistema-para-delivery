@@ -14,7 +14,7 @@ const granted = new Set([
   'orders.view', 'orders.history', 'orders.create', 'comandas.view',
   'printing.queue', 'finance.overview', 'finance.receivables',
   'finance.movements', 'clients.view', 'products.view', 'tables.view',
-  'printing.settings', 'preferences.local',
+  'orders.settings.view', 'printing.settings', 'preferences.local',
 ])
 
 const navButtons = (root, label) => root.findByProps({ 'aria-label': label }).findAllByType('button')
