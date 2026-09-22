@@ -14,6 +14,7 @@ test('mobile sections keep the approved navigation order for page transitions', 
     'clients',
     'products',
     'tables',
+    'settings-kitchen-tv',
     'settings-printing',
     'settings-device',
   ])

@@ -13,6 +13,7 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
   assert.deepEqual(NAVIGATION_DESTINATIONS.map(({ id }) => id), [
     'settings-home', 'settings-operations', 'settings-modalities',
     'settings-payments', 'settings-cancellations', 'settings-finance-categories',
+    'settings-kitchen-tv',
     'orders', 'history', 'new-order', 'comandas', 'print-queue',
     'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables',
     'settings-printing', 'settings-device',
@@ -23,7 +24,8 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
     settings: [
       'settings-home', 'settings-operations', 'settings-modalities',
       'settings-payments', 'settings-cancellations',
-      'settings-finance-categories', 'settings-printing', 'settings-device',
+      'settings-finance-categories', 'settings-kitchen-tv',
+      'settings-printing', 'settings-device',
     ],
   })
   assert.deepEqual(DESKTOP_NAV_GROUPS.map(({ label }) => label), ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS'])
@@ -31,6 +33,7 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
   assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), ['print-queue', 'clients', 'products', 'tables', 'settings'])
   assert.deepEqual(MOBILE_SECTION_IDS, [
     'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
-    'print-queue', 'clients', 'products', 'tables', 'settings-printing', 'settings-device',
+    'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv',
+    'settings-printing', 'settings-device',
   ])
 })
