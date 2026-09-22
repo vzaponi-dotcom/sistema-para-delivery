@@ -445,3 +445,16 @@ The two defects found during staging QA were corrected with explicit RED → GRE
 - Homologated runtime SHA: `7c612a9930fc418440c3cc7340c506688c533968`
 - Final documentary closure SHA: pending the commit that records this section and its final Validate evidence.
 
+## Final physical release validation — 2026-09-21
+
+The physical Printing gate carried forward by this slice has now been completed by the user on the latest official staging candidate (#198 / run `35671044737`, SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`).
+
+- all previously deferred hardware-dependent functional Printing cases: **PASS**;
+- physical P1–P20: **20/20 PASS**;
+- failures: **0**;
+- remaining `DEFERRED-PRODUCTION`: **0**.
+
+The slice's prior `DEFERRED-PRODUCTION` statement remains historical evidence and is superseded for production readiness by this closure.
+
+**Physical printing production blocker: CLEARED.**
+

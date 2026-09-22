@@ -101,3 +101,28 @@ All rows below are currently **DEFERRED-PRODUCTION** and must be executed on the
 C9 may proceed to final docs Validate and then explicit merge authorization with the state above. C10 may then start from the validated post-C9 master.
 
 **Production may not proceed** until all 12 deferred functional rows and all P1–P20 are PASS on the final post-C10 staging release candidate.
+
+## Final physical pre-production closure — 2026-09-21
+
+The previously deferred hardware-dependent Printing gate was executed manually by the user against the current official staging release candidate:
+
+- Deploy staging: **#198** / run `35671044737` — **SUCCESS**.
+- Executable SHA: `720fc0a4af160a819ff4b01b77264ff0244eeaf7`.
+- Worker version: `13c4d27c-b488-4655-9626-38906b739a12`.
+- Readiness: attempt 1/6.
+- Login smoke: HTTP 200.
+- No Printing/QZ code changed after the earlier C9/print-queue homologations; this staging candidate contains the final merged runtime lineage.
+
+User-reported manual result:
+
+- previously deferred functional rows #12, #14–21, #24, #30 and #31: **12 PASS / 0 FAIL / 0 DEFERRED**;
+- mandatory physical matrix P1–P20: **20 PASS / 0 FAIL / 0 DEFERRED**;
+- no physical-printing defect was found in the final round;
+- no RED→GREEN correction or staging redeploy was required.
+
+**Final C9 release-gate totals:** functional deferred gate **12/12 PASS**; physical P1–P20 **20/20 PASS**.
+
+The former `DEFERRED-PRODUCTION` state above remains as historical evidence of the approved C9/C10 sequencing policy. It is superseded for production readiness by this final closure.
+
+**Production printing gate: CLEARED.**
+

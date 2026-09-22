@@ -96,3 +96,16 @@ The C9 hardware-dependent QA remains separate from the C10 manual smoke matrix a
 - PR #54 must remain **OPEN** pending explicit merge authorization.
 - Merge: **NOT EXECUTED**.
 - Production deploy: **NO DEPLOY**. The latest production workflow remains the historical #49 from 2026-09-16; no production run was triggered by Task 12.
+
+## Post-C10 physical release-gate closure — 2026-09-21
+
+The separate C9 hardware gate that was intentionally excluded from the C10 smoke matrix has now been completed by the user on official staging #198 / run `35671044737` (SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`).
+
+- C9 deferred functional rows: **12/12 PASS**.
+- C9 physical P1–P20: **20/20 PASS**.
+- Remaining production blockers from C9 hardware QA: **0**.
+
+The historical C10 statements that physical printing was not inferred remain correct for the C10 execution date; this later evidence closes the separate pre-production gate.
+
+**Production release gate from C9/C10 physical printing: CLEARED.**
+

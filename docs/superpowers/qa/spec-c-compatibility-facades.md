@@ -347,3 +347,14 @@ Do not remove or broaden these compatibility paths opportunistically. Their remo
 - **Active temporary compatibility facade inventory = 0.**
 - Task 8 GREEN `28b5ac578e9d778342254066ae6b7b5a0bc22a3c` / Validate run `35532635340` - **SUCCESS**.
 - Tasks 9–12 are **COMPLETE / GREEN**. Task 12 homologated candidate `060468703f39c716d997025ab0ed99063cdd2fae` with Deploy staging #190 / run `35544795652` and **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**. Final active temporary compatibility-facade inventory remains **0**; migration allowlists remain **0**. C9 physical QA remains `DEFERRED-PRODUCTION`, production is **NO DEPLOY**, and merge is **NOT EXECUTED**.
+
+## Production release closure note — 2026-09-21
+
+Physical QZ QA was never a compatibility facade and remains separate from the architecture ledger. Its previously deferred production gate is now closed:
+
+- hardware-dependent functional rows: **12/12 PASS**;
+- physical P1–P20: **20/20 PASS**;
+- remaining `DEFERRED-PRODUCTION`: **0**.
+
+Compatibility-facade inventory remains **0** and migration allowlists remain **0**. No compatibility mechanism was introduced to obtain the physical PASS results.
+
