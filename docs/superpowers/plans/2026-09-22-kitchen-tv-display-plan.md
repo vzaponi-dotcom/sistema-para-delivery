@@ -1512,3 +1512,25 @@ Execution protocol requested for Codex:
 - browser/TV homologation is performed manually by the product owner after CI is green.
 
 The approved visual reference asset is part of the implementation handoff. If it is already versioned on the implementation branch before Codex begins, treat that docs-only precondition as satisfied and do not manufacture an artificial failing test solely to prove the file was absent. Behavioral/product changes still follow RED → GREEN.
+
+
+## 9. Execution amendment — TV-first short-code pairing
+
+A implementação foi ajustada durante staging QA antes do merge. O pareamento por link secreto foi substituído por código curto gerado na própria TV.
+
+Esta emenda prevalece sobre Tasks 2, 3, 5, 6 e 8 onde elas mencionem `pairingUrl`, `#token=`, `Copiar link`, `/api/kitchen-tv/pair` ou `/api/kitchen-tv/access`.
+
+Contrato executado:
+
+- migration adicional `0029_kitchen_tv_pairing_requests.sql`;
+- TV cria uma solicitação com cookie temporário opaco;
+- TV exibe código numérico de 6 dígitos;
+- admin com `orders.settings.manage` aprova pelo endpoint `/api/kitchen-tv/approve`;
+- TV faz polling em `/api/kitchen-tv/pairing-status`;
+- aprovação é convertida pela própria TV em cookie final restrito;
+- `/api/kitchen-tv/state` e toda a arquitetura KDS restante permanecem inalterados;
+- código expira em 30 minutos;
+- nenhum segredo de alta entropia é digitado ou exibido no celular;
+- código curto sozinho não autoriza leitura de pedidos.
+
+Gate automatizado após a mudança: Validate application #1766 / run `35798274784` — 8/8 shards + `validate` SUCCESS.
