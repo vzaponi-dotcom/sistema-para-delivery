@@ -24,9 +24,12 @@ test('AppShell preserva direção e foco ao trocar de página', async (t) => {
       children: React.createElement('span', null, activeTab),
     }),
   })
+  const scrollCalls = []
+  let focusOptions = null
+  h.window.scrollTo = (options) => scrollCalls.push(options)
   const renderer = await h.render(Wrapper, { activeTab: 'orders' }, {
     createNodeMock: (element) => element.props?.className === 'app-content page-transition'
-      ? { focus: h.recordFocus }
+      ? { focus: (options) => { focusOptions = options; h.recordFocus() } }
       : {},
   })
   const beforeFocus = h.activitySnapshot().focus
@@ -41,6 +44,8 @@ test('AppShell preserva direção e foco ao trocar de página', async (t) => {
   const content = renderer.root.findByProps({ className: 'app-content page-transition' })
   assert.equal(content.props['data-direction'], 'forward')
   assert.equal(h.activitySnapshot().focus, beforeFocus + 1)
+  assert.deepEqual(focusOptions, { preventScroll: true })
+  assert.deepEqual(scrollCalls.at(-1), { top: 0, left: 0, behavior: 'auto' })
   await act(async () => renderer.update(React.createElement(Wrapper, { activeTab: 'orders' })))
   assert.equal(renderer.root.findByProps({ className: 'app-content page-transition' }).props['data-direction'], 'backward')
 })
