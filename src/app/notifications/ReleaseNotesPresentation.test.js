@@ -34,3 +34,16 @@ test('release notes responsive contract contains long content without horizontal
   assert.match(mobileContract, /\.release-notes-modal/)
   assert.match(mobileContract, /\.release-notes-item/)
 })
+
+test('release item icon removes the inline svg baseline and centers a fixed-size glyph', () => {
+  const icon = rule('.release-notes-item-icon')
+  const glyph = css.match(/\.release-notes-item-icon svg,\s*\.release-notes-item-icon \.icon\s*\{([^}]+)\}/s)?.[1] ?? ''
+
+  assert.match(icon, /display:\s*inline-flex/)
+  assert.match(icon, /align-items:\s*center/)
+  assert.match(icon, /justify-content:\s*center/)
+  assert.match(icon, /line-height:\s*0/)
+  assert.match(glyph, /display:\s*block/)
+  assert.match(glyph, /width:\s*20px/)
+  assert.match(glyph, /height:\s*20px/)
+})

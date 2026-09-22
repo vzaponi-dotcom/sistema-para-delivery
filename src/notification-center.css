@@ -142,14 +142,23 @@
 }
 
 .release-notes-item-icon {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 40px;
   height: 40px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-soft);
   color: var(--primary);
+  line-height: 0;
+}
+
+.release-notes-item-icon svg,
+.release-notes-item-icon .icon {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 
 .release-notes-item-copy {
