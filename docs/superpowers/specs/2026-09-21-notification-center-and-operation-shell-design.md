@@ -1,7 +1,7 @@
 # Gestão Delivery — Central de notificações, badge operacional e top bar global
 
 **Data:** 2026-09-21  
-**Status:** DESIGN APROVADO EM CONVERSA / AGUARDANDO REVISÃO DA SPEC  
+**Status:** SPEC APROVADA  
 **Branch:** `feature/notifications-center-shell`
 
 ## 1. Objetivo
