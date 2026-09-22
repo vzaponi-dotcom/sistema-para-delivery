@@ -54,3 +54,27 @@ test('desktop sidebar follows the active theme and positions borderless badges b
   assert.match(desktopBadges, /\.navigation-badge\s*\{[^}]*top:\s*-7px[^}]*left:\s*-9px[^}]*border:\s*0/s)
   assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*#fff[^}]*color:\s*var\(--primary\)/s)
 })
+
+test('desktop sidebar shows the active print-job count from the shared operational badges', async (t) => {
+  const h = await workspaceHarness(t)
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: Sidebar } = await h.load('/src/app/shell/Sidebar.jsx')
+  const renderer = await h.render(NavigationProvider, {
+    activeTab: 'orders',
+    granted: new Set(['orders.view', 'printing.queue']),
+    implemented: new Set(['orders', 'print-queue']),
+    moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(Sidebar, { badges: { 'print-queue': 4 } }),
+  })
+
+  const button = renderer.root.findByProps({ 'aria-label': 'Fila de impressão, 4 jobs ativos' })
+  assert.ok(button)
+  assert.equal(button.findByProps({ className: 'navigation-badge' }).children.join(''), '4')
+})
+
+test('App wires the printing manager active count to sidebar and Orders queue affordances', async () => {
+  const source = await readFile(new URL('../../App.jsx', import.meta.url), 'utf8')
+  assert.match(source, /'print-queue':\s*printing\.activeJobCount/)
+  assert.match(source, /printQueueActiveCount=\{printing\.activeJobCount\}/)
+})

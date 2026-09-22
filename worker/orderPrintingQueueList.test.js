@@ -183,6 +183,7 @@ test('queue summary is independent from pagination and counts only safely untouc
     .bind('attempt-submitted', 'biz', 'submitted', now.toISOString()).run()
 
   assert.deepEqual(await getPrintQueueSummary(db, 'biz', now), {
+    active: 6,
     pending: 2,
     awaitingConfirmation: 1,
     awaitingSecondCopy: 1,
