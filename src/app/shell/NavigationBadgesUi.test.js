@@ -73,7 +73,8 @@ test('desktop sidebar anchors badges above a fixed icon column without shifting 
 
   const badgeCss = await readFile(new URL('../../navigation-badges.css', import.meta.url), 'utf8')
   const desktopBadges = badgeCss.slice(0, badgeCss.indexOf('@media (max-width: 820px)'))
-  assert.match(desktopBadges, /\.navigation-icon-wrap\s*\{[^}]*position:\s*relative[^}]*width:\s*20px/s)
+  assert.match(desktopBadges, /\.navigation-icon-wrap\s*\{[^}]*position:\s*relative/s)
+  assert.match(desktopBadges, /\.sidebar-link \.navigation-icon-wrap\s*\{[^}]*width:\s*20px/s)
   assert.match(desktopBadges, /\.navigation-badge\s*\{[^}]*position:\s*absolute[^}]*top:\s*-[1-9]\d*px[^}]*border:\s*0/s)
   assert.doesNotMatch(desktopBadges, /\.sidebar-link-label \.navigation-badge/)
   assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*#fff[^}]*color:\s*var\(--primary\)/s)
