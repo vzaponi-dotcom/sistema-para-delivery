@@ -425,3 +425,18 @@ Task 2 is **COMPLETE / GREEN**.
 ## Next action
 
 Keep PR #54 **OPEN** and stop for explicit user merge authorization. Do not merge and do not deploy production.
+
+## Final production gate update — 2026-09-21
+
+The production blocker recorded during C10 closure has been satisfied.
+
+User manual physical Printing QA on official staging #198 / run `35671044737`, executable SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`:
+
+- C9 hardware-dependent functional rows: **12 PASS / 0 FAIL**;
+- C9 P1–P20: **20 PASS / 0 FAIL**;
+- remaining deferred production cases: **0**.
+
+No defect was found and no implementation correction was required.
+
+**Spec C production hardware gate: PASS / CLEARED.**
+
