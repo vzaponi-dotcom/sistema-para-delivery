@@ -47,11 +47,12 @@ test('one row per business and unique non-null hashes are enforced by the schema
   const fixture = createSettingsDb()
   try {
     const insert = fixture.sqlite.prepare(`INSERT INTO kitchen_tv_access
-      (business_id, pairing_token_hash, session_token_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`)
-    insert.run(BUSINESS, 'pair-a', 'session-a', NOW.toISOString(), NOW.toISOString())
-    assert.throws(() => insert.run(BUSINESS, 'pair-b', 'session-b', NOW.toISOString(), NOW.toISOString()))
+      (business_id, pairing_token_hash, pairing_expires_at, session_token_hash, session_issued_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    insert.run(BUSINESS, 'pair-a', new Date(+NOW + 1_800_000).toISOString(), 'session-a', NOW.toISOString(), NOW.toISOString(), NOW.toISOString())
+    assert.throws(() => insert.run(BUSINESS, 'pair-b', new Date(+NOW + 1_800_000).toISOString(), 'session-b', NOW.toISOString(), NOW.toISOString(), NOW.toISOString()))
     fixture.sqlite.prepare("INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES ('other', 'other', 'Other', '2026-09-22', '2026-09-22')").run()
-    assert.throws(() => insert.run('other', 'pair-a', 'session-b', NOW.toISOString(), NOW.toISOString()))
+    assert.throws(() => insert.run('other', 'pair-a', new Date(+NOW + 1_800_000).toISOString(), 'session-b', NOW.toISOString(), NOW.toISOString(), NOW.toISOString()))
   } finally {
     fixture.close()
   }
