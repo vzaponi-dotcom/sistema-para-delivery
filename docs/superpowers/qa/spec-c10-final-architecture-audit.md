@@ -107,3 +107,19 @@ Important new/final owners have focused tests beside them: runtime/navigation, D
 The Task 11 audit found no architecture FAIL and required no implementation fix. The immutable executable candidate is `060468703f39c716d997025ab0ed99063cdd2fae`; Validate application #1550 / run `35541850517` completed **SUCCESS** on that exact SHA with **1,933 tests / 1,932 pass / 0 fail / 1 skipped** and every workflow gate green. Deploy staging #190 / run `35544795652` then deployed that same executable SHA, reported no pending remote migration, produced Worker version `f0f8c6a0-5e55-4894-9250-29d4b76aeae8`, passed readiness on attempt 1/6 and login smoke with HTTP 200. Manual homologation closed at **23 PASS / 0 FAIL / 0 BLOCKED / 0 PENDING**, including the restricted-capability case. Documentation-only successor commits do not replace the staged executable SHA.
 
 Tasks 1–12 are **COMPLETE / GREEN**. Active compatibility facades and migration allowlists remain **0**. PR #54 remains open pending explicit merge authorization; production is **NO DEPLOY** and merge is **NOT EXECUTED**.
+
+## Production-readiness addendum — physical printing gate closed 2026-09-21
+
+The final post-C10 release candidate has now passed the hardware gate that this audit intentionally left deferred:
+
+- official staging #198 / run `35671044737`;
+- executable SHA `720fc0a4af160a819ff4b01b77264ff0244eeaf7`;
+- 12/12 previously deferred functional Printing rows: **PASS**;
+- physical P1–P20: **20/20 PASS**;
+- failures: **0**;
+- remaining `DEFERRED-PRODUCTION`: **0**.
+
+No architecture claim is being inferred from hardware behavior; this addendum records the independent manual release evidence required by the audit.
+
+**Pre-production hardware blocker: CLEARED.**
+
