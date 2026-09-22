@@ -46,6 +46,19 @@ async function loadSettingsState(db, businessId, now) {
   return settingsPayload(access, pending)
 }
 
+async function pairingRequestToken(request) {
+  const cookieToken = readKitchenTvPairingRequestToken(request)
+  if (cookieToken) return cookieToken
+  if (request.method !== 'POST') return null
+  assertSameOriginMutation(request)
+  try {
+    const body = await readJson(request)
+    return typeof body.requestToken === 'string' ? body.requestToken.trim() : null
+  } catch {
+    return null
+  }
+}
+
 export async function handleKitchenTvAdminApi(request, env, context, url = new URL(request.url), now = new Date()) {
   if (url.pathname === '/api/kitchen-tv/settings' && request.method === 'GET') {
     requireCapability(context, 'orders.settings.view')
@@ -84,7 +97,7 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
       const code = createKitchenTvPairingCode()
       try {
         await createKitchenTvPairingRequest(env.DB, credential.tokenHash, code, expiresAt, now)
-        return json({ paired: false, code, expiresAt: expiresAt.toISOString() }, {
+        return json({ paired: false, code, expiresAt: expiresAt.toISOString(), requestToken: credential.token }, {
           status: 201,
           headers: { 'set-cookie': kitchenTvPairingRequestCookie(credential.token) },
         })
@@ -96,8 +109,8 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
     throw apiError(503, 'KITCHEN_TV_PAIRING_UNAVAILABLE', lastError ? 'Não foi possível gerar um código agora.' : 'Pareamento indisponível.')
   }
 
-  if (url.pathname === '/api/kitchen-tv/pairing-status' && request.method === 'GET') {
-    const token = readKitchenTvPairingRequestToken(request)
+  if (url.pathname === '/api/kitchen-tv/pairing-status' && ['GET', 'POST'].includes(request.method)) {
+    const token = await pairingRequestToken(request)
     if (!token) throw pairingExpired()
     const requestHash = await hashKitchenTvToken(token)
     const pairing = await loadKitchenTvPairingRequestByHash(env.DB, requestHash)
