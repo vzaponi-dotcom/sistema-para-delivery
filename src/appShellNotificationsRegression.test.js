@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
-const [app, runtime, shell, topbar, entry, topbarCss, centerCss, badgesCss, mobileCss] = await Promise.all([
-  read('./App.jsx'), read('./app/runtime/data/useOperationalDataRuntime.js'), read('./app/shell/AppShell.jsx'), read('./app/shell/AppTopBar.jsx'), read('./app/notifications/NotificationsEntryPoint.jsx'),
+const [app, runtime, shell, topbar, entry, centerComponent, topbarCss, centerCss, badgesCss, mobileCss] = await Promise.all([
+  read('./App.jsx'), read('./app/runtime/data/useOperationalDataRuntime.js'), read('./app/shell/AppShell.jsx'), read('./app/shell/AppTopBar.jsx'), read('./app/notifications/NotificationsEntryPoint.jsx'), read('./app/notifications/NotificationCenter.jsx'),
   read('./app-top-bar.css'), read('./notification-center.css'), read('./navigation-badges.css'), read('./mobile-navigation.css'),
 ])
 
@@ -44,4 +44,10 @@ test('business display name flows from the official bootstrap into the global sh
   assert.match(app, /businessName=\{business\?\.name\}/)
   assert.match(shell, /businessName/)
   assert.doesNotMatch(topbar, /'Amor & Sabor'/)
+})
+
+test('mobile notification detail relies on the sheet close action without a large back button', () => {
+  assert.doesNotMatch(centerComponent, /notification-back/)
+  assert.doesNotMatch(centerComponent, />Voltar</)
+  assert.doesNotMatch(centerCss, /\.notification-back/)
 })
