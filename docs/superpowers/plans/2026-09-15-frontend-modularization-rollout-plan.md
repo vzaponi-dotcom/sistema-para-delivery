@@ -620,3 +620,19 @@ The exception that allowed C9/C10 architecture work to proceed without hardware 
 
 **Spec C hardware pre-production gate: COMPLETE / GREEN.**
 
+## Production deployment completed — 2026-09-21
+
+The program-completion release gate has been fully satisfied and the approved release was deployed to production.
+
+- final release master: `5540a9c11b17d028ff9e3126237e056949bae5e1`;
+- Validate #1694 / run `35673095265`: **SUCCESS**;
+- Deploy production #50 / run `35673385098`: **SUCCESS**;
+- tests during production deploy: **2027 / 2026 pass / 0 fail / 1 skipped**;
+- production D1 migrations `0026` and `0027`: **PASS**;
+- production Worker version: `2e608341-b77a-472a-a432-978de02750e3`;
+- production login smoke: **HTTP 200**;
+- C9 hardware release gate: **32/32 final deferred cases PASS**;
+- remaining production blockers: **0**.
+
+The rollout is now **COMPLETE / GREEN / DEPLOYED TO PRODUCTION**.
+

@@ -440,3 +440,17 @@ No defect was found and no implementation correction was required.
 
 **Spec C production hardware gate: PASS / CLEARED.**
 
+## Production deployment confirmation — 2026-09-21
+
+The post-C10 production gate has now completed successfully.
+
+- final master: `5540a9c11b17d028ff9e3126237e056949bae5e1`;
+- post-merge Validate #1694 / run `35673095265`: **SUCCESS**;
+- Deploy production #50 / run `35673385098`: **SUCCESS**;
+- production migrations `0026` and `0027`: **PASS**;
+- Worker version: `2e608341-b77a-472a-a432-978de02750e3`;
+- production login smoke: **HTTP 200**;
+- C9 deferred hardware release gate: **fully cleared before deploy**.
+
+**Spec C/C10 final release state: COMPLETE / GREEN / PRODUCTION DEPLOYED.**
+
