@@ -39,25 +39,52 @@ for (const name of ['Sidebar', 'MobileNavigation']) {
 }
 
 
-test('desktop sidebar keeps compact natural rows and places borderless badges before the label text', async () => {
-  const [appCss, badgeCss, sidebarSource] = await Promise.all([
+test('desktop sidebar keeps compact natural rows with premium token-based group separation', async () => {
+  const [appCss, sidebarSource] = await Promise.all([
     readFile(new URL('../../App.css', import.meta.url), 'utf8'),
-    readFile(new URL('../../navigation-badges.css', import.meta.url), 'utf8'),
     readFile(new URL('./Sidebar.jsx', import.meta.url), 'utf8'),
   ])
   const sidebar = appCss.slice(appCss.indexOf('.sidebar {'), appCss.indexOf('.app-main {'))
-  const desktopBadges = badgeCss.slice(0, badgeCss.indexOf('@media (max-width: 820px)'))
 
   assert.match(sidebar, /\.sidebar\s*\{[^}]*background:\s*var\(--surface\)[^}]*color:\s*var\(--text\)[^}]*border-right:\s*1px solid var\(--border\)/s)
   assert.match(sidebar, /\.sidebar-nav\s*\{[^}]*align-content:\s*start/s)
   assert.match(sidebar, /\.sidebar-group\s*\{[^}]*align-content:\s*start/s)
+  assert.match(sidebar, /\.sidebar-group \+ \.sidebar-group\s*\{[^}]*border-top:\s*1px solid var\(--border\)[^}]*padding-top:/s)
   assert.match(sidebar, /\.sidebar-group-label\s*\{[^}]*color:\s*var\(--muted\)/s)
   assert.match(sidebar, /\.sidebar-link\s*\{[^}]*min-height:\s*46px[^}]*color:\s*var\(--text-soft\)/s)
   assert.doesNotMatch(sidebar, /#211b1a|rgba\(255,\s*255,\s*255/)
-  assert.match(sidebarSource, /navigation-icon-wrap[\s\S]*sidebar-link-label[\s\S]*navigation-badge[\s\S]*item\.label/)
-  assert.match(desktopBadges, /\.sidebar-link-label\s*\{[^}]*display:\s*inline-flex[^}]*align-items:\s*center/s)
-  assert.match(desktopBadges, /\.sidebar-link-label \.navigation-badge\s*\{[^}]*position:\s*static[^}]*border:\s*0/s)
+  assert.doesNotMatch(sidebarSource, /sidebar-brand|Amor & Sabor|Gestão do delivery/)
+})
+
+test('desktop sidebar anchors badges above a fixed icon column without shifting labels', async (t) => {
+  const h = await workspaceHarness(t)
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: Sidebar } = await h.load('/src/app/shell/Sidebar.jsx')
+  const renderer = await h.render(NavigationProvider, {
+    activeTab: 'orders', granted: fullAccess, implemented, moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(Sidebar, { badges: { orders: 3 } }),
+  })
+  const orders = renderer.root.findByProps({ 'aria-label': 'Pedidos, 3 pedidos em andamento' })
+  const iconWrap = orders.findByProps({ className: 'navigation-icon-wrap' })
+  const label = orders.findByProps({ className: 'sidebar-link-label' })
+  assert.equal(iconWrap.findByProps({ className: 'navigation-badge' }).children.join(''), '3')
+  assert.equal(label.findAllByProps({ className: 'navigation-badge' }).length, 0)
+
+  const badgeCss = await readFile(new URL('../../navigation-badges.css', import.meta.url), 'utf8')
+  const desktopBadges = badgeCss.slice(0, badgeCss.indexOf('@media (max-width: 820px)'))
+  assert.match(desktopBadges, /\.navigation-icon-wrap\s*\{[^}]*position:\s*relative[^}]*width:\s*20px/s)
+  assert.match(desktopBadges, /\.navigation-badge\s*\{[^}]*position:\s*absolute[^}]*top:\s*-[1-9]\d*px[^}]*border:\s*0/s)
+  assert.doesNotMatch(desktopBadges, /\.sidebar-link-label \.navigation-badge/)
   assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*#fff[^}]*color:\s*var\(--primary\)/s)
+})
+
+test('mobile badge contract stays scoped to the approved 820px layout', async () => {
+  const badgeCss = await readFile(new URL('../../navigation-badges.css', import.meta.url), 'utf8')
+  const mobileBadges = badgeCss.slice(badgeCss.indexOf('@media (max-width: 820px)'))
+  assert.match(mobileBadges, /@media \(max-width:\s*820px\)/)
+  assert.match(mobileBadges, /\.mobile-nav-item \.navigation-icon-wrap\s*\{[^}]*overflow:\s*visible/s)
+  assert.match(mobileBadges, /\.mobile-nav-item \.navigation-badge\s*\{[^}]*top:\s*-7px[^}]*left:\s*calc\(100% - 4px\)[^}]*min-width:\s*17px[^}]*height:\s*17px/s)
 })
 
 test('desktop sidebar shows the active print-job count from the shared operational badges', async (t) => {
