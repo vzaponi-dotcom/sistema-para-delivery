@@ -42,7 +42,7 @@ test('TV creates a short code, admin approves it, and TV receives its restricted
   const pending = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-status', 'GET', undefined, pairingCookie.split(';')[0]), env, undefined, new Date(+NOW + 1_000))
   assert.deepEqual(await pending.json(), pairing)
 
-  const approved = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: pairing.code }), env, manager(), undefined, new Date(+NOW + 2_000))
+  const approved = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: pairing.code }), env, await manager(), undefined, new Date(+NOW + 2_000))
   assert.equal((await approved.json()).waitingPairing, true)
 
   const activated = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-status', 'GET', undefined, pairingCookie.split(';')[0]), env, undefined, new Date(+NOW + 3_000))
@@ -63,10 +63,10 @@ test('code approval requires manage capability and rejects malformed, unknown an
   const created = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-request', 'POST'), env, undefined, NOW)
   const { code } = await created.json()
 
-  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code }), env, reader(), undefined, NOW), { status: 403 })
-  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: '12' }), env, manager(), undefined, NOW), { status: 400, code: 'KITCHEN_TV_PAIRING_CODE_INVALID' })
-  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: '999999' }), env, manager(), undefined, NOW), { status: 404, code: 'KITCHEN_TV_PAIRING_CODE_INVALID' })
-  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code }), env, manager(), undefined, new Date(+NOW + 1_800_001)), { status: 404, code: 'KITCHEN_TV_PAIRING_CODE_INVALID' })
+  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code }), env, await reader(), undefined, NOW), { status: 403 })
+  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: '12' }), env, await manager(), undefined, NOW), { status: 400, code: 'KITCHEN_TV_PAIRING_CODE_INVALID' })
+  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: '999999' }), env, await manager(), undefined, NOW), { status: 404, code: 'KITCHEN_TV_PAIRING_CODE_INVALID' })
+  await assert.rejects(api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code }), env, await manager(), undefined, new Date(+NOW + 1_800_001)), { status: 404, code: 'KITCHEN_TV_PAIRING_CODE_INVALID' })
 })
 
 test('settings reports pending activation and revocation invalidates pending approval', async (t) => {
@@ -75,15 +75,15 @@ test('settings reports pending activation and revocation invalidates pending app
   const env = { DB: db }
   const created = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-request', 'POST'), env, undefined, NOW)
   const { code } = await created.json()
-  await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code }), env, manager(), undefined, NOW)
+  await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code }), env, await manager(), undefined, NOW)
 
-  const settings = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/settings'), env, reader(), undefined, NOW)
+  const settings = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/settings'), env, await reader(), undefined, NOW)
   const payload = await settings.json()
   assert.equal(payload.waitingPairing, true)
   assert.equal(payload.paired, false)
   assert.equal(payload.pairingExpiresAt, '2026-09-22T18:30:00.000Z')
 
-  await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/revoke', 'POST'), env, manager(), undefined, new Date(+NOW + 1_000))
-  const after = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/settings'), env, reader(), undefined, new Date(+NOW + 2_000))
+  await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/revoke', 'POST'), env, await manager(), undefined, new Date(+NOW + 1_000))
+  const after = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/settings'), env, await reader(), undefined, new Date(+NOW + 2_000))
   assert.equal((await after.json()).waitingPairing, false)
 })
