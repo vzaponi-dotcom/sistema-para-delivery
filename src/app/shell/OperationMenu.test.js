@@ -77,13 +77,15 @@ test('logout is disabled while writes are blocked', async (t) => {
   assert.equal(buttonNamed(renderer.root, 'Sair do sistema').props.disabled, true)
 })
 
-test('operation initials ignore Portuguese connectors and fallback without using the business slug', async (t) => {
-  const first = await renderMenu(t, { businessName: 'Sabor da Vila' })
-  assert.equal(first.renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'SV')
-  assert.ok(buttonNamed(first.renderer.root, 'Sabor da Vila, operação atual'))
+test('operation initials ignore Portuguese connectors', async (t) => {
+  const { renderer } = await renderMenu(t, { businessName: 'Sabor da Vila' })
+  assert.equal(renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'SV')
+  assert.ok(buttonNamed(renderer.root, 'Sabor da Vila, operação atual'))
+})
 
-  const second = await renderMenu(t, { businessName: '' })
-  assert.equal(second.renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'OP')
-  assert.ok(buttonNamed(second.renderer.root, 'Operação, operação atual'))
-  assert.doesNotMatch(nodeText(second.renderer.root), /amor-e-sabor/i)
+test('operation identity falls back without using the business slug', async (t) => {
+  const { renderer } = await renderMenu(t, { businessName: '' })
+  assert.equal(renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'OP')
+  assert.ok(buttonNamed(renderer.root, 'Operação, operação atual'))
+  assert.doesNotMatch(nodeText(renderer.root), /amor-e-sabor/i)
 })
