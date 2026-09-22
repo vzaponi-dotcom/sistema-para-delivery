@@ -47,3 +47,9 @@ test('release item icon removes the inline svg baseline and centers a fixed-size
   assert.match(glyph, /width:\s*20px/)
   assert.match(glyph, /height:\s*20px/)
 })
+
+
+test('release item icon container is vertically centered against multi-line copy', () => {
+  const icon = rule('.release-notes-item-icon')
+  assert.match(icon, /align-self:\s*center/)
+})
