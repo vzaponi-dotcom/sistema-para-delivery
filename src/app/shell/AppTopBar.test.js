@@ -4,7 +4,7 @@ import React from 'react'
 import { readFile } from 'node:fs/promises'
 import { workspaceHarness, buttonNamed, nodeText } from '../../test-support/renderWorkspace.js'
 
-test('global top bar composes product identity and operation utilities', async (t) => {
+test('desktop top bar owns the business identity and operation utilities', async (t) => {
   const h = await workspaceHarness(t)
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const { default: AppTopBar } = await h.load('/src/app/shell/AppTopBar.jsx')
@@ -14,12 +14,14 @@ test('global top bar composes product identity and operation utilities', async (
     children: React.createElement(AppTopBar, { businessId: 'amor-e-sabor' }),
   })
   assert.ok(renderer.root.findByProps({ className: 'app-topbar' }))
-  assert.match(nodeText(renderer.root), /Gestão Delivery/)
+  assert.match(nodeText(renderer.root), /Amor & Sabor/)
+  assert.match(nodeText(renderer.root), /Gestão do delivery/)
+  assert.doesNotMatch(nodeText(renderer.root), /Seu delivery no controle/)
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))
   assert.ok(buttonNamed(renderer.root, 'Amor & Sabor, operação atual'))
 })
 
-test('mobile top bar exposes the approved premium brand structure and subtitle', async (t) => {
+test('mobile top bar exposes the approved premium product brand and subtitle', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const { default: AppTopBar } = await h.load('/src/app/shell/AppTopBar.jsx')
@@ -32,9 +34,22 @@ test('mobile top bar exposes the approved premium brand structure and subtitle',
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-brand-icon' }))
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-brand-copy' }))
   assert.equal(renderer.root.findByProps({ className: 'app-topbar-brand-subtitle' }).children.join(''), 'Seu delivery no controle')
+  assert.match(nodeText(renderer.root), /Gestão Delivery/)
+  assert.doesNotMatch(nodeText(renderer.root), /Gestão do delivery/)
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-actions' }))
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))
   assert.ok(buttonNamed(renderer.root, 'Amor & Sabor, operação atual'))
+})
+
+test('desktop utilities reuse the premium visual language from mobile', async () => {
+  const css = await readFile(new URL('../../app-top-bar.css', import.meta.url), 'utf8')
+  const desktop = css.slice(0, css.indexOf('@media (max-width: 820px)'))
+
+  assert.match(desktop, /\.app-topbar-brand\s*\{[^}]*display:\s*inline-flex/s)
+  assert.match(desktop, /\.app-topbar-brand-icon\s*\{[^}]*border-radius:\s*12px[^}]*background:\s*var\(--primary-soft\)/s)
+  assert.match(desktop, /\.notification-bell\s*\{[^}]*border-radius:\s*12px[^}]*background:\s*var\(--surface-soft\)/s)
+  assert.match(desktop, /\.operation-menu-trigger\s*\{[^}]*border-radius:\s*999px[^}]*background:\s*var\(--surface-soft\)/s)
+  assert.match(desktop, /\.operation-menu-initials\s*\{[^}]*background:\s*var\(--primary-soft\)[^}]*color:\s*var\(--primary\)/s)
 })
 
 test('mobile top bar stylesheet pins the approved rounded container and cohesive utility controls', async () => {
