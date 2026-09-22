@@ -1,8 +1,8 @@
 # Gestão Delivery — Kitchen TV / KDS para TV 32"
 
-Data: 2026-09-22  
-Branch de design: feature/kitchen-tv-display-v2-design  
-Base: master em 7d5a9d2507968dd96dae81f5f1d61431a6e42292  
+Data: 2026-09-22
+Branch de design: feature/kitchen-tv-display-v2-design
+Base: master em 7d5a9d2507968dd96dae81f5f1d61431a6e42292
 Status: **APPROVED** pelo produto em 2026-09-22; plano detalhado escrito e aguardando aprovação
 
 ## 1. Contexto e relação com documentos anteriores
@@ -204,21 +204,21 @@ O nome exato pode ser refinado no plano, mas a superfície deve continuar isolad
 
 Permitido:
 
-Kitchen TV → contratos públicos e funções puras de Orders  
-Kitchen TV → infraestrutura HTTP mínima  
-Kitchen TV → shared/ui/Icon se o custo de bundle permanecer pequeno  
+Kitchen TV → contratos públicos e funções puras de Orders
+Kitchen TV → infraestrutura HTTP mínima
+Kitchen TV → shared/ui/Icon se o custo de bundle permanecer pequeno
 Kitchen TV → React/ReactDOM
 
 Não permitido:
 
-Kitchen TV → App.jsx  
-Kitchen TV → Dashboard  
-Kitchen TV → Finance  
-Kitchen TV → Customers  
-Kitchen TV → Catalog UI  
-Kitchen TV → Table Service UI  
-Kitchen TV → Printing UI/QZ  
-Kitchen TV → Settings UI  
+Kitchen TV → App.jsx
+Kitchen TV → Dashboard
+Kitchen TV → Finance
+Kitchen TV → Customers
+Kitchen TV → Catalog UI
+Kitchen TV → Table Service UI
+Kitchen TV → Printing UI/QZ
+Kitchen TV → Settings UI
 Kitchen TV → bootstrap administrativo
 
 ## 7. Performance e leveza
@@ -788,8 +788,8 @@ Essa frase faz parte da referência aprovada da v1.
 
 Exibir três indicadores:
 
-Em preparo  
-Atrasados  
+Em preparo
+Atrasados
 Agendados
 
 Contagens:
@@ -868,10 +868,10 @@ Topo direito:
 
 Exemplos:
 
-NOVO PEDIDO                                         #1042  
-EM PREPARO                                          #1041  
-PRÓXIMO DO LIMITE                                   #1040  
-ATRASADO                                            #1039  
+NOVO PEDIDO                                         #1042
+EM PREPARO                                          #1041
+PRÓXIMO DO LIMITE                                   #1040
+ATRASADO                                            #1039
 AGENDADO                                            #1043
 
 ### 21.2 Linha principal
@@ -903,7 +903,7 @@ Mostrar quantidade + nome.
 
 Exemplo:
 
-1x Burger Clássico  
+1x Burger Clássico
 1x Batata Rústica
 
 Usar getOrderItemDisplayName ou contrato equivalente para preservar snapshot/variação de produto.
@@ -960,9 +960,9 @@ Formato:
 
 Exemplos:
 
-00:02  
-08:15  
-18:45  
+00:02
+08:15
+18:45
 1:03:12
 
 O timer não é duração de entrega e não usa scheduledFor como início quando o pedido já entrou em preparo.

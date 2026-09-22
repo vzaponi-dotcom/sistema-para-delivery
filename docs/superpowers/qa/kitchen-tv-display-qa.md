@@ -1,12 +1,12 @@
 # Kitchen TV / KDS — implementação e matriz de homologação
 
-Data de preparação: 2026-09-22  
-Branch: `feature/kitchen-tv-display-v2`  
-PR: #62 (`DRAFT`)  
-Spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`  
-Plano: `docs/superpowers/plans/2026-09-22-kitchen-tv-display-plan.md`  
-Referência visual aprovada: `docs/superpowers/references/kitchen-tv-32-approved-reference.jpg`  
-SHA executável local antes do fechamento documental: `42d2d73`  
+Data de preparação: 2026-09-22
+Branch: `feature/kitchen-tv-display-v2`
+PR: #62 (`DRAFT`)
+Spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`
+Plano: `docs/superpowers/plans/2026-09-22-kitchen-tv-display-plan.md`
+Referência visual aprovada: `docs/superpowers/references/kitchen-tv-32-approved-reference.jpg`
+SHA executável local antes do fechamento documental: `42d2d73`
 Migration: `0028_kitchen_tv_access.sql`
 
 ## Escopo desta entrega
@@ -31,6 +31,16 @@ O handoff de 2026-09-22 substitui a homologação de staging prevista originalme
 | 10 | `ec037bc` | `42d2d73`; regressão focada, arquitetura, lint e build PASS |
 | 11 | n/a | Gates finais locais e GitHub Validate são registrados no relatório final da execução e no PR #62. |
 | 12 | n/a | Este registro e a matriz manual foram preparados; nenhuma observação manual foi inferida. |
+
+## Gate local final
+
+- `npm test`: PASS, 2147/2147;
+- `npm run test:architecture`: PASS;
+- `npm run lint`: PASS (avisos existentes, sem erro);
+- `npm run build`: PASS;
+- Wrangler 4.128.0 `deploy --dry-run`: PASS para o ambiente padrão e staging, sem deploy;
+- migrations D1 locais: PASS, nenhuma migração pendente;
+- gate Spec B D1: PASS, 9/9 checks, preservação de linhas/referências e instalação limpa sobre 28 migrações.
 
 ## Bundle e fronteiras
 

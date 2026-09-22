@@ -1,9 +1,9 @@
 # Gestão Delivery — Kitchen TV / KDS Implementation Plan
 
-Date: 2026-09-22  
-Approved spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`  
-Design branch: `feature/kitchen-tv-display-v2-design`  
-Design base: `master@7d5a9d2507968dd96dae81f5f1d61431a6e42292`  
+Date: 2026-09-22
+Approved spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`
+Design branch: `feature/kitchen-tv-display-v2-design`
+Design base: `master@7d5a9d2507968dd96dae81f5f1d61431a6e42292`
 Status: **APPROVED FOR IMPLEMENTATION — implementation not started**
 
 ## 1. Goal
