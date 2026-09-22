@@ -15,7 +15,7 @@ test('main selects the Kitchen TV bundle before loading the administrative app',
 
 test('Kitchen TV root is independent from admin theme, bootstrap and printing stacks', async (t) => {
   const root = await read('./KitchenDisplayRoot.jsx')
-  assert.doesNotMatch(root, /App\.jsx|ThemeProvider|\/api\/bootstrap|qz-tray|jspdf|printing/i)
+  assert.doesNotMatch(root, /from\s+['"][^'"]*\/App\.jsx|ThemeProvider|\/api\/bootstrap|qz-tray|jspdf|printing/i)
   assert.match(root, /kitchen-display\.css/)
 
   const h = await workspaceHarness(t)

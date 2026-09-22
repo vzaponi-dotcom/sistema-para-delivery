@@ -380,6 +380,9 @@ export const findArchitectureViolations = async ({ rootDir }) => {
     if (/Dinheiro\s*\+\s*Pix|Múltiplas formas/i.test(source)) {
       violations.push(`split-payment-synthetic-storage: ${relativePath}`)
     }
+    if (relativePath.startsWith('src/kitchen-display/') && /['"]\/api\/bootstrap['"]/.test(source)) {
+      violations.push(`kitchen-tv-bootstrap: ${relativePath}`)
+    }
   }
 
   for (const legacyFacade of C10_LEGACY_API_FACADES) {
@@ -529,6 +532,25 @@ export const findArchitectureViolations = async ({ rootDir }) => {
   for (const edge of edges) {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
+
+    const kitchenTvProduction = !isTestFile(edge.from) && edge.from.startsWith('src/kitchen-display/')
+    if (kitchenTvProduction) {
+      if (edge.resolvedPath === 'src/App.jsx'
+        || edge.resolvedPath?.startsWith('src/admin/')
+        || edge.resolvedPath?.startsWith('src/app/')) {
+        violations.push(`kitchen-tv-admin-import: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+      if (edge.resolvedPath?.startsWith('src/domains/orders/')
+        && edge.resolvedPath !== 'src/domains/orders/index.js') {
+        violations.push(`kitchen-tv-orders-deep-import: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+      if (targetDomain && targetDomain !== 'orders') {
+        violations.push(`kitchen-tv-peer-domain-import: ${edge.from} -> ${edge.resolvedPath}`)
+      }
+      if (edge.specifier === 'qz-tray' || edge.specifier === 'jspdf') {
+        violations.push(`kitchen-tv-heavy-dependency: ${edge.from} -> ${edge.specifier}`)
+      }
+    }
 
     if (!isTestFile(edge.from)
       && edge.from.startsWith('src/domains/orders/')

@@ -43,5 +43,10 @@ test('production build keeps the TV route graph free of admin and heavy business
   visit(rootKey)
   const graph = [...reachable].join('\n')
   assert.doesNotMatch(graph, /AdminBootstrap|domains\/orders\/ui|printing|qz|jspdf|finance|customers|catalog|table-service/i)
+  for (const key of reachable) {
+    if (manifest[key]?.name !== 'kitchenQueue') continue
+    assert.deepEqual(manifest[key].css || [], [])
+    assert.equal((manifest[key].imports || []).some((dependency) => /react-dom/i.test(dependency)), false)
+  }
   assert.ok(viteConfig.plugins.some((plugin) => plugin?.name === 'kitchen-tv-orders-public-contract'))
 })
