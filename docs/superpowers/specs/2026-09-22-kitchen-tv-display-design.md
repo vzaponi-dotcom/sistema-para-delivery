@@ -3,7 +3,7 @@
 Data: 2026-09-22  
 Branch de design: feature/kitchen-tv-display-v2-design  
 Base: master em 7d5a9d2507968dd96dae81f5f1d61431a6e42292  
-Status: draft funcional + visual para aprovação do produto; plano de implementação ainda não escrito
+Status: **APPROVED** pelo produto em 2026-09-22; plano de implementação em elaboração
 
 ## 1. Contexto e relação com documentos anteriores
 
@@ -1465,3 +1465,10 @@ docs/superpowers/references/kitchen-tv-32-approved-reference.jpg
 A implementação e a homologação visual devem comparar a tela real contra esse asset.
 
 A descrição textual desta spec é normativa mesmo que o asset ainda não tenha sido adicionado na fase de design.
+
+
+## 38. Aprovação do produto
+
+A spec foi aprovada explicitamente pelo responsável do produto em 2026-09-22.
+
+Essa aprovação autoriza a escrita do plano detalhado de implementação. Não autoriza implementação automática, merge ou deploy de produção.
