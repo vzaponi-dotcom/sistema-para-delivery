@@ -7,26 +7,28 @@ import { createSettingsDb } from './test-support/settingsDb.js'
 const origin = 'https://delivery.example'
 const mutation = (path, cookie, body) => new Request(`${origin}${path}`, {
   method: 'POST',
-  headers: { origin, cookie, 'content-type': 'application/json' },
+  headers: { origin, ...(cookie ? { cookie } : {}), 'content-type': 'application/json' },
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 })
 
-test('real HTTP flow keeps the TV cookie out of every administrative boundary and revocation is definitive', async (t) => {
+test('real code-pairing flow keeps temporary and final TV cookies outside administrative boundaries', async (t) => {
   const fixture = createSettingsDb()
   t.after(fixture.close)
-  const env = {
-    DB: fixture.db,
-    resolveCapabilities: async () => new Set(['orders.settings.manage']),
-  }
+  const env = { DB: fixture.db, resolveCapabilities: async () => new Set(['orders.settings.manage']) }
   const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date('2026-09-22T18:00:00.000Z'))
   const adminCookie = sessionCookie(adminToken).split(';')[0]
 
-  const access = await handleRequest(mutation('/api/kitchen-tv/access', adminCookie), env)
-  assert.equal(access.status, 201)
-  const pairingToken = new URLSearchParams(new URL((await access.json()).pairingUrl).hash.slice(1)).get('token')
-  const pair = await handleRequest(mutation('/api/kitchen-tv/pair', '', { token: pairingToken }), env)
-  assert.equal(pair.status, 200)
-  const tvCookie = pair.headers.get('set-cookie').split(';')[0]
+  const requestPair = await handleRequest(mutation('/api/kitchen-tv/pairing-request', ''), env)
+  assert.equal(requestPair.status, 201)
+  const { code } = await requestPair.json()
+  const pairingCookie = requestPair.headers.get('set-cookie').split(';')[0]
+
+  assert.equal((await handleRequest(mutation('/api/kitchen-tv/approve', adminCookie, { code }), env)).status, 200)
+  const activate = await handleRequest(new Request(`${origin}/api/kitchen-tv/pairing-status`, { headers: { cookie: pairingCookie } }), env)
+  assert.equal(activate.status, 200)
+  const tvMatch = activate.headers.get('set-cookie').match(/kitchen_tv_session=([^;,]+)/)
+  assert.ok(tvMatch)
+  const tvCookie = `kitchen_tv_session=${tvMatch[1]}`
 
   assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: tvCookie } }), env)).status, 200)
   assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: adminCookie } }), env)).status, 401)
