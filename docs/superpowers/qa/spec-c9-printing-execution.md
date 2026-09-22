@@ -373,3 +373,16 @@ This supersedes the earlier production hard-block while preserving that earlier 
 
 **C9 production release gate: PASS / CLEARED.**
 
+## Production release confirmation — 2026-09-21
+
+After the final C9 hardware gate was closed with 12/12 deferred functional rows PASS and P1–P20 = 20/20 PASS, the approved master was deployed successfully to production.
+
+- production release SHA: `5540a9c11b17d028ff9e3126237e056949bae5e1`;
+- Deploy production #50 / run `35673385098`: **SUCCESS**;
+- production Worker version: `2e608341-b77a-472a-a432-978de02750e3`;
+- production login smoke: **HTTP 200**;
+- Printing production blocker: **CLEARED**;
+- remaining Printing `DEFERRED-PRODUCTION`: **0**.
+
+No new Printing defect was identified between final physical staging QA and production deployment.
+
