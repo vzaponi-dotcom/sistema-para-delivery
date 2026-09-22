@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectOperationalArrivals } from '../domains/orders/index.js'
-import {
-  createKitchenDisplayPairingRequest,
-  KitchenDisplayHttpError,
-  readKitchenDisplayPairingStatus,
-  readKitchenDisplayState,
-} from './kitchenDisplayApi.js'
+import { KitchenDisplayHttpError, readKitchenDisplayState } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
-import { bootstrapKitchenDisplay } from './kitchenDisplaySession.js'
+import { bootstrapKitchenDisplay, pollKitchenDisplayPairing } from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
 
 const defaultFullscreen = async () => {
@@ -24,9 +19,8 @@ const formatPairingCode = (value) => {
 
 export function KitchenDisplayApp({
   bootstrap = bootstrapKitchenDisplay,
+  pollPairing = pollKitchenDisplayPairing,
   readState = readKitchenDisplayState,
-  readPairingStatus = readKitchenDisplayPairingStatus,
-  createPairingRequest = createKitchenDisplayPairingRequest,
   audio: suppliedAudio,
   requestFullscreen = defaultFullscreen,
   schedule = globalThis.setTimeout,
@@ -102,28 +96,24 @@ export function KitchenDisplayApp({
       if (checking) return
       checking = true
       try {
-        const next = await readPairingStatus()
-        if (next?.paired) {
-          await applySnapshot(await readState())
+        const next = await pollPairing()
+        if (next?.kind === 'paired') {
+          await applySnapshot(next.state)
           setPairing(null)
           setPhase('start-required')
-        } else {
-          setPairing(next)
+        } else if (next?.kind === 'pairing') {
+          setPairing(next.pairing)
         }
-      } catch (error) {
-        if (error?.status === 401 || error?.status === 410) {
-          try { setPairing(await createPairingRequest()) }
-          catch { setPhase('pairing-error') }
-        } else {
-          setPhase('pairing-error')
-        }
+      } catch {
+        // Keep the current code visible on transient failures. The next poll retries
+        // the same request instead of generating a new code.
       } finally {
         checking = false
       }
     }
     const poll = globalThis.setInterval(() => void check(), 2000)
     return () => globalThis.clearInterval(poll)
-  }, [applySnapshot, createPairingRequest, phase, readPairingStatus, readState])
+  }, [applySnapshot, phase, pollPairing])
 
   const refresh = useCallback(async () => {
     try {
