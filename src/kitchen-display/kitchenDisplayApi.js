@@ -26,9 +26,13 @@ export const createKitchenDisplayPairingRequest = (fetchImpl = globalThis.fetch)
   method: 'POST',
 }, fetchImpl)
 
-export const readKitchenDisplayPairingStatus = (fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/pairing-status', {
-  method: 'GET',
-}, fetchImpl)
+export const readKitchenDisplayPairingStatus = (requestToken, fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/pairing-status', requestToken
+  ? {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requestToken }),
+    }
+  : { method: 'GET' }, fetchImpl)
 
 export const readKitchenDisplayState = (fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/state', {
   method: 'GET',
