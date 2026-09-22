@@ -7,7 +7,7 @@ Spec: `docs/superpowers/specs/2026-09-22-kitchen-tv-display-design.md`
 Plano: `docs/superpowers/plans/2026-09-22-kitchen-tv-display-plan.md`
 Referência visual aprovada: `docs/superpowers/references/kitchen-tv-32-approved-reference.jpg`
 SHA executável local antes do fechamento documental: `32d49c2`
-Migration: `0028_kitchen_tv_access.sql`
+Migrations: `0028_kitchen_tv_access.sql` + `0029_kitchen_tv_pairing_requests.sql`
 
 ## Escopo desta entrega
 
@@ -54,7 +54,7 @@ Build medido após a Task 10:
 
 A revisão independente final encontrou e a implementação corrigiu, antes do push, a preservação de variações/tamanhos dos itens, os limites visuais de itens e observações, o estado persistido “Aguardando pareamento” e a composição nome+tempo na linha principal do card. O conjunto focado correspondente fechou em 40/40 PASS.
 
-O teste `kitchenDisplayBoundary.test.js` constrói o aplicativo em diretório temporário e percorre o manifest da entrada TV. O grafo rejeita `AdminBootstrap`, UI interna de Orders, Printing/QZ, jsPDF, Finance, Customers, Catalog UI, Table Service UI e Settings. O cliente HTTP da TV contém somente `/api/kitchen-tv/pair` e `/api/kitchen-tv/state`; `/api/bootstrap` é proibido por teste de fonte e pelo verificador de arquitetura.
+O teste `kitchenDisplayBoundary.test.js` constrói o aplicativo em diretório temporário e percorre o manifest da entrada TV. O grafo rejeita `AdminBootstrap`, UI interna de Orders, Printing/QZ, jsPDF, Finance, Customers, Catalog UI, Table Service UI e Settings. O cliente HTTP da TV contém somente `/api/kitchen-tv/pairing-request`, `/api/kitchen-tv/pairing-status` e `/api/kitchen-tv/state`; `/api/bootstrap` é proibido por teste de fonte e pelo verificador de arquitetura.
 
 ## Matriz manual de staging
 
@@ -117,3 +117,26 @@ Correção aplicada em `aa5c7bdd1f64859f3e93e9c056c32456ae46648b`:
 - testes de semântica/overflow adicionados.
 
 Os itens manuais permanecem `PENDING-MANUAL` até republicação desse SHA ou posterior em staging.
+
+
+## Staging QA iteration — short-code pairing
+
+Durante a primeira homologação manual, o produto identificou que transferir um link secreto longo do celular para uma TV comum não era uma experiência adequada.
+
+O fluxo anterior por `#token=` foi substituído antes do merge por pareamento TV-first:
+
+1. a TV abre `/cozinha-tv`;
+2. o servidor cria uma solicitação temporária e a TV exibe um código aleatório de 6 dígitos;
+3. no celular, `Configurações > TV da Cozinha` recebe esse código;
+4. somente uma sessão administrativa com `orders.settings.manage` pode aprová-lo;
+5. a TV consulta o status a cada 2 s;
+6. após aprovação, a própria TV recebe o cookie final restrito e entra no fluxo normal;
+7. o código expira em 30 minutos e a solicitação temporária é consumida.
+
+A credencial real da solicitação continua sendo um segredo opaco de alta entropia em cookie `HttpOnly`; o código de 6 dígitos é somente um identificador temporário para a aprovação administrativa e não autentica APIs da TV sozinho.
+
+Migration aditiva: `0029_kitchen_tv_pairing_requests.sql`. A migration `0028` não foi reescrita.
+
+CI do protocolo novo: Validate application #1766 / run `35798274784` no SHA `998340db27f59f39b7936efb8605d362bba3e07a` — **8/8 shards SUCCESS + validate SUCCESS**.
+
+A homologação manual do protocolo novo permanece `PENDING-MANUAL` até nova publicação em staging.
