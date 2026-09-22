@@ -32,7 +32,7 @@ test('desktop bell shows unread count, paginates 20 at a time and opens detail',
   assert.match(nodeText(renderer.root), /Detalhe da melhoria/)
 })
 
-test('mobile center swaps list for detail in the same BottomSheet', async (t) => {
+test('mobile detail uses only the BottomSheet close action and reopens on the list', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
   const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
   const renderer = await h.render(Entry, { businessId: 'a', catalog: catalog(2), storage: h.localStorage })
@@ -42,9 +42,12 @@ test('mobile center swaps list for detail in the same BottomSheet', async (t) =>
   assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
   await act(async () => buttonNamed(renderer.root, 'Release 2, n\u00e3o lida').props.onClick())
   assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
-  assert.ok(buttonNamed(renderer.root, 'Voltar'))
+  assert.equal(buttonNamed(renderer.root, 'Voltar'), undefined)
+  assert.ok(buttonNamed(renderer.root, 'Fechar'))
   assert.match(nodeText(renderer.root), /Detalhe da melhoria/)
-  await act(async () => buttonNamed(renderer.root, 'Voltar').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Fechar').props.onClick())
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+  await act(async () => buttonNamed(renderer.root, 'Notificações').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Release 2, lida'))
 })
 
