@@ -25,6 +25,21 @@
   pointer-events: none;
 }
 
+.sidebar-link-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sidebar-link-label .navigation-badge {
+  position: static;
+  top: auto;
+  left: auto;
+  flex: 0 0 auto;
+  border: 0;
+}
+
 .sidebar-link.active .navigation-badge {
   background: #fff;
   color: var(--primary);

@@ -25,12 +25,14 @@
   min-height: 0;
   flex: 1;
   display: grid;
+  align-content: start;
   gap: 18px;
   overflow-y: auto;
 }
 
 .sidebar-group {
   display: grid;
+  align-content: start;
   gap: 5px;
 }
 
