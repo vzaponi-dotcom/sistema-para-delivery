@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
+import { readFile } from 'node:fs/promises'
 import { workspaceHarness } from '../../test-support/renderWorkspace.js'
 
 const implemented = new Set(['orders', 'history', 'comandas'])
@@ -36,3 +37,20 @@ for (const name of ['Sidebar', 'MobileNavigation']) {
     assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Pedidos, 3 pedidos em andamento' }).length, 0)
   })
 }
+
+
+test('desktop sidebar follows the active theme and positions borderless badges before the icon', async () => {
+  const [appCss, badgeCss] = await Promise.all([
+    readFile(new URL('../../App.css', import.meta.url), 'utf8'),
+    readFile(new URL('../../navigation-badges.css', import.meta.url), 'utf8'),
+  ])
+  const sidebar = appCss.slice(appCss.indexOf('.sidebar {'), appCss.indexOf('.app-main {'))
+  const desktopBadges = badgeCss.slice(0, badgeCss.indexOf('@media (max-width: 820px)'))
+
+  assert.match(sidebar, /\.sidebar\s*\{[^}]*background:\s*var\(--surface\)[^}]*color:\s*var\(--text\)[^}]*border-right:\s*1px solid var\(--border\)/s)
+  assert.match(sidebar, /\.sidebar-group-label\s*\{[^}]*color:\s*var\(--muted\)/s)
+  assert.match(sidebar, /\.sidebar-link\s*\{[^}]*color:\s*var\(--text-soft\)/s)
+  assert.doesNotMatch(sidebar, /#211b1a|rgba\(255,\s*255,\s*255/)
+  assert.match(desktopBadges, /\.navigation-badge\s*\{[^}]*top:\s*-7px[^}]*left:\s*-9px[^}]*border:\s*0/s)
+  assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*#fff[^}]*color:\s*var\(--primary\)/s)
+})
