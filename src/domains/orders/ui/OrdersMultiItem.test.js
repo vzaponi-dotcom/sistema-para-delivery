@@ -33,10 +33,11 @@ test('orders and detail render the complete product label including size', () =>
 
 test('mobile final action is styled to keep long delivery text inside the button', () => {
   const ticket = source('./components/KitchenTicket.jsx')
-  const css = source('../../../order-operations.css')
+  const css = source('../../../order-operations-compact.css')
 
   assert.match(ticket, /getFinalActionLabel\(order\)/)
-  assert.match(css, /\.kitchen-ticket-actions \.button\s*\{[^}]*white-space:\s*normal/s)
+  assert.match(css, /\.kitchen-ticket-actions\s*\{[^}]*grid-template-columns:\s*minmax\(0, 0\.9fr\) minmax\(0, 1\.1fr\)/s)
+  assert.match(css, /\.kitchen-ticket-actions \.button\s*\{[^}]*white-space:\s*nowrap/s)
 })
 
 test('Orders domain search uses the complete multi-item searchable text', () => {

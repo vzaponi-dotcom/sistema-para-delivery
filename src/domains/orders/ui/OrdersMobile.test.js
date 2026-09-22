@@ -59,7 +59,8 @@ test('mobile classic tickets preserve full actions and comfortable touch targets
   const narrow = css.slice(css.lastIndexOf('@media (max-width: 640px)'))
 
   assert.match(narrow, /\.kitchen-ticket-actions\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:/s)
-  assert.match(narrow, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*normal/s)
+  assert.match(narrow, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*nowrap/s)
+  assert.match(css, /@media \(max-width: 300px\)\s*\{\s*\.kitchen-ticket-actions \.button-secondary svg\s*\{\s*display:\s*none/s)
   assert.match(narrow, /\.kitchen-ticket-timing\s*\{[^}]*overflow-wrap:\s*anywhere/s)
 })
 

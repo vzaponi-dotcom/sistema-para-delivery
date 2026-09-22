@@ -6,7 +6,14 @@
 @media (max-width: 900px) {
   .kitchen-ticket {
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr) minmax(0, 0.8fr);
+    grid-template-areas: "identity summary timing"
+                         "customer notes timing"
+                         "actions actions actions";
     column-gap: 12px;
+  }
+
+  .kitchen-ticket-actions {
+    padding-top: 3px;
   }
 }
 
@@ -192,7 +199,7 @@
 
   .kitchen-ticket-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 6px;
   }
 
@@ -200,9 +207,10 @@
     width: 100%;
     min-width: 0;
     min-height: var(--mobile-touch-target);
-    padding-inline: 7px;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    gap: 4px;
+    padding-inline: 5px;
+    font-size: 0.7rem;
+    white-space: nowrap;
   }
 
   .kitchen-queue-empty {
@@ -215,6 +223,12 @@
     text-overflow: clip;
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 300px) {
+  .kitchen-ticket-actions .button-secondary svg {
+    display: none;
   }
 }
 
