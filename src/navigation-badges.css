@@ -1,0 +1,38 @@
+.navigation-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.navigation-badge {
+  position: absolute;
+  top: -8px;
+  left: calc(100% - 3px);
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--surface);
+  border: 1px solid var(--surface);
+  font-size: 0.65rem;
+  line-height: 17px;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 820px) {
+  .mobile-nav-item .navigation-badge {
+    top: -7px;
+    left: calc(100% - 4px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 3px;
+    font-size: 0.58rem;
+    line-height: 15px;
+  }
+}
