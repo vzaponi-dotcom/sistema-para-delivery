@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
+import { KitchenDisplayApp } from './KitchenDisplayApp.jsx'
 import './kitchen-display.css'
 
 export function KitchenDisplayRoot() {
-  return <main className="kds-shell"><p>Carregando painel da cozinha…</p></main>
+  return <KitchenDisplayApp />
 }
 
 export async function mount(container) {
