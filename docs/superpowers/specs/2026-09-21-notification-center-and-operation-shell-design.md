@@ -8,7 +8,7 @@
 
 Criar uma camada global de utilidades do sistema que permaneça disponível em todas as telas internas autenticadas e entregue três capacidades independentes:
 
-1. um **badge operacional em Pedidos**, exibindo quantos pedidos precisam de acompanhamento naquele momento;
+1. **badges operacionais na navegação**, inicialmente para Pedidos e Comandas;
 2. uma **Central de notificações**, inicialmente alimentada somente por novidades do próprio Gestão Delivery;
 3. um **menu da operação** na top bar, representado por `AS ▼` para Amor & Sabor, sem introduzir ainda o conceito de usuário individual.
 
@@ -21,7 +21,8 @@ Após autenticação e bootstrap:
 - todas as telas internas usam uma top bar global compacta;
 - no desktop, a top bar preserva a sidebar como navegação principal e concentra utilidades à direita;
 - no mobile, a top bar apresenta identidade mínima do produto e os mesmos acessos globais;
-- o item **Pedidos** da sidebar e da navegação mobile recebe um contador operacional;
+- o item **Pedidos** da sidebar e da navegação mobile recebe um contador de pedidos operacionais atuais;
+- o item **Comandas** recebe um contador de comandas efetivamente abertas;
 - o sino mostra quantas notificações permanecem não lidas naquele dispositivo;
 - uma nova novidade de versão aparece automaticamente uma única vez naquele dispositivo;
 - fechar o aviso automático não o faz reaparecer sozinho, mas mantém a novidade não lida;
@@ -77,6 +78,19 @@ O domínio de Orders já possui:
 - `buildKitchenQueueModel()`.
 
 A regra do badge deve reutilizar essas semânticas, não reconstruir listas de status em componentes de shell.
+
+### 4.3 Table Service
+
+O runtime operacional já mantém `tables[]` e `tableTabs[]` como coleções oficiais compartilhadas.
+
+O domínio Table Service já define que:
+
+- a identidade canônica de uma comanda aberta é `{ tableId, tableTabId }`;
+- `tableTabId` é a identidade durável da comanda;
+- `tableId` sozinho não é suficiente;
+- transferir a mesma `tableTabId` entre mesas não cria uma nova comanda.
+
+O badge de Comandas deve ser derivado no domínio Table Service e não contar apenas `occupancy === 'occupied'` no shell.
 
 ## 5. Top bar global
 
@@ -173,21 +187,28 @@ O item `Sobre` deve abrir uma superfície pequena com informações do produto e
 
 A primeira versão não expõe `package.json.version` como versão de produto. O catálogo de releases usa IDs próprios e estáveis. Uma numeração comercial pode ser adicionada posteriormente sem mudar o modelo de notificações.
 
-## 7. Badge operacional de Pedidos
+## 7. Badges operacionais da navegação
 
-### 7.1 Semântica
+### 7.1 Semântica comum
 
-O badge representa **pedidos que exigem acompanhamento operacional agora**.
+Badges operacionais representam **trabalho/estado ativo agora**. Eles não representam conteúdo não lido.
 
-Ele não representa:
+Na V1 existem dois:
+
+- **Pedidos** → pedidos que exigem acompanhamento operacional agora;
+- **Comandas** → comandas efetivamente abertas agora.
+
+Os badges são independentes da Central de notificações e do contador do sino.
+
+### 7.2 Badge de Pedidos
+
+O badge de Pedidos não representa:
 
 - quantidade de pedidos não lidos;
 - quantidade total do histórico;
 - quantidade de pedidos agendados para o futuro que ainda não entraram na operação.
 
-### 7.2 Regra fonte
-
-Criar/reutilizar um selector do domínio de Orders baseado na mesma semântica já usada para chegadas operacionais:
+A regra deve reutilizar a mesma semântica já usada para chegadas operacionais em Orders:
 
 - pedido com ID válido;
 - não terminal/não encerrado pelas regras atuais de Orders;
@@ -195,9 +216,38 @@ Criar/reutilizar um selector do domínio de Orders baseado na mesma semântica j
 
 A implementação não deve duplicar listas de status dentro de `Sidebar`, `MobileNavigation`, `AppShell` ou `AppTopBar`.
 
-A regra deve permanecer coerente com Cozinha. Se a regra de quando um agendado entra em operação mudar no domínio, o badge deve mudar junto.
+Se a regra de quando um agendado entra em operação mudar no domínio, o badge deve mudar junto.
 
-### 7.3 Renderização
+### 7.3 Badge de Comandas
+
+O badge de Comandas representa **quantas comandas abertas distintas existem no momento**.
+
+A contagem deve pertencer ao domínio Table Service e usar a identidade canônica da comanda:
+
+`{ tableId, tableTabId }`
+
+com deduplicação por `tableTabId`.
+
+Uma comanda conta quando a projeção oficial representa uma comanda realmente aberta, isto é:
+
+- existe `tableTabId` válido;
+- a mesa correspondente está ativa e ocupada com aquele `openTableTab.id`;
+- quando a coleção `tableTabs` contém o mesmo ID, seu estado deve ser `open`.
+
+A regra deve ser tolerante à janela curta de sincronização entre as coleções: inconsistência não pode produzir dupla contagem. O selector deve preferir identidade válida e deduplicada e voltar ao valor correto no próximo estado oficial.
+
+Comportamentos obrigatórios:
+
+- abrir uma nova comanda → incrementa;
+- abrir outra comanda → incrementa novamente;
+- transferir a mesma `tableTabId` para outra mesa → **não** incrementa;
+- pagar/fechar a comanda → decrementa;
+- mesa apenas marcada como ocupada, mas sem `openTableTab.id` válido → não conta;
+- duas projeções acidentais para a mesma `tableTabId` → contam como uma só.
+
+### 7.4 Renderização
+
+Para ambos os badges:
 
 - `0`: não exibir badge;
 - `1..99`: exibir número;
@@ -205,25 +255,38 @@ A regra deve permanecer coerente com Cozinha. Se a regra de quando um agendado e
 
 O valor completo continua disponível para acessibilidade.
 
-### 7.4 Atualização
+### 7.5 Atualização
 
-A feature deve aproveitar o estado oficial já existente:
+A feature deve aproveitar o estado oficial já existente.
+
+Pedidos:
 
 - mutações locais aceitas refletem imediatamente;
 - alterações de outro dispositivo chegam pelo sync global existente, normalmente em até ~5 s;
 - quando Cozinha está ativa, o sync de 2 s permanece;
-- transições de agendados para a janela operacional podem refletir no próximo ciclo já existente, sem criar um novo polling global nesta versão.
+- transições de agendados para a janela operacional usam os ciclos já existentes.
 
-### 7.5 Superfícies
+Comandas:
 
-Exibir o mesmo valor em:
+- abertura, transferência, pagamento e fechamento continuam usando os efeitos oficiais já existentes;
+- alterações vindas de outro dispositivo chegam pelo sync global existente;
+- não criar polling, store, bootstrap, WebSocket ou SSE específicos para os badges.
 
-- item `Pedidos` da sidebar desktop;
-- item `Pedidos` da navegação mobile.
+### 7.6 Superfícies
 
-Acessibilidade exemplo:
+Exibir os valores em:
 
-`Pedidos, 3 pedidos em andamento`.
+- Sidebar desktop:
+  - `Pedidos [n]`;
+  - `Comandas [n]`.
+- MobileNavigation:
+  - `Pedidos [n]`;
+  - `Comandas [n]`.
+
+Acessibilidade exemplos:
+
+- `Pedidos, 3 pedidos em andamento`;
+- `Comandas, 5 comandas abertas`.
 
 ## 8. Modelo de notificações
 
@@ -274,7 +337,7 @@ Criar um catálogo versionado no frontend, dentro de `src/app/notifications/`.
 
 A primeira notificação deve anunciar esta própria entrega:
 
-- badge de pedidos em andamento;
+- badges de Pedidos e Comandas;
 - Central de notificações;
 - nova top bar/menu da operação.
 
@@ -525,11 +588,19 @@ Responsável por:
 - contagem operacional;
 - semântica de agendado aguardando.
 
-O shell recebe somente valor calculado/contrato público.
+### `src/domains/table-service/`
+
+Responsável por:
+
+- selector de comandas abertas;
+- deduplicação por `tableTabId`;
+- semântica de identidade/abertura da comanda.
+
+O shell recebe somente valores calculados por contratos públicos dos domínios.
 
 ## 17. Fluxo de dados
 
-### Badge
+### Badges operacionais
 
 ```text
 useOperationalDataRuntime.orders
@@ -537,6 +608,14 @@ useOperationalDataRuntime.orders
 Orders selector operacional
           ↓
 activeOperationalOrderCount
+          ┐
+          │
+useOperationalDataRuntime.tables + tableTabs
+          ↓
+Table Service selector
+          ↓
+openComandaCount
+          ┘
           ↓
 AppShell
      ├── Sidebar
@@ -571,59 +650,64 @@ Uma notificação inválida isolada não deve derrubar o shell. O catálogo deve
 
 ## 19. Testes obrigatórios
 
-### Orders/badge
+### Badges operacionais
 
-1. pedido operacional entra no contador;
+1. pedido operacional entra no contador de Pedidos;
 2. Finalizado/Cancelado e demais estados encerrados pelas regras existentes não entram;
 3. agendado futuro em `isScheduledWaiting` não entra;
 4. ao entrar na janela operacional, passa a contar;
-5. zero não renderiza badge;
-6. 1..99 mostra número;
-7. acima de 99 mostra `99+`;
-8. sidebar e mobile recebem o mesmo valor;
-9. nenhuma regra de status é duplicada no shell.
+5. comanda aberta válida entra no contador de Comandas;
+6. comanda fechada/paga sai do contador;
+7. transferência da mesma `tableTabId` não altera o total;
+8. mesa ocupada sem `openTableTab.id` válido não conta;
+9. `tableTabId` duplicado em projeções inconsistentes conta apenas uma vez;
+10. zero não renderiza badge;
+11. 1..99 mostra número;
+12. acima de 99 mostra `99+`;
+13. sidebar e mobile recebem os mesmos valores de domínio;
+14. nenhuma regra de status/identidade é duplicada no shell.
 
 ### Store/notificações
 
-10. catálogo ordena corretamente;
-11. estado é namespaced pelo `businessId` autenticado e não hardcoda Amor & Sabor;
-12. logout não apaga estado;
-13. primeiro baseline marca releases antigos como conhecidos/apresentados/lidos e mantém somente o mais recente elegível para aviso;
-14. fechar aviso automático marca `presented`, não `read`;
-15. `Entendi` marca ambos;
-16. abrir item pela Central marca `read`;
-17. item apresentado e não lido não reabre automaticamente;
-18. novo release posterior volta a abrir automaticamente;
-19. baseline inicial não cria sequência de releases antigos nem contador artificialmente alto;
-20. IDs órfãos são limpos;
-21. falha de localStorage degrada sem quebrar a aplicação;
-22. lote inicial é 20;
-23. `Ver mais` adiciona 20;
-24. badge do sino usa `99+`.
+15. catálogo ordena corretamente;
+16. estado é namespaced pelo `businessId` autenticado e não hardcoda Amor & Sabor;
+17. logout não apaga estado;
+18. primeiro baseline marca releases antigos como conhecidos/apresentados/lidos e mantém somente o mais recente elegível para aviso;
+19. fechar aviso automático marca `presented`, não `read`;
+20. `Entendi` marca ambos;
+21. abrir item pela Central marca `read`;
+22. item apresentado e não lido não reabre automaticamente;
+23. novo release posterior volta a abrir automaticamente;
+24. baseline inicial não cria sequência de releases antigos nem contador artificialmente alto;
+25. IDs órfãos são limpos;
+26. falha de localStorage degrada sem quebrar a aplicação;
+27. lote inicial é 20;
+28. `Ver mais` adiciona 20;
+29. badge do sino usa `99+`.
 
 ### Shell/UI
 
-25. top bar existe em todas as telas internas;
-26. top bar não existe em login/checking/bootstrap loading/error;
-27. desktop mantém sidebar e top bar compacta;
-28. mobile mantém bottom navigation e top bar;
-29. menu AS não se apresenta como perfil pessoal;
-30. Configurações/Preferências respeitam resolução/capabilities existentes;
-31. clicar no atalho navega pelo controller oficial;
-32. menu e diálogos respondem a Escape/foco/outside click;
-33. Central desktop usa drawer;
-34. Central mobile usa BottomSheet;
-35. detalhe mobile troca lista/detalhe sem empilhar modal;
-36. temas claro e escuro mantêm contraste;
-37. badges possuem labels acessíveis.
+30. top bar existe em todas as telas internas;
+31. top bar não existe em login/checking/bootstrap loading/error;
+32. desktop mantém sidebar e top bar compacta;
+33. mobile mantém bottom navigation e top bar;
+34. menu AS não se apresenta como perfil pessoal;
+35. Configurações/Preferências respeitam resolução/capabilities existentes;
+36. clicar no atalho navega pelo controller oficial;
+37. menu e diálogos respondem a Escape/foco/outside click;
+38. Central desktop usa drawer;
+39. Central mobile usa BottomSheet;
+40. detalhe mobile troca lista/detalhe sem empilhar modal;
+41. temas claro e escuro mantêm contraste;
+42. badges possuem labels acessíveis.
 
 ### Regressão
 
-38. fluxos de Pedidos/Cozinha continuam com refresh existente;
-39. nenhuma chamada de rede nova é criada apenas pelo badge;
-40. login/logout continuam funcionais;
-41. navegação existente continua respeitando guards/capabilities;
-42. build, lint, architecture e suíte completa permanecem verdes.
+43. fluxos de Pedidos/Cozinha continuam com refresh existente;
+44. nenhuma chamada de rede nova é criada apenas pelo badge;
+45. login/logout continuam funcionais;
+46. navegação existente continua respeitando guards/capabilities;
+47. build, lint, architecture e suíte completa permanecem verdes.
 
 ## 20. Homologação manual
 
@@ -631,8 +715,10 @@ Validar em staging:
 
 ### Desktop
 
-- top bar em pelo menos Pedidos, Financeiro, Clientes e Configurações;
+- top bar em pelo menos Pedidos, Comandas, Financeiro, Clientes e Configurações;
 - badge de Pedidos;
+- badge de Comandas;
+- abrir/transferir/fechar comanda e confirmar atualização do contador;
 - sino sem/with unread;
 - drawer;
 - detalhe;
@@ -643,7 +729,7 @@ Validar em staging:
 ### Mobile
 
 - top bar em largura ~320–390 px;
-- badge de Pedidos na bottom navigation;
+- badges de Pedidos e Comandas na bottom navigation;
 - BottomSheet da Central;
 - detalhe dentro do mesmo sheet;
 - modal automático de release;
@@ -681,8 +767,9 @@ Esta Spec não autoriza implementação, merge ou deploy.
 - mobile: identidade mínima + utilidades;
 - perfis de usuário reais: **fora de escopo**;
 - `AS` representa Amor & Sabor;
-- badge Pedidos é operacional, não “não lido”;
-- agendados futuros fora da janela operacional não contam;
+- badges de Pedidos e Comandas são operacionais, não “não lido”;
+- badge Pedidos exclui agendados futuros fora da janela operacional;
+- badge Comandas conta comandas abertas distintas por `tableTabId`, sem dupla contagem em transferência;
 - Central V1 recebe somente novidades do sistema;
 - arquitetura preparada para múltiplas fontes futuras;
 - leitura por dispositivo;
@@ -697,4 +784,4 @@ Esta Spec não autoriza implementação, merge ou deploy.
 - desktop usa drawer + modal de detalhe;
 - mobile usa BottomSheet com lista/detalhe;
 - sem endpoint/migration novos na V1;
-- sem polling novo para o badge.
+- sem polling novo para os badges.
