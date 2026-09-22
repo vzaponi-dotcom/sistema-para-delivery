@@ -26,6 +26,8 @@ test('kitchen ticket scopes actions to the queue phase', () => {
   assert.match(ticket, /onCancel/)
   assert.match(ticket, /onFinalize/)
   assert.match(ticket, /getFinalActionLabel\(order\)/)
+  assert.match(ticket, /icon="note"/)
+  assert.match(ticket, /icon=\{order\.type === 'Entrega' \? 'delivery' : 'check'\}/)
 })
 
 test('kitchen ticket prioritizes the customer name and de-emphasizes the order id', () => {

@@ -232,10 +232,9 @@
   position: relative;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.58fr) minmax(0, 0.72fr);
-  grid-template-areas: "identity summary timing"
-                       "customer notes timing"
-                       "actions actions actions";
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.58fr) minmax(0, 0.72fr) auto;
+  grid-template-areas: "identity summary timing actions"
+                       "customer notes timing actions";
   column-gap: 16px;
   row-gap: 7px;
   padding: 12px 14px 10px;
@@ -400,21 +399,27 @@
 
 .kitchen-ticket-actions {
   grid-area: actions;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  align-self: center;
+  justify-content: flex-end;
   gap: 7px;
-  padding-top: 3px;
 }
 
 .kitchen-ticket-actions .button {
+  width: auto;
   min-width: 0;
-  min-height: var(--mobile-touch-target);
-  padding: 7px 10px;
+  min-height: 36px;
+  padding: 6px 10px;
   border-radius: 7px;
   box-shadow: none;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.15;
-  white-space: normal;
+  white-space: nowrap;
+}
+
+.kitchen-ticket-actions .button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .kitchen-ticket-actions .button-secondary {

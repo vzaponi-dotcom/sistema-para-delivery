@@ -197,16 +197,17 @@ test('kitchen theme centralizes the approved semantic palette in both themes', (
   }
 })
 
-test('desktop kitchen uses four counters, a warm board, and receipt tickets with three information zones', () => {
+test('desktop kitchen uses four counters, a warm board, and receipt tickets with compact actions beside the information zones', () => {
   const css = `${read('./order-operations.css')}\n${read('./order-operations-compact.css')}`
 
   assert.match(css, /\.kitchen-stats\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s)
   assert.match(css, /\.kitchen-page\s*\{[^}]*background:\s*var\(--kitchen-bg\)/s)
   assert.match(css, /\.kitchen-board\s*\{[^}]*background:\s*var\(--kitchen-panel\)/s)
-  assert.match(css, /\.kitchen-ticket\s*\{[^}]*grid-template-areas:\s*["']identity\s+summary\s+timing["'][^}]*background:\s*var\(--kitchen-ticket\)[^}]*color:\s*var\(--kitchen-ticket-text\)/s)
+  assert.match(css, /\.kitchen-ticket\s*\{[^}]*grid-template-areas:\s*["']identity\s+summary\s+timing\s+actions["'][^}]*background:\s*var\(--kitchen-ticket\)[^}]*color:\s*var\(--kitchen-ticket-text\)/s)
   assert.match(css, /\.kitchen-ticket-items\s*\{[^}]*color:\s*var\(--kitchen-ticket-text\)/s)
   assert.match(css, /\.kitchen-ticket-note\s*\{[^}]*color:\s*var\(--kitchen-ticket-muted\)[^}]*-webkit-line-clamp:\s*2[^}]*overflow:\s*hidden/s)
-  assert.match(css, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*normal/s)
+  assert.match(css, /\.kitchen-ticket-actions\s*\{[^}]*display:\s*flex[^}]*justify-content:\s*flex-end/s)
+  assert.match(css, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*36px[^}]*white-space:\s*nowrap/s)
 })
 
 test('secondary copy on the dark kitchen surface derives readable contrast from semantic tokens', () => {

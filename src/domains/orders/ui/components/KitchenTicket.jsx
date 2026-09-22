@@ -24,10 +24,10 @@ function KitchenTicket({ entry, now, currentTiming, disabled = false, highlighte
     <KitchenTicketNotes order={order} />
     <div className="kitchen-ticket-timing"><strong>{timing.primary}</strong>{timing.secondary && <span>{timing.secondary}</span>}</div>
     <footer className="kitchen-ticket-actions">
-      <Button type="button" variant="secondary" onClick={() => onDetails?.(order)} disabled={disabled}>Exibir detalhes</Button>
+      <Button type="button" variant="secondary" icon="note" onClick={() => onDetails?.(order)} disabled={disabled}>Exibir detalhes</Button>
       {scheduled
         ? <Button type="button" variant="secondary" onClick={() => onCancel?.(order)} disabled={disabled}>Cancelar</Button>
-        : <Button type="button" onClick={() => onFinalize?.(order)} disabled={disabled}>{getFinalActionLabel(order)}</Button>}
+        : <Button type="button" icon={order.type === 'Entrega' ? 'delivery' : 'check'} onClick={() => onFinalize?.(order)} disabled={disabled}>{getFinalActionLabel(order)}</Button>}
     </footer>
   </article>
 }

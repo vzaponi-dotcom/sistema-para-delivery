@@ -26,10 +26,10 @@ test('active kitchen tickets expose item summaries and associated notes without 
   assert.doesNotMatch(orders, /expandedOrderIds|aria-expanded=|Ver itens|Ocultar itens/)
 })
 
-test('active kitchen ticket actions use two readable columns and full touch targets', async () => {
+test('active kitchen ticket actions give the primary mobile button more room and retain full touch targets', async () => {
   const source = await readOptional('./order-operations-compact.css')
-  assert.match(source, /\.kitchen-ticket-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
-  assert.match(source, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*normal/s)
+  assert.match(source, /\.kitchen-ticket-actions\s*\{[^}]*grid-template-columns:\s*minmax\(0, 0\.9fr\) minmax\(0, 1\.1fr\)/s)
+  assert.match(source, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*nowrap/s)
 })
 
 test('theme is absent from Sidebar and remains available in Settings device preferences', async () => {
