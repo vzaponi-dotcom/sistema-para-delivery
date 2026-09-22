@@ -1,0 +1,47 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { build } from 'vite'
+import viteConfig from '../../vite.config.js'
+
+const productionFiles = [
+  'KitchenDisplayRoot.jsx', 'KitchenDisplayApp.jsx', 'KitchenDisplayBoard.jsx', 'KitchenDisplayCard.jsx',
+  'kitchenDisplayApi.js', 'kitchenDisplayAudio.js', 'kitchenDisplayPresentation.js', 'kitchenDisplaySession.js',
+]
+
+test('Kitchen TV production source stays read-only and isolated behind public boundaries', async () => {
+  const sources = await Promise.all(productionFiles.map(async (file) => [file, await readFile(new URL(file, import.meta.url), 'utf8')]))
+  const combined = sources.map(([, source]) => source).join('\n')
+  assert.match(combined, /domains\/orders\/index\.js/)
+  assert.doesNotMatch(combined, /domains\/orders\/(?:domain|application|infrastructure|ui)\//)
+  assert.doesNotMatch(combined, /domains\/(?:printing|finance|customers|catalog|table-service)\//)
+  assert.doesNotMatch(combined, /(?:from\s+['"]\.\.\/App\.jsx|AdminBootstrap|qz-tray|jspdf|app\/surfaces\/settings)/)
+  assert.doesNotMatch(combined, /\/api\/bootstrap|\/api\/orders|\/api\/printing|\/api\/settings/)
+
+  const api = sources.find(([file]) => file === 'kitchenDisplayApi.js')[1]
+  assert.deepEqual([...api.matchAll(/['"](\/api\/[^'"]+)['"]/g)].map((match) => match[1]).sort(), [
+    '/api/kitchen-tv/pair', '/api/kitchen-tv/state',
+  ])
+})
+
+test('production build keeps the TV route graph free of admin and heavy business chunks', async (t) => {
+  const outDir = await mkdtemp(join(tmpdir(), 'kitchen-tv-build-'))
+  t.after(() => rm(outDir, { recursive: true, force: true }))
+  await build({ ...viteConfig, logLevel: 'silent', build: { ...viteConfig.build, outDir, emptyOutDir: true, manifest: true } })
+  const manifest = JSON.parse(await readFile(join(outDir, '.vite', 'manifest.json'), 'utf8'))
+  const rootKey = Object.keys(manifest).find((key) => key.endsWith('src/kitchen-display/KitchenDisplayRoot.jsx'))
+  assert.ok(rootKey, 'dedicated Kitchen TV entry must exist')
+
+  const reachable = new Set()
+  const visit = (key) => {
+    if (!key || reachable.has(key)) return
+    reachable.add(key)
+    for (const dependency of [...(manifest[key]?.imports || []), ...(manifest[key]?.dynamicImports || [])]) visit(dependency)
+  }
+  visit(rootKey)
+  const graph = [...reachable].join('\n')
+  assert.doesNotMatch(graph, /AdminBootstrap|domains\/orders\/ui|printing|qz|jspdf|finance|customers|catalog|table-service/i)
+  assert.ok(viteConfig.plugins.some((plugin) => plugin?.name === 'kitchen-tv-orders-public-contract'))
+})

@@ -690,3 +690,38 @@ test('split-payment guards reject obsolete scalar writers, owners, storage strin
     'orders-payment-workflow-import',
   ]) assert.ok(violations.some((value) => value.startsWith(code)), `missing ${code}`)
 })
+
+test('Kitchen TV guards reject admin, peer-domain, heavy dependency and bootstrap escapes', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/kitchen-display/Invalid.jsx', [
+    "import App from '../App.jsx'",
+    "import { internal } from '../domains/orders/domain/internal.js'",
+    "import { Finance } from '../domains/finance/index.js'",
+    "import qz from 'qz-tray'",
+    "import jsPDF from 'jspdf'",
+    "export const url = '/api/bootstrap'",
+  ].join('\n'))
+  await write('src/App.jsx', 'export default null\n')
+  await write('src/domains/orders/domain/internal.js', 'export const internal = true\n')
+  await write('src/domains/finance/index.js', 'export const Finance = true\n')
+  const violations = await findArchitectureViolations({ rootDir })
+  for (const code of ['kitchen-tv-admin-import', 'kitchen-tv-orders-deep-import', 'kitchen-tv-peer-domain-import', 'kitchen-tv-heavy-dependency', 'kitchen-tv-bootstrap']) {
+    assert.ok(violations.some((value) => value.startsWith(code)), `missing ${code}`)
+  }
+})
+
+test('Kitchen TV guards allow local modules, React, shared Icon and the Orders public entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/kitchen-display/App.jsx', [
+    "import React from 'react'",
+    "import { buildKitchenQueueModel } from '../domains/orders/index.js'",
+    "import Icon from '../shared/ui/Icon.jsx'",
+    "import { local } from './local.js'",
+    'export default () => React.createElement(Icon, { local, buildKitchenQueueModel })',
+  ].join('\n'))
+  await write('src/kitchen-display/local.js', 'export const local = true\n')
+  await write('src/domains/orders/index.js', 'export const buildKitchenQueueModel = () => ({})\n')
+  await write('src/shared/ui/Icon.jsx', 'export default () => null\n')
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.equal(violations.some((value) => value.startsWith('kitchen-tv-')), false)
+})
