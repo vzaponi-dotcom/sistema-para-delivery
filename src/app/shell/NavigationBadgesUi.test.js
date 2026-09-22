@@ -39,19 +39,24 @@ for (const name of ['Sidebar', 'MobileNavigation']) {
 }
 
 
-test('desktop sidebar follows the active theme and positions borderless badges before the icon', async () => {
-  const [appCss, badgeCss] = await Promise.all([
+test('desktop sidebar keeps compact natural rows and places borderless badges before the label text', async () => {
+  const [appCss, badgeCss, sidebarSource] = await Promise.all([
     readFile(new URL('../../App.css', import.meta.url), 'utf8'),
     readFile(new URL('../../navigation-badges.css', import.meta.url), 'utf8'),
+    readFile(new URL('./Sidebar.jsx', import.meta.url), 'utf8'),
   ])
   const sidebar = appCss.slice(appCss.indexOf('.sidebar {'), appCss.indexOf('.app-main {'))
   const desktopBadges = badgeCss.slice(0, badgeCss.indexOf('@media (max-width: 820px)'))
 
   assert.match(sidebar, /\.sidebar\s*\{[^}]*background:\s*var\(--surface\)[^}]*color:\s*var\(--text\)[^}]*border-right:\s*1px solid var\(--border\)/s)
+  assert.match(sidebar, /\.sidebar-nav\s*\{[^}]*align-content:\s*start/s)
+  assert.match(sidebar, /\.sidebar-group\s*\{[^}]*align-content:\s*start/s)
   assert.match(sidebar, /\.sidebar-group-label\s*\{[^}]*color:\s*var\(--muted\)/s)
-  assert.match(sidebar, /\.sidebar-link\s*\{[^}]*color:\s*var\(--text-soft\)/s)
+  assert.match(sidebar, /\.sidebar-link\s*\{[^}]*min-height:\s*46px[^}]*color:\s*var\(--text-soft\)/s)
   assert.doesNotMatch(sidebar, /#211b1a|rgba\(255,\s*255,\s*255/)
-  assert.match(desktopBadges, /\.navigation-badge\s*\{[^}]*top:\s*-7px[^}]*left:\s*-9px[^}]*border:\s*0/s)
+  assert.match(sidebarSource, /navigation-icon-wrap[\s\S]*sidebar-link-label[\s\S]*navigation-badge[\s\S]*item\.label/)
+  assert.match(desktopBadges, /\.sidebar-link-label\s*\{[^}]*display:\s*inline-flex[^}]*align-items:\s*center/s)
+  assert.match(desktopBadges, /\.sidebar-link-label \.navigation-badge\s*\{[^}]*position:\s*static[^}]*border:\s*0/s)
   assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*#fff[^}]*color:\s*var\(--primary\)/s)
 })
 
