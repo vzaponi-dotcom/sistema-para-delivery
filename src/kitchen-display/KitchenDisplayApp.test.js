@@ -6,8 +6,12 @@ import { buttonNamed, nodeText, workspaceHarness } from '../test-support/renderW
 
 const state = (ids = []) => ({
   serverNow: '2026-09-22T20:00:00.000Z',
-  timing: {},
+  timing: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 60 },
   orders: ids.map((id) => ({ id, status: 'Em preparo', createdAt: '2026-09-22T19:00:00.000Z' })),
+})
+const flushEffects = () => act(async () => {
+  await Promise.resolve()
+  await Promise.resolve()
 })
 
 test('successful bootstrap requires a gesture; start unlocks audio and survives fullscreen rejection', async (t) => {
@@ -20,6 +24,7 @@ test('successful bootstrap requires a gesture; start unlocks audio and survives 
     audio: { unlock: async () => { events.push('audio'); return true }, playArrival: async () => true },
     requestFullscreen: async () => { events.push('fullscreen'); throw new Error('denied') },
   })
+  await flushEffects()
   assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
 
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
@@ -37,6 +42,7 @@ test('live runtime polls only while visible and refreshes immediately on focus, 
     audio: { unlock: async () => true, playArrival: async () => true },
     requestFullscreen: async () => {},
   })
+  await flushEffects()
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
 
   await act(async () => h.fireInterval(2000))
@@ -65,6 +71,7 @@ test('new arrivals alert once and highlight for exactly 2600ms; initial orders s
     schedule: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length },
     cancelSchedule: () => {},
   })
+  await flushEffects()
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.equal(plays, 0)
   await act(async () => h.fireInterval(2000))
@@ -86,6 +93,7 @@ test('transient failures preserve stale snapshot; 401 clears it and audio fallba
     audio: { unlock: async () => false, playArrival: async () => false },
     requestFullscreen: async () => {},
   })
+  await flushEffects()
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Ativar alertas sonoros'))
   await act(async () => h.fireInterval(2000))
@@ -103,5 +111,6 @@ test('pairing failure has a dedicated safe phase', async (t) => {
     bootstrap: async () => { const error = new Error('bad token'); error.pairing = true; throw error },
     audio: { unlock: async () => true, playArrival: async () => true },
   })
+  await flushEffects()
   assert.match(nodeText(renderer.root), /Não foi possível configurar esta TV/)
 })
