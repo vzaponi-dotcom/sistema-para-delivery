@@ -1,51 +1,100 @@
 # Notification Center and Operation Shell QA
 
-## Automated
+## Final product state
 
-- Executable SHA: `81deae896c132a7d04832b950016b198ed8892e7`
-- Full `node --test`: PASS — 2,072 tests, 0 failures.
-- Architecture: PASS — frontend architecture boundaries OK.
-- Lint: PASS — 0 errors; warnings reported by the existing lint configuration.
-- Build: PASS — Vite transformed 520 modules.
-- Local D1: PASS — no migrations to apply.
-- Worker production dry-run: PASS — Wrangler 4.128.0 exited in dry-run mode.
-- Worker staging dry-run: PASS — Wrangler 4.128.0 exited in dry-run mode.
-- `git diff --check`: PASS.
-- New migrations: 0.
+- Final executable SHA: `37a16a79fbb8766059cdcc01f5b1512100cdde01`
+- Final product commit: `style: refine premium desktop sidebar`
+- Pull request: #61
+- Production: **NOT DEPLOYED**
+- Merge: **NOT AUTHORIZED**
 
-The automated checks ran in the order specified by the implementation plan. The complete suite and all later gates used the executable SHA above. Two review findings were corrected with a focused RED → GREEN cycle before the final full run: invalid release sections are excluded from the catalog, and notification item labels announce read state.
+## Automated validation
 
-## Staging manual checklist
+Final GitHub Actions evidence:
 
-Staging deployment and manual checks are pending explicit authorization.
+- Validate #1731 / run `35762073662`: **SUCCESS**
+- 8/8 test shards: **SUCCESS**
+- aggregated `validate` job: **SUCCESS**
 
-### Desktop
+The final validation ran against the exact executable SHA above.
 
-- [ ] Top bar visible in Pedidos, Comandas, Financeiro, Clientes and Configurações.
-- [ ] Top bar absent from login/loading screens.
-- [ ] Pedidos badge increments/decrements with operational orders.
-- [ ] Future scheduled order does not count before preparation window.
-- [ ] Comandas badge increments on open and decrements on payment/close.
-- [ ] Comanda transfer keeps the same count.
-- [ ] Bell unread count and 99+ visual cap.
-- [ ] Notification drawer opens/closes and restores focus.
-- [ ] Release detail opens above drawer.
-- [ ] AS menu shortcuts respect capabilities.
-- [ ] Light and dark themes at ~1024, 1280 and 1440 px.
+The feature remained migration-free. Later polish cycles preserved the previously approved application, worker, architecture, lint, build and D1 gates while adding focused RED → GREEN coverage for navigation, badges, notification behavior and desktop sidebar layout.
 
-### Mobile
+## Manual staging QA
 
-- [ ] Compact top bar at ~320–390 px.
-- [ ] Pedidos and Comandas badges fit the bottom navigation.
-- [ ] Bell opens BottomSheet.
-- [ ] Selecting a notification swaps list → detail in the same sheet.
-- [ ] Back returns detail → list.
-- [ ] Automatic release notice appears once per device.
-- [ ] Closing automatic notice keeps it unread but prevents auto-reopen.
-- [ ] Entendi marks it read.
-- [ ] Logout/login preserves notification state on the same device.
+Manual homologation was completed cumulatively in staging from #200 through #208.
 
-## Production
+### Notifications
 
-- NOT DEPLOYED.
+- [x] Automatic release notice appears on first entry for the device.
+- [x] `Entendi` closes the notice and marks the release as read.
+- [x] Reloading does not reopen an already presented automatic notice.
+- [x] Notification Center preserves the release in history.
+- [x] Read items no longer remain in the unread badge.
+- [x] Logout/login on the same device preserves local notification state.
+- [x] Desktop Notification Center: PASS.
+- [x] Mobile Notification Center: PASS.
+- [x] Mobile detail uses the BottomSheet close action; the former large `Voltar` button was intentionally removed.
+- [x] Closing detail and reopening the Center returns to the list with the notification already read.
+
+### Global top bar and operation identity
+
+- [x] Mobile premium top bar approved at compact height.
+- [x] Desktop top bar approved full-width.
+- [x] Operation identity is sourced from `business.name`, without hardcoded Amor & Sabor in the shell.
+- [x] Operation menu desktop: PASS.
+- [x] Operation menu mobile: PASS.
+- [x] Mobile keeps Gestão Delivery as the product brand while the operation chip uses the real business initials.
+
+### Operational badges
+
+Pedidos:
+- [x] Active operational orders increment the badge.
+- [x] Finalizing an order decrements the badge.
+- [x] Zero hides the badge.
+- [x] Future scheduled orders outside the operational window do not count.
+- [x] Desktop/mobile behavior is consistent.
+
+Comandas:
+- [x] Opening a comanda increments the badge.
+- [x] Paying/closing decrements the badge.
+- [x] Zero hides the badge.
+- [x] Transferring the same comanda between tables does not change the total.
+- [x] Desktop/mobile behavior is consistent.
+
+Print queue:
+- [x] Active print-job count is shown in the desktop sidebar.
+- [x] The same count is shown on the Pedidos → Fila de impressão action.
+- [x] Count comes from the existing authoritative queue summary.
+- [x] Existing printing-manager refresh/polling is reused; no extra polling was introduced.
+- [x] Zero hides the badge.
+
+### Navigation and sidebar polish
+
+Staging #206:
+- [x] Changing tabs resets the content scroll to the top.
+- [x] Sidebar follows light/dark theme.
+- [x] Configurações and Sair do sistema are absent from the sidebar and remain available from the top-bar operation menu.
+- [x] Print-queue counter behavior approved.
+- [x] Mobile regression pass.
+
+Staging #208 / final SHA `37a16a79fbb8766059cdcc01f5b1512100cdde01`:
+- [x] Desktop groups retain compact natural height and no longer stretch vertically.
+- [x] Premium group hierarchy/dividers approved.
+- [x] Badge sits above the icon with the approved subtle offset.
+- [x] Badge does not sit between icon and text.
+- [x] Text alignment is identical for rows with and without badges.
+- [x] Light theme: PASS.
+- [x] Dark theme: PASS.
+- [x] Mobile remains visually unchanged: PASS.
+
+## Final QA status
+
+- Automated validation: **PASS**
+- Staging deployment: **PASS**
+- Manual desktop QA: **PASS**
+- Manual mobile QA: **PASS**
+- Final staging: **#208**
+- Final executable SHA: `37a16a79fbb8766059cdcc01f5b1512100cdde01`
+- Production: **NOT DEPLOYED**
 - Merge requires explicit authorization.
