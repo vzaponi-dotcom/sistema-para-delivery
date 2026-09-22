@@ -1,4 +1,4 @@
-# Gestão Delivery — Central de notificações, badge operacional e top bar global
+# Gestão Delivery — Central de notificações, badges operacionais e top bar global
 
 **Data:** 2026-09-21  
 **Status:** SPEC APROVADA  
