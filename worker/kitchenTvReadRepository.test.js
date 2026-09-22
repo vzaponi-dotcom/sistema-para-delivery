@@ -32,9 +32,9 @@ function setup(t) {
   const insertItem = fixture.sqlite.prepare(`INSERT INTO order_items (
     id, business_id, order_id, name_snapshot, category_snapshot, size_snapshot,
     quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at
-  ) VALUES (?, ?, ?, ?, '', '', ?, ?, ?, '', ?, ?)`)
-  insertItem.run('item-1', BUSINESS, 'active-now', 'Burger Clássico', 1, 4200, 4200, 'Sem cebola', '2026-09-22T17:40:01.000Z')
-  insertItem.run('item-2', BUSINESS, 'active-scheduled', 'Suco Natural', 2, 1900, 1900, '', '2026-09-22T17:45:01.000Z')
+  ) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, '', ?, ?)`)
+  insertItem.run('item-1', BUSINESS, 'active-now', 'Marmita', 'G', 1, 4200, 4200, 'Sem cebola', '2026-09-22T17:40:01.000Z')
+  insertItem.run('item-2', BUSINESS, 'active-scheduled', 'Suco Natural', '', 2, 1900, 1900, '', '2026-09-22T17:45:01.000Z')
   return fixture
 }
 
@@ -59,12 +59,12 @@ test('returns only active kitchen-safe fields, future scheduled orders and curre
     {
       id: 'active-now', orderNumber: 1042, client: 'Ana Souza', type: 'Entrega', status: 'Em preparo',
       orderDate: '2026-09-22', createdAt: '2026-09-22T17:40:00.000Z', scheduledFor: null,
-      items: [{ quantity: 1, name: 'Burger Clássico', note: 'Sem cebola' }],
+      items: [{ quantity: 1, name: 'Marmita', size: 'G', note: 'Sem cebola' }],
     },
     {
       id: 'active-scheduled', orderNumber: 1043, client: 'Ricardo Martins', type: 'Retirada', status: 'Agendado',
       orderDate: '2026-09-22', createdAt: '2026-09-22T17:45:00.000Z', scheduledFor: '2026-09-22T20:00:00.000Z',
-      items: [{ quantity: 2, name: 'Suco Natural', note: '' }],
+      items: [{ quantity: 2, name: 'Suco Natural', size: '', note: '' }],
     },
   ])
 })

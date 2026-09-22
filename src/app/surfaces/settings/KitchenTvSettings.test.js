@@ -4,6 +4,7 @@ import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const empty = { configured: false, waitingPairing: false, paired: false, pairedAt: null, lastSeenAt: null, revokedAt: null }
+const waiting = { configured: true, waitingPairing: true, paired: false, pairedAt: null, lastSeenAt: null, revokedAt: null }
 const paired = { configured: true, waitingPairing: false, paired: true, pairedAt: '2026-09-22T18:00:00.000Z', lastSeenAt: '2026-09-22T18:05:00.000Z', revokedAt: null }
 
 async function render(t, { granted = new Set(['orders.settings.manage']), state = empty, apiOverrides = {} } = {}) {
@@ -41,6 +42,14 @@ test('view-only access sees status without mutation controls', async (t) => {
   assert.match(nodeText(screen.root), /Somente leitura/)
   assert.equal(buttonNamed(screen.root, 'Gerar novo acesso'), undefined)
   assert.equal(buttonNamed(screen.root, 'Revogar acesso'), undefined)
+})
+
+test('persisted pending pairing remains visible after reload without disclosing its secret', async (t) => {
+  const { screen } = await render(t, { granted: new Set(['orders.settings.view']), state: waiting })
+  const text = nodeText(screen.root)
+  assert.match(text, /Aguardando pareamento/)
+  assert.doesNotMatch(text, /TV ainda não configurada|cozinha-tv#token=/)
+  assert.equal(buttonNamed(screen.root, 'Gerar novo acesso'), undefined)
 })
 
 test('paired manager confirms revocation before removing access', async (t) => {

@@ -31,10 +31,30 @@ test('card hierarchy, exact state labels and content limits match the TV contrac
   assert.match(text, /NOVO PEDIDO/)
   assert.match(text, /00:32/)
   assert.match(text, /1xBurger Clássico/)
-  assert.match(text, /\+ 1 item/)
+  assert.match(text, /\+ 2 itens/)
   assert.match(text, /Sem cebola/)
-  assert.match(text, /\+ 1 observação/)
+  assert.match(text, /\+ 2 observações/)
+  assert.equal(renderer.root.findByProps({ className: 'kds-card__items' }).findAllByType('li').length, 4)
+  assert.equal(renderer.root.findByProps({ className: 'kds-card__notes' }).findAllByType('p').length, 2)
+  const primary = renderer.root.findByProps({ className: 'kds-card__main' })
+  assert.ok(primary.findByProps({ className: 'kds-card__customer' }))
+  assert.ok(primary.findByProps({ className: 'kds-card__timing' }))
   assert.doesNotMatch(text, /Finalizar|Cancelar|Imprimir|Novo pedido/)
+})
+
+test('card preserves product variation without duplicating an existing suffix', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayCard } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
+  const renderer = await h.render(KitchenDisplayCard, { entry: entry('preparing', {
+    items: [
+      { quantity: 1, name: 'Marmita', size: 'G', note: '' },
+      { quantity: 1, name: 'Pizza Grande', size: 'Grande', note: '' },
+    ],
+  }), now: new Date('2026-09-22T19:00:02.000Z') })
+  const text = nodeText(renderer.root)
+  assert.match(text, /1xMarmita G/)
+  assert.match(text, /1xPizza Grande/)
+  assert.doesNotMatch(text, /Pizza Grande Grande/)
 })
 
 test('timer switches to H:MM:SS and scheduled cards show desired HH:mm with clock', async (t) => {
