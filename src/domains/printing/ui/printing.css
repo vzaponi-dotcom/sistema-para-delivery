@@ -189,7 +189,7 @@
 
 .printing-switch-row input:checked {
   border-color: var(--primary);
-  background: var(--primary);
+  background: var(--primary-fill);
 }
 
 .printing-switch-row input:checked::after {
