@@ -35,6 +35,10 @@ export function useNavigationController({
     ? matchedDestination
     : resolveHome(granted, implemented)
 
+  useEffect(() => {
+    setMoreOpen(false)
+  }, [matchedDestination])
+
   const resolveTarget = useCallback((target) => {
     if (target && typeof target === 'object') {
       const id = resolveArea(target.area, granted, implemented)
