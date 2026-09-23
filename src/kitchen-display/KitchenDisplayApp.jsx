@@ -5,10 +5,6 @@ import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
 import { bootstrapKitchenDisplay, pollKitchenDisplayPairing } from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
 
-const defaultFullscreen = async () => {
-  if (document.documentElement?.requestFullscreen) await document.documentElement.requestFullscreen()
-}
-
 const isDefinitive = (error) => error?.definitive === true
   || error instanceof KitchenDisplayHttpError && (error.status === 401 || error.status === 403)
 
@@ -22,7 +18,6 @@ export function KitchenDisplayApp({
   pollPairing = pollKitchenDisplayPairing,
   readState = readKitchenDisplayState,
   audio: suppliedAudio,
-  requestFullscreen = defaultFullscreen,
   schedule = globalThis.setTimeout,
   cancelSchedule = globalThis.clearTimeout,
 }) {
@@ -66,6 +61,16 @@ export function KitchenDisplayApp({
     setLastUpdatedAt(new Date())
   }, [audio, cancelSchedule, schedule])
 
+  const prepareLivePanel = useCallback(async (next) => {
+    await applySnapshot(next)
+    try {
+      setSoundBlocked(!await audio.unlock())
+    } catch {
+      setSoundBlocked(true)
+    }
+    setPhase('live')
+  }, [applySnapshot, audio])
+
   useEffect(() => {
     let active = true
     const start = async () => {
@@ -77,8 +82,7 @@ export function KitchenDisplayApp({
           setPhase('pairing')
           return
         }
-        await applySnapshot(initial.state)
-        if (active) setPhase('start-required')
+        await prepareLivePanel(initial.state)
       } catch {
         if (!active) return
         setSnapshot(null)
@@ -87,7 +91,7 @@ export function KitchenDisplayApp({
     }
     void start()
     return () => { active = false }
-  }, [applySnapshot, bootstrap])
+  }, [bootstrap, prepareLivePanel])
 
   useEffect(() => {
     if (phase !== 'pairing') return undefined
@@ -98,9 +102,8 @@ export function KitchenDisplayApp({
       try {
         const next = await pollPairing()
         if (next?.kind === 'paired') {
-          await applySnapshot(next.state)
+          await prepareLivePanel(next.state)
           setPairing(null)
-          setPhase('start-required')
         } else if (next?.kind === 'pairing') {
           setPairing(next.pairing)
         }
@@ -113,7 +116,7 @@ export function KitchenDisplayApp({
     }
     const poll = globalThis.setInterval(() => void check(), 2000)
     return () => globalThis.clearInterval(poll)
-  }, [applySnapshot, phase, pollPairing])
+  }, [phase, pollPairing, prepareLivePanel])
 
   const refresh = useCallback(async () => {
     try {
@@ -158,17 +161,6 @@ export function KitchenDisplayApp({
     highlightTimers.current.clear()
   }, [cancelSchedule])
 
-  const startPanel = async () => {
-    const audioReady = await audio.unlock()
-    setSoundBlocked(!audioReady)
-    try {
-      await requestFullscreen()
-    } catch {
-      // Fullscreen is an enhancement; the operational panel remains available.
-    }
-    setPhase('live')
-  }
-
   const enableSound = async () => setSoundBlocked(!await audio.unlock())
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
@@ -183,7 +175,6 @@ export function KitchenDisplayApp({
     </section>
   </main>
   if (phase === 'unauthorized') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Painel não autorizado</h1><p>Atualize a página para conectar esta TV novamente.</p></section></main>
-  if (phase === 'start-required') return <main className="kds-shell"><button type="button" onClick={startPanel}>Iniciar painel da cozinha</button></main>
 
   return <main className="kds-shell kds-shell--live" data-stale={stale}>
     <span className="kds-visually-hidden">Painel da cozinha ativo</span>
