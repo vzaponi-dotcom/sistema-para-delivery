@@ -199,3 +199,43 @@ Os quatro itens pendentes não representam falha conhecida do produto; são chec
 - PR #62: ainda **DRAFT** no momento desta atualização documental;
 - merge: **NOT EXECUTED**;
 - produção: **NOT EXECUTED**.
+
+
+## Release tour homologation — staging #224
+
+Publicação final de comunicação ao usuário:
+
+- Deploy staging: **#224** / run `35813974699`;
+- branch: `feature/kitchen-tv-display-v2`;
+- produto homologado: `779c73c5bbf18dddcbf5b2cf5881291c1f48118b`;
+- Worker staging Version ID: `f048d002-73cb-43f4-a2f9-6e3131caf572`;
+- staging login: **HTTP 200**;
+- D1 remoto: **No migrations to apply**;
+- Validate application #1814 / run `35813711012`: **8/8 shards SUCCESS + validate SUCCESS**.
+
+A release **Nova TV da Cozinha** foi homologada manualmente no formato de tour visual:
+
+- modal em slides aprovado;
+- desktop e mobile aprovados;
+- navegação `Pular / Anterior / Próximo / Entendi` aprovada;
+- indicador de progresso aprovado;
+- swipe mobile aprovado;
+- conteúdo e ilustrações aprovados;
+- release anterior preservada no histórico;
+- regra de abrir automaticamente somente a release mais recente preservada e coberta por teste;
+- catálogo de releases `items` + `slides` estabilizado e idempotente.
+
+Resultado de comunicação ao usuário: **PASS**.
+
+### Fechamento para merge
+
+A matriz funcional da Kitchen TV permanece em **16 PASS / 0 FAIL / 4 PENDING-MANUAL**. Os quatro itens pendentes são verificações negativas/específicas já cobertas por automação e não representam falha conhecida.
+
+Release candidate de produto homologado: `779c73c5bbf18dddcbf5b2cf5881291c1f48118b`.
+
+- staging final: **SUCCESS**;
+- release tour: **PASS**;
+- CI do produto homologado: **GREEN**;
+- review threads: **0 unresolved**;
+- produção: **NOT EXECUTED**;
+- merge: autorizado pelo responsável do produto em 2026-09-23 e pendente apenas dos gates finais desta closure documental.
