@@ -14,7 +14,7 @@ const flushEffects = () => act(async () => {
   await Promise.resolve()
 })
 
-test('paired TV enters the live panel automatically and only treats audio unlock as a best-effort enhancement', async (t) => {
+test('paired TV waits for one start gesture so audio can unlock before kitchen use', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const events = []
@@ -24,12 +24,17 @@ test('paired TV enters the live panel automatically and only treats audio unlock
     audio: { unlock: async () => { events.push('audio'); return true }, playArrival: async () => true },
   })
   await flushEffects()
+
+  assert.deepEqual(events, [])
+  assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
+  assert.doesNotMatch(nodeText(renderer.root), /Painel da cozinha ativo/)
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.deepEqual(events, ['audio'])
-  assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
 
-test('live runtime polls only while visible and refreshes immediately on focus, online and visible', async (t) => {
+test('live runtime polls only after the start gesture and only while visible', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   let reads = 0
@@ -37,12 +42,16 @@ test('live runtime polls only while visible and refreshes immediately on focus, 
     bootstrap: async () => ({ kind: 'paired', state: state([]) }),
     readState: async () => { reads += 1; return state([]) },
     audio: { unlock: async () => true, playArrival: async () => true },
-    requestFullscreen: async () => {},
   })
   await flushEffects()
 
   await act(async () => h.fireInterval(2000))
+  assert.equal(reads, 0)
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await act(async () => h.fireInterval(2000))
   assert.equal(reads, 1)
+
   h.setVisibility('hidden')
   await act(async () => h.fireInterval(2000))
   assert.equal(reads, 1)
@@ -63,12 +72,13 @@ test('new arrivals alert once and highlight for exactly 2600ms; initial orders s
     bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
     readState: async () => state(['existing', 'new-order']),
     audio: { unlock: async () => true, playArrival: async () => { plays += 1; return true } },
-    requestFullscreen: async () => {},
     schedule: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length },
     cancelSchedule: () => {},
   })
   await flushEffects()
   assert.equal(plays, 0)
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   await act(async () => h.fireInterval(2000))
   assert.equal(plays, 1)
   assert.deepEqual(renderer.root.findByProps({ 'data-order-id': 'new-order' }).props['data-highlighted'], true)
@@ -77,7 +87,7 @@ test('new arrivals alert once and highlight for exactly 2600ms; initial orders s
   assert.equal(renderer.root.findByProps({ 'data-order-id': 'new-order' }).props['data-highlighted'], false)
 })
 
-test('transient failures preserve stale snapshot; 401 clears it and audio fallback remains actionable', async (t) => {
+test('failed audio unlock keeps the panel available and exposes the sound recovery action', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const { KitchenDisplayHttpError } = await h.load('/src/kitchen-display/kitchenDisplayApi.js')
@@ -86,10 +96,13 @@ test('transient failures preserve stale snapshot; 401 clears it and audio fallba
     bootstrap: async () => ({ kind: 'paired', state: state(['keep-me']) }),
     readState: async () => { throw responses.shift() },
     audio: { unlock: async () => false, playArrival: async () => false },
-    requestFullscreen: async () => {},
   })
   await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
   assert.ok(buttonNamed(renderer.root, 'Ativar alertas sonoros'))
+
   await act(async () => h.fireInterval(2000))
   assert.match(nodeText(renderer.root), /Dados temporariamente desatualizados/)
   assert.ok(renderer.root.findByProps({ 'data-order-id': 'keep-me' }))
@@ -98,7 +111,7 @@ test('transient failures preserve stale snapshot; 401 clears it and audio fallba
   assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'keep-me' }).length, 0)
 })
 
-test('unpaired TV shows a six-digit code and advances automatically after approval', async (t) => {
+test('paired approval advances from code to the explicit start screen', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const renderer = await h.render(KitchenDisplayApp, {
@@ -106,18 +119,20 @@ test('unpaired TV shows a six-digit code and advances automatically after approv
     pollPairing: async () => ({ kind: 'paired', state: state([]) }),
     readState: async () => state([]),
     audio: { unlock: async () => true, playArrival: async () => true },
-    requestFullscreen: async () => {},
   })
   await flushEffects()
   assert.match(nodeText(renderer.root), /Conectar esta TV/)
   assert.match(nodeText(renderer.root), /482 731/)
+
   await act(async () => h.fireInterval(2000))
-  assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
+  assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
+  assert.doesNotMatch(nodeText(renderer.root), /Painel da cozinha ativo/)
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
 
-
-test('audio unlock that never settles cannot block automatic panel entry', async (t) => {
+test('an audio unlock that never settles cannot trap the user after the explicit click', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const never = new Promise(() => {})
@@ -127,6 +142,7 @@ test('audio unlock that never settles cannot block automatic panel entry', async
     audio: { unlock: async () => never, playArrival: async () => true },
   })
   await flushEffects()
-  assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
