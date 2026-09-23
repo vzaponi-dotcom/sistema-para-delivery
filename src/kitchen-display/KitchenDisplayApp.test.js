@@ -14,7 +14,7 @@ const flushEffects = () => act(async () => {
   await Promise.resolve()
 })
 
-test('successful bootstrap requires a gesture; start unlocks audio and survives fullscreen rejection', async (t) => {
+test('paired TV enters the live panel automatically and only treats audio unlock as a best-effort enhancement', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const events = []
@@ -22,13 +22,10 @@ test('successful bootstrap requires a gesture; start unlocks audio and survives 
     bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
     readState: async () => state(['existing']),
     audio: { unlock: async () => { events.push('audio'); return true }, playArrival: async () => true },
-    requestFullscreen: async () => { events.push('fullscreen'); throw new Error('denied') },
   })
   await flushEffects()
-  assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
-
-  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
-  assert.deepEqual(events, ['audio', 'fullscreen'])
+  assert.deepEqual(events, ['audio'])
+  assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
 
@@ -43,7 +40,6 @@ test('live runtime polls only while visible and refreshes immediately on focus, 
     requestFullscreen: async () => {},
   })
   await flushEffects()
-  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
 
   await act(async () => h.fireInterval(2000))
   assert.equal(reads, 1)
@@ -118,5 +114,6 @@ test('unpaired TV shows a six-digit code and advances automatically after approv
   assert.match(nodeText(renderer.root), /Conectar esta TV/)
   assert.match(nodeText(renderer.root), /482 731/)
   await act(async () => h.fireInterval(2000))
-  assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
+  assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
