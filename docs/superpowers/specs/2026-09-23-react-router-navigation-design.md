@@ -4,7 +4,7 @@ Date: 2026-09-23
 Issue: #43 — Modernizar navegação do frontend com React Router após a Spec C  
 Base audited: `master@12f32d05401c59d9a3360d050df596a7c0803909`  
 Design branch: `docs/react-router-navigation-design`  
-Status: **DRAFT FOR REVIEW — no product implementation yet**
+Status: **DRAFT FOR REVIEW — SELF-REVIEWED — no product implementation yet**
 
 ## 1. Goal
 
@@ -62,6 +62,15 @@ Reason for Data Mode: the official `useBlocker` contract is available for Data/F
 
 Do not use `unstable_usePrompt`; the application already has an accessible custom confirmation modal and must not depend on browser `window.confirm` behavior.
 
+Compatibility audit on the design base:
+
+- React is `^19.2.8`;
+- React DOM is `^19.2.8`;
+- Vite is `^8.2.2`;
+- CI uses Node 22.
+
+Before implementation, verify the resolved Node 22 runtime still satisfies the selected React Router release's engine minimum. Do not change Node/Vite/React merely to perform this migration unless an actual compatibility gate requires it.
+
 ## 4. Architectural rule
 
 The canonical navigation source becomes:
@@ -75,6 +84,8 @@ It must no longer be:
 Destination IDs remain stable internal contracts. Domains and workflows continue navigating by semantic destination ID rather than importing URL strings directly.
 
 URLs belong to `app/navigation`.
+
+For migration compatibility, `NavigationContext` may continue exposing a field named `activeTab` to existing shell/surface consumers, but that value must be **derived from the matched route**. It must not remain an independently mutable navigation state.
 
 ## 5. Canonical route map
 
@@ -525,6 +536,14 @@ Minimum focused coverage:
 - admin deep links load AdminBootstrap;
 - architecture checker preserves TV/admin import boundary.
 
+### Test harness migration
+
+The shared application test harness should gain one Router-aware mounting path rather than forcing each existing App integration test to hand-build a router wrapper.
+
+Focused navigation-controller tests that currently assert local `activeTab` state should be migrated to a memory-router harness and assert pathname + derived destination together.
+
+Do not weaken existing tests simply because navigation is now URL-backed. Preserve the current regression intent for query continuity, event-listener stability, Settings saves, Comandas and mobile navigation.
+
 ## 27. Full regression gates
 
 Before staging:
@@ -620,7 +639,19 @@ The migration is complete when:
 - no Worker/backend/database behavior changed unnecessarily;
 - staging is fully homologated before merge.
 
-## 31. Design decisions intentionally deferred
+## 31. Release communication
+
+This migration does not require a dedicated visual release tour because it does not introduce a new operational screen.
+
+A concise release-history note is appropriate if the release communication system requires an entry for user-visible navigation improvements, emphasizing:
+
+- browser Back/Forward support;
+- URLs that preserve the current area on refresh;
+- direct links to application sections.
+
+Do not present internal Router/library details to end users.
+
+## 32. Design decisions intentionally deferred
 
 After this migration, future specs may independently decide:
 
