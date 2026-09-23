@@ -69,6 +69,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   const [selectedJob, setSelectedJob] = useState(null)
   const [confirmation, setConfirmation] = useState(null)
   const [actionPending, setActionPending] = useState(false)
+  const [bulkDiscardConfirmation, setBulkDiscardConfirmation] = useState(false)
+  const [bulkDiscardPending, setBulkDiscardPending] = useState(false)
   const [reprintCopies, setReprintCopies] = useState(null)
   const [showReprint, setShowReprint] = useState(false)
   const [showTicket, setShowTicket] = useState(false)
@@ -190,6 +192,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   const jobRows = operationalJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const pageInfo = operationalPage.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 }
   const hasActiveFilters = Boolean(searchInput.trim()) || Boolean(query.status) || Boolean(query.trigger)
+  const bulkDiscardCandidateCount = Math.max(0,
+    Number(summary.pending || 0) + Number(summary.waitingSecondCopy || 0) + Number(summary.attention || 0))
   const recoveryState = printing?.recoveryState || station?.recoveryState || 'normal'
   const selectedDetails = selectedJob ? getPrintJobDetails(selectedJob, {
     order: ordersById.get(String(selectedJob.orderId)),
@@ -282,6 +286,46 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       setRecoveryPending(false)
     }
   }
+  const requestBulkDiscard = () => {
+    if (!isOnline) {
+      onToast?.(OFFLINE_MUTATION_MESSAGE)
+      return false
+    }
+    if (!canDiscardPrinting || bulkDiscardPending || bulkDiscardCandidateCount === 0) return false
+    setBulkDiscardConfirmation(true)
+    return true
+  }
+
+  const confirmBulkDiscard = async () => {
+    if (!isOnline) {
+      onToast?.(OFFLINE_MUTATION_MESSAGE)
+      return false
+    }
+    if (!canDiscardPrinting || bulkDiscardPending || !printing?.requestDiscardPendingJobs) return false
+    setBulkDiscardPending(true)
+    try {
+      const response = await printing.requestDiscardPendingJobs()
+      const discardedCount = Math.max(0, Number(response?.discardedCount || 0))
+      const retainedCount = Math.max(0, Number(response?.retainedCount || 0))
+      setBulkDiscardConfirmation(false)
+      pageCacheRef.current.clear()
+      await refreshPanel()
+      const discardedLabel = discardedCount === 1 ? '1 trabalho descartado' : `${discardedCount} trabalhos descartados`
+      if (retainedCount > 0) {
+        const retainedLabel = retainedCount === 1 ? '1 mantido' : `${retainedCount} mantidos`
+        onToast?.(`${discardedLabel}. ${retainedLabel} porque precisam de confirmação ou estão em processamento.`)
+      } else {
+        onToast?.(`${discardedLabel}.`)
+      }
+      return true
+    } catch (error) {
+      onToast?.(error?.message || 'Não foi possível descartar as pendências da fila.')
+      return false
+    } finally {
+      setBulkDiscardPending(false)
+    }
+  }
+
   const orderNumber = selectedDetails?.title || 'este pedido'
 
   return (
@@ -339,6 +383,15 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
             <p className="section-kicker">Execução</p>
             <h2>Trabalhos de impressão</h2>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="button-danger-outline print-queue-bulk-discard-button"
+            onClick={requestBulkDiscard}
+            disabled={!canDiscardPrinting || !isOnline || bulkDiscardPending || bulkDiscardCandidateCount === 0}
+          >
+            Descartar pendências
+          </Button>
         </div>
         <div className="print-queue-filters" aria-label="Filtros da fila de impressão">
           <label className="print-queue-search">
@@ -448,6 +501,16 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       {showTicket && selectedJob?.document?.type === 'order' && selectedDetails && <Modal title={`Ticket do ${selectedDetails.title}`} onClose={() => setShowTicket(false)} footer={<div className="print-queue-ticket-actions"><Button type="button" variant="secondary" onClick={() => setShowTicket(false)}>Fechar</Button></div>}>
         <OrderTicketPreview document={selectedJob.document} />
       </Modal>}
+      {bulkDiscardConfirmation && <ConfirmationDialog
+        title="Descartar pendências da fila?"
+        message="Todos os trabalhos que podem ser encerrados com segurança serão descartados. Trabalhos em processamento ou com resultado físico incerto serão mantidos para evitar perda de confirmação."
+        confirmLabel="Descartar pendências"
+        cancelLabel="Cancelar"
+        confirmVariant="danger"
+        onClose={() => setBulkDiscardConfirmation(false)}
+        onConfirm={() => void confirmBulkDiscard()}
+        disabled={bulkDiscardPending || !isOnline || !canDiscardPrinting}
+      />}
       {confirmation && <ConfirmationDialog
         title={confirmation === 'requestSecondCopy' ? 'Imprimir 2ª via?' : confirmation === 'skipSecondCopy' ? 'Não imprimir a 2ª via?' : confirmation === 'discard' ? 'Descartar trabalho de impressão?' : 'Imprimir mesmo assim?'}
         message={confirmation === 'requestSecondCopy' ? `A 2ª via do ${orderNumber} será enviada para a fila da cozinha.` : confirmation === 'skipSecondCopy' ? `A pendência da 2ª via do ${orderNumber} será encerrada.` : confirmation === 'discard' ? `O trabalho de impressão de ${orderNumber} será descartado.` : `${orderNumber} já foi finalizado ou cancelado. Autorizar a impressão original?`}

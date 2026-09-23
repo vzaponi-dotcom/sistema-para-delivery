@@ -44,6 +44,7 @@ export const setPrintStationRecovery = (stationId, state) => apiRequest(
 )
 export const claimNextRecoveryPrintJob = (stationId) => apiRequest('/api/printing/jobs/claim-recovery-next', withJson('POST', { stationId }))
 export const discardPendingPrintJobs = (actorLabel = 'Sistema') => apiRequest('/api/printing/jobs/discard-pending', withJson('POST', { actorLabel }))
+export const discardOperationalPrintJobs = (actorLabel = 'Operador') => apiRequest('/api/printing/jobs/discard-operational', withJson('POST', { actorLabel }))
 export const createManualPrintJob = (orderId, copies) => apiRequest(`/api/orders/${encodeURIComponent(orderId)}/print-jobs`, withJson('POST', { copies }))
 export const createTestPrintJob = (stationId) => apiRequest('/api/printing/test-jobs', withJson('POST', { stationId }))
 export const claimNextPrintJob = (stationId) => apiRequest('/api/printing/jobs/claim-next', withJson('POST', { stationId }))

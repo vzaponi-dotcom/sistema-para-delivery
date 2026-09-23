@@ -10,6 +10,7 @@ import {
   createManualTableTabPrintJob,
   createTestPrintJob,
   discardPendingPrintJobs,
+  discardOperationalPrintJobs,
   discardPrintJob,
   failPrintJob,
   forcePrintJob as forcePrintJobApi,
@@ -690,6 +691,12 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     return response
   }, [refresh, updateLocalStation])
 
+  const requestDiscardPendingJobs = useCallback(async () => {
+    const response = await discardOperationalPrintJobs('Operador')
+    await refresh()
+    return response
+  }, [refresh])
+
   const confirmUnknownPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
     if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
     const response = await resolvePrintOutcome(job.id, attempt.id, 'manual_printed')
@@ -1025,6 +1032,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     resumeRecovery,
     printNextRecovery,
     discardRecoveryBacklog,
+    requestDiscardPendingJobs,
     confirmUnknownPrinted,
     confirmUnknownNotPrinted,
     acknowledgeSecondCopyPrompt,
