@@ -63,12 +63,14 @@ export function KitchenDisplayApp({
 
   const prepareLivePanel = useCallback(async (next) => {
     await applySnapshot(next)
-    try {
-      setSoundBlocked(!await audio.unlock())
-    } catch {
-      setSoundBlocked(true)
-    }
     setPhase('live')
+    void (async () => {
+      try {
+        setSoundBlocked(!await audio.unlock())
+      } catch {
+        setSoundBlocked(true)
+      }
+    })()
   }, [applySnapshot, audio])
 
   useEffect(() => {
