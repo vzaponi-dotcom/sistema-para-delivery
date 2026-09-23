@@ -52,6 +52,7 @@ import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
 import { useNavigationController } from './app/navigation/useNavigationController.js'
 import { useRouteGate } from './app/navigation/useRouteGate.js'
+import { useNewOrderUnloadGuard } from './app/navigation/useNewOrderUnloadGuard.js'
 import { useQueryContext } from './app/navigation/useQueryContext.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
 import { createPolicyNavigationBridge } from './app/policy-editing/policyNavigationBridge.js'
@@ -169,6 +170,11 @@ function App({ capabilities } = {}) {
     getNavigationDraft: policyNavigationBridge.getNavigationDraft,
     discardNavigationDraft: policyNavigationBridge.discardNavigationDraft,
     onFeedback: setToastMessage,
+  })
+  useNewOrderUnloadGuard({
+    active: activeTab === 'new-order',
+    dirty: newOrderDraft.dirty,
+    checkoutPending: newOrderDraft.checkoutPending,
   })
   const handleOperationalUnauthorized = useCallback((error) => operationalRuntimeTargetsRef.current.onUnauthorized?.(error), [])
   const getEffectiveConfigVersion = useCallback(() => effectiveConfigVersionRef.current, [])
