@@ -28,6 +28,7 @@ export function useNavigationController({
   const [pendingNavigation, setPendingNavigation] = useState(null)
   const pendingNavigationRef = useRef(null)
   const approvedPathRef = useRef(null)
+  const blockerResettingRef = useRef(false)
   const pendingDestination = pendingNavigation?.destination || null
   const resolvedActiveTab = matchedDestination
     && resolveDestination(matchedDestination, granted, implemented).status === 'allowed'
@@ -77,6 +78,12 @@ export function useNavigationController({
 
   const blocker = useBlocker(shouldBlockRouterNavigation)
 
+  const resetBlockedNavigation = useCallback(() => {
+    if (blocker.state !== 'blocked') return
+    blockerResettingRef.current = true
+    blocker.reset()
+  }, [blocker])
+
   const navigateApprovedPath = useCallback((path, options) => {
     approvedPathRef.current = path
     const result = navigate(path, options)
@@ -93,7 +100,11 @@ export function useNavigationController({
   }, [navigateApprovedPath, reject])
 
   useEffect(() => {
-    if (blocker.state !== 'blocked') return
+    if (blocker.state !== 'blocked') {
+      blockerResettingRef.current = false
+      return
+    }
+    if (blockerResettingRef.current) return
 
     const pending = pendingNavigationRef.current
     if (pending) {
@@ -104,21 +115,21 @@ export function useNavigationController({
     const currentDestination = matchedDestination
     const nextDestination = destinationForPath(blocker.location.pathname)
     if (!nextDestination) {
-      blocker.reset()
+      resetBlockedNavigation()
       reject('unknown')
       return
     }
 
     const resolution = resolveDestination(nextDestination, granted, implemented)
     if (resolution.status !== 'allowed') {
-      blocker.reset()
+      resetBlockedNavigation()
       reject(resolution.status)
       return
     }
 
     const leavingOrder = currentDestination === 'new-order' && nextDestination !== 'new-order'
     if (leavingOrder && checkoutPending) {
-      blocker.reset()
+      resetBlockedNavigation()
       reject('blocked')
       return
     }
@@ -148,6 +159,7 @@ export function useNavigationController({
     implemented,
     matchedDestination,
     reject,
+    resetBlockedNavigation,
     resolveNavigationDraft,
   ])
 
@@ -203,7 +215,7 @@ export function useNavigationController({
 
     const resolution = resolveDestination(pending.destination, granted, implemented)
     if (resolution.status !== 'allowed') {
-      if (pending.source === 'blocker' && blocker.state === 'blocked') blocker.reset()
+      if (pending.source === 'blocker') resetBlockedNavigation()
       pendingNavigationRef.current = null
       setPendingNavigation(null)
       return reject(resolution.status)
@@ -211,7 +223,7 @@ export function useNavigationController({
 
     if (pending.kind === 'order') {
       if (checkoutPending) {
-        if (pending.source === 'blocker' && blocker.state === 'blocked') blocker.reset()
+        if (pending.source === 'blocker') resetBlockedNavigation()
         pendingNavigationRef.current = null
         setPendingNavigation(null)
         return reject('blocked')
@@ -244,6 +256,7 @@ export function useNavigationController({
     navigateToDestination,
     onDiscardOrder,
     reject,
+    resetBlockedNavigation,
     resolveNavigationDraft,
     resolvedActiveTab,
   ])
@@ -252,8 +265,8 @@ export function useNavigationController({
     const pending = pendingNavigationRef.current
     pendingNavigationRef.current = null
     setPendingNavigation(null)
-    if (pending?.source === 'blocker' && blocker.state === 'blocked') blocker.reset()
-  }, [blocker])
+    if (pending?.source === 'blocker') resetBlockedNavigation()
+  }, [resetBlockedNavigation])
 
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
