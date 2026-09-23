@@ -13,5 +13,6 @@ test('QA regression: normalizes backend awaitingSecondCopy to the UI waitingSeco
     awaitingConfirmation: 0,
     waitingSecondCopy: 0,
     attention: 8,
+    discardable: 0,
   })
 })

@@ -62,7 +62,7 @@ test('print queue summary uses the four server operational counters', () => {
     awaitingConfirmation: 1,
     waitingSecondCopy: 1,
     attention: 1,
-    discardable: 4,
+    discardable: 3,
   })
 })
 
@@ -485,6 +485,7 @@ test('operational summary and unknown physical outcome use the approved safety l
     awaitingConfirmation: 1,
     waitingSecondCopy: 1,
     attention: 1,
+    discardable: 3,
   })
 
   const details = getPrintJobDetails({
