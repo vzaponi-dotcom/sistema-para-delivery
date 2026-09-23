@@ -19,7 +19,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { width: 100%; height: 100%; min-width: 1280px; margin: 0; background: var(--kds-bg); overflow: hidden; }
+html, body, #root { width: 100%; height: 100%; min-width: 0; min-height: 0; margin: 0; background: var(--kds-bg); overflow: hidden; }
 button { font: inherit; }
 .kds-shell { width: 100%; height: 100vh; display: grid; place-items: center; overflow: hidden; color: var(--kds-text); background: radial-gradient(circle at 50% 0%, #102130 0%, var(--kds-bg) 58%); }
 .kds-shell--live { display: block; }
@@ -100,3 +100,97 @@ button { font: inherit; }
 .kds-pairing-kicker { color: var(--kds-blue) !important; font-size: clamp(.9rem, 1vw, 1.1rem) !important; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .kds-pairing-code { padding: .2em .45em; color: var(--kds-text); font-size: clamp(4rem, 9vw, 8rem); font-weight: 900; letter-spacing: .11em; line-height: 1; font-variant-numeric: tabular-nums; }
 .kds-pairing-help { font-size: clamp(.9rem, 1.2vw, 1.1rem) !important; }
+
+
+@media (max-width: 1279px) {
+  .kds-shell { min-width: 0; min-height: 0; }
+  .kds-board { padding: 10px 12px 14px; gap: 8px; }
+  .kds-header {
+    min-height: 58px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+  }
+  .kds-brand { gap: 8px; }
+  .kds-brand__separator,
+  .kds-brand p { display: none; }
+  .kds-brand__icon svg { width: 34px; height: 34px; }
+  .kds-brand h1 { font-size: clamp(1.35rem, 3vw, 2rem); }
+  .kds-counter { min-width: 68px; padding: 0 6px; }
+  .kds-counter span { font-size: clamp(.62rem, 1.1vw, .8rem); }
+  .kds-counter strong { font-size: clamp(1.35rem, 2.7vw, 2rem); }
+  .kds-clock { min-width: 82px; }
+  .kds-clock time { font-size: clamp(1.4rem, 3vw, 2rem); }
+  .kds-clock span { margin-top: .2rem; font-size: clamp(.62rem, 1.1vw, .78rem); }
+
+  .kds-grid { gap: 8px; }
+  .kds-card { padding: 9px 10px; border-width: 1px; border-radius: 9px; }
+  .kds-card__status { gap: .5rem; font-size: clamp(.58rem, .9vw, .72rem); }
+  .kds-card__status-copy { gap: .35rem; }
+  .kds-card__main { min-height: 30px; margin: 5px 0 6px; gap: .45rem; }
+  .kds-card__customer { font-size: clamp(1rem, 2.2vw, 1.5rem); }
+  .kds-card__timing { font-size: clamp(1rem, 2.2vw, 1.45rem); }
+  .kds-card__body { gap: .45rem; }
+  .kds-card__items { gap: 2px; font-size: clamp(.68rem, 1.25vw, .92rem); }
+  .kds-card__items li { grid-template-columns: 1.8em minmax(0, 1fr); gap: .2rem; }
+  .kds-card__type {
+    padding: .3rem .45rem;
+    gap: .25rem;
+    font-size: clamp(.58rem, 1vw, .72rem);
+  }
+  .kds-card__type svg { width: 14px; height: 14px; }
+  .kds-card__notes {
+    min-height: 26px;
+    padding-top: 5px;
+    gap: .35rem;
+    font-size: clamp(.58rem, 1vw, .72rem);
+  }
+
+  .kds-pairing-card {
+    width: min(720px, calc(100vw - 28px));
+    max-height: calc(100vh - 28px);
+    gap: clamp(10px, 2vh, 16px);
+    padding: clamp(18px, 4vw, 34px);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .kds-pairing-card h1 { font-size: clamp(1.7rem, 4vw, 2.8rem); }
+  .kds-pairing-card p { font-size: clamp(.9rem, 1.7vw, 1.15rem); }
+  .kds-pairing-code {
+    padding: .1em .3em;
+    font-size: clamp(3rem, 10vw, 6rem);
+    letter-spacing: .08em;
+  }
+  .kds-pairing-help { font-size: clamp(.72rem, 1.2vw, .9rem) !important; }
+}
+
+@media (max-width: 960px), (max-height: 600px) {
+  .kds-board { padding: 8px 10px 10px; gap: 6px; }
+  .kds-header { min-height: 48px; }
+  .kds-brand__icon svg { width: 30px; height: 30px; }
+  .kds-brand h1 { font-size: 1.25rem; }
+  .kds-counter { min-width: 58px; padding: 0 4px; }
+  .kds-counter span { font-size: .56rem; }
+  .kds-counter strong { font-size: 1.25rem; }
+  .kds-clock { min-width: 72px; }
+  .kds-clock time { font-size: 1.3rem; }
+  .kds-clock span { font-size: .56rem; }
+  .kds-grid { gap: 6px; }
+  .kds-card { padding: 7px 8px; }
+  .kds-card__status { font-size: .54rem; }
+  .kds-card__customer { font-size: 1rem; }
+  .kds-card__timing { font-size: 1rem; }
+  .kds-card__items { font-size: .64rem; }
+  .kds-card__type { padding: .25rem .35rem; font-size: .54rem; }
+  .kds-card__notes { min-height: 22px; font-size: .54rem; }
+
+  .kds-pairing-card {
+    width: min(680px, calc(100vw - 20px));
+    max-height: calc(100vh - 20px);
+    gap: 8px;
+    padding: 14px 18px;
+  }
+  .kds-pairing-card h1 { font-size: clamp(1.45rem, 4.2vw, 2.1rem); }
+  .kds-pairing-card p { font-size: clamp(.78rem, 1.9vw, .98rem); line-height: 1.35; }
+  .kds-pairing-code { font-size: clamp(2.6rem, 10vw, 4.7rem); }
+  .kds-pairing-help { font-size: clamp(.66rem, 1.4vw, .8rem) !important; }
+}
