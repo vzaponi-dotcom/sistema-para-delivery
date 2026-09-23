@@ -70,3 +70,13 @@ test('kitchen card typography and chef icon remain readable on compact TVs', asy
   assert.match(css, /\.kds-brand__icon svg \{\s*overflow:\s*visible;/)
   assert.match(iconSource, /'chef-hat':[\s\S]*M6\.5 10\.5/)
 })
+
+
+test('customer hierarchy and explicit start action remain visible', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+  assert.match(css, /--kds-customer:\s*#c5d8ea/)
+  assert.match(css, /--kds-divider:\s*rgba\(201, 216, 232, \.38\)/)
+  assert.match(css, /\.kds-card__customer \{[^}]*color:\s*var\(--kds-customer\)/s)
+  assert.match(css, /\.kds-card__main \{[^}]*border-bottom:\s*1px solid var\(--kds-divider\)/s)
+  assert.match(css, /\.kds-start-card button \{/)
+})
