@@ -19,7 +19,7 @@ const entry = (state, overrides = {}) => ({
   },
 })
 
-test('card hierarchy, exact state labels and content limits match the TV contract', async (t) => {
+test('card shows every item and keeps each production note attached to its own product', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayCard, KITCHEN_DISPLAY_STATUS_LABELS } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
   assert.deepEqual(KITCHEN_DISPLAY_STATUS_LABELS, {
@@ -30,16 +30,40 @@ test('card hierarchy, exact state labels and content limits match the TV contrac
   assert.ok(text.indexOf('Ana Souza') < text.indexOf('#1042'))
   assert.match(text, /NOVO PEDIDO/)
   assert.match(text, /00:32/)
-  assert.match(text, /1xBurger Clássico/)
-  assert.match(text, /\+ 2 itens/)
-  assert.match(text, /Sem cebola/)
-  assert.match(text, /\+ 2 observações/)
-  assert.equal(renderer.root.findByProps({ className: 'kds-card__items' }).findAllByType('li').length, 4)
-  assert.equal(renderer.root.findByProps({ className: 'kds-card__notes' }).findAllByType('p').length, 2)
+  for (const expected of ['Burger Clássico', 'Batata Rústica', 'Suco Natural', 'Pudim', 'Café']) assert.match(text, new RegExp(expected))
+  for (const expected of ['Sem cebola', 'Bem crocante', 'Pouco gelo']) assert.match(text, new RegExp(expected))
+  assert.doesNotMatch(text, /\+ \d+ itens|\+ \d+ observa/)
+  const items = renderer.root.findByProps({ className: 'kds-card__items is-two-columns' }).findAllByProps({ className: /kds-card__item/ })
+  assert.equal(items.length, 5)
+  const noted = renderer.root.findAllByProps({ className: 'kds-card__item-note' })
+  assert.equal(noted.length, 3)
+  assert.match(nodeText(items[0]), /Burger Clássico.*Sem cebola/)
+  assert.match(nodeText(items[1]), /Batata Rústica.*Bem crocante/)
+  assert.match(nodeText(items[2]), /Suco Natural.*Pouco gelo/)
+  assert.equal(renderer.root.findAllByProps({ className: 'kds-card__notes' }).length, 0)
   const primary = renderer.root.findByProps({ className: 'kds-card__main' })
   assert.ok(primary.findByProps({ className: 'kds-card__customer' }))
   assert.ok(primary.findByProps({ className: 'kds-card__timing' }))
   assert.doesNotMatch(text, /Finalizar|Cancelar|Imprimir|Novo pedido/)
+})
+
+test('large orders keep all items and opt into adaptive dense layout instead of truncating', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayCard } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
+  const largeItems = Array.from({ length: 12 }, (_, index) => ({
+    quantity: index + 1,
+    name: `Produto ${index + 1}`,
+    note: index % 2 === 0 ? `Observação ${index + 1}` : '',
+  }))
+  const renderer = await h.render(KitchenDisplayCard, {
+    entry: entry('preparing', { items: largeItems }),
+    now: new Date('2026-09-22T19:00:02.000Z'),
+  })
+  assert.match(renderer.root.findByType('article').props.className, /kds-card--content-dense/)
+  assert.equal(renderer.root.findByType('article').props['data-item-count'], 12)
+  const text = nodeText(renderer.root)
+  for (let index = 1; index <= 12; index += 1) assert.match(text, new RegExp(`Produto ${index}`))
+  assert.doesNotMatch(text, /\+ \d+ itens/)
 })
 
 test('card preserves product variation without duplicating an existing suffix', async (t) => {
