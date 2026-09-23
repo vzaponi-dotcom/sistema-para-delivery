@@ -140,3 +140,62 @@ Migration aditiva: `0029_kitchen_tv_pairing_requests.sql`. A migration `0028` n�
 CI do protocolo novo: Validate application #1766 / run `35798274784` no SHA `998340db27f59f39b7936efb8605d362bba3e07a` — **8/8 shards SUCCESS + validate SUCCESS**.
 
 A homologação manual do protocolo novo permanece `PENDING-MANUAL` até nova publicação em staging.
+
+
+## Homologação manual final — staging #221
+
+Publicação homologada:
+
+- Deploy staging: **#221** / run `35806780891`;
+- branch: `feature/kitchen-tv-display-v2`;
+- produto homologado: `370003b71889265aa63fe86a65b283ad1bf4ad3d`;
+- Worker staging Version ID: `0f519ee7-0cbd-4075-8bed-6d38860de7fd`;
+- staging login: **HTTP 200**;
+- D1 remoto: **No migrations to apply** no deploy #221;
+- migrations `0028` e `0029` já estavam aplicadas no banco de staging.
+
+A matriz abaixo substitui, para o estado final da homologação, a matriz `PENDING-MANUAL` preparada antes do primeiro staging. As iterações históricas acima permanecem como rastreabilidade.
+
+| # | Cenário final | Status | Evidência |
+|---:|---|---|---|
+| 1 | `Configurações > TV da Cozinha` aparece no staging correto e permite iniciar o fluxo | **PASS** | Observação humana em celular; regressão temporária explicada por Deploy #220 da branch documental errada e corrigida no #221 |
+| 2 | TV abre `/cozinha-tv` sem PIN administrativo e mostra código temporário de 6 dígitos | **PASS** | TV física |
+| 3 | Código permanece estável durante o pareamento e não gira prematuramente | **PASS** | TV física; observado por vários minutos |
+| 4 | Código digitado no celular autoriza a TV e cria a sessão restrita | **PASS** | Celular + TV física |
+| 5 | Reload da TV preserva o pareamento sem novo código/PIN | **PASS** | TV física |
+| 6 | Tela exige um único clique em `Iniciar painel da cozinha` para liberar áudio; painel abre normalmente | **PASS** | TV física |
+| 7 | Alerta sonoro funciona após o gesto de entrada | **PASS** | Confirmação humana |
+| 8 | Viewport da TV física cabe sem arrastar horizontal/verticalmente | **PASS** | TV Toshiba 32" usada na homologação |
+| 9 | KDS mantém grade operacional 3×2, header, contadores, relógio e cards legíveis à distância | **PASS** | TV física |
+| 10 | Todos os itens do pedido permanecem visíveis; pedidos grandes usam 2 colunas/densidade adaptativa sem truncar em `+ N itens` | **PASS** | TV física, inclusive pedido com nomes longos |
+| 11 | Observações de produção aparecem inline no item correspondente e não ficam ocultas num rodapé único | **PASS** | TV física |
+| 12 | Hierarquia cliente → divisor → itens ficou legível; cliente usa cor própria | **PASS** | TV física |
+| 13 | Tempo operacional aparece em minutos/horas, sem contador de segundos; agendados continuam mostrando horário | **PASS** | TV física |
+| 14 | Pedido imediato novo entra pela cadência operacional; pedido finalizado/cancelado some no refresh seguinte | **PASS** | Confirmação humana |
+| 15 | Pedido agendado permanece agendado e entra na janela de preparo conforme timing vigente | **PASS** | Confirmação humana |
+| 16 | Offline preserva estado e reconnect recupera a atualização; revogação retira o acesso da TV | **PASS** | Confirmação humana |
+| 17 | Identidade real com apenas `orders.settings.view` consegue ver estado sem ações de manage | **PENDING-MANUAL** | Exige identidade restrita real; comportamento automatizado coberto |
+| 18 | Código inválido/expirado e tentativa concorrente em segundo dispositivo são rejeitados no browser real | **PENDING-MANUAL** | Segurança automatizada coberta; não reproduzido manualmente |
+| 19 | DevTools confirma ausência de `/api/bootstrap`, APIs administrativas e chunks Admin/QZ/jsPDF no carregamento inicial | **PENDING-MANUAL** | Build/manifest/boundary automatizados PASS; DevTools real não registrado |
+| 20 | Viewports de browser exatos 1920×1080 e 1280×720 comparados lado a lado com a referência | **PENDING-MANUAL** | TV física foi aprovada; comparação exata em browser não registrada |
+
+Resultado manual final: **16 PASS / 0 FAIL / 4 PENDING-MANUAL**.
+
+Os quatro itens pendentes não representam falha conhecida do produto; são checks de identidade restrita, segurança negativa/concorrência ou inspeção de browser que já possuem cobertura automatizada, mas ainda não receberam evidência humana específica.
+
+### Decisões aceitas durante homologação
+
+- manter no momento o indicador `+ N pedidos fora da tela` sem rotação/paginação automática; melhoria futura se a operação demonstrar necessidade;
+- manter um clique explícito para entrar no painel a fim de liberar áudio com maior confiabilidade em Smart TVs;
+- manter sessão TV persistente após pareamento;
+- manter cards sem ações operacionais, somente leitura;
+- overflow de itens/observações dentro de um pedido não é aceito: todos devem permanecer visíveis.
+
+### Estado do release candidate homologado
+
+- produto staging homologado: `370003b71889265aa63fe86a65b283ad1bf4ad3d`;
+- Validate application #1805: **8/8 shards SUCCESS + validate SUCCESS**;
+- Deploy staging #221: **SUCCESS**;
+- PR #62: ainda **DRAFT** no momento desta atualização documental;
+- merge: **NOT EXECUTED**;
+- produção: **NOT EXECUTED**.
