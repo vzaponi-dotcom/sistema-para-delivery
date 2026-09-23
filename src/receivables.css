@@ -328,7 +328,7 @@
     border: 0;
     border-radius: 999px;
     background: var(--primary);
-    color: #fff;
+    color: var(--primary-contrast);
     font: inherit;
     font-size: 0.82rem;
     font-weight: 800;
