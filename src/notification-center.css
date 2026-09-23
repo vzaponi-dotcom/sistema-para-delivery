@@ -286,18 +286,19 @@
 }
 
 .release-tour-heading h3 {
-  margin: 4px 0 0;
+  margin: 0;
+  color: var(--primary);
   font-size: clamp(1.2rem, 2vw, 1.65rem);
   line-height: 1.15;
   letter-spacing: -0.025em;
 }
 
-.release-tour-kicker {
-  color: var(--primary);
-  font-size: .76rem;
-  font-weight: 850;
-  letter-spacing: .045em;
-  text-transform: uppercase;
+.release-tour-heading p {
+  max-width: 620px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.4;
 }
 
 .release-tour-counter {
@@ -320,7 +321,9 @@
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .release-tour-media::after {
@@ -373,12 +376,29 @@
   line-height: 0;
 }
 
+.release-tour-copy-text {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.release-tour-copy h4,
+.release-tour-copy p {
+  margin: 0;
+}
+
+.release-tour-copy h4 {
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
 .release-tour-copy p {
   min-width: 0;
-  margin: 0;
   color: var(--text-soft);
-  font-size: .9rem;
-  line-height: 1.5;
+  font-size: .86rem;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
@@ -394,7 +414,7 @@
   justify-self: start;
 }
 
-.release-tour-navigation > .button:last-child {
+.release-tour-right-action {
   justify-self: end;
 }
 
@@ -485,9 +505,13 @@
     border-radius: 10px;
   }
 
+  .release-tour-copy h4 {
+    font-size: .96rem;
+  }
+
   .release-tour-copy p {
-    font-size: .82rem;
-    line-height: 1.42;
+    font-size: .8rem;
+    line-height: 1.4;
   }
 
   .release-tour-navigation {

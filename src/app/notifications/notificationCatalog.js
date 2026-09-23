@@ -18,9 +18,9 @@ export const SYSTEM_NOTIFICATIONS = Object.freeze([
         icon: 'pairing',
         title: 'Conecte a TV em poucos passos',
         description: 'Abra a TV da Cozinha, veja o código de 6 dígitos e informe esse código em Configurações → TV da Cozinha.',
-        image: '/release/kitchen-tv-32.jpg',
-        imageAlt: 'TV da Cozinha pronta para ser conectada ao Gestão Delivery',
-        imagePosition: 'center top',
+        image: '/release/kitchen-tv-pairing.svg',
+        imageAlt: 'Ilustração do código de pareamento na TV ao lado da configuração no celular',
+        imagePosition: 'center',
       }),
       Object.freeze({
         icon: 'orders',
@@ -34,17 +34,17 @@ export const SYSTEM_NOTIFICATIONS = Object.freeze([
         icon: 'notes',
         title: 'Itens e observações sempre visíveis',
         description: 'Nenhum item do pedido é escondido. As observações aparecem junto do produto correspondente para facilitar o preparo.',
-        image: '/release/kitchen-tv-32.jpg',
-        imageAlt: 'Pedidos da cozinha com produtos e observações de produção visíveis',
-        imagePosition: 'left center',
+        image: '/release/kitchen-tv-details.svg',
+        imageAlt: 'Ilustração de um pedido com produtos e observações de produção visíveis',
+        imagePosition: 'center',
       }),
       Object.freeze({
         icon: 'sound',
         title: 'Alertas e acesso sob controle',
         description: 'O painel avisa sobre novos pedidos e a conexão da TV pode ser acompanhada ou revogada em Configurações → TV da Cozinha.',
-        image: '/release/kitchen-tv-32.jpg',
-        imageAlt: 'Painel da cozinha conectado ao Gestão Delivery',
-        imagePosition: 'right center',
+        image: '/release/kitchen-tv-access.svg',
+        imageAlt: 'Ilustração do painel com alerta sonoro e do controle de acesso da TV',
+        imagePosition: 'center',
       }),
     ]),
   }),
@@ -89,7 +89,7 @@ const normalizeItems = (notification) => {
 
 const normalizeSlides = (notification) => {
   if (notification.slides === undefined) return []
-  if (!Array.isArray(notification.slides) || !notification.slides.every(validSlide)) return null
+  if (!Array.isArray(notification.slides) || notification.slides.length === 0 || !notification.slides.every(validSlide)) return null
   return notification.slides.map(({ icon, title, description, image, imageAlt, imagePosition }) => ({
     icon, title, description, image, imageAlt, imagePosition: imagePosition || 'center',
   }))
@@ -102,6 +102,7 @@ export const normalizeNotificationCatalog = (items = []) => {
       || !validText(item.title)
       || !validText(item.summary)
       || typeof item.publishedAt !== 'string' || !Number.isFinite(Date.parse(item.publishedAt))) continue
+    if (item.slides !== undefined && (item.items !== undefined || item.sections !== undefined)) continue
     const normalizedItems = normalizeItems(item)
     const normalizedSlides = normalizeSlides(item)
     if (!normalizedItems || !normalizedSlides) continue

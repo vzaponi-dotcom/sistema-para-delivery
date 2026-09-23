@@ -215,3 +215,30 @@ test('tour skip marks the automatic release read instead of opening a queue of s
   assert.equal(renderer.root.findAllByProps({ className: 'release-tour' }).length, 0)
   assert.ok(buttonNamed(renderer.root, 'Notificações'))
 })
+
+
+test('slide releases remain visible when reopened from the mobile notification history', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const tourRelease = {
+    id: 'release-tour-history',
+    type: 'release',
+    publishedAt: '2026-09-22T22:55:00-03:00',
+    title: 'Nova TV da Cozinha',
+    summary: 'Resumo do tour.',
+    slides: [
+      { icon: 'kitchen', title: 'Primeiro slide', description: 'Primeira descrição.', image: '/release/tv.jpg', imageAlt: 'TV' },
+      { icon: 'notes', title: 'Segundo slide', description: 'Segunda descrição.', image: '/release/tv.jpg', imageAlt: 'Itens' },
+    ],
+  }
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: [tourRelease], storage: h.localStorage })
+
+  await act(async () => buttonNamed(renderer.root, 'Pular').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Notificações').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Nova TV da Cozinha, lida').props.onClick())
+
+  assert.match(nodeText(renderer.root), /Nova TV da Cozinha.*Primeiro slide.*Primeira descrição/)
+  assert.ok(buttonNamed(renderer.root, 'Próximo'))
+  assert.equal(buttonNamed(renderer.root, 'Pular'), undefined)
+  assert.equal(buttonNamed(renderer.root, 'Voltar'), undefined)
+})

@@ -69,7 +69,13 @@ test('current release is the dedicated Kitchen TV tour while the previous releas
     'Itens e observações sempre visíveis',
     'Alertas e acesso sob controle',
   ])
-  assert.equal(releaseItem.slides.every((slide) => slide.image === '/release/kitchen-tv-32.jpg'), true)
+  assert.deepEqual(releaseItem.slides.map((slide) => slide.image), [
+    '/release/kitchen-tv-32.jpg',
+    '/release/kitchen-tv-pairing.svg',
+    '/release/kitchen-tv-32.jpg',
+    '/release/kitchen-tv-details.svg',
+    '/release/kitchen-tv-access.svg',
+  ])
   assert.equal(previousRelease.id, 'release-2026-09-operation-shell')
   assert.equal(previousRelease.items.length, 3)
   assert.equal(previousRelease.slides.length, 0)
@@ -143,4 +149,14 @@ test('invalid slide releases are isolated without weakening item releases', () =
     release('good-item'),
   ])
   assert.deepEqual(catalog.map((item) => item.id), ['good-item'])
+})
+
+
+test('mixed slide and item releases are rejected to keep one presentation contract per release', () => {
+  const catalog = normalizeNotificationCatalog([{
+    ...release('mixed'),
+    items: [{ icon: 'orders', title: 'Item', description: 'Descrição' }],
+    slides: [{ icon: 'kitchen', title: 'Slide', description: 'Descrição', image: '/slide.svg', imageAlt: 'Slide' }],
+  }])
+  assert.deepEqual(catalog, [])
 })
