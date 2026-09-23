@@ -72,8 +72,8 @@
 
 .sidebar-link.active {
   background: var(--primary);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(183, 25, 43, 0.28);
+  color: var(--primary-contrast);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 28%, transparent);
 }
 
 .sidebar-link svg {
@@ -180,13 +180,13 @@
 
 .button-primary {
   background: var(--primary);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(183, 25, 43, 0.17);
+  color: var(--primary-contrast);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .button-primary:hover {
   background: var(--primary-hover);
-  box-shadow: 0 10px 24px rgba(183, 25, 43, 0.24);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
 .button-secondary {
@@ -495,9 +495,9 @@
 }
 
 .search-control:focus-within {
-  border-color: rgba(183, 25, 43, 0.38);
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--border));
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(183, 25, 43, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .search-control input {
@@ -948,7 +948,7 @@
 
 .form-field input:focus,
 .form-field select:focus {
-  border-color: rgba(183, 25, 43, 0.42);
+  border-color: color-mix(in srgb, var(--primary) 52%, var(--border));
   background: #fff;
   outline: none;
   box-shadow: 0 0 0 3px rgba(183, 25, 43, 0.08);
