@@ -102,7 +102,10 @@ export const normalizeNotificationCatalog = (items = []) => {
       || !validText(item.title)
       || !validText(item.summary)
       || typeof item.publishedAt !== 'string' || !Number.isFinite(Date.parse(item.publishedAt))) continue
-    if (item.slides !== undefined && (item.items !== undefined || item.sections !== undefined)) continue
+    const hasSlides = Array.isArray(item.slides) && item.slides.length > 0
+    const hasItems = Array.isArray(item.items) && item.items.length > 0
+    const hasSections = Array.isArray(item.sections) && item.sections.length > 0
+    if (hasSlides && (hasItems || hasSections)) continue
     const normalizedItems = normalizeItems(item)
     const normalizedSlides = normalizeSlides(item)
     if (!normalizedItems || !normalizedSlides) continue

@@ -67,7 +67,6 @@ export function ReleaseTour({ notification, automatic = false, onClose, onAcknow
 
   return <article
     className="release-tour"
-    data-horizontal-interaction="true"
     onTouchStart={onTouchStart}
     onTouchEnd={onTouchEnd}
     onKeyDown={onKeyDown}

@@ -160,3 +160,12 @@ test('mixed slide and item releases are rejected to keep one presentation contra
   }])
   assert.deepEqual(catalog, [])
 })
+
+
+test('catalog normalization is idempotent for item and slide releases', () => {
+  const once = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+  const twice = normalizeNotificationCatalog(once)
+  assert.deepEqual(twice, once)
+  assert.equal(twice[0].slides.length, 5)
+  assert.equal(twice[1].items.length, 3)
+})
