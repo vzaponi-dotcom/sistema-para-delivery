@@ -101,7 +101,7 @@ test('the App fails closed for a new sale when effective operation settings are 
   t.after(() => { globalThis.fetch = originalFetch })
 
   const { default: App } = await harness.load('/src/App.jsx')
-  const screen = await harness.render(App)
+  const { renderer: screen } = await harness.renderAdminApp(App)
   await act(flushMicrotasks)
   await act(async () => buttonNamed(screen.root, 'Novo pedido').props.onClick())
 

@@ -67,7 +67,7 @@ async function mountOperationsApp(t, saveMode) {
   }
 
   const { default: App } = await h.load('/src/App.jsx')
-  const renderer = await h.render(App)
+  const { renderer } = await h.renderAdminApp(App)
   await act(flush)
   await act(async () => {
     h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'settings-operations' }))

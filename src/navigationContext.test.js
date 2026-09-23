@@ -188,7 +188,7 @@ test('App preserva consulta ao navegar e nova sessão rejeita callback da sessã
   }
 
   const { default: App } = await h.load('/src/App.jsx')
-  const renderer = await h.render(App)
+  const { renderer } = await h.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   const kitchenSearch = () => renderer.root.findByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' })
 

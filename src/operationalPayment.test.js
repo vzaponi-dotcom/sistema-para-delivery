@@ -99,7 +99,7 @@ async function operationalWorkspace(t, { orders, capabilities = operationalCapab
   }
 
   const { default: App } = await h.load('/src/App.jsx')
-  const renderer = await h.render(App, { capabilities })
+  const { renderer } = await h.renderAdminApp(App, { capabilities })
   const navigate = async (name) => act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Menu principal' }), name).props.onClick())
   const openKitchenDetail = async () => act(async () => buttonNamed(renderer.root, 'Exibir detalhes').props.onClick())
   const openHistoryDetail = async () => act(async () => buttonNamed(renderer.root, 'Ver detalhes').props.onClick())

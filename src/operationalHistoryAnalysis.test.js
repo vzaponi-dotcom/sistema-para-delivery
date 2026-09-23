@@ -98,12 +98,12 @@ test('real App gates history analysis with orders.analysis while keeping history
   }
   const { default: App } = await h.load('/src/App.jsx')
 
-  const historyOnly = await h.render(App, { capabilities: new Set(['orders.history']) })
+  const { renderer: historyOnly } = await h.renderAdminApp(App, { capabilities: new Set(['orders.history']) }, { initialEntries: ['/pedidos/historico'] })
   await act(flush)
   assert.match(nodeText(historyOnly.root), /Histórico/)
   assert.doesNotMatch(nodeText(historyOnly.root), /Tempo operacional/)
 
-  const withAnalysis = await h.render(App, { capabilities: new Set(['orders.history', 'orders.analysis']) })
+  const { renderer: withAnalysis } = await h.renderAdminApp(App, { capabilities: new Set(['orders.history', 'orders.analysis']) }, { initialEntries: ['/pedidos/historico'] })
   await act(flush)
   assert.match(nodeText(withAnalysis.root), /Histórico/)
   assert.match(nodeText(withAnalysis.root), /Tempo operacional/)

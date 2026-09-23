@@ -72,7 +72,7 @@ async function paymentWorkspace(t, mobile = false) {
     return { ok: true, json: async () => responses[path] }
   }
   const { default: App } = await h.load('/src/App.jsx')
-  const r = await h.render(App)
+  const { renderer: r } = await h.renderAdminApp(App)
   const navigate = async (name) => act(async () => buttonNamed(r.root.findByProps({ 'aria-label': 'Menu principal' }), name).props.onClick())
   const select = async () => act(async () => r.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
   const pay = async () => {

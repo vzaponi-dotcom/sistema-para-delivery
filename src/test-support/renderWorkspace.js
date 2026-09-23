@@ -153,13 +153,22 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
     ...renderOptions
   } = {}) => {
     const { createAdminMemoryRouter } = await vite.ssrLoadModule('/src/app/navigation/adminRouter.jsx')
+    let setAppProps
+    function AppHost() {
+      const [currentProps, setCurrentProps] = React.useState(props)
+      setAppProps = setCurrentProps
+      return React.createElement(App, currentProps)
+    }
     const router = createAdminMemoryRouter({
-      rootElement: React.createElement(App, props),
+      rootElement: React.createElement(AppHost),
       initialEntries,
       initialIndex,
     })
     const renderer = await render(RouterProvider, { router }, renderOptions)
-    return { renderer, router }
+    const updateApp = async (nextProps) => {
+      await act(async () => setAppProps(nextProps))
+    }
+    return { renderer, router, updateApp }
   }
 
   return {

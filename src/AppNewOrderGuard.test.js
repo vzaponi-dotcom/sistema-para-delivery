@@ -27,7 +27,7 @@ test('app keeps the dirty-order confirmation when navigating away from the wizar
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
 
   await act(async () => buttonNamed(renderer.root, 'Novo pedido').props.onClick())

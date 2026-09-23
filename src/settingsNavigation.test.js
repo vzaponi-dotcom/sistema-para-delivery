@@ -103,7 +103,7 @@ test('theme and sound stay local and synchronized with their existing applicatio
     throw new Error(`Unexpected request: ${url}`)
   }
   const Root = () => React.createElement(ThemeProvider, null, React.createElement(App))
-  const renderer = await h.render(Root)
+  const { renderer } = await h.renderAdminApp(Root)
   await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'settings-device' })))
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())
   assert.equal(h.window.localStorage.getItem('delivery-theme'), 'dark')
