@@ -5,7 +5,7 @@ PR: #63 — Feature: React Router navigation
 Branch: `feature/react-router-navigation`  
 Implementation base: `master@12f32d05401c59d9a3360d050df596a7c0803909`  
 Pre-staging candidate before this QA commit: `9c7a388f2d7d74b19b6eb1af1d3037f2df7e2095`  
-Status: **TASK 8 MANUAL QA IN PROGRESS — finance nested-route reload defect FIXED / RE-TEST PASS**
+Status: **COMPLETE / GREEN — TASK 8 CLOSED; READY FOR MERGE AUTHORIZATION**
 
 ## 1. Scope
 
@@ -47,6 +47,7 @@ The staging workflow is bound to `feature/react-router-navigation` for this feat
    - `/pedidos/historico`
    - `/comandas`
    - `/financeiro/a-receber`
+   - `/financeiro/movimentacoes`
    - `/configuracoes/impressao`
    - `/cozinha-tv`
 
@@ -56,13 +57,13 @@ Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| Exact candidate Validate | PASS | #1846 / run 35890412473 on `886f1b7a2c174cf3b56c1db06c1f703fafe648d1` |
-| Deploy staging | PASS | #231 / run 35890407152 |
+| Exact candidate Validate | PASS | #1847 / run 35890909797 on `1d5f3617444536358f789532d092b8ac3e2c59a5` |
+| Deploy staging | PASS | #232 / run 35890905282 · Worker `28487dba-963e-41ad-a202-d8960311bed3` |
 | Staging login smoke | PASS | HTTP 200 |
 | Direct deep-link smoke | PASS | SPA shell + JS/CSS assets |
 | Kitchen TV direct route shell | PASS | `/cozinha-tv` shell + assets |
-| Review threads | PENDING | final closure |
-| Mergeability | PENDING | final closure |
+| Review threads | PASS | 0 unresolved |
+| Mergeability | PASS | mergeable = true |
 
 ## 5. Desktop manual QA
 
@@ -81,26 +82,26 @@ Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 | D11 | Dirty New Order + browser Back → Cancel stays | PASS |
 | D12 | Dirty New Order + browser Back → Discard follows history | PASS |
 | D13 | Dirty New Order + F5 shows native unload warning | PASS |
-| D14 | Settings dirty + same-resource move does not prompt | PENDING |
-| D15 | Settings dirty + leave resource prompts | PENDING |
-| D16 | Print Queue → Printing Settings reaches `/configuracoes/impressao` | PENDING |
-| D17 | Logout from non-home route resets next login to normal home | PENDING |
-| D18 | No visual/layout regression in shell/content | PENDING |
+| D14 | Settings dirty + same-resource move does not prompt | PASS |
+| D15 | Settings dirty + leave resource prompts | PASS |
+| D16 | Print Queue → Printing Settings reaches `/configuracoes/impressao` | PASS |
+| D17 | Logout from non-home route resets next login to normal home | PASS |
+| D18 | No visual/layout regression in shell/content | PASS |
 
 ## 6. Mobile manual QA
 
 | # | Scenario | Status |
 | --- | --- | --- |
-| M1 | Bottom navigation changes real URLs | PENDING |
-| M2 | Comandas navigation works | PENDING |
-| M3 | Financeiro navigation works | PENDING |
-| M4 | Mais → Clientes / Produtos / Configurações works | PENDING |
-| M5 | Mais closes after route change | PENDING |
-| M6 | Browser Back/Forward works | PENDING |
-| M7 | Page opens at top after destination change | PENDING |
-| M8 | Dirty New Order guard works | PENDING |
-| M9 | Dirty Settings guard works | PENDING |
-| M10 | No horizontal overflow/navigation visual regression | PENDING |
+| M1 | Bottom navigation changes real URLs | PASS |
+| M2 | Comandas navigation works | PASS |
+| M3 | Financeiro navigation works | PASS |
+| M4 | Mais → Clientes / Produtos / Configurações works | PASS |
+| M5 | Mais closes after route change | PASS |
+| M6 | Browser Back/Forward works | PASS |
+| M7 | Page opens at top after destination change | PASS |
+| M8 | Dirty New Order guard works | PASS |
+| M9 | Dirty Settings guard works | PASS |
+| M10 | No horizontal overflow/navigation visual regression | PASS |
 
 ## 7. Permission / restricted-route QA
 
@@ -118,10 +119,10 @@ Manual restricted-capability QA is only required if a safe staging fixture/sessi
 
 | Scenario | Status |
 | --- | --- |
-| `/cozinha-tv` direct load returns TV entry | PENDING |
-| Existing pairing/runtime remains usable | PENDING |
-| Admin Router UI does not appear in TV | PENDING |
-| Admin session is not reused as TV session | PENDING |
+| `/cozinha-tv` direct load returns TV entry | PASS |
+| Existing pairing/runtime remains usable | PASS |
+| Admin Router UI does not appear in TV | PASS |
+| Admin session is not reused as TV session | PASS |
 
 Physical-TV re-homologation is not required unless browser/build evidence reveals a material Kitchen TV entry/runtime change.
 
@@ -131,17 +132,18 @@ Physical-TV re-homologation is not required unless browser/build evidence reveal
 
 ## 10. Closure rule
 
-Task 8 may be closed only after:
+Task 8 closure criteria are satisfied:
 
-- exact candidate Validate is green;
-- exact candidate is deployed to staging;
-- automated deep-link/login smoke is green;
-- required manual desktop/mobile QA is recorded;
-- Kitchen TV regression is recorded;
-- PR review threads/mergeability are checked;
-- final documentation SHA is recorded.
+- exact candidate Validate: PASS;
+- exact candidate deployed to staging: PASS;
+- automated deep-link/login/assets smoke: PASS;
+- desktop manual QA: PASS;
+- mobile manual QA: PASS;
+- Kitchen TV regression: PASS;
+- PR unresolved review threads: 0;
+- PR mergeable: true.
 
-Merge remains blocked until explicit user authorization.
+Merge remains blocked until explicit user authorization. Production remains NOT DEPLOYED / NOT AUTHORIZED.
 
 
 ## 11. Manual QA finding — nested Finance reload
@@ -197,3 +199,25 @@ Build/upload evidence proved the asset existed and was uploaded. The smoke is th
 - Deploy staging **#231** / run `35890407152` — **SUCCESS**.
 - Worker version: `722464df-5996-4639-9d69-d04e033e6268`.
 - Automated smoke PASS for both `/financeiro/a-receber` and `/financeiro/movimentacoes` with SPA shell + referenced JS/CSS assets.
+
+
+## 12. Final manual QA closure
+
+User homologation completed on 2026-09-23:
+
+- Desktop D1–D18: **PASS**
+- Mobile M1–M10: **PASS**
+- Kitchen TV regression set: **PASS**
+- Finance nested-route reload re-test:
+  - `/financeiro/a-receber`: **PASS**
+  - `/financeiro/movimentacoes`: **PASS**
+- Visual/layout regression check: **PASS**
+- Production: **NOT DEPLOYED**
+
+Latest fully green pre-closure docs SHA:
+- `1d5f3617444536358f789532d092b8ac3e2c59a5`
+- Validate **#1847** / run `35890909797` — **SUCCESS**
+- Deploy staging **#232** / run `35890905282` — **SUCCESS**
+- Worker version: `28487dba-963e-41ad-a202-d8960311bed3`
+
+Final closure documentation commit follows this record and must itself receive a green Validate before merge authorization.
