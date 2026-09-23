@@ -747,3 +747,86 @@ test('QA regression: server awaitingSecondCopy summary renders an explicit zero 
   assert.ok(secondCopyCard)
   assert.match(nodeText(secondCopyCard), /0/)
 })
+
+
+test('bulk discard button confirms, respects discard capability and reports retained unsafe jobs', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  let bulkCalls = 0
+  const toasts = []
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return {
+      ok: true,
+      json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }),
+    }
+    if (url === '/api/printing/jobs/summary') return {
+      ok: true,
+      json: async () => ({ summary: { pending: 3, awaitingConfirmation: 1, awaitingSecondCopy: 2, attention: 2 } }),
+    }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: {
+      localStation: null,
+      stations: [],
+      printerHealth: { state: 'verifying' },
+      requestDiscardPendingJobs: async () => {
+        bulkCalls += 1
+        return { jobs: [], discardedCount: 6, retainedCount: 2 }
+      },
+    },
+    onToast: (message) => toasts.push(message),
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+    canDiscardPrinting: true,
+    isOnline: true,
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+  const bulkButton = renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Descartar pendências'))
+  assert.ok(bulkButton)
+  assert.equal(bulkButton.props.disabled, false)
+
+  await act(async () => bulkButton.props.onClick())
+  assert.match(nodeText(renderer.root), /Descartar pendências da fila\?/)
+  assert.equal(bulkCalls, 0)
+
+  const confirm = renderer.root.findAllByType('button').find((node) => nodeText(node).trim() === 'Descartar pendências')
+  assert.ok(confirm)
+  await act(async () => { await confirm.props.onClick(); await Promise.resolve(); await Promise.resolve() })
+
+  assert.equal(bulkCalls, 1)
+  assert.ok(toasts.some((message) => String(message).includes('6 trabalhos descartados') && String(message).includes('2 mantidos')))
+})
+
+test('bulk discard button is disabled without printing.discard or while offline', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: { pending: 1, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 0 } }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  for (const props of [
+    { canDiscardPrinting: false, isOnline: true },
+    { canDiscardPrinting: true, isOnline: false },
+  ]) {
+    const renderer = await harness.render(PrintQueue, {
+      orders: [],
+      printing: { localStation: null, stations: [], printerHealth: { state: 'verifying' } },
+      queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+      onQueryChange() {},
+      ...props,
+    })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    const button = renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Descartar pendências'))
+    assert.ok(button)
+    assert.equal(button.props.disabled, true)
+    await act(async () => renderer.unmount())
+  }
+})

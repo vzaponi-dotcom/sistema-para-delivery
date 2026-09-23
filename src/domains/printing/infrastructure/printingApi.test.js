@@ -147,3 +147,16 @@ test('paginated queue reads forward an AbortSignal to fetch', async () => {
   assert.equal(calls[0][1].signal, controller.signal)
   assert.equal(calls[1][1].signal, controller.signal)
 })
+
+
+test('printing API exposes the safe operational bulk discard adapter', async () => {
+  const calls = await captureCalls(async () => {
+    const client = await import('./printingApi.js')
+    await client.discardOperationalPrintJobs('Operador')
+  })
+
+  assert.deepEqual(calls.map(([path, options]) => [path, options?.method || 'GET']), [
+    ['/api/printing/jobs/discard-operational', 'POST'],
+  ])
+  assert.deepEqual(JSON.parse(calls[0][1].body), { actorLabel: 'Operador' })
+})

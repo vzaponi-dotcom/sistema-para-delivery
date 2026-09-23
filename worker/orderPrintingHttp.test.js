@@ -683,3 +683,18 @@ test('operational printing API exposes scoped views and physical attempt routes 
   const discarded = await jsonRequest('/api/printing/jobs/discard-pending', 'POST', cookie, { actorLabel: 'Caixa 1' })
   assert.ok((await discarded.json()).jobs.some((item) => item.id === pending.id))
 })
+
+
+test('bulk operational discard HTTP endpoint returns discarded and retained counts', async () => {
+  currentEnv = await makeEnv()
+  const cookie = await loginCookie(currentEnv)
+  const created = await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })
+  const pending = (await created.json()).job
+
+  const response = await jsonRequest('/api/printing/jobs/discard-operational', 'POST', cookie, { actorLabel: 'Operador' })
+  assert.equal(response.status, 200)
+  const body = await response.json()
+  assert.equal(body.discardedCount, 1)
+  assert.equal(body.retainedCount, 0)
+  assert.ok(body.jobs.some((job) => job.id === pending.id && job.status === 'discarded'))
+})

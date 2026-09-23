@@ -496,3 +496,17 @@ test('QA round 2: configured background reconnect publishes QZ connected only af
   assert.ok(monitorIndex > resolveIndex)
   assert.ok(publishConnectedIndex > monitorIndex, 'configured reconnect must not publish transient QZ connected before the monitor is established')
 })
+
+
+test('bulk operational discard is exposed by the manager without reusing the recovery-only action', () => {
+  assert.match(managerSource, /discardOperationalPrintJobs/)
+  assert.match(managerSource, /const requestDiscardPendingJobs = useCallback/)
+  assert.match(managerSource, /requestDiscardPendingJobs,/)
+  const start = managerSource.indexOf('const requestDiscardPendingJobs = useCallback')
+  const end = managerSource.indexOf('const confirmUnknownPrinted = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.match(block, /discardOperationalPrintJobs/)
+  assert.match(block, /await refresh\(\)/)
+  assert.doesNotMatch(block, /setPrintStationRecovery/)
+})
