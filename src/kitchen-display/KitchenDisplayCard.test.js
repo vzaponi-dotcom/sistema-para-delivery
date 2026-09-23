@@ -33,7 +33,7 @@ test('card shows every item and keeps each production note attached to its own p
   for (const expected of ['Burger Clássico', 'Batata Rústica', 'Suco Natural', 'Pudim', 'Café']) assert.match(text, new RegExp(expected))
   for (const expected of ['Sem cebola', 'Bem crocante', 'Pouco gelo']) assert.match(text, new RegExp(expected))
   assert.doesNotMatch(text, /\+ \d+ itens|\+ \d+ observa/)
-  const items = renderer.root.findByProps({ className: 'kds-card__items is-two-columns' }).findAllByProps({ className: /kds-card__item/ })
+  const items = renderer.root.findByProps({ className: 'kds-card__items is-two-columns' }).findAllByType('li')
   assert.equal(items.length, 5)
   const noted = renderer.root.findAllByProps({ className: 'kds-card__item-note' })
   assert.equal(noted.length, 3)
