@@ -5,7 +5,7 @@ Approved spec: `docs/superpowers/specs/2026-09-23-react-router-navigation-design
 Issue: #43  
 Design branch: `docs/react-router-navigation-design`  
 Design base: `master@12f32d05401c59d9a3360d050df596a7c0803909`  
-Status: **READY FOR IMPLEMENTATION AFTER PLAN APPROVAL — product code not started**
+Status: **SELF-REVIEWED — READY FOR IMPLEMENTATION APPROVAL — product code not started**
 
 ## 1. Goal
 
