@@ -9,7 +9,7 @@
 .operation-editor .settings-editor-header h1 { font-size: 32px; line-height: 1.15; font-weight: 750; letter-spacing: -.035em; }
 .operation-editor .settings-effective-notice { display: flex; align-items: center; gap: 16px; min-height: 68px; padding: 14px 18px; border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border)); border-radius: 8px; background: var(--primary-soft); color: var(--primary); font-size: 14px; }
 .operation-editor .settings-effective-notice small { display: block; margin-top: 3px; color: var(--text-soft); font-size: 13px; }
-.operation-info-icon { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border-radius: 50%; background: var(--primary); color: var(--primary-contrast); font-size: 15px; font-weight: 700; font-family: Georgia, serif; }
+.operation-info-icon { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border-radius: 50%; background: var(--primary-fill); color: var(--primary-contrast); font-size: 15px; font-weight: 700; font-family: Georgia, serif; }
 .operation-editor .operation-settings-content { gap: 16px; }
 .operation-editor .operation-settings-section { gap: 18px; padding: 20px 22px 22px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .operation-editor .operation-settings-section:focus { outline: none; }
@@ -34,11 +34,11 @@
 .operation-editor .operation-modality-copy span { font-size: 13px; color: var(--muted); }
 .operation-switch { position: relative; width: 52px; min-width: 52px; height: 44px; min-height: 44px; justify-self: start; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .operation-switch::before { content: ''; position: absolute; top: 9px; left: 4px; width: 44px; height: 26px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }
-.operation-switch[aria-checked='true']::before { background: var(--primary); }
+.operation-switch[aria-checked='true']::before { background: var(--primary-fill); }
 .operation-switch span { position: absolute; top: 12px; left: 7px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 24%, transparent); transition: transform .15s ease; }
 .operation-switch[aria-checked='true'] span { transform: translateX(18px); }
 .operation-switch-preview { position: relative; width: 44px; min-width: 44px; height: 26px; min-height: 26px; justify-self: start; padding: 3px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 55%, var(--surface)); cursor: default; }
-.operation-switch-preview[data-active='true'] { background: var(--primary); }
+.operation-switch-preview[data-active='true'] { background: var(--primary-fill); }
 .operation-switch-preview::after { content: ''; display: block; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 24%, transparent); }
 .operation-switch-preview[data-active='true']::after { transform: translateX(18px); }
 .operation-switch:disabled { cursor: not-allowed; }
@@ -58,8 +58,8 @@
 .operation-editor .settings-editor-footer-note { color: var(--muted); font-size: 12px; }
 .operation-editor .settings-editor-footer-actions { margin-left: auto; gap: 10px; }
 .operation-editor .settings-editor-footer .button { min-height: 42px; padding: 9px 18px; border-radius: 7px; box-shadow: none; font-size: 14px; font-weight: 600; }
-.operation-editor .button-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-contrast); }
-.operation-editor .button-primary:hover:enabled { background: var(--primary-hover); }
+.operation-editor .button-primary { background: var(--primary-fill); border-color: var(--primary); color: var(--primary-contrast); }
+.operation-editor .button-primary:hover:enabled { background: var(--primary-fill-hover); }
 .operation-editor .button-secondary { background: var(--surface); border-color: var(--border); color: var(--text-soft); }
 .operation-editor :is(button, summary):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 
