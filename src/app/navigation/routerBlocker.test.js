@@ -197,3 +197,49 @@ test('Task 5 RED: successful completion bypasses dirty-order blocker after commi
   assert.equal(fixture.api.current.pendingDestination, null)
   assert.deepEqual(fixture.discardedOrders, [])
 })
+
+
+test('browser Forward from dirty Settings is blocked by the same discard contract', async (t) => {
+  const draft = {
+    resourceKey: 'printingPolicy',
+    dirty: true,
+    status: 'ready',
+    destinations: new Set(['settings-printing']),
+  }
+  const fixture = await mountController(t, {
+    initialEntries: ['/configuracoes/impressao', '/clientes'],
+    initialIndex: 0,
+    granted: new Set(['printing.settings', 'clients.view', 'orders.view']),
+    draft,
+  })
+
+  await act(async () => { await fixture.router.navigate(1) })
+
+  assert.equal(fixture.router.state.location.pathname, '/configuracoes/impressao')
+  assert.equal(fixture.api.current.pendingDestination, 'clients')
+  assert.equal(fixture.api.current.pendingDiscardKind, 'policy')
+
+  await act(async () => fixture.api.current.cancelDiscard())
+  assert.equal(fixture.router.state.location.pathname, '/configuracoes/impressao')
+})
+
+test('browser Back inside the same Settings policy resource does not prompt', async (t) => {
+  const draft = {
+    resourceKey: 'printingPolicy',
+    dirty: true,
+    status: 'ready',
+    destinations: new Set(['settings-printing', 'settings-device']),
+  }
+  const fixture = await mountController(t, {
+    initialEntries: ['/configuracoes/impressao', '/configuracoes/dispositivo'],
+    initialIndex: 1,
+    granted: new Set(['printing.settings', 'preferences.local', 'orders.view']),
+    draft,
+  })
+
+  await act(async () => { await fixture.router.navigate(-1) })
+
+  assert.equal(fixture.router.state.location.pathname, '/configuracoes/impressao')
+  assert.equal(fixture.api.current.pendingDestination, null)
+  assert.deepEqual(fixture.discardedPolicies, [])
+})
