@@ -726,3 +726,80 @@ test('unresolved submitted attempts block discard and reprint even after a legac
     (error) => error.code === 'PRINT_JOB_REPRINT_NOT_ALLOWED',
   )
 })
+
+
+test('bulk operational discard safely closes disposable jobs and preserves uncertain or processing work', async () => {
+  assert.equal(typeof printingRepository.discardOperationalPrintJobs, 'function')
+  const db = makeDb()
+  db.exec(`
+    INSERT INTO orders (id, business_id, status) VALUES
+      ('o3', '${businessA}', 'Em preparo'),
+      ('o4', '${businessA}', 'Em preparo'),
+      ('o5', '${businessA}', 'Em preparo'),
+      ('o6', '${businessA}', 'Em preparo');
+  `)
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+
+  await addAutomaticJob(db, { id: 'bulk-pending', orderId: 'o1' })
+
+  await addAutomaticJob(db, { id: 'bulk-second-copy', orderId: 'o2' })
+  await claimPrintJob(db, businessA, 'bulk-second-copy', 'station-a', baseNow)
+  await markPrintJobPrinted(db, businessA, 'bulk-second-copy', 'station-a', 1, baseNow)
+
+  await addAutomaticJob(db, { id: 'bulk-failed', orderId: 'o3' })
+  await claimPrintJob(db, businessA, 'bulk-failed', 'station-a', baseNow)
+  await markPrintJobFailed(db, businessA, 'bulk-failed', 'station-a', {
+    code: 'SERIAL_OPEN_FAILED',
+    message: 'Impressora desconectada',
+    uncertain: false,
+  }, baseNow)
+
+  await addAutomaticJob(db, { id: 'bulk-attention-safe', orderId: 'o4' })
+  db.sqlite.prepare(`UPDATE print_jobs
+    SET status = 'requires_attention',
+        last_error_code = 'ORDER_FINALIZED_BEFORE_PRINT',
+        last_error_message = 'Pedido finalizado antes da impressão'
+    WHERE id = 'bulk-attention-safe'`).run()
+
+  await addAutomaticJob(db, { id: 'bulk-processing', orderId: 'o5' })
+  await claimPrintJob(db, businessA, 'bulk-processing', 'station-a', baseNow)
+
+  await addAutomaticJob(db, { id: 'bulk-uncertain', orderId: 'o6' })
+  await claimPrintJob(db, businessA, 'bulk-uncertain', 'station-a', baseNow)
+  const attempt = await createPrintJobAttempt(db, businessA, {
+    jobId: 'bulk-uncertain',
+    stationId: 'station-a',
+    copyNumber: 1,
+  }, baseNow)
+  await markPrintAttemptSubmitting(db, businessA, attempt.id, 'station-a', baseNow)
+  await markPrintAttemptUnknown(db, businessA, attempt.id, 'station-a', 'QZ_CONNECTION_LOST', baseNow)
+
+  const result = await printingRepository.discardOperationalPrintJobs(
+    db,
+    businessA,
+    'Caixa principal',
+    new Date(baseNow.getTime() + 30_000),
+  )
+
+  assert.equal(result.discardedCount, 4)
+  assert.equal(result.retainedCount, 2)
+  assert.deepEqual(
+    result.jobs.map((job) => job.id).sort(),
+    ['bulk-attention-safe', 'bulk-failed', 'bulk-pending', 'bulk-second-copy'],
+  )
+
+  for (const id of ['bulk-pending', 'bulk-failed', 'bulk-attention-safe']) {
+    const job = await loadPrintJob(db, businessA, id)
+    assert.equal(job.status, 'discarded')
+    assert.equal(job.actionActorLabel, 'Caixa principal')
+  }
+
+  const secondCopy = await loadPrintJob(db, businessA, 'bulk-second-copy')
+  assert.equal(secondCopy.status, 'discarded')
+  assert.equal(Boolean(secondCopy.secondCopySkippedAt), true)
+  assert.equal(secondCopy.copiesPrinted, 1)
+
+  assert.equal((await loadPrintJob(db, businessA, 'bulk-processing')).status, 'processing')
+  assert.equal((await loadPrintJob(db, businessA, 'bulk-uncertain')).status, 'requires_attention')
+})
