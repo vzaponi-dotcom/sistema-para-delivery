@@ -23,10 +23,10 @@ function Modal({ title, onClose, children, footer, className = '', backdropClass
     previousFocus.current = document.activeElement
     const releaseScrollLock = acquireScrollLock(document)
 
-    const controls = () => Array.from(cardRef.current?.querySelectorAll(focusable) || [])
-    const initialFocus = initialFocusSelectorRef.current ? cardRef.current?.querySelector(initialFocusSelectorRef.current) : null
+    const controls = () => Array.from(cardRef.current?.querySelectorAll?.(focusable) || [])
+    const initialFocus = initialFocusSelectorRef.current ? cardRef.current?.querySelector?.(initialFocusSelectorRef.current) : null
     const focusTarget = initialFocus || controls()[0]
-    focusTarget?.focus()
+    focusTarget?.focus?.()
 
     const handleKeyDown = (event) => {
       if (!isTopmostDialog(cardRef.current)) return
@@ -44,10 +44,10 @@ function Modal({ title, onClose, children, footer, className = '', backdropClass
       const last = items[items.length - 1]
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault()
-        last.focus()
+        last.focus?.()
       } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault()
-        first.focus()
+        first.focus?.()
       }
     }
 
