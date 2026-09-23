@@ -12,7 +12,7 @@
   height: 18px;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--primary);
+  background: var(--primary-fill);
   color: var(--surface);
   font-size: 0.62rem;
   line-height: 18px;
@@ -176,7 +176,7 @@
   inset: 2px auto 2px 0;
   width: 2px;
   border-radius: 999px;
-  background: var(--primary);
+  background: var(--primary-fill);
 }
 
 .release-notes-item h4 {
@@ -438,7 +438,7 @@
 
 .release-tour-dot.is-active {
   width: 20px;
-  background: var(--primary);
+  background: var(--primary-fill);
 }
 
 .release-tour-dot:focus-visible,
