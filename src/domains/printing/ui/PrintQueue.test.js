@@ -794,8 +794,10 @@ test('bulk discard button confirms, respects discard capability and reports reta
   assert.match(nodeText(renderer.root), /Descartar pendências da fila\?/)
   assert.equal(bulkCalls, 0)
 
-  const confirm = renderer.root.findAllByType('button').find((node) => nodeText(node).trim() === 'Descartar pendências')
-  assert.ok(confirm)
+  const matchingDiscardButtons = renderer.root.findAllByType('button')
+    .filter((node) => nodeText(node).trim() === 'Descartar pendências')
+  assert.ok(matchingDiscardButtons.length >= 2)
+  const confirm = matchingDiscardButtons.at(-1)
   await act(async () => { await confirm.props.onClick(); await Promise.resolve(); await Promise.resolve() })
 
   assert.equal(bulkCalls, 1)
