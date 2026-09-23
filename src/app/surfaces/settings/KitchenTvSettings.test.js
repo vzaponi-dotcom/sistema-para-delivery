@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
@@ -66,4 +67,12 @@ test('invalid code failures remain visible', async (t) => {
   await act(async () => input.props.onChange({ target: { value: '123456' } }))
   await act(async () => screen.root.findByProps({ className: 'kitchen-tv-code-form' }).props.onSubmit({ preventDefault() {} }))
   assert.match(nodeText(screen.root), /Código inválido ou expirado/)
+})
+
+
+test('full TV address wraps instead of being ellipsized on mobile', async () => {
+  const css = await readFile(new URL('./kitchenTvSettings.css', import.meta.url), 'utf8')
+  assert.match(css, /\.kitchen-tv-fixed-address \{[\s\S]*white-space:\s*normal/)
+  assert.match(css, /\.kitchen-tv-fixed-address \{[\s\S]*overflow-wrap:\s*anywhere/)
+  assert.doesNotMatch(css, /\.kitchen-tv-fixed-address \{[\s\S]*text-overflow:\s*ellipsis/)
 })
