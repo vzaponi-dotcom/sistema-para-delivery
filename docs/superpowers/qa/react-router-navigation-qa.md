@@ -68,19 +68,19 @@ Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 
 | # | Scenario | Status |
 | --- | --- | --- |
-| D1 | Login from `/` resolves to normal home | PENDING |
-| D2 | Pedidos → Histórico → Comandas → Financeiro → Clientes → Configurações changes URL correctly | PENDING |
-| D3 | Browser Back across multiple destinations | PENDING |
-| D4 | Browser Forward across multiple destinations | PENDING |
-| D5 | F5 on Pedidos preserves Pedidos | PENDING |
-| D6 | F5 on Financeiro / A Receber preserves A Receber | PENDING |
-| D7 | F5 on Configurações / Impressão preserves Impressão | PENDING |
-| D8 | F5 on Comandas preserves Comandas | PENDING |
-| D9 | Dirty New Order + sidebar navigation → Cancel stays in order | PENDING |
-| D10 | Dirty New Order + sidebar navigation → Discard leaves order | PENDING |
-| D11 | Dirty New Order + browser Back → Cancel stays | PENDING |
-| D12 | Dirty New Order + browser Back → Discard follows history | PENDING |
-| D13 | Dirty New Order + F5 shows native unload warning | PENDING |
+| D1 | Login from `/` resolves to normal home | PASS |
+| D2 | Pedidos → Histórico → Comandas → Financeiro → Clientes → Configurações changes URL correctly | PASS |
+| D3 | Browser Back across multiple destinations | PASS |
+| D4 | Browser Forward across multiple destinations | PASS |
+| D5 | F5 on Pedidos preserves Pedidos | PASS |
+| D6 | F5 on Financeiro / A Receber preserves A Receber | RE-TEST PENDING |
+| D7 | F5 on Configurações / Impressão preserves Impressão | PASS |
+| D8 | F5 on Comandas preserves Comandas | PASS |
+| D9 | Dirty New Order + sidebar navigation → Cancel stays in order | PASS |
+| D10 | Dirty New Order + sidebar navigation → Discard leaves order | PASS |
+| D11 | Dirty New Order + browser Back → Cancel stays | PASS |
+| D12 | Dirty New Order + browser Back → Discard follows history | PASS |
+| D13 | Dirty New Order + F5 shows native unload warning | PASS |
 | D14 | Settings dirty + same-resource move does not prompt | PENDING |
 | D15 | Settings dirty + leave resource prompts | PENDING |
 | D16 | Print Queue → Printing Settings reaches `/configuracoes/impressao` | PENDING |
@@ -173,3 +173,22 @@ D4 remains open until the corrected staging candidate is deployed and A Receber 
 The first corrected staging deploy published Worker version `e39d4460-2e18-4693-89b9-364234497fd1` and passed login. The strengthened asset smoke then observed one newly uploaded JS asset temporarily resolve to the SPA HTML immediately after deployment.
 
 Build/upload evidence proved the asset existed and was uploaded. The smoke is therefore bounded-retry hardened (same six-attempt policy used by staging readiness) so transient edge propagation does not create a false negative, while a persistent HTML/404 asset response still fails the deployment.
+
+
+### Corrected staging candidate after D6 failure
+
+- Final fix SHA: `0ce79d61b0243e0f7887b8226b715b22e72584f6`
+- Validate **#1844** / run `35889522226` — **SUCCESS**
+- Deploy staging **#229** / run `35889513881` — **SUCCESS**
+- Worker version: `dac0148d-d09b-4f2a-8b9a-7c40fd9b1d5b`
+- Vite base changed from `./` to `/` so nested SPA routes load root-absolute assets.
+- Deep-link smoke now validates both SPA shell and referenced JS/CSS assets.
+- Automated staging asset smoke PASS:
+  - `/pedidos`
+  - `/pedidos/historico`
+  - `/comandas`
+  - `/financeiro/a-receber`
+  - `/configuracoes/impressao`
+  - `/cozinha-tv`
+- D6 manual status remains **RE-TEST PENDING**.
+- Movimentações nested reload (`/financeiro/movimentacoes`) is included in the same manual re-test even though the current smoke representative set uses A Receber for the Finance nested-route asset proof.
