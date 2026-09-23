@@ -13,6 +13,11 @@ import {
 } from './devicePreferences.js'
 import '../../../../settings.css'
 
+const visualThemeOptions = [
+  { value: 'classic', label: 'Clássico' },
+  { value: 'mesiva', label: 'Mesiva' },
+]
+
 const themeOptions = [
   { value: 'light', label: 'Claro', icon: 'sun' },
   { value: 'dark', label: 'Escuro', icon: 'moon' },
@@ -20,7 +25,7 @@ const themeOptions = [
 ]
 
 function DevicePreferences({ soundEnabled, onSoundEnabledChange, onNavigate }) {
-  const { themePreference, setThemePreference } = useTheme()
+  const { themePreference, setThemePreference, visualTheme, setVisualTheme } = useTheme()
   const [devicePersistenceError, setDevicePersistenceError] = useState('')
   const [deviceSaveStatus, setDeviceSaveStatus] = useState('idle')
   const [deviceUpdatedAt, setDeviceUpdatedAt] = useState(() => readDevicePreferencesUpdatedAt())
@@ -38,6 +43,14 @@ function DevicePreferences({ soundEnabled, onSoundEnabledChange, onNavigate }) {
   const reportDevicePersistenceError = () => {
     setDevicePersistenceError('Não foi possível salvar esta preferência neste dispositivo.')
     setDeviceSaveStatus('error')
+  }
+  const changeVisualTheme = (value) => {
+    const saved = setVisualTheme(value)
+    if (saved === false) {
+      reportDevicePersistenceError()
+      return
+    }
+    registerDevicePreferenceSaved()
   }
   const changeTheme = (value) => {
     const saved = setThemePreference(value)
@@ -75,8 +88,32 @@ function DevicePreferences({ soundEnabled, onSoundEnabledChange, onNavigate }) {
         </div>
         <div className="device-preference-row">
           <span className="device-preference-copy">
-            <strong>Tema do sistema</strong>
-            <small>O modo automático acompanha a preferência do sistema operacional.</small>
+            <strong>Estilo visual</strong>
+            <small>Escolha entre a aparência clássica e a identidade visual Mesiva neste dispositivo.</small>
+          </span>
+          <div className="device-theme-options device-visual-theme-options" role="group" aria-label="Estilo visual">
+            {visualThemeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={visualTheme === option.value}
+                className={visualTheme === option.value ? 'active' : ''}
+                onClick={() => changeVisualTheme(option.value)}
+              >
+                <span className={`device-visual-theme-preview ${option.value}`} aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="device-preference-row">
+          <span className="device-preference-copy">
+            <strong>Aparência</strong>
+            <small>O modo automático acompanha a preferência de claro ou escuro do sistema operacional.</small>
           </span>
           <div className="device-theme-options" role="group" aria-label="Tema do sistema">
             {themeOptions.map((option) => (
