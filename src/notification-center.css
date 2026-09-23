@@ -13,7 +13,7 @@
   padding: 0 4px;
   border-radius: 999px;
   background: var(--primary-fill);
-  color: var(--surface);
+  color: var(--primary-contrast);
   font-size: 0.62rem;
   line-height: 18px;
   font-weight: 800;
