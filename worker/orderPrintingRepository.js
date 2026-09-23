@@ -751,6 +751,54 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
 }
 
+export const discardOperationalPrintJobs = async (db, businessId, actorLabel = 'Sistema', now = new Date()) => {
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const activeBefore = await db.prepare(`SELECT COUNT(*) AS count FROM print_jobs
+    WHERE business_id = ? AND status NOT IN ('printed', 'discarded')`).bind(businessId).first()
+
+  const result = await db.prepare(`UPDATE print_jobs SET
+      status = 'discarded',
+      second_copy_skipped_at = CASE
+        WHEN status = 'awaiting_second_copy' AND copies_requested = 2 AND copies_printed = 1
+          THEN COALESCE(second_copy_skipped_at, ?)
+        ELSE second_copy_skipped_at
+      END,
+      discarded_at = ?,
+      action_actor_label = ?,
+      action_at = ?
+    WHERE business_id = ?
+      AND status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+          AND print_job_attempts.resolution IS NULL
+          AND print_job_attempts.status <> 'complete'
+      )
+    RETURNING *`)
+    .bind(at, at, actor, at, businessId).all()
+
+  const jobs = rows(result).map(mapJobRow)
+  if (jobs.length) {
+    const placeholders = jobs.map(() => '?').join(', ')
+    await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE business_id = ? AND recovery_job_id IN (${placeholders})`)
+      .bind(at, businessId, ...jobs.map((job) => job.id)).run()
+  }
+
+  const activeAfter = await db.prepare(`SELECT COUNT(*) AS count FROM print_jobs
+    WHERE business_id = ? AND status NOT IN ('printed', 'discarded')`).bind(businessId).first()
+
+  return {
+    jobs,
+    discardedCount: jobs.length,
+    retainedCount: Math.max(0, Number(activeAfter?.count || 0)),
+    activeBefore: Math.max(0, Number(activeBefore?.count || 0)),
+  }
+}
+
 export const discardPendingPrintJobs = async (db, businessId, actorLabel = 'Sistema', now = new Date()) => {
   const at = timestamp(now)
   const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
