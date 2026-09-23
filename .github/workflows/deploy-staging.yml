@@ -144,7 +144,8 @@ jobs:
           ]
 
           for (const path of paths) {
-            const response = await fetch(`${baseUrl}${path}`, { redirect: 'manual' })
+            const pageUrl = `${baseUrl}${path}`
+            const response = await fetch(pageUrl, { redirect: 'manual' })
             if (response.status !== 200) {
               console.error(`Deep link ${path} failed with HTTP ${response.status}`)
               process.exit(1)
@@ -159,7 +160,25 @@ jobs:
               console.error(`Deep link ${path} did not return the SPA shell`)
               process.exit(1)
             }
-            console.log(`Deep link ${path}: HTTP 200 / SPA shell OK`)
+
+            const assetRefs = [...body.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map((match) => match[1])
+            if (!assetRefs.length) {
+              console.error(`Deep link ${path} did not expose build assets`)
+              process.exit(1)
+            }
+
+            for (const ref of assetRefs) {
+              const assetUrl = new URL(ref, pageUrl)
+              const assetResponse = await fetch(assetUrl)
+              const assetType = assetResponse.headers.get('content-type') || ''
+              const expectedType = assetUrl.pathname.endsWith('.css') ? 'text/css' : 'javascript'
+              if (!assetResponse.ok || !assetType.includes(expectedType)) {
+                console.error(`Deep link ${path} asset ${assetUrl.pathname} failed: HTTP ${assetResponse.status}, content-type ${assetType}`)
+                process.exit(1)
+              }
+            }
+
+            console.log(`Deep link ${path}: HTTP 200 / SPA shell + assets OK`)
           }
           NODE
 

@@ -5,7 +5,7 @@ PR: #63 — Feature: React Router navigation
 Branch: `feature/react-router-navigation`  
 Implementation base: `master@12f32d05401c59d9a3360d050df596a7c0803909`  
 Pre-staging candidate before this QA commit: `9c7a388f2d7d74b19b6eb1af1d3037f2df7e2095`  
-Status: **AUTOMATED GATES GREEN THROUGH TASK 7 — STAGING / MANUAL QA PENDING**
+Status: **TASK 8 MANUAL QA IN PROGRESS — finance nested-route reload defect under correction**
 
 ## 1. Scope
 
@@ -142,3 +142,27 @@ Task 8 may be closed only after:
 - final documentation SHA is recorded.
 
 Merge remains blocked until explicit user authorization.
+
+
+## 11. Manual QA finding — nested Finance reload
+
+During manual QA on 2026-09-23:
+
+- D1–D3: PASS
+- D4 partial:
+  - Pedidos reload: PASS
+  - Comandas reload: PASS
+  - Configurações / Impressão reload: PASS in manual observation
+  - A Receber reload: FAIL — blank page
+  - Movimentações reload: FAIL — blank page
+- D9–D13 (New Order guards): PASS in the tested scenarios.
+
+Investigation evidence:
+
+1. Direct authenticated App tests for `/financeiro/a-receber` and `/financeiro/movimentacoes` pass, proving the Finance surfaces and Router match correctly once JS is running.
+2. Vite was configured with `base: './'`, which emits relative build asset references and is unsafe for nested SPA paths served from the domain root.
+3. TDD RED SHA `14940a8d680a9e61f091b0cfda4bd823bf1f3302` / Validate #1842 proves the required absolute asset base was absent.
+4. Correction changes Vite to `base: '/'`.
+5. Staging deep-link smoke is strengthened to fetch every JS/CSS reference resolved from each nested page URL and assert a successful non-HTML asset MIME response.
+
+D4 remains open until the corrected staging candidate is deployed and A Receber + Movimentações are manually reloaded successfully.

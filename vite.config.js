@@ -16,7 +16,7 @@ const kitchenTvOrdersPublicContract = () => ({
 
 export default defineConfig({
   plugins: [kitchenTvOrdersPublicContract(), react()],
-  base: './',
+  base: '/',
   build: { manifest: true },
   server: {
     host: '0.0.0.0',
