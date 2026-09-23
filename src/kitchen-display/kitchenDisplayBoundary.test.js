@@ -60,3 +60,13 @@ test('smaller Smart TV viewports stay scroll-free without a 1280px floor', async
   assert.match(css, /@media \(max-width: 960px\), \(max-height: 600px\)/)
   assert.match(css, /\.kds-pairing-card \{[^}]*width:\s*min\(720px, calc\(100vw - 28px\)\)/s)
 })
+
+
+test('kitchen card typography and chef icon remain readable on compact TVs', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+  const iconSource = await readFile(new URL('../shared/ui/Icon.jsx', import.meta.url), 'utf8')
+  assert.match(css, /--kds-item-size:\s*clamp\(1\.08rem, 1\.35vw, 1\.6rem\)/)
+  assert.match(css, /@media \(max-width: 960px\), \(max-height: 600px\)[\s\S]*--kds-item-size:\s*clamp\(\.86rem, 1\.7vw, \.98rem\)/)
+  assert.match(css, /\.kds-brand__icon svg \{\s*overflow:\s*visible;/)
+  assert.match(iconSource, /'chef-hat':[\s\S]*M6\.5 10\.5/)
+})
