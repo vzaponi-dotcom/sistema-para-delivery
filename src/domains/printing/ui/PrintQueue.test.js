@@ -62,6 +62,7 @@ test('print queue summary uses the four server operational counters', () => {
     awaitingConfirmation: 1,
     waitingSecondCopy: 1,
     attention: 1,
+    discardable: 4,
   })
 })
 

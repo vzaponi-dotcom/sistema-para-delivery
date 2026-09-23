@@ -192,8 +192,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   const jobRows = operationalJobs.map((job) => getPrintJobView(job, stationReady, ordersById.get(String(job.orderId))))
   const pageInfo = operationalPage.pageInfo || { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 }
   const hasActiveFilters = Boolean(searchInput.trim()) || Boolean(query.status) || Boolean(query.trigger)
-  const bulkDiscardCandidateCount = Math.max(0,
-    Number(summary.pending || 0) + Number(summary.waitingSecondCopy || 0) + Number(summary.attention || 0))
+  const bulkDiscardCandidateCount = Math.max(0, Number(summary.discardable || 0))
   const recoveryState = printing?.recoveryState || station?.recoveryState || 'normal'
   const selectedDetails = selectedJob ? getPrintJobDetails(selectedJob, {
     order: ordersById.get(String(selectedJob.orderId)),
