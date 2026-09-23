@@ -219,7 +219,7 @@
   padding: 0 12px;
   border-radius: 10px;
   background: var(--primary, #b7192b);
-  color: #fff;
+  color: var(--primary-contrast, #fff);
   font-size: .8rem;
   font-weight: 750;
   box-shadow: none;
@@ -754,7 +754,7 @@
     border: 0;
     border-radius: 14px;
     background: var(--primary);
-    color: #fff;
+    color: var(--primary-contrast);
     font: inherit;
   }
 
