@@ -50,3 +50,13 @@ test('production build keeps the TV route graph free of admin and heavy business
   }
   assert.ok(viteConfig.plugins.some((plugin) => plugin?.name === 'kitchen-tv-orders-public-contract'))
 })
+
+
+test('smaller Smart TV viewports stay scroll-free without a 1280px floor', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(css, /min-width:\s*1280px/)
+  assert.match(css, /html, body, #root \{[^}]*min-width:\s*0/s)
+  assert.match(css, /@media \(max-width: 1279px\)/)
+  assert.match(css, /@media \(max-width: 960px\), \(max-height: 600px\)/)
+  assert.match(css, /\.kds-pairing-card \{[^}]*width:\s*min\(720px, calc\(100vw - 28px\)\)/s)
+})
