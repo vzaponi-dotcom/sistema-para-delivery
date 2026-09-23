@@ -37,7 +37,7 @@
 
 .sidebar-link.active .navigation-badge {
   background: var(--primary-contrast);
-  color: var(--primary);
+  color: var(--primary-fill);
 }
 
 @media (max-width: 820px) {
