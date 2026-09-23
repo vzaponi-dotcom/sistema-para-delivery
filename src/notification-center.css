@@ -13,11 +13,15 @@
   padding: 0 4px;
   border-radius: 999px;
   background: var(--primary-fill);
-  color: var(--primary-contrast);
+  color: var(--surface);
   font-size: 0.62rem;
   line-height: 18px;
   font-weight: 800;
   text-align: center;
+}
+
+:root[data-visual-theme='mesiva'] .notification-bell-badge {
+  color: var(--primary-contrast);
 }
 
 .notification-center-backdrop {
