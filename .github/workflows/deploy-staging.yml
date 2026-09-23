@@ -139,6 +139,7 @@ jobs:
             '/pedidos/historico',
             '/comandas',
             '/financeiro/a-receber',
+            '/financeiro/movimentacoes',
             '/configuracoes/impressao',
             '/cozinha-tv',
           ]
