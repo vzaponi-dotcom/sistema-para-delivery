@@ -115,3 +115,18 @@ test('unpaired TV shows a six-digit code and advances automatically after approv
   assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
+
+
+test('audio unlock that never settles cannot block automatic panel entry', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const never = new Promise(() => {})
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
+    readState: async () => state(['existing']),
+    audio: { unlock: async () => never, playArrival: async () => true },
+  })
+  await flushEffects()
+  assert.equal(buttonNamed(renderer.root, 'Iniciar painel da cozinha'), undefined)
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
+})
