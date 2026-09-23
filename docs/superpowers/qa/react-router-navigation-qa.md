@@ -5,7 +5,7 @@ PR: #63 — Feature: React Router navigation
 Branch: `feature/react-router-navigation`  
 Implementation base: `master@12f32d05401c59d9a3360d050df596a7c0803909`  
 Pre-staging candidate before this QA commit: `9c7a388f2d7d74b19b6eb1af1d3037f2df7e2095`  
-Status: **TASK 8 MANUAL QA IN PROGRESS — finance nested-route reload defect under correction**
+Status: **TASK 8 MANUAL QA IN PROGRESS — finance nested-route reload defect FIXED / RE-TEST PASS**
 
 ## 1. Scope
 
@@ -56,11 +56,11 @@ Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| Exact candidate Validate | PENDING | pending this commit |
-| Deploy staging | PENDING | pending this commit |
-| Staging login smoke | PENDING | pending deploy |
-| Direct deep-link smoke | PENDING | pending deploy |
-| Kitchen TV direct route shell | PENDING | pending deploy |
+| Exact candidate Validate | PASS | #1846 / run 35890412473 on `886f1b7a2c174cf3b56c1db06c1f703fafe648d1` |
+| Deploy staging | PASS | #231 / run 35890407152 |
+| Staging login smoke | PASS | HTTP 200 |
+| Direct deep-link smoke | PASS | SPA shell + JS/CSS assets |
+| Kitchen TV direct route shell | PASS | `/cozinha-tv` shell + assets |
 | Review threads | PENDING | final closure |
 | Mergeability | PENDING | final closure |
 
@@ -73,7 +73,7 @@ Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 | D3 | Browser Back across multiple destinations | PASS |
 | D4 | Browser Forward across multiple destinations | PASS |
 | D5 | F5 on Pedidos preserves Pedidos | PASS |
-| D6 | F5 on Financeiro / A Receber preserves A Receber | RE-TEST PENDING |
+| D6 | F5 on Financeiro / A Receber preserves A Receber | PASS |
 | D7 | F5 on Configurações / Impressão preserves Impressão | PASS |
 | D8 | F5 on Comandas preserves Comandas | PASS |
 | D9 | Dirty New Order + sidebar navigation → Cancel stays in order | PASS |
@@ -165,7 +165,7 @@ Investigation evidence:
 4. Correction changes Vite to `base: '/'`.
 5. Staging deep-link smoke is strengthened to fetch every JS/CSS reference resolved from each nested page URL and assert a successful non-HTML asset MIME response.
 
-D4 remains open until the corrected staging candidate is deployed and A Receber + Movimentações are manually reloaded successfully.
+D4/D6 nested Finance reload defect is CLOSED: A Receber and Movimentações were manually reloaded successfully after the corrected staging deploy.
 
 
 ### Staging asset propagation note
@@ -190,5 +190,10 @@ Build/upload evidence proved the asset existed and was uploaded. The smoke is th
   - `/financeiro/a-receber`
   - `/configuracoes/impressao`
   - `/cozinha-tv`
-- D6 manual status remains **RE-TEST PENDING**.
-- Movimentações nested reload (`/financeiro/movimentacoes`) is included in the same manual re-test even though the current smoke representative set uses A Receber for the Finance nested-route asset proof.
+- D6 manual status: **PASS**.
+- Movimentações nested reload (`/financeiro/movimentacoes`): **PASS**.
+- Final hardened smoke commit: `886f1b7a2c174cf3b56c1db06c1f703fafe648d1`.
+- Validate **#1846** / run `35890412473` — **SUCCESS**.
+- Deploy staging **#231** / run `35890407152` — **SUCCESS**.
+- Worker version: `722464df-5996-4639-9d69-d04e033e6268`.
+- Automated smoke PASS for both `/financeiro/a-receber` and `/financeiro/movimentacoes` with SPA shell + referenced JS/CSS assets.
