@@ -92,7 +92,7 @@
 .product-presentation-option.selected span,
 .product-size-option.selected span,
 .product-unit-option.selected span {
-  color: #fff;
+  color: var(--primary-contrast);
 }
 
 .product-selection-check {
@@ -104,8 +104,8 @@
   flex: 0 0 20px;
   margin-left: auto;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--primary-contrast) 72%, transparent);
+  color: var(--primary-contrast);
 }
 
 .product-presentation-options,
