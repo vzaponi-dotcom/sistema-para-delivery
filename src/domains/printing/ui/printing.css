@@ -193,8 +193,11 @@
 }
 
 .printing-switch-row input:checked::after {
-  background: var(--primary-contrast);
   transform: translateX(18px);
+}
+
+:root[data-visual-theme='mesiva'] .printing-switch-row input:checked::after {
+  background: var(--primary-contrast);
 }
 
 .printing-switch-row input:disabled {
