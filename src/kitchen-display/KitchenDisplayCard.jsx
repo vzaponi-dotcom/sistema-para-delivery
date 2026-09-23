@@ -6,12 +6,11 @@ export const KITCHEN_DISPLAY_STATUS_LABELS = Object.freeze({
 
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 const formatElapsed = (start, now) => {
-  const elapsed = Math.max(0, Math.floor((now.getTime() - new Date(start).getTime()) / 1000))
-  const seconds = String(elapsed % 60).padStart(2, '0')
-  const totalMinutes = Math.floor(elapsed / 60)
-  const minutes = String(totalMinutes % 60).padStart(2, '0')
-  const hours = Math.floor(totalMinutes / 60)
-  return hours ? `${hours}:${minutes}:${seconds}` : `${String(totalMinutes).padStart(2, '0')}:${seconds}`
+  const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - new Date(start).getTime()) / 60_000))
+  if (elapsedMinutes < 60) return `${elapsedMinutes}min`
+  const hours = Math.floor(elapsedMinutes / 60)
+  const minutes = elapsedMinutes % 60
+  return minutes ? `${hours}h ${minutes}min` : `${hours}h`
 }
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 const itemName = (item) => {
