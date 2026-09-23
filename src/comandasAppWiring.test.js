@@ -636,7 +636,7 @@ test('App renders official Comandas, preserves selection across destinations and
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const desktop = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   assert.ok(buttonNamed(desktop(), 'Comandas'), 'App exposes its Comandas destination')
   await act(async () => buttonNamed(desktop(), 'Comandas').props.onClick())
@@ -696,7 +696,7 @@ test('an occupied comanda adds another order through the preselected wizard and 
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
@@ -739,7 +739,7 @@ test('an occupied comanda can cancel its preselected wizard without creating an 
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
@@ -782,7 +782,7 @@ test('a stale occupied-comanda checkout keeps the wizard and refreshes authorita
 
   const { default: App } = await harness.load('/src/App.jsx')
   const { NewOrderRoute } = await harness.load('/src/domains/orders/ui/NewOrderRoute.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation, 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
@@ -819,7 +819,7 @@ test('a successful table checkout returns to Comandas with the authoritative occ
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
@@ -862,7 +862,7 @@ test('an unavailable table rejection retains the real wizard draft and retries w
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
@@ -913,7 +913,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
@@ -1015,7 +1015,7 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
   }
   t.after(() => { globalThis.fetch = originalFetch })
   const { default: App } = await harness.load('/src/App.jsx')
-  const renderer = await harness.render(App)
+  const { renderer } = await harness.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   await act(async () => buttonNamed(navigation(), 'Comandas').props.onClick())
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[1].props.onClick())
