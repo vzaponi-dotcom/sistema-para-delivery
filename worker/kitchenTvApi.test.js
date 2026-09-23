@@ -36,11 +36,21 @@ test('TV creates a short code, admin approves it, and TV receives its restricted
   const pairing = await created.json()
   assert.match(pairing.code, /^\d{6}$/)
   assert.equal(pairing.expiresAt, '2026-09-22T18:30:00.000Z')
+  assert.match(pairing.requestToken, /^[A-Za-z0-9_-]{43}$/)
   const pairingCookie = created.headers.get('set-cookie')
   assert.match(pairingCookie, /kitchen_tv_pairing_request=/)
+  const visiblePairing = { paired: false, code: pairing.code, expiresAt: pairing.expiresAt }
 
   const pending = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-status', 'GET', undefined, pairingCookie.split(';')[0]), env, undefined, new Date(+NOW + 1_000))
-  assert.deepEqual(await pending.json(), pairing)
+  assert.deepEqual(await pending.json(), visiblePairing)
+
+  const pendingWithStoredToken = await api.handleKitchenTvPublicApi(
+    request('/api/kitchen-tv/pairing-status', 'POST', { requestToken: pairing.requestToken }),
+    env,
+    undefined,
+    new Date(+NOW + 1_500),
+  )
+  assert.deepEqual(await pendingWithStoredToken.json(), visiblePairing)
 
   const approved = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: pairing.code }), env, await manager(), undefined, new Date(+NOW + 2_000))
   assert.equal((await approved.json()).waitingPairing, true)
