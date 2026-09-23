@@ -169,11 +169,24 @@ jobs:
 
             for (const ref of assetRefs) {
               const assetUrl = new URL(ref, pageUrl)
-              const assetResponse = await fetch(assetUrl)
-              const assetType = assetResponse.headers.get('content-type') || ''
               const expectedType = assetUrl.pathname.endsWith('.css') ? 'text/css' : 'javascript'
-              if (!assetResponse.ok || !assetType.includes(expectedType)) {
-                console.error(`Deep link ${path} asset ${assetUrl.pathname} failed: HTTP ${assetResponse.status}, content-type ${assetType}`)
+              let assetReady = false
+
+              for (let attempt = 1; attempt <= Number(process.env.STAGING_READY_ATTEMPTS); attempt += 1) {
+                const assetResponse = await fetch(assetUrl)
+                const assetType = assetResponse.headers.get('content-type') || ''
+                if (assetResponse.ok && assetType.includes(expectedType)) {
+                  assetReady = true
+                  break
+                }
+                console.log(`Deep link ${path} asset ${assetUrl.pathname} propagation attempt ${attempt}/${process.env.STAGING_READY_ATTEMPTS}: HTTP ${assetResponse.status}, content-type ${assetType}`)
+                if (attempt < Number(process.env.STAGING_READY_ATTEMPTS)) {
+                  await new Promise((resolve) => setTimeout(resolve, 3000))
+                }
+              }
+
+              if (!assetReady) {
+                console.error(`Deep link ${path} asset ${assetUrl.pathname} did not become ready in the bounded propagation window`)
                 process.exit(1)
               }
             }

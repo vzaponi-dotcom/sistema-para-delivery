@@ -166,3 +166,10 @@ Investigation evidence:
 5. Staging deep-link smoke is strengthened to fetch every JS/CSS reference resolved from each nested page URL and assert a successful non-HTML asset MIME response.
 
 D4 remains open until the corrected staging candidate is deployed and A Receber + Movimentações are manually reloaded successfully.
+
+
+### Staging asset propagation note
+
+The first corrected staging deploy published Worker version `e39d4460-2e18-4693-89b9-364234497fd1` and passed login. The strengthened asset smoke then observed one newly uploaded JS asset temporarily resolve to the SPA HTML immediately after deployment.
+
+Build/upload evidence proved the asset existed and was uploaded. The smoke is therefore bounded-retry hardened (same six-attempt policy used by staging readiness) so transient edge propagation does not create a false negative, while a persistent HTML/404 asset response still fails the deployment.
