@@ -61,17 +61,10 @@ export function KitchenDisplayApp({
     setLastUpdatedAt(new Date())
   }, [audio, cancelSchedule, schedule])
 
-  const prepareLivePanel = useCallback(async (next) => {
+  const prepareStartPanel = useCallback(async (next) => {
     await applySnapshot(next)
-    setPhase('live')
-    void (async () => {
-      try {
-        setSoundBlocked(!await audio.unlock())
-      } catch {
-        setSoundBlocked(true)
-      }
-    })()
-  }, [applySnapshot, audio])
+    setPhase('start-required')
+  }, [applySnapshot])
 
   useEffect(() => {
     let active = true
@@ -84,7 +77,7 @@ export function KitchenDisplayApp({
           setPhase('pairing')
           return
         }
-        await prepareLivePanel(initial.state)
+        await prepareStartPanel(initial.state)
       } catch {
         if (!active) return
         setSnapshot(null)
@@ -93,7 +86,7 @@ export function KitchenDisplayApp({
     }
     void start()
     return () => { active = false }
-  }, [bootstrap, prepareLivePanel])
+  }, [bootstrap, prepareStartPanel])
 
   useEffect(() => {
     if (phase !== 'pairing') return undefined
@@ -104,7 +97,7 @@ export function KitchenDisplayApp({
       try {
         const next = await pollPairing()
         if (next?.kind === 'paired') {
-          await prepareLivePanel(next.state)
+          await prepareStartPanel(next.state)
           setPairing(null)
         } else if (next?.kind === 'pairing') {
           setPairing(next.pairing)
@@ -118,7 +111,7 @@ export function KitchenDisplayApp({
     }
     const poll = globalThis.setInterval(() => void check(), 2000)
     return () => globalThis.clearInterval(poll)
-  }, [phase, pollPairing, prepareLivePanel])
+  }, [phase, pollPairing, prepareStartPanel])
 
   const refresh = useCallback(async () => {
     try {
@@ -163,6 +156,21 @@ export function KitchenDisplayApp({
     highlightTimers.current.clear()
   }, [cancelSchedule])
 
+  const startPanel = () => {
+    let unlockAttempt
+    try {
+      unlockAttempt = audio.unlock()
+    } catch {
+      setSoundBlocked(true)
+    }
+    setPhase('live')
+    if (unlockAttempt) {
+      void Promise.resolve(unlockAttempt)
+        .then((ready) => setSoundBlocked(!ready))
+        .catch(() => setSoundBlocked(true))
+    }
+  }
+
   const enableSound = async () => setSoundBlocked(!await audio.unlock())
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
@@ -177,6 +185,14 @@ export function KitchenDisplayApp({
     </section>
   </main>
   if (phase === 'unauthorized') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Painel não autorizado</h1><p>Atualize a página para conectar esta TV novamente.</p></section></main>
+  if (phase === 'start-required') return <main className="kds-shell">
+    <section className="kds-pairing-card kds-start-card">
+      <p className="kds-pairing-kicker">Gestão Delivery</p>
+      <h1>Painel da cozinha pronto</h1>
+      <p>Clique abaixo para entrar e habilitar os alertas sonoros deste navegador.</p>
+      <button type="button" onClick={startPanel}>Iniciar painel da cozinha</button>
+    </section>
+  </main>
 
   return <main className="kds-shell kds-shell--live" data-stale={stale}>
     <span className="kds-visually-hidden">Painel da cozinha ativo</span>
