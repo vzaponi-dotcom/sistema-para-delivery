@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { act } from 'react-test-renderer'
 
-import { workspaceHarness, nodeText } from '../test-support/renderWorkspace.js'
-import { authenticatedSession, effectivePaymentConfig } from '../test-support/appSessionFixtures.js'
+import { workspaceHarness, nodeText } from '../../test-support/renderWorkspace.js'
+import { authenticatedSession, effectivePaymentConfig } from '../../test-support/appSessionFixtures.js'
 
 const response = (data) => ({ ok: true, status: 200, json: async () => structuredClone(data) })
 
