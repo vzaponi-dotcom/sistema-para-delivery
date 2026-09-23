@@ -951,7 +951,7 @@
   border-color: color-mix(in srgb, var(--primary) 52%, var(--border));
   background: #fff;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(183, 25, 43, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .order-total-panel {
