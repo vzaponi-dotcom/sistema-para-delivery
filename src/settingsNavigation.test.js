@@ -83,7 +83,7 @@ test('physical test or pending job does not block navigation', async (t) => {
     React.useImperativeHandle(ref, () => navigation, [navigation])
     return React.createElement('output', null, `${navigation.activeTab}:job-pending`)
   })
-  const renderer = await h.render(Probe, { ref: api })
+  const { renderer } = await h.renderAdminApp(Probe, { ref: api })
   await act(async () => api.current.requestNavigation('clients'))
   assert.equal(nodeText(renderer.root.findByType('output')), 'clients:job-pending')
 })

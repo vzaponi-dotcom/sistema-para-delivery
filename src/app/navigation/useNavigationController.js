@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import {
   decideNavigation,
   resolveArea,
@@ -6,6 +7,8 @@ import {
   resolveHome,
 } from './resolution.js'
 import { shouldConfirmDraftExit } from './draftExitGuard.js'
+import { pathForDestination } from './routes.js'
+import { useMatchedDestination } from './routeMatch.js'
 
 export function useNavigationController({
   granted,
@@ -19,13 +22,15 @@ export function useNavigationController({
 }) {
   const resolveNavigationDraft = getNavigationDraft
   const discardDraft = discardNavigationDraft
-  const [activeTab, setActiveTab] = useState(() => resolveHome(granted, implemented))
+  const matchedDestination = useMatchedDestination()
+  const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState(null)
   const pendingNavigationRef = useRef(null)
   const pendingDestination = pendingNavigation?.destination || null
-  const resolvedActiveTab = activeTab && resolveDestination(activeTab, granted, implemented).status === 'allowed'
-    ? activeTab
+  const resolvedActiveTab = matchedDestination
+    && resolveDestination(matchedDestination, granted, implemented).status === 'allowed'
+    ? matchedDestination
     : resolveHome(granted, implemented)
 
   const resolveTarget = useCallback((target) => {
@@ -46,6 +51,13 @@ export function useNavigationController({
     onFeedback?.(messages[status] || messages.denied)
     return false
   }, [onFeedback])
+
+  const navigateToDestination = useCallback((id, options) => {
+    const path = pathForDestination(id)
+    if (!path) return reject('unknown')
+    navigate(path, options)
+    return true
+  }, [navigate, reject])
 
   const requestNavigation = useCallback((target) => {
     if (pendingNavigationRef.current) return false
@@ -79,9 +91,9 @@ export function useNavigationController({
     }
 
     if (leavingOrder) onDiscardOrder?.()
-    setActiveTab(resolution.id)
-    return true
-  }, [checkoutPending, dirtyOrder, onDiscardOrder, reject, resolveNavigationDraft, resolveTarget, resolvedActiveTab])
+    if (resolution.id === resolvedActiveTab) return true
+    return navigateToDestination(resolution.id)
+  }, [checkoutPending, dirtyOrder, navigateToDestination, onDiscardOrder, reject, resolveNavigationDraft, resolveTarget, resolvedActiveTab])
 
   const completeNavigation = useCallback((id) => {
     const resolution = resolveDestination(id, granted, implemented)
@@ -89,9 +101,9 @@ export function useNavigationController({
     pendingNavigationRef.current = null
     setPendingNavigation(null)
     setMoreOpen(false)
-    setActiveTab(resolution.id)
-    return true
-  }, [granted, implemented, reject])
+    if (resolution.id === resolvedActiveTab) return true
+    return navigateToDestination(resolution.id)
+  }, [granted, implemented, navigateToDestination, reject, resolvedActiveTab])
 
   const confirmDiscard = useCallback(() => {
     const pending = pendingNavigationRef.current
@@ -110,9 +122,8 @@ export function useNavigationController({
         if (discarded === false) return false
       }
     }
-    setActiveTab(resolution.id)
-    return true
-  }, [checkoutPending, discardDraft, granted, implemented, onDiscardOrder, reject, resolveNavigationDraft, resolvedActiveTab])
+    return navigateToDestination(resolution.id)
+  }, [checkoutPending, discardDraft, granted, implemented, navigateToDestination, onDiscardOrder, reject, resolveNavigationDraft, resolvedActiveTab])
 
   const cancelDiscard = useCallback(() => {
     pendingNavigationRef.current = null
@@ -125,8 +136,13 @@ export function useNavigationController({
     setMoreOpen(false)
     pendingNavigationRef.current = null
     setPendingNavigation(null)
-    setActiveTab(resolveHome(granted, implemented))
-  }, [granted, implemented])
+    const home = resolveHome(granted, implemented)
+    if (!home) {
+      navigate('/', { replace: true })
+      return
+    }
+    navigateToDestination(home, { replace: true })
+  }, [granted, implemented, navigate, navigateToDestination])
 
   return {
     activeTab: resolvedActiveTab,
