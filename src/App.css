@@ -71,7 +71,7 @@
 }
 
 .sidebar-link.active {
-  background: var(--primary);
+  background: var(--primary-fill);
   color: var(--primary-contrast);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 28%, transparent);
 }
@@ -179,13 +179,13 @@
 }
 
 .button-primary {
-  background: var(--primary);
+  background: var(--primary-fill);
   color: var(--primary-contrast);
   box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .button-primary:hover {
-  background: var(--primary-hover);
+  background: var(--primary-fill-hover);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
