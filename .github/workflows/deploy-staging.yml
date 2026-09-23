@@ -3,7 +3,7 @@ name: Deploy staging
 on:
   push:
     branches:
-      - feature/react-router-navigation
+      - feature/print-queue-bulk-discard
   workflow_dispatch:
 
 permissions:
