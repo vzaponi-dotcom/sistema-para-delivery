@@ -188,6 +188,7 @@ test('queue summary is independent from pagination and counts only safely untouc
     awaitingConfirmation: 1,
     awaitingSecondCopy: 1,
     attention: 2,
+    discardable: 4,
     completedToday: 1,
     safeBacklog: 1,
   })
