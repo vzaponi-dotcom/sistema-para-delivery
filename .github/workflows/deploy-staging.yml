@@ -3,7 +3,7 @@ name: Deploy staging
 on:
   push:
     branches:
-      - feature/spec-b-settings-policies
+      - feature/react-router-navigation
   workflow_dispatch:
 
 permissions:
@@ -126,6 +126,41 @@ jobs:
             process.exit(1)
           }
           console.log(`Staging login HTTP ${response.status}`)
+          NODE
+
+      - name: Verify staging deep links
+        env:
+          STAGING_URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
+        run: |
+          node --input-type=module <<'NODE'
+          const baseUrl = process.env.STAGING_URL
+          const paths = [
+            '/pedidos',
+            '/pedidos/historico',
+            '/comandas',
+            '/financeiro/a-receber',
+            '/configuracoes/impressao',
+            '/cozinha-tv',
+          ]
+
+          for (const path of paths) {
+            const response = await fetch(`${baseUrl}${path}`, { redirect: 'manual' })
+            if (response.status !== 200) {
+              console.error(`Deep link ${path} failed with HTTP ${response.status}`)
+              process.exit(1)
+            }
+            const contentType = response.headers.get('content-type') || ''
+            if (!contentType.includes('text/html')) {
+              console.error(`Deep link ${path} returned unexpected content-type: ${contentType}`)
+              process.exit(1)
+            }
+            const body = await response.text()
+            if (!body.includes('id="root"')) {
+              console.error(`Deep link ${path} did not return the SPA shell`)
+              process.exit(1)
+            }
+            console.log(`Deep link ${path}: HTTP 200 / SPA shell OK`)
+          }
           NODE
 
       - name: Summarize staging URL
