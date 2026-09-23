@@ -762,7 +762,7 @@ test('bulk discard button confirms, respects discard capability and reports reta
     }
     if (url === '/api/printing/jobs/summary') return {
       ok: true,
-      json: async () => ({ summary: { pending: 3, awaitingConfirmation: 1, awaitingSecondCopy: 2, attention: 2 } }),
+      json: async () => ({ summary: { pending: 3, awaitingConfirmation: 1, awaitingSecondCopy: 2, attention: 2, discardable: 6 } }),
     }
     throw new Error(`Unexpected request: ${url}`)
   }
@@ -831,4 +831,36 @@ test('bulk discard button is disabled without printing.discard or while offline'
     assert.equal(button.props.disabled, true)
     await act(async () => renderer.unmount())
   }
+})
+
+
+test('bulk discard stays disabled when attention exists but the server marks every job unsafe to discard', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return {
+      ok: true,
+      json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }),
+    }
+    if (url === '/api/printing/jobs/summary') return {
+      ok: true,
+      json: async () => ({ summary: { pending: 0, awaitingConfirmation: 0, awaitingSecondCopy: 0, attention: 1, discardable: 0 } }),
+    }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: { localStation: null, stations: [], printerHealth: { state: 'verifying' } },
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+    canDiscardPrinting: true,
+    isOnline: true,
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+  const button = renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Descartar pendências'))
+  assert.ok(button)
+  assert.equal(button.props.disabled, true)
 })

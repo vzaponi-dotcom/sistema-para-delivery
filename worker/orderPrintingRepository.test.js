@@ -775,6 +775,9 @@ test('bulk operational discard safely closes disposable jobs and preserves uncer
   await markPrintAttemptSubmitting(db, businessA, attempt.id, 'station-a', baseNow)
   await markPrintAttemptUnknown(db, businessA, attempt.id, 'station-a', 'QZ_CONNECTION_LOST', baseNow)
 
+  const beforeSummary = await printingRepository.getPrintQueueSummary(db, businessA, baseNow)
+  assert.equal(beforeSummary.discardable, 4)
+
   const result = await printingRepository.discardOperationalPrintJobs(
     db,
     businessA,
@@ -802,4 +805,6 @@ test('bulk operational discard safely closes disposable jobs and preserves uncer
 
   assert.equal((await loadPrintJob(db, businessA, 'bulk-processing')).status, 'processing')
   assert.equal((await loadPrintJob(db, businessA, 'bulk-uncertain')).status, 'requires_attention')
+  const afterSummary = await printingRepository.getPrintQueueSummary(db, businessA, new Date(baseNow.getTime() + 31_000))
+  assert.equal(afterSummary.discardable, 0)
 })
