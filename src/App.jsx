@@ -440,7 +440,9 @@ function App({ capabilities } = {}) {
         return
       }
       currentTableId = identity.tableId
-      selectComanda(identity, currentTables)
+      const alreadySelected = selectionOwner?.tableId === identity.tableId
+        && selectionOwner?.tableTabId === identity.tableTabId
+      if (!alreadySelected) selectComanda(identity, currentTables)
     }
     newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
     return completeNavigation('new-order')
