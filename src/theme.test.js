@@ -184,3 +184,69 @@ test('dark login brand uses semantic foreground colors without changing shared l
   assert.match(brand, /fill=['"]#25211f['"]/i)
   assert.match(brand, /fill=['"]#716863['"]/i)
 })
+
+
+test('visual theme preference persists independently from light dark and system', async () => {
+  const theme = await loadThemeModule()
+  assert.ok(theme, 'theme utility should exist')
+
+  const values = new Map()
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  }
+
+  assert.equal(theme.VISUAL_THEME_STORAGE_KEY, 'delivery-visual-theme')
+  assert.equal(theme.normalizeVisualTheme('classic'), 'classic')
+  assert.equal(theme.normalizeVisualTheme('mesiva'), 'mesiva')
+  assert.equal(theme.normalizeVisualTheme('invalid'), 'classic')
+  assert.equal(theme.readVisualTheme(storage), 'classic')
+  assert.equal(theme.saveVisualTheme('mesiva', storage), 'mesiva')
+  assert.equal(theme.readVisualTheme(storage), 'mesiva')
+  assert.equal(theme.saveVisualTheme('invalid', storage), 'classic')
+})
+
+test('visual theme application updates the root without changing color scheme preference', async () => {
+  const theme = await loadThemeModule()
+  assert.ok(theme, 'theme utility should exist')
+
+  const root = { dataset: {}, style: { colorScheme: 'dark' } }
+  assert.equal(theme.applyVisualTheme('mesiva', { root }), 'mesiva')
+  assert.equal(root.dataset.visualTheme, 'mesiva')
+  assert.equal(root.style.colorScheme, 'dark')
+  assert.equal(theme.applyVisualTheme('invalid', { root }), 'classic')
+  assert.equal(root.dataset.visualTheme, 'classic')
+})
+
+test('global provider exposes a local Classic or Mesiva visual theme selector', () => {
+  const provider = optionalSource('./app/shell/theme/ThemeProvider.jsx')
+  const settings = source('./app/surfaces/settings/local/DevicePreferences.jsx')
+
+  assert.match(provider, /visualTheme/)
+  assert.match(provider, /saveVisualTheme/)
+  assert.match(settings, /Clássico/)
+  assert.match(settings, /Mesiva/)
+  assert.match(settings, /aria-label="Estilo visual"/)
+})
+
+test('Mesiva palette follows the official v1.0 brand colors and keeps semantic states separate', () => {
+  const css = source('./index.css')
+  const lightMatch = css.match(/:root\[data-visual-theme=['"]mesiva['"]\]\s*\{([\s\S]*?)\n\}/)
+  const darkMatch = css.match(/:root\[data-theme=['"]dark['"]\]\[data-visual-theme=['"]mesiva['"]\]\s*\{([\s\S]*?)\n\}/)
+
+  assert.ok(lightMatch, 'Mesiva light palette should exist')
+  assert.ok(darkMatch, 'Mesiva dark palette should exist')
+
+  const light = lightMatch[1]
+  const dark = darkMatch[1]
+  assert.match(light, /--primary:\s*#14b8a6;/i)
+  assert.match(light, /--text:\s*#0f2747;/i)
+  assert.match(light, /--primary-soft:\s*#dff7f1;/i)
+  assert.match(light, /--accent:\s*#fbbf24;/i)
+  assert.match(light, /--bg:\s*#f8fafc;/i)
+  assert.match(light, /--surface:\s*#ffffff;/i)
+  assert.match(light, /--primary-contrast:\s*#0f2747;/i)
+  assert.doesNotMatch(light, /--success:\s*#14b8a6;/i)
+  assert.doesNotMatch(light, /--warning:\s*#fbbf24;/i)
+  assert.match(dark, /--primary-contrast:\s*#0f2747;/i)
+})
