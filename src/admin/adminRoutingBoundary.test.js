@@ -37,3 +37,10 @@ test('Task 7: Cloudflare preserves SPA fallback and runs Worker first only for A
   assert.match(worker, /return env\.ASSETS\.fetch\(request\)/)
   assert.doesNotMatch(worker, /url\.pathname\.startsWith\(['"]\/pedidos|url\.pathname === ['"]\/pedidos/)
 })
+
+
+test('Task 8 regression: Vite emits root-absolute assets for nested SPA deep links', async () => {
+  const vite = await read('vite.config.js')
+  assert.match(vite, /base:\s*['"]\/['"]/)
+  assert.doesNotMatch(vite, /base:\s*['"]\.\/['"]/)
+})
