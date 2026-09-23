@@ -77,7 +77,7 @@ test('desktop sidebar anchors badges above a fixed icon column without shifting 
   assert.match(desktopBadges, /\.sidebar-link \.navigation-icon-wrap\s*\{[^}]*width:\s*20px/s)
   assert.match(desktopBadges, /\.navigation-badge\s*\{[^}]*position:\s*absolute[^}]*top:\s*-[1-9]\d*px[^}]*border:\s*0/s)
   assert.doesNotMatch(desktopBadges, /\.sidebar-link-label \.navigation-badge/)
-  assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*var\(--primary-contrast\)[^}]*color:\s*var\(--primary\)/s)
+  assert.match(desktopBadges, /\.sidebar-link\.active \.navigation-badge\s*\{[^}]*background:\s*var\(--primary-contrast\)[^}]*color:\s*var\(--primary-fill\)/s)
 })
 
 test('mobile badge contract stays scoped to the approved 820px layout', async () => {
