@@ -139,7 +139,7 @@ test('repeated App navigation through every settings page does not accumulate ti
     throw new Error(`Unexpected request: ${url}`)
   }
   const { default: App } = await harness.load('/src/App.jsx')
-  await harness.render(App)
+  await harness.renderAdminApp(App)
   await act(flushMicrotasks)
   const baseline = harness.activitySnapshot({ ignoreFocus: true })
   const destinations = [

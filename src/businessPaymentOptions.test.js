@@ -191,7 +191,7 @@ test('App opens new operational payments with the effective default', async (t) 
     throw new Error(`Unexpected request: ${url}`)
   }
   const { default: App } = await h.load('/src/App.jsx')
-  const screen = await h.render(App)
+  const { renderer: screen } = await h.renderAdminApp(App)
   await act(async () => buttonNamed(screen.root, 'Exibir detalhes').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Registrar pagamento').props.onClick())
   assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' })), 'Dinheiro')
@@ -217,7 +217,7 @@ test('App never exposes a Pix default while effective payment configuration is u
     throw new Error(`Unexpected request: ${url}`)
   }
   const { default: App } = await h.load('/src/App.jsx')
-  const screen = await h.render(App)
+  const { renderer: screen } = await h.renderAdminApp(App)
   await act(async () => buttonNamed(screen.root, 'Exibir detalhes').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Registrar pagamento').props.onClick())
   assert.equal(nodeText(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' })), 'Selecione')
