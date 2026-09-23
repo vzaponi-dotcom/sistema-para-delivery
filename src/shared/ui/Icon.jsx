@@ -63,7 +63,7 @@ const icons = {
   'volume-on': <><path d="M4 10h4l5-4v12l-5-4H4Z"/><path d="M16 9c2 2 2 4 0 6M19 6c4 4 4 8 0 12"/></>,
   'volume-off': <><path d="m4 4 16 16M4 10h4l5-4v5M13 15v3l-5-4H4"/></>,
   cancel: <><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></>,
-  'chef-hat': <><path d="M6 10a4 4 0 0 1 1-7.9A5 5 0 0 1 16.5 4 4 4 0 1 1 18 11v8H6Z"/><path d="M6 15h12M9 15v4M15 15v4"/></>,
+  'chef-hat': <><path d="M6.5 10.5a3.7 3.7 0 0 1 1.7-6.9A4.8 4.8 0 0 1 16.8 5a3.6 3.6 0 0 1 1.2 6.9V19H6.5Z"/><path d="M6.5 15.2H18M9.5 15.2V19M15 15.2V19"/></>,
   'delivery-bike': <><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18h5l3-7h3l2 4M10 18l-3-8h4M14 11l-2-3h-2"/></>,
 }
 
