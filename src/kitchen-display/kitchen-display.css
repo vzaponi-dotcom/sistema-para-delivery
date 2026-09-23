@@ -10,6 +10,8 @@
   --kds-amber: #ffc21a;
   --kds-red: #ff3f49;
   --kds-scheduled: #aebbd8;
+  --kds-customer: #c5d8ea;
+  --kds-divider: rgba(201, 216, 232, .38);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--kds-text);
   background: var(--kds-bg);
@@ -52,12 +54,12 @@ button { font: inherit; }
 .kds-card--late { --state: var(--kds-red); }
 .kds-card--near-limit { --state: var(--kds-amber); }
 .kds-card--scheduled { --state: var(--kds-scheduled); }
-.kds-card__customer { min-width: 0; margin: 0; overflow: hidden; font-size: clamp(1.65rem, 2.2vw, 2.8rem); line-height: 1.08; letter-spacing: -.035em; white-space: nowrap; text-overflow: ellipsis; }
+.kds-card__customer { min-width: 0; margin: 0; overflow: hidden; color: var(--kds-customer); font-size: clamp(1.65rem, 2.2vw, 2.8rem); font-weight: 820; line-height: 1.08; letter-spacing: -.035em; white-space: nowrap; text-overflow: ellipsis; }
 .kds-card__status { order: -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--state); font-size: clamp(.8rem, 1vw, 1.08rem); font-weight: 850; }
 .kds-card__status-copy { display: flex; align-items: center; gap: .65rem; white-space: nowrap; }
 .kds-card__dot { width: .85em; height: .85em; flex: none; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
 .kds-card__number { color: color-mix(in srgb, var(--state) 70%, var(--kds-muted)); font-weight: 650; }
-.kds-card__main { min-height: clamp(42px, 5vh, 58px); margin: clamp(10px, 1vh, 17px) 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.kds-card__main { min-height: clamp(42px, 5vh, 58px); margin: clamp(8px, .8vh, 12px) 0 clamp(6px, .7vh, 10px); padding-bottom: clamp(6px, .7vh, 10px); display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--kds-divider); }
 .kds-card__timing { flex: none; display: inline-flex; align-items: center; gap: .35rem; color: var(--state); font-size: clamp(1.65rem, 2.25vw, 2.8rem); font-weight: 850; line-height: 1; }
 .kds-card__body { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .8rem; }
 .kds-card__items { min-width: 0; margin: 0; padding: 0; display: grid; gap: clamp(3px, .5vh, 8px); list-style: none; font-size: clamp(.95rem, 1.2vw, 1.45rem); }
@@ -126,7 +128,7 @@ button { font: inherit; }
   .kds-card { padding: 9px 10px; border-width: 1px; border-radius: 9px; }
   .kds-card__status { gap: .5rem; font-size: clamp(.58rem, .9vw, .72rem); }
   .kds-card__status-copy { gap: .35rem; }
-  .kds-card__main { min-height: 30px; margin: 5px 0 6px; gap: .45rem; }
+  .kds-card__main { min-height: 30px; margin: 4px 0 5px; padding-bottom: 4px; gap: .45rem; }
   .kds-card__customer { font-size: clamp(1rem, 2.2vw, 1.5rem); }
   .kds-card__timing { font-size: clamp(1rem, 2.2vw, 1.45rem); }
   .kds-card__body { gap: .45rem; }
@@ -336,4 +338,22 @@ button { font: inherit; }
     margin-top: .06rem;
     line-height: 1.12;
   }
+}
+
+
+.kds-start-card button {
+  min-width: min(360px, 100%);
+  padding: .95rem 1.4rem;
+  border: 1px solid var(--kds-blue);
+  border-radius: .85rem;
+  color: var(--kds-text);
+  background: #0d2b40;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.kds-start-card button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--kds-blue) 55%, white);
+  outline-offset: 3px;
 }
