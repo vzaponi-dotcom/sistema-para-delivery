@@ -8,12 +8,12 @@ import {
   readKitchenDisplayState,
 } from './kitchenDisplayApi.js'
 
-test('pairing request, pairing status and state use only the narrow same-origin API with credentials', async () => {
+test('pairing request, token-backed status and state stay on the narrow same-origin API', async () => {
   const calls = []
   const fetchImpl = async (path, init) => {
     calls.push({ path, init })
     const payload = path.endsWith('/pairing-request')
-      ? { paired: false, code: '482731', expiresAt: '2026-09-22T20:30:00.000Z' }
+      ? { paired: false, code: '482731', expiresAt: '2026-09-22T20:30:00.000Z', requestToken: 'opaque-request-token' }
       : path.endsWith('/pairing-status')
         ? { paired: false, code: '482731', expiresAt: '2026-09-22T20:30:00.000Z' }
         : { orders: [], timing: {}, serverNow: '2026-09-22T20:00:00.000Z' }
@@ -23,8 +23,8 @@ test('pairing request, pairing status and state use only the narrow same-origin 
     })
   }
 
-  await createKitchenDisplayPairingRequest(fetchImpl)
-  await readKitchenDisplayPairingStatus(fetchImpl)
+  const created = await createKitchenDisplayPairingRequest(fetchImpl)
+  await readKitchenDisplayPairingStatus(created.requestToken, fetchImpl)
   await readKitchenDisplayState(fetchImpl)
 
   assert.deepEqual(calls.map(({ path }) => path), [
@@ -33,8 +33,23 @@ test('pairing request, pairing status and state use only the narrow same-origin 
     '/api/kitchen-tv/state',
   ])
   assert.equal(calls[0].init.method, 'POST')
+  assert.equal(calls[1].init.method, 'POST')
+  assert.equal(calls[1].init.body, JSON.stringify({ requestToken: 'opaque-request-token' }))
   assert.equal(calls.every(({ init }) => init.credentials === 'same-origin'), true)
   assert.equal(calls.some(({ path }) => path === '/api/bootstrap'), false)
+})
+
+test('pairing status still supports cookie-only fallback when no stored token is available', async () => {
+  let init
+  await readKitchenDisplayPairingStatus(null, async (_path, options) => {
+    init = options
+    return new Response(JSON.stringify({ paired: false, code: '123456' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  })
+  assert.equal(init.method, 'GET')
+  assert.equal(init.credentials, 'same-origin')
 })
 
 test('HTTP errors retain status and distinguish definitive authorization failures', async () => {
