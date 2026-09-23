@@ -73,7 +73,7 @@
 }
 
 .settings-switch[aria-checked='true']::before {
-  background: var(--primary);
+  background: var(--primary-fill);
 }
 
 .settings-switch > span {
