@@ -8,6 +8,7 @@ import { FinanceCategorySettings, PaymentSettings } from '../../../domains/finan
 import { PrintingSettingsContent } from '../../../domains/printing/index.js'
 import OperationSettings from './OperationSettings.jsx'
 import CancellationSettings from './CancellationSettings.jsx'
+import KitchenTvSettings from './KitchenTvSettings.jsx'
 import DevicePreferences from './local/DevicePreferences.jsx'
 import SettingsConflictReview from './components/SettingsConflictReview.jsx'
 import { SettingsBackLink } from './components/SettingsBackAndSwitchControls.jsx'
@@ -135,6 +136,10 @@ export function SettingsSurface({
     />
     <PrintingSettingsContent printing={printing} settings={printingSettings} granted={granted} />
   </div>)
+  if (section === 'settings-kitchen-tv') return withActiveConflict(<KitchenTvSettings
+    granted={granted}
+    onNavigateHome={() => onNavigate?.('settings-home')}
+  />)
   if (section === 'settings-device') return withActiveConflict(<DevicePreferences
     soundEnabled={soundEnabled}
     onSoundEnabledChange={onSoundEnabledChange}

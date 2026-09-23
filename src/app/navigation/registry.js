@@ -5,6 +5,7 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
   Object.freeze({ id: 'settings-payments', area: 'settings', label: 'Formas de pagamento', mobileEntry: 'more', capability: 'payments.settings.view' }),
   Object.freeze({ id: 'settings-cancellations', area: 'settings', label: 'Motivos de cancelamento', mobileEntry: 'more', capability: 'orders.settings.view' }),
   Object.freeze({ id: 'settings-finance-categories', area: 'settings', label: 'Categorias financeiras', mobileEntry: 'more', capability: 'finance.categories.view' }),
+  Object.freeze({ id: 'settings-kitchen-tv', area: 'settings', label: 'TV da Cozinha', mobileEntry: 'more', capability: 'orders.settings.view' }),
   Object.freeze({ id: 'orders', area: 'orders', label: 'Cozinha', mobileEntry: 'orders', capability: 'orders.view' }),
   Object.freeze({ id: 'history', area: 'orders', label: 'Histórico', mobileEntry: 'orders', capability: 'orders.history' }),
   Object.freeze({ id: 'new-order', area: 'orders', label: 'Novo pedido', mobileEntry: null, capability: 'orders.create' }),
@@ -25,7 +26,7 @@ export const destinationById = new Map(NAVIGATION_DESTINATIONS.map((item) => [it
 export const AREA_DESTINATION_IDS = Object.freeze({
   orders: Object.freeze(['orders', 'history']),
   finance: Object.freeze(['dashboard', 'receivables', 'finance']),
-  settings: Object.freeze(['settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-printing', 'settings-device']),
+  settings: Object.freeze(['settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device']),
 })
 
 export const HOME_AREA_ORDER = Object.freeze(['orders', 'finance', 'settings'])
@@ -53,5 +54,5 @@ export const MOBILE_MORE_ENTRIES = Object.freeze([
 
 export const MOBILE_SECTION_IDS = Object.freeze([
   'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
-  'print-queue', 'clients', 'products', 'tables', 'settings-printing', 'settings-device',
+  'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])

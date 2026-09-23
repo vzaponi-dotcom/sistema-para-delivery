@@ -17,7 +17,7 @@ export {
 } from './domain/cancellationReasonOptions.js'
 export { useKitchenClock } from './application/useKitchenClock.js'
 export { useOrderArrivals } from './application/useOrderArrivals.js'
-export { getOperationalOrderCount } from './domain/orderRealtime.js'
+export { buildKitchenQueueModel, detectOperationalArrivals, getOperationalOrderCount } from './kitchenDisplayPublic.js'
 export { ordersApi } from './infrastructure/ordersApi.js'
 export { operationsPolicy } from './infrastructure/operationsPolicy.js'
 export { cancellationReasonsPolicy } from './infrastructure/cancellationReasonsPolicy.js'

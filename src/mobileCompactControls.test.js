@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises'
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('mobile compact controls stylesheet is wired from the application entrypoint', async () => {
-  const main = await read('./main.jsx')
+  const main = await read('./admin/AdminBootstrap.jsx')
 
-  assert.match(main, /import '\.\/mobile-compact-controls\.css'/)
+  assert.match(main, /import '\.\.\/mobile-compact-controls\.css'/)
 })
 
 test('order type choices stay three-across and compact on mobile', async () => {

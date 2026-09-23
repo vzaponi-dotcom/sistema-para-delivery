@@ -65,11 +65,11 @@ test('theme application updates the root theme and browser color scheme', async 
 })
 
 test('theme is initialized before the React app renders', () => {
-  const main = source('./main.jsx')
+  const main = source('./admin/AdminBootstrap.jsx')
   const initializeIndex = main.indexOf('initializeTheme()')
   const renderIndex = main.indexOf('createRoot(')
 
-  assert.match(main, /from ['"]\.\/app\/shell\/theme\/theme\.js['"]/)
+  assert.match(main, /from ['"]\.\.\/app\/shell\/theme\/theme\.js['"]/)
   assert.match(main, /ThemeProvider/)
   assert.ok(initializeIndex >= 0, 'main should initialize the stored theme')
   assert.ok(renderIndex > initializeIndex, 'theme should initialize before React renders')

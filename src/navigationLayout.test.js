@@ -7,14 +7,14 @@ import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '.
 const implemented = new Set([
   'orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard',
   'receivables', 'finance', 'clients', 'products', 'tables',
-  'settings-printing', 'settings-device',
+  'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])
 
 const granted = new Set([
   'orders.view', 'orders.history', 'orders.create', 'comandas.view',
   'printing.queue', 'finance.overview', 'finance.receivables',
   'finance.movements', 'clients.view', 'products.view', 'tables.view',
-  'printing.settings', 'preferences.local',
+  'orders.settings.view', 'printing.settings', 'preferences.local',
 ])
 
 const navButtons = (root, label) => root.findByProps({ 'aria-label': label }).findAllByType('button')
@@ -180,7 +180,7 @@ test('AreaNavigation preserva labels, callbacks e aria-current de todos os desti
   for (const [area, ariaLabel, destinations] of [
     ['orders', 'Navegação de Pedidos', [['orders', 'Cozinha'], ['history', 'Histórico']]],
     ['finance', 'Navegação de Financeiro', [['dashboard', 'Visão geral'], ['receivables', 'A receber'], ['finance', 'Movimentações']]],
-    ['settings', 'Navegação de Configurações', [['settings-printing', 'Impressão'], ['settings-device', 'Preferências deste dispositivo']]],
+    ['settings', 'Navegação de Configurações', [['settings-kitchen-tv', 'TV da Cozinha'], ['settings-printing', 'Impressão'], ['settings-device', 'Preferências deste dispositivo']]],
   ]) {
     for (const [activeTab, activeLabel] of destinations) {
       const calls = []

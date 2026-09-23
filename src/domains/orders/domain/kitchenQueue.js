@@ -1,6 +1,6 @@
 import { getOperationalStartAt, getOrderLateAt, isScheduledWaiting } from '../../../../shared/orderTiming.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
-import { getOrderItemsSearchText } from './orderCart.js'
+import { getOrderItemsSearchText } from './orderCartRead.js'
 import { isOrderActive } from './orderLifecycle.js'
 import { getOrderTimingState, isFinishedToday } from './orderWorkflow.js'
 

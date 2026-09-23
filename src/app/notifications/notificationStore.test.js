@@ -55,26 +55,53 @@ test('invalid release sections are isolated from the renderable catalog', () => 
   assert.deepEqual(catalog.map((item) => item.id), ['good'])
 })
 
-test('current release exposes reusable icon title and description items', () => {
-  const [releaseItem] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+test('current release is the dedicated Kitchen TV tour while the previous release keeps the item format', () => {
+  const [releaseItem, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
 
-  assert.deepEqual(releaseItem.items, [
-    {
-      icon: 'orders',
-      title: 'Pedidos e Comandas em andamento',
-      description: 'Os menus agora mostram quantos pedidos precisam de acompanhamento e quantas comandas estão abertas.',
-    },
-    {
-      icon: 'notifications',
-      title: 'Central de notificações',
-      description: 'O novo sino reúne novidades do sistema e mantém o histórico disponível neste dispositivo.',
-    },
-    {
-      icon: 'layout',
-      title: 'Nova barra superior',
-      description: 'A barra superior reúne notificações e atalhos da operação sem ocupar a área principal de trabalho.',
-    },
+  assert.equal(releaseItem.id, 'release-2026-09-kitchen-tv')
+  assert.equal(releaseItem.title, 'Nova TV da Cozinha')
+  assert.equal(releaseItem.items.length, 0)
+  assert.equal(releaseItem.slides.length, 5)
+  assert.deepEqual(releaseItem.slides.map((slide) => slide.title), [
+    'Uma tela feita para a cozinha',
+    'Conecte a TV em poucos passos',
+    'Pedidos legíveis à distância',
+    'Itens e observações sempre visíveis',
+    'Alertas e acesso sob controle',
   ])
+  assert.deepEqual(releaseItem.slides.map((slide) => slide.image), [
+    '/release/kitchen-tv-32.jpg',
+    '/release/kitchen-tv-pairing.svg',
+    '/release/kitchen-tv-32.jpg',
+    '/release/kitchen-tv-details.svg',
+    '/release/kitchen-tv-access.svg',
+  ])
+  assert.equal(previousRelease.id, 'release-2026-09-operation-shell')
+  assert.equal(previousRelease.items.length, 3)
+  assert.equal(previousRelease.slides.length, 0)
+  assert.equal(CURRENT_RELEASE, SYSTEM_NOTIFICATIONS[0])
+})
+
+test('only the newest unpresented release opens automatically even when an older release remains unread', () => {
+  const catalog = normalizeNotificationCatalog([
+    release('kitchen-tv', '2026-09-22T22:55:00-03:00'),
+    release('operation-shell', '2026-09-21T23:00:00-03:00'),
+  ])
+  const storage = memoryStorage({
+    'delivery-notifications:v1:a': JSON.stringify({
+      version: 1,
+      knownIds: ['operation-shell'],
+      presentedIds: ['operation-shell'],
+      readIds: [],
+    }),
+  })
+  const state = loadNotificationState({ storage, businessId: 'a', catalog })
+
+  assert.equal(getAutomaticNotification(catalog, state).id, 'kitchen-tv')
+  assert.equal(getUnreadCount(catalog, state), 2)
+  const afterKitchenPresented = markPresented(state, 'kitchen-tv')
+  assert.equal(getAutomaticNotification(catalog, afterKitchenPresented), null)
+  assert.equal(getUnreadCount(catalog, afterKitchenPresented), 2)
 })
 
 test('legacy sections normalize into renderable items without weakening new item validation', () => {
@@ -113,4 +140,32 @@ test('marking presented keeps unread; marking read also marks presented', () => 
   assert.deepEqual(read.presentedIds, ['new'])
   assert.deepEqual(read.readIds, ['new'])
   assert.equal(getUnreadCount(catalog, read), 0)
+})
+
+
+test('invalid slide releases are isolated without weakening item releases', () => {
+  const catalog = normalizeNotificationCatalog([
+    { ...release('bad-slide'), slides: [{ icon: 'kitchen', title: 'Sem imagem', description: 'Inválido', image: '', imageAlt: '' }] },
+    release('good-item'),
+  ])
+  assert.deepEqual(catalog.map((item) => item.id), ['good-item'])
+})
+
+
+test('mixed slide and item releases are rejected to keep one presentation contract per release', () => {
+  const catalog = normalizeNotificationCatalog([{
+    ...release('mixed'),
+    items: [{ icon: 'orders', title: 'Item', description: 'Descrição' }],
+    slides: [{ icon: 'kitchen', title: 'Slide', description: 'Descrição', image: '/slide.svg', imageAlt: 'Slide' }],
+  }])
+  assert.deepEqual(catalog, [])
+})
+
+
+test('catalog normalization is idempotent for item and slide releases', () => {
+  const once = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+  const twice = normalizeNotificationCatalog(once)
+  assert.deepEqual(twice, once)
+  assert.equal(twice[0].slides.length, 5)
+  assert.equal(twice[1].items.length, 3)
 })
