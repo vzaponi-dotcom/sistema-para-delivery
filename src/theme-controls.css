@@ -49,8 +49,8 @@
 
 .theme-option.active {
   background: var(--primary);
-  color: #fff;
-  box-shadow: 0 5px 14px rgba(183, 25, 43, 0.22);
+  color: var(--primary-contrast);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .theme-option:focus-visible {
