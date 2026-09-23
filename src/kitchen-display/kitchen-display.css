@@ -198,15 +198,15 @@ button { font: inherit; }
 
 /* Kitchen card information hierarchy: production content takes priority over chrome. */
 .kds-card {
-  --kds-item-size: clamp(1.08rem, 1.35vw, 1.6rem);
+  --kds-item-size: clamp(1.02rem, 1.28vw, 1.5rem);
   --kds-note-size: .78em;
 }
 .kds-card--content-compact {
-  --kds-item-size: clamp(1rem, 1.2vw, 1.38rem);
+  --kds-item-size: clamp(.94rem, 1.14vw, 1.28rem);
   --kds-note-size: .76em;
 }
 .kds-card--content-dense {
-  --kds-item-size: clamp(.88rem, 1.05vw, 1.18rem);
+  --kds-item-size: clamp(.84rem, 1vw, 1.12rem);
   --kds-note-size: .74em;
 }
 .kds-card__meta {
@@ -289,14 +289,14 @@ button { font: inherit; }
 
 @media (max-width: 1279px) {
   .kds-card {
-    --kds-item-size: clamp(.92rem, 1.65vw, 1.08rem);
+    --kds-item-size: clamp(.88rem, 1.58vw, 1.02rem);
     --kds-note-size: .76em;
   }
   .kds-card--content-compact {
-    --kds-item-size: clamp(.86rem, 1.5vw, 1rem);
+    --kds-item-size: clamp(.8rem, 1.42vw, .94rem);
   }
   .kds-card--content-dense {
-    --kds-item-size: clamp(.76rem, 1.3vw, .9rem);
+    --kds-item-size: clamp(.72rem, 1.22vw, .84rem);
     --kds-note-size: .72em;
   }
   .kds-card__items {
@@ -320,19 +320,20 @@ button { font: inherit; }
 
 @media (max-width: 960px), (max-height: 600px) {
   .kds-card {
-    --kds-item-size: clamp(.86rem, 1.7vw, .98rem);
+    --kds-item-size: clamp(.82rem, 1.62vw, .94rem);
   }
   .kds-card--content-compact {
-    --kds-item-size: clamp(.8rem, 1.55vw, .9rem);
+    --kds-item-size: clamp(.76rem, 1.47vw, .86rem);
   }
   .kds-card--content-dense {
-    --kds-item-size: clamp(.7rem, 1.3vw, .8rem);
+    --kds-item-size: clamp(.68rem, 1.24vw, .78rem);
     --kds-note-size: .7em;
   }
   .kds-card__items {
-    gap: 3px;
+    gap: 2px;
   }
   .kds-card__item-note {
-    margin-top: .1rem;
+    margin-top: .06rem;
+    line-height: 1.12;
   }
 }
