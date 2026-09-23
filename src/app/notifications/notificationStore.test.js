@@ -55,22 +55,24 @@ test('invalid release sections are isolated from the renderable catalog', () => 
   assert.deepEqual(catalog.map((item) => item.id), ['good'])
 })
 
-test('current release is the dedicated Kitchen TV release with informative reusable items', () => {
+test('current release is the dedicated Kitchen TV tour while the previous release keeps the item format', () => {
   const [releaseItem, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
 
   assert.equal(releaseItem.id, 'release-2026-09-kitchen-tv')
   assert.equal(releaseItem.title, 'Nova TV da Cozinha')
-  assert.equal(releaseItem.items.length, 7)
-  assert.deepEqual(releaseItem.items.map((item) => item.title), [
+  assert.equal(releaseItem.items.length, 0)
+  assert.equal(releaseItem.slides.length, 5)
+  assert.deepEqual(releaseItem.slides.map((slide) => slide.title), [
     'Uma tela feita para a cozinha',
     'Conecte a TV em poucos passos',
     'Pedidos legíveis à distância',
-    'Todos os produtos e observações visíveis',
-    'Fila atualizada automaticamente',
-    'Alertas sonoros para novos pedidos',
-    'Acesso controlado e revogável',
+    'Itens e observações sempre visíveis',
+    'Alertas e acesso sob controle',
   ])
+  assert.equal(releaseItem.slides.every((slide) => slide.image === '/release/kitchen-tv-32.jpg'), true)
   assert.equal(previousRelease.id, 'release-2026-09-operation-shell')
+  assert.equal(previousRelease.items.length, 3)
+  assert.equal(previousRelease.slides.length, 0)
   assert.equal(CURRENT_RELEASE, SYSTEM_NOTIFICATIONS[0])
 })
 
@@ -132,4 +134,13 @@ test('marking presented keeps unread; marking read also marks presented', () => 
   assert.deepEqual(read.presentedIds, ['new'])
   assert.deepEqual(read.readIds, ['new'])
   assert.equal(getUnreadCount(catalog, read), 0)
+})
+
+
+test('invalid slide releases are isolated without weakening item releases', () => {
+  const catalog = normalizeNotificationCatalog([
+    { ...release('bad-slide'), slides: [{ icon: 'kitchen', title: 'Sem imagem', description: 'Inválido', image: '', imageAlt: '' }] },
+    release('good-item'),
+  ])
+  assert.deepEqual(catalog.map((item) => item.id), ['good-item'])
 })

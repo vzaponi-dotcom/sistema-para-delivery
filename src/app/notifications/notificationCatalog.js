@@ -5,14 +5,47 @@ export const SYSTEM_NOTIFICATIONS = Object.freeze([
     publishedAt: '2026-09-22T22:55:00-03:00',
     title: 'Nova TV da Cozinha',
     summary: 'Uma tela dedicada para acompanhar a produção em tempo real, com pareamento simples, leitura à distância e alertas de novos pedidos.',
-    items: Object.freeze([
-      Object.freeze({ icon: 'kitchen', title: 'Uma tela feita para a cozinha', description: 'A TV mostra somente as informações importantes para o preparo, sem menus administrativos, valores, pagamentos ou dados desnecessários para a operação.' }),
-      Object.freeze({ icon: 'pairing', title: 'Conecte a TV em poucos passos', description: 'Abra a TV da Cozinha, veja o código de 6 dígitos e informe esse código em Configurações → TV da Cozinha. Depois do pareamento, a TV permanece vinculada ao negócio.' }),
-      Object.freeze({ icon: 'orders', title: 'Pedidos legíveis à distância', description: 'Cliente ou mesa, tempo de preparo, modalidade e situação operacional aparecem em cards grandes, com destaque para pedidos atrasados, próximos do limite e agendados.' }),
-      Object.freeze({ icon: 'notes', title: 'Todos os produtos e observações visíveis', description: 'Nenhum produto do pedido é escondido. Observações de produção aparecem diretamente abaixo do item correspondente para reduzir dúvidas e erros durante o preparo.' }),
-      Object.freeze({ icon: 'realtime', title: 'Fila atualizada automaticamente', description: 'Novos pedidos entram na tela em poucos segundos, pedidos finalizados ou cancelados saem da fila e os agendados acompanham a janela de preparo configurada no sistema.' }),
-      Object.freeze({ icon: 'sound', title: 'Alertas sonoros para novos pedidos', description: 'Ao iniciar o painel da cozinha, o navegador libera os alertas sonoros para avisar a equipe sempre que um novo pedido chega à operação.' }),
-      Object.freeze({ icon: 'security', title: 'Acesso controlado e revogável', description: 'A TV usa uma sessão própria e somente leitura. O acesso pode ser acompanhado ou revogado a qualquer momento em Configurações → TV da Cozinha.' }),
+    slides: Object.freeze([
+      Object.freeze({
+        icon: 'kitchen',
+        title: 'Uma tela feita para a cozinha',
+        description: 'Acompanhe os pedidos em uma TV dedicada, com leitura à distância e atualização automática da operação.',
+        image: '/release/kitchen-tv-32.jpg',
+        imageAlt: 'Painel da TV da Cozinha com os pedidos organizados em cards',
+        imagePosition: 'center',
+      }),
+      Object.freeze({
+        icon: 'pairing',
+        title: 'Conecte a TV em poucos passos',
+        description: 'Abra a TV da Cozinha, veja o código de 6 dígitos e informe esse código em Configurações → TV da Cozinha.',
+        image: '/release/kitchen-tv-32.jpg',
+        imageAlt: 'TV da Cozinha pronta para ser conectada ao Gestão Delivery',
+        imagePosition: 'center top',
+      }),
+      Object.freeze({
+        icon: 'orders',
+        title: 'Pedidos legíveis à distância',
+        description: 'Cliente ou mesa, tempo de preparo, modalidade e situação operacional ficam em destaque para a equipe.',
+        image: '/release/kitchen-tv-32.jpg',
+        imageAlt: 'Cards grandes da cozinha com cliente, tempo, modalidade e status',
+        imagePosition: 'center',
+      }),
+      Object.freeze({
+        icon: 'notes',
+        title: 'Itens e observações sempre visíveis',
+        description: 'Nenhum item do pedido é escondido. As observações aparecem junto do produto correspondente para facilitar o preparo.',
+        image: '/release/kitchen-tv-32.jpg',
+        imageAlt: 'Pedidos da cozinha com produtos e observações de produção visíveis',
+        imagePosition: 'left center',
+      }),
+      Object.freeze({
+        icon: 'sound',
+        title: 'Alertas e acesso sob controle',
+        description: 'O painel avisa sobre novos pedidos e a conexão da TV pode ser acompanhada ou revogada em Configurações → TV da Cozinha.',
+        image: '/release/kitchen-tv-32.jpg',
+        imageAlt: 'Painel da cozinha conectado ao Gestão Delivery',
+        imagePosition: 'right center',
+      }),
     ]),
   }),
   Object.freeze({
@@ -33,6 +66,13 @@ export const CURRENT_RELEASE = SYSTEM_NOTIFICATIONS[0]
 
 const validText = (value) => typeof value === 'string' && Boolean(value.trim())
 const validItem = (item) => item && validText(item.icon) && validText(item.title) && validText(item.description)
+const validSlide = (slide) => slide
+  && validText(slide.icon)
+  && validText(slide.title)
+  && validText(slide.description)
+  && validText(slide.image)
+  && validText(slide.imageAlt)
+  && (slide.imagePosition === undefined || validText(slide.imagePosition))
 const validLegacySection = (section) => section && validText(section.title) && validText(section.body)
 
 const normalizeItems = (notification) => {
@@ -47,6 +87,14 @@ const normalizeItems = (notification) => {
   return []
 }
 
+const normalizeSlides = (notification) => {
+  if (notification.slides === undefined) return []
+  if (!Array.isArray(notification.slides) || notification.slides.length === 0 || !notification.slides.every(validSlide)) return null
+  return notification.slides.map(({ icon, title, description, image, imageAlt, imagePosition }) => ({
+    icon, title, description, image, imageAlt, imagePosition: imagePosition || 'center',
+  }))
+}
+
 export const normalizeNotificationCatalog = (items = []) => {
   const byId = new Map()
   for (const item of items) {
@@ -55,8 +103,9 @@ export const normalizeNotificationCatalog = (items = []) => {
       || !validText(item.summary)
       || typeof item.publishedAt !== 'string' || !Number.isFinite(Date.parse(item.publishedAt))) continue
     const normalizedItems = normalizeItems(item)
-    if (!normalizedItems) continue
-    if (!byId.has(item.id)) byId.set(item.id, { ...item, items: normalizedItems })
+    const normalizedSlides = normalizeSlides(item)
+    if (!normalizedItems || !normalizedSlides) continue
+    if (!byId.has(item.id)) byId.set(item.id, { ...item, items: normalizedItems, slides: normalizedSlides })
   }
   return [...byId.values()].sort((left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt) || left.id.localeCompare(right.id))
 }

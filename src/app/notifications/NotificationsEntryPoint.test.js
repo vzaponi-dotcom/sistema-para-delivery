@@ -159,3 +159,59 @@ test('automatic structured release shows its own release heading inside the gene
   assert.equal(icons[0].props['data-icon'], 'chef-hat')
   assert.equal(icons[1].props['data-icon'], 'volume-on')
 })
+
+
+test('release tour advances with buttons, dots and mobile swipe without changing legacy item releases', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const tourRelease = {
+    id: 'release-tour',
+    type: 'release',
+    publishedAt: '2026-09-22T22:55:00-03:00',
+    title: 'Nova TV da Cozinha',
+    summary: 'Resumo do tour.',
+    slides: [
+      { icon: 'kitchen', title: 'Primeiro slide', description: 'Primeira descrição.', image: '/release/tv.jpg', imageAlt: 'TV' },
+      { icon: 'pairing', title: 'Segundo slide', description: 'Segunda descrição.', image: '/release/tv.jpg', imageAlt: 'Conexão' },
+      { icon: 'sound', title: 'Terceiro slide', description: 'Terceira descrição.', image: '/release/tv.jpg', imageAlt: 'Som' },
+    ],
+  }
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: [tourRelease], storage: h.localStorage })
+
+  assert.match(nodeText(renderer.root), /Primeiro slide/)
+  assert.ok(buttonNamed(renderer.root, 'Próximo'))
+  assert.ok(buttonNamed(renderer.root, 'Pular'))
+
+  await act(async () => buttonNamed(renderer.root, 'Próximo').props.onClick())
+  assert.match(nodeText(renderer.root), /Segundo slide/)
+  assert.ok(buttonNamed(renderer.root, 'Anterior'))
+
+  const tour = renderer.root.findByProps({ className: 'release-tour' })
+  await act(async () => {
+    tour.props.onTouchStart({ touches: [{ clientX: 250 }] })
+    tour.props.onTouchEnd({ changedTouches: [{ clientX: 120 }] })
+  })
+  assert.match(nodeText(renderer.root), /Terceiro slide/)
+  assert.ok(buttonNamed(renderer.root, 'Entendi'))
+
+  await act(async () => buttonNamed(renderer.root, 'Ir para slide 1').props.onClick())
+  assert.match(nodeText(renderer.root), /Primeiro slide/)
+})
+
+test('tour skip marks the automatic release read instead of opening a queue of slides or releases', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const tourRelease = {
+    id: 'release-tour',
+    type: 'release',
+    publishedAt: '2026-09-22T22:55:00-03:00',
+    title: 'Nova TV da Cozinha',
+    summary: 'Resumo do tour.',
+    slides: [{ icon: 'kitchen', title: 'Tour', description: 'Descrição.', image: '/release/tv.jpg', imageAlt: 'TV' }],
+  }
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: [tourRelease], storage: h.localStorage })
+  assert.ok(buttonNamed(renderer.root, 'Pular'))
+  await act(async () => buttonNamed(renderer.root, 'Pular').props.onClick())
+  assert.equal(renderer.root.findAllByProps({ className: 'release-tour' }).length, 0)
+  assert.ok(buttonNamed(renderer.root, 'Notificações'))
+})
