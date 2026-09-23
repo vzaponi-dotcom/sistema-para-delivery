@@ -1,5 +1,21 @@
 export const SYSTEM_NOTIFICATIONS = Object.freeze([
   Object.freeze({
+    id: 'release-2026-09-kitchen-tv',
+    type: 'release',
+    publishedAt: '2026-09-22T22:55:00-03:00',
+    title: 'Nova TV da Cozinha',
+    summary: 'Uma tela dedicada para acompanhar a produção em tempo real, com pareamento simples, leitura à distância e alertas de novos pedidos.',
+    items: Object.freeze([
+      Object.freeze({ icon: 'kitchen', title: 'Uma tela feita para a cozinha', description: 'A TV mostra somente as informações importantes para o preparo, sem menus administrativos, valores, pagamentos ou dados desnecessários para a operação.' }),
+      Object.freeze({ icon: 'pairing', title: 'Conecte a TV em poucos passos', description: 'Abra a TV da Cozinha, veja o código de 6 dígitos e informe esse código em Configurações → TV da Cozinha. Depois do pareamento, a TV permanece vinculada ao negócio.' }),
+      Object.freeze({ icon: 'orders', title: 'Pedidos legíveis à distância', description: 'Cliente ou mesa, tempo de preparo, modalidade e situação operacional aparecem em cards grandes, com destaque para pedidos atrasados, próximos do limite e agendados.' }),
+      Object.freeze({ icon: 'notes', title: 'Todos os produtos e observações visíveis', description: 'Nenhum produto do pedido é escondido. Observações de produção aparecem diretamente abaixo do item correspondente para reduzir dúvidas e erros durante o preparo.' }),
+      Object.freeze({ icon: 'realtime', title: 'Fila atualizada automaticamente', description: 'Novos pedidos entram na tela em poucos segundos, pedidos finalizados ou cancelados saem da fila e os agendados acompanham a janela de preparo configurada no sistema.' }),
+      Object.freeze({ icon: 'sound', title: 'Alertas sonoros para novos pedidos', description: 'Ao iniciar o painel da cozinha, o navegador libera os alertas sonoros para avisar a equipe sempre que um novo pedido chega à operação.' }),
+      Object.freeze({ icon: 'security', title: 'Acesso controlado e revogável', description: 'A TV usa uma sessão própria e somente leitura. O acesso pode ser acompanhado ou revogado a qualquer momento em Configurações → TV da Cozinha.' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'release-2026-09-operation-shell',
     type: 'release',
     publishedAt: '2026-09-21T23:00:00-03:00',

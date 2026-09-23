@@ -55,26 +55,45 @@ test('invalid release sections are isolated from the renderable catalog', () => 
   assert.deepEqual(catalog.map((item) => item.id), ['good'])
 })
 
-test('current release exposes reusable icon title and description items', () => {
-  const [releaseItem] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+test('current release is the dedicated Kitchen TV release with informative reusable items', () => {
+  const [releaseItem, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
 
-  assert.deepEqual(releaseItem.items, [
-    {
-      icon: 'orders',
-      title: 'Pedidos e Comandas em andamento',
-      description: 'Os menus agora mostram quantos pedidos precisam de acompanhamento e quantas comandas estão abertas.',
-    },
-    {
-      icon: 'notifications',
-      title: 'Central de notificações',
-      description: 'O novo sino reúne novidades do sistema e mantém o histórico disponível neste dispositivo.',
-    },
-    {
-      icon: 'layout',
-      title: 'Nova barra superior',
-      description: 'A barra superior reúne notificações e atalhos da operação sem ocupar a área principal de trabalho.',
-    },
+  assert.equal(releaseItem.id, 'release-2026-09-kitchen-tv')
+  assert.equal(releaseItem.title, 'Nova TV da Cozinha')
+  assert.equal(releaseItem.items.length, 7)
+  assert.deepEqual(releaseItem.items.map((item) => item.title), [
+    'Uma tela feita para a cozinha',
+    'Conecte a TV em poucos passos',
+    'Pedidos legíveis à distância',
+    'Todos os produtos e observações visíveis',
+    'Fila atualizada automaticamente',
+    'Alertas sonoros para novos pedidos',
+    'Acesso controlado e revogável',
   ])
+  assert.equal(previousRelease.id, 'release-2026-09-operation-shell')
+  assert.equal(CURRENT_RELEASE, SYSTEM_NOTIFICATIONS[0])
+})
+
+test('only the newest unpresented release opens automatically even when an older release remains unread', () => {
+  const catalog = normalizeNotificationCatalog([
+    release('kitchen-tv', '2026-09-22T22:55:00-03:00'),
+    release('operation-shell', '2026-09-21T23:00:00-03:00'),
+  ])
+  const storage = memoryStorage({
+    'delivery-notifications:v1:a': JSON.stringify({
+      version: 1,
+      knownIds: ['operation-shell'],
+      presentedIds: ['operation-shell'],
+      readIds: [],
+    }),
+  })
+  const state = loadNotificationState({ storage, businessId: 'a', catalog })
+
+  assert.equal(getAutomaticNotification(catalog, state).id, 'kitchen-tv')
+  assert.equal(getUnreadCount(catalog, state), 2)
+  const afterKitchenPresented = markPresented(state, 'kitchen-tv')
+  assert.equal(getAutomaticNotification(catalog, afterKitchenPresented), null)
+  assert.equal(getUnreadCount(catalog, afterKitchenPresented), 2)
 })
 
 test('legacy sections normalize into renderable items without weakening new item validation', () => {

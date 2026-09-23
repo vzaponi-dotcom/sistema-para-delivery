@@ -11,6 +11,12 @@ const releaseIcons = Object.freeze({
   layout: 'system',
   window: 'system',
   navigation: 'menu',
+  kitchen: 'chef-hat',
+  pairing: 'shield',
+  notes: 'note',
+  realtime: 'clock',
+  sound: 'volume-on',
+  security: 'shield',
 })
 
 const resolveReleaseIcon = (key) => releaseIcons[key] ?? 'details'
@@ -54,6 +60,6 @@ export default function ReleaseNotesModal({ notification, mode, onClose, onAckno
       <Button type="button" variant="secondary" onClick={onOpenHistory}>Ver histórico</Button>
     </div> : undefined}
   >
-    <ReleaseNotesContent notification={notification} showTitle={false} />
+    <ReleaseNotesContent notification={notification} showTitle={automatic} />
   </Modal>
 }

@@ -137,3 +137,24 @@ test('automatic release notice omits the redundant one-time device message', asy
   assert.ok(buttonNamed(renderer.root, 'Ver histórico'))
   assert.doesNotMatch(nodeText(renderer.root), /Este aviso será exibido apenas uma vez neste dispositivo\./)
 })
+
+
+test('automatic structured release shows its own release heading inside the generic Novidades modal', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Entry } = await h.load('/src/app/notifications/NotificationsEntryPoint.jsx')
+  const release = {
+    ...structuredRelease,
+    title: 'Nova TV da Cozinha',
+    items: [
+      { icon: 'kitchen', title: 'Uma tela feita para a cozinha', description: 'Informações operacionais em uma tela dedicada.' },
+      { icon: 'sound', title: 'Alertas sonoros para novos pedidos', description: 'O clique inicial libera o áudio do navegador da TV.' },
+    ],
+  }
+  const renderer = await h.render(Entry, { businessId: 'a', catalog: [release], storage: h.localStorage })
+
+  const dialog = renderer.root.findByProps({ role: 'dialog' })
+  assert.match(nodeText(dialog), /Novidades do Gestão Delivery/)
+  assert.match(nodeText(dialog), /Nova TV da Cozinha/)
+  assert.equal(dialog.findByProps({ className: 'release-notes-item-icon' }).props['data-icon'], 'chef-hat')
+  assert.equal(dialog.findAllByProps({ className: 'release-notes-item-icon' })[1].props['data-icon'], 'volume-on')
+})
