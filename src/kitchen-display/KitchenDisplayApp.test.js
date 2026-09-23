@@ -68,7 +68,6 @@ test('new arrivals alert once and highlight for exactly 2600ms; initial orders s
     cancelSchedule: () => {},
   })
   await flushEffects()
-  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.equal(plays, 0)
   await act(async () => h.fireInterval(2000))
   assert.equal(plays, 1)
@@ -90,7 +89,6 @@ test('transient failures preserve stale snapshot; 401 clears it and audio fallba
     requestFullscreen: async () => {},
   })
   await flushEffects()
-  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Ativar alertas sonoros'))
   await act(async () => h.fireInterval(2000))
   assert.match(nodeText(renderer.root), /Dados temporariamente desatualizados/)
