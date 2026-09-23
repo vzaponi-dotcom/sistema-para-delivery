@@ -26,10 +26,15 @@ const itemQuantity = (item) => Math.max(1, Math.trunc(Number(item?.quantity) || 
 const normalizedNote = (item) => String(item?.note || '').trim().replace(/\s+/g, ' ')
 
 const contentDensity = (items) => {
-  const notes = items.filter((item) => normalizedNote(item)).length
-  const weight = items.length + notes * .75
-  if (weight > 11 || items.length > 9) return 'dense'
-  if (weight > 6 || items.length > 4) return 'compact'
+  const visualLines = items.reduce((total, item) => {
+    const nameLines = Math.max(1, Math.ceil(itemName(item).length / 22))
+    const note = normalizedNote(item)
+    const noteLines = note ? Math.max(1, Math.ceil(note.length / 28)) : 0
+    return total + nameLines + noteLines * .75
+  }, 0)
+
+  if (visualLines >= 10 || items.length >= 8) return 'dense'
+  if (visualLines >= 5 || items.length >= 5) return 'compact'
   return 'comfortable'
 }
 
