@@ -29,7 +29,7 @@ test('card shows every item and keeps each production note attached to its own p
   const text = nodeText(renderer.root)
   assert.ok(text.indexOf('Ana Souza') < text.indexOf('#1042'))
   assert.match(text, /NOVO PEDIDO/)
-  assert.match(text, /00:32/)
+  assert.match(text, /0min/)
   for (const expected of ['Burger Clássico', 'Batata Rústica', 'Suco Natural', 'Pudim', 'Café']) assert.match(text, new RegExp(expected))
   for (const expected of ['Sem cebola', 'Bem crocante', 'Pouco gelo']) assert.match(text, new RegExp(expected))
   assert.doesNotMatch(text, /\+ \d+ itens|\+ \d+ observa/)
@@ -81,12 +81,12 @@ test('card preserves product variation without duplicating an existing suffix', 
   assert.doesNotMatch(text, /Pizza Grande Grande/)
 })
 
-test('timer switches to H:MM:SS and scheduled cards show desired HH:mm with clock', async (t) => {
+test('elapsed time uses minutes then hours while scheduled cards keep desired HH:mm with clock', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayCard } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
   const longEntry = { ...entry('preparing', { createdAt: '2026-09-22T17:00:00.000Z' }), operationalStartAt: new Date('2026-09-22T17:00:00.000Z') }
   const long = await h.render(KitchenDisplayCard, { entry: longEntry, now: new Date('2026-09-22T19:01:02.000Z') })
-  assert.match(nodeText(long.root), /2:01:02/)
+  assert.match(nodeText(long.root), /2h 1min/)
   const scheduled = await h.render(KitchenDisplayCard, { entry: entry('scheduled', { scheduledFor: '2026-09-22T22:00:00.000Z' }), now: new Date('2026-09-22T19:00:00.000Z') })
   assert.match(nodeText(scheduled.root), /19:00/)
   assert.ok(scheduled.root.findByProps({ 'data-icon': 'clock' }))
