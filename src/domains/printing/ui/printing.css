@@ -193,6 +193,7 @@
 }
 
 .printing-switch-row input:checked::after {
+  background: var(--primary-contrast);
   transform: translateX(18px);
 }
 
