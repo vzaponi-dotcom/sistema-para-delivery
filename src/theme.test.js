@@ -239,7 +239,9 @@ test('Mesiva palette follows the official v1.0 brand colors and keeps semantic s
 
   const light = lightMatch[1]
   const dark = darkMatch[1]
-  assert.match(light, /--primary:\s*#14b8a6;/i)
+  assert.match(light, /--brand:\s*#14b8a6;/i)
+  assert.match(light, /--primary:\s*#0f2747;/i)
+  assert.match(light, /--primary-fill:\s*#14b8a6;/i)
   assert.match(light, /--text:\s*#0f2747;/i)
   assert.match(light, /--primary-soft:\s*#dff7f1;/i)
   assert.match(light, /--accent:\s*#fbbf24;/i)
@@ -248,5 +250,9 @@ test('Mesiva palette follows the official v1.0 brand colors and keeps semantic s
   assert.match(light, /--primary-contrast:\s*#0f2747;/i)
   assert.doesNotMatch(light, /--success:\s*#14b8a6;/i)
   assert.doesNotMatch(light, /--warning:\s*#fbbf24;/i)
+  assert.match(dark, /--primary:\s*#2dd4bf;/i)
+  assert.match(dark, /--primary-fill:\s*#2dd4bf;/i)
   assert.match(dark, /--primary-contrast:\s*#0f2747;/i)
+  assert.match(dark, /--kitchen-bg:\s*var\(--bg\);/i)
+  assert.match(dark, /--kitchen-ticket:\s*#f8fafc;/i)
 })
