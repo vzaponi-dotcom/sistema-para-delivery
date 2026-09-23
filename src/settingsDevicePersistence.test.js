@@ -11,7 +11,7 @@ test('theme persistence reports a storage failure instead of returning a success
   assert.throws(() => saveThemePreference('dark', storage), /blocked/)
 })
 
-test('device page offers only light dark automatic and sound without any settings API write', async (t) => {
+test('device page keeps visual theme appearance and sound local without any settings API write', async (t) => {
   const h = await workspaceHarness(t)
   h.document.documentElement.dataset = {}
   const [{ default: DevicePreferences }, { ThemeProvider }] = await Promise.all([
@@ -27,6 +27,11 @@ test('device page offers only light dark automatic and sound without any setting
       onSoundEnabledChange(value) { sound = value; h.localStorage.setItem('kitchen-sound-enabled', String(value)); return true },
     }))
   const screen = await h.render(DevicePage)
+  const visualGroup = screen.root.findByProps({ 'aria-label': 'Estilo visual' })
+  assert.deepEqual(visualGroup.findAllByType('button').map((button) => nodeText(button)), ['Clássico', 'Mesiva'])
+  await act(async () => buttonNamed(visualGroup, 'Mesiva').props.onClick())
+  assert.equal(h.localStorage.getItem('delivery-visual-theme'), 'mesiva')
+
   const group = screen.root.findByProps({ 'aria-label': 'Tema do sistema' })
   const themeButtons = group.findAllByType('button')
   assert.deepEqual(themeButtons.map((button) => nodeText(button)), ['Claro', 'Escuro', 'Automático'])
