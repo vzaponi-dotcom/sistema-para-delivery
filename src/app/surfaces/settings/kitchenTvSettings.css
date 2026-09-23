@@ -95,14 +95,16 @@
   min-width: 0;
   max-width: 100%;
   padding: 13px 14px;
-  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-soft);
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  user-select: all;
 }
 
 .kitchen-tv-code-form {
