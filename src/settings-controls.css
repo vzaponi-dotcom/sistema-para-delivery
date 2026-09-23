@@ -89,6 +89,7 @@
 }
 
 .settings-switch[aria-checked='true'] > span {
+  background: var(--primary-contrast);
   transform: translateX(18px);
 }
 
