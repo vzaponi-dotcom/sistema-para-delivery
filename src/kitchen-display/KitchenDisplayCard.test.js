@@ -91,3 +91,25 @@ test('timer switches to H:MM:SS and scheduled cards show desired HH:mm with cloc
   assert.match(nodeText(scheduled.root), /19:00/)
   assert.ok(scheduled.root.findByProps({ 'data-icon': 'clock' }))
 })
+
+
+test('long product names trigger compact density before vertical clipping', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayCard } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
+  const renderer = await h.render(KitchenDisplayCard, {
+    entry: entry('preparing', {
+      items: [
+        { quantity: 1, name: 'Prato feito comercial Família', note: '' },
+        { quantity: 1, name: '[TESTE] Marmita Frango P', note: '' },
+        { quantity: 1, name: '[TESTE] Sanduíche de Frango Un', note: '' },
+        { quantity: 1, name: '[TESTE] Prato Executivo Un', note: '' },
+        { quantity: 1, name: '[TESTE] X-Bacon Un', note: '' },
+        { quantity: 1, name: 'Marmita Churrasco M', note: '' },
+      ],
+    }),
+    now: new Date('2026-09-22T19:00:02.000Z'),
+  })
+  assert.match(renderer.root.findByType('article').props.className, /kds-card--content-compact/)
+  assert.equal(renderer.root.findByType('article').props['data-item-count'], 6)
+  assert.equal(renderer.root.findAllByType('li').length, 6)
+})
