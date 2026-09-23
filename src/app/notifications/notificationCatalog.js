@@ -89,7 +89,9 @@ const normalizeItems = (notification) => {
 
 const normalizeSlides = (notification) => {
   if (notification.slides === undefined) return []
-  if (!Array.isArray(notification.slides) || notification.slides.length === 0 || !notification.slides.every(validSlide)) return null
+  if (!Array.isArray(notification.slides)) return null
+  if (notification.slides.length === 0) return []
+  if (!notification.slides.every(validSlide)) return null
   return notification.slides.map(({ icon, title, description, image, imageAlt, imagePosition }) => ({
     icon, title, description, image, imageAlt, imagePosition: imagePosition || 'center',
   }))
@@ -105,7 +107,12 @@ export const normalizeNotificationCatalog = (items = []) => {
     const hasSlides = Array.isArray(item.slides) && item.slides.length > 0
     const hasItems = Array.isArray(item.items) && item.items.length > 0
     const hasSections = Array.isArray(item.sections) && item.sections.length > 0
-    if (hasSlides && (hasItems || hasSections)) continue
+    const declaredEmptySlidesOnly = item.slides !== undefined
+      && Array.isArray(item.slides)
+      && item.slides.length === 0
+      && item.items === undefined
+      && item.sections === undefined
+    if (declaredEmptySlidesOnly || (hasSlides && (hasItems || hasSections))) continue
     const normalizedItems = normalizeItems(item)
     const normalizedSlides = normalizeSlides(item)
     if (!normalizedItems || !normalizedSlides) continue
