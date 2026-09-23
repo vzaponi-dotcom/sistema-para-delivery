@@ -495,9 +495,9 @@
 }
 
 .search-control:focus-within {
-  border-color: color-mix(in srgb, var(--primary) 48%, var(--border));
+  border-color: var(--primary-control-border);
   background: #fff;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+  box-shadow: 0 0 0 3px var(--primary-control-ring);
 }
 
 .search-control input {
@@ -948,10 +948,10 @@
 
 .form-field input:focus,
 .form-field select:focus {
-  border-color: color-mix(in srgb, var(--primary) 52%, var(--border));
+  border-color: var(--primary-field-border);
   background: #fff;
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+  box-shadow: 0 0 0 3px var(--primary-control-ring);
 }
 
 .order-total-panel {
