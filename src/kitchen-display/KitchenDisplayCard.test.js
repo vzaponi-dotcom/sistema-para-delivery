@@ -109,7 +109,7 @@ test('long product names trigger compact density before vertical clipping', asyn
     }),
     now: new Date('2026-09-22T19:00:02.000Z'),
   })
-  assert.match(renderer.root.findByType('article').props.className, /kds-card--content-compact/)
+  assert.match(renderer.root.findByType('article').props.className, /kds-card--content-dense/)
   assert.equal(renderer.root.findByType('article').props['data-item-count'], 6)
   assert.equal(renderer.root.findAllByType('li').length, 6)
 })
