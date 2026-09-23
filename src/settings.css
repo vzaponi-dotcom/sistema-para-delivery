@@ -130,6 +130,15 @@
 .device-theme-options button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 11px; background: transparent; color: var(--text-soft); font-weight: 700; cursor: pointer; }
 .device-theme-options button:hover { color: var(--text); }
 .device-theme-options button.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+.device-visual-theme-options button { display: inline-flex; align-items: center; gap: 8px; }
+.device-visual-theme-preview { display: inline-flex; width: 30px; height: 18px; overflow: hidden; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+.device-visual-theme-preview i { display: block; flex: 1 1 0; height: 100%; }
+.device-visual-theme-preview.classic i:nth-child(1) { background: #b7192b; }
+.device-visual-theme-preview.classic i:nth-child(2) { background: #f6f3f1; }
+.device-visual-theme-preview.classic i:nth-child(3) { background: #25211f; }
+.device-visual-theme-preview.mesiva i:nth-child(1) { background: #14b8a6; }
+.device-visual-theme-preview.mesiva i:nth-child(2) { background: #0f2747; }
+.device-visual-theme-preview.mesiva i:nth-child(3) { background: #fbbf24; }
 .device-sound-row .settings-switch { flex: 0 0 auto; }
 .device-local-info { margin: 0; }
 .device-local-info > div { display: grid; min-height: 58px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 0 22px; border-bottom: 1px solid var(--border); }
