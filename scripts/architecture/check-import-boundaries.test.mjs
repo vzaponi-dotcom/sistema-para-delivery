@@ -725,3 +725,15 @@ test('Kitchen TV guards allow local modules, React, shared Icon and the Orders p
   const violations = await findArchitectureViolations({ rootDir })
   assert.equal(violations.some((value) => value.startsWith('kitchen-tv-')), false)
 })
+
+
+test('React Router admin ownership cannot import the Kitchen TV entry', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/navigation/adminRouter.jsx', "import { KitchenDisplayRoot } from '../../kitchen-display/KitchenDisplayRoot.jsx'\nexport const router = KitchenDisplayRoot\n")
+  await write('src/kitchen-display/KitchenDisplayRoot.jsx', 'export const KitchenDisplayRoot = () => null\n')
+
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.ok(
+    violations.includes('admin-router-kitchen-import: src/app/navigation/adminRouter.jsx -> src/kitchen-display/KitchenDisplayRoot.jsx'),
+  )
+})
