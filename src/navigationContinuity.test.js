@@ -47,7 +47,7 @@ test('A9 keeps navigation continuity across repeated page cycles', async (t) => 
   globalThis.fetch = appApi(state)
   h.localStorage.setItem('delivery-notifications:v1:amor-e-sabor', JSON.stringify({ version: 1, knownIds: ['release-2026-09-operation-shell'], presentedIds: ['release-2026-09-operation-shell'], readIds: ['release-2026-09-operation-shell'] }))
   const { default: App } = await h.load('/src/App.jsx')
-  const renderer = await h.render(App, {}, {
+  const { renderer } = await h.renderAdminApp(App, {}, {
     createNodeMock: (element) => element.props.role === 'combobox'
       ? { focus() {} }
       : element.props.className?.includes('app-content') ? { focus: () => h.recordFocus() } : {},

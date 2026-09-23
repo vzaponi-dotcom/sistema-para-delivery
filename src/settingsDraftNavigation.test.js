@@ -30,8 +30,8 @@ async function mountNavigation(t, initial = {}) {
     React.useImperativeHandle(ref, () => navigation, [navigation])
     return React.createElement('output', null, `${navigation.activeTab}:${navigation.pendingDestination || ''}:${navigation.moreOpen}`)
   })
-  const renderer = await h.render(Probe, { ref: api, ...initial })
-  return { h, api, renderer, Probe, discarded, feedback }
+  const { renderer, updateApp } = await h.renderAdminApp(Probe, { ref: api, ...initial })
+  return { h, api, renderer, updateApp, Probe, discarded, feedback }
 }
 
 test('leaving a dirty policy editor waits for discard while cancel preserves the exact draft', async (t) => {
@@ -52,11 +52,11 @@ test('discard revalidates capability and never executes a destination revoked wh
   const fixture = await mountNavigation(t)
   await act(async () => fixture.api.current.requestNavigation('settings-printing'))
   await act(async () => fixture.api.current.requestNavigation('clients'))
-  await act(async () => fixture.renderer.update(React.createElement(fixture.Probe, {
+  await fixture.updateApp({
     ref: fixture.api,
     granted: new Set(['orders.view', 'printing.settings', 'preferences.local']),
     draft: dirtyDraft,
-  })))
+  })
 
   let confirmed
   await act(async () => { confirmed = await fixture.api.current.confirmDiscard() })

@@ -101,7 +101,7 @@ test('the App fails closed for a new sale when effective operation settings are 
   t.after(() => { globalThis.fetch = originalFetch })
 
   const { default: App } = await harness.load('/src/App.jsx')
-  const screen = await harness.render(App)
+  const { renderer: screen } = await harness.renderAdminApp(App)
   await act(flushMicrotasks)
   await act(async () => buttonNamed(screen.root, 'Novo pedido').props.onClick())
 
@@ -139,7 +139,7 @@ test('repeated App navigation through every settings page does not accumulate ti
     throw new Error(`Unexpected request: ${url}`)
   }
   const { default: App } = await harness.load('/src/App.jsx')
-  await harness.render(App)
+  await harness.renderAdminApp(App)
   await act(flushMicrotasks)
   const baseline = harness.activitySnapshot({ ignoreFocus: true })
   const destinations = [

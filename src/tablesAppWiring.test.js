@@ -24,7 +24,7 @@ async function tablesWorkspace(t) {
     return { ok: true, json: async () => structuredClone(responses[path]) }
   }
   const { default: App } = await h.load('/src/App.jsx')
-  const r = await h.render(App)
+  const { renderer: r } = await h.renderAdminApp(App)
   const navigate = async () => act(async () => buttonNamed(r.root.findByProps({ 'aria-label': 'Menu principal' }), 'Mesas').props.onClick())
   await navigate()
   return { h, r, state, navigate }

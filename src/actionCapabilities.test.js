@@ -88,7 +88,7 @@ async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData 
   const Root = withTheme
     ? () => React.createElement(themeModule.ThemeProvider, null, React.createElement(App, { capabilities }))
     : App
-  const renderer = await h.render(Root, withTheme ? {} : { capabilities })
+  const { renderer } = await h.renderAdminApp(Root, withTheme ? {} : { capabilities })
   return { h, renderer, requests }
 }
 
@@ -513,7 +513,7 @@ test('21. printing.execute protege a entrada manual global de segunda via na UI 
   })
   t.after(() => vite.close())
   const { default: App } = await vite.ssrLoadModule('/src/App.jsx')
-  const renderer = await h.render(App, { capabilities: new Set(['orders.history']) })
+  const { renderer, updateApp } = await h.renderAdminApp(App, { capabilities: new Set(['orders.history']) }, { initialEntries: ['/pedidos/historico'] })
   await act(async () => { await flush(); await flush(); await flush() })
 
   let action = buttonNamed(renderer.root, 'Imprimir 2ª via')
@@ -522,7 +522,7 @@ test('21. printing.execute protege a entrada manual global de segunda via na UI 
   assert.equal(calls.secondCopy, 0)
   assert.equal(action.props.disabled, true)
 
-  await act(async () => renderer.update(React.createElement(App, { capabilities: new Set(['orders.history', 'printing.execute']) })))
+  await updateApp({ capabilities: new Set(['orders.history', 'printing.execute']) })
   action = buttonNamed(renderer.root, 'Imprimir 2ª via')
   assert.equal(action.props.disabled, false)
   await act(async () => action.props.onClick())

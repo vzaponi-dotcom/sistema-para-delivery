@@ -30,7 +30,7 @@ test('query hook preserva filtros ao navegar e reset de sessão invalida callbac
     return React.createElement('output', null, current.query.orders.search)
   })
 
-  const renderer = await h.render(Probe, { ref: api })
+  const { renderer } = await h.renderAdminApp(Probe, { ref: api })
   const stalePatch = api.current.patchQuery
   await act(async () => api.current.patchQuery('orders', { search: 'maria' }))
   assert.equal(renderer.root.findByType('output').children.join(''), 'maria')
@@ -60,7 +60,7 @@ test('controlador usa A1 para negar destino explícito desconhecido ou sem capac
     return React.createElement('output', null, current.activeTab)
   })
 
-  const renderer = await h.render(Probe, { ref: api })
+  const { renderer } = await h.renderAdminApp(Probe, { ref: api })
   assert.equal(renderer.root.findByType('output').children.join(''), 'orders')
   await act(async () => api.current.requestNavigation('dashboard'))
   await act(async () => api.current.requestNavigation('future-page'))
@@ -88,11 +88,11 @@ test('checkout bloqueia e pedido sujo exige confirmação antes de navegar', asy
     return React.createElement('output', null, `${current.activeTab}:${current.pendingDestination || ''}`)
   })
 
-  const renderer = await h.render(Probe, { ref: api, checkoutPending: true, dirtyOrder: true })
+  const { renderer, updateApp } = await h.renderAdminApp(Probe, { ref: api, checkoutPending: true, dirtyOrder: true })
   await act(async () => api.current.requestNavigation('clients'))
   assert.equal(renderer.root.findByType('output').children.join(''), 'orders:')
 
-  await act(async () => renderer.update(React.createElement(Probe, { ref: api, checkoutPending: false, dirtyOrder: true })))
+  await updateApp({ ref: api, checkoutPending: false, dirtyOrder: true })
   await act(async () => api.current.requestNavigation('new-order'))
   await act(async () => api.current.requestNavigation('clients'))
   assert.equal(renderer.root.findByType('output').children.join(''), 'new-order:clients')
@@ -122,7 +122,7 @@ test('completeNavigation valida destino e não descarta pedido já salvo', async
     return React.createElement('output', null, current.activeTab)
   })
 
-  const renderer = await h.render(Probe, { ref: api })
+  const { renderer } = await h.renderAdminApp(Probe, { ref: api })
   await act(async () => api.current.requestNavigation('new-order'))
   await act(async () => api.current.completeNavigation('orders'))
 
@@ -155,7 +155,7 @@ test('controller consumes a resolved policy draft while navigating', async (t) =
     return React.createElement('output', null, `${current.activeTab}:${current.pendingDestination || ''}`)
   })
 
-  const renderer = await h.render(Probe, { ref: api })
+  const { renderer } = await h.renderAdminApp(Probe, { ref: api })
   await act(async () => api.current.requestNavigation('settings-operations'))
   await act(async () => api.current.requestNavigation('settings-modalities'))
   assert.equal(renderer.root.findByType('output').children.join(''), 'settings-modalities:')
@@ -188,7 +188,7 @@ test('App preserva consulta ao navegar e nova sessão rejeita callback da sessã
   }
 
   const { default: App } = await h.load('/src/App.jsx')
-  const renderer = await h.render(App)
+  const { renderer } = await h.renderAdminApp(App)
   const navigation = () => renderer.root.findByProps({ 'aria-label': 'Menu principal' })
   const kitchenSearch = () => renderer.root.findByProps({ placeholder: 'Buscar cliente, pedido, produto ou tipo' })
 

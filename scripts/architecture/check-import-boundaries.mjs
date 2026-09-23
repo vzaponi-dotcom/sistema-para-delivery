@@ -533,6 +533,12 @@ export const findArchitectureViolations = async ({ rootDir }) => {
     const fromDomain = domainOf(edge.from)
     const targetDomain = domainOf(edge.resolvedPath)
 
+    const adminRoutingProduction = !isTestFile(edge.from)
+      && (edge.from.startsWith('src/app/navigation/') || edge.from.startsWith('src/admin/'))
+    if (adminRoutingProduction && edge.resolvedPath?.startsWith('src/kitchen-display/')) {
+      violations.push(`admin-router-kitchen-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
     const kitchenTvProduction = !isTestFile(edge.from) && edge.from.startsWith('src/kitchen-display/')
     if (kitchenTvProduction) {
       if (edge.resolvedPath === 'src/App.jsx'

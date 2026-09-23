@@ -51,6 +51,8 @@ import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
 import { useNavigationController } from './app/navigation/useNavigationController.js'
+import { useRouteGate } from './app/navigation/useRouteGate.js'
+import { useNewOrderUnloadGuard } from './app/navigation/useNewOrderUnloadGuard.js'
 import { useQueryContext } from './app/navigation/useQueryContext.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
 import { createPolicyNavigationBridge } from './app/policy-editing/policyNavigationBridge.js'
@@ -169,6 +171,11 @@ function App({ capabilities } = {}) {
     discardNavigationDraft: policyNavigationBridge.discardNavigationDraft,
     onFeedback: setToastMessage,
   })
+  useNewOrderUnloadGuard({
+    active: activeTab === 'new-order',
+    dirty: newOrderDraft.dirty,
+    checkoutPending: newOrderDraft.checkoutPending,
+  })
   const handleOperationalUnauthorized = useCallback((error) => operationalRuntimeTargetsRef.current.onUnauthorized?.(error), [])
   const getEffectiveConfigVersion = useCallback(() => effectiveConfigVersionRef.current, [])
   const {
@@ -194,6 +201,12 @@ function App({ capabilities } = {}) {
     globalSyncEnabled: isOnline && authState === 'authenticated',
     ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated',
     effectiveConfigVersion: getEffectiveConfigVersion,
+  })
+  useRouteGate({
+    ready: authState === 'authenticated' && bootstrapState === 'ready',
+    granted,
+    implemented: IMPLEMENTED_DESTINATIONS,
+    onFeedback: setToastMessage,
   })
   const {
     selection: selectedComanda,
@@ -440,7 +453,9 @@ function App({ capabilities } = {}) {
         return
       }
       currentTableId = identity.tableId
-      selectComanda(identity, currentTables)
+      const alreadySelected = selectionOwner?.tableId === identity.tableId
+        && selectionOwner?.tableTabId === identity.tableTabId
+      if (!alreadySelected) selectComanda(identity, currentTables)
     }
     newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
     return completeNavigation('new-order')

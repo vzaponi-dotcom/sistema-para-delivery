@@ -52,7 +52,7 @@ async function appWorkspace(h, App, { capabilities, tables = [sourceWithA(), des
     }
     throw new Error(`Unexpected request: ${path}`)
   }
-  const renderer = await h.render(App, capabilities === undefined ? {} : { capabilities })
+  const { renderer } = await h.renderAdminApp(App, capabilities === undefined ? {} : { capabilities })
   const navigate = async (name) => act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Menu principal' }), name).props.onClick())
   const selectA = async () => act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button').find((button) => nodeText(button).includes('Comanda 41')).props.onClick())
   const dispose = async () => act(async () => renderer.unmount())

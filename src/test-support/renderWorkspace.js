@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
+import { RouterProvider } from 'react-router'
 import { createServer } from 'vite'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -139,6 +140,37 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
       }
     }
   })
+  const render = async (Component, props = {}, options = {}) => {
+    let renderer
+    await act(async () => { renderer = create(React.createElement(Component, props), options) })
+    renderers.push(renderer)
+    return renderer
+  }
+
+  const renderAdminApp = async (App, props = {}, {
+    initialEntries = ['/pedidos'],
+    initialIndex,
+    ...renderOptions
+  } = {}) => {
+    const { createAdminMemoryRouter } = await vite.ssrLoadModule('/src/app/navigation/adminRouter.jsx')
+    let setAppProps
+    function AppHost() {
+      const [currentProps, setCurrentProps] = React.useState(props)
+      setAppProps = setCurrentProps
+      return React.createElement(App, currentProps)
+    }
+    const router = createAdminMemoryRouter({
+      rootElement: React.createElement(AppHost),
+      initialEntries,
+      initialIndex,
+    })
+    const renderer = await render(RouterProvider, { router }, renderOptions)
+    const updateApp = async (nextProps) => {
+      await act(async () => setAppProps(nextProps))
+    }
+    return { renderer, router, updateApp }
+  }
+
   return {
     cacheDir: vite.config.cacheDir,
     watchedPaths: () => Object.keys(vite.watcher.getWatched()),
@@ -157,12 +189,8 @@ export async function workspaceHarness(t, { mobile = false, userAgent = 'test' }
       media.matches = matches
       media.dispatchEvent(Object.assign(new Event('change'), { matches, media: '(max-width: 820px)' }))
     },
-    async render(Component, props = {}, options = {}) {
-      let renderer
-      await act(async () => { renderer = create(React.createElement(Component, props), options) })
-      renderers.push(renderer)
-      return renderer
-    },
+    render,
+    renderAdminApp,
   }
 }
 

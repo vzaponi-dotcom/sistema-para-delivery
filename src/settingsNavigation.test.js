@@ -83,7 +83,7 @@ test('physical test or pending job does not block navigation', async (t) => {
     React.useImperativeHandle(ref, () => navigation, [navigation])
     return React.createElement('output', null, `${navigation.activeTab}:job-pending`)
   })
-  const renderer = await h.render(Probe, { ref: api })
+  const { renderer } = await h.renderAdminApp(Probe, { ref: api })
   await act(async () => api.current.requestNavigation('clients'))
   assert.equal(nodeText(renderer.root.findByType('output')), 'clients:job-pending')
 })
@@ -103,7 +103,7 @@ test('theme and sound stay local and synchronized with their existing applicatio
     throw new Error(`Unexpected request: ${url}`)
   }
   const Root = () => React.createElement(ThemeProvider, null, React.createElement(App))
-  const renderer = await h.render(Root)
+  const { renderer } = await h.renderAdminApp(Root)
   await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'settings-device' })))
   await act(async () => buttonNamed(renderer.root, 'Escuro').props.onClick())
   assert.equal(h.window.localStorage.getItem('delivery-theme'), 'dark')
