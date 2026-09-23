@@ -48,14 +48,14 @@ async function loadSettingsState(db, businessId, now) {
 
 async function pairingRequestToken(request) {
   const cookieToken = readKitchenTvPairingRequestToken(request)
-  if (cookieToken) return cookieToken
-  if (request.method !== 'POST') return null
+  if (request.method !== 'POST') return cookieToken
   assertSameOriginMutation(request)
   try {
     const body = await readJson(request)
-    return typeof body.requestToken === 'string' ? body.requestToken.trim() : null
+    const storedToken = typeof body.requestToken === 'string' ? body.requestToken.trim() : ''
+    return storedToken || cookieToken
   } catch {
-    return null
+    return cookieToken
   }
 }
 
