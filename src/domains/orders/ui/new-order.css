@@ -226,12 +226,12 @@
 }
 
 .new-order-add-button span {
-  color: #fff !important;
+  color: var(--primary-contrast, #fff) !important;
 }
 
 .new-order-add-button:hover {
   background: var(--primary-fill-hover, #991522);
-  color: #fff;
+  color: var(--primary-contrast, #fff);
 }
 
 .new-order-product.recently-added .new-order-add-button {
