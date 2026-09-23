@@ -22,7 +22,7 @@ const hashes = {
   'client-duplicate.css': '28fca2cef6d7d3efd625ac1ee714fe9d15b2334a4e0a6cbde8b7cd71cc9a7985',
   'product-form.css': 'b3864196ccdc1a074689a729ea75e34c601eb874e663cf0b2153b4fbc3dd86a1',
   'finance-mobile.css': '9b257fbd7c4fe7917db9e53cd7c249058cd2d8320d6d99252079481b8227dbdf',
-  'print-queue.css': '597d9adaf73e30930ea46140a2704c96601e396bbe5a37302928986a21a1cad0',
+  'print-queue.css': 'd1d27795db0021f456d93e8ec8777cf9489e3a3f6e7a9626450d3dbb965f53fd',
 }
 
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8')
