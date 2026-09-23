@@ -70,7 +70,7 @@
 
 .comanda-detail-actions { display: grid; gap: 10px; min-width: 0; }
 .comanda-detail-actions .button { min-height: 50px; border-radius: var(--radius-md); font-weight: 800; }
-.comanda-action-primary { width: 100%; background: var(--primary); border-color: var(--primary); color: #fff; }
+.comanda-action-primary { width: 100%; background: var(--primary); border-color: var(--primary); color: var(--primary-contrast); }
 .comanda-action-primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
 .comanda-action-payment { width: 100%; background: transparent; border: 2px solid var(--primary); color: var(--text); }
 .comanda-action-payment svg { color: var(--text); }
