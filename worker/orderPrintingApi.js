@@ -24,6 +24,7 @@ import {
   skipSecondCopy,
   claimNextRecoveryPrintJob,
   discardPendingPrintJobs,
+  discardOperationalPrintJobs,
 } from './orderPrintingRepository.js'
 import {
   createPrintJobAttempt,
@@ -253,6 +254,13 @@ export const handlePrintingApi = async (request, env, context, url) => {
     assertSameOriginMutation(request)
     const body = await readJson(request)
     return json({ jobs: await discardPendingPrintJobs(env.DB, businessId, body.actorLabel) })
+  }
+
+  if (url.pathname === '/api/printing/jobs/discard-operational' && request.method === 'POST') {
+    requireCapability(context, 'printing.discard')
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    return json(await discardOperationalPrintJobs(env.DB, businessId, body.actorLabel))
   }
 
   const recoveryMatch = url.pathname.match(/^\/api\/printing\/stations\/([^/]+)\/recovery$/)

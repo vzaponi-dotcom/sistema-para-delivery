@@ -134,3 +134,11 @@
   .print-queue-reprint-actions, .print-queue-ticket-actions { flex-direction: column-reverse; }
   .print-queue-reprint-actions .button, .print-queue-ticket-actions .button { width: 100%; }
 }
+
+
+.print-queue-bulk-discard-button { flex: 0 0 auto; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .print-queue-jobs-heading { align-items: center; }
+  .print-queue-bulk-discard-button { width: auto; max-width: 100%; }
+}

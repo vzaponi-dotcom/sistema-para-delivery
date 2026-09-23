@@ -345,6 +345,15 @@ export const getPrintQueueSummary = async (db, businessId, now = new Date()) => 
       SUM(CASE WHEN status = 'awaiting_confirmation' THEN 1 ELSE 0 END) AS awaiting_confirmation,
       SUM(CASE WHEN status = 'awaiting_second_copy' THEN 1 ELSE 0 END) AS awaiting_second_copy,
       SUM(CASE WHEN status IN ('failed', 'requires_attention') THEN 1 ELSE 0 END) AS attention,
+      SUM(CASE WHEN status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
+        AND NOT EXISTS (
+          SELECT 1 FROM print_job_attempts
+          WHERE print_job_attempts.business_id = print_jobs.business_id
+            AND print_job_attempts.job_id = print_jobs.id
+            AND print_job_attempts.submission_started_at IS NOT NULL
+            AND print_job_attempts.resolution IS NULL
+            AND print_job_attempts.status <> 'complete'
+        ) THEN 1 ELSE 0 END) AS discardable,
       SUM(CASE WHEN status = 'printed' AND COALESCE(processed_at, created_at) >= ? THEN 1 ELSE 0 END) AS completed_today,
       SUM(CASE WHEN status = 'pending' AND copies_printed = 0 AND NOT EXISTS (
         SELECT 1 FROM print_job_attempts
@@ -359,6 +368,7 @@ export const getPrintQueueSummary = async (db, businessId, now = new Date()) => 
     awaitingConfirmation: Number(row?.awaiting_confirmation || 0),
     awaitingSecondCopy: Number(row?.awaiting_second_copy || 0),
     attention: Number(row?.attention || 0),
+    discardable: Number(row?.discardable || 0),
     completedToday: Number(row?.completed_today || 0),
     safeBacklog: Number(row?.safe_backlog || 0),
   }
@@ -749,6 +759,54 @@ export const discardPrintJob = async (db, businessId, jobId, actorLabel = 'Siste
   const current = await loadPrintJob(db, businessId, jobId)
   if (current?.status === 'discarded') return current
   throw repositoryError(409, 'PRINT_JOB_DISCARD_NOT_ALLOWED', 'Este trabalho de impressão não pode ser descartado neste estado.')
+}
+
+export const discardOperationalPrintJobs = async (db, businessId, actorLabel = 'Sistema', now = new Date()) => {
+  const at = timestamp(now)
+  const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
+  const activeBefore = await db.prepare(`SELECT COUNT(*) AS count FROM print_jobs
+    WHERE business_id = ? AND status NOT IN ('printed', 'discarded')`).bind(businessId).first()
+
+  const result = await db.prepare(`UPDATE print_jobs SET
+      status = 'discarded',
+      second_copy_skipped_at = CASE
+        WHEN status = 'awaiting_second_copy' AND copies_requested = 2 AND copies_printed = 1
+          THEN COALESCE(second_copy_skipped_at, ?)
+        ELSE second_copy_skipped_at
+      END,
+      discarded_at = ?,
+      action_actor_label = ?,
+      action_at = ?
+    WHERE business_id = ?
+      AND status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+          AND print_job_attempts.resolution IS NULL
+          AND print_job_attempts.status <> 'complete'
+      )
+    RETURNING *`)
+    .bind(at, at, actor, at, businessId).all()
+
+  const jobs = rows(result).map(mapJobRow)
+  if (jobs.length) {
+    const placeholders = jobs.map(() => '?').join(', ')
+    await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
+      WHERE business_id = ? AND recovery_job_id IN (${placeholders})`)
+      .bind(at, businessId, ...jobs.map((job) => job.id)).run()
+  }
+
+  const activeAfter = await db.prepare(`SELECT COUNT(*) AS count FROM print_jobs
+    WHERE business_id = ? AND status NOT IN ('printed', 'discarded')`).bind(businessId).first()
+
+  return {
+    jobs,
+    discardedCount: jobs.length,
+    retainedCount: Math.max(0, Number(activeAfter?.count || 0)),
+    activeBefore: Math.max(0, Number(activeBefore?.count || 0)),
+  }
 }
 
 export const discardPendingPrintJobs = async (db, businessId, actorLabel = 'Sistema', now = new Date()) => {
