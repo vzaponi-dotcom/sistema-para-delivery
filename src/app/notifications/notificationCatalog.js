@@ -89,7 +89,7 @@ const normalizeItems = (notification) => {
 
 const normalizeSlides = (notification) => {
   if (notification.slides === undefined) return []
-  if (!Array.isArray(notification.slides) || notification.slides.length === 0 || !notification.slides.every(validSlide)) return null
+  if (!Array.isArray(notification.slides) || !notification.slides.every(validSlide)) return null
   return notification.slides.map(({ icon, title, description, image, imageAlt, imagePosition }) => ({
     icon, title, description, image, imageAlt, imagePosition: imagePosition || 'center',
   }))
