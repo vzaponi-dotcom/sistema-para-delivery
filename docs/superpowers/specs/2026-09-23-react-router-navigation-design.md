@@ -4,6 +4,7 @@ Date: 2026-09-23
 Issue: #43 — Modernizar navegação do frontend com React Router após a Spec C  
 Base audited: `master@12f32d05401c59d9a3360d050df596a7c0803909`  
 Design branch: `docs/react-router-navigation-design`  
+Implementation plan: `docs/superpowers/plans/2026-09-23-react-router-navigation-plan.md`  
 Status: **APPROVED — ready for implementation planning; no product implementation yet**
 
 ## 1. Goal
