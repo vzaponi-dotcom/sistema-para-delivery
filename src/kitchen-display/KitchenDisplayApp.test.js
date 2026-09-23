@@ -109,7 +109,7 @@ test('unpaired TV shows a six-digit code and advances automatically after approv
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   const renderer = await h.render(KitchenDisplayApp, {
     bootstrap: async () => ({ kind: 'pairing', pairing: { paired: false, code: '482731', expiresAt: '2026-09-22T20:30:00.000Z' } }),
-    readPairingStatus: async () => ({ paired: true }),
+    pollPairing: async () => ({ kind: 'paired', state: state([]) }),
     readState: async () => state([]),
     audio: { unlock: async () => true, playArrival: async () => true },
     requestFullscreen: async () => {},
