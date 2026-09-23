@@ -286,3 +286,20 @@ test('dark kitchen search keeps a light focused field with readable ticket text'
     /\[data-theme='dark'\] \.kitchen-page \.kitchen-search:focus-within\s*\{[^}]*background:\s*var\(--kitchen-ticket\)/s,
   )
 })
+
+
+test('Mesiva kitchen keeps brand identity separate from operational preparing state', () => {
+  const css = read('./order-operations.css')
+
+  assert.match(css, /\.kitchen-page \.eyebrow\s*\{[^}]*color:\s*var\(--kitchen-preparing\)/s)
+  assert.match(css, /\.kitchen-header-actions \.button-primary\s*\{[^}]*background:\s*var\(--kitchen-preparing\)/s)
+
+  assert.match(
+    css,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.kitchen-page \.eyebrow\s*\{[^}]*color:\s*var\(--brand\)/s,
+  )
+  assert.match(
+    css,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.kitchen-page \.kitchen-header-actions \.button-primary\s*\{[^}]*background:\s*var\(--primary-fill\)[^}]*color:\s*var\(--primary-contrast\)/s,
+  )
+})
