@@ -136,13 +136,8 @@ export function useNavigationController({
     setMoreOpen(false)
     pendingNavigationRef.current = null
     setPendingNavigation(null)
-    const home = resolveHome(granted, implemented)
-    if (!home) {
-      navigate('/', { replace: true })
-      return
-    }
-    navigateToDestination(home, { replace: true })
-  }, [granted, implemented, navigate, navigateToDestination])
+    navigate('/', { replace: true })
+  }, [navigate])
 
   return {
     activeTab: resolvedActiveTab,

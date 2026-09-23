@@ -51,6 +51,7 @@ import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
 import { NavigationProvider } from './app/navigation/NavigationContext.jsx'
 import { useNavigationController } from './app/navigation/useNavigationController.js'
+import { useRouteGate } from './app/navigation/useRouteGate.js'
 import { useQueryContext } from './app/navigation/useQueryContext.js'
 import { useEffectiveBusinessConfig } from './app/useEffectiveBusinessConfig.js'
 import { createPolicyNavigationBridge } from './app/policy-editing/policyNavigationBridge.js'
@@ -194,6 +195,12 @@ function App({ capabilities } = {}) {
     globalSyncEnabled: isOnline && authState === 'authenticated',
     ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated',
     effectiveConfigVersion: getEffectiveConfigVersion,
+  })
+  useRouteGate({
+    ready: authState === 'authenticated' && bootstrapState === 'ready',
+    granted,
+    implemented: IMPLEMENTED_DESTINATIONS,
+    onFeedback: setToastMessage,
   })
   const {
     selection: selectedComanda,
