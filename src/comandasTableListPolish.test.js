@@ -58,9 +58,7 @@ test('Comandas list keeps occupied cards richer and free cards shorter with alig
   assert.match(css, /\.comanda-status\.occupied\s*\{[^}]*background:\s*var\(--primary-soft\);[^}]*color:\s*var\(--primary\);/s)
 })
 
-test('Mesiva uses warning semantics for occupied badges without changing selection accents', async () => {
-  const css = await read('./comandas.css')
-
+test('Mesiva uses warning semantics for occupied badges without changing selection accents', () => {
   assert.match(
     css,
     /:root\[data-visual-theme=['"]mesiva['"]\] \.comanda-status\.occupied\s*\{[^}]*background:\s*var\(--warning-soft\);[^}]*color:\s*var\(--warning\);/s,
