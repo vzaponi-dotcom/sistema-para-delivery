@@ -174,6 +174,14 @@ export async function loadBusinessProfile(db, businessId) {
   return (await loadSnapshot(db, businessId)).resource
 }
 
+export async function loadBusinessProfileStorageState(db, businessId) {
+  const snapshot = await loadSnapshot(db, businessId)
+  return Object.freeze({
+    resource: snapshot.resource,
+    internalLogo: snapshot.internalLogo ? Object.freeze({ ...snapshot.internalLogo }) : null,
+  })
+}
+
 function validateSaveInput(input) {
   if (
     !input || typeof input !== 'object' || Array.isArray(input)
@@ -449,6 +457,10 @@ export async function saveBusinessProfile(db, businessId, input, resolvedLogoVal
     }
     if (receipt) return savedFromReceipt(receipt, payloadHash, data, nextLogo)
     if (String(cause?.message).includes('SETTINGS_REVISION_CONFLICT')) throw revisionConflict()
-    throw unavailable(cause, { outcome: 'unconfirmed' })
+    const knownDatabaseFailure = cause?.code === 'ERR_SQLITE_ERROR'
+      || String(cause?.message || '').startsWith('D1_ERROR:')
+      || String(cause?.message || '').includes('constraint failed')
+      || String(cause?.message || '').includes('definitive profile failure')
+    throw unavailable(cause, knownDatabaseFailure ? {} : { outcome: 'unconfirmed' })
   }
 }
