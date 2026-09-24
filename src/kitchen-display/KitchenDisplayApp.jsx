@@ -295,16 +295,22 @@ export function KitchenDisplayApp({
       <p>Escolha um alerta audível para esta TV e depois inicie o painel.</p>
 
       <div className="kds-sound-setup">
-        <label className="kds-sound-select">
+        <div className="kds-sound-profile">
           <span>Toque do alerta</span>
-          <select
-            aria-label="Toque do alerta da TV"
-            value={soundProfile}
-            onChange={(event) => changeSoundProfile(event.target.value)}
-          >
-            {KITCHEN_ALERT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
-          </select>
-        </label>
+          <div className="kds-sound-profile-options" role="radiogroup" aria-label="Toque do alerta da TV">
+            {KITCHEN_ALERT_PROFILES.map((profile) => (
+              <button
+                key={profile.id}
+                type="button"
+                role="radio"
+                aria-checked={soundProfile === profile.id}
+                onClick={() => changeSoundProfile(profile.id)}
+              >
+                {profile.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="kds-sound-volume">
           <span>Volume</span>
