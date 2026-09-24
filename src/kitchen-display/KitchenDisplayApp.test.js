@@ -195,3 +195,48 @@ test('activation failures after approval show a diagnostic instead of another pa
   assert.match(nodeText(renderer.root), /KDS_SESSION_ACTIVATION_401/)
   assert.doesNotMatch(nodeText(renderer.root), /482 731/)
 })
+
+
+test('start gesture requests fullscreen without blocking audio or panel activation', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const events = []
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
+    readState: async () => state(['existing']),
+    requestFullscreen: async () => { events.push('fullscreen'); return true },
+    audio: { unlock: async () => { events.push('audio'); return true }, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+
+  assert.deepEqual(events, ['fullscreen', 'audio'])
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
+})
+
+test('failed fullscreen request keeps KDS live and offers a manual retry action', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  let attempts = 0
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: state([]) }),
+    requestFullscreen: async () => {
+      attempts += 1
+      return attempts > 1
+    },
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
+  assert.ok(buttonNamed(renderer.root, 'Entrar em tela cheia'))
+
+  await act(async () => buttonNamed(renderer.root, 'Entrar em tela cheia').props.onClick())
+  await flushEffects()
+  assert.equal(attempts, 2)
+  assert.equal(buttonNamed(renderer.root, 'Entrar em tela cheia'), undefined)
+})
