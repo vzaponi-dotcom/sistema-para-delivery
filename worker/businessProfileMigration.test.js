@@ -60,7 +60,7 @@ test('0030 business profiles installs cleanly, upgrades 0029 and backfills every
     assert.equal(profile.logo_size_bytes, null)
     assert.equal(profile.logo_updated_at, null)
 
-    const business = clean.sqlite.prepare("SELECT id, slug, name FROM businesses WHERE id = 'amor-e-sabor'").get()
+    const business = { ...clean.sqlite.prepare("SELECT id, slug, name FROM businesses WHERE id = 'amor-e-sabor'").get() }
     assert.deepEqual(business, { id: 'amor-e-sabor', slug: 'amor-e-sabor', name: 'Amor & Sabor' })
     assert.deepEqual(clean.sqlite.prepare('PRAGMA foreign_key_check').all(), [])
   } finally {
@@ -73,10 +73,10 @@ test('0030 business profiles installs cleanly, upgrades 0029 and backfills every
     sqlite.exec("INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES ('upgrade', 'upgrade', 'Upgrade Name', '2026-09-23T00:00:00.000Z', '2026-09-23T00:00:00.000Z')")
     sqlite.exec(readMigration(files.at(-1)))
 
-    const upgradedBusiness = sqlite.prepare("SELECT id, slug, name FROM businesses WHERE id = 'upgrade'").get()
+    const upgradedBusiness = { ...sqlite.prepare("SELECT id, slug, name FROM businesses WHERE id = 'upgrade'").get() }
     assert.deepEqual(upgradedBusiness, { id: 'upgrade', slug: 'upgrade', name: 'Upgrade Name' })
 
-    const upgradedProfile = sqlite.prepare("SELECT business_id, revision, phone, address_line, logo_object_key FROM business_profiles WHERE business_id = 'upgrade'").get()
+    const upgradedProfile = { ...sqlite.prepare("SELECT business_id, revision, phone, address_line, logo_object_key FROM business_profiles WHERE business_id = 'upgrade'").get() }
     assert.deepEqual(upgradedProfile, {
       business_id: 'upgrade',
       revision: 1,
