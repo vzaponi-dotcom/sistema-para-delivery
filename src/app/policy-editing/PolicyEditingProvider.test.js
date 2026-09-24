@@ -238,3 +238,44 @@ test('provider forwards an ephemeral save attachment without adding it to provid
   assert.equal(receivedTransient, transient)
   assert.equal(Object.hasOwn(fixture.api.current.resources.operations, 'transient'), false)
 })
+
+
+test('dirty business profile participates in beforeunload and context change clears the resource owner', async (t) => {
+  const profile = {
+    revision: 1,
+    data: {
+      name: 'Operação A',
+      phone: '',
+      address: { line: '', number: '', complement: '', neighborhood: '', city: '', state: '', postalCode: '' },
+      logo: { present: false, version: null },
+      logoAction: 'keep',
+    },
+  }
+  const fixture = await mountProvider(t, {
+    transport: {
+      load: async () => profile,
+      save: async () => ({ resource: profile, receipt: {} }),
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await act(async () => fixture.api.current.load('businessProfile'))
+  await act(async () => fixture.api.current.edit('businessProfile', {
+    ...profile.data,
+    logo: { present: true, version: `local:${'d'.repeat(64)}` },
+    logoAction: 'replace',
+  }))
+
+  const event = new Event('beforeunload', { cancelable: true })
+  fixture.h.window.dispatchEvent(event)
+  assert.equal(event.defaultPrevented, true)
+
+  const nextProps = { ...fixture.props, context: { ...context, ownerId: 'business-2', contextId: 'context-2', generation: 2 } }
+  delete nextProps.children
+  await act(async () => fixture.renderer.update(React.createElement(
+    fixture.PolicyEditingProvider,
+    nextProps,
+    fixture.props.children,
+  )))
+  assert.deepEqual(fixture.api.current.resources, {})
+})

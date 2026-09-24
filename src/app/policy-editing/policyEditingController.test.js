@@ -716,3 +716,58 @@ test('unknown result with a transient attachment never auto-resends its bytes du
   assert.equal(await controller.reconcile('operations'), false)
   assert.equal(writes, 1)
 })
+
+
+test('business profile revision conflict preserves name address and local logo draft until explicit review choice', async () => {
+  const base = {
+    revision: 4,
+    data: {
+      name: 'Operação Base',
+      phone: '',
+      address: { line: 'Rua Base', number: '1', complement: '', neighborhood: '', city: 'Monte Mor', state: 'SP', postalCode: '13190000' },
+      logo: { present: true, version: 'server-v4' },
+      logoAction: 'keep',
+    },
+  }
+  const draft = {
+    ...base.data,
+    name: 'Operação B',
+    address: { ...base.data.address, line: 'Rua B' },
+    logo: { present: true, version: `local:${'e'.repeat(64)}` },
+    logoAction: 'replace',
+  }
+  const current = {
+    revision: 5,
+    data: {
+      ...base.data,
+      name: 'Operação A',
+      address: { ...base.data.address, line: 'Rua A' },
+      logo: { present: true, version: 'server-v5' },
+      logoAction: 'keep',
+    },
+  }
+  let reads = 0
+  let review
+  const controller = createController({
+    context,
+    storage: memoryStorage(),
+    createMutationId: () => 'profile-conflict',
+    onConflictReview: (value) => { review = value },
+    transport: {
+      load: async () => ++reads === 1 ? base : current,
+      save: async () => { throw { status: 409, code: 'BUSINESS_PROFILE_REVISION_CONFLICT' } },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await controller.load('businessProfile')
+  controller.edit('businessProfile', draft)
+  assert.equal(await controller.save('businessProfile'), false)
+
+  const state = controller.getResources().businessProfile
+  assert.equal(state.status, 'conflict')
+  assert.deepEqual(state.draft, draft)
+  assert.ok(review.conflicts.some(({ path }) => path === 'name'))
+  assert.ok(review.conflicts.some(({ path }) => path === 'address.line'))
+  assert.ok(review.conflicts.some(({ path }) => path === 'logo.version'))
+})

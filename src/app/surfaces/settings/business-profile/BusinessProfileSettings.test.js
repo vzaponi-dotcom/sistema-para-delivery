@@ -48,6 +48,7 @@ async function renderEditor(t, options = {}) {
     return React.createElement(BusinessProfileSettings, {
       resourceState: state,
       readOnly: options.readOnly || false,
+      writesBlocked: options.writesBlocked || false,
       normalizeLogo: options.normalizeLogo || (async () => ({
         blob: normalizedBlob,
         sha256: 'a'.repeat(64),
@@ -212,4 +213,183 @@ test('business profile layout uses theme tokens, two-column desktop composition 
   assert.match(css, /var\(--text\)/)
   assert.match(css, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
   assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/)
+})
+
+
+test('offline write blocking keeps local logo preview editable but never calls save', async (t) => {
+  const { screen, edits, saves } = await renderEditor(t, { writesBlocked: true })
+  const file = new Blob(['offline-source'], { type: 'image/png' })
+  const input = screen.root.findByProps({ type: 'file' })
+
+  await act(async () => input.props.onChange({ target: { files: [file], value: 'offline.png' } }))
+
+  assert.equal(edits.at(-1).logoAction, 'replace')
+  assert.match(screen.root.findByProps({ alt: 'Logo da operação' }).props.src, /^blob:business-logo-/)
+  const save = buttonNamed(screen.root, 'Salvar alterações')
+  assert.equal(save.props.disabled, true)
+  await act(async () => save.props.onClick())
+  assert.equal(saves.length, 0)
+  assert.match(nodeText(screen.root), /sem conexão|reconecte/i)
+})
+
+test('conflict resolution keeps local bytes only while the final draft still points to the same local logo token', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: BusinessProfileSettings } = await h.load('/src/app/surfaces/settings/business-profile/BusinessProfileSettings.jsx')
+  const normalizedBlob = new Blob(['conflict-logo'], { type: 'image/webp' })
+  const localVersion = `local:${'b'.repeat(64)}`
+  const saves = []
+  const previewEvents = []
+  const api = React.createRef()
+
+  function Harness() {
+    const [state, setState] = React.useState(resourceState())
+    React.useImperativeHandle(api, () => ({ setState }), [])
+    return React.createElement(BusinessProfileSettings, {
+      resourceState: state,
+      normalizeLogo: async () => ({
+        blob: normalizedBlob,
+        sha256: 'b'.repeat(64),
+        width: 512,
+        height: 512,
+        sizeBytes: normalizedBlob.size,
+        contentType: 'image/webp',
+      }),
+      previewOwnerFactory: () => ({
+        replace() { previewEvents.push('replace'); return 'blob:conflict-preview' },
+        clear() { previewEvents.push('clear') },
+        dispose() { previewEvents.push('dispose') },
+      }),
+      onEdit: (draft) => setState((current) => ({ ...current, draft, dirty: true })),
+      onSave: async (transient) => { saves.push(transient); return false },
+      onDiscard() {},
+      onReconcile() {},
+      onReload() {},
+      onReviewConflict() {},
+      onNavigateHome() {},
+    })
+  }
+
+  const screen = await h.render(Harness)
+  await act(async () => screen.root.findByProps({ type: 'file' }).props.onChange({
+    target: { files: [new Blob(['source'], { type: 'image/png' })], value: 'logo.png' },
+  }))
+  assert.equal(screen.root.findByProps({ alt: 'Logo da operação' }).props.src, 'blob:conflict-preview')
+
+  await act(async () => api.current.setState((current) => ({
+    ...current,
+    status: 'ready',
+    draft: {
+      ...current.draft,
+      name: 'Rascunho preservado',
+      logo: { present: true, version: localVersion },
+      logoAction: 'keep',
+    },
+    dirty: true,
+  })))
+  await act(async () => buttonNamed(screen.root, 'Salvar alterações').props.onClick())
+  assert.equal(saves.at(-1).logoBlob, normalizedBlob, 'local token keeps the transient bytes even if conflict merge kept a stale action flag')
+
+  await act(async () => api.current.setState((current) => ({
+    ...current,
+    status: 'ready',
+    draft: {
+      ...current.draft,
+      name: 'Escolha atual',
+      logo: { present: true, version: 'server-after-conflict' },
+      logoAction: 'replace',
+    },
+    dirty: true,
+  })))
+  assert.equal(screen.root.findByProps({ alt: 'Logo da operação' }).props.src, '/api/business/logo?v=server-after-conflict')
+  assert.equal(previewEvents.filter((event) => event === 'clear').length >= 1, true)
+
+  await act(async () => buttonNamed(screen.root, 'Salvar alterações').props.onClick())
+  assert.equal(saves.at(-1), undefined, 'server/current logo choice must not reuse the old local Blob')
+})
+
+test('session or business context reset clears local preview and prevents a new business from reusing the previous Blob', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: BusinessProfileSettings } = await h.load('/src/app/surfaces/settings/business-profile/BusinessProfileSettings.jsx')
+  const normalizedBlob = new Blob(['business-a-logo'], { type: 'image/webp' })
+  const previewEvents = []
+  const saves = []
+  const api = React.createRef()
+
+  function Harness() {
+    const [state, setState] = React.useState(resourceState())
+    React.useImperativeHandle(api, () => ({ setState }), [])
+    return React.createElement(BusinessProfileSettings, {
+      resourceState: state,
+      normalizeLogo: async () => ({
+        blob: normalizedBlob,
+        sha256: 'c'.repeat(64),
+        width: 400,
+        height: 400,
+        sizeBytes: normalizedBlob.size,
+        contentType: 'image/webp',
+      }),
+      previewOwnerFactory: () => ({
+        replace() { previewEvents.push('replace'); return 'blob:business-a' },
+        clear() { previewEvents.push('clear') },
+        dispose() { previewEvents.push('dispose') },
+      }),
+      onEdit: (draft) => setState((current) => ({ ...current, draft, dirty: true })),
+      onSave: async (transient) => { saves.push(transient); return false },
+      onDiscard() {},
+      onReconcile() {},
+      onReload() {},
+      onReviewConflict() {},
+      onNavigateHome() {},
+    })
+  }
+
+  const screen = await h.render(Harness)
+  await act(async () => screen.root.findByProps({ type: 'file' }).props.onChange({
+    target: { files: [new Blob(['source-a'], { type: 'image/jpeg' })], value: 'a.jpg' },
+  }))
+  assert.equal(screen.root.findByProps({ alt: 'Logo da operação' }).props.src, 'blob:business-a')
+
+  await act(async () => api.current.setState({
+    status: 'idle', confirmed: null, base: null, draft: null, submitted: null, dirty: false, error: null,
+  }))
+  assert.equal(previewEvents.includes('clear'), true)
+
+  const businessB = data({
+    name: 'Negócio B',
+    logo: { present: false, version: null },
+    logoAction: 'keep',
+  })
+  await act(async () => api.current.setState({
+    status: 'ready',
+    confirmed: { revision: 1, data: businessB, meta: {} },
+    base: { revision: 1, data: businessB, meta: {} },
+    draft: businessB,
+    submitted: null,
+    dirty: false,
+    error: null,
+  }))
+  await act(async () => screen.root.findByProps({ name: 'name' }).props.onChange({ target: { value: 'Negócio B atualizado' } }))
+  await act(async () => buttonNamed(screen.root, 'Salvar alterações').props.onClick())
+  assert.equal(saves.at(-1), undefined)
+})
+
+test('unconfirmed business profile cannot be discarded while the generic owner awaits reconciliation', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: BusinessProfileSettings } = await h.load('/src/app/surfaces/settings/business-profile/BusinessProfileSettings.jsx')
+  let discards = 0
+  const screen = await h.render(BusinessProfileSettings, {
+    resourceState: resourceState({ status: 'unconfirmed', dirty: true }),
+    onEdit() {},
+    onSave() {},
+    onDiscard: () => { discards += 1 },
+    onReconcile() {},
+    onReload() {},
+    onReviewConflict() {},
+    onNavigateHome() {},
+  })
+
+  const cancel = buttonNamed(screen.root, 'Cancelar')
+  assert.equal(cancel.props.disabled, true)
+  await act(async () => cancel.props.onClick())
+  assert.equal(discards, 0)
 })

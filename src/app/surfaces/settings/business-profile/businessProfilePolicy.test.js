@@ -139,3 +139,43 @@ test('replace requires the exact transient WebP bytes referenced by local SHA an
 test('business profile adapter rejects station scope because the operation profile is business-wide', async () => {
   await assert.rejects(() => businessProfilePolicy.load('station-1'), { code: 'SETTINGS_SCOPE_INVALID' })
 })
+
+
+test('conflict-merged logo intent is normalized from the final logo token before multipart save', { concurrency: false }, async (t) => {
+  const calls = []
+  const originalFetch = globalThis.fetch
+  t.after(() => { globalThis.fetch = originalFetch })
+  globalThis.fetch = async (path, options = {}) => {
+    calls.push([String(path), options])
+    return jsonResponse({ resource: { ...profileResource, revision: 4 }, receipt: { mutationId: 'conflict-save' } })
+  }
+
+  const logoBlob = new Blob(['conflict-normalized-logo'], { type: 'image/webp' })
+  const sha = await sha256Blob(logoBlob)
+
+  await businessProfilePolicy.save({
+    expectedRevision: 3,
+    mutationId: 'conflict-local',
+    data: {
+      ...profileResource.data,
+      logo: { present: true, version: `local:${sha}` },
+      logoAction: 'keep',
+    },
+  }, undefined, { logoBlob })
+  let payload = payloadFromForm(calls.at(-1)[1].body)
+  assert.equal(payload.logoAction, 'replace')
+  assert.ok(calls.at(-1)[1].body.get('logo'))
+
+  await businessProfilePolicy.save({
+    expectedRevision: 3,
+    mutationId: 'conflict-current',
+    data: {
+      ...profileResource.data,
+      logo: { present: true, version: 'server-current' },
+      logoAction: 'replace',
+    },
+  }, undefined, { logoBlob })
+  payload = payloadFromForm(calls.at(-1)[1].body)
+  assert.equal(payload.logoAction, 'keep')
+  assert.equal(calls.at(-1)[1].body.get('logo'), null)
+})
