@@ -50,11 +50,11 @@ test('scheduled arrival follows the supplied preparation lead time', async () =>
     return null
   }
   await act(async () => {
-    renderer = TestRenderer.create(React.createElement(Probe, { active: true, orders: [scheduledOrder], now: new Date('2026-09-21T14:29:59.000Z'), currentTiming: timing, soundEnabled: true, playSound: () => sounds.push('sound') }))
+    renderer = TestRenderer.create(React.createElement(Probe, { active: true, orders: [scheduledOrder], now: new Date('2026-09-21T14:29:59.000Z'), currentTiming: timing, soundEnabled: true, soundProfile: 'kitchen-strong', soundVolume: 'max', playSound: (options) => sounds.push(options) }))
   })
   assert.deepEqual([...latest.newOrderIds], [])
   await act(async () => {
-    renderer.update(React.createElement(Probe, { active: true, orders: [scheduledOrder], now: new Date('2026-09-21T14:30:00.000Z'), currentTiming: timing, soundEnabled: true, playSound: () => sounds.push('sound') }))
+    renderer.update(React.createElement(Probe, { active: true, orders: [scheduledOrder], now: new Date('2026-09-21T14:30:00.000Z'), currentTiming: timing, soundEnabled: true, soundProfile: 'kitchen-strong', soundVolume: 'max', playSound: (options) => sounds.push(options) }))
   })
   assert.deepEqual([...latest.newOrderIds], ['scheduled-policy'])
   assert.deepEqual(sounds, [{ profile: 'kitchen-strong', volume: 'max' }])
