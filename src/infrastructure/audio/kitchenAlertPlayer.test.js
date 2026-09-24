@@ -71,3 +71,27 @@ test('shared player fails closed when audio is unavailable or blocked', async ()
   const blocked = fakeAudioContext({ state: 'suspended', resumeFails: true })
   assert.equal(await createKitchenAlertPlayer({ createContext: () => blocked.context }).play(), false)
 })
+
+
+test('shared player keeps a stepped gain fallback for legacy Web Audio implementations', async () => {
+  const events = []
+  const context = {
+    state: 'running',
+    currentTime: 3,
+    destination: {},
+    createOscillator: () => ({
+      type: 'sine',
+      frequency: { setValueAtTime() {} },
+      connect() {},
+      start() {},
+      stop() {},
+    }),
+    createGain: () => ({
+      gain: { setValueAtTime(value) { events.push(value) } },
+      connect() {},
+    }),
+  }
+  const player = createKitchenAlertPlayer({ createContext: () => context })
+  assert.equal(await player.play({ profile: 'bell', volume: 'high' }), true)
+  assert.ok(events.some((value) => value > 0.1))
+})
