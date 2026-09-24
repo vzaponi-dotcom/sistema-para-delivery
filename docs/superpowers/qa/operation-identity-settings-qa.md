@@ -4,7 +4,7 @@
 **PR:** #66  
 **Branch:** `feature/operation-identity-settings`  
 **Base inicial:** `master@75966e5c585c85823e409d5bb7cbb75a557af2fa`  
-**Último SHA executável homologado:** `6cce955b293a0f1b7a8a4a2aa0a3fb26d4232763`  
+**Último SHA executável homologado:** `134a6d15cfe375915ceb144a9154e585a66008fb`  
 **Produção:** NÃO DEPLOYADA  
 **Merge:** NÃO EXECUTADO
 
@@ -68,13 +68,25 @@ A correção foi aplicada no componente compartilhado de Configurações e não 
 
 Sem dependência nova. Foram reutilizados `SystemSelect`, `BottomSheet` e formatters existentes.
 
+### Atalho do menu da operação para Identidade
+
+- RED inicial: `35aea9e71ed5d7bebd737aa66e6fa96983e4c591`;
+- alinhamento do harness do RED: `0ce3f08d3cec497de5d35dc61b2324fe13908e59`;
+- Validate RED corrigido: `36031716898` — FAILURE esperada;
+- GREEN: `134a6d15cfe375915ceb144a9154e585a66008fb`;
+- Validate GREEN: `36031906190` — SUCCESS;
+- Deploy staging: `36031899488` — SUCCESS;
+- Resultado manual: PASS.
+
+Com `business.profile.view`, o cabeçalho do menu da operação (nome + “Operação atual”) é um atalho direto para `settings-business-profile`. Sem a capability, permanece somente informativo.
+
 ## Staging final homologado
 
 Deploy staging final da implementação:
 
-- run: `36026764122`
-- SHA: `6cce955b293a0f1b7a8a4a2aa0a3fb26d4232763`
-- Worker Version ID: `392ef7ca-8e83-42d0-af6a-db968ed8ac1f`
+- run: `36031899488`
+- SHA: `134a6d15cfe375915ceb144a9154e585a66008fb`
+- Worker Version ID: `cc7bc0cd-39e7-4606-b016-229c70ea6ba1`
 - login smoke: HTTP 200
 - deep link `/configuracoes/identidade`: HTTP 200 / SPA shell + assets
 - R2 staging: `mesiva-business-assets-staging`
@@ -140,4 +152,6 @@ A migration `0030_business_profiles.sql` havia sido aplicada no primeiro deploy 
 
 Task 13 está fechada com **30 PASS / 0 FAIL / 4 BLOCKED / 0 PENDING**.
 
-O fechamento documental não autoriza merge nem produção. Após o Validate final do SHA documental, a PR pode sair de DRAFT e aguardar autorização explícita para merge.
+Melhoria adicional do atalho no menu da operação: **PASS manual** em staging no SHA executável `134a6d15cfe375915ceb144a9154e585a66008fb`.
+
+O responsável do produto autorizou explicitamente o merge em 24/09/2026. Produção continua separada e não é executada por este fechamento.
