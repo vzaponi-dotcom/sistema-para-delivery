@@ -6,7 +6,9 @@
 **Base inicial:** `master@75966e5c585c85823e409d5bb7cbb75a557af2fa`  
 **Último SHA executável homologado:** `134a6d15cfe375915ceb144a9154e585a66008fb`  
 **Produção:** NÃO DEPLOYADA  
-**Merge:** NÃO EXECUTADO
+**Merge:** EXECUTADO EM 24/09/2026  
+**Merge commit:** `37494dd6f25676b3b73985176a4af89e858bba10`  
+**Validate pós-merge:** `36033628462` / Validate application #1982 — **SUCCESS**
 
 ## Resultado
 
@@ -148,10 +150,14 @@ A migration `0030_business_profiles.sql` havia sido aplicada no primeiro deploy 
 - Nenhuma migration remota de produção foi executada.
 - Nenhum deploy de produção foi executado.
 
-## Gate de merge
+## Fechamento pós-merge
 
 Task 13 está fechada com **30 PASS / 0 FAIL / 4 BLOCKED / 0 PENDING**.
 
 Melhoria adicional do atalho no menu da operação: **PASS manual** em staging no SHA executável `134a6d15cfe375915ceb144a9154e585a66008fb`.
 
-O responsável do produto autorizou explicitamente o merge em 24/09/2026. Produção continua separada e não é executada por este fechamento.
+O responsável do produto autorizou explicitamente o merge em 24/09/2026.
+
+A PR #66 foi mergeada em `master` no commit `37494dd6f25676b3b73985176a4af89e858bba10`. O Validate application pós-merge, run `36033628462` / #1982, concluiu **SUCCESS** no SHA exato do merge.
+
+Produção continua separada e **NÃO DEPLOYADA**. Antes de disparar o workflow `Deploy production`, confirmar a existência do bucket R2 de produção `mesiva-business-assets`; a implementação criou/validou somente o bucket de staging. O workflow de produção aplica migrations D1 pendentes antes do deploy, portanto a pré-condição de R2 deve estar resolvida antes do dispatch.
