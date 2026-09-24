@@ -232,7 +232,7 @@ export const handlePrintingApi = async (request, env, context, url) => {
     const business = await env.DB.prepare('SELECT name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
     const job = await createTestPrintJob(env.DB, businessId, {
       stationId,
-      businessName: business?.name || 'Amor & Sabor',
+      businessName: business?.name || 'Estabelecimento',
     })
     return json({ job }, { status: 201 })
   }
