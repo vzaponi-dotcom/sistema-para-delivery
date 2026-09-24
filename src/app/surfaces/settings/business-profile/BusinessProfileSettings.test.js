@@ -130,7 +130,7 @@ test('replace, remove and cancel keep logo lifecycle local until explicit save',
   const { screen, edits, saves, discards, previewEvents } = await renderEditor(t)
   const input = screen.root.findByProps({ type: 'file' })
   await act(async () => input.props.onChange({ target: { files: [new Blob(['first'], { type: 'image/jpeg' })] } }))
-  await act(async () => input.props.onChange({ target: { files: [new Blob(['second'], { type: 'image/webp' })] }))
+  await act(async () => input.props.onChange({ target: { files: [new Blob(['second'], { type: 'image/webp' })] } }))
 
   assert.equal(saves.length, 0)
   assert.equal(edits.at(-1).logoAction, 'replace')
