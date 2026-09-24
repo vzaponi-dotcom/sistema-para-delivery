@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectOperationalArrivals } from '../domains/orders/index.js'
 import { KitchenDisplayHttpError } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
+import { isKitchenDisplayFullscreen, requestKitchenDisplayFullscreen } from './kitchenDisplayFullscreen.js'
 import { bootstrapKitchenDisplay, pollKitchenDisplayPairing, readStoredKitchenDisplayState } from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
 
@@ -20,6 +21,7 @@ export function KitchenDisplayApp({
   audio: suppliedAudio,
   schedule = globalThis.setTimeout,
   cancelSchedule = globalThis.clearTimeout,
+  requestFullscreen = requestKitchenDisplayFullscreen,
 }) {
   const audio = useMemo(() => suppliedAudio || createKitchenDisplayAudio(), [suppliedAudio])
   const [phase, setPhase] = useState('loading')
@@ -31,6 +33,7 @@ export function KitchenDisplayApp({
   const [highlightedIds, setHighlightedIds] = useState(() => new Set())
   const [soundBlocked, setSoundBlocked] = useState(false)
   const [compatibilityError, setCompatibilityError] = useState('')
+  const [fullscreenRecoveryNeeded, setFullscreenRecoveryNeeded] = useState(false)
   const previousIds = useRef(undefined)
   const alertedIds = useRef(new Set())
   const highlightTimers = useRef(new Map())
@@ -165,7 +168,26 @@ export function KitchenDisplayApp({
     highlightTimers.current.clear()
   }, [cancelSchedule])
 
+  useEffect(() => {
+    if (phase !== 'live') return undefined
+    const onFullscreenChange = () => setFullscreenRecoveryNeeded(!isKitchenDisplayFullscreen())
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', onFullscreenChange)
+    }
+  }, [phase])
+
+
   const startPanel = async () => {
+    let fullscreenAttempt
+    try {
+      fullscreenAttempt = requestFullscreen()
+    } catch {
+      setFullscreenRecoveryNeeded(true)
+    }
+
     let unlockAttempt
     try {
       unlockAttempt = audio.unlock()
@@ -183,10 +205,26 @@ export function KitchenDisplayApp({
       setPhase('compatibility-error')
     }
 
+    if (fullscreenAttempt) {
+      void Promise.resolve(fullscreenAttempt)
+        .then((entered) => setFullscreenRecoveryNeeded(!entered))
+        .catch(() => setFullscreenRecoveryNeeded(true))
+    } else {
+      setFullscreenRecoveryNeeded(true)
+    }
+
     if (unlockAttempt) {
       void Promise.resolve(unlockAttempt)
         .then((ready) => setSoundBlocked(!ready))
         .catch(() => setSoundBlocked(true))
+    }
+  }
+
+  const enterFullscreen = async () => {
+    try {
+      setFullscreenRecoveryNeeded(!await requestFullscreen())
+    } catch {
+      setFullscreenRecoveryNeeded(true)
     }
   }
 
@@ -228,6 +266,7 @@ export function KitchenDisplayApp({
   return <main className="kds-shell kds-shell--live" data-stale={stale}>
     <span className="kds-visually-hidden">Painel da cozinha ativo</span>
     {stale && <p className="kds-last-updated">Dados temporariamente desatualizados{lastUpdatedAt ? ` · última atualização ${lastUpdatedAt.toLocaleTimeString('pt-BR')}` : ''}</p>}
+    {fullscreenRecoveryNeeded && <button className="kds-fullscreen-action" type="button" onClick={enterFullscreen}>Entrar em tela cheia</button>}
     {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
     <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} />
   </main>

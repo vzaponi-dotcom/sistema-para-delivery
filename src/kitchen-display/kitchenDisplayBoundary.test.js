@@ -9,7 +9,7 @@ import viteConfig from '../../vite.config.js'
 const productionFiles = [
   'KitchenDisplayRoot.jsx', 'KitchenDisplayApp.jsx', 'KitchenDisplayBoard.jsx', 'KitchenDisplayCard.jsx',
   'kitchenDisplayApi.js', 'kitchenDisplayAudio.js', 'kitchenDisplayPresentation.js', 'kitchenDisplaySession.js',
-  'kitchenDisplayLegacyCompat.js',
+  'kitchenDisplayLegacyCompat.js', 'kitchenDisplayFullscreen.js',
 ]
 
 test('Kitchen TV production source stays read-only and isolated behind public boundaries', async () => {
