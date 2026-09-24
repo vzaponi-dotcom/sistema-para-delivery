@@ -177,7 +177,7 @@ export function KitchenDisplayApp({
   if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
   if (phase === 'pairing') return <main className="kds-shell">
     <section className="kds-pairing-card" aria-label="Pareamento da TV da cozinha">
-      <p className="kds-pairing-kicker">Gestão Delivery</p>
+      <p className="kds-pairing-kicker">Mesiva</p>
       <h1>Conectar esta TV</h1>
       <p>Abra <strong>Configurações → TV da Cozinha</strong> no celular e digite o código abaixo.</p>
       <strong className="kds-pairing-code" aria-label={`Código de pareamento ${pairing?.code || ''}`}>{formatPairingCode(pairing?.code)}</strong>
@@ -187,7 +187,7 @@ export function KitchenDisplayApp({
   if (phase === 'unauthorized') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Painel não autorizado</h1><p>Atualize a página para conectar esta TV novamente.</p></section></main>
   if (phase === 'start-required') return <main className="kds-shell">
     <section className="kds-pairing-card kds-start-card">
-      <p className="kds-pairing-kicker">Gestão Delivery</p>
+      <p className="kds-pairing-kicker">Mesiva</p>
       <h1>Painel da cozinha pronto</h1>
       <p>Clique abaixo para entrar e habilitar os alertas sonoros deste navegador.</p>
       <button type="button" onClick={startPanel}>Iniciar painel da cozinha</button>
