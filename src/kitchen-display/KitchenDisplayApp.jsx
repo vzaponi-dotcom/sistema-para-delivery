@@ -30,6 +30,7 @@ export function KitchenDisplayApp({
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [highlightedIds, setHighlightedIds] = useState(() => new Set())
   const [soundBlocked, setSoundBlocked] = useState(false)
+  const [compatibilityError, setCompatibilityError] = useState('')
   const previousIds = useRef(undefined)
   const alertedIds = useRef(new Set())
   const highlightTimers = useRef(new Map())
@@ -61,10 +62,13 @@ export function KitchenDisplayApp({
     setLastUpdatedAt(new Date())
   }, [audio, cancelSchedule, schedule])
 
-  const prepareStartPanel = useCallback(async (next) => {
-    await applySnapshot(next)
+  const prepareStartPanel = useCallback((next) => {
+    setSnapshot(next)
+    setStale(false)
+    setLastUpdatedAt(new Date())
+    setCompatibilityError('')
     setPhase('start-required')
-  }, [applySnapshot])
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -156,14 +160,24 @@ export function KitchenDisplayApp({
     highlightTimers.current.clear()
   }, [cancelSchedule])
 
-  const startPanel = () => {
+  const startPanel = async () => {
     let unlockAttempt
     try {
       unlockAttempt = audio.unlock()
     } catch {
       setSoundBlocked(true)
     }
-    setPhase('live')
+
+    setPhase('starting')
+    try {
+      await applySnapshot(snapshot || { orders: [], timing: undefined, serverNow: new Date().toISOString() })
+      setPhase('live')
+    } catch (error) {
+      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error || 'KDS_COMPAT_RUNTIME')
+      setCompatibilityError(detail)
+      setPhase('compatibility-error')
+    }
+
     if (unlockAttempt) {
       void Promise.resolve(unlockAttempt)
         .then((ready) => setSoundBlocked(!ready))
@@ -191,6 +205,18 @@ export function KitchenDisplayApp({
       <h1>Painel da cozinha pronto</h1>
       <p>Clique abaixo para entrar e habilitar os alertas sonoros deste navegador.</p>
       <button type="button" onClick={startPanel}>Iniciar painel da cozinha</button>
+    </section>
+  </main>
+  if (phase === 'starting') return <main className="kds-shell">
+    <section className="kds-pairing-card"><p className="kds-pairing-kicker">Mesiva</p><h1>Preparando o painel…</h1></section>
+  </main>
+  if (phase === 'compatibility-error') return <main className="kds-shell">
+    <section className="kds-pairing-card">
+      <p className="kds-pairing-kicker">Compatibilidade da TV</p>
+      <h1>Não foi possível preparar os pedidos nesta TV</h1>
+      <p>Atualize esta página e tente novamente. Se continuar, informe o código abaixo ao suporte.</p>
+      <small className="kds-compatibility-detail">{compatibilityError || 'KDS_COMPAT_RUNTIME'}</small>
+      <button type="button" onClick={() => window.location.reload()}>Tentar novamente</button>
     </section>
   </main>
 
