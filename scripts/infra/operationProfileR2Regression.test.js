@@ -33,8 +33,12 @@ test('generic Validate keeps both dry-runs and the 0030 operation-profile migrat
   assert.doesNotMatch(validateWorkflow, /r2 bucket create|r2 bucket delete/)
 })
 
-test('staging workflow smoke covers the operation identity deep link without creating production R2 resources', () => {
+test('staging workflow provisions only the staging R2 bucket idempotently and can auto-run for this branch', () => {
+  assert.match(stagingWorkflow, /branches:\s*\n(?:\s*- .*\n)*\s*- feature\/operation-identity-settings/m)
+  assert.match(stagingWorkflow, /STAGING_R2_BUCKET:\s*mesiva-business-assets-staging/)
+  assert.match(stagingWorkflow, /wrangler@4\.128\.0 r2 bucket info "\$STAGING_R2_BUCKET" --json --env staging/)
+  assert.match(stagingWorkflow, /wrangler@4\.128\.0 r2 bucket create "\$STAGING_R2_BUCKET" --env staging/)
   assert.match(stagingWorkflow, /['"]\/configuracoes\/identidade['"]/)
-  assert.doesNotMatch(stagingWorkflow, /r2 bucket create|r2 bucket delete/)
-  assert.doesNotMatch(stagingWorkflow, /bucket_name\s*=\s*['"]mesiva-business-assets['"]/)
+  assert.doesNotMatch(stagingWorkflow, /r2 bucket delete/)
+  assert.doesNotMatch(stagingWorkflow, /mesiva-business-assets(?:["']|\s*$)/m)
 })
