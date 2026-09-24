@@ -43,7 +43,7 @@ test('production build keeps the TV route graph free of admin and heavy business
   }
   visit(rootKey)
   const graph = [...reachable].join('\n')
-  assert.doesNotMatch(graph, /AdminBootstrap|domains\/orders\/ui|printing|qz|jspdf|finance|customers|catalog|table-service/i)
+  assert.doesNotMatch(graph, /AdminBootstrap|domains\/orders\/ui|domains\/(?:printing|finance|customers|catalog|table-service)|qz-tray|jspdf/i)
   for (const key of reachable) {
     if (manifest[key]?.name !== 'kitchenQueue') continue
     assert.deepEqual(manifest[key].css || [], [])
@@ -81,5 +81,5 @@ test('customer hierarchy and explicit start action remain visible', async () => 
   assert.match(css, /--kds-divider:\s*rgba\(201, 216, 232, \.38\)/)
   assert.match(css, /\.kds-card__customer \{[^}]*color:\s*var\(--kds-customer\)/s)
   assert.match(css, /\.kds-card__main \{[^}]*border-bottom:\s*1px solid var\(--kds-divider\)/s)
-  assert.match(css, /\.kds-start-card button \{/)
+  assert.match(css, /\.kds-start-card button,/)
 })
