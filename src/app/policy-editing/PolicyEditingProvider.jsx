@@ -38,6 +38,7 @@ export function PolicyEditingProvider({
     if (controller.setContext(context)) setActiveConflict(null)
   }, [context, controller])
 
+  const save = useCallback((resource, scopeId, transient) => controller.save(resource, scopeId, transient), [controller])
   const reviewConflict = useCallback(async (resource, scopeId) => {
     const review = await controller.reviewConflict(resource, scopeId)
     if (review) setActiveConflict(review)
@@ -88,7 +89,7 @@ export function PolicyEditingProvider({
     resources,
     load: controller.load,
     edit: controller.edit,
-    save: controller.save,
+    save,
     discard,
     reconcile: controller.reconcile,
     reviewConflict,
@@ -96,7 +97,7 @@ export function PolicyEditingProvider({
     acceptActiveConflict,
     dismissActiveConflict,
     reset,
-  }), [acceptActiveConflict, activeConflict, controller, discard, dismissActiveConflict, reset, resources, reviewConflict])
+  }), [acceptActiveConflict, activeConflict, controller, discard, dismissActiveConflict, reset, resources, reviewConflict, save])
 
   return <PolicyEditingContext.Provider value={value}>{children}</PolicyEditingContext.Provider>
 }

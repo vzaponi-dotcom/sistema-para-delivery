@@ -22,10 +22,10 @@ export const createSettingsPolicyTransport = (adapters = createSettingsPolicyAda
     if (!adapter) throw unknownPolicy(policyId)
     return adapter.load(scopeId)
   },
-  save: (policyId, input, scopeId) => {
+  save: (policyId, input, scopeId, transient) => {
     const adapter = adapters[policyId]
     if (!adapter) throw unknownPolicy(policyId)
-    return adapter.save(input, scopeId)
+    return adapter.save(input, scopeId, transient)
   },
   loadReceipt: (policyId, mutationId, scopeId) => {
     const adapter = adapters[policyId]
