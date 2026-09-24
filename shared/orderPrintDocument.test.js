@@ -125,3 +125,18 @@ test('test print document is explicit and never fabricates an order', () => {
   assert.equal('customer' in document, false)
   assert.equal('financial' in document, false)
 })
+
+
+test('operation profile logo and contact metadata never enter the canonical order print document', () => {
+  const document = createOrderPrintDocument(orderInput({
+    businessName: 'Amor & Sabor Renomeado',
+    businessLogo: { present: true, version: 'logo-v2', url: '/api/business/logo' },
+    businessPhone: 'PROFILE_PHONE_MARKER',
+    businessAddress: 'PROFILE_ADDRESS_MARKER',
+  }))
+
+  assert.deepEqual(document.business, { name: 'Amor & Sabor Renomeado' })
+  assert.deepEqual(Object.keys(document.business), ['name'])
+  const serialized = JSON.stringify(document)
+  assert.doesNotMatch(serialized, /logo-v2|\/api\/business\/logo|PROFILE_PHONE_MARKER|PROFILE_ADDRESS_MARKER/)
+})
