@@ -23,9 +23,6 @@ const renderKitchenBootstrapError = (error) => {
 const bootstrap = async () => {
   const container = document.getElementById('root')
   if (kitchenTvPath) {
-    const compat = await import('./kitchen-display/kitchenDisplayLegacyCompat.js')
-    const issues = compat.getKitchenDisplayCompatibilityIssues()
-    if (issues.length) throw new Error(`KDS_COMPAT_MISSING: ${issues.join(', ')}`)
     const module = await import('./kitchen-display/KitchenDisplayRoot.jsx')
     await module.mount(container)
     return
