@@ -57,3 +57,17 @@ test('Comandas list keeps occupied cards richer and free cards shorter with alig
   assert.match(css, /\.comanda-table-button\.is-free\s*\{[^}]*min-height:\s*72px;/s)
   assert.match(css, /\.comanda-status\.occupied\s*\{[^}]*background:\s*var\(--primary-soft\);[^}]*color:\s*var\(--primary\);/s)
 })
+
+test('Mesiva uses warning semantics for occupied badges without changing selection accents', async () => {
+  const css = await read('./comandas.css')
+
+  assert.match(
+    css,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.comanda-status\.occupied\s*\{[^}]*background:\s*var\(--warning-soft\);[^}]*color:\s*var\(--warning\);/s,
+  )
+  assert.match(
+    css,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.comanda-detail-status-chip:not\(\.is-closed\)\s*\{[^}]*background:\s*var\(--warning-soft\);[^}]*border-color:\s*var\(--warning\);[^}]*color:\s*var\(--warning\);/s,
+  )
+  assert.match(css, /\.comanda-table-button\[aria-pressed=['"]true['"]\]\s*\{[^}]*border-color:\s*var\(--primary\);[^}]*background:\s*var\(--primary-soft\);/s)
+})
