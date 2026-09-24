@@ -132,7 +132,15 @@ const productSnapshotSize = (row) => {
 }
 
 export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => {
-  const business = await db.prepare('SELECT id, name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
+  const business = await db.prepare(`SELECT
+      b.id,
+      b.name,
+      CASE WHEN bp.logo_object_key IS NOT NULL THEN 1 ELSE 0 END AS has_logo,
+      CASE WHEN bp.logo_object_key IS NOT NULL THEN bp.logo_updated_at ELSE NULL END AS logo_version
+    FROM businesses b
+    LEFT JOIN business_profiles bp ON bp.business_id = b.id
+    WHERE b.id = ?
+    LIMIT 1`).bind(businessId).first()
   const clientsResult = await db.prepare(`SELECT id, name, phone, address FROM clients WHERE business_id = ? ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const productsResult = await db.prepare(`SELECT ${productSelectFields} FROM products WHERE business_id = ? AND active = 1 ORDER BY name COLLATE NOCASE ASC`).bind(businessId).all()
   const ordersResult = await db.prepare(`${orderSelect} WHERE o.business_id = ? ORDER BY o.created_at DESC`).bind(businessId).all()
@@ -157,7 +165,14 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
     itemsByOrder.set(itemRow.order_id, current)
   }
   return {
-    business: business ? { id: business.id, name: business.name } : { id: businessId, name: 'Estabelecimento' },
+    business: business
+      ? {
+          id: business.id,
+          name: business.name,
+          hasLogo: Boolean(business.has_logo),
+          logoVersion: business.has_logo ? (business.logo_version ?? null) : null,
+        }
+      : { id: businessId, name: 'Estabelecimento', hasLogo: false, logoVersion: null },
     clients: rows(clientsResult).map(mapClientRow),
     products: rows(productsResult).map(mapProductRow),
     orders: rows(ordersResult).map((orderRow) => mapOrderRow(orderRow, itemsByOrder.get(orderRow.id) ?? [])),
