@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from '../../../../shared/ui/Icon.jsx'
 import PageHeader from '../../../../shared/ui/PageHeader.jsx'
 import { useTheme } from '../../../shell/theme/themeContext.js'
+import { KITCHEN_ALERT_PROFILES, KITCHEN_ALERT_VOLUME_OPTIONS } from '../../../../shared/utils/kitchenAlertCatalog.js'
 import { SettingsBackLink, SettingsSwitch } from '../components/SettingsBackAndSwitchControls.jsx'
 import {
   formatDeviceTimestamp,
@@ -24,7 +25,7 @@ const themeOptions = [
   { value: 'system', label: 'Automático', icon: 'system' },
 ]
 
-function DevicePreferences({ soundEnabled, onSoundEnabledChange, onNavigate }) {
+function DevicePreferences({ soundEnabled, soundProfile = 'bell', soundVolume = 'high', onSoundEnabledChange, onSoundProfileChange, onSoundVolumeChange, onPreviewSound, onNavigate }) {
   const { themePreference, setThemePreference, visualTheme, setVisualTheme } = useTheme()
   const [devicePersistenceError, setDevicePersistenceError] = useState('')
   const [deviceSaveStatus, setDeviceSaveStatus] = useState('idle')
@@ -67,6 +68,25 @@ function DevicePreferences({ soundEnabled, onSoundEnabledChange, onNavigate }) {
       return
     }
     registerDevicePreferenceSaved()
+  }
+  const changeSoundProfile = (value) => {
+    const saved = onSoundProfileChange?.(value)
+    if (saved === false) {
+      reportDevicePersistenceError()
+      return
+    }
+    registerDevicePreferenceSaved()
+  }
+  const changeSoundVolume = (value) => {
+    const saved = onSoundVolumeChange?.(value)
+    if (saved === false) {
+      reportDevicePersistenceError()
+      return
+    }
+    registerDevicePreferenceSaved()
+  }
+  const previewSound = (profile) => {
+    onPreviewSound?.(profile, soundVolume)
   }
 
   return <div className="settings-page device-settings-page">
@@ -157,6 +177,59 @@ function DevicePreferences({ soundEnabled, onSoundEnabledChange, onNavigate }) {
             label="Som de novos pedidos"
             onChange={changeSound}
           />
+        </div>
+
+        <div className="device-sound-config">
+          <div className="device-sound-config-heading">
+            <strong>Toque do alerta</strong>
+            <small>Escolha um som marcante para este ambiente. Use o ícone de som para ouvir antes de selecionar.</small>
+          </div>
+          <div className="device-sound-options" role="radiogroup" aria-label="Toque do alerta">
+            {KITCHEN_ALERT_PROFILES.map((profile) => (
+              <div className={`device-sound-option${soundProfile === profile.id ? ' active' : ''}`} key={profile.id}>
+                <button
+                  type="button"
+                  className="device-sound-option-select"
+                  role="radio"
+                  aria-checked={soundProfile === profile.id}
+                  onClick={() => changeSoundProfile(profile.id)}
+                >
+                  <span className="device-sound-radio" aria-hidden="true" />
+                  <span>{profile.label}</span>
+                </button>
+                <small>{profile.description}</small>
+                <button
+                  type="button"
+                  className="device-sound-preview"
+                  aria-label={`Ouvir ${profile.label}`}
+                  title={`Ouvir ${profile.label}`}
+                  onClick={() => previewSound(profile.id)}
+                >
+                  <Icon name="volume-on" size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="device-sound-volume-row">
+            <span className="device-preference-copy">
+              <strong>Volume do alerta</strong>
+              <small>O volume geral da TV, computador ou celular continua sendo o limite físico.</small>
+            </span>
+            <div className="device-theme-options device-sound-volume-options" role="group" aria-label="Volume do alerta">
+              {KITCHEN_ALERT_VOLUME_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={soundVolume === option.id}
+                  className={soundVolume === option.id ? 'active' : ''}
+                  onClick={() => changeSoundVolume(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
