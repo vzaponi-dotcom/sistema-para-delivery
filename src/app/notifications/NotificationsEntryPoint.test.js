@@ -16,7 +16,7 @@ const structuredRelease = {
   id: 'release-structured',
   type: 'release',
   publishedAt: '2026-09-21T20:00:00-03:00',
-  title: 'Novidades do Gestão Delivery',
+  title: 'Novidades da Mesiva',
   summary: 'Resumo editorial da release.',
   items: [
     { icon: 'orders', title: 'Pedidos em andamento', description: 'Acompanhe pedidos que ainda precisam de atenção.' },
@@ -153,7 +153,7 @@ test('automatic structured release shows its own release heading inside the gene
   const renderer = await h.render(Entry, { businessId: 'a', catalog: [release], storage: h.localStorage })
 
   const dialog = renderer.root.findByProps({ role: 'dialog' })
-  assert.match(nodeText(dialog), /Novidades do Gestão Delivery/)
+  assert.match(nodeText(dialog), /Novidades da Mesiva/)
   assert.match(nodeText(dialog), /Nova TV da Cozinha/)
   const icons = dialog.findAllByProps({ className: 'release-notes-item-icon' })
   assert.equal(icons[0].props['data-icon'], 'chef-hat')
