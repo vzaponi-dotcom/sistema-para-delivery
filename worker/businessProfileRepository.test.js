@@ -126,12 +126,12 @@ test('revision conflicts, replay and mutation ID reuse follow settings semantics
 
   await assert.rejects(saveBusinessProfile(db, BUSINESS, input('profile-1', 1, {
     ...changed(),
-    phone: 'outro',
+    phone: '(19) 98888-1111',
   }), undefined, NOW), { status: 409, code: 'SETTINGS_MUTATION_REUSED' })
 
   await assert.rejects(saveBusinessProfile(db, BUSINESS, input('stale', 1, {
     ...changed(),
-    phone: 'stale',
+    phone: '(19) 98888-2222',
   }), undefined, NOW), { status: 409, code: 'BUSINESS_PROFILE_REVISION_CONFLICT' })
 })
 
@@ -176,7 +176,7 @@ test('transport failure after commit reconciles by receipt and failure before co
   const beforeCommit = { ...db, async batch(statements) { batches += 1; pending = statements; throw new Error('transport timeout before commit') } }
   await assert.rejects(saveBusinessProfile(beforeCommit, BUSINESS, input('pending', 2, {
     ...changed(),
-    phone: 'novo',
+    phone: '(19) 98888-3333',
   }), undefined, new Date(+NOW + 1000)), {
     status: 503,
     code: 'BUSINESS_PROFILE_UNAVAILABLE',
