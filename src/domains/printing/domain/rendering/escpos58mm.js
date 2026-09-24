@@ -116,7 +116,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
   const parts = []
   pushRaw(parts, selectFontA(), size(0x00), bold(false), align(1))
   pushRaw(parts, bold(true))
-  pushLine(parts, document.business?.name || 'Amor & Sabor')
+  pushLine(parts, document.business?.name || 'Estabelecimento')
   pushRaw(parts, size(ORDER_TITLE_SIZE))
   pushLine(parts, `PEDIDO #${document.order?.number || ''}`)
   pushRaw(parts, size(0x00), bold(false))
@@ -179,7 +179,7 @@ const renderOrderCopy = (document, copyNumber, copies) => {
 
 const renderTestDocument = (document) => {
   const parts = [selectFontA(), size(0x00), bold(false), align(1), bold(true)]
-  pushLine(parts, document.business?.name || 'Amor & Sabor')
+  pushLine(parts, document.business?.name || 'Estabelecimento')
   pushLine(parts, document.test?.title || 'TESTE DE IMPRESSÃO')
   pushRaw(parts, bold(false))
   pushWrapped(parts, document.test?.message || 'Impressora configurada com sucesso.')
@@ -191,7 +191,7 @@ const renderTestDocument = (document) => {
 const renderTableTabCopy = (document) => {
   const parts = []
   pushRaw(parts, selectFontA(), size(0x00), bold(false), align(1), bold(true))
-  pushLine(parts, document.business?.name || 'Amor & Sabor')
+  pushLine(parts, document.business?.name || 'Estabelecimento')
   pushRaw(parts, size(0x11))
   pushLine(parts, 'PR\u00c9-CONTA')
   pushRaw(parts, size(0x00))

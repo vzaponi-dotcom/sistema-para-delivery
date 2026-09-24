@@ -157,7 +157,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
     itemsByOrder.set(itemRow.order_id, current)
   }
   return {
-    business: business ? { id: business.id, name: business.name } : { id: businessId, name: 'Amor & Sabor' },
+    business: business ? { id: business.id, name: business.name } : { id: businessId, name: 'Estabelecimento' },
     clients: rows(clientsResult).map(mapClientRow),
     products: rows(productsResult).map(mapProductRow),
     orders: rows(ordersResult).map((orderRow) => mapOrderRow(orderRow, itemsByOrder.get(orderRow.id) ?? [])),
@@ -530,7 +530,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (status === 'Em preparo') {
     const business = await db.prepare('SELECT name FROM businesses WHERE id = ? LIMIT 1').bind(businessId).first()
     const printDocument = createOrderPrintDocument({
-      businessName: business?.name || 'Amor & Sabor',
+      businessName: business?.name || 'Estabelecimento',
       orderId,
       orderNumber,
       orderDate: input.orderDate,

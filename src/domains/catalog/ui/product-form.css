@@ -82,8 +82,8 @@
 .product-unit-option.is-selected {
   border-width: 2px;
   border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
   box-shadow: 0 0 0 3px var(--primary-soft);
   font-weight: 700;
 }
@@ -92,7 +92,7 @@
 .product-presentation-option.selected span,
 .product-size-option.selected span,
 .product-unit-option.selected span {
-  color: #fff;
+  color: var(--primary-contrast);
 }
 
 .product-selection-check {
@@ -104,8 +104,8 @@
   flex: 0 0 20px;
   margin-left: auto;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--primary-contrast) 72%, transparent);
+  color: var(--primary-contrast);
 }
 
 .product-presentation-options,
@@ -161,8 +161,8 @@
 .product-presentation-segmented .product-presentation-option.selected {
   border-width: 0;
   border-color: transparent;
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
   box-shadow: none;
 }
 
@@ -219,8 +219,8 @@
 .product-measure-unit-segmented .product-unit-option.selected {
   border-width: 0;
   border-color: transparent;
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
   box-shadow: none;
 }
 
@@ -509,8 +509,8 @@
 
 .product-select-checkbox.selected .product-select-checkbox-mark {
   border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
 }
 
 .product-overflow-button:hover:not(:disabled) {

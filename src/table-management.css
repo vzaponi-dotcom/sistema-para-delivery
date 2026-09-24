@@ -7,6 +7,7 @@
 .table-management-list { display: grid; gap: 10px; }
 .table-management-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
 .table-management-card.occupied { border-color: var(--primary-border, var(--border)); }
+:root[data-visual-theme='mesiva'] .table-management-card.occupied { border-color: var(--border); }
 .table-management-card.inactive { background: var(--surface-soft); opacity: .76; }
 .table-management-summary { min-width: 0; display: grid; gap: 7px; }
 .table-management-summary > strong { overflow-wrap: anywhere; font-size: 1rem; line-height: 1.25; }

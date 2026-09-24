@@ -280,7 +280,6 @@ function FinanceCategorySettings({
     description="Organize as categorias manuais de receitas e despesas"
     scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
-    footerNote="Gestão Delivery · v1.0.0"
     headerAction={!readOnly ? <Button type="button" icon="plus" disabled={locked} onClick={() => setDialog({ mode: 'add' })}>Adicionar categoria</Button> : null}
     effectiveNotice={<>
       <span className="finance-category-info-icon" aria-hidden="true">i</span>

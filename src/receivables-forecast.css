@@ -48,7 +48,7 @@
 .receivables-forecast-day-copy small { color: var(--muted); font-size: 0.7rem; }
 .receivables-forecast-day-value { white-space: nowrap; font-size: 0.82rem; font-weight: 800; }
 .receivables-forecast-bar { grid-column: 1 / -1; height: 5px; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
-.receivables-forecast-bar > span { display: block; min-width: 4px; height: 100%; border-radius: inherit; background: var(--primary); }
+.receivables-forecast-bar > span { display: block; min-width: 4px; height: 100%; border-radius: inherit; background: var(--primary-fill); }
 
 @media (max-width: 1100px) {
   .receivables-forecast-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

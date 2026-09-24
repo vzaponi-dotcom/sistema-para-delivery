@@ -52,7 +52,7 @@ export const SYSTEM_NOTIFICATIONS = Object.freeze([
     id: 'release-2026-09-operation-shell',
     type: 'release',
     publishedAt: '2026-09-21T23:00:00-03:00',
-    title: 'Novidades do Gestão Delivery',
+    title: 'Novidades da Mesiva',
     summary: 'Badges de Pedidos e Comandas, Central de notificações e nova barra superior.',
     items: Object.freeze([
       Object.freeze({ icon: 'orders', title: 'Pedidos e Comandas em andamento', description: 'Os menus agora mostram quantos pedidos precisam de acompanhamento e quantas comandas estão abertas.' }),

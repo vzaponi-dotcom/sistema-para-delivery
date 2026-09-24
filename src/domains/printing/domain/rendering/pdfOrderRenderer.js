@@ -61,7 +61,7 @@ export const renderOrderPdf = (document, { jsPDFFactory = (options) => new jsPDF
     y += 4
   }
 
-  write(document.business?.name || 'Amor & Sabor', { size: 15, bold: true })
+  write(document.business?.name || 'Estabelecimento', { size: 15, bold: true })
   write(`PEDIDO #${sanitize(document.order?.number)}`, { size: 18, bold: true })
   if (document.order?.createdAt) write(formatDateTime(document.order.createdAt), { size: 9 })
   write(document.order?.type, { size: 10, gapAfter: 1 })

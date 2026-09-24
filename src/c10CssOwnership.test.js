@@ -17,10 +17,10 @@ const surfaces = [
 ]
 
 const hashes = {
-  'dashboard.css': '17f34866a7f5d0b02bd7f12f2e2e80a9e575afe61919bb09667047581bbdf9b6',
-  'new-order.css': 'e9f7198f0c48fb9d29fb6b3e5c945b9cf4a3565429344267bffc3040d3429a94',
+  'dashboard.css': '1160d7aba98c8234f999de193475be7ebf0ae09393377763cb5ddf51af3da2cd',
+  'new-order.css': '62eddc47cc3ba273d2162e97294cf44d2c326aed91d0e8a7477ab77e7202017e',
   'client-duplicate.css': '28fca2cef6d7d3efd625ac1ee714fe9d15b2334a4e0a6cbde8b7cd71cc9a7985',
-  'product-form.css': 'b3864196ccdc1a074689a729ea75e34c601eb874e663cf0b2153b4fbc3dd86a1',
+  'product-form.css': '3d0fb8ccd0180cda2b53a103dc3649f2faf71ffd999b989820844e9c2fddb2b1',
   'finance-mobile.css': '9b257fbd7c4fe7917db9e53cd7c249058cd2d8320d6d99252079481b8227dbdf',
   'print-queue.css': 'd1d27795db0021f456d93e8ec8777cf9489e3a3f6e7a9626450d3dbb965f53fd',
 }

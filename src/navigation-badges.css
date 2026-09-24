@@ -15,8 +15,8 @@
   padding: 0 4px;
   border: 0;
   border-radius: 999px;
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
   font-size: 0.65rem;
   line-height: 19px;
   font-weight: 800;
@@ -36,8 +36,8 @@
 }
 
 .sidebar-link.active .navigation-badge {
-  background: #fff;
-  color: var(--primary);
+  background: var(--primary-contrast);
+  color: var(--primary-fill);
 }
 
 @media (max-width: 820px) {

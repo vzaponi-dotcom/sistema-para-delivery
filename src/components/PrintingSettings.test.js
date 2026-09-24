@@ -79,7 +79,7 @@ test('manager distinguishes queue-only and QZ connection states honestly', () =>
 test('printing settings styling uses semantic tokens and complete interaction states', () => {
   assert.doesNotMatch(css, /var\(--[^,]+,\s*#[0-9a-f]{3,8}\)/i)
   assert.match(css, /\.printing-settings-card[\s\S]*background:\s*var\(--surface\)/)
-  assert.match(css, /\.printing-switch-row input:checked[\s\S]*background:\s*var\(--primary\)/)
+  assert.match(css, /\.printing-switch-row input:checked[\s\S]*background:\s*var\(--primary-fill\)/)
   assert.match(css, /\.printing-settings[^}]*color:\s*var\(--text\)/)
   assert.match(css, /\.printing-settings[\s\S]*:focus-visible/)
   assert.match(css, /@media\s*\(max-width:\s*480px\)[\s\S]*\.printing-settings-footer[\s\S]*width:\s*100%/)

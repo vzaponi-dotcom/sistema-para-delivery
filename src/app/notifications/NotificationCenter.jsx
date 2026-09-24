@@ -9,7 +9,7 @@ export default function NotificationCenter({ notifications, visibleCount, isRead
   </div>
 
   return <div className="notification-center">
-    <p className="notification-center-intro">Fique por dentro das novidades do Gestão Delivery.</p>
+    <p className="notification-center-intro">Fique por dentro das novidades da Mesiva.</p>
     {notifications.length === 0 && <p>Nenhuma notificação no momento.</p>}
     <ul className="notification-list">
       {notifications.slice(0, visibleCount).map((item) => {

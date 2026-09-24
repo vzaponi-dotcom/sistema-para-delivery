@@ -73,7 +73,7 @@
 }
 
 .settings-switch[aria-checked='true']::before {
-  background: var(--primary);
+  background: var(--primary-fill);
 }
 
 .settings-switch > span {
@@ -90,6 +90,10 @@
 
 .settings-switch[aria-checked='true'] > span {
   transform: translateX(18px);
+}
+
+:root[data-visual-theme='mesiva'] .settings-switch[aria-checked='true'] > span {
+  background: var(--primary-contrast);
 }
 
 .settings-switch:disabled {

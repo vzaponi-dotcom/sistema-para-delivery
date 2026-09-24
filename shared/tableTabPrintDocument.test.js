@@ -51,7 +51,7 @@ test('empty canonical documents apply display defaults and generate an ISO emiss
   const before = Date.now()
   const document = createTableTabPrintDocument({ id: 7, number: '1042', items: [], totalCents: '0' })
   const after = Date.now()
-  assert.deepEqual(document.business, { name: 'Amor & Sabor' })
+  assert.deepEqual(document.business, { name: 'Estabelecimento' })
   assert.equal(document.tableTab.id, '7')
   assert.equal(document.tableTab.number, 1042)
   assert.equal(document.tableTab.tableName, '')

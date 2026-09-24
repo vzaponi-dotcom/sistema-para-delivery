@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import BrandLogo from './BrandLogo'
 import Button from '../../shared/ui/Button'
+import Icon from '../../shared/ui/Icon'
 
 function LoginScreen({ onLogin, loading = false, error = '', disabled = false }) {
   const [pin, setPin] = useState('')
@@ -16,11 +16,14 @@ function LoginScreen({ onLogin, loading = false, error = '', disabled = false })
   return (
     <main className="login-screen">
       <section className="login-card" aria-labelledby="login-title">
-        <BrandLogo className="login-brand" />
+        <div className="login-product-brand" aria-label="Mesiva">
+          <span className="login-product-brand-icon" aria-hidden="true"><Icon name="meal" size={24} /></span>
+          <strong>Mesiva</strong>
+        </div>
         <div className="login-copy">
           <span className="section-kicker">Acesso à operação</span>
           <h1 id="login-title">Entrar no sistema</h1>
-          <p>Informe o PIN da Amor &amp; Sabor para acessar os dados compartilhados do delivery.</p>
+          <p>Informe o PIN da operação para acessar os dados compartilhados do negócio.</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>

@@ -12,7 +12,7 @@ function OrderTicketPreview({ document }) {
   return (
     <div className="order-ticket-preview" aria-label={`Visualização do pedido ${document.order?.number || ''}`}>
       <header className="order-ticket-preview-header">
-        <strong>{document.business?.name || 'Amor & Sabor'}</strong>
+        <strong>{document.business?.name || 'Estabelecimento'}</strong>
         <h3>PEDIDO #{document.order?.number || ''}</h3>
         {document.order?.type && <span>{document.order.type}</span>}
       </header>

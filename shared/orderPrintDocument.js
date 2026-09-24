@@ -20,7 +20,7 @@ export const createOrderPrintDocument = (input = {}) => ({
   version: ORDER_PRINT_DOCUMENT_VERSION,
   type: 'order',
   business: {
-    name: String(input.businessName || 'Amor & Sabor'),
+    name: String(input.businessName || 'Estabelecimento'),
   },
   order: {
     id: String(input.orderId ?? ''),
@@ -66,11 +66,11 @@ export const createOrderPrintDocument = (input = {}) => ({
   message: ORDER_PRINT_THANK_YOU,
 })
 
-export const createTestPrintDocument = ({ businessName = 'Amor & Sabor', createdAt = new Date().toISOString() } = {}) => ({
+export const createTestPrintDocument = ({ businessName = 'Estabelecimento', createdAt = new Date().toISOString() } = {}) => ({
   version: ORDER_PRINT_DOCUMENT_VERSION,
   type: 'test',
   business: {
-    name: String(businessName || 'Amor & Sabor'),
+    name: String(businessName || 'Estabelecimento'),
   },
   test: {
     title: 'TESTE DE IMPRESSÃO',

@@ -31,6 +31,12 @@ test('presents the established local device controls, diagnostics, and autosave 
   assert.match(text, /Última alteração/)
   assert.match(text, /salvas automaticamente/i)
 
+  const visualGroup = screen.root.findByProps({ 'aria-label': 'Estilo visual' })
+  assert.deepEqual(visualGroup.findAllByType('button').map((button) => nodeText(button)), ['Clássico', 'Mesiva'])
+  await act(async () => buttonNamed(visualGroup, 'Mesiva').props.onClick())
+  assert.equal(h.localStorage.getItem('delivery-visual-theme'), 'mesiva')
+  assert.equal(h.document.documentElement.dataset.visualTheme, 'mesiva')
+
   const group = screen.root.findByProps({ 'aria-label': 'Tema do sistema' })
   assert.deepEqual(group.findAllByType('button').map((button) => nodeText(button)), ['Claro', 'Escuro', 'Automático'])
   await act(async () => buttonNamed(group, 'Escuro').props.onClick())
@@ -57,6 +63,10 @@ test('keeps safe values and reports persistence failures without a policy engine
       soundEnabled: true,
       onSoundEnabledChange() { soundCalls += 1; return false },
     })))
+
+  const visualGroup = screen.root.findByProps({ 'aria-label': 'Estilo visual' })
+  await act(async () => buttonNamed(visualGroup, 'Mesiva').props.onClick())
+  assert.equal(buttonNamed(visualGroup, 'Clássico').props['aria-pressed'], true)
 
   const group = screen.root.findByProps({ 'aria-label': 'Tema do sistema' })
   await act(async () => buttonNamed(group, 'Escuro').props.onClick())

@@ -71,3 +71,22 @@ test('dashboard payment mix is wired to financial movements instead of scalar or
   assert.match(page, /Movimentos recebidos/)
   assert.doesNotMatch(page, /getPaymentMix\(orders/)
 })
+
+
+test('Mesiva financial overview separates brand sales from payment and receivable states', () => {
+  const page = source('../app/surfaces/dashboard/DashboardSurface.jsx')
+  const css = source('../app/surfaces/dashboard/dashboard.css')
+
+  assert.match(page, /label="Vendas hoje"[^>]*className="dashboard-stat-sales"/)
+  assert.match(page, /label="Vendas no período"[^>]*className="dashboard-stat-sales"/)
+  assert.match(page, /label="A receber"[^>]*className="dashboard-stat-receivable"/)
+
+  assert.match(
+    css,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.dashboard-stat-sales \.stat-icon\s*\{[^}]*background:\s*var\(--primary-soft\)[^}]*color:\s*var\(--brand\)/s,
+  )
+  assert.match(
+    css,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.dashboard-stat-receivable \.stat-icon\s*\{[^}]*background:\s*var\(--surface-strong\)[^}]*color:\s*var\(--text-soft\)/s,
+  )
+})

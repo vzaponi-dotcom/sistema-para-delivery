@@ -59,6 +59,15 @@
   color: var(--kitchen-ticket-text);
 }
 
+:root[data-visual-theme='mesiva'] .kitchen-page .eyebrow {
+  color: var(--brand);
+}
+
+:root[data-visual-theme='mesiva'] .kitchen-page .kitchen-header-actions .button-primary {
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
+}
+
 .kitchen-sound-toggle {
   gap: 6px;
   white-space: nowrap;
@@ -515,8 +524,8 @@
   padding: 0 4px;
   border: 0;
   border-radius: 999px;
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-fill);
+  color: var(--primary-contrast);
   font-size: 0.62rem;
   line-height: 18px;
   font-weight: 850;

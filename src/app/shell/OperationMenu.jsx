@@ -54,12 +54,12 @@ export default function OperationMenu({ businessName, onLogout, logoutDisabled =
       <div className="operation-menu-heading"><strong>{operationName}</strong><span>Operação atual</span></div>
       {settingsEntry && <button type="button" role="menuitem" onClick={() => navigate(settingsEntry.id)}><Icon name="settings" size={18} />Configurações</button>}
       {deviceEntry && <button type="button" role="menuitem" onClick={() => navigate(deviceEntry.id)}><Icon name="system" size={18} />Preferências deste dispositivo</button>}
-      <button type="button" role="menuitem" onClick={() => { setOpen(false); setAboutOpen(true) }}><Icon name="details" size={18} />Sobre o Gestão Delivery</button>
+      <button type="button" role="menuitem" onClick={() => { setOpen(false); setAboutOpen(true) }}><Icon name="details" size={18} />Sobre a Mesiva</button>
       {onLogout && <><hr /><button type="button" role="menuitem" className="operation-menu-logout" disabled={logoutDisabled} onClick={() => { close(); onLogout() }}><Icon name="logout" size={18} />Sair do sistema</button></>}
     </div>}
-    {aboutOpen && <Modal title="Sobre o Gestão Delivery" onClose={() => { setAboutOpen(false); restoreFocus() }}>
+    {aboutOpen && <Modal title="Sobre a Mesiva" onClose={() => { setAboutOpen(false); restoreFocus() }}>
       <div className="operation-about-copy">
-        <strong>Gestão Delivery</strong>
+        <strong>Mesiva</strong>
         <span>Operação atual: {operationName}</span>
         <span>Atualização atual: {CURRENT_RELEASE.title}</span>
         <span>{formatReleaseDate(CURRENT_RELEASE.publishedAt)}</span>

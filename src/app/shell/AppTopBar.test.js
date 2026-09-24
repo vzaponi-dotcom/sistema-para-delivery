@@ -36,7 +36,7 @@ test('mobile top bar exposes the approved premium product brand and subtitle', a
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-brand-icon' }))
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-brand-copy' }))
   assert.equal(renderer.root.findByProps({ className: 'app-topbar-brand-subtitle' }).children.join(''), 'Seu delivery no controle')
-  assert.match(nodeText(renderer.root), /Gestão Delivery/)
+  assert.match(nodeText(renderer.root), /Mesiva/)
   assert.doesNotMatch(nodeText(renderer.root), /Gestão do delivery/)
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-actions' }))
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))

@@ -182,7 +182,6 @@ function PaymentSettings({ resourceState, readOnly = false, onEdit, onSave, onDi
     description="Gerencie os métodos de pagamento aceitos no seu delivery"
     scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
-    footerNote="Gestão Delivery · v1.0.0"
     effectiveNotice={<><span className="payment-info-icon" aria-hidden="true">i</span><span>Os métodos nativos não podem ser renomeados.<small className="payment-notice-secondary">As alterações realizadas serão aplicadas após salvar.</small></span></>}
     state={resourceState}
     readOnly={readOnly}

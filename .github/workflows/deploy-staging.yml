@@ -3,7 +3,7 @@ name: Deploy staging
 on:
   push:
     branches:
-      - feature/print-queue-bulk-discard
+      - feature/mesiva-visual-theme
   workflow_dispatch:
 
 permissions:

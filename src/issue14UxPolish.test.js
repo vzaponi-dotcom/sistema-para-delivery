@@ -35,3 +35,12 @@ test('receivable detail keeps ordinary payment actions', () => {
   assert.match(detail, /Registrar recebimento/)
   assert.match(detail, /Definir data prometida/)
 })
+
+
+test('Mesiva keeps occupied table cards neutral and lets the occupancy badge carry status', () => {
+  assert.match(
+    tableStyles,
+    /:root\[data-visual-theme=['"]mesiva['"]\] \.table-management-card\.occupied\s*\{[^}]*border-color:\s*var\(--border\);/s,
+  )
+  assert.match(tableStyles, /\.table-status\.occupied \{[^}]*background: var\(--warning-soft\);[^}]*color: var\(--warning\);/s)
+})

@@ -250,7 +250,6 @@ function CancellationSettings({
     description="Cadastre e organize os motivos disponíveis ao cancelar pedidos."
     scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
-    footerNote="Gestão Delivery · v1.0.0"
     headerAction={!readOnly ? <Button type="button" icon="plus" disabled={locked} onClick={() => setDialog({ mode: 'add' })}>Adicionar motivo</Button> : null}
     effectiveNotice={<>
       <span className="cancellation-info-icon" aria-hidden="true">i</span>

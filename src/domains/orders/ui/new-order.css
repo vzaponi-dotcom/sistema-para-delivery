@@ -218,20 +218,20 @@
   min-height: 38px;
   padding: 0 12px;
   border-radius: 10px;
-  background: var(--primary, #b7192b);
-  color: #fff;
+  background: var(--primary-fill, #b7192b);
+  color: var(--primary-contrast, #fff);
   font-size: .8rem;
   font-weight: 750;
   box-shadow: none;
 }
 
 .new-order-add-button span {
-  color: #fff !important;
+  color: var(--primary-contrast, #fff) !important;
 }
 
 .new-order-add-button:hover {
-  background: var(--primary-hover, #991522);
-  color: #fff;
+  background: var(--primary-fill-hover, #991522);
+  color: var(--primary-contrast, #fff);
 }
 
 .new-order-product.recently-added .new-order-add-button {
@@ -753,8 +753,8 @@
     padding: 0 16px;
     border: 0;
     border-radius: 14px;
-    background: var(--primary);
-    color: #fff;
+    background: var(--primary-fill);
+    color: var(--primary-contrast);
     font: inherit;
   }
 

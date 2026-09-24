@@ -36,7 +36,7 @@ test('restricted operation has no settings shortcuts', async (t) => {
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
   assert.equal(buttonNamed(renderer.root, 'Configurações'), undefined)
   assert.equal(buttonNamed(renderer.root, 'Preferências deste dispositivo'), undefined)
-  assert.ok(buttonNamed(renderer.root, 'Sobre o Gestão Delivery'))
+  assert.ok(buttonNamed(renderer.root, 'Sobre a Mesiva'))
 })
 
 test('Escape and outside click close the menu and restore focus', async (t) => {
@@ -54,8 +54,8 @@ test('Escape and outside click close the menu and restore focus', async (t) => {
 test('About identifies the operation and release without a personal profile', async (t) => {
   const { renderer } = await renderMenu(t)
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
-  await act(async () => buttonNamed(renderer.root, 'Sobre o Gestão Delivery').props.onClick())
-  assert.ok(renderer.root.findByProps({ 'aria-label': 'Sobre o Gestão Delivery' }))
+  await act(async () => buttonNamed(renderer.root, 'Sobre a Mesiva').props.onClick())
+  assert.ok(renderer.root.findByProps({ 'aria-label': 'Sobre a Mesiva' }))
   const copy = nodeText(renderer.root)
   assert.match(copy, /Operação atual: Pizzaria Bella/)
   assert.match(copy, /Atualização atual: Nova TV da Cozinha/)

@@ -92,9 +92,9 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
         )}
       />
       <section className="stats-grid stats-grid-three" aria-label="Indicadores principais">
-        <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" />
+        <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" className="dashboard-stat-sales" />
         <StatCard label="Recebido hoje" value={displayMoney(totals.receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />
-        <StatCard label="A receber" value={displayMoney(totals.receivables)} helper="Pagamentos pendentes" icon="wallet" tone="warning" />
+        <StatCard label="A receber" value={displayMoney(totals.receivables)} helper="Pagamentos pendentes" icon="wallet" tone="warning" className="dashboard-stat-receivable" />
       </section>
 
       <section className="dashboard-performance-section" aria-labelledby="dashboard-performance-title">
@@ -108,7 +108,7 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
         </div>
 
         <div className="stats-grid dashboard-period-stats">
-          <StatCard label="Vendas no período" value={displayMoney(metrics.sales)} helper="Valor dos pedidos registrados" icon="receipt" tone="success" />
+          <StatCard label="Vendas no período" value={displayMoney(metrics.sales)} helper="Valor dos pedidos registrados" icon="receipt" tone="success" className="dashboard-stat-sales" />
           <StatCard label="Pedidos no período" value={metrics.orderCount} helper="Quantidade de pedidos" icon="orders" />
           <StatCard label="Ticket médio" value={displayMoney(metrics.averageTicket)} helper="Venda média por pedido" icon="ticket" />
           <StatCard label="Refeições vendidas" value={mealsSold} helper="Unidades da categoria Refeições" icon="meal" />
