@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectOperationalArrivals } from '../domains/orders/index.js'
+import {
+  KITCHEN_ALERT_PROFILES,
+  KITCHEN_ALERT_VOLUME_OPTIONS,
+  TV_KITCHEN_ALERT_DEFAULTS,
+} from '../shared/utils/kitchenAlertCatalog.js'
+import {
+  readKitchenSoundProfilePreference,
+  readKitchenSoundVolumePreference,
+  writeKitchenSoundProfilePreference,
+  writeKitchenSoundVolumePreference,
+} from '../infrastructure/storage/kitchenSoundPreference.js'
 import { KitchenDisplayHttpError } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
 import { isKitchenDisplayFullscreen, requestKitchenDisplayFullscreen } from './kitchenDisplayFullscreen.js'
@@ -31,7 +42,10 @@ export function KitchenDisplayApp({
   const [stale, setStale] = useState(false)
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [highlightedIds, setHighlightedIds] = useState(() => new Set())
+  const [soundProfile, setSoundProfile] = useState(() => readKitchenSoundProfilePreference(undefined, TV_KITCHEN_ALERT_DEFAULTS.profile))
+  const [soundVolume, setSoundVolume] = useState(() => readKitchenSoundVolumePreference(undefined, TV_KITCHEN_ALERT_DEFAULTS.volume))
   const [soundBlocked, setSoundBlocked] = useState(false)
+  const [soundPreferenceError, setSoundPreferenceError] = useState('')
   const [compatibilityError, setCompatibilityError] = useState('')
   const [fullscreenRecoveryNeeded, setFullscreenRecoveryNeeded] = useState(false)
   const previousIds = useRef(undefined)
@@ -58,12 +72,12 @@ export function KitchenDisplayApp({
         highlightTimers.current.set(id, timer)
       }
       setHighlightedIds((current) => new Set([...current, ...arrival.newIds]))
-      if (!await audio.playArrival()) setSoundBlocked(true)
+      if (!await audio.playArrival({ profile: soundProfile, volume: soundVolume })) setSoundBlocked(true)
     }
     setSnapshot(next)
     setStale(false)
     setLastUpdatedAt(new Date())
-  }, [audio, cancelSchedule, schedule])
+  }, [audio, cancelSchedule, schedule, soundProfile, soundVolume])
 
   const prepareStartPanel = useCallback((next) => {
     setSnapshot(next)
@@ -228,6 +242,38 @@ export function KitchenDisplayApp({
     }
   }
 
+  const changeSoundProfile = (value) => {
+    setSoundProfile(value)
+    try {
+      writeKitchenSoundProfilePreference(value)
+      setSoundPreferenceError('')
+    } catch {
+      setSoundPreferenceError('A escolha vale nesta sessão, mas não pôde ser salva nesta TV.')
+    }
+  }
+
+  const changeSoundVolume = (value) => {
+    setSoundVolume(value)
+    try {
+      writeKitchenSoundVolumePreference(value)
+      setSoundPreferenceError('')
+    } catch {
+      setSoundPreferenceError('A escolha vale nesta sessão, mas não pôde ser salva nesta TV.')
+    }
+  }
+
+  const previewSound = async () => {
+    try {
+      const play = audio.preview || audio.playArrival
+      const played = await play({ profile: soundProfile, volume: soundVolume })
+      setSoundBlocked(!played)
+      return played
+    } catch {
+      setSoundBlocked(true)
+      return false
+    }
+  }
+
   const enableSound = async () => setSoundBlocked(!await audio.unlock())
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
@@ -246,7 +292,41 @@ export function KitchenDisplayApp({
     <section className="kds-pairing-card kds-start-card">
       <p className="kds-pairing-kicker">Mesiva</p>
       <h1>Painel da cozinha pronto</h1>
-      <p>Clique abaixo para entrar e habilitar os alertas sonoros deste navegador.</p>
+      <p>Escolha um alerta audível para esta TV e depois inicie o painel.</p>
+
+      <div className="kds-sound-setup">
+        <label className="kds-sound-select">
+          <span>Toque do alerta</span>
+          <select
+            aria-label="Toque do alerta da TV"
+            value={soundProfile}
+            onChange={(event) => changeSoundProfile(event.target.value)}
+          >
+            {KITCHEN_ALERT_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+          </select>
+        </label>
+
+        <div className="kds-sound-volume">
+          <span>Volume</span>
+          <div className="kds-sound-volume-options" role="group" aria-label="Volume do alerta da TV">
+            {KITCHEN_ALERT_VOLUME_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={soundVolume === option.id}
+                onClick={() => changeSoundVolume(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button className="kds-sound-preview-button" type="button" onClick={previewSound}>Ouvir alerta</button>
+        {soundPreferenceError && <small className="kds-sound-preference-error">{soundPreferenceError}</small>}
+        {soundBlocked && <small className="kds-sound-preference-error">A TV bloqueou o áudio. Tente novamente pelo botão Ouvir alerta.</small>}
+      </div>
+
       <button type="button" onClick={startPanel}>Iniciar painel da cozinha</button>
     </section>
   </main>
