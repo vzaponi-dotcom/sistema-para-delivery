@@ -256,12 +256,12 @@ test('start screen lets this TV choose, preview and persist its local alert soun
   })
   await flushEffects()
 
-  const profileSelect = renderer.root.findByProps({ 'aria-label': 'Toque do alerta da TV' })
-  assert.equal(profileSelect.props.value, 'kitchen-strong')
+  const profileGroup = renderer.root.findByProps({ role: 'radiogroup', 'aria-label': 'Toque do alerta da TV' })
+  assert.equal(buttonNamed(profileGroup, 'Cozinha forte').props['aria-checked'], true)
   const volumeGroup = renderer.root.findByProps({ role: 'group', 'aria-label': 'Volume do alerta da TV' })
   assert.equal(buttonNamed(volumeGroup, 'Máximo').props['aria-pressed'], true)
 
-  await act(async () => profileSelect.props.onChange({ target: { value: 'bell' } }))
+  await act(async () => buttonNamed(profileGroup, 'Campainha').props.onClick())
   await act(async () => buttonNamed(volumeGroup, 'Alto').props.onClick())
   assert.equal(h.localStorage.getItem('kitchen-sound-profile'), 'bell')
   assert.equal(h.localStorage.getItem('kitchen-sound-volume'), 'high')
