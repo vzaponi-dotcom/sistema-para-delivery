@@ -271,6 +271,17 @@
   background: var(--primary-soft);
   color: var(--primary);
 }
+
+:root[data-visual-theme='mesiva'] .comanda-status.occupied {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+:root[data-visual-theme='mesiva'] .comanda-detail-status-chip:not(.is-closed) {
+  background: var(--warning-soft);
+  border-color: var(--warning);
+  color: var(--warning);
+}
 .comanda-table-total {
   grid-area: total;
   justify-self: end;
