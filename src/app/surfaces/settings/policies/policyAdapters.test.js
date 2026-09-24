@@ -31,7 +31,7 @@ test('settings policy adapters preserve typed resource paths, methods, envelopes
   }
 
   const adapters = createSettingsPolicyAdapters()
-  assert.deepEqual(Object.keys(adapters).sort(), ['cancellationReasons', 'financeCategories', 'operations', 'paymentMethods', 'printingPolicy', 'stationConfiguration', 'stationPrimary'])
+  assert.deepEqual(Object.keys(adapters).sort(), ['businessProfile', 'cancellationReasons', 'financeCategories', 'operations', 'paymentMethods', 'printingPolicy', 'stationConfiguration', 'stationPrimary'])
   assert.equal(getSettingsPolicy('operations').id, 'operations')
   assert.equal(await adapters.operations.load(), operations)
   assert.equal(await adapters.paymentMethods.load(), paymentMethods)
@@ -89,4 +89,11 @@ test('operations and cancellation policies come from Orders', () => {
   assert.deepEqual(operationsPolicy.destinations, ['settings-operations', 'settings-modalities'])
   assert.equal(operationsPolicy.capability, 'operations.settings.view')
   assert.equal(cancellationReasonsPolicy.capability, 'orders.settings.view')
+})
+
+
+test('business profile policy is registered with the administrative view capability', () => {
+  const policy = getSettingsPolicy('businessProfile')
+  assert.equal(policy?.id, 'businessProfile')
+  assert.equal(policy?.capability, 'business.profile.view')
 })

@@ -648,3 +648,71 @@ test('capability and owner changes with the same contextId invalidate stale writ
     assert.deepEqual(controller.getResources(), {})
   }
 })
+
+
+test('transient save attachment reaches only transport and never enters hash, resources or pending storage', async () => {
+  const write = deferred()
+  const started = deferred()
+  const storage = memoryStorage()
+  const transient = { logoBlob: new Blob(['attachment-secret'], { type: 'image/webp' }) }
+  let receivedTransient
+  let hashedPayload
+  const controller = createController({
+    context,
+    storage,
+    createMutationId: () => 'mutation-transient',
+    hash: async (value) => { hashedPayload = value; return 'plain-data-hash' },
+    transport: {
+      load: async () => adminFixture,
+      save: async (_resource, _input, _scopeId, attachment) => {
+        receivedTransient = attachment
+        started.resolve()
+        return write.promise
+      },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  const saving = controller.save('operations', undefined, transient)
+  await started.promise
+
+  assert.equal(receivedTransient, transient)
+  assert.equal(Object.hasOwn(hashedPayload, 'transient'), false)
+  assert.equal(Object.hasOwn(controller.getResources().operations.submitted, 'transient'), false)
+  assert.equal(Object.hasOwn(controller.getResources().operations, 'transient'), false)
+
+  const persisted = []
+  for (let index = 0; index < storage.length; index += 1) persisted.push(storage.getItem(storage.key(index)))
+  assert.equal(persisted.length, 1)
+  assert.doesNotMatch(persisted[0], /attachment-secret|logoBlob/)
+
+  write.resolve({ resource: savedResource, receipt: {} })
+  assert.equal(await saving, true)
+})
+
+test('unknown result with a transient attachment never auto-resends its bytes during reconciliation', async () => {
+  let writes = 0
+  const transient = { logoBlob: new Blob(['one-shot-logo'], { type: 'image/webp' }) }
+  const controller = createController({
+    context,
+    storage: memoryStorage(),
+    createMutationId: () => 'mutation-one-shot',
+    transport: {
+      load: async () => adminFixture,
+      save: async (_resource, _input, _scopeId, attachment) => {
+        writes += 1
+        assert.equal(attachment, transient)
+        throw new TypeError('network lost')
+      },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  assert.equal(await controller.save('operations', undefined, transient), false)
+  assert.equal(await controller.reconcile('operations'), false)
+  assert.equal(writes, 1)
+})

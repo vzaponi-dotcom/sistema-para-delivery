@@ -19,7 +19,7 @@ test('maps the effective-config owner and routes generic transport calls to the 
   const transport = createSettingsPolicyTransport({
     operations: {
       load: (scopeId) => { calls.push(['load', scopeId]); return 'loaded' },
-      save: (input, scopeId) => { calls.push(['save', input, scopeId]); return 'saved' },
+      save: (input, scopeId, transient) => { calls.push(['save', input, scopeId, transient]); return 'saved' },
       loadReceipt: (mutationId, scopeId) => { calls.push(['receipt', mutationId, scopeId]); return 'receipt' },
     },
   })
@@ -28,10 +28,11 @@ test('maps the effective-config owner and routes generic transport calls to the 
     ownerId: 'business-1', generation: 1, contextId: 'settings-context-1', capabilities: ['operations.settings.manage'],
   })
   assert.equal(await transport.load('operations'), 'loaded')
-  assert.equal(await transport.save('operations', { data: true }), 'saved')
+  const transient = { logoBlob: new Blob(['logo'], { type: 'image/webp' }) }
+  assert.equal(await transport.save('operations', { data: true }, undefined, transient), 'saved')
   assert.equal(await transport.loadReceipt('operations', 'mutation-1'), 'receipt')
   assert.deepEqual(calls, [
-    ['load', undefined], ['save', { data: true }, undefined], ['receipt', 'mutation-1', undefined],
+    ['load', undefined], ['save', { data: true }, undefined, transient], ['receipt', 'mutation-1', undefined],
   ])
 })
 

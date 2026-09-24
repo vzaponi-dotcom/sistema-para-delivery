@@ -215,3 +215,26 @@ test('provider registers beforeunload only for dirty saving or unconfirmed resou
   assert.equal(fixture.api.current.resources.operations.status, 'unconfirmed')
   assertUnload(true)
 })
+
+
+test('provider forwards an ephemeral save attachment without adding it to provider resources', async (t) => {
+  let receivedTransient
+  const transient = { logoBlob: new Blob(['provider-logo'], { type: 'image/webp' }) }
+  const fixture = await mountProvider(t, {
+    transport: {
+      load: async () => base,
+      save: async (_resource, _input, _scopeId, attachment) => {
+        receivedTransient = attachment
+        return { resource: saved, receipt: { committedRevision: 2 } }
+      },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await act(async () => fixture.api.current.load('operations'))
+  await act(async () => fixture.api.current.edit('operations', { enabled: true }))
+  await act(async () => assert.equal(await fixture.api.current.save('operations', undefined, transient), true))
+
+  assert.equal(receivedTransient, transient)
+  assert.equal(Object.hasOwn(fixture.api.current.resources.operations, 'transient'), false)
+})
