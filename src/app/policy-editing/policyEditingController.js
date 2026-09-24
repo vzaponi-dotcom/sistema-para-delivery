@@ -150,7 +150,7 @@ export function createPolicyEditingController({
       publish(review.resourceKey, { type: 'conflictReviewAccepted' })
       return controller.edit(review.resource, candidate, review.scopeId || undefined)
     },
-    async save(resource, scopeId) {
+    async save(resource, scopeId, transient) {
       if (!validContext()) return false
       const key = policyResourceKey(resource, scopeId)
       const current = resources[key]
@@ -179,7 +179,7 @@ export function createPolicyEditingController({
       const persisted = writePending(storage, contextId(), key, { resource, scopeId, mutationId, payloadHash, startedAt, contextId: contextId() })
       if (!persisted.ok) onFeedback({ code: 'SETTINGS_PENDING_STORAGE_UNAVAILABLE', message: 'A recuperação após recarregar não está disponível neste navegador.', cause: persisted.error })
       try {
-        const result = await transport.save(resource, input, scopeId)
+        const result = await transport.save(resource, input, scopeId, transient)
         if (!owns(writeOwners, key, owner)) return false
         clearPending(storage, contextId(), key)
         publish(key, { type: 'saveConfirmed', value: result.resource })

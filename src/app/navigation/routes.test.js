@@ -5,6 +5,7 @@ import { NAVIGATION_DESTINATIONS } from './registry.js'
 
 const EXPECTED_PATHS = Object.freeze({
   'settings-home': '/configuracoes',
+  'settings-business-profile': '/configuracoes/identidade',
   'settings-operations': '/configuracoes/operacao',
   'settings-modalities': '/configuracoes/modalidades',
   'settings-payments': '/configuracoes/pagamentos',

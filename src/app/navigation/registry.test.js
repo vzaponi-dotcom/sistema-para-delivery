@@ -11,7 +11,7 @@ import {
 
 test('C2 preserva IDs, fallbacks e menus atuais', () => {
   assert.deepEqual(NAVIGATION_DESTINATIONS.map(({ id }) => id), [
-    'settings-home', 'settings-operations', 'settings-modalities',
+    'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities',
     'settings-payments', 'settings-cancellations', 'settings-finance-categories',
     'settings-kitchen-tv',
     'orders', 'history', 'new-order', 'comandas', 'print-queue',
@@ -22,7 +22,7 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
     orders: ['orders', 'history'],
     finance: ['dashboard', 'receivables', 'finance'],
     settings: [
-      'settings-home', 'settings-operations', 'settings-modalities',
+      'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities',
       'settings-payments', 'settings-cancellations',
       'settings-finance-categories', 'settings-kitchen-tv',
       'settings-printing', 'settings-device',
@@ -36,4 +36,20 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
     'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv',
     'settings-printing', 'settings-device',
   ])
+})
+
+
+test('operation identity is an internal Settings destination without adding a new mobile global entry', () => {
+  const destination = NAVIGATION_DESTINATIONS.find(({ id }) => id === 'settings-business-profile')
+  assert.deepEqual(destination, {
+    id: 'settings-business-profile',
+    path: '/configuracoes/identidade',
+    area: 'settings',
+    label: 'Identidade da operação',
+    mobileEntry: 'more',
+    capability: 'business.profile.view',
+  })
+  assert.equal(AREA_DESTINATION_IDS.settings[1], 'settings-business-profile')
+  assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), ['print-queue', 'clients', 'products', 'tables', 'settings'])
+  assert.equal(MOBILE_MORE_ENTRIES.some((item) => item.id === 'settings-business-profile'), false)
 })

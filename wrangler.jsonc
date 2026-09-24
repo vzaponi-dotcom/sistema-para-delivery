@@ -17,6 +17,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "BUSINESS_ASSETS",
+      "bucket_name": "mesiva-business-assets"
+    }
+  ],
   "ratelimits": [
     {
       "name": "LOGIN_RATE_LIMITER",
@@ -36,6 +42,12 @@
           "database_name": "amor-e-sabor-delivery-staging",
           "database_id": "73a1c0c1-142f-4247-8ffc-e858ab2ac400",
           "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUSINESS_ASSETS",
+          "bucket_name": "mesiva-business-assets-staging"
         }
       ],
       "ratelimits": [

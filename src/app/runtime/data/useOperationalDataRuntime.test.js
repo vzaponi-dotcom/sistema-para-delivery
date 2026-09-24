@@ -11,7 +11,7 @@ import {
 } from './useOperationalDataRuntime.js'
 
 const bootstrapFixture = () => ({
-  business: { id: 'amor-e-sabor', name: 'Amor & Sabor' },
+  business: { id: 'amor-e-sabor', name: 'Amor & Sabor', hasLogo: false, logoVersion: null },
   clients: [{ id: 'client-1', name: 'Ana' }],
   products: [{ id: 'product-1', name: 'Marmita' }],
   orders: [{ id: 'order-1', status: 'Em preparo' }],
@@ -405,4 +405,31 @@ test('C8 removes the collection escape hatch from the runtime contract', async (
 
   const source = await readFile(new URL('./useOperationalDataRuntime.js', import.meta.url), 'utf8')
   assert.doesNotMatch(source, /\bupdateCollection\b/)
+})
+
+
+test('silent bootstrap refresh immediately replaces only confirmed operation identity data', async (t) => {
+  let reads = 0
+  const initial = bootstrapFixture()
+  const updated = {
+    ...bootstrapFixture(),
+    business: {
+      id: 'amor-e-sabor',
+      name: 'Amor & Sabor Renomeado',
+      hasLogo: true,
+      logoVersion: '2026-09-24T14:00:00.000Z',
+    },
+  }
+  const harness = await mountHarness(t, {
+    api: {
+      getBootstrap: async () => ++reads === 1 ? initial : updated,
+      getOrders: async () => ({ orders: [] }),
+    },
+  })
+
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  assert.deepEqual(harness.getCurrent().business, initial.business)
+
+  await act(async () => { await harness.getCurrent().refreshBootstrapSilently() })
+  assert.deepEqual(harness.getCurrent().business, updated.business)
 })

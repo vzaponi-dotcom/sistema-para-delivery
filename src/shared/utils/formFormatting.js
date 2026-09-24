@@ -1,9 +1,20 @@
+export const digitsOnly = (value, maxLength = Number.POSITIVE_INFINITY) => {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  return Number.isFinite(maxLength) ? digits.slice(0, Math.max(0, maxLength)) : digits
+}
+
 export const formatPhone = (value) => {
-  const digits = String(value ?? '').replace(/\D/g, '').slice(0, 11)
+  const digits = digitsOnly(value, 11)
   if (!digits) return ''
   if (digits.length <= 2) return `(${digits}`
   if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+}
+
+export const formatPostalCode = (value) => {
+  const digits = digitsOnly(value, 8)
+  if (digits.length <= 5) return digits
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`
 }
 
 export const formatScheduledTimeInput = (value) => {

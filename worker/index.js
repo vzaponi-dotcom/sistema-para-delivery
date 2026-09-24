@@ -20,6 +20,7 @@ import { createTable, listTables, renameTable, reorderTables, setTableActive, tr
 import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 import { handleKitchenTvAdminApi, handleKitchenTvPublicApi } from './kitchenTvApi.js'
+import { handleBusinessProfileApi } from './businessProfileApi.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -92,6 +93,9 @@ const authenticatedApi = async (request, env) => {
 
   const kitchenTvResponse = await handleKitchenTvAdminApi(request, env, context, url)
   if (kitchenTvResponse) return kitchenTvResponse
+
+  const businessProfileResponse = await handleBusinessProfileApi(request, env, context, url)
+  if (businessProfileResponse) return businessProfileResponse
 
   const settingsResponse = await handleSettingsApi(request, env, context, url)
   if (settingsResponse) return settingsResponse

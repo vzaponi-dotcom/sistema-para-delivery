@@ -12,6 +12,7 @@ export const SETTINGS_CAPABILITIES = Object.freeze([
   'payments.settings.view', 'payments.settings.manage',
   'orders.settings.view', 'orders.settings.manage',
   'finance.categories.view', 'finance.categories.manage',
+  'business.profile.view', 'business.profile.manage',
   'printing.settings.view', 'printing.station.view',
 ])
 
@@ -22,6 +23,7 @@ export const SETTINGS_MANAGE_TO_VIEW = Object.freeze({
   'payments.settings.manage': 'payments.settings.view',
   'orders.settings.manage': 'orders.settings.view',
   'finance.categories.manage': 'finance.categories.view',
+  'business.profile.manage': 'business.profile.view',
   'printing.settings': 'printing.settings.view',
   'printing.station.configure': 'printing.station.view',
 })

@@ -116,6 +116,26 @@ test('table tab rows expose stable numeric tab numbers', () => {
 class BootstrapDb {
   constructor() {
     this.calls = []
+    this.businesses = new Map([
+      ['amor-e-sabor', {
+        id: 'amor-e-sabor',
+        name: 'Amor & Sabor',
+        has_logo: 1,
+        logo_version: '2026-09-24T03:00:00.000Z',
+      }],
+      ['sem-logo', {
+        id: 'sem-logo',
+        name: 'Sem Logo',
+        has_logo: 0,
+        logo_version: null,
+      }],
+      ['outro-negocio', {
+        id: 'outro-negocio',
+        name: 'Outro Negócio',
+        has_logo: 1,
+        logo_version: '2026-09-24T04:00:00.000Z',
+      }],
+    ])
   }
 
   prepare(sql) {
@@ -125,7 +145,7 @@ class BootstrapDb {
         db.calls.push({ sql, values })
         return {
           async first() {
-            if (sql.includes('FROM businesses')) return { id: 'amor-e-sabor', name: 'Amor & Sabor' }
+            if (sql.includes('FROM businesses')) return db.businesses.get(values[0]) ?? null
             return null
           },
           async all() {
@@ -154,7 +174,12 @@ class BootstrapDb {
 test('loadBootstrap scopes every business-owned query and attaches order items and table tabs', async () => {
   const db = new BootstrapDb()
   const result = await loadBootstrap(db, 'amor-e-sabor')
-  assert.deepEqual(result.business, { id: 'amor-e-sabor', name: 'Amor & Sabor' })
+  assert.deepEqual(result.business, {
+    id: 'amor-e-sabor',
+    name: 'Amor & Sabor',
+    hasLogo: true,
+    logoVersion: '2026-09-24T03:00:00.000Z',
+  })
   assert.equal(result.clients[0].name, 'Maria')
   assert.equal(result.products[0].price, 8.5)
   assert.equal(result.orders[0].items[0].name, 'Coca')
@@ -234,6 +259,46 @@ class CrudDb {
     }
   }
 }
+
+test('bootstrap exposes only safe operation identity fields and keeps logo/name state isolated by business', async () => {
+  const db = new BootstrapDb()
+
+  const withoutLogo = await loadBootstrap(db, 'sem-logo')
+  assert.deepEqual(withoutLogo.business, {
+    id: 'sem-logo',
+    name: 'Sem Logo',
+    hasLogo: false,
+    logoVersion: null,
+  })
+
+  db.businesses.get('amor-e-sabor').name = 'Amor & Sabor Renomeado'
+  const renamed = await loadBootstrap(db, 'amor-e-sabor')
+  assert.deepEqual(renamed.business, {
+    id: 'amor-e-sabor',
+    name: 'Amor & Sabor Renomeado',
+    hasLogo: true,
+    logoVersion: '2026-09-24T03:00:00.000Z',
+  })
+
+  const other = await loadBootstrap(db, 'outro-negocio')
+  assert.deepEqual(other.business, {
+    id: 'outro-negocio',
+    name: 'Outro Negócio',
+    hasLogo: true,
+    logoVersion: '2026-09-24T04:00:00.000Z',
+  })
+
+  for (const business of [withoutLogo.business, renamed.business, other.business]) {
+    assert.deepEqual(Object.keys(business).sort(), ['hasLogo', 'id', 'logoVersion', 'name'])
+  }
+
+  const businessReads = db.calls.filter(({ sql }) => sql.includes('FROM businesses'))
+  assert.ok(businessReads.length >= 3)
+  for (const read of businessReads) {
+    assert.match(read.sql, /business_profiles/)
+    assert.doesNotMatch(read.sql, /bp\.phone|bp\.address_|bp\.logo_sha256|bp\.\*/)
+  }
+})
 
 test('client CRUD scopes lookup/update/delete by business id', async () => {
   const db = new CrudDb()

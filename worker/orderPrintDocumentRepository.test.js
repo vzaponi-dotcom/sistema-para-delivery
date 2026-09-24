@@ -8,6 +8,13 @@ class D1Sqlite {
     this.sqlite = new DatabaseSync(':memory:')
     this.sqlite.exec(`
       CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE business_profiles (
+        business_id TEXT PRIMARY KEY,
+        phone TEXT NOT NULL DEFAULT '',
+        address_line TEXT NOT NULL DEFAULT '',
+        logo_object_key TEXT,
+        logo_updated_at TEXT
+      );
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
@@ -76,6 +83,8 @@ class D1Sqlite {
 const seedOrder = (db) => {
   db.exec(`
     INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor'), ('other', 'Outro');
+    INSERT INTO business_profiles (business_id, phone, address_line, logo_object_key, logo_updated_at)
+      VALUES ('amor-e-sabor', 'PROFILE_PHONE_MARKER', 'PROFILE_ADDRESS_MARKER', 'PROFILE_LOGO_KEY_MARKER', '2026-09-24T03:00:00.000Z');
     INSERT INTO orders (
       id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
       order_number, type, order_date, subtotal_cents, delivery_fee_cents, adjustment_type,
@@ -171,4 +180,22 @@ test('order print document lookup is business scoped and missing orders return n
 
   assert.equal(await loadOrderPrintDocument(db, 'other', 'o1'), null)
   assert.equal(await loadOrderPrintDocument(db, 'amor-e-sabor', 'missing'), null)
+})
+
+
+test('newly generated print documents use the current business name while excluding profile contact and logo metadata', async () => {
+  const db = new D1Sqlite()
+  seedOrder(db)
+
+  const beforeRename = await loadOrderPrintDocument(db, 'amor-e-sabor', 'o1')
+  db.sqlite.prepare('UPDATE businesses SET name = ? WHERE id = ?').run('Amor & Sabor Renomeado', 'amor-e-sabor')
+  const afterRename = await loadOrderPrintDocument(db, 'amor-e-sabor', 'o1')
+
+  assert.equal(beforeRename.business.name, 'Amor & Sabor')
+  assert.equal(afterRename.business.name, 'Amor & Sabor Renomeado')
+  assert.deepEqual(beforeRename.business, { name: 'Amor & Sabor' })
+  assert.deepEqual(afterRename.business, { name: 'Amor & Sabor Renomeado' })
+
+  const serialized = JSON.stringify(afterRename)
+  assert.doesNotMatch(serialized, /PROFILE_PHONE_MARKER|PROFILE_ADDRESS_MARKER|PROFILE_LOGO_KEY_MARKER/)
 })

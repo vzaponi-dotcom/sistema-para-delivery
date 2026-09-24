@@ -16,7 +16,8 @@ const RESOURCES = Object.freeze({
 const byPath = new Map(Object.entries(RESOURCES).map(([resource, descriptor]) => [descriptor.path, { resource, ...descriptor }]))
 const receiptCapability = Object.freeze({
   operations: 'operations.settings.manage', paymentMethods: 'payments.settings.manage', cancellationReasons: 'orders.settings.manage',
-  financeCategories: 'finance.categories.manage', printingPolicy: 'printing.settings', stationConfiguration: 'printing.station.configure', stationPrimary: 'printing.station.configure',
+  financeCategories: 'finance.categories.manage', businessProfile: 'business.profile.manage',
+  printingPolicy: 'printing.settings', stationConfiguration: 'printing.station.configure', stationPrimary: 'printing.station.configure',
 })
 
 export async function handleSettingsApi(request, env, context, url = new URL(request.url)) {

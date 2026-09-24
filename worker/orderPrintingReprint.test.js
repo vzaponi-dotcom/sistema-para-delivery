@@ -84,6 +84,7 @@ const setup = async ({ table = false } = {}) => {
   const document = {
     version: 1,
     type: 'order',
+    business: { name: 'Amor & Sabor' },
     order: { id: 'order-1', number: '0001' },
     customer: table
       ? { identityType: 'table', name: 'Mesa 01' }
@@ -109,6 +110,7 @@ test('reprint creates a new linked manual job using the current official order s
   const countBefore = db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
   const currentDocument = {
     ...document,
+    business: { name: 'Amor & Sabor Renomeado' },
     customer: { ...document.customer, name: 'Maria Atualizada' },
   }
 
@@ -131,6 +133,8 @@ test('reprint creates a new linked manual job using the current official order s
   assert.equal(reprint.copiesPrinted, 0)
   assert.equal(reprint.stationId, null)
   assert.deepEqual(reprint.document, currentDocument)
+  assert.equal(originalBefore.document.business.name, 'Amor & Sabor')
+  assert.equal(reprint.document.business.name, 'Amor & Sabor Renomeado')
   assert.notDeepEqual(reprint.document, originalBefore.document)
   assert.equal(db.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, countBefore + 1)
 

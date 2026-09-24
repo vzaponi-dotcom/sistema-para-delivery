@@ -10,14 +10,14 @@ const stateMessage = (state) => ({
   conflict: 'Há alterações concorrentes para revisar.',
 }[state?.status])
 
-function SettingsEditorShell({ title, description, scope, effectiveNotice, state, readOnly, onSave, onDiscard, onReconcile, onReload, onReviewConflict, className = '', discardLabel = 'Descartar', footerNote, headerAction, children }) {
+function SettingsEditorShell({ title, description, scope, effectiveNotice, state, readOnly, saveBlocked = false, saveBlockedMessage = '', onSave, onDiscard, onReconcile, onReload, onReviewConflict, className = '', discardLabel = 'Descartar', footerNote, headerAction, children }) {
   const [saveFeedback, setSaveFeedback] = useState('')
   const status = state?.status || 'ready'
   const message = stateMessage(state)
   const errorMessage = typeof state?.error === 'string' ? state.error : state?.error?.message
   const readFailed = status === 'error' && !state?.draft && !state?.confirmed?.data
   const discardDisabled = ['saving', 'loading', 'unconfirmed'].includes(status) || readFailed
-  const saveDisabled = discardDisabled || status === 'conflict'
+  const saveDisabled = discardDisabled || status === 'conflict' || saveBlocked
 
   useEffect(() => {
     if (!saveFeedback) return undefined
@@ -30,6 +30,7 @@ function SettingsEditorShell({ title, description, scope, effectiveNotice, state
   }, [state?.dirty])
 
   const handleSave = () => {
+    if (saveBlocked || saveDisabled) return false
     if (state?.dirty === false) {
       setSaveFeedback('Não há alterações para salvar.')
       return false
@@ -51,6 +52,7 @@ function SettingsEditorShell({ title, description, scope, effectiveNotice, state
     {status === 'error' && <p className="settings-state-message settings-state-error" role="alert">{errorMessage || 'Não foi possível carregar estas configurações.'}</p>}
     {message && <p className={status === 'conflict' ? 'settings-state-message settings-state-error' : 'settings-state-message'} {...(status === 'conflict' ? { role: 'alert' } : { 'aria-live': 'polite' })}>{message}</p>}
     {state?.dirty && <p className="settings-state-message" role="status">Há alterações pendentes no rascunho.</p>}
+    {!readOnly && saveBlocked && saveBlockedMessage && <p className="settings-state-message" aria-live="polite">{saveBlockedMessage}</p>}
     {(status === 'unconfirmed' || readFailed) && <div><Button type="button" variant="secondary" onClick={status === 'unconfirmed' ? onReconcile : onReload}>Reconsultar</Button></div>}
     {status === 'conflict' && !readOnly && <div><Button type="button" variant="secondary" onClick={onReviewConflict}>Revisar alterações</Button></div>}
     <div className="settings-editor-content">{children}</div>

@@ -648,3 +648,126 @@ test('capability and owner changes with the same contextId invalidate stale writ
     assert.deepEqual(controller.getResources(), {})
   }
 })
+
+
+test('transient save attachment reaches only transport and never enters hash, resources or pending storage', async () => {
+  const write = deferred()
+  const started = deferred()
+  const storage = memoryStorage()
+  const transient = { logoBlob: new Blob(['attachment-secret'], { type: 'image/webp' }) }
+  let receivedTransient
+  let hashedPayload
+  const controller = createController({
+    context,
+    storage,
+    createMutationId: () => 'mutation-transient',
+    hash: async (value) => { hashedPayload = value; return 'plain-data-hash' },
+    transport: {
+      load: async () => adminFixture,
+      save: async (_resource, _input, _scopeId, attachment) => {
+        receivedTransient = attachment
+        started.resolve()
+        return write.promise
+      },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  const saving = controller.save('operations', undefined, transient)
+  await started.promise
+
+  assert.equal(receivedTransient, transient)
+  assert.equal(Object.hasOwn(hashedPayload, 'transient'), false)
+  assert.equal(Object.hasOwn(controller.getResources().operations.submitted, 'transient'), false)
+  assert.equal(Object.hasOwn(controller.getResources().operations, 'transient'), false)
+
+  const persisted = []
+  for (let index = 0; index < storage.length; index += 1) persisted.push(storage.getItem(storage.key(index)))
+  assert.equal(persisted.length, 1)
+  assert.doesNotMatch(persisted[0], /attachment-secret|logoBlob/)
+
+  write.resolve({ resource: savedResource, receipt: {} })
+  assert.equal(await saving, true)
+})
+
+test('unknown result with a transient attachment never auto-resends its bytes during reconciliation', async () => {
+  let writes = 0
+  const transient = { logoBlob: new Blob(['one-shot-logo'], { type: 'image/webp' }) }
+  const controller = createController({
+    context,
+    storage: memoryStorage(),
+    createMutationId: () => 'mutation-one-shot',
+    transport: {
+      load: async () => adminFixture,
+      save: async (_resource, _input, _scopeId, attachment) => {
+        writes += 1
+        assert.equal(attachment, transient)
+        throw new TypeError('network lost')
+      },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await controller.load('operations')
+  controller.edit('operations', draftFixture)
+  assert.equal(await controller.save('operations', undefined, transient), false)
+  assert.equal(await controller.reconcile('operations'), false)
+  assert.equal(writes, 1)
+})
+
+
+test('business profile revision conflict preserves name address and local logo draft until explicit review choice', async () => {
+  const base = {
+    revision: 4,
+    data: {
+      name: 'Operação Base',
+      phone: '',
+      address: { line: 'Rua Base', number: '1', complement: '', neighborhood: '', city: 'Monte Mor', state: 'SP', postalCode: '13190000' },
+      logo: { present: true, version: 'server-v4' },
+      logoAction: 'keep',
+    },
+  }
+  const draft = {
+    ...base.data,
+    name: 'Operação B',
+    address: { ...base.data.address, line: 'Rua B' },
+    logo: { present: true, version: `local:${'e'.repeat(64)}` },
+    logoAction: 'replace',
+  }
+  const current = {
+    revision: 5,
+    data: {
+      ...base.data,
+      name: 'Operação A',
+      address: { ...base.data.address, line: 'Rua A' },
+      logo: { present: true, version: 'server-v5' },
+      logoAction: 'keep',
+    },
+  }
+  let reads = 0
+  let review
+  const controller = createController({
+    context,
+    storage: memoryStorage(),
+    createMutationId: () => 'profile-conflict',
+    onConflictReview: (value) => { review = value },
+    transport: {
+      load: async () => ++reads === 1 ? base : current,
+      save: async () => { throw { status: 409, code: 'BUSINESS_PROFILE_REVISION_CONFLICT' } },
+      loadReceipt: async () => ({ status: 'unconfirmed' }),
+    },
+  })
+
+  await controller.load('businessProfile')
+  controller.edit('businessProfile', draft)
+  assert.equal(await controller.save('businessProfile'), false)
+
+  const state = controller.getResources().businessProfile
+  assert.equal(state.status, 'conflict')
+  assert.deepEqual(state.draft, draft)
+  assert.ok(review.conflicts.some(({ path }) => path === 'name'))
+  assert.ok(review.conflicts.some(({ path }) => path === 'address.line'))
+  assert.ok(review.conflicts.some(({ path }) => path === 'logo.version'))
+})

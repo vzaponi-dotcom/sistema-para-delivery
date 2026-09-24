@@ -250,3 +250,31 @@ test('mobile harness renders settings items as actionable rows instead of a sque
   await act(async () => action.props.onClick())
   assert.deepEqual(calls, [['delivery', 'edit']])
 })
+
+
+test('editor shell can block only Save for offline writes while keeping discard available', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: SettingsEditorShell } = await h.load('/src/app/surfaces/settings/components/SettingsEditorShell.jsx')
+  let saves = 0
+  let discards = 0
+  const screen = await h.render(SettingsEditorShell, {
+    title: 'Identidade da operação',
+    description: 'Dados do estabelecimento.',
+    scope: 'Configurações',
+    state: { status: 'ready', dirty: true, draft: {} },
+    readOnly: false,
+    saveBlocked: true,
+    saveBlockedMessage: 'Sem conexão. Reconecte para salvar.',
+    onSave: () => { saves += 1 },
+    onDiscard: () => { discards += 1 },
+    children: null,
+  })
+
+  assert.equal(buttonNamed(screen.root, 'Salvar alterações').props.disabled, true)
+  assert.equal(buttonNamed(screen.root, 'Descartar').props.disabled, false)
+  assert.match(nodeText(screen.root), /Sem conexão/)
+  await act(async () => buttonNamed(screen.root, 'Salvar alterações').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Descartar').props.onClick())
+  assert.equal(saves, 0)
+  assert.equal(discards, 1)
+})

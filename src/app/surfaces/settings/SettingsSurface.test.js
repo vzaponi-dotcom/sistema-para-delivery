@@ -14,6 +14,13 @@ const policyData = {
   printingPolicy: { orderDefaultCopies: 1, tableTabDefaultCopies: 1 },
   stationConfiguration: { name: 'Cozinha', platform: 'windows', autoPrintEnabled: false },
   stationPrimary: { primaryStationId: 'station-1' },
+  businessProfile: {
+    name: 'Amor & Sabor',
+    phone: '',
+    address: { line: '', number: '', complement: '', neighborhood: '', city: '', state: '', postalCode: '' },
+    logo: { present: false, version: null },
+    logoAction: 'keep',
+  },
 }
 const operationsData = {
   timing: {
@@ -55,6 +62,7 @@ async function renderSection(t, section, { granted = new Set(), printing = { loc
 
 test('loads the policy selected by each versioned Settings destination', async (t) => {
   for (const [section, expected] of [
+    ['settings-business-profile', ['businessProfile', undefined]],
     ['settings-operations', ['operations', undefined]],
     ['settings-modalities', ['operations', undefined]],
     ['settings-payments', ['paymentMethods', undefined]],
@@ -142,4 +150,19 @@ test('closing the active conflict modal leaves the policy conflicted and lets it
   assert.doesNotMatch(nodeText(screen.root), /Aplicar revis/)
   await act(async () => api.current.reviewConflict('operations'))
   assert.match(nodeText(screen.root), /Aplicar revis/)
+})
+
+
+test('business profile route renders the dedicated editor and respects manage capability', async (t) => {
+  const editable = await renderSection(t, 'settings-business-profile', {
+    granted: new Set(['business.profile.view', 'business.profile.manage']),
+  })
+  assert.match(nodeText(editable.screen.root), /Identidade da operação/)
+  assert.match(nodeText(editable.screen.root), /Logo da operação/)
+  assert.doesNotMatch(nodeText(editable.screen.root), /Somente leitura/)
+
+  const readOnly = await renderSection(t, 'settings-business-profile', {
+    granted: new Set(['business.profile.view']),
+  })
+  assert.match(nodeText(readOnly.screen.root), /Somente leitura/)
 })

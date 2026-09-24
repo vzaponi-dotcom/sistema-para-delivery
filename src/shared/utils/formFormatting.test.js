@@ -52,3 +52,11 @@ test('scheduled time formatter turns numeric typing into the HH:MM mask', async 
   assert.equal(formatting.formatScheduledTimeInput('12:30'), '12:30')
   assert.equal(formatting.formatScheduledTimeInput('123045'), '12:30')
 })
+
+
+test('business profile field formatters keep only canonical digits and display Brazilian CEP mask', async () => {
+  const { digitsOnly, formatPostalCode } = await import('./formFormatting.js')
+  assert.equal(digitsOnly('12A-345', 4), '1234')
+  assert.equal(formatPostalCode('13190000'), '13190-000')
+  assert.equal(formatPostalCode('13a190-0009'), '13190-000')
+})

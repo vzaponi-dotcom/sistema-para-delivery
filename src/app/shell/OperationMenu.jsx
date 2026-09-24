@@ -4,6 +4,7 @@ import Modal from '../../shared/ui/Modal'
 import { resolveNavigationEntry } from '../navigation/resolution.js'
 import { useNavigation } from '../navigation/NavigationContext.jsx'
 import { CURRENT_RELEASE } from '../notifications/notificationCatalog.js'
+import OperationLogo from './OperationLogo.jsx'
 
 const formatReleaseDate = (value) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(value))
 const INITIAL_CONNECTORS = new Set(['e', 'da', 'das', 'de', 'do', 'dos'])
@@ -20,7 +21,7 @@ const operationInitials = (value) => {
   return `${[...tokens[0]][0]}${[...tokens.at(-1)][0]}`.toLocaleUpperCase('pt-BR')
 }
 
-export default function OperationMenu({ businessName, onLogout, logoutDisabled = false }) {
+export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, onLogout, logoutDisabled = false }) {
   const { granted, implemented, requestNavigation } = useNavigation()
   const operationName = normalizeOperationName(businessName)
   const initials = operationInitials(operationName)
@@ -28,6 +29,7 @@ export default function OperationMenu({ businessName, onLogout, logoutDisabled =
   const triggerRef = useRef(null)
   const [open, setOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const identityEntry = resolveNavigationEntry({ id: 'settings-business-profile', label: 'Identidade da operação', icon: 'edit' }, granted, implemented)
   const settingsEntry = resolveNavigationEntry({ area: 'settings', label: 'Configurações', icon: 'settings' }, granted, implemented)
   const deviceEntry = resolveNavigationEntry({ id: 'settings-device', label: 'Preferências deste dispositivo', icon: 'system' }, granted, implemented)
   const restoreFocus = () => {
@@ -48,10 +50,29 @@ export default function OperationMenu({ businessName, onLogout, logoutDisabled =
   const navigate = (id) => { close(); requestNavigation(id) }
   return <div className="operation-menu" ref={rootRef}>
     <button ref={triggerRef} type="button" className="operation-menu-trigger" aria-label={`${operationName}, operação atual`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((current) => !current)}>
-      <span className="operation-menu-initials" aria-hidden="true">{initials}</span><Icon name="arrow-down" size={14} />
+      {showLogo
+        ? <OperationLogo
+            hasLogo={businessHasLogo}
+            version={businessLogoVersion}
+            className="operation-menu-logo"
+            fallback={<span className="operation-menu-initials" aria-hidden="true">{initials}</span>}
+          />
+        : <span className="operation-menu-initials" aria-hidden="true">{initials}</span>}
+      <Icon name="arrow-down" size={14} />
     </button>
     {open && <div className="operation-menu-popover" role="menu" aria-label="Operação atual">
-      <div className="operation-menu-heading"><strong>{operationName}</strong><span>Operação atual</span></div>
+      {identityEntry
+        ? <button
+            type="button"
+            role="menuitem"
+            className="operation-menu-heading operation-menu-heading-link"
+            aria-label={`Abrir identidade da operação de ${operationName}`}
+            onClick={() => navigate(identityEntry.id)}
+          >
+            <div className="operation-menu-heading-copy"><strong>{operationName}</strong><span>Operação atual</span></div>
+            <Icon name="edit" size={16} className="operation-menu-heading-icon" />
+          </button>
+        : <div className="operation-menu-heading"><strong>{operationName}</strong><span>Operação atual</span></div>}
       {settingsEntry && <button type="button" role="menuitem" onClick={() => navigate(settingsEntry.id)}><Icon name="settings" size={18} />Configurações</button>}
       {deviceEntry && <button type="button" role="menuitem" onClick={() => navigate(deviceEntry.id)}><Icon name="system" size={18} />Preferências deste dispositivo</button>}
       <button type="button" role="menuitem" onClick={() => { setOpen(false); setAboutOpen(true) }}><Icon name="details" size={18} />Sobre a Mesiva</button>
