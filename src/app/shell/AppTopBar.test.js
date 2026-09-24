@@ -67,3 +67,48 @@ test('mobile top bar stylesheet pins the approved rounded container and cohesive
   assert.match(mobile, /\.operation-menu-trigger\s*\{[^}]*min-height:\s*44px/s)
   assert.match(mobile, /\.operation-menu-initials\s*\{[^}]*width:\s*34px[^}]*height:\s*34px/s)
 })
+
+
+test('desktop operation identity uses the confirmed operation logo and keeps the business name as primary text', async (t) => {
+  const h = await workspaceHarness(t)
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: AppTopBar } = await h.load('/src/app/shell/AppTopBar.jsx')
+  const renderer = await h.render(NavigationProvider, {
+    activeTab: 'orders', granted: new Set(['orders.view']), implemented: new Set(['orders']), moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(AppTopBar, {
+      businessId: 'pizzaria-bella',
+      businessName: 'Pizzaria Bella',
+      businessHasLogo: true,
+      businessLogoVersion: 'logo-v7',
+    }),
+  })
+
+  const logo = renderer.root.findByProps({ className: 'app-topbar-operation-logo' })
+  assert.equal(logo.props.src, '/api/business/logo?v=logo-v7')
+  assert.equal(logo.props.alt, '')
+  assert.match(nodeText(renderer.root), /Pizzaria Bella/)
+  assert.match(nodeText(renderer.root), /Gestão do delivery/)
+})
+
+test('mobile product brand stays Mesiva while the operation menu uses the confirmed operation logo', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: AppTopBar } = await h.load('/src/app/shell/AppTopBar.jsx')
+  const renderer = await h.render(NavigationProvider, {
+    activeTab: 'orders', granted: new Set(['orders.view']), implemented: new Set(['orders']), moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(AppTopBar, {
+      businessId: 'pizzaria-bella',
+      businessName: 'Pizzaria Bella',
+      businessHasLogo: true,
+      businessLogoVersion: 'logo-mobile-v2',
+    }),
+  })
+
+  assert.match(nodeText(renderer.root), /Mesiva/)
+  assert.doesNotMatch(nodeText(renderer.root.findByProps({ className: 'app-topbar-brand' })), /Pizzaria Bella/)
+  const menuLogo = renderer.root.findByProps({ className: 'operation-menu-logo' })
+  assert.equal(menuLogo.props.src, '/api/business/logo?v=logo-mobile-v2')
+  assert.equal(renderer.root.findAllByProps({ className: 'operation-menu-initials' }).length, 0)
+})
