@@ -368,7 +368,7 @@ button { font: inherit; }
 .kds-sound-setup {
   width: min(590px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 12px;
   padding: 14px;
@@ -377,20 +377,28 @@ button { font: inherit; }
   background: #091824;
   text-align: left;
 }
-.kds-sound-select,
+.kds-sound-profile,
 .kds-sound-volume { display: grid; gap: 7px; min-width: 0; }
-.kds-sound-select > span,
+.kds-sound-profile { grid-column: 1 / -1; }
+.kds-sound-profile > span,
 .kds-sound-volume > span { color: var(--kds-muted); font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-.kds-sound-select select {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 38px 0 12px;
+.kds-sound-profile-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.kds-sound-profile-options button {
+  width: auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
   border: 1px solid #31516a;
   border-radius: 10px;
+  color: var(--kds-muted);
+  background: #0d2232;
+  font-size: .78rem;
+  font-weight: 800;
+}
+.kds-sound-profile-options button[aria-checked="true"] {
+  border-color: var(--kds-blue);
   color: var(--kds-text);
-  background: #0d2b40;
-  font: inherit;
-  font-weight: 750;
+  background: #0d3a56;
 }
 .kds-sound-volume-options { display: flex; gap: 5px; }
 .kds-sound-volume-options button {
@@ -419,7 +427,7 @@ button { font: inherit; }
   background: #0d2b40;
   white-space: nowrap;
 }
-.kds-sound-select select:focus-visible,
+.kds-sound-profile-options button:focus-visible,
 .kds-sound-volume-options button:focus-visible,
 .kds-start-card .kds-sound-preview-button:focus-visible {
   outline: 3px solid var(--kds-blue);
@@ -443,8 +451,9 @@ button { font: inherit; }
     padding: 9px;
   }
   .kds-start-card .kds-sound-preview-button { grid-column: 1 / -1; width: 100%; min-height: 38px; }
-  .kds-sound-select select,
-  .kds-sound-volume-options button { min-height: 38px; font-size: .72rem; }
+  .kds-sound-profile-options button,
+  .kds-sound-volume-options button { min-height: 36px; font-size: .68rem; padding: 0 7px; }
+  .kds-sound-profile-options { gap: 4px; }
   .kds-sound-volume-options button { padding: 0 7px; }
 }
 
