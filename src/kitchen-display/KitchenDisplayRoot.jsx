@@ -1,4 +1,5 @@
 import { StrictMode } from 'react'
+import './kitchenDisplayLegacyCompat.js'
 import { KitchenDisplayApp } from './KitchenDisplayApp.jsx'
 import './kitchen-display.css'
 

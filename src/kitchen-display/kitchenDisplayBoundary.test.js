@@ -9,6 +9,7 @@ import viteConfig from '../../vite.config.js'
 const productionFiles = [
   'KitchenDisplayRoot.jsx', 'KitchenDisplayApp.jsx', 'KitchenDisplayBoard.jsx', 'KitchenDisplayCard.jsx',
   'kitchenDisplayApi.js', 'kitchenDisplayAudio.js', 'kitchenDisplayPresentation.js', 'kitchenDisplaySession.js',
+  'kitchenDisplayLegacyCompat.js',
 ]
 
 test('Kitchen TV production source stays read-only and isolated behind public boundaries', async () => {
@@ -79,4 +80,15 @@ test('customer hierarchy and explicit start action remain visible', async () => 
   assert.match(css, /\.kds-card__customer \{[^}]*color:\s*var\(--kds-customer\)/s)
   assert.match(css, /\.kds-card__main \{[^}]*border-bottom:\s*1px solid var\(--kds-divider\)/s)
   assert.match(css, /\.kds-start-card button \{/)
+})
+
+
+test('Kitchen TV legacy compatibility stays local to the TV entry', async () => {
+  const root = await readFile(new URL('./KitchenDisplayRoot.jsx', import.meta.url), 'utf8')
+  const compat = await readFile(new URL('./kitchenDisplayLegacyCompat.js', import.meta.url), 'utf8')
+  const admin = await readFile(new URL('../admin/AdminBootstrap.jsx', import.meta.url), 'utf8')
+
+  assert.match(root, /kitchenDisplayLegacyCompat\.js/)
+  assert.match(compat, /ObjectCtor\.fromEntries/)
+  assert.doesNotMatch(admin, /kitchenDisplayLegacyCompat/)
 })

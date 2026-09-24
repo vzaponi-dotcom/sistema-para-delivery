@@ -146,3 +146,28 @@ test('an audio unlock that never settles cannot trap the user after the explicit
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
+
+
+test('post-pairing runtime incompatibility stops hiding behind the pairing code', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'pairing', pairing: { paired: false, code: '482731', expiresAt: '2026-09-22T20:30:00.000Z' } }),
+    pollPairing: async () => ({
+      kind: 'paired',
+      state: {
+        serverNow: '2026-09-22T20:00:00.000Z',
+        timing: {},
+        orders: [{ id: 'legacy-tv', status: 'Em preparo', createdAt: '2026-09-22T19:00:00.000Z' }],
+      },
+    }),
+    readState: async () => state([]),
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => h.fireInterval(2000))
+
+  assert.match(nodeText(renderer.root), /Este navegador não conseguiu abrir o painel/)
+  assert.doesNotMatch(nodeText(renderer.root), /482 731/)
+})

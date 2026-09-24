@@ -77,7 +77,13 @@ export function KitchenDisplayApp({
           setPhase('pairing')
           return
         }
-        await prepareStartPanel(initial.state)
+        try {
+          await prepareStartPanel(initial.state)
+        } catch {
+          if (!active) return
+          setSnapshot(null)
+          setPhase('compatibility-error')
+        }
       } catch {
         if (!active) return
         setSnapshot(null)
@@ -97,8 +103,14 @@ export function KitchenDisplayApp({
       try {
         const next = await pollPairing()
         if (next?.kind === 'paired') {
-          await prepareStartPanel(next.state)
-          setPairing(null)
+          try {
+            await prepareStartPanel(next.state)
+            setPairing(null)
+          } catch {
+            setPairing(null)
+            setSnapshot(null)
+            setPhase('compatibility-error')
+          }
         } else if (next?.kind === 'pairing') {
           setPairing(next.pairing)
         }
@@ -175,6 +187,7 @@ export function KitchenDisplayApp({
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
   if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
+  if (phase === 'compatibility-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Este navegador não conseguiu abrir o painel</h1><p>O pareamento foi concluído, mas este navegador não conseguiu processar a tela da cozinha. Atualize a página e tente novamente.</p></section></main>
   if (phase === 'pairing') return <main className="kds-shell">
     <section className="kds-pairing-card" aria-label="Pareamento da TV da cozinha">
       <p className="kds-pairing-kicker">Mesiva</p>

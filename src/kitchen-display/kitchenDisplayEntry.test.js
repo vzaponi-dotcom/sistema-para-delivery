@@ -17,6 +17,9 @@ test('Kitchen TV root is independent from admin theme, bootstrap and printing st
   const root = await read('./KitchenDisplayRoot.jsx')
   assert.doesNotMatch(root, /from\s+['"][^'"]*\/App\.jsx|ThemeProvider|\/api\/bootstrap|qz-tray|jspdf|printing/i)
   assert.match(root, /kitchen-display\.css/)
+  const compatImport = root.indexOf("import './kitchenDisplayLegacyCompat.js'")
+  const appImport = root.indexOf("import { KitchenDisplayApp } from './KitchenDisplayApp.jsx'")
+  assert.ok(compatImport >= 0 && compatImport < appImport, 'legacy compatibility must install before the KDS app imports')
 
   const h = await workspaceHarness(t)
   const { KitchenDisplayRoot } = await h.load('/src/kitchen-display/KitchenDisplayRoot.jsx')
