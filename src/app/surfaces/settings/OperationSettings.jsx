@@ -109,7 +109,6 @@ function OperationSettings({ resourceState, readOnly = false, initialSection = '
     description="Defina os tempos e regras operacionais da sua cozinha"
     scope={<SettingsBackLink onClick={onNavigateHome} />}
     discardLabel="Cancelar"
-    footerNote="Gestão Delivery · v1.0.0"
     effectiveNotice={<><span className="operation-info-icon" aria-hidden="true">i</span><span>Essas configurações organizam a fila da cozinha e definem as regras de atrasos dos pedidos.<small>Ajuste os tempos de acordo com sua operação para manter uma boa experiência para seus clientes.</small></span></>}
     state={resourceState}
     readOnly={readOnly}
