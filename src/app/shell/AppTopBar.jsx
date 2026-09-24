@@ -7,7 +7,7 @@ import '../../app-top-bar.css'
 export default function AppTopBar({ businessId, businessName, onLogout, logoutDisabled = false }) {
   const mobile = useMediaQuery('(max-width: 820px)')
   const operationName = String(businessName || '').trim() || 'Operação'
-  const brandTitle = mobile ? 'Gestão Delivery' : operationName
+  const brandTitle = mobile ? 'Mesiva' : operationName
   const brandSubtitle = mobile ? 'Seu delivery no controle' : 'Gestão do delivery'
 
   return <header className="app-topbar">
