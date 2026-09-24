@@ -393,3 +393,48 @@ test('unconfirmed business profile cannot be discarded while the generic owner a
   await act(async () => cancel.props.onClick())
   assert.equal(discards, 0)
 })
+
+
+test('business profile formats phone/CEP, restricts address number and selects UF through the shared SystemSelect', async (t) => {
+  const { screen, edits } = await renderEditor(t)
+
+  const phone = screen.root.findByProps({ name: 'phone' })
+  assert.equal(phone.props.type, 'tel')
+  assert.equal(phone.props.inputMode, 'tel')
+  await act(async () => phone.props.onChange({ target: { value: '19abc999999999' } }))
+  assert.equal(edits.at(-1).phone, '(19) 99999-9999')
+
+  const number = screen.root.findByProps({ name: 'address.number' })
+  assert.equal(number.props.inputMode, 'numeric')
+  assert.equal(number.props.maxLength, 10)
+  await act(async () => number.props.onChange({ target: { value: '12A-3456789012' } }))
+  assert.equal(edits.at(-1).address.number, '1234567890')
+
+  const postal = screen.root.findByProps({ name: 'address.postalCode' })
+  assert.equal(postal.props.value, '13190-000')
+  assert.equal(postal.props.maxLength, 9)
+  await act(async () => postal.props.onChange({ target: { value: '13a190-0009' } }))
+  assert.equal(edits.at(-1).address.postalCode, '13190000')
+
+  assert.equal(screen.root.findAllByProps({ name: 'address.state' }).length, 0)
+  const uf = screen.root.findByProps({ role: 'combobox', 'aria-label': 'UF' })
+  await act(async () => uf.props.onClick())
+  const option = buttonNamed(screen.root, 'RJ — Rio de Janeiro')
+  assert.ok(option)
+  await act(async () => option.props.onClick())
+  assert.equal(edits.at(-1).address.state, 'RJ')
+})
+
+test('business profile blocks incomplete phone and CEP with field-specific inline feedback', async (t) => {
+  const { screen, saves } = await renderEditor(t)
+
+  await act(async () => screen.root.findByProps({ name: 'phone' }).props.onChange({ target: { value: '199999999' } }))
+  await act(async () => screen.root.findByProps({ name: 'address.postalCode' }).props.onChange({ target: { value: '1319' } }))
+  await act(async () => buttonNamed(screen.root, 'Salvar alterações').props.onClick())
+
+  assert.equal(saves.length, 0)
+  assert.match(nodeText(screen.root), /Informe um telefone válido com DDD/)
+  assert.match(nodeText(screen.root), /Informe um CEP válido com 8 dígitos/)
+  assert.equal(screen.root.findByProps({ name: 'phone' }).props['aria-invalid'], true)
+  assert.equal(screen.root.findByProps({ name: 'address.postalCode' }).props['aria-invalid'], true)
+})

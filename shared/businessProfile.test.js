@@ -72,3 +72,26 @@ test('business profile enforces phone and address limits plus normalized UF and 
     assert.throws(() => parseBusinessProfile(data), (error) => error?.code === 'BUSINESS_PROFILE_INVALID' && error?.field === field)
   }
 })
+
+
+test('business profile validates canonical Brazilian contact and address identifiers', () => {
+  assert.equal(parseBusinessProfile({
+    ...valid(),
+    phone: '1933334444',
+  }).phone, '(19) 3333-4444')
+
+  for (const [data, field] of [
+    [{ ...valid(), phone: '(19) 9999-999' }, 'phone'],
+    [{ ...valid(), phone: 'telefone 19999999999' }, 'phone'],
+    [{ ...valid(), address: { ...valid().address, number: '12A' } }, 'address.number'],
+    [{ ...valid(), address: { ...valid().address, number: '1'.repeat(11) } }, 'address.number'],
+    [{ ...valid(), address: { ...valid().address, state: 'ZZ' } }, 'address.state'],
+    [{ ...valid(), address: { ...valid().address, line: 'Rua\nInválida' } }, 'address.line'],
+    [{ ...valid(), address: { ...valid().address, city: 'Cidade\u0000Ruim' } }, 'address.city'],
+  ]) {
+    assert.throws(
+      () => parseBusinessProfile(data),
+      (error) => error?.code === 'BUSINESS_PROFILE_INVALID' && error?.field === field,
+    )
+  }
+})
