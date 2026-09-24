@@ -20,7 +20,9 @@ function setup(t) {
 
 test('migration 0029 installs cleanly, upgrades an existing database and keeps foreign keys clean', () => {
   const files = readdirSync(migrations).filter((name) => name.endsWith('.sql')).sort()
-  assert.equal(files.at(-1), '0029_kitchen_tv_pairing_requests.sql')
+  const migration0029 = '0029_kitchen_tv_pairing_requests.sql'
+  const migration0029Index = files.indexOf(migration0029)
+  assert.ok(migration0029Index >= 0)
 
   const clean = createSettingsDb()
   try {
@@ -33,9 +35,9 @@ test('migration 0029 installs cleanly, upgrades an existing database and keeps f
 
   const sqlite = new DatabaseSync(':memory:')
   try {
-    for (const file of files.slice(0, -1)) sqlite.exec(readFileSync(new URL(file, migrations), 'utf8'))
+    for (const file of files.slice(0, migration0029Index)) sqlite.exec(readFileSync(new URL(file, migrations), 'utf8'))
     sqlite.exec("INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES ('upgrade', 'upgrade', 'Upgrade', '2026-09-22', '2026-09-22')")
-    sqlite.exec(readFileSync(new URL(files.at(-1), migrations), 'utf8'))
+    sqlite.exec(readFileSync(new URL(migration0029, migrations), 'utf8'))
     sqlite.exec("INSERT INTO kitchen_tv_pairing_requests (request_token_hash, pairing_code, expires_at, created_at) VALUES ('request', '123456', '2026-09-22T19:00:00.000Z', '2026-09-22T18:00:00.000Z')")
     assert.equal(sqlite.prepare("SELECT pairing_code FROM kitchen_tv_pairing_requests WHERE request_token_hash = 'request'").get().pairing_code, '123456')
     assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(), [])
