@@ -8,7 +8,7 @@ function TableTabTicketPreview({ document }) {
   return (
     <div className="order-ticket-preview" aria-label={`Visualização da comanda ${document.tableTab?.number || ''}`}>
       <header className="order-ticket-preview-header">
-        <strong>{document.business?.name || 'Amor & Sabor'}</strong>
+        <strong>{document.business?.name || 'Estabelecimento'}</strong>
         <h3>{`PRÉ-CONTA · COMANDA #${document.tableTab?.number || ''}`}</h3>
         {document.tableTab?.tableName && <span>{document.tableTab.tableName}</span>}
       </header>
