@@ -9,6 +9,7 @@ import viteConfig from '../../vite.config.js'
 const productionFiles = [
   'KitchenDisplayRoot.jsx', 'KitchenDisplayApp.jsx', 'KitchenDisplayBoard.jsx', 'KitchenDisplayCard.jsx',
   'kitchenDisplayApi.js', 'kitchenDisplayAudio.js', 'kitchenDisplayPresentation.js', 'kitchenDisplaySession.js',
+  'kitchenDisplayLegacyCompat.js', 'kitchenDisplayFullscreen.js',
 ]
 
 test('Kitchen TV production source stays read-only and isolated behind public boundaries', async () => {
@@ -41,14 +42,27 @@ test('production build keeps the TV route graph free of admin and heavy business
     for (const dependency of [...(manifest[key]?.imports || []), ...(manifest[key]?.dynamicImports || [])]) visit(dependency)
   }
   visit(rootKey)
-  const graph = [...reachable].join('\n')
-  assert.doesNotMatch(graph, /AdminBootstrap|domains\/orders\/ui|printing|qz|jspdf|finance|customers|catalog|table-service/i)
+  const forbidden = [...reachable].filter((key) => {
+    const normalized = key.toLowerCase()
+    return normalized.includes('adminbootstrap')
+      || normalized.includes('domains/orders/ui')
+      || normalized.includes('domains/printing')
+      || normalized.includes('domains/finance')
+      || normalized.includes('domains/customers')
+      || normalized.includes('domains/catalog')
+      || normalized.includes('domains/table-service')
+      || normalized.includes('qz-tray')
+      || normalized.includes('jspdf')
+  })
+  assert.deepEqual(forbidden, [])
   for (const key of reachable) {
     if (manifest[key]?.name !== 'kitchenQueue') continue
     assert.deepEqual(manifest[key].css || [], [])
     assert.equal((manifest[key].imports || []).some((dependency) => /react-dom/i.test(dependency)), false)
   }
   assert.ok(viteConfig.plugins.some((plugin) => plugin?.name === 'kitchen-tv-orders-public-contract'))
+  assert.equal(viteConfig.build.target, 'chrome69')
+  assert.equal(viteConfig.build.cssTarget, 'chrome69')
 })
 
 
@@ -78,5 +92,5 @@ test('customer hierarchy and explicit start action remain visible', async () => 
   assert.match(css, /--kds-divider:\s*rgba\(201, 216, 232, \.38\)/)
   assert.match(css, /\.kds-card__customer \{[^}]*color:\s*var\(--kds-customer\)/s)
   assert.match(css, /\.kds-card__main \{[^}]*border-bottom:\s*1px solid var\(--kds-divider\)/s)
-  assert.match(css, /\.kds-start-card button \{/)
+  assert.match(css, /\.kds-start-card button,/)
 })

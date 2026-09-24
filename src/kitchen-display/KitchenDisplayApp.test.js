@@ -146,3 +146,97 @@ test('an audio unlock that never settles cannot trap the user after the explicit
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
 })
+
+
+test('paired approval reaches the start screen before evaluating order timing compatibility', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const incompatibleState = {
+    serverNow: '2026-09-22T20:00:00.000Z',
+    timing: null,
+    orders: [{ id: 'legacy-tv-order', status: 'Em preparo', createdAt: '2026-09-22T19:00:00.000Z' }],
+  }
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'pairing', pairing: { paired: false, code: '654321' } }),
+    pollPairing: async () => ({ kind: 'paired', state: incompatibleState }),
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(buttonNamed(renderer.root, 'Iniciar painel da cozinha'))
+  assert.doesNotMatch(nodeText(renderer.root), /Não foi possível preparar os pedidos nesta TV/)
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  assert.match(nodeText(renderer.root), /Não foi possível preparar os pedidos nesta TV/)
+  assert.match(nodeText(renderer.root), /Política de tempo do pedido inválida/)
+})
+
+
+test('activation failures after approval show a diagnostic instead of another pairing code', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'pairing', pairing: { paired: false, code: '482731' } }),
+    pollPairing: async () => {
+      const error = Object.assign(new Error('Este painel não está mais autorizado.'), {
+        status: 401,
+        activationFailure: true,
+      })
+      throw error
+    },
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => h.fireInterval(2000))
+
+  assert.match(nodeText(renderer.root), /Não foi possível preparar os pedidos nesta TV/)
+  assert.match(nodeText(renderer.root), /KDS_SESSION_ACTIVATION_401/)
+  assert.doesNotMatch(nodeText(renderer.root), /482 731/)
+})
+
+
+test('start gesture requests fullscreen without blocking audio or panel activation', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const events = []
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
+    readState: async () => state(['existing']),
+    requestFullscreen: async () => { events.push('fullscreen'); return true },
+    audio: { unlock: async () => { events.push('audio'); return true }, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+
+  assert.deepEqual(events, ['fullscreen', 'audio'])
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
+})
+
+test('failed fullscreen request keeps KDS live and offers a manual retry action', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  let attempts = 0
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: state([]) }),
+    requestFullscreen: async () => {
+      attempts += 1
+      return attempts > 1
+    },
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
+  assert.ok(buttonNamed(renderer.root, 'Entrar em tela cheia'))
+
+  await act(async () => buttonNamed(renderer.root, 'Entrar em tela cheia').props.onClick())
+  await flushEffects()
+  assert.equal(attempts, 2)
+  assert.equal(buttonNamed(renderer.root, 'Entrar em tela cheia'), undefined)
+})

@@ -62,3 +62,17 @@ test('HTTP errors retain status and distinguish definitive authorization failure
     (error) => error instanceof KitchenDisplayHttpError && error.status === 503 && error.definitive === false,
   )
 })
+
+
+test('legacy state transport can authenticate with the explicit TV session header', async () => {
+  let captured
+  await readKitchenDisplayState('legacy-session-token', async (_path, init) => {
+    captured = init
+    return new Response(JSON.stringify({ orders: [], timing: {}, serverNow: '2026-09-22T20:00:00.000Z' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  })
+  assert.equal(captured.headers['x-kitchen-tv-session'], 'legacy-session-token')
+  assert.equal(captured.credentials, 'same-origin')
+})
