@@ -2,6 +2,7 @@ const TOKEN_BYTES = 32
 const PAIRING_TTL_MS = 30 * 60 * 1000
 const KITCHEN_TV_COOKIE_NAME = 'kitchen_tv_session'
 const KITCHEN_TV_PAIRING_COOKIE_NAME = 'kitchen_tv_pairing_request'
+export const KITCHEN_TV_SESSION_HEADER = 'x-kitchen-tv-session'
 const KITCHEN_TV_SESSION_MAX_AGE_SECONDS = 180 * 24 * 60 * 60
 const KITCHEN_TV_PAIRING_MAX_AGE_SECONDS = 30 * 60
 const encoder = new TextEncoder()
@@ -61,6 +62,8 @@ export const clearKitchenTvPairingRequestCookie = () =>
   `${KITCHEN_TV_PAIRING_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
 
 export const readKitchenTvSessionToken = (request) => cookieValue(request, KITCHEN_TV_COOKIE_NAME)
+  || request.headers.get(KITCHEN_TV_SESSION_HEADER)?.trim()
+  || null
 export const readKitchenTvPairingRequestToken = (request) => cookieValue(request, KITCHEN_TV_PAIRING_COOKIE_NAME)
 
 export const KITCHEN_TV_SESSION_MAX_AGE = KITCHEN_TV_SESSION_MAX_AGE_SECONDS

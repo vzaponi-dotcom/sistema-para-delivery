@@ -66,6 +66,39 @@ test('TV creates a short code, admin approves it, and TV receives its restricted
   assert.deepEqual((await state.json()).orders, [])
 })
 
+
+test('legacy Tizen can complete activation without relying on Set-Cookie persistence', async (t) => {
+  const api = await apiPromise
+  const { db } = setup(t)
+  const env = { DB: db }
+
+  const created = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-request', 'POST'), env, undefined, NOW)
+  const pairing = await created.json()
+  await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/approve', 'POST', { code: pairing.code }), env, await manager(), undefined, new Date(+NOW + 2_000))
+
+  const activated = await api.handleKitchenTvPublicApi(new Request('https://delivery.example/api/kitchen-tv/pairing-status', {
+    method: 'POST',
+    headers: {
+      origin: 'https://delivery.example',
+      'content-type': 'application/json',
+      'user-agent': 'Mozilla/5.0 (SMART-TV; Linux; Tizen 5.5) AppleWebKit/537.36',
+    },
+    body: JSON.stringify({ requestToken: pairing.requestToken }),
+  }), env, undefined, new Date(+NOW + 3_000))
+
+  const activation = await activated.json()
+  assert.equal(activation.paired, true)
+  assert.match(activation.sessionToken, /^[A-Za-z0-9_-]{43}$/)
+  assert.match(activated.headers.get('set-cookie'), /^kitchen_tv_session=/)
+  assert.doesNotMatch(activated.headers.get('set-cookie'), /kitchen_tv_pairing_request=/)
+
+  const state = await api.handleKitchenTvPublicApi(new Request('https://delivery.example/api/kitchen-tv/state', {
+    headers: { 'x-kitchen-tv-session': activation.sessionToken },
+  }), env, undefined, new Date(+NOW + 4_000))
+  assert.equal(state.status, 200)
+  assert.deepEqual((await state.json()).orders, [])
+})
+
 test('code approval requires manage capability and rejects malformed, unknown and expired codes', async (t) => {
   const api = await apiPromise
   const { db } = setup(t)

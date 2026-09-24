@@ -1,3 +1,5 @@
+export const KITCHEN_TV_SESSION_HEADER = 'x-kitchen-tv-session'
+
 export class KitchenDisplayHttpError extends Error {
   constructor(status, message = 'Kitchen TV request failed') {
     super(message)
@@ -34,6 +36,11 @@ export const readKitchenDisplayPairingStatus = (requestToken, fetchImpl = global
     }
   : { method: 'GET' }, fetchImpl)
 
-export const readKitchenDisplayState = (fetchImpl = globalThis.fetch) => requestJson('/api/kitchen-tv/state', {
-  method: 'GET',
-}, fetchImpl)
+export const readKitchenDisplayState = (sessionTokenOrFetch = null, maybeFetch = globalThis.fetch) => {
+  const fetchImpl = typeof sessionTokenOrFetch === 'function' ? sessionTokenOrFetch : maybeFetch
+  const sessionToken = typeof sessionTokenOrFetch === 'string' ? sessionTokenOrFetch.trim() : ''
+  return requestJson('/api/kitchen-tv/state', {
+    method: 'GET',
+    ...(sessionToken ? { headers: { [KITCHEN_TV_SESSION_HEADER]: sessionToken } } : {}),
+  }, fetchImpl)
+}

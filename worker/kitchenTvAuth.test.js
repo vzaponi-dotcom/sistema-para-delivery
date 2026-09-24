@@ -54,6 +54,7 @@ test('cookie readers never confuse admin, pending-pairing and final-TV cookies',
   assert.equal(auth.readKitchenTvPairingRequestToken(request), 'pending')
   assert.equal(auth.readKitchenTvSessionToken(request), 'tv')
   assert.equal(auth.readKitchenTvSessionToken(new Request('https://delivery.example', { headers: { cookie: 'amor_session=admin' } })), null)
+  assert.equal(auth.readKitchenTvSessionToken(new Request('https://delivery.example', { headers: { [auth.KITCHEN_TV_SESSION_HEADER]: 'legacy-tv-token' } })), 'legacy-tv-token')
 })
 
 test('pairing requests expire exactly thirty minutes after issue', async () => {

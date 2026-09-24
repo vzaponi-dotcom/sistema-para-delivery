@@ -4,7 +4,9 @@ import assert from 'node:assert/strict'
 import {
   bootstrapKitchenDisplay,
   KITCHEN_TV_PAIRING_STORAGE_KEY,
+  KITCHEN_TV_SESSION_STORAGE_KEY,
   pollKitchenDisplayPairing,
+  readStoredKitchenDisplayState,
 } from './kitchenDisplaySession.js'
 
 const unauthorized = () => Object.assign(new Error('unauthorized'), { status: 401 })
@@ -135,4 +137,63 @@ test('transient state failures do not create or rotate pairing requests', async 
     readPairingStatus: async () => assert.fail('must not inspect pairing on transient state failure'),
     createPairingRequest: async () => assert.fail('must not create pairing on transient state failure'),
   }), /offline/)
+})
+
+
+test('legacy activation stores the final session token, uses it for state, and survives a reload', async () => {
+  const sessionStorage = storage()
+  sessionStorage.setItem(KITCHEN_TV_PAIRING_STORAGE_KEY, 'stable-request-token')
+  const seenTokens = []
+
+  const paired = await pollKitchenDisplayPairing({
+    storage: sessionStorage,
+    readPairingStatus: async () => ({ paired: true, sessionToken: 'legacy-final-token' }),
+    readState: async (token) => {
+      seenTokens.push(token)
+      return { orders: [{ id: 'legacy-order' }] }
+    },
+  })
+
+  assert.equal(paired.kind, 'paired')
+  assert.deepEqual(seenTokens, ['legacy-final-token'])
+  assert.equal(sessionStorage.getItem(KITCHEN_TV_PAIRING_STORAGE_KEY), null)
+  assert.equal(sessionStorage.getItem(KITCHEN_TV_SESSION_STORAGE_KEY), 'legacy-final-token')
+
+  const reloaded = await bootstrapKitchenDisplay({
+    storage: sessionStorage,
+    readState: async (token) => {
+      seenTokens.push(token)
+      return { orders: [] }
+    },
+    readPairingStatus: async () => assert.fail('valid stored final token must bypass pairing'),
+    createPairingRequest: async () => assert.fail('valid stored final token must bypass pairing'),
+  })
+  assert.equal(reloaded.kind, 'paired')
+  assert.deepEqual(seenTokens, ['legacy-final-token', 'legacy-final-token'])
+
+  const live = await readStoredKitchenDisplayState({
+    storage: sessionStorage,
+    readState: async (token) => ({ token }),
+  })
+  assert.equal(live.token, 'legacy-final-token')
+})
+
+test('approved activation failure is surfaced instead of silently rotating to a new pairing code', async () => {
+  const sessionStorage = storage()
+  sessionStorage.setItem(KITCHEN_TV_PAIRING_STORAGE_KEY, 'stable-request-token')
+  let created = false
+
+  await assert.rejects(() => pollKitchenDisplayPairing({
+    storage: sessionStorage,
+    readPairingStatus: async () => ({ paired: true, sessionToken: 'legacy-final-token' }),
+    readState: async () => { throw unauthorized() },
+    createPairingRequest: async () => {
+      created = true
+      return { paired: false, code: '999999', requestToken: 'new-token' }
+    },
+  }), (error) => error?.activationFailure === true && error?.status === 401)
+
+  assert.equal(created, false)
+  assert.equal(sessionStorage.getItem(KITCHEN_TV_PAIRING_STORAGE_KEY), null)
+  assert.equal(sessionStorage.getItem(KITCHEN_TV_SESSION_STORAGE_KEY), 'legacy-final-token')
 })

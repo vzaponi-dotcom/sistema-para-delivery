@@ -171,3 +171,27 @@ test('paired approval reaches the start screen before evaluating order timing co
   assert.match(nodeText(renderer.root), /Não foi possível preparar os pedidos nesta TV/)
   assert.match(nodeText(renderer.root), /Política de tempo do pedido inválida/)
 })
+
+
+test('activation failures after approval show a diagnostic instead of another pairing code', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'pairing', pairing: { paired: false, code: '482731' } }),
+    pollPairing: async () => {
+      const error = Object.assign(new Error('Este painel não está mais autorizado.'), {
+        status: 401,
+        activationFailure: true,
+      })
+      throw error
+    },
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+
+  await act(async () => h.fireInterval(2000))
+
+  assert.match(nodeText(renderer.root), /Não foi possível preparar os pedidos nesta TV/)
+  assert.match(nodeText(renderer.root), /KDS_SESSION_ACTIVATION_401/)
+  assert.doesNotMatch(nodeText(renderer.root), /482 731/)
+})

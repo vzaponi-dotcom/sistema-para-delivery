@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectOperationalArrivals } from '../domains/orders/index.js'
-import { KitchenDisplayHttpError, readKitchenDisplayState } from './kitchenDisplayApi.js'
+import { KitchenDisplayHttpError } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
-import { bootstrapKitchenDisplay, pollKitchenDisplayPairing } from './kitchenDisplaySession.js'
+import { bootstrapKitchenDisplay, pollKitchenDisplayPairing, readStoredKitchenDisplayState } from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
 
 const isDefinitive = (error) => error?.definitive === true
@@ -16,7 +16,7 @@ const formatPairingCode = (value) => {
 export function KitchenDisplayApp({
   bootstrap = bootstrapKitchenDisplay,
   pollPairing = pollKitchenDisplayPairing,
-  readState = readKitchenDisplayState,
+  readState = readStoredKitchenDisplayState,
   audio: suppliedAudio,
   schedule = globalThis.setTimeout,
   cancelSchedule = globalThis.clearTimeout,
@@ -106,9 +106,14 @@ export function KitchenDisplayApp({
         } else if (next?.kind === 'pairing') {
           setPairing(next.pairing)
         }
-      } catch {
-        // Keep the current code visible on transient failures. The next poll retries
-        // the same request instead of generating a new code.
+      } catch (error) {
+        if (error?.activationFailure) {
+          const suffix = error.status ? `_${error.status}` : ''
+          setCompatibilityError(`KDS_SESSION_ACTIVATION${suffix}: ${error.message}`)
+          setPairing(null)
+          setPhase('compatibility-error')
+        }
+        // Other transient failures keep the current code visible and retry it.
       } finally {
         checking = false
       }

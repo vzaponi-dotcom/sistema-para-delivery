@@ -27,6 +27,7 @@ import { requireCapability } from './settingsAccess.js'
 const unauthorized = () => apiError(401, 'KITCHEN_TV_UNAUTHORIZED', 'Este painel não está mais autorizado.')
 const pairingExpired = () => apiError(410, 'KITCHEN_TV_PAIRING_EXPIRED', 'O código expirou. Um novo código será gerado.')
 const normalizePairingCode = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 6)
+const needsLegacySessionTokenFallback = (request) => /\bTizen\b/i.test(request.headers.get('user-agent') || '')
 
 const settingsPayload = (access, pending) => ({
   configured: Boolean(access?.sessionTokenHash || pending),
@@ -122,10 +123,13 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
     const sessionCredential = await createKitchenTvCredential()
     const access = await activateKitchenTvApprovedRequest(env.DB, requestHash, sessionCredential.tokenHash, now)
     if (!access) throw pairingExpired()
+    const legacySessionTokenFallback = needsLegacySessionTokenFallback(request)
     const headers = new Headers()
     headers.append('set-cookie', kitchenTvSessionCookie(sessionCredential.token))
-    headers.append('set-cookie', clearKitchenTvPairingRequestCookie())
-    return json({ paired: true }, { headers })
+    if (!legacySessionTokenFallback) headers.append('set-cookie', clearKitchenTvPairingRequestCookie())
+    return json(legacySessionTokenFallback
+      ? { paired: true, sessionToken: sessionCredential.token }
+      : { paired: true }, { headers })
   }
 
   if (url.pathname === '/api/kitchen-tv/state' && request.method === 'GET') {
