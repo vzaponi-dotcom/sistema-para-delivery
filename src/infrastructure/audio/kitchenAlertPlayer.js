@@ -30,7 +30,7 @@ export function createKitchenAlertPlayer({
       const current = getContext()
       if (!current || current.state === 'closed') return false
       if (current.state === 'suspended') await current.resume()
-      return current.state === 'running'
+      return current.state !== 'suspended' && current.state !== 'closed'
     } catch {
       return false
     }
@@ -55,8 +55,13 @@ export function createKitchenAlertPlayer({
         oscillator.type = tone.type
         oscillator.frequency.setValueAtTime(tone.frequency, startsAt)
         gain.gain.setValueAtTime(0.0001, startsAt)
-        gain.gain.exponentialRampToValueAtTime(peak, startsAt + attack)
-        gain.gain.exponentialRampToValueAtTime(0.0001, endsAt)
+        if (typeof gain.gain.exponentialRampToValueAtTime === 'function') {
+          gain.gain.exponentialRampToValueAtTime(peak, startsAt + attack)
+          gain.gain.exponentialRampToValueAtTime(0.0001, endsAt)
+        } else {
+          gain.gain.setValueAtTime(peak, startsAt + attack)
+          gain.gain.setValueAtTime(0.0001, endsAt)
+        }
         oscillator.connect(gain)
         gain.connect(current.destination)
         oscillator.start(startsAt)
