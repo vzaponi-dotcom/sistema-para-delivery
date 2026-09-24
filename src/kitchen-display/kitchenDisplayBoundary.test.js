@@ -42,8 +42,19 @@ test('production build keeps the TV route graph free of admin and heavy business
     for (const dependency of [...(manifest[key]?.imports || []), ...(manifest[key]?.dynamicImports || [])]) visit(dependency)
   }
   visit(rootKey)
-  const graph = [...reachable].join('\n')
-  assert.doesNotMatch(graph, /AdminBootstrap|domains\/orders\/ui|domains\/(?:printing|finance|customers|catalog|table-service)|qz-tray|jspdf/i)
+  const forbidden = [...reachable].filter((key) => {
+    const normalized = key.toLowerCase()
+    return normalized.includes('adminbootstrap')
+      || normalized.includes('domains/orders/ui')
+      || normalized.includes('domains/printing')
+      || normalized.includes('domains/finance')
+      || normalized.includes('domains/customers')
+      || normalized.includes('domains/catalog')
+      || normalized.includes('domains/table-service')
+      || normalized.includes('qz-tray')
+      || normalized.includes('jspdf')
+  })
+  assert.deepEqual(forbidden, [])
   for (const key of reachable) {
     if (manifest[key]?.name !== 'kitchenQueue') continue
     assert.deepEqual(manifest[key].css || [], [])
