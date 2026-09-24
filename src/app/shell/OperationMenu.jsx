@@ -29,6 +29,7 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
   const triggerRef = useRef(null)
   const [open, setOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const identityEntry = resolveNavigationEntry({ id: 'settings-business-profile', label: 'Identidade da operação', icon: 'edit' }, granted, implemented)
   const settingsEntry = resolveNavigationEntry({ area: 'settings', label: 'Configurações', icon: 'settings' }, granted, implemented)
   const deviceEntry = resolveNavigationEntry({ id: 'settings-device', label: 'Preferências deste dispositivo', icon: 'system' }, granted, implemented)
   const restoreFocus = () => {
@@ -60,7 +61,18 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
       <Icon name="arrow-down" size={14} />
     </button>
     {open && <div className="operation-menu-popover" role="menu" aria-label="Operação atual">
-      <div className="operation-menu-heading"><strong>{operationName}</strong><span>Operação atual</span></div>
+      {identityEntry
+        ? <button
+            type="button"
+            role="menuitem"
+            className="operation-menu-heading operation-menu-heading-link"
+            aria-label={`Abrir identidade da operação de ${operationName}`}
+            onClick={() => navigate(identityEntry.id)}
+          >
+            <div className="operation-menu-heading-copy"><strong>{operationName}</strong><span>Operação atual</span></div>
+            <Icon name="edit" size={16} className="operation-menu-heading-icon" />
+          </button>
+        : <div className="operation-menu-heading"><strong>{operationName}</strong><span>Operação atual</span></div>}
       {settingsEntry && <button type="button" role="menuitem" onClick={() => navigate(settingsEntry.id)}><Icon name="settings" size={18} />Configurações</button>}
       {deviceEntry && <button type="button" role="menuitem" onClick={() => navigate(deviceEntry.id)}><Icon name="system" size={18} />Preferências deste dispositivo</button>}
       <button type="button" role="menuitem" onClick={() => { setOpen(false); setAboutOpen(true) }}><Icon name="details" size={18} />Sobre a Mesiva</button>

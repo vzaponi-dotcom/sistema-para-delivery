@@ -138,8 +138,20 @@
   box-shadow: var(--shadow-lg);
 }
 .operation-menu-heading { display: grid; gap: 3px; padding: 10px 11px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.operation-menu-heading-copy { display: grid; min-width: 0; gap: 3px; }
 .operation-menu-heading span { color: var(--muted); font-size: 0.78rem; }
 .operation-menu-popover button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.operation-menu-popover .operation-menu-heading-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 11px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.operation-menu-heading-link .operation-menu-heading-icon { color: var(--muted); }
 .operation-menu-popover button:hover { background: var(--surface-soft); }
 .operation-menu-popover button:disabled { opacity: 0.5; cursor: not-allowed; }
 .operation-menu-popover hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
