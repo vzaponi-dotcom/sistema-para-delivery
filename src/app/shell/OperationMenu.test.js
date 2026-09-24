@@ -4,7 +4,7 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, buttonNamed, nodeText } from '../../test-support/renderWorkspace.js'
 
-const implemented = new Set(['orders', 'settings-home', 'settings-device'])
+const implemented = new Set(['orders', 'settings-home', 'settings-business-profile', 'settings-device'])
 const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null } = {}) => {
   const h = await workspaceHarness(t)
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
