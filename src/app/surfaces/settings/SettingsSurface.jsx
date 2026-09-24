@@ -34,6 +34,7 @@ export function SettingsSurface({
   soundEnabled,
   onSoundEnabledChange,
   onSuccessMessage,
+  writesBlocked = false,
 }) {
   const policyEditing = usePolicyEditing()
   const {
@@ -81,6 +82,7 @@ export function SettingsSurface({
     <BusinessProfileSettings
       resourceState={resources.businessProfile}
       readOnly={!(granted instanceof Set && granted.has('business.profile.manage'))}
+      writesBlocked={writesBlocked}
       onEdit={(draft) => edit('businessProfile', draft)}
       onSave={(transient) => savePolicy('businessProfile', 'Identidade da operação salva com sucesso', undefined, transient)}
       onDiscard={() => cancel('businessProfile')}

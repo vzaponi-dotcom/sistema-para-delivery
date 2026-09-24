@@ -52,10 +52,18 @@ const resolveReplaceBlob = async (data, transient) => {
 }
 
 const saveProfile = async (input, transient) => {
-  const logoAction = input?.data?.logoAction || 'keep'
-  if (!['keep', 'replace', 'remove'].includes(logoAction)) {
+  const requestedLogoAction = input?.data?.logoAction || 'keep'
+  if (!['keep', 'replace', 'remove'].includes(requestedLogoAction)) {
     throw policyClientError('BUSINESS_PROFILE_INVALID', 'A ação de logo é inválida.')
   }
+
+  const localLogo = typeof input?.data?.logo?.version === 'string'
+    && LOCAL_LOGO_VERSION.test(input.data.logo.version)
+  const logoAction = localLogo
+    ? 'replace'
+    : requestedLogoAction === 'remove' && input?.data?.logo?.present === false
+      ? 'remove'
+      : 'keep'
 
   const form = new FormData()
   form.append('payload', JSON.stringify({

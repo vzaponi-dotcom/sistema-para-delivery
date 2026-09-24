@@ -552,7 +552,7 @@ function App({ capabilities } = {}) {
             )}
           </TableServiceExternalActions>
         )}
-        {(activeTab === 'settings-home' || activeTab === 'settings-business-profile' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-kitchen-tv' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSuccessMessage={showSuccessMessage} />}
+        {(activeTab === 'settings-home' || activeTab === 'settings-business-profile' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-kitchen-tv' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSuccessMessage={showSuccessMessage} writesBlocked={writesBlocked} />}
 
         {pendingDestination && (
           <Modal title={pendingDiscardKind === 'policy' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>

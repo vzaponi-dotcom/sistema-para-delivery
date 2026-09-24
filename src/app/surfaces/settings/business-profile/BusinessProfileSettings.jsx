@@ -33,6 +33,7 @@ const fieldValue = (value) => typeof value === 'string' ? value : ''
 function BusinessProfileSettings({
   resourceState,
   readOnly = false,
+  writesBlocked = false,
   onEdit,
   onSave,
   onDiscard,
@@ -48,6 +49,7 @@ function BusinessProfileSettings({
   const locked = readOnly || !data || ['loading', 'saving', 'unconfirmed', 'conflict'].includes(status)
   const fileInputRef = useRef(null)
   const transientRef = useRef(null)
+  const localLogoVersionRef = useRef(null)
   const selectionRef = useRef(0)
   const previewOwnerRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -56,19 +58,28 @@ function BusinessProfileSettings({
 
   if (!previewOwnerRef.current) previewOwnerRef.current = previewOwnerFactory()
 
-  useEffect(() => () => {
-    selectionRef.current += 1
-    transientRef.current = null
-    previewOwnerRef.current?.dispose?.()
-  }, [])
-
   const clearLocalLogo = () => {
     selectionRef.current += 1
     transientRef.current = null
+    localLogoVersionRef.current = null
     previewOwnerRef.current?.clear?.()
     setPreviewUrl(null)
     setImageError('')
   }
+
+  useEffect(() => () => {
+    selectionRef.current += 1
+    transientRef.current = null
+    localLogoVersionRef.current = null
+    previewOwnerRef.current?.dispose?.()
+  }, [])
+
+  useEffect(() => {
+    const selectedVersion = localLogoVersionRef.current
+    if (!selectedVersion) return
+    const draftVersion = data?.logo?.version || null
+    if (draftVersion !== selectedVersion) clearLocalLogo()
+  }, [data?.logo?.version])
 
   const edit = (next) => {
     if (!data || readOnly) return false
@@ -99,12 +110,14 @@ function BusinessProfileSettings({
     try {
       const normalized = await normalizeLogo(file)
       if (selection !== selectionRef.current) return false
+      const localVersion = `local:${normalized.sha256}`
       transientRef.current = normalized.blob
+      localLogoVersionRef.current = localVersion
       const nextPreview = previewOwnerRef.current.replace(normalized.blob)
       setPreviewUrl(nextPreview)
       edit({
         ...data,
-        logo: { present: true, version: `local:${normalized.sha256}` },
+        logo: { present: true, version: localVersion },
         logoAction: 'replace',
       })
       return true
@@ -128,19 +141,20 @@ function BusinessProfileSettings({
   }
 
   const discard = () => {
+    if (['saving', 'loading', 'unconfirmed'].includes(status)) return false
     clearLocalLogo()
     setNameError('')
     return onDiscard?.()
   }
 
   const save = async () => {
-    if (!data) return false
+    if (!data || writesBlocked || ['loading', 'saving', 'unconfirmed', 'conflict'].includes(status)) return false
     if (!String(data.name || '').trim()) {
       setNameError('Informe o nome da operação.')
       return false
     }
     setNameError('')
-    const transient = data.logoAction === 'replace' && transientRef.current
+    const transient = data.logo?.version === localLogoVersionRef.current && transientRef.current
       ? { logoBlob: transientRef.current }
       : undefined
     const saved = await onSave?.(transient)
@@ -164,6 +178,8 @@ function BusinessProfileSettings({
     scope={<SettingsBackLink onClick={onNavigateHome} />}
     state={resourceState}
     readOnly={readOnly}
+    saveBlocked={writesBlocked}
+    saveBlockedMessage={writesBlocked ? 'Sem conexão. O rascunho e a prévia continuam disponíveis; reconecte para salvar.' : ''}
     onSave={save}
     onDiscard={discard}
     onReconcile={onReconcile}
