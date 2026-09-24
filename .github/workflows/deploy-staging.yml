@@ -141,6 +141,7 @@ jobs:
             '/financeiro/a-receber',
             '/financeiro/movimentacoes',
             '/configuracoes/impressao',
+            '/configuracoes/identidade',
             '/cozinha-tv',
           ]
 
