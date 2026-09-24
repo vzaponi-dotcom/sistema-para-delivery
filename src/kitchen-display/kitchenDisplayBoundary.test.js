@@ -9,6 +9,7 @@ import viteConfig from '../../vite.config.js'
 const productionFiles = [
   'KitchenDisplayRoot.jsx', 'KitchenDisplayApp.jsx', 'KitchenDisplayBoard.jsx', 'KitchenDisplayCard.jsx',
   'kitchenDisplayApi.js', 'kitchenDisplayAudio.js', 'kitchenDisplayPresentation.js', 'kitchenDisplaySession.js',
+  'kitchenDisplayLegacyCompat.js',
 ]
 
 test('Kitchen TV production source stays read-only and isolated behind public boundaries', async () => {
@@ -49,6 +50,8 @@ test('production build keeps the TV route graph free of admin and heavy business
     assert.equal((manifest[key].imports || []).some((dependency) => /react-dom/i.test(dependency)), false)
   }
   assert.ok(viteConfig.plugins.some((plugin) => plugin?.name === 'kitchen-tv-orders-public-contract'))
+  assert.equal(viteConfig.build.target, 'chrome69')
+  assert.equal(viteConfig.build.cssTarget, 'chrome69')
 })
 
 
