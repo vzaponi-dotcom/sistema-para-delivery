@@ -18,7 +18,6 @@ function Sidebar({ badges = {} }) {
         {group.items.map((item) => { const active = isActive(item); const badge = getNavigationBadge(item, badges); return <button key={item.id} type="button" className={active ? 'sidebar-link active' : 'sidebar-link'} aria-current={active ? 'page' : undefined} aria-label={badge?.ariaLabel} onClick={() => requestNavigation(item.id)}><span className="navigation-icon-wrap"><Icon name={item.icon} size={20} />{badge && <span className="navigation-badge" aria-hidden="true">{badge.text}</span>}</span><span className="sidebar-link-label"><span>{item.label}</span></span></button> })}
       </section>)}
     </nav>
-    <div className="sidebar-footer"><span>Operação</span><strong>Comida caseira, gestão simples.</strong></div>
   </aside>
 }
 
