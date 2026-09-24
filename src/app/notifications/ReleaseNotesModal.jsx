@@ -143,7 +143,7 @@ export function ReleaseNotesContent({ notification, showTitle = true }) {
       })}
     </ul>
     <footer className="release-notes-brand">
-      <span className="release-notes-brand-product"><Icon name="bolt" size={13} /> Gestão Delivery</span>
+      <span className="release-notes-brand-product"><Icon name="bolt" size={13} /> Mesiva</span>
       <span className="release-notes-brand-divider" aria-hidden="true" />
       <span>sempre evoluindo com você</span>
     </footer>
@@ -156,7 +156,7 @@ export default function ReleaseNotesModal({ notification, mode, onClose, onAckno
   const tour = Array.isArray(notification.slides) && notification.slides.length > 0
 
   return <Modal
-    title={automatic ? 'Novidades do Gestão Delivery' : notification.title}
+    title={automatic ? 'Novidades da Mesiva' : notification.title}
     onClose={onClose}
     className={tour ? 'release-notes-modal release-notes-tour-modal' : 'release-notes-modal'}
     footer={!tour && automatic ? <div className="release-notes-actions">
