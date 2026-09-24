@@ -53,7 +53,7 @@ try {
   try {
     apply(clean, files)
     assertSchema(clean)
-    const business = clean.prepare("SELECT id, slug, name FROM businesses WHERE id = 'amor-e-sabor'").get()
+    const business = { ...clean.prepare("SELECT id, slug, name FROM businesses WHERE id = 'amor-e-sabor'").get() }
     assert.deepEqual(business, { id: 'amor-e-sabor', slug: 'amor-e-sabor', name: 'Amor & Sabor' })
 
     const profile = clean.prepare("SELECT * FROM business_profiles WHERE business_id = 'amor-e-sabor'").get()
@@ -85,7 +85,7 @@ try {
     const profileCount = upgrade.prepare('SELECT count(*) AS n FROM business_profiles').get().n
     assert.equal(profileCount, businessCount, '0030 must backfill every existing business')
 
-    const upgraded = upgrade.prepare("SELECT business_id, revision, phone, address_line, logo_object_key FROM business_profiles WHERE business_id = 'upgrade'").get()
+    const upgraded = { ...upgrade.prepare("SELECT business_id, revision, phone, address_line, logo_object_key FROM business_profiles WHERE business_id = 'upgrade'").get() }
     assert.deepEqual(upgraded, {
       business_id: 'upgrade',
       revision: 1,
