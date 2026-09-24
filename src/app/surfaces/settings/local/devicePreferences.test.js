@@ -15,10 +15,18 @@ test('presents the established local device controls, diagnostics, and autosave 
     h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   const changes = []
+  const profileChanges = []
+  const volumeChanges = []
+  const previews = []
   const screen = await h.render(() => React.createElement(ThemeProvider, null,
     React.createElement(DevicePreferences, {
       soundEnabled: true,
+      soundProfile: 'bell',
+      soundVolume: 'high',
       onSoundEnabledChange(value) { changes.push(value); h.localStorage.setItem('kitchen-sound-enabled', String(value)); return true },
+      onSoundProfileChange(value) { profileChanges.push(value); return true },
+      onSoundVolumeChange(value) { volumeChanges.push(value); return true },
+      onPreviewSound(profile, volume) { previews.push({ profile, volume }); return true },
     })))
 
   const text = nodeText(screen.root)
@@ -44,6 +52,22 @@ test('presents the established local device controls, diagnostics, and autosave 
   assert.ok(h.localStorage.getItem('delivery-device-preferences-updated-at'))
   assert.match(nodeText(screen.root), /Salvo automaticamente/i)
 
+  const soundGroup = screen.root.findByProps({ role: 'radiogroup', 'aria-label': 'Toque do alerta' })
+  const soundRadios = soundGroup.findAllByProps({ role: 'radio' })
+  assert.deepEqual(soundRadios.map((radio) => nodeText(radio)), ['Campainha', 'Cozinha forte', 'Duplo alerta', 'Chamado longo', 'Clássico'])
+  assert.equal(soundRadios[0].props['aria-checked'], true)
+  await act(async () => soundRadios[1].props.onClick())
+  assert.deepEqual(profileChanges, ['kitchen-strong'])
+
+  const previewBell = soundGroup.findByProps({ 'aria-label': 'Ouvir Campainha' })
+  await act(async () => previewBell.props.onClick())
+  assert.deepEqual(previews, [{ profile: 'bell', volume: 'high' }])
+
+  const volumeGroup = screen.root.findByProps({ role: 'group', 'aria-label': 'Volume do alerta' })
+  assert.deepEqual(volumeGroup.findAllByType('button').map((button) => nodeText(button)), ['Normal', 'Alto', 'Máximo'])
+  await act(async () => buttonNamed(volumeGroup, 'Máximo').props.onClick())
+  assert.deepEqual(volumeChanges, ['max'])
+
   await act(async () => screen.root.findByProps({ role: 'switch', 'aria-label': 'Som de novos pedidos' }).props.onClick())
   assert.deepEqual(changes, [false])
   assert.equal(h.localStorage.getItem('kitchen-sound-enabled'), 'false')
@@ -58,10 +82,16 @@ test('keeps safe values and reports persistence failures without a policy engine
     h.load('/src/app/shell/theme/ThemeProvider.jsx'),
   ])
   let soundCalls = 0
+  let profileCalls = 0
   const screen = await h.render(() => React.createElement(ThemeProvider, null,
     React.createElement(DevicePreferences, {
       soundEnabled: true,
+      soundProfile: 'bell',
+      soundVolume: 'high',
       onSoundEnabledChange() { soundCalls += 1; return false },
+      onSoundProfileChange() { profileCalls += 1; return false },
+      onSoundVolumeChange() { return false },
+      onPreviewSound() { return true },
     })))
 
   const visualGroup = screen.root.findByProps({ 'aria-label': 'Estilo visual' })
@@ -76,5 +106,10 @@ test('keeps safe values and reports persistence failures without a policy engine
 
   await act(async () => screen.root.findByProps({ role: 'switch', 'aria-label': 'Som de novos pedidos' }).props.onClick())
   assert.equal(soundCalls, 1)
+  assert.match(nodeText(screen.root.findByProps({ role: 'alert' })), /não foi possível salvar.*dispositivo/i)
+
+  const soundGroup = screen.root.findByProps({ role: 'radiogroup', 'aria-label': 'Toque do alerta' })
+  await act(async () => soundGroup.findAllByProps({ role: 'radio' })[1].props.onClick())
+  assert.equal(profileCalls, 1)
   assert.match(nodeText(screen.root.findByProps({ role: 'alert' })), /não foi possível salvar.*dispositivo/i)
 })
