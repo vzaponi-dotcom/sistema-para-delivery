@@ -91,6 +91,12 @@
   box-shadow: 0 0 0 2px var(--primary-soft);
 }
 
+.business-profile-field .system-select-trigger {
+  min-height: 44px;
+  background: var(--bg);
+  font-weight: 500;
+}
+
 .business-profile-field input:disabled {
   background: var(--surface-soft);
   color: var(--text-soft);

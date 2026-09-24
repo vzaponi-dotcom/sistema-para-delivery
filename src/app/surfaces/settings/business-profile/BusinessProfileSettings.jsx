@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../../../../shared/ui/Button.jsx'
+import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
+import { digitsOnly, formatPhone, formatPostalCode } from '../../../../shared/utils/formFormatting.js'
+import { BRAZIL_STATES, isBrazilState } from '../../../../../shared/brazilStates.js'
 import SettingsEditorShell from '../components/SettingsEditorShell.jsx'
 import { SettingsBackLink } from '../components/SettingsBackAndSwitchControls.jsx'
 import { createBusinessLogoPreviewOwner, normalizeBusinessLogo } from './businessLogoImage.js'
@@ -55,6 +58,9 @@ function BusinessProfileSettings({
   const [previewUrl, setPreviewUrl] = useState(null)
   const [imageError, setImageError] = useState('')
   const [nameError, setNameError] = useState('')
+  const [phoneError, setPhoneError] = useState('')
+  const [postalCodeError, setPostalCodeError] = useState('')
+  const [stateError, setStateError] = useState('')
 
   if (!previewOwnerRef.current) previewOwnerRef.current = previewOwnerFactory()
 
@@ -95,7 +101,25 @@ function BusinessProfileSettings({
       return
     }
     if (field === 'phone') {
-      edit({ ...data, phone: value })
+      const phone = formatPhone(value)
+      if (!phone || [10, 11].includes(digitsOnly(phone).length)) setPhoneError('')
+      edit({ ...data, phone })
+      return
+    }
+    if (field === 'number') {
+      const number = digitsOnly(value, 10)
+      edit({ ...data, address: { ...(data.address || EMPTY_ADDRESS), number } })
+      return
+    }
+    if (field === 'postalCode') {
+      const postalCode = digitsOnly(value, 8)
+      if (!postalCode || postalCode.length === 8) setPostalCodeError('')
+      edit({ ...data, address: { ...(data.address || EMPTY_ADDRESS), postalCode } })
+      return
+    }
+    if (field === 'state') {
+      if (!value || isBrazilState(value)) setStateError('')
+      edit({ ...data, address: { ...(data.address || EMPTY_ADDRESS), state: value } })
       return
     }
     const address = { ...(data.address || EMPTY_ADDRESS), [field]: value }
@@ -144,6 +168,9 @@ function BusinessProfileSettings({
     if (['saving', 'loading', 'unconfirmed'].includes(status)) return false
     clearLocalLogo()
     setNameError('')
+    setPhoneError('')
+    setPostalCodeError('')
+    setStateError('')
     return onDiscard?.()
   }
 
@@ -154,6 +181,22 @@ function BusinessProfileSettings({
       return false
     }
     setNameError('')
+    const phoneDigits = digitsOnly(data.phone, 11)
+    const postalCodeDigits = digitsOnly(data.address?.postalCode, 8)
+    const nextPhoneError = data.phone && ![10, 11].includes(phoneDigits.length)
+      ? 'Informe um telefone válido com DDD.'
+      : ''
+    const nextPostalCodeError = data.address?.postalCode && postalCodeDigits.length !== 8
+      ? 'Informe um CEP válido com 8 dígitos.'
+      : ''
+    const nextStateError = data.address?.state && !isBrazilState(data.address.state)
+      ? 'Selecione uma UF válida.'
+      : ''
+    setPhoneError(nextPhoneError)
+    setPostalCodeError(nextPostalCodeError)
+    setStateError(nextStateError)
+    if (nextPhoneError || nextPostalCodeError || nextStateError) return false
+
     const transient = data.logo?.version === localLogoVersionRef.current && transientRef.current
       ? { logoBlob: transientRef.current }
       : undefined
@@ -250,12 +293,18 @@ function BusinessProfileSettings({
           <span>Telefone</span>
           <input
             name="phone"
-            value={fieldValue(data.phone)}
-            maxLength={32}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={formatPhone(fieldValue(data.phone))}
+            maxLength={15}
             disabled={locked}
             placeholder="(19) 99999-9999"
+            aria-invalid={Boolean(phoneError)}
+            aria-describedby={phoneError ? 'business-profile-phone-error' : undefined}
             onChange={(event) => editField('phone', event.target.value)}
           />
+          {phoneError && <small id="business-profile-phone-error" className="business-profile-field-error" role="alert">{phoneError}</small>}
         </label>
       </section>
 
@@ -274,7 +323,7 @@ function BusinessProfileSettings({
           </label>
           <label className="business-profile-field">
             <span>Número</span>
-            <input name="address.number" value={fieldValue(address.number)} maxLength={30} disabled={locked} onChange={(event) => editField('number', event.target.value)} />
+            <input name="address.number" value={fieldValue(address.number)} maxLength={10} inputMode="numeric" autoComplete="address-line2" disabled={locked} onChange={(event) => editField('number', event.target.value)} />
           </label>
           <label className="business-profile-field">
             <span>Complemento</span>
@@ -288,13 +337,34 @@ function BusinessProfileSettings({
             <span>Cidade</span>
             <input name="address.city" value={fieldValue(address.city)} maxLength={80} disabled={locked} onChange={(event) => editField('city', event.target.value)} />
           </label>
-          <label className="business-profile-field business-profile-field-compact">
+          <div className="business-profile-field business-profile-field-compact">
             <span>UF</span>
-            <input name="address.state" value={fieldValue(address.state)} maxLength={2} disabled={locked} onChange={(event) => editField('state', event.target.value.toLocaleUpperCase('pt-BR'))} />
-          </label>
+            <SystemSelect
+              id="business-profile-state"
+              label="UF"
+              value={fieldValue(address.state)}
+              options={BRAZIL_STATES}
+              disabled={locked}
+              placeholder="Selecione a UF"
+              onChange={(value) => editField('state', value)}
+            />
+            {stateError && <small className="business-profile-field-error" role="alert">{stateError}</small>}
+          </div>
           <label className="business-profile-field">
             <span>CEP</span>
-            <input name="address.postalCode" value={fieldValue(address.postalCode)} maxLength={16} disabled={locked} inputMode="numeric" onChange={(event) => editField('postalCode', event.target.value)} />
+            <input
+              name="address.postalCode"
+              value={formatPostalCode(fieldValue(address.postalCode))}
+              maxLength={9}
+              disabled={locked}
+              inputMode="numeric"
+              autoComplete="postal-code"
+              placeholder="00000-000"
+              aria-invalid={Boolean(postalCodeError)}
+              aria-describedby={postalCodeError ? 'business-profile-postal-error' : undefined}
+              onChange={(event) => editField('postalCode', event.target.value)}
+            />
+            {postalCodeError && <small id="business-profile-postal-error" className="business-profile-field-error" role="alert">{postalCodeError}</small>}
           </label>
         </div>
       </section>

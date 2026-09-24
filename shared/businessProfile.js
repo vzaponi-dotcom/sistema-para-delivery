@@ -1,3 +1,5 @@
+import { isBrazilState } from './brazilStates.js'
+
 const invalid = (field, message = 'Dados da operação inválidos.') => {
   throw Object.assign(new Error(message), { status: 400, code: 'BUSINESS_PROFILE_INVALID', field })
 }
@@ -48,23 +50,35 @@ export function parseBusinessProfile(value) {
   exactKeys(value, ['name', 'phone', 'address'])
   exactKeys(value.address, ['line', 'number', 'complement', 'neighborhood', 'city', 'state', 'postalCode'], 'address')
 
-  const stateInput = text(value.address.state, { field: 'address.state', max: 2 })
-  if (stateInput && !/^[a-z]{2}$/iu.test(stateInput)) invalid('address.state')
+  const phoneInput = text(value.phone, { field: 'phone', max: 32, controlFree: true })
+  const phoneDigits = phoneInput.replace(/\D/gu, '')
+  if (phoneInput && (!/^[\d\s()+.\-]+$/u.test(phoneInput) || ![10, 11].includes(phoneDigits.length))) invalid('phone')
+  const phone = phoneDigits.length === 10
+    ? `(${phoneDigits.slice(0, 2)}) ${phoneDigits.slice(2, 6)}-${phoneDigits.slice(6)}`
+    : phoneDigits.length === 11
+      ? `(${phoneDigits.slice(0, 2)}) ${phoneDigits.slice(2, 7)}-${phoneDigits.slice(7)}`
+      : ''
 
-  const postalInput = text(value.address.postalCode, { field: 'address.postalCode', max: 16 })
+  const number = text(value.address.number, { field: 'address.number', max: 10, controlFree: true })
+  if (number && !/^\d+$/u.test(number)) invalid('address.number')
+
+  const stateInput = text(value.address.state, { field: 'address.state', max: 2, controlFree: true }).toLocaleUpperCase('pt-BR')
+  if (stateInput && !isBrazilState(stateInput)) invalid('address.state')
+
+  const postalInput = text(value.address.postalCode, { field: 'address.postalCode', max: 16, controlFree: true })
   const postalCode = postalInput.replace(/\D/gu, '')
   if (postalInput && (!/^[\d.\-\s]+$/u.test(postalInput) || postalCode.length !== 8)) invalid('address.postalCode')
 
   return freeze({
     name: text(value.name, { field: 'name', max: 120, required: true, controlFree: true }),
-    phone: text(value.phone, { field: 'phone', max: 32 }),
+    phone,
     address: {
-      line: text(value.address.line, { field: 'address.line', max: 120 }),
-      number: text(value.address.number, { field: 'address.number', max: 30 }),
-      complement: text(value.address.complement, { field: 'address.complement', max: 80 }),
-      neighborhood: text(value.address.neighborhood, { field: 'address.neighborhood', max: 80 }),
-      city: text(value.address.city, { field: 'address.city', max: 80 }),
-      state: stateInput.toLocaleUpperCase('pt-BR'),
+      line: text(value.address.line, { field: 'address.line', max: 120, controlFree: true }),
+      number,
+      complement: text(value.address.complement, { field: 'address.complement', max: 80, controlFree: true }),
+      neighborhood: text(value.address.neighborhood, { field: 'address.neighborhood', max: 80, controlFree: true }),
+      city: text(value.address.city, { field: 'address.city', max: 80, controlFree: true }),
+      state: stateInput,
       postalCode,
     },
   })
