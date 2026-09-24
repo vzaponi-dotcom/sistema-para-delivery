@@ -286,7 +286,7 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
   const { effectiveBusinessConfig, effectiveConfigVersion: _effectiveConfigVersion, ...legacy } = body
   assert.ok(effectiveBusinessConfig)
   assert.deepEqual(legacy, {
-    business: { id: 'amor-e-sabor', name: 'Amor & Sabor' },
+    business: { id: 'amor-e-sabor', name: 'Estabelecimento' },
     clients: [],
     products: [],
     orders: [],
