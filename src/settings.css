@@ -140,6 +140,22 @@
 .device-visual-theme-preview.mesiva i:nth-child(2) { background: #0f2747; }
 .device-visual-theme-preview.mesiva i:nth-child(3) { background: #fbbf24; }
 .device-sound-row .settings-switch { flex: 0 0 auto; }
+.device-sound-config { display: grid; gap: 16px; padding: 0 22px 22px; border-top: 1px solid var(--border); }
+.device-sound-config-heading { display: grid; gap: 4px; padding-top: 18px; }
+.device-sound-config-heading strong { color: var(--text); }
+.device-sound-config-heading small { color: var(--muted); line-height: 1.45; }
+.device-sound-options { display: grid; gap: 8px; }
+.device-sound-option { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(0, 1.4fr) auto; align-items: center; gap: 12px; min-height: 56px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
+.device-sound-option.active { border-color: color-mix(in srgb, var(--primary) 42%, var(--border)); background: var(--primary-soft); }
+.device-sound-option-select { display: inline-flex; min-width: 0; min-height: 40px; align-items: center; gap: 10px; padding: 0 8px; border: 0; background: transparent; color: var(--text); font-weight: 750; text-align: left; cursor: pointer; }
+.device-sound-radio { width: 15px; height: 15px; flex: 0 0 auto; border: 2px solid var(--muted); border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 3px var(--surface); }
+.device-sound-option.active .device-sound-radio { border-color: var(--primary); background: var(--primary); }
+.device-sound-option > small { min-width: 0; color: var(--muted); line-height: 1.4; }
+.device-sound-preview { display: inline-grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); color: var(--primary); cursor: pointer; }
+.device-sound-preview:hover { border-color: var(--primary); background: var(--primary-soft); }
+.device-sound-option-select:focus-visible, .device-sound-preview:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.device-sound-volume-row { display: flex; align-items: center; justify-content: space-between; gap: 22px; }
+.device-sound-volume-options { flex: 0 0 auto; }
 .device-local-info { margin: 0; }
 .device-local-info > div { display: grid; min-height: 58px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 0 22px; border-bottom: 1px solid var(--border); }
 .device-local-info > div:last-child { border-bottom: 0; }
@@ -175,6 +191,14 @@
   .device-theme-options { display: flex; width: 100%; }
   .device-theme-options button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
   .device-sound-row { align-items: center; flex-direction: row; }
+  .device-sound-config { padding-left: 16px; padding-right: 16px; }
+  .device-sound-option { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+  .device-sound-option-select { grid-column: 1; }
+  .device-sound-option > small { grid-column: 1 / -1; grid-row: 2; padding: 0 8px 4px 33px; }
+  .device-sound-preview { grid-column: 2; grid-row: 1; }
+  .device-sound-volume-row { align-items: stretch; flex-direction: column; }
+  .device-sound-volume-options { display: flex; width: 100%; }
+  .device-sound-volume-options button { flex: 1 1 0; min-width: 0; }
   .device-local-info > div { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 12px 16px; }
   .device-local-info dd { text-align: left; }
   .device-autosave-status { align-items: flex-start; flex-direction: column; }
