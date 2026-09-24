@@ -812,9 +812,9 @@ PR inteira GREEN no SHA executável final.
 
 # Task 12 — Preparação e deploy de staging
 
-## Pré-requisito humano/infra
+## Pré-requisito de infraestrutura
 
-Antes de deploy, deve existir **somente o bucket de staging**:
+Antes do deploy, deve existir **somente o bucket de staging**:
 
 ```text
 mesiva-business-assets-staging
@@ -822,7 +822,7 @@ mesiva-business-assets-staging
 
 O bucket de produção não é necessário para homologar e não deve ser criado por conveniência.
 
-Como não há automação de criação de bucket aprovada nesta spec, a criação do bucket de staging é um checkpoint explícito de infraestrutura.
+**Revisão aprovada em 24/09/2026:** o usuário autorizou que o workflow oficial de staging faça esse preparo automaticamente. O workflow deve verificar de forma idempotente se `mesiva-business-assets-staging` existe e criá-lo somente quando estiver ausente, usando as credenciais de staging já configuradas. Essa automação é exclusiva de staging e não autoriza criar, excluir ou alterar o bucket `mesiva-business-assets` de produção.
 
 ## Antes do deploy
 
