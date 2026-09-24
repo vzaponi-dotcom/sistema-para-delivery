@@ -10,12 +10,14 @@ import OperationSettings from './OperationSettings.jsx'
 import CancellationSettings from './CancellationSettings.jsx'
 import KitchenTvSettings from './KitchenTvSettings.jsx'
 import DevicePreferences from './local/DevicePreferences.jsx'
+import BusinessProfileSettings from './business-profile/BusinessProfileSettings.jsx'
 import SettingsConflictReview from './components/SettingsConflictReview.jsx'
 import { SettingsBackLink } from './components/SettingsBackAndSwitchControls.jsx'
 import { createPrintingSettingsAdapter } from './printingSettingsAdapter.js'
 import '../../../area-navigation.css'
 
 const policyForSection = (section) => {
+  if (section === 'settings-business-profile') return ['businessProfile']
   if (section === 'settings-operations' || section === 'settings-modalities') return ['operations']
   if (section === 'settings-payments') return ['paymentMethods']
   if (section === 'settings-cancellations') return ['cancellationReasons']
@@ -61,8 +63,8 @@ export function SettingsSurface({
     onNavigate?.('settings-home')
     return true
   }
-  const savePolicy = async (policyId, successMessage, scopeId) => {
-    const saved = await save(policyId, scopeId)
+  const savePolicy = async (policyId, successMessage, scopeId, transient) => {
+    const saved = await save(policyId, scopeId, transient)
     if (saved === true) onSuccessMessage?.(successMessage)
     return saved
   }
@@ -75,6 +77,19 @@ export function SettingsSurface({
   />}</>
 
   if (section === 'settings-home') return withActiveConflict(<SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} />)
+  if (selectedPolicy === 'businessProfile') return withActiveConflict(<div className="settings-page business-profile-settings-page">
+    <BusinessProfileSettings
+      resourceState={resources.businessProfile}
+      readOnly={!(granted instanceof Set && granted.has('business.profile.manage'))}
+      onEdit={(draft) => edit('businessProfile', draft)}
+      onSave={(transient) => savePolicy('businessProfile', 'Identidade da operação salva com sucesso', undefined, transient)}
+      onDiscard={() => cancel('businessProfile')}
+      onReconcile={() => reconcile('businessProfile')}
+      onReload={() => load('businessProfile')}
+      onReviewConflict={() => review('businessProfile')}
+      onNavigateHome={() => onNavigate?.('settings-home')}
+    />
+  </div>)
   if (selectedPolicy === 'operations') return withActiveConflict(<div className="settings-page operation-settings-page">
     <OperationSettings
       onNavigateHome={() => onNavigate?.('settings-home')}

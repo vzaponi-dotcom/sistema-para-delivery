@@ -3,6 +3,7 @@ import PageHeader from '../../../shared/ui/PageHeader'
 import '../../../settings.css'
 
 const cards = [
+  { id: 'settings-business-profile', title: 'Identidade da operação', description: 'Nome, contato, endereço e logo do estabelecimento.', capability: 'business.profile.view', icon: 'meal' },
   { id: 'settings-operations', title: 'Operação', description: 'Tempos, modalidades e regras operacionais.', capability: 'operations.settings.view', icon: 'settings' },
   { id: 'settings-payments', title: 'Formas de pagamento', description: 'Métodos aceitos, ordem e padrão.', capability: 'payments.settings.view', icon: 'wallet' },
   { id: 'settings-cancellations', title: 'Motivos de cancelamento', description: 'Motivos disponíveis ao cancelar pedidos.', capability: 'orders.settings.view', icon: 'cancel' },

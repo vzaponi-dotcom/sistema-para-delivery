@@ -1,5 +1,6 @@
 export const NAVIGATION_DESTINATIONS = Object.freeze([
-  Object.freeze({ id: 'settings-home', path: '/configuracoes', area: 'settings', label: 'Configurações', mobileEntry: 'more', anyCapability: Object.freeze(['operations.settings.view', 'payments.settings.view', 'orders.settings.view', 'finance.categories.view', 'printing.settings.view', 'printing.settings', 'printing.station.view', 'preferences.local']) }),
+  Object.freeze({ id: 'settings-home', path: '/configuracoes', area: 'settings', label: 'Configurações', mobileEntry: 'more', anyCapability: Object.freeze(['business.profile.view', 'operations.settings.view', 'payments.settings.view', 'orders.settings.view', 'finance.categories.view', 'printing.settings.view', 'printing.settings', 'printing.station.view', 'preferences.local']) }),
+  Object.freeze({ id: 'settings-business-profile', path: '/configuracoes/identidade', area: 'settings', label: 'Identidade da operação', mobileEntry: 'more', capability: 'business.profile.view' }),
   Object.freeze({ id: 'settings-operations', path: '/configuracoes/operacao', area: 'settings', label: 'Operação', mobileEntry: 'more', capability: 'operations.settings.view' }),
   Object.freeze({ id: 'settings-modalities', path: '/configuracoes/modalidades', area: 'settings', label: 'Modalidades de pedido', mobileEntry: 'more', capability: 'operations.settings.view' }),
   Object.freeze({ id: 'settings-payments', path: '/configuracoes/pagamentos', area: 'settings', label: 'Formas de pagamento', mobileEntry: 'more', capability: 'payments.settings.view' }),
@@ -26,7 +27,7 @@ export const destinationById = new Map(NAVIGATION_DESTINATIONS.map((item) => [it
 export const AREA_DESTINATION_IDS = Object.freeze({
   orders: Object.freeze(['orders', 'history']),
   finance: Object.freeze(['dashboard', 'receivables', 'finance']),
-  settings: Object.freeze(['settings-home', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device']),
+  settings: Object.freeze(['settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device']),
 })
 
 export const HOME_AREA_ORDER = Object.freeze(['orders', 'finance', 'settings'])
