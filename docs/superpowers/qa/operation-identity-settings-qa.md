@@ -5,7 +5,10 @@
 **Branch:** `feature/operation-identity-settings`  
 **Base inicial:** `master@75966e5c585c85823e409d5bb7cbb75a557af2fa`  
 **Último SHA executável homologado:** `134a6d15cfe375915ceb144a9154e585a66008fb`  
-**Produção:** NÃO DEPLOYADA  
+**Produção:** DEPLOYADA EM 24/09/2026  
+**Release de produção:** `master@31d9792fff12c711063803747ba0b44a191b64ee`  
+**Deploy production:** `36056628853` / #56 — **SUCCESS**  
+**Worker Version ID:** `b75e5ceb-a7c7-4d6c-9e06-020bf769b40a`  
 **Merge:** EXECUTADO EM 24/09/2026  
 **Merge commit:** `37494dd6f25676b3b73985176a4af89e858bba10`  
 **Validate pós-merge:** `36033628462` / Validate application #1982 — **SUCCESS**
@@ -97,6 +100,25 @@ Deploy staging final da implementação:
 
 A migration `0030_business_profiles.sql` havia sido aplicada no primeiro deploy da Task 12, run `36016214301`, attempt 2.
 
+## Produção
+
+Release de produção executada após o merge da PR #68, contendo também a PR #66 já incorporada à `master`:
+
+- workflow: **Deploy production**;
+- run: `36056628853` / #56 — **SUCCESS**;
+- SHA publicado: `31d9792fff12c711063803747ba0b44a191b64ee`;
+- testes ✅;
+- lint ✅;
+- build ✅;
+- Worker dry-run ✅;
+- binding R2 confirmado: `BUSINESS_ASSETS (mesiva-business-assets)` ✅;
+- migration remota `0030_business_profiles.sql` aplicada no D1 de produção ✅;
+- deploy do Worker ✅;
+- Worker Version ID: `b75e5ceb-a7c7-4d6c-9e06-020bf769b40a`;
+- verificação de login de produção: HTTP 200 ✅.
+
+O bucket R2 de produção `mesiva-business-assets` foi criado manualmente antes do release, permaneceu com acesso público desabilitado e foi reconhecido pelo binding do Worker durante o deploy.
+
 ## Matriz manual da spec §24
 
 | # | Caso | Resultado | Evidência / observação |
@@ -146,9 +168,9 @@ A migration `0030_business_profiles.sql` havia sido aplicada no primeiro deploy 
 - Nenhum Blob/base64 é persistido no D1 ou em fila offline.
 - R2 permanece privado.
 - Bucket de staging e produção permanecem isolados.
-- Bucket R2 de produção não foi criado por esta implementação.
-- Nenhuma migration remota de produção foi executada.
-- Nenhum deploy de produção foi executado.
+- Bucket R2 de produção `mesiva-business-assets` foi criado manualmente como pré-condição do release e permanece separado do bucket de staging.
+- Migration `0030_business_profiles.sql` foi aplicada no D1 remoto de produção pelo workflow #56.
+- Produção foi publicada com sucesso no SHA `31d9792fff12c711063803747ba0b44a191b64ee`, Worker Version ID `b75e5ceb-a7c7-4d6c-9e06-020bf769b40a`.
 
 ## Fechamento pós-merge
 
@@ -160,4 +182,4 @@ O responsável do produto autorizou explicitamente o merge em 24/09/2026.
 
 A PR #66 foi mergeada em `master` no commit `37494dd6f25676b3b73985176a4af89e858bba10`. O Validate application pós-merge, run `36033628462` / #1982, concluiu **SUCCESS** no SHA exato do merge.
 
-Produção continua separada e **NÃO DEPLOYADA**. Antes de disparar o workflow `Deploy production`, confirmar a existência do bucket R2 de produção `mesiva-business-assets`; a implementação criou/validou somente o bucket de staging. O workflow de produção aplica migrations D1 pendentes antes do deploy, portanto a pré-condição de R2 deve estar resolvida antes do dispatch.
+A pré-condição de R2 foi resolvida com a criação manual do bucket `mesiva-business-assets`. Em seguida, o workflow **Deploy production** #56 / run `36056628853` publicou a `master@31d9792fff12c711063803747ba0b44a191b64ee` com **SUCCESS**, aplicou `0030_business_profiles.sql`, confirmou o binding R2 de produção, publicou o Worker Version ID `b75e5ceb-a7c7-4d6c-9e06-020bf769b40a` e obteve HTTP 200 no smoke de login. O ciclo da PR #66 fica, portanto, fechado também em produção.
