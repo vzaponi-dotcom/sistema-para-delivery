@@ -1,3 +1,4 @@
+import { getKitchenDisplayCompatibilityIssues } from './kitchenDisplayLegacyCompat.js'
 import { Component, StrictMode } from 'react'
 import { KitchenDisplayApp } from './KitchenDisplayApp.jsx'
 import './kitchen-display.css'
@@ -31,6 +32,16 @@ export class KitchenDisplayErrorBoundary extends Component {
 }
 
 export function KitchenDisplayRoot() {
+  const issues = getKitchenDisplayCompatibilityIssues()
+  if (issues.length) {
+    return <main className="kds-shell">
+      <section className="kds-pairing-card">
+        <p className="kds-pairing-kicker">Compatibilidade da TV</p>
+        <h1>Este navegador não oferece todos os recursos necessários</h1>
+        <small className="kds-compatibility-detail">{`KDS_COMPAT_MISSING: ${issues.join(', ')}`}</small>
+      </section>
+    </main>
+  }
   return <KitchenDisplayApp />
 }
 
