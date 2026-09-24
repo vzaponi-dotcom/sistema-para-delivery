@@ -6,7 +6,7 @@
 **Base aprovada da spec:** `master@75966e5c585c85823e409d5bb7cbb75a557af2fa`  
 **Branch documental atual:** `docs/operation-identity-settings`  
 **Branch de implementação proposta:** `feature/operation-identity-settings`  
-**Status:** plano consolidado e auto-revisado; aguardando aprovação explícita para implementação.  
+**Status:** **APROVADO pelo usuário em 23/09/2026**; implementação autorizada conforme gates deste plano.  
 **Produção:** proibida neste plano até homologação de staging e autorização explícita posterior.
 
 ---
@@ -1065,3 +1065,12 @@ Após este commit:
 Aguardar aprovação explícita do usuário.
 
 Após aprovação, executar **Preparação de execução + Task 1 somente** e parar para reportar a evidência antes de avançar, salvo autorização posterior para agrupar tasks.
+
+
+---
+
+## 8. Aprovação do plano
+
+O plano foi aprovado explicitamente pelo responsável do produto em 23/09/2026.
+
+A aprovação autoriza iniciar **Preparação de execução + Task 1 somente**, conforme o gate final deste documento. Não autoriza produção, merge ou avanço automático para Tasks 2+.
