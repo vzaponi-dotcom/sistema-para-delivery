@@ -83,3 +83,16 @@ test('direção mobile preserva none para destinos fora da lista histórica', ()
   assert.equal(getMobilePageDirection('history', 'orders'), 'backward')
   assert.equal(getMobilePageDirection('settings-home', 'settings-payments'), 'none')
 })
+
+
+test('operation identity deep link is allowed only with business.profile.view', () => {
+  const implementedIdentity = new Set(['settings-home', 'settings-business-profile'])
+  assert.deepEqual(
+    resolveDestination('settings-business-profile', new Set(['business.profile.view']), implementedIdentity),
+    { status: 'allowed', id: 'settings-business-profile' },
+  )
+  assert.deepEqual(
+    resolveDestination('settings-business-profile', new Set(), implementedIdentity),
+    { status: 'denied' },
+  )
+})

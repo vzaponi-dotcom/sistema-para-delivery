@@ -25,6 +25,8 @@ export const draftFixture = freeze({
 })
 
 export const settingsGrants = new Set([
+  'business.profile.view',
+  'business.profile.manage',
   'operations.settings.view',
   'operations.settings.manage',
   'payments.settings.view',

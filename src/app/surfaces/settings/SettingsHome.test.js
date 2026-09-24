@@ -9,7 +9,7 @@ import { settingsGrants } from '../../../test-support/settingsFixtures.js'
 import { resolveDestination } from '../../navigation/resolution.js'
 
 const allImplemented = new Set([
-  'settings-home', 'settings-operations', 'settings-modalities', 'settings-payments',
+  'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments',
   'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])
 
@@ -20,10 +20,11 @@ test('renders one operation card for timing and modalities even when the modalit
 
   const cards = screen.root.findByProps({ className: 'settings-home-grid' }).findAllByType('button')
   assert.deepEqual(cards.map((card) => card.props['aria-label']), [
-    'Operação', 'Formas de pagamento', 'Motivos de cancelamento',
+    'Identidade da operação', 'Operação', 'Formas de pagamento', 'Motivos de cancelamento',
     'Categorias financeiras', 'TV da Cozinha', 'Impressão', 'Preferências deste dispositivo',
   ])
   assert.deepEqual(cards.map((card) => nodeText(card)), [
+    'Identidade da operaçãoNome, contato, endereço e logo do estabelecimento.',
     'OperaçãoTempos, modalidades e regras operacionais.',
     'Formas de pagamentoMétodos aceitos, ordem e padrão.',
     'Motivos de cancelamentoMotivos disponíveis ao cancelar pedidos.',
@@ -127,4 +128,30 @@ test('renders theme-aware Home cards under both document themes without inline p
     assert.equal(card.findByProps({ className: 'settings-home-card-icon' }).props.style, undefined)
     await act(async () => screen.unmount())
   }
+})
+
+
+test('business profile card is first, capability-gated and opens the dedicated destination', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: SettingsHome } = await h.load('/src/app/surfaces/settings/SettingsHome.jsx')
+  const calls = []
+  const implemented = new Set(['settings-home', 'settings-business-profile'])
+
+  const allowed = await h.render(SettingsHome, {
+    granted: new Set(['business.profile.view']),
+    implemented,
+    onNavigate: (id) => calls.push(id),
+  })
+  const cards = allowed.root.findByProps({ className: 'settings-home-grid' }).findAllByType('button')
+  assert.equal(cards[0].props['aria-label'], 'Identidade da operação')
+  await act(async () => cards[0].props.onClick())
+  assert.deepEqual(calls, ['settings-business-profile'])
+
+  await act(async () => allowed.unmount())
+  const denied = await h.render(SettingsHome, {
+    granted: new Set(),
+    implemented,
+    onNavigate() {},
+  })
+  assert.equal(buttonNamed(denied.root, 'Identidade da operação'), undefined)
 })
