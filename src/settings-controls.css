@@ -111,8 +111,9 @@
 
 @media (max-width: 720px) {
   .settings-back-link--floating {
-    top: calc(var(--mobile-floating-gap) + env(safe-area-inset-top, 0px));
+    top: calc(var(--mobile-topbar-stack-height) + var(--mobile-floating-gap) + env(safe-area-inset-top, 0px));
     left: var(--mobile-floating-gap);
+    z-index: calc(var(--layer-sticky-topbar) - 1);
     width: 44px;
     min-width: 44px;
     padding: 0;

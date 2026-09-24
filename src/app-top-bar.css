@@ -3,7 +3,7 @@
   grid-row: 1;
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: var(--layer-sticky-topbar);
   min-height: 56px;
   display: flex;
   align-items: center;
