@@ -97,7 +97,8 @@ test('operation menu uses confirmed logo when available and preserves operation 
     businessHasLogo: true,
     businessLogoVersion: 'logo-v9',
   })
-  const logo = renderer.root.findByProps({ className: 'operation-menu-logo' })
+  const logo = renderer.root.findAllByType('img').find((node) => node.props.className === 'operation-menu-logo')
+  assert.ok(logo)
   assert.equal(logo.props.src, '/api/business/logo?v=logo-v9')
   assert.equal(renderer.root.findAllByProps({ className: 'operation-menu-initials' }).length, 0)
 

@@ -54,7 +54,7 @@ test('mobile notification detail relies on the sheet close action without a larg
 
 
 test('confirmed business profile commits refresh the official bootstrap before the shell reads identity', () => {
-  assert.match(app, /onPolicyCommitted=\{[^}]*policyId[^}]*businessProfile[^}]*refreshBootstrapSilently/s)
+  assert.match(app, /onPolicyCommitted=\{\(\{ policyId \}\) => \{[\s\S]*businessProfile[\s\S]*refreshBootstrapSilently/)
   assert.match(app, /businessHasLogo=\{business\?\.hasLogo\}/)
   assert.match(app, /businessLogoVersion=\{business\?\.logoVersion\}/)
   assert.match(shell, /businessHasLogo/)

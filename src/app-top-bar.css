@@ -210,12 +210,16 @@
     box-shadow: var(--shadow-md);
   }
 
-  .operation-menu-initials,
+  .operation-menu-initials {
+    width: 34px;
+    height: 34px;
+    font-size: 0.86rem;
+  }
+
   .operation-menu-logo {
     width: 34px;
     height: 34px;
     flex-basis: 34px;
-    font-size: 0.86rem;
   }
 
   .operation-menu-trigger svg {
@@ -269,7 +273,11 @@
     padding-right: 6px;
   }
 
-  .operation-menu-initials,
+  .operation-menu-initials {
+    width: 32px;
+    height: 32px;
+  }
+
   .operation-menu-logo {
     width: 32px;
     height: 32px;

@@ -84,7 +84,8 @@ test('desktop operation identity uses the confirmed operation logo and keeps the
     }),
   })
 
-  const logo = renderer.root.findByProps({ className: 'app-topbar-operation-logo' })
+  const logo = renderer.root.findAllByType('img').find((node) => node.props.className === 'app-topbar-operation-logo')
+  assert.ok(logo)
   assert.equal(logo.props.src, '/api/business/logo?v=logo-v7')
   assert.equal(logo.props.alt, '')
   assert.match(nodeText(renderer.root), /Pizzaria Bella/)
@@ -108,7 +109,8 @@ test('mobile product brand stays Mesiva while the operation menu uses the confir
 
   assert.match(nodeText(renderer.root), /Mesiva/)
   assert.doesNotMatch(nodeText(renderer.root.findByProps({ className: 'app-topbar-brand' })), /Pizzaria Bella/)
-  const menuLogo = renderer.root.findByProps({ className: 'operation-menu-logo' })
+  const menuLogo = renderer.root.findAllByType('img').find((node) => node.props.className === 'operation-menu-logo')
+  assert.ok(menuLogo)
   assert.equal(menuLogo.props.src, '/api/business/logo?v=logo-mobile-v2')
   assert.equal(renderer.root.findAllByProps({ className: 'operation-menu-initials' }).length, 0)
 })
