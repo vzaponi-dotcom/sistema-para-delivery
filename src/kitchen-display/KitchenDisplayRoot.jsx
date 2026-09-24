@@ -1,5 +1,6 @@
 import { getKitchenDisplayCompatibilityIssues } from './kitchenDisplayLegacyCompat.js'
 import { Component, StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
 import { KitchenDisplayApp } from './KitchenDisplayApp.jsx'
 import './kitchen-display.css'
 
@@ -45,8 +46,7 @@ export function KitchenDisplayRoot() {
   return <KitchenDisplayApp />
 }
 
-export async function mount(container) {
-  const { createRoot } = await import('react-dom/client')
+export function mount(container) {
   createRoot(container).render(
     <StrictMode>
       <KitchenDisplayErrorBoundary><KitchenDisplayRoot /></KitchenDisplayErrorBoundary>
