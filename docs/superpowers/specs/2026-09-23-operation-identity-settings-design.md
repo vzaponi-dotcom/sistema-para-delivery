@@ -5,7 +5,7 @@
 **Repositório:** `vzaponi-dotcom/sistema-para-delivery`  
 **Base conferida:** `master` em `75966e5c585c85823e409d5bb7cbb75a557af2fa` — merge do PR #65 (tema Mesiva e limpeza de branding)  
 **Branch documental:** `docs/operation-identity-settings`  
-**Estado:** aguardando aprovação desta redação antes do plano de implementação.  
+**Estado:** **APROVADO pelo usuário em 23/09/2026**; plano de implementação autorizado.  
 **Natureza:** documentação. Esta spec não autoriza implementação, merge, criação de bucket R2, migration remota ou deploy.
 
 ---
@@ -1042,3 +1042,12 @@ Não autoriza:
 - deploy staging;
 - merge;
 - deploy production.
+
+
+---
+
+## 30. Aprovação do produto
+
+A spec foi aprovada explicitamente pelo responsável do produto em 23/09/2026.
+
+A aprovação autoriza a escrita do plano detalhado de implementação. Não autoriza implementação, criação de bucket R2, migration remota, deploy, merge ou produção.
