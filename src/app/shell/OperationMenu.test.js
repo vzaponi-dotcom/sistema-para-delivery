@@ -105,3 +105,28 @@ test('operation menu uses confirmed logo when available and preserves operation 
   await act(async () => buttonNamed(renderer.root, 'Sabor da Vila, operação atual').props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading' })), /Sabor da Vila/)
 })
+
+
+test('operation heading links directly to Identity settings when business profile is viewable', async (t) => {
+  const { renderer, navigations } = await renderMenu(t, {
+    granted: new Set(['business.profile.view', 'operations.settings.view', 'preferences.local']),
+  })
+
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  const identityShortcut = buttonNamed(renderer.root, 'Abrir identidade da operação de Pizzaria Bella')
+  assert.ok(identityShortcut)
+  await act(async () => identityShortcut.props.onClick())
+
+  assert.deepEqual(navigations, ['settings-business-profile'])
+  assert.equal(buttonNamed(renderer.root, 'Configurações'), undefined)
+})
+
+test('operation heading stays non-interactive without business profile view capability', async (t) => {
+  const { renderer } = await renderMenu(t, {
+    granted: new Set(['operations.settings.view', 'preferences.local']),
+  })
+
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.equal(buttonNamed(renderer.root, 'Abrir identidade da operação de Pizzaria Bella'), undefined)
+  assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading' })), /Pizzaria Bella/)
+})
