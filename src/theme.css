@@ -168,3 +168,29 @@
     font-size: .72rem;
   }
 }
+
+
+.login-product-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.login-product-brand-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--primary-border, var(--border));
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--brand);
+}
+
+.login-product-brand > strong {
+  font-size: 1.35rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
