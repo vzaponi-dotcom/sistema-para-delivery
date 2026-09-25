@@ -22,7 +22,7 @@ const itemQuantity = (item) => Math.max(1, Math.trunc(Number(item?.quantity) || 
 export function KitchenDisplayCard({ entry, now = new Date() }) {
   const { order, state, phase } = entry
   const items = Array.isArray(order.items) ? order.items : []
-  const metrics = getKitchenCardContentMetrics(items)
+  const metrics = entry.contentMetrics ?? getKitchenCardContentMetrics(items)
   const layoutDemand = entry.layoutDemand ?? metrics.layoutDemand
   const gridPosition = entry.gridPosition
   const twoColumns = items.length > 4
