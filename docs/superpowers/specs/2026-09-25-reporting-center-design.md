@@ -3,6 +3,7 @@
 **Issue:** #34 — Feature: Centro de Relatórios operacionais, vendas e produtos  
 **Base inspecionada:** `master` em `6445098aef8332890b854f6eb8524b5f9c053b8f`  
 **Branch documental:** `docs/issue-34-reporting-center-v2`  
+**Implementation plan:** `docs/superpowers/plans/2026-09-25-reporting-center-plan.md` — auto-revisado; aguardando aprovação do usuário  
 **Status:** APPROVED — lógica, arquitetura, direção visual, estratégia mobile e fronteira com A Receber aprovadas em conversa em 2026-09-25  
 **Data:** 2026-09-25  
 **Referência visual:** Mesiva — Guia oficial de identidade visual e aplicação no produto, v1.0. Superfícies afetadas: Centro de Relatórios, navegação Financeiro e exportações. Estados e temas a verificar: claro/escuro, loading, vazio, erro, dados parciais, filtros ativos, desktop completo e mobile resumido. Exceções aprovadas: o mobile não replica a densidade analítica completa do desktop; ações de recebimento permanecem fora de Reporting.
