@@ -16,7 +16,10 @@ test('reporting routes remain behind the global authenticated boundary', async (
 test('reporting API authorizes read and export separately and ignores browser business authority', async () => {
   const { handleReportingApi } = await import('./api.js')
   const calls = []
-  const env = { DB: {}, reportingService: { empty: async (businessId, query) => { calls.push([businessId, query]); return { data: {}, quality: {} } } } }
+  const env = { DB: {}, reportingService: {
+    overview: async (businessId, query) => { calls.push([businessId, query]); return { data: {}, quality: {}, comparison: { available: false } } },
+    empty: async (businessId, query) => { calls.push([businessId, query]); return { data: {}, quality: {} } },
+  } }
   const allowed = await handleReportingApi(request('/api/reporting/overview?businessId=business-b'), env, context(['reports.view']), new URL('https://delivery.test/api/reporting/overview?businessId=business-b'))
   assert.equal(allowed.status, 200)
   const readable = await handleReportingApi(request('/api/reporting/overview'), env, context(['reports.view']), new URL('https://delivery.test/api/reporting/overview'))

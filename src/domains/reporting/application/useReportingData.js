@@ -11,7 +11,7 @@ export function useReportingData({ query, api = reportingApi, onUnauthorized = n
     const current = ++generation.current
     setState((previous) => ({ ...previous, loading: true, error: null }))
     void api.load(query.view, query, { signal: controller.signal }).then((response) => {
-      if (generation.current === current) setState({ data: response.data, loading: false, error: null })
+      if (generation.current === current) setState({ data: response.data, comparison: response.comparison, loading: false, error: null })
     }).catch((error) => {
       if (controller.signal.aborted || generation.current !== current) return
       if (error?.status === 401) onUnauthorized(error)

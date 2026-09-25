@@ -9,5 +9,33 @@ export function createReportingRepository(db) {
       `).bind(businessId, from, to).all()
       return results
     },
+    async loadOverview(businessId, query) {
+      const filters = [
+        'business_id = ?', 'order_date >= ?', 'order_date <= ?',
+      ]
+      const values = [businessId, query.from, query.to]
+      if (query.type) { filters.push('type = ?'); values.push(query.type) }
+      if (query.status) { filters.push('status = ?'); values.push(query.status) }
+      const { results: orders } = await db.prepare(`
+        SELECT id, order_date, type, status, total_cents, table_tab_id
+        FROM orders WHERE ${filters.join(' AND ')}
+      `).bind(...values).all()
+      const { results: payments } = await db.prepare(`
+        SELECT order_id, amount_cents FROM payments
+        WHERE business_id = ? AND order_id IN (
+          SELECT id FROM orders WHERE ${filters.join(' AND ')}
+        )
+      `).bind(businessId, ...values).all()
+      const { results: receipts } = await db.prepare(`
+        SELECT total_cents FROM payment_receipts
+        WHERE business_id = ? AND substr(paid_at, 1, 10) >= ? AND substr(paid_at, 1, 10) <= ?
+      `).bind(businessId, query.from, query.to).all()
+      const { results: refunds } = await db.prepare(`
+        SELECT value_cents FROM movements
+        WHERE business_id = ? AND source = 'order-refund' AND deleted_at IS NULL
+          AND movement_date >= ? AND movement_date <= ?
+      `).bind(businessId, query.from, query.to).all()
+      return { orders, payments, receipts, refunds }
+    },
   })
 }

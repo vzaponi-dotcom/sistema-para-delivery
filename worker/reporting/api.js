@@ -2,6 +2,7 @@ import { assertSameOriginMutation, json, readJson } from '../http.js'
 import { requireCapability } from '../settingsAccess.js'
 import { parseReportingQuery } from './query.js'
 import { createReportingService } from './service.js'
+import { createReportingRepository } from './repository.js'
 
 const READ_PATHS = new Map([
   ['/api/reporting/overview', 'overview'], ['/api/reporting/operation', 'operation'], ['/api/reporting/sales', 'sales'],
@@ -14,13 +15,16 @@ const envelope = (query, result) => ({
 
 export async function handleReportingApi(request, env, context, url = new URL(request.url)) {
   const expectedView = READ_PATHS.get(url.pathname)
-  const service = env.reportingService || createReportingService()
+  const service = env.reportingService || createReportingService(createReportingRepository(env.DB))
   if (expectedView && request.method === 'GET') {
     requireCapability(context, 'reports.view')
     const params = new URLSearchParams(url.searchParams)
     params.set('view', expectedView)
     const query = parseReportingQuery(params)
-    return json(envelope(query, await service.empty(context.businessId, query)))
+    const result = expectedView === 'overview'
+      ? await service.overview(context.businessId, query)
+      : await service.empty(context.businessId, query)
+    return json({ ...envelope(query, result), comparison: result.comparison })
   }
   if (url.pathname === '/api/reporting/export-model' && request.method === 'POST') {
     requireCapability(context, 'reports.export')
