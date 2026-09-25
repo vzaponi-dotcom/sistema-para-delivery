@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 
-test('manual staging smoke actually requests the reporting deep link and SPA assets', async () => {
+test('staging smoke requests the reporting deep link, SPA assets and auto-runs for the reporting branch', async () => {
   const workflow = readFileSync(new URL('../../.github/workflows/deploy-staging.yml', import.meta.url), 'utf8')
   const smokeStep = workflow.split('- name: Verify staging deep links')[1]
   assert.ok(smokeStep, 'staging deep-link step is missing')
