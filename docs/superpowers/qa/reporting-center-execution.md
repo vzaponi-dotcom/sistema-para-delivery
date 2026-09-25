@@ -96,6 +96,26 @@ Required gates:
 - [x] App does not pass operational collections to Reporting.
 - [x] Worker/D1 behavior unchanged.
 
-## Task 2
+## Baseline stabilization before Task 2
 
-Status: NOT STARTED.
+- RED: `operationProfileR2Regression.test.js` failed despite the required staging branch already existing in the YAML.
+- Cause: parsing/assertion was sensitive to CRLF.
+- Fix: test-only CRLF-to-LF normalization; no production code or staging workflow behavior changed.
+- Commit: `c2d129dd` — `test: make staging workflow regression CRLF-safe`.
+- Focused GREEN: operation-profile plus production-safety regression tests, 11/11.
+
+## Task 2–12 local commits
+
+- Task 2 `e7de3c51`; Task 3 `f247aeb0`; Task 4 `c8b0cde2`; Task 5 `83311f55`.
+- Task 6 `147aea19`; Task 7 `1afc8674`; Task 8 `78f10287`; Task 9 `4579055a`.
+- Task 10 `3ddf2024`; Task 11 `2867b37e`; Task 12 `3896c532`.
+
+## Task 13 — Candidate verification
+
+- First full-suite run: 2,386 pass / 1 fail (`systemSelectMigration`); root cause was a native select in ReportingFilters.
+- Correction uses the existing `SystemSelect`; focused regression plus build: GREEN.
+- Serial full-suite rerun: 2,387/2,387 pass, 0 fail (the serial mode avoids the Vite harness port race).
+- Frontend architecture, lint (pre-existing warnings only) and build: PASS.
+- Production and staging Worker dry-runs: PASS; no deployment occurred.
+- Local D1 migrations and Spec B D1 gate: PASS.
+- No staging QA, remote CI or push has occurred.

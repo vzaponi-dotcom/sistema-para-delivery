@@ -3,7 +3,7 @@
 Issue: #34  
 Branch: `feature/issue-34-reporting-center`  
 PR: #72  
-Status: implementation in progress; staging QA not started.
+Status: candidate verification in progress; staging QA not started.
 
 This file records only manual/staging acceptance. Automated TDD evidence belongs in `reporting-center-execution.md`.
 
