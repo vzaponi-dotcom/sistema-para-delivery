@@ -23,7 +23,9 @@ export async function handleReportingApi(request, env, context, url = new URL(re
     const query = parseReportingQuery(params)
     const result = expectedView === 'overview'
       ? await service.overview(context.businessId, query)
-      : await service.empty(context.businessId, query)
+      : expectedView === 'operation'
+        ? await service.operation(context.businessId, query)
+        : await service.empty(context.businessId, query)
     return json({ ...envelope(query, result), comparison: result.comparison })
   }
   if (url.pathname === '/api/reporting/export-model' && request.method === 'POST') {

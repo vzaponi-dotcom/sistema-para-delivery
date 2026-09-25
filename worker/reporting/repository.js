@@ -37,5 +37,13 @@ export function createReportingRepository(db) {
       `).bind(businessId, query.from, query.to).all()
       return { orders, payments, receipts, refunds }
     },
+    async listOperationalOrders(businessId, query) {
+      const { results } = await db.prepare(`
+        SELECT id, order_date, type, status, scheduled_for, is_backdated, created_at, finished_at, timing_policy_snapshot_json
+        FROM orders WHERE business_id = ? AND order_date >= ? AND order_date <= ?
+        ${query.type ? 'AND type = ?' : ''}
+      `).bind(businessId, query.from, query.to, ...(query.type ? [query.type] : [])).all()
+      return results
+    },
   })
 }

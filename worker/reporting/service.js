@@ -1,3 +1,5 @@
+import { getOperationalDurationMinutes, getOrderLateAt } from '../../shared/orderTiming.js'
+
 const previousPeriod = ({ from, to }) => {
   const start = Date.parse(`${from}T00:00:00.000Z`)
   const end = Date.parse(`${to}T00:00:00.000Z`)
@@ -40,6 +42,34 @@ export const createReportingService = (repository) => Object.freeze({
       data,
       comparison: hasComparisonPopulation ? { available: true, metrics: previousMetrics } : { available: false },
       quality: { commercialOrders: data.metrics.ordersCount, receiptCount: current.receipts.length },
+    }
+  },
+  async operation(businessId, query) {
+    const orders = await repository.listOperationalOrders(businessId, query)
+    const eligible = orders.filter((order) => order.status !== 'Cancelado' && !order.is_backdated)
+    const measured = []
+    let legacyPolicyCount = 0
+    for (const row of eligible) {
+      const order = {
+        ...row, createdAt: row.created_at, finishedAt: row.finished_at,
+        scheduledFor: row.scheduled_for, timingPolicySnapshot: row.timing_policy_snapshot_json,
+      }
+      const duration = getOperationalDurationMinutes(order)
+      if (duration == null) continue
+      if (order.timingPolicySnapshot == null) legacyPolicyCount += 1
+      const lateAt = getOrderLateAt(order)
+      measured.push({ duration, onTime: Boolean(lateAt && new Date(order.finishedAt) <= lateAt), type: order.type })
+    }
+    const durations = measured.map(({ duration }) => duration).sort((a, b) => a - b)
+    const median = durations.length ? (durations.length % 2 ? durations[(durations.length - 1) / 2] : (durations[durations.length / 2 - 1] + durations[durations.length / 2]) / 2) : null
+    const p90 = durations.length ? durations[Math.ceil(durations.length * 0.9) - 1] : null
+    const average = durations.length ? Number((sum(measured, 'duration') / durations.length).toFixed(2)) : null
+    return {
+      data: {
+        averageDurationMinutes: average, medianDurationMinutes: median, p90DurationMinutes: p90,
+        withinDeadlineRate: measured.length ? Number(((measured.filter(({ onTime }) => onTime).length / measured.length) * 100).toFixed(2)) : null,
+      },
+      quality: { eligibleCount: eligible.length, measuredCount: measured.length, legacyPolicyCount, invalidCount: eligible.length - measured.length },
     }
   },
   async empty(_businessId, _query) {

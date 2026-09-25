@@ -4,6 +4,7 @@ import { useReportingSearchParams } from '../application/useReportingSearchParam
 import ReportingTabs, { REPORTING_TABS } from './ReportingTabs.jsx'
 import { ReportingFilters } from './ReportingFilters.jsx'
 import { OverviewReport } from './views/OverviewReport.jsx'
+import { OperationReport } from './views/OperationReport.jsx'
 import { useReportingData } from '../application/useReportingData.js'
 import './reporting.css'
 
@@ -29,7 +30,7 @@ export function ReportingWorkspace() {
         onChange={(view) => patchQuery({ view })}
       />
 
-      {query.view === 'overview' ? <OverviewReport state={state} /> : <section className="surface-card reporting-shell-state" aria-labelledby="reporting-current-view">
+      {query.view === 'overview' ? <OverviewReport state={state} /> : query.view === 'operation' ? <OperationReport state={state} /> : <section className="surface-card reporting-shell-state" aria-labelledby="reporting-current-view">
         <span className="section-kicker">Centro de Relatórios</span>
         <h2 id="reporting-current-view">{viewLabel(query.view)}</h2>
         <p>A estrutura de navegação e filtros por URL está pronta. Nenhuma métrica é calculada localmente nesta etapa.</p>
