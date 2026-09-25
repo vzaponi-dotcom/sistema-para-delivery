@@ -54,5 +54,16 @@ export function createReportingRepository(db) {
       const { results: refunds } = await db.prepare("SELECT value_cents FROM movements WHERE business_id = ? AND source = 'order-refund' AND deleted_at IS NULL AND movement_date BETWEEN ? AND ?").bind(businessId, query.from, query.to).all()
       return { orders, receipts, allocations, payments, refunds }
     },
+    async listDetail(businessId, query) {
+      const where = ['business_id = ?', 'order_date >= ?', 'order_date <= ?']
+      const values = [businessId, query.from, query.to]
+      if (query.status) { where.push('status = ?'); values.push(query.status) }
+      if (query.type) { where.push('type = ?'); values.push(query.type) }
+      if (query.search) { where.push('(client_name_snapshot LIKE ? OR CAST(order_number AS TEXT) LIKE ?)'); values.push(`%${query.search}%`, `%${query.search}%`) }
+      const sql = where.join(' AND ')
+      const total = await db.prepare(`SELECT count(*) AS total FROM orders WHERE ${sql}`).bind(...values).first('total')
+      const { results: items } = await db.prepare(`SELECT id, order_number, order_date, client_name_snapshot, type, status, total_cents FROM orders WHERE ${sql} ORDER BY order_date DESC, order_number DESC, id DESC LIMIT ? OFFSET ?`).bind(...values, query.pageSize, (query.page - 1) * query.pageSize).all()
+      return { total: Number(total || 0), items }
+    },
   })
 }

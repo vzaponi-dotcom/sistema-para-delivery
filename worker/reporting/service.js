@@ -92,6 +92,10 @@ export const createReportingService = (repository) => Object.freeze({
       quality: { receiptCount: source.receipts.length },
     }
   },
+  async detail(businessId, query) {
+    const result = await repository.listDetail(businessId, query)
+    return { data: { ...result, page: query.page, pageSize: query.pageSize, totalPages: Math.ceil(result.total / query.pageSize) }, quality: {} }
+  },
   async empty(_businessId, _query) {
     return { data: {}, quality: {} }
   },
