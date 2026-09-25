@@ -233,9 +233,11 @@ test('failed fullscreen request keeps KDS live and offers a manual retry action'
   await flushEffects()
 
   assert.match(nodeText(renderer.root), /Painel da cozinha ativo/)
-  assert.ok(buttonNamed(renderer.root, 'Entrar em tela cheia'))
+  const toolbar = renderer.root.findByProps({ className: 'kds-live-toolbar' })
+  assert.ok(buttonNamed(toolbar, 'Entrar em tela cheia'))
+  assert.match(renderer.root.findByType('main').props.className, /kds-shell--fullscreen-recovery/)
 
-  await act(async () => buttonNamed(renderer.root, 'Entrar em tela cheia').props.onClick())
+  await act(async () => buttonNamed(toolbar, 'Entrar em tela cheia').props.onClick())
   await flushEffects()
   assert.equal(attempts, 2)
   assert.equal(buttonNamed(renderer.root, 'Entrar em tela cheia'), undefined)
