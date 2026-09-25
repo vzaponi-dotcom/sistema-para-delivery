@@ -11,4 +11,7 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /scrollbar-width:\s*none/)
   assert.match(css, /reporting-comparison-visual-row/)
   assert.match(css, /reporting-money-split-track[\s\S]*height:\s*22px/)
+  assert.match(css, /reporting-comparison-unavailable/)
+  assert.match(css, /reporting-metric-card:is\(button\):focus-visible/)
+  assert.match(css, /border-color:\s*color-mix\(in srgb, var\(--primary\) 32%/)
 })

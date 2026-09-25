@@ -23,3 +23,27 @@ test('overview renders all eight KPIs, metric-specific comparison and a non-bloc
   renderer.root.findByProps({ 'aria-label': 'Ver detalhes: A receber do período' }).props.onClick()
   assert.deepEqual(drilled, [{ view: 'detail', receivable: 'unpaid', status: null }])
 })
+
+
+test('overview replaces misleading bars with a neutral state when comparison is unavailable', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { OverviewReport } = await harness.load('/src/domains/reporting/ui/views/OverviewReport.jsx')
+  const metrics = {
+    salesCents: 75900, ordersCount: 4, averageTicketCents: 18975, receivedCents: 0,
+    receivableCents: 75900, receivableCount: 4, cancellationRate: 0, refundsCents: 0, withinDeadlineRate: 100,
+  }
+  const unavailable = { available: false, previous: 0, delta: 75900, percent: null, direction: 'higher_better' }
+  const renderer = await harness.render(OverviewReport, {
+    state: {
+      data: { metrics }, loading: false, error: null, generatedAt: '2026-09-25T20:00:00Z',
+      comparison: { metrics: {
+        salesCents: unavailable, ordersCount: unavailable, averageTicketCents: unavailable, withinDeadlineRate: unavailable,
+      } },
+      warnings: [],
+    },
+  })
+  const notes = renderer.root.findAll((node) => node.props?.className === 'reporting-comparison-unavailable')
+  assert.equal(notes.length, 4)
+  assert.match(nodeText(renderer.root), /Comparação indisponível para este recorte/)
+  assert.equal(renderer.root.findAll((node) => node.props?.className === 'reporting-comparison-bars').length, 0)
+})

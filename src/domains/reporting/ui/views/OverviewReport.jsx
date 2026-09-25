@@ -29,17 +29,21 @@ const comparisonWidths = (comparison) => {
 }
 
 function ComparisonVisualRow({ label, value, comparison, kind = 'money' }) {
-  const widths = comparisonWidths(comparison)
+  const available = Boolean(comparison?.available && comparison?.percent != null)
+  const widths = available ? comparisonWidths(comparison) : null
   return <div className="reporting-comparison-visual-row">
     <div className="reporting-comparison-visual-copy">
       <span>{label}</span>
       <strong>{valueFor(value, kind)}</strong>
       <small>{comparisonCopy(comparison)}</small>
     </div>
-    <div className="reporting-comparison-bars" aria-label={`${label}: atual ${valueFor(value, kind)}, anterior ${valueFor(comparison?.previous, kind)}`}>
+    {available ? <div className="reporting-comparison-bars" aria-label={`${label}: atual ${valueFor(value, kind)}, anterior ${valueFor(comparison?.previous, kind)}`}>
       <div><span>Atual</span><div className="reporting-comparison-track is-current"><i style={{ width: `${widths.current}%` }} /></div></div>
       <div><span>Anterior</span><div className="reporting-comparison-track is-previous"><i style={{ width: `${widths.previous}%` }} /></div></div>
-    </div>
+    </div> : <div className="reporting-comparison-unavailable" role="note">
+      <span className="reporting-comparison-unavailable-dot" />
+      <span>Comparação indisponível para este recorte</span>
+    </div>}
   </div>
 }
 

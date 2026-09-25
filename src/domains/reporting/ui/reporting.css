@@ -444,8 +444,15 @@
 }
 
 .reporting-metric-card:is(button):hover {
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  background: color-mix(in srgb, var(--surface) 96%, var(--primary) 4%);
   transform: translateY(-1px);
+}
+
+.reporting-metric-card:is(button):focus-visible {
+  border-color: var(--border);
+  outline: 3px solid var(--primary-control-ring);
+  outline-offset: 2px;
 }
 
 .reporting-metric-heading {
@@ -622,6 +629,28 @@
   min-width: 0;
   display: grid;
   gap: 6px;
+}
+
+.reporting-comparison-unavailable {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
+  color: var(--muted);
+  font-size: .7rem;
+}
+
+.reporting-comparison-unavailable-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--text-soft);
+  opacity: .55;
 }
 
 .reporting-comparison-bars > div {
