@@ -22,7 +22,21 @@ const countVisualLines = (item) => {
   return nameLines + noteLines * NOTE_LINE_WEIGHT
 }
 
-export function getKitchenCardContentMetrics(items = []) {
+export function resolveKitchenViewportProfile(viewportHeight) {
+  const height = Math.trunc(Number(viewportHeight))
+  if (!Number.isFinite(height) || height <= 0) return 'standard'
+  if (height >= 900) return 'spacious'
+  if (height <= 640) return 'constrained'
+  return 'standard'
+}
+
+const resolveLayoutDemand = ({ density, itemCount, visualLines, viewportProfile }) => {
+  if (viewportProfile === 'spacious') return visualLines >= 12 || itemCount >= 10 ? 'tall' : 'normal'
+  if (viewportProfile === 'constrained') return visualLines >= 5 || itemCount >= 5 ? 'tall' : 'normal'
+  return density === 'dense' ? 'tall' : 'normal'
+}
+
+export function getKitchenCardContentMetrics(items = [], { viewportHeight } = {}) {
   const safeItems = Array.isArray(items) ? items : []
   const visualLines = safeItems.reduce((total, item) => total + countVisualLines(item), 0)
   const itemCount = safeItems.length
@@ -31,12 +45,14 @@ export function getKitchenCardContentMetrics(items = []) {
     : visualLines >= 5 || itemCount >= 5
       ? 'compact'
       : 'comfortable'
+  const viewportProfile = resolveKitchenViewportProfile(viewportHeight)
 
   return {
     itemCount,
     visualLines,
     density,
-    layoutDemand: density === 'dense' ? 'tall' : 'normal',
+    viewportProfile,
+    layoutDemand: resolveLayoutDemand({ density, itemCount, visualLines, viewportProfile }),
   }
 }
 
@@ -45,14 +61,14 @@ const normalizedSlotCeiling = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 6
 }
 
-export function packKitchenDisplaySlots(entries = [], { maxSlots = 6 } = {}) {
+export function packKitchenDisplaySlots(entries = [], { maxSlots = 6, viewportHeight } = {}) {
   const source = Array.isArray(entries) ? entries : []
   const slotCeiling = normalizedSlotCeiling(maxSlots)
   const cards = []
   let usedSlots = 0
 
   for (const entry of source) {
-    const metrics = getKitchenCardContentMetrics(entry?.order?.items)
+    const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportHeight })
     const slotCost = metrics.layoutDemand === 'tall' ? 2 : 1
     if (usedSlots + slotCost > slotCeiling) break
 
