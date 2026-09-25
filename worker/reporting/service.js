@@ -6,7 +6,7 @@ import { getBusinessDate } from '../../shared/finance.js'
 import { createExportModel, EXPORT_LIMIT } from './exportModel.js'
 
 const sum = (rows, key) => rows.reduce((total, row) => total + Number(row[key] || 0), 0)
-const hasOrderContextFilter = (query) => ['type', 'schedule', 'status', 'category', 'product', 'customer'].some((key) => query[key])
+const hasOrderContextFilter = (query) => ['type', 'schedule', 'status', 'category', 'product', 'productName', 'customer'].some((key) => query[key])
 
 const metricsFor = ({ orders = [], payments = [], receipts = [], refunds = [] }) => {
   const commercial = orders.filter((order) => order.status !== 'Cancelado')

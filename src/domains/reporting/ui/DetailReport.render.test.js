@@ -19,3 +19,18 @@ test('detail renders server page, changes filters/pagination and opens read-only
   assert.match(nodeText(renderer.root), /Itens do pedido/)
   assert.doesNotMatch(nodeText(renderer.root), /Registrar pagamento|Cancelar pedido|Imprimir pedido/)
 })
+
+test('detail product input searches a historical name without reusing the identity filter', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { DetailReport } = await harness.load('/src/domains/reporting/ui/views/DetailReport.jsx')
+  const changes = []
+  const renderer = await harness.render(DetailReport, {
+    state: { data: { total: 0, page: 1, totalPages: 0, items: [] }, loading: false },
+    query: { view: 'detail', page: 1, pageSize: 25, sort: 'date-desc', product: 'catalog-id' },
+    onChange: (patch) => changes.push(patch),
+  })
+  const nameInput = renderer.root.findAllByType('input').find((input) => input.props.placeholder === 'Nome histórico')
+  assert.ok(nameInput)
+  nameInput.props.onChange({ target: { value: 'X-Bacon' } })
+  assert.deepEqual(changes.at(-1), { productName: 'X-Bacon', product: null })
+})

@@ -23,7 +23,8 @@ export function ReportingFilters({ query, onChange }) {
     <div><span>Agendamento</span><SystemSelect label="Agendamento" value={query.schedule || ''} options={SCHEDULE_OPTIONS} onChange={(value) => onChange({ schedule: value || null })} /></div>
     {['overview', 'sales', 'products', 'operation'].includes(query.view) ? <>
       <label>Categoria<input value={query.category || ''} onChange={(event) => onChange({ category: event.target.value || null })} placeholder="Todas" /></label>
-      <label>Produto<input value={query.product || ''} onChange={(event) => onChange({ product: event.target.value || null })} placeholder="Todos" /></label>
+      <label>Produto por nome<input value={query.productName || ''} onChange={(event) => onChange({ productName: event.target.value || null, product: null })} placeholder="Nome histórico" /></label>
+      {query.product ? <small>Filtro por produto selecionado no ranking ativo.</small> : null}
       <label>Cliente<input value={query.customer || ''} onChange={(event) => onChange({ customer: event.target.value || null })} placeholder="Todos" /></label>
     </> : null}
     {query.view === 'sales' ? <div><span>Forma de pagamento</span><SystemSelect label="Forma de pagamento" value={query.paymentMethod || ''} options={PAYMENT_OPTIONS} onChange={(value) => onChange({ paymentMethod: value || null })} /></div> : null}

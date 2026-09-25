@@ -10,12 +10,12 @@ const DEADLINE_SET = new Set(['on-time', 'late'])
 const PERIOD_SET = new Set(['today', '7-days', '30-days', 'current-month', 'previous-month', 'custom'])
 const QUERY_KEYS = Object.freeze([
   'view', 'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
-  'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
+  'product', 'productName', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
   'receivable', 'search', 'sort', 'page', 'pageSize',
 ])
 const POPULATION_KEYS = new Set([
   'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
-  'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
+  'product', 'productName', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
   'receivable', 'search', 'sort',
 ])
 
@@ -76,6 +76,7 @@ export function normalizeReportingQuery(searchParams = new URLSearchParams(), { 
     paymentMethod: optionalText(params.get('paymentMethod'), 80),
     category: optionalText(params.get('category'), 120),
     product: optionalText(params.get('product'), 160),
+    productName: optionalText(params.get('productName'), 160),
     customer: optionalText(params.get('customer'), 160),
     orderHourFrom: normalizeHour(params.get('orderHourFrom')),
     orderHourTo: normalizeHour(params.get('orderHourTo')),

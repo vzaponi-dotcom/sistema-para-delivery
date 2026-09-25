@@ -13,7 +13,7 @@ test('reporting query normalizes valid filters and rejects invalid ranges and pa
 
   assert.deepEqual(query, {
     view: 'detail', period: 'custom', from: '2026-09-01', to: '2026-09-25', type: 'Entrega', schedule: 'scheduled',
-    status: null, paymentMethod: null, category: null, product: null, customer: null,
+    status: null, paymentMethod: null, category: null, product: null, productName: null, customer: null,
     orderHourFrom: 8, orderHourTo: 22, operationalDeadline: null, receivable: null, search: 'Maria', sort: null,
     page: 2, pageSize: 50,
   })
@@ -52,4 +52,13 @@ test('reporting query rejects impossible calendar dates and unsupported filter c
     { view: 'overview', page: '2' },
     { view: 'detail', sort: 'total_cents; DROP TABLE orders' },
   ]) assert.throws(() => parseReportingQuery(new URLSearchParams(params)), { status: 400 })
+})
+
+test('reporting query accepts a named product filter separately from canonical identity', async () => {
+  const { parseReportingQuery } = await load()
+  const query = parseReportingQuery(new URLSearchParams({
+    view: 'products', from: '2026-09-01', to: '2026-09-25', productName: '  X-Bacon  ',
+  }), { now: new Date('2026-09-25T15:00:00Z') })
+  assert.equal(query.productName, 'X-Bacon')
+  assert.equal(query.product, null)
 })

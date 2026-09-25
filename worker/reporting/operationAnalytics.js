@@ -68,7 +68,7 @@ export function calculateOperation(rows, query = {}) {
   }
   return {
     data: {
-      operationalOrdersCount: eligible.length,
+      operationalOrdersCount: selected.length,
       averageDurationMinutes: average(durations), medianDurationMinutes: median,
       p90DurationMinutes: durations.length ? durations[Math.ceil(durations.length * 0.9) - 1] : null,
       fastestMinutes: durations[0] ?? null, slowestMinutes: durations.at(-1) ?? null,

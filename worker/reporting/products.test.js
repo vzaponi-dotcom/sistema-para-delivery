@@ -21,6 +21,36 @@ test('product quality reports invalid allocation and preserves renamed historica
   assert.equal(result.merchandiseRevenueCents, 2000)
 })
 
+test('historical product name filters lines while canonical product identity remains exact', async () => {
+  const { calculateProducts } = await import('./productAnalytics.js')
+  const lines = [
+    { order_id: 'o', item_id: 'i1', product_id: 'p1', name_snapshot: 'X-Bacon antigo', category_snapshot: 'Lanches', size_snapshot: '', quantity: 1, unit_price_cents: 1000, total_cents: 2000, delivery_fee_cents: 0 },
+    { order_id: 'o', item_id: 'i2', product_id: 'p2', name_snapshot: 'Batata Frita', category_snapshot: 'Acompanhamentos', size_snapshot: '', quantity: 1, unit_price_cents: 1000, total_cents: 2000, delivery_fee_cents: 0 },
+  ]
+  assert.deepEqual(calculateProducts(lines, { productName: 'bacon' }).ranking.map((item) => item.id), ['p1'])
+  assert.deepEqual(calculateProducts(lines, { product: 'p2' }).ranking.map((item) => item.id), ['p2'])
+})
+
+test('detail and product repository searches historical name without breaking snapshot identity drilldown', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('a','a','A','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z');
+    INSERT INTO orders (id,business_id,order_number,client_name_snapshot,order_date,type,status,subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,adjustment_value,adjustment_amount_cents,total_cents,created_at) VALUES
+      ('o1','a',1,'Ana','2026-09-10','Entrega','Finalizado',1000,0,'none','fixed',0,0,1000,'2026-09-10T12:00:00Z'),
+      ('o2','a',2,'Bia','2026-09-10','Entrega','Finalizado',1000,0,'none','fixed',0,0,1000,'2026-09-10T13:00:00Z');
+    INSERT INTO order_items (id,business_id,order_id,product_id,name_snapshot,category_snapshot,size_snapshot,quantity,catalog_price_cents,unit_price_cents,created_at) VALUES
+      ('i1','a','o1',NULL,'X-Bacon antigo','Lanches','',1,1000,1000,'2026-09-10T12:00:00Z'),
+      ('i2','a','o2',NULL,'Batata Frita','Acompanhamentos','',1,1000,1000,'2026-09-10T13:00:00Z');
+  `)
+  const repository = createReportingRepository(db)
+  const query = { from: '2026-09-01', to: '2026-09-30', page: 1, pageSize: 25 }
+  assert.deepEqual((await repository.loadProductLines('a', { ...query, productName: 'bacon' })).map((line) => line.order_id), ['o1'])
+  assert.deepEqual((await repository.listDetail('a', { ...query, productName: 'bacon' })).items.map((order) => order.id), ['o1'])
+  assert.deepEqual((await repository.listDetail('a', { ...query, product: JSON.stringify(['Lanches', 'X-Bacon antigo', '']) })).items.map((order) => order.id), ['o1'])
+})
+
 test('products aggregate historical snapshots, allocate merchandise only and expose prior growth', async (t) => {
   const { createReportingRepository } = await import('./repository.js')
   const { createReportingService } = await import('./service.js')

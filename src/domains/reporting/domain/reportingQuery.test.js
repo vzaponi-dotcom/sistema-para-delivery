@@ -24,6 +24,7 @@ test('reporting query defaults to current business month and overview', () => {
     paymentMethod: null,
     category: null,
     product: null,
+    productName: null,
     customer: null,
     orderHourFrom: null,
     orderHourTo: null,
@@ -70,4 +71,12 @@ test('switching reporting view preserves active filters', () => {
   assert.equal(next.view, 'products')
   assert.equal(next.type, 'Entrega')
   assert.equal(next.category, 'Refeições')
+})
+
+test('historical product name uses a separate round-trippable filter and resets the detail page', () => {
+  const current = normalize('view=detail&productName=X-Bacon&page=4')
+  assert.equal(current.productName, 'X-Bacon')
+  assert.equal(reportingQueryToSearchParams(current).get('productName'), 'X-Bacon')
+  assert.equal(patchReportingQuery(current, { productName: 'Batata' }).page, 1)
+  assert.equal(patchReportingQuery(current, { productName: 'Batata' }).productName, 'Batata')
 })

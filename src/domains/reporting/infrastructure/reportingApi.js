@@ -6,10 +6,20 @@ const queryString = (query = {}) => {
   return params.toString()
 }
 
+const COLLECTION_PATHS = Object.freeze({
+  overview: '/api/reporting/overview',
+  operation: '/api/reporting/operation',
+  sales: '/api/reporting/sales',
+  products: '/api/reporting/products',
+  detail: '/api/reporting/orders',
+})
+
 export const createReportingApi = ({ request = apiRequest } = {}) => Object.freeze({
   load: (view, query, { signal } = {}) => {
+    const path = COLLECTION_PATHS[view]
+    if (!path) throw new Error(`Visão de relatório desconhecida: ${view}`)
     const search = queryString(query)
-    return request(`/api/reporting/${view}${search ? `?${search}` : ''}`, { signal })
+    return request(`${path}${search ? `?${search}` : ''}`, { signal })
   },
   loadOrder: (id, { signal } = {}) => request(`/api/reporting/orders/${encodeURIComponent(id)}`, { signal }),
   exportModel: (query, columns, { signal } = {}) => request('/api/reporting/export-model', {

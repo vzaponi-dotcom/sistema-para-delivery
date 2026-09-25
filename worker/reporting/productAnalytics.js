@@ -28,6 +28,7 @@ export function calculateProducts(lines, query = {}) {
       const id = productIdentity(line)
       if (query.category && line.category_snapshot.toLowerCase() !== query.category.toLowerCase()) continue
       if (query.product && id !== query.product) continue
+      if (query.productName && !line.name_snapshot.toLocaleLowerCase('pt-BR').includes(query.productName.toLocaleLowerCase('pt-BR'))) continue
       const revenueCents = allocated.get(item.id) || 0
       const quantity = Number(line.quantity)
       const existing = products.get(id) || {

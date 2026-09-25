@@ -19,12 +19,20 @@ export async function createXlsxWorkbook(model) {
     medianDurationMinutes: 'Mediana', p90DurationMinutes: 'P90',
     merchandiseRevenueCents: 'Receita de mercadoria', deliveryFeesCents: 'Taxas de entrega',
     unitsSold: 'Unidades vendidas', mealsSold: 'Refeições vendidas',
+    discountCents: 'Descontos', surchargeCents: 'Acréscimos',
   }
+  const monetaryMetrics = new Set([
+    'salesCents', 'averageTicketCents', 'receivedCents', 'receivableCents', 'refundsCents',
+    'merchandiseRevenueCents', 'deliveryFeesCents', 'discountCents', 'surchargeCents',
+  ])
   for (const [key, value] of Object.entries(model.filters || {})) {
     if (filterLabels[key] && value != null && value !== '') summary.addRow([filterLabels[key], String(value)])
   }
   for (const [key, value] of Object.entries(model.summary?.metrics || model.summary || {})) {
-    if (typeof value === 'number' || value === null) summary.addRow([metricLabels[key] || key, value ?? 'Indisponível'])
+    if (typeof value === 'number' || value === null) {
+      const row = summary.addRow([metricLabels[key] || key, value == null ? 'Indisponível' : monetaryMetrics.has(key) ? value / 100 : value])
+      if (monetaryMetrics.has(key) && value != null) row.getCell(2).numFmt = '"R$" #,##0.00'
+    }
   }
   for (const warning of model.warnings || []) summary.addRow(['Aviso', warning])
   const data = workbook.addWorksheet('Dados')

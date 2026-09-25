@@ -8,7 +8,7 @@ const DEADLINES = new Set(['on-time', 'late'])
 const PAGE_SIZES = new Set([25, 50, 100])
 const SORTS = new Set(['date-desc', 'date-asc', 'total-desc', 'total-asc', 'duration-desc', 'duration-asc'])
 const PERIODS = new Set(['today', '7-days', '30-days', 'current-month', 'previous-month', 'custom'])
-const KEYS = new Set(['view', 'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category', 'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline', 'receivable', 'search', 'sort', 'page', 'pageSize', 'businessId', 'business_id', 'capabilities', 'capability'])
+const KEYS = new Set(['view', 'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category', 'product', 'productName', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline', 'receivable', 'search', 'sort', 'page', 'pageSize', 'businessId', 'business_id', 'capabilities', 'capability'])
 
 const fail = (code, message) => { throw apiError(400, code, message) }
 const date = (value, key) => {
@@ -59,7 +59,7 @@ export function parseReportingQuery(input, { now = new Date() } = {}) {
   const query = {
     view, period: enumValue('period', PERIODS) || (params.has('from') || params.has('to') ? 'custom' : 'current-month'), from, to, type: enumValue('type', TYPES), schedule: enumValue('schedule', SCHEDULES),
     status: optional(params, 'status'), paymentMethod: optional(params, 'paymentMethod'), category: optional(params, 'category'),
-    product: optional(params, 'product'), customer: optional(params, 'customer'), orderHourFrom: fromHour, orderHourTo: toHour,
+    product: optional(params, 'product'), productName: optional(params, 'productName'), customer: optional(params, 'customer'), orderHourFrom: fromHour, orderHourTo: toHour,
     operationalDeadline: enumValue('operationalDeadline', DEADLINES), receivable: enumValue('receivable', new Set(['unpaid'])), search, sort: optional(params, 'sort'),
     page: integer(params, 'page', 1, (value) => value >= 1), pageSize: integer(params, 'pageSize', 25, (value) => PAGE_SIZES.has(value)),
   }

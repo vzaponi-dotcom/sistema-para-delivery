@@ -29,7 +29,7 @@ test('operation exposes distribution, deadline, punctuality and coverage from ca
   assert.equal(result.quality.eligibleCount, 3)
   assert.equal(result.quality.measuredCount, 2)
   assert.equal(result.quality.invalidCount, 1)
-  assert.equal(result.data.operationalOrdersCount, 3)
+  assert.equal(result.data.operationalOrdersCount, 2)
   assert.equal(result.data.withinDeadlineCount, 1)
   assert.equal(result.data.outsideDeadlineCount, 1)
   assert.equal(result.data.fastestMinutes, 20)
@@ -52,4 +52,22 @@ test('terminal policy snapshot is historical and malformed snapshots fail explic
   assert.equal(result.quality.legacyPolicyCount, 1)
   const corrupt = { async listOperationalOrders() { return [{ ...base, id: 'bad', timing_policy_snapshot_json: '{' }] } }
   await assert.rejects(createReportingService(corrupt).operation('a', { from: '2026-09-10', to: '2026-09-10' }), { code: 'ORDER_TIMING_SNAPSHOT_INVALID' })
+})
+
+test('deadline and hour filters make the operational KPI and distributions match the selected population', async () => {
+  const { calculateOperation } = await import('./operationAnalytics.js')
+  const rows = [
+    { id: 'on-time', status: 'Finalizado', type: 'Entrega', is_backdated: 0, created_at: '2026-09-10T12:00:00Z', finished_at: '2026-09-10T12:20:00Z' },
+    { id: 'late', status: 'Finalizado', type: 'Retirada', is_backdated: 0, created_at: '2026-09-10T13:00:00Z', finished_at: '2026-09-10T13:45:00Z' },
+  ]
+  const late = calculateOperation(rows, { operationalDeadline: 'late' })
+  assert.equal(late.data.operationalOrdersCount, 1)
+  assert.equal(late.data.withinDeadlineCount, 0)
+  assert.equal(late.data.outsideDeadlineCount, 1)
+  assert.equal(late.data.byHour.reduce((total, item) => total + item.count, 0), 1)
+  assert.equal(late.data.byModality.reduce((total, item) => total + item.count, 0), 1)
+  assert.equal(late.data.durationBands.reduce((total, item) => total + item.count, 0), 1)
+  const hour = calculateOperation(rows, { orderHourFrom: 10, orderHourTo: 10 })
+  assert.equal(hour.data.operationalOrdersCount, 1)
+  assert.equal(hour.data.outsideDeadlineCount, 1)
 })

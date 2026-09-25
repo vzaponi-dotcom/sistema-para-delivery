@@ -4,7 +4,7 @@ import { ReportingOrderDrawer } from '../detail/ReportingOrderDrawer.jsx'
 import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
-const FILTERS = ['type', 'schedule', 'status', 'paymentMethod', 'category', 'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline', 'receivable', 'search']
+const FILTERS = ['type', 'schedule', 'status', 'paymentMethod', 'category', 'product', 'productName', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline', 'receivable', 'search']
 const COLUMNS = [
   ['order_number', 'Pedido'], ['order_date', 'Data'], ['client_name_snapshot', 'Cliente'],
   ['type', 'Modalidade'], ['status', 'Status'], ['total_cents', 'Total'],
@@ -42,7 +42,7 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
         <div><span>Agendamento</span><SystemSelect label="Agendamento" value={query.schedule || ''} options={SCHEDULE_OPTIONS} onChange={(value) => onChange({ schedule: value || null })} /></div>
         <label>Forma de pagamento<input value={query.paymentMethod || ''} onChange={(event) => onChange({ paymentMethod: event.target.value || null })} /></label>
         <label>Categoria<input value={query.category || ''} onChange={(event) => onChange({ category: event.target.value || null })} /></label>
-        <label>Produto<input value={query.product || ''} onChange={(event) => onChange({ product: event.target.value || null })} /></label>
+        <label>Produto por nome<input value={query.productName || ''} onChange={(event) => onChange({ productName: event.target.value || null, product: null })} placeholder="Nome histórico" /></label>
         <label>Cliente<input value={query.customer || ''} onChange={(event) => onChange({ customer: event.target.value || null })} /></label>
         <div><span>Prazo</span><SystemSelect label="Prazo" value={query.operationalDeadline || ''} options={DEADLINE_OPTIONS} onChange={(value) => onChange({ operationalDeadline: value || null })} /></div>
         <div><span>Recebível</span><SystemSelect label="Recebível" value={query.receivable || ''} options={RECEIVABLE_OPTIONS} onChange={(value) => onChange({ receivable: value || null })} /></div>

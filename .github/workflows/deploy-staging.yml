@@ -158,6 +158,7 @@ jobs:
             '/comandas',
             '/financeiro/a-receber',
             '/financeiro/movimentacoes',
+            '/relatorios',
             '/configuracoes/impressao',
             '/configuracoes/identidade',
             '/cozinha-tv',
