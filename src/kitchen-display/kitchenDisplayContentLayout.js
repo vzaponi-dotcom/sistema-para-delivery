@@ -39,3 +39,36 @@ export function getKitchenCardContentMetrics(items = []) {
     layoutDemand: density === 'dense' ? 'tall' : 'normal',
   }
 }
+
+const normalizedSlotCeiling = (value) => {
+  const parsed = Math.trunc(Number(value))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 6
+}
+
+export function packKitchenDisplaySlots(entries = [], { maxSlots = 6 } = {}) {
+  const source = Array.isArray(entries) ? entries : []
+  const slotCeiling = normalizedSlotCeiling(maxSlots)
+  const cards = []
+  let usedSlots = 0
+
+  for (const entry of source) {
+    const metrics = getKitchenCardContentMetrics(entry?.order?.items)
+    const slotCost = metrics.layoutDemand === 'tall' ? 2 : 1
+    if (usedSlots + slotCost > slotCeiling) break
+
+    cards.push({
+      ...entry,
+      contentMetrics: metrics,
+      layoutDemand: metrics.layoutDemand,
+      slotCost,
+    })
+    usedSlots += slotCost
+  }
+
+  return {
+    cards,
+    usedSlots,
+    remainingSlots: slotCeiling - usedSlots,
+    overflow: Math.max(0, source.length - cards.length),
+  }
+}
