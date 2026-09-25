@@ -5,12 +5,17 @@
 **Branch:** `feature/kitchen-alert-sound-profiles`  
 **Base:** `master@b82406e41ac62560d6ed61acb31c4b18a53d30ae`  
 **SHA homologado antes do fechamento documental:** `39e8ca3a065d2d228e7d227be9f3c3e3ced7dfa5`  
-**Produção:** NÃO DEPLOYADA neste fechamento  
-**Merge:** PENDENTE do Validate documental final
+**Produção:** DEPLOYADA EM 24/09/2026  
+**Release de produção:** `master@c77db21abfd1bf8c8bec38e7889ddd519ad99b91`  
+**Deploy production:** #57 / run `36076620261` — **SUCCESS**  
+**Worker Version ID:** `7eadea04-1df9-4859-9321-66ceba28ad28`  
+**Merge:** EXECUTADO EM 24/09/2026  
+**Merge commit:** `c77db21abfd1bf8c8bec38e7889ddd519ad99b91`  
+**Validate pós-merge:** #2030 / run `36076108829` — **SUCCESS**
 
 ## Resultado
 
-A melhoria de alertas sonoros configuráveis foi homologada manualmente em staging pelo responsável do produto.
+A melhoria de alertas sonoros configuráveis foi homologada manualmente em staging pelo responsável do produto e posteriormente publicada em produção com sucesso.
 
 Resultado manual final:
 
@@ -56,6 +61,32 @@ Deploy staging #296 / run `36060510151` — **SUCCESS**.
 - R2 staging: confirmado
 - migrations remotas: nenhuma pendente
 
+## Merge e produção
+
+### Merge
+
+- PR #69: **MERGED**;
+- merge commit: `c77db21abfd1bf8c8bec38e7889ddd519ad99b91`;
+- `master` passou a apontar para o SHA exato do merge;
+- Validate pós-merge #2030 / run `36076108829` — **SUCCESS**.
+
+### Produção
+
+Deploy production #57 / run `36076620261` — **SUCCESS** no SHA exato `c77db21abfd1bf8c8bec38e7889ddd519ad99b91`.
+
+- tests ✅;
+- lint ✅;
+- build ✅;
+- Worker bundle validation ✅;
+- D1 local ✅;
+- D1 remoto: **No migrations to apply** ✅;
+- binding R2 de produção: `BUSINESS_ASSETS (mesiva-business-assets)` ✅;
+- deploy do Worker ✅;
+- Worker Version ID: `7eadea04-1df9-4859-9321-66ceba28ad28`;
+- login de produção: HTTP 200 ✅.
+
+A release não aplicou nenhuma migration nova.
+
 ## Matriz manual
 
 | # | Caso | Resultado |
@@ -94,16 +125,20 @@ Deploy staging #296 / run `36060510151` — **SUCCESS**.
 - bloqueio de áudio não quebra o painel;
 - uma chegada gera uma execução do alerta; o perfil pode conter várias batidas internas sem repetição infinita.
 
-## Gate de merge
+## Fechamento
 
 Homologação manual: **APROVADA** em 24/09/2026.
 
 O responsável do produto confirmou explicitamente que todos os testes solicitados passaram, incluindo a Samsung/Tizen legado.
 
-Após este commit documental:
+O ciclo da PR #69 está fechado.
 
-1. executar/aguardar Validate no SHA final;
-2. se SUCCESS, tirar a PR de DRAFT;
-3. mergear em `master`;
-4. verificar Validate pós-merge;
-5. produção permanece uma etapa separada.
+- homologação manual: aprovada;
+- Validate final da branch: SUCCESS;
+- merge: executado;
+- Validate pós-merge: SUCCESS;
+- deploy de produção: SUCCESS;
+- migrations novas: nenhuma;
+- smoke de login em produção: HTTP 200.
+
+Qualquer alteração posterior nos perfis de som deve iniciar um novo ciclo de mudança, validação e homologação.
