@@ -41,6 +41,9 @@ const iconFor = (label) => ({
   'Unidades vendidas': 'package',
   'Refeições vendidas': 'meal',
   'Produtos no período': 'products',
+  'Categorias': 'products',
+  'Ticket por item': 'ticket',
+  'Participação do Top 10': 'percent',
 }[label] || 'chart')
 
 export function ReportingMetricCard({ label, value, kind = 'money', comparison, onDrilldown }) {
