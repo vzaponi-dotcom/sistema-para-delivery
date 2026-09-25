@@ -23,17 +23,20 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const { order, state, phase } = entry
   const items = Array.isArray(order.items) ? order.items : []
   const metrics = getKitchenCardContentMetrics(items)
+  const layoutDemand = entry.layoutDemand ?? metrics.layoutDemand
+  const gridPosition = entry.gridPosition
   const twoColumns = items.length > 4
   const scheduled = phase === 'scheduled'
   const timing = scheduled ? timeFormatter.format(new Date(order.scheduledFor)) : formatElapsed(entry.operationalStartAt || order.createdAt, now)
   const typeIcon = order.type === 'Retirada' ? 'pickup' : order.type === 'Local' ? 'local' : 'delivery-bike'
 
   return <article
-    className={`kds-card kds-card--${state} kds-card--content-${metrics.density}`}
+    className={`kds-card kds-card--${state} kds-card--content-${metrics.density}${layoutDemand === 'tall' ? ' kds-card--tall' : ''}`}
+    style={gridPosition ? { gridColumn: gridPosition.gridColumn, gridRow: gridPosition.gridRow } : undefined}
     data-order-id={String(order.id)}
     data-highlighted={state === 'new'}
     data-item-count={items.length}
-    data-layout-demand={metrics.layoutDemand}
+    data-layout-demand={layoutDemand}
   >
     <div className="kds-card__main">
       <h2 className="kds-card__customer">{order.client || 'Cliente não informado'}</h2>
