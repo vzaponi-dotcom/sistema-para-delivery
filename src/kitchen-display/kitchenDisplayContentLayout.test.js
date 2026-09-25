@@ -38,40 +38,53 @@ test('five medium items become compact without requesting a tall card', () => {
   assert.equal(metrics.itemCount, 5)
 })
 
-test('eight or more items become dense and request a tall card', () => {
-  const metrics = getKitchenCardContentMetrics(Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`)))
+test('eight short items stay normal by using two columns when one column would not fit', () => {
+  const metrics = getKitchenCardContentMetrics(
+    Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`)),
+    { viewportHeight: 720 },
+  )
 
   assert.equal(metrics.density, 'dense')
-  assert.equal(metrics.layoutDemand, 'tall')
+  assert.equal(metrics.layoutDemand, 'normal')
+  assert.equal(metrics.columnCount, 2)
+  assert.equal(metrics.fitStrategy, 'normal-two-columns')
   assert.equal(metrics.itemCount, 8)
 })
 
-test('six long item names become dense and request a tall card even below eight items', () => {
+test('a request grows only after two columns no longer fit, then prefers one column while tall', () => {
   const metrics = getKitchenCardContentMetrics([
-    item('[TESTE] Combo Individual Família'),
-    item('[TESTE] Sanduíche de Frango Especial'),
+    item('[TESTE] Combo Individual Família Especial'),
+    item('[TESTE] Sanduíche de Frango Especial Família'),
     item('[TESTE] Porção de Arroz Temperado Grande'),
-    item('[TESTE] Calabresa Acebolada Especial G'),
+    item('[TESTE] Calabresa Acebolada Especial Grande'),
     item('[TESTE] Marmita Frango Completa Família'),
     item('[TESTE] Mandioca Frita Crocante Grande'),
-  ])
+    item('[TESTE] Prato Executivo Completo Família'),
+    item('[TESTE] Filé de Frango Grelhado Especial'),
+  ], { viewportHeight: 720 })
 
   assert.equal(metrics.density, 'dense')
   assert.equal(metrics.layoutDemand, 'tall')
-  assert.ok(metrics.visualLines >= 10)
+  assert.equal(metrics.columnCount, 1)
+  assert.equal(metrics.fitStrategy, 'tall-one-column')
+  assert.ok(metrics.visualLines >= 15)
+  assert.ok(metrics.twoColumnVisualLines > metrics.normalLineCapacity)
+  assert.ok(metrics.visualLines <= metrics.tallLineCapacity)
 })
 
-test('production notes contribute to visual demand and can promote a card to tall', () => {
-  const metrics = getKitchenCardContentMetrics([
-    item('X-Bacon', 'Retirar cebola e deixar o molho completamente separado'),
-    item('X-Salada', 'Sem tomate e sem milho, adicionar bastante alface'),
-    item('Marmita', 'Arroz sem alho e feijão em embalagem separada por favor'),
-    item('Tilápia', 'Fritar bem passada e enviar o limão em pote separado'),
-  ])
+test('an extreme tall request returns to two columns only when one tall column is insufficient', () => {
+  const metrics = getKitchenCardContentMetrics(
+    Array.from({ length: 12 }, (_, index) => item(
+      `Produto Família Especial Muito Completo ${index + 1}`,
+      index % 2 === 0 ? 'Observação longa de produção em embalagem separada' : '',
+    )),
+    { viewportHeight: 720 },
+  )
 
-  assert.equal(metrics.density, 'dense')
   assert.equal(metrics.layoutDemand, 'tall')
-  assert.ok(metrics.visualLines >= 10)
+  assert.equal(metrics.columnCount, 2)
+  assert.equal(metrics.fitStrategy, 'tall-two-columns')
+  assert.ok(metrics.visualLines > metrics.tallLineCapacity)
 })
 
 test('shared item formatting normalizes whitespace and does not duplicate an existing size suffix', () => {
@@ -91,7 +104,7 @@ const normalEntry = (id) => ({
 const tallEntry = (id) => ({
   order: {
     id,
-    items: Array.from({ length: 8 }, (_, index) => item(`Produto ${id}-${index + 1}`)),
+    items: Array.from({ length: 8 }, (_, index) => item(`Produto ${id}-${index + 1} Família Especial Completo`)),
   },
 })
 
@@ -182,51 +195,56 @@ test('viewport profiles distinguish spacious, standard and constrained heights',
   assert.equal(resolveKitchenViewportProfile(undefined), 'standard')
 })
 
-test('the same eight-line order stays normal in a spacious viewport and becomes tall when height is reduced', () => {
+test('the same eight-line order adapts columns before consuming a second visual slot', () => {
   const items = Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`))
   const spacious = getKitchenCardContentMetrics(items, { viewportHeight: 1080 })
   const standard = getKitchenCardContentMetrics(items, { viewportHeight: 720 })
 
   assert.equal(spacious.density, 'dense')
   assert.equal(spacious.layoutDemand, 'normal')
+  assert.equal(spacious.columnCount, 1)
+  assert.equal(spacious.fitStrategy, 'normal-one-column')
   assert.equal(spacious.viewportProfile, 'spacious')
-  assert.equal(standard.layoutDemand, 'tall')
+  assert.equal(standard.layoutDemand, 'normal')
+  assert.equal(standard.columnCount, 2)
+  assert.equal(standard.fitStrategy, 'normal-two-columns')
   assert.equal(standard.viewportProfile, 'standard')
 })
 
-test('constrained height can promote compact content to tall before it clips', () => {
-  const items = [
-    item('Marmita de frango'),
-    item('Marmita de carne'),
-    item('Tilápia à milanesa'),
-    item('Virado à paulista'),
-    item('Omelete com queijo'),
-  ]
+test('constrained height still tries normal two-column fit before promoting to tall', () => {
+  const items = Array.from({ length: 7 }, (_, index) => item(`Marmita Família Especial Completa ${index + 1}`))
   const spacious = getKitchenCardContentMetrics(items, { viewportHeight: 1080 })
   const constrained = getKitchenCardContentMetrics(items, { viewportHeight: 600 })
 
-  assert.equal(spacious.density, 'compact')
   assert.equal(spacious.layoutDemand, 'normal')
-  assert.equal(constrained.density, 'compact')
+  assert.equal(spacious.columnCount, 2)
   assert.equal(constrained.layoutDemand, 'tall')
+  assert.equal(constrained.columnCount, 1)
+  assert.equal(constrained.fitStrategy, 'tall-one-column')
 })
 
-test('slot packing uses viewport height when deciding how many cards fit', () => {
-  const entries = [
-    {
-      order: {
-        id: 'adaptive',
-        items: Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`)),
-      },
+test('slot packing keeps six cards when two columns are enough and drops to five only when tall is necessary', () => {
+  const adaptable = {
+    order: {
+      id: 'adaptive',
+      items: Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`)),
     },
-    ...Array.from({ length: 5 }, (_, index) => normalEntry(`n-${index + 1}`)),
-  ]
+  }
+  const trulyTall = {
+    order: {
+      id: 'tall',
+      items: Array.from({ length: 8 }, (_, index) => item(`Produto Família Especial Completo ${index + 1}`)),
+    },
+  }
+  const normals = Array.from({ length: 5 }, (_, index) => normalEntry(`n-${index + 1}`))
 
-  const spacious = packKitchenDisplaySlots(entries, { maxSlots: 6, viewportHeight: 1080 })
-  const standard = packKitchenDisplaySlots(entries, { maxSlots: 6, viewportHeight: 720 })
+  const standardNormal = packKitchenDisplaySlots([adaptable, ...normals], { maxSlots: 6, viewportHeight: 720 })
+  const standardTall = packKitchenDisplaySlots([trulyTall, ...normals], { maxSlots: 6, viewportHeight: 720 })
 
-  assert.equal(spacious.cards.length, 6)
-  assert.equal(spacious.cards[0].layoutDemand, 'normal')
-  assert.equal(standard.cards.length, 5)
-  assert.equal(standard.cards[0].layoutDemand, 'tall')
+  assert.equal(standardNormal.cards.length, 6)
+  assert.equal(standardNormal.cards[0].layoutDemand, 'normal')
+  assert.equal(standardNormal.cards[0].contentMetrics.columnCount, 2)
+  assert.equal(standardTall.cards.length, 5)
+  assert.equal(standardTall.cards[0].layoutDemand, 'tall')
+  assert.equal(standardTall.cards[0].contentMetrics.columnCount, 1)
 })
