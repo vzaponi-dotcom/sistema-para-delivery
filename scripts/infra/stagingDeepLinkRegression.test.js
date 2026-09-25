@@ -25,5 +25,5 @@ test('staging smoke requests the reporting deep link, SPA assets and auto-runs f
   })
   assert.ok(requested.includes(`${baseUrl}/relatorios`))
   assert.ok(requested.includes(`${baseUrl}/assets/app.js`))
-  assert.doesNotMatch(workflow.split('workflow_dispatch:')[0], /feature\/issue-34-reporting-center/)
+  assert.match(workflow.split('workflow_dispatch:')[0], /feature\/issue-34-reporting-center/)
 })
