@@ -17,7 +17,7 @@ const mixPalette = [
   'color-mix(in srgb, var(--text-soft) 58%, var(--primary))',
 ]
 
-const finiteNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : null
+const finiteNumber = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value) : null
 
 function ProductsMetricTextCard({ label, value, detail, icon = 'products' }) {
   return <article className="surface-card reporting-metric-card reporting-products-text-metric">
