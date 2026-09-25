@@ -14,4 +14,6 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /reporting-comparison-unavailable/)
   assert.match(css, /reporting-metric-card:is\(button\):focus-visible/)
   assert.match(css, /border-color:\s*color-mix\(in srgb, var\(--primary\) 32%/)
+  assert.match(css, /reporting-products-secondary-grid[\s\S]*align-items:\s*stretch/)
+  assert.match(css, /reporting-products-insights[\s\S]*grid-template-rows:\s*repeat\(3, minmax\(0, 1fr\)\)/)
 })
