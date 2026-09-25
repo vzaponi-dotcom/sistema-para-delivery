@@ -40,3 +40,19 @@ test('overview reads receipts once and only official refunds for the selected bu
   assert.equal(result.receipts[0].total_cents, 1000)
   assert.equal(result.refunds[0].value_cents, 100)
 })
+
+test('receipts use Sao Paulo business dates across the UTC midnight boundary', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.exec(`
+    INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES ('a', 'a', 'A', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z');
+    INSERT INTO payment_receipts (id, business_id, total_cents, paid_at, created_at) VALUES
+      ('previous', 'a', 100, '2026-09-10T02:59:59.000Z', '2026-09-10T02:59:59.000Z'),
+      ('current', 'a', 200, '2026-09-10T03:00:00.000Z', '2026-09-10T03:00:00.000Z'),
+      ('late', 'a', 300, '2026-09-11T02:59:59.000Z', '2026-09-11T02:59:59.000Z'),
+      ('next', 'a', 400, '2026-09-11T03:00:00.000Z', '2026-09-11T03:00:00.000Z');
+  `)
+  const result = await createReportingRepository(db).loadOverview('a', { from: '2026-09-10', to: '2026-09-10' })
+  assert.deepEqual(result.receipts.map((row) => row.total_cents), [200, 300])
+})

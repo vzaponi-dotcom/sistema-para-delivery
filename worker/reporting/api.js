@@ -1,4 +1,4 @@
-import { assertSameOriginMutation, json, readJson } from '../http.js'
+import { apiError, assertSameOriginMutation, json, readJson } from '../http.js'
 import { requireCapability } from '../settingsAccess.js'
 import { parseReportingQuery } from './query.js'
 import { createReportingService } from './service.js'
@@ -16,6 +16,14 @@ const envelope = (query, result) => ({
 export async function handleReportingApi(request, env, context, url = new URL(request.url)) {
   const expectedView = READ_PATHS.get(url.pathname)
   const service = env.reportingService || createReportingService(createReportingRepository(env.DB))
+  const orderMatch = /^\/api\/reporting\/orders\/([^/]+)$/.exec(url.pathname)
+  if (orderMatch && request.method === 'GET') {
+    requireCapability(context, 'reports.view')
+    const id = decodeURIComponent(orderMatch[1])
+    const result = await service.orderDetail(context.businessId, id)
+    if (!result.data) throw apiError(404, 'REPORTING_ORDER_NOT_FOUND', 'Pedido não encontrado.')
+    return json({ generatedAt: new Date().toISOString(), timezone: 'America/Sao_Paulo', data: result.data, quality: result.quality, warnings: [] })
+  }
   if (expectedView && request.method === 'GET') {
     requireCapability(context, 'reports.view')
     const params = new URLSearchParams(url.searchParams)
@@ -25,8 +33,10 @@ export async function handleReportingApi(request, env, context, url = new URL(re
       ? await service.overview(context.businessId, query)
       : expectedView === 'operation'
         ? await service.operation(context.businessId, query)
-        : expectedView === 'sales'
+      : expectedView === 'sales'
           ? await service.sales(context.businessId, query)
+          : expectedView === 'products'
+            ? await service.products(context.businessId, query)
           : expectedView === 'detail'
             ? await service.detail(context.businessId, query)
           : await service.empty(context.businessId, query)
@@ -35,8 +45,9 @@ export async function handleReportingApi(request, env, context, url = new URL(re
   if (url.pathname === '/api/reporting/export-model' && request.method === 'POST') {
     requireCapability(context, 'reports.export')
     assertSameOriginMutation(request)
-    const query = parseReportingQuery(new URLSearchParams(await readJson(request)))
-    return json(envelope(query, await service.empty(context.businessId, query)))
+    const body = await readJson(request)
+    const query = parseReportingQuery(new URLSearchParams(body.query || body))
+    return json(envelope(query, await service.exportModel(context.businessId, query, body.columns)))
   }
   return null
 }

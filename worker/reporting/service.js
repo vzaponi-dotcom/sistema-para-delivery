@@ -1,31 +1,25 @@
-import { getOperationalDurationMinutes, getOrderLateAt } from '../../shared/orderTiming.js'
-
-const previousPeriod = ({ from, to }) => {
-  const start = Date.parse(`${from}T00:00:00.000Z`)
-  const end = Date.parse(`${to}T00:00:00.000Z`)
-  const days = Math.round((end - start) / 86_400_000) + 1
-  return {
-    from: new Date(start - days * 86_400_000).toISOString().slice(0, 10),
-    to: new Date(start - 86_400_000).toISOString().slice(0, 10),
-  }
-}
+import { compareMetrics, previousReportingPeriod } from './comparison.js'
+import { calculateOperation } from './operationAnalytics.js'
+import { calculateProducts } from './productAnalytics.js'
+import { calculateReceivables, groupCentsByDate } from './financialAnalytics.js'
+import { getBusinessDate } from '../../shared/finance.js'
+import { createExportModel, EXPORT_LIMIT } from './exportModel.js'
 
 const sum = (rows, key) => rows.reduce((total, row) => total + Number(row[key] || 0), 0)
+const hasOrderContextFilter = (query) => ['type', 'schedule', 'status', 'category', 'product', 'customer'].some((key) => query[key])
 
 const metricsFor = ({ orders = [], payments = [], receipts = [], refunds = [] }) => {
   const commercial = orders.filter((order) => order.status !== 'Cancelado')
   const salesCents = sum(commercial, 'total_cents')
-  const paidByOrder = new Map()
-  for (const payment of payments) paidByOrder.set(payment.order_id, (paidByOrder.get(payment.order_id) || 0) + Number(payment.amount_cents || 0))
-  const pending = commercial.filter((order) => !order.table_tab_id).map((order) => Math.max(0, Number(order.total_cents || 0) - (paidByOrder.get(order.id) || 0))).filter(Boolean)
+  const receivables = calculateReceivables(commercial, payments)
   const ordersCount = commercial.length
   return {
     salesCents,
     ordersCount,
     averageTicketCents: ordersCount ? Math.round(salesCents / ordersCount) : null,
     receivedCents: sum(receipts, 'total_cents'),
-    receivableCents: pending.reduce((total, amount) => total + amount, 0),
-    receivableCount: pending.length,
+    receivableCents: receivables.amountCents,
+    receivableCount: receivables.count,
     cancellationRate: orders.length ? Number(((orders.filter((order) => order.status === 'Cancelado').length / orders.length) * 100).toFixed(2)) : null,
     refundsCents: sum(refunds, 'value_cents'),
   }
@@ -33,68 +27,124 @@ const metricsFor = ({ orders = [], payments = [], receipts = [], refunds = [] })
 
 export const createReportingService = (repository) => Object.freeze({
   async overview(businessId, query) {
-    const current = await repository.loadOverview(businessId, query)
-    const previous = await repository.loadOverview(businessId, { ...query, ...previousPeriod(query) })
-    const data = { metrics: metricsFor(current) }
+    const priorQuery = { ...query, ...previousReportingPeriod(query) }
+    const [current, previous, currentOperationRows, previousOperationRows] = await Promise.all([
+      repository.loadOverview(businessId, query), repository.loadOverview(businessId, priorQuery),
+      repository.listOperationalOrders(businessId, query), repository.listOperationalOrders(businessId, priorQuery),
+    ])
+    const operation = calculateOperation(currentOperationRows, query)
+    const previousOperation = calculateOperation(previousOperationRows, priorQuery)
+    const data = { metrics: { ...metricsFor(current), withinDeadlineRate: operation.data.withinDeadlineRate } }
     const previousMetrics = metricsFor(previous)
-    const hasComparisonPopulation = previousMetrics.ordersCount > 0
+    previousMetrics.withinDeadlineRate = previousOperation.data.withinDeadlineRate
     return {
       data,
-      comparison: hasComparisonPopulation ? { available: true, metrics: previousMetrics } : { available: false },
-      quality: { commercialOrders: data.metrics.ordersCount, receiptCount: current.receipts.length },
+      comparison: compareMetrics(data.metrics, previousMetrics),
+      quality: { commercialOrders: data.metrics.ordersCount, receiptCount: current.receipts.length, operation: operation.quality },
+      warnings: [
+        ...operation.warnings,
+        ...(hasOrderContextFilter(query) ? ['Recebimentos e estornos usam a data financeira e não são segmentados pelos filtros de pedido.'] : []),
+      ],
     }
   },
   async operation(businessId, query) {
-    const orders = await repository.listOperationalOrders(businessId, query)
-    const eligible = orders.filter((order) => order.status !== 'Cancelado' && !order.is_backdated)
-    const measured = []
-    let legacyPolicyCount = 0
-    for (const row of eligible) {
-      const order = {
-        ...row, createdAt: row.created_at, finishedAt: row.finished_at,
-        scheduledFor: row.scheduled_for, timingPolicySnapshot: row.timing_policy_snapshot_json,
-      }
-      const duration = getOperationalDurationMinutes(order)
-      if (duration == null) continue
-      if (order.timingPolicySnapshot == null) legacyPolicyCount += 1
-      const lateAt = getOrderLateAt(order)
-      measured.push({ duration, onTime: Boolean(lateAt && new Date(order.finishedAt) <= lateAt), type: order.type })
-    }
-    const durations = measured.map(({ duration }) => duration).sort((a, b) => a - b)
-    const median = durations.length ? (durations.length % 2 ? durations[(durations.length - 1) / 2] : (durations[durations.length / 2 - 1] + durations[durations.length / 2]) / 2) : null
-    const p90 = durations.length ? durations[Math.ceil(durations.length * 0.9) - 1] : null
-    const average = durations.length ? Number((sum(measured, 'duration') / durations.length).toFixed(2)) : null
-    return {
-      data: {
-        averageDurationMinutes: average, medianDurationMinutes: median, p90DurationMinutes: p90,
-        withinDeadlineRate: measured.length ? Number(((measured.filter(({ onTime }) => onTime).length / measured.length) * 100).toFixed(2)) : null,
-      },
-      quality: { eligibleCount: eligible.length, measuredCount: measured.length, legacyPolicyCount, invalidCount: eligible.length - measured.length },
-    }
+    const [orders, priorRows] = await Promise.all([
+      repository.listOperationalOrders(businessId, query),
+      repository.listOperationalOrders(businessId, { ...query, ...previousReportingPeriod(query) }),
+    ])
+    const current = calculateOperation(orders, query)
+    const previous = calculateOperation(priorRows, query)
+    const comparable = (data) => Object.fromEntries(Object.entries(data).filter(([, value]) => typeof value === 'number' || value === null))
+    return { ...current, comparison: compareMetrics(comparable(current.data), comparable(previous.data)) }
   },
   async sales(businessId, query) {
-    const source = await repository.loadSales(businessId, query)
+    const [source, priorSource] = await Promise.all([
+      repository.loadSales(businessId, query),
+      repository.loadSales(businessId, { ...query, ...previousReportingPeriod(query) }),
+    ])
     const commercial = source.orders.filter((order) => order.status !== 'Cancelado')
     const mix = new Map()
     for (const allocation of source.allocations) {
       const method = allocation.method_label || allocation.method_code || 'Não informado'
       mix.set(method, (mix.get(method) || 0) + Number(allocation.amount_cents || 0))
     }
-    return {
-      data: {
-        salesCents: sum(commercial, 'total_cents'),
+    const salesCents = sum(commercial, 'total_cents')
+    const ordersCount = commercial.length
+    const receivables = calculateReceivables(commercial, source.payments)
+    const priorCommercial = priorSource.orders.filter((order) => order.status !== 'Cancelado')
+    const priorSales = sum(priorCommercial, 'total_cents')
+    const priorReceivables = calculateReceivables(priorCommercial, priorSource.payments)
+    const priorMetrics = {
+      salesCents: priorSales, ordersCount: priorCommercial.length,
+      averageTicketCents: priorCommercial.length ? Math.round(priorSales / priorCommercial.length) : null,
+      receivedCents: sum(priorSource.receipts, 'total_cents'),
+      merchandiseRevenueCents: priorCommercial.reduce((total, order) => total + Number(order.total_cents || 0) - Number(order.delivery_fee_cents || 0), 0),
+      deliveryFeesCents: sum(priorCommercial, 'delivery_fee_cents'),
+      discountCents: sum(priorCommercial.filter((order) => order.adjustment_type === 'discount'), 'adjustment_amount_cents'),
+      surchargeCents: sum(priorCommercial.filter((order) => order.adjustment_type === 'surcharge'), 'adjustment_amount_cents'),
+      receivableCents: priorReceivables.amountCents, receivableCount: priorReceivables.count,
+      cancellationCount: priorSource.orders.length - priorCommercial.length,
+      cancellationRate: priorSource.orders.length ? Number(((priorSource.orders.length - priorCommercial.length) * 100 / priorSource.orders.length).toFixed(2)) : null,
+      refundsCents: sum(priorSource.refunds, 'value_cents'),
+    }
+    const data = {
+        salesCents, ordersCount, averageTicketCents: ordersCount ? Math.round(salesCents / ordersCount) : null,
         receivedCents: sum(source.receipts, 'total_cents'),
         merchandiseRevenueCents: commercial.reduce((total, order) => total + Number(order.total_cents || 0) - Number(order.delivery_fee_cents || 0), 0),
         deliveryFeesCents: sum(commercial, 'delivery_fee_cents'),
+        discountCents: sum(commercial.filter((order) => order.adjustment_type === 'discount'), 'adjustment_amount_cents'),
+        surchargeCents: sum(commercial.filter((order) => order.adjustment_type === 'surcharge'), 'adjustment_amount_cents'),
+        receivableCents: receivables.amountCents, receivableCount: receivables.count,
+        receivables: { overdue: receivables.overdue, today: receivables.today, upcoming: receivables.upcoming },
+        cancellationCount: source.orders.length - commercial.length,
+        cancellationRate: source.orders.length ? Number(((source.orders.length - commercial.length) * 100 / source.orders.length).toFixed(2)) : null,
         paymentMix: [...mix].map(([method, amountCents]) => ({ method, amountCents })).sort((left, right) => left.method.localeCompare(right.method)),
         refundsCents: sum(source.refunds, 'value_cents'),
-      },
+        salesSeries: groupCentsByDate(commercial, (order) => order.order_date, (order) => order.total_cents),
+        ordersSeries: groupCentsByDate(commercial, (order) => order.order_date, () => 1).map(({ date, cents }) => ({ date, count: cents })),
+        receivedSeries: groupCentsByDate(source.receipts, (receipt) => receipt.paid_at && getBusinessDate(new Date(receipt.paid_at)), (receipt) => receipt.total_cents),
+        refundSeries: groupCentsByDate(source.refunds, (refund) => refund.movement_date, (refund) => refund.value_cents),
+    }
+    const comparable = Object.fromEntries(Object.entries(data).filter(([key]) => Object.hasOwn(priorMetrics, key)))
+    return {
+      data,
+      comparison: compareMetrics(comparable, priorMetrics),
       quality: { receiptCount: source.receipts.length },
+      warnings: hasOrderContextFilter(query) || query.paymentMethod
+        ? ['Vendas seguem filtros de pedido; recebimentos seguem data de pagamento e forma selecionada, e estornos seguem data do movimento.'] : [],
+    }
+  },
+  async products(businessId, query) {
+    const [current, previous] = await Promise.all([
+      repository.loadProductLines(businessId, query),
+      repository.loadProductLines(businessId, { ...query, ...previousReportingPeriod(query) }),
+    ])
+    const data = calculateProducts(current, query)
+    const prior = calculateProducts(previous, query)
+    const priorById = new Map(prior.ranking.map((item) => [item.id, item]))
+    const addGrowth = (item) => {
+      const previousUnits = priorById.get(item.id)?.quantity || 0
+      return { ...item, previousUnits, growthPercent: previousUnits ? Number(((item.quantity - previousUnits) * 100 / previousUnits).toFixed(2)) : null }
+    }
+    data.ranking = data.ranking.map(addGrowth)
+    data.top10 = data.ranking.slice(0, 10)
+    return {
+      data,
+      comparison: compareMetrics({ unitsSold: data.unitsSold, mealsSold: data.mealsSold, merchandiseRevenueCents: data.merchandiseRevenueCents }, prior),
+      quality: { orderCount: new Set(current.map((line) => line.order_id)).size, lineCount: current.length },
     }
   },
   async detail(businessId, query) {
     const result = await repository.listDetail(businessId, query)
     return { data: { ...result, page: query.page, pageSize: query.pageSize, totalPages: Math.ceil(result.total / query.pageSize) }, quality: {} }
+  },
+  async orderDetail(businessId, id) {
+    return { data: await repository.getOrderDetail(businessId, id), quality: {} }
+  },
+  async exportModel(businessId, query, columns) {
+    const detail = await repository.listDetail(businessId, { ...query, page: 1, pageSize: EXPORT_LIMIT })
+    const report = await this[query.view](businessId, query)
+    return { data: createExportModel({ query, report, detail, columns }), quality: report.quality, warnings: report.warnings }
   },
   async empty(_businessId, _query) {
     return { data: {}, quality: {} }
