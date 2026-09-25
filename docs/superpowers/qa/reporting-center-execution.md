@@ -114,8 +114,33 @@ Required gates:
 
 - First full-suite run: 2,386 pass / 1 fail (`systemSelectMigration`); root cause was a native select in ReportingFilters.
 - Correction uses the existing `SystemSelect`; focused regression plus build: GREEN.
-- Serial full-suite rerun: 2,387/2,387 pass, 0 fail (the serial mode avoids the Vite harness port race).
+- Serial full-suite rerun: 2,387 tests, 2,386 pass, 0 fail, 1 skipped (the serial mode avoids the Vite harness port race).
 - Frontend architecture, lint (pre-existing warnings only) and build: PASS.
 - Production and staging Worker dry-runs: PASS; no deployment occurred.
 - Local D1 migrations and Spec B D1 gate: PASS.
-- No staging QA, remote CI or push has occurred.
+- First push occurred at `ebf3ab0d6fb6fa8af80a8b1e0059fc051e730c72`.
+- Validate application #2062, run `36158814713`, completed **SUCCESS** on that exact HEAD: 2,387 tests (2,386 pass, 0 fail, 1 skipped), architecture/lint/build, both Worker dry-runs, local D1, Spec B gate and operation-profile gate all passed.
+- Staging QA did **not** occur and remains **PENDING AUTHORIZATION**. No merge or production deployment occurred.
+
+## Second corrective pass — post-CI functional review
+
+The green first-pass CI established non-regression, not functional completeness. A post-CI review identified partial/stubbed work in Tasks 3–12. This second pass adds new commits on top of published `ebf3ab0d`, without rewriting published history.
+
+- `e58b1c3d` — `feat: complete reporting analytics and export service`: São Paulo receipt-day boundaries, strict calendar dates, preset comparisons, filter applicability, operational coverage/distributions, sales/receivables, historical product analytics, combined detail filters/drawer data, canonical export model and explicit 10,000-row limit. Backend-focused tests: 25/25 at commit.
+- `7f11ded6` — `feat: connect reporting views mobile and exports`: eight overview KPIs, operation/sales/products/detail UI, read-only drawer, CSV/XLSX/PDF export menu with `reports.export`, mobile summary, state matrix and Mesiva-token styling. Frontend-focused tests: 30/30 at commit; architecture, lint and build passed.
+- `64a7578f` — `fix: close reporting drilldowns and export parity`: receivable/deadline/payment drill-downs, explicit product allocation quality, operational hour controls, localized XLSX summary labels and an executive PDF with view-specific KPIs/summaries rather than generic property dumps. Also makes the `0030` migration test and gate safe when later migrations exist.
+- The first corrective full-suite run exposed one stale assertion: `businessProfileMigration.test.js` assumed `0030` was forever the final migration. The new `0031` index is valid; the test and `operation-profile-d1-gate.mjs` now target the `0029`→`0030` upgrade by name while clean-install checks still apply all migrations. Focused RED observed, then GREEN.
+
+### Performance evidence
+
+`worker/reporting/queryPlan.test.js` executes `EXPLAIN QUERY PLAN` on a clean migrated SQLite schema for overview sales, receipts, allocations, products, detail count and detail page. The first plan showed `USE TEMP B-TREE FOR LAST 2 TERMS OF ORDER BY` on the default detail page. This justified the minimal `0031_reporting_detail_order.sql` index `(business_id, order_date DESC, order_number DESC, id DESC)`.
+
+After migration the plans show indexed business/date searches for orders and receipts, indexed receipt-to-allocation and order-to-item joins, a covering index for detail count/page, and no cross-business full scan or detail temp B-tree. This is an evidence-driven index migration, not a speculative materialized view.
+
+### XLSX dependency and bundle
+
+The pre-existing first-pass dependency is `exceljs@4.4.0`, MIT per its installed `package.json`. `npm ls exceljs --all --json` resolves one top-level `exceljs@4.4.0`; its declared direct dependencies are `archiver`, `dayjs`, `fast-csv`, `jszip`, `readable-stream`, `saxes`, `tmp`, `unzipper` and `uuid`. Serializers import it dynamically only after an XLSX export request. Before this pass, the user-reported AdminBootstrap chunk was approximately 1,179 kB minified. The current corrective build emits `AdminBootstrap` 1,207.33 kB and a separate `exceljs.min` 930.42 kB (256.67 kB gzip) chunk. XLSX remains outside initial boot; no general bundle refactor was undertaken.
+
+### Candidate gates and staging boundary
+
+Focused reporting and business-profile regression tests: **59/59 PASS**. Final serial full suite on the corrected code: **2,414 tests, 2,414 pass, 0 fail, 0 skipped**. Architecture, lint (exit 0 with existing warnings), build, local D1 migration through `0031`, Spec B D1 gate (31 migrations), operation-profile D1 gate, and production/staging Worker dry-runs: **PASS**. Both dry-runs exited without deployment. The corrective push SHA, remote Validate run and PR-body update must be filled from actual final evidence. The staging workflow automatic push trigger was not broadened. Staging QA matrix in `reporting-center-qa.md` remains PENDING, and manual rows are not claimed PASS. No staging, merge or production action is authorized in this pass.
