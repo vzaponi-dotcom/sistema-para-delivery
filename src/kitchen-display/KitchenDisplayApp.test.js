@@ -269,3 +269,43 @@ test('start screen lets this TV choose, preview and persist its local alert soun
   await act(async () => buttonNamed(renderer.root, 'Ouvir alerta').props.onClick())
   assert.deepEqual(previews, [{ profile: 'bell', volume: 'high' }])
 })
+
+
+test('live Kitchen TV recomputes tall-card demand when viewport height changes', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerHeight = 1080
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const adaptiveState = {
+    serverNow: '2026-09-22T20:00:00.000Z',
+    timing: state([]).timing,
+    orders: [{
+      id: 'adaptive-order',
+      orderNumber: 3001,
+      client: 'Pedido adaptativo',
+      type: 'Entrega',
+      status: 'Em preparo',
+      createdAt: '2026-09-22T19:00:00.000Z',
+      items: Array.from({ length: 8 }, (_, index) => ({ quantity: 1, name: `Produto ${index + 1}`, note: '' })),
+    }],
+  }
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: adaptiveState }),
+    readState: async () => adaptiveState,
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  let card = renderer.root.findByProps({ 'data-order-id': 'adaptive-order' })
+  assert.equal(card.props['data-layout-demand'], 'normal')
+  assert.doesNotMatch(card.props.className, /kds-card--tall/)
+
+  h.window.innerHeight = 600
+  await act(async () => h.window.dispatchEvent(new Event('resize')))
+
+  card = renderer.root.findByProps({ 'data-order-id': 'adaptive-order' })
+  assert.equal(card.props['data-layout-demand'], 'tall')
+  assert.match(card.props.className, /kds-card--tall/)
+})
