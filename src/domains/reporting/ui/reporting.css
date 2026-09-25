@@ -2386,3 +2386,98 @@
     grid-row: 1 / span 2;
   }
 }
+
+
+/* Products final visual polish */
+.reporting-products-primary-grid,
+.reporting-products-secondary-grid {
+  align-items: start;
+}
+
+.reporting-products-top-table th,
+.reporting-products-top-table td {
+  padding-block: 6px;
+}
+
+.reporting-products-top-table .reporting-products-rank {
+  width: 22px;
+  height: 22px;
+}
+
+.reporting-products-top-product {
+  display: block;
+  width: 100%;
+}
+
+.reporting-products-top-product span {
+  display: block;
+}
+
+.reporting-products-growth-empty {
+  min-height: 82px;
+  padding: 14px 18px;
+  border: 1px dashed var(--border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+}
+
+.reporting-products-presentation-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.reporting-products-presentation-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.reporting-products-presentation-table th,
+.reporting-products-presentation-table td {
+  padding-inline: 8px;
+}
+
+.reporting-products-presentation-table th:nth-child(1) { width: 42%; }
+.reporting-products-presentation-table th:nth-child(2) { width: 24%; }
+.reporting-products-presentation-table th:nth-child(3) { width: 12%; }
+.reporting-products-presentation-table th:nth-child(4) { width: 22%; }
+
+.reporting-products-presentation-table td:nth-child(1),
+.reporting-products-presentation-table td:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reporting-products-presentation-table td:nth-child(3),
+.reporting-products-presentation-table td:nth-child(4),
+.reporting-products-presentation-table th:nth-child(3),
+.reporting-products-presentation-table th:nth-child(4) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.reporting-products-insights {
+  gap: 8px;
+}
+
+.reporting-products-insight {
+  gap: 8px;
+  padding: 10px 11px;
+  border-color: color-mix(in srgb, var(--text-soft) 18%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 48%, var(--surface));
+}
+
+.reporting-products-insight-primary {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+
+@media (max-width: 820px) {
+  .reporting-products-presentation-scroll {
+    overflow-x: auto;
+  }
+
+  .reporting-products-presentation-table {
+    min-width: 560px;
+  }
+}
