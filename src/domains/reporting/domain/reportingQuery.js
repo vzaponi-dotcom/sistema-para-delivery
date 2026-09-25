@@ -7,13 +7,14 @@ const VIEW_SET = new Set(REPORTING_VIEWS)
 const TYPE_SET = new Set(['Entrega', 'Retirada', 'Local'])
 const SCHEDULE_SET = new Set(['immediate', 'scheduled'])
 const DEADLINE_SET = new Set(['on-time', 'late'])
+const PERIOD_SET = new Set(['today', '7-days', '30-days', 'current-month', 'previous-month', 'custom'])
 const QUERY_KEYS = Object.freeze([
-  'view', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
+  'view', 'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
   'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
   'search', 'sort', 'page', 'pageSize',
 ])
 const POPULATION_KEYS = new Set([
-  'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
+  'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
   'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
   'search', 'sort',
 ])
@@ -66,6 +67,7 @@ export function normalizeReportingQuery(searchParams = new URLSearchParams(), { 
 
   return {
     view,
+    period: PERIOD_SET.has(params.get('period')) ? params.get('period') : params.has('from') || params.has('to') ? 'custom' : 'current-month',
     from: validDateValue(params.get('from')) || defaultFrom,
     to: validDateValue(params.get('to')) || businessToday,
     type: TYPE_SET.has(params.get('type')) ? params.get('type') : null,
@@ -102,6 +104,35 @@ export function patchReportingQuery(current, patch) {
   )
   if (!Object.keys(allowed).length) return current
   const next = { ...current, ...allowed }
+  if (Object.hasOwn(allowed, 'view') && allowed.view !== current.view) {
+    if (!['sales', 'detail'].includes(allowed.view)) next.paymentMethod = null
+    if (!['operation', 'detail'].includes(allowed.view)) {
+      next.operationalDeadline = null
+      next.orderHourFrom = null
+      next.orderHourTo = null
+    }
+    if (!['overview', 'sales', 'detail'].includes(allowed.view)) next.status = null
+    if (allowed.view !== 'detail') {
+      next.search = ''
+      next.sort = 'date-desc'
+      next.page = 1
+      next.pageSize = 25
+    }
+  }
+  if ((Object.hasOwn(allowed, 'from') || Object.hasOwn(allowed, 'to')) && !Object.hasOwn(allowed, 'period')) next.period = 'custom'
+  if (Object.hasOwn(allowed, 'period') && allowed.period !== 'custom') {
+    const today = getBusinessDate(new Date())
+    const start = new Date(`${today}T00:00:00.000Z`)
+    const shift = (days) => new Date(start.getTime() + days * 86_400_000).toISOString().slice(0, 10)
+    if (allowed.period === 'today') { next.from = today; next.to = today }
+    if (allowed.period === '7-days') { next.from = shift(-6); next.to = today }
+    if (allowed.period === '30-days') { next.from = shift(-29); next.to = today }
+    if (allowed.period === 'current-month') { next.from = `${today.slice(0, 7)}-01`; next.to = today }
+    if (allowed.period === 'previous-month') {
+      next.from = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 1, 1)).toISOString().slice(0, 10)
+      next.to = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 0)).toISOString().slice(0, 10)
+    }
+  }
   if (Object.keys(allowed).some((key) => POPULATION_KEYS.has(key))) next.page = 1
   return normalizeReportingQuery(reportingQueryToSearchParams(next), { today: current?.to })
 }

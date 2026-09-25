@@ -1,19 +1,25 @@
 import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
+import { useState } from 'react'
 import PageHeader from '../../../shared/ui/PageHeader'
 import { useReportingSearchParams } from '../application/useReportingSearchParams.js'
-import ReportingTabs, { REPORTING_TABS } from './ReportingTabs.jsx'
+import ReportingTabs from './ReportingTabs.jsx'
 import { ReportingFilters } from './ReportingFilters.jsx'
 import { OverviewReport } from './views/OverviewReport.jsx'
 import { OperationReport } from './views/OperationReport.jsx'
 import { SalesReport } from './views/SalesReport.jsx'
+import { ProductsReport } from './views/ProductsReport.jsx'
+import { DetailReport, DEFAULT_DETAIL_COLUMNS } from './views/DetailReport.jsx'
+import { ReportingExportMenu } from './ReportingExportMenu.jsx'
+import { ReportingMobileSummary } from './mobile/ReportingMobileSummary.jsx'
+import { useMediaQuery } from '../../../shared/hooks/useMediaQuery.js'
 import { useReportingData } from '../application/useReportingData.js'
 import './reporting.css'
 
-const viewLabel = (view) => REPORTING_TABS.find(({ id }) => id === view)?.label || 'Visão geral'
-
-export function ReportingWorkspace() {
+export function ReportingWorkspace({ granted }) {
   const { query, patchQuery } = useReportingSearchParams()
   const state = useReportingData({ query })
+  const [columns, setColumns] = useState(DEFAULT_DETAIL_COLUMNS)
+  const isMobile = useMediaQuery('(max-width: 820px)')
 
   return (
     <>
@@ -25,17 +31,14 @@ export function ReportingWorkspace() {
       />
 
       <ReportingFilters query={query} onChange={patchQuery} />
+      <ReportingExportMenu query={query} columns={columns} granted={granted} />
 
       <ReportingTabs
         value={query.view}
         onChange={(view) => patchQuery({ view })}
       />
 
-      {query.view === 'overview' ? <OverviewReport state={state} /> : query.view === 'operation' ? <OperationReport state={state} /> : query.view === 'sales' ? <SalesReport state={state} /> : <section className="surface-card reporting-shell-state" aria-labelledby="reporting-current-view">
-        <span className="section-kicker">Centro de Relatórios</span>
-        <h2 id="reporting-current-view">{viewLabel(query.view)}</h2>
-        <p>A estrutura de navegação e filtros por URL está pronta. Nenhuma métrica é calculada localmente nesta etapa.</p>
-      </section>}
+      {isMobile ? <ReportingMobileSummary query={query} detailState={state} onDrilldown={(product) => patchQuery({ view: 'detail', product })} /> : query.view === 'overview' ? <OverviewReport state={state} /> : query.view === 'operation' ? <OperationReport state={state} /> : query.view === 'sales' ? <SalesReport state={state} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} />}
     </>
   )
 }

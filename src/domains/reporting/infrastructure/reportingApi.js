@@ -11,6 +11,10 @@ export const createReportingApi = ({ request = apiRequest } = {}) => Object.free
     const search = queryString(query)
     return request(`/api/reporting/${view}${search ? `?${search}` : ''}`, { signal })
   },
+  loadOrder: (id, { signal } = {}) => request(`/api/reporting/orders/${encodeURIComponent(id)}`, { signal }),
+  exportModel: (query, columns, { signal } = {}) => request('/api/reporting/export-model', {
+    method: 'POST', body: JSON.stringify({ query, columns }), signal,
+  }),
 })
 
 export const reportingApi = createReportingApi()

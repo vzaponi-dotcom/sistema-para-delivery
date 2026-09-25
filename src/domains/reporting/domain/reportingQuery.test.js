@@ -15,6 +15,7 @@ const normalize = (search = '') => normalizeReportingQuery(
 test('reporting query defaults to current business month and overview', () => {
   assert.deepEqual(normalize(), {
     view: 'overview',
+    period: 'current-month',
     from: '2026-09-01',
     to: '2026-09-25',
     type: null,
@@ -48,7 +49,7 @@ test('reporting query serialization is deterministic and round-trippable', () =>
   const serialized = reportingQueryToSearchParams(query).toString()
   assert.equal(
     serialized,
-    'view=products&from=2026-09-01&to=2026-09-25&type=Entrega&schedule=scheduled&search=maria&sort=date-desc&page=3&pageSize=50',
+    'view=products&period=current-month&from=2026-09-01&to=2026-09-25&type=Entrega&schedule=scheduled&search=maria&sort=date-desc&page=3&pageSize=50',
   )
   assert.deepEqual(normalize(serialized), query)
 })
