@@ -1,30 +1,110 @@
+const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
+const number = (value) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value)
+const date = (value) => value ? String(value).split('-').reverse().join('/') : 'Indisponível'
+const generated = (value) => value ? new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo',
+}).format(new Date(value)) : 'Indisponível'
+
+const FILTER_LABELS = {
+  type: 'Modalidade', paymentMethod: 'Forma de pagamento', status: 'Status',
+  schedule: 'Agendamento', category: 'Categoria', product: 'Produto',
+  customer: 'Cliente', search: 'Busca', operationalDeadline: 'Prazo operacional',
+  orderHourFrom: 'Hora inicial', orderHourTo: 'Hora final', receivable: 'A receber',
+}
+const SKIP_FILTERS = new Set(['view', 'from', 'to', 'period', 'page', 'pageSize', 'sort'])
+const KPI = {
+  overview: [
+    ['salesCents', 'Vendas registradas', 'money'], ['ordersCount', 'Pedidos', 'number'],
+    ['averageTicketCents', 'Ticket médio', 'money'], ['receivedCents', 'Recebido no período', 'money'],
+    ['receivableCents', 'A receber', 'money'], ['cancellationRate', 'Taxa de cancelamento', 'percent'],
+    ['refundsCents', 'Estornos', 'money'], ['withinDeadlineRate', 'Dentro do prazo', 'percent'],
+  ],
+  operation: [
+    ['operationalOrdersCount', 'Pedidos operacionais', 'number'],
+    ['averageDurationMinutes', 'Tempo médio', 'minutes'], ['medianDurationMinutes', 'Mediana', 'minutes'],
+    ['p90DurationMinutes', 'P90', 'minutes'], ['withinDeadlineRate', 'Dentro do prazo', 'percent'],
+    ['averageLateMinutes', 'Atraso médio', 'minutes'],
+    ['scheduledPunctualityRate', 'Pontualidade agendada', 'percent'],
+  ],
+  sales: [
+    ['salesCents', 'Vendas registradas', 'money'], ['ordersCount', 'Pedidos', 'number'],
+    ['averageTicketCents', 'Ticket médio', 'money'], ['receivedCents', 'Recebido no período', 'money'],
+    ['merchandiseRevenueCents', 'Receita de mercadoria', 'money'],
+    ['deliveryFeesCents', 'Taxas de entrega', 'money'], ['receivableCents', 'A receber', 'money'],
+    ['refundsCents', 'Estornos', 'money'],
+  ],
+  products: [
+    ['unitsSold', 'Unidades vendidas', 'number'], ['mealsSold', 'Refeições vendidas', 'number'],
+    ['merchandiseRevenueCents', 'Receita de mercadoria', 'money'],
+  ],
+  detail: [['total', 'Pedidos encontrados', 'number']],
+}
+const format = (value, kind) => value == null ? 'Indisponível'
+  : kind === 'money' ? money(value)
+    : kind === 'percent' ? `${number(value)}%`
+      : kind === 'minutes' ? `${number(value)} min`
+        : number(value)
+
+export function buildPdfExecutiveSections(model = {}) {
+  const summary = model.summary || model.metrics || {}
+  const metrics = summary.metrics || summary
+  const sections = [{ heading: 'Centro de Relatórios', lines: [
+    `Gerado em: ${generated(model.generatedAt)}`,
+    `Período: ${date(model.period?.from)} a ${date(model.period?.to)}`,
+    'Fuso horário: America/Sao_Paulo',
+  ] }]
+  const filters = Object.entries(model.filters || {}).filter(([key, value]) => !SKIP_FILTERS.has(key) && value != null && value !== '')
+  sections.push({ heading: 'Filtros aplicados', lines: filters.length
+    ? filters.map(([key, value]) => `${FILTER_LABELS[key] || key}: ${value}`)
+    : ['Nenhum filtro adicional.'] })
+  const definitions = KPI[model.view] || []
+  const indicators = definitions.filter(([key]) => Object.hasOwn(metrics, key))
+    .map(([key, label, kind]) => `${label}: ${format(metrics[key], kind)}`)
+  if (!indicators.length) indicators.push(...Object.entries(metrics)
+    .filter(([, value]) => typeof value === 'number' || typeof value === 'string' || value == null)
+    .slice(0, 12).map(([key, value]) => `${key}: ${value ?? 'Indisponível'}`))
+  sections.push({ heading: 'Indicadores principais', lines: indicators.length ? indicators : ['Sem indicadores para o recorte.'] })
+
+  if (model.view === 'operation') {
+    sections.push({ heading: 'Volume por modalidade', lines: (summary.byModality || []).map((item) => `${item.type}: ${number(item.count)} pedidos · tempo médio ${format(item.averageDurationMinutes, 'minutes')}`) })
+    sections.push({ heading: 'Faixas de duração', lines: (summary.durationBands || []).map((item) => `${item.label}: ${number(item.count)} pedidos`) })
+  } else if (model.view === 'sales') {
+    sections.push({ heading: 'Mix por forma de pagamento', lines: (summary.paymentMix || []).map((item) => `${item.method}: ${money(item.amountCents)}`) })
+    sections.push({ heading: 'Vendas por dia', lines: (summary.salesSeries || []).slice(-10).map((item) => `${date(item.date)}: ${money(item.cents)}`) })
+  } else if (model.view === 'products') {
+    sections.push({ heading: 'Top 10 produtos', lines: (summary.top10 || []).map((item) => `${item.name}: ${number(item.quantity)} un. · ${money(item.revenueCents)}`) })
+    sections.push({ heading: 'Receita por categoria', lines: (summary.categories || []).slice(0, 8).map((item) => `${item.category || 'Sem categoria'}: ${money(item.revenueCents)}`) })
+  } else if (model.view === 'detail') {
+    sections.push({ heading: 'Pedidos detalhados', lines: [`${number(model.rowCount ?? summary.total ?? 0)} pedidos no recorte. A listagem completa está disponível em CSV ou XLSX.`] })
+  }
+  const quality = model.quality?.operation || model.quality || {}
+  const coverage = []
+  if (quality.eligibleCount != null) coverage.push(`Amostra medida: ${number(quality.measuredCount ?? 0)} de ${number(quality.eligibleCount)} elegíveis.`)
+  if (quality.invalidCount) coverage.push(`Registros sem tempo válido: ${number(quality.invalidCount)}.`)
+  if (quality.invalidAllocationOrderCount) coverage.push(`Pedidos sem alocação válida: ${number(quality.invalidAllocationOrderCount)}.`)
+  coverage.push(...(model.warnings || []))
+  if (coverage.length) sections.push({ heading: 'Qualidade e observações', lines: coverage })
+  return sections.filter((section) => section.lines.length)
+}
+
 export async function createPdfSummary(model = {}) {
-  const { title = 'Centro de Relatórios', generatedAt, period, filters = {}, quality = {}, warnings = [] } = model
-  const metrics = model.summary?.metrics || model.summary || model.metrics || {}
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF()
-  pdf.text(title, 14, 18)
-  pdf.text(`Gerado em: ${generatedAt || ''}`, 14, 28)
-  if (period) pdf.text(`Período: ${period.from} a ${period.to}`, 14, 36)
-  const activeFilters = Object.entries(filters).filter(([key, value]) => !['view', 'from', 'to', 'period', 'page', 'pageSize', 'sort'].includes(key) && value != null && value !== '')
-  let y = period ? 45 : 38
-  if (activeFilters.length) { pdf.text(`Filtros: ${activeFilters.map(([key, value]) => `${key}=${value}`).join(' · ')}`.slice(0, 105), 14, y); y += 10 }
-  pdf.setFontSize(14)
-  pdf.text('Indicadores principais', 14, y)
-  pdf.setFontSize(10)
-  y += 9
-  for (const [label, value] of Object.entries(metrics).filter(([, value]) => typeof value === 'number' || value == null).slice(0, 12)) {
-    pdf.text(`${label}: ${value == null ? 'Indisponível' : value}`, 14, y)
-    y += 7
-  }
-  const summaries = [metrics.paymentMix, metrics.categories, metrics.byModality].find(Array.isArray) || []
-  if (summaries.length && y < 235) {
-    y += 5; pdf.setFontSize(14); pdf.text('Resumo do recorte', 14, y); pdf.setFontSize(10); y += 8
-    for (const item of summaries.slice(0, 8)) { pdf.text(Object.values(item).slice(0, 3).join(' · ').slice(0, 100), 14, y); y += 7 }
-  }
-  if ((quality.invalidCount || warnings.length) && y < 260) {
-    y += 6; pdf.text(`Cobertura: ${quality.measuredCount ?? '—'}/${quality.eligibleCount ?? '—'}`, 14, y); y += 7
-    for (const warning of warnings.slice(0, 2)) { pdf.text(warning.slice(0, 100), 14, y); y += 7 }
+  let y = 18
+  for (const section of buildPdfExecutiveSections(model)) {
+    if (y > 260) { pdf.addPage(); y = 18 }
+    pdf.setFontSize(13)
+    pdf.text(section.heading, 14, y)
+    y += 8
+    pdf.setFontSize(10)
+    for (const line of section.lines) {
+      for (const wrapped of pdf.splitTextToSize(line, 180)) {
+        if (y > 277) { pdf.addPage(); y = 18 }
+        pdf.text(wrapped, 14, y)
+        y += 6
+      }
+    }
+    y += 5
   }
   return pdf
 }

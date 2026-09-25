@@ -28,6 +28,7 @@ test('reporting query defaults to current business month and overview', () => {
     orderHourFrom: null,
     orderHourTo: null,
     operationalDeadline: null,
+    receivable: null,
     search: '',
     sort: 'date-desc',
     page: 1,

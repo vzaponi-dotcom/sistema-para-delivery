@@ -38,7 +38,7 @@ export function ReportingWorkspace({ granted }) {
         onChange={(view) => patchQuery({ view })}
       />
 
-      {isMobile ? <ReportingMobileSummary query={query} detailState={state} onDrilldown={(product) => patchQuery({ view: 'detail', product })} /> : query.view === 'overview' ? <OverviewReport state={state} /> : query.view === 'operation' ? <OperationReport state={state} /> : query.view === 'sales' ? <SalesReport state={state} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} />}
+      {isMobile ? <ReportingMobileSummary query={query} detailState={state} onDrilldown={(product) => patchQuery({ view: 'detail', product })} /> : query.view === 'overview' ? <OverviewReport state={state} onDrilldown={patchQuery} /> : query.view === 'operation' ? <OperationReport state={state} onDrilldown={patchQuery} /> : query.view === 'sales' ? <SalesReport state={state} onDrilldown={patchQuery} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} />}
     </>
   )
 }

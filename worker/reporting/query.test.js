@@ -14,7 +14,7 @@ test('reporting query normalizes valid filters and rejects invalid ranges and pa
   assert.deepEqual(query, {
     view: 'detail', period: 'custom', from: '2026-09-01', to: '2026-09-25', type: 'Entrega', schedule: 'scheduled',
     status: null, paymentMethod: null, category: null, product: null, customer: null,
-    orderHourFrom: 8, orderHourTo: 22, operationalDeadline: null, search: 'Maria', sort: null,
+    orderHourFrom: 8, orderHourTo: 22, operationalDeadline: null, receivable: null, search: 'Maria', sort: null,
     page: 2, pageSize: 50,
   })
 

@@ -11,12 +11,12 @@ const PERIOD_SET = new Set(['today', '7-days', '30-days', 'current-month', 'prev
 const QUERY_KEYS = Object.freeze([
   'view', 'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
   'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
-  'search', 'sort', 'page', 'pageSize',
+  'receivable', 'search', 'sort', 'page', 'pageSize',
 ])
 const POPULATION_KEYS = new Set([
   'period', 'from', 'to', 'type', 'schedule', 'status', 'paymentMethod', 'category',
   'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline',
-  'search', 'sort',
+  'receivable', 'search', 'sort',
 ])
 
 const validDateValue = (value) => {
@@ -80,6 +80,7 @@ export function normalizeReportingQuery(searchParams = new URLSearchParams(), { 
     orderHourFrom: normalizeHour(params.get('orderHourFrom')),
     orderHourTo: normalizeHour(params.get('orderHourTo')),
     operationalDeadline: DEADLINE_SET.has(params.get('operationalDeadline')) ? params.get('operationalDeadline') : null,
+    receivable: params.get('receivable') === 'unpaid' ? 'unpaid' : null,
     search: cleanText(params.get('search'), 160),
     sort: optionalText(params.get('sort'), 80) || 'date-desc',
     page: normalizePositiveInteger(params.get('page'), 1),
@@ -111,6 +112,7 @@ export function patchReportingQuery(current, patch) {
       next.orderHourFrom = null
       next.orderHourTo = null
     }
+    if (allowed.view !== 'detail') next.receivable = null
     if (!['overview', 'sales', 'detail'].includes(allowed.view)) next.status = null
     if (allowed.view !== 'detail') {
       next.search = ''

@@ -28,5 +28,6 @@ export function ReportingFilters({ query, onChange }) {
     </> : null}
     {query.view === 'sales' ? <div><span>Forma de pagamento</span><SystemSelect label="Forma de pagamento" value={query.paymentMethod || ''} options={PAYMENT_OPTIONS} onChange={(value) => onChange({ paymentMethod: value || null })} /></div> : null}
     {query.view === 'operation' ? <div><span>Prazo</span><SystemSelect label="Prazo" value={query.operationalDeadline || ''} options={DEADLINE_OPTIONS} onChange={(value) => onChange({ operationalDeadline: value || null })} /></div> : null}
+    {query.view === 'operation' ? <><label>Hora operacional de<input type="number" min="0" max="23" value={query.orderHourFrom ?? ''} onChange={(event) => onChange({ orderHourFrom: event.target.value === '' ? null : Number(event.target.value) })} /></label><label>Hora operacional até<input type="number" min="0" max="23" value={query.orderHourTo ?? ''} onChange={(event) => onChange({ orderHourTo: event.target.value === '' ? null : Number(event.target.value) })} /></label></> : null}
   </section>
 }

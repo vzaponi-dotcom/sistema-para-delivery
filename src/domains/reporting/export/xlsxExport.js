@@ -5,9 +5,27 @@ export async function createXlsxWorkbook(model) {
   summary.addRow(['Relatório', model.title || 'Centro de Relatórios'])
   if (model.period) summary.addRow(['Período', `${model.period.from} a ${model.period.to}`])
   if (model.generatedAt) summary.addRow(['Gerado em', model.generatedAt])
-  if (model.timezone) summary.addRow(['Timezone', model.timezone])
-  for (const [key, value] of Object.entries(model.filters || {})) if (value != null && value !== '') summary.addRow([key, String(value)])
-  for (const [key, value] of Object.entries(model.summary?.metrics || model.summary || {})) if (typeof value === 'number' || value === null) summary.addRow([key, value ?? 'Indisponível'])
+  if (model.timezone) summary.addRow(['Fuso horário', model.timezone])
+  const filterLabels = {
+    type: 'Modalidade', paymentMethod: 'Forma de pagamento', status: 'Status',
+    schedule: 'Agendamento', category: 'Categoria', product: 'Produto', customer: 'Cliente',
+    search: 'Busca', operationalDeadline: 'Prazo operacional', receivable: 'A receber',
+  }
+  const metricLabels = {
+    salesCents: 'Vendas registradas', ordersCount: 'Pedidos', averageTicketCents: 'Ticket médio',
+    receivedCents: 'Recebido no período', receivableCents: 'A receber',
+    cancellationRate: 'Taxa de cancelamento', refundsCents: 'Estornos', withinDeadlineRate: 'Dentro do prazo',
+    operationalOrdersCount: 'Pedidos operacionais', averageDurationMinutes: 'Tempo médio',
+    medianDurationMinutes: 'Mediana', p90DurationMinutes: 'P90',
+    merchandiseRevenueCents: 'Receita de mercadoria', deliveryFeesCents: 'Taxas de entrega',
+    unitsSold: 'Unidades vendidas', mealsSold: 'Refeições vendidas',
+  }
+  for (const [key, value] of Object.entries(model.filters || {})) {
+    if (filterLabels[key] && value != null && value !== '') summary.addRow([filterLabels[key], String(value)])
+  }
+  for (const [key, value] of Object.entries(model.summary?.metrics || model.summary || {})) {
+    if (typeof value === 'number' || value === null) summary.addRow([metricLabels[key] || key, value ?? 'Indisponível'])
+  }
   for (const warning of model.warnings || []) summary.addRow(['Aviso', warning])
   const data = workbook.addWorksheet('Dados')
   data.addRow(model.columns)

@@ -128,6 +128,8 @@
 .reporting-export-options button:hover { background: var(--surface-soft); }
 .reporting-export [role="alert"] { color: var(--danger); }
 .reporting-metric-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+.reporting-metric-card:is(button) { width: 100%; text-align: left; font: inherit; cursor: pointer; background: var(--surface); }
+.reporting-metric-card:is(button):hover { border-color: var(--primary); }
 .reporting-metric-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--primary); }
 .reporting-metric-card strong { font-size: clamp(1.2rem, 1.7vw, 1.7rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .reporting-metric-card small { line-height: 1.3; }

@@ -56,3 +56,20 @@ test('receipts use Sao Paulo business dates across the UTC midnight boundary', a
   const result = await createReportingRepository(db).loadOverview('a', { from: '2026-09-10', to: '2026-09-10' })
   assert.deepEqual(result.receipts.map((row) => row.total_cents), [200, 300])
 })
+
+test('sales method filter allocates a split receipt only to the selected method on its business day', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('a','a','A','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z');
+    INSERT INTO orders (id,business_id,order_number,client_name_snapshot,order_date,type,status,subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,adjustment_value,adjustment_amount_cents,total_cents,created_at) VALUES ('o','a',1,'Ana','2026-09-09','Entrega','Finalizado',1000,0,'none','fixed',0,0,1000,'2026-09-09T12:00:00Z');
+    INSERT INTO payment_receipts (id,business_id,total_cents,paid_at,created_at) VALUES ('r','a',1000,'2026-09-10T02:30:00Z','2026-09-10T02:30:00Z');
+    INSERT INTO payment_allocations (id,business_id,receipt_id,method_label,amount_cents,created_at) VALUES ('pix','a','r','Pix',700,'2026-09-10T02:30:00Z'),('cash','a','r','Dinheiro',300,'2026-09-10T02:30:00Z');
+    INSERT INTO payments (id,business_id,order_id,receipt_id,amount_cents,method,paid_at,created_at) VALUES ('p','a','o','r',1000,NULL,'2026-09-10T02:30:00Z','2026-09-10T02:30:00Z');
+  `)
+  const source = await createReportingRepository(db).loadSales('a', { from: '2026-09-09', to: '2026-09-09', paymentMethod: 'Pix' })
+  assert.deepEqual(source.receipts.map((row) => row.total_cents), [700])
+  assert.deepEqual(source.allocations.map((row) => row.amount_cents), [700])
+  assert.deepEqual(source.orders.map((row) => row.id), ['o'])
+})

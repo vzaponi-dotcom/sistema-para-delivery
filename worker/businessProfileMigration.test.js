@@ -31,7 +31,9 @@ const expectedColumns = [
 
 test('0030 business profiles installs cleanly, upgrades 0029 and backfills every existing business without renaming it', () => {
   const files = migrationFiles()
-  assert.equal(files.at(-1), '0030_business_profiles.sql')
+  const profileIndex = files.indexOf('0030_business_profiles.sql')
+  assert.ok(profileIndex > 0)
+  assert.match(files[profileIndex - 1], /^0029_/)
 
   const clean = createSettingsDb()
   try {
@@ -69,9 +71,9 @@ test('0030 business profiles installs cleanly, upgrades 0029 and backfills every
 
   const sqlite = new DatabaseSync(':memory:')
   try {
-    for (const file of files.slice(0, -1)) sqlite.exec(readMigration(file))
+    for (const file of files.slice(0, profileIndex)) sqlite.exec(readMigration(file))
     sqlite.exec("INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES ('upgrade', 'upgrade', 'Upgrade Name', '2026-09-23T00:00:00.000Z', '2026-09-23T00:00:00.000Z')")
-    sqlite.exec(readMigration(files.at(-1)))
+    sqlite.exec(readMigration(files[profileIndex]))
 
     const upgradedBusiness = { ...sqlite.prepare("SELECT id, slug, name FROM businesses WHERE id = 'upgrade'").get() }
     assert.deepEqual(upgradedBusiness, { id: 'upgrade', slug: 'upgrade', name: 'Upgrade Name' })

@@ -8,6 +8,19 @@ test('snapshot fallback identity cannot collide on separator characters', async 
     productIdentity({ category_snapshot: 'a', name_snapshot: 'b|c', size_snapshot: '' }))
 })
 
+test('product quality reports invalid allocation and preserves renamed historical labels', async () => {
+  const { calculateProducts } = await import('./productAnalytics.js')
+  const row = (order_id, item_id, name_snapshot, unit_price_cents, total_cents) => ({
+    order_id, item_id, product_id: 'p1', name_snapshot, category_snapshot: 'Refeições', size_snapshot: '',
+    quantity: 1, unit_price_cents, total_cents, delivery_fee_cents: 0,
+  })
+  const result = calculateProducts([row('o1', 'i1', 'Nome antigo', 1000, 1000), row('o2', 'i2', 'Nome novo', 1000, 1000), row('o3', 'i3', 'Nome novo', 0, 500)])
+  assert.equal(result.ranking.length, 1)
+  assert.deepEqual(result.ranking[0].labels, ['Nome antigo', 'Nome novo'])
+  assert.equal(result.invalidAllocationOrderCount, 1)
+  assert.equal(result.merchandiseRevenueCents, 2000)
+})
+
 test('products aggregate historical snapshots, allocate merchandise only and expose prior growth', async (t) => {
   const { createReportingRepository } = await import('./repository.js')
   const { createReportingService } = await import('./service.js')

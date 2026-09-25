@@ -71,4 +71,6 @@ test('products, detail, drawer and export share one business-scoped SQLite recor
   const product = encodeURIComponent('["Lanches","X",""]')
   const productDetail = (await (await handleReportingApi(request(`/api/reporting/orders?${query}&product=${product}`), env, authenticated)).json()).data
   assert.equal(productDetail.total, 1)
+  const pending = (await (await handleReportingApi(request(`/api/reporting/orders?${query}&receivable=unpaid`), env, authenticated)).json()).data
+  assert.equal(pending.total, overview.receivableCount)
 })

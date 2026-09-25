@@ -18,8 +18,11 @@ export function calculateProducts(lines, query = {}) {
   let unitsSold = 0
   let mealsSold = 0
   let merchandiseRevenueCents = 0
+  let invalidAllocationOrderCount = 0
   for (const order of orders.values()) {
-    const allocated = new Map(allocateMerchandiseRevenue(order).map(({ id, revenueCents }) => [id, revenueCents]))
+    const distribution = allocateMerchandiseRevenue(order)
+    if (!distribution.length && Number(order.totalCents) - Number(order.deliveryFeeCents) > 0) invalidAllocationOrderCount += 1
+    const allocated = new Map(distribution.map(({ id, revenueCents }) => [id, revenueCents]))
     for (const item of order.items) {
       const line = item.source
       const id = productIdentity(line)
@@ -30,9 +33,10 @@ export function calculateProducts(lines, query = {}) {
       const existing = products.get(id) || {
         id, productId: line.product_id, name: line.name_snapshot,
         category: line.category_snapshot, size: line.size_snapshot,
-        quantity: 0, revenueCents: 0,
+        quantity: 0, revenueCents: 0, labels: [],
       }
       existing.name = line.name_snapshot // last historical snapshot, not current catalog
+      if (!existing.labels.includes(line.name_snapshot)) existing.labels.push(line.name_snapshot)
       existing.quantity += quantity
       existing.revenueCents += revenueCents
       products.set(id, existing)
@@ -53,7 +57,7 @@ export function calculateProducts(lines, query = {}) {
   const ranking = [...products.values()].map((item) => ({ ...item, sharePercent: merchandiseRevenueCents ? round(item.revenueCents * 100 / merchandiseRevenueCents) : 0 }))
     .sort((a, b) => b.revenueCents - a.revenueCents || b.quantity - a.quantity || a.id.localeCompare(b.id))
   return {
-    unitsSold, mealsSold, merchandiseRevenueCents,
+    unitsSold, mealsSold, merchandiseRevenueCents, invalidAllocationOrderCount,
     ranking, top10: ranking.slice(0, 10),
     categories: [...categories.values()].sort((a, b) => b.revenueCents - a.revenueCents || a.category.localeCompare(b.category)),
     presentations: [...presentations.values()].sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name)),

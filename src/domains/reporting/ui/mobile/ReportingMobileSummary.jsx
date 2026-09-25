@@ -10,6 +10,7 @@ const forView = (query, view) => ({
   orderHourFrom: ['operation', 'detail'].includes(view) ? query.orderHourFrom : null,
   orderHourTo: ['operation', 'detail'].includes(view) ? query.orderHourTo : null,
   status: ['overview', 'sales', 'detail'].includes(view) ? query.status : null,
+  receivable: view === 'detail' ? query.receivable : null,
 })
 
 export function ReportingMobileSummary({ query, detailState, onDrilldown = () => {}, api }) {

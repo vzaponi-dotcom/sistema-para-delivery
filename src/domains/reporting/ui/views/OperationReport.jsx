@@ -4,7 +4,7 @@ import { ReportingState } from '../ReportingState.jsx'
 const distribution = (items = [], key, label) => <ul className="reporting-bars">{items.filter((item) => item.count > 0).map((item) => <li key={item[key]}><span>{label(item)}</span><meter min="0" max={Math.max(1, ...items.map((row) => row.count))} value={item.count}>{item.count}</meter><strong>{item.count}</strong></li>)}</ul>
 const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-export function OperationReport({ state }) {
+export function OperationReport({ state, onDrilldown = () => {} }) {
   const data = state.data
   const comparison = state.comparison?.metrics || {}
   return <ReportingState state={state}>{data ? <>
@@ -15,8 +15,8 @@ export function OperationReport({ state }) {
       <ReportingMetricCard label="P90" value={data.p90DurationMinutes} kind="number" comparison={comparison.p90DurationMinutes} />
       <ReportingMetricCard label="Mais rápido" value={data.fastestMinutes} kind="number" />
       <ReportingMetricCard label="Mais lento" value={data.slowestMinutes} kind="number" />
-      <ReportingMetricCard label="Dentro do prazo" value={data.withinDeadlineCount} kind="number" />
-      <ReportingMetricCard label="Fora do prazo" value={data.outsideDeadlineCount} kind="number" />
+      <ReportingMetricCard label="Dentro do prazo" value={data.withinDeadlineCount} kind="number" onDrilldown={() => onDrilldown({ view: 'detail', operationalDeadline: 'on-time' })} />
+      <ReportingMetricCard label="Fora do prazo" value={data.outsideDeadlineCount} kind="number" onDrilldown={() => onDrilldown({ view: 'detail', operationalDeadline: 'late' })} />
       <ReportingMetricCard label="Dentro do prazo" value={data.withinDeadlineRate} kind="percent" comparison={comparison.withinDeadlineRate} />
       <ReportingMetricCard label="Atraso médio" value={data.averageLateMinutes} kind="number" />
       <ReportingMetricCard label="Pontualidade agendada" value={data.scheduledPunctualityRate} kind="percent" />

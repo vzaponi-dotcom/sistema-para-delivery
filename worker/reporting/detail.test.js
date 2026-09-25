@@ -6,7 +6,7 @@ test('detail keeps server pagination and totals separate', async () => {
   const { createReportingService } = await import('./service.js')
   const repository = { async listDetail() { return { total: 3, items: [{ id: 'two' }] } } }
   const result = await createReportingService(repository).detail('business-a', { page: 2, pageSize: 1 })
-  assert.deepEqual(result.data, { total: 3, page: 2, pageSize: 1, totalPages: 3, items: [{ id: 'two' }] })
+  assert.deepEqual(result.data, { total: 3, page: 2, pageSize: 1, sort: 'date-desc', totalPages: 3, items: [{ id: 'two' }] })
 })
 
 test('detail combines server filters, canonical late policy, allowlisted sort and business-scoped drawer', async (t) => {
@@ -43,4 +43,7 @@ test('detail combines server filters, canonical late policy, allowlisted sort an
   assert.equal((await repo.getOrderDetail('a', 'late')).items.length, 1)
   assert.equal((await repo.getOrderDetail('a', 'late')).paymentAllocations[0].method_label, 'Pix')
   assert.equal(await repo.getOrderDetail('b', 'late'), null)
+  const receivable = await repo.listDetail('a', { ...base, receivable: 'unpaid' })
+  assert.equal(receivable.total, 1)
+  assert.equal(receivable.items[0].id, 'fast')
 })

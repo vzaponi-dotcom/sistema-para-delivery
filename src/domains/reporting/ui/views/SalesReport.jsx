@@ -4,7 +4,7 @@ import { ReportingState } from '../ReportingState.jsx'
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
 const series = (items = [], kind = 'money') => <ul className="reporting-series">{items.map((item) => <li key={item.date}><time dateTime={item.date}>{item.date}</time><strong>{kind === 'money' ? money(item.cents) : `${item.count} pedidos`}</strong></li>)}</ul>
 
-export function SalesReport({ state }) {
+export function SalesReport({ state, onDrilldown = () => {} }) {
   const data = state.data
   const comparison = state.comparison?.metrics || {}
   return <ReportingState state={state}>{data ? <>
@@ -17,7 +17,7 @@ export function SalesReport({ state }) {
       <ReportingMetricCard label="Taxas de entrega" value={data.deliveryFeesCents} />
       <ReportingMetricCard label="Descontos" value={data.discountCents} />
       <ReportingMetricCard label="Acréscimos" value={data.surchargeCents} />
-      <ReportingMetricCard label="A receber do período" value={data.receivableCents} comparison={comparison.receivableCents} />
+      <ReportingMetricCard label="A receber do período" value={data.receivableCents} comparison={comparison.receivableCents} onDrilldown={() => onDrilldown({ view: 'detail', receivable: 'unpaid' })} />
       <ReportingMetricCard label="Cancelamentos" value={data.cancellationCount} kind="number" />
       <ReportingMetricCard label="Estornos" value={data.refundsCents} />
     </section>
@@ -27,7 +27,7 @@ export function SalesReport({ state }) {
       <section className="surface-card reporting-panel"><h2>Recebimentos por dia</h2>{series(data.receivedSeries)}</section>
     </div>
     <div className="reporting-panel-grid">
-      <section className="surface-card reporting-panel"><h2>Mix por forma de pagamento</h2><ul>{data.paymentMix.map((item) => <li key={item.method}>{item.method}: {money(item.amountCents)}</li>)}</ul></section>
+      <section className="surface-card reporting-panel"><h2>Mix por forma de pagamento</h2><ul>{data.paymentMix.map((item) => <li key={item.method}><button type="button" onClick={() => onDrilldown({ view: 'detail', paymentMethod: item.method })}>{item.method}: {money(item.amountCents)}</button></li>)}</ul></section>
       <section className="surface-card reporting-panel"><h2>A receber do período</h2><p>{data.receivableCount} pedidos · {money(data.receivableCents)}</p><ul><li>Vencidos: {data.receivables?.overdue.count ?? 0} · {money(data.receivables?.overdue.amountCents ?? 0)}</li><li>Hoje: {data.receivables?.today.count ?? 0} · {money(data.receivables?.today.amountCents ?? 0)}</li><li>Futuros: {data.receivables?.upcoming.count ?? 0} · {money(data.receivables?.upcoming.amountCents ?? 0)}</li></ul></section>
       <section className="surface-card reporting-panel"><h2>Estornos por dia</h2>{series(data.refundSeries)}</section>
     </div>

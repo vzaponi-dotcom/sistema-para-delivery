@@ -131,12 +131,13 @@ export const createReportingService = (repository) => Object.freeze({
     return {
       data,
       comparison: compareMetrics({ unitsSold: data.unitsSold, mealsSold: data.mealsSold, merchandiseRevenueCents: data.merchandiseRevenueCents }, prior),
-      quality: { orderCount: new Set(current.map((line) => line.order_id)).size, lineCount: current.length },
+      quality: { orderCount: new Set(current.map((line) => line.order_id)).size, lineCount: current.length, invalidAllocationOrderCount: data.invalidAllocationOrderCount },
+      warnings: data.invalidAllocationOrderCount ? ['Alguns pedidos não possuem base válida para alocar receita de mercadoria.'] : [],
     }
   },
   async detail(businessId, query) {
     const result = await repository.listDetail(businessId, query)
-    return { data: { ...result, page: query.page, pageSize: query.pageSize, totalPages: Math.ceil(result.total / query.pageSize) }, quality: {} }
+    return { data: { ...result, page: query.page, pageSize: query.pageSize, sort: query.sort || 'date-desc', totalPages: Math.ceil(result.total / query.pageSize) }, quality: {} }
   },
   async orderDetail(businessId, id) {
     return { data: await repository.getOrderDetail(businessId, id), quality: {} }

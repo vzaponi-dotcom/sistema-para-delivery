@@ -29,5 +29,6 @@ export function ProductsReport({ state, onDrilldown = () => {} }) {
       </tbody></table></div></section>
       <section className="surface-card reporting-panel"><h2>Apresentações e tamanhos</h2><ul>{data.presentations.map((item) => <li key={`${item.productId}|${item.size}`}>{item.name} · {item.size || 'Padrão'}: {item.quantity} un. · {money(item.revenueCents)}</li>)}</ul></section>
     </div>
+    {state.warnings?.map((warning) => <p role="status" key={warning}>{warning}</p>)}
   </div> : null}</ReportingState>
 }

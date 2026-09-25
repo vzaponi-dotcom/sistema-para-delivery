@@ -4,7 +4,7 @@ import { ReportingOrderDrawer } from '../detail/ReportingOrderDrawer.jsx'
 import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
-const FILTERS = ['type', 'schedule', 'status', 'paymentMethod', 'category', 'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline', 'search']
+const FILTERS = ['type', 'schedule', 'status', 'paymentMethod', 'category', 'product', 'customer', 'orderHourFrom', 'orderHourTo', 'operationalDeadline', 'receivable', 'search']
 const COLUMNS = [
   ['order_number', 'Pedido'], ['order_date', 'Data'], ['client_name_snapshot', 'Cliente'],
   ['type', 'Modalidade'], ['status', 'Status'], ['total_cents', 'Total'],
@@ -14,6 +14,7 @@ export const DEFAULT_DETAIL_COLUMNS = COLUMNS.map(([key]) => key)
 const STATUS_OPTIONS = [{ value: '', label: 'Todos' }, ...['Em preparo', 'Finalizado', 'Entregue', 'Despachado', 'Cancelado'].map((value) => ({ value, label: value }))]
 const SCHEDULE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'immediate', label: 'Imediato' }, { value: 'scheduled', label: 'Agendado' }]
 const DEADLINE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'on-time', label: 'No prazo' }, { value: 'late', label: 'Atrasado' }]
+const RECEIVABLE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'unpaid', label: 'A receber' }]
 const SORT_OPTIONS = [{ value: 'date-desc', label: 'Mais recentes' }, { value: 'date-asc', label: 'Mais antigos' }, { value: 'total-desc', label: 'Maior total' }, { value: 'total-asc', label: 'Menor total' }, { value: 'duration-desc', label: 'Maior duração' }, { value: 'duration-asc', label: 'Menor duração' }]
 const SIZE_OPTIONS = [25, 50, 100].map((value) => ({ value, label: String(value) }))
 const valueOf = (item, key) => {
@@ -44,6 +45,7 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
         <label>Produto<input value={query.product || ''} onChange={(event) => onChange({ product: event.target.value || null })} /></label>
         <label>Cliente<input value={query.customer || ''} onChange={(event) => onChange({ customer: event.target.value || null })} /></label>
         <div><span>Prazo</span><SystemSelect label="Prazo" value={query.operationalDeadline || ''} options={DEADLINE_OPTIONS} onChange={(value) => onChange({ operationalDeadline: value || null })} /></div>
+        <div><span>Recebível</span><SystemSelect label="Recebível" value={query.receivable || ''} options={RECEIVABLE_OPTIONS} onChange={(value) => onChange({ receivable: value || null })} /></div>
         <label>Hora de<input type="number" min="0" max="23" value={query.orderHourFrom ?? ''} onChange={(event) => onChange({ orderHourFrom: event.target.value === '' ? null : Number(event.target.value) })} /></label>
         <label>Hora até<input type="number" min="0" max="23" value={query.orderHourTo ?? ''} onChange={(event) => onChange({ orderHourTo: event.target.value === '' ? null : Number(event.target.value) })} /></label>
       </div>
