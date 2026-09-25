@@ -8,6 +8,8 @@ export function useOrderArrivals({
   now,
   currentTiming,
   soundEnabled,
+  soundProfile = 'bell',
+  soundVolume = 'high',
   playSound,
   highlightDurationMs = 2600,
   setTimeoutFn = globalThis.setTimeout,
@@ -29,7 +31,7 @@ export function useOrderArrivals({
     setNewOrderIds(new Set())
   }, [clearTimeoutFn])
 
-  const previewSound = useCallback(() => playRef.current(), [])
+  const previewSound = useCallback((profile = soundProfile, volume = soundVolume) => playRef.current({ profile, volume }), [soundProfile, soundVolume])
 
   useEffect(() => {
     if (!active) {
@@ -41,13 +43,13 @@ export function useOrderArrivals({
     if (!newIds.length) return
     newIds.forEach((id) => alertedRef.current.add(id))
     setNewOrderIds((current) => new Set([...current, ...newIds]))
-    if (soundEnabled) void playRef.current()
+    if (soundEnabled) void playRef.current({ profile: soundProfile, volume: soundVolume })
     if (timerRef.current) clearTimeoutFn(timerRef.current)
     timerRef.current = setTimeoutFn(() => {
       setNewOrderIds(new Set())
       timerRef.current = null
     }, highlightDurationMs)
-  }, [active, clearTimeoutFn, currentTiming, highlightDurationMs, now, orders, setTimeoutFn, soundEnabled])
+  }, [active, clearTimeoutFn, currentTiming, highlightDurationMs, now, orders, setTimeoutFn, soundEnabled, soundProfile, soundVolume])
 
   useEffect(() => {
     if (!soundEnabled || !globalThis.window) return undefined

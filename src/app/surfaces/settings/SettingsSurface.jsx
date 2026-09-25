@@ -32,7 +32,12 @@ export function SettingsSurface({
   implemented,
   onNavigate,
   soundEnabled,
+  soundProfile,
+  soundVolume,
   onSoundEnabledChange,
+  onSoundProfileChange,
+  onSoundVolumeChange,
+  onPreviewSound,
   onSuccessMessage,
   writesBlocked = false,
 }) {
@@ -159,7 +164,12 @@ export function SettingsSurface({
   />)
   if (section === 'settings-device') return withActiveConflict(<DevicePreferences
     soundEnabled={soundEnabled}
+    soundProfile={soundProfile}
+    soundVolume={soundVolume}
     onSoundEnabledChange={onSoundEnabledChange}
+    onSoundProfileChange={onSoundProfileChange}
+    onSoundVolumeChange={onSoundVolumeChange}
+    onPreviewSound={onPreviewSound}
     onNavigate={onNavigate}
   />)
   return withActiveConflict(<div className="settings-page"><AreaNavigation area="settings" /></div>)

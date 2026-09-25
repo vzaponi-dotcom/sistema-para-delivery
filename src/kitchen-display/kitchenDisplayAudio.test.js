@@ -3,24 +3,48 @@ import assert from 'node:assert/strict'
 
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
 
-test('audio unlock resumes once and arrival sound uses a short oscillator', async () => {
+const createContext = ({ blocked = false } = {}) => {
   const events = []
   const context = {
-    state: 'suspended', currentTime: 12,
-    resume: async () => { events.push('resume'); context.state = 'running' },
-    createGain: () => ({ gain: { setValueAtTime: (value) => events.push(`gain:${value}`) }, connect: () => {} }),
-    createOscillator: () => ({ frequency: { setValueAtTime: (value) => events.push(`frequency:${value}`) }, connect: () => {}, start: () => events.push('start'), stop: (at) => events.push(`stop:${at}`) }),
+    state: 'suspended',
+    currentTime: 12,
     destination: {},
+    resume: async () => {
+      events.push('resume')
+      if (blocked) throw new Error('blocked')
+      context.state = 'running'
+    },
+    createGain: () => ({
+      gain: {
+        setValueAtTime: (value) => events.push(`gain-set:${value}`),
+        exponentialRampToValueAtTime: (value) => events.push(`gain-ramp:${value}`),
+      },
+      connect: () => {},
+    }),
+    createOscillator: () => ({
+      frequency: { setValueAtTime: (value) => events.push(`frequency:${value}`) },
+      connect: () => {},
+      start: () => events.push('start'),
+      stop: (at) => events.push(`stop:${at}`),
+    }),
   }
-  const audio = createKitchenDisplayAudio({ createContext: () => context })
+  return { context, events }
+}
+
+test('Kitchen TV audio defaults to the strong multi-tone profile and can preview another profile', async () => {
+  const fake = createContext()
+  const audio = createKitchenDisplayAudio({ createContext: () => fake.context })
 
   assert.equal(await audio.unlock(), true)
   assert.equal(await audio.playArrival(), true)
-  assert.deepEqual(events, ['resume', 'frequency:880', 'gain:0.08', 'start', 'stop:12.16'])
+  assert.ok(fake.events.filter((event) => event === 'start').length >= 3)
+  assert.ok(fake.events.includes('frequency:720'))
+  assert.equal(await audio.preview({ profile: 'classic', volume: 'normal' }), true)
 })
 
 test('blocked audio reports fallback without breaking the panel', async () => {
-  const audio = createKitchenDisplayAudio({ createContext: () => ({ state: 'suspended', resume: async () => { throw new Error('blocked') } }) })
+  const fake = createContext({ blocked: true })
+  const audio = createKitchenDisplayAudio({ createContext: () => fake.context })
   assert.equal(await audio.unlock(), false)
   assert.equal(await audio.playArrival(), false)
 })

@@ -364,6 +364,99 @@ button { font: inherit; }
   outline-offset: 3px;
 }
 
+.kds-start-card { gap: clamp(12px, 1.8vh, 20px); }
+.kds-sound-setup {
+  width: min(590px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--kds-line);
+  border-radius: 14px;
+  background: #091824;
+  text-align: left;
+}
+.kds-sound-profile,
+.kds-sound-volume { display: grid; gap: 7px; min-width: 0; }
+.kds-sound-profile { grid-column: 1 / -1; }
+.kds-sound-profile > span,
+.kds-sound-volume > span { color: var(--kds-muted); font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.kds-sound-profile-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.kds-sound-profile-options button {
+  width: auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #31516a;
+  border-radius: 10px;
+  color: var(--kds-muted);
+  background: #0d2232;
+  font-size: .78rem;
+  font-weight: 800;
+}
+.kds-sound-profile-options button[aria-checked="true"] {
+  border-color: var(--kds-blue);
+  color: var(--kds-text);
+  background: #0d3a56;
+}
+.kds-sound-volume-options { display: flex; gap: 5px; }
+.kds-sound-volume-options button {
+  width: auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid #31516a;
+  border-radius: 10px;
+  color: var(--kds-muted);
+  background: #0d2232;
+  font-size: .8rem;
+  font-weight: 800;
+}
+.kds-sound-volume-options button[aria-pressed="true"] {
+  border-color: var(--kds-blue);
+  color: var(--kds-text);
+  background: #0d3a56;
+}
+.kds-start-card .kds-sound-preview-button {
+  width: auto;
+  min-width: 116px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-color: #31516a;
+  background: #0d2b40;
+  white-space: nowrap;
+}
+.kds-sound-profile-options button:focus-visible,
+.kds-sound-volume-options button:focus-visible,
+.kds-start-card .kds-sound-preview-button:focus-visible {
+  outline: 3px solid var(--kds-blue);
+  outline-offset: 2px;
+}
+.kds-sound-preference-error {
+  grid-column: 1 / -1;
+  color: var(--kds-amber);
+  font-size: .76rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+@media (max-width: 700px), (max-height: 600px) {
+  .kds-start-card { gap: 9px; padding-top: 14px; padding-bottom: 14px; }
+  .kds-start-card h1 { font-size: clamp(1.45rem, 3.8vw, 2.2rem); }
+  .kds-start-card > p:not(.kds-pairing-kicker) { font-size: clamp(.78rem, 1.5vw, .96rem); }
+  .kds-sound-setup {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px;
+  }
+  .kds-start-card .kds-sound-preview-button { grid-column: 1 / -1; width: 100%; min-height: 38px; }
+  .kds-sound-profile-options button,
+  .kds-sound-volume-options button { min-height: 36px; font-size: .68rem; padding: 0 7px; }
+  .kds-sound-profile-options { gap: 4px; }
+  .kds-sound-volume-options button { padding: 0 7px; }
+}
+
 
 .kds-compatibility-detail {
   display: block;

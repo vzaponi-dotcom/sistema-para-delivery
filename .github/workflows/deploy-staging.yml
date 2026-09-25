@@ -5,6 +5,7 @@ on:
     branches:
       - feature/mesiva-visual-theme
       - feature/operation-identity-settings
+      - feature/kitchen-alert-sound-profiles
   workflow_dispatch:
 
 permissions:

@@ -63,7 +63,14 @@ import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
 import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
 import { PrintQueue, PrintingOverlays, usePrintingManager } from './domains/printing/index.js'
-import { readKitchenSoundPreference, writeKitchenSoundPreference } from './infrastructure/storage/kitchenSoundPreference.js'
+import {
+  readKitchenSoundPreference,
+  readKitchenSoundProfilePreference,
+  readKitchenSoundVolumePreference,
+  writeKitchenSoundPreference,
+  writeKitchenSoundProfilePreference,
+  writeKitchenSoundVolumePreference,
+} from './infrastructure/storage/kitchenSoundPreference.js'
 import { getSessionStorage } from './infrastructure/storage/sessionStorage.js'
 
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device'])
@@ -72,6 +79,8 @@ const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', 
 function App({ capabilities } = {}) {
   const [requestKey, setRequestKey] = useState(null)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
+  const [kitchenSoundProfile, setKitchenSoundProfile] = useState(readKitchenSoundProfilePreference)
+  const [kitchenSoundVolume, setKitchenSoundVolume] = useState(readKitchenSoundVolumePreference)
   const isOnline = useOnlineStatus()
   const {
     toastMessage,
@@ -345,7 +354,7 @@ function App({ capabilities } = {}) {
     newOrderIds,
     previewSound: previewKitchenOrderSound,
     reset: resetOrderArrivals,
-  } = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, currentTiming, soundEnabled: kitchenSoundEnabled })
+  } = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, currentTiming, soundEnabled: kitchenSoundEnabled, soundProfile: kitchenSoundProfile, soundVolume: kitchenSoundVolume })
   const resetSyncState = () => {
     orderPayment.close()
     effectiveConfigVersionRef.current = null
@@ -430,7 +439,30 @@ function App({ capabilities } = {}) {
       return false
     }
     setKitchenSoundEnabled(nextEnabled)
-    if (nextEnabled) void previewKitchenOrderSound()
+    if (nextEnabled) void previewKitchenOrderSound(kitchenSoundProfile, kitchenSoundVolume)
+    return true
+  }
+  const handleKitchenSoundProfileChange = (profile) => {
+    if (!canUseLocalPreferences) return false
+    try { writeKitchenSoundProfilePreference(profile) } catch {
+      setToastMessage('Não foi possível salvar esta preferência neste dispositivo.')
+      return false
+    }
+    setKitchenSoundProfile(profile)
+    return true
+  }
+  const handleKitchenSoundVolumeChange = (volume) => {
+    if (!canUseLocalPreferences) return false
+    try { writeKitchenSoundVolumePreference(volume) } catch {
+      setToastMessage('Não foi possível salvar esta preferência neste dispositivo.')
+      return false
+    }
+    setKitchenSoundVolume(volume)
+    return true
+  }
+  const handleKitchenSoundPreview = (profile = kitchenSoundProfile, volume = kitchenSoundVolume) => {
+    if (!canUseLocalPreferences) return false
+    void previewKitchenOrderSound(profile, volume)
     return true
   }
 
@@ -552,7 +584,7 @@ function App({ capabilities } = {}) {
             )}
           </TableServiceExternalActions>
         )}
-        {(activeTab === 'settings-home' || activeTab === 'settings-business-profile' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-kitchen-tv' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSuccessMessage={showSuccessMessage} writesBlocked={writesBlocked} />}
+        {(activeTab === 'settings-home' || activeTab === 'settings-business-profile' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-kitchen-tv' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} soundProfile={kitchenSoundProfile} soundVolume={kitchenSoundVolume} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSoundProfileChange={handleKitchenSoundProfileChange} onSoundVolumeChange={handleKitchenSoundVolumeChange} onPreviewSound={handleKitchenSoundPreview} onSuccessMessage={showSuccessMessage} writesBlocked={writesBlocked} />}
 
         {pendingDestination && (
           <Modal title={pendingDiscardKind === 'policy' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>

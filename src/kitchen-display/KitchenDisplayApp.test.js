@@ -66,21 +66,21 @@ test('live runtime polls only after the start gesture and only while visible', a
 test('new arrivals alert once and highlight for exactly 2600ms; initial orders stay quiet', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
-  let plays = 0
+  const plays = []
   const scheduled = []
   const renderer = await h.render(KitchenDisplayApp, {
     bootstrap: async () => ({ kind: 'paired', state: state(['existing']) }),
     readState: async () => state(['existing', 'new-order']),
-    audio: { unlock: async () => true, playArrival: async () => { plays += 1; return true } },
+    audio: { unlock: async () => true, playArrival: async (options) => { plays.push(options); return true } },
     schedule: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length },
     cancelSchedule: () => {},
   })
   await flushEffects()
-  assert.equal(plays, 0)
+  assert.equal(plays.length, 0)
 
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
   await act(async () => h.fireInterval(2000))
-  assert.equal(plays, 1)
+  assert.deepEqual(plays, [{ profile: 'kitchen-strong', volume: 'max' }])
   assert.deepEqual(renderer.root.findByProps({ 'data-order-id': 'new-order' }).props['data-highlighted'], true)
   assert.equal(scheduled[0].delay, 2600)
   await act(async () => scheduled[0].callback())
@@ -239,4 +239,33 @@ test('failed fullscreen request keeps KDS live and offers a manual retry action'
   await flushEffects()
   assert.equal(attempts, 2)
   assert.equal(buttonNamed(renderer.root, 'Entrar em tela cheia'), undefined)
+})
+
+
+test('start screen lets this TV choose, preview and persist its local alert sound', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const previews = []
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: state([]) }),
+    audio: {
+      unlock: async () => true,
+      playArrival: async () => true,
+      preview: async (options) => { previews.push(options); return true },
+    },
+  })
+  await flushEffects()
+
+  const profileGroup = renderer.root.findByProps({ role: 'radiogroup', 'aria-label': 'Toque do alerta da TV' })
+  assert.equal(buttonNamed(profileGroup, 'Cozinha forte').props['aria-checked'], true)
+  const volumeGroup = renderer.root.findByProps({ role: 'group', 'aria-label': 'Volume do alerta da TV' })
+  assert.equal(buttonNamed(volumeGroup, 'Máximo').props['aria-pressed'], true)
+
+  await act(async () => buttonNamed(profileGroup, 'Campainha').props.onClick())
+  await act(async () => buttonNamed(volumeGroup, 'Alto').props.onClick())
+  assert.equal(h.localStorage.getItem('kitchen-sound-profile'), 'bell')
+  assert.equal(h.localStorage.getItem('kitchen-sound-volume'), 'high')
+
+  await act(async () => buttonNamed(renderer.root, 'Ouvir alerta').props.onClick())
+  assert.deepEqual(previews, [{ profile: 'bell', volume: 'high' }])
 })
