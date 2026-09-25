@@ -24,21 +24,25 @@ export function ReportingWorkspace({ granted }) {
   return (
     <>
       <AreaNavigation area="finance" />
-      <PageHeader
-        eyebrow="Financeiro"
-        title="Relatórios"
-        description="Analise vendas, operação, recebimentos e produtos com filtros consistentes."
-      />
+      <div className="reporting-page">
+        <PageHeader
+          eyebrow="Financeiro"
+          title="Relatórios"
+          description="Acompanhe o desempenho do negócio, compare períodos e investigue cada indicador sem sair do fluxo financeiro."
+          actions={<ReportingExportMenu query={query} columns={columns} granted={granted} />}
+        />
 
-      <ReportingFilters query={query} onChange={patchQuery} />
-      <ReportingExportMenu query={query} columns={columns} granted={granted} />
+        <ReportingFilters query={query} onChange={patchQuery} />
 
-      <ReportingTabs
-        value={query.view}
-        onChange={(view) => patchQuery({ view })}
-      />
+        <ReportingTabs
+          value={query.view}
+          onChange={(view) => patchQuery({ view })}
+        />
 
-      {isMobile ? <ReportingMobileSummary query={query} detailState={state} onDrilldown={(product) => patchQuery({ view: 'detail', product, productName: null })} /> : query.view === 'overview' ? <OverviewReport state={state} onDrilldown={patchQuery} /> : query.view === 'operation' ? <OperationReport state={state} onDrilldown={patchQuery} /> : query.view === 'sales' ? <SalesReport state={state} onDrilldown={patchQuery} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product, productName: null })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} />}
+        <main className="reporting-view">
+          {isMobile ? <ReportingMobileSummary query={query} detailState={state} onDrilldown={(product) => patchQuery({ view: 'detail', product, productName: null })} /> : query.view === 'overview' ? <OverviewReport state={state} onDrilldown={patchQuery} /> : query.view === 'operation' ? <OperationReport state={state} onDrilldown={patchQuery} /> : query.view === 'sales' ? <SalesReport state={state} onDrilldown={patchQuery} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product, productName: null })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} />}
+        </main>
+      </div>
     </>
   )
 }
