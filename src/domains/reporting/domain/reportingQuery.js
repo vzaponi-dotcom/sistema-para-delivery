@@ -1,4 +1,4 @@
-import { getBusinessDate } from '../../../shared/finance.js'
+import { getBusinessDate } from '../../../../shared/finance.js'
 
 export const REPORTING_VIEWS = Object.freeze(['overview', 'operation', 'sales', 'products', 'detail'])
 export const REPORTING_PAGE_SIZES = Object.freeze([25, 50, 100])
