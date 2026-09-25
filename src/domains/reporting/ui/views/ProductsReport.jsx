@@ -99,9 +99,8 @@ export function ProductsReport({ state, onDrilldown = () => {} }) {
             <tbody>{top10.map((item, index) => <tr key={item.id}>
               <td><span className="reporting-products-rank">{index + 1}</span></td>
               <td>
-                <button className="reporting-products-product-button" type="button" onClick={() => onDrilldown(item.id)}>
+                <button className="reporting-products-product-button reporting-products-top-product" type="button" onClick={() => onDrilldown(item.id)}>
                   <span>{item.name}</span>
-                  {item.size ? <small>{item.size}</small> : null}
                 </button>
               </td>
               <td>{number(item.quantity)}</td>
@@ -155,7 +154,7 @@ export function ProductsReport({ state, onDrilldown = () => {} }) {
             <span>{number(item.quantity)} un.</span>
             <strong className={item.growthValue >= 0 ? 'is-positive' : 'is-negative'}>{item.growthValue > 0 ? '+' : ''}{percentage(item.growthValue)}</strong>
           </div>)}
-        </div> : <div className="reporting-products-empty">Comparação de crescimento indisponível para este período.</div>}
+        </div> : <div className="reporting-products-empty reporting-products-growth-empty">Comparação de crescimento indisponível para este período.</div>}
       </section>
 
       <section className="surface-card reporting-panel reporting-products-presentations-panel">
