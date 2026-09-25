@@ -15,16 +15,15 @@ test('filters render period presets and view-applicable controls with functional
   assert.ok(method)
 })
 
-test('visual product filter sends a historical name instead of a canonical identity', async (t) => {
+test('manual category and product filters stay out of the top reporting filter UI', async (t) => {
   const harness = await workspaceHarness(t)
   const { ReportingFilters } = await harness.load('/src/domains/reporting/ui/ReportingFilters.jsx')
-  const changes = []
   const renderer = await harness.render(ReportingFilters, {
-    query: { view: 'products', period: 'custom', from: '2026-09-01', to: '2026-09-25', product: 'catalog-id' },
-    onChange: (patch) => changes.push(patch),
+    query: { view: 'products', period: 'custom', from: '2026-09-01', to: '2026-09-25' },
+    onChange: () => {},
   })
-  const nameInput = renderer.root.findAllByType('input').find((input) => input.props.placeholder === 'Nome histórico')
-  assert.ok(nameInput)
-  nameInput.props.onChange({ target: { value: 'X-Bacon' } })
-  assert.deepEqual(changes.at(-1), { productName: 'X-Bacon', product: null })
+  const text = nodeText(renderer.root)
+  assert.doesNotMatch(text, /Categoria/)
+  assert.doesNotMatch(text, /Produto por nome/)
+  assert.match(text, /Cliente/)
 })

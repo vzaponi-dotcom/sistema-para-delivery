@@ -15,11 +15,9 @@ const PAYMENT_OPTIONS = [{ value: '', label: 'Todas' }, { value: 'pix', label: '
 const DEADLINE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'on-time', label: 'No prazo' }, { value: 'late', label: 'Atrasados' }]
 
 export function ReportingFilters({ query, onChange }) {
-  const supportsContext = ['overview', 'sales', 'products', 'operation'].includes(query.view)
+  const supportsCustomer = ['overview', 'sales', 'products', 'operation'].includes(query.view)
   const advancedActive = [
-    supportsContext && query.category,
-    supportsContext && (query.productName || query.product),
-    supportsContext && query.customer,
+    supportsCustomer && query.customer,
     query.view === 'sales' && query.paymentMethod,
     query.view === 'operation' && query.operationalDeadline,
     query.view === 'operation' && query.orderHourFrom != null,
@@ -45,12 +43,7 @@ export function ReportingFilters({ query, onChange }) {
         <details className={advancedActive ? 'reporting-more-filters has-active' : 'reporting-more-filters'}>
           <summary>Mais filtros{advancedActive ? <span className="reporting-filter-count">{advancedActive}</span> : null}</summary>
           <div className="reporting-more-filters-panel">
-            {supportsContext ? <>
-              <label>Categoria<input value={query.category || ''} onChange={(event) => onChange({ category: event.target.value || null })} placeholder="Todas as categorias" /></label>
-              <label>Produto por nome<input value={query.productName || ''} onChange={(event) => onChange({ productName: event.target.value || null, product: null })} placeholder="Nome histórico" /></label>
-              <label>Cliente<input value={query.customer || ''} onChange={(event) => onChange({ customer: event.target.value || null })} placeholder="Todos os clientes" /></label>
-              {query.product ? <small>Filtro por produto selecionado no ranking ativo.</small> : null}
-            </> : null}
+            {supportsCustomer ? <label>Cliente<input value={query.customer || ''} onChange={(event) => onChange({ customer: event.target.value || null })} placeholder="Todos os clientes" /></label> : null}
             {query.view === 'sales' ? <div className="reporting-filter-control"><span>Forma de pagamento</span><SystemSelect label="Forma de pagamento" value={query.paymentMethod || ''} options={PAYMENT_OPTIONS} onChange={(value) => onChange({ paymentMethod: value || null })} /></div> : null}
             {query.view === 'operation' ? <>
               <div className="reporting-filter-control"><span>Prazo</span><SystemSelect label="Prazo" value={query.operationalDeadline || ''} options={DEADLINE_OPTIONS} onChange={(value) => onChange({ operationalDeadline: value || null })} /></div>

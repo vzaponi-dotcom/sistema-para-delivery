@@ -22,3 +22,14 @@ test('sales renders financial decomposition, series and formatted payment mix', 
   assert.match(text, /Pix: R\$\s*7,00/)
   assert.doesNotMatch(text, /Pix: 700/)
 })
+
+test('sales tolerates a partial payload without crashing while optional collections are absent', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { SalesReport } = await harness.load('/src/domains/reporting/ui/views/SalesReport.jsx')
+  const renderer = await harness.render(SalesReport, { state: { loading: false, data: {
+    salesCents: 0, ordersCount: 0, averageTicketCents: null, receivedCents: 0,
+    merchandiseRevenueCents: 0, deliveryFeesCents: 0, discountCents: 0, surchargeCents: 0,
+    receivableCents: 0, receivableCount: 0, cancellationCount: 0, refundsCents: 0,
+  } } })
+  assert.match(nodeText(renderer.root), /Mix por forma de pagamento/)
+})

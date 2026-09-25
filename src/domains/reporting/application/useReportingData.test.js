@@ -32,3 +32,24 @@ test('reporting data retains quality, warnings and metadata from the API envelop
   assert.deepEqual(hook.current().warnings, ['Cobertura limitada'])
   assert.equal(hook.current().timezone, 'America/Sao_Paulo')
 })
+
+test('reporting data never exposes the previous view payload while the next view is loading', async (t) => {
+  const { useReportingData } = await import('./useReportingData.js')
+  const pending = []
+  const api = { load: (view, query, { signal }) => new Promise((resolve) => pending.push({ view, query, signal, resolve })) }
+  const overviewQuery = { view: 'overview', from: '2026-09-01', to: '2026-09-25' }
+  const salesQuery = { view: 'sales', from: '2026-09-01', to: '2026-09-25' }
+  const hook = await mountReportingHook(t, useReportingData, { query: overviewQuery, api })
+
+  pending[0].resolve({ data: { metrics: { salesCents: 1000 } } })
+  await hook.rerender({ query: overviewQuery, api })
+  assert.equal(hook.current().data.metrics.salesCents, 1000)
+
+  await hook.rerender({ query: salesQuery, api })
+  assert.equal(hook.current().loading, true)
+  assert.equal(hook.current().data, null)
+
+  pending[1].resolve({ data: { paymentMix: [], salesSeries: [], ordersSeries: [], receivedSeries: [], refundSeries: [] } })
+  await hook.rerender({ query: salesQuery, api })
+  assert.deepEqual(hook.current().data.paymentMix, [])
+})

@@ -51,7 +51,7 @@ test('reporting query serialization is deterministic and round-trippable', () =>
   const serialized = reportingQueryToSearchParams(query).toString()
   assert.equal(
     serialized,
-    'view=products&period=current-month&from=2026-09-01&to=2026-09-25&type=Entrega&schedule=scheduled&search=maria&sort=date-desc&page=3&pageSize=50',
+    'view=products&period=current-month&from=2026-09-01&to=2026-09-25&type=Entrega&schedule=scheduled&search=maria&page=3&pageSize=50',
   )
   assert.deepEqual(normalize(serialized), query)
 })
@@ -79,4 +79,10 @@ test('historical product name uses a separate round-trippable filter and resets 
   assert.equal(reportingQueryToSearchParams(current).get('productName'), 'X-Bacon')
   assert.equal(patchReportingQuery(current, { productName: 'Batata' }).page, 1)
   assert.equal(patchReportingQuery(current, { productName: 'Batata' }).productName, 'Batata')
+})
+
+test('reporting URL omits implicit overview and pagination defaults while preserving the exact date recorte', () => {
+  const query = normalize('period=today&from=2026-09-25&to=2026-09-25')
+  assert.equal(reportingQueryToSearchParams(query).toString(), 'period=today&from=2026-09-25&to=2026-09-25')
+  assert.deepEqual(normalize(reportingQueryToSearchParams(query)), query)
 })

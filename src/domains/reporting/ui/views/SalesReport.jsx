@@ -7,6 +7,7 @@ const series = (items = [], kind = 'money') => <ul className="reporting-series">
 export function SalesReport({ state, onDrilldown = () => {} }) {
   const data = state.data
   const comparison = state.comparison?.metrics || {}
+  const paymentMix = Array.isArray(data?.paymentMix) ? data.paymentMix : []
   return <ReportingState state={state}>{data ? <>
     <section className="reporting-metric-grid" aria-label="Indicadores de vendas">
       <ReportingMetricCard label="Vendas registradas" value={data.salesCents} comparison={comparison.salesCents} />
@@ -27,7 +28,7 @@ export function SalesReport({ state, onDrilldown = () => {} }) {
       <section className="surface-card reporting-panel"><h2>Recebimentos por dia</h2>{series(data.receivedSeries)}</section>
     </div>
     <div className="reporting-panel-grid">
-      <section className="surface-card reporting-panel"><h2>Mix por forma de pagamento</h2><ul>{data.paymentMix.map((item) => <li key={item.method}><button type="button" onClick={() => onDrilldown({ view: 'detail', paymentMethod: item.method })}>{item.method}: {money(item.amountCents)}</button></li>)}</ul></section>
+      <section className="surface-card reporting-panel"><h2>Mix por forma de pagamento</h2><ul>{paymentMix.map((item) => <li key={item.method}><button type="button" onClick={() => onDrilldown({ view: 'detail', paymentMethod: item.method })}>{item.method}: {money(item.amountCents)}</button></li>)}</ul></section>
       <section className="surface-card reporting-panel"><h2>A receber do período</h2><p>{data.receivableCount} pedidos · {money(data.receivableCents)}</p><ul><li>Vencidos: {data.receivables?.overdue.count ?? 0} · {money(data.receivables?.overdue.amountCents ?? 0)}</li><li>Hoje: {data.receivables?.today.count ?? 0} · {money(data.receivables?.today.amountCents ?? 0)}</li><li>Futuros: {data.receivables?.upcoming.count ?? 0} · {money(data.receivables?.upcoming.amountCents ?? 0)}</li></ul></section>
       <section className="surface-card reporting-panel"><h2>Estornos por dia</h2>{series(data.refundSeries)}</section>
     </div>

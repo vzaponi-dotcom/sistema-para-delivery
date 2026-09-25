@@ -94,6 +94,10 @@ export function reportingQueryToSearchParams(query) {
   for (const key of QUERY_KEYS) {
     const value = query?.[key]
     if (value == null || value === '') continue
+    if (key === 'view' && value === 'overview') continue
+    if (key === 'sort' && value === 'date-desc') continue
+    if (key === 'page' && value === 1) continue
+    if (key === 'pageSize' && value === 25) continue
     params.set(key, String(value))
   }
   return params
