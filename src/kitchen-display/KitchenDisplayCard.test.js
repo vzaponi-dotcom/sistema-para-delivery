@@ -60,7 +60,10 @@ test('large orders keep all items and opt into adaptive dense layout instead of 
     now: new Date('2026-09-22T19:00:02.000Z'),
   })
   assert.match(renderer.root.findByType('article').props.className, /kds-card--content-dense/)
+  assert.match(renderer.root.findByType('article').props.className, /kds-card--tall/)
   assert.equal(renderer.root.findByType('article').props['data-item-count'], 12)
+  assert.equal(renderer.root.findByType('ul').props.className, 'kds-card__items')
+  assert.equal(renderer.root.findByType('article').props['data-column-count'], 1)
   const text = nodeText(renderer.root)
   for (let index = 1; index <= 12; index += 1) assert.match(text, new RegExp(`Produto ${index}`))
   assert.doesNotMatch(text, /\+ \d+ itens/)
@@ -112,4 +115,45 @@ test('long product names trigger compact density before vertical clipping', asyn
   assert.match(renderer.root.findByType('article').props.className, /kds-card--content-dense/)
   assert.equal(renderer.root.findByType('article').props['data-item-count'], 6)
   assert.equal(renderer.root.findAllByType('li').length, 6)
+})
+
+
+test('normal cards use two columns before consuming a second visual slot', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayCard } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
+  const items = Array.from({ length: 8 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto ${index + 1}`,
+    note: '',
+  }))
+  const renderer = await h.render(KitchenDisplayCard, {
+    entry: entry('preparing', { items }),
+    now: new Date('2026-09-22T19:00:02.000Z'),
+  })
+
+  const article = renderer.root.findByType('article')
+  assert.doesNotMatch(article.props.className, /kds-card--tall/)
+  assert.equal(article.props['data-layout-demand'], 'normal')
+  assert.equal(article.props['data-column-count'], 2)
+  assert.equal(renderer.root.findByType('ul').props.className, 'kds-card__items is-two-columns')
+})
+
+test('extreme tall cards return to two columns only after one tall column is insufficient', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayCard } = await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
+  const items = Array.from({ length: 12 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto Família Especial Muito Completo ${index + 1}`,
+    note: index % 2 === 0 ? 'Observação longa de produção em embalagem separada' : '',
+  }))
+  const renderer = await h.render(KitchenDisplayCard, {
+    entry: entry('preparing', { items }),
+    now: new Date('2026-09-22T19:00:02.000Z'),
+  })
+
+  const article = renderer.root.findByType('article')
+  assert.match(article.props.className, /kds-card--tall/)
+  assert.equal(article.props['data-layout-demand'], 'tall')
+  assert.equal(article.props['data-column-count'], 2)
+  assert.equal(renderer.root.findByType('ul').props.className, 'kds-card__items is-two-columns')
 })

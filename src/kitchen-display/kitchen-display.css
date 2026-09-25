@@ -24,12 +24,14 @@
 html, body, #root { width: 100%; height: 100%; min-width: 0; min-height: 0; margin: 0; background: var(--kds-bg); overflow: hidden; }
 button { font: inherit; }
 .kds-shell { width: 100%; height: 100vh; display: grid; place-items: center; overflow: hidden; color: var(--kds-text); background: radial-gradient(circle at 50% 0%, #102130 0%, var(--kds-bg) 58%); }
-.kds-shell--live { display: block; }
+.kds-shell--live { display: grid; grid-template-rows: minmax(0, 1fr); }
+.kds-shell--fullscreen-recovery { grid-template-rows: 56px minmax(0, 1fr); }
+.kds-live-toolbar { min-width: 0; height: 56px; padding: 8px clamp(12px, 2vw, 28px); display: flex; align-items: center; border-bottom: 1px solid var(--kds-line); background: #08141e; }
 .kds-shell > button { padding: 1rem 1.5rem; border: 1px solid var(--kds-blue); border-radius: .8rem; color: var(--kds-text); background: #0d2b40; cursor: pointer; }
 .kds-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .kds-last-updated { position: fixed; z-index: 5; top: .5rem; left: 50%; translate: -50% 0; margin: 0; padding: .35rem .8rem; border-radius: 999px; color: #171000; background: var(--kds-amber); font-size: clamp(.75rem, 1vw, 1rem); font-weight: 800; }
 .kds-sound-action { position: fixed; z-index: 6; right: 1rem; bottom: 1rem; padding: .65rem 1rem; border: 1px solid var(--kds-blue); border-radius: 999px; color: var(--kds-text); background: #0c283b; }
-.kds-fullscreen-action { position: fixed; z-index: 6; left: 1rem; bottom: 1rem; padding: .65rem 1rem; border: 1px solid var(--kds-blue); border-radius: 999px; color: var(--kds-text); background: #0c283b; }
+.kds-fullscreen-action { position: static; padding: .55rem .9rem; border: 1px solid var(--kds-blue); border-radius: 999px; color: var(--kds-text); background: #0c283b; white-space: nowrap; }
 
 .kds-board { position: relative; width: 100%; height: 100%; padding: clamp(18px, 2vw, 38px); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: clamp(14px, 1.5vw, 26px); overflow: hidden; }
 .kds-header { min-height: clamp(80px, 9vh, 112px); display: grid; grid-template-columns: minmax(0, 1.55fr) auto auto; align-items: center; gap: clamp(20px, 2.2vw, 44px); }
@@ -55,6 +57,7 @@ button { font: inherit; }
 .kds-card--late { --state: var(--kds-red); }
 .kds-card--near-limit { --state: var(--kds-amber); }
 .kds-card--scheduled { --state: var(--kds-scheduled); }
+.kds-card--tall { grid-row: 1 / span 2; }
 .kds-card__customer { min-width: 0; margin: 0; overflow: hidden; color: var(--kds-customer); font-size: clamp(1.65rem, 2.2vw, 2.8rem); font-weight: 820; line-height: 1.08; letter-spacing: -.035em; white-space: nowrap; text-overflow: ellipsis; }
 .kds-card__status { order: -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--state); font-size: clamp(.8rem, 1vw, 1.08rem); font-weight: 850; }
 .kds-card__status-copy { display: flex; align-items: center; gap: .65rem; white-space: nowrap; }

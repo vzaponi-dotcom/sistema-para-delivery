@@ -6,6 +6,7 @@ on:
       - feature/mesiva-visual-theme
       - feature/operation-identity-settings
       - feature/kitchen-alert-sound-profiles
+      - feature/kitchen-tv-adaptive-card-layout
   workflow_dispatch:
 
 permissions:
