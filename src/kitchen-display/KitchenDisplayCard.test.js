@@ -60,6 +60,7 @@ test('large orders keep all items and opt into adaptive dense layout instead of 
     now: new Date('2026-09-22T19:00:02.000Z'),
   })
   assert.match(renderer.root.findByType('article').props.className, /kds-card--content-dense/)
+  assert.match(renderer.root.findByType('article').props.className, /kds-card--tall/)
   assert.equal(renderer.root.findByType('article').props['data-item-count'], 12)
   const text = nodeText(renderer.root)
   for (let index = 1; index <= 12; index += 1) assert.match(text, new RegExp(`Produto ${index}`))
