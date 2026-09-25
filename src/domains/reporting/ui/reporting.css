@@ -1538,3 +1538,295 @@
     justify-self: stretch;
   }
 }
+
+/* Operation reporting polish */
+.reporting-operation-view {
+  gap: 16px;
+}
+
+.reporting-operation-primary-metrics .reporting-metric-card {
+  min-height: 128px;
+}
+
+.reporting-operation-secondary-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reporting-operation-secondary-metrics .reporting-metric-card {
+  min-height: 112px;
+  padding-block: 13px 12px;
+}
+
+.reporting-operation-secondary-metrics .reporting-metric-card > strong {
+  font-size: clamp(1.25rem, 1.7vw, 1.65rem);
+}
+
+.reporting-operation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.reporting-operation-panel {
+  min-height: 270px;
+}
+
+.reporting-operation-hour-panel {
+  min-height: 310px;
+}
+
+.reporting-operation-modality-panel {
+  min-height: 300px;
+}
+
+.reporting-operation-duration-panel {
+  grid-column: 1 / -1;
+  min-height: 250px;
+}
+
+.reporting-hour-chart {
+  min-height: 220px;
+  display: grid;
+  align-items: end;
+  margin-top: 12px;
+  padding: 10px 4px 0;
+}
+
+.reporting-hour-columns {
+  height: 190px;
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  align-items: end;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reporting-hour-slot {
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 24px;
+  align-items: end;
+  justify-items: center;
+  gap: 5px;
+}
+
+.reporting-hour-bar {
+  width: min(14px, 78%);
+  min-height: 2px;
+  align-self: end;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, var(--primary), color-mix(in srgb, var(--primary) 62%, var(--success)));
+}
+
+.reporting-hour-slot small {
+  color: var(--muted);
+  font-size: .62rem;
+  white-space: nowrap;
+}
+
+.reporting-operation-bars {
+  display: grid;
+  gap: 13px;
+  margin-top: 16px;
+}
+
+.reporting-operation-bar-row {
+  display: grid;
+  gap: 5px;
+}
+
+.reporting-operation-bar-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-soft);
+  font-size: .78rem;
+}
+
+.reporting-operation-bar-copy strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.reporting-operation-bar-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.reporting-operation-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 58%, var(--primary)));
+}
+
+.reporting-operation-split {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.reporting-operation-split-track {
+  height: 22px;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.reporting-operation-split-track span {
+  height: 100%;
+}
+
+.reporting-operation-split-track .is-immediate {
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 66%, var(--primary)));
+}
+
+.reporting-operation-split-track .is-scheduled {
+  background: color-mix(in srgb, var(--warning) 78%, var(--surface));
+}
+
+.reporting-operation-split-legend {
+  display: grid;
+  gap: 10px;
+}
+
+.reporting-operation-split-legend > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+  font-size: .77rem;
+}
+
+.reporting-operation-split-legend strong {
+  color: var(--text);
+}
+
+.reporting-operation-split-legend small {
+  color: var(--muted);
+}
+
+.reporting-modality-performance {
+  display: grid;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.reporting-modality-row {
+  display: grid;
+  grid-template-columns: minmax(130px, .7fr) minmax(120px, 1fr) minmax(120px, .6fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.reporting-modality-row:last-child {
+  border-bottom: 0;
+}
+
+.reporting-modality-copy,
+.reporting-modality-time {
+  display: grid;
+  gap: 3px;
+}
+
+.reporting-modality-copy strong,
+.reporting-modality-time strong {
+  color: var(--text);
+  font-size: .82rem;
+}
+
+.reporting-modality-copy span,
+.reporting-modality-time span {
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.reporting-modality-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.reporting-modality-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-fill);
+}
+
+.reporting-operation-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  color: var(--muted);
+}
+
+.reporting-operation-note > div {
+  display: grid;
+  gap: 2px;
+}
+
+.reporting-operation-note strong {
+  color: var(--text-soft);
+  font-size: .76rem;
+}
+
+.reporting-operation-note span {
+  font-size: .7rem;
+  line-height: 1.45;
+}
+
+.reporting-operation-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: .78rem;
+  text-align: center;
+}
+
+@media (max-width: 1080px) {
+  .reporting-operation-secondary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reporting-operation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reporting-operation-duration-panel {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .reporting-operation-secondary-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .reporting-hour-columns {
+    gap: 2px;
+  }
+
+  .reporting-hour-bar {
+    width: 72%;
+  }
+
+  .reporting-modality-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}

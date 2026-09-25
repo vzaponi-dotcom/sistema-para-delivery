@@ -7,6 +7,7 @@ const format = (value, kind) => {
   if (!isAvailable(value)) return 'Indisponível'
   if (kind === 'money') return money.format(Number(value) / 100)
   if (kind === 'percent') return `${number.format(Number(value))}%`
+  if (kind === 'minutes') return `${number.format(Number(value))} min`
   return number.format(Number(value))
 }
 const iconFor = (label) => ({
@@ -23,6 +24,9 @@ const iconFor = (label) => ({
   'Estornos': 'transfer',
   'Dentro do prazo': 'clock',
   'Fora do prazo': 'alert',
+  'Taxa no prazo': 'clock',
+  'Pedidos no prazo': 'clock',
+  'Pedidos fora do prazo': 'alert',
   'Tempo médio': 'clock',
   'Mediana': 'clock',
   'P90': 'clock',
