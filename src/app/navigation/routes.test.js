@@ -18,6 +18,7 @@ const EXPECTED_PATHS = Object.freeze({
   comandas: '/comandas',
   'print-queue': '/fila-de-impressao',
   dashboard: '/financeiro',
+  reports: '/relatorios',
   receivables: '/financeiro/a-receber',
   finance: '/financeiro/movimentacoes',
   clients: '/clientes',
