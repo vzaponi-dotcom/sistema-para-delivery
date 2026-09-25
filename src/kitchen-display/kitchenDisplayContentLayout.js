@@ -72,3 +72,29 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots = 6 } = {}) {
     overflow: Math.max(0, source.length - cards.length),
   }
 }
+
+export function positionKitchenDisplayGrid(cards = []) {
+  const source = Array.isArray(cards) ? cards : []
+  const tallCards = source.filter((card) => card?.layoutDemand === 'tall')
+  const normalCards = source.filter((card) => card?.layoutDemand !== 'tall')
+  const placement = new Map()
+
+  tallCards.slice(0, 3).forEach((card, index) => {
+    placement.set(card, { gridColumn: index + 1, gridRow: '1 / span 2' })
+  })
+
+  const normalColumns = [1, 2, 3].slice(Math.min(3, tallCards.length))
+  normalCards.forEach((card, index) => {
+    if (!normalColumns.length) return
+    const rowIndex = Math.floor(index / normalColumns.length)
+    placement.set(card, {
+      gridColumn: normalColumns[index % normalColumns.length],
+      gridRow: Math.min(2, rowIndex + 1),
+    })
+  })
+
+  return source.map((card) => ({
+    ...card,
+    gridPosition: placement.get(card) ?? { gridColumn: 1, gridRow: 1 },
+  }))
+}
