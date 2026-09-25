@@ -72,6 +72,26 @@ export const createReportingService = (repository) => Object.freeze({
       quality: { eligibleCount: eligible.length, measuredCount: measured.length, legacyPolicyCount, invalidCount: eligible.length - measured.length },
     }
   },
+  async sales(businessId, query) {
+    const source = await repository.loadSales(businessId, query)
+    const commercial = source.orders.filter((order) => order.status !== 'Cancelado')
+    const mix = new Map()
+    for (const allocation of source.allocations) {
+      const method = allocation.method_label || allocation.method_code || 'Não informado'
+      mix.set(method, (mix.get(method) || 0) + Number(allocation.amount_cents || 0))
+    }
+    return {
+      data: {
+        salesCents: sum(commercial, 'total_cents'),
+        receivedCents: sum(source.receipts, 'total_cents'),
+        merchandiseRevenueCents: commercial.reduce((total, order) => total + Number(order.total_cents || 0) - Number(order.delivery_fee_cents || 0), 0),
+        deliveryFeesCents: sum(commercial, 'delivery_fee_cents'),
+        paymentMix: [...mix].map(([method, amountCents]) => ({ method, amountCents })).sort((left, right) => left.method.localeCompare(right.method)),
+        refundsCents: sum(source.refunds, 'value_cents'),
+      },
+      quality: { receiptCount: source.receipts.length },
+    }
+  },
   async empty(_businessId, _query) {
     return { data: {}, quality: {} }
   },

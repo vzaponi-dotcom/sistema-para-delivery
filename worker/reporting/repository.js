@@ -45,5 +45,14 @@ export function createReportingRepository(db) {
       `).bind(businessId, query.from, query.to, ...(query.type ? [query.type] : [])).all()
       return results
     },
+    async loadSales(businessId, query) {
+      const base = 'business_id = ? AND order_date >= ? AND order_date <= ?'
+      const { results: orders } = await db.prepare(`SELECT id, status, total_cents, delivery_fee_cents, table_tab_id FROM orders WHERE ${base}`).bind(businessId, query.from, query.to).all()
+      const { results: receipts } = await db.prepare('SELECT id, total_cents FROM payment_receipts WHERE business_id = ? AND substr(paid_at, 1, 10) BETWEEN ? AND ?').bind(businessId, query.from, query.to).all()
+      const { results: allocations } = await db.prepare(`SELECT receipt_id, method_code, method_label, amount_cents FROM payment_allocations WHERE business_id = ? AND receipt_id IN (SELECT id FROM payment_receipts WHERE business_id = ? AND substr(paid_at, 1, 10) BETWEEN ? AND ?)`).bind(businessId, businessId, query.from, query.to).all()
+      const { results: payments } = await db.prepare(`SELECT order_id, amount_cents FROM payments WHERE business_id = ? AND order_id IN (SELECT id FROM orders WHERE ${base})`).bind(businessId, businessId, query.from, query.to).all()
+      const { results: refunds } = await db.prepare("SELECT value_cents FROM movements WHERE business_id = ? AND source = 'order-refund' AND deleted_at IS NULL AND movement_date BETWEEN ? AND ?").bind(businessId, query.from, query.to).all()
+      return { orders, receipts, allocations, payments, refunds }
+    },
   })
 }
