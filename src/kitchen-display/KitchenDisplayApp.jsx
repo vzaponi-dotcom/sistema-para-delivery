@@ -25,6 +25,8 @@ const formatPairingCode = (value) => {
   return digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits
 }
 
+const FULLSCREEN_RECOVERY_SAFE_AREA_PX = 56
+
 const readViewportHeight = () => {
   const height = Math.trunc(Number(globalThis.window?.innerHeight))
   return Number.isFinite(height) && height > 0 ? height : undefined
@@ -289,6 +291,9 @@ export function KitchenDisplayApp({
   }
 
   const enableSound = async () => setSoundBlocked(!await audio.unlock())
+  const boardViewportHeight = fullscreenRecoveryNeeded && viewportHeight
+    ? Math.max(1, viewportHeight - FULLSCREEN_RECOVERY_SAFE_AREA_PX)
+    : viewportHeight
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
   if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
@@ -363,11 +368,13 @@ export function KitchenDisplayApp({
     </section>
   </main>
 
-  return <main className="kds-shell kds-shell--live" data-stale={stale}>
+  return <main className={`kds-shell kds-shell--live${fullscreenRecoveryNeeded ? ' kds-shell--fullscreen-recovery' : ''}`} data-stale={stale}>
     <span className="kds-visually-hidden">Painel da cozinha ativo</span>
     {stale && <p className="kds-last-updated">Dados temporariamente desatualizados{lastUpdatedAt ? ` · última atualização ${lastUpdatedAt.toLocaleTimeString('pt-BR')}` : ''}</p>}
-    {fullscreenRecoveryNeeded && <button className="kds-fullscreen-action" type="button" onClick={enterFullscreen}>Entrar em tela cheia</button>}
+    {fullscreenRecoveryNeeded && <div className="kds-live-toolbar" role="region" aria-label="Controles do painel">
+      <button className="kds-fullscreen-action" type="button" onClick={enterFullscreen}>Entrar em tela cheia</button>
+    </div>}
     {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
-    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} viewportHeight={viewportHeight} />
+    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} viewportHeight={boardViewportHeight} />
   </main>
 }
