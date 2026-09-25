@@ -45,3 +45,8 @@ test('App composes Reporting through its public boundary without operational col
   assert.doesNotMatch(rendered, /\bproducts=/)
   assert.doesNotMatch(rendered, /\bclients=/)
 })
+
+test('reporting UI keeps official metric formulas in the Worker', async () => {
+  const source = await readFile(new URL('./ui/ReportingMetricCard.jsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /reduce\(|total_cents|payment_receipts/)
+})
