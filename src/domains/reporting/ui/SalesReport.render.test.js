@@ -19,8 +19,8 @@ test('sales renders financial decomposition, series and formatted payment mix', 
   assert.match(text, /A receber do período/)
   assert.match(text, /Vendas por dia/)
   assert.match(text, /Recebimentos por dia/)
-  assert.match(text, /Pix: R\$\s*7,00/)
-  assert.doesNotMatch(text, /Pix: 700/)
+  assert.match(text, /PixR\$\s*7,00/)
+  assert.doesNotMatch(text, /Pix700/)
 })
 
 test('sales tolerates a partial payload without crashing while optional collections are absent', async (t) => {
