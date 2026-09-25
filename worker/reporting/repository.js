@@ -97,7 +97,7 @@ export function createReportingRepository(db) {
         WHERE pa.business_id = ? AND r.paid_at >= ? AND r.paid_at < ? ${methodWhere}`)
         .bind(businessId, paidFrom, paidTo, ...methodValues).all()
       const { results: payments } = await db.prepare(`SELECT order_id, amount_cents FROM payments WHERE business_id = ? AND order_id IN (SELECT o.id FROM orders o WHERE ${sql})`).bind(businessId, ...values).all()
-      const { results: refunds } = await db.prepare("SELECT value_cents FROM movements WHERE business_id = ? AND source = 'order-refund' AND deleted_at IS NULL AND movement_date BETWEEN ? AND ?").bind(businessId, query.from, query.to).all()
+      const { results: refunds } = await db.prepare("SELECT value_cents, movement_date FROM movements WHERE business_id = ? AND source = 'order-refund' AND deleted_at IS NULL AND movement_date BETWEEN ? AND ?").bind(businessId, query.from, query.to).all()
       return { orders, receipts, allocations, payments, refunds }
     },
     async loadProductLines(businessId, query) {
