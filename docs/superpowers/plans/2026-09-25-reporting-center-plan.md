@@ -1550,7 +1550,7 @@ Commit final docs only after evidence:
 
 ---
 
-## 10. Dashboard migration is explicitly deferred
+## 14. Dashboard migration is explicitly deferred
 
 This plan does not require migrating the current Dashboard to Reporting in Tasks 1–13.
 
@@ -1564,7 +1564,7 @@ Do not enlarge Issue #34 implementation risk by coupling that migration to the f
 
 ---
 
-## 11. Commit / PR discipline
+## 15. Commit / PR discipline
 
 For each task:
 
@@ -1585,7 +1585,7 @@ Do not claim a run validates a SHA unless it really does.
 
 ---
 
-## 12. Auto-review performed on this plan
+## 16. Auto-review performed on this plan
 
 The plan was reviewed against the approved spec and current master architecture.
 
@@ -1620,7 +1620,7 @@ No application code should be changed until the user explicitly approves this pl
 
 ---
 
-## 13. Definition of complete
+## 17. Definition of complete
 
 Issue #34 is implementation-complete only when:
 
