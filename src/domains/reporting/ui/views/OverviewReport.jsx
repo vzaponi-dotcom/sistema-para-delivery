@@ -5,11 +5,52 @@ const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
 
 const moneyValue = (cents) => cents == null ? 'Indisponível' : money.format(Number(cents) / 100)
-const comparisonCopy = (comparison, kind = 'money') => {
+const valueFor = (value, kind = 'money') => value == null
+  ? 'Indisponível'
+  : kind === 'percent' ? `${number.format(value)}%`
+    : kind === 'number' ? number.format(value)
+      : moneyValue(value)
+
+const comparisonCopy = (comparison) => {
   if (!comparison?.available || comparison.percent == null) return 'Sem base comparável no período anterior'
   const sign = comparison.percent > 0 ? '+' : ''
-  const current = kind === 'percent' ? `${number.format(comparison.current)}%` : kind === 'number' ? number.format(comparison.current) : moneyValue(comparison.current)
-  return `${sign}${number.format(comparison.percent)}% vs. período anterior · atual ${current}`
+  return `${sign}${number.format(comparison.percent)}% vs. período anterior`
+}
+
+const comparisonWidths = (comparison) => {
+  const current = Number(comparison?.current)
+  const previous = Number(comparison?.previous)
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return { current: 0, previous: 0 }
+  const ceiling = Math.max(Math.abs(current), Math.abs(previous), 1)
+  return {
+    current: Math.max(3, Math.abs(current) * 100 / ceiling),
+    previous: Math.max(3, Math.abs(previous) * 100 / ceiling),
+  }
+}
+
+function ComparisonVisualRow({ label, value, comparison, kind = 'money' }) {
+  const widths = comparisonWidths(comparison)
+  return <div className="reporting-comparison-visual-row">
+    <div className="reporting-comparison-visual-copy">
+      <span>{label}</span>
+      <strong>{valueFor(value, kind)}</strong>
+      <small>{comparisonCopy(comparison)}</small>
+    </div>
+    <div className="reporting-comparison-bars" aria-label={`${label}: atual ${valueFor(value, kind)}, anterior ${valueFor(comparison?.previous, kind)}`}>
+      <div><span>Atual</span><div className="reporting-comparison-track is-current"><i style={{ width: `${widths.current}%` }} /></div></div>
+      <div><span>Anterior</span><div className="reporting-comparison-track is-previous"><i style={{ width: `${widths.previous}%` }} /></div></div>
+    </div>
+  </div>
+}
+
+const formatGeneratedAt = (value) => {
+  if (!value) return 'Dados oficiais do período'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Dados oficiais do período'
+  return `Atualizado ${new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  }).format(parsed)}`
 }
 
 export function OverviewReport({ state, onDrilldown = () => {} }) {
@@ -19,11 +60,12 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
   const pending = Number(metrics?.receivableCents || 0)
   const financialTotal = received + pending
   const receivedShare = financialTotal > 0 ? received * 100 / financialTotal : 0
+  const pendingShare = financialTotal > 0 ? pending * 100 / financialTotal : 0
 
   return <ReportingState state={state}>{metrics ? <div className="reporting-view-stack">
     <div className="reporting-view-heading">
       <div><span className="section-kicker">Resumo executivo</span><h2>Visão geral do período</h2><p>Os principais números do negócio em um único painel, com comparação histórica e acesso rápido aos detalhes.</p></div>
-      <span className="reporting-generated-at">Atualizado com dados oficiais do período</span>
+      <span className="reporting-view-meta"><span className="reporting-status-dot" />{formatGeneratedAt(state.generatedAt)}</span>
     </div>
 
     <section className="reporting-metric-grid reporting-overview-metrics" aria-label="Indicadores da visão geral">
@@ -41,13 +83,13 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
       <section className="surface-card reporting-panel reporting-overview-panel">
         <div className="reporting-panel-heading">
           <div><span className="section-kicker">Desempenho</span><h2>Evolução contra o período anterior</h2></div>
-          <span className="reporting-panel-badge">Comparativo</span>
+          <span className="reporting-panel-badge">Atual x anterior</span>
         </div>
-        <div className="reporting-comparison-list">
-          <div><span>Vendas</span><strong>{moneyValue(metrics.salesCents)}</strong><small>{comparisonCopy(comparisons.salesCents)}</small></div>
-          <div><span>Pedidos</span><strong>{number.format(metrics.ordersCount || 0)}</strong><small>{comparisonCopy(comparisons.ordersCount, 'number')}</small></div>
-          <div><span>Ticket médio</span><strong>{moneyValue(metrics.averageTicketCents)}</strong><small>{comparisonCopy(comparisons.averageTicketCents)}</small></div>
-          <div><span>Prazo operacional</span><strong>{metrics.withinDeadlineRate == null ? 'Indisponível' : `${number.format(metrics.withinDeadlineRate)}%`}</strong><small>{comparisonCopy(comparisons.withinDeadlineRate, 'percent')}</small></div>
+        <div className="reporting-comparison-visual-list">
+          <ComparisonVisualRow label="Vendas" value={metrics.salesCents} comparison={comparisons.salesCents} />
+          <ComparisonVisualRow label="Pedidos" value={metrics.ordersCount} comparison={comparisons.ordersCount} kind="number" />
+          <ComparisonVisualRow label="Ticket médio" value={metrics.averageTicketCents} comparison={comparisons.averageTicketCents} />
+          <ComparisonVisualRow label="Prazo operacional" value={metrics.withinDeadlineRate} comparison={comparisons.withinDeadlineRate} kind="percent" />
         </div>
       </section>
 
@@ -57,8 +99,9 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
           <span className="reporting-panel-badge">{financialTotal ? `${number.format(receivedShare)}% recebido` : 'Sem movimento'}</span>
         </div>
         <div className="reporting-money-split">
-          <div className="reporting-money-split-track" aria-label={financialTotal ? `${number.format(receivedShare)}% recebido` : 'Sem movimento financeiro'}>
-            <span style={{ width: `${receivedShare}%` }} />
+          <div className="reporting-money-split-track" aria-label={financialTotal ? `${number.format(receivedShare)}% recebido e ${number.format(pendingShare)}% a receber` : 'Sem movimento financeiro'}>
+            <span className="is-received" style={{ width: `${receivedShare}%` }} />
+            <span className="is-pending" style={{ width: `${pendingShare}%` }} />
           </div>
           <div className="reporting-money-split-legend">
             <div><span className="reporting-legend-dot is-received" /><span>Recebido</span><strong>{moneyValue(metrics.receivedCents)}</strong></div>

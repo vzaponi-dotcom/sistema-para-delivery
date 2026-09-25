@@ -27,7 +27,7 @@
 
 .reporting-view-stack {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .reporting-view-heading {
@@ -35,7 +35,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
-  margin: 22px 0 4px;
+  margin: 6px 0 2px;
 }
 
 .reporting-view-heading h2 {
@@ -53,10 +53,27 @@
   line-height: 1.5;
 }
 
-.reporting-generated-at {
+.reporting-view-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
   color: var(--muted);
-  font-size: .76rem;
+  font-size: .7rem;
+  font-weight: 700;
   white-space: nowrap;
+}
+
+.reporting-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 12%, transparent);
 }
 
 .reporting-filter-shell {
@@ -253,11 +270,19 @@
   display: flex;
   gap: 24px;
   overflow-x: auto;
-  margin: 0 0 18px;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  margin: 0 0 8px;
   padding: 0 2px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 94%, transparent);
   backdrop-filter: blur(12px);
+}
+
+.reporting-tabs::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .reporting-tab {
@@ -389,23 +414,24 @@
 .reporting-metric-card {
   position: relative;
   min-width: 0;
-  min-height: 142px;
+  min-height: 126px;
   display: grid;
   align-content: start;
   gap: 8px;
-  padding: 16px 17px 15px;
+  padding: 14px 16px 13px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 8px 22px color-mix(in srgb, #000 8%, transparent);
 }
 
 .reporting-metric-card::after {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: linear-gradient(180deg, var(--primary), color-mix(in srgb, var(--primary) 15%, transparent));
+  inset: 0 16px auto;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 12%, transparent));
 }
 
 .reporting-metric-card:is(button) {
@@ -430,9 +456,9 @@
 }
 
 .reporting-metric-icon {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   display: grid;
   place-items: center;
   border-radius: 10px;
@@ -451,7 +477,7 @@
 .reporting-metric-card > strong {
   margin-top: 2px;
   color: var(--text);
-  font-size: clamp(1.35rem, 2vw, 1.85rem);
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
   line-height: 1.08;
   letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
@@ -494,7 +520,7 @@
 
 .reporting-overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
   gap: 14px;
 }
 
@@ -547,40 +573,89 @@
   font-weight: 750;
 }
 
-.reporting-comparison-list {
+.reporting-comparison-visual-list {
   display: grid;
-  gap: 2px;
-  margin-top: 14px;
+  gap: 0;
+  margin-top: 10px;
 }
 
-.reporting-comparison-list > div {
+.reporting-comparison-visual-row {
   display: grid;
-  grid-template-columns: minmax(0, .7fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(185px, .72fr) minmax(220px, 1.28fr);
   align-items: center;
-  gap: 10px;
-  padding: 11px 0;
+  gap: 18px;
+  padding: 13px 0;
   border-bottom: 1px solid var(--border);
 }
 
-.reporting-comparison-list > div:last-child {
+.reporting-comparison-visual-row:last-child {
   border-bottom: 0;
 }
 
-.reporting-comparison-list span {
-  color: var(--text-soft);
-  font-size: .78rem;
+.reporting-comparison-visual-copy {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
 }
 
-.reporting-comparison-list strong {
+.reporting-comparison-visual-copy > span {
+  color: var(--text-soft);
+  font-size: .77rem;
+  font-weight: 700;
+}
+
+.reporting-comparison-visual-copy > strong {
   color: var(--text);
-  font-size: .9rem;
+  font-size: .92rem;
   font-variant-numeric: tabular-nums;
 }
 
-.reporting-comparison-list small {
+.reporting-comparison-visual-copy > small {
+  grid-column: 1 / -1;
   color: var(--muted);
-  font-size: .7rem;
-  text-align: right;
+  font-size: .68rem;
+}
+
+.reporting-comparison-bars {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.reporting-comparison-bars > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.reporting-comparison-bars span {
+  color: var(--muted);
+  font-size: .63rem;
+  font-weight: 700;
+}
+
+.reporting-comparison-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.reporting-comparison-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.reporting-comparison-track.is-current i {
+  background: var(--primary-fill);
+}
+
+.reporting-comparison-track.is-previous i {
+  background: color-mix(in srgb, var(--text-soft) 42%, transparent);
 }
 
 .reporting-money-split {
@@ -590,18 +665,27 @@
 }
 
 .reporting-money-split-track {
-  height: 15px;
+  height: 22px;
+  display: flex;
   overflow: hidden;
+  border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-strong);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, #000 12%, transparent);
 }
 
 .reporting-money-split-track span {
   display: block;
   height: 100%;
   min-width: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 65%, var(--primary)));
+}
+
+.reporting-money-split-track .is-received {
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 72%, var(--primary)));
+}
+
+.reporting-money-split-track .is-pending {
+  background: color-mix(in srgb, var(--warning) 78%, var(--surface));
 }
 
 .reporting-money-split-legend {
@@ -1009,7 +1093,7 @@
     flex-direction: column;
   }
 
-  .reporting-generated-at {
+  .reporting-view-meta {
     white-space: normal;
   }
 
@@ -1052,13 +1136,9 @@
     display: none;
   }
 
-  .reporting-comparison-list > div {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .reporting-comparison-list small {
-    grid-column: 1 / -1;
-    text-align: left;
+  .reporting-comparison-visual-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
   }
 
   .reporting-overview-footer {
