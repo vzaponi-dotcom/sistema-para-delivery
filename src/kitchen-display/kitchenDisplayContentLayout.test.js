@@ -6,6 +6,7 @@ import {
   getKitchenCardContentMetrics,
   normalizeKitchenItemNote,
   packKitchenDisplaySlots,
+  resolveKitchenViewportProfile,
 } from './kitchenDisplayContentLayout.js'
 
 const item = (name, note = '', size = '') => ({ quantity: 1, name, note, size })
@@ -171,4 +172,61 @@ test('packing accepts a custom slot ceiling without changing the source array', 
   assert.equal(result.cards.length, 2)
   assert.equal(result.overflow, 1)
   assert.equal(JSON.stringify(entries), snapshot)
+})
+
+
+test('viewport profiles distinguish spacious, standard and constrained heights', () => {
+  assert.equal(resolveKitchenViewportProfile(1080), 'spacious')
+  assert.equal(resolveKitchenViewportProfile(720), 'standard')
+  assert.equal(resolveKitchenViewportProfile(600), 'constrained')
+  assert.equal(resolveKitchenViewportProfile(undefined), 'standard')
+})
+
+test('the same eight-line order stays normal in a spacious viewport and becomes tall when height is reduced', () => {
+  const items = Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`))
+  const spacious = getKitchenCardContentMetrics(items, { viewportHeight: 1080 })
+  const standard = getKitchenCardContentMetrics(items, { viewportHeight: 720 })
+
+  assert.equal(spacious.density, 'dense')
+  assert.equal(spacious.layoutDemand, 'normal')
+  assert.equal(spacious.viewportProfile, 'spacious')
+  assert.equal(standard.layoutDemand, 'tall')
+  assert.equal(standard.viewportProfile, 'standard')
+})
+
+test('constrained height can promote compact content to tall before it clips', () => {
+  const items = [
+    item('Marmita de frango'),
+    item('Marmita de carne'),
+    item('Tilápia à milanesa'),
+    item('Virado à paulista'),
+    item('Omelete com queijo'),
+  ]
+  const spacious = getKitchenCardContentMetrics(items, { viewportHeight: 1080 })
+  const constrained = getKitchenCardContentMetrics(items, { viewportHeight: 600 })
+
+  assert.equal(spacious.density, 'compact')
+  assert.equal(spacious.layoutDemand, 'normal')
+  assert.equal(constrained.density, 'compact')
+  assert.equal(constrained.layoutDemand, 'tall')
+})
+
+test('slot packing uses viewport height when deciding how many cards fit', () => {
+  const entries = [
+    {
+      order: {
+        id: 'adaptive',
+        items: Array.from({ length: 8 }, (_, index) => item(`Produto ${index + 1}`)),
+      },
+    },
+    ...Array.from({ length: 5 }, (_, index) => normalEntry(`n-${index + 1}`)),
+  ]
+
+  const spacious = packKitchenDisplaySlots(entries, { maxSlots: 6, viewportHeight: 1080 })
+  const standard = packKitchenDisplaySlots(entries, { maxSlots: 6, viewportHeight: 720 })
+
+  assert.equal(spacious.cards.length, 6)
+  assert.equal(spacious.cards[0].layoutDemand, 'normal')
+  assert.equal(standard.cards.length, 5)
+  assert.equal(standard.cards[0].layoutDemand, 'tall')
 })
