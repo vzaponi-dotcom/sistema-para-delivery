@@ -73,3 +73,13 @@ test('sales method filter allocates a split receipt only to the selected method 
   assert.deepEqual(source.allocations.map((row) => row.amount_cents), [700])
   assert.deepEqual(source.orders.map((row) => row.id), ['o'])
 })
+
+
+test('sales refund rows expose movement_date for the daily refund series', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('a','a','A','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z'); INSERT INTO movements (id,business_id,type,category,description,value_cents,source,order_id,movement_date,created_at) VALUES ('r','a','saida','refunds','Estorno',15500,'order-refund',NULL,'2026-09-20','2026-09-20T15:00:00Z');")
+  const source = await createReportingRepository(db).loadSales('a', { from: '2026-09-01', to: '2026-09-25' })
+  assert.deepEqual(source.refunds, [{ value_cents: 15500, movement_date: '2026-09-20' }])
+})
