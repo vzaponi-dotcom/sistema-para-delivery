@@ -2,7 +2,7 @@
 
 > Execution mode: executar task por task, sempre RED → GREEN, com evidência por SHA exato. Nenhuma implementação começa antes da aprovação explícita deste plano.
 
-**Status:** plano consolidado e auto-revisado; aguardando aprovação do usuário  
+**Status:** APPROVED — plano aprovado pelo usuário em 2026-09-25; execução autorizada task por task, sem produção  
 **Feature:** Issue #34 — Centro de Relatórios operacionais, vendas e produtos  
 **Spec aprovada:** `docs/superpowers/specs/2026-09-25-reporting-center-design.md`  
 **Branch documental:** `docs/issue-34-reporting-center-v2`  
