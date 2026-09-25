@@ -97,3 +97,11 @@ test('CSS gives tall cards a two-row contract without enabling implicit page gro
   assert.match(css, /grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
   assert.doesNotMatch(css, /grid-auto-rows:\s*(?!0)/)
 })
+
+
+test('fullscreen recovery uses a dedicated safe toolbar instead of overlaying the Kitchen TV grid', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+  assert.match(css, /\.kds-shell--fullscreen-recovery\s*\{[^}]*grid-template-rows:\s*56px\s+minmax\(0,\s*1fr\)/s)
+  assert.match(css, /\.kds-live-toolbar\s*\{[^}]*height:\s*56px/s)
+  assert.doesNotMatch(css, /\.kds-fullscreen-action\s*\{[^}]*position:\s*fixed/s)
+})
