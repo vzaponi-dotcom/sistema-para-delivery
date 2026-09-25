@@ -1,5 +1,5 @@
 import { buildKitchenQueueModel } from '../domains/orders/index.js'
-import { packKitchenDisplaySlots } from './kitchenDisplayContentLayout.js'
+import { packKitchenDisplaySlots, positionKitchenDisplayGrid } from './kitchenDisplayContentLayout.js'
 
 export const KITCHEN_TV_NEAR_LIMIT_MINUTES = 5
 const KITCHEN_TV_SLOT_LIMIT = 6
@@ -47,7 +47,7 @@ const allocateVisibleCards = (queue) => {
 export function buildKitchenDisplayPresentation(orders = [], timing, now = new Date(), highlightedIds = new Set()) {
   const queue = buildKitchenQueueModel(orders, now, '', timing)
   const highlighted = toIdSet(highlightedIds)
-  const visible = allocateVisibleCards(queue)
+  const visible = positionKitchenDisplayGrid(allocateVisibleCards(queue))
 
   return {
     cards: visible.map((entry) => ({ ...entry, state: presentationState(entry, now, highlighted) })),
