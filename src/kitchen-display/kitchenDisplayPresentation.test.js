@@ -5,7 +5,7 @@ import { KITCHEN_TV_NEAR_LIMIT_MINUTES, buildKitchenDisplayPresentation } from '
 
 const now = new Date('2026-09-22T15:00:00.000Z')
 const timing = { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 60 }
-const denseItems = (prefix = 'Produto') => Array.from({ length: 8 }, (_, index) => ({ quantity: 1, name: `${prefix} ${index + 1}`, note: '' }))
+const denseItems = (prefix = 'Produto') => Array.from({ length: 8 }, (_, index) => ({ quantity: 1, name: `${prefix} Família Especial Completo ${index + 1}`, note: '' }))
 const preparing = (index, createdAt = '2026-09-22T14:50:00.000Z', items = []) => ({ id: `p-${String(index).padStart(2, '0')}`, orderNumber: index, status: 'Em preparo', type: 'Entrega', client: `Cliente ${index}`, createdAt, items })
 const scheduled = (index, items = []) => ({ id: `s-${String(index).padStart(2, '0')}`, orderNumber: 100 + index, status: 'Em preparo', type: 'Retirada', client: `Agendado ${index}`, createdAt: '2026-09-22T12:00:00.000Z', scheduledFor: new Date(now.getTime() + (120 + index) * 60_000).toISOString(), items })
 

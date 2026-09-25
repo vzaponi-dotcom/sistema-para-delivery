@@ -287,7 +287,7 @@ test('live Kitchen TV recomputes tall-card demand when viewport height changes',
       type: 'Entrega',
       status: 'Em preparo',
       createdAt: '2026-09-22T19:00:00.000Z',
-      items: Array.from({ length: 8 }, (_, index) => ({ quantity: 1, name: `Produto ${index + 1}`, note: '' })),
+      items: Array.from({ length: 7 }, (_, index) => ({ quantity: 1, name: `Produto Família Especial Completo ${index + 1}`, note: '' })),
     }],
   }
   const renderer = await h.render(KitchenDisplayApp, {
@@ -302,6 +302,7 @@ test('live Kitchen TV recomputes tall-card demand when viewport height changes',
 
   let card = renderer.root.findByProps({ 'data-order-id': 'adaptive-order' })
   assert.equal(card.props['data-layout-demand'], 'normal')
+  assert.equal(card.props['data-column-count'], 2)
   assert.doesNotMatch(card.props.className, /kds-card--tall/)
 
   h.window.innerHeight = 600
@@ -309,5 +310,6 @@ test('live Kitchen TV recomputes tall-card demand when viewport height changes',
 
   card = renderer.root.findByProps({ 'data-order-id': 'adaptive-order' })
   assert.equal(card.props['data-layout-demand'], 'tall')
+  assert.equal(card.props['data-column-count'], 1)
   assert.match(card.props.className, /kds-card--tall/)
 })

@@ -2,6 +2,12 @@ const NAME_CHARS_PER_VISUAL_LINE = 22
 const NOTE_CHARS_PER_VISUAL_LINE = 28
 const NOTE_LINE_WEIGHT = 0.75
 
+const VIEWPORT_LINE_CAPACITY = Object.freeze({
+  spacious: Object.freeze({ normal: 9, tall: 22 }),
+  standard: Object.freeze({ normal: 7, tall: 17 }),
+  constrained: Object.freeze({ normal: 6, tall: 14 }),
+})
+
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 
 export const formatKitchenDisplayItemName = (item) => {
@@ -30,15 +36,33 @@ export function resolveKitchenViewportProfile(viewportHeight) {
   return 'standard'
 }
 
-const resolveLayoutDemand = ({ density, itemCount, visualLines, viewportProfile }) => {
-  if (viewportProfile === 'spacious') return visualLines >= 12 || itemCount >= 10 ? 'tall' : 'normal'
-  if (viewportProfile === 'constrained') return visualLines >= 5 || itemCount >= 5 ? 'tall' : 'normal'
-  return density === 'dense' ? 'tall' : 'normal'
+const countTwoColumnVisualLines = (lineHeights) => {
+  let total = 0
+  for (let index = 0; index < lineHeights.length; index += 2) {
+    total += Math.max(lineHeights[index] || 0, lineHeights[index + 1] || 0)
+  }
+  return total
+}
+
+const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile }) => {
+  const capacity = VIEWPORT_LINE_CAPACITY[viewportProfile] || VIEWPORT_LINE_CAPACITY.standard
+  if (visualLines <= capacity.normal) {
+    return { layoutDemand: 'normal', columnCount: 1, fitStrategy: 'normal-one-column', capacity }
+  }
+  if (twoColumnVisualLines <= capacity.normal) {
+    return { layoutDemand: 'normal', columnCount: 2, fitStrategy: 'normal-two-columns', capacity }
+  }
+  if (visualLines <= capacity.tall) {
+    return { layoutDemand: 'tall', columnCount: 1, fitStrategy: 'tall-one-column', capacity }
+  }
+  return { layoutDemand: 'tall', columnCount: 2, fitStrategy: 'tall-two-columns', capacity }
 }
 
 export function getKitchenCardContentMetrics(items = [], { viewportHeight } = {}) {
   const safeItems = Array.isArray(items) ? items : []
-  const visualLines = safeItems.reduce((total, item) => total + countVisualLines(item), 0)
+  const itemLineHeights = safeItems.map(countVisualLines)
+  const visualLines = itemLineHeights.reduce((total, lines) => total + lines, 0)
+  const twoColumnVisualLines = countTwoColumnVisualLines(itemLineHeights)
   const itemCount = safeItems.length
   const density = visualLines >= 10 || itemCount >= 8
     ? 'dense'
@@ -46,13 +70,19 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight } = {}
       ? 'compact'
       : 'comfortable'
   const viewportProfile = resolveKitchenViewportProfile(viewportHeight)
+  const fit = resolveFitStrategy({ visualLines, twoColumnVisualLines, viewportProfile })
 
   return {
     itemCount,
     visualLines,
+    twoColumnVisualLines,
     density,
     viewportProfile,
-    layoutDemand: resolveLayoutDemand({ density, itemCount, visualLines, viewportProfile }),
+    layoutDemand: fit.layoutDemand,
+    columnCount: fit.columnCount,
+    fitStrategy: fit.fitStrategy,
+    normalLineCapacity: fit.capacity.normal,
+    tallLineCapacity: fit.capacity.tall,
   }
 }
 

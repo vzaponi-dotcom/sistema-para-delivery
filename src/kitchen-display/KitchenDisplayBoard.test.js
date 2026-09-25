@@ -41,7 +41,7 @@ test('CSS fixes a 3x2 dark board, Inter typography, 720p contract and no page sc
 
 const denseItems = (prefix = 'Produto') => Array.from({ length: 8 }, (_, index) => ({
   quantity: 1,
-  name: `${prefix} ${index + 1}`,
+  name: `${prefix} Família Especial Completo ${index + 1}`,
   note: index % 2 === 0 ? `Observação ${index + 1}` : '',
 }))
 
