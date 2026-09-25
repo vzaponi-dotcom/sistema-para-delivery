@@ -16,6 +16,8 @@
 .reporting-metric-card { display: grid; gap: 6px; min-height: 108px; padding: 16px; }
 .reporting-metric-card span, .reporting-metric-card small { color: var(--muted); font-size: .82rem; }
 .reporting-metric-card strong { color: var(--text); font-size: 1.2rem; }
+.reporting-filter-shell input:focus-visible, .reporting-filter-shell select:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 22%, transparent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .reporting-tabs, .reporting-metric-card { transition: none !important; } }
 
 .reporting-filter-shell > div {
   display: grid;
