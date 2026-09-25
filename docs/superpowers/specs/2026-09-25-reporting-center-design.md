@@ -3,9 +3,9 @@
 **Issue:** #34 — Feature: Centro de Relatórios operacionais, vendas e produtos  
 **Base inspecionada:** `master` em `6445098aef8332890b854f6eb8524b5f9c053b8f`  
 **Branch documental:** `docs/issue-34-reporting-center-v2`  
-**Status:** DRAFT — consolidação do brainstorming; aguarda aprovação explícita antes do plano de implementação  
+**Status:** APPROVED — lógica, arquitetura, direção visual, estratégia mobile e fronteira com A Receber aprovadas em conversa em 2026-09-25  
 **Data:** 2026-09-25  
-**Referência visual:** Mesiva — Guia oficial de identidade visual e aplicação no produto, v1.0. Superfícies afetadas: Centro de Relatórios, navegação Financeiro e exportações. Estados e temas a verificar: claro/escuro, loading, vazio, erro, dados parciais, filtros ativos, desktop e mobile. Exceções aprovadas: nenhuma nesta revisão.
+**Referência visual:** Mesiva — Guia oficial de identidade visual e aplicação no produto, v1.0. Superfícies afetadas: Centro de Relatórios, navegação Financeiro e exportações. Estados e temas a verificar: claro/escuro, loading, vazio, erro, dados parciais, filtros ativos, desktop completo e mobile resumido. Exceções aprovadas: o mobile não replica a densidade analítica completa do desktop; ações de recebimento permanecem fora de Reporting.
 
 ## 1. Contexto e motivo desta revisão
 
@@ -54,7 +54,8 @@ Ao concluir a V1, um usuário autorizado deve conseguir:
 - abrir uma visão detalhada dos pedidos que compõem um indicador;
 - exportar o recorte atual;
 - compartilhar/reabrir a mesma análise por URL;
-- usar a experiência em desktop e mobile;
+- usar uma experiência desktop completa e uma experiência mobile resumida de consulta;
+- consultar pendências financeiras sem duplicar o fluxo operacional de baixa existente em A Receber;
 - confiar que o mesmo filtro produz a mesma regra no backend, exportação e drill-down.
 
 ## 4. Não objetivos da V1
@@ -75,7 +76,9 @@ Não fazem parte desta primeira versão:
 - replicar a fila operacional da Cozinha;
 - editar configurações operacionais pelo Centro de Relatórios;
 - criar uma segunda biblioteca visual paralela;
-- refazer o Dashboard existente na mesma primeira slice.
+- refazer o Dashboard existente na mesma primeira slice;
+- reproduzir no mobile toda a densidade analítica/tabela do desktop;
+- registrar pagamento, alterar promessa ou executar baixa financeira dentro de Relatórios.
 
 ## 5. Decisões principais desta revisão
 
@@ -154,6 +157,36 @@ Por pedido:
 - a taxa de entrega é exibida separadamente em Vendas;
 - arredondamento em centavos deve ser determinístico.
 
+### 5.7 Desktop completo; mobile resumido
+
+A experiência completa do Centro de Relatórios é desenhada para desktop/tablet amplo, onde há espaço para filtros, múltiplos KPIs, gráficos comparativos, rankings, tabela detalhada, seleção de colunas e exportações.
+
+No mobile, Reporting continua acessível, mas como uma experiência de consulta resumida:
+
+- período e filtros essenciais;
+- KPIs principais;
+- comparação com período anterior;
+- gráficos simples e legíveis;
+- Top produtos e resumos relevantes;
+- drill-down em lista/cards compactos quando fizer sentido.
+
+Não reproduzir no telefone uma tabela desktop comprimida nem a seleção avançada de colunas. Recursos analíticos densos podem informar claramente `Disponível na versão desktop` quando não houver uma adaptação mobile que preserve qualidade.
+
+### 5.8 Reporting analisa recebíveis; A Receber executa a baixa
+
+A tela existente `Financeiro -> A receber` continua sendo a superfície operacional oficial para:
+
+- registrar recebimento;
+- executar baixa;
+- lidar com promessa de pagamento;
+- localizar e resolver pendências financeiras.
+
+Reporting pode mostrar saldo, quantidade, envelhecimento e drill-down de recebíveis, mas não oferece ação de pagamento/baixa.
+
+A regra de ownership é:
+
+> Relatórios explica o que está pendente e por quê; A Receber é onde o usuário resolve a pendência.
+
 ## 6. Navegação e arquitetura de informação
 
 ### 6.1 Destino principal
@@ -175,7 +208,7 @@ A área Financeiro passa a conter:
 3. A receber;
 4. Movimentações.
 
-No mobile, não criar um quarto botão principal. O acesso continua pelo item Financeiro e pela navegação interna da área.
+No mobile, não criar um quarto botão principal. O acesso continua pelo item Financeiro e pela navegação interna da área, abrindo a versão resumida de consulta. A experiência analítica completa permanece no desktop.
 
 ### 6.2 Views internas
 
@@ -492,6 +525,8 @@ Estados históricos legados `Entregue` e `Despachado` devem ser tratados como te
 
 Não reintroduzir comandas abertas em A receber apenas porque Reporting consulta D1 diretamente.
 
+O mesmo recorte usado por Reporting deve preservar a regra operacional atual: comanda aberta é atendimento em andamento, não recebível avulso.
+
 ## 14. Métricas — Visão Geral
 
 ### 14.1 Vendas registradas
@@ -514,11 +549,15 @@ Soma de `payment_receipts.total_cents` cujo `paid_at` cai no período financeiro
 
 Cada receipt conta uma vez.
 
-### 14.5 A receber
+### 14.5 A receber do período
 
-Saldo dos recebíveis oficiais associados a pedidos do recorte selecionado.
+Saldo dos recebíveis oficiais associados aos pedidos do recorte operacional selecionado.
 
-O card deve deixar claro que é saldo ainda pendente, não fluxo de caixa do período.
+O rótulo da UI deve ser **A receber do período** para deixar claro que o valor não representa necessariamente todo o saldo atual da empresa.
+
+Esse indicador é analítico. Ao clicar, o usuário pode abrir o drill-down dos pedidos pendentes do mesmo recorte e navegar por uma ação explícita `Gerenciar em A receber` para a tela operacional existente.
+
+Reporting não registra pagamento e não executa baixa.
 
 ### 14.6 Taxa de cancelamento
 
@@ -605,7 +644,7 @@ A view Vendas deve incluir:
 - taxa de entrega;
 - ajustes/descontos/acréscimos;
 - recebido;
-- a receber;
+- a receber do período;
 - cancelamentos;
 - estornos;
 - mix por forma de pagamento;
@@ -632,6 +671,18 @@ A interface deve deixar a distinção visível.
 ### 16.3 Estorno não apaga venda original
 
 O relatório financeiro apresenta estorno como evento financeiro próprio. A venda comercial de um pedido cancelado deixa de entrar na população comercial líquida conforme a regra de pedidos válidos, mas o ato financeiro de estorno permanece rastreável em sua data.
+
+### 16.4 Integração com A Receber
+
+Na view Vendas, o bloco de pendências pode decompor `A receber do período` em informações como:
+
+- valor pendente;
+- quantidade de pedidos pendentes;
+- vencido;
+- em dia;
+- promessa futura quando houver dados oficiais.
+
+Esses números servem para análise e drill-down. A ação de contexto deve ser `Gerenciar em A receber`, que navega para a superfície financeira oficial sem duplicar modal, workflow, capabilities, offline/retry ou reconciliação de pagamento dentro de Reporting.
 
 ## 17. Métricas — Produtos
 
@@ -731,6 +782,12 @@ Exemplos:
 - Pix -> paymentMethod=pix.
 
 O drill-down usa o mesmo contrato de filtro do backend, não um filtro local sobre dados já carregados.
+
+### 18.2 Drill-down de recebíveis
+
+O KPI `A receber do período` e análises derivadas abrem `view=detail` com o recorte de pendências correspondente.
+
+O detalhe pode oferecer `Gerenciar em A receber` / `Ver em A receber` como navegação para a tela oficial. Não mostrar `Registrar pagamento` dentro de Reporting.
 
 ## 19. API proposta
 
@@ -1037,18 +1094,34 @@ Não introduzir biblioteca visual paralela.
 - detalhado em tabela;
 - sticky header/filtros somente se não prejudicar altura útil.
 
-### Mobile
+### Mobile — consulta resumida
 
-- tabs roláveis ou controle compacto acessível;
-- filtros em sheet/modal;
+O mobile não tenta reproduzir toda a estação analítica do desktop.
+
+Priorizar:
+
+- seletor de período;
+- filtros essenciais em sheet/modal;
 - chips de filtros ativos;
-- KPIs em 1–2 colunas conforme largura;
-- gráficos legíveis e com fallback textual;
-- detalhado em cards;
-- sem scroll horizontal obrigatório;
-- alvos de toque confortáveis.
+- KPIs principais em 1–2 colunas;
+- comparação com período anterior;
+- evolução resumida;
+- Top produtos;
+- resumos de Operação/Vendas;
+- drill-down em cards/lista quando necessário;
+- links claros para a experiência desktop quando uma função densa não tiver boa adaptação móvel.
 
-Homologar pelo menos 320 px e um viewport mobile representativo.
+Ficam desktop-first na V1:
+
+- tabela analítica completa;
+- seleção avançada de colunas;
+- grandes combinações de filtros simultâneos;
+- visualizações com alta densidade;
+- fluxo completo de análise detalhada.
+
+O mobile nunca executa uma ação financeira apenas porque um recebível apareceu em Reporting. Para baixa, navegar para A Receber.
+
+Homologar pelo menos 320 px e um viewport mobile representativo, sem scroll horizontal estrutural.
 
 ## 30. Acessibilidade
 
@@ -1129,7 +1202,9 @@ Cobrir:
 - retry;
 - partial error;
 - drill-down;
-- mobile filters;
+- mobile summary/filter experience;
+- ausência de tabela desktop comprimida no mobile;
+- navegação Reporting -> A Receber sem duplicar baixa;
 - capability denied;
 - export disabled/allowed.
 
@@ -1197,7 +1272,7 @@ O plano pode reorganizar tasks para manter TDD menor, desde que preserve as deci
 
 A feature é aceita quando:
 
-1. Relatórios é acessível pelo fluxo de navegação aprovado em desktop e mobile.
+1. Relatórios é acessível pelo fluxo de navegação aprovado; desktop recebe a experiência completa e mobile recebe a consulta resumida.
 2. F5/Back/Forward preservam destino e query.
 3. Filtros ativos são reproduzíveis por URL.
 4. Todas as métricas oficiais vêm do backend.
@@ -1205,7 +1280,7 @@ A feature é aceita quando:
 6. Vendas, pedido e ticket reconciliam com fixtures oficiais.
 7. Split payment é dividido corretamente no mix.
 8. Recebido conta receipt uma vez.
-9. A receber não reintroduz comanda aberta como recebível avulso.
+9. `A receber do período` não reintroduz comanda aberta como recebível avulso, oferece drill-down analítico e navega para A Receber para qualquer ação operacional.
 10. Cancelados não contam em vendas/produtos.
 11. Taxa de cancelamento usa denominador explícito.
 12. Estornos usam movimentos oficiais.
@@ -1222,29 +1297,37 @@ A feature é aceita quando:
 23. Export acima do limite falha explicitamente.
 24. Loading/vazio/erro/parcial são distinguíveis.
 25. Claro/escuro funcionam em toda a superfície.
-26. 320 px não exige scroll horizontal estrutural.
+26. 320 px não exige scroll horizontal estrutural e não tenta comprimir a tabela desktop.
 27. Arquitetura não introduz deep imports proibidos.
 28. Validate fica verde.
 29. Staging é homologado.
 30. Produção continua separada e exige autorização.
+31. Relatórios não possui ação de registrar pagamento/baixa.
+32. A tela A Receber existente continua sendo a superfície oficial para resolver pendências financeiras.
 
-## 35. Pontos de aprovação do produto
+## 35. Decisões de produto aprovadas
 
-Esta proposta faz três mudanças importantes em relação ao design antigo e precisa de aprovação explícita antes do plano:
+As decisões abaixo foram aprovadas em conversa em 2026-09-25 e são vinculantes para o plano de implementação.
 
-### A. Relatórios dentro da área Financeiro
+### A. Relatórios dentro da área Financeiro — APROVADO
 
-Proposta: um destination `/relatorios` dentro de `area=finance`, sem criar nova entrada no bottom nav.
+Um destination `/relatorios` dentro de `area=finance`, sem criar nova entrada no bottom nav.
 
-### B. Prazo operacional substitui “meta paralela” na V1
+### B. Prazo operacional substitui “meta paralela” na V1 — APROVADO
 
-Proposta: usar a política operacional já configurada e historicamente versionada; não criar `preparation_started_at` nem uma segunda meta por modalidade nesta feature.
+Usar a política operacional já configurada e historicamente versionada; não criar `preparation_started_at` nem uma segunda meta por modalidade nesta feature.
 
-### C. Receita de produto exclui taxa de entrega
+### C. Receita de produto exclui taxa de entrega — APROVADO
 
-Proposta: produto reconcilia com mercadoria líquida; taxa de entrega fica separada em Vendas.
+Produto reconcilia com mercadoria líquida; taxa de entrega fica separada em Vendas.
 
-Se A/B/C forem aprovados, este documento pode mudar de DRAFT para APPROVED e então gerar o plano detalhado de implementação.
+### D. Desktop completo + mobile resumido — APROVADO
+
+Desktop recebe a experiência analítica integral. Mobile permanece acessível para consulta de KPIs, tendências, rankings e drill-down simplificado, sem reproduzir tabela/colunas avançadas.
+
+### E. A Receber permanece operacional; Reporting permanece analítico — APROVADO
+
+A tela existente A Receber continua sendo o único fluxo operacional de baixa/recebimento. Reporting expõe `A receber do período`, decomposição e drill-down, com navegação explícita para A Receber quando o usuário precisar agir.
 
 ## 36. Precedência documental
 
