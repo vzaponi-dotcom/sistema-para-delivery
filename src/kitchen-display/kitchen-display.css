@@ -55,6 +55,7 @@ button { font: inherit; }
 .kds-card--late { --state: var(--kds-red); }
 .kds-card--near-limit { --state: var(--kds-amber); }
 .kds-card--scheduled { --state: var(--kds-scheduled); }
+.kds-card--tall { grid-row: 1 / span 2; }
 .kds-card__customer { min-width: 0; margin: 0; overflow: hidden; color: var(--kds-customer); font-size: clamp(1.65rem, 2.2vw, 2.8rem); font-weight: 820; line-height: 1.08; letter-spacing: -.035em; white-space: nowrap; text-overflow: ellipsis; }
 .kds-card__status { order: -1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--state); font-size: clamp(.8rem, 1vw, 1.08rem); font-weight: 850; }
 .kds-card__status-copy { display: flex; align-items: center; gap: .65rem; white-space: nowrap; }
