@@ -25,6 +25,11 @@ const formatPairingCode = (value) => {
   return digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits
 }
 
+const readViewportHeight = () => {
+  const height = Math.trunc(Number(globalThis.window?.innerHeight))
+  return Number.isFinite(height) && height > 0 ? height : undefined
+}
+
 export function KitchenDisplayApp({
   bootstrap = bootstrapKitchenDisplay,
   pollPairing = pollKitchenDisplayPairing,
@@ -39,6 +44,7 @@ export function KitchenDisplayApp({
   const [pairing, setPairing] = useState(null)
   const [snapshot, setSnapshot] = useState(null)
   const [now, setNow] = useState(() => new Date())
+  const [viewportHeight, setViewportHeight] = useState(() => readViewportHeight())
   const [stale, setStale] = useState(false)
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [highlightedIds, setHighlightedIds] = useState(() => new Set())
@@ -153,6 +159,14 @@ export function KitchenDisplayApp({
       }
     }
   }, [applySnapshot, readState])
+
+  useEffect(() => {
+    if (phase !== 'live') return undefined
+    const onResize = () => setViewportHeight(readViewportHeight())
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [phase])
 
   useEffect(() => {
     if (phase !== 'live') return undefined
@@ -354,6 +368,6 @@ export function KitchenDisplayApp({
     {stale && <p className="kds-last-updated">Dados temporariamente desatualizados{lastUpdatedAt ? ` · última atualização ${lastUpdatedAt.toLocaleTimeString('pt-BR')}` : ''}</p>}
     {fullscreenRecoveryNeeded && <button className="kds-fullscreen-action" type="button" onClick={enterFullscreen}>Entrar em tela cheia</button>}
     {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
-    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} />
+    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} viewportHeight={viewportHeight} />
   </main>
 }
