@@ -21,4 +21,6 @@ test('mobile composes overview, sales, operation and products from reporting API
   for (const label of ['Resumo do período', 'Tendência de vendas', 'Top produtos', 'Resumo da operação', 'Resumo de vendas', 'Pedidos detalhados', 'X-Bacon']) assert.match(text, new RegExp(label))
   assert.deepEqual(loaded.sort(), ['operation', 'overview', 'products', 'sales'])
   assert.equal(renderer.root.findAllByType('table').length, 0)
+  assert.equal(renderer.root.findAllByProps({ href: '/financeiro/a-receber' }).length, 1)
+  assert.match(text, /Gerenciar em A receber/)
 })
