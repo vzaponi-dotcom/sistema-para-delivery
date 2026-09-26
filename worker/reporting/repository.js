@@ -118,8 +118,13 @@ export function createReportingRepository(db) {
         o.client_name_snapshot, o.client_phone_snapshot, o.type, o.status, o.total_cents,
         o.delivery_fee_cents, o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
         o.scheduled_for, o.is_backdated, o.created_at, o.finished_at, o.timing_policy_snapshot_json,
-        p.amount_cents AS paid_cents
-        FROM orders o LEFT JOIN payments p ON p.business_id = o.business_id AND p.order_id = o.id
+        (SELECT SUM(pay.amount_cents) FROM payments pay
+          WHERE pay.business_id = o.business_id AND pay.order_id = o.id) AS paid_cents,
+        (SELECT GROUP_CONCAT(DISTINCT COALESCE(pa.method_label, pa.method_code))
+          FROM payments pay2 JOIN payment_allocations pa
+            ON pa.business_id = pay2.business_id AND pa.receipt_id = pay2.receipt_id
+          WHERE pay2.business_id = o.business_id AND pay2.order_id = o.id) AS payment_label
+        FROM orders o
         WHERE ${sql}`
       const size = query.pageSize || 25
       const page = query.page || 1
@@ -143,6 +148,56 @@ export function createReportingRepository(db) {
           && (query.orderHourTo == null || hour <= query.orderHourTo)
       }).sort(compareDetail(query.sort))
       return { total: filtered.length, items: filtered.slice((page - 1) * size, page * size) }
+    },
+    async loadDetailSummary(businessId, query) {
+      const { sql, values } = buildOrderFilters(businessId, query)
+      const complex = query.operationalDeadline || query.orderHourFrom != null || query.orderHourTo != null
+
+      if (!complex) {
+        const row = await db.prepare(`
+          SELECT
+            COUNT(*) AS orders_count,
+            SUM(CASE WHEN o.status <> 'Cancelado' THEN o.total_cents ELSE 0 END) AS sales_cents,
+            SUM(CASE WHEN o.status <> 'Cancelado' THEN 1 ELSE 0 END) AS commercial_count,
+            SUM(CASE WHEN o.status = 'Cancelado' THEN 1 ELSE 0 END) AS cancellation_count
+          FROM orders o
+          WHERE ${sql}
+        `).bind(...values).first()
+        const ordersCount = Number(row?.orders_count || 0)
+        const salesCents = Number(row?.sales_cents || 0)
+        const commercialCount = Number(row?.commercial_count || 0)
+        const cancellationCount = Number(row?.cancellation_count || 0)
+        return {
+          ordersCount,
+          salesCents,
+          averageTicketCents: commercialCount ? Math.round(salesCents / commercialCount) : null,
+          cancellationRate: ordersCount ? Number(((cancellationCount / ordersCount) * 100).toFixed(2)) : null,
+        }
+      }
+
+      const { results } = await db.prepare(`
+        SELECT o.status, o.total_cents, o.scheduled_for, o.is_backdated,
+          o.created_at, o.finished_at, o.timing_policy_snapshot_json
+        FROM orders o
+        WHERE ${sql}
+      `).bind(...values).all()
+      const filtered = results.map(enrichDetail).filter((row) => {
+        if (query.operationalDeadline && (row.onTime === null || row.onTime !== (query.operationalDeadline === 'on-time'))) return false
+        if (query.orderHourFrom == null && query.orderHourTo == null) return true
+        if (!row.businessDate) return false
+        const hour = Number(hourInBusiness.format(new Date(row.created_at)))
+        return (query.orderHourFrom == null || hour >= query.orderHourFrom)
+          && (query.orderHourTo == null || hour <= query.orderHourTo)
+      })
+      const commercial = filtered.filter((row) => row.status !== 'Cancelado')
+      const salesCents = commercial.reduce((total, row) => total + Number(row.total_cents || 0), 0)
+      const cancellationCount = filtered.length - commercial.length
+      return {
+        ordersCount: filtered.length,
+        salesCents,
+        averageTicketCents: commercial.length ? Math.round(salesCents / commercial.length) : null,
+        cancellationRate: filtered.length ? Number(((cancellationCount / filtered.length) * 100).toFixed(2)) : null,
+      }
     },
     async getOrderDetail(businessId, id) {
       const row = await db.prepare(`SELECT o.id, o.order_number, o.order_date, o.client_name_snapshot,
