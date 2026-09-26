@@ -6,6 +6,14 @@ import { getReportingOrderReference } from './reportingOrderReference.js'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cents || 0) / 100)
 const number = (value) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Number(value || 0))
+const phone = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return 'Telefone não informado'
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  return raw
+}
 const date = (value) => value ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date(`${String(value).slice(0, 10)}T12:00:00Z`)) : '—'
 const dateTime = (value) => {
   if (!value) return '—'
@@ -70,7 +78,7 @@ const historyEvents = (order) => {
   const events = []
   const push = (event) => events.push({ ...event, sortAt: event.at ? new Date(event.at).getTime() : Number.MAX_SAFE_INTEGER })
   push({ at: order.created_at, label: time(order.created_at), icon: 'orders', title: 'Pedido criado', text: `${order.type || 'Pedido'} registrado${order.order_date ? ` para ${date(order.order_date)}` : ''}.`, priority: 1 })
-  if (order.client_name_snapshot) push({ at: order.created_at, label: time(order.created_at), icon: 'client', title: 'Cliente vinculado', text: `${order.client_name_snapshot}${order.client_phone_snapshot ? ` · ${order.client_phone_snapshot}` : ''}`, priority: 2 })
+  if (order.client_name_snapshot) push({ at: order.created_at, label: time(order.created_at), icon: 'client', title: 'Cliente vinculado', text: `${order.client_name_snapshot}${order.client_phone_snapshot ? ` · ${phone(order.client_phone_snapshot)}` : ''}`, priority: 2 })
   if (order.items?.length) push({ at: order.created_at, label: time(order.created_at), icon: 'note', title: 'Itens confirmados', text: `${order.items.length} ${order.items.length === 1 ? 'item' : 'itens'} · Total do pedido ${money(order.total_cents)}`, priority: 3 })
   if (order.scheduled_for) push({ at: order.scheduled_for, label: dateTime(order.scheduled_for), icon: 'calendar', title: 'Agendamento', text: 'Horário programado para atendimento do pedido.', priority: 4 })
   for (const payment of paymentGroups(order.paymentAllocations)) push({
@@ -220,7 +228,7 @@ function ClientOrders({ order, context, filter, onFilter, onSelectOrder }) {
     </section>
     <section className="reporting-client-orders-card">
       <span className="reporting-client-profile-avatar"><Icon name="client" size={25} /></span>
-      <div><small>Cliente</small><strong>{profile?.name || order.client_name_snapshot || 'Cliente'}</strong><span>{profile?.phone || order.client_phone_snapshot || 'Telefone não informado'}</span></div>
+      <div><small>Cliente</small><strong>{profile?.name || order.client_name_snapshot || 'Cliente'}</strong><span>{phone(profile?.phone || order.client_phone_snapshot)}</span></div>
       <span className="reporting-client-orders-count"><Icon name="note" size={16} />{total} {total === 1 ? 'pedido' : 'pedidos'}</span>
     </section>
     <div className="reporting-client-order-filters" role="group" aria-label="Filtrar pedidos do cliente">
@@ -251,7 +259,7 @@ function ClientTab({ order, onOpenClient, onSelectOrder, view, onViewChange, fil
       <h3>Perfil do cliente</h3>
       <div className="reporting-client-profile-card">
         <span className="reporting-client-profile-avatar"><Icon name="client" size={27} /></span>
-        <div><strong>{profile?.name || order.client_name_snapshot || 'Sem cliente'}</strong><span><Icon name="phone" size={15} />{profile?.phone || order.client_phone_snapshot || 'Telefone não informado'}</span><span><Icon name="local" size={15} />{profile?.address || order.client_address_snapshot || 'Sem endereço'}</span></div>
+        <div><strong>{profile?.name || order.client_name_snapshot || 'Sem cliente'}</strong><span><Icon name="phone" size={15} />{phone(profile?.phone || order.client_phone_snapshot)}</span><span><Icon name="local" size={15} />{profile?.address || order.client_address_snapshot || 'Sem endereço'}</span></div>
         <span className="reporting-client-profile-badge"><Icon name="client" size={14} />{profile ? 'Cliente do pedido' : 'Snapshot do pedido'}</span>
       </div>
     </section>
@@ -270,7 +278,7 @@ function ClientTab({ order, onOpenClient, onSelectOrder, view, onViewChange, fil
     <section className="reporting-drawer-section reporting-client-snapshot">
       <h3>Dados deste pedido</h3>
       <div><span><Icon name="client" size={17} />Cliente</span><strong>{order.client_name_snapshot || 'Sem cliente'}</strong></div>
-      <div><span><Icon name="phone" size={17} />Telefone</span><strong>{order.client_phone_snapshot || 'Não informado'}</strong></div>
+      <div><span><Icon name="phone" size={17} />Telefone</span><strong>{phone(order.client_phone_snapshot)}</strong></div>
       <div><span><Icon name="local" size={17} />Endereço usado</span><strong>{order.client_address_snapshot || 'Sem endereço'}</strong></div>
       <p><Icon name="details" size={15} />Os dados acima correspondem ao snapshot salvo no momento do pedido.</p>
     </section>

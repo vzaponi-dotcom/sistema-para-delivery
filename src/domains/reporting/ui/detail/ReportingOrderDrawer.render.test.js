@@ -18,7 +18,7 @@ const order = {
     { receipt_id: 'r1', method_code: 'pix', method_label: 'Pix', amount_cents: 5000, paid_at: '2026-09-25T22:44:00Z' },
   ],
   clientContext: {
-    profile: { id: 'c1', name: 'Teles', phone: '(31) 31656-5949', address: '' },
+    profile: { id: 'c1', name: 'Teles', phone: '31316565949', address: '' },
     summary: { ordersCount: 8, totalSpentCents: 62400, averageTicketCents: 7800, pendingCents: 15500, cancellationCount: 1, lastPurchaseDate: '2026-09-25' },
     orders: [
       { id: 'o186', order_number: 186, order_date: '2026-09-25', created_at: '2026-09-25T22:42:00Z', type: 'Retirada', status: 'Em preparo', total_cents: 15500, paidCents: 0, pendingCents: 15500 },
@@ -56,6 +56,7 @@ test('reporting order drawer implements Details, History, Client and client-orde
   for (const label of ['Perfil do cliente', 'Relacionamento com a loja', 'Dados deste pedido', 'Abrir cadastro do cliente', 'Ver pedidos do cliente']) {
     assert.match(client, new RegExp(label))
   }
+  assert.match(client, /\(31\) 31656-5949/)
   const openClient = renderer.root.findAllByType('button').find((button) => nodeText(button).includes('Abrir cadastro do cliente'))
   await act(async () => openClient.props.onClick())
   assert.deepEqual(openedClients, ['c1'])
