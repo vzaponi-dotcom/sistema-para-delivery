@@ -17,11 +17,11 @@ export function validateExportColumns(columns) {
   return columns
 }
 
-export function createExportModel({ query, report, detail, columns, generatedAt = new Date().toISOString() }) {
+export function createExportModel({ query, report, detail, columns, operation = null, generatedAt = new Date().toISOString() }) {
   if (detail.total > EXPORT_LIMIT) throw apiError(422, 'REPORTING_EXPORT_LIMIT', 'Mais de 10.000 pedidos. Reduza o período ou os filtros para exportar.')
   const keys = validateExportColumns(columns)
   return {
-    title: 'Centro de Relatórios', view: query.view, generatedAt, timezone: 'America/Sao_Paulo',
+    title: 'Centro de Relatórios', view: query.view, generatedAt, timezone: 'America/Sao_Paulo', operation,
     period: { from: query.from, to: query.to, preset: query.period }, filters: query,
     columnKeys: keys, columns: keys.map((key) => EXPORT_COLUMNS[key]),
     rows: detail.items.map((item) => keys.map((key) => item[key] ?? null)), rowCount: detail.total,
