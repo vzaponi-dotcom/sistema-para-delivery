@@ -1,5 +1,6 @@
 import Icon from '../../../../shared/ui/Icon.jsx'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
+import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
 import { ReportingState } from '../ReportingState.jsx'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -124,9 +125,13 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
             <div><span className="reporting-legend-dot is-pending" /><span>A receber</span><strong>{moneyValue(metrics.receivableCents)}</strong></div>
           </div>
         </div>
+        <div className="reporting-overview-financial-stats">
+          <div><span>Total financeiro</span><strong>{moneyValue(financialTotal)}</strong></div>
+          <div><span>Pedidos pendentes</span><strong>{metrics.receivableCount ?? 0}</strong></div>
+        </div>
         <div className="reporting-overview-footer">
           <span>{metrics.receivableCount ?? 0} pedido(s) pendente(s) no recorte</span>
-          <a className="button secondary-button" href="/financeiro/a-receber">Gerenciar em A receber</a>
+          <ReportingReceivableLink />
         </div>
       </section>
     </div>
