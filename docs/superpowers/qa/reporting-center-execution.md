@@ -220,3 +220,30 @@ Os downloads Blob não ficaram disponíveis ao navegador automatizado. A pessoa 
 - **61 — BLOCKED:** staging disponibiliza 189 pedidos no recorte de referência, sem dataset integrado acima de 10.000 para provar rejeição explícita sem truncamento. As exportações comuns estão funcionais; falta somente esse dataset para a linha 61. Não se criou massa de pedidos. Os BLOCKED **5, 6, 35, 46, 47 e 73** mantêm os motivos específicos das seções históricas.
 
 **Resultado consolidado da matriz 1–73 neste SHA: 66 PASS / 0 FAIL / 7 BLOCKED.** Apenas 58–60 mudaram de FAIL para PASS nesta rodada, com prova nos arquivos e na interface. **Não resta blocker funcional de exportação para merge**; os sete BLOCKED são limites de cobertura ainda não resolvidos e não foram promovidos a PASS. Histórico anterior e bugs encontrados permanecem documentados, sem alteração de código, Spec ou plano. Não houve merge, PR ready nem produção.
+
+
+## Aceite dos limites remanescentes e fechamento pré-merge — 26/09/2026
+
+Após a re-homologação do SHA de aplicação `a9d8c33937a11022f9e308a6b5bedf48cea66b64`, a matriz ficou em **66 PASS / 0 FAIL / 7 BLOCKED**. Os sete BLOCKED são as linhas **5, 6, 35, 46, 47, 61 e 73** e mantêm exatamente os motivos documentados em `reporting-center-qa.md`.
+
+A pessoa usuária autorizou explicitamente tratar esses sete itens como **blockers não produtivos aceitos para esta entrega**. Eles não foram convertidos em PASS e nenhuma evidência ausente foi inferida.
+
+Consequências do aceite:
+
+- a homologação funcional não possui FAIL aberto;
+- não há blocker funcional conhecido para merge do Issue #34;
+- os limites ainda não comprovados continuam rastreados como BLOCKED;
+- a decisão satisfaz a cláusula do plano que permite PASS ou blocker não produtivo explicitamente aceito para o fechamento da feature candidate;
+- merge continua dependendo de autorização explícita separada;
+- produção continua **NO DEPLOY** e depende de autorização explícita posterior.
+
+Evidência da aplicação homologada:
+
+- application SHA: `a9d8c33937a11022f9e308a6b5bedf48cea66b64`;
+- Validate application #2165 / run `36247093889`: **SUCCESS**;
+- Deploy staging #417 / run `36247090546`, attempt 2: **SUCCESS**;
+- re-homologação final das exportações: linhas 58, 59 e 60 **PASS**;
+- matriz vigente: **66 PASS / 0 FAIL / 7 BLOCKED aceitos**;
+- review threads conhecidos: **0 unresolved** antes deste fechamento.
+
+O commit documental `fbb2285774e917dc31cf7287837b93f108681eb4` preservou a re-homologação final e disparou os gates documentais subsequentes. Este fechamento adiciona apenas documentação/estado de entrega; não altera código de aplicação, Spec ou plano.
