@@ -2,6 +2,7 @@ import Icon from '../../../../shared/ui/Icon.jsx'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
 import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
 import { ReportingState } from '../ReportingState.jsx'
+import { ReportingInfoTip } from '../ReportingInfoTip.jsx'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
@@ -90,7 +91,7 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
     <div className="reporting-overview-grid">
       <section className="surface-card reporting-panel reporting-overview-panel">
         <div className="reporting-panel-heading">
-          <div><span className="section-kicker">Desempenho</span><h2>Evolução contra o período anterior</h2></div>
+          <div><span className="section-kicker">Desempenho</span><div className="reporting-heading-with-info"><h2>Evolução contra o período anterior</h2><ReportingInfoTip helpKey="Evolução contra o período anterior" /></div></div>
           <span className="reporting-panel-badge">Atual x anterior</span>
         </div>
         {hasOverviewComparison ? <div className="reporting-comparison-visual-list">
@@ -111,7 +112,7 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
         <div className="reporting-panel-heading reporting-overview-financial-heading">
           <div>
             <span className="section-kicker">Financeiro</span>
-            <h2>Recebido x a receber</h2>
+            <div className="reporting-heading-with-info"><h2>Recebido x a receber</h2><ReportingInfoTip helpKey="Recebido x a receber" /></div>
             <p>{financialTotal ? `${number.format(receivedShare)}% do total financeiro já recebido` : 'Sem movimento financeiro no período'}</p>
           </div>
         </div>
@@ -126,8 +127,8 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
           </div>
         </div>
         <div className="reporting-overview-financial-stats">
-          <div><span>Total financeiro</span><strong>{moneyValue(financialTotal)}</strong></div>
-          <div><span>Pedidos pendentes</span><strong>{metrics.receivableCount ?? 0}</strong></div>
+          <div><span className="reporting-mini-label-with-info">Total financeiro<ReportingInfoTip helpKey="Total financeiro" /></span><strong>{moneyValue(financialTotal)}</strong></div>
+          <div><span className="reporting-mini-label-with-info">Pedidos pendentes<ReportingInfoTip helpKey="Pedidos pendentes" /></span><strong>{metrics.receivableCount ?? 0}</strong></div>
         </div>
         <div className="reporting-overview-footer">
           <span>{metrics.receivableCount ?? 0} pedido(s) pendente(s) no recorte</span>

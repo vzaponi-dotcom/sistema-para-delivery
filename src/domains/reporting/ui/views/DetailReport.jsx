@@ -4,6 +4,7 @@ import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
 import { ReportingState } from '../ReportingState.jsx'
 import { ReportingOrderDrawer } from '../detail/ReportingOrderDrawer.jsx'
+import { ReportingInfoTip } from '../ReportingInfoTip.jsx'
 import { getReportingOrderReference } from '../detail/reportingOrderReference.js'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cents || 0) / 100)
@@ -161,7 +162,7 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
     <section className="surface-card reporting-panel reporting-detail-panel">
       <div className="reporting-detail-header">
         <div>
-          <h2>Pedidos ({data?.total ?? 0})</h2>
+          <div className="reporting-heading-with-info"><h2>Pedidos ({data?.total ?? 0})</h2><ReportingInfoTip helpKey="Pedidos detalhados" /></div>
           <p>Detalhamento dos pedidos no período selecionado.</p>
         </div>
         <div className="reporting-detail-header-actions">

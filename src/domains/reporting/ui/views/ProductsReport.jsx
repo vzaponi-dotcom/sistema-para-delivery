@@ -1,6 +1,7 @@
 import Icon from '../../../../shared/ui/Icon.jsx'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
 import { ReportingState } from '../ReportingState.jsx'
+import { ReportingInfoTip } from '../ReportingInfoTip.jsx'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cents || 0) / 100)
 const number = (value) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(value || 0))
@@ -23,7 +24,7 @@ function ProductsMetricTextCard({ label, value, detail, icon = 'products' }) {
   return <article className="surface-card reporting-metric-card reporting-products-text-metric">
     <div className="reporting-metric-heading">
       <span className="reporting-metric-icon"><Icon name={icon} size={18} /></span>
-      <span className="reporting-metric-label">{label}</span>
+      <span className="reporting-metric-label-wrap"><span className="reporting-metric-label">{label}</span><ReportingInfoTip helpKey={label} /></span>
     </div>
     <strong>{value}</strong>
     <small className="reporting-comparison"><span>{detail}</span></small>
@@ -34,7 +35,7 @@ function PanelHeading({ icon, title, badge }) {
   return <div className="reporting-panel-heading reporting-products-panel-heading">
     <div className="reporting-products-heading-title">
       <span className="reporting-products-heading-icon"><Icon name={icon} size={17} /></span>
-      <h2>{title}</h2>
+      <div className="reporting-heading-with-info"><h2>{title}</h2><ReportingInfoTip helpKey={title} /></div>
     </div>
     {badge ? <span className="reporting-panel-badge">{badge}</span> : null}
   </div>
@@ -178,7 +179,7 @@ export function ProductsReport({ state, onDrilldown = () => {} }) {
           <article className="reporting-products-insight reporting-products-insight-primary">
             <span className="reporting-products-insight-icon"><Icon name="chart" size={18} /></span>
             <div>
-              <span>Concentração do Top 10</span>
+              <span className="reporting-insight-label-with-info">Concentração do Top 10<ReportingInfoTip helpKey="Concentração do Top 10" /></span>
               <strong>{percentage(top10SharePercent)}</strong>
               <p>da receita de mercadoria está concentrada nos 10 produtos líderes do período.</p>
             </div>
@@ -186,7 +187,7 @@ export function ProductsReport({ state, onDrilldown = () => {} }) {
           <article className="reporting-products-insight">
             <span className="reporting-products-insight-icon"><Icon name="package" size={18} /></span>
             <div>
-              <span>Maior volume</span>
+              <span className="reporting-insight-label-with-info">Maior volume<ReportingInfoTip helpKey="Maior volume" /></span>
               <strong>{topByUnits?.name || 'Sem vendas'}</strong>
               <p>{topByUnits ? `${number(topByUnits.quantity)} unidades vendidas no período.` : 'Não há produto com vendas no período selecionado.'}</p>
             </div>
@@ -194,7 +195,7 @@ export function ProductsReport({ state, onDrilldown = () => {} }) {
           <article className="reporting-products-insight">
             <span className="reporting-products-insight-icon"><Icon name="arrow-up" size={18} /></span>
             <div>
-              <span>Destaque de crescimento</span>
+              <span className="reporting-insight-label-with-info">Destaque de crescimento<ReportingInfoTip helpKey="Destaque de crescimento" /></span>
               <strong>{topGrowth?.name || 'Comparação indisponível'}</strong>
               <p>{topGrowth ? `${topGrowth.growthValue > 0 ? '+' : ''}${percentage(topGrowth.growthValue)} em relação ao período comparável.` : 'O período não possui base comparável suficiente.'}</p>
             </div>
