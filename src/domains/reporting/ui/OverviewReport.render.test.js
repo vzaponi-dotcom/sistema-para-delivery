@@ -42,8 +42,8 @@ test('overview replaces misleading bars with a neutral state when comparison is 
       warnings: [],
     },
   })
-  const notes = renderer.root.findAll((node) => node.props?.className === 'reporting-comparison-unavailable')
-  assert.equal(notes.length, 4)
-  assert.match(nodeText(renderer.root), /Comparação indisponível para este recorte/)
+  assert.match(nodeText(renderer.root), /Sem período comparável/)
+  assert.match(nodeText(renderer.root), /base anterior equivalente/)
   assert.equal(renderer.root.findAll((node) => node.props?.className === 'reporting-comparison-bars').length, 0)
+  assert.equal(renderer.root.findAll((node) => node.props?.className === 'reporting-comparison-unavailable').length, 0)
 })
