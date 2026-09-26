@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Icon from '../../../../shared/ui/Icon.jsx'
 import { reportingApi } from '../../infrastructure/reportingApi.js'
 import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
+import { getReportingOrderReference } from './reportingOrderReference.js'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cents || 0) / 100)
 const statusClass = (status = '') => status === 'Cancelado'
@@ -44,17 +45,20 @@ export function ReportingOrderDrawer({ id, onClose, api = reportingApi }) {
     : 'Não informado'
   const adjustmentAmount = Number(order?.adjustment_amount_cents || 0)
   const hasSubtotal = order?.subtotal_cents !== null && order?.subtotal_cents !== undefined
+  const orderReference = order
+    ? getReportingOrderReference(order)
+    : { title: `Pedido ${id}`, aria: `pedido ${id}`, meta: null }
 
-  return <aside className="reporting-order-drawer" role="dialog" aria-modal="true" aria-label={`Pedido ${id}`}>
+  return <aside className="reporting-order-drawer" role="dialog" aria-modal="true" aria-label={`Detalhes do ${orderReference.aria}`}>
     <div className="reporting-drawer-header">
       <div className="reporting-drawer-title">
         <span className="reporting-drawer-title-icon"><Icon name="orders" size={19} /></span>
         <div>
           <div className="reporting-drawer-title-line">
-            <h2>Pedido #{order?.order_number ?? id}</h2>
+            <h2>{orderReference.title}</h2>
             {order ? <span className={`reporting-detail-status ${statusClass(order.status)}`}>{order.status}</span> : null}
           </div>
-          {order ? <p>{order.order_date} · {order.type}</p> : null}
+          {order ? <p>{orderReference.meta ? `${orderReference.meta} · ` : ''}{order.order_date} · {order.type}</p> : null}
         </div>
       </div>
       <button className="reporting-drawer-close" type="button" onClick={onClose} aria-label="Fechar detalhes">×</button>
