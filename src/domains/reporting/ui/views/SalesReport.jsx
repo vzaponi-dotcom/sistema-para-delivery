@@ -1,4 +1,5 @@
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
+import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
 import { ReportingState } from '../ReportingState.jsx'
 import Icon from '../../../../shared/ui/Icon.jsx'
 
@@ -111,7 +112,7 @@ function ReceivablePanel({ data }) {
       return width > 0 ? <span key={segment.key} className={`is-${segment.tone}`} style={{ width: `${width}%` }} /> : null
     })}</div>
     <div className="reporting-receivable-breakdown">{segments.map((segment) => <div key={segment.key}><span><i className={`reporting-receivable-dot is-${segment.tone}`} />{segment.label}</span><strong>{money(segment.value?.amountCents || 0)}</strong><small>{segment.value?.count || 0} pedido(s)</small></div>)}</div>
-    <a className="button secondary-button reporting-receivable-action" href="/financeiro/a-receber">Gerenciar em A receber</a>
+    <ReportingReceivableLink className="reporting-receivable-action" />
   </div>
 }
 
