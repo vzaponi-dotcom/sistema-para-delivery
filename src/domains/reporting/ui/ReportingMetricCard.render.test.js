@@ -15,3 +15,18 @@ test('metric card distinguishes unavailable from a genuine zero and presents its
   })
   assert.match(nodeText(compared.root), /50%/)
 })
+
+
+test('metric card can render a compact unavailable comparison for executive summaries', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { ReportingMetricCard } = await harness.load('/src/domains/reporting/ui/ReportingMetricCard.jsx')
+  const renderer = await harness.render(ReportingMetricCard, {
+    label: 'Pedidos',
+    value: 4,
+    kind: 'number',
+    compactComparison: true,
+    comparison: { available: false, previous: 0, delta: 4, percent: null, direction: 'higher_better' },
+  })
+  assert.match(nodeText(renderer.root), /Sem base anterior/)
+  assert.doesNotMatch(nodeText(renderer.root), /Comparação indisponível/)
+})
