@@ -17,6 +17,14 @@ export function validateExportColumns(columns) {
   return columns
 }
 
+const exportCellValue = (item, key) => {
+  if (key === 'order_number' && (item?.order_number === null || item?.order_number === undefined || String(item.order_number).trim() === '')) {
+    const shortId = String(item?.id || '').trim().slice(0, 8)
+    return shortId ? `Sem nº · ${shortId}` : 'Sem nº'
+  }
+  return item?.[key] ?? null
+}
+
 export function createExportModel({ query, report, detail, columns, operation = null, generatedAt = new Date().toISOString() }) {
   if (detail.total > EXPORT_LIMIT) throw apiError(422, 'REPORTING_EXPORT_LIMIT', 'Mais de 10.000 pedidos. Reduza o período ou os filtros para exportar.')
   const keys = validateExportColumns(columns)
@@ -24,7 +32,7 @@ export function createExportModel({ query, report, detail, columns, operation = 
     title: 'Centro de Relatórios', view: query.view, generatedAt, timezone: 'America/Sao_Paulo', operation,
     period: { from: query.from, to: query.to, preset: query.period }, filters: query,
     columnKeys: keys, columns: keys.map((key) => EXPORT_COLUMNS[key]),
-    rows: detail.items.map((item) => keys.map((key) => item[key] ?? null)), rowCount: detail.total,
+    rows: detail.items.map((item) => keys.map((key) => exportCellValue(item, key))), rowCount: detail.total,
     summary: report.data, comparison: report.comparison ?? null,
     quality: report.quality ?? {}, warnings: report.warnings ?? [],
   }
