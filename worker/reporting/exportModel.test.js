@@ -37,3 +37,51 @@ test('export model preserves a stable reference for orders without order_number'
   })
   assert.deepEqual(model.rows, [['Sem nº · f9a1cb3b']])
 })
+
+
+test('default data export is one detailed row per order with customer, modality and payment context', async () => {
+  const { createExportModel, REPORTING_DATA_EXPORT_COLUMNS } = await import('./exportModel.js')
+  const model = createExportModel({
+    query: { view: 'overview', period: 'custom', from: '2026-09-01', to: '2026-09-30' },
+    report: { data: { metrics: {} } },
+    detail: {
+      total: 1,
+      items: [{
+        id: 'o1',
+        order_number: 42,
+        order_date: '2026-09-10',
+        created_at: '2026-09-10T15:30:00Z',
+        client_name_snapshot: 'Ana',
+        client_phone_snapshot: '11999999999',
+        type: 'Entrega',
+        scheduled_for: '2026-09-10T16:00:00Z',
+        status: 'Finalizado',
+        subtotal_cents: 9000,
+        delivery_fee_cents: 1000,
+        adjustment_type: 'discount',
+        adjustment_amount_cents: 500,
+        total_cents: 9500,
+        paidCents: 9500,
+        pendingCents: 0,
+        payment_label: 'Pix,Dinheiro',
+        promised_payment_date: null,
+        durationMinutes: 35,
+        onTime: true,
+      }],
+    },
+  })
+
+  assert.deepEqual(model.columnKeys, REPORTING_DATA_EXPORT_COLUMNS)
+  assert.equal(model.rowCount, 1)
+  const row = Object.fromEntries(model.columnKeys.map((key, index) => [key, model.rows[0][index]]))
+  assert.equal(row.order_number, 42)
+  assert.equal(row.client_name_snapshot, 'Ana')
+  assert.equal(row.client_phone_snapshot, '11999999999')
+  assert.equal(row.type, 'Entrega')
+  assert.equal(row.scheduleLabel, 'Agendado')
+  assert.equal(row.adjustment_type, 'Desconto')
+  assert.equal(row.paymentState, 'Pago')
+  assert.equal(row.payment_label, 'Pix + Dinheiro')
+  assert.equal(row.durationMinutes, 35)
+  assert.equal(row.onTime, true)
+})
