@@ -71,6 +71,7 @@ test('business profile GET requires view capability, uses context business and n
 test('business profile receipt lookup requires manage while invalid receipt resources remain rejected', async (t) => {
   const { db, close } = createSettingsDb()
   t.after(close)
+  const receiptNow = new Date()
 
   await saveBusinessProfile(db, BUSINESS, {
     expectedRevision: 1,
@@ -80,7 +81,7 @@ test('business profile receipt lookup requires manage while invalid receipt reso
       phone: '',
       address: { line: '', number: '', complement: '', neighborhood: '', city: '', state: '', postalCode: '' },
     },
-  }, undefined, NOW)
+  }, undefined, receiptNow)
 
   const reader = await resolveSettingsAccess(
     { businessId: BUSINESS, sessionId: 'profile-reader' },

@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const wrangler = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'))
 const validateWorkflow = readFileSync('.github/workflows/validate.yml', 'utf8')
-const stagingWorkflow = readFileSync('.github/workflows/deploy-staging.yml', 'utf8')
+const stagingWorkflow = readFileSync('.github/workflows/deploy-staging.yml', 'utf8').replace(/\r\n/g, '\n')
 
 const byBinding = (bindings, name) => bindings?.find((item) => item.binding === name)
 

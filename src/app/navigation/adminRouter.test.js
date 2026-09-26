@@ -44,6 +44,11 @@ test('Task 2 RED: admin data router resolves semantic destinations without remou
   assert.equal(mounts, 1)
   assert.equal(unmounts, 0)
 
+  await act(async () => { await router.navigate('/relatorios') })
+  assert.equal(renderer.root.findByType('output').children.join(''), 'reports')
+  assert.equal(mounts, 1)
+  assert.equal(unmounts, 0)
+
   await act(async () => { await router.navigate('/configuracoes/impressao') })
   assert.equal(renderer.root.findByType('output').children.join(''), 'settings-printing')
   assert.equal(mounts, 1)
