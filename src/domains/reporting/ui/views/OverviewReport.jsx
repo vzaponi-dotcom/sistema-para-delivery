@@ -107,7 +107,7 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
         </div>}
       </section>
 
-      <section className="surface-card reporting-panel reporting-overview-panel">
+      <section className="surface-card reporting-panel reporting-overview-panel reporting-overview-financial-panel">
         <div className="reporting-panel-heading reporting-overview-financial-heading">
           <div>
             <span className="section-kicker">Financeiro</span>
