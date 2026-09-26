@@ -38,12 +38,13 @@ test('App composes Reporting through its public boundary without operational col
   const source = await readFile(new URL('../../App.jsx', import.meta.url), 'utf8')
   assert.match(source, /from '\.\/domains\/reporting\/index\.js'/)
   assert.match(source, /IMPLEMENTED_DESTINATIONS[^\n]+['"]reports['"]/)
-  const rendered = source.match(/<ReportingWorkspace\b[^>]*\/>/)?.[0] || ''
-  assert.ok(rendered, 'ReportingWorkspace must be rendered by App')
-  assert.doesNotMatch(rendered, /\borders=/)
-  assert.doesNotMatch(rendered, /\bmovements=/)
-  assert.doesNotMatch(rendered, /\bproducts=/)
-  assert.doesNotMatch(rendered, /\bclients=/)
+  assert.match(source, /activeTab === 'reports' && <ReportingWorkspace granted=\{granted\}/)
+  const reportLine = source.split('\n').find((line) => line.includes("activeTab === 'reports'") && line.includes('<ReportingWorkspace')) || ''
+  assert.ok(reportLine, 'ReportingWorkspace must be rendered by App')
+  assert.doesNotMatch(reportLine, /\borders=/)
+  assert.doesNotMatch(reportLine, /\bmovements=/)
+  assert.doesNotMatch(reportLine, /\bproducts=/)
+  assert.doesNotMatch(reportLine, /\bclients=/)
 })
 
 test('reporting UI keeps official metric formulas in the Worker', async () => {
