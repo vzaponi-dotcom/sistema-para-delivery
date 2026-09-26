@@ -3647,3 +3647,66 @@
 .reporting-detail-clickable-row.is-selected {
   background: color-mix(in srgb, var(--primary) 10%, var(--surface));
 }
+
+
+/* Detailed reporting neutral controls */
+.reporting-detail-panel .reporting-detail-primary-filters .system-select-trigger,
+.reporting-detail-panel .reporting-detail-sort .system-select-trigger,
+.reporting-detail-panel .reporting-detail-more-panel .system-select-trigger,
+.reporting-detail-panel .reporting-detail-page-size .system-select-trigger {
+  color: var(--text-soft) !important;
+}
+
+.reporting-detail-panel .system-select-trigger svg {
+  color: var(--muted);
+}
+
+.reporting-detail-panel .system-select-trigger:hover:not(:disabled) {
+  color: var(--text) !important;
+}
+
+.reporting-detail-panel .system-select-dropdown button.system-select-option {
+  color: var(--text-soft) !important;
+}
+
+.reporting-detail-panel .system-select-dropdown button.system-select-option:hover,
+.reporting-detail-panel .system-select-dropdown button.system-select-option.active {
+  background: var(--surface-soft) !important;
+  color: var(--text) !important;
+}
+
+.reporting-detail-panel .system-select-dropdown button.system-select-option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-soft)) !important;
+  color: var(--text) !important;
+  font-weight: 800;
+}
+
+.reporting-detail-panel .system-select-dropdown button.system-select-option[aria-selected="true"] > svg {
+  color: var(--primary);
+}
+
+.reporting-detail-panel .reporting-detail-filter-chips button.reporting-detail-filter-chip {
+  border-color: color-mix(in srgb, var(--text-soft) 14%, var(--border)) !important;
+  background: var(--surface-soft) !important;
+  color: var(--text-soft) !important;
+}
+
+.reporting-detail-panel .reporting-detail-filter-chips button.reporting-detail-filter-chip:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border)) !important;
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-soft)) !important;
+  color: var(--text) !important;
+}
+
+.reporting-detail-panel .reporting-detail-filter-chips button.reporting-detail-clear-filters {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+}
+
+.reporting-detail-panel .reporting-detail-filter-chips button.reporting-detail-clear-filters:hover {
+  color: var(--primary) !important;
+}
+
+.reporting-detail-panel .reporting-detail-filter-chip > span:last-child {
+  color: var(--primary);
+}
