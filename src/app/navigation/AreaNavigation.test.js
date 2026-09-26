@@ -22,27 +22,34 @@ test('AreaNavigation usa contexto e marca destino ativo', async (t) => {
   assert.deepEqual(calls, ['orders'])
 })
 
+test('Financeiro keeps Relatórios in desktop area navigation', async (t) => {
+  const h = await workspaceHarness(t)
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
+  const renderer = await h.render(NavigationProvider, {
+    activeTab: 'reports',
+    granted: new Set(['finance.overview', 'reports.view', 'finance.receivables', 'finance.movements']),
+    implemented: new Set(['dashboard', 'reports', 'receivables', 'finance']),
+    moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(AreaNavigation, { area: 'finance' }),
+  })
+  const labels = renderer.root.findAllByType('button').map((button) => button.children.join(''))
+  assert.deepEqual(labels, ['Visão geral', 'Relatórios', 'A receber', 'Movimentações'])
+})
 
-test('Financeiro keeps Relatórios on desktop and removes it from mobile area navigation', async (t) => {
-  const granted = new Set(['finance.overview', 'reports.view', 'finance.receivables', 'finance.movements'])
-  const implemented = new Set(['dashboard', 'reports', 'receivables', 'finance'])
-
-  for (const mobile of [false, true]) {
-    const h = await workspaceHarness(t, { mobile })
-    const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
-    const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
-    const renderer = await h.render(NavigationProvider, {
-      activeTab: mobile ? 'dashboard' : 'reports',
-      granted,
-      implemented,
-      moreOpen: false,
-      requestNavigation() {}, openMore() {}, closeMore() {},
-      children: React.createElement(AreaNavigation, { area: 'finance' }),
-    })
-    const labels = renderer.root.findAllByType('button').map((button) => button.children.join(''))
-    assert.equal(labels.includes('Visão geral'), true)
-    assert.equal(labels.includes('Relatórios'), !mobile)
-    assert.equal(labels.includes('A receber'), true)
-    assert.equal(labels.includes('Movimentações'), true)
-  }
+test('Financeiro removes Relatórios from mobile area navigation', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
+  const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
+  const renderer = await h.render(NavigationProvider, {
+    activeTab: 'dashboard',
+    granted: new Set(['finance.overview', 'reports.view', 'finance.receivables', 'finance.movements']),
+    implemented: new Set(['dashboard', 'reports', 'receivables', 'finance']),
+    moreOpen: false,
+    requestNavigation() {}, openMore() {}, closeMore() {},
+    children: React.createElement(AreaNavigation, { area: 'finance' }),
+  })
+  const labels = renderer.root.findAllByType('button').map((button) => button.children.join(''))
+  assert.deepEqual(labels, ['Visão geral', 'A receber', 'Movimentações'])
 })
