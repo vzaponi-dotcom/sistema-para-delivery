@@ -24,6 +24,11 @@ const enrichDetail = (row) => {
 const compareDetail = (sort) => (left, right) => {
   const direction = sort?.endsWith('-asc') ? 1 : -1
   const field = sort?.startsWith('total') ? 'total_cents' : sort?.startsWith('duration') ? 'durationMinutes' : 'order_date'
+  if (field === 'durationMinutes') {
+    const leftMissing = left.durationMinutes === null || left.durationMinutes === undefined
+    const rightMissing = right.durationMinutes === null || right.durationMinutes === undefined
+    if (leftMissing !== rightMissing) return leftMissing ? 1 : -1
+  }
   const a = left[field] ?? -Infinity
   const b = right[field] ?? -Infinity
   const result = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b))
