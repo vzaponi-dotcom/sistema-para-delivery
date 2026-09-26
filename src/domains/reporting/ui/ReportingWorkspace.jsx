@@ -34,7 +34,9 @@ export function ReportingWorkspace({ granted }) {
         <ReportingFilters
           query={query}
           onChange={patchQuery}
-          exportAction={<ReportingExportMenu query={query} columns={columns} granted={granted} />}
+          exportAction={granted instanceof Set && granted.has('reports.export')
+            ? <ReportingExportMenu query={query} columns={columns} granted={granted} />
+            : null}
         />
 
         <ReportingTabs
