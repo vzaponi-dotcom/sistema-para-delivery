@@ -136,8 +136,24 @@ export const createReportingService = (repository) => Object.freeze({
     }
   },
   async detail(businessId, query) {
-    const result = await repository.listDetail(businessId, query)
-    return { data: { ...result, page: query.page, pageSize: query.pageSize, sort: query.sort || 'date-desc', totalPages: Math.ceil(result.total / query.pageSize) }, quality: {} }
+    const priorQuery = { ...query, ...previousReportingPeriod(query), page: 1 }
+    const [result, summary, priorSummary] = await Promise.all([
+      repository.listDetail(businessId, query),
+      repository.loadDetailSummary(businessId, query),
+      repository.loadDetailSummary(businessId, priorQuery),
+    ])
+    return {
+      data: {
+        ...result,
+        summary,
+        page: query.page,
+        pageSize: query.pageSize,
+        sort: query.sort || 'date-desc',
+        totalPages: Math.ceil(result.total / query.pageSize),
+      },
+      comparison: compareMetrics(summary, priorSummary),
+      quality: {},
+    }
   },
   async orderDetail(businessId, id) {
     return { data: await repository.getOrderDetail(businessId, id), quality: {} }
