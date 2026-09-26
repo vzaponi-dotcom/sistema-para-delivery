@@ -8,7 +8,8 @@ const TYPE_OPTIONS = [
   { value: 'Local', label: 'Local' },
 ]
 const PERIODS = [
-  ['today', 'Hoje'], ['7-days', '7 dias'], ['30-days', '30 dias'], ['current-month', 'Mês atual'],
+  ['today', 'Hoje'], ['7-days', '7 dias'], ['30-days', '30 dias'],
+  ['current-month', 'Mês atual'], ['previous-month', 'Mês anterior'],
 ]
 const SCHEDULE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'immediate', label: 'Imediato' }, { value: 'scheduled', label: 'Agendado' }]
 const PAYMENT_OPTIONS = [{ value: '', label: 'Todas as formas' }, { value: 'pix', label: 'Pix' }, { value: 'cash', label: 'Dinheiro' }, { value: 'credit_card', label: 'Cartão de crédito' }, { value: 'debit_card', label: 'Cartão de débito' }, { value: 'transfer', label: 'Transferência' }, { value: 'other', label: 'Outros' }]
