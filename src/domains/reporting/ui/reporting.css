@@ -3597,3 +3597,32 @@
   justify-content: flex-end;
   text-align: right;
 }
+
+
+/* Detail payment state */
+.reporting-detail-payment-state {
+  min-height: 23px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .64rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.reporting-detail-payment-state.is-paid {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+}
+
+.reporting-detail-payment-state.is-unpaid {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+}
+
+.reporting-detail-payment-state.is-neutral {
+  background: var(--surface-strong);
+  color: var(--muted);
+}
