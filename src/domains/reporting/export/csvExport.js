@@ -1,3 +1,5 @@
+import { REPORTING_EXPORT_FILTER_LABELS, formatReportingExportFilterValue } from './reportingExportPresentation.js'
+
 const escape = (value) => {
   const text = String(value ?? '')
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
@@ -18,9 +20,13 @@ export function exportReportingCsv(model) {
   }
   const rows = model.rows.map((row) => row.map((value, index) => format(value, model.columnKeys[index])))
   const metadata = [
-    ['Relatório', model.title], ['Período', `${model.period.from} a ${model.period.to}`],
+    ['Relatório', model.title],
+    ...(model.operation?.name ? [['Operação', model.operation.name]] : []),
+    ['Período', `${model.period.from} a ${model.period.to}`],
     ['Gerado em', model.generatedAt], ['Timezone', model.timezone],
-    ...Object.entries(model.filters || {}).filter(([key, value]) => !['view', 'from', 'to', 'period', 'page', 'pageSize'].includes(key) && value != null && value !== '').map(([key, value]) => [key, value]),
+    ...Object.entries(model.filters || {})
+      .filter(([key, value]) => !['view', 'from', 'to', 'period', 'page', 'pageSize'].includes(key) && value != null && value !== '')
+      .map(([key, value]) => [REPORTING_EXPORT_FILTER_LABELS[key] || key, formatReportingExportFilterValue(key, value)]),
     [],
   ]
   return exportCsv({ columns: model.columns, rows: [...rows] }).replace(/^\uFEFF/, `\uFEFF${metadata.map((row) => row.map(escape).join(',')).join('\r\n')}\r\n`)
