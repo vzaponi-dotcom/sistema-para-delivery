@@ -4978,3 +4978,10 @@
     transform: none;
   }
 }
+
+
+/* Receivable badge semantics */
+.reporting-detail-status.is-warning {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+}

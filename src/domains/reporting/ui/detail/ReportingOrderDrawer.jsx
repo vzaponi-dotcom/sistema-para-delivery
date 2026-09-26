@@ -29,11 +29,13 @@ const time = (value) => {
   if (Number.isNaN(parsed.getTime())) return '—'
   return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(parsed)
 }
-const statusClass = (status = '') => status === 'Cancelado'
+const LEGACY_FINISHED = new Set(['Entregue', 'Despachado'])
+const displayStatus = (status = '') => LEGACY_FINISHED.has(status) ? 'Finalizado' : status
+const statusClass = (status = '') => displayStatus(status) === 'Cancelado'
   ? 'is-danger'
-  : status === 'Em preparo'
+  : displayStatus(status) === 'Em preparo'
     ? 'is-info'
-    : ['Finalizado', 'Entregue', 'Despachado'].includes(status)
+    : displayStatus(status) === 'Finalizado'
       ? 'is-success'
       : 'is-neutral'
 const typeIcon = (type) => type === 'Retirada' ? 'pickup' : type === 'Local' ? 'table' : 'delivery'
@@ -50,7 +52,7 @@ const categoryIcon = (category = '') => {
   return 'package'
 }
 const paymentIcon = (label = '') => String(label).toLocaleLowerCase('pt-BR').includes('pix') ? 'pix' : 'card'
-const TERMINAL = new Set(['Finalizado', 'Entregue', 'Despachado'])
+const TERMINAL = new Set(['Finalizado', ...LEGACY_FINISHED])
 
 const elapsedMinutes = (order) => {
   if (!order?.created_at) return null
@@ -243,7 +245,9 @@ function ClientOrders({ order, context, filter, onFilter, onSelectOrder }) {
           <span className="reporting-client-order-title"><strong>{getReportingOrderReference(item).title}</strong>{current ? <em>Pedido atual</em> : null}</span>
           <span><Icon name="calendar" size={14} />{date(item.order_date)} · <Icon name={typeIcon(item.type)} size={14} />{item.type || '—'}</span>
         </span>
-        <span className="reporting-client-order-side"><strong>{money(item.total_cents)}</strong><span className={`reporting-detail-status ${statusClass(item.status)}`}>{item.status || '—'}</span></span>
+        <span className="reporting-client-order-side"><strong>{money(item.total_cents)}</strong>{filter === 'receivable'
+          ? <span className={`reporting-detail-status ${Number(item.paidCents || 0) > 0 ? 'is-warning' : 'is-danger'}`}>{Number(item.paidCents || 0) > 0 ? 'Parcial' : 'Não pago'}</span>
+          : <span className={`reporting-detail-status ${statusClass(item.status)}`}>{displayStatus(item.status) || '—'}</span>}</span>
         <span className="reporting-client-order-chevron" aria-hidden="true">›</span>
       </button>
     }) : <div className="reporting-client-order-empty">Nenhum pedido neste filtro.</div>}</div>

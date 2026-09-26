@@ -117,3 +117,19 @@ test('detail gives orders without order_number a stable readable reference inste
   assert.match(textAfter, /ID f9a1cb3b/)
   assert.doesNotMatch(textAfter, /#null|pedido null/i)
 })
+
+
+test('detail status selector exposes only current operational statuses', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { DetailReport } = await harness.load('/src/domains/reporting/ui/views/DetailReport.jsx')
+  const renderer = await harness.render(DetailReport, {
+    state: {
+      data: { total: 0, page: 1, pageSize: 25, totalPages: 0, items: [], summary: { ordersCount: 0, salesCents: 0, averageTicketCents: null, cancellationRate: null } },
+      loading: false,
+    },
+    query: { page: 1, pageSize: 25, sort: 'date-desc' },
+    onChange() {},
+  })
+  const text = nodeText(renderer.root)
+  assert.doesNotMatch(text, /Despachado|Entregue/)
+})

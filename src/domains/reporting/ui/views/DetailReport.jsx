@@ -31,7 +31,7 @@ const COLUMNS = [
   ['durationMinutes', 'Duração'], ['onTime', 'Prazo'],
 ]
 export const DEFAULT_DETAIL_COLUMNS = COLUMNS.map(([key]) => key)
-const STATUS_OPTIONS = [{ value: '', label: 'Todos' }, ...['Em preparo', 'Finalizado', 'Entregue', 'Despachado', 'Cancelado'].map((value) => ({ value, label: value }))]
+const STATUS_OPTIONS = [{ value: '', label: 'Todos' }, ...['Em preparo', 'Finalizado', 'Cancelado'].map((value) => ({ value, label: value }))]
 const TYPE_OPTIONS = [{ value: '', label: 'Todas' }, ...['Entrega', 'Retirada', 'Local'].map((value) => ({ value, label: value }))]
 const SCHEDULE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'immediate', label: 'Imediato' }, { value: 'scheduled', label: 'Agendado' }]
 const DEADLINE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'on-time', label: 'No prazo' }, { value: 'late', label: 'Atrasado' }]

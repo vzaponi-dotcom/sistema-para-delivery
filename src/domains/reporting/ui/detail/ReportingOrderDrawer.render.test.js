@@ -23,7 +23,7 @@ const order = {
     orders: [
       { id: 'o186', order_number: 186, order_date: '2026-09-25', created_at: '2026-09-25T22:42:00Z', type: 'Retirada', status: 'Em preparo', total_cents: 15500, paidCents: 0, pendingCents: 15500 },
       { id: 'o173', order_number: 173, order_date: '2026-09-18', created_at: '2026-09-18T20:00:00Z', type: 'Entrega', status: 'Finalizado', total_cents: 8200, paidCents: 8200, pendingCents: 0 },
-      { id: 'o172', order_number: 172, order_date: '2026-09-17', created_at: '2026-09-17T20:00:00Z', type: 'Entrega', status: 'Finalizado', total_cents: 5000, paidCents: 0, pendingCents: 5000 },
+      { id: 'o172', order_number: 172, order_date: '2026-09-17', created_at: '2026-09-17T20:00:00Z', type: 'Entrega', status: 'Finalizado', total_cents: 5000, paidCents: 2000, pendingCents: 3000 },
       { id: 'o119', order_number: 119, order_date: '2026-09-02', created_at: '2026-09-02T20:00:00Z', type: 'Entrega', status: 'Cancelado', total_cents: 9300, paidCents: 0, pendingCents: 0 },
     ],
   },
@@ -82,6 +82,10 @@ test('reporting order drawer implements Details, History, Client and client-orde
 
   await act(async () => filterButton('A receber').props.onClick())
   assert.deepEqual(visibleClientOrders(), ['Pedido #186', 'Pedido #172'])
+  const receivableRows = renderer.root.findAll((node) => typeof node.props?.className === 'string' && node.props.className.includes('reporting-client-order-row'))
+  assert.match(nodeText(receivableRows[0]), /Não pago/)
+  assert.match(nodeText(receivableRows[1]), /Parcial/)
+  assert.doesNotMatch(nodeText(receivableRows[0]), /Finalizado/)
 
   await act(async () => filterButton('Cancelados').props.onClick())
   assert.deepEqual(visibleClientOrders(), ['Pedido #119'])
