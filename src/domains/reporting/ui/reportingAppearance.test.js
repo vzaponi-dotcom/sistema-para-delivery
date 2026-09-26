@@ -18,4 +18,8 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /reporting-products-insights[\s\S]*grid-template-rows:\s*repeat\(3, minmax\(0, 1fr\)\)/)
   assert.match(css, /reporting-detail-panel[\s\S]*system-select-trigger[\s\S]*color:\s*var\(--text-soft\)\s*!important/)
   assert.match(css, /reporting-detail-filter-chips button\.reporting-detail-filter-chip[\s\S]*background:\s*var\(--surface-soft\)\s*!important/)
+  assert.match(css, /reporting-filter-toolbar[\s\S]*grid-template-columns/)
+  assert.match(css, /reporting-date-range-compact[\s\S]*min-height:\s*40px/)
+  assert.match(css, /reporting-detail-more-header/)
+  assert.match(css, /reporting-detail-more-grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
 })
