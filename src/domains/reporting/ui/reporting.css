@@ -374,30 +374,68 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 170px;
+  width: min(360px, calc(100vw - 32px));
   display: grid;
-  gap: 2px;
-  padding: 7px;
+  gap: 4px;
+  padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 13px;
   background: var(--surface);
   box-shadow: 0 18px 46px color-mix(in srgb, #000 24%, transparent);
 }
 
+.reporting-export-options-heading {
+  display: grid;
+  gap: 3px;
+  padding: 7px 9px 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reporting-export-options-heading strong {
+  color: var(--text);
+  font-size: .75rem;
+}
+
+.reporting-export-options-heading small {
+  color: var(--muted);
+  font-size: .62rem;
+  line-height: 1.4;
+}
+
 .reporting-export-options button {
-  min-height: 40px;
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   background: transparent;
   color: var(--text);
   text-align: left;
-  padding: 0 10px;
+  padding: 8px 10px;
   font: inherit;
   cursor: pointer;
 }
 
+.reporting-export-options button strong {
+  color: var(--text-soft);
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.reporting-export-options button small {
+  color: var(--muted);
+  font-size: .61rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .reporting-export-options button:hover {
   background: var(--surface-soft);
+}
+
+.reporting-export-options button:hover strong {
+  color: var(--text);
 }
 
 .reporting-export [role="alert"] {
@@ -4309,5 +4347,15 @@
 
   .reporting-receivable-action {
     justify-self: stretch;
+  }
+}
+
+
+/* Reporting export menu — detailed data first */
+@media (max-width: 820px) {
+  .reporting-export-options {
+    left: 0;
+    right: auto;
+    width: min(100%, calc(100vw - 24px));
   }
 }
