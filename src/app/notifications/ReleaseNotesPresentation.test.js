@@ -73,10 +73,27 @@ test('release tour keeps a large visual surface and responsive mobile navigation
 })
 
 
-test('release tour puts the release heading above media and the slide title below it', async () => {
+test('release tour keeps the automatic heading but avoids duplicate title in history mode', async () => {
   const source = await readFile(new URL('./ReleaseNotesModal.jsx', import.meta.url), 'utf8')
-  assert.match(source, /<h3>\{notification\.title\}<\/h3>/)
+  assert.match(source, /showTitle = true/)
+  assert.match(source, /\{showTitle && <h3>\{notification\.title\}<\/h3>\}/)
+  assert.match(source, /showTitle=\{automatic\}/)
+  assert.match(source, /is-history-mode/)
   assert.match(source, /<p>\{notification\.summary\}<\/p>/)
   assert.match(source, /release-tour-copy-text/)
   assert.match(source, /<h4>\{slide\.title\}<\/h4>/)
+})
+
+
+test('release tour media follows the approved artwork ratio and history heading stays compact', () => {
+  const media = rule('.release-tour-media')
+  const historyHeading = rule('.release-tour.is-history-mode .release-tour-heading')
+  const historySummary = rule('.release-tour.is-history-mode .release-tour-heading p')
+  const modalBody = rule('.release-notes-tour-modal .modal-body')
+
+  assert.match(media, /aspect-ratio:\s*1491\s*\/\s*1055/)
+  assert.match(historyHeading, /align-items:\s*center/)
+  assert.match(historySummary, /margin-top:\s*0/)
+  assert.match(modalBody, /overflow-y:\s*auto/)
+  assert.match(modalBody, /overflow-x:\s*hidden/)
 })
