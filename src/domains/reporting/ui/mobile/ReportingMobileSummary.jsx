@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useReportingData } from '../../application/useReportingData.js'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
 import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
+import { getReportingOrderReference } from '../detail/reportingOrderReference.js'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
 const forView = (query, view) => ({
@@ -38,6 +39,6 @@ export function ReportingMobileSummary({ query, detailState, onDrilldown = () =>
     <section className="surface-card reporting-panel"><h2>Top produtos</h2>{products.data?.top10?.length ? <ol>{products.data.top10.slice(0, 5).map((item) => <li key={item.id}><button type="button" onClick={() => onDrilldown(item.id)}>{item.name}</button><span>{item.quantity} un. · {money(item.revenueCents)}</span></li>)}</ol> : <p>{products.loading ? 'Carregando…' : 'Sem produtos no período.'}</p>}</section>
     <section className="surface-card reporting-panel"><h2>Resumo da operação</h2>{operation.data ? <p>{operation.data.operationalOrdersCount} pedidos · Tempo médio {operation.data.averageDurationMinutes ?? 'Indisponível'} min · Dentro do prazo {operation.data.withinDeadlineRate ?? 'Indisponível'}%</p> : <p>{operation.loading ? 'Carregando…' : 'Dados indisponíveis.'}</p>}{operation.warnings?.map((warning) => <p role="status" key={warning}>{warning}</p>)}</section>
     <section className="surface-card reporting-panel"><h2>Resumo de vendas</h2>{sales.data ? <p>Vendas {money(sales.data.salesCents)} · Recebido {money(sales.data.receivedCents)}</p> : <p>{sales.loading ? 'Carregando…' : 'Dados indisponíveis.'}</p>}</section>
-    {query.view === 'detail' ? <section className="surface-card reporting-panel"><h2>Pedidos detalhados</h2>{detailState.data?.items?.length ? <ul>{detailState.data.items.map((item) => <li key={item.id}>#{item.order_number} · {item.client_name_snapshot} · {money(item.total_cents)}</li>)}</ul> : <p>Nenhum pedido encontrado.</p>}<p>Colunas avançadas disponíveis na versão desktop.</p></section> : null}
+    {query.view === 'detail' ? <section className="surface-card reporting-panel"><h2>Pedidos detalhados</h2>{detailState.data?.items?.length ? <ul>{detailState.data.items.map((item) => <li key={item.id}>{getReportingOrderReference(item).compact} · {item.client_name_snapshot} · {money(item.total_cents)}</li>)}</ul> : <p>Nenhum pedido encontrado.</p>}<p>Colunas avançadas disponíveis na versão desktop.</p></section> : null}
   </div>
 }
