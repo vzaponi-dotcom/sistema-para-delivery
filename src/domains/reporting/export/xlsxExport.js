@@ -1,16 +1,14 @@
+import { REPORTING_EXPORT_FILTER_LABELS, formatReportingExportFilterValue } from './reportingExportPresentation.js'
+
 export async function createXlsxWorkbook(model) {
   const { default: { Workbook } } = await import('exceljs')
   const workbook = new Workbook()
   const summary = workbook.addWorksheet('Resumo')
   summary.addRow(['Relatório', model.title || 'Centro de Relatórios'])
+  if (model.operation?.name) summary.addRow(['Operação', model.operation.name])
   if (model.period) summary.addRow(['Período', `${model.period.from} a ${model.period.to}`])
   if (model.generatedAt) summary.addRow(['Gerado em', model.generatedAt])
   if (model.timezone) summary.addRow(['Fuso horário', model.timezone])
-  const filterLabels = {
-    type: 'Modalidade', paymentMethod: 'Forma de pagamento', status: 'Status',
-    schedule: 'Agendamento', category: 'Categoria', product: 'Produto', customer: 'Cliente',
-    search: 'Busca', operationalDeadline: 'Prazo operacional', receivable: 'A receber',
-  }
   const metricLabels = {
     salesCents: 'Vendas registradas', ordersCount: 'Pedidos', averageTicketCents: 'Ticket médio',
     receivedCents: 'Recebido no período', receivableCents: 'A receber',
@@ -26,9 +24,12 @@ export async function createXlsxWorkbook(model) {
     'merchandiseRevenueCents', 'deliveryFeesCents', 'discountCents', 'surchargeCents',
   ])
   for (const [key, value] of Object.entries(model.filters || {})) {
-    if (filterLabels[key] && value != null && value !== '') summary.addRow([filterLabels[key], String(value)])
+    if (REPORTING_EXPORT_FILTER_LABELS[key] && value != null && value !== '') {
+      summary.addRow([REPORTING_EXPORT_FILTER_LABELS[key], formatReportingExportFilterValue(key, value)])
+    }
   }
-  for (const [key, value] of Object.entries(model.summary?.metrics || model.summary || {})) {
+  const summaryMetrics = model.summary?.metrics || model.summary?.summary || model.summary || {}
+  for (const [key, value] of Object.entries(summaryMetrics)) {
     if (typeof value === 'number' || value === null) {
       const row = summary.addRow([metricLabels[key] || key, value == null ? 'Indisponível' : monetaryMetrics.has(key) ? value / 100 : value])
       if (monetaryMetrics.has(key) && value != null) row.getCell(2).numFmt = '"R$" #,##0.00'
