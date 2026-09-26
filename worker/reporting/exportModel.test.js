@@ -5,10 +5,12 @@ test('export model reuses official detail rows, selected columns and report summ
   const { createExportModel } = await import('./exportModel.js')
   const query = { view: 'sales', period: 'custom', from: '2026-09-01', to: '2026-09-10' }
   const model = createExportModel({ query, report: { data: { salesCents: 1234 }, quality: { count: 1 } },
-    detail: { total: 1, items: [{ order_number: 1, total_cents: 1234 }] }, columns: ['order_number', 'total_cents'], generatedAt: '2026-09-10T12:00:00Z' })
+    detail: { total: 1, items: [{ order_number: 1, total_cents: 1234 }] }, columns: ['order_number', 'total_cents'],
+    operation: { id: 'business-a', name: 'Amor & Sabor', slug: 'amor-sabor' }, generatedAt: '2026-09-10T12:00:00Z' })
   assert.deepEqual(model.columns, ['Pedido', 'Total'])
   assert.deepEqual(model.rows, [[1, 1234]])
   assert.equal(model.summary.salesCents, 1234)
+  assert.deepEqual(model.operation, { id: 'business-a', name: 'Amor & Sabor', slug: 'amor-sabor' })
   assert.equal(model.filters.from, '2026-09-01')
   assert.equal(model.timezone, 'America/Sao_Paulo')
 })
