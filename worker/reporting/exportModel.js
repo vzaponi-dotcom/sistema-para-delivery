@@ -53,6 +53,9 @@ const exportCellValue = (item, key) => {
     if (pending > 0) return 'Não pago'
     return null
   }
+  if (key === 'payment_label' && item?.payment_label) {
+    return String(item.payment_label).split(',').map((value) => value.trim()).filter(Boolean).join(' + ')
+  }
   return item?.[key] ?? null
 }
 
