@@ -29,10 +29,13 @@ export function ReportingWorkspace({ granted }) {
           eyebrow="Financeiro"
           title="Relatórios"
           description="Acompanhe o desempenho do negócio, compare períodos e investigue cada indicador sem sair do fluxo financeiro."
-          actions={<ReportingExportMenu query={query} columns={columns} granted={granted} />}
         />
 
-        <ReportingFilters query={query} onChange={patchQuery} />
+        <ReportingFilters
+          query={query}
+          onChange={patchQuery}
+          exportAction={<ReportingExportMenu query={query} columns={columns} granted={granted} />}
+        />
 
         <ReportingTabs
           value={query.view}
