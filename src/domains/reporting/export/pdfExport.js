@@ -37,7 +37,10 @@ const KPI = {
     ['unitsSold', 'Unidades vendidas', 'number'], ['mealsSold', 'Refeições vendidas', 'number'],
     ['merchandiseRevenueCents', 'Receita de mercadoria', 'money'],
   ],
-  detail: [['total', 'Pedidos encontrados', 'number']],
+  detail: [
+    ['ordersCount', 'Pedidos no período', 'number'], ['salesCents', 'Faturamento total', 'money'],
+    ['averageTicketCents', 'Ticket médio', 'money'], ['cancellationRate', 'Taxa de cancelamento', 'percent'],
+  ],
 }
 const format = (value, kind) => value == null ? 'Indisponível'
   : kind === 'money' ? money(value)
@@ -47,7 +50,7 @@ const format = (value, kind) => value == null ? 'Indisponível'
 
 export function buildPdfExecutiveSections(model = {}) {
   const summary = model.summary || model.metrics || {}
-  const metrics = summary.metrics || summary
+  const metrics = summary.metrics || summary.summary || summary
   const sections = [{ heading: 'Centro de Relatórios', lines: [
     `Gerado em: ${generated(model.generatedAt)}`,
     `Período: ${date(model.period?.from)} a ${date(model.period?.to)}`,
@@ -64,6 +67,16 @@ export function buildPdfExecutiveSections(model = {}) {
     .filter(([, value]) => typeof value === 'number' || typeof value === 'string' || value == null)
     .slice(0, 12).map(([key, value]) => `${key}: ${value ?? 'Indisponível'}`))
   sections.push({ heading: 'Indicadores principais', lines: indicators.length ? indicators : ['Sem indicadores para o recorte.'] })
+
+  const comparisonMetrics = model.comparison?.metrics || {}
+  const comparisonLines = definitions.flatMap(([key, label, kind]) => {
+    const comparison = comparisonMetrics[key]
+    if (!comparison) return []
+    if (!comparison.available || comparison.percent == null) return [`${label}: Sem base comparável`]
+    const sign = comparison.percent > 0 ? '+' : ''
+    return [`${label}: ${sign}${number(comparison.percent)}% vs. período anterior · anterior ${format(comparison.previous, kind)}`]
+  })
+  if (comparisonLines.length) sections.push({ heading: 'Comparação com período anterior', lines: comparisonLines })
 
   if (model.view === 'operation') {
     sections.push({ heading: 'Volume por modalidade', lines: (summary.byModality || []).map((item) => `${item.type}: ${number(item.count)} pedidos · tempo médio ${format(item.averageDurationMinutes, 'minutes')}`) })
