@@ -43,6 +43,10 @@ test('reporting order drawer implements Details, History, Client and client-orde
 
   assert.match(nodeText(renderer.root), /Informações do pedido/)
   const tab = (name) => renderer.root.findAllByType('button').find((button) => nodeText(button) === name)
+  const filterButton = (name) => renderer.root.findAllByType('button').find((button) => nodeText(button) === name)
+  const visibleClientOrders = () => renderer.root
+    .findAllByProps({ className: /reporting-client-order-row/ })
+    .map((row) => nodeText(row))
 
   await act(async () => tab('Histórico').props.onClick())
   const history = nodeText(renderer.root)
@@ -70,24 +74,19 @@ test('reporting order drawer implements Details, History, Client and client-orde
   assert.match(ordersText, /Pedido #173/)
   for (const filter of ['Todos', 'Em andamento', 'Finalizados', 'A receber', 'Cancelados']) assert.match(ordersText, new RegExp(filter))
 
-  await act(async () => renderer.root.findAllByType('button').find((button) => nodeText(button) === 'Em andamento').props.onClick())
-  const inProgressText = nodeText(renderer.root)
-  assert.match(inProgressText, /Pedido #186/)
-  assert.doesNotMatch(inProgressText, /Pedido #173|Pedido #172|Pedido #119/)
+  await act(async () => filterButton('Em andamento').props.onClick())
+  assert.deepEqual(visibleClientOrders().map((text) => text.match(/Pedido #\d+/)?.[0]), ['Pedido #186'])
 
-  await act(async () => renderer.root.findAllByType('button').find((button) => nodeText(button) === 'Finalizados').props.onClick())
-  const finishedText = nodeText(renderer.root)
-  assert.match(finishedText, /Pedido #173/)
-  assert.match(finishedText, /Pedido #172/)
-  assert.doesNotMatch(finishedText, /Pedido #186|Pedido #119/)
+  await act(async () => filterButton('Finalizados').props.onClick())
+  assert.deepEqual(visibleClientOrders().map((text) => text.match(/Pedido #\d+/)?.[0]), ['Pedido #173', 'Pedido #172'])
 
-  await act(async () => renderer.root.findAllByType('button').find((button) => nodeText(button) === 'A receber').props.onClick())
-  const receivableText = nodeText(renderer.root)
-  assert.match(receivableText, /Pedido #186/)
-  assert.match(receivableText, /Pedido #172/)
-  assert.doesNotMatch(receivableText, /Pedido #173|Pedido #119/)
+  await act(async () => filterButton('A receber').props.onClick())
+  assert.deepEqual(visibleClientOrders().map((text) => text.match(/Pedido #\d+/)?.[0]), ['Pedido #186', 'Pedido #172'])
 
-  await act(async () => renderer.root.findAllByType('button').find((button) => nodeText(button) === 'Todos').props.onClick())
+  await act(async () => filterButton('Cancelados').props.onClick())
+  assert.deepEqual(visibleClientOrders().map((text) => text.match(/Pedido #\d+/)?.[0]), ['Pedido #119'])
+
+  await act(async () => filterButton('Todos').props.onClick())
   const previous = renderer.root.findAllByType('button').find((button) => nodeText(button).includes('Pedido #173'))
   await act(async () => previous.props.onClick())
   assert.deepEqual(openedOrders, ['o173'])
