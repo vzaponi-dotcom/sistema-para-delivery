@@ -1,3 +1,5 @@
+import { REPORTING_EXPORT_FILTER_LABELS, formatReportingExportFilterValue } from './reportingExportPresentation.js'
+
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
 const number = (value) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value)
 const date = (value) => value ? String(value).split('-').reverse().join('/') : 'Indisponível'
@@ -5,12 +7,6 @@ const generated = (value) => value ? new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo',
 }).format(new Date(value)) : 'Indisponível'
 
-const FILTER_LABELS = {
-  type: 'Modalidade', paymentMethod: 'Forma de pagamento', status: 'Status',
-  schedule: 'Agendamento', category: 'Categoria', product: 'Produto',
-  customer: 'Cliente', search: 'Busca', operationalDeadline: 'Prazo operacional',
-  orderHourFrom: 'Hora inicial', orderHourTo: 'Hora final', receivable: 'A receber',
-}
 const SKIP_FILTERS = new Set(['view', 'from', 'to', 'period', 'page', 'pageSize', 'sort'])
 const KPI = {
   overview: [
@@ -52,13 +48,14 @@ export function buildPdfExecutiveSections(model = {}) {
   const summary = model.summary || model.metrics || {}
   const metrics = summary.metrics || summary.summary || summary
   const sections = [{ heading: 'Centro de Relatórios', lines: [
+    ...(model.operation?.name ? [`Operação: ${model.operation.name}`] : []),
     `Gerado em: ${generated(model.generatedAt)}`,
     `Período: ${date(model.period?.from)} a ${date(model.period?.to)}`,
     'Fuso horário: America/Sao_Paulo',
   ] }]
   const filters = Object.entries(model.filters || {}).filter(([key, value]) => !SKIP_FILTERS.has(key) && value != null && value !== '')
   sections.push({ heading: 'Filtros aplicados', lines: filters.length
-    ? filters.map(([key, value]) => `${FILTER_LABELS[key] || key}: ${value}`)
+    ? filters.map(([key, value]) => `${REPORTING_EXPORT_FILTER_LABELS[key] || key}: ${formatReportingExportFilterValue(key, value)}`)
     : ['Nenhum filtro adicional.'] })
   const definitions = KPI[model.view] || []
   const indicators = definitions.filter(([key]) => Object.hasOwn(metrics, key))
