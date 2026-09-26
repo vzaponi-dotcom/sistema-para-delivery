@@ -3480,3 +3480,120 @@
     width: 100vw;
   }
 }
+
+
+/* Detailed reporting final fidelity polish */
+.reporting-detail-filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reporting-detail-filter-chips .reporting-detail-filter-chip {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-soft));
+  color: var(--text-soft);
+  font-size: .66rem;
+  font-weight: 720;
+}
+
+.reporting-detail-filter-chip > span:last-child {
+  color: var(--primary);
+  font-size: .78rem;
+  line-height: 1;
+}
+
+.reporting-detail-filter-chips .reporting-detail-clear-filters {
+  min-height: 28px;
+  padding-inline: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: .66rem;
+  font-weight: 780;
+}
+
+.reporting-columns-menu input[type="checkbox"] {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-soft);
+}
+
+.reporting-columns-menu input[type="checkbox"]::after {
+  content: '';
+  width: 7px;
+  height: 4px;
+  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.reporting-columns-menu input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background: var(--primary-fill);
+}
+
+.reporting-columns-menu input[type="checkbox"]:checked::after {
+  border-left-color: var(--primary-contrast);
+  border-bottom-color: var(--primary-contrast);
+}
+
+.reporting-columns-menu input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--primary-control-ring);
+  outline-offset: 2px;
+}
+
+.reporting-detail-view .system-select-option:hover,
+.reporting-detail-view .system-select-option.active {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.reporting-detail-view .system-select-option[aria-selected="true"] {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.reporting-detail-view .system-select-option[aria-selected="true"] svg {
+  color: var(--primary);
+}
+
+.reporting-detail-balance small {
+  color: var(--muted);
+}
+
+.reporting-detail-balance.has-pending small {
+  color: var(--warning);
+}
+
+.reporting-drawer-tabs .is-disabled {
+  opacity: .46;
+}
+
+.reporting-drawer-financial-lines strong.is-discount {
+  color: var(--text-soft);
+}
+
+.reporting-drawer-item-icon {
+  border: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
+}
+
+.reporting-drawer-payment-method strong {
+  max-width: 58%;
+  justify-content: flex-end;
+  text-align: right;
+}
