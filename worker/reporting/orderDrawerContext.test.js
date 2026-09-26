@@ -32,7 +32,7 @@ test('reporting order detail exposes official history fields plus registered-cli
     INSERT INTO payment_allocations (id,business_id,receipt_id,method_code,method_label,amount_cents,created_at)
     VALUES ('pa1','a','r1',NULL,'Pix',2000,'2026-09-25T22:44:00Z');
     INSERT INTO payments (id,business_id,order_id,receipt_id,method,amount_cents,paid_at,created_at)
-    VALUES ('p1','a','o1','r1','Pix',2000,'2026-09-25T22:44:00Z','2026-09-25T22:44:00Z');
+    VALUES ('p1','a','o1','r1',NULL,2000,'2026-09-25T22:44:00Z','2026-09-25T22:44:00Z');
   `)
 
   const result = await createReportingRepository(db).getOrderDetail('a', 'o1')
