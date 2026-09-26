@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Icon from '../../../../shared/ui/Icon.jsx'
 import { reportingApi } from '../../infrastructure/reportingApi.js'
+import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cents || 0) / 100)
 const statusClass = (status = '') => status === 'Cancelado'
@@ -112,7 +113,7 @@ export function ReportingOrderDrawer({ id, onClose, api = reportingApi }) {
     </div> : <div className="reporting-drawer-state">Pedido indisponível.</div>}
 
     {order?.pendingCents > 0 ? <div className="reporting-drawer-footer">
-      <a className="button secondary-button reporting-drawer-receivable" href="/financeiro/a-receber"><Icon name="wallet" size={17} />Gerenciar em A receber</a>
+      <ReportingReceivableLink className="reporting-drawer-receivable" />
     </div> : null}
   </aside>
 }
