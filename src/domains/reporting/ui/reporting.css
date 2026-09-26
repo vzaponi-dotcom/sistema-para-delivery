@@ -3710,3 +3710,344 @@
 .reporting-detail-panel .reporting-detail-filter-chip > span:last-child {
   color: var(--primary);
 }
+
+
+/* Reporting filter toolbar — approved compact dashboard layout */
+.reporting-filter-toolbar-shell {
+  padding: 12px 14px;
+  border-radius: 15px;
+}
+
+.reporting-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(500px, 1.6fr) minmax(175px, .55fr) minmax(205px, .66fr) auto auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.reporting-period-block,
+.reporting-filter-toolbar-control {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.reporting-filter-toolbar-label,
+.reporting-filter-toolbar-control > span {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 780;
+}
+
+.reporting-period-toolbar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.reporting-date-range-compact {
+  min-width: 0;
+  min-height: 40px;
+  flex: 0 1 258px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  transition: border-color 160ms ease, outline-color 160ms ease;
+}
+
+.reporting-date-range-compact:focus-within {
+  border-color: var(--primary);
+  outline: 3px solid var(--primary-control-ring);
+  outline-offset: 1px;
+}
+
+.reporting-date-range-compact > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.reporting-filter-shell .reporting-date-range-compact input {
+  width: 108px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 2px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: .72rem;
+  font-weight: 720;
+}
+
+.reporting-filter-shell .reporting-date-range-compact input:focus-visible {
+  border: 0;
+  outline: 0;
+}
+
+.reporting-date-range-compact > span {
+  color: var(--muted);
+  font-size: .7rem;
+}
+
+.reporting-period-presets-inline {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.reporting-period-presets-inline button {
+  min-height: 34px;
+  padding: 0 10px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: .7rem;
+}
+
+.reporting-period-presets-inline button.active {
+  border-color: transparent;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.reporting-filter-toolbar-control .system-select-trigger,
+.reporting-toolbar-more-filters summary {
+  min-height: 40px;
+}
+
+.reporting-toolbar-more-filters {
+  align-self: end;
+}
+
+.reporting-toolbar-more-filters summary {
+  gap: 6px;
+  padding-inline: 12px;
+}
+
+.reporting-filter-export {
+  align-self: end;
+}
+
+.reporting-filter-export .reporting-export {
+  min-height: 40px;
+  margin: 0;
+}
+
+.reporting-filter-export .reporting-export summary {
+  min-height: 40px;
+  padding-inline: 15px;
+  box-shadow: none;
+}
+
+.reporting-filter-export .reporting-export > span,
+.reporting-filter-export .reporting-export > p {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 32;
+  min-width: 190px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Detailed report advanced filter popover */
+.reporting-detail-more-panel {
+  width: min(500px, calc(100vw - 52px));
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 20px 55px color-mix(in srgb, #000 30%, transparent);
+}
+
+.reporting-detail-more-header {
+  min-width: 0;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px !important;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-soft) 82%, var(--surface));
+  color: var(--text);
+}
+
+.reporting-detail-more-header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.reporting-detail-more-header strong {
+  color: var(--text);
+  font-size: .82rem;
+  line-height: 1.2;
+}
+
+.reporting-detail-more-header small {
+  color: var(--muted);
+  font-size: .61rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.reporting-detail-more-header > span {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-size: .6rem;
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.reporting-detail-more-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px !important;
+  padding: 14px 15px;
+  color: inherit !important;
+  font-size: inherit !important;
+}
+
+.reporting-detail-more-grid > label,
+.reporting-detail-more-grid > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .65rem;
+  font-weight: 760;
+}
+
+.reporting-detail-more-grid .system-select-trigger,
+.reporting-detail-more-grid input {
+  min-height: 40px;
+  border-radius: 9px;
+}
+
+.reporting-detail-more-footer {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px !important;
+  padding: 10px 15px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-soft) 62%, var(--surface));
+  color: var(--muted) !important;
+  font-size: .61rem !important;
+}
+
+.reporting-detail-more-footer small {
+  color: var(--muted);
+  font-size: .61rem;
+  font-weight: 600;
+}
+
+.reporting-detail-panel .reporting-detail-more-footer button {
+  width: auto !important;
+  min-height: 30px;
+  padding: 0 9px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px;
+  background: var(--surface) !important;
+  color: var(--text-soft) !important;
+  font-size: .64rem !important;
+  font-weight: 760;
+}
+
+.reporting-detail-panel .reporting-detail-more-footer button:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border)) !important;
+  background: var(--surface-soft) !important;
+  color: var(--text) !important;
+}
+
+@media (max-width: 1280px) {
+  .reporting-filter-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(165px, .42fr) minmax(185px, .5fr) auto;
+  }
+
+  .reporting-period-block {
+    grid-column: 1 / -1;
+  }
+
+  .reporting-period-toolbar {
+    justify-content: flex-start;
+  }
+
+  .reporting-date-range-compact {
+    flex-basis: 285px;
+  }
+
+  .reporting-filter-export {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 820px) {
+  .reporting-filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .reporting-period-block {
+    grid-column: auto;
+  }
+
+  .reporting-period-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reporting-date-range-compact {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .reporting-filter-shell .reporting-date-range-compact input {
+    width: 100%;
+  }
+
+  .reporting-period-presets-inline {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .reporting-filter-toolbar-control,
+  .reporting-toolbar-more-filters,
+  .reporting-filter-export {
+    width: 100%;
+  }
+
+  .reporting-toolbar-more-filters summary,
+  .reporting-filter-export .reporting-export,
+  .reporting-filter-export .reporting-export details,
+  .reporting-filter-export .reporting-export summary {
+    width: 100%;
+  }
+
+  .reporting-detail-more-panel {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    width: auto;
+    max-height: min(78vh, 560px);
+    overflow-y: auto;
+  }
+
+  .reporting-detail-more-grid {
+    grid-template-columns: 1fr;
+  }
+}
