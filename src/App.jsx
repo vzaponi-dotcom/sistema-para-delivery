@@ -279,7 +279,8 @@ function App({ capabilities } = {}) {
   const canDiscardPrinting = hasCapability(granted, 'printing.discard')
   const canUseLocalPreferences = hasCapability(granted, 'preferences.local')
   const canViewPrintQueue = hasCapability(granted, 'printing.queue')
-  const canViewClients = resolveDestination('clients', granted, IMPLEMENTED_DESTINATIONS).status === 'allowed'\n  const canOpenComanda = resolveDestination('comandas', granted, IMPLEMENTED_DESTINATIONS).status === 'allowed'
+  const canViewClients = resolveDestination('clients', granted, IMPLEMENTED_DESTINATIONS).status === 'allowed'
+  const canOpenComanda = resolveDestination('comandas', granted, IMPLEMENTED_DESTINATIONS).status === 'allowed'
 
   const todayValue = toLocalDateValue()
   const writesBlockedWithoutOrderCommands = !isOnline || requestKey !== null || newOrderDraft.checkoutPending
