@@ -1,7 +1,7 @@
 import { getBusinessDate } from '../../../../shared/finance.js'
 
 export const REPORTING_VIEWS = Object.freeze(['overview', 'operation', 'sales', 'products', 'detail'])
-export const REPORTING_PAGE_SIZES = Object.freeze([25, 50, 100])
+export const REPORTING_PAGE_SIZES = Object.freeze([10, 25, 50, 100])
 
 const VIEW_SET = new Set(REPORTING_VIEWS)
 const TYPE_SET = new Set(['Entrega', 'Retirada', 'Local'])
