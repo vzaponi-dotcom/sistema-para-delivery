@@ -244,3 +244,33 @@ URL integrada: `view=detail&period=custom&from=2026-09-01&to=2026-09-25&receivab
 - O drawer do pedido numerado **#183** abriu com 21 itens, total/recebido R$ 432,00 e pagamento Dinheiro + Cartão de débito. Reporting continuou somente leitura, sem comando de baixa. Em Vendas, **Gerenciar em A receber** navegou para `/financeiro/a-receber`; nesse momento, a tela de recebíveis mostrava 29 pendências/R$ 2.460,00, outro estado atual distinto do histórico. Nenhum pedido ou pagamento foi alterado neste smoke.
 
 **Resultado vigente da matriz 1–73 no SHA `a9d8c33937a11022f9e308a6b5bedf48cea66b64`: 66 PASS / 0 FAIL / 7 BLOCKED.** Somente os FAIL 58, 59 e 60 da rodada anterior mudaram para PASS com arquivos e interface verificados. Permanecem BLOCKED **5, 6, 35, 46, 47, 61 e 73**, com os motivos concretos documentados nas seções anteriores; a linha 61 foi reavaliada acima. **Não há blocker funcional de exportação para merge** nesta rodada; os sete BLOCKED continuam como limites de homologação, sem conversão para PASS. Os bugs históricos permanecem registrados, sem correção de código nesta atividade. Não houve alteração de Spec/plano, merge, PR ready ou produção.
+
+
+## Aceite explícito dos BLOCKED remanescentes — 26/09/2026
+
+A pessoa usuária **aceitou explicitamente** os sete itens ainda classificados como `BLOCKED` como **blockers não produtivos aceitos para esta entrega**, sem convertê-los em `PASS` e sem alegar evidência que não existe.
+
+Aplicação homologada: `a9d8c33937a11022f9e308a6b5bedf48cea66b64`.
+
+Itens aceitos neste estado:
+
+- **5** — falta conta de staging com capability reduzida para validar leitura sem `reports.export` / sem `payments.receive`;
+- **6** — falta conta sem `reports.view` para validar ocultação/negação integrada;
+- **35** — faltam fixtures identificáveis de timing legacy/retroativo no staging;
+- **46** — falta caso histórico controlado de renomeação de tamanho/apresentação;
+- **47** — falta caso histórico controlado de renomeação de produto/categoria;
+- **61** — falta dataset integrado acima de 10.000 pedidos para provar o limite funcional em staging;
+- **73** — estação de impressão do staging estava offline, impedindo prova física.
+
+Esses itens **permanecem BLOCKED** na matriz. O aceite significa somente que, para o escopo desta entrega, eles não impedem a preparação do PR para merge. Não significa que passaram, nem substitui a evidência faltante.
+
+Estado aceito da homologação funcional:
+
+- **66 PASS**
+- **0 FAIL**
+- **7 BLOCKED aceitos como não impeditivos para esta entrega**
+- **0 blocker funcional conhecido para merge**
+
+O Validate `36247093889` e o Deploy staging `36247090546` attempt 2 passaram no SHA de aplicação homologado. O commit documental subsequente `fbb2285774e917dc31cf7287837b93f108681eb4` também teve Validate #2166 verde; seu Deploy staging #418 é documental e foi acompanhado separadamente.
+
+Este aceite vale para a **decisão de merge do Issue #34**. Deploy de produção continua sendo uma ação posterior e separada, dependente de autorização explícita. Nenhum item BLOCKED deve ser reclassificado como PASS sem a evidência específica ainda faltante.
