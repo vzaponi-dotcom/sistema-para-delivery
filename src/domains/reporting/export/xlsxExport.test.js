@@ -63,7 +63,7 @@ test('XLSX detail summary uses official KPIs, operation identity and human filte
     },
   })
   const values = workbook.getWorksheet('Resumo').getSheetValues().flat().filter((value) => value !== undefined && value !== null)
-  for (const expected of ['Operação', 'Amor & Sabor', 'Recebível', 'A receber', 'Busca', 'Fernanda', 'Pedidos', 'Faturamento total', 'Ticket médio', 'Taxa de cancelamento']) {
+  for (const expected of ['Operação', 'Amor & Sabor', 'Recebível', 'A receber', 'Busca', 'Fernanda', 'Pedidos no período', 'Faturamento total', 'Ticket médio', 'Taxa de cancelamento']) {
     assert.ok(values.includes(expected), expected)
   }
   assert.equal(values.includes('unpaid'), false)
