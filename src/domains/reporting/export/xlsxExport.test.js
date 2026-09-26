@@ -38,3 +38,40 @@ test('XLSX Resumo converts monetary KPIs from cents to formatted reais without c
   assert.equal(rows.get('Pedidos')?.getCell(2).value, 5)
   assert.notEqual(rows.get('Pedidos')?.getCell(2).numFmt, '"R$" #,##0.00')
 })
+
+
+test('XLSX detail summary uses official KPIs, operation identity and human filter labels', async () => {
+  const { createXlsxWorkbook } = await import('./xlsxExport.js')
+  const workbook = await createXlsxWorkbook({
+    view: 'detail',
+    operation: { id: 'business-a', name: 'Amor & Sabor', slug: 'amor-sabor' },
+    columns: ['Pedido', 'Total'],
+    columnKeys: ['order_number', 'total_cents'],
+    rows: [[183, 43200]],
+    filters: { receivable: 'unpaid', search: 'Fernanda' },
+    summary: {
+      total: 16,
+      page: 1,
+      pageSize: 25,
+      totalPages: 1,
+      summary: {
+        ordersCount: 16,
+        salesCents: 113200,
+        averageTicketCents: 7075,
+        cancellationRate: 0,
+      },
+    },
+  })
+  const values = workbook.getWorksheet('Resumo').getSheetValues().flat().filter((value) => value !== undefined && value !== null)
+  for (const expected of ['Operação', 'Amor & Sabor', 'Recebível', 'A receber', 'Busca', 'Fernanda', 'Pedidos', 'Faturamento total', 'Ticket médio', 'Taxa de cancelamento']) {
+    assert.ok(values.includes(expected), expected)
+  }
+  assert.equal(values.includes('unpaid'), false)
+  assert.equal(values.includes('pageSize'), false)
+  assert.equal(values.includes('totalPages'), false)
+  const summary = workbook.getWorksheet('Resumo')
+  const rowByLabel = new Map(summary.getSheetValues().filter(Boolean).map((cells, index) => [cells[1], summary.getRow(index + 1)]))
+  assert.equal(rowByLabel.get('Faturamento total')?.getCell(2).value, 1132)
+  assert.equal(rowByLabel.get('Ticket médio')?.getCell(2).value, 70.75)
+  assert.equal(rowByLabel.get('Taxa de cancelamento')?.getCell(2).value, 0)
+})
