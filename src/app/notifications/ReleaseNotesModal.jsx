@@ -22,7 +22,7 @@ const releaseIcons = Object.freeze({
 
 const resolveReleaseIcon = (key) => releaseIcons[key] ?? 'details'
 
-export function ReleaseTour({ notification, automatic = false, onClose, onAcknowledge }) {
+export function ReleaseTour({ notification, automatic = false, showTitle = true, onClose, onAcknowledge }) {
   const slides = notification.slides ?? []
   const [index, setIndex] = useState(0)
   const touchStart = useRef(null)
@@ -66,14 +66,14 @@ export function ReleaseTour({ notification, automatic = false, onClose, onAcknow
   const icon = resolveReleaseIcon(slide.icon)
 
   return <article
-    className="release-tour"
+    className={`release-tour${showTitle ? '' : ' is-history-mode'}`}
     onTouchStart={onTouchStart}
     onTouchEnd={onTouchEnd}
     onKeyDown={onKeyDown}
   >
     <div className="release-tour-heading">
       <div>
-        <h3>{notification.title}</h3>
+        {showTitle && <h3>{notification.title}</h3>}
         <p>{notification.summary}</p>
       </div>
       <span className="release-tour-counter">Slide {index + 1} de {slides.length}</span>
@@ -122,7 +122,7 @@ export function ReleaseTour({ notification, automatic = false, onClose, onAcknow
 }
 
 export function ReleaseNotesContent({ notification, showTitle = true }) {
-  if (notification.slides?.length) return <ReleaseTour notification={notification} />
+  if (notification.slides?.length) return <ReleaseTour notification={notification} showTitle={showTitle} />
 
   return <article className="release-notes-content">
     <header className="release-notes-heading">
@@ -165,7 +165,7 @@ export default function ReleaseNotesModal({ notification, mode, onClose, onAckno
     </div> : undefined}
   >
     {tour
-      ? <ReleaseTour notification={notification} automatic={automatic} onClose={onClose} onAcknowledge={onAcknowledge} />
+      ? <ReleaseTour notification={notification} automatic={automatic} showTitle={automatic} onClose={onClose} onAcknowledge={onAcknowledge} />
       : <ReleaseNotesContent notification={notification} showTitle={automatic} />}
   </Modal>
 }
