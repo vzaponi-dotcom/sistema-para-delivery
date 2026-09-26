@@ -139,6 +139,15 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
   const pageStart = data?.total ? ((data.page - 1) * data.pageSize) + 1 : 0
   const pageEnd = data?.total ? Math.min(data.total, data.page * data.pageSize) : 0
   const applyFilter = (patch) => onChange({ ...patch, page: 1 })
+  const clearAdvancedFilters = () => onChange({
+    schedule: null,
+    customer: null,
+    operationalDeadline: null,
+    receivable: null,
+    orderHourFrom: null,
+    orderHourTo: null,
+    page: 1,
+  })
 
   return <div className="reporting-detail-layout reporting-detail-view">
     <section className="reporting-metric-grid reporting-detail-metrics" aria-label="Resumo dos pedidos">
@@ -171,12 +180,27 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
         <details className={`reporting-detail-more-filters ${advancedCount ? 'has-active' : ''}`}>
           <summary><Icon name="settings" size={16} />Mais filtros{advancedCount ? <span>{advancedCount}</span> : null}</summary>
           <div className="reporting-detail-more-panel">
-            <div><span>Agendamento</span><SystemSelect label="Agendamento" value={query.schedule || ''} options={SCHEDULE_OPTIONS} onChange={(value) => applyFilter({ schedule: value || null })} /></div>
-            <label><span>Cliente</span><input value={query.customer || ''} onChange={(event) => applyFilter({ customer: event.target.value || null })} placeholder="Nome ou ID" /></label>
-            <div><span>Prazo</span><SystemSelect label="Prazo" value={query.operationalDeadline || ''} options={DEADLINE_OPTIONS} onChange={(value) => applyFilter({ operationalDeadline: value || null })} /></div>
-            <div><span>Recebível</span><SystemSelect label="Recebível" value={query.receivable || ''} options={RECEIVABLE_OPTIONS} onChange={(value) => applyFilter({ receivable: value || null })} /></div>
-            <label><span>Hora de</span><input type="number" min="0" max="23" value={query.orderHourFrom ?? ''} onChange={(event) => applyFilter({ orderHourFrom: event.target.value === '' ? null : Number(event.target.value) })} /></label>
-            <label><span>Hora até</span><input type="number" min="0" max="23" value={query.orderHourTo ?? ''} onChange={(event) => applyFilter({ orderHourTo: event.target.value === '' ? null : Number(event.target.value) })} /></label>
+            <div className="reporting-detail-more-header">
+              <div>
+                <strong>Mais filtros</strong>
+                <small>Refine o resultado sem alterar o período selecionado.</small>
+              </div>
+              <span>{advancedCount ? `${advancedCount} ativo${advancedCount > 1 ? 's' : ''}` : 'Opcionais'}</span>
+            </div>
+
+            <div className="reporting-detail-more-grid">
+              <div><span>Agendamento</span><SystemSelect label="Agendamento" value={query.schedule || ''} options={SCHEDULE_OPTIONS} onChange={(value) => applyFilter({ schedule: value || null })} /></div>
+              <label><span>Cliente</span><input value={query.customer || ''} onChange={(event) => applyFilter({ customer: event.target.value || null })} placeholder="Nome ou ID" /></label>
+              <div><span>Prazo</span><SystemSelect label="Prazo" value={query.operationalDeadline || ''} options={DEADLINE_OPTIONS} onChange={(value) => applyFilter({ operationalDeadline: value || null })} /></div>
+              <div><span>Recebível</span><SystemSelect label="Recebível" value={query.receivable || ''} options={RECEIVABLE_OPTIONS} onChange={(value) => applyFilter({ receivable: value || null })} /></div>
+              <label><span>Hora de</span><input type="number" min="0" max="23" value={query.orderHourFrom ?? ''} onChange={(event) => applyFilter({ orderHourFrom: event.target.value === '' ? null : Number(event.target.value) })} placeholder="00" /></label>
+              <label><span>Hora até</span><input type="number" min="0" max="23" value={query.orderHourTo ?? ''} onChange={(event) => applyFilter({ orderHourTo: event.target.value === '' ? null : Number(event.target.value) })} placeholder="23" /></label>
+            </div>
+
+            <div className="reporting-detail-more-footer">
+              <small>As alterações são aplicadas automaticamente.</small>
+              {advancedCount ? <button type="button" onClick={clearAdvancedFilters}>Limpar adicionais</button> : null}
+            </div>
           </div>
         </details>
       </div>
