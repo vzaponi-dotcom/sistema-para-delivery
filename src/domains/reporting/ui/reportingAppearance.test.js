@@ -22,4 +22,7 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /reporting-date-range-compact[\s\S]*min-height:\s*40px/)
   assert.match(css, /reporting-detail-more-header/)
   assert.match(css, /reporting-detail-more-grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
+  assert.match(css, /reporting-overview-metric\.is-primary/)
+  assert.match(css, /reporting-overview-metric\.is-secondary/)
+  assert.match(css, /reporting-overview-comparison-empty/)
 })
