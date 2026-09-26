@@ -62,7 +62,7 @@ test('release tour keeps a large visual surface and responsive mobile navigation
   const nav = rule('.release-tour-navigation')
   const mobileContract = css.match(/@media\s*\([^)]*max-width:\s*820px[^)]*\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
 
-  assert.match(modal, /width:\s*min\(820px, calc\(100vw - 24px\)\)/)
+  assert.match(modal, /width:\s*min\(780px, calc\(100vw - 24px\)\)/)
   assert.match(media, /aspect-ratio:\s*1491\s*\/\s*1055/)
   assert.match(media, /overflow:\s*hidden/)
   assert.match(css, /\.release-tour-media img[\s\S]*object-fit:\s*contain/)

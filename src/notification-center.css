@@ -256,7 +256,7 @@
 
 
 .release-notes-tour-modal {
-  width: min(820px, calc(100vw - 24px));
+  width: min(780px, calc(100vw - 24px));
   max-height: min(95dvh, 900px);
 }
 
@@ -274,7 +274,7 @@
 .release-tour {
   display: grid;
   min-width: 0;
-  gap: 14px;
+  gap: 10px;
   color: var(--text);
   touch-action: pan-y;
 }
