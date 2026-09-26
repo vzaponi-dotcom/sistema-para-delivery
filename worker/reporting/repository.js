@@ -37,6 +37,10 @@ const compareDetail = (sort) => (left, right) => {
 
 export function createReportingRepository(db) {
   return Object.freeze({
+    async getBusinessIdentity(businessId) {
+      const row = await db.prepare('SELECT id, name, slug FROM businesses WHERE id = ?').bind(businessId).first()
+      return row ? { id: row.id, name: row.name, slug: row.slug } : null
+    },
     async listOrders(businessId, { from, to }) {
       const { results } = await db.prepare(`
         SELECT id, order_number, order_date, type, status, total_cents
