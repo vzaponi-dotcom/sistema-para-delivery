@@ -112,3 +112,44 @@ test('reporting export ignores null and empty optional query values instead of s
   assert.equal(calls[0].paymentMethod, null)
   assert.equal(calls[0].customer, null)
 })
+
+
+test('reporting export without column selection returns the complete order dataset contract', async (t) => {
+  const { handleReportingApi } = await import('./api.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at)
+    VALUES ('export-business','export-business','Export Business','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z');
+
+    INSERT INTO orders (
+      id,business_id,order_number,client_name_snapshot,client_phone_snapshot,order_date,type,status,
+      subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,adjustment_value,adjustment_amount_cents,
+      total_cents,scheduled_for,created_at,finished_at
+    ) VALUES (
+      'export-order','export-business',77,'Ana','11999999999','2026-09-10','Entrega','Finalizado',
+      9000,1000,'none','fixed',0,0,10000,'2026-09-10T16:00:00Z','2026-09-10T15:30:00Z','2026-09-10T16:05:00Z'
+    );
+  `)
+
+  const response = await handleReportingApi(request('/api/reporting/export-model', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      query: { view: 'overview', period: 'custom', from: '2026-09-10', to: '2026-09-10' },
+    }),
+  }), { DB: db }, context(['reports.export'], 'export-business'), new URL('https://delivery.test/api/reporting/export-model'))
+
+  assert.equal(response.status, 200)
+  const model = (await response.json()).data
+  for (const column of ['Pedido', 'Cliente', 'Telefone', 'Modalidade', 'Agendamento', 'Status', 'Total', 'Situação financeira', 'Forma de pagamento', 'Duração (min)', 'Prazo']) {
+    assert.ok(model.columns.includes(column), column)
+  }
+  const row = Object.fromEntries(model.columnKeys.map((key, index) => [key, model.rows[0][index]]))
+  assert.equal(row.order_number, 77)
+  assert.equal(row.client_name_snapshot, 'Ana')
+  assert.equal(row.client_phone_snapshot, '11999999999')
+  assert.equal(row.type, 'Entrega')
+  assert.equal(row.scheduleLabel, 'Agendado')
+  assert.equal(row.total_cents, 10000)
+})
