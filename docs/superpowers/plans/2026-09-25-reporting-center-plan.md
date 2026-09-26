@@ -1,4 +1,4 @@
-# Gestão Delivery — Centro de Relatórios — Implementation Plan
+# Mesiva — Centro de Relatórios — Implementation Plan
 
 > Execution mode: executar task por task, sempre RED → GREEN, com evidência por SHA exato. Nenhuma implementação começa antes da aprovação explícita deste plano.
 
@@ -29,7 +29,7 @@ Entregar um Centro de Relatórios gerencial e analítico que:
 - permite drill-down;
 - exporta CSV, XLSX e PDF a partir do mesmo modelo oficial;
 - entrega experiência desktop completa;
-- entrega mobile resumido;
+- mantém Reporting exclusivamente no desktop; mobile continua na Visão geral de Financeiro;
 - mantém A Receber como único fluxo operacional de baixa;
 - não transforma o Dashboard/browser em motor analítico.
 
@@ -72,21 +72,18 @@ Pode haver:
 
 Não pode haver `Registrar pagamento` dentro de Reporting.
 
-### 2.3 Desktop completo; mobile resumido
+### 2.3 Reporting desktop-only
 
-Desktop contém toda a experiência analítica.
+Desktop contém toda a experiência analítica, incluindo filtros, KPIs, gráficos, detalhado, exportações, drawer e ajuda contextual.
 
-Mobile contém:
+Mobile:
 
-- período;
-- filtros essenciais;
-- KPIs;
-- comparações;
-- gráficos simples;
-- rankings;
-- drill-down compacto quando útil.
+- não mostra `Relatórios` na navegação de Financeiro;
+- não cria item no bottom nav;
+- acesso direto a `/relatorios` retorna para `dashboard` / Visão geral;
+- não carrega API de Reporting nem mantém uma composição mobile paralela.
 
-Mobile não recebe uma tabela desktop comprimida nem seleção avançada de colunas.
+A antiga entrega `ReportingMobileSummary` foi superseded pela decisão de produto de 2026-09-26.
 
 ### 2.4 Timing existente é canônico
 
@@ -211,7 +208,8 @@ Estrutura alvo:
 `ui/views/ProductsReport.jsx`  
 `ui/views/DetailReport.jsx`  
 `ui/detail/ReportingOrderDrawer.jsx`  
-`ui/mobile/ReportingMobileSummary.jsx`  
+`ui/ReportingInfoTip.jsx`  
+`ui/reportingHelp.js`  
 `export/csvExport.js`  
 `export/xlsxExport.js`  
 `export/pdfExport.js`
@@ -450,7 +448,7 @@ Write focused tests proving:
 1. `reports.view` and `reports.export` exist in the canonical capability catalog;
 2. `reports` is a destination at `/relatorios` under area Financeiro;
 3. desktop Financeiro order is Visão geral -> Relatórios -> A receber -> Movimentações;
-4. no new mobile bottom-bar entry is introduced;
+4. no mobile Reporting destination is exposed; Financeiro mobile omits `Relatórios` and direct `/relatorios` returns to `dashboard`;
 5. Finance area fallback still behaves under reduced capabilities;
 6. Router direct-open `/relatorios` resolves correctly;
 7. F5 route resolution keeps `reports`;
@@ -1190,55 +1188,30 @@ Commit:
 
 ---
 
-# Task 10 — Mobile summary experience
+# Task 10 — Desktop contextual help + mobile exclusion (supersedes original mobile summary)
 
-**Purpose:** entregar valor mobile sem replicar a estação desktop.
+**Purpose:** explicar todas as métricas/gráficos no próprio produto e impedir que Reporting seja exposto em viewport móvel.
 
 ## Files
 
 Create/Modify:
 
-- `src/domains/reporting/ui/mobile/ReportingMobileSummary.jsx`
-- mobile tests
-- `reporting.css`
-- responsive/accessibility tests
-
-## RED
-
-At 320px and representative mobile width, prove:
-
-- no structural horizontal overflow;
-- period control usable;
-- filter button opens sheet/modal;
-- active filters visible;
-- overview KPIs readable;
-- comparison readable;
-- one simple sales trend accessible;
-- Top products readable;
-- operation/sales summary readable;
-- detail drill-down uses cards/list where supported;
-- no desktop table compressed;
-- no column selector;
-- dense desktop-only feature displays clear guidance;
-- A Receber action navigates out;
-- no payment mutation appears;
-- touch targets preserve project standard.
-
-## GREEN
-
-Implement mobile-specific composition using same API data.
-
-Do not create separate metric queries/formulas.
-
-Commit:
-
-`feat: add compact mobile reporting experience`
+- `src/domains/reporting/ui/ReportingInfoTip.jsx`;
+- `src/domains/reporting/ui/reportingHelp.js`;
+- todos os views/cards/painéis de Reporting;
+- navegação/workspace desktop-only;
+- testes de cobertura do catálogo de ajuda;
+- documentação/QA.
 
 ## Acceptance
 
-- mobile is useful, not a shrunken desktop;
-- same truth source;
-- 320px safe.
+- todo KPI card atual possui ícone de informação;
+- todo gráfico/painel analítico possui o mesmo padrão;
+- hover/foco mostra **O que é**, **Como é calculado** e **Como interpretar**;
+- textos refletem fórmulas oficiais do Worker;
+- tooltip respeita tema e permanece dentro da viewport;
+- Reporting não aparece no mobile e acesso direto redireciona sem carregar a superfície;
+- não existe ação financeira nova em Reporting.
 
 ---
 
@@ -1519,10 +1492,10 @@ Record exact staging SHA/run.
 
 62. desktop light.
 63. desktop dark.
-64. mobile summary light.
-65. mobile summary dark.
-66. 320px.
-67. mobile no compressed table.
+64. mobile Financeiro não exibe Relatórios.
+65. acesso mobile direto a `/relatorios` retorna à Visão geral sem montar Reporting.
+66. tooltips de KPI/gráfico funcionam por hover e foco no desktop claro.
+67. tooltips de KPI/gráfico funcionam no desktop escuro, sem clipping estrutural.
 
 ### Regression
 
@@ -1603,8 +1576,9 @@ The plan was reviewed against the approved spec and current master architecture.
 - deterministic cents allocation has its own task/tests.
 - detail pagination is server-side.
 - URL is the Reporting query source of truth.
-- mobile is intentionally reduced.
-- no new bottom-nav item is introduced.
+- Reporting is intentionally desktop-only.
+- mobile omits the Reporting destination and direct access redirects without mounting it.
+- contextual help is centralized in one catalog and reused by cards and graph headings.
 - CSV/XLSX/PDF use one export model.
 - XLSX dependency addition has an explicit execution gate and dynamic import.
 - indexes are evidence-driven.
@@ -1630,7 +1604,8 @@ Issue #34 is implementation-complete only when:
 - QA rows 1–73 are PASS or an explicitly accepted non-production blocker;
 - metrics reconcile across summary/detail/export;
 - A Receber ownership is preserved;
-- desktop/mobile contract is homologated;
+- desktop-only Reporting contract and mobile exclusion are homologated;
+- every current KPI/graph help entry is covered and consistent with backend formulas;
 - PR has no unresolved review thread;
 - user explicitly authorizes merge.
 
