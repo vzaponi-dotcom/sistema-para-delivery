@@ -43,7 +43,9 @@ test('detail renders dashboard summary, server page, filters, pagination and rea
 
   await act(async () => renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Próxima página').props.onClick())
   assert.deepEqual(patches.at(-1), { page: 2 })
-  await act(async () => renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Ver pedido 42').props.onClick())
+  const orderRow = renderer.root.findAllByType('tr').find((row) => row.props['aria-label'] === 'Abrir pedido 42')
+  assert.ok(orderRow)
+  await act(async () => orderRow.props.onClick())
   assert.match(nodeText(renderer.root), /Informações do pedido/)
   assert.match(nodeText(renderer.root), /Resumo financeiro/)
   assert.match(nodeText(renderer.root), /Subtotal/)
