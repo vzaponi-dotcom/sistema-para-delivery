@@ -3626,3 +3626,24 @@
   background: var(--surface-strong);
   color: var(--muted);
 }
+
+
+/* Clickable detail rows */
+.reporting-detail-clickable-row {
+  cursor: pointer;
+}
+
+.reporting-detail-clickable-row:hover {
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface-soft));
+}
+
+.reporting-detail-clickable-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.reporting-detail-clickable-row.is-selected {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
