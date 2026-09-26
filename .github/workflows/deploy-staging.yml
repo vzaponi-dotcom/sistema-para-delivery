@@ -8,6 +8,7 @@ on:
       - feature/kitchen-alert-sound-profiles
       - feature/kitchen-tv-adaptive-card-layout
       - feature/issue-34-reporting-center
+      - feature/release-reporting-center
   workflow_dispatch:
 
 permissions:
