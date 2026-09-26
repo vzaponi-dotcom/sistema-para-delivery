@@ -4761,22 +4761,23 @@
 
 .reporting-client-order-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   margin-bottom: 12px;
 }
 
 .reporting-client-order-filters button {
   min-width: 0;
-  min-height: 38px;
-  padding: 0 6px;
+  min-height: 40px;
+  padding: 4px 5px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-soft);
   color: var(--text-soft);
   font: inherit;
-  font-size: .66rem;
+  font-size: .61rem;
   font-weight: 720;
+  line-height: 1.15;
   cursor: pointer;
 }
 

@@ -213,7 +213,8 @@ function HistoryTab({ order }) {
 const clientOrderFilter = (item, filter) => {
   if (filter === 'cancelled') return item.status === 'Cancelado'
   if (filter === 'finished') return TERMINAL.has(item.status)
-  if (filter === 'pending') return item.status !== 'Cancelado' && (!TERMINAL.has(item.status) || Number(item.pendingCents || 0) > 0)
+  if (filter === 'in-progress') return item.status !== 'Cancelado' && !TERMINAL.has(item.status)
+  if (filter === 'receivable') return item.status !== 'Cancelado' && Number(item.pendingCents || 0) > 0
   return true
 }
 
@@ -232,7 +233,7 @@ function ClientOrders({ order, context, filter, onFilter, onSelectOrder }) {
       <span className="reporting-client-orders-count"><Icon name="note" size={16} />{total} {total === 1 ? 'pedido' : 'pedidos'}</span>
     </section>
     <div className="reporting-client-order-filters" role="group" aria-label="Filtrar pedidos do cliente">
-      {[['all', 'Todos'], ['finished', 'Finalizados'], ['pending', 'Pendentes'], ['cancelled', 'Cancelados']].map(([id, label]) => <button type="button" key={id} className={filter === id ? 'is-active' : ''} onClick={() => onFilter(id)}>{label}</button>)}
+      {[['all', 'Todos'], ['in-progress', 'Em andamento'], ['finished', 'Finalizados'], ['receivable', 'A receber'], ['cancelled', 'Cancelados']].map(([id, label]) => <button type="button" key={id} className={filter === id ? 'is-active' : ''} onClick={() => onFilter(id)}>{label}</button>)}
     </div>
     <div className="reporting-client-order-list">{orders.length ? orders.map((item) => {
       const current = item.id === order.id
