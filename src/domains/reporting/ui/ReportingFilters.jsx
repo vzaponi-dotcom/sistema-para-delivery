@@ -15,7 +15,7 @@ const PAYMENT_OPTIONS = [{ value: '', label: 'Todas as formas' }, { value: 'pix'
 const DEADLINE_OPTIONS = [{ value: '', label: 'Todos' }, { value: 'on-time', label: 'No prazo' }, { value: 'late', label: 'Atrasados' }]
 
 export function ReportingFilters({ query, onChange, exportAction = null }) {
-  const supportsCustomer = ['overview', 'sales', 'products', 'operation'].includes(query.view)
+  const supportsCustomer = query.view === 'operation'
   const usesPayment = ['sales', 'detail'].includes(query.view)
   const advancedActive = [
     supportsCustomer && query.customer,
@@ -23,7 +23,7 @@ export function ReportingFilters({ query, onChange, exportAction = null }) {
     query.view === 'operation' && query.orderHourFrom != null,
     query.view === 'operation' && query.orderHourTo != null,
   ].filter(Boolean).length
-  const hasAdvanced = supportsCustomer || query.view === 'operation'
+  const hasAdvanced = query.view === 'operation'
 
   return <section className="reporting-filter-shell reporting-filter-toolbar-shell" aria-label="Filtros de relatórios">
     <div className="reporting-filter-toolbar">
