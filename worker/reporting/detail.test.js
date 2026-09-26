@@ -79,4 +79,12 @@ test('detail combines server filters, canonical late policy, allowlisted sort an
   const receivable = await repo.listDetail('a', { ...base, receivable: 'unpaid' })
   assert.equal(receivable.total, 1)
   assert.equal(receivable.items[0].id, 'fast')
+
+  sqlite.exec(`
+    INSERT INTO orders (id,business_id,order_number,client_name_snapshot,order_date,type,status,subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,adjustment_value,adjustment_amount_cents,total_cents,created_at,finished_at)
+    VALUES ('pending','a',4,'Dani','2026-09-10','Entrega','Em preparo',1500,0,'none','fixed',0,0,1500,'2026-09-10T12:10:00Z',NULL);
+  `)
+  const durationAsc = await repo.listDetail('a', { ...base, pageSize: 10, sort: 'duration-asc' })
+  assert.deepEqual(durationAsc.items.map((item) => item.id), ['fast', 'late', 'pending'])
+  assert.equal(durationAsc.items.at(-1).durationMinutes, null)
 })
