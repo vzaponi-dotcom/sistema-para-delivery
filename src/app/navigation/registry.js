@@ -13,7 +13,7 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
   Object.freeze({ id: 'comandas', path: '/comandas', area: 'comandas', label: 'Comandas', mobileEntry: 'comandas', capability: 'comandas.view' }),
   Object.freeze({ id: 'print-queue', path: '/fila-de-impressao', area: 'print-queue', label: 'Fila de impressão', mobileEntry: 'more', capability: 'printing.queue' }),
   Object.freeze({ id: 'dashboard', path: '/financeiro', area: 'finance', label: 'Visão geral', mobileEntry: 'finance', capability: 'finance.overview' }),
-  Object.freeze({ id: 'reports', path: '/relatorios', area: 'finance', label: 'Relatórios', mobileEntry: 'finance', capability: 'reports.view' }),
+  Object.freeze({ id: 'reports', path: '/relatorios', area: 'finance', label: 'Relatórios', mobileEntry: null, capability: 'reports.view' }),
   Object.freeze({ id: 'receivables', path: '/financeiro/a-receber', area: 'finance', label: 'A receber', mobileEntry: 'finance', capability: 'finance.receivables' }),
   Object.freeze({ id: 'finance', path: '/financeiro/movimentacoes', area: 'finance', label: 'Movimentações', mobileEntry: 'finance', capability: 'finance.movements' }),
   Object.freeze({ id: 'clients', path: '/clientes', area: 'clients', label: 'Clientes', mobileEntry: 'more', capability: 'clients.view' }),
@@ -55,6 +55,6 @@ export const MOBILE_MORE_ENTRIES = Object.freeze([
 ])
 
 export const MOBILE_SECTION_IDS = Object.freeze([
-  'orders', 'history', 'comandas', 'dashboard', 'reports', 'receivables', 'finance',
+  'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
   'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])

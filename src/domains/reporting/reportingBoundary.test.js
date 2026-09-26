@@ -23,7 +23,7 @@ test('reporting capabilities and destination are canonical', () => {
     path: '/relatorios',
     area: 'finance',
     label: 'Relatórios',
-    mobileEntry: 'finance',
+    mobileEntry: null,
     capability: 'reports.view',
   })
   assert.deepEqual(AREA_DESTINATION_IDS.finance, ['dashboard', 'reports', 'receivables', 'finance'])

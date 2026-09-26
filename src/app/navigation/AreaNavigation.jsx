@@ -1,12 +1,15 @@
 import { AREA_LABELS, NAVIGATION_DESTINATIONS } from './registry.js'
 import { resolveDestination } from './resolution.js'
 import { useNavigation } from './NavigationContext.jsx'
+import { useMediaQuery } from '../../shared/hooks/useMediaQuery.js'
 
 export default function AreaNavigation({ area }) {
   const { activeTab, granted, implemented, requestNavigation } = useNavigation()
+  const isMobile = useMediaQuery('(max-width: 820px)')
   const destinations = NAVIGATION_DESTINATIONS.filter((destination) => (
     destination.area === area
     && destination.id !== 'new-order'
+    && (!isMobile || destination.mobileEntry !== null)
     && resolveDestination(destination.id, granted, implemented).status === 'allowed'
   ))
   if (!destinations.length) return null

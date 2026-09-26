@@ -192,7 +192,7 @@ const buildObservations = ({ metrics, comparisons, operation, categories }) => {
     : `${formatPercent(lateRate)} dos pedidos medidos ficaram fora do prazo operacional.`
   const lead = categories[0]
   const opportunity = lead
-    ? `${lead.label} representa ${formatPercent(lead.sharePercent)} da receita de mercadoria. Avalie combos e ofertas para ampliar ticket e recorrência.`
+    ? `A categoria ${lead.label} representa ${formatPercent(lead.sharePercent)} da receita de mercadoria. Avalie combos e ofertas para ampliar ticket e recorrência.`
     : 'Use o ranking de produtos para identificar itens de maior participação e oportunidades de composição de ofertas.'
   return [
     { title: 'Cancelamentos', text: cancellationNote, kind: 'danger' },
@@ -693,19 +693,30 @@ const drawObservationPanel = (pdf, vm) => {
   roundedPanel(pdf, 10, 246.5, 190, 39.0, { fill: COLORS.mint, stroke: COLORS.mint, radius: 3.2 })
   drawMiniIcon(pdf, 'bulb', 15, 252.6, COLORS.teal)
   text(pdf, 'Observações e oportunidades', 25, 256.8, 8.6, COLORS.navy, { bold: true })
-  const starts = [14, 78, 142]
+
+  const columns = [
+    { iconX: 14.5, titleX: 25.0, bodyX: 25.0, bodyWidth: 43.5 },
+    { iconX: 78.0, titleX: 88.5, bodyX: 88.5, bodyWidth: 43.5 },
+    { iconX: 141.5, titleX: 152.0, bodyX: 152.0, bodyWidth: 42.5 },
+  ]
+  const separators = [73.5, 137.0]
+  separators.forEach((x) => {
+    setStroke(pdf, [205, 230, 227])
+    pdf.setLineWidth(0.3)
+    pdf.line(x, 262.4, x, 282.4)
+  })
+
   vm.observations.slice(0, 3).forEach((item, index) => {
-    if (index > 0) {
-      setStroke(pdf, [205, 230, 227])
-      pdf.setLineWidth(0.3)
-      pdf.line(starts[index] - 5, 263.0, starts[index] - 5, 282.0)
-    }
+    const column = columns[index]
     const icon = item.kind === 'danger' ? 'alert' : item.kind === 'blue' ? 'clock' : 'bars'
     const iconColor = item.kind === 'danger' ? COLORS.danger : item.kind === 'blue' ? COLORS.blue : COLORS.teal
-    drawMiniIcon(pdf, icon, starts[index], 263.2, iconColor)
-    text(pdf, item.title, starts[index] + 11, 268.1, 6.25, COLORS.navy, { bold: true })
-    const lines = pdf.splitTextToSize(item.text, 51)
-    lines.slice(0, 3).forEach((line, lineIndex) => text(pdf, line, starts[index], 276.0 + lineIndex * 4.8, 5.15, COLORS.muted))
+    drawMiniIcon(pdf, icon, column.iconX, 263.0, iconColor)
+    text(pdf, item.title, column.titleX, 267.7, 6.25, COLORS.navy, { bold: true })
+
+    const lines = pdf.splitTextToSize(item.text, column.bodyWidth)
+    lines.slice(0, 3).forEach((line, lineIndex) => {
+      text(pdf, line, column.bodyX, 274.4 + lineIndex * 4.55, 5.15, COLORS.muted)
+    })
   })
 }
 

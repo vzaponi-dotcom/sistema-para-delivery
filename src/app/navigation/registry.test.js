@@ -32,7 +32,7 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
   assert.deepEqual(MOBILE_DIRECT_ENTRIES.map((item) => item.area || item.id), ['orders', 'comandas', 'finance'])
   assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), ['print-queue', 'clients', 'products', 'tables', 'settings'])
   assert.deepEqual(MOBILE_SECTION_IDS, [
-    'orders', 'history', 'comandas', 'dashboard', 'reports', 'receivables', 'finance',
+    'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
     'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv',
     'settings-printing', 'settings-device',
   ])
@@ -62,7 +62,7 @@ test('reporting is a Financeiro destination without adding a new mobile bottom e
     path: '/relatorios',
     area: 'finance',
     label: 'Relatórios',
-    mobileEntry: 'finance',
+    mobileEntry: null,
     capability: 'reports.view',
   })
   assert.deepEqual(AREA_DESTINATION_IDS.finance, ['dashboard', 'reports', 'receivables', 'finance'])
