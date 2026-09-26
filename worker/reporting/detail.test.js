@@ -59,11 +59,11 @@ test('detail combines server filters, canonical late policy, allowlisted sort an
   assert.equal(filtered.items[0].id, 'late')
   assert.equal(filtered.items[0].onTime, false)
   assert.equal(filtered.items[0].payment_label, 'Pix')
-  const summary = await repo.loadDetailSummary('a', filtered.length ? {
+  const summary = await repo.loadDetailSummary('a', {
     ...base, status: 'Finalizado', type: 'Entrega', schedule: 'immediate', paymentMethod: 'Pix',
     category: 'Lanches', product: '["Lanches","X",""]', customer: 'Ana', search: 'Ana',
     orderHourFrom: 9, orderHourTo: 9, operationalDeadline: 'late',
-  } : base)
+  })
   assert.deepEqual(summary, { ordersCount: 1, salesCents: 1000, averageTicketCents: 1000, cancellationRate: 0 })
   assert.equal((await repo.getOrderDetail('a', 'late')).items.length, 1)
   assert.equal((await repo.getOrderDetail('a', 'late')).paymentAllocations[0].method_label, 'Pix')
