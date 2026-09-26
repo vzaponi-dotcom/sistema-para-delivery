@@ -48,8 +48,12 @@ test('detail combines server filters, canonical late policy, allowlisted sort an
   const first = await repo.listDetail('a', base)
   assert.equal(first.total, 2)
   assert.equal(first.items[0].id, 'fast')
+  assert.equal(first.items[0].paidCents, 0)
+  assert.equal(first.items[0].pendingCents, 2000)
   const second = await repo.listDetail('a', { ...base, page: 2 })
   assert.equal(second.items[0].id, 'late')
+  assert.equal(second.items[0].paidCents, 1000)
+  assert.equal(second.items[0].pendingCents, 0)
   const filtered = await repo.listDetail('a', {
     ...base, status: 'Finalizado', type: 'Entrega', schedule: 'immediate', paymentMethod: 'Pix',
     category: 'Lanches', product: '["Lanches","X",""]', customer: 'Ana', search: 'Ana',
@@ -65,8 +69,12 @@ test('detail combines server filters, canonical late policy, allowlisted sort an
     orderHourFrom: 9, orderHourTo: 9, operationalDeadline: 'late',
   })
   assert.deepEqual(summary, { ordersCount: 1, salesCents: 1000, averageTicketCents: 1000, cancellationRate: 0 })
-  assert.equal((await repo.getOrderDetail('a', 'late')).items.length, 1)
-  assert.equal((await repo.getOrderDetail('a', 'late')).paymentAllocations[0].method_label, 'Pix')
+  const drawer = await repo.getOrderDetail('a', 'late')
+  assert.equal(drawer.items.length, 1)
+  assert.equal(drawer.subtotal_cents, 1000)
+  assert.equal(drawer.paidCents, 1000)
+  assert.equal(drawer.pendingCents, 0)
+  assert.equal(drawer.paymentAllocations[0].method_label, 'Pix')
   assert.equal(await repo.getOrderDetail('b', 'late'), null)
   const receivable = await repo.listDetail('a', { ...base, receivable: 'unpaid' })
   assert.equal(receivable.total, 1)
