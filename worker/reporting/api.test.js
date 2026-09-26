@@ -54,6 +54,7 @@ test('products, detail, drawer and export share one business-scoped SQLite recor
   const exportResponse = await handleReportingApi(request('/api/reporting/export-model', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: { view: 'detail', from: '2026-09-10', to: '2026-09-10' }, columns: ['order_number', 'total_cents'] }) }), env, authenticated)
   const model = (await exportResponse.json()).data
   assert.equal(model.rowCount, 1)
+  assert.equal(model.operation.name, 'A')
   assert.deepEqual(model.rows, [[1, 1000]])
   await assert.rejects(handleReportingApi(request('/api/reporting/orders/o1'), env, context(['reports.view'], 'other')), { status: 404 })
   sqlite.exec(`
