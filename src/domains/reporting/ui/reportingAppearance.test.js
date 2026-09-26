@@ -28,4 +28,6 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /reporting-receivable-link[\s\S]*display:\s*inline-flex/)
   assert.match(css, /reporting-overview-financial-stats/)
   assert.match(css, /reporting-detail-more-panel[\s\S]*width:\s*min\(552px/)
+  assert.match(css, /reporting-info-trigger[\s\S]*background:\s*transparent/)
+  assert.match(css, /reporting-info-popover[\s\S]*z-index:\s*10000/)
 })

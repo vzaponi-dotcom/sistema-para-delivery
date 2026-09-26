@@ -110,27 +110,27 @@ export function OperationReport({ state, onDrilldown = () => {} }) {
 
     <div className="reporting-operation-grid">
       <section className="surface-card reporting-panel reporting-operation-panel reporting-operation-hour-panel">
-        <div className="reporting-panel-heading"><div><span className="section-kicker">Demanda</span><div className="reporting-heading-with-info"><h2>Pedidos por hora operacional</h2><ReportingInfoTip helpKey="Pedidos por hora operacional" /></div></div><span className="reporting-panel-badge">24 horas</span></div>
+        <div className="reporting-panel-heading"><div className="reporting-heading-with-info"><h2>Pedidos por hora operacional</h2><ReportingInfoTip helpKey="Pedidos por hora operacional" /></div><span className="reporting-panel-badge">24 horas</span></div>
         <HourChart items={data.byHour} />
       </section>
 
       <section className="surface-card reporting-panel reporting-operation-panel">
-        <div className="reporting-panel-heading"><div><span className="section-kicker">Semana</span><div className="reporting-heading-with-info"><h2>Pedidos por dia da semana</h2><ReportingInfoTip helpKey="Pedidos por dia da semana" /></div></div></div>
+        <div className="reporting-panel-heading"><div className="reporting-heading-with-info"><h2>Pedidos por dia da semana</h2><ReportingInfoTip helpKey="Pedidos por dia da semana" /></div></div>
         <HorizontalDistribution items={data.byWeekday} keyField="weekday" labelOf={(item) => weekdays[item.weekday]} />
       </section>
 
       <section className="surface-card reporting-panel reporting-operation-panel reporting-operation-modality-panel">
-        <div className="reporting-panel-heading"><div><span className="section-kicker">Modalidades</span><div className="reporting-heading-with-info"><h2>Desempenho por modalidade</h2><ReportingInfoTip helpKey="Desempenho por modalidade" /></div></div></div>
+        <div className="reporting-panel-heading"><div className="reporting-heading-with-info"><h2>Desempenho por modalidade</h2><ReportingInfoTip helpKey="Desempenho por modalidade" /></div></div>
         <ModalityPerformance items={data.byModality} />
       </section>
 
       <section className="surface-card reporting-panel reporting-operation-panel">
-        <div className="reporting-panel-heading"><div><span className="section-kicker">Agendamento</span><div className="reporting-heading-with-info"><h2>Imediatos x agendados</h2><ReportingInfoTip helpKey="Imediatos x agendados" /></div></div></div>
+        <div className="reporting-panel-heading"><div className="reporting-heading-with-info"><h2>Imediatos x agendados</h2><ReportingInfoTip helpKey="Imediatos x agendados" /></div></div>
         <ScheduleSplit items={data.bySchedule} />
       </section>
 
       <section className="surface-card reporting-panel reporting-operation-panel reporting-operation-duration-panel">
-        <div className="reporting-panel-heading"><div><span className="section-kicker">Duração</span><div className="reporting-heading-with-info"><h2>Faixas de duração</h2><ReportingInfoTip helpKey="Faixas de duração" /></div></div></div>
+        <div className="reporting-panel-heading"><div className="reporting-heading-with-info"><h2>Faixas de duração</h2><ReportingInfoTip helpKey="Faixas de duração" /></div></div>
         <HorizontalDistribution items={data.durationBands} keyField="label" labelOf={(item) => item.label} />
       </section>
     </div>

@@ -91,7 +91,7 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
     <div className="reporting-overview-grid">
       <section className="surface-card reporting-panel reporting-overview-panel">
         <div className="reporting-panel-heading">
-          <div><span className="section-kicker">Desempenho</span><div className="reporting-heading-with-info"><h2>Evolução contra o período anterior</h2><ReportingInfoTip helpKey="Evolução contra o período anterior" /></div></div>
+          <div className="reporting-heading-with-info"><h2>Evolução contra o período anterior</h2><ReportingInfoTip helpKey="Evolução contra o período anterior" /></div>
           <span className="reporting-panel-badge">Atual x anterior</span>
         </div>
         {hasOverviewComparison ? <div className="reporting-comparison-visual-list">
@@ -111,7 +111,6 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
       <section className="surface-card reporting-panel reporting-overview-panel reporting-overview-financial-panel">
         <div className="reporting-panel-heading reporting-overview-financial-heading">
           <div>
-            <span className="section-kicker">Financeiro</span>
             <div className="reporting-heading-with-info"><h2>Recebido x a receber</h2><ReportingInfoTip helpKey="Recebido x a receber" /></div>
             <p>{financialTotal ? `${number.format(receivedShare)}% do total financeiro já recebido` : 'Sem movimento financeiro no período'}</p>
           </div>
