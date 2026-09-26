@@ -12,10 +12,13 @@ test('filters render period presets and view-applicable controls with functional
     exportAction: 'Exportar relatório',
   })
   assert.match(nodeText(renderer.root), /Mês atual/)
+  assert.match(nodeText(renderer.root), /Mês anterior/)
   assert.match(nodeText(renderer.root), /Forma de pagamento/)
   assert.match(nodeText(renderer.root), /Exportar relatório/)
   renderer.root.findAllByType('button').find((button) => nodeText(button) === '7 dias').props.onClick()
   assert.deepEqual(changes.at(-1), { period: '7-days' })
+  renderer.root.findAllByType('button').find((button) => nodeText(button) === 'Mês anterior').props.onClick()
+  assert.deepEqual(changes.at(-1), { period: 'previous-month' })
   const method = renderer.root.findAllByProps({ role: 'combobox' }).find((select) => select.props['aria-label'] === 'Forma de pagamento')
   assert.ok(method)
 })
