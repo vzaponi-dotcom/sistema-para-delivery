@@ -74,3 +74,40 @@ test('products, detail, drawer and export share one business-scoped SQLite recor
   const pending = (await (await handleReportingApi(request(`/api/reporting/orders?${query}&receivable=unpaid`), env, authenticated)).json()).data
   assert.equal(pending.total, overview.receivableCount)
 })
+
+
+test('reporting export ignores null and empty optional query values instead of serializing them as text', async () => {
+  const { handleReportingApi } = await import('./api.js')
+  const calls = []
+  const env = { DB: {}, reportingService: {
+    exportModel: async (_businessId, query) => {
+      calls.push(query)
+      return { data: { rows: [], columns: [] }, quality: {} }
+    },
+  } }
+  const response = await handleReportingApi(request('/api/reporting/export-model', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      query: {
+        view: 'detail',
+        period: 'custom',
+        from: '2026-09-01',
+        to: '2026-09-25',
+        orderHourFrom: null,
+        orderHourTo: null,
+        paymentMethod: null,
+        customer: '',
+        page: 1,
+        pageSize: 25,
+        sort: 'date-desc',
+      },
+    }),
+  }), env, context(['reports.export']), new URL('https://delivery.test/api/reporting/export-model'))
+  assert.equal(response.status, 200)
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].orderHourFrom, null)
+  assert.equal(calls[0].orderHourTo, null)
+  assert.equal(calls[0].paymentMethod, null)
+  assert.equal(calls[0].customer, null)
+})
