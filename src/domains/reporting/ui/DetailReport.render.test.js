@@ -40,6 +40,7 @@ test('detail renders dashboard summary, server page, filters, pagination and rea
   assert.match(text, /Status: Finalizado/)
   assert.match(text, /Pix/)
   assert.match(text, /Não pago/)
+  assert.match(text, /Mais filtros/)
 
   await act(async () => renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Próxima página').props.onClick())
   assert.deepEqual(patches.at(-1), { page: 2 })
