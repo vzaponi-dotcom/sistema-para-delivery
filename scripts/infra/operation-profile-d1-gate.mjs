@@ -4,7 +4,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 const migrations = new URL('../../migrations/', import.meta.url)
 const files = readdirSync(migrations).filter((name) => name.endsWith('.sql')).sort()
-const latest = '0030_business_profiles.sql'
+const profileMigration = '0030_business_profiles.sql'
+const profileIndex = files.indexOf(profileMigration)
 
 const readMigration = (name) => readFileSync(new URL(name, migrations), 'utf8')
 const apply = (sqlite, names) => {
@@ -47,7 +48,8 @@ const assertSchema = (sqlite) => {
 
 let result
 try {
-  assert.equal(files.at(-1), latest, '0030 must be the latest migration')
+  assert.ok(profileIndex > 0, '0030 business profiles migration is missing')
+  assert.match(files[profileIndex - 1], /^0029_/, '0030 must upgrade 0029')
 
   const clean = new DatabaseSync(':memory:')
   try {
@@ -70,11 +72,11 @@ try {
 
   const upgrade = new DatabaseSync(':memory:')
   try {
-    apply(upgrade, files.slice(0, -1))
+    apply(upgrade, files.slice(0, profileIndex))
     upgrade.exec("INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES ('upgrade', 'upgrade', 'Upgrade Name', '2026-09-23T00:00:00.000Z', '2026-09-23T00:00:00.000Z')")
     const before = upgrade.prepare('SELECT id, slug, name, created_at, updated_at FROM businesses ORDER BY id').all()
 
-    upgrade.exec(readMigration(latest))
+    upgrade.exec(readMigration(profileMigration))
     upgrade.exec('PRAGMA foreign_keys = ON')
     assertSchema(upgrade)
 
@@ -96,7 +98,7 @@ try {
 
     result = {
       ok: true,
-      migration: latest,
+      migration: profileMigration,
       migrations: files.length,
       cleanInstall: true,
       upgradeFrom0029: true,
@@ -107,7 +109,7 @@ try {
     upgrade.close()
   }
 } catch (error) {
-  result = { ok: false, migration: latest, error: error.message }
+  result = { ok: false, migration: profileMigration, error: error.message }
   process.exitCode = 1
 }
 
