@@ -65,17 +65,17 @@ test('current release is the Reporting Center tour while previous releases keep 
   assert.equal(releaseItem.slides.length, 5)
   assert.deepEqual(releaseItem.slides.map((slide) => slide.title), [
     'Nova Central de Relatórios',
-    'Relatórios em um só lugar',
-    'Métricas que ajudam a decidir',
+    'Operação e vendas com mais contexto',
+    'Produtos que puxam resultado',
     'Do consolidado ao detalhe',
-    'Relatório executivo em PDF',
+    'Exporte e compartilhe',
   ])
   assert.deepEqual(releaseItem.slides.map((slide) => slide.image), [
-    '/release/reporting-center-1.svg',
-    '/release/reporting-center-2.svg',
-    '/release/reporting-center-3.svg',
-    '/release/reporting-center-4.svg',
-    '/release/reporting-center-5.svg',
+    '/release/reporting-center-1.webp',
+    '/release/reporting-center-2.webp',
+    '/release/reporting-center-3.webp',
+    '/release/reporting-center-4.webp',
+    '/release/reporting-center-5.webp',
   ])
   assert.match(releaseItem.slides[0].description, /somente.*desktop/i)
   assert.equal(kitchenRelease.id, 'release-2026-09-kitchen-tv')
