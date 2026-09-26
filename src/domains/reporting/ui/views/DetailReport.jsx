@@ -4,6 +4,7 @@ import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
 import { ReportingState } from '../ReportingState.jsx'
 import { ReportingOrderDrawer } from '../detail/ReportingOrderDrawer.jsx'
+import { getReportingOrderReference } from '../detail/reportingOrderReference.js'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cents || 0) / 100)
 const number = (value) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(Number(value || 0))
@@ -92,7 +93,7 @@ const screenColumns = (columns) => {
 
 function DetailCell({ item, column }) {
   const [key] = column
-  if (key === 'order_number') return <strong className="reporting-detail-order-number">#{item.order_number}</strong>
+  if (key === 'order_number') return <strong className="reporting-detail-order-number">{getReportingOrderReference(item).compact}</strong>
   if (key === 'order_date') return <span className="reporting-detail-date">{formatDateTime(item)}</span>
   if (key === 'client_name_snapshot') return <span className="reporting-detail-client"><strong>{item.client_name_snapshot || 'Sem cliente'}</strong>{item.client_phone_snapshot ? <small>{item.client_phone_snapshot}</small> : null}</span>
   if (key === 'type') return <span className="reporting-detail-type"><Icon name={typeIcon(item.type)} size={15} />{item.type || '—'}</span>
@@ -217,7 +218,7 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
             key={item.id}
             className={`reporting-detail-clickable-row ${selected === item.id ? 'is-selected' : ''}`}
             tabIndex={0}
-            aria-label={`Abrir pedido ${item.order_number}`}
+            aria-label={`Abrir ${getReportingOrderReference(item).aria}`}
             onClick={() => setSelected(item.id)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -234,7 +235,7 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
                 event.stopPropagation()
                 setSelected(item.id)
               }}
-              aria-label={`Ver pedido ${item.order_number}`}
+              aria-label={`Ver ${getReportingOrderReference(item).aria}`}
             >•••</button></td>
           </tr>)}</tbody>
         </table>
