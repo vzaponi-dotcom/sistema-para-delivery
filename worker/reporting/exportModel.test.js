@@ -22,3 +22,18 @@ test('export accepts exactly 10,000 rows and explicitly rejects 10,001 without t
   assert.equal(createExportModel({ ...base, detail: { total: 10_000, items } }).rows.length, 10_000)
   assert.throws(() => createExportModel({ ...base, detail: { total: 10_001, items } }), { status: 422, code: 'REPORTING_EXPORT_LIMIT' })
 })
+
+
+test('export model preserves a stable reference for orders without order_number', async () => {
+  const { createExportModel } = await import('./exportModel.js')
+  const model = createExportModel({
+    query: { view: 'detail', from: '2026-09-01', to: '2026-09-25' },
+    report: { data: {} },
+    detail: {
+      total: 1,
+      items: [{ id: 'f9a1cb3b-d4fb-405f-b3ad-ca7027fa92a3', order_number: null }],
+    },
+    columns: ['order_number'],
+  })
+  assert.deepEqual(model.rows, [['Sem nº · f9a1cb3b']])
+})
