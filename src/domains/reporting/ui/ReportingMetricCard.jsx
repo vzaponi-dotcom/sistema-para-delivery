@@ -48,7 +48,7 @@ const iconFor = (label) => ({
   'Participação do Top 10': 'percent',
 }[label] || 'chart')
 
-export function ReportingMetricCard({ label, value, kind = 'money', comparison, onDrilldown }) {
+export function ReportingMetricCard({ label, value, kind = 'money', comparison, onDrilldown, className = '', compactComparison = false }) {
   const change = comparison?.delta
   const trend = isAvailable(change) && change !== 0 && comparison?.direction !== 'neutral'
     ? (change > 0) === (comparison?.direction === 'higher_better') ? 'Melhora' : 'Piora'
@@ -56,7 +56,7 @@ export function ReportingMetricCard({ label, value, kind = 'money', comparison, 
   const Root = onDrilldown ? 'button' : 'article'
   const trendClass = trend === 'Melhora' ? 'is-positive' : trend === 'Piora' ? 'is-negative' : ''
 
-  return <Root type={onDrilldown ? 'button' : undefined} onClick={onDrilldown} className="surface-card reporting-metric-card" aria-label={onDrilldown ? `Ver detalhes: ${label}` : undefined}>
+  return <Root type={onDrilldown ? 'button' : undefined} onClick={onDrilldown} className={`surface-card reporting-metric-card ${className}`.trim()} aria-label={onDrilldown ? `Ver detalhes: ${label}` : undefined}>
     <div className="reporting-metric-heading">
       <span className="reporting-metric-icon"><Icon name={iconFor(label)} size={18} /></span>
       <span className="reporting-metric-label">{label}</span>
@@ -65,7 +65,9 @@ export function ReportingMetricCard({ label, value, kind = 'money', comparison, 
     {comparison ? <small className={`reporting-comparison ${trendClass}`}>
       {comparison.available && isAvailable(comparison.percent)
         ? <><span className="reporting-comparison-pill">{change > 0 ? '+' : ''}{number.format(comparison.percent)}%</span><span>{trend ? `${trend} · ` : ''}vs. anterior {format(comparison.previous, kind)}</span></>
-        : <><span className="reporting-comparison-pill is-neutral">—</span><span>Comparação indisponível{isAvailable(comparison.previous) ? ` · anterior ${format(comparison.previous, kind)}` : ''}</span></>}
+        : compactComparison
+          ? <><span className="reporting-comparison-pill is-neutral">—</span><span>Sem base anterior</span></>
+          : <><span className="reporting-comparison-pill is-neutral">—</span><span>Comparação indisponível{isAvailable(comparison.previous) ? ` · anterior ${format(comparison.previous, kind)}` : ''}</span></>}
     </small> : <small className="reporting-comparison"><span>Período selecionado</span></small>}
   </Root>
 }
