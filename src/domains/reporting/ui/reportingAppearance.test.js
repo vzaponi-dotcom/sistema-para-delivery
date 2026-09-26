@@ -16,4 +16,6 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /border-color:\s*color-mix\(in srgb, var\(--primary\) 32%/)
   assert.match(css, /reporting-products-secondary-grid[\s\S]*align-items:\s*stretch/)
   assert.match(css, /reporting-products-insights[\s\S]*grid-template-rows:\s*repeat\(3, minmax\(0, 1fr\)\)/)
+  assert.match(css, /reporting-detail-panel[\s\S]*system-select-trigger[\s\S]*color:\s*var\(--text-soft\)\s*!important/)
+  assert.match(css, /reporting-detail-filter-chips button\.reporting-detail-filter-chip[\s\S]*background:\s*var\(--surface-soft\)\s*!important/)
 })
