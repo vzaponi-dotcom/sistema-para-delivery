@@ -84,7 +84,7 @@ const screenColumns = (columns) => {
   for (const [key, label] of COLUMNS) {
     if (!selected.has(key)) continue
     if (key === 'pendingCents' && selected.has('paidCents')) continue
-    if (key === 'paidCents' && selected.has('pendingCents')) output.push(['receivedPending', 'Recebido/Pendente'])
+    if (key === 'paidCents' && selected.has('pendingCents')) output.push(['paymentState', 'Recebido/Pendente'])
     else output.push([key, label])
   }
   return output
@@ -100,12 +100,14 @@ function DetailCell({ item, column }) {
   if (key === 'total_cents') return <strong className="reporting-detail-money">{money(item.total_cents)}</strong>
   if (key === 'paidCents') return <span className="reporting-detail-money">{money(item.paidCents)}</span>
   if (key === 'pendingCents') return <span className="reporting-detail-money">{money(item.pendingCents)}</span>
-  if (key === 'receivedPending') {
+  if (key === 'paymentState') {
     const paid = Number(item.paidCents || 0)
     const pending = Number(item.pendingCents || 0)
-    return <span className={`reporting-detail-balance ${pending > 0 ? 'has-pending' : ''}`}>
-      <strong>{money(paid)}</strong>
-      <small>{pending > 0 ? `${money(pending)} pendente` : 'Sem pendência'}</small>
+    const isCancelled = item.status === 'Cancelado'
+    const isPaid = !isCancelled && paid > 0 && pending === 0
+    const isUnpaid = !isCancelled && pending > 0
+    return <span className={`reporting-detail-payment-state ${isPaid ? 'is-paid' : isUnpaid ? 'is-unpaid' : 'is-neutral'}`}>
+      {isPaid ? 'Pago' : isUnpaid ? 'Não pago' : '—'}
     </span>
   }
   if (key === 'payment_label') return <span className="reporting-detail-payment">{item.payment_label ? String(item.payment_label).split(',').join(' + ') : '—'}</span>
