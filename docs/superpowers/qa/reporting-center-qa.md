@@ -1,3 +1,5 @@
+> **Contrato vigente (26/09/2026):** Reporting é desktop-only. As linhas históricas 64–67 e quaisquer evidências de “resumo móvel” abaixo registram uma versão anterior e foram **superseded**; não são requisitos atuais. A homologação mobile vigente verifica somente que Relatórios não aparece e que acesso direto a `/relatorios` retorna à Visão geral sem montar Reporting. O desktop passa também a exigir ajuda contextual em todos os KPI cards e gráficos/painéis, com definição, cálculo e interpretação.
+
 # Centro de Relatórios — homologação funcional
 
 Issue #34 · PR #72 · branch `feature/issue-34-reporting-center`
@@ -274,3 +276,17 @@ Estado aceito da homologação funcional:
 O Validate `36247093889` e o Deploy staging `36247090546` attempt 2 passaram no SHA de aplicação homologado. O commit documental subsequente `fbb2285774e917dc31cf7287837b93f108681eb4` também teve Validate #2166 verde; seu Deploy staging #418 é documental e foi acompanhado separadamente.
 
 Este aceite vale para a **decisão de merge do Issue #34**. Deploy de produção continua sendo uma ação posterior e separada, dependente de autorização explícita. Nenhum item BLOCKED deve ser reclassificado como PASS sem a evidência específica ainda faltante.
+
+
+## QA incremental — contrato desktop-only e ajuda contextual — 26/09/2026
+
+Novos critérios vigentes, que substituem a expectativa histórica de resumo mobile:
+
+| ID | Critério | Estado esperado |
+|---:|---|:---:|
+| R74 | Financeiro mobile não exibe o destino Relatórios | PASS após staging |
+| R75 | Acesso mobile direto a `/relatorios` retorna para Visão geral sem carregar a UI/API de Reporting | PASS após staging |
+| R76 | Todo KPI card atual possui ícone de informação com O que é / Como é calculado / Como interpretar | PASS após staging |
+| R77 | Todo gráfico/painel analítico atual possui o mesmo padrão de ajuda e o tooltip não sofre clipping no desktop claro/escuro | PASS após staging |
+
+As linhas históricas 64–67 permanecem no corpo acima apenas como evidência de versões anteriores e não entram mais no aceite vigente da feature.
