@@ -9,12 +9,28 @@ export function exportCsv({ columns = [], rows = [] }) {
   return `\uFEFF${[columns, ...rows].map((row) => row.map(escape).join(',')).join('\r\n')}`
 }
 
-const moneyKeys = new Set(['total_cents', 'paidCents', 'pendingCents'])
+const moneyKeys = new Set([
+  'subtotal_cents',
+  'delivery_fee_cents',
+  'adjustment_amount_cents',
+  'total_cents',
+  'paidCents',
+  'pendingCents',
+])
 export function exportReportingCsv(model) {
   const format = (value, key) => {
     if (value == null) return 'Indisponível'
     if (moneyKeys.has(key)) return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100)
-    if (key === 'order_date') return String(value).split('-').reverse().join('/')
+    if (key === 'order_date' || key === 'promised_payment_date') return String(value).split('-').reverse().join('/')
+    if (key === 'created_at') {
+      const parsed = new Date(value)
+      if (Number.isNaN(parsed.getTime())) return String(value)
+      return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      }).format(parsed)
+    }
     if (key === 'onTime') return value ? 'No prazo' : 'Atrasado'
     return value
   }
