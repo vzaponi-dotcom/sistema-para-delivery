@@ -127,7 +127,7 @@ Required gates:
 The green first-pass CI established non-regression, not functional completeness. A post-CI review identified partial/stubbed work in Tasks 3–12. This second pass adds new commits on top of published `ebf3ab0d`, without rewriting published history.
 
 - `e58b1c3d` — `feat: complete reporting analytics and export service`: São Paulo receipt-day boundaries, strict calendar dates, preset comparisons, filter applicability, operational coverage/distributions, sales/receivables, historical product analytics, combined detail filters/drawer data, canonical export model and explicit 10,000-row limit. Backend-focused tests: 25/25 at commit.
-- `7f11ded6` — `feat: connect reporting views mobile and exports`: eight overview KPIs, operation/sales/products/detail UI, read-only drawer, CSV/XLSX/PDF export menu with `reports.export`, mobile summary, state matrix and Mesiva-token styling. Frontend-focused tests: 30/30 at commit; architecture, lint and build passed.
+- `7f11ded6` — `feat: connect reporting views mobile and exports`: histórico da primeira implementação, que incluía mobile summary. **Esse contrato mobile foi superseded em 2026-09-26**; o estado vigente é Reporting desktop-only. O restante (KPIs, views, drawer, exportações e tokens Mesiva) permanece histórico válido.
 - `64a7578f` — `fix: close reporting drilldowns and export parity`: receivable/deadline/payment drill-downs, explicit product allocation quality, operational hour controls, localized XLSX summary labels and an executive PDF with view-specific KPIs/summaries rather than generic property dumps. Also makes the `0030` migration test and gate safe when later migrations exist.
 - The first corrective full-suite run exposed one stale assertion: `businessProfileMigration.test.js` assumed `0030` was forever the final migration. The new `0031` index is valid; the test and `operation-profile-d1-gate.mjs` now target the `0029`→`0030` upgrade by name while clean-install checks still apply all migrations. Focused RED observed, then GREEN.
 
@@ -247,3 +247,19 @@ Evidência da aplicação homologada:
 - review threads conhecidos: **0 unresolved** antes deste fechamento.
 
 O commit documental `fbb2285774e917dc31cf7287837b93f108681eb4` preservou a re-homologação final e disparou os gates documentais subsequentes. Este fechamento adiciona apenas documentação/estado de entrega; não altera código de aplicação, Spec ou plano.
+
+
+## Atualização de contrato — 26/09/2026 — desktop-only + ajuda contextual
+
+O contrato vigente do Centro de Relatórios foi refinado após homologação visual/funcional:
+
+- Reporting é **somente desktop**;
+- o item `Relatórios` é omitido da navegação Financeiro no mobile;
+- acesso direto mobile a `/relatorios` retorna para `dashboard` / Visão geral sem montar Reporting;
+- a antiga composição `ReportingMobileSummary` não faz parte do produto vigente, ainda que possa existir como artefato histórico no branch;
+- todos os KPI cards e todos os gráficos/painéis analíticos do desktop usam um catálogo central de ajuda contextual;
+- o ícone de informação explica **O que é**, **Como é calculado** e **Como interpretar**, com fórmula alinhada ao Worker;
+- a ajuda é apresentada por hover e foco no desktop, respeitando tema e limites da viewport;
+- A Receber permanece a única superfície de baixa/recebimento.
+
+Esta seção tem precedência sobre menções históricas anteriores a “mobile summary” neste ledger.
