@@ -4,9 +4,27 @@ import { createSettingsDb } from '../test-support/settingsDb.js'
 
 test('detail keeps server pagination and totals separate', async () => {
   const { createReportingService } = await import('./service.js')
-  const repository = { async listDetail() { return { total: 3, items: [{ id: 'two' }] } } }
-  const result = await createReportingService(repository).detail('business-a', { page: 2, pageSize: 1 })
-  assert.deepEqual(result.data, { total: 3, page: 2, pageSize: 1, sort: 'date-desc', totalPages: 3, items: [{ id: 'two' }] })
+  const repository = {
+    async listDetail() { return { total: 3, items: [{ id: 'two' }] } },
+    async loadDetailSummary(_businessId, query) {
+      return query.from === '2026-08-01'
+        ? { ordersCount: 2, salesCents: 1000, averageTicketCents: 500, cancellationRate: 0 }
+        : { ordersCount: 3, salesCents: 1800, averageTicketCents: 900, cancellationRate: 33.33 }
+    },
+  }
+  const result = await createReportingService(repository).detail('business-a', {
+    from: '2026-09-01', to: '2026-09-30', period: 'custom', page: 2, pageSize: 1,
+  })
+  assert.deepEqual(result.data, {
+    total: 3,
+    page: 2,
+    pageSize: 1,
+    sort: 'date-desc',
+    totalPages: 3,
+    items: [{ id: 'two' }],
+    summary: { ordersCount: 3, salesCents: 1800, averageTicketCents: 900, cancellationRate: 33.33 },
+  })
+  assert.equal(result.comparison.metrics.ordersCount.current, 3)
 })
 
 test('detail combines server filters, canonical late policy, allowlisted sort and business-scoped drawer', async (t) => {
@@ -40,6 +58,13 @@ test('detail combines server filters, canonical late policy, allowlisted sort an
   assert.equal(filtered.total, 1)
   assert.equal(filtered.items[0].id, 'late')
   assert.equal(filtered.items[0].onTime, false)
+  assert.equal(filtered.items[0].payment_label, 'Pix')
+  const summary = await repo.loadDetailSummary('a', filtered.length ? {
+    ...base, status: 'Finalizado', type: 'Entrega', schedule: 'immediate', paymentMethod: 'Pix',
+    category: 'Lanches', product: '["Lanches","X",""]', customer: 'Ana', search: 'Ana',
+    orderHourFrom: 9, orderHourTo: 9, operationalDeadline: 'late',
+  } : base)
+  assert.deepEqual(summary, { ordersCount: 1, salesCents: 1000, averageTicketCents: 1000, cancellationRate: 0 })
   assert.equal((await repo.getOrderDetail('a', 'late')).items.length, 1)
   assert.equal((await repo.getOrderDetail('a', 'late')).paymentAllocations[0].method_label, 'Pix')
   assert.equal(await repo.getOrderDetail('b', 'late'), null)
