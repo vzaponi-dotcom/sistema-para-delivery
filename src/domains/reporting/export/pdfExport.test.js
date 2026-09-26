@@ -11,6 +11,7 @@ test('executive PDF content includes localized period, filters, KPIs, summaries 
   const { buildPdfExecutiveSections } = await import('./pdfExport.js')
   const sections = buildPdfExecutiveSections({
     view: 'sales', generatedAt: '2026-09-25T15:00:00Z',
+    operation: { id: 'business-a', name: 'Amor & Sabor', slug: 'amor-sabor' },
     period: { from: '2026-09-01', to: '2026-09-25' },
     filters: { type: 'Entrega', paymentMethod: 'Pix', view: 'sales', page: 1 },
     summary: {
@@ -59,4 +60,22 @@ test('detail PDF uses the same executive KPI summary shape exposed by the detail
   assert.match(content, /Taxa de cancelamento/)
   assert.match(content, /Comparação com período anterior/)
   assert.match(content, /Sem base comparável/)
+})
+
+
+test('PDF humanizes receivable filter values and identifies the operation', async () => {
+  const { buildPdfExecutiveSections } = await import('./pdfExport.js')
+  const sections = buildPdfExecutiveSections({
+    view: 'detail',
+    operation: { name: 'Amor & Sabor' },
+    period: { from: '2026-09-01', to: '2026-09-25' },
+    filters: { receivable: 'unpaid', search: 'Fernanda' },
+    summary: { summary: { ordersCount: 16, salesCents: 113200, averageTicketCents: 7075, cancellationRate: 0 } },
+    rowCount: 16,
+  })
+  const content = JSON.stringify(sections)
+  assert.match(content, /Operação: Amor & Sabor/)
+  assert.match(content, /Recebível: A receber/)
+  assert.match(content, /Busca: Fernanda/)
+  assert.doesNotMatch(content, /unpaid/)
 })
