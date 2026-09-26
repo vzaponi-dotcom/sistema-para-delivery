@@ -10,7 +10,9 @@ export async function createXlsxWorkbook(model) {
   if (model.generatedAt) summary.addRow(['Gerado em', model.generatedAt])
   if (model.timezone) summary.addRow(['Fuso horário', model.timezone])
   const metricLabels = {
-    salesCents: 'Vendas registradas', ordersCount: 'Pedidos', averageTicketCents: 'Ticket médio',
+    salesCents: model.view === 'detail' ? 'Faturamento total' : 'Vendas registradas',
+    ordersCount: model.view === 'detail' ? 'Pedidos no período' : 'Pedidos',
+    averageTicketCents: 'Ticket médio',
     receivedCents: 'Recebido no período', receivableCents: 'A receber',
     cancellationRate: 'Taxa de cancelamento', refundsCents: 'Estornos', withinDeadlineRate: 'Dentro do prazo',
     operationalOrdersCount: 'Pedidos operacionais', averageDurationMinutes: 'Tempo médio',
