@@ -4359,3 +4359,575 @@
     width: min(100%, calc(100vw - 24px));
   }
 }
+
+/* Reporting drawer — approved History / Client mockups */
+.reporting-drawer-tabs button {
+  position: relative;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.reporting-drawer-tabs button:hover {
+  color: var(--text-soft);
+}
+
+.reporting-drawer-tabs button.is-active {
+  color: var(--primary);
+}
+
+.reporting-drawer-tabs button.is-active::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.reporting-drawer-history-content,
+.reporting-client-content,
+.reporting-client-orders-content {
+  padding-top: 17px;
+}
+
+.reporting-history-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reporting-history-summary > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 68px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.reporting-history-summary-icon,
+.reporting-client-stat-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.reporting-history-summary > div > span:last-child,
+.reporting-client-stat-grid > div > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.reporting-history-summary small,
+.reporting-client-stat-grid small,
+.reporting-client-orders-card small {
+  color: var(--muted);
+  font-size: .61rem;
+}
+
+.reporting-history-summary strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: .88rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reporting-history-section h3 {
+  margin-bottom: 17px;
+  font-size: .92rem;
+}
+
+.reporting-history-timeline {
+  position: relative;
+  display: grid;
+  gap: 0;
+}
+
+.reporting-history-event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 92px;
+  padding-bottom: 18px;
+}
+
+.reporting-history-event:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 39px;
+  bottom: -1px;
+  border-left: 1px dashed color-mix(in srgb, var(--text-soft) 46%, transparent);
+}
+
+.reporting-history-event-icon {
+  position: relative;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface));
+  color: var(--primary);
+}
+
+.reporting-history-event.is-success .reporting-history-event-icon {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  color: var(--success);
+}
+
+.reporting-history-event.is-danger .reporting-history-event-icon {
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+}
+
+.reporting-history-event > div {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+.reporting-history-event time {
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.reporting-history-event strong {
+  color: var(--text);
+  font-size: .86rem;
+}
+
+.reporting-history-event p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: .72rem;
+  line-height: 1.45;
+}
+
+.reporting-client-profile-section h3,
+.reporting-client-relationship h3,
+.reporting-client-snapshot h3,
+.reporting-client-actions h3,
+.reporting-client-orders-heading h3 {
+  margin: 0 0 12px;
+  font-size: .92rem;
+}
+
+.reporting-client-profile-card,
+.reporting-client-orders-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-soft);
+}
+
+.reporting-client-profile-avatar {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+  color: var(--text);
+}
+
+.reporting-client-profile-card > div,
+.reporting-client-orders-card > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.reporting-client-profile-card > div > strong,
+.reporting-client-orders-card > div > strong {
+  color: var(--text);
+  font-size: .9rem;
+}
+
+.reporting-client-profile-card > div > span,
+.reporting-client-orders-card > div > span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-soft);
+  font-size: .7rem;
+  overflow-wrap: anywhere;
+}
+
+.reporting-client-profile-badge,
+.reporting-client-orders-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-strong));
+  color: color-mix(in srgb, var(--primary) 70%, var(--text));
+  font-size: .62rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.reporting-client-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reporting-client-stat-grid > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 66px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.reporting-client-stat-grid strong {
+  color: var(--text);
+  font-size: .82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.reporting-client-stat-lines {
+  display: grid;
+  margin-top: 8px;
+}
+
+.reporting-client-stat-lines > div,
+.reporting-client-snapshot > div {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: .72rem;
+}
+
+.reporting-client-stat-lines > div:last-child,
+.reporting-client-snapshot > div:last-of-type {
+  border-bottom: 0;
+}
+
+.reporting-client-stat-lines span,
+.reporting-client-snapshot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.reporting-client-stat-lines span svg,
+.reporting-client-snapshot span svg {
+  color: var(--primary);
+}
+
+.reporting-client-stat-lines strong,
+.reporting-client-snapshot strong {
+  color: var(--text);
+  font-size: .72rem;
+  text-align: right;
+}
+
+.reporting-client-snapshot {
+  display: grid;
+}
+
+.reporting-client-snapshot p {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: .64rem;
+  line-height: 1.45;
+}
+
+.reporting-client-snapshot p svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.reporting-client-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.reporting-client-actions h3 {
+  margin-bottom: 4px;
+}
+
+.reporting-client-actions > button {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reporting-client-actions > button:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface-soft));
+}
+
+.reporting-client-actions > button.is-primary {
+  border-color: color-mix(in srgb, var(--primary) 52%, var(--border));
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+}
+
+.reporting-client-actions > button svg {
+  color: var(--primary);
+}
+
+.reporting-client-actions > button span {
+  font-size: .76rem;
+  font-weight: 760;
+}
+
+.reporting-client-actions > button b {
+  color: var(--text-soft);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.reporting-client-orders-heading {
+  padding: 0 0 12px;
+}
+
+.reporting-client-orders-heading h3 {
+  margin-bottom: 5px;
+}
+
+.reporting-client-orders-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.4;
+}
+
+.reporting-client-orders-card {
+  margin-bottom: 13px;
+}
+
+.reporting-client-order-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.reporting-client-order-filters button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: .66rem;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.reporting-client-order-filters button.is-active {
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--border));
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface));
+  color: var(--primary);
+}
+
+.reporting-client-order-list {
+  display: grid;
+  gap: 8px;
+}
+
+.reporting-client-order-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reporting-client-order-row:hover {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+}
+
+.reporting-client-order-row.is-current {
+  border-color: color-mix(in srgb, var(--primary) 72%, var(--border));
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface-soft));
+}
+
+.reporting-client-order-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.reporting-client-order-main {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.reporting-client-order-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.reporting-client-order-title strong {
+  color: var(--text);
+  font-size: .79rem;
+}
+
+.reporting-client-order-title em {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
+  font-size: .56rem;
+  font-style: normal;
+  font-weight: 760;
+}
+
+.reporting-client-order-main > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .64rem;
+}
+
+.reporting-client-order-side {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.reporting-client-order-side > strong {
+  color: var(--text);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.reporting-client-order-side .reporting-detail-status {
+  font-size: .58rem;
+}
+
+.reporting-client-order-chevron {
+  color: var(--text-soft);
+  font-size: 1.5rem;
+}
+
+.reporting-client-order-empty {
+  min-height: 110px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+@media (max-width: 560px) {
+  .reporting-history-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .reporting-client-profile-card,
+  .reporting-client-orders-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .reporting-client-profile-badge,
+  .reporting-client-orders-count {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .reporting-client-order-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reporting-client-order-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .reporting-client-order-side {
+    grid-column: 2;
+    justify-items: start;
+  }
+
+  .reporting-client-order-chevron {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}

@@ -210,29 +210,111 @@ export function createReportingRepository(db) {
       }
     },
     async getOrderDetail(businessId, id) {
-      const row = await db.prepare(`SELECT o.id, o.order_number, o.order_date, o.client_name_snapshot,
+      const row = await db.prepare(`SELECT o.id, o.order_number, o.order_date, o.client_id, o.client_name_snapshot,
         o.client_phone_snapshot, o.client_address_snapshot, o.type, o.status, o.subtotal_cents, o.total_cents,
         o.delivery_fee_cents, o.adjustment_type, o.adjustment_amount_cents,
         o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
-        o.scheduled_for, o.is_backdated, o.created_at, o.finished_at, o.timing_policy_snapshot_json,
+        o.scheduled_for, o.is_backdated, o.created_at, o.finished_at,
+        o.cancelled_at, o.cancel_reason, o.cancel_reason_note, cr.label AS cancel_reason_label,
+        o.timing_policy_snapshot_json,
         (SELECT SUM(pay.amount_cents) FROM payments pay
           WHERE pay.business_id = o.business_id AND pay.order_id = o.id) AS paid_cents
         FROM orders o
+        LEFT JOIN business_cancel_reasons cr
+          ON cr.business_id = o.business_id AND cr.id = o.cancel_reason
         WHERE o.business_id = ? AND o.id = ?`).bind(businessId, id).first()
       if (!row) return null
+
       const { results: items } = await db.prepare(`SELECT id, product_id, name_snapshot, category_snapshot,
-        size_snapshot, quantity, unit_price_cents FROM order_items WHERE business_id = ? AND order_id = ? ORDER BY created_at, id`).bind(businessId, id).all()
+        size_snapshot, quantity, unit_price_cents FROM order_items
+        WHERE business_id = ? AND order_id = ? ORDER BY created_at, id`).bind(businessId, id).all()
+
       const { results: allocations } = await db.prepare(`
-        SELECT pa.method_code, pa.method_label, pa.amount_cents
+        SELECT pa.receipt_id, pa.method_code, pa.method_label, pa.amount_cents, r.paid_at
         FROM payment_allocations pa
+        JOIN payment_receipts r
+          ON r.business_id = pa.business_id AND r.id = pa.receipt_id
         JOIN (
           SELECT DISTINCT receipt_id FROM payments
           WHERE business_id = ? AND order_id = ? AND receipt_id IS NOT NULL
         ) receipts ON receipts.receipt_id = pa.receipt_id
         WHERE pa.business_id = ?
-        ORDER BY pa.id
+        ORDER BY r.paid_at, pa.id
       `).bind(businessId, id, businessId).all()
-      return { ...enrichDetail(row), items, paymentAllocations: allocations }
-    },
+
+      let clientContext = null
+      if (row.client_id) {
+        const profile = await db.prepare(`
+          SELECT id, name, phone, address
+          FROM clients
+          WHERE business_id = ? AND id = ?
+        `).bind(businessId, row.client_id).first()
+
+        if (profile) {
+          const summaryRow = await db.prepare(`
+            SELECT
+              COUNT(*) AS orders_count,
+              SUM(CASE WHEN o.status <> 'Cancelado' THEN 1 ELSE 0 END) AS commercial_count,
+              SUM(CASE WHEN o.status <> 'Cancelado' THEN o.total_cents ELSE 0 END) AS total_spent_cents,
+              SUM(CASE WHEN o.status = 'Cancelado' THEN 1 ELSE 0 END) AS cancellation_count,
+              MAX(CASE WHEN o.status <> 'Cancelado' THEN o.order_date ELSE NULL END) AS last_purchase_date,
+              SUM(CASE
+                WHEN o.status <> 'Cancelado'
+                  AND NOT (o.customer_identity_type = 'table' AND o.table_tab_id IS NOT NULL)
+                THEN CASE
+                  WHEN o.total_cents - COALESCE((
+                    SELECT SUM(pay.amount_cents)
+                    FROM payments pay
+                    WHERE pay.business_id = o.business_id AND pay.order_id = o.id
+                  ), 0) > 0
+                  THEN o.total_cents - COALESCE((
+                    SELECT SUM(pay.amount_cents)
+                    FROM payments pay
+                    WHERE pay.business_id = o.business_id AND pay.order_id = o.id
+                  ), 0)
+                  ELSE 0
+                END
+                ELSE 0
+              END) AS pending_cents
+            FROM orders o
+            WHERE o.business_id = ? AND o.client_id = ?
+          `).bind(businessId, row.client_id).first()
+
+          const { results: clientOrderRows } = await db.prepare(`
+            SELECT o.id, o.order_number, o.order_date, o.client_id,
+              o.client_name_snapshot, o.client_phone_snapshot, o.type, o.status,
+              o.subtotal_cents, o.total_cents, o.delivery_fee_cents,
+              o.adjustment_type, o.adjustment_amount_cents,
+              o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
+              o.scheduled_for, o.is_backdated, o.created_at, o.finished_at,
+              o.timing_policy_snapshot_json,
+              (SELECT SUM(pay.amount_cents) FROM payments pay
+                WHERE pay.business_id = o.business_id AND pay.order_id = o.id) AS paid_cents
+            FROM orders o
+            WHERE o.business_id = ? AND o.client_id = ?
+            ORDER BY o.order_date DESC, o.created_at DESC, o.order_number DESC, o.id DESC
+            LIMIT 100
+          `).bind(businessId, row.client_id).all()
+
+          const ordersCount = Number(summaryRow?.orders_count || 0)
+          const commercialCount = Number(summaryRow?.commercial_count || 0)
+          const totalSpentCents = Number(summaryRow?.total_spent_cents || 0)
+          clientContext = {
+            profile: { id: profile.id, name: profile.name, phone: profile.phone || '', address: profile.address || '' },
+            summary: {
+              ordersCount,
+              totalSpentCents,
+              averageTicketCents: commercialCount ? Math.round(totalSpentCents / commercialCount) : null,
+              pendingCents: Number(summaryRow?.pending_cents || 0),
+              cancellationCount: Number(summaryRow?.cancellation_count || 0),
+              lastPurchaseDate: summaryRow?.last_purchase_date || null,
+            },
+            orders: clientOrderRows.map(enrichDetail),
+          }
+        }
+      }
+
+      return { ...enrichDetail(row), items, paymentAllocations: allocations, clientContext }
+    }
   })
 }

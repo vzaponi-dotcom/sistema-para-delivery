@@ -117,7 +117,7 @@ function DetailCell({ item, column }) {
   return <span>{item[key] ?? '—'}</span>
 }
 
-export function DetailReport({ state, query, onChange, orderApi, selectedColumns, onColumnsChange }) {
+export function DetailReport({ state, query, onChange, orderApi, selectedColumns, onColumnsChange, onOpenClient }) {
   const [selected, setSelected] = useState(null)
   const [localColumns, setLocalColumns] = useState(DEFAULT_DETAIL_COLUMNS)
   const columns = selectedColumns || localColumns
@@ -254,6 +254,6 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
       </nav> : null}
     </section>
 
-    {selected ? <ReportingOrderDrawer id={selected} onClose={() => setSelected(null)} api={orderApi} /> : null}
+    {selected ? <ReportingOrderDrawer id={selected} onClose={() => setSelected(null)} api={orderApi} onSelectOrder={setSelected} onOpenClient={onOpenClient} /> : null}
   </div>
 }

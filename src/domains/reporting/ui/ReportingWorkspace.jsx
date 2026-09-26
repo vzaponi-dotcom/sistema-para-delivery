@@ -15,7 +15,7 @@ import { useNavigation } from '../../../app/navigation/NavigationContext.jsx'
 import { useReportingData } from '../application/useReportingData.js'
 import './reporting.css'
 
-function DesktopReportingWorkspace({ granted }) {
+function DesktopReportingWorkspace({ granted, onOpenClient }) {
   const { query, patchQuery } = useReportingSearchParams()
   const state = useReportingData({ query })
   const [columns, setColumns] = useState(DEFAULT_DETAIL_COLUMNS)
@@ -44,14 +44,14 @@ function DesktopReportingWorkspace({ granted }) {
         />
 
         <main className="reporting-view">
-          {query.view === 'overview' ? <OverviewReport state={state} onDrilldown={patchQuery} /> : query.view === 'operation' ? <OperationReport state={state} onDrilldown={patchQuery} /> : query.view === 'sales' ? <SalesReport state={state} onDrilldown={patchQuery} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product, productName: null })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} />}
+          {query.view === 'overview' ? <OverviewReport state={state} onDrilldown={patchQuery} /> : query.view === 'operation' ? <OperationReport state={state} onDrilldown={patchQuery} /> : query.view === 'sales' ? <SalesReport state={state} onDrilldown={patchQuery} /> : query.view === 'products' ? <ProductsReport state={state} onDrilldown={(product) => patchQuery({ view: 'detail', product, productName: null })} /> : <DetailReport state={state} query={query} onChange={patchQuery} selectedColumns={columns} onColumnsChange={setColumns} onOpenClient={onOpenClient} />}
         </main>
       </div>
     </>
   )
 }
 
-export function ReportingWorkspace({ granted }) {
+export function ReportingWorkspace({ granted, onOpenClient }) {
   const isMobile = useMediaQuery('(max-width: 820px)')
   const { requestNavigation } = useNavigation()
 
@@ -60,5 +60,5 @@ export function ReportingWorkspace({ granted }) {
   }, [isMobile, requestNavigation])
 
   if (isMobile) return null
-  return <DesktopReportingWorkspace granted={granted} />
+  return <DesktopReportingWorkspace granted={granted} onOpenClient={onOpenClient} />
 }
