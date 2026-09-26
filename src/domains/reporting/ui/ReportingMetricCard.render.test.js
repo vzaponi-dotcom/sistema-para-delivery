@@ -30,3 +30,18 @@ test('metric card can render a compact unavailable comparison for executive summ
   assert.match(nodeText(renderer.root), /Sem base anterior/)
   assert.doesNotMatch(nodeText(renderer.root), /Comparação indisponível/)
 })
+
+
+test('unavailable comparison never renders a zero previous value as historical data', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { ReportingMetricCard } = await harness.load('/src/domains/reporting/ui/ReportingMetricCard.jsx')
+  const renderer = await harness.render(ReportingMetricCard, {
+    label: 'Vendas',
+    value: 1500,
+    comparison: { available: false, previous: 0, delta: 1500, percent: null, direction: 'higher_better' },
+  })
+  const text = nodeText(renderer.root)
+  assert.match(text, /Comparação indisponível/)
+  assert.doesNotMatch(text, /anterior/)
+  assert.doesNotMatch(text, /R\$\s*0,00/)
+})
