@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useReportingData } from '../../application/useReportingData.js'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
+import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
 
 const money = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
 const forView = (query, view) => ({
@@ -31,7 +32,7 @@ export function ReportingMobileSummary({ query, detailState, onDrilldown = () =>
         <ReportingMetricCard label="Ticket médio" value={metrics.averageTicketCents} comparison={overview.comparison?.metrics?.averageTicketCents} />
         <ReportingMetricCard label="A receber" value={metrics.receivableCents} comparison={overview.comparison?.metrics?.receivableCents} />
       </div> : <p>Nenhum dado no período.</p>}
-      <a href="/financeiro/a-receber">Ver em A receber</a>
+      <ReportingReceivableLink className="reporting-mobile-receivable-link" />
     </section>
     <section className="surface-card reporting-panel"><h2>Tendência de vendas</h2>{sales.data?.salesSeries?.length ? <ul className="reporting-mobile-trend">{sales.data.salesSeries.map((item) => <li key={item.date}><time dateTime={item.date}>{item.date}</time><strong>{money(item.cents)}</strong></li>)}</ul> : <p>{sales.loading ? 'Carregando…' : 'Sem vendas no período.'}</p>}</section>
     <section className="surface-card reporting-panel"><h2>Top produtos</h2>{products.data?.top10?.length ? <ol>{products.data.top10.slice(0, 5).map((item) => <li key={item.id}><button type="button" onClick={() => onDrilldown(item.id)}>{item.name}</button><span>{item.quantity} un. · {money(item.revenueCents)}</span></li>)}</ol> : <p>{products.loading ? 'Carregando…' : 'Sem produtos no período.'}</p>}</section>
