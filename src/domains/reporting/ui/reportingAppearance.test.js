@@ -25,4 +25,7 @@ test('reporting styles use semantic tokens, visible focus and stable tab overflo
   assert.match(css, /reporting-overview-metric\.is-primary/)
   assert.match(css, /reporting-overview-metric\.is-secondary/)
   assert.match(css, /reporting-overview-comparison-empty/)
+  assert.match(css, /reporting-receivable-link[\s\S]*display:\s*inline-flex/)
+  assert.match(css, /reporting-overview-financial-stats/)
+  assert.match(css, /reporting-detail-more-panel[\s\S]*width:\s*min\(552px/)
 })
