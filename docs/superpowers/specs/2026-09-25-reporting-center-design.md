@@ -4,9 +4,9 @@
 **Base inspecionada:** `master` em `6445098aef8332890b854f6eb8524b5f9c053b8f`  
 **Branch documental:** `docs/issue-34-reporting-center-v2`  
 **Implementation plan:** `docs/superpowers/plans/2026-09-25-reporting-center-plan.md` — APPROVED 2026-09-25  
-**Status:** APPROVED — lógica, arquitetura, direção visual, estratégia mobile e fronteira com A Receber aprovadas em conversa em 2026-09-25  
+**Status:** APPROVED / ATUALIZADO — lógica, arquitetura e direção visual aprovadas em 2026-09-25; contrato desktop-only e ajuda contextual padronizada aprovados em 2026-09-26  
 **Data:** 2026-09-25  
-**Referência visual:** Mesiva — Guia oficial de identidade visual e aplicação no produto, v1.0. Superfícies afetadas: Centro de Relatórios, navegação Financeiro e exportações. Estados e temas a verificar: claro/escuro, loading, vazio, erro, dados parciais, filtros ativos, desktop completo e mobile resumido. Exceções aprovadas: o mobile não replica a densidade analítica completa do desktop; ações de recebimento permanecem fora de Reporting.
+**Referência visual:** Mesiva — Guia oficial de identidade visual e aplicação no produto, v1.0. Superfícies afetadas: Centro de Relatórios, navegação Financeiro e exportações. Estados e temas a verificar: claro/escuro, loading, vazio, erro, dados parciais, filtros ativos e desktop completo. **Contrato vigente:** Reporting não é exposto no mobile; Financeiro móvel permanece somente com as superfícies já aprovadas, incluindo Visão geral. Ações de recebimento permanecem fora de Reporting.
 
 ## 1. Contexto e motivo desta revisão
 
@@ -28,7 +28,7 @@ Portanto, este documento substitui o design de 2026-09-09 como proposta vigente 
 
 ## 2. Objetivo
 
-Criar um Centro de Relatórios gerencial, responsivo e confiável para análise de:
+Criar um Centro de Relatórios gerencial, **desktop-only** e confiável para análise de:
 
 1. visão geral do negócio;
 2. operação;
@@ -55,7 +55,7 @@ Ao concluir a V1, um usuário autorizado deve conseguir:
 - abrir uma visão detalhada dos pedidos que compõem um indicador;
 - exportar o recorte atual;
 - compartilhar/reabrir a mesma análise por URL;
-- usar uma experiência desktop completa e uma experiência mobile resumida de consulta;
+- usar uma experiência analítica completa no desktop; no mobile, não expor Reporting e manter Financeiro na experiência já existente de Visão geral/A Receber/Movimentações;
 - consultar pendências financeiras sem duplicar o fluxo operacional de baixa existente em A Receber;
 - confiar que o mesmo filtro produz a mesma regra no backend, exportação e drill-down.
 
@@ -78,7 +78,7 @@ Não fazem parte desta primeira versão:
 - editar configurações operacionais pelo Centro de Relatórios;
 - criar uma segunda biblioteca visual paralela;
 - refazer o Dashboard existente na mesma primeira slice;
-- reproduzir no mobile toda a densidade analítica/tabela do desktop;
+- expor o Centro de Relatórios no mobile; a rota e a navegação móvel devem permanecer fora desta superfície;
 - registrar pagamento, alterar promessa ou executar baixa financeira dentro de Relatórios.
 
 ## 5. Decisões principais desta revisão
@@ -158,20 +158,19 @@ Por pedido:
 - a taxa de entrega é exibida separadamente em Vendas;
 - arredondamento em centavos deve ser determinístico.
 
-### 5.7 Desktop completo; mobile resumido
+### 5.7 Reporting é desktop-only
 
-A experiência completa do Centro de Relatórios é desenhada para desktop/tablet amplo, onde há espaço para filtros, múltiplos KPIs, gráficos comparativos, rankings, tabela detalhada, seleção de colunas e exportações.
+A experiência completa do Centro de Relatórios é oferecida somente em desktop/tablet amplo, onde há espaço para filtros, KPIs, gráficos comparativos, rankings, tabela detalhada, seleção de colunas, exportações e ajuda contextual.
 
-No mobile, Reporting continua acessível, mas como uma experiência de consulta resumida:
+No mobile:
 
-- período e filtros essenciais;
-- KPIs principais;
-- comparação com período anterior;
-- gráficos simples e legíveis;
-- Top produtos e resumos relevantes;
-- drill-down em lista/cards compactos quando fizer sentido.
+- `Relatórios` não aparece na navegação interna de Financeiro;
+- não existe entrada no bottom navigation;
+- acesso direto a `/relatorios` não monta queries, gráficos, tabelas ou exportações de Reporting;
+- o usuário retorna para a experiência existente de **Financeiro → Visão geral**;
+- A Receber e Movimentações continuam seguindo seus próprios contratos móveis.
 
-Não reproduzir no telefone uma tabela desktop comprimida nem a seleção avançada de colunas. Recursos analíticos densos podem informar claramente `Disponível na versão desktop` quando não houver uma adaptação mobile que preserve qualidade.
+A antiga composição `ReportingMobileSummary` é considerada artefato histórico/superseded e não faz parte do contrato vigente de produto.
 
 ### 5.8 Reporting analisa recebíveis; A Receber executa a baixa
 
@@ -209,7 +208,7 @@ A área Financeiro passa a conter:
 3. A receber;
 4. Movimentações.
 
-No mobile, não criar um quarto botão principal. O acesso continua pelo item Financeiro e pela navegação interna da área, abrindo a versão resumida de consulta. A experiência analítica completa permanece no desktop.
+No mobile, `Relatórios` não aparece na navegação de Financeiro nem ganha entrada própria. Acesso direto a `/relatorios` deve retornar para `Visão geral`, sem montar a UI ou buscar dados de Reporting.
 
 ### 6.2 Views internas
 
@@ -746,9 +745,8 @@ Desktop:
 
 Mobile:
 
-- lista de cards/linhas adaptadas;
-- sem tabela horizontal obrigatória;
-- mesmas informações essenciais e mesmos filtros.
+- a view Detail não é exposta, porque todo o Centro de Relatórios é desktop-only;
+- o acesso móvel permanece na Visão geral de Financeiro e nas demais superfícies móveis já existentes.
 
 Colunas candidatas:
 
@@ -1085,7 +1083,7 @@ Cores de marca não substituem semântica:
 
 Não introduzir biblioteca visual paralela.
 
-## 29. Responsividade
+## 29. Responsividade e disponibilidade por viewport
 
 ### Desktop
 
@@ -1093,36 +1091,14 @@ Não introduzir biblioteca visual paralela.
 - KPIs em grid;
 - gráficos em grid responsivo;
 - detalhado em tabela;
-- sticky header/filtros somente se não prejudicar altura útil.
+- sticky header/filtros somente se não prejudicar altura útil;
+- tooltips de ajuda não podem ser cortados pelos cards/gráficos nem sair da viewport.
 
-### Mobile — consulta resumida
+### Mobile — Reporting indisponível por decisão de produto
 
-O mobile não tenta reproduzir toda a estação analítica do desktop.
+O mobile não oferece Centro de Relatórios nesta versão. A navegação móvel de Financeiro omite `Relatórios`; acesso direto à rota retorna para `Visão geral` e não dispara a carga analítica. Essa exclusão é intencional para evitar uma experiência comprimida de baixa qualidade.
 
-Priorizar:
-
-- seletor de período;
-- filtros essenciais em sheet/modal;
-- chips de filtros ativos;
-- KPIs principais em 1–2 colunas;
-- comparação com período anterior;
-- evolução resumida;
-- Top produtos;
-- resumos de Operação/Vendas;
-- drill-down em cards/lista quando necessário;
-- links claros para a experiência desktop quando uma função densa não tiver boa adaptação móvel.
-
-Ficam desktop-first na V1:
-
-- tabela analítica completa;
-- seleção avançada de colunas;
-- grandes combinações de filtros simultâneos;
-- visualizações com alta densidade;
-- fluxo completo de análise detalhada.
-
-O mobile nunca executa uma ação financeira apenas porque um recebível apareceu em Reporting. Para baixa, navegar para A Receber.
-
-Homologar pelo menos 320 px e um viewport mobile representativo, sem scroll horizontal estrutural.
+A homologação mobile desta feature verifica **ausência/redirect**, e não renderização responsiva de dashboards, tabelas ou gráficos.
 
 ## 30. Acessibilidade
 
@@ -1131,6 +1107,9 @@ Homologar pelo menos 320 px e um viewport mobile representativo, sem scroll hori
 - foco visível;
 - filtros e tabs com labels;
 - gráficos com resumo textual/tabela acessível;
+- todo KPI e todo gráfico/painel analítico possui ícone contextual de informação;
+- no desktop, hover e foco no ícone mostram **O que é**, **Como é calculado** e **Como interpretar** a métrica;
+- o texto da ajuda deve refletir a fórmula oficial do backend e acompanhar claro/escuro;
 - informação não depende somente de cor;
 - contraste conforme metas do guia;
 - loading anunciado sem spam;
@@ -1203,8 +1182,9 @@ Cobrir:
 - retry;
 - partial error;
 - drill-down;
-- mobile summary/filter experience;
-- ausência de tabela desktop comprimida no mobile;
+- ausência de Reporting na navegação mobile;
+- acesso direto mobile a `/relatorios` redireciona sem montar Reporting;
+- catálogo de ajuda cobre todos os KPIs e gráficos atuais;
 - navegação Reporting -> A Receber sem duplicar baixa;
 - capability denied;
 - export disabled/allowed.
@@ -1273,7 +1253,7 @@ O plano pode reorganizar tasks para manter TDD menor, desde que preserve as deci
 
 A feature é aceita quando:
 
-1. Relatórios é acessível pelo fluxo de navegação aprovado; desktop recebe a experiência completa e mobile recebe a consulta resumida.
+1. Relatórios é acessível pelo fluxo de navegação aprovado somente no desktop; no mobile ele não aparece e acesso direto retorna para Financeiro → Visão geral.
 2. F5/Back/Forward preservam destino e query.
 3. Filtros ativos são reproduzíveis por URL.
 4. Todas as métricas oficiais vêm do backend.
@@ -1298,13 +1278,14 @@ A feature é aceita quando:
 23. Export acima do limite falha explicitamente.
 24. Loading/vazio/erro/parcial são distinguíveis.
 25. Claro/escuro funcionam em toda a superfície.
-26. 320 px não exige scroll horizontal estrutural e não tenta comprimir a tabela desktop.
+26. Em viewport mobile, Reporting não monta conteúdo analítico nem dispara suas consultas; a navegação permanece na Visão geral de Financeiro.
 27. Arquitetura não introduz deep imports proibidos.
 28. Validate fica verde.
 29. Staging é homologado.
 30. Produção continua separada e exige autorização.
 31. Relatórios não possui ação de registrar pagamento/baixa.
 32. A tela A Receber existente continua sendo a superfície oficial para resolver pendências financeiras.
+33. Todos os KPI cards e gráficos/painéis analíticos do desktop expõem ajuda contextual com definição, cálculo e interpretação coerentes com as fórmulas oficiais.
 
 ## 35. Decisões de produto aprovadas
 
@@ -1322,9 +1303,9 @@ Usar a política operacional já configurada e historicamente versionada; não c
 
 Produto reconcilia com mercadoria líquida; taxa de entrega fica separada em Vendas.
 
-### D. Desktop completo + mobile resumido — APROVADO
+### D. Reporting desktop-only — ATUALIZADO E APROVADO EM 2026-09-26
 
-Desktop recebe a experiência analítica integral. Mobile permanece acessível para consulta de KPIs, tendências, rankings e drill-down simplificado, sem reproduzir tabela/colunas avançadas.
+Desktop recebe a experiência analítica integral. Mobile não expõe Reporting: a navegação de Financeiro omite o destino e acesso direto retorna para Visão geral sem montar a superfície analítica. A decisão substitui a antiga estratégia de resumo mobile.
 
 ### E. A Receber permanece operacional; Reporting permanece analítico — APROVADO
 
