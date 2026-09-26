@@ -12,6 +12,18 @@ const statusClass = (status = '') => status === 'Cancelado'
       : 'is-success'
 const typeIcon = (type) => type === 'Retirada' ? 'pickup' : type === 'Local' ? 'table' : 'delivery'
 const deadlineClass = (onTime) => onTime == null ? 'is-neutral' : onTime ? 'is-success' : 'is-danger'
+const categoryIcon = (category = '') => {
+  const normalized = String(category).toLocaleLowerCase('pt-BR')
+  if (normalized.includes('bebida') || normalized.includes('refrigerante') || normalized.includes('suco')) return 'drink'
+  if (normalized.includes('sobremesa') || normalized.includes('doce')) return 'dessert'
+  if (normalized.includes('lanche') || normalized.includes('sandu')) return 'snack'
+  if (normalized.includes('combo')) return 'combo'
+  if (normalized.includes('porç')) return 'portion'
+  if (normalized.includes('molho')) return 'sauce'
+  if (normalized.includes('refei') || normalized.includes('marmita') || normalized.includes('prato')) return 'meal'
+  return 'package'
+}
+const paymentIcon = (label = '') => String(label).toLocaleLowerCase('pt-BR').includes('pix') ? 'pix' : 'card'
 
 export function ReportingOrderDrawer({ id, onClose, api = reportingApi }) {
   const [state, setState] = useState({ loading: true, data: null, error: null })
@@ -29,6 +41,8 @@ export function ReportingOrderDrawer({ id, onClose, api = reportingApi }) {
   const paymentLabel = order?.paymentAllocations?.length
     ? [...new Set(order.paymentAllocations.map((item) => item.method_label || item.method_code || 'Não informado'))].join(' + ')
     : 'Não informado'
+  const adjustmentAmount = Number(order?.adjustment_amount_cents || 0)
+  const hasSubtotal = order?.subtotal_cents !== null && order?.subtotal_cents !== undefined
 
   return <aside className="reporting-order-drawer" role="dialog" aria-modal="true" aria-label={`Pedido ${id}`}>
     <div className="reporting-drawer-header">
@@ -47,8 +61,8 @@ export function ReportingOrderDrawer({ id, onClose, api = reportingApi }) {
 
     <div className="reporting-drawer-tabs" aria-label="Seções do pedido">
       <span className="is-active">Detalhes</span>
-      <span>Histórico</span>
-      <span>Cliente</span>
+      <span className="is-disabled" aria-disabled="true">Histórico</span>
+      <span className="is-disabled" aria-disabled="true">Cliente</span>
     </div>
 
     {state.loading ? <div className="reporting-drawer-state">Carregando pedido…</div> : state.error ? <div className="reporting-drawer-state is-error" role="alert">Não foi possível carregar o pedido.</div> : order ? <div className="reporting-drawer-content">
@@ -74,20 +88,23 @@ export function ReportingOrderDrawer({ id, onClose, api = reportingApi }) {
       <section className="reporting-drawer-section">
         <h3>Resumo financeiro</h3>
         <div className="reporting-drawer-financial-lines">
+          {hasSubtotal ? <div><span>Subtotal</span><strong>{money(order.subtotal_cents)}</strong></div> : null}
           {Number(order.delivery_fee_cents || 0) > 0 ? <div><span>Taxa de entrega</span><strong>{money(order.delivery_fee_cents)}</strong></div> : null}
+          {order.adjustment_type === 'discount' && adjustmentAmount > 0 ? <div><span>Desconto</span><strong className="is-discount">− {money(adjustmentAmount)}</strong></div> : null}
+          {order.adjustment_type === 'surcharge' && adjustmentAmount > 0 ? <div><span>Acréscimo</span><strong>{money(adjustmentAmount)}</strong></div> : null}
           <div className="is-total"><span>Total do pedido</span><strong>{money(order.total_cents)}</strong></div>
         </div>
         <div className="reporting-drawer-financial-cards">
           <div className="is-received"><small>Valor recebido</small><strong>{money(order.paidCents)}</strong></div>
           <div><small>Pendente</small><strong>{money(order.pendingCents)}</strong></div>
         </div>
-        <div className="reporting-drawer-payment-method"><span>Forma de pagamento</span><strong><Icon name="pix" size={17} />{paymentLabel}</strong></div>
+        <div className="reporting-drawer-payment-method"><span>Forma de pagamento</span><strong><Icon name={paymentIcon(paymentLabel)} size={17} />{paymentLabel}</strong></div>
       </section>
 
       <section className="reporting-drawer-section reporting-drawer-items-section">
         <h3>Itens do pedido ({order.items?.length || 0})</h3>
         <div className="reporting-drawer-items">{order.items?.map((item) => <div className="reporting-drawer-item" key={item.id}>
-          <span className="reporting-drawer-item-icon"><Icon name="meal" size={18} /></span>
+          <span className="reporting-drawer-item-icon"><Icon name={categoryIcon(item.category_snapshot)} size={18} /></span>
           <div><strong>{item.quantity} × {item.name_snapshot}</strong>{item.size_snapshot ? <small>{item.size_snapshot}</small> : null}</div>
           <strong>{money(item.quantity * item.unit_price_cents)}</strong>
         </div>)}</div>
