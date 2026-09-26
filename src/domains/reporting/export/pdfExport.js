@@ -297,23 +297,13 @@ const elevatedPanel = (pdf, x, y, w, h, { radius = 3, fill = COLORS.white } = {}
   roundedPanel(pdf, x, y, w, h, { fill, stroke: COLORS.borderSoft, radius })
 }
 
-const drawBrandHeader = (pdf, { growthCallout = false } = {}) => {
-  pdf.addImage(MESIVA_REPORTING_LOGO, 'PNG', 10, 7.8, 66, 23.1)
+const drawBrandHeader = (pdf) => {
+  pdf.addImage(MESIVA_REPORTING_LOGO, 'PNG', 10, 8.5, 66, 19.0)
   setStroke(pdf, [138, 164, 190])
   pdf.setLineWidth(0.38)
   pdf.line(153, 10, 153, 27.8)
   text(pdf, 'Mesiva', 159, 17.2, 9.1, COLORS.navy, { bold: true })
-  text(pdf, 'Restaurantes que vão mais longe', 159, 22.2, growthCallout ? 4.35 : 5.05, COLORS.muted)
-  if (growthCallout) {
-    roundedPanel(pdf, 181.2, 8.9, 22.2, 19.3, { fill: COLORS.mint, stroke: COLORS.mint, radius: 4 })
-    text(pdf, 'Dados que', 184.2, 14.9, 5.0, COLORS.navy, { bold: true })
-    text(pdf, 'alimentam', 184.2, 19.7, 5.0, COLORS.navy, { bold: true })
-    text(pdf, 'o seu crescimento.', 184.2, 24.6, 4.55, COLORS.navy, { bold: true })
-    setStroke(pdf, COLORS.yellow)
-    pdf.setLineWidth(1.1)
-    pdf.line(202.4, 10.4, 204.5, 7.2)
-    pdf.line(203.7, 14.0, 207.0, 12.9)
-  }
+  text(pdf, 'Restaurantes que vão mais longe', 159, 22.2, 5.05, COLORS.muted)
 }
 
 const drawFooter = (pdf, vm, page) => {
@@ -365,10 +355,21 @@ const drawMiniIcon = (pdf, icon, x, y, color) => {
     return
   }
   if (icon === 'pie') {
-    pdf.circle(x + 2.75, y + 2.75, 2.4, 'S')
-    pdf.line(x + 2.75, y + 2.75, x + 2.75, y + 0.35)
-    pdf.line(x + 2.75, y + 2.75, x + 5.15, y + 2.75)
-    pdf.triangle(x + 2.75, y + 2.75, x + 2.75, y + 0.35, x + 5.15, y + 2.75, 'F')
+    const cx = x + 2.75
+    const cy = y + 2.75
+    const radius = 2.4
+    pdf.circle(cx, cy, radius, 'S')
+    const points = [[cx, cy], [cx, cy - radius]]
+    for (let angle = -75; angle <= 0; angle += 15) {
+      const rad = angle * Math.PI / 180
+      points.push([cx + Math.cos(rad) * radius, cy + Math.sin(rad) * radius])
+    }
+    points.push([cx, cy])
+    const vectors = []
+    for (let index = 1; index < points.length; index += 1) {
+      vectors.push([points[index][0] - points[index - 1][0], points[index][1] - points[index - 1][1]])
+    }
+    pdf.lines(vectors, points[0][0], points[0][1], [1, 1], 'F', true)
     return
   }
   if (icon === 'trophy') {
@@ -721,7 +722,7 @@ const drawObservationPanel = (pdf, vm) => {
 }
 
 const drawPageTwo = (pdf, vm) => {
-  drawBrandHeader(pdf, { growthCallout: true })
+  drawBrandHeader(pdf)
   text(pdf, 'CENTRO DE RELATÓRIOS', 10, 38.5, 7.6, COLORS.teal, { bold: true })
   text(pdf, 'Análise detalhada', 10, 51.7, 20.6, COLORS.navy, { bold: true })
   drawInfoItem(pdf, 10, 62.7, 'Operação', vm.operationName, 'store')
