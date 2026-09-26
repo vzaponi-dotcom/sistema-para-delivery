@@ -4,7 +4,7 @@ export const EXPORT_LIMIT = 10_000
 export const EXPORT_COLUMNS = Object.freeze({
   order_number: 'Pedido', order_date: 'Data', client_name_snapshot: 'Cliente',
   type: 'Modalidade', status: 'Status', total_cents: 'Total',
-  paidCents: 'Recebido', pendingCents: 'Pendente', durationMinutes: 'Duração (min)', onTime: 'Prazo',
+  paidCents: 'Recebido', pendingCents: 'Pendente', payment_label: 'Pagamento', durationMinutes: 'Duração (min)', onTime: 'Prazo',
 })
 const DEFAULT_COLUMNS = Object.freeze(['order_number', 'order_date', 'client_name_snapshot', 'type', 'status', 'total_cents', 'paidCents', 'pendingCents'])
 
