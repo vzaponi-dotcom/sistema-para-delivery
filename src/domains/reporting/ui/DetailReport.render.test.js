@@ -77,3 +77,43 @@ test('detail keeps product drilldown filters readable without exposing manual ca
   renderer.root.findAllByType('button').find((button) => nodeText(button).includes('Produto: Selecionado')).props.onClick()
   assert.deepEqual(changes.at(-1), { product: null, page: 1 })
 })
+
+
+test('detail gives orders without order_number a stable readable reference instead of null', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { DetailReport } = await harness.load('/src/domains/reporting/ui/views/DetailReport.jsx')
+  const id = 'f9a1cb3b-d4fb-405f-b3ad-ca7027fa92a3'
+  const item = {
+    id, order_number: null, order_date: '2026-09-10', created_at: '2026-09-10T12:00:00Z',
+    client_name_snapshot: 'Sem número', type: 'Entrega', status: 'Finalizado',
+    total_cents: 1000, paidCents: 0, pendingCents: 1000, payment_label: null,
+    durationMinutes: 20, onTime: true,
+  }
+  const orderApi = { loadOrder: async () => ({ data: {
+    ...item, subtotal_cents: 1000, delivery_fee_cents: 0, adjustment_type: 'none', adjustment_amount_cents: 0,
+    client_phone_snapshot: null, client_address_snapshot: null, items: [], paymentAllocations: [],
+  } }) }
+  const renderer = await harness.render(DetailReport, {
+    state: {
+      data: {
+        total: 1, page: 1, pageSize: 25, totalPages: 1, items: [item],
+        summary: { ordersCount: 1, salesCents: 1000, averageTicketCents: 1000, cancellationRate: 0 },
+      },
+      comparison: { metrics: {} },
+      loading: false,
+    },
+    query: { page: 1, pageSize: 25, sort: 'date-desc' },
+    onChange: () => {},
+    orderApi,
+  })
+
+  const textBefore = nodeText(renderer.root)
+  assert.match(textBefore, /Sem nº · f9a1cb3b/)
+  assert.doesNotMatch(textBefore, /#null|pedido null/i)
+  const row = renderer.root.findByProps({ 'aria-label': 'Abrir pedido sem número f9a1cb3b' })
+  await act(async () => row.props.onClick())
+  const textAfter = nodeText(renderer.root)
+  assert.match(textAfter, /Pedido sem número/)
+  assert.match(textAfter, /ID f9a1cb3b/)
+  assert.doesNotMatch(textAfter, /#null|pedido null/i)
+})
