@@ -12,7 +12,8 @@ export const EXPORT_COLUMNS = Object.freeze({
   status: 'Status',
   subtotal_cents: 'Subtotal',
   delivery_fee_cents: 'Taxa de entrega',
-  adjustmentLabel: 'Ajuste',
+  adjustment_type: 'Tipo de ajuste',
+  adjustment_amount_cents: 'Valor do ajuste',
   total_cents: 'Total',
   paidCents: 'Recebido',
   pendingCents: 'Pendente',
@@ -40,10 +41,9 @@ const exportCellValue = (item, key) => {
     return shortId ? `Sem nº · ${shortId}` : 'Sem nº'
   }
   if (key === 'scheduleLabel') return item?.scheduled_for ? 'Agendado' : 'Imediato'
-  if (key === 'adjustmentLabel') {
-    const cents = Number(item?.adjustment_amount_cents || 0)
-    if (!cents || item?.adjustment_type === 'none') return null
-    return item?.adjustment_type === 'discount' ? `Desconto · ${cents}` : `Acréscimo · ${cents}`
+  if (key === 'adjustment_type') {
+    if (!item?.adjustment_type || item.adjustment_type === 'none' || Number(item?.adjustment_amount_cents || 0) === 0) return null
+    return item.adjustment_type === 'discount' ? 'Desconto' : 'Acréscimo'
   }
   if (key === 'paymentState') {
     if (item?.status === 'Cancelado') return null
