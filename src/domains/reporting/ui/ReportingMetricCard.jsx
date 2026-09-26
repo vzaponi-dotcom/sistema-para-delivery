@@ -67,7 +67,7 @@ export function ReportingMetricCard({ label, value, kind = 'money', comparison, 
         ? <><span className="reporting-comparison-pill">{change > 0 ? '+' : ''}{number.format(comparison.percent)}%</span><span>{trend ? `${trend} · ` : ''}vs. anterior {format(comparison.previous, kind)}</span></>
         : compactComparison
           ? <><span className="reporting-comparison-pill is-neutral">—</span><span>Sem base anterior</span></>
-          : <><span className="reporting-comparison-pill is-neutral">—</span><span>Comparação indisponível{isAvailable(comparison.previous) ? ` · anterior ${format(comparison.previous, kind)}` : ''}</span></>}
+          : <><span className="reporting-comparison-pill is-neutral">—</span><span>Comparação indisponível</span></>}
     </small> : <small className="reporting-comparison"><span>Período selecionado</span></small>}
   </Root>
 }
