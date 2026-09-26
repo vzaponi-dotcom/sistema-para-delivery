@@ -159,9 +159,12 @@ export const createReportingService = (repository) => Object.freeze({
     return { data: await repository.getOrderDetail(businessId, id), quality: {} }
   },
   async exportModel(businessId, query, columns) {
-    const detail = await repository.listDetail(businessId, { ...query, page: 1, pageSize: EXPORT_LIMIT })
-    const report = await this[query.view](businessId, query)
-    return { data: createExportModel({ query, report, detail, columns }), quality: report.quality, warnings: report.warnings }
+    const [detail, report, operation] = await Promise.all([
+      repository.listDetail(businessId, { ...query, page: 1, pageSize: EXPORT_LIMIT }),
+      this[query.view](businessId, query),
+      repository.getBusinessIdentity ? repository.getBusinessIdentity(businessId) : Promise.resolve(null),
+    ])
+    return { data: createExportModel({ query, report, detail, columns, operation }), quality: report.quality, warnings: report.warnings }
   },
   async empty(_businessId, _query) {
     return { data: {}, quality: {} }
