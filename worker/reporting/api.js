@@ -13,6 +13,15 @@ const envelope = (query, result) => ({
   data: result.data, quality: result.quality, warnings: result.warnings || [],
 })
 
+const queryParamsFromObject = (query = {}) => {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(query || {})) {
+    if (value === null || value === undefined || value === '') continue
+    params.set(key, String(value))
+  }
+  return params
+}
+
 export async function handleReportingApi(request, env, context, url = new URL(request.url)) {
   const expectedView = READ_PATHS.get(url.pathname)
   const service = env.reportingService || createReportingService(createReportingRepository(env.DB))
@@ -46,7 +55,7 @@ export async function handleReportingApi(request, env, context, url = new URL(re
     requireCapability(context, 'reports.export')
     assertSameOriginMutation(request)
     const body = await readJson(request)
-    const query = parseReportingQuery(new URLSearchParams(body.query || body))
+    const query = parseReportingQuery(queryParamsFromObject(body.query || body))
     return json(envelope(query, await service.exportModel(context.businessId, query, body.columns)))
   }
   return null
