@@ -86,3 +86,12 @@ test('reporting URL omits implicit overview and pagination defaults while preser
   assert.equal(reportingQueryToSearchParams(query).toString(), 'period=today&from=2026-09-25&to=2026-09-25')
   assert.deepEqual(normalize(reportingQueryToSearchParams(query)), query)
 })
+
+
+test('detail pagination preserves the supported 10 item page size', () => {
+  const query = normalize('view=detail&page=1&pageSize=10')
+  assert.equal(query.pageSize, 10)
+  const patched = patchReportingQuery(query, { pageSize: 10, page: 1 })
+  assert.equal(patched.pageSize, 10)
+  assert.equal(reportingQueryToSearchParams(patched).get('pageSize'), '10')
+})
