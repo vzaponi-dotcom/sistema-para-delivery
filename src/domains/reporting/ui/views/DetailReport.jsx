@@ -189,9 +189,29 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
       <ReportingState state={state}>{items.length ? <div className="reporting-detail-table-wrap">
         <table className="reporting-detail-table">
           <thead><tr>{visibleColumns.map(([key, label]) => <th key={key}>{label}</th>)}<th className="reporting-detail-actions-column" aria-label="Ações">•••</th></tr></thead>
-          <tbody>{items.map((item) => <tr key={item.id} className={selected === item.id ? 'is-selected' : ''}>
+          <tbody>{items.map((item) => <tr
+            key={item.id}
+            className={`reporting-detail-clickable-row ${selected === item.id ? 'is-selected' : ''}`}
+            tabIndex={0}
+            aria-label={`Abrir pedido ${item.order_number}`}
+            onClick={() => setSelected(item.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                setSelected(item.id)
+              }
+            }}
+          >
             {visibleColumns.map((column) => <td key={column[0]}><DetailCell item={item} column={column} /></td>)}
-            <td className="reporting-detail-actions-column"><button className="reporting-detail-row-action" type="button" onClick={() => setSelected(item.id)} aria-label={`Ver pedido ${item.order_number}`}>•••</button></td>
+            <td className="reporting-detail-actions-column"><button
+              className="reporting-detail-row-action"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                setSelected(item.id)
+              }}
+              aria-label={`Ver pedido ${item.order_number}`}
+            >•••</button></td>
           </tr>)}</tbody>
         </table>
       </div> : <div className="reporting-products-empty">Nenhum pedido encontrado.</div>}</ReportingState>
