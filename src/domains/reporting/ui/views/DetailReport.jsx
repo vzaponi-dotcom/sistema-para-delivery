@@ -104,8 +104,8 @@ function DetailCell({ item, column }) {
     const paid = Number(item.paidCents || 0)
     const pending = Number(item.pendingCents || 0)
     return <span className={`reporting-detail-balance ${pending > 0 ? 'has-pending' : ''}`}>
-      <strong>{money(paid > 0 ? paid : pending)}</strong>
-      {paid > 0 && pending > 0 ? <small>{money(pending)} pendente</small> : null}
+      <strong>{money(paid)}</strong>
+      <small>{pending > 0 ? `${money(pending)} pendente` : 'Sem pendência'}</small>
     </span>
   }
   if (key === 'payment_label') return <span className="reporting-detail-payment">{item.payment_label ? String(item.payment_label).split(',').join(' + ') : '—'}</span>
@@ -180,7 +180,7 @@ export function DetailReport({ state, query, onChange, orderApi, selectedColumns
       </div>
 
       {active.length ? <div className="reporting-filter-chips reporting-detail-filter-chips" aria-label="Filtros ativos">
-        {active.map((key) => <button key={key} type="button" onClick={() => applyFilter({ [key]: null })}>{FILTER_LABELS[key]}: {filterValue(key, query[key])} ×</button>)}
+        {active.map((key) => <button className="reporting-detail-filter-chip" key={key} type="button" onClick={() => applyFilter({ [key]: null })}><span>{FILTER_LABELS[key]}: {filterValue(key, query[key])}</span><span aria-hidden="true">×</span></button>)}
         <button className="reporting-detail-clear-filters" type="button" onClick={() => onChange({ ...Object.fromEntries(FILTERS.map((key) => [key, null])), page: 1 })}>Limpar filtros</button>
       </div> : null}
 
