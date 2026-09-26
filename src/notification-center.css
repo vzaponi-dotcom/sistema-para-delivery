@@ -256,8 +256,8 @@
 
 
 .release-notes-tour-modal {
-  width: min(920px, calc(100vw - 32px));
-  max-height: min(94dvh, 860px);
+  width: min(820px, calc(100vw - 24px));
+  max-height: min(95dvh, 900px);
 }
 
 .release-notes-tour-modal .modal-header {
@@ -265,8 +265,10 @@
 }
 
 .release-notes-tour-modal .modal-body {
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 10px 20px 18px;
+  overscroll-behavior: contain;
 }
 
 .release-tour {
@@ -311,10 +313,19 @@
   font-size: .76rem;
 }
 
+.release-tour.is-history-mode .release-tour-heading {
+  align-items: center;
+}
+
+.release-tour.is-history-mode .release-tour-heading p {
+  max-width: 700px;
+  margin-top: 0;
+}
+
 .release-tour-media {
   position: relative;
   min-width: 0;
-  aspect-ratio: 16 / 8.5;
+  aspect-ratio: 1491 / 1055;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -326,6 +337,7 @@
   height: 100%;
   display: block;
   object-fit: contain;
+  object-position: center;
   user-select: none;
   -webkit-user-drag: none;
 }
@@ -489,7 +501,7 @@
   }
 
   .release-tour-media {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1491 / 1055;
     border-radius: 14px;
   }
 
@@ -557,7 +569,7 @@
   }
 
   .release-tour-media {
-    aspect-ratio: 1.42 / 1;
+    aspect-ratio: 1491 / 1055;
   }
 
   .release-tour-navigation {
