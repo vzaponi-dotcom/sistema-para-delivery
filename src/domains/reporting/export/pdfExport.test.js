@@ -30,7 +30,10 @@ test('executive PDF content includes localized period, filters, KPIs, summaries 
     assert.ok(content.replaceAll('\u00a0', ' ').includes(expected.replaceAll('\u00a0', ' ')), expected)
   }
   assert.doesNotMatch(content, /não deve aparecer/)
-  assert.doesNotMatch(content, /Pedidos:.*anterior.*0/)
+  const comparison = sections.find((section) => section.heading === 'Comparação com período anterior')
+  assert.ok(comparison)
+  assert.ok(comparison.lines.includes('Pedidos: Sem base comparável'))
+  assert.equal(comparison.lines.some((line) => line.startsWith('Pedidos:') && line.includes('anterior')), false)
 })
 
 
