@@ -30,7 +30,8 @@ test('manual category and product filters stay out of the top reporting filter U
   const text = nodeText(renderer.root)
   assert.doesNotMatch(text, /Categoria/)
   assert.doesNotMatch(text, /Produto por nome/)
-  assert.match(text, /Cliente/)
+  assert.doesNotMatch(text, /Cliente/)
+  assert.doesNotMatch(text, /Mais filtros/)
 })
 
 
@@ -46,4 +47,34 @@ test('detail top toolbar keeps payment in the primary row and omits the global a
   assert.match(text, /30 dias/)
   assert.match(text, /Forma de pagamento/)
   assert.doesNotMatch(text, /Mais filtros/)
+})
+
+
+test('overview and sales omit the redundant customer-only advanced filter', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { ReportingFilters } = await harness.load('/src/domains/reporting/ui/ReportingFilters.jsx')
+  for (const view of ['overview', 'sales']) {
+    const renderer = await harness.render(ReportingFilters, {
+      query: { view, period: 'current-month', from: '2026-09-01', to: '2026-09-25' },
+      onChange: () => {},
+    })
+    const text = nodeText(renderer.root)
+    assert.doesNotMatch(text, /Mais filtros/)
+    assert.doesNotMatch(text, /Todos os clientes/)
+  }
+})
+
+test('operation keeps advanced filters because it exposes operational controls beyond customer', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { ReportingFilters } = await harness.load('/src/domains/reporting/ui/ReportingFilters.jsx')
+  const renderer = await harness.render(ReportingFilters, {
+    query: { view: 'operation', period: 'current-month', from: '2026-09-01', to: '2026-09-25' },
+    onChange: () => {},
+  })
+  const text = nodeText(renderer.root)
+  assert.match(text, /Mais filtros/)
+  assert.match(text, /Cliente/)
+  assert.match(text, /Prazo/)
+  assert.match(text, /Hora de/)
+  assert.match(text, /Hora até/)
 })
