@@ -45,7 +45,7 @@ test('reporting order drawer implements Details, History, Client and client-orde
   const tab = (name) => renderer.root.findAllByType('button').find((button) => nodeText(button) === name)
   const filterButton = (name) => renderer.root.findAllByType('button').find((button) => nodeText(button) === name)
   const visibleClientOrders = () => renderer.root
-    .findAllByProps({ className: /reporting-client-order-row/ })
+    .findAll((node) => typeof node.props?.className === 'string' && node.props.className.includes('reporting-client-order-row'))
     .map((row) => nodeText(row))
 
   await act(async () => tab('Histórico').props.onClick())
