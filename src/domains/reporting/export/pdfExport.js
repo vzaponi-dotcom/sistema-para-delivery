@@ -298,38 +298,38 @@ const elevatedPanel = (pdf, x, y, w, h, { radius = 3, fill = COLORS.white } = {}
 }
 
 const drawBrandHeader = (pdf, { growthCallout = false } = {}) => {
-  pdf.addImage(MESIVA_REPORTING_LOGO, 'PNG', 10, 7.2, 70.5, 24.7)
+  pdf.addImage(MESIVA_REPORTING_LOGO, 'PNG', 10, 7.8, 66.0, 23.1)
   setStroke(pdf, [138, 164, 190])
   pdf.setLineWidth(0.4)
   const dividerX = growthCallout ? 150.2 : 153
   pdf.line(dividerX, 9.3, dividerX, 28.1)
   if (growthCallout) {
-    text(pdf, 'Gestão Delivery', 155.3, 16.4, 7.9, COLORS.navy, { bold: true })
-    text(pdf, 'Restaurantes que vão mais longe', 155.3, 21.5, 4.35, COLORS.muted)
-    roundedPanel(pdf, 181.6, 8.6, 22.0, 19.6, { fill: COLORS.mint, stroke: COLORS.mint, radius: 4 })
-    text(pdf, 'Dados que', 184.5, 14.7, 5.15, COLORS.navy, { bold: true })
-    text(pdf, 'alimentam', 184.5, 19.5, 5.15, COLORS.navy, { bold: true })
-    text(pdf, 'o seu crescimento.', 184.5, 24.4, 4.65, COLORS.navy, { bold: true })
+    text(pdf, 'Gestão Delivery', 155.3, 16.2, 9.0, COLORS.navy, { bold: true })
+    text(pdf, 'Restaurantes que vão mais longe', 155.3, 21.7, 5.0, COLORS.muted)
+    roundedPanel(pdf, 180.8, 8.5, 23.0, 19.8, { fill: COLORS.mint, stroke: COLORS.mint, radius: 4 })
+    text(pdf, 'Dados que', 183.8, 14.5, 5.55, COLORS.navy, { bold: true })
+    text(pdf, 'alimentam', 183.8, 19.4, 5.55, COLORS.navy, { bold: true })
+    text(pdf, 'o seu crescimento.', 183.8, 24.4, 5.0, COLORS.navy, { bold: true })
     setStroke(pdf, COLORS.yellow)
     pdf.setLineWidth(1.15)
     pdf.line(202.8, 10.1, 204.8, 6.8)
     pdf.line(204.0, 13.8, 207.4, 12.6)
   } else {
-    text(pdf, 'Gestão Delivery', 159, 17.0, 9.7, COLORS.navy, { bold: true })
-    text(pdf, 'Restaurantes que vão mais longe', 159, 22.5, 5.35, COLORS.muted)
+    text(pdf, 'Gestão Delivery', 159, 16.8, 11.3, COLORS.navy, { bold: true })
+    text(pdf, 'Restaurantes que vão mais longe', 159, 22.6, 6.1, COLORS.muted)
   }
 }
 
 const drawFooter = (pdf, vm, page) => {
-  text(pdf, 'Mesiva', 10, 290.5, 8.3, COLORS.navy, { bold: true })
-  text(pdf, '|   PEOPLE  FOOD  PROGRESS', 29.5, 290.5, 5.7, [89, 116, 157])
-  text(pdf, `Relatório executivo   ·   ${vm.periodLabel}   |   ${page}`, 200, 290.5, 5.55, COLORS.muted, { align: 'right' })
+  text(pdf, 'Mesiva', 10, 290.5, 9.2, COLORS.navy, { bold: true })
+  text(pdf, '|   PEOPLE  FOOD  PROGRESS', 31.0, 290.5, 6.2, [89, 116, 157])
+  text(pdf, `Relatório executivo   ·   ${vm.periodLabel}   |   ${page}`, 200, 290.5, 6.0, COLORS.muted, { align: 'right' })
 }
 
 const drawInfoItem = (pdf, x, y, title, value, icon = 'store') => {
-  drawMiniIcon(pdf, icon, x, y + 0.4, COLORS.teal)
-  text(pdf, title, x + 9, y + 1.9, 6.2, COLORS.muted)
-  text(pdf, value, x + 9, y + 7.8, 8.35, COLORS.navy, { bold: true })
+  drawMiniIcon(pdf, icon, x, y + 0.25, COLORS.teal)
+  text(pdf, title, x + 9, y + 1.9, 6.8, COLORS.muted)
+  text(pdf, value, x + 9, y + 8.0, 9.35, COLORS.navy, { bold: true })
 }
 
 const drawMiniIcon = (pdf, icon, x, y, color) => {
@@ -415,31 +415,31 @@ const drawMiniIcon = (pdf, icon, x, y, color) => {
 const drawKpiIcon = (pdf, type, x, y, accent) => {
   const soft = soften(accent, 0.78)
   setFill(pdf, soft)
-  pdf.roundedRect(x, y, 9.2, 9.2, 2.6, 2.6, 'F')
+  pdf.roundedRect(x, y, 10.2, 10.2, 2.8, 2.8, 'F')
   setStroke(pdf, accent)
   setFill(pdf, accent)
   pdf.setLineWidth(0.72)
   if (type === 'sales') {
-    pdf.line(x + 2.1, y + 4.9, x + 3.8, y + 6.4)
-    pdf.line(x + 3.8, y + 6.4, x + 7.2, y + 2.7)
+    pdf.line(x + 2.4, y + 5.4, x + 4.1, y + 6.9)
+    pdf.line(x + 4.1, y + 6.9, x + 7.8, y + 3.0)
   } else if (type === 'orders') {
-    pdf.roundedRect(x + 2.4, y + 2.0, 4.3, 5.1, 0.45, 0.45, 'S')
-    pdf.line(x + 3.2, y + 3.6, x + 5.9, y + 3.6)
-    pdf.line(x + 3.2, y + 5.1, x + 5.9, y + 5.1)
+    pdf.roundedRect(x + 2.7, y + 2.2, 4.7, 5.6, 0.5, 0.5, 'S')
+    pdf.line(x + 3.5, y + 4.0, x + 6.6, y + 4.0)
+    pdf.line(x + 3.5, y + 5.6, x + 6.6, y + 5.6)
   } else if (type === 'ticket') {
-    pdf.ellipse(x + 4.6, y + 2.8, 2.25, 0.9, 'S')
-    pdf.ellipse(x + 4.6, y + 4.8, 2.25, 0.9, 'S')
-    pdf.ellipse(x + 4.6, y + 6.5, 2.25, 0.9, 'S')
+    pdf.ellipse(x + 5.1, y + 3.0, 2.5, 1.0, 'S')
+    pdf.ellipse(x + 5.1, y + 5.2, 2.5, 1.0, 'S')
+    pdf.ellipse(x + 5.1, y + 7.1, 2.5, 1.0, 'S')
   } else if (type === 'received') {
-    pdf.roundedRect(x + 1.8, y + 2.35, 5.5, 4.25, 0.6, 0.6, 'S')
-    pdf.line(x + 2.2, y + 3.7, x + 6.9, y + 3.7)
+    pdf.roundedRect(x + 2.0, y + 2.6, 6.1, 4.7, 0.65, 0.65, 'S')
+    pdf.line(x + 2.4, y + 4.1, x + 7.7, y + 4.1)
   } else if (type === 'receivable') {
-    pdf.circle(x + 4.6, y + 4.6, 2.55, 'S')
-    pdf.line(x + 4.6, y + 4.6, x + 4.6, y + 2.7)
-    pdf.line(x + 4.6, y + 4.6, x + 6.1, y + 5.3)
+    pdf.circle(x + 5.1, y + 5.1, 2.8, 'S')
+    pdf.line(x + 5.1, y + 5.1, x + 5.1, y + 3.0)
+    pdf.line(x + 5.1, y + 5.1, x + 6.8, y + 5.9)
   } else {
-    pdf.line(x + 2.8, y + 2.8, x + 6.4, y + 6.4)
-    pdf.line(x + 6.4, y + 2.8, x + 2.8, y + 6.4)
+    pdf.line(x + 3.1, y + 3.1, x + 7.1, y + 7.1)
+    pdf.line(x + 7.1, y + 3.1, x + 3.1, y + 7.1)
   }
 }
 
@@ -447,12 +447,12 @@ const toneColor = (tone) => tone === 'success' ? COLORS.teal : tone === 'danger'
 
 const drawKpiCard = (pdf, { x, y, w, title, value, comparison, icon, accent }) => {
   elevatedPanel(pdf, x, y, w, 36.5, { radius: 3.2 })
-  drawKpiIcon(pdf, icon, x + 4.0, y + 4.0, accent)
-  text(pdf, title, x + 16.2, y + 10.4, 7.75, COLORS.muted)
-  text(pdf, value, x + 6.2, y + 23.5, value.length > 14 ? 13.2 : 16.1, COLORS.navy, { bold: true })
+  drawKpiIcon(pdf, icon, x + 4.0, y + 3.5, accent)
+  text(pdf, title, x + 16.8, y + 10.3, 8.55, COLORS.navy)
+  text(pdf, value, x + 6.2, y + 23.4, value.length > 14 ? 14.0 : 17.2, COLORS.navy, { bold: true })
   if (comparison.tone === 'neutral') {
-    text(pdf, 'Sem base comparável', x + 6.2, y + 32.2, 6.0, COLORS.muted, { bold: true })
-    text(pdf, 'vs. período anterior', x + 33.0, y + 32.2, 5.25, COLORS.muted)
+    text(pdf, 'Sem base comparável', x + 6.2, y + 32.1, 6.4, COLORS.muted, { bold: true })
+    text(pdf, 'vs. período anterior', x + 33.0, y + 32.1, 5.7, COLORS.muted)
     return
   }
   const tone = toneColor(comparison.tone)
@@ -465,47 +465,47 @@ const drawKpiCard = (pdf, { x, y, w, title, value, comparison, icon, accent }) =
     pdf.line(x + 6.4, y + 30.9, x + 8.0, y + 29.1)
     pdf.line(x + 8.0, y + 29.1, x + 9.8, y + 30.9)
   }
-  text(pdf, comparison.text, x + 11.2, y + 32.2, 6.75, tone, { bold: true })
-  text(pdf, 'vs. período anterior', x + 31.8, y + 32.2, 5.35, COLORS.muted)
+  text(pdf, comparison.text, x + 11.2, y + 32.1, 7.2, tone, { bold: true })
+  text(pdf, 'vs. período anterior', x + 31.8, y + 32.1, 5.75, COLORS.muted)
 }
 
 const drawInsightPanel = (pdf, vm) => {
-  roundedPanel(pdf, 10, 194.5, 190, 49.0, { fill: COLORS.mint, stroke: COLORS.mint, radius: 4 })
-  drawMiniIcon(pdf, 'bars', 15, 200.8, COLORS.teal)
-  text(pdf, 'Principais insights', 27, 204.4, 10.1, COLORS.navy, { bold: true })
-  const ys = [213.3, 222.5, 231.7]
+  roundedPanel(pdf, 10, 184.8, 190, 42.5, { fill: COLORS.mint, stroke: COLORS.mint, radius: 4 })
+  drawMiniIcon(pdf, 'bars', 15, 190.4, COLORS.teal)
+  text(pdf, 'Principais insights', 27, 194.6, 11.5, COLORS.navy, { bold: true })
+  const ys = [202.8, 211.0, 219.2]
   vm.insights.slice(0, 3).forEach((item, index) => {
     setFill(pdf, COLORS.teal)
-    pdf.circle(18.2, ys[index] - 1.7, 3.4, 'F')
-    text(pdf, String(index + 1), 18.2, ys[index] + 0.2, 5.8, COLORS.white, { bold: true, align: 'center' })
+    pdf.circle(18.2, ys[index] - 1.7, 3.1, 'F')
+    text(pdf, String(index + 1), 18.2, ys[index] + 0.1, 6.0, COLORS.white, { bold: true, align: 'center' })
     const prefixEnd = item.indexOf(':')
     if (prefixEnd > 0) {
       const prefix = `${item.slice(0, prefixEnd + 1)} `
       const rest = item.slice(prefixEnd + 1).trim()
-      text(pdf, prefix, 25, ys[index], 6.4, COLORS.navy, { bold: true })
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6.4)
+      text(pdf, prefix, 25, ys[index], 7.0, COLORS.navy, { bold: true })
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.0)
       const prefixWidth = pdf.getTextWidth(prefix)
       const available = 137 - prefixWidth
       const restLines = pdf.splitTextToSize(rest, Math.max(42, available))
-      text(pdf, restLines[0] || '', 25 + prefixWidth, ys[index], 6.05, COLORS.navy)
-      if (restLines[1]) text(pdf, restLines[1], 25, ys[index] + 4.15, 5.9, COLORS.navy)
+      text(pdf, restLines[0] || '', 25 + prefixWidth, ys[index], 6.6, COLORS.navy)
+      if (restLines[1]) text(pdf, restLines[1], 25, ys[index] + 3.8, 6.2, COLORS.navy)
     } else {
       const lines = pdf.splitTextToSize(item, 138)
-      text(pdf, lines[0], 25, ys[index], 6.25, COLORS.navy)
-      if (lines[1]) text(pdf, lines[1], 25, ys[index] + 4.15, 5.9, COLORS.navy)
+      text(pdf, lines[0], 25, ys[index], 6.8, COLORS.navy)
+      if (lines[1]) text(pdf, lines[1], 25, ys[index] + 3.8, 6.2, COLORS.navy)
     }
   })
-  const heights = [9, 15, 24]
+  const heights = [8, 14, 21]
   heights.forEach((height, index) => {
     setFill(pdf, [188, 236, 229])
-    pdf.roundedRect(171 + index * 8, 237 - height, 5.5, height, 2.3, 2.3, 'F')
+    pdf.roundedRect(171 + index * 8, 223.5 - height, 5.5, height, 2.3, 2.3, 'F')
   })
 }
 
 const drawFinanceSplit = (pdf, vm) => {
-  elevatedPanel(pdf, 10, 249.0, 93, 35.5, { radius: 3.2 })
-  text(pdf, 'Recebido x a receber', 14, 257.4, 8.7, COLORS.navy, { bold: true })
-  const x = 14; const y = 262.2; const w = 83; const h = 8.5
+  elevatedPanel(pdf, 10, 233.2, 93, 43.2, { radius: 3.2 })
+  text(pdf, 'Recebido x a receber', 14, 242.2, 10.2, COLORS.navy, { bold: true })
+  const x = 14; const y = 248.6; const w = 83; const h = 10.0
   setFill(pdf, COLORS.teal)
   pdf.roundedRect(x, y, w, h, 2.4, 2.4, 'F')
   const receivedWidth = w * clamp(vm.receivedShare / 100, 0, 1)
@@ -516,50 +516,50 @@ const drawFinanceSplit = (pdf, vm) => {
   }
   if (vm.receivedShare > 12) text(pdf, `${number(vm.receivedShare)}%`, x + receivedWidth / 2, y + 5.8, 6.5, COLORS.white, { bold: true, align: 'center' })
   if (vm.receivableShare > 12) text(pdf, `${number(vm.receivableShare)}%`, x + receivedWidth + receivableWidth / 2, y + 5.8, 6.5, COLORS.navy, { bold: true, align: 'center' })
-  setFill(pdf, COLORS.teal); pdf.circle(15.6, 276.0, 1.4, 'F')
-  text(pdf, 'Recebido no período', 21, 276.7, 5.65, COLORS.muted)
-  text(pdf, money(vm.metrics.receivedCents), 21, 282.4, 7.55, COLORS.navy, { bold: true })
-  setFill(pdf, COLORS.tealSoft); pdf.circle(66.0, 276.0, 1.4, 'F')
-  text(pdf, 'A receber do período', 71.5, 276.7, 5.65, COLORS.muted)
-  text(pdf, money(vm.metrics.receivableCents), 71.5, 282.4, 7.55, COLORS.navy, { bold: true })
+  setFill(pdf, COLORS.teal); pdf.circle(15.6, 265.1, 1.45, 'F')
+  text(pdf, 'Recebido no período', 21, 266.0, 6.3, COLORS.muted)
+  text(pdf, money(vm.metrics.receivedCents), 21, 273.0, 9.4, COLORS.navy, { bold: true })
+  setFill(pdf, COLORS.tealSoft); pdf.circle(66.0, 265.1, 1.45, 'F')
+  text(pdf, 'A receber do período', 71.5, 266.0, 6.3, COLORS.muted)
+  text(pdf, money(vm.metrics.receivableCents), 71.5, 273.0, 9.4, COLORS.navy, { bold: true })
 }
 
 const drawComparisonPanel = (pdf, vm) => {
-  elevatedPanel(pdf, 107, 249.0, 93, 35.5, { radius: 3.2 })
-  text(pdf, 'Atual x período anterior', 111, 257.4, 8.7, COLORS.navy, { bold: true })
+  elevatedPanel(pdf, 107, 233.2, 93, 43.2, { radius: 3.2 })
+  text(pdf, 'Atual x período anterior', 111, 242.2, 10.2, COLORS.navy, { bold: true })
   const maxMagnitude = Math.max(1, ...vm.comparisonCards.map((item) => item.magnitude || 0))
   vm.comparisonCards.forEach((item, index) => {
-    const y = 262.0 + index * 5.15
-    text(pdf, item.label, 112, y + 2.0, 5.45, COLORS.muted)
+    const y = 248.2 + index * 6.1
+    text(pdf, item.label, 112, y + 2.6, 6.2, COLORS.muted)
     const compact = item.tone === 'neutral' ? 'Sem base' : item.text
-    text(pdf, compact, 150.5, y + 2.0, 5.7, toneColor(item.tone), { bold: true, align: 'right' })
+    text(pdf, compact, 150.5, y + 2.6, 6.6, toneColor(item.tone), { bold: true, align: 'right' })
     setFill(pdf, COLORS.borderSoft)
-    pdf.roundedRect(159, y, 31, 3.25, 1.55, 1.55, 'F')
+    pdf.roundedRect(159, y, 31, 3.8, 1.8, 1.8, 'F')
     if (item.tone !== 'neutral' && item.magnitude > 0) {
       setFill(pdf, toneColor(item.tone))
-      pdf.roundedRect(159, y, 31 * clamp(item.magnitude / maxMagnitude, 0.12, 1), 3.25, 1.55, 1.55, 'F')
+      pdf.roundedRect(159, y, 31 * clamp(item.magnitude / maxMagnitude, 0.12, 1), 3.8, 1.8, 1.8, 'F')
     }
   })
 }
 
 const drawPageOne = (pdf, vm) => {
   drawBrandHeader(pdf)
-  text(pdf, 'CENTRO DE RELATÓRIOS', 10, 38.7, 8.8, COLORS.teal, { bold: true })
-  text(pdf, 'Resumo executivo', 10, 52.3, 24.0, COLORS.navy, { bold: true })
-  text(pdf, 'Uma visão clara do seu restaurante para', 10, 62.9, 9.85, COLORS.muted)
-  text(pdf, 'decisões mais inteligentes.', 10, 69.8, 9.85, COLORS.muted)
+  text(pdf, 'CENTRO DE RELATÓRIOS', 10, 35.8, 10.2, COLORS.teal, { bold: true })
+  text(pdf, 'Resumo executivo', 10, 51.8, 38.5, COLORS.navy, { bold: true })
+  text(pdf, 'Uma visão clara do seu restaurante para', 10, 63.0, 11.8, COLORS.muted)
+  text(pdf, 'decisões mais inteligentes.', 10, 70.9, 11.8, COLORS.muted)
 
-  pdf.addImage(EXECUTIVE_COVER_FOOD, 'JPEG', 139.0, 31.7, 71.0, 68.8)
+  pdf.addImage(EXECUTIVE_COVER_FOOD, 'JPEG', 139.0, 31.7, 71.0, 56.8)
 
-  drawInfoItem(pdf, 10, 82.2, 'Operação', vm.operationName, 'store')
-  drawInfoItem(pdf, 92, 82.2, 'Período', vm.periodLabel, 'calendar')
+  drawInfoItem(pdf, 10, 75.5, 'Operação', vm.operationName, 'store')
+  drawInfoItem(pdf, 64, 75.5, 'Período', vm.periodLabel, 'calendar')
 
-  roundedPanel(pdf, 10, 99.0, 190, 12.3, { fill: [243, 248, 251], stroke: [243, 248, 251], radius: 2 })
-  drawMiniIcon(pdf, 'document', 16, 102.2, COLORS.teal)
+  roundedPanel(pdf, 10, 92.0, 190, 11.6, { fill: [243, 248, 251], stroke: [243, 248, 251], radius: 2 })
+  drawMiniIcon(pdf, 'document', 16, 94.9, COLORS.teal)
   const generatedText = `Relatório gerado em ${vm.generatedLabel}${vm.filtersLabel ? ` · ${vm.filtersLabel}` : ''}`
   const generatedLine = generatedText.length > 105 ? `${generatedText.slice(0, 102)}...` : generatedText
-  text(pdf, generatedLine, 25, 106.8, 6.2, COLORS.muted)
-  text(pdf, 'Gerado pelo Gestão Delivery', 194, 106.8, 6.2, COLORS.muted, { align: 'right' })
+  text(pdf, generatedLine, 25, 99.8, 6.6, COLORS.muted)
+  text(pdf, 'Gerado pelo Gestão Delivery', 194, 99.8, 6.6, COLORS.muted, { align: 'right' })
 
   const gap = 4
   const cardW = (190 - gap * 2) / 3
@@ -580,7 +580,7 @@ const drawPageOne = (pdf, vm) => {
   cards.forEach((card, index) => {
     const row = Math.floor(index / 3)
     const col = index % 3
-    drawKpiCard(pdf, { x: 10 + col * (cardW + gap), y: 114.0 + row * 40.5, w: cardW, title: card[0], value: card[1], comparison: card[2], icon: card[3], accent: card[4] })
+    drawKpiCard(pdf, { x: 10 + col * (cardW + gap), y: 105.8 + row * 39.9, w: cardW, title: card[0], value: card[1], comparison: card[2], icon: card[3], accent: card[4] })
   })
 
   drawInsightPanel(pdf, vm)
@@ -625,100 +625,100 @@ const drawDonut = (pdf, cx, cy, radius, thickness, items) => {
 }
 
 const drawMixPanel = (pdf, vm) => {
-  elevatedPanel(pdf, 10, 81.5, 105, 78.0, { radius: 3.2 })
-  drawMiniIcon(pdf, 'bars', 15, 88.6, COLORS.teal)
-  text(pdf, 'Composição das vendas', 25, 93.1, 10.4, COLORS.navy, { bold: true })
-  text(pdf, 'Participação por categoria de produtos', 25, 99.6, 6.25, COLORS.muted)
-  drawDonut(pdf, 40.5, 128.7, 16.2, 6.1, vm.categories)
-  text(pdf, money(vm.merchandiseRevenueCents), 40.5, 128.0, 7.15, COLORS.navy, { bold: true, align: 'center' })
-  text(pdf, 'em mercadorias', 40.5, 134.1, 5.15, COLORS.muted, { align: 'center' })
+  elevatedPanel(pdf, 10, 73.5, 105, 72.5, { radius: 3.2 })
+  drawMiniIcon(pdf, 'bars', 15, 80.1, COLORS.teal)
+  text(pdf, 'Composição das vendas', 25, 84.9, 12.0, COLORS.navy, { bold: true })
+  text(pdf, 'Participação por categoria de produtos', 25, 91.2, 7.3, COLORS.muted)
+  drawDonut(pdf, 40.5, 116.8, 17.5, 6.4, vm.categories)
+  text(pdf, money(vm.merchandiseRevenueCents), 40.5, 116.0, 8.3, COLORS.navy, { bold: true, align: 'center' })
+  text(pdf, 'em mercadorias', 40.5, 122.4, 5.9, COLORS.muted, { align: 'center' })
   const list = vm.categories.length ? vm.categories : [{ label: 'Sem dados', sharePercent: 0 }]
   list.slice(0, 6).forEach((item, index) => {
-    const y = 112.5 + index * 7.3
+    const y = 99.4 + index * 7.55
     setFill(pdf, CATEGORY_COLORS[index % CATEGORY_COLORS.length])
     pdf.circle(66.0, y - 1.45, 1.45, 'F')
     const label = item.label.length > 22 ? `${item.label.slice(0, 20)}...` : item.label
-    text(pdf, label, 72, y, 6.3, COLORS.navy)
-    text(pdf, `${number(item.sharePercent)}%`, 110, y, 6.3, COLORS.navy, { bold: true, align: 'right' })
+    text(pdf, label, 72, y, 7.15, COLORS.navy)
+    text(pdf, `${number(item.sharePercent)}%`, 110, y, 7.15, COLORS.navy, { bold: true, align: 'right' })
   })
 }
 
 const drawModalitiesPanel = (pdf, vm) => {
-  elevatedPanel(pdf, 119, 81.5, 81, 78.0, { radius: 3.2 })
-  drawMiniIcon(pdf, 'pie', 124, 88.6, COLORS.teal)
-  text(pdf, 'Modalidades', 135, 93.1, 10.4, COLORS.navy, { bold: true })
-  text(pdf, 'Participação nas vendas por canal', 135, 99.6, 6.25, COLORS.muted)
+  elevatedPanel(pdf, 119, 73.5, 81, 72.5, { radius: 3.2 })
+  drawMiniIcon(pdf, 'pie', 124, 80.1, COLORS.teal)
+  text(pdf, 'Modalidades', 135, 84.9, 12.0, COLORS.navy, { bold: true })
+  text(pdf, 'Participação nas vendas por canal', 135, 91.2, 7.3, COLORS.muted)
   const list = vm.modalities.length ? vm.modalities : [{ label: 'Sem dados', sharePercent: 0 }]
   list.slice(0, 4).forEach((item, index) => {
-    const y = 111.5 + index * 12.7
-    text(pdf, item.label, 124, y + 4.9, 6.45, COLORS.muted)
+    const y = 99.0 + index * 12.0
+    text(pdf, item.label, 124, y + 5.6, 7.3, COLORS.navy)
     setFill(pdf, COLORS.borderSoft)
-    pdf.roundedRect(147.5, y, 36.5, 6.0, 1.35, 1.35, 'F')
+    pdf.roundedRect(147.5, y, 36.5, 7.0, 1.55, 1.55, 'F')
     if (item.sharePercent > 0) {
       setFill(pdf, MODALITY_COLORS[index % MODALITY_COLORS.length])
-      pdf.roundedRect(147.5, y, 36.5 * clamp(item.sharePercent / 100, 0.03, 1), 6.0, 1.35, 1.35, 'F')
+      pdf.roundedRect(147.5, y, 36.5 * clamp(item.sharePercent / 100, 0.03, 1), 7.0, 1.55, 1.55, 'F')
     }
-    text(pdf, `${number(item.sharePercent)}%`, 196, y + 4.9, 6.45, COLORS.navy, { bold: true, align: 'right' })
+    text(pdf, `${number(item.sharePercent)}%`, 196, y + 5.6, 7.3, COLORS.navy, { bold: true, align: 'right' })
   })
 }
 
 const drawTopProducts = (pdf, vm) => {
-  elevatedPanel(pdf, 10, 164.0, 190, 78.0, { radius: 3.2 })
-  drawMiniIcon(pdf, 'trophy', 15, 171.0, COLORS.yellow)
-  text(pdf, 'Top 5 produtos', 27, 174.9, 10.1, COLORS.navy, { bold: true })
-  text(pdf, 'Produtos mais vendidos no período', 27, 180.9, 6.25, COLORS.muted)
+  elevatedPanel(pdf, 10, 149.0, 190, 74.0, { radius: 3.2 })
+  drawMiniIcon(pdf, 'trophy', 15, 155.7, COLORS.yellow)
+  text(pdf, 'Top 5 produtos', 27, 159.8, 11.8, COLORS.navy, { bold: true })
+  text(pdf, 'Produtos mais vendidos no período', 27, 166.0, 7.1, COLORS.muted)
   setFill(pdf, [239, 245, 248])
-  pdf.rect(15, 184.0, 180, 8.4, 'F')
-  text(pdf, '#', 18, 189.5, 6.15, COLORS.navy, { bold: true })
-  text(pdf, 'Produto', 33, 189.5, 6.15, COLORS.navy, { bold: true })
-  text(pdf, 'Unidades', 116, 189.5, 6.15, COLORS.navy, { bold: true, align: 'right' })
-  text(pdf, 'Receita', 164, 189.5, 6.15, COLORS.navy, { bold: true, align: 'right' })
-  text(pdf, 'Participação', 192, 189.5, 6.15, COLORS.navy, { bold: true, align: 'right' })
+  pdf.rect(15, 169.4, 180, 7.8, 'F')
+  text(pdf, '#', 18, 174.6, 6.9, COLORS.navy, { bold: true })
+  text(pdf, 'Produto', 33, 174.6, 6.9, COLORS.navy, { bold: true })
+  text(pdf, 'Unidades', 116, 174.6, 6.9, COLORS.navy, { bold: true, align: 'right' })
+  text(pdf, 'Receita', 164, 174.6, 6.9, COLORS.navy, { bold: true, align: 'right' })
+  text(pdf, 'Participação', 192, 174.6, 6.9, COLORS.navy, { bold: true, align: 'right' })
   const rows = vm.topProducts.length ? vm.topProducts : [{ rank: '-', name: 'Sem produtos no recorte', quantity: 0, revenueCents: 0, sharePercent: 0 }]
   rows.slice(0, 5).forEach((item, index) => {
-    const rowTop = 192.4 + index * 9.0
+    const rowTop = 177.2 + index * 8.4
     if (index % 2 === 1) {
       setFill(pdf, [249, 251, 252])
-      pdf.rect(15, rowTop, 180, 9.0, 'F')
+      pdf.rect(15, rowTop, 180, 8.4, 'F')
     }
-    const y = rowTop + 5.9
-    text(pdf, item.rank, 19, y, 6.35, COLORS.navy)
+    const y = rowTop + 5.6
+    text(pdf, item.rank, 19, y, 7.05, COLORS.navy)
     const name = item.name.length > 34 ? `${item.name.slice(0, 32)}...` : item.name
-    text(pdf, name, 33, y, 6.35, COLORS.navy)
-    text(pdf, number(item.quantity), 116, y, 6.35, COLORS.navy, { align: 'right' })
-    text(pdf, money(item.revenueCents), 164, y, 6.35, COLORS.navy, { align: 'right' })
-    text(pdf, `${number(item.sharePercent)}%`, 192, y, 6.35, COLORS.navy, { align: 'right' })
+    text(pdf, name, 33, y, 7.05, COLORS.navy)
+    text(pdf, number(item.quantity), 116, y, 7.05, COLORS.navy, { align: 'right' })
+    text(pdf, money(item.revenueCents), 164, y, 7.05, COLORS.navy, { align: 'right' })
+    text(pdf, `${number(item.sharePercent)}%`, 192, y, 7.05, COLORS.navy, { align: 'right' })
   })
 }
 
 const drawObservationPanel = (pdf, vm) => {
-  roundedPanel(pdf, 10, 245.0, 190, 41.0, { fill: COLORS.mint, stroke: COLORS.mint, radius: 3.2 })
-  drawMiniIcon(pdf, 'bulb', 15, 251.1, COLORS.teal)
-  text(pdf, 'Observações e oportunidades', 25, 255.6, 9.8, COLORS.navy, { bold: true })
+  roundedPanel(pdf, 10, 229.0, 190, 48.5, { fill: COLORS.mint, stroke: COLORS.mint, radius: 3.2 })
+  drawMiniIcon(pdf, 'bulb', 15, 235.1, COLORS.teal)
+  text(pdf, 'Observações e oportunidades', 25, 239.8, 11.5, COLORS.navy, { bold: true })
   const starts = [14, 78, 142]
   vm.observations.slice(0, 3).forEach((item, index) => {
     if (index > 0) {
       setStroke(pdf, [205, 230, 227])
       pdf.setLineWidth(0.3)
-      pdf.line(starts[index] - 5, 262.0, starts[index] - 5, 282.5)
+      pdf.line(starts[index] - 5, 247.0, starts[index] - 5, 271.8)
     }
     const icon = item.kind === 'danger' ? 'alert' : item.kind === 'blue' ? 'clock' : 'bars'
     const iconColor = item.kind === 'danger' ? COLORS.danger : item.kind === 'blue' ? COLORS.blue : COLORS.teal
-    drawMiniIcon(pdf, icon, starts[index], 262.3, iconColor)
-    text(pdf, item.title, starts[index] + 11, 267.6, 7.05, COLORS.navy, { bold: true })
-    const lines = pdf.splitTextToSize(item.text, 50)
-    lines.slice(0, 3).forEach((line, lineIndex) => text(pdf, line, starts[index], 274.9 + lineIndex * 5.0, 5.95, COLORS.muted))
+    drawMiniIcon(pdf, icon, starts[index], 247.6, iconColor)
+    text(pdf, item.title, starts[index] + 11, 253.0, 8.0, COLORS.navy, { bold: true })
+    const lines = pdf.splitTextToSize(item.text, 52)
+    lines.slice(0, 3).forEach((line, lineIndex) => text(pdf, line, starts[index], 260.8 + lineIndex * 5.4, 6.65, COLORS.muted))
   })
 }
 
 const drawPageTwo = (pdf, vm) => {
   drawBrandHeader(pdf, { growthCallout: true })
-  text(pdf, 'CENTRO DE RELATÓRIOS', 10, 38.7, 8.8, COLORS.teal, { bold: true })
-  text(pdf, 'Análise detalhada', 10, 52.3, 24.0, COLORS.navy, { bold: true })
-  drawInfoItem(pdf, 10, 62.7, 'Operação', vm.operationName, 'store')
-  drawInfoItem(pdf, 72, 62.7, 'Período', vm.periodLabel, 'calendar')
-  text(pdf, `Gerado em ${vm.generatedLabel}`, 197, 69.8, 6.0, COLORS.muted, { align: 'right' })
-  text(pdf, 'pelo Gestão Delivery', 197, 75.8, 6.0, COLORS.muted, { align: 'right' })
+  text(pdf, 'CENTRO DE RELATÓRIOS', 10, 35.8, 10.2, COLORS.teal, { bold: true })
+  text(pdf, 'Análise detalhada', 10, 49.6, 33.0, COLORS.navy, { bold: true })
+  drawInfoItem(pdf, 10, 58.5, 'Operação', vm.operationName, 'store')
+  drawInfoItem(pdf, 60, 58.5, 'Período', vm.periodLabel, 'calendar')
+  text(pdf, `Gerado em ${vm.generatedLabel}`, 197, 65.2, 6.6, COLORS.muted, { align: 'right' })
+  text(pdf, 'pelo Gestão Delivery', 197, 71.2, 6.6, COLORS.muted, { align: 'right' })
   drawMixPanel(pdf, vm)
   drawModalitiesPanel(pdf, vm)
   drawTopProducts(pdf, vm)
