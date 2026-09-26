@@ -124,8 +124,9 @@ export function createReportingRepository(db) {
     async listDetail(businessId, query) {
       const { sql, values } = buildOrderFilters(businessId, query)
       const select = `SELECT o.id, o.order_number, o.order_date, o.client_id,
-        o.client_name_snapshot, o.client_phone_snapshot, o.type, o.status, o.total_cents,
-        o.delivery_fee_cents, o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
+        o.client_name_snapshot, o.client_phone_snapshot, o.type, o.status, o.subtotal_cents, o.total_cents,
+        o.delivery_fee_cents, o.adjustment_type, o.adjustment_amount_cents,
+        o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
         o.scheduled_for, o.is_backdated, o.created_at, o.finished_at, o.timing_policy_snapshot_json,
         (SELECT SUM(pay.amount_cents) FROM payments pay
           WHERE pay.business_id = o.business_id AND pay.order_id = o.id) AS paid_cents,
