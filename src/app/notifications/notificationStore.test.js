@@ -55,27 +55,33 @@ test('invalid release sections are isolated from the renderable catalog', () => 
   assert.deepEqual(catalog.map((item) => item.id), ['good'])
 })
 
-test('current release is the dedicated Kitchen TV tour while the previous release keeps the item format', () => {
-  const [releaseItem, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+test('current release is the Reporting Center tour while previous releases keep their formats', () => {
+  const [releaseItem, kitchenRelease, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
 
-  assert.equal(releaseItem.id, 'release-2026-09-kitchen-tv')
-  assert.equal(releaseItem.title, 'Nova TV da Cozinha')
+  assert.equal(releaseItem.id, 'release-2026-09-reporting-center')
+  assert.equal(releaseItem.title, 'Nova Central de Relatórios')
+  assert.match(releaseItem.summary, /desktop/)
   assert.equal(releaseItem.items.length, 0)
   assert.equal(releaseItem.slides.length, 5)
   assert.deepEqual(releaseItem.slides.map((slide) => slide.title), [
-    'Uma tela feita para a cozinha',
-    'Conecte a TV em poucos passos',
-    'Pedidos legíveis à distância',
-    'Itens e observações sempre visíveis',
-    'Alertas e acesso sob controle',
+    'Nova Central de Relatórios',
+    'Relatórios em um só lugar',
+    'Métricas que ajudam a decidir',
+    'Do consolidado ao detalhe',
+    'Relatório executivo em PDF',
   ])
   assert.deepEqual(releaseItem.slides.map((slide) => slide.image), [
-    '/release/kitchen-tv-32.jpg',
-    '/release/kitchen-tv-pairing.svg',
-    '/release/kitchen-tv-32.jpg',
-    '/release/kitchen-tv-details.svg',
-    '/release/kitchen-tv-access.svg',
+    '/release/reporting-center-1.svg',
+    '/release/reporting-center-2.svg',
+    '/release/reporting-center-3.svg',
+    '/release/reporting-center-4.svg',
+    '/release/reporting-center-5.svg',
   ])
+  assert.match(releaseItem.slides[0].description, /somente.*desktop/i)
+  assert.equal(kitchenRelease.id, 'release-2026-09-kitchen-tv')
+  assert.equal(kitchenRelease.title, 'Nova TV da Cozinha')
+  assert.equal(kitchenRelease.items.length, 0)
+  assert.equal(kitchenRelease.slides.length, 5)
   assert.equal(previousRelease.id, 'release-2026-09-operation-shell')
   assert.equal(previousRelease.items.length, 3)
   assert.equal(previousRelease.slides.length, 0)
@@ -167,5 +173,6 @@ test('catalog normalization is idempotent for item and slide releases', () => {
   const twice = normalizeNotificationCatalog(once)
   assert.deepEqual(twice, once)
   assert.equal(twice[0].slides.length, 5)
-  assert.equal(twice[1].items.length, 3)
+  assert.equal(twice[1].slides.length, 5)
+  assert.equal(twice[2].items.length, 3)
 })
