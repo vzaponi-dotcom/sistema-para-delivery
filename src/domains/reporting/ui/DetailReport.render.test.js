@@ -51,6 +51,8 @@ test('detail renders dashboard summary, server page, filters, pagination and rea
   assert.match(nodeText(renderer.root), /Resumo financeiro/)
   assert.match(nodeText(renderer.root), /Subtotal/)
   assert.match(nodeText(renderer.root), /Itens do pedido/)
+  assert.equal(renderer.root.findAllByProps({ href: '/financeiro/a-receber' }).length, 1)
+  assert.match(nodeText(renderer.root), /Gerenciar em A receber/)
   assert.doesNotMatch(nodeText(renderer.root), /Registrar pagamento|Cancelar pedido|Imprimir pedido/)
 })
 
