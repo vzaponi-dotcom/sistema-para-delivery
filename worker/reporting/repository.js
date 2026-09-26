@@ -14,9 +14,9 @@ const enrichDetail = (row) => {
   const lateAt = durationMinutes === null ? null : getOrderLateAt(order)
   const onTime = lateAt ? new Date(row.finished_at) <= lateAt : null
   const paidCents = Number(row.paid_cents || 0)
-  const pendingCents = row.status !== 'Cancelado' && row.paid_cents == null
+  const pendingCents = row.status !== 'Cancelado'
     && !(row.customer_identity_type === 'table' && row.table_tab_id)
-    ? Math.max(0, row.total_cents) : 0
+    ? Math.max(0, Number(row.total_cents || 0) - paidCents) : 0
   const created = new Date(row.created_at)
   return { ...row, durationMinutes, onTime, paidCents, pendingCents, businessDate: Number.isNaN(created.getTime()) ? null : getBusinessDate(created) }
 }
@@ -201,17 +201,27 @@ export function createReportingRepository(db) {
     },
     async getOrderDetail(businessId, id) {
       const row = await db.prepare(`SELECT o.id, o.order_number, o.order_date, o.client_name_snapshot,
-        o.client_phone_snapshot, o.client_address_snapshot, o.type, o.status, o.total_cents,
-        o.delivery_fee_cents, o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
+        o.client_phone_snapshot, o.client_address_snapshot, o.type, o.status, o.subtotal_cents, o.total_cents,
+        o.delivery_fee_cents, o.adjustment_type, o.adjustment_amount_cents,
+        o.customer_identity_type, o.table_tab_id, o.promised_payment_date,
         o.scheduled_for, o.is_backdated, o.created_at, o.finished_at, o.timing_policy_snapshot_json,
-        p.amount_cents AS paid_cents, p.receipt_id
-        FROM orders o LEFT JOIN payments p ON p.business_id = o.business_id AND p.order_id = o.id
+        (SELECT SUM(pay.amount_cents) FROM payments pay
+          WHERE pay.business_id = o.business_id AND pay.order_id = o.id) AS paid_cents
+        FROM orders o
         WHERE o.business_id = ? AND o.id = ?`).bind(businessId, id).first()
       if (!row) return null
       const { results: items } = await db.prepare(`SELECT id, product_id, name_snapshot, category_snapshot,
         size_snapshot, quantity, unit_price_cents FROM order_items WHERE business_id = ? AND order_id = ? ORDER BY created_at, id`).bind(businessId, id).all()
-      const { results: allocations } = row.receipt_id ? await db.prepare(`SELECT method_code, method_label, amount_cents
-        FROM payment_allocations WHERE business_id = ? AND receipt_id = ? ORDER BY id`).bind(businessId, row.receipt_id).all() : { results: [] }
+      const { results: allocations } = await db.prepare(`
+        SELECT pa.method_code, pa.method_label, pa.amount_cents
+        FROM payment_allocations pa
+        JOIN (
+          SELECT DISTINCT receipt_id FROM payments
+          WHERE business_id = ? AND order_id = ? AND receipt_id IS NOT NULL
+        ) receipts ON receipts.receipt_id = pa.receipt_id
+        WHERE pa.business_id = ?
+        ORDER BY pa.id
+      `).bind(businessId, id, businessId).all()
       return { ...enrichDetail(row), items, paymentAllocations: allocations }
     },
   })
