@@ -12,7 +12,11 @@ test('detail renders dashboard summary, server page, filters, pagination and rea
     client_name_snapshot: 'Ana', client_phone_snapshot: '11999999999', type: 'Entrega', status: 'Finalizado',
     total_cents: 1000, paidCents: 0, pendingCents: 1000, payment_label: 'Pix', durationMinutes: 45, onTime: false,
   }
-  const orderApi = { loadOrder: async () => ({ data: { ...item, items: [{ id: 'i1', quantity: 1, name_snapshot: 'X', unit_price_cents: 1000 }], paymentAllocations: [] } }) }
+  const orderApi = { loadOrder: async () => ({ data: {
+    ...item, subtotal_cents: 900, delivery_fee_cents: 100, adjustment_type: 'none', adjustment_amount_cents: 0,
+    items: [{ id: 'i1', quantity: 1, name_snapshot: 'X', category_snapshot: 'Lanches', unit_price_cents: 1000 }],
+    paymentAllocations: [],
+  } }) }
   const renderer = await harness.render(DetailReport, {
     state: {
       data: {
@@ -35,12 +39,14 @@ test('detail renders dashboard summary, server page, filters, pagination and rea
   assert.match(text, /Ana/)
   assert.match(text, /Status: Finalizado/)
   assert.match(text, /Pix/)
+  assert.match(text, /R\$\s*10,00 pendente/)
 
   await act(async () => renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Próxima página').props.onClick())
   assert.deepEqual(patches.at(-1), { page: 2 })
   await act(async () => renderer.root.findAllByType('button').find((button) => button.props['aria-label'] === 'Ver pedido 42').props.onClick())
   assert.match(nodeText(renderer.root), /Informações do pedido/)
   assert.match(nodeText(renderer.root), /Resumo financeiro/)
+  assert.match(nodeText(renderer.root), /Subtotal/)
   assert.match(nodeText(renderer.root), /Itens do pedido/)
   assert.doesNotMatch(nodeText(renderer.root), /Registrar pagamento|Cancelar pedido|Imprimir pedido/)
 })
