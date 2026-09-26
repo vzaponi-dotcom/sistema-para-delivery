@@ -2,11 +2,28 @@ import { apiError } from '../http.js'
 
 export const EXPORT_LIMIT = 10_000
 export const EXPORT_COLUMNS = Object.freeze({
-  order_number: 'Pedido', order_date: 'Data', client_name_snapshot: 'Cliente',
-  type: 'Modalidade', status: 'Status', total_cents: 'Total',
-  paidCents: 'Recebido', pendingCents: 'Pendente', payment_label: 'Pagamento', durationMinutes: 'Duração (min)', onTime: 'Prazo',
+  order_number: 'Pedido',
+  order_date: 'Data',
+  created_at: 'Data e hora',
+  client_name_snapshot: 'Cliente',
+  client_phone_snapshot: 'Telefone',
+  type: 'Modalidade',
+  scheduleLabel: 'Agendamento',
+  status: 'Status',
+  subtotal_cents: 'Subtotal',
+  delivery_fee_cents: 'Taxa de entrega',
+  adjustmentLabel: 'Ajuste',
+  total_cents: 'Total',
+  paidCents: 'Recebido',
+  pendingCents: 'Pendente',
+  paymentState: 'Situação financeira',
+  payment_label: 'Forma de pagamento',
+  promised_payment_date: 'Promessa de pagamento',
+  durationMinutes: 'Duração (min)',
+  onTime: 'Prazo',
 })
-const DEFAULT_COLUMNS = Object.freeze(['order_number', 'order_date', 'client_name_snapshot', 'type', 'status', 'total_cents', 'paidCents', 'pendingCents'])
+export const REPORTING_DATA_EXPORT_COLUMNS = Object.freeze(Object.keys(EXPORT_COLUMNS))
+const DEFAULT_COLUMNS = REPORTING_DATA_EXPORT_COLUMNS
 
 export function validateExportColumns(columns) {
   if (columns == null) return [...DEFAULT_COLUMNS]
@@ -21,6 +38,20 @@ const exportCellValue = (item, key) => {
   if (key === 'order_number' && (item?.order_number === null || item?.order_number === undefined || String(item.order_number).trim() === '')) {
     const shortId = String(item?.id || '').trim().slice(0, 8)
     return shortId ? `Sem nº · ${shortId}` : 'Sem nº'
+  }
+  if (key === 'scheduleLabel') return item?.scheduled_for ? 'Agendado' : 'Imediato'
+  if (key === 'adjustmentLabel') {
+    const cents = Number(item?.adjustment_amount_cents || 0)
+    if (!cents || item?.adjustment_type === 'none') return null
+    return item?.adjustment_type === 'discount' ? `Desconto · ${cents}` : `Acréscimo · ${cents}`
+  }
+  if (key === 'paymentState') {
+    if (item?.status === 'Cancelado') return null
+    const paid = Number(item?.paidCents || 0)
+    const pending = Number(item?.pendingCents || 0)
+    if (paid > 0 && pending === 0) return 'Pago'
+    if (pending > 0) return 'Não pago'
+    return null
   }
   return item?.[key] ?? null
 }
