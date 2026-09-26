@@ -1,3 +1,4 @@
+import Icon from '../../../../shared/ui/Icon.jsx'
 import { ReportingMetricCard } from '../ReportingMetricCard.jsx'
 import { ReportingState } from '../ReportingState.jsx'
 
@@ -65,22 +66,24 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
   const financialTotal = received + pending
   const receivedShare = financialTotal > 0 ? received * 100 / financialTotal : 0
   const pendingShare = financialTotal > 0 ? pending * 100 / financialTotal : 0
+  const comparisonKeys = ['salesCents', 'ordersCount', 'averageTicketCents', 'withinDeadlineRate']
+  const hasOverviewComparison = comparisonKeys.some((key) => comparisons[key]?.available && comparisons[key]?.percent != null)
 
-  return <ReportingState state={state}>{metrics ? <div className="reporting-view-stack">
+  return <ReportingState state={state}>{metrics ? <div className="reporting-view-stack reporting-overview-view">
     <div className="reporting-view-heading">
       <div><span className="section-kicker">Resumo executivo</span><h2>Visão geral do período</h2><p>Os principais números do negócio em um único painel, com comparação histórica e acesso rápido aos detalhes.</p></div>
       <span className="reporting-view-meta"><span className="reporting-status-dot" />{formatGeneratedAt(state.generatedAt)}</span>
     </div>
 
     <section className="reporting-metric-grid reporting-overview-metrics" aria-label="Indicadores da visão geral">
-      <ReportingMetricCard label="Vendas registradas" value={metrics.salesCents} comparison={comparisons.salesCents} />
-      <ReportingMetricCard label="Pedidos" value={metrics.ordersCount} kind="number" comparison={comparisons.ordersCount} onDrilldown={() => onDrilldown({ view: 'detail' })} />
-      <ReportingMetricCard label="Ticket médio" value={metrics.averageTicketCents} comparison={comparisons.averageTicketCents} />
-      <ReportingMetricCard label="Recebido no período" value={metrics.receivedCents} comparison={comparisons.receivedCents} />
-      <ReportingMetricCard label="A receber do período" value={metrics.receivableCents} comparison={comparisons.receivableCents} onDrilldown={() => onDrilldown({ view: 'detail', receivable: 'unpaid', status: null })} />
-      <ReportingMetricCard label="Taxa de cancelamento" value={metrics.cancellationRate} kind="percent" comparison={comparisons.cancellationRate} onDrilldown={() => onDrilldown({ view: 'detail', status: 'Cancelado' })} />
-      <ReportingMetricCard label="Estornos" value={metrics.refundsCents} comparison={comparisons.refundsCents} />
-      <ReportingMetricCard label="Dentro do prazo" value={metrics.withinDeadlineRate} kind="percent" comparison={comparisons.withinDeadlineRate} onDrilldown={() => onDrilldown({ view: 'detail', operationalDeadline: 'on-time' })} />
+      <ReportingMetricCard className="reporting-overview-metric is-primary" compactComparison label="Vendas registradas" value={metrics.salesCents} comparison={comparisons.salesCents} />
+      <ReportingMetricCard className="reporting-overview-metric is-primary" compactComparison label="Pedidos" value={metrics.ordersCount} kind="number" comparison={comparisons.ordersCount} onDrilldown={() => onDrilldown({ view: 'detail' })} />
+      <ReportingMetricCard className="reporting-overview-metric is-primary" compactComparison label="Ticket médio" value={metrics.averageTicketCents} comparison={comparisons.averageTicketCents} />
+      <ReportingMetricCard className="reporting-overview-metric is-primary" compactComparison label="Dentro do prazo" value={metrics.withinDeadlineRate} kind="percent" comparison={comparisons.withinDeadlineRate} onDrilldown={() => onDrilldown({ view: 'detail', operationalDeadline: 'on-time' })} />
+      <ReportingMetricCard className="reporting-overview-metric is-secondary" compactComparison label="Recebido no período" value={metrics.receivedCents} comparison={comparisons.receivedCents} />
+      <ReportingMetricCard className="reporting-overview-metric is-secondary" compactComparison label="A receber do período" value={metrics.receivableCents} comparison={comparisons.receivableCents} onDrilldown={() => onDrilldown({ view: 'detail', receivable: 'unpaid', status: null })} />
+      <ReportingMetricCard className="reporting-overview-metric is-secondary" compactComparison label="Taxa de cancelamento" value={metrics.cancellationRate} kind="percent" comparison={comparisons.cancellationRate} onDrilldown={() => onDrilldown({ view: 'detail', status: 'Cancelado' })} />
+      <ReportingMetricCard className="reporting-overview-metric is-secondary" compactComparison label="Estornos" value={metrics.refundsCents} comparison={comparisons.refundsCents} />
     </section>
 
     <div className="reporting-overview-grid">
@@ -89,18 +92,27 @@ export function OverviewReport({ state, onDrilldown = () => {} }) {
           <div><span className="section-kicker">Desempenho</span><h2>Evolução contra o período anterior</h2></div>
           <span className="reporting-panel-badge">Atual x anterior</span>
         </div>
-        <div className="reporting-comparison-visual-list">
+        {hasOverviewComparison ? <div className="reporting-comparison-visual-list">
           <ComparisonVisualRow label="Vendas" value={metrics.salesCents} comparison={comparisons.salesCents} />
           <ComparisonVisualRow label="Pedidos" value={metrics.ordersCount} comparison={comparisons.ordersCount} kind="number" />
           <ComparisonVisualRow label="Ticket médio" value={metrics.averageTicketCents} comparison={comparisons.averageTicketCents} />
           <ComparisonVisualRow label="Prazo operacional" value={metrics.withinDeadlineRate} comparison={comparisons.withinDeadlineRate} kind="percent" />
-        </div>
+        </div> : <div className="reporting-overview-comparison-empty">
+          <span className="reporting-overview-comparison-empty-icon"><Icon name="chart" size={20} /></span>
+          <div>
+            <strong>Sem período comparável</strong>
+            <p>Este recorte ainda não possui uma base anterior equivalente para mostrar evolução.</p>
+          </div>
+        </div>}
       </section>
 
       <section className="surface-card reporting-panel reporting-overview-panel">
-        <div className="reporting-panel-heading">
-          <div><span className="section-kicker">Financeiro</span><h2>Recebido x a receber</h2></div>
-          <span className="reporting-panel-badge">{financialTotal ? `${number.format(receivedShare)}% recebido` : 'Sem movimento'}</span>
+        <div className="reporting-panel-heading reporting-overview-financial-heading">
+          <div>
+            <span className="section-kicker">Financeiro</span>
+            <h2>Recebido x a receber</h2>
+            <p>{financialTotal ? `${number.format(receivedShare)}% do total financeiro já recebido` : 'Sem movimento financeiro no período'}</p>
+          </div>
         </div>
         <div className="reporting-money-split">
           <div className="reporting-money-split-track" aria-label={financialTotal ? `${number.format(receivedShare)}% recebido e ${number.format(pendingShare)}% a receber` : 'Sem movimento financeiro'}>
