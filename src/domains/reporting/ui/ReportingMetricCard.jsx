@@ -1,4 +1,5 @@
 import Icon from '../../../shared/ui/Icon.jsx'
+import { ReportingInfoTip } from './ReportingInfoTip.jsx'
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
@@ -59,7 +60,7 @@ export function ReportingMetricCard({ label, value, kind = 'money', comparison, 
   return <Root type={onDrilldown ? 'button' : undefined} onClick={onDrilldown} className={`surface-card reporting-metric-card ${className}`.trim()} aria-label={onDrilldown ? `Ver detalhes: ${label}` : undefined}>
     <div className="reporting-metric-heading">
       <span className="reporting-metric-icon"><Icon name={iconFor(label)} size={18} /></span>
-      <span className="reporting-metric-label">{label}</span>
+      <span className="reporting-metric-label-wrap"><span className="reporting-metric-label">{label}</span><ReportingInfoTip helpKey={label} focusable={!onDrilldown} /></span>
     </div>
     <strong>{format(value, kind)}</strong>
     {comparison ? <small className={`reporting-comparison ${trendClass}`}>
