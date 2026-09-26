@@ -56,7 +56,8 @@ export async function handleReportingApi(request, env, context, url = new URL(re
     assertSameOriginMutation(request)
     const body = await readJson(request)
     const query = parseReportingQuery(queryParamsFromObject(body.query || body))
-    return json(envelope(query, await service.exportModel(context.businessId, query, body.columns)))
+    const format = body.format === 'pdf' ? 'pdf' : null
+    return json(envelope(query, await service.exportModel(context.businessId, query, body.columns, format)))
   }
   return null
 }

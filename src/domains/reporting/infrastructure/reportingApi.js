@@ -22,8 +22,8 @@ export const createReportingApi = ({ request = apiRequest } = {}) => Object.free
     return request(`${path}${search ? `?${search}` : ''}`, { signal })
   },
   loadOrder: (id, { signal } = {}) => request(`/api/reporting/orders/${encodeURIComponent(id)}`, { signal }),
-  exportModel: (query, columns, { signal } = {}) => request('/api/reporting/export-model', {
-    method: 'POST', body: JSON.stringify({ query, columns }), signal,
+  exportModel: (query, columns, { signal, format } = {}) => request('/api/reporting/export-model', {
+    method: 'POST', body: JSON.stringify({ query, columns, format }), signal,
   }),
 })
 

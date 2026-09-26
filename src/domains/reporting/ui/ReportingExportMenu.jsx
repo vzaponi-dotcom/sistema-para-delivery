@@ -15,7 +15,7 @@ const EXPORT_OPTIONS = Object.freeze([
   {
     format: 'pdf',
     title: 'PDF — Resumo executivo',
-    description: 'Indicadores, comparação e contexto do período selecionado.',
+    description: 'Resumo gerencial em duas páginas, com KPIs, mix, ranking e oportunidades.',
   },
 ])
 
@@ -29,7 +29,7 @@ const download = ({ blob, filename }) => {
 }
 
 const filenameFor = (format, query) => format === 'pdf'
-  ? `resumo-relatorio-${query.view}-${query.from}-${query.to}.pdf`
+  ? `resumo-relatorio-${query.from}-${query.to}.pdf`
   : `pedidos-${query.from}-${query.to}.${format}`
 
 export function ReportingExportMenu({ query, granted, api = reportingApi, onDownload = download }) {
@@ -44,8 +44,8 @@ export function ReportingExportMenu({ query, granted, api = reportingApi, onDown
     setError(null)
     try {
       // Excel e CSV sempre recebem a base detalhada completa do recorte.
-      // A seleção visual de colunas da tabela não limita a exportação.
-      const response = await api.exportModel(query, null)
+      // O PDF solicita também o modelo executivo multi-visão para compor as duas páginas.
+      const response = await api.exportModel(query, null, { format })
       const model = response.data
       let blob
 

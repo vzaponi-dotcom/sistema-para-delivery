@@ -59,7 +59,25 @@ const exportCellValue = (item, key) => {
   return item?.[key] ?? null
 }
 
-export function createExportModel({ query, report, detail, columns, operation = null, generatedAt = new Date().toISOString() }) {
+const summarizeModalities = (items = []) => {
+  const totals = new Map()
+  let totalCents = 0
+  for (const item of items) {
+    if (item?.status === 'Cancelado') continue
+    const value = Number(item?.total_cents || 0)
+    if (!Number.isFinite(value) || value <= 0) continue
+    const type = String(item?.type || 'Não informado').trim() || 'Não informado'
+    totals.set(type, (totals.get(type) || 0) + value)
+    totalCents += value
+  }
+  return [...totals].map(([label, revenueCents]) => ({
+    label,
+    revenueCents,
+    sharePercent: totalCents ? Number((revenueCents * 100 / totalCents).toFixed(2)) : 0,
+  })).sort((left, right) => right.revenueCents - left.revenueCents || left.label.localeCompare(right.label, 'pt-BR'))
+}
+
+export function createExportModel({ query, report, detail, columns, operation = null, executive = null, generatedAt = new Date().toISOString() }) {
   if (detail.total > EXPORT_LIMIT) throw apiError(422, 'REPORTING_EXPORT_LIMIT', 'Mais de 10.000 pedidos. Reduza o período ou os filtros para exportar.')
   const keys = validateExportColumns(columns)
   return {
@@ -69,5 +87,6 @@ export function createExportModel({ query, report, detail, columns, operation = 
     rows: detail.items.map((item) => keys.map((key) => exportCellValue(item, key))), rowCount: detail.total,
     summary: report.data, comparison: report.comparison ?? null,
     quality: report.quality ?? {}, warnings: report.warnings ?? [],
+    ...(executive ? { executive: { ...executive, modalities: summarizeModalities(detail.items) } } : {}),
   }
 }
