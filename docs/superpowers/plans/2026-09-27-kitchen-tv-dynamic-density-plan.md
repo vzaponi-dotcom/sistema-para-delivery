@@ -309,3 +309,22 @@ Não tocar:
 Se, durante a implementação, atingir 10–12 cards exigir fonte considerada pequena na homologação, reduzir a densidade antes de reduzir a legibilidade.
 
 O objetivo é densidade inteligente, não uma meta rígida de 12 a qualquer custo.
+
+## 16. Iteração pós-homologação — micro-grid vertical + tipografia
+
+A homologação com 9 pedidos confirmou que 4 colunas funcionam, mas mostrou excesso de altura em cards curtos.
+
+Implementar:
+
+1. `focus`: 6 trilhas internas, card curto = 3;
+2. `balanced`: 8 trilhas internas, card curto = 4;
+3. `compact`: 12 trilhas internas, card curto = 3;
+4. spans maiores derivados de content metrics;
+5. packing com ocupação explícita e backtracking para evitar fragmentação que esconda o scheduled protegido;
+6. preenchimento por prioridade, sem pular pedido superior;
+7. fonte de itens +~1 px nos perfis de 4 colunas;
+8. fonte de observações +~1 px;
+9. gaps verticais próprios para a micro-grid;
+10. testes para 16 pedidos de 1 item, mistura de alturas, scheduled protegido e ausência de linhas implícitas.
+
+Critério visual principal: cards de 1–2 itens devem terminar pouco depois do conteúdo, deixando a área restante disponível para outros cards, sem diminuir a fonte.
