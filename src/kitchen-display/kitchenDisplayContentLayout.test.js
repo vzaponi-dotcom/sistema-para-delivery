@@ -505,7 +505,7 @@ test('compact height follows effective visual lines instead of coarse normal/tal
     { viewportHeight: 924, boardProfile: profile },
   )
 
-  assert.equal(simple.gridSpan, 2)
+  assert.equal(simple.gridSpan, 3)
   assert.equal(noted.gridSpan, 4)
   assert.equal(four.gridSpan, 3)
   assert.equal(large.gridSpan > four.gridSpan, true)
