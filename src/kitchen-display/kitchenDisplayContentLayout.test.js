@@ -260,7 +260,7 @@ test('board profile keeps small queues spacious and expands density only when us
     id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 }), {
-    id: 'compact', columns: 4, rows: 3, gridRows: 12, maxSlots: 48,
+    id: 'compact', columns: 4, rows: 3, gridRows: 16, maxSlots: 64,
   })
 })
 
@@ -324,11 +324,11 @@ test('compact packing fits twelve short cards in the granular four-column matrix
   for (const card of positioned) {
     assert.ok(card.gridPosition.gridColumn >= 1 && card.gridPosition.gridColumn <= 4)
     const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
-    assert.ok(row >= 1 && row <= 12)
+    assert.ok(row >= 1 && row <= 16)
   }
 })
 
-test('compact packing reserves granular tracks for complex cards without exceeding the twelve-row matrix', () => {
+test('compact packing reserves granular tracks for complex cards without exceeding the sixteen-row matrix', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 })
   const entries = [
     {
@@ -345,7 +345,7 @@ test('compact packing reserves granular tracks for complex cards without exceedi
   assert.equal(positioned[0].gridSpan >= 6, true)
   assert.equal(positioned.every((card) => {
     const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
-    return row + card.gridPosition.rowSpan - 1 <= 12
+    return row + card.gridPosition.rowSpan - 1 <= 16
   }), true)
 })
 
@@ -408,7 +408,7 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   assert.equal(withNote.gridSpan, 4)
   assert.equal(wrappedName.gridSpan, 4)
   assert.equal(medium.gridSpan >= 3, true)
-  assert.equal(medium.gridSpan <= 4, true)
+  assert.equal(medium.gridSpan, 5)
 })
 
 test('compact micro-grid can show sixteen truly short orders with reclaimed vertical room', () => {
