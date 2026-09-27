@@ -5,7 +5,7 @@
 **Base de implementação:** master em 0273e1f7c52eb38da9e93e4abbb580de924bf36d  
 **Branch documental:** docs/receivables-client-batching  
 **Branch de implementação proposta:** feature/receivables-client-batching  
-**Status:** PROPOSTA PARA APROVAÇÃO  
+**Status:** APPROVED — aprovado em 2026-09-26  
 **Produção:** proibida neste plano até autorização explícita posterior  
 **Staging:** permitido somente depois das tasks funcionais e gates automatizados previstos abaixo
 
