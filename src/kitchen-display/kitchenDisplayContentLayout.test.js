@@ -346,3 +346,30 @@ test('compact packing reserves multiple rows for complex cards without creating 
     return row + card.gridPosition.rowSpan - 1 <= 3
   }), true)
 })
+
+
+test('compact positioning spreads nine short cards across all four columns before starting the third row', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 9 })
+  const entries = Array.from({ length: 9 }, (_, index) => normalEntry(`spread-${index + 1}`))
+  const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 924 })
+  const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
+
+  const positions = positioned.map((card) => ({
+    column: card.gridPosition.gridColumn,
+    row: Number(String(card.gridPosition.gridRow).split(' ')[0]),
+  }))
+
+  assert.deepEqual(positions.slice(0, 4), [
+    { column: 1, row: 1 },
+    { column: 2, row: 1 },
+    { column: 3, row: 1 },
+    { column: 4, row: 1 },
+  ])
+  assert.deepEqual(positions.slice(4, 8), [
+    { column: 1, row: 2 },
+    { column: 2, row: 2 },
+    { column: 3, row: 2 },
+    { column: 4, row: 2 },
+  ])
+  assert.deepEqual(positions[8], { column: 1, row: 3 })
+})
