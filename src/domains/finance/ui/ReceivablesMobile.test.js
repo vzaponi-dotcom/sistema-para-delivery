@@ -106,3 +106,12 @@ test('mobile grouped receivables reserve scroll space for the sticky selection b
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.receivable-client-card-header[\s\S]*\.receivables-client-selection-bar[\s\S]*transition:\s*none\s*!important/s)
 })
 
+
+
+test('mobile receivables summary currency stays inside narrow cards', async () => {
+  const css = await read('../../../receivables.css')
+
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-summary-card\s*\{[^}]*grid-template-columns:\s*32px\s+minmax\(0,\s*1fr\)[^}]*padding:\s*12px\s+10px/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-summary-icon\s*\{[^}]*width:\s*32px[^}]*height:\s*32px/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-summary-card strong\s*\{[^}]*max-width:\s*100%[^}]*font-size:\s*clamp\([^}]*white-space:\s*nowrap/s)
+})
