@@ -138,12 +138,16 @@
 .receivable-ledger-row:hover, .receivable-ledger-row[aria-pressed='true'] { background: var(--surface-soft); }
 
 .receivables-client-list {
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: 10px;
 }
 
 .receivable-client-card {
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 15px;
@@ -232,6 +236,14 @@
   font-size: 0.78rem;
 }
 
+.receivable-client-limit-note {
+  margin: 0;
+  padding: 0 12px 9px;
+  color: var(--muted);
+  font-size: 0.71rem;
+  line-height: 1.4;
+}
+
 .receivable-client-inline-toolbar button,
 .receivables-client-panel-toolbar button,
 .receivables-client-open {
@@ -282,6 +294,9 @@
 .receivable-client-order-amount { white-space: nowrap; font-size: 0.82rem; }
 
 .receivables-client-panel {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   display: grid;
   gap: 14px;
 }
@@ -576,6 +591,7 @@
   .receivable-client-card-header > svg { grid-column: 3; grid-row: 2; justify-self: end; }
   .receivable-client-card-summary { grid-column: 3; grid-row: 1; }
   .receivable-client-inline-orders { display: grid; }
+  .receivables-client-list.has-selection { padding-bottom: 84px; }
   .receivable-client-order-select { min-height: 52px; }
   .receivables-payment-desktop-action { display: none; }
   .receivables-header-actions { display: none; }
@@ -604,6 +620,8 @@
   .receivables-payment-fab:disabled { opacity: 0.55; cursor: not-allowed; }
 
   .receivables-client-selection-bar {
+    box-sizing: border-box;
+    min-width: 0;
     position: fixed;
     left: var(--mobile-page-inline);
     right: var(--mobile-page-inline);
