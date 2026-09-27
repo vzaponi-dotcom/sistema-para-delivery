@@ -27,9 +27,13 @@ const formatPairingCode = (value) => {
 
 const FULLSCREEN_RECOVERY_SAFE_AREA_PX = 56
 
-const readViewportHeight = () => {
+const readViewport = () => {
+  const width = Math.trunc(Number(globalThis.window?.innerWidth))
   const height = Math.trunc(Number(globalThis.window?.innerHeight))
-  return Number.isFinite(height) && height > 0 ? height : undefined
+  return {
+    width: Number.isFinite(width) && width > 0 ? width : undefined,
+    height: Number.isFinite(height) && height > 0 ? height : undefined,
+  }
 }
 
 export function KitchenDisplayApp({
@@ -46,7 +50,7 @@ export function KitchenDisplayApp({
   const [pairing, setPairing] = useState(null)
   const [snapshot, setSnapshot] = useState(null)
   const [now, setNow] = useState(() => new Date())
-  const [viewportHeight, setViewportHeight] = useState(() => readViewportHeight())
+  const [viewport, setViewport] = useState(() => readViewport())
   const [stale, setStale] = useState(false)
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [highlightedIds, setHighlightedIds] = useState(() => new Set())
@@ -164,7 +168,7 @@ export function KitchenDisplayApp({
 
   useEffect(() => {
     if (phase !== 'live') return undefined
-    const onResize = () => setViewportHeight(readViewportHeight())
+    const onResize = () => setViewport(readViewport())
     onResize()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
@@ -291,9 +295,9 @@ export function KitchenDisplayApp({
   }
 
   const enableSound = async () => setSoundBlocked(!await audio.unlock())
-  const boardViewportHeight = fullscreenRecoveryNeeded && viewportHeight
-    ? Math.max(1, viewportHeight - FULLSCREEN_RECOVERY_SAFE_AREA_PX)
-    : viewportHeight
+  const boardViewportHeight = fullscreenRecoveryNeeded && viewport.height
+    ? Math.max(1, viewport.height - FULLSCREEN_RECOVERY_SAFE_AREA_PX)
+    : viewport.height
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
   if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
@@ -375,6 +379,6 @@ export function KitchenDisplayApp({
       <button className="kds-fullscreen-action" type="button" onClick={enterFullscreen}>Entrar em tela cheia</button>
     </div>}
     {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
-    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} viewportHeight={boardViewportHeight} />
+    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} viewportWidth={viewport.width} viewportHeight={boardViewportHeight} />
   </main>
 }

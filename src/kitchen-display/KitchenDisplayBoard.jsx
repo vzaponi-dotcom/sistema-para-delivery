@@ -6,9 +6,9 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 const Counter = ({ label, value, tone }) => <div className={`kds-counter kds-counter--${tone}`}><span>{label}</span><strong>{value}</strong></div>
 
-export function KitchenDisplayBoard({ orders = [], timing, now = new Date(), highlightedIds = new Set(), stale = false, viewportHeight }) {
-  const presentation = buildKitchenDisplayPresentation(orders, timing, now, highlightedIds, { viewportHeight })
-  return <section className="kds-board" aria-label="Painel da cozinha" data-stale={stale}>
+export function KitchenDisplayBoard({ orders = [], timing, now = new Date(), highlightedIds = new Set(), stale = false, viewportWidth, viewportHeight }) {
+  const presentation = buildKitchenDisplayPresentation(orders, timing, now, highlightedIds, { viewportWidth, viewportHeight })
+  return <section className="kds-board" aria-label="Painel da cozinha" data-stale={stale} data-layout-profile={presentation.profile.id}>
     <header className="kds-header">
       <div className="kds-brand"><span className="kds-brand__icon" data-icon="chef-hat"><Icon name="chef-hat" size={54} /></span><h1>Cozinha</h1><span className="kds-brand__separator" aria-hidden="true" /><p>Boas refeições. Mais histórias.</p></div>
       <div className="kds-summary"><Counter label="Em preparo" value={presentation.counts.preparing} tone="preparing" /><Counter label="Atrasados" value={presentation.counts.late} tone="late" /><Counter label="Agendados" value={presentation.counts.scheduled} tone="scheduled" /></div>

@@ -15,7 +15,7 @@ test('six-slot allocation covers 0-8 preparing with no scheduled orders', () => 
     assert.equal(result.cards.length, Math.min(6, count), `preparing=${count}`)
     assert.equal(result.overflow, Math.max(0, count - 6), `preparing=${count}`)
     assert.equal(result.cards.every(({ phase }) => phase === 'preparing'), true)
-    assert.equal(result.cards.every(({ slotCost }) => slotCost === 1), true)
+    assert.equal(result.cards.every(({ slotCost }) => slotCost === 3), true)
   }
 })
 
@@ -50,7 +50,7 @@ test('a tall preparing card consumes two slots while the first scheduled card re
   const result = buildKitchenDisplayPresentation(orders, timing, now)
 
   assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
-  assert.deepEqual(result.cards.map(({ slotCost }) => slotCost), [2, 1, 1, 1, 1])
+  assert.deepEqual(result.cards.map(({ slotCost }) => slotCost), [6, 3, 3, 3, 3])
   assert.equal(result.cards.find(({ order }) => order.id === 'p-01')?.layoutDemand, 'tall')
   assert.equal(result.cards.at(-1)?.order.id, 's-01')
   assert.equal(result.overflow, 1)
@@ -68,7 +68,7 @@ test('a tall protected scheduled card displaces the lowest-priority preparing ca
   const result = buildKitchenDisplayPresentation(orders, timing, now)
 
   assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
-  assert.equal(result.cards.at(-1)?.slotCost, 2)
+  assert.equal(result.cards.at(-1)?.slotCost, 6)
   assert.equal(result.cards.at(-1)?.layoutDemand, 'tall')
   assert.equal(result.overflow, 1)
 })
@@ -83,7 +83,7 @@ test('additional scheduled cards fill free slots only when no higher-priority pr
   ], timing, now)
 
   assert.deepEqual(fillable.cards.map(({ order }) => order.id), ['p-01', 's-01', 's-02', 's-03', 's-04'])
-  assert.equal(fillable.cards.reduce((sum, card) => sum + card.slotCost, 0), 6)
+  assert.equal(fillable.cards.reduce((sum, card) => sum + card.slotCost, 0), 18)
   assert.equal(fillable.overflow, 0)
 
   const blocked = buildKitchenDisplayPresentation([
@@ -130,4 +130,112 @@ test('header counters describe the complete queue rather than only visible cards
   assert.deepEqual(result.counts, { preparing: 8, late: 0, scheduled: 2 })
   assert.equal(result.cards.length, 6)
   assert.equal(result.overflow, 4)
+})
+
+
+test('large viewport expands short-order capacity to twelve while small queues remain focus-sized', () => {
+  const ten = buildKitchenDisplayPresentation(
+    Array.from({ length: 10 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1640, viewportHeight: 924 },
+  )
+  assert.equal(ten.profile.id, 'compact')
+  assert.equal(ten.cards.length, 10)
+  assert.equal(ten.overflow, 0)
+
+  const twelve = buildKitchenDisplayPresentation(
+    Array.from({ length: 12 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+  assert.equal(twelve.profile.id, 'compact')
+  assert.equal(twelve.cards.length, 12)
+  assert.equal(twelve.overflow, 0)
+
+  const four = buildKitchenDisplayPresentation(
+    Array.from({ length: 4 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+  assert.equal(four.profile.id, 'focus')
+  assert.equal(four.cards.length, 4)
+})
+
+test('1366x768 protects readability by using the balanced eight-card profile', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 10 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1366, viewportHeight: 768 },
+  )
+  assert.equal(result.profile.id, 'balanced')
+  assert.equal(result.cards.length, 8)
+  assert.equal(result.overflow, 2)
+})
+
+test('compact profile protects one scheduled order while using the remaining capacity for preparing work', () => {
+  const orders = [
+    ...Array.from({ length: 11 }, (_, index) => preparing(index)),
+    scheduled(1),
+  ]
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length, 12)
+  assert.equal(result.cards.filter(({ phase }) => phase === 'preparing').length, 11)
+  assert.equal(result.cards.filter(({ phase }) => phase === 'scheduled').length, 1)
+  assert.equal(result.cards.at(-1).order.id, 's-01')
+  assert.equal(result.overflow, 0)
+})
+
+test('compact profile gives complex work extra tracks before pushing lower-priority cards to overflow', () => {
+  const orders = [
+    preparing(1, undefined, denseItems('Pedido grande')),
+    ...Array.from({ length: 39 }, (_, index) => preparing(index + 2)),
+  ]
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards[0].gridSpan >= 6, true)
+  assert.equal(result.cards.length < 40, true)
+  assert.equal(result.overflow, orders.length - result.cards.length)
+  assert.equal(result.cards[0].order.id, 'p-01')
+})
+
+
+test('compact presentation can expose sixteen one-item orders on a large viewport', () => {
+  const orders = Array.from({ length: 16 }, (_, index) => preparing(index, undefined, [
+    { quantity: 1, name: 'Marmita', note: '' },
+  ]))
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length, 16)
+  assert.equal(result.overflow, 0)
+  assert.equal(result.cards.every((card) => card.gridSpan === 3), true)
 })

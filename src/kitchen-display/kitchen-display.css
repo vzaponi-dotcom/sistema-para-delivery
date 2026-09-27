@@ -473,3 +473,211 @@ button { font: inherit; }
   font-size: .72rem;
   overflow-wrap: anywhere;
 }
+
+
+/* Dynamic Kitchen TV density profiles. */
+.kds-card--full { grid-row: 1 / span 3; }
+
+.kds-board[data-layout-profile="focus"] .kds-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  column-gap: clamp(12px, 1.3vw, 24px);
+  row-gap: clamp(8px, .8vw, 14px);
+}
+
+.kds-board[data-layout-profile="balanced"] {
+  padding: clamp(14px, 1.5vw, 26px);
+  gap: clamp(10px, 1vw, 16px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-header {
+  min-height: clamp(68px, 7vh, 88px);
+  gap: clamp(14px, 1.5vw, 28px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-brand__icon svg {
+  width: clamp(38px, 2.6vw, 48px);
+  height: clamp(38px, 2.6vw, 48px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-brand h1 {
+  font-size: clamp(1.8rem, 2.6vw, 2.8rem);
+}
+.kds-board[data-layout-profile="balanced"] .kds-counter {
+  min-width: clamp(88px, 7vw, 120px);
+  padding-inline: clamp(10px, .9vw, 16px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-counter strong {
+  font-size: clamp(1.75rem, 2.5vw, 2.6rem);
+}
+.kds-board[data-layout-profile="balanced"] .kds-clock {
+  min-width: clamp(100px, 8vw, 138px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-clock time {
+  font-size: clamp(1.8rem, 2.6vw, 2.7rem);
+}
+.kds-board[data-layout-profile="balanced"] .kds-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  column-gap: clamp(8px, 1vw, 16px);
+  row-gap: clamp(6px, .65vw, 10px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-card {
+  --kds-item-size: clamp(.95rem, 1.08vw, 1.18rem);
+  --kds-note-size: .84em;
+  padding: clamp(11px, .95vw, 18px);
+}
+.kds-board[data-layout-profile="balanced"] .kds-card--content-compact {
+  --kds-item-size: clamp(.89rem, 1vw, 1.08rem);
+}
+.kds-board[data-layout-profile="balanced"] .kds-card--content-dense {
+  --kds-item-size: clamp(.83rem, .93vw, 1rem);
+  --kds-note-size: .8em;
+}
+.kds-board[data-layout-profile="balanced"] .kds-card__status {
+  gap: .55rem;
+  font-size: clamp(.68rem, .82vw, .9rem);
+}
+.kds-board[data-layout-profile="balanced"] .kds-card__main {
+  min-height: clamp(36px, 4.2vh, 48px);
+  margin: 6px 0;
+  padding-bottom: 6px;
+}
+.kds-board[data-layout-profile="balanced"] .kds-card__customer,
+.kds-board[data-layout-profile="balanced"] .kds-card__timing {
+  font-size: clamp(1.28rem, 1.72vw, 1.9rem);
+}
+.kds-board[data-layout-profile="balanced"] .kds-card__meta {
+  gap: .4rem;
+}
+.kds-board[data-layout-profile="balanced"] .kds-card__meta .kds-card__type {
+  padding: .28rem .42rem;
+  font-size: clamp(.62rem, .72vw, .78rem);
+}
+
+.kds-board[data-layout-profile="compact"] {
+  padding: clamp(10px, 1.2vw, 20px);
+  gap: clamp(7px, .8vw, 12px);
+}
+.kds-board[data-layout-profile="compact"] .kds-header {
+  min-height: clamp(58px, 6.4vh, 74px);
+  gap: clamp(10px, 1.1vw, 20px);
+}
+.kds-board[data-layout-profile="compact"] .kds-brand {
+  gap: clamp(8px, .7vw, 13px);
+}
+.kds-board[data-layout-profile="compact"] .kds-brand__icon svg {
+  width: clamp(34px, 2.2vw, 42px);
+  height: clamp(34px, 2.2vw, 42px);
+}
+.kds-board[data-layout-profile="compact"] .kds-brand h1 {
+  font-size: clamp(1.55rem, 2.15vw, 2.25rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-brand__separator {
+  height: 32px;
+}
+.kds-board[data-layout-profile="compact"] .kds-brand p {
+  font-size: clamp(.78rem, 1vw, 1.05rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-counter {
+  min-width: clamp(76px, 6vw, 104px);
+  padding-inline: clamp(7px, .7vw, 12px);
+}
+.kds-board[data-layout-profile="compact"] .kds-counter span {
+  font-size: clamp(.68rem, .78vw, .86rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-counter strong {
+  font-size: clamp(1.5rem, 2.1vw, 2.2rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-clock {
+  min-width: clamp(88px, 7vw, 118px);
+}
+.kds-board[data-layout-profile="compact"] .kds-clock time {
+  font-size: clamp(1.55rem, 2.2vw, 2.3rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-clock span {
+  margin-top: .2rem;
+  font-size: clamp(.68rem, .75vw, .82rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(24, minmax(0, 1fr));
+  column-gap: clamp(7px, .75vw, 12px);
+  row-gap: clamp(2px, .24vw, 4px);
+}
+.kds-board[data-layout-profile="compact"] .kds-card {
+  --kds-item-size: clamp(.95rem, 1.08vw, 1.15rem);
+  --kds-note-size: .8em;
+  padding: clamp(9px, .75vw, 13px);
+  border-width: 1px;
+  border-radius: clamp(8px, .65vw, 11px);
+}
+.kds-board[data-layout-profile="compact"] .kds-card--content-compact {
+  --kds-item-size: clamp(.89rem, 1vw, 1.06rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-card--content-dense {
+  --kds-item-size: clamp(.83rem, .93vw, .98rem);
+  --kds-note-size: .76em;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__status {
+  gap: .42rem;
+  font-size: clamp(.62rem, .7vw, .78rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-card__status-copy {
+  gap: .35rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__dot {
+  width: .72em;
+  height: .72em;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__main {
+  min-height: 30px;
+  margin: 4px 0 5px;
+  padding-bottom: 4px;
+  gap: .45rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__customer,
+.kds-board[data-layout-profile="compact"] .kds-card__timing {
+  font-size: clamp(1.12rem, 1.42vw, 1.55rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-card__items {
+  gap: 3px;
+  line-height: 1.12;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__items.is-two-columns {
+  column-gap: 7px;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__meta {
+  gap: .3rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__meta .kds-card__type {
+  padding: .2rem .3rem;
+  gap: .2rem;
+  font-size: clamp(.56rem, .62vw, .68rem);
+}
+.kds-board[data-layout-profile="compact"] .kds-card__meta .kds-card__type svg {
+  width: 12px;
+  height: 12px;
+}
+.kds-board[data-layout-profile="compact"] .kds-card__item-note {
+  margin-top: .08rem;
+  line-height: 1.08;
+}
+
+
+/* Nano cards: one simple production line keeps full typography and removes empty chrome. */
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] {
+  padding: clamp(6px, .55vw, 9px);
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__main {
+  min-height: 24px;
+  margin: 2px 0 3px;
+  padding-bottom: 3px;
+  gap: .35rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__items {
+  gap: 1px;
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__meta {
+  gap: .24rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__meta .kds-card__type {
+  padding: .14rem .26rem;
+}

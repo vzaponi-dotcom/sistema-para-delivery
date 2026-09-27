@@ -25,6 +25,9 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const metrics = entry.contentMetrics ?? getKitchenCardContentMetrics(items)
   const layoutDemand = entry.layoutDemand ?? metrics.layoutDemand
   const gridPosition = entry.gridPosition
+  const rowSpan = Math.max(1, Number(entry.rowSpan ?? metrics.rowSpan) || 1)
+  const gridSpan = Math.max(1, Number(entry.gridSpan ?? metrics.gridSpan) || rowSpan)
+  const layoutClass = layoutDemand === 'full' ? ' kds-card--full' : layoutDemand === 'tall' ? ' kds-card--tall' : ''
   const columnCount = metrics.columnCount === 2 ? 2 : 1
   const twoColumns = columnCount === 2
   const scheduled = phase === 'scheduled'
@@ -32,13 +35,17 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const typeIcon = order.type === 'Retirada' ? 'pickup' : order.type === 'Local' ? 'local' : 'delivery-bike'
 
   return <article
-    className={`kds-card kds-card--${state} kds-card--content-${metrics.density}${layoutDemand === 'tall' ? ' kds-card--tall' : ''}`}
+    className={`kds-card kds-card--${state} kds-card--content-${metrics.density}${layoutClass}`}
     style={gridPosition ? { gridColumn: gridPosition.gridColumn, gridRow: gridPosition.gridRow } : undefined}
     data-order-id={String(order.id)}
     data-highlighted={state === 'new'}
     data-item-count={items.length}
     data-layout-demand={layoutDemand}
+    data-row-span={rowSpan}
+    data-grid-span={gridSpan}
+    data-nano-card={metrics.isNano === true}
     data-column-count={columnCount}
+    data-content-overflow-risk={metrics.overflowRisk === true}
   >
     <div className="kds-card__main">
       <h2 className="kds-card__customer">{order.client || 'Cliente não informado'}</h2>
