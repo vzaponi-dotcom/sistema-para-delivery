@@ -170,7 +170,9 @@ test('client receivables split payment creates M allocation movements without as
   assert.deepEqual(result.orders.map((order) => order.paidAmount).sort((a, b) => a - b), [20, 49])
   assert.ok(result.orders.every((order) => order.paymentAllocations.length === 2))
   assert.deepEqual(
-    result.orders[0].paymentAllocations.map(({ methodCode, methodLabel, amountCents }) => ({ methodCode, methodLabel, amountCents })),
+    result.orders[0].paymentAllocations
+      .map(({ methodCode, methodLabel, amountCents }) => ({ methodCode, methodLabel, amountCents }))
+      .sort((left, right) => left.methodCode.localeCompare(right.methodCode)),
     [
       { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 3000 },
       { methodCode: 'pix', methodLabel: 'Pix', amountCents: 3900 },
