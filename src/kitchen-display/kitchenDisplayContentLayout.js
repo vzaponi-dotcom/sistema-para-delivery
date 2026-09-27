@@ -25,7 +25,7 @@ const BOARD_LINE_CAPACITY = Object.freeze({
 const KITCHEN_BOARD_PROFILES = Object.freeze({
   focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18 }),
   balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32 }),
-  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, gridRows: 12, maxSlots: 48 }),
+  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, gridRows: 16, maxSlots: 64 }),
 })
 
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
@@ -135,11 +135,17 @@ const resolveGridSpan = ({ profile, visualLines, twoColumnVisualLines, itemCount
   if (profile.id === 'focus') return layoutDemand === 'normal' ? 3 : 6
   if (profile.id === 'balanced') return layoutDemand === 'normal' ? 4 : 8
 
-  if (layoutDemand === 'full') return overflowRisk ? 12 : 9
-  if (layoutDemand === 'tall') return 6
-  if (itemCount === 1 && !hasNotes && visualLines === 1) return 2
-  if (density === 'comfortable' && Math.min(visualLines, twoColumnVisualLines || visualLines) <= 3) return 3
-  return 4
+  if (layoutDemand === 'full') return overflowRisk ? 16 : 12
+  if (layoutDemand === 'tall') return 8
+  if (itemCount === 1) {
+    if (!hasNotes && visualLines === 1) return 2
+    return 4
+  }
+
+  const compactLines = Math.min(visualLines, twoColumnVisualLines || visualLines)
+  if (density === 'comfortable' && compactLines <= 2) return 3
+  if (density === 'comfortable' && compactLines <= 3) return 4
+  return 5
 }
 
 export function getKitchenCardContentMetrics(items = [], { viewportHeight, boardProfile } = {}) {
