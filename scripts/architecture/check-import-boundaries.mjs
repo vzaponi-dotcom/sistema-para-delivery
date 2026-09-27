@@ -356,7 +356,7 @@ export const findArchitectureViolations = async ({ rootDir }) => {
   for (const writerPath of paymentWriterPaths) {
     const source = await readOptional(writerPath)
     if (writerPath === 'worker/repositories.js'
-      && exportMentionsAny(source, new Set(['registerOrderPayment', 'registerTableTabPayment']))) {
+      && exportMentionsAny(source, new Set(['registerOrderPayment', 'registerTableTabPayment', 'registerClientOrdersPayment']))) {
       violations.push(`split-payment-repository-owner: ${writerPath}`)
     }
     for (const match of source.matchAll(/INSERT\s+INTO\s+payments\s*\(([^)]*)\)\s*VALUES\s*\(([^)]*)\)/gi)) {
