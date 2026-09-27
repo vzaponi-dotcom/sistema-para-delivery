@@ -237,5 +237,5 @@ test('compact presentation can expose sixteen one-item orders on a large viewpor
   assert.equal(result.profile.id, 'compact')
   assert.equal(result.cards.length, 16)
   assert.equal(result.overflow, 0)
-  assert.equal(result.cards.every((card) => card.gridSpan === 3), true)
+  assert.equal(result.cards.every((card) => card.gridSpan === 2), true)
 })
