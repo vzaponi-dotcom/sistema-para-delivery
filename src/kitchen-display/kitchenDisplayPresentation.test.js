@@ -204,7 +204,7 @@ test('compact profile protects one scheduled order while using the remaining cap
 test('compact profile gives complex work extra tracks before pushing lower-priority cards to overflow', () => {
   const orders = [
     preparing(1, undefined, denseItems('Pedido grande')),
-    ...Array.from({ length: 19 }, (_, index) => preparing(index + 2)),
+    ...Array.from({ length: 39 }, (_, index) => preparing(index + 2)),
   ]
   const result = buildKitchenDisplayPresentation(
     orders,
@@ -216,7 +216,7 @@ test('compact profile gives complex work extra tracks before pushing lower-prior
 
   assert.equal(result.profile.id, 'compact')
   assert.equal(result.cards[0].gridSpan >= 6, true)
-  assert.equal(result.cards.length < 20, true)
+  assert.equal(result.cards.length < 40, true)
   assert.equal(result.overflow, orders.length - result.cards.length)
   assert.equal(result.cards[0].order.id, 'p-01')
 })
