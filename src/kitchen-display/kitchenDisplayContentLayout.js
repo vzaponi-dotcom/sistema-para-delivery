@@ -8,6 +8,26 @@ const VIEWPORT_LINE_CAPACITY = Object.freeze({
   constrained: Object.freeze({ normal: 6, tall: 14 }),
 })
 
+const BOARD_LINE_CAPACITY = Object.freeze({
+  focus: VIEWPORT_LINE_CAPACITY,
+  balanced: Object.freeze({
+    spacious: Object.freeze({ normal: 7, tall: 18 }),
+    standard: Object.freeze({ normal: 6, tall: 15 }),
+    constrained: Object.freeze({ normal: 5, tall: 12 }),
+  }),
+  compact: Object.freeze({
+    spacious: Object.freeze({ normal: 5, tall: 11, full: 19 }),
+    standard: Object.freeze({ normal: 4, tall: 9, full: 16 }),
+    constrained: Object.freeze({ normal: 3, tall: 7, full: 12 }),
+  }),
+})
+
+const KITCHEN_BOARD_PROFILES = Object.freeze({
+  focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, maxSlots: 6 }),
+  balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, maxSlots: 8 }),
+  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, maxSlots: 12 }),
+})
+
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 
 export const formatKitchenDisplayItemName = (item) => {
@@ -28,11 +48,10 @@ const countVisualLines = (item) => {
   return nameLines + noteLines * NOTE_LINE_WEIGHT
 }
 
-const KITCHEN_BOARD_PROFILES = Object.freeze({
-  focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, maxSlots: 6 }),
-  balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, maxSlots: 8 }),
-  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, maxSlots: 12 }),
-})
+const normalizeBoardProfile = (value) => {
+  const id = typeof value === 'string' ? value : value?.id
+  return KITCHEN_BOARD_PROFILES[id] || KITCHEN_BOARD_PROFILES.focus
+}
 
 export function resolveKitchenBoardProfile({ viewportWidth, viewportHeight, queueSize = 0 } = {}) {
   const width = Math.trunc(Number(viewportWidth))
@@ -62,21 +81,60 @@ const countTwoColumnVisualLines = (lineHeights) => {
   return total
 }
 
-const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile }) => {
-  const capacity = VIEWPORT_LINE_CAPACITY[viewportProfile] || VIEWPORT_LINE_CAPACITY.standard
+const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile, boardProfile }) => {
+  const profile = normalizeBoardProfile(boardProfile)
+  const profileCapacity = BOARD_LINE_CAPACITY[profile.id] || VIEWPORT_LINE_CAPACITY
+  const capacity = profileCapacity[viewportProfile] || profileCapacity.standard || VIEWPORT_LINE_CAPACITY.standard
+
   if (visualLines <= capacity.normal) {
-    return { layoutDemand: 'normal', columnCount: 1, fitStrategy: 'normal-one-column', capacity }
+    return { layoutDemand: 'normal', rowSpan: 1, columnCount: 1, fitStrategy: 'normal-one-column', capacity, profile }
   }
   if (twoColumnVisualLines <= capacity.normal) {
-    return { layoutDemand: 'normal', columnCount: 2, fitStrategy: 'normal-two-columns', capacity }
+    return { layoutDemand: 'normal', rowSpan: 1, columnCount: 2, fitStrategy: 'normal-two-columns', capacity, profile }
   }
-  if (visualLines <= capacity.tall) {
-    return { layoutDemand: 'tall', columnCount: 1, fitStrategy: 'tall-one-column', capacity }
+
+  if (profile.rows >= 2 && visualLines <= capacity.tall) {
+    return { layoutDemand: 'tall', rowSpan: 2, columnCount: 1, fitStrategy: 'tall-one-column', capacity, profile }
   }
-  return { layoutDemand: 'tall', columnCount: 2, fitStrategy: 'tall-two-columns', capacity }
+  if (profile.rows >= 2 && twoColumnVisualLines <= capacity.tall) {
+    return { layoutDemand: 'tall', rowSpan: 2, columnCount: 2, fitStrategy: 'tall-two-columns', capacity, profile }
+  }
+
+  if (profile.rows >= 3) {
+    const fullCapacity = capacity.full ?? capacity.tall * 1.65
+    if (visualLines <= fullCapacity) {
+      return {
+        layoutDemand: 'full',
+        rowSpan: 3,
+        columnCount: 1,
+        fitStrategy: 'full-one-column',
+        capacity: { ...capacity, full: fullCapacity },
+        profile,
+      }
+    }
+    return {
+      layoutDemand: 'full',
+      rowSpan: 3,
+      columnCount: 2,
+      fitStrategy: 'full-two-columns',
+      capacity: { ...capacity, full: fullCapacity },
+      profile,
+      overflowRisk: twoColumnVisualLines > fullCapacity,
+    }
+  }
+
+  return {
+    layoutDemand: 'tall',
+    rowSpan: 2,
+    columnCount: 2,
+    fitStrategy: 'tall-two-columns',
+    capacity,
+    profile,
+    overflowRisk: twoColumnVisualLines > capacity.tall,
+  }
 }
 
-export function getKitchenCardContentMetrics(items = [], { viewportHeight } = {}) {
+export function getKitchenCardContentMetrics(items = [], { viewportHeight, boardProfile } = {}) {
   const safeItems = Array.isArray(items) ? items : []
   const itemLineHeights = safeItems.map(countVisualLines)
   const visualLines = itemLineHeights.reduce((total, lines) => total + lines, 0)
@@ -88,7 +146,7 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight } = {}
       ? 'compact'
       : 'comfortable'
   const viewportProfile = resolveKitchenViewportProfile(viewportHeight)
-  const fit = resolveFitStrategy({ visualLines, twoColumnVisualLines, viewportProfile })
+  const fit = resolveFitStrategy({ visualLines, twoColumnVisualLines, viewportProfile, boardProfile })
 
   return {
     itemCount,
@@ -96,36 +154,83 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight } = {}
     twoColumnVisualLines,
     density,
     viewportProfile,
+    boardProfile: fit.profile.id,
     layoutDemand: fit.layoutDemand,
+    rowSpan: fit.rowSpan,
     columnCount: fit.columnCount,
     fitStrategy: fit.fitStrategy,
     normalLineCapacity: fit.capacity.normal,
     tallLineCapacity: fit.capacity.tall,
+    fullLineCapacity: fit.capacity.full ?? null,
+    overflowRisk: fit.overflowRisk === true,
   }
 }
 
-const normalizedSlotCeiling = (value) => {
+const normalizedSlotCeiling = (value, fallback = 6) => {
   const parsed = Math.trunc(Number(value))
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 6
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
-export function packKitchenDisplaySlots(entries = [], { maxSlots = 6, viewportHeight } = {}) {
+const cardRowSpan = (card, rows = 2) => Math.min(
+  Math.max(1, Math.trunc(Number(card?.rowSpan ?? card?.contentMetrics?.rowSpan ?? (card?.layoutDemand === 'tall' ? 2 : 1))) || 1),
+  Math.max(1, rows),
+)
+
+const assignKitchenGrid = (cards, boardProfile) => {
+  const profile = normalizeBoardProfile(boardProfile)
+  const source = Array.isArray(cards) ? cards : []
+  const heights = Array.from({ length: profile.columns }, () => 0)
+  const placements = new Array(source.length)
+  const order = source.map((card, index) => ({ index, span: cardRowSpan(card, profile.rows) }))
+    .sort((a, b) => b.span - a.span || a.index - b.index)
+
+  const visit = (position) => {
+    if (position >= order.length) return true
+    const current = order[position]
+    const seenHeights = new Set()
+
+    for (let column = 0; column < profile.columns; column += 1) {
+      const height = heights[column]
+      if (seenHeights.has(height) || height + current.span > profile.rows) continue
+      seenHeights.add(height)
+      placements[current.index] = {
+        gridColumn: column + 1,
+        gridRow: current.span > 1 ? `${height + 1} / span ${current.span}` : height + 1,
+        rowSpan: current.span,
+      }
+      heights[column] += current.span
+      if (visit(position + 1)) return true
+      heights[column] -= current.span
+      placements[current.index] = undefined
+    }
+    return false
+  }
+
+  return visit(0) ? placements : null
+}
+
+export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight, boardProfile } = {}) {
   const source = Array.isArray(entries) ? entries : []
-  const slotCeiling = normalizedSlotCeiling(maxSlots)
+  const profile = normalizeBoardProfile(boardProfile)
+  const slotCeiling = normalizedSlotCeiling(maxSlots, boardProfile ? profile.maxSlots : 6)
   const cards = []
   let usedSlots = 0
 
   for (const entry of source) {
-    const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportHeight })
-    const slotCost = metrics.layoutDemand === 'tall' ? 2 : 1
+    const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportHeight, boardProfile })
+    const slotCost = metrics.rowSpan
     if (usedSlots + slotCost > slotCeiling) break
 
-    cards.push({
+    const candidate = {
       ...entry,
       contentMetrics: metrics,
       layoutDemand: metrics.layoutDemand,
+      rowSpan: metrics.rowSpan,
       slotCost,
-    })
+    }
+    if (boardProfile && !assignKitchenGrid([...cards, candidate], profile)) break
+
+    cards.push(candidate)
     usedSlots += slotCost
   }
 
@@ -137,28 +242,18 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots = 6, viewportHe
   }
 }
 
-export function positionKitchenDisplayGrid(cards = []) {
+export function positionKitchenDisplayGrid(cards = [], { boardProfile } = {}) {
   const source = Array.isArray(cards) ? cards : []
-  const tallCards = source.filter((card) => card?.layoutDemand === 'tall')
-  const normalCards = source.filter((card) => card?.layoutDemand !== 'tall')
-  const placement = new Map()
+  const profile = normalizeBoardProfile(boardProfile)
+  const placement = assignKitchenGrid(source, profile)
 
-  tallCards.slice(0, 3).forEach((card, index) => {
-    placement.set(card, { gridColumn: index + 1, gridRow: '1 / span 2' })
-  })
-
-  const normalColumns = [1, 2, 3].slice(Math.min(3, tallCards.length))
-  normalCards.forEach((card, index) => {
-    if (!normalColumns.length) return
-    const rowIndex = Math.floor(index / normalColumns.length)
-    placement.set(card, {
-      gridColumn: normalColumns[index % normalColumns.length],
-      gridRow: Math.min(2, rowIndex + 1),
-    })
-  })
-
-  return source.map((card) => ({
+  if (!placement) return source.map((card) => ({
     ...card,
-    gridPosition: placement.get(card) ?? { gridColumn: 1, gridRow: 1 },
+    gridPosition: { gridColumn: 1, gridRow: 1, rowSpan: cardRowSpan(card, profile.rows) },
+  }))
+
+  return source.map((card, index) => ({
+    ...card,
+    gridPosition: placement[index],
   }))
 }
