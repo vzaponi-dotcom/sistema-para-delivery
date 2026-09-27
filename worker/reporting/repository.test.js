@@ -106,8 +106,8 @@ test('shared client receipt stays singular in reporting repository with two link
     VALUES ('shared-r','shared-business',6900,'2026-09-27T15:00:00Z','2026-09-27T15:00:00Z');
 
     INSERT INTO payment_allocations (id,business_id,receipt_id,method_code,method_label,amount_cents,created_at) VALUES
-      ('shared-cash','shared-business','shared-r','cash','Dinheiro',3000,'2026-09-27T15:00:00Z'),
-      ('shared-pix','shared-business','shared-r','pix','Pix',3900,'2026-09-27T15:00:00Z');
+      ('shared-cash','shared-business','shared-r',NULL,'Dinheiro',3000,'2026-09-27T15:00:00Z'),
+      ('shared-pix','shared-business','shared-r',NULL,'Pix',3900,'2026-09-27T15:00:00Z');
 
     INSERT INTO payments (id,business_id,order_id,receipt_id,amount_cents,method,paid_at,created_at) VALUES
       ('shared-p1','shared-business','shared-o1','shared-r',4900,NULL,'2026-09-27T15:00:00Z','2026-09-27T15:00:00Z'),
@@ -123,9 +123,9 @@ test('shared client receipt stays singular in reporting repository with two link
   assert.deepEqual(source.receipts.map(({ id, total_cents }) => ({ id, total_cents })), [
     { id: 'shared-r', total_cents: 6900 },
   ])
-  assert.deepEqual(source.allocations.map(({ method_code, amount_cents }) => ({ method_code, amount_cents })), [
-    { method_code: 'cash', amount_cents: 3000 },
-    { method_code: 'pix', amount_cents: 3900 },
+  assert.deepEqual(source.allocations.map(({ method_label, amount_cents }) => ({ method_label, amount_cents })), [
+    { method_label: 'Dinheiro', amount_cents: 3000 },
+    { method_label: 'Pix', amount_cents: 3900 },
   ])
   assert.deepEqual(source.payments.map(({ order_id, amount_cents }) => ({ order_id, amount_cents })).sort((a, b) => a.order_id.localeCompare(b.order_id)), [
     { order_id: 'shared-o1', amount_cents: 4900 },
