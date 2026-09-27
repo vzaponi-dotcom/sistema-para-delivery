@@ -82,7 +82,7 @@ test('mobile client selection bar stays above bottom navigation and exposes coun
   assert.match(page, /className="receivables-client-selection-bar"/)
   assert.match(page, /clientSelection\.selectedCount/)
   assert.match(page, /selectedClientTotal/)
-  assert.match(page, />Receber</)
+  assert.match(page, />\s*Receber\s*</)
   assert.match(page, /!overlayOpen/)
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-client-selection-bar\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-safe-bottom\)\s*\+\s*var\(--mobile-floating-gap\)\)[^}]*z-index:\s*var\(--layer-floating-action\)/s)
   assert.match(css, /\.receivables-client-selection-bar \.button\s*\{[^}]*min-height:\s*48px/s)
