@@ -328,3 +328,23 @@ Implementar:
 10. testes para 16 pedidos de 1 item, mistura de alturas, scheduled protegido e ausência de linhas implícitas.
 
 Critério visual principal: cards de 1–2 itens devem terminar pouco depois do conteúdo, deixando a área restante disponível para outros cards, sem diminuir a fonte.
+
+## 17. Refinamento final — micro-card de 1 item
+
+Adicionar RED/GREEN específico para o último polish visual aprovado:
+
+RED:
+
+- compact + 1 item curto + sem observação → `gridSpan = 2`;
+- compact + 1 item + observação → `gridSpan = 3`;
+- compact + 1 nome que quebra linha → `gridSpan = 3`;
+- 16 pedidos micro continuam cabendo com folga sem reduzir tipografia.
+
+GREEN:
+
+- derivar a decisão das métricas reais de conteúdo;
+- não usar apenas `itemCount === 1`;
+- não alterar fonte/peso/line-height do item;
+- manter packing, scheduled protegido, overflow e prioridade.
+
+Homologar novamente no cenário real de 9 pedidos usado nos prints anteriores.
