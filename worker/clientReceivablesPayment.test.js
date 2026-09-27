@@ -130,6 +130,8 @@ test('client receivables payment settles selected orders with one receipt and le
   assert.equal(result.payments.length, 2)
   assert.equal(result.movements.length, 1)
   assert.deepEqual(result.orders.map((order) => [order.id, order.paymentStatus]), [['o1', 'Pago'], ['o2', 'Pago']])
+  assert.ok(result.orders.every((order) => order.paymentMethod === 'Pix'))
+  assert.ok(result.orders.every((order) => order.paymentAllocations.length === 1))
   assert.equal(new Set(result.payments.map((payment) => payment.receiptId)).size, 1)
   assert.equal(result.payments[0].receiptId, result.receipt.id)
   assert.deepEqual(result.payments.map((payment) => payment.amount).sort((a, b) => a - b), [20, 49])
@@ -160,6 +162,19 @@ test('client receivables split payment creates M allocation movements without as
     { order_id: 'o2', amount_cents: 2000, method: null },
   ])
   assert.equal(new Set(payments.map(({ receipt_id }) => receipt_id)).size, 1)
+
+  assert.equal(new Set(result.orders.map((order) => order.paymentReceiptId)).size, 1)
+  assert.equal(result.orders[0].paymentReceiptId, result.receipt.id)
+  assert.ok(result.orders.every((order) => order.paymentMethod === null))
+  assert.deepEqual(result.orders.map((order) => order.paidAmount).sort((a, b) => a - b), [20, 49])
+  assert.ok(result.orders.every((order) => order.paymentAllocations.length === 2))
+  assert.deepEqual(
+    result.orders[0].paymentAllocations.map(({ methodCode, methodLabel, amountCents }) => ({ methodCode, methodLabel, amountCents })),
+    [
+      { methodCode: 'cash', methodLabel: 'Dinheiro', amountCents: 3000 },
+      { methodCode: 'pix', methodLabel: 'Pix', amountCents: 3900 },
+    ],
+  )
 
   const movements = db.sqlite.prepare("SELECT value_cents, order_id, payment_id, receipt_id, payment_allocation_id FROM movements WHERE source = 'order-payment' ORDER BY value_cents").all()
   assert.deepEqual(movements.map(({ value_cents }) => value_cents), [3000, 3900])
