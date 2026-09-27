@@ -598,9 +598,9 @@ button { font: inherit; }
 }
 .kds-board[data-layout-profile="compact"] .kds-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(16, minmax(0, 1fr));
   column-gap: clamp(7px, .75vw, 12px);
-  row-gap: clamp(4px, .45vw, 7px);
+  row-gap: clamp(3px, .35vw, 6px);
 }
 .kds-board[data-layout-profile="compact"] .kds-card {
   --kds-item-size: clamp(.95rem, 1.08vw, 1.15rem);
@@ -659,4 +659,25 @@ button { font: inherit; }
 .kds-board[data-layout-profile="compact"] .kds-card__item-note {
   margin-top: .08rem;
   line-height: 1.08;
+}
+
+
+/* Nano cards: one simple production line keeps full typography and removes empty chrome. */
+.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] {
+  padding: clamp(6px, .55vw, 9px);
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__main {
+  min-height: 24px;
+  margin: 2px 0 3px;
+  padding-bottom: 3px;
+  gap: .35rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__items {
+  gap: 1px;
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__meta {
+  gap: .24rem;
+}
+.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__meta .kds-card__type {
+  padding: .14rem .26rem;
 }
