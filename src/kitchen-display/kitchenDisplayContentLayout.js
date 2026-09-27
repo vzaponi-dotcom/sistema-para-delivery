@@ -206,12 +206,17 @@ const assignKitchenGrid = (cards, boardProfile, boardProfileProvided = true) => 
   const rowCount = boardProfileProvided ? profile.gridRows : profile.rows
   const occupancy = Array.from({ length: rowCount }, () => Array(profile.columns).fill(false))
   const placements = new Array(source.length)
+  const failedStates = new Set()
 
-  for (let index = 0; index < source.length; index += 1) {
+  const stateKey = (index) => `${index}:${occupancy.map((row) => row.map((cell) => cell ? '1' : '0').join('')).join('|')}`
+
+  const visit = (index) => {
+    if (index >= source.length) return true
+    const key = stateKey(index)
+    if (failedStates.has(key)) return false
+
     const span = cardGridSpan(source[index], profile, boardProfileProvided)
-    let placed = false
-
-    for (let row = 0; row <= rowCount - span && !placed; row += 1) {
+    for (let row = 0; row <= rowCount - span; row += 1) {
       for (let column = 0; column < profile.columns; column += 1) {
         let available = true
         for (let offset = 0; offset < span; offset += 1) {
@@ -228,15 +233,19 @@ const assignKitchenGrid = (cards, boardProfile, boardProfileProvided = true) => 
           gridRow: span > 1 ? `${row + 1} / span ${span}` : row + 1,
           rowSpan: span,
         }
-        placed = true
-        break
+
+        if (visit(index + 1)) return true
+
+        for (let offset = 0; offset < span; offset += 1) occupancy[row + offset][column] = false
+        placements[index] = undefined
       }
     }
 
-    if (!placed) return null
+    failedStates.add(key)
+    return false
   }
 
-  return placements
+  return visit(0) ? placements : null
 }
 
 export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight, boardProfile } = {}) {
