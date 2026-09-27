@@ -351,3 +351,36 @@ A mudança é considerada bem-sucedida se aumentar a informação simultaneament
 O objetivo não é maximizar matematicamente o número de cards. O objetivo é:
 
 > **mostrar mais pedidos quando eles são simples e dar mais espaço quando eles são complexos.**
+
+## 17. Refinamento aprovado na homologação — compactação vertical inteligente
+
+A primeira versão 4×3 melhorou a largura, mas a homologação visual mostrou espaço vertical excessivo dentro de pedidos curtos.
+
+Direção aprovada:
+
+- manter o número de colunas do perfil;
+- subdividir verticalmente os perfis em trilhas menores;
+- cards curtos ocupam apenas a altura necessária;
+- cards médios e grandes consomem mais trilhas;
+- em `compact`, a malha usa 12 trilhas verticais;
+- pedido curto típico usa 3 trilhas, permitindo até 4 faixas de cards curtos;
+- pedidos maiores usam 4, 6, 9 ou 12 trilhas conforme conteúdo;
+- packing preserva prioridade e usa backtracking apenas para encontrar uma disposição válida, sem promover pedidos inferiores;
+- 1–4 pedidos continuam em `focus`;
+- 5–8 passam para `balanced`;
+- 9+ podem usar `compact` em viewport grande.
+
+O ganho de espaço é reinvestido em legibilidade no modo de 4 colunas:
+
+- fonte de itens aumenta aproximadamente 1 px;
+- fonte de observações também aumenta aproximadamente 1 px;
+- não reduzir fonte para atingir capacidade;
+- observações continuam visualmente secundárias, porém legíveis à distância.
+
+Meta revisada para viewport grande:
+
+- até 16 pedidos realmente curtos podem caber;
+- a quantidade real visível continua dependendo do conteúdo;
+- cards complexos reduzem naturalmente essa capacidade.
+
+A meta continua sendo densidade inteligente, não atingir 16 a qualquer custo.
