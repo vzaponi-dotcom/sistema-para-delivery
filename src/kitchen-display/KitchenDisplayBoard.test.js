@@ -99,7 +99,7 @@ test('CSS keeps explicit profile tracks without enabling implicit page growth', 
   assert.match(css, /\.kds-card--tall\s*\{[^}]*grid-row:/s)
   assert.match(css, /data-layout-profile="focus"[\s\S]*grid-template-rows:\s*repeat\(6,/)
   assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-rows:\s*repeat\(8,/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(16,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
   assert.doesNotMatch(css, /grid-auto-rows:\s*(?!0)/)
 })
 
@@ -175,7 +175,7 @@ test('CSS defines explicit focus, balanced and compact grid contracts', async ()
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /data-layout-profile="focus"[^}]*\.kds-grid|data-layout-profile="focus"/s)
   assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(8,/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(16,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(24,/)
   assert.match(css, /\.kds-card--full\s*\{[^}]*grid-row:\s*1\s*\/\s*span\s*3/s)
 })
 
@@ -187,15 +187,24 @@ test('four-column density increases item and note typography while reclaiming ve
   assert.match(css, /data-layout-profile="balanced"[\s\S]*--kds-note-size:\s*\.84em/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-note-size:\s*\.8em/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(16,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
 })
 
 
 test('compact nano cards reduce structural chrome without shrinking production text', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
 
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(16,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-grid-span="2"\][\s\S]*padding:/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-grid-span="2"\][\s\S]*\.kds-card__main[\s\S]*min-height:/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
+})
+
+
+test('compact CSS uses twenty-four vertical tracks for finer card heights without smaller production type', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-note-size:\s*\.8em/)
 })
