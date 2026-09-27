@@ -113,6 +113,7 @@ export default function ReceivableClientPanel({
         </div>
         <Button
           type="button"
+          className="receivables-client-receive-button"
           onClick={() => onReceive?.(group)}
           disabled={disabled || selectedEntries.length === 0}
         >
