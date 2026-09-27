@@ -195,8 +195,8 @@ test('compact nano cards reduce structural chrome without shrinking production t
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
 
   assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-grid-span="2"\][\s\S]*padding:/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-grid-span="2"\][\s\S]*\.kds-card__main[\s\S]*min-height:/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-nano-card="true"\][\s\S]*padding:/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-nano-card="true"\][\s\S]*\.kds-card__main[\s\S]*min-height:/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
 })
 
