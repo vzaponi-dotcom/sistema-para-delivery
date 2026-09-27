@@ -6,6 +6,7 @@ import {
   getKitchenCardContentMetrics,
   normalizeKitchenItemNote,
   packKitchenDisplaySlots,
+  positionKitchenDisplayGrid,
   resolveKitchenBoardProfile,
   resolveKitchenViewportProfile,
 } from './kitchenDisplayContentLayout.js'
@@ -279,4 +280,69 @@ test('board profile uses a safe fallback when viewport dimensions are unavailabl
   assert.deepEqual(resolveKitchenBoardProfile({ queueSize: 10 }), {
     id: 'focus', columns: 3, rows: 2, maxSlots: 6,
   })
+})
+
+
+test('compact profile keeps short orders at one row and promotes complex content before shrinking it', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 10 })
+  const short = getKitchenCardContentMetrics([
+    item('Marmita executiva'),
+    item('Suco'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const medium = getKitchenCardContentMetrics(
+    Array.from({ length: 7 }, (_, index) => item(`Marmita Família Especial Completa ${index + 1}`)),
+    { viewportHeight: 924, boardProfile: profile },
+  )
+  const extreme = getKitchenCardContentMetrics(
+    Array.from({ length: 12 }, (_, index) => item(
+      `Produto Família Especial Muito Completo ${index + 1}`,
+      index % 2 === 0 ? 'Observação longa para produção e embalagem separada' : '',
+    )),
+    { viewportHeight: 924, boardProfile: profile },
+  )
+
+  assert.equal(short.boardProfile, 'compact')
+  assert.equal(short.rowSpan, 1)
+  assert.equal(short.layoutDemand, 'normal')
+  assert.equal(medium.rowSpan >= 2, true)
+  assert.equal(extreme.rowSpan, 3)
+  assert.equal(extreme.layoutDemand, 'full')
+})
+
+test('compact packing fits twelve short cards in the explicit 4x3 matrix', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 12 })
+  const entries = Array.from({ length: 12 }, (_, index) => normalEntry(`compact-${index + 1}`))
+  const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
+  const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
+
+  assert.equal(packed.cards.length, 12)
+  assert.equal(packed.usedSlots, 12)
+  assert.equal(packed.overflow, 0)
+  assert.equal(positioned.length, 12)
+  assert.equal(new Set(positioned.map((card) => `${card.gridPosition.gridColumn}:${card.gridPosition.gridRow}`)).size, 12)
+  for (const card of positioned) {
+    assert.ok(card.gridPosition.gridColumn >= 1 && card.gridPosition.gridColumn <= 4)
+    assert.ok(Number(card.gridPosition.gridRow) >= 1 && Number(card.gridPosition.gridRow) <= 3)
+  }
+})
+
+test('compact packing reserves multiple rows for complex cards without creating an implicit fourth row', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 })
+  const entries = [
+    {
+      order: {
+        id: 'complex',
+        items: Array.from({ length: 8 }, (_, index) => item(`Produto família completo ${index + 1}`)),
+      },
+    },
+    ...Array.from({ length: 8 }, (_, index) => normalEntry(`small-${index + 1}`)),
+  ]
+  const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
+  const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
+
+  assert.equal(positioned[0].rowSpan >= 2, true)
+  assert.equal(positioned.every((card) => {
+    const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
+    return row + card.gridPosition.rowSpan - 1 <= 3
+  }), true)
 })
