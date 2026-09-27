@@ -28,3 +28,15 @@ test('register refund dialog submit payload contains method only', () => {
   assert.match(source, /onConfirm\?*\.?\(\{\s*refundMethod\s*\}\)/)
   assert.doesNotMatch(source, /onConfirm\?*\.?\(\{[^}]*amount/)
 })
+
+
+test('mixed shared receipt shows original composition but requires one explicit active refund method', () => {
+  const source = readDialog()
+  assert.match(source, /hasMixedPayment\(order\?\.paymentAllocations\)/)
+  assert.match(source, /if \(hasMixedPayment\(order\?\.paymentAllocations\)\) return ''/)
+  assert.match(source, /Composição original da venda/)
+  assert.match(source, /order\.paymentAllocations\.map/)
+  assert.match(source, /Escolha uma única forma ativa para registrar o estorno integral deste pedido/)
+  assert.match(source, /const amount = Number\(order\.paidAmount \|\| order\.total \|\| 0\)/)
+  assert.match(source, /disabled=\{submitting \|\| !refundMethod \|\| originalMethodInactive\}/)
+})

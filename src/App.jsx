@@ -47,6 +47,8 @@ import TableServiceExternalActions from './app/surfaces/table-service/TableServi
 import ReceivablesSurface from './app/surfaces/finance/ReceivablesSurface.jsx'
 import OrderPaymentDialog from './app/workflows/payments/order/OrderPaymentDialog.jsx'
 import { useOrderPaymentWorkflow } from './app/workflows/payments/order/useOrderPaymentWorkflow.js'
+import ClientOrdersPaymentDialog from './app/workflows/payments/client-orders/ClientOrdersPaymentDialog.jsx'
+import { useClientOrdersPaymentWorkflow } from './app/workflows/payments/client-orders/useClientOrdersPaymentWorkflow.js'
 import { useTableTabPaymentWorkflow } from './app/workflows/payments/table-tab/useTableTabPaymentWorkflow.js'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
@@ -317,6 +319,19 @@ function App({ capabilities } = {}) {
     onSuccess: showSuccessMessage,
     onError: showApiError,
   })
+  const clientOrdersPayment = useClientOrdersPaymentWorkflow({
+    orders,
+    canReceivePayments,
+    writesBlocked,
+    paymentOptions,
+    defaultPaymentMethod,
+    getSyncGuard,
+    applyOfficialEffects,
+    refreshOfficialData: refreshBootstrapSilently,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+  })
   const tableTabPayment = useTableTabPaymentWorkflow({
     writesBlocked,
     selectionGeneration: selectedComandaGeneration,
@@ -359,6 +374,7 @@ function App({ capabilities } = {}) {
   } = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, currentTiming, soundEnabled: kitchenSoundEnabled, soundProfile: kitchenSoundProfile, soundVolume: kitchenSoundVolume })
   const resetSyncState = () => {
     orderPayment.close()
+    clientOrdersPayment.close()
     effectiveConfigVersionRef.current = null
   }
   sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState
@@ -545,7 +561,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canManageClients={canManageClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
         <CatalogWorkspace visible={activeTab === 'products'} products={products} search={query.products.search} queryState={query.products} onSearchChange={(search) => patchQuery('products', { search })} onQueryChange={(patch) => patchQuery('products', patch)} currency={currency} writesBlocked={writesBlocked} canManageProducts={canManageProducts} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} isOnline={isOnline} />}
-        {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
+        {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} onRegisterClientOrdersPayment={clientOrdersPayment.open} onOpenClient={canViewClients ? (client) => { patchQuery('clients', { search: client?.name || '' }); requestNavigation('clients') } : null} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
         {activeTab === 'finance' && <FinanceWorkspace movements={movements} financeSettings={financeSettings} today={todayValue} currency={currency} pendingRefundOrders={pendingRefundOrders} paymentOptions={paymentOptions} categoryOptions={financeCategoryOptions} categoryRevision={financeCategoryRevision} writesBlocked={writesBlocked} canManageMovements={canManageMovements} canRefundPayments={canRefundPayments} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} formatCancellationDate={formatCancellationDate} onRequestRefund={refund.request} />}
         {activeTab === 'tables' && <Tables tables={tables} disabled={writesBlocked} canOpenComanda={canOpenComanda} onCreate={tableServiceCommands.createTable} onRename={tableServiceCommands.renameTable} onSetActive={tableServiceCommands.setTableActive} onReorder={tableServiceCommands.reorderTables} onOpenComanda={handleOpenComanda} canManageTables={canManageTables} />}
         {activeTab === 'comandas' && (
@@ -604,6 +620,7 @@ function App({ capabilities } = {}) {
         )}
 
         {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
+        {clientOrdersPayment.dialog && <ClientOrdersPaymentDialog dialog={clientOrdersPayment.dialog} currency={currency} />}
 
         <RegisterRefundDialog open={canRefundPayments && Boolean(refund.refundOrder)} order={refund.refundOrder} paymentOptions={paymentOptions} onClose={refund.close} onConfirm={refund.confirm} submitting={refund.submitting} />
       </AppShell>

@@ -39,6 +39,7 @@ test('um contexto novo restaura todos os defaults permitidos', () => {
     products: { search: '', categoryFilter: 'Todos' },
     receivables: {
       search: '',
+      displayMode: 'client',
       activeView: 'pending',
       timingFilter: 'all',
       sortMode: 'urgency',
@@ -76,4 +77,19 @@ test('patch desconhecido ou campo fora do contrato não amplia o contexto', () =
     patchQueryContext(initial, 'orders', { search: 'ana', ordersData: [{}] }).orders,
     { search: 'ana' },
   )
+})
+
+
+test('receivables query defaults to client grouping and accepts only known display modes', () => {
+  const initial = createQueryContext()
+  assert.equal(initial.receivables.displayMode, 'client')
+
+  const ordersMode = patchQueryContext(initial, 'receivables', { displayMode: 'orders' })
+  assert.equal(ordersMode.receivables.displayMode, 'orders')
+
+  const clientMode = patchQueryContext(ordersMode, 'receivables', { displayMode: 'client' })
+  assert.equal(clientMode.receivables.displayMode, 'client')
+
+  const invalid = patchQueryContext(clientMode, 'receivables', { displayMode: 'cards-v2' })
+  assert.equal(invalid.receivables.displayMode, 'client')
 })

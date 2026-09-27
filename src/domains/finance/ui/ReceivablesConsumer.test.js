@@ -61,6 +61,7 @@ test('A Receber renders only ordinary pending and paid orders from a mixed datas
   function ControlledReceivables(props) {
     const [queryState, setQueryState] = React.useState({
       search: '',
+      displayMode: 'orders',
       activeView: 'pending',
       timingFilter: 'all',
       sortMode: 'urgency',
@@ -124,6 +125,7 @@ test('A Receber preserva a seleção mobile sem reabrir o detalhe ao retornar', 
     const [activePage, setActivePage] = React.useState('receivables')
     const [queryState, setQueryState] = React.useState({
       search: '',
+      displayMode: 'orders',
       activeView: 'pending',
       timingFilter: 'all',
       sortMode: 'urgency',

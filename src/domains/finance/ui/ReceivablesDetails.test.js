@@ -21,7 +21,8 @@ test('order detail exposes payment promise and view-order actions only where all
 
 test('detail actions replace the current detail overlay before opening the next flow', () => {
   const page = source('./Receivables.jsx')
-  assert.match(page, /const registerPaymentFromDetail = \(orderId\) => \{\s*if \(!canReceivePayments\) return false\s*setMobileDetailOpen\(false\)\s*patchQuery\(\{ selectedEntryKey: null \}\)\s*onRegisterPayment\?\.\(orderId\)\s*return true\s*\}/)
+  assert.match(page, /const requestSelectedPayment = [\s\S]*selectedOrderIds\.length === 1[\s\S]*onRegisterClientOrdersPayment\?\./)
+  assert.match(page, /const registerPaymentFromDetail = \(orderId\) => \{\s*if \(!canReceivePayments\) return false[\s\S]*setMobileDetailOpen\(false\)\s*patchQuery\(\{ selectedEntryKey: null \}\)\s*return requestSelectedPayment\(\{ clientId: targetOrder\?\.clientId \?\? null, orderIds: \[orderId\] \}\)\s*\}/)
   assert.match(page, /const editPaymentPromiseFromDetail = \(order\) => \{\s*if \(!canManagePaymentPromises\) return false\s*setMobileDetailOpen\(false\)\s*patchQuery\(\{ selectedEntryKey: null \}\)\s*setPromiseOrder\(order\)\s*return true\s*\}/)
   assert.match(page, /const viewOrderFromDetail = \(order\) => \{\s*setMobileDetailOpen\(false\)\s*patchQuery\(\{ selectedEntryKey: null \}\)\s*setDetailOrder\(order\)\s*\}/)
   assert.match(page, /onRegisterPayment=\{registerPaymentFromDetail\}/)

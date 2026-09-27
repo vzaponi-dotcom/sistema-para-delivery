@@ -9,6 +9,10 @@ export const createPaymentApi = ({ request = apiRequest, json = withJson } = {})
     `/api/table-tabs/${encodeURIComponent(id)}/payment`,
     json('POST', { allocations }),
   ),
+  registerClientOrdersPayment: (clientId, orderIds, allocations) => request(
+    `/api/clients/${encodeURIComponent(clientId)}/receivables/payment`,
+    json('POST', { orderIds, allocations }),
+  ),
 })
 
 export const paymentApi = createPaymentApi()

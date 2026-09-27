@@ -10,7 +10,9 @@ import {
   getPendingReceivableOrders,
   getReceivableTiming,
   groupPendingOrders,
+  groupReceivableEntriesByClient,
   sortReceivableEntries,
+  sortReceivableGroups,
 } from './receivables.js'
 
 const orderRules = Object.freeze({
@@ -148,4 +150,128 @@ test('sort keeps urgency, recent and value modes independent of Orders lifecycle
   assert.deepEqual(sortReceivableEntries(entries, 'urgency').map((entry) => entry.key), ['overdue', 'today', 'upcoming'])
   assert.deepEqual(sortReceivableEntries(entries, 'recent').map((entry) => entry.key), ['today', 'upcoming', 'overdue'])
   assert.deepEqual(sortReceivableEntries(entries, 'value-desc').map((entry) => entry.key), ['today', 'upcoming', 'overdue'])
+})
+
+
+const receivableEntry = (id, overrides = {}) => {
+  const nextOrder = order(id, {
+    clientPhone: '(11) 99999-0000',
+    orderDate: '2026-09-20',
+    createdAt: '2026-09-20T12:00:00.000Z',
+    ...overrides.order,
+  })
+  return {
+    key: `order:${id}`,
+    kind: 'order',
+    order: nextOrder,
+    orders: [nextOrder],
+    label: nextOrder.client,
+    total: overrides.total ?? nextOrder.total,
+    expectedDate: overrides.expectedDate ?? nextOrder.orderDate,
+    timing: overrides.timing ?? { status: 'today', expectedDate: overrides.expectedDate ?? nextOrder.orderDate, daysOverdue: 0 },
+    createdAt: overrides.createdAt ?? nextOrder.createdAt,
+  }
+}
+
+test('client receivable groups use client id instead of repeated labels', () => {
+  const groups = groupReceivableEntriesByClient([
+    receivableEntry('o1', { total: 20 }),
+    receivableEntry('o2', { total: 30 }),
+    receivableEntry('o3', { total: 40, order: { clientId: 'c2', client: 'Maria' } }),
+  ])
+
+  assert.equal(groups.length, 2)
+  const first = groups.find((group) => group.key === 'client:c1')
+  const second = groups.find((group) => group.key === 'client:c2')
+  assert.equal(first.kind, 'client')
+  assert.equal(first.count, 2)
+  assert.equal(first.total, 50)
+  assert.equal(first.phone, '(11) 99999-0000')
+  assert.deepEqual(first.orders.map((item) => item.id), ['o1', 'o2'])
+  assert.equal(second.count, 1)
+})
+
+test('guest receivables remain single even when names repeat', () => {
+  const groups = groupReceivableEntriesByClient([
+    receivableEntry('g1', { order: { clientId: null, client: 'João', customerIdentityType: 'guest_name' } }),
+    receivableEntry('g2', { order: { clientId: null, client: 'João', customerIdentityType: 'guest_name' } }),
+  ])
+
+  assert.equal(groups.length, 2)
+  assert.deepEqual(groups.map((group) => group.key), ['order:g1', 'order:g2'])
+  assert.ok(groups.every((group) => group.kind === 'single' && group.count === 1))
+})
+
+test('client group aggregate timing keeps the most urgent and oldest overdue entry', () => {
+  const groups = groupReceivableEntriesByClient([
+    receivableEntry('future', {
+      total: 60,
+      expectedDate: '2026-09-28',
+      timing: { status: 'upcoming', expectedDate: '2026-09-28', daysOverdue: 0 },
+      createdAt: '2026-09-22T10:00:00.000Z',
+    }),
+    receivableEntry('late-newer', {
+      total: 20,
+      expectedDate: '2026-09-23',
+      timing: { status: 'overdue', expectedDate: '2026-09-23', daysOverdue: 3 },
+      createdAt: '2026-09-23T10:00:00.000Z',
+    }),
+    receivableEntry('late-older', {
+      total: 49,
+      expectedDate: '2026-09-21',
+      timing: { status: 'overdue', expectedDate: '2026-09-21', daysOverdue: 5 },
+      createdAt: '2026-09-21T10:00:00.000Z',
+    }),
+  ])
+
+  assert.equal(groups.length, 1)
+  assert.equal(groups[0].total, 129)
+  assert.equal(groups[0].count, 3)
+  assert.deepEqual(groups[0].timing, { status: 'overdue', expectedDate: '2026-09-21', daysOverdue: 5 })
+  assert.equal(groups[0].earliestExpectedDate, '2026-09-21')
+  assert.equal(groups[0].oldestCreatedAt, '2026-09-21T10:00:00.000Z')
+  assert.equal(groups[0].newestCreatedAt, '2026-09-23T10:00:00.000Z')
+})
+
+test('group totals reflect only the receivable entries supplied by the active filter', () => {
+  const overdueOnly = groupReceivableEntriesByClient([
+    receivableEntry('late', {
+      total: 49,
+      timing: { status: 'overdue', expectedDate: '2026-09-21', daysOverdue: 5 },
+      expectedDate: '2026-09-21',
+    }),
+  ])
+
+  assert.equal(overdueOnly[0].total, 49)
+  assert.equal(overdueOnly[0].count, 1)
+})
+
+test('client receivable group sorting supports urgency, recent and value modes', () => {
+  const groups = groupReceivableEntriesByClient([
+    receivableEntry('c1-late', {
+      total: 30,
+      expectedDate: '2026-09-20',
+      timing: { status: 'overdue', expectedDate: '2026-09-20', daysOverdue: 6 },
+      createdAt: '2026-09-20T08:00:00.000Z',
+      order: { clientId: 'c1', client: 'Ana' },
+    }),
+    receivableEntry('c2-today', {
+      total: 80,
+      expectedDate: '2026-09-26',
+      timing: { status: 'today', expectedDate: '2026-09-26', daysOverdue: 0 },
+      createdAt: '2026-09-25T08:00:00.000Z',
+      order: { clientId: 'c2', client: 'Bia' },
+    }),
+    receivableEntry('c3-future', {
+      total: 120,
+      expectedDate: '2026-09-28',
+      timing: { status: 'upcoming', expectedDate: '2026-09-28', daysOverdue: 0 },
+      createdAt: '2026-09-26T08:00:00.000Z',
+      order: { clientId: 'c3', client: 'Caio' },
+    }),
+  ])
+
+  assert.deepEqual(sortReceivableGroups(groups, 'urgency').map((group) => group.key), ['client:c1', 'client:c2', 'client:c3'])
+  assert.deepEqual(sortReceivableGroups(groups, 'recent').map((group) => group.key), ['client:c3', 'client:c2', 'client:c1'])
+  assert.deepEqual(sortReceivableGroups(groups, 'value-desc').map((group) => group.key), ['client:c3', 'client:c2', 'client:c1'])
 })

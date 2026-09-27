@@ -132,6 +132,92 @@ export const sortReceivableEntries = (entries = [], sortMode = 'urgency') => [..
       || String(left.createdAt || '').localeCompare(String(right.createdAt || ''))
   })
 
+const receivableEntryTimingCompare = (left, right) => (
+  (timingRank[left?.timing?.status] ?? 99) - (timingRank[right?.timing?.status] ?? 99)
+  || String(left?.expectedDate || left?.timing?.expectedDate || '').localeCompare(String(right?.expectedDate || right?.timing?.expectedDate || ''))
+  || String(left?.createdAt || '').localeCompare(String(right?.createdAt || ''))
+)
+
+const groupLabelCompare = (left, right) => String(left?.label || '').localeCompare(String(right?.label || ''), 'pt-BR', { sensitivity: 'base' })
+
+export const groupReceivableEntriesByClient = (entries = []) => {
+  const grouped = new Map()
+
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const order = entry?.order
+    if (!order?.id) continue
+    const registeredClient = isRegisteredClientOrder(order)
+    const key = registeredClient ? `client:${order.clientId}` : (entry.key || `order:${order.id}`)
+    const current = grouped.get(key) ?? {
+      key,
+      kind: registeredClient ? 'client' : 'single',
+      clientId: registeredClient ? order.clientId : null,
+      label: order.client || entry.label || 'Pedido sem identificação',
+      phone: order.clientPhone || '',
+      entries: [],
+      orders: [],
+      count: 0,
+      total: 0,
+      timing: null,
+      earliestExpectedDate: '',
+      oldestCreatedAt: '',
+      newestCreatedAt: '',
+    }
+
+    current.entries.push(entry)
+    current.orders.push(order)
+    current.count += 1
+    current.total += Number(entry.total) || 0
+    if (!current.phone && order.clientPhone) current.phone = order.clientPhone
+
+    const expectedDate = String(entry.expectedDate || entry.timing?.expectedDate || '')
+    if (expectedDate && (!current.earliestExpectedDate || expectedDate < current.earliestExpectedDate)) {
+      current.earliestExpectedDate = expectedDate
+    }
+
+    const createdAt = String(entry.createdAt || '')
+    if (createdAt && (!current.oldestCreatedAt || createdAt < current.oldestCreatedAt)) current.oldestCreatedAt = createdAt
+    if (createdAt && (!current.newestCreatedAt || createdAt > current.newestCreatedAt)) current.newestCreatedAt = createdAt
+
+    const timingEntry = {
+      timing: {
+        ...(entry.timing || {}),
+        expectedDate: entry.timing?.expectedDate || entry.expectedDate || null,
+      },
+      expectedDate: entry.expectedDate || entry.timing?.expectedDate || null,
+      createdAt: entry.createdAt || '',
+    }
+    if (!current.timing || receivableEntryTimingCompare(timingEntry, {
+      timing: current.timing,
+      expectedDate: current.timing.expectedDate,
+      createdAt: current.oldestCreatedAt,
+    }) < 0) {
+      current.timing = timingEntry.timing
+    }
+
+    grouped.set(key, current)
+  }
+
+  return [...grouped.values()]
+}
+
+export const sortReceivableGroups = (groups = [], sortMode = 'urgency') => [...(Array.isArray(groups) ? groups : [])]
+  .sort((left, right) => {
+    if (sortMode === 'recent') {
+      return String(right.newestCreatedAt || '').localeCompare(String(left.newestCreatedAt || ''))
+        || groupLabelCompare(left, right)
+    }
+    if (sortMode === 'value-desc') {
+      return (Number(right.total) || 0) - (Number(left.total) || 0)
+        || String(left.oldestCreatedAt || '').localeCompare(String(right.oldestCreatedAt || ''))
+        || groupLabelCompare(left, right)
+    }
+    return (timingRank[left.timing?.status] ?? 99) - (timingRank[right.timing?.status] ?? 99)
+      || String(left.earliestExpectedDate || left.timing?.expectedDate || '').localeCompare(String(right.earliestExpectedDate || right.timing?.expectedDate || ''))
+      || String(left.oldestCreatedAt || '').localeCompare(String(right.oldestCreatedAt || ''))
+      || groupLabelCompare(left, right)
+  })
+
 export const groupPendingOrders = (orders = [], orderRules) => {
   const { getPendingAmount } = requireOrderRules(orderRules)
   const grouped = new Map()

@@ -63,3 +63,21 @@ export function assertPaymentAllocationTotal(allocations, authoritativeTotalCent
 
   return validated
 }
+
+
+export function validateReceivableOrderIds(rawOrderIds, { min = 2, max = 100 } = {}) {
+  if (!Array.isArray(rawOrderIds) || rawOrderIds.length < min || rawOrderIds.length > max) {
+    invalid('orderIds', `Selecione entre ${min} e ${max} pedidos para este recebimento.`)
+  }
+
+  const seen = new Set()
+  return rawOrderIds.map((value, index) => {
+    if (typeof value !== 'string' || !value.trim()) {
+      invalid('orderIds.' + index, 'Pedido inválido para recebimento.')
+    }
+    const id = value.trim()
+    if (seen.has(id)) invalid('orderIds', 'Um pedido não pode aparecer mais de uma vez no recebimento.')
+    seen.add(id)
+    return id
+  })
+}
