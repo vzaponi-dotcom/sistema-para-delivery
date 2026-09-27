@@ -350,3 +350,58 @@ test('refund of one order from a mixed shared receipt stays integral to that ord
   )
   assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM payments WHERE receipt_id = ?').get(payment.receipt.id).n, 2)
 })
+
+
+test('client receivables payment accepts exactly 100 selected orders and creates one integral receipt', async () => {
+  const db = new ClientReceivablesDb()
+  const ids = []
+  for (let index = 1; index <= 100; index += 1) {
+    const id = 'bulk-' + String(index).padStart(3, '0')
+    ids.push(id)
+    db.insertOrder(id, {
+      clientId: 'c1',
+      client: 'Fernanda Albuquerque',
+      totalCents: 100,
+      orderNumber: 300 + index,
+    })
+  }
+
+  const result = await registerClientOrdersPayment(
+    db,
+    BUSINESS,
+    'c1',
+    ids,
+    [{ methodCode: 'pix', amountCents: 10000 }],
+    NOW,
+  )
+
+  assert.equal(result.receipt.totalCents, 10000)
+  assert.equal(result.payments.length, 100)
+  assert.equal(result.orders.length, 100)
+  assert.equal(result.allocations.length, 1)
+  assert.equal(result.movements.length, 1)
+  assert.equal(new Set(result.payments.map((payment) => payment.receiptId)).size, 1)
+})
+
+test('selected-order cancellation race rolls back the complete client payment batch', async () => {
+  const db = new ClientReceivablesDb()
+  const batch = db.batch.bind(db)
+  let raced = false
+  db.batch = async (statements) => {
+    if (!raced) {
+      raced = true
+      db.sqlite.prepare("UPDATE orders SET status = 'Cancelado', cancelled_at = ? WHERE id = 'o1' AND business_id = ?")
+        .run('2026-09-27T01:30:00.000Z', BUSINESS)
+    }
+    return batch(statements)
+  }
+
+  await assert.rejects(
+    registerClientOrdersPayment(db, BUSINESS, 'c1', ['o1', 'o2'], pix69, NOW),
+    { status: 409, code: 'CLIENT_RECEIVABLES_PAYMENT_CONFLICT' },
+  )
+  assert.deepEqual(counts(db), { receipts: 0, allocations: 0, payments: 0, movements: 0 })
+  assert.equal(db.sqlite.prepare("SELECT status FROM orders WHERE id = 'o1'").get().status, 'Cancelado')
+  assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payments WHERE order_id = 'o2'").get().n, 0)
+  assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM settings_tx_assertions').get().n, 0)
+})
