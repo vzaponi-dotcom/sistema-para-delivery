@@ -598,9 +598,9 @@ button { font: inherit; }
 }
 .kds-board[data-layout-profile="compact"] .kds-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(16, minmax(0, 1fr));
+  grid-template-rows: repeat(24, minmax(0, 1fr));
   column-gap: clamp(7px, .75vw, 12px);
-  row-gap: clamp(3px, .35vw, 6px);
+  row-gap: clamp(2px, .24vw, 4px);
 }
 .kds-board[data-layout-profile="compact"] .kds-card {
   --kds-item-size: clamp(.95rem, 1.08vw, 1.15rem);
