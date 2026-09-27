@@ -617,8 +617,8 @@
     box-sizing: border-box;
   }
   .receivables-filter-strip button {
-    width: 100%;
     min-width: 0;
+    width: 100%;
     padding-inline: 10px;
     white-space: nowrap;
   }
