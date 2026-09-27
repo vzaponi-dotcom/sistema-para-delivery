@@ -93,3 +93,14 @@ test('desktop client panel is hidden on mobile while inline group details remain
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-client-panel\s*\{[^}]*display:\s*none/s)
   assert.match(css, /@media\s*\(min-width:\s*821px\)[\s\S]*\.receivable-client-inline-orders\s*\{[^}]*display:\s*none/s)
 })
+
+test('mobile grouped receivables reserve scroll space for the sticky selection bar and prevent horizontal overflow', async () => {
+  const page = await read('./Receivables.jsx')
+  const css = await read('../../../receivables.css')
+
+  assert.match(page, /receivables-client-list.*has-selection/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-client-list\.has-selection\s*\{[^}]*padding-bottom:/s)
+  assert.match(css, /\.receivable-client-card\s*\{[^}]*max-width:\s*100%/s)
+  assert.match(css, /\.receivables-client-selection-bar\s*\{[^}]*box-sizing:\s*border-box/s)
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.receivable-client-card-header[\s\S]*\.receivables-client-selection-bar[\s\S]*transition:\s*none\s*!important/s)
+})
