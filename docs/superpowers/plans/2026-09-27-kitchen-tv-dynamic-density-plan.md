@@ -348,3 +348,32 @@ GREEN:
 - manter packing, scheduled protegido, overflow e prioridade.
 
 Homologar novamente no cenário real de 9 pedidos usado nos prints anteriores.
+
+
+## 18. Último polish — 16 trilhas e nano-card estrutural
+
+Motivação: a homologação com fila mista ainda mostrou altura sobrando em alguns cards de 1 item simples.
+
+Implementação:
+
+1. aumentar `compact.gridRows` de 12 para 16;
+2. aumentar o budget do perfil para 64 trilhas-coluna;
+3. manter nano-card simples em 2 trilhas;
+4. 1 item com nota/nome quebrado passa a 4 trilhas;
+5. 2 itens curtos usam 3 trilhas;
+6. conteúdo normal usa 4–5 trilhas;
+7. tall/full escalam para 8/12–16;
+8. adicionar CSS específico para `data-grid-span="2"` reduzindo apenas padding/min-height/margens;
+9. manter o tamanho de fonte de item e observação já aprovado;
+10. scheduled simples herda a mesma regra de nano-card.
+
+TDD:
+
+- RED para `gridRows = 16`, `maxSlots = 64`, nota/nome quebrado = 4;
+- RED para contrato CSS de nano-card;
+- GREEN de layout/content metrics;
+- GREEN de CSS;
+- regressões de packing, scheduled protegido, prioridade e overflow;
+- full Validate;
+- staging;
+- homologação visual no mesmo cenário de 15–16 pedidos.
