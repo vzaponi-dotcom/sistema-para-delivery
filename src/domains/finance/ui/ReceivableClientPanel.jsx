@@ -24,6 +24,8 @@ export default function ReceivableClientPanel({
   onDeselectAll,
   onReceive,
   onOpenClient,
+  selectionLimit = 100,
+  selectionLimitReached = false,
   disabled = false,
 }) {
   if (!group) return <div className="receivable-detail-empty">Selecione um cliente para ver os pedidos pendentes.</div>
@@ -31,7 +33,9 @@ export default function ReceivableClientPanel({
   const selected = new Set(selectedOrderIds)
   const selectedEntries = group.entries.filter((entry) => selected.has(entry.order.id))
   const selectedTotal = selectedEntries.reduce((sum, entry) => sum + (Number(entry.total) || 0), 0)
-  const allSelected = group.entries.length > 0 && selectedEntries.length === group.entries.length
+  const selectionTargetCount = Math.min(group.entries.length, selectionLimit)
+  const limitedGroup = group.entries.length > selectionLimit
+  const allSelected = selectionTargetCount > 0 && selectedEntries.length >= selectionTargetCount
 
   return (
     <section className="receivables-client-panel">
@@ -69,9 +73,15 @@ export default function ReceivableClientPanel({
           onClick={allSelected ? onDeselectAll : () => onSelectAll?.(group)}
           disabled={disabled || !group.entries.length}
         >
-          {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+          {allSelected ? 'Desmarcar todos' : limitedGroup ? 'Selecionar até 100' : 'Selecionar todos'}
         </button>
       </div>
+
+      {(limitedGroup || selectionLimitReached) && (
+        <p className="receivable-client-limit-note" role="status">
+          Limite de 100 pedidos por recebimento.
+        </p>
+      )}
 
       <div className="receivables-client-panel-orders">
         {group.entries.map((entry) => {
