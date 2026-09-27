@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { hashPin } from './auth.js'
 import { handleRequest } from './index.js'
 
@@ -412,4 +413,15 @@ test('payment-promise PATCH updates an in-business order and rejects invalid, pa
   const outsideBusiness = await request('other-order', '2099-12-31')
   assert.equal(outsideBusiness.status, 404)
   assert.equal((await outsideBusiness.json()).error.code, 'ORDER_NOT_FOUND')
+})
+
+
+test('client receivables payment route validates order ids and allocations before delegating to the atomic writer', async () => {
+  const source = await readFile(new URL('./index.js', import.meta.url), 'utf8')
+  assert.match(source, /clientReceivablesPaymentMatch/)
+  assert.match(source, /\/api\\\/clients\\\/\(\[\^\/\]\+\)\\\/receivables\\\/payment/)
+  assert.match(source, /validateReceivableOrderIds\(orderIds\)/)
+  assert.match(source, /validatePaymentAllocations\(allocations\)/)
+  assert.match(source, /registerClientOrdersPayment\([\s\S]*session\.businessId/)
+  assert.match(source, /return json\(result, \{ status: 201 \}\)/)
 })
