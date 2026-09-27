@@ -179,34 +179,48 @@ const cardRowSpan = (card, rows = 2) => Math.min(
 const assignKitchenGrid = (cards, boardProfile) => {
   const profile = normalizeBoardProfile(boardProfile)
   const source = Array.isArray(cards) ? cards : []
-  const heights = Array.from({ length: profile.columns }, () => 0)
+  const occupancy = Array.from({ length: profile.rows }, () => Array(profile.columns).fill(false))
   const placements = new Array(source.length)
-  const order = source.map((card, index) => ({ index, span: cardRowSpan(card, profile.rows) }))
+
+  // Place larger cards first so a later complex order can still use contiguous vertical
+  // space without changing which orders were selected. Within the same span, keep
+  // source order. Each card then takes the first available cell in row-major order,
+  // spreading short orders across every column before starting a new row.
+  const placementOrder = source
+    .map((card, index) => ({ index, span: cardRowSpan(card, profile.rows) }))
     .sort((a, b) => b.span - a.span || a.index - b.index)
 
-  const visit = (position) => {
-    if (position >= order.length) return true
-    const current = order[position]
-    const seenHeights = new Set()
+  for (const current of placementOrder) {
+    let placed = false
 
-    for (let column = 0; column < profile.columns; column += 1) {
-      const height = heights[column]
-      if (seenHeights.has(height) || height + current.span > profile.rows) continue
-      seenHeights.add(height)
-      placements[current.index] = {
-        gridColumn: column + 1,
-        gridRow: current.span > 1 ? `${height + 1} / span ${current.span}` : height + 1,
-        rowSpan: current.span,
+    for (let row = 0; row <= profile.rows - current.span && !placed; row += 1) {
+      for (let column = 0; column < profile.columns; column += 1) {
+        let available = true
+        for (let offset = 0; offset < current.span; offset += 1) {
+          if (occupancy[row + offset][column]) {
+            available = false
+            break
+          }
+        }
+        if (!available) continue
+
+        for (let offset = 0; offset < current.span; offset += 1) {
+          occupancy[row + offset][column] = true
+        }
+        placements[current.index] = {
+          gridColumn: column + 1,
+          gridRow: current.span > 1 ? `${row + 1} / span ${current.span}` : row + 1,
+          rowSpan: current.span,
+        }
+        placed = true
+        break
       }
-      heights[column] += current.span
-      if (visit(position + 1)) return true
-      heights[column] -= current.span
-      placements[current.index] = undefined
     }
-    return false
+
+    if (!placed) return null
   }
 
-  return visit(0) ? placements : null
+  return placements
 }
 
 export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight, boardProfile } = {}) {
