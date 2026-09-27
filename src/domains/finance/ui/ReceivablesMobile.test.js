@@ -62,3 +62,34 @@ test('receivables hardens desktop detail, money wrapping, focus and reduced moti
   assert.match(css, /\.receivable-ledger-row:focus-visible[\s\S]*\.receivables-summary-card:focus-visible[\s\S]*\.receivables-filter-strip button:focus-visible[\s\S]*\.receivables-payment-fab:focus-visible[\s\S]*\.receivables-forecast-row:focus-visible\s*\{/s)
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.receivable-ledger-row[\s\S]*\.receivables-summary-card[\s\S]*\.receivables-payment-fab[\s\S]*\.receivables-forecast-bar[\s\S]*transition:\s*none\s*!important/s)
 })
+
+
+test('client grouped receivables expand orders inline on mobile and keep checkbox targets usable', async () => {
+  const group = await read('./ReceivableClientGroup.jsx')
+  const css = await read('../../../receivables.css')
+
+  assert.match(group, /receivable-client-inline-orders/)
+  assert.match(group, /type="checkbox"/)
+  assert.match(group, /onToggleOrder/)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivable-client-inline-orders\s*\{[^}]*display:\s*grid/s)
+  assert.match(css, /\.receivable-client-order-select\s*\{[^}]*min-height:\s*(?:44px|4[4-9]px|[5-9]\dpx)/s)
+})
+
+test('mobile client selection bar stays above bottom navigation and exposes count total and receive action', async () => {
+  const page = await read('./Receivables.jsx')
+  const css = await read('../../../receivables.css')
+
+  assert.match(page, /className="receivables-client-selection-bar"/)
+  assert.match(page, /clientSelection\.selectedCount/)
+  assert.match(page, /selectedClientTotal/)
+  assert.match(page, />Receber</)
+  assert.match(page, /!overlayOpen/)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-client-selection-bar\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*calc\(var\(--mobile-bottom-nav-height\)\s*\+\s*var\(--mobile-safe-bottom\)\s*\+\s*var\(--mobile-floating-gap\)\)[^}]*z-index:\s*var\(--layer-floating-action\)/s)
+  assert.match(css, /\.receivables-client-selection-bar \.button\s*\{[^}]*min-height:\s*48px/s)
+})
+
+test('desktop client panel is hidden on mobile while inline group details remain visible', async () => {
+  const css = await read('../../../receivables.css')
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-client-panel\s*\{[^}]*display:\s*none/s)
+  assert.match(css, /@media\s*\(min-width:\s*821px\)[\s\S]*\.receivable-client-inline-orders\s*\{[^}]*display:\s*none/s)
+})
