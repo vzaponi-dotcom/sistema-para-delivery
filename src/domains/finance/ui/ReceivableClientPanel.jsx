@@ -42,7 +42,11 @@ export default function ReceivableClientPanel({
           <span>{group.phone || (group.kind === 'single' ? 'Cliente avulso' : 'Telefone não informado')}</span>
         </div>
         {group.clientId && onOpenClient && (
-          <button type="button" className="receivables-client-open" onClick={() => onOpenClient(group)}>
+          <button
+            type="button"
+            className="receivables-client-open"
+            onClick={() => onOpenClient?.({ id: group.clientId, name: group.label })}
+          >
             Ver cliente
           </button>
         )}
