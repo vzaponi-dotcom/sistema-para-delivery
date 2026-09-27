@@ -83,3 +83,52 @@ test('sales refund rows expose movement_date for the daily refund series', async
   const source = await createReportingRepository(db).loadSales('a', { from: '2026-09-01', to: '2026-09-25' })
   assert.deepEqual(source.refunds, [{ value_cents: 15500, movement_date: '2026-09-20' }])
 })
+
+
+test('shared client receipt stays singular in reporting repository with two linked payments', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at)
+    VALUES ('shared-business','shared-business','Shared','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z');
+
+    INSERT INTO orders (
+      id,business_id,order_number,client_name_snapshot,order_date,type,status,
+      subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,
+      adjustment_value,adjustment_amount_cents,total_cents,created_at
+    ) VALUES
+      ('shared-o1','shared-business',1,'Fernanda','2026-09-27','Entrega','Finalizado',4900,0,'none','fixed',0,0,4900,'2026-09-27T12:00:00Z'),
+      ('shared-o2','shared-business',2,'Fernanda','2026-09-27','Entrega','Finalizado',2000,0,'none','fixed',0,0,2000,'2026-09-27T12:05:00Z');
+
+    INSERT INTO payment_receipts (id,business_id,total_cents,paid_at,created_at)
+    VALUES ('shared-r','shared-business',6900,'2026-09-27T15:00:00Z','2026-09-27T15:00:00Z');
+
+    INSERT INTO payment_allocations (id,business_id,receipt_id,method_code,method_label,amount_cents,created_at) VALUES
+      ('shared-cash','shared-business','shared-r','cash','Dinheiro',3000,'2026-09-27T15:00:00Z'),
+      ('shared-pix','shared-business','shared-r','pix','Pix',3900,'2026-09-27T15:00:00Z');
+
+    INSERT INTO payments (id,business_id,order_id,receipt_id,amount_cents,method,paid_at,created_at) VALUES
+      ('shared-p1','shared-business','shared-o1','shared-r',4900,NULL,'2026-09-27T15:00:00Z','2026-09-27T15:00:00Z'),
+      ('shared-p2','shared-business','shared-o2','shared-r',2000,NULL,'2026-09-27T15:00:00Z','2026-09-27T15:00:00Z');
+  `)
+
+  const source = await createReportingRepository(db).loadSales('shared-business', {
+    from: '2026-09-27',
+    to: '2026-09-27',
+  })
+
+  assert.equal(source.orders.length, 2)
+  assert.deepEqual(source.receipts.map(({ id, total_cents }) => ({ id, total_cents })), [
+    { id: 'shared-r', total_cents: 6900 },
+  ])
+  assert.deepEqual(source.allocations.map(({ method_code, amount_cents }) => ({ method_code, amount_cents })), [
+    { method_code: 'cash', amount_cents: 3000 },
+    { method_code: 'pix', amount_cents: 3900 },
+  ])
+  assert.deepEqual(source.payments.map(({ order_id, amount_cents }) => ({ order_id, amount_cents })).sort((a, b) => a.order_id.localeCompare(b.order_id)), [
+    { order_id: 'shared-o1', amount_cents: 4900 },
+    { order_id: 'shared-o2', amount_cents: 2000 },
+  ])
+})
