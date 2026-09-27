@@ -391,7 +391,7 @@ function Receivables({
 
           {activeView === 'pending' ? (
             displayMode === 'client' ? (
-              <div className="receivables-client-list" aria-label="Recebimentos pendentes por cliente">
+              <div className={`receivables-client-list${clientSelection.selectedCount > 0 ? ' has-selection' : ''}`} aria-label="Recebimentos pendentes por cliente">
                 {visibleClientGroups.map((group) => (
                   <ReceivableClientGroup
                     key={group.key}
@@ -404,6 +404,8 @@ function Receivables({
                     onToggle={toggleClientGroup}
                     onToggleOrder={clientSelection.toggleOrder}
                     onSelectAll={selectAllClientOrders}
+                    selectionLimit={clientSelection.selectionLimit}
+                    selectionLimitReached={clientSelection.selectionLimitReached}
                     disabled={writeDisabled || !canReceivePayments}
                   />
                 ))}
@@ -450,6 +452,8 @@ function Receivables({
               onDeselectAll={clientSelection.deselectAll}
               onReceive={receiveSelectedClientOrders}
               onOpenClient={onOpenClient}
+              selectionLimit={clientSelection.selectionLimit}
+              selectionLimitReached={clientSelection.selectionLimitReached}
               disabled={writeDisabled || !canReceivePayments}
             />
           ) : (detail || <div className="receivable-detail-empty">Selecione um recebimento para ver os detalhes.</div>)}
