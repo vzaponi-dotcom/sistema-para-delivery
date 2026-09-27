@@ -362,9 +362,9 @@ Direção aprovada:
 - subdividir verticalmente os perfis em trilhas menores;
 - cards curtos ocupam apenas a altura necessária;
 - cards médios e grandes consomem mais trilhas;
-- em `compact`, a malha usa 12 trilhas verticais;
-- pedido curto típico usa 3 trilhas, permitindo até 4 faixas de cards curtos;
-- pedidos maiores usam 4, 6, 9 ou 12 trilhas conforme conteúdo;
+- em `compact`, a malha usa 16 trilhas verticais;
+- pedido curto típico usa 3–5 trilhas, enquanto o nano-card de uma linha usa apenas 2;
+- pedidos maiores usam 5, 8, 12 ou 16 trilhas conforme conteúdo;
 - packing preserva prioridade e usa backtracking apenas para encontrar uma disposição válida, sem promover pedidos inferiores;
 - 1–4 pedidos continuam em `focus`;
 - 5–8 passam para `balanced`;
@@ -396,7 +396,7 @@ No perfil `compact`, um pedido pode usar o menor card da grade quando **todas** 
 - não existe observação;
 - o conteúdo não exige duas colunas nem promoção para `tall/full`.
 
-Esse micro-card usa **2 das 12 trilhas verticais** do perfil compacto, em vez das 3 trilhas do card curto comum.
+Esse nano-card usa **2 das 16 trilhas verticais** do perfil compacto. Além da maior granularidade, o chrome interno desse card reduz padding e altura mínima do cabeçalho sem reduzir a tipografia de produção.
 
 Pedidos de um item **não** viram micro-card quando:
 
@@ -409,6 +409,24 @@ A fonte não deve ser reduzida para produzir o micro-card. O ganho vem exclusiva
 Comportamento esperado:
 
 - 1 item simples, 1 linha, sem nota → 2 trilhas;
-- 1 item com nota → 3 trilhas;
-- 1 item com nome quebrado → 3 trilhas;
+- 1 item com nota → 4 trilhas;
+- 1 item com nome quebrado → 4 trilhas;
 - demais cards continuam usando a classificação de altura já aprovada.
+
+
+### Malha final de 16 trilhas
+
+A homologação com filas mistas mostrou que 12 trilhas ainda deixavam alguns cards simples mais altos do que o necessário. O perfil `compact` passa, portanto, a usar **16 trilhas verticais**.
+
+Direção final:
+
+- nano-card de 1 item/1 linha/sem nota → 2 trilhas;
+- 2 itens curtos → 3 trilhas;
+- 1 item com nota ou nome quebrado → 4 trilhas;
+- conteúdo normal intermediário → 4–5 trilhas;
+- `tall` → 8 trilhas;
+- `full` → 12 ou 16 trilhas;
+- a fonte dos itens e observações permanece igual à versão já homologada;
+- o nano-card reduz apenas espaço estrutural: padding, margem e min-height do bloco principal;
+- scheduled simples usa a mesma classificação de conteúdo e pode ser nano-card;
+- prioridade, proteção do scheduled e overflow permanecem invariantes.
