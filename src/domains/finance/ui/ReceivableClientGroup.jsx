@@ -30,7 +30,7 @@ export default function ReceivableClientGroup({
   const allSelected = orderIds.length > 0 && orderIds.every((id) => selected.has(id))
 
   return (
-    <article className={`receivable-client-card${expanded ? ' is-expanded' : ''}`}>
+    <article className="receivable-client-card" data-expanded={expanded ? 'true' : 'false'}>
       <button
         type="button"
         className="receivable-client-card-header"
