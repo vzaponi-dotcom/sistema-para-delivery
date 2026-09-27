@@ -42,3 +42,51 @@ test('sales returns financial decomposition, distinct date series and receivable
   assert.deepEqual(result.data.receivedSeries, [{ date: '2026-09-09', cents: 2000 }])
   assert.deepEqual(result.data.refundSeries, [{ date: '2026-09-10', cents: 300 }])
 })
+
+
+test('sales counts one shared client receipt once while both paid orders leave receivables', async () => {
+  const { createReportingService } = await import('./service.js')
+  const current = {
+    orders: [
+      {
+        id: 'o1', order_date: '2026-09-27', status: 'Finalizado', total_cents: 4900,
+        delivery_fee_cents: 0, customer_identity_type: 'registered_client', table_tab_id: null,
+      },
+      {
+        id: 'o2', order_date: '2026-09-27', status: 'Finalizado', total_cents: 2000,
+        delivery_fee_cents: 0, customer_identity_type: 'registered_client', table_tab_id: null,
+      },
+    ],
+    receipts: [{ id: 'shared-client-receipt', total_cents: 6900, paid_at: '2026-09-27T01:00:00.000Z' }],
+    allocations: [
+      { receipt_id: 'shared-client-receipt', method_code: 'cash', method_label: 'Dinheiro', amount_cents: 3000 },
+      { receipt_id: 'shared-client-receipt', method_code: 'pix', method_label: 'Pix', amount_cents: 3900 },
+    ],
+    payments: [
+      { order_id: 'o1', amount_cents: 4900 },
+      { order_id: 'o2', amount_cents: 2000 },
+    ],
+    refunds: [],
+  }
+  const empty = { orders: [], receipts: [], allocations: [], payments: [], refunds: [] }
+  const repository = {
+    async loadSales(_businessId, query) {
+      return query.from === '2026-09-27' ? current : empty
+    },
+  }
+
+  const result = await createReportingService(repository).sales('business-a', {
+    from: '2026-09-27',
+    to: '2026-09-27',
+    period: 'today',
+  })
+
+  assert.equal(result.data.salesCents, 6900)
+  assert.equal(result.data.receivedCents, 6900)
+  assert.equal(result.data.receivableCents, 0)
+  assert.equal(result.data.receivableCount, 0)
+  assert.deepEqual(result.data.paymentMix, [
+    { method: 'Dinheiro', amountCents: 3000 },
+    { method: 'Pix', amountCents: 3900 },
+  ])
+})
