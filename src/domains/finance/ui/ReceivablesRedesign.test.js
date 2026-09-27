@@ -150,3 +150,33 @@ test('client receive CTAs keep explicit high-contrast foreground in desktop and 
   assert.match(css, /\.receivables-client-receive-button\.button-primary > span\s*\{[^}]*color:\s*inherit[^}]*opacity:\s*1/s)
   assert.match(css, /:root:not\(\[data-visual-theme='mesiva'\]\)\s*\{[^}]*--receivables-receive-contrast:\s*#fff/s)
 })
+
+
+test('grouped receivables expose the existing per-order payment promise action on desktop and mobile', async () => {
+  const page = await read('./Receivables.jsx')
+  const group = await read('./ReceivableClientGroup.jsx')
+  const panel = await read('./ReceivableClientPanel.jsx')
+
+  assert.match(page, /const editPaymentPromiseFromGrouped = \(order\) =>/)
+  assert.match(page, /setPromiseOrder\(order\)/)
+  assert.match(page, /onEditPaymentPromise=\{canManagePaymentPromises \? editPaymentPromiseFromGrouped : null\}/)
+  assert.match(group, /onEditPaymentPromise/)
+  assert.match(group, /Definir data prometida/)
+  assert.match(group, /Prometido para/)
+  assert.match(panel, /onEditPaymentPromise/)
+  assert.match(panel, /Definir data prometida/)
+  assert.match(panel, /Prometido para/)
+  assert.match(page, /<PaymentPromiseDialog order=\{promiseOrder\}/)
+})
+
+test('grouped payment promise action stays independent from payment-selection capability', async () => {
+  const page = await read('./Receivables.jsx')
+  const group = await read('./ReceivableClientGroup.jsx')
+  const panel = await read('./ReceivableClientPanel.jsx')
+
+  assert.match(page, /promiseDisabled=\{writeDisabled \|\| !canManagePaymentPromises\}/)
+  assert.match(group, /promiseDisabled = false/)
+  assert.match(panel, /promiseDisabled = false/)
+  assert.match(group, /disabled=\{promiseDisabled\}/)
+  assert.match(panel, /disabled=\{promiseDisabled\}/)
+})
