@@ -11,6 +11,8 @@ import PaymentPromiseDialog from './PaymentPromiseDialog'
 import ReceivableDetail from './ReceivableDetail'
 import ReceivablesForecastDialog from './ReceivablesForecastDialog'
 import ReceivablesQuickPaymentDialog from './ReceivablesQuickPaymentDialog'
+import ReceivableClientGroup from './ReceivableClientGroup.jsx'
+import ReceivableClientPanel from './ReceivableClientPanel.jsx'
 import SystemSelect from '../../../shared/ui/SystemSelect'
 import { getBusinessDate } from '../../../../shared/finance.js'
 import { calculateReceivedToday } from '../domain/cashFlow.js'
@@ -19,7 +21,9 @@ import {
   buildReceivablesForecast,
   calculateReceivableSummary,
   getPaidReceivableOrders,
+  groupReceivableEntriesByClient,
   sortReceivableEntries,
+  sortReceivableGroups,
 } from '../domain/receivables.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import { formatPaymentSummary, paymentSearchText } from '../domain/paymentPresentation.js'
@@ -33,7 +37,7 @@ const SORT_OPTIONS = [
   { value: 'recent', label: 'Mais recente' },
   { value: 'value-desc', label: 'Maior valor' },
 ]
-const entrySearchText = (entry, getOrderItemsSearchText) => entry.orders.map((order) => [order.client, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ')).join(' ').toLowerCase()
+const entrySearchText = (entry, getOrderItemsSearchText) => entry.orders.map((order) => [order.client, order.clientPhone, String(order.id), order.type, order.orderDate, getOrderItemsSearchText(order)].join(' ')).join(' ').toLowerCase()
 const orderSearchText = (order, getOrderItemsSearchText) => [
   order.client,
   String(order.id),
@@ -82,6 +86,7 @@ function Receivables({
   canExecutePrinting = true,
   onRegisterPayment,
   onRegisterClientOrdersPayment,
+  onOpenClient,
   onUpdatePaymentPromise,
   queryState,
   onQueryChange,
@@ -141,28 +146,64 @@ function Receivables({
     return sortReceivableEntries(filtered, sortMode)
   }, [pendingEntries, normalizedSearch, timingFilter, exactDateFilter, sortMode])
 
+  const visibleClientGroups = useMemo(
+    () => sortReceivableGroups(groupReceivableEntriesByClient(visiblePendingEntries), sortMode),
+    [visiblePendingEntries, sortMode],
+  )
+
   const visiblePaidOrders = useMemo(() => allPaidOrders
     .filter((order) => !normalizedSearch || orderSearchText(order, getOrderItemsSearchText).includes(normalizedSearch))
     .sort((left, right) => String(right.paidAt || '').localeCompare(String(left.paidAt || ''))), [allPaidOrders, normalizedSearch])
 
   const selectedEntry = useMemo(() => {
-    if (!selectedEntryKey) return null
+    if (!selectedEntryKey || (activeView === 'pending' && displayMode === 'client')) return null
     if (selectedEntryKey.startsWith('paid:')) {
       const order = allPaidOrders.find((item) => `paid:${item.id}` === selectedEntryKey)
       return order ? paidEntry(order) : null
     }
     return pendingEntries.find((entry) => entry.key === selectedEntryKey) || null
-  }, [allPaidOrders, pendingEntries, selectedEntryKey])
+  }, [activeView, allPaidOrders, displayMode, pendingEntries, selectedEntryKey])
+
+  const selectedClientGroup = useMemo(
+    () => activeView === 'pending' && displayMode === 'client'
+      ? visibleClientGroups.find((group) => group.key === selectedEntryKey) || null
+      : null,
+    [activeView, displayMode, selectedEntryKey, visibleClientGroups],
+  )
+
+  const selectedClientTotal = useMemo(() => {
+    if (!selectedClientGroup) return 0
+    const selected = new Set(clientSelection.selectedOrderIds)
+    return selectedClientGroup.entries
+      .filter((entry) => selected.has(entry.order.id))
+      .reduce((sum, entry) => sum + (Number(entry.total) || 0), 0)
+  }, [clientSelection.selectedOrderIds, selectedClientGroup])
 
   const overlayOpen = Boolean((selectedEntry && mobileDetailOpen && isMobileDetail) || detailOrder || promiseOrder || quickPaymentOpen || forecastOpen)
 
   useEffect(() => {
-    if (selectedEntryKey && !selectedEntry) onQueryChange({ selectedEntryKey: null })
-  }, [onQueryChange, selectedEntry, selectedEntryKey])
+    const resolvedSelection = activeView === 'pending' && displayMode === 'client'
+      ? selectedClientGroup
+      : selectedEntry
+    if (selectedEntryKey && !resolvedSelection) onQueryChange({ selectedEntryKey: null })
+  }, [activeView, displayMode, onQueryChange, selectedClientGroup, selectedEntry, selectedEntryKey])
+
+  useEffect(() => {
+    if (!selectedClientGroup || clientSelection.activeGroupKey !== selectedClientGroup.key) return
+    clientSelection.reconcile(selectedClientGroup.key, selectedClientGroup.orders.map((order) => order.id))
+  }, [clientSelection.activeGroupKey, clientSelection.reconcile, selectedClientGroup])
 
   const selectPrimaryView = (view) => {
     if (!PRIMARY_VIEWS.includes(view)) return
+    clientSelection.clear()
     patchQuery({ activeView: view, timingFilter: 'all', exactDateFilter: null, selectedEntryKey: null })
+  }
+
+  const selectDisplayMode = (mode) => {
+    if (!['client', 'orders'].includes(mode) || mode === displayMode) return
+    clientSelection.clear()
+    setMobileDetailOpen(false)
+    patchQuery({ displayMode: mode, selectedEntryKey: null })
   }
 
   const applyTimingFilter = (filter) => {
@@ -183,6 +224,33 @@ function Receivables({
     patchQuery({ selectedEntryKey: `paid:${order.id}` })
     setMobileDetailOpen(isMobileDetail)
   }
+
+  const toggleClientGroup = (group) => {
+    if (!group) return false
+    if (selectedEntryKey === group.key && clientSelection.activeGroupKey === group.key) {
+      clientSelection.clear()
+      patchQuery({ selectedEntryKey: null })
+      return true
+    }
+    clientSelection.activateGroup(group.key, group.orders.map((order) => order.id))
+    patchQuery({ selectedEntryKey: group.key })
+    return true
+  }
+
+  const selectAllClientOrders = (group) => {
+    if (!group) return false
+    if (clientSelection.activeGroupKey !== group.key) {
+      clientSelection.activateGroup(group.key, group.orders.map((order) => order.id))
+    }
+    return clientSelection.selectAllVisible()
+  }
+
+  const receiveSelectedClientOrders = (group = selectedClientGroup) => (
+    requestSelectedPayment({
+      clientId: group?.clientId ?? null,
+      orderIds: clientSelection.selectedOrderIds,
+    })
+  )
 
   const closeMobileDetail = () => {
     setMobileDetailOpen(false)
@@ -237,6 +305,7 @@ function Receivables({
 
   const pendingIsGloballyEmpty = pendingEntries.length === 0
   const pendingHasActiveFilter = Boolean(normalizedSearch || timingFilter !== 'all' || exactDateFilter)
+  const pendingVisibleCount = displayMode === 'client' ? visibleClientGroups.length : visiblePendingEntries.length
 
   const detail = selectedEntry ? (
     <ReceivableDetail
@@ -293,7 +362,14 @@ function Receivables({
             </div>
           )}
 
-          {canReceivePayments && activeView === 'pending' && (
+          {activeView === 'pending' && (
+            <div className="receivables-display-mode" role="group" aria-label="Organização dos recebimentos">
+              <button type="button" aria-pressed={displayMode === 'client'} onClick={() => selectDisplayMode('client')}>Por cliente</button>
+              <button type="button" aria-pressed={displayMode === 'orders'} onClick={() => selectDisplayMode('orders')}>Lista de pedidos</button>
+            </div>
+          )}
+
+          {canReceivePayments && activeView === 'pending' && displayMode === 'orders' && (
             <div className="receivables-header-actions">
               <Button
                 type="button"
@@ -308,24 +384,45 @@ function Receivables({
           )}
 
           <div className="receivables-controls">
-            <label className="search-control"><Icon name="search" size={18} /><input type="search" placeholder="Buscar identificação, pedido ou produto" value={search} onChange={(event) => patchQuery({ search: event.target.value })} /></label>
+            <label className="search-control"><Icon name="search" size={18} /><input type="search" placeholder={activeView === 'pending' && displayMode === 'client' ? 'Buscar cliente, telefone ou pedido' : 'Buscar identificação, pedido ou produto'} value={search} onChange={(event) => patchQuery({ search: event.target.value })} /></label>
             {activeView === 'pending' && <div className="receivables-sort-control"><span>Ordenar</span><SystemSelect label="Ordenar recebimentos" value={sortMode} options={SORT_OPTIONS} onChange={(value) => patchQuery({ sortMode: value })} /></div>}
-            <span className="toolbar-count">{activeView === 'pending' ? visiblePendingEntries.length : visiblePaidOrders.length} item(ns)</span>
+            <span className="toolbar-count">{activeView === 'pending' ? pendingVisibleCount : visiblePaidOrders.length} item(ns)</span>
           </div>
 
           {activeView === 'pending' ? (
-            <div className="receivables-ledger" aria-label="Recebimentos pendentes">
-              {visiblePendingEntries.map((entry) => (
-                <div className="receivable-ledger-item" key={entry.key}>
-                  <button type="button" className="receivable-ledger-row" aria-pressed={selectedEntryKey === entry.key} onClick={() => openOrderDetail(entry)}>
-                    <span className="receivable-ledger-avatar">{entry.label.charAt(0).toUpperCase()}</span>
-                    <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{`${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry, formatOrderDate)}</span></span>
-                    <strong className="receivable-ledger-amount">{currency(entry.total)}</strong><Icon name="details" size={18} />
-                  </button>
-                </div>
-              ))}
-              {!visiblePendingEntries.length && <div className="empty-state receivables-empty-state"><Icon name="wallet" size={28} /><strong>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Tudo recebido por aqui' : 'Nenhum recebimento neste filtro'}</strong><span>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Quando houver um pedido pendente, ele aparecerá automaticamente nesta tela.' : 'Tente outro período ou ajuste a busca.'}</span></div>}
-            </div>
+            displayMode === 'client' ? (
+              <div className="receivables-client-list" aria-label="Recebimentos pendentes por cliente">
+                {visibleClientGroups.map((group) => (
+                  <ReceivableClientGroup
+                    key={group.key}
+                    group={group}
+                    expanded={selectedEntryKey === group.key}
+                    selectedOrderIds={clientSelection.activeGroupKey === group.key ? clientSelection.selectedOrderIds : []}
+                    currency={currency}
+                    formatOrderDate={formatOrderDate}
+                    getOrderItemsSummary={getOrderItemsSummary}
+                    onToggle={toggleClientGroup}
+                    onToggleOrder={clientSelection.toggleOrder}
+                    onSelectAll={selectAllClientOrders}
+                    disabled={writeDisabled || !canReceivePayments}
+                  />
+                ))}
+                {!visibleClientGroups.length && <div className="empty-state receivables-empty-state"><Icon name="wallet" size={28} /><strong>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Tudo recebido por aqui' : 'Nenhum recebimento neste filtro'}</strong><span>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Quando houver um pedido pendente, ele aparecerá automaticamente nesta tela.' : 'Tente outro período ou ajuste a busca.'}</span></div>}
+              </div>
+            ) : (
+              <div className="receivables-ledger" aria-label="Recebimentos pendentes">
+                {visiblePendingEntries.map((entry) => (
+                  <div className="receivable-ledger-item" key={entry.key}>
+                    <button type="button" className="receivable-ledger-row" aria-pressed={selectedEntryKey === entry.key} onClick={() => openOrderDetail(entry)}>
+                      <span className="receivable-ledger-avatar">{entry.label.charAt(0).toUpperCase()}</span>
+                      <span className="receivable-ledger-main"><strong>{entry.label}</strong><span>{`${formatOrderDisplayNumber(entry.order)} · ${getOrderItemsSummary(entry.order)}`}</span><span className={`receivable-timing receivable-timing-${entry.timing.status}`}>{timingLabel(entry, formatOrderDate)}</span></span>
+                      <strong className="receivable-ledger-amount">{currency(entry.total)}</strong><Icon name="details" size={18} />
+                    </button>
+                  </div>
+                ))}
+                {!visiblePendingEntries.length && <div className="empty-state receivables-empty-state"><Icon name="wallet" size={28} /><strong>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Tudo recebido por aqui' : 'Nenhum recebimento neste filtro'}</strong><span>{pendingIsGloballyEmpty && !pendingHasActiveFilter ? 'Quando houver um pedido pendente, ele aparecerá automaticamente nesta tela.' : 'Tente outro período ou ajuste a busca.'}</span></div>}
+              </div>
+            )
           ) : (
             <div className="receivables-ledger receivables-ledger-paid" aria-label="Recebimentos quitados">
               {visiblePaidOrders.map((order) => (
@@ -341,11 +438,25 @@ function Receivables({
         </section>
 
         <aside className="receivables-detail-panel" aria-label="Detalhes do recebimento">
-          {detail || <div className="receivable-detail-empty">Selecione um recebimento para ver os detalhes.</div>}
+          {activeView === 'pending' && displayMode === 'client' ? (
+            <ReceivableClientPanel
+              group={selectedClientGroup}
+              selectedOrderIds={clientSelection.selectedOrderIds}
+              currency={currency}
+              formatOrderDate={formatOrderDate}
+              getOrderItemsSummary={getOrderItemsSummary}
+              onToggleOrder={clientSelection.toggleOrder}
+              onSelectAll={selectAllClientOrders}
+              onDeselectAll={clientSelection.deselectAll}
+              onReceive={receiveSelectedClientOrders}
+              onOpenClient={onOpenClient}
+              disabled={writeDisabled || !canReceivePayments}
+            />
+          ) : (detail || <div className="receivable-detail-empty">Selecione um recebimento para ver os detalhes.</div>)}
         </aside>
       </div>
 
-      {canReceivePayments && activeView === 'pending' && !overlayOpen && (
+      {canReceivePayments && activeView === 'pending' && displayMode === 'orders' && !overlayOpen && (
         <button
           type="button"
           className="receivables-payment-fab"
@@ -356,6 +467,18 @@ function Receivables({
           <Icon name="plus" size={20} />
           <span>Registrar recebimento</span>
         </button>
+      )}
+
+      {canReceivePayments && activeView === 'pending' && displayMode === 'client' && clientSelection.selectedCount > 0 && selectedClientGroup && !overlayOpen && (
+        <div className="receivables-client-selection-bar" role="region" aria-label="Resumo da seleção">
+          <div>
+            <span>{clientSelection.selectedCount} {clientSelection.selectedCount === 1 ? 'pedido selecionado' : 'pedidos selecionados'}</span>
+            <strong>{currency(selectedClientTotal)}</strong>
+          </div>
+          <Button type="button" onClick={() => receiveSelectedClientOrders(selectedClientGroup)} disabled={writeDisabled}>
+            Receber
+          </Button>
+        </div>
       )}
 
       <BottomSheet open={Boolean(selectedEntry) && mobileDetailOpen && isMobileDetail} title="Detalhes do recebimento" onClose={closeMobileDetail}>
