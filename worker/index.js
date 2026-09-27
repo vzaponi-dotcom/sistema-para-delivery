@@ -14,8 +14,8 @@ import { loadMovementsByOrderSource, loadTableTabById } from './orderWriteEffect
 import { loadOpenTableTabDetail } from './tableTabDetailRepository.js'
 import { updateOrderPaymentPromise } from './orderPaymentPromise.js'
 import { createClient, createOrder, createProduct, deleteClient, deleteProduct, loadBootstrap, updateClient, updateOrderStatus, updateProduct } from './repositories.js'
-import { registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
-import { validatePaymentAllocations } from './paymentValidation.js'
+import { registerClientOrdersPayment, registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
+import { validatePaymentAllocations, validateReceivableOrderIds } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
@@ -161,6 +161,20 @@ const authenticatedApi = async (request, env) => {
   const clientMatch = url.pathname.match(/^\/api\/clients\/([^/]+)$/)
   if (clientMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const client = await updateClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]), clientInput(await readJson(request))); if (!client) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ client }) }
   if (clientMatch && request.method === 'DELETE') { assertSameOriginMutation(request); const deleted = await deleteClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1])); if (!deleted) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ deleted: true }) }
+
+  const clientReceivablesPaymentMatch = url.pathname.match(/^\/api\/clients\/([^/]+)\/receivables\/payment$/)
+  if (clientReceivablesPaymentMatch && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const { orderIds, allocations } = await readJson(request)
+    const result = await registerClientOrdersPayment(
+      env.DB,
+      session.businessId,
+      decodeURIComponent(clientReceivablesPaymentMatch[1]),
+      validateReceivableOrderIds(orderIds),
+      validatePaymentAllocations(allocations),
+    )
+    return json(result, { status: 201 })
+  }
 
   if (url.pathname === '/api/orders' && request.method === 'GET') return json({ orders: await listOrders(env.DB, session.businessId) })
   if (url.pathname === '/api/orders' && request.method === 'POST') {
