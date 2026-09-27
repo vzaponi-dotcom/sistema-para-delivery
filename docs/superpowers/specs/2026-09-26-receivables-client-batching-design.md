@@ -1544,12 +1544,17 @@ Tratado: schema atual já suporta receipt compartilhado; migration só entra se 
 
 ## 54. Gate para o próximo passo
 
-Depois da aprovação explícita desta Spec:
+A Spec foi aprovada em 2026-09-26 e o plano TDD foi escrito em:
 
-1. escrever plano TDD detalhado;
-2. mapear tasks e dependências;
-3. autorrevisar o plano contra esta Spec;
-4. criar branch de implementação separada;
-5. não implementar antes da aprovação do plano;
-6. não trabalhar diretamente em master;
-7. não fazer deploy de produção.
+~~~text
+docs/superpowers/plans/2026-09-26-receivables-client-batching-plan.md
+~~~
+
+Próximo gate:
+
+1. revisar e aprovar explicitamente o plano;
+2. somente depois criar a branch de implementação;
+3. executar as tasks na ordem registrada;
+4. não trabalhar diretamente em master;
+5. staging somente após os gates previstos no plano;
+6. merge e produção exigem autorizações explícitas separadas.
