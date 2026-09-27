@@ -130,3 +130,10 @@ test('large client groups disclose the 100-order payment limit and preserve read
   assert.match(group, /aria-label=.*Selecionar.*no valor de/s)
   assert.match(panel, /aria-label=.*Selecionar pedido.*no valor de/s)
 })
+
+
+test('client group uses supported expand-collapse icons instead of the Icon fallback glyph', async () => {
+  const group = await read('./ReceivableClientGroup.jsx')
+  assert.match(group, /expanded \? 'arrow-up' : 'arrow-down'/)
+  assert.doesNotMatch(group, /chevronUp|chevronDown/)
+})
