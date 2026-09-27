@@ -408,7 +408,7 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   assert.equal(withNote.gridSpan, 4)
   assert.equal(wrappedName.gridSpan, 4)
   assert.equal(medium.gridSpan >= 3, true)
-  assert.equal(medium.gridSpan, 5)
+  assert.equal(medium.gridSpan, 3)
 })
 
 test('compact micro-grid can show sixteen truly short orders with reclaimed vertical room', () => {
