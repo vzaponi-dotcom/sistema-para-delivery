@@ -104,3 +104,11 @@ test('mobile grouped receivables reserve scroll space for the sticky selection b
   assert.match(css, /\.receivables-client-selection-bar\s*\{[^}]*box-sizing:\s*border-box/s)
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.receivable-client-card-header[\s\S]*\.receivables-client-selection-bar[\s\S]*transition:\s*none\s*!important/s)
 })
+
+
+test('mobile timing filters wrap inside the receivables card without horizontal clipping', async () => {
+  const css = await read('../../../receivables.css')
+
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-filter-strip\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow-x:\s*visible[^}]*max-width:\s*100%/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-filter-strip button\s*\{[^}]*max-width:\s*100%[^}]*white-space:\s*nowrap/s)
+})
