@@ -1,10 +1,10 @@
 # A Receber — agrupamento por cliente e recebimento atômico de múltiplos pedidos
 
 **Data:** 2026-09-26  
-**Status:** PROPOSTA PARA APROVAÇÃO  
+**Status:** APPROVED — aprovado em 2026-09-26  
 **Base inspecionada:** master em 0273e1f7c52eb38da9e93e4abbb580de924bf36d  
 **Branch documental:** docs/receivables-client-batching  
-**Plano de implementação:** ainda não escrito — só deve ser criado após aprovação explícita desta Spec  
+**Plano de implementação:** docs/superpowers/plans/2026-09-26-receivables-client-batching-plan.md — PROPOSTA PARA APROVAÇÃO  
 **Produção:** nenhuma alteração autorizada por este documento  
 **Referência funcional anterior:** docs/superpowers/specs/2026-09-06-receivables-forecast-redesign-design.md  
 **Referência financeira anterior:** docs/superpowers/specs/2026-09-21-split-payments-design.md
