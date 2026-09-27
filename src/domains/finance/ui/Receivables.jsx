@@ -291,6 +291,12 @@ function Receivables({
     return true
   }
 
+  const editPaymentPromiseFromGrouped = (order) => {
+    if (!canManagePaymentPromises || !order) return false
+    setPromiseOrder(order)
+    return true
+  }
+
   const registerQuickPayment = (orderId) => {
     if (!canReceivePayments) return false
     onRegisterPayment?.(orderId)
@@ -404,6 +410,8 @@ function Receivables({
                     onToggle={toggleClientGroup}
                     onToggleOrder={clientSelection.toggleOrder}
                     onSelectAll={selectAllClientOrders}
+                    onEditPaymentPromise={canManagePaymentPromises ? editPaymentPromiseFromGrouped : null}
+                    promiseDisabled={writeDisabled || !canManagePaymentPromises}
                     selectionLimit={clientSelection.selectionLimit}
                     selectionLimitReached={clientSelection.selectionLimitReached}
                     disabled={writeDisabled || !canReceivePayments}
@@ -452,6 +460,8 @@ function Receivables({
               onDeselectAll={clientSelection.deselectAll}
               onReceive={receiveSelectedClientOrders}
               onOpenClient={onOpenClient}
+              onEditPaymentPromise={canManagePaymentPromises ? editPaymentPromiseFromGrouped : null}
+              promiseDisabled={writeDisabled || !canManagePaymentPromises}
               selectionLimit={clientSelection.selectionLimit}
               selectionLimitReached={clientSelection.selectionLimitReached}
               disabled={writeDisabled || !canReceivePayments}
