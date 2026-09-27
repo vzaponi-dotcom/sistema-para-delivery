@@ -676,6 +676,7 @@ test('split-payment guards reject obsolete scalar writers, owners, storage strin
   await write('worker/repositories.js', `
     export const registerOrderPayment = () => {}
     export const registerTableTabPayment = () => {}
+    export const registerClientOrdersPayment = () => {}
     const sql = 'INSERT INTO payments (id, method) VALUES (?, ?)'
   `)
 
@@ -736,4 +737,14 @@ test('React Router admin ownership cannot import the Kitchen TV entry', async (t
   assert.ok(
     violations.includes('admin-router-kitchen-import: src/app/navigation/adminRouter.jsx -> src/kitchen-display/KitchenDisplayRoot.jsx'),
   )
+})
+
+
+test('client receivables payment writer remains owned only by worker/paymentRepository.js', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('worker/repositories.js', 'export const registerClientOrdersPayment = () => {}\n')
+  await write('worker/paymentRepository.js', 'export const registerClientOrdersPayment = () => {}\n')
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.ok(violations.includes('split-payment-repository-owner: worker/repositories.js'))
+  assert.equal(violations.includes('split-payment-repository-owner: worker/paymentRepository.js'), false)
 })
