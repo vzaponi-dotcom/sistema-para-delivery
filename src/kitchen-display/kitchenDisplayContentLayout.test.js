@@ -6,6 +6,7 @@ import {
   getKitchenCardContentMetrics,
   normalizeKitchenItemNote,
   packKitchenDisplaySlots,
+  resolveKitchenBoardProfile,
   resolveKitchenViewportProfile,
 } from './kitchenDisplayContentLayout.js'
 
@@ -247,4 +248,35 @@ test('slot packing keeps six cards when two columns are enough and drops to five
   assert.equal(standardTall.cards.length, 5)
   assert.equal(standardTall.cards[0].layoutDemand, 'tall')
   assert.equal(standardTall.cards[0].contentMetrics.columnCount, 1)
+})
+
+
+test('board profile keeps small queues spacious and expands density only when useful', () => {
+  assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 4 }), {
+    id: 'focus', columns: 3, rows: 2, maxSlots: 6,
+  })
+  assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 8 }), {
+    id: 'balanced', columns: 4, rows: 2, maxSlots: 8,
+  })
+  assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 }), {
+    id: 'compact', columns: 4, rows: 3, maxSlots: 12,
+  })
+})
+
+test('board profile allows compact density on the approved large viewport reference', () => {
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 10 }).id, 'compact')
+})
+
+test('board profile protects 1366x768 readability instead of forcing three rows', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1366, viewportHeight: 768, queueSize: 10 })
+  assert.equal(profile.id, 'balanced')
+  assert.equal(profile.columns, 4)
+  assert.equal(profile.rows, 2)
+  assert.equal(profile.maxSlots, 8)
+})
+
+test('board profile uses a safe fallback when viewport dimensions are unavailable', () => {
+  assert.deepEqual(resolveKitchenBoardProfile({ queueSize: 10 }), {
+    id: 'focus', columns: 3, rows: 2, maxSlots: 6,
+  })
 })
