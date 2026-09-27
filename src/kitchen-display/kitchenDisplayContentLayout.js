@@ -214,11 +214,14 @@ const assignKitchenGrid = (cards, boardProfile, boardProfileProvided = true) => 
   const profile = normalizeBoardProfile(boardProfile)
   const source = Array.isArray(cards) ? cards : []
   const rowCount = boardProfileProvided ? profile.gridRows : profile.rows
-  const occupancy = Array.from({ length: rowCount }, () => Array(profile.columns).fill(false))
+  const heights = Array.from({ length: profile.columns }, () => 0)
   const placements = new Array(source.length)
   const failedStates = new Set()
 
-  const stateKey = (index) => `${index}:${occupancy.map((row) => row.map((cell) => cell ? '1' : '0').join('')).join('|')}`
+  // Cards occupy one full column width and always stack from the top of that
+  // column. Tracking only column heights avoids 2D fragmentation and keeps
+  // backtracking bounded even with dense 16-track boards.
+  const stateKey = (index) => `${index}:${[...heights].sort((a, b) => a - b).join(',')}`
 
   const visit = (index) => {
     if (index >= source.length) return true
@@ -226,29 +229,26 @@ const assignKitchenGrid = (cards, boardProfile, boardProfileProvided = true) => 
     if (failedStates.has(key)) return false
 
     const span = cardGridSpan(source[index], profile, boardProfileProvided)
-    for (let row = 0; row <= rowCount - span; row += 1) {
-      for (let column = 0; column < profile.columns; column += 1) {
-        let available = true
-        for (let offset = 0; offset < span; offset += 1) {
-          if (occupancy[row + offset][column]) {
-            available = false
-            break
-          }
-        }
-        if (!available) continue
+    const columns = heights
+      .map((height, column) => ({ height, column }))
+      .sort((a, b) => a.height - b.height || a.column - b.column)
+    const triedHeights = new Set()
 
-        for (let offset = 0; offset < span; offset += 1) occupancy[row + offset][column] = true
-        placements[index] = {
-          gridColumn: column + 1,
-          gridRow: span > 1 ? `${row + 1} / span ${span}` : row + 1,
-          rowSpan: span,
-        }
+    for (const { height, column } of columns) {
+      if (triedHeights.has(height) || height + span > rowCount) continue
+      triedHeights.add(height)
 
-        if (visit(index + 1)) return true
-
-        for (let offset = 0; offset < span; offset += 1) occupancy[row + offset][column] = false
-        placements[index] = undefined
+      placements[index] = {
+        gridColumn: column + 1,
+        gridRow: span > 1 ? `${height + 1} / span ${span}` : height + 1,
+        rowSpan: span,
       }
+      heights[column] += span
+
+      if (visit(index + 1)) return true
+
+      heights[column] -= span
+      placements[index] = undefined
     }
 
     failedStates.add(key)
