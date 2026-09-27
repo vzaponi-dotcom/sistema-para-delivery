@@ -137,3 +137,16 @@ test('client group uses supported expand-collapse icons instead of the Icon fall
   assert.match(group, /expanded \? 'arrow-up' : 'arrow-down'/)
   assert.doesNotMatch(group, /chevronUp|chevronDown/)
 })
+
+
+test('client receive CTAs keep explicit high-contrast foreground in desktop and mobile', async () => {
+  const page = await read('./Receivables.jsx')
+  const panel = await read('./ReceivableClientPanel.jsx')
+  const css = await read('../../../receivables.css')
+
+  assert.match(page, /receivables-client-receive-button/)
+  assert.match(panel, /receivables-client-receive-button/)
+  assert.match(css, /\.receivables-client-receive-button\.button-primary\s*\{[^}]*color:\s*var\(--receivables-receive-contrast\)[^}]*font-weight:\s*850/s)
+  assert.match(css, /\.receivables-client-receive-button\.button-primary > span\s*\{[^}]*color:\s*inherit[^}]*opacity:\s*1/s)
+  assert.match(css, /:root:not\(\[data-visual-theme='mesiva'\]\)\s*\{[^}]*--receivables-receive-contrast:\s*#fff/s)
+})
