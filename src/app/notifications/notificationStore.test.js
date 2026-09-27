@@ -60,7 +60,7 @@ test('current release announces grouped receivables while previous releases keep
 
   assert.equal(releaseItem.id, 'release-2026-09-receivables-client-batching')
   assert.equal(releaseItem.title, 'A Receber por cliente')
-  assert.match(releaseItem.summary, /vários pedidos.*mesmo cliente/i)
+  assert.match(releaseItem.summary, /mesmo cliente.*vários pedidos/i)
   assert.equal(releaseItem.items.length, 3)
   assert.equal(releaseItem.slides.length, 0)
   assert.deepEqual(releaseItem.items.map((item) => item.title), [
