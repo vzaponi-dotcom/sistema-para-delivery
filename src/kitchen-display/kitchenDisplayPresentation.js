@@ -1,9 +1,11 @@
 import { buildKitchenQueueModel } from '../domains/orders/index.js'
-import { packKitchenDisplaySlots, positionKitchenDisplayGrid } from './kitchenDisplayContentLayout.js'
+import {
+  packKitchenDisplaySlots,
+  positionKitchenDisplayGrid,
+  resolveKitchenBoardProfile,
+} from './kitchenDisplayContentLayout.js'
 
 export const KITCHEN_TV_NEAR_LIMIT_MINUTES = 5
-const KITCHEN_TV_SLOT_LIMIT = 6
-const KITCHEN_TV_PREPARING_LIMIT_WITH_SCHEDULED = 5
 
 const toIdSet = (value) => value instanceof Set ? value : new Set(value || [])
 
@@ -15,43 +17,71 @@ const presentationState = (entry, now, highlightedIds) => {
   return entry.phase === 'scheduled' ? 'scheduled' : 'preparing'
 }
 
-const allocateVisibleCards = (queue, viewportHeight) => {
+const packForProfile = (entries, profile, viewportHeight) => packKitchenDisplaySlots(entries, {
+  maxSlots: profile.maxSlots,
+  viewportHeight,
+  boardProfile: profile,
+})
+
+const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => {
+  const profile = resolveKitchenBoardProfile({
+    viewportWidth,
+    viewportHeight,
+    queueSize: queue.totalVisible,
+  })
+
   if (!queue.scheduled.length) {
-    return packKitchenDisplaySlots(queue.preparing, { maxSlots: KITCHEN_TV_SLOT_LIMIT, viewportHeight }).cards
+    return {
+      profile,
+      cards: packForProfile(queue.preparing, profile, viewportHeight).cards,
+    }
   }
 
   const [protectedScheduled, ...additionalScheduled] = queue.scheduled
-  const protectedPack = packKitchenDisplaySlots([protectedScheduled], { maxSlots: KITCHEN_TV_SLOT_LIMIT, viewportHeight })
-  const protectedCard = protectedPack.cards[0]
-  const protectedCost = protectedCard?.slotCost ?? 1
-  const preparingCandidates = queue.preparing.slice(0, KITCHEN_TV_PREPARING_LIMIT_WITH_SCHEDULED)
-  const preparingPack = packKitchenDisplaySlots(preparingCandidates, {
-    maxSlots: KITCHEN_TV_SLOT_LIMIT - protectedCost,
-    viewportHeight,
-  })
+  const preparingCards = []
+  let preparingBlocked = false
 
-  const scheduledCards = protectedCard ? [protectedCard] : []
-  let usedSlots = preparingPack.usedSlots + protectedCost
-
-  const noPreparingCandidateWasBlocked = preparingPack.cards.length === preparingCandidates.length
-  if (noPreparingCandidateWasBlocked && usedSlots < KITCHEN_TV_SLOT_LIMIT && additionalScheduled.length) {
-    const additionalPack = packKitchenDisplaySlots(additionalScheduled, {
-      maxSlots: KITCHEN_TV_SLOT_LIMIT - usedSlots,
-      viewportHeight,
-    })
-    scheduledCards.push(...additionalPack.cards)
-    usedSlots += additionalPack.usedSlots
+  for (const candidate of queue.preparing) {
+    const trialEntries = [...preparingCards, candidate, protectedScheduled]
+    const trial = packForProfile(trialEntries, profile, viewportHeight)
+    if (trial.cards.length !== trialEntries.length) {
+      preparingBlocked = true
+      break
+    }
+    preparingCards.push(candidate)
   }
 
-  return [...preparingPack.cards, ...scheduledCards]
-}
+  const selected = [...preparingCards, protectedScheduled]
 
-export function buildKitchenDisplayPresentation(orders = [], timing, now = new Date(), highlightedIds = new Set(), { viewportHeight } = {}) {
-  const queue = buildKitchenQueueModel(orders, now, '', timing)
-  const highlighted = toIdSet(highlightedIds)
-  const visible = positionKitchenDisplayGrid(allocateVisibleCards(queue, viewportHeight))
+  if (!preparingBlocked) {
+    for (const candidate of additionalScheduled) {
+      const trialEntries = [...selected, candidate]
+      const trial = packForProfile(trialEntries, profile, viewportHeight)
+      if (trial.cards.length !== trialEntries.length) break
+      selected.push(candidate)
+    }
+  }
 
   return {
+    profile,
+    cards: packForProfile(selected, profile, viewportHeight).cards,
+  }
+}
+
+export function buildKitchenDisplayPresentation(
+  orders = [],
+  timing,
+  now = new Date(),
+  highlightedIds = new Set(),
+  { viewportWidth, viewportHeight } = {},
+) {
+  const queue = buildKitchenQueueModel(orders, now, '', timing)
+  const highlighted = toIdSet(highlightedIds)
+  const allocation = allocateVisibleCards(queue, { viewportWidth, viewportHeight })
+  const visible = positionKitchenDisplayGrid(allocation.cards, { boardProfile: allocation.profile })
+
+  return {
+    profile: allocation.profile,
     cards: visible.map((entry) => ({ ...entry, state: presentationState(entry, now, highlighted) })),
     counts: { preparing: queue.counts.preparing, late: queue.counts.late, scheduled: queue.counts.scheduled },
     overflow: Math.max(0, queue.totalVisible - visible.length),
