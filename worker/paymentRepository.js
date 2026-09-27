@@ -1,10 +1,10 @@
 import { getBusinessDate } from '../shared/finance.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { mapMovementRow } from './financeRepository.js'
-import { assertPaymentAllocationTotal } from './paymentValidation.js'
+import { assertPaymentAllocationTotal, validateReceivableOrderIds } from './paymentValidation.js'
 import { preparePolicyGuards, readPaymentMethodExpectations, rethrowPolicyChange } from './operationalPolicyGuards.js'
 import { closeTableTabIfSettled, loadOrderById, mapTableTabRow } from './repositories.js'
-import { clearSettingsAssertions } from './settingsTransactions.js'
+import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
 import { centsToMoney } from './validation.js'
 
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
@@ -138,6 +138,237 @@ export async function registerOrderPayment(db, businessId, orderId, rawAllocatio
     order: await loadOrderById(db, businessId, orderId),
     movements: movementRows.map(mapMovementRow),
     tableTab,
+  }
+}
+
+
+const clientReceivablesConflict = () => repositoryError(
+  409,
+  'CLIENT_RECEIVABLES_PAYMENT_CONFLICT',
+  'Os pedidos selecionados foram alterados. Atualize os dados e tente novamente.',
+)
+
+export async function registerClientOrdersPayment(
+  db,
+  businessId,
+  clientId,
+  rawOrderIds,
+  rawAllocations,
+  now = new Date(),
+) {
+  const orderIds = validateReceivableOrderIds(rawOrderIds)
+  const normalizedClientId = typeof clientId === 'string' ? clientId.trim() : ''
+  if (!normalizedClientId) throw repositoryError(400, 'VALIDATION_ERROR', 'Cliente inválido para recebimento.')
+
+  const clientRow = await db.prepare('SELECT id, name FROM clients WHERE id = ? AND business_id = ? LIMIT 1')
+    .bind(normalizedClientId, businessId).first()
+  if (!clientRow) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+
+  const placeholders = orderIds.map(() => '?').join(', ')
+  const selectedResult = await db.prepare(`SELECT o.id, o.client_id, o.customer_identity_type, o.table_tab_id,
+      o.status, o.total_cents, o.created_at, p.id AS payment_id
+    FROM orders o
+    LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+    WHERE o.business_id = ? AND o.id IN (${placeholders})`)
+    .bind(businessId, ...orderIds).all()
+  const selectedById = new Map(resultRows(selectedResult).map((row) => [row.id, row]))
+  if (selectedById.size !== orderIds.length) throw clientReceivablesConflict()
+
+  const selected = orderIds.map((id) => selectedById.get(id))
+  if (selected.some((order) => (
+    !order
+    || order.client_id !== normalizedClientId
+    || order.customer_identity_type !== 'registered_client'
+    || order.table_tab_id != null
+    || order.status === 'Cancelado'
+    || order.payment_id
+    || !Number.isSafeInteger(Number(order.total_cents))
+    || Number(order.total_cents) <= 0
+  ))) throw clientReceivablesConflict()
+
+  let authoritativeTotalCents = 0
+  for (const order of selected) {
+    const amount = Number(order.total_cents)
+    if (authoritativeTotalCents > Number.MAX_SAFE_INTEGER - amount) {
+      throw repositoryError(400, 'VALIDATION_ERROR', 'O total oficial do pagamento é inválido.')
+    }
+    authoritativeTotalCents += amount
+  }
+
+  const allocations = assertPaymentAllocationTotal(rawAllocations, authoritativeTotalCents)
+  const paymentExpectation = await readPaymentMethodExpectations(
+    db,
+    businessId,
+    allocations.map(({ methodCode }) => methodCode),
+  )
+  const labels = new Map(paymentExpectation.methods.map(({ code, label }) => [code, label]))
+  const paidAt = now.toISOString()
+  const movementDate = getBusinessDate(now)
+  const receiptId = crypto.randomUUID()
+  const policyTxId = crypto.randomUUID()
+  const receiptRow = {
+    id: receiptId,
+    business_id: businessId,
+    table_tab_id: null,
+    total_cents: authoritativeTotalCents,
+    paid_at: paidAt,
+    created_at: paidAt,
+  }
+  const allocationRows = allocations.map(({ methodCode, amountCents }) => ({
+    id: crypto.randomUUID(),
+    business_id: businessId,
+    receipt_id: receiptId,
+    method_code: methodCode,
+    method_label: labels.get(methodCode),
+    amount_cents: amountCents,
+    created_at: paidAt,
+  }))
+  const paymentRows = selected.map((order) => ({
+    id: crypto.randomUUID(),
+    order_id: order.id,
+    amount_cents: Number(order.total_cents),
+  }))
+  const description = `Recebimento cliente · ${clientRow.name} · ${paymentRows.length} pedidos`
+  const movementRows = allocationRows.map((allocation) => ({
+    id: crypto.randomUUID(),
+    type: 'entrada',
+    category: 'Vendas',
+    description,
+    value_cents: allocation.amount_cents,
+    source: 'order-payment',
+    order_id: null,
+    payment_id: null,
+    payment_method: allocation.method_label,
+    movement_date: movementDate,
+    created_at: paidAt,
+    updated_at: paidAt,
+    receipt_id: receiptId,
+    payment_allocation_id: allocation.id,
+  }))
+
+  const statePredicates = []
+  const stateBindings = [normalizedClientId, businessId]
+  for (const order of selected) {
+    statePredicates.push(`EXISTS (
+      SELECT 1 FROM orders current_order
+      LEFT JOIN payments current_payment
+        ON current_payment.order_id = current_order.id
+       AND current_payment.business_id = current_order.business_id
+      WHERE current_order.id = ?
+        AND current_order.business_id = ?
+        AND current_order.client_id = ?
+        AND current_order.customer_identity_type = 'registered_client'
+        AND current_order.table_tab_id IS NULL
+        AND current_order.status <> 'Cancelado'
+        AND current_order.total_cents = ?
+        AND current_payment.id IS NULL
+    )`)
+    stateBindings.push(order.id, businessId, normalizedClientId, Number(order.total_cents))
+  }
+  const stateGuard = prepareSettingsAssertion(
+    db,
+    policyTxId,
+    'client-receivables-state',
+    `EXISTS (SELECT 1 FROM clients WHERE id = ? AND business_id = ?) AND ${statePredicates.join(' AND ')}`,
+    stateBindings,
+  )
+
+  const statements = [
+    ...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId),
+    stateGuard,
+    db.prepare(`INSERT INTO payment_receipts
+      (id, business_id, table_tab_id, total_cents, paid_at, created_at)
+      VALUES (?, ?, NULL, ?, ?, ?)`).bind(
+      receiptId, businessId, authoritativeTotalCents, paidAt, paidAt,
+    ),
+  ]
+
+  for (const allocation of allocationRows) {
+    statements.push(
+      db.prepare(`INSERT INTO payment_allocations
+        (id, business_id, receipt_id, method_code, method_label, amount_cents, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+        allocation.id,
+        businessId,
+        receiptId,
+        allocation.method_code,
+        allocation.method_label,
+        allocation.amount_cents,
+        paidAt,
+      ),
+      db.prepare(`UPDATE business_payment_methods SET first_used_at = ?
+        WHERE business_id = ? AND code = ? AND first_used_at IS NULL`).bind(
+        paidAt,
+        businessId,
+        allocation.method_code,
+      ),
+    )
+  }
+
+  for (const payment of paymentRows) {
+    statements.push(
+      db.prepare(`INSERT INTO payments
+        (id, business_id, order_id, receipt_id, amount_cents, method, paid_at, created_at)
+        VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`).bind(
+        payment.id,
+        businessId,
+        payment.order_id,
+        receiptId,
+        payment.amount_cents,
+        paidAt,
+        paidAt,
+      ),
+    )
+  }
+
+  for (const movement of movementRows) {
+    statements.push(
+      db.prepare(`INSERT INTO movements
+        (id, business_id, type, category, description, value_cents, source, order_id, payment_id,
+         movement_date, created_at, payment_method, updated_at, receipt_id, payment_allocation_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)`).bind(
+        movement.id,
+        businessId,
+        movement.type,
+        movement.category,
+        movement.description,
+        movement.value_cents,
+        movement.source,
+        movement.movement_date,
+        movement.created_at,
+        movement.payment_method,
+        movement.updated_at,
+        receiptId,
+        movement.payment_allocation_id,
+      ),
+    )
+  }
+  statements.push(clearSettingsAssertions(db, policyTxId))
+
+  try {
+    await db.batch(statements)
+  } catch (error) {
+    const message = String(error?.message || '')
+    if (message.includes('POLICY_CHANGED')) rethrowPolicyChange(error)
+    if (/SETTINGS_INVALID|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {
+      throw clientReceivablesConflict()
+    }
+    throw error
+  }
+
+  const resolvedAllocations = allocationRows.map(mapAllocation)
+  return {
+    receipt: mapReceipt(receiptRow, resolvedAllocations),
+    allocations: resolvedAllocations,
+    payments: paymentRows.map((payment) => ({
+      id: payment.id,
+      orderId: payment.order_id,
+      receiptId,
+      amount: centsToMoney(payment.amount_cents),
+      paidAt,
+    })),
+    orders: await Promise.all(orderIds.map((orderId) => loadOrderById(db, businessId, orderId))),
+    movements: movementRows.map(mapMovementRow),
   }
 }
 
