@@ -27,12 +27,11 @@ test('board renders normative header, six-card ceiling, overflow and empty state
   assert.match(nodeText(empty.root), /Nenhum pedido aguardando preparo\./)
 })
 
-test('CSS fixes a 3x2 dark board, Inter typography, 720p contract and no page scroll', async () => {
+test('CSS keeps the dark Kitchen TV contract, Inter typography, 720p support and no page scroll', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /--kds-bg:\s*#[0-9a-f]{6}/i)
   assert.match(css, /font-family:\s*Inter/i)
   assert.match(css, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
-  assert.match(css, /grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
   assert.match(css, /overflow:\s*hidden/)
   assert.match(css, /@media\s*\([^)]*max-height:\s*720px/)
   assert.doesNotMatch(css, /var\(--(?:color|theme|surface)-/)
@@ -61,16 +60,16 @@ test('board renders one tall order across both rows and reduces visible orders t
   assert.equal(cards.length, 5)
   assert.equal(tall.length, 1)
   assert.equal(tall[0].props['data-layout-demand'], 'tall')
-  assert.equal(tall[0].props.style.gridRow, '1 / span 2')
+  assert.equal(tall[0].props.style.gridRow, '1 / span 6')
   assert.equal(Number.isInteger(tall[0].props.style.gridColumn), true)
   assert.match(nodeText(renderer.root), /\+ 1 pedido fora da tela/)
   for (const card of cards) {
     assert.equal(Number.isInteger(card.props.style.gridColumn), true)
-    assert.match(String(card.props.style.gridRow), /^(1|2|1 \/ span 2)$/)
+    assert.match(String(card.props.style.gridRow), /^(1|4|1 \/ span 6)$/)
   }
 })
 
-test('board positions multiple tall cards explicitly without creating a third grid row', async (t) => {
+test('board positions multiple tall cards explicitly without exceeding the focus micro-grid', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
   const orders = [
@@ -87,14 +86,20 @@ test('board positions multiple tall cards explicitly without creating a third gr
   assert.equal(cards.length, 4)
   assert.equal(tall.length, 2)
   assert.equal(new Set(tall.map((node) => node.props.style.gridColumn)).size, 2)
-  assert.equal(cards.some((node) => String(node.props.style.gridRow).startsWith('3')), false)
+  assert.equal(cards.every((node) => {
+    const row = Number(String(node.props.style.gridRow).split(' ')[0])
+    const span = Number(node.props['data-grid-span'])
+    return row + span - 1 <= 6
+  }), true)
   assert.match(nodeText(renderer.root), /\+ 1 pedido fora da tela/)
 })
 
-test('CSS gives tall cards a two-row contract without enabling implicit page growth', async () => {
+test('CSS keeps explicit profile tracks without enabling implicit page growth', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /\.kds-card--tall\s*\{[^}]*grid-row:/s)
-  assert.match(css, /grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(css, /data-layout-profile="focus"[\s\S]*grid-template-rows:\s*repeat\(6,/)
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-rows:\s*repeat\(8,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(12,/)
   assert.doesNotMatch(css, /grid-auto-rows:\s*(?!0)/)
 })
 
@@ -169,7 +174,18 @@ test('board renders balanced 4x2 density at 1366x768 and reports overflow beyond
 test('CSS defines explicit focus, balanced and compact grid contracts', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /data-layout-profile="focus"[^}]*\.kds-grid|data-layout-profile="focus"/s)
-  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(2,/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(3,/)
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(8,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(12,/)
   assert.match(css, /\.kds-card--full\s*\{[^}]*grid-row:\s*1\s*\/\s*span\s*3/s)
+})
+
+
+test('four-column density increases item and note typography while reclaiming vertical card space', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.18rem\)/)
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*--kds-note-size:\s*\.84em/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-note-size:\s*\.8em/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(12,/)
 })
