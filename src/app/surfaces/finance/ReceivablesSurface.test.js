@@ -20,7 +20,7 @@ const order = {
 
 const queryState = {
   search: '',
-  displayMode: 'client',
+  displayMode: 'orders',
   activeView: 'pending',
   timingFilter: 'all',
   sortMode: 'urgency',
