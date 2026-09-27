@@ -373,3 +373,70 @@ test('compact positioning spreads nine short cards across all four columns befor
   ])
   assert.deepEqual(positions[8], { column: 1, row: 3 })
 })
+
+
+test('five short orders move to the balanced four-column profile while four stay spacious', () => {
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 4 }).id, 'focus')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 5 }).id, 'balanced')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 8 }).id, 'balanced')
+})
+
+test('compact short cards use quarter-height micro-grid spans instead of one third of the board', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 12 })
+  const short = getKitchenCardContentMetrics([
+    item('Marmita executiva'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const medium = getKitchenCardContentMetrics([
+    item('Marmita executiva'),
+    item('Refrigerante'),
+    item('Sobremesa'),
+    item('Batata frita'),
+  ], { viewportHeight: 924, boardProfile: profile })
+
+  assert.equal(profile.id, 'compact')
+  assert.equal(profile.gridRows, 12)
+  assert.equal(profile.maxSlots, 48)
+  assert.equal(short.gridSpan, 3)
+  assert.equal(medium.gridSpan >= 3, true)
+  assert.equal(medium.gridSpan <= 4, true)
+})
+
+test('compact micro-grid can show sixteen truly short orders without changing item font semantics', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 16 })
+  const entries = Array.from({ length: 16 }, (_, index) => ({
+    order: {
+      id: `micro-${index + 1}`,
+      items: [item('Marmita')],
+    },
+  }))
+  const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
+  const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
+
+  assert.equal(packed.cards.length, 16)
+  assert.equal(packed.usedSlots, 48)
+  assert.equal(packed.overflow, 0)
+  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 3), true)
+  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 10)
+})
+
+test('compact masonry preserves source priority order when placing mixed card heights', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 10 })
+  const entries = [
+    normalEntry('p-1'),
+    {
+      order: {
+        id: 'p-2',
+        items: Array.from({ length: 8 }, (_, index) => item(`Pedido grande ${index + 1}`)),
+      },
+    },
+    normalEntry('p-3'),
+    normalEntry('p-4'),
+    normalEntry('p-5'),
+  ]
+  const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 924 })
+  const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
+
+  assert.deepEqual(positioned.map((card) => card.order.id), ['p-1', 'p-2', 'p-3', 'p-4', 'p-5'])
+  assert.equal(positioned[0].gridPosition.gridColumn, 1)
+  assert.equal(positioned[1].gridPosition.gridColumn, 2)
+})
