@@ -55,29 +55,21 @@ test('invalid release sections are isolated from the renderable catalog', () => 
   assert.deepEqual(catalog.map((item) => item.id), ['good'])
 })
 
-test('current release is the Reporting Center tour while previous releases keep their formats', () => {
-  const [releaseItem, kitchenRelease, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
+test('current release announces grouped receivables while previous releases keep their formats', () => {
+  const [releaseItem, reportingRelease, kitchenRelease, previousRelease] = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
 
-  assert.equal(releaseItem.id, 'release-2026-09-reporting-center')
-  assert.equal(releaseItem.title, 'Nova Central de Relatórios')
-  assert.match(releaseItem.summary, /desktop/)
-  assert.equal(releaseItem.items.length, 0)
-  assert.equal(releaseItem.slides.length, 5)
-  assert.deepEqual(releaseItem.slides.map((slide) => slide.title), [
-    'Nova Central de Relatórios',
-    'Operação e vendas com mais contexto',
-    'Produtos que puxam resultado',
-    'Do consolidado ao detalhe',
-    'Exporte e compartilhe',
+  assert.equal(releaseItem.id, 'release-2026-09-receivables-client-batching')
+  assert.equal(releaseItem.title, 'A Receber por cliente')
+  assert.match(releaseItem.summary, /vários pedidos.*mesmo cliente/i)
+  assert.equal(releaseItem.items.length, 3)
+  assert.equal(releaseItem.slides.length, 0)
+  assert.deepEqual(releaseItem.items.map((item) => item.title), [
+    'Pendências agrupadas por cliente',
+    'Escolha quais pedidos receber',
+    'Baixe vários pedidos de uma vez',
   ])
-  assert.deepEqual(releaseItem.slides.map((slide) => slide.image), [
-    '/release/reporting-center-1.webp',
-    '/release/reporting-center-2.webp',
-    '/release/reporting-center-3.webp',
-    '/release/reporting-center-4.webp',
-    '/release/reporting-center-5.webp',
-  ])
-  assert.match(releaseItem.slides[0].description, /somente.*desktop/i)
+  assert.equal(reportingRelease.id, 'release-2026-09-reporting-center')
+  assert.equal(reportingRelease.slides.length, 5)
   assert.equal(kitchenRelease.id, 'release-2026-09-kitchen-tv')
   assert.equal(kitchenRelease.title, 'Nova TV da Cozinha')
   assert.equal(kitchenRelease.items.length, 0)
@@ -172,7 +164,8 @@ test('catalog normalization is idempotent for item and slide releases', () => {
   const once = normalizeNotificationCatalog(SYSTEM_NOTIFICATIONS)
   const twice = normalizeNotificationCatalog(once)
   assert.deepEqual(twice, once)
-  assert.equal(twice[0].slides.length, 5)
+  assert.equal(twice[0].items.length, 3)
   assert.equal(twice[1].slides.length, 5)
-  assert.equal(twice[2].items.length, 3)
+  assert.equal(twice[2].slides.length, 5)
+  assert.equal(twice[3].items.length, 3)
 })
