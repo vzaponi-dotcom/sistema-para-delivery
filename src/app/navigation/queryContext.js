@@ -8,6 +8,7 @@ const QUERY_FIELDS = Object.freeze({
   products: Object.freeze(['search', 'categoryFilter']),
   receivables: Object.freeze([
     'search',
+    'displayMode',
     'activeView',
     'timingFilter',
     'sortMode',
@@ -26,6 +27,7 @@ export function createQueryContext() {
     products: { search: '', categoryFilter: 'Todos' },
     receivables: {
       search: '',
+      displayMode: 'client',
       activeView: 'pending',
       timingFilter: 'all',
       sortMode: 'urgency',
@@ -42,7 +44,9 @@ export function patchQueryContext(state, page, patch) {
 
   const allowedPatch = {}
   for (const field of fields) {
-    if (Object.hasOwn(patch, field)) allowedPatch[field] = patch[field]
+    if (!Object.hasOwn(patch, field)) continue
+    if (page === 'receivables' && field === 'displayMode' && !['client', 'orders'].includes(patch[field])) continue
+    allowedPatch[field] = patch[field]
   }
   if (!Object.keys(allowedPatch).length) return state
 
