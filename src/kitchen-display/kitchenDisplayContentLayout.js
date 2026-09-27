@@ -23,9 +23,9 @@ const BOARD_LINE_CAPACITY = Object.freeze({
 })
 
 const KITCHEN_BOARD_PROFILES = Object.freeze({
-  focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, maxSlots: 6 }),
-  balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, maxSlots: 8 }),
-  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, maxSlots: 12 }),
+  focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18 }),
+  balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32 }),
+  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, gridRows: 12, maxSlots: 48 }),
 })
 
 const cleanSpaces = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
@@ -59,7 +59,7 @@ export function resolveKitchenBoardProfile({ viewportWidth, viewportHeight, queu
   const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
   const hasViewport = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
 
-  if (!hasViewport || count <= 6) return { ...KITCHEN_BOARD_PROFILES.focus }
+  if (!hasViewport || count <= 4) return { ...KITCHEN_BOARD_PROFILES.focus }
   if (count >= 9 && width >= 1440 && height >= 820) return { ...KITCHEN_BOARD_PROFILES.compact }
   if (width >= 1100 && height >= 620) return { ...KITCHEN_BOARD_PROFILES.balanced }
   return { ...KITCHEN_BOARD_PROFILES.focus }
@@ -92,14 +92,12 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile
   if (twoColumnVisualLines <= capacity.normal) {
     return { layoutDemand: 'normal', rowSpan: 1, columnCount: 2, fitStrategy: 'normal-two-columns', capacity, profile }
   }
-
   if (profile.rows >= 2 && visualLines <= capacity.tall) {
     return { layoutDemand: 'tall', rowSpan: 2, columnCount: 1, fitStrategy: 'tall-one-column', capacity, profile }
   }
   if (profile.rows >= 2 && twoColumnVisualLines <= capacity.tall) {
     return { layoutDemand: 'tall', rowSpan: 2, columnCount: 2, fitStrategy: 'tall-two-columns', capacity, profile }
   }
-
   if (profile.rows >= 3) {
     const fullCapacity = capacity.full ?? capacity.tall * 1.65
     if (visualLines <= fullCapacity) {
@@ -122,7 +120,6 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile
       overflowRisk: twoColumnVisualLines > fullCapacity,
     }
   }
-
   return {
     layoutDemand: 'tall',
     rowSpan: 2,
@@ -132,6 +129,16 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile
     profile,
     overflowRisk: twoColumnVisualLines > capacity.tall,
   }
+}
+
+const resolveGridSpan = ({ profile, visualLines, twoColumnVisualLines, density, layoutDemand, overflowRisk }) => {
+  if (profile.id === 'focus') return layoutDemand === 'normal' ? 3 : 6
+  if (profile.id === 'balanced') return layoutDemand === 'normal' ? 4 : 8
+
+  if (layoutDemand === 'full') return overflowRisk ? 12 : 9
+  if (layoutDemand === 'tall') return 6
+  if (density === 'comfortable' && Math.min(visualLines, twoColumnVisualLines || visualLines) <= 3) return 3
+  return 4
 }
 
 export function getKitchenCardContentMetrics(items = [], { viewportHeight, boardProfile } = {}) {
@@ -147,6 +154,14 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
       : 'comfortable'
   const viewportProfile = resolveKitchenViewportProfile(viewportHeight)
   const fit = resolveFitStrategy({ visualLines, twoColumnVisualLines, viewportProfile, boardProfile })
+  const gridSpan = resolveGridSpan({
+    profile: fit.profile,
+    visualLines,
+    twoColumnVisualLines,
+    density,
+    layoutDemand: fit.layoutDemand,
+    overflowRisk: fit.overflowRisk === true,
+  })
 
   return {
     itemCount,
@@ -157,6 +172,7 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
     boardProfile: fit.profile.id,
     layoutDemand: fit.layoutDemand,
     rowSpan: fit.rowSpan,
+    gridSpan,
     columnCount: fit.columnCount,
     fitStrategy: fit.fitStrategy,
     normalLineCapacity: fit.capacity.normal,
@@ -171,32 +187,34 @@ const normalizedSlotCeiling = (value, fallback = 6) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
-const cardRowSpan = (card, rows = 2) => Math.min(
-  Math.max(1, Math.trunc(Number(card?.rowSpan ?? card?.contentMetrics?.rowSpan ?? (card?.layoutDemand === 'tall' ? 2 : 1))) || 1),
-  Math.max(1, rows),
-)
+const cardGridSpan = (card, profile, boardProfileProvided) => {
+  if (!boardProfileProvided) {
+    return Math.min(
+      Math.max(1, Math.trunc(Number(card?.rowSpan ?? card?.contentMetrics?.rowSpan ?? (card?.layoutDemand === 'tall' ? 2 : 1))) || 1),
+      Math.max(1, profile.rows),
+    )
+  }
+  return Math.min(
+    Math.max(1, Math.trunc(Number(card?.gridSpan ?? card?.contentMetrics?.gridSpan)) || 1),
+    Math.max(1, profile.gridRows),
+  )
+}
 
-const assignKitchenGrid = (cards, boardProfile) => {
+const assignKitchenGrid = (cards, boardProfile, boardProfileProvided = true) => {
   const profile = normalizeBoardProfile(boardProfile)
   const source = Array.isArray(cards) ? cards : []
-  const occupancy = Array.from({ length: profile.rows }, () => Array(profile.columns).fill(false))
+  const rowCount = boardProfileProvided ? profile.gridRows : profile.rows
+  const occupancy = Array.from({ length: rowCount }, () => Array(profile.columns).fill(false))
   const placements = new Array(source.length)
 
-  // Place larger cards first so a later complex order can still use contiguous vertical
-  // space without changing which orders were selected. Within the same span, keep
-  // source order. Each card then takes the first available cell in row-major order,
-  // spreading short orders across every column before starting a new row.
-  const placementOrder = source
-    .map((card, index) => ({ index, span: cardRowSpan(card, profile.rows) }))
-    .sort((a, b) => b.span - a.span || a.index - b.index)
-
-  for (const current of placementOrder) {
+  for (let index = 0; index < source.length; index += 1) {
+    const span = cardGridSpan(source[index], profile, boardProfileProvided)
     let placed = false
 
-    for (let row = 0; row <= profile.rows - current.span && !placed; row += 1) {
+    for (let row = 0; row <= rowCount - span && !placed; row += 1) {
       for (let column = 0; column < profile.columns; column += 1) {
         let available = true
-        for (let offset = 0; offset < current.span; offset += 1) {
+        for (let offset = 0; offset < span; offset += 1) {
           if (occupancy[row + offset][column]) {
             available = false
             break
@@ -204,13 +222,11 @@ const assignKitchenGrid = (cards, boardProfile) => {
         }
         if (!available) continue
 
-        for (let offset = 0; offset < current.span; offset += 1) {
-          occupancy[row + offset][column] = true
-        }
-        placements[current.index] = {
+        for (let offset = 0; offset < span; offset += 1) occupancy[row + offset][column] = true
+        placements[index] = {
           gridColumn: column + 1,
-          gridRow: current.span > 1 ? `${row + 1} / span ${current.span}` : row + 1,
-          rowSpan: current.span,
+          gridRow: span > 1 ? `${row + 1} / span ${span}` : row + 1,
+          rowSpan: span,
         }
         placed = true
         break
@@ -226,13 +242,14 @@ const assignKitchenGrid = (cards, boardProfile) => {
 export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight, boardProfile } = {}) {
   const source = Array.isArray(entries) ? entries : []
   const profile = normalizeBoardProfile(boardProfile)
-  const slotCeiling = normalizedSlotCeiling(maxSlots, boardProfile ? profile.maxSlots : 6)
+  const hasBoardProfile = Boolean(boardProfile)
+  const slotCeiling = normalizedSlotCeiling(maxSlots, hasBoardProfile ? profile.maxSlots : 6)
   const cards = []
   let usedSlots = 0
 
   for (const entry of source) {
     const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportHeight, boardProfile })
-    const slotCost = metrics.rowSpan
+    const slotCost = hasBoardProfile ? metrics.gridSpan : metrics.rowSpan
     if (usedSlots + slotCost > slotCeiling) break
 
     const candidate = {
@@ -240,9 +257,10 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight
       contentMetrics: metrics,
       layoutDemand: metrics.layoutDemand,
       rowSpan: metrics.rowSpan,
+      gridSpan: metrics.gridSpan,
       slotCost,
     }
-    if (boardProfile && !assignKitchenGrid([...cards, candidate], profile)) break
+    if (hasBoardProfile && !assignKitchenGrid([...cards, candidate], profile, true)) break
 
     cards.push(candidate)
     usedSlots += slotCost
@@ -259,11 +277,12 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight
 export function positionKitchenDisplayGrid(cards = [], { boardProfile } = {}) {
   const source = Array.isArray(cards) ? cards : []
   const profile = normalizeBoardProfile(boardProfile)
-  const placement = assignKitchenGrid(source, profile)
+  const hasBoardProfile = Boolean(boardProfile)
+  const placement = assignKitchenGrid(source, profile, hasBoardProfile)
 
   if (!placement) return source.map((card) => ({
     ...card,
-    gridPosition: { gridColumn: 1, gridRow: 1, rowSpan: cardRowSpan(card, profile.rows) },
+    gridPosition: { gridColumn: 1, gridRow: 1, rowSpan: cardGridSpan(card, profile, hasBoardProfile) },
   }))
 
   return source.map((card, index) => ({
