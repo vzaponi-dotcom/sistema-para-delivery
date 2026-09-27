@@ -150,7 +150,7 @@
   background: var(--surface);
 }
 
-.receivable-client-card.is-expanded {
+.receivable-client-card[data-expanded='true'] {
   border-color: var(--primary-border, var(--primary));
   box-shadow: var(--shadow-sm);
 }
