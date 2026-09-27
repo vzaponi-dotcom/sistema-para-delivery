@@ -293,6 +293,42 @@
 .receivable-client-order-main small { color: var(--muted); font-size: 0.69rem; }
 .receivable-client-order-amount { white-space: nowrap; font-size: 0.82rem; }
 
+.receivable-client-order-main { cursor: pointer; }
+
+.receivable-client-promise-action {
+  grid-column: 2 / -1;
+  justify-self: start;
+  min-width: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.71rem;
+  font-weight: 780;
+  text-align: left;
+  cursor: pointer;
+}
+
+.receivable-client-promise-action:hover:not(:disabled) {
+  background: var(--primary-soft);
+}
+
+.receivable-client-promise-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.receivable-client-promise-action > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .receivables-client-panel {
   min-width: 0;
   max-width: 100%;
@@ -575,6 +611,7 @@
 .receivable-ledger-row:focus-visible,
 .receivable-client-card-header:focus-visible,
 .receivable-client-order-select:focus-within,
+.receivable-client-promise-action:focus-visible,
 .receivables-display-mode button:focus-visible,
 .receivables-summary-card:focus-visible,
 .receivables-filter-strip button:focus-visible,
@@ -663,6 +700,10 @@
   .receivable-client-inline-orders { display: grid; }
   .receivables-client-list.has-selection { padding-bottom: 84px; }
   .receivable-client-order-select { min-height: 52px; }
+  .receivable-client-promise-action {
+    min-height: 44px;
+    margin: -2px 0 -4px;
+  }
   .receivables-payment-desktop-action { display: none; }
   .receivables-header-actions { display: none; }
   .receivables-payment-fab {
