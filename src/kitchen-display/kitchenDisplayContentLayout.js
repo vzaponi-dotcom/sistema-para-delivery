@@ -131,12 +131,13 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, viewportProfile
   }
 }
 
-const resolveGridSpan = ({ profile, visualLines, twoColumnVisualLines, density, layoutDemand, overflowRisk }) => {
+const resolveGridSpan = ({ profile, visualLines, twoColumnVisualLines, itemCount, hasNotes, density, layoutDemand, overflowRisk }) => {
   if (profile.id === 'focus') return layoutDemand === 'normal' ? 3 : 6
   if (profile.id === 'balanced') return layoutDemand === 'normal' ? 4 : 8
 
   if (layoutDemand === 'full') return overflowRisk ? 12 : 9
   if (layoutDemand === 'tall') return 6
+  if (itemCount === 1 && !hasNotes && visualLines === 1) return 2
   if (density === 'comfortable' && Math.min(visualLines, twoColumnVisualLines || visualLines) <= 3) return 3
   return 4
 }
@@ -147,6 +148,7 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
   const visualLines = itemLineHeights.reduce((total, lines) => total + lines, 0)
   const twoColumnVisualLines = countTwoColumnVisualLines(itemLineHeights)
   const itemCount = safeItems.length
+  const hasNotes = safeItems.some((item) => Boolean(normalizeKitchenItemNote(item)))
   const density = visualLines >= 10 || itemCount >= 8
     ? 'dense'
     : visualLines >= 5 || itemCount >= 5
@@ -158,6 +160,8 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
     profile: fit.profile,
     visualLines,
     twoColumnVisualLines,
+    itemCount,
+    hasNotes,
     density,
     layoutDemand: fit.layoutDemand,
     overflowRisk: fit.overflowRisk === true,
