@@ -19,6 +19,8 @@ export default function ReceivablesSurface({
   queryState,
   onQueryChange,
   onRegisterPayment,
+  onRegisterClientOrdersPayment,
+  onOpenClient,
   canReceivePayments = true,
   canManagePaymentPromises = true,
   canExecutePrinting = true,
@@ -57,6 +59,8 @@ export default function ReceivablesSurface({
     canManagePaymentPromises={canManagePaymentPromises}
     canExecutePrinting={canExecutePrinting}
     onRegisterPayment={onRegisterPayment}
+    onRegisterClientOrdersPayment={onRegisterClientOrdersPayment}
+    onOpenClient={onOpenClient}
     onUpdatePaymentPromise={paymentPromise.updatePaymentPromise}
     queryState={queryState}
     onQueryChange={onQueryChange}
