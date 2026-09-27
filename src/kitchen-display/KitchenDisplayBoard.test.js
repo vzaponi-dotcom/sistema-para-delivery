@@ -105,3 +105,71 @@ test('fullscreen recovery uses a dedicated safe toolbar instead of overlaying th
   assert.match(css, /\.kds-live-toolbar\s*\{[^}]*height:\s*56px/s)
   assert.doesNotMatch(css, /\.kds-fullscreen-action\s*\{[^}]*position:\s*fixed/s)
 })
+
+
+test('board renders compact 4x3 density with ten short orders on the approved large viewport', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
+  const orders = Array.from({ length: 10 }, (_, index) => ({
+    id: `dense-${index + 1}`,
+    orderNumber: 3001 + index,
+    client: `Cliente ${index + 1}`,
+    type: 'Entrega',
+    status: 'Em preparo',
+    createdAt: '2026-09-22T19:50:00.000Z',
+    items: [{ quantity: 1, name: 'Marmita executiva', note: '' }],
+  }))
+
+  const renderer = await h.render(KitchenDisplayBoard, {
+    orders,
+    timing,
+    now: new Date('2026-09-22T20:00:00.000Z'),
+    highlightedIds: new Set(),
+    viewportWidth: 1640,
+    viewportHeight: 924,
+  })
+  const board = renderer.root.find((node) => node.props?.className === 'kds-board')
+  const cards = renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card'))
+
+  assert.equal(board.props['data-layout-profile'], 'compact')
+  assert.equal(cards.length, 10)
+  assert.doesNotMatch(nodeText(renderer.root), /fora da tela/)
+  assert.equal(cards.every((card) => Number(card.props['data-row-span']) === 1), true)
+})
+
+test('board renders balanced 4x2 density at 1366x768 and reports overflow beyond eight', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
+  const orders = Array.from({ length: 10 }, (_, index) => ({
+    id: `balanced-${index + 1}`,
+    orderNumber: 3101 + index,
+    client: `Cliente ${index + 1}`,
+    type: 'Retirada',
+    status: 'Em preparo',
+    createdAt: '2026-09-22T19:50:00.000Z',
+    items: [{ quantity: 1, name: 'Marmita', note: '' }],
+  }))
+
+  const renderer = await h.render(KitchenDisplayBoard, {
+    orders,
+    timing,
+    now: new Date('2026-09-22T20:00:00.000Z'),
+    highlightedIds: new Set(),
+    viewportWidth: 1366,
+    viewportHeight: 768,
+  })
+  const board = renderer.root.find((node) => node.props?.className === 'kds-board')
+  const cards = renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card'))
+
+  assert.equal(board.props['data-layout-profile'], 'balanced')
+  assert.equal(cards.length, 8)
+  assert.match(nodeText(renderer.root), /\+ 2 pedidos fora da tela/)
+})
+
+test('CSS defines explicit focus, balanced and compact grid contracts', async () => {
+  const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
+  assert.match(css, /data-layout-profile="focus"[^}]*\.kds-grid|data-layout-profile="focus"/s)
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(2,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(3,/)
+  assert.match(css, /\.kds-card--full\s*\{[^}]*grid-row:\s*1\s*\/\s*span\s*3/s)
+})
