@@ -404,9 +404,9 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   assert.equal(profile.id, 'compact')
   assert.equal(profile.gridRows, 24)
   assert.equal(profile.maxSlots, 96)
-  assert.equal(short.gridSpan, 2)
-  assert.equal(withNote.gridSpan, 3)
-  assert.equal(wrappedName.gridSpan, 3)
+  assert.equal(short.gridSpan, 3)
+  assert.equal(withNote.gridSpan, 4)
+  assert.equal(wrappedName.gridSpan, 4)
   assert.equal(medium.gridSpan >= 3, true)
   assert.equal(medium.gridSpan, 3)
 })
@@ -423,10 +423,10 @@ test('compact micro-grid can show sixteen truly short orders with reclaimed vert
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 16)
-  assert.equal(packed.usedSlots, 32)
+  assert.equal(packed.usedSlots, 48)
   assert.equal(packed.overflow, 0)
-  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 2), true)
-  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 7)
+  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 3), true)
+  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 10)
 })
 
 test('compact masonry preserves source priority order when placing mixed card heights', () => {
@@ -466,9 +466,9 @@ test('compact one-line nano cards reclaim structure without reducing text', () =
   ], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(profile.gridRows, 24)
-  assert.equal(nano.gridSpan, 2)
+  assert.equal(nano.gridSpan, 3)
   assert.equal(twoItems.gridSpan, 3)
-  assert.equal(noted.gridSpan, 3)
+  assert.equal(noted.gridSpan, 4)
 })
 
 
@@ -506,8 +506,23 @@ test('compact height follows effective visual lines instead of coarse normal/tal
   )
 
   assert.equal(simple.gridSpan, 2)
-  assert.equal(noted.gridSpan, 3)
+  assert.equal(noted.gridSpan, 4)
   assert.equal(four.gridSpan, 3)
   assert.equal(large.gridSpan > four.gridSpan, true)
   assert.equal(large.gridSpan < 12, true)
+})
+
+
+test('nano metrics expose an explicit nano flag only for one-line no-note compact orders', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 12 })
+  const nano = getKitchenCardContentMetrics([item('Marmita')], { viewportHeight: 924, boardProfile: profile })
+  const noted = getKitchenCardContentMetrics([item('Marmita', 'Sem cebola')], { viewportHeight: 924, boardProfile: profile })
+  const wrapped = getKitchenCardContentMetrics([item('Marmita executiva completa família especial')], { viewportHeight: 924, boardProfile: profile })
+
+  assert.equal(nano.isNano, true)
+  assert.equal(nano.gridSpan, 3)
+  assert.equal(noted.isNano, false)
+  assert.equal(noted.gridSpan, 4)
+  assert.equal(wrapped.isNano, false)
+  assert.equal(wrapped.gridSpan, 4)
 })
