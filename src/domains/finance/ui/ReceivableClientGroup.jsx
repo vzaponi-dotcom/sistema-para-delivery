@@ -22,12 +22,16 @@ export default function ReceivableClientGroup({
   onToggle,
   onToggleOrder,
   onSelectAll,
+  selectionLimit = 100,
+  selectionLimitReached = false,
   disabled = false,
 }) {
   if (!group) return null
   const selected = new Set(selectedOrderIds)
   const orderIds = group.orders.map((order) => order.id)
-  const allSelected = orderIds.length > 0 && orderIds.every((id) => selected.has(id))
+  const selectionTargetCount = Math.min(orderIds.length, selectionLimit)
+  const limitedGroup = orderIds.length > selectionLimit
+  const allSelected = selectionTargetCount > 0 && selectedOrderIds.length >= selectionTargetCount
 
   return (
     <article className="receivable-client-card" data-expanded={expanded ? 'true' : 'false'}>
@@ -61,9 +65,14 @@ export default function ReceivableClientGroup({
               onClick={() => onSelectAll?.(group)}
               disabled={disabled || !orderIds.length}
             >
-              {allSelected ? 'Todos selecionados' : 'Selecionar todos'}
+              {allSelected ? `${selectionTargetCount} selecionados` : limitedGroup ? 'Selecionar até 100' : 'Selecionar todos'}
             </button>
           </div>
+          {(limitedGroup || selectionLimitReached) && (
+            <p className="receivable-client-limit-note" role="status">
+              Limite de 100 pedidos por recebimento.
+            </p>
+          )}
           <div className="receivable-client-orders-list">
             {group.entries.map((entry) => {
               const order = entry.order
