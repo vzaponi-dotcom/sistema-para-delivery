@@ -260,7 +260,7 @@ test('board profile keeps small queues spacious and expands density only when us
     id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 }), {
-    id: 'compact', columns: 4, rows: 3, gridRows: 16, maxSlots: 64,
+    id: 'compact', columns: 4, rows: 3, gridRows: 24, maxSlots: 96,
   })
 })
 
@@ -324,11 +324,11 @@ test('compact packing fits twelve short cards in the granular four-column matrix
   for (const card of positioned) {
     assert.ok(card.gridPosition.gridColumn >= 1 && card.gridPosition.gridColumn <= 4)
     const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
-    assert.ok(row >= 1 && row <= 16)
+    assert.ok(row >= 1 && row <= 24)
   }
 })
 
-test('compact packing reserves granular tracks for complex cards without exceeding the sixteen-row matrix', () => {
+test('compact packing reserves granular tracks for complex cards without exceeding the twenty-four-row matrix', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 })
   const entries = [
     {
@@ -345,7 +345,7 @@ test('compact packing reserves granular tracks for complex cards without exceedi
   assert.equal(positioned[0].gridSpan >= 6, true)
   assert.equal(positioned.every((card) => {
     const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
-    return row + card.gridPosition.rowSpan - 1 <= 16
+    return row + card.gridPosition.rowSpan - 1 <= 24
   }), true)
 })
 
@@ -402,11 +402,11 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   ], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(profile.id, 'compact')
-  assert.equal(profile.gridRows, 16)
-  assert.equal(profile.maxSlots, 64)
+  assert.equal(profile.gridRows, 24)
+  assert.equal(profile.maxSlots, 96)
   assert.equal(short.gridSpan, 2)
-  assert.equal(withNote.gridSpan, 4)
-  assert.equal(wrappedName.gridSpan, 4)
+  assert.equal(withNote.gridSpan, 3)
+  assert.equal(wrappedName.gridSpan, 3)
   assert.equal(medium.gridSpan >= 3, true)
   assert.equal(medium.gridSpan, 3)
 })
@@ -465,8 +465,49 @@ test('compact one-line nano cards reclaim structure without reducing text', () =
     item('Marmita', 'Sem cebola'),
   ], { viewportHeight: 924, boardProfile: profile })
 
-  assert.equal(profile.gridRows, 16)
+  assert.equal(profile.gridRows, 24)
   assert.equal(nano.gridSpan, 2)
   assert.equal(twoItems.gridSpan, 3)
-  assert.equal(noted.gridSpan, 4)
+  assert.equal(noted.gridSpan, 3)
+})
+
+
+test('compact layout prefers two item columns earlier when that saves vertical tracks', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 16 })
+  const fourShortItems = getKitchenCardContentMetrics([
+    item('Arroz'),
+    item('Feijão'),
+    item('Batata'),
+    item('Carne'),
+  ], { viewportHeight: 924, boardProfile: profile })
+
+  assert.equal(profile.gridRows, 24)
+  assert.equal(fourShortItems.columnCount, 2)
+  assert.equal(fourShortItems.fitStrategy, 'normal-two-columns')
+  assert.equal(fourShortItems.gridSpan, 3)
+})
+
+test('compact height follows effective visual lines instead of coarse normal/tall buckets', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 16 })
+  const simple = getKitchenCardContentMetrics([item('Marmita')], { viewportHeight: 924, boardProfile: profile })
+  const noted = getKitchenCardContentMetrics([item('Marmita', 'Sem cebola')], { viewportHeight: 924, boardProfile: profile })
+  const four = getKitchenCardContentMetrics([
+    item('Arroz'),
+    item('Feijão'),
+    item('Batata'),
+    item('Carne'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const large = getKitchenCardContentMetrics(
+    Array.from({ length: 8 }, (_, index) => item(
+      `Produto família ${index + 1}`,
+      index % 2 === 0 ? 'Observação de produção' : '',
+    )),
+    { viewportHeight: 924, boardProfile: profile },
+  )
+
+  assert.equal(simple.gridSpan, 2)
+  assert.equal(noted.gridSpan, 3)
+  assert.equal(four.gridSpan, 3)
+  assert.equal(large.gridSpan > four.gridSpan, true)
+  assert.equal(large.gridSpan < 12, true)
 })
