@@ -23,6 +23,7 @@ import {
 } from '../domain/receivables.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import { formatPaymentSummary, paymentSearchText } from '../domain/paymentPresentation.js'
+import { useReceivableClientSelection } from '../application/useReceivableClientSelection.js'
 
 const PRIMARY_VIEWS = ['pending', 'paid']
 const TIMING_FILTERS = ['all', 'today', 'upcoming', 'overdue']
@@ -80,6 +81,7 @@ function Receivables({
   canManagePaymentPromises = true,
   canExecutePrinting = true,
   onRegisterPayment,
+  onRegisterClientOrdersPayment,
   onUpdatePaymentPromise,
   queryState,
   onQueryChange,
@@ -88,7 +90,7 @@ function Receivables({
   renderOrderDetail,
 }) {
   const { formatOrderDate, getOrderItemsSearchText, getOrderItemsSummary } = orderPresentation
-  const { search, activeView, timingFilter, sortMode, exactDateFilter, selectedEntryKey } = queryState
+  const { search, displayMode = 'client', activeView, timingFilter, sortMode, exactDateFilter, selectedEntryKey } = queryState
   const patchQuery = (patch) => onQueryChange(patch)
   const [today, setToday] = useState(() => getBusinessDate())
   const [detailOrder, setDetailOrder] = useState(null)
@@ -97,6 +99,7 @@ function Receivables({
   const [forecastOpen, setForecastOpen] = useState(false)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [isMobileDetail, setIsMobileDetail] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 820px)').matches)
+  const clientSelection = useReceivableClientSelection()
   const normalizedSearch = search.trim().toLowerCase()
   const writeDisabled = disabled || (typeof navigator !== 'undefined' && !navigator.onLine)
 
@@ -116,6 +119,10 @@ function Receivables({
     media.addEventListener?.('change', sync)
     return () => media.removeEventListener?.('change', sync)
   }, [])
+
+  useEffect(() => {
+    if (activeView !== 'pending' || displayMode !== 'client') clientSelection.clear()
+  }, [activeView, displayMode, clientSelection.clear])
 
   const summary = useMemo(() => calculateReceivableSummary(orders, today, orderRules), [orders, today])
   const forecast = useMemo(() => buildReceivablesForecast(orders, today, 7, orderRules), [orders, today])
@@ -182,12 +189,30 @@ function Receivables({
     patchQuery({ selectedEntryKey: null })
   }
 
+  const requestSelectedPayment = ({ clientId, orderIds = clientSelection.selectedOrderIds } = {}) => {
+    if (!canReceivePayments || writeDisabled) return false
+    const selectedOrderIds = [...new Set(
+      (Array.isArray(orderIds) ? orderIds : [])
+        .filter((value) => typeof value === 'string' && value.trim())
+        .map((value) => value.trim()),
+    )]
+    if (selectedOrderIds.length === 1) {
+      if (!onRegisterPayment) return false
+      return onRegisterPayment(selectedOrderIds[0]) !== false
+    }
+    if (selectedOrderIds.length >= 2 && clientId) {
+      const opened = onRegisterClientOrdersPayment?.({ clientId, orderIds: selectedOrderIds })
+      return Boolean(onRegisterClientOrdersPayment) && opened !== false
+    }
+    return false
+  }
+
   const registerPaymentFromDetail = (orderId) => {
     if (!canReceivePayments) return false
+    const targetOrder = orders.find((order) => order.id === orderId) ?? null
     setMobileDetailOpen(false)
     patchQuery({ selectedEntryKey: null })
-    onRegisterPayment?.(orderId)
-    return true
+    return requestSelectedPayment({ clientId: targetOrder?.clientId ?? null, orderIds: [orderId] })
   }
 
   const editPaymentPromiseFromDetail = (order) => {
