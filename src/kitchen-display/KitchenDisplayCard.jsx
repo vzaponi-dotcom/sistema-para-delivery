@@ -43,6 +43,7 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
     data-layout-demand={layoutDemand}
     data-row-span={rowSpan}
     data-grid-span={gridSpan}
+    data-nano-card={metrics.isNano === true}
     data-column-count={columnCount}
     data-content-overflow-risk={metrics.overflowRisk === true}
   >
