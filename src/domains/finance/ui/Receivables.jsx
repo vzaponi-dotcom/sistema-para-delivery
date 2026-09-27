@@ -190,7 +190,7 @@ function Receivables({
   }
 
   const requestSelectedPayment = ({ clientId, orderIds = clientSelection.selectedOrderIds } = {}) => {
-    if (!canReceivePayments || writeDisabled) return false
+    if (!canReceivePayments) return false
     const selectedOrderIds = [...new Set(
       (Array.isArray(orderIds) ? orderIds : [])
         .filter((value) => typeof value === 'string' && value.trim())
