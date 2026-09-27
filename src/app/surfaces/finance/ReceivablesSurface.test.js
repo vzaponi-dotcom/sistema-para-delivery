@@ -20,6 +20,7 @@ const order = {
 
 const queryState = {
   search: '',
+  displayMode: 'client',
   activeView: 'pending',
   timingFilter: 'all',
   sortMode: 'urgency',
@@ -61,4 +62,22 @@ test('ReceivablesSurface composes Finance with Orders detail without a Finance -
   await act(async () => viewOrder.props.onClick())
   assert.match(nodeText(screen.root), /Resumo/)
   assert.ok(buttonNamed(screen.root, 'Reimprimir'))
+})
+
+
+test('receivables wiring exposes single-order, client-batch and customer navigation ports without Finance owning payment', async () => {
+  const surface = await readFile(new URL('./ReceivablesSurface.jsx', import.meta.url), 'utf8')
+  const page = await readFile(new URL('../../../domains/finance/ui/Receivables.jsx', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../../../App.jsx', import.meta.url), 'utf8')
+
+  assert.match(surface, /onRegisterClientOrdersPayment/)
+  assert.match(surface, /onOpenClient/)
+  assert.match(surface, /onRegisterClientOrdersPayment=\{onRegisterClientOrdersPayment\}/)
+  assert.match(surface, /onOpenClient=\{onOpenClient\}/)
+  assert.match(app, /onRegisterClientOrdersPayment=\{clientOrdersPayment\.open\}/)
+  assert.match(app, /onOpenClient=\{canViewClients/)
+  assert.match(page, /useReceivableClientSelection/)
+  assert.match(page, /selectedOrderIds\.length === 1/)
+  assert.match(page, /onRegisterClientOrdersPayment\?\./)
+  assert.doesNotMatch(page, /registerClientOrdersPayment\(|paymentApi/)
 })
