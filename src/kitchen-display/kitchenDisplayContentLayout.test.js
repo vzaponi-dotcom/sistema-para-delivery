@@ -310,24 +310,25 @@ test('compact profile keeps short orders at one row and promotes complex content
   assert.equal(extreme.layoutDemand, 'full')
 })
 
-test('compact packing fits twelve short cards in the explicit 4x3 matrix', () => {
+test('compact packing fits twelve short cards in the granular four-column matrix', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 12 })
   const entries = Array.from({ length: 12 }, (_, index) => normalEntry(`compact-${index + 1}`))
   const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 12)
-  assert.equal(packed.usedSlots, 12)
+  assert.equal(packed.usedSlots, 36)
   assert.equal(packed.overflow, 0)
   assert.equal(positioned.length, 12)
   assert.equal(new Set(positioned.map((card) => `${card.gridPosition.gridColumn}:${card.gridPosition.gridRow}`)).size, 12)
   for (const card of positioned) {
     assert.ok(card.gridPosition.gridColumn >= 1 && card.gridPosition.gridColumn <= 4)
-    assert.ok(Number(card.gridPosition.gridRow) >= 1 && Number(card.gridPosition.gridRow) <= 3)
+    const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
+    assert.ok(row >= 1 && row <= 12)
   }
 })
 
-test('compact packing reserves multiple rows for complex cards without creating an implicit fourth row', () => {
+test('compact packing reserves granular tracks for complex cards without exceeding the twelve-row matrix', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 })
   const entries = [
     {
@@ -341,10 +342,10 @@ test('compact packing reserves multiple rows for complex cards without creating 
   const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
-  assert.equal(positioned[0].rowSpan >= 2, true)
+  assert.equal(positioned[0].gridSpan >= 6, true)
   assert.equal(positioned.every((card) => {
     const row = Number(String(card.gridPosition.gridRow).split(' ')[0])
-    return row + card.gridPosition.rowSpan - 1 <= 3
+    return row + card.gridPosition.rowSpan - 1 <= 12
   }), true)
 })
 
@@ -367,12 +368,12 @@ test('compact positioning spreads nine short cards across all four columns befor
     { column: 4, row: 1 },
   ])
   assert.deepEqual(positions.slice(4, 8), [
-    { column: 1, row: 2 },
-    { column: 2, row: 2 },
-    { column: 3, row: 2 },
-    { column: 4, row: 2 },
+    { column: 1, row: 4 },
+    { column: 2, row: 4 },
+    { column: 3, row: 4 },
+    { column: 4, row: 4 },
   ])
-  assert.deepEqual(positions[8], { column: 1, row: 3 })
+  assert.deepEqual(positions[8], { column: 1, row: 7 })
 })
 
 
