@@ -162,7 +162,10 @@ const resolveGridSpan = ({
   if (profile.id === 'focus') return layoutDemand === 'normal' ? 3 : 6
   if (profile.id === 'balanced') return layoutDemand === 'normal' ? 4 : 8
 
-  if (itemCount === 1 && !hasNotes && visualLines === 1) return 2
+  if (itemCount === 1) {
+    if (!hasNotes && visualLines === 1) return 3
+    return 4
+  }
 
   const effectiveVisualLines = columnCount === 2 ? twoColumnVisualLines : visualLines
   const proportionalSpan = Math.max(3, 1 + Math.ceil(Math.max(1, effectiveVisualLines)))
@@ -184,6 +187,12 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
       : 'comfortable'
   const viewportProfile = resolveKitchenViewportProfile(viewportHeight)
   const fit = resolveFitStrategy({ visualLines, twoColumnVisualLines, itemCount, viewportProfile, boardProfile })
+  const isNano = fit.profile.id === 'compact'
+    && itemCount === 1
+    && !hasNotes
+    && visualLines === 1
+    && fit.layoutDemand === 'normal'
+    && fit.columnCount === 1
   const gridSpan = resolveGridSpan({
     profile: fit.profile,
     visualLines,
@@ -205,6 +214,7 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
     layoutDemand: fit.layoutDemand,
     rowSpan: fit.rowSpan,
     gridSpan,
+    isNano,
     columnCount: fit.columnCount,
     fitStrategy: fit.fitStrategy,
     normalLineCapacity: fit.capacity.normal,
