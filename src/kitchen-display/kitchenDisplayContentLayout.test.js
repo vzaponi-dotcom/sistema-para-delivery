@@ -383,10 +383,16 @@ test('five short orders move to the balanced four-column profile while four stay
   assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 8 }).id, 'balanced')
 })
 
-test('compact short cards use quarter-height micro-grid spans instead of one third of the board', () => {
+test('compact one-line cards use a two-track micro height while notes and wrapped names keep more room', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 12 })
   const short = getKitchenCardContentMetrics([
     item('Marmita executiva'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const withNote = getKitchenCardContentMetrics([
+    item('Marmita executiva', 'Sem cebola'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const wrappedName = getKitchenCardContentMetrics([
+    item('Marmita executiva completa família especial'),
   ], { viewportHeight: 924, boardProfile: profile })
   const medium = getKitchenCardContentMetrics([
     item('Marmita executiva'),
@@ -398,12 +404,14 @@ test('compact short cards use quarter-height micro-grid spans instead of one thi
   assert.equal(profile.id, 'compact')
   assert.equal(profile.gridRows, 12)
   assert.equal(profile.maxSlots, 48)
-  assert.equal(short.gridSpan, 3)
+  assert.equal(short.gridSpan, 2)
+  assert.equal(withNote.gridSpan, 3)
+  assert.equal(wrappedName.gridSpan, 3)
   assert.equal(medium.gridSpan >= 3, true)
   assert.equal(medium.gridSpan <= 4, true)
 })
 
-test('compact micro-grid can show sixteen truly short orders without changing item font semantics', () => {
+test('compact micro-grid can show sixteen truly short orders with reclaimed vertical room', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 16 })
   const entries = Array.from({ length: 16 }, (_, index) => ({
     order: {
@@ -415,10 +423,10 @@ test('compact micro-grid can show sixteen truly short orders without changing it
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 16)
-  assert.equal(packed.usedSlots, 48)
+  assert.equal(packed.usedSlots, 32)
   assert.equal(packed.overflow, 0)
-  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 3), true)
-  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 10)
+  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 2), true)
+  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 7)
 })
 
 test('compact masonry preserves source priority order when placing mixed card heights', () => {
