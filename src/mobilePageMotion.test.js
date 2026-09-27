@@ -25,3 +25,11 @@ test('dashboard no longer retains the removed new-order FAB', () => {
   assert.doesNotMatch(dashboard, /dashboard-new-order-fab/)
   assert.doesNotMatch(dashboardCss, /dashboard-new-order-fab/)
 })
+
+
+test('mobile page transition releases transform after animation so fixed actions stay viewport-fixed', () => {
+  const css = read('src/mobile-navigation.css')
+  assert.doesNotMatch(css, /animation:\s*mobile-page-(?:forward|backward)\s+300ms\s+cubic-bezier\([^)]*\)\s+(?:both|forwards)/)
+  assert.match(css, /\.page-transition\[data-direction='forward'\][\s\S]*animation:\s*mobile-page-forward\s+300ms\s+cubic-bezier\([^)]*\);/)
+  assert.match(css, /\.page-transition\[data-direction='backward'\][\s\S]*animation:\s*mobile-page-backward\s+300ms\s+cubic-bezier\([^)]*\);/)
+})
