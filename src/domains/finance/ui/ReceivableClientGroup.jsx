@@ -53,7 +53,7 @@ export default function ReceivableClientGroup({
           <strong>{currency(group.total)}</strong>
           <small>{group.count} {group.count === 1 ? 'pedido' : 'pedidos'}</small>
         </span>
-        <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={18} />
+        <Icon name={expanded ? 'arrow-up' : 'arrow-down'} size={18} />
       </button>
 
       {expanded && (
