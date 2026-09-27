@@ -2,6 +2,7 @@ import Button from '../../../../shared/ui/Button.jsx'
 import Modal from '../../../../shared/ui/Modal.jsx'
 import { formatOrderDisplayNumber } from '../../../../../shared/orderDisplayNumber.js'
 import PaymentCompositionEditor from '../PaymentCompositionEditor.jsx'
+import './client-orders-payment.css'
 
 export default function ClientOrdersPaymentDialog({ dialog, currency }) {
   if (!dialog?.orders?.length) return null
@@ -19,12 +20,16 @@ export default function ClientOrdersPaymentDialog({ dialog, currency }) {
           <span>{dialog.clientName} · {dialog.orders.length} pedidos selecionados</span>
           <strong>{currency(dialog.totalCents / 100)}</strong>
           <small>O recebimento será lançado uma única vez no Financeiro, com os pedidos quitados juntos.</small>
-          <div className="client-orders-payment-summary" aria-label="Pedidos selecionados">
-            {dialog.orders.map((order) => (
-              <span key={order.id}>
-                {formatOrderDisplayNumber(order)} · {currency(order.total || 0)}
-              </span>
-            ))}
+          <div className="client-orders-payment-summary">
+            <span className="client-orders-payment-summary-label">Pedidos incluídos</span>
+            <ul className="client-orders-payment-summary-list" aria-label="Pedidos selecionados">
+              {dialog.orders.map((order) => (
+                <li key={order.id} className="client-orders-payment-summary-item">
+                  <span className="client-orders-payment-summary-order">{formatOrderDisplayNumber(order)}</span>
+                  <span className="client-orders-payment-summary-amount">{currency(order.total || 0)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
