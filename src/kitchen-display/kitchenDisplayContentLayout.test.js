@@ -254,13 +254,13 @@ test('slot packing keeps six cards when two columns are enough and drops to five
 
 test('board profile keeps small queues spacious and expands density only when useful', () => {
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 4 }), {
-    id: 'focus', columns: 3, rows: 2, maxSlots: 6,
+    id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 8 }), {
-    id: 'balanced', columns: 4, rows: 2, maxSlots: 8,
+    id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 }), {
-    id: 'compact', columns: 4, rows: 3, maxSlots: 12,
+    id: 'compact', columns: 4, rows: 3, gridRows: 12, maxSlots: 48,
   })
 })
 
@@ -273,12 +273,13 @@ test('board profile protects 1366x768 readability instead of forcing three rows'
   assert.equal(profile.id, 'balanced')
   assert.equal(profile.columns, 4)
   assert.equal(profile.rows, 2)
-  assert.equal(profile.maxSlots, 8)
+  assert.equal(profile.gridRows, 8)
+  assert.equal(profile.maxSlots, 32)
 })
 
 test('board profile uses a safe fallback when viewport dimensions are unavailable', () => {
   assert.deepEqual(resolveKitchenBoardProfile({ queueSize: 10 }), {
-    id: 'focus', columns: 3, rows: 2, maxSlots: 6,
+    id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18,
   })
 })
 
