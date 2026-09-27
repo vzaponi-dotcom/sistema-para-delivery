@@ -24,3 +24,21 @@ test('App owns the client-orders payment workflow and closes it with session pay
   assert.match(app, /clientOrdersPayment\.close\(\)/)
   assert.match(app, /clientOrdersPayment\.dialog && <ClientOrdersPaymentDialog/)
 })
+
+
+test('client orders payment summary formats selected orders as a responsive semantic list', async () => {
+  const dialog = await read('./ClientOrdersPaymentDialog.jsx')
+  const css = await read('./client-orders-payment.css')
+
+  assert.match(dialog, /import '\.\/client-orders-payment\.css'/)
+  assert.match(dialog, /className="client-orders-payment-summary"/)
+  assert.match(dialog, /className="client-orders-payment-summary-label"/)
+  assert.match(dialog, /<ul className="client-orders-payment-summary-list"/)
+  assert.match(dialog, /<li key=\{order\.id\} className="client-orders-payment-summary-item">/)
+  assert.match(dialog, /className="client-orders-payment-summary-order"/)
+  assert.match(dialog, /className="client-orders-payment-summary-amount"/)
+
+  assert.match(css, /\.client-orders-payment-summary-list\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,/)
+  assert.match(css, /\.client-orders-payment-summary-item\s*\{[\s\S]*justify-content:\s*space-between/)
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.client-orders-payment-summary-list\s*\{[\s\S]*grid-template-columns:\s*1fr/)
+})
