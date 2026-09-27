@@ -26,6 +26,7 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const layoutDemand = entry.layoutDemand ?? metrics.layoutDemand
   const gridPosition = entry.gridPosition
   const rowSpan = Math.max(1, Number(entry.rowSpan ?? metrics.rowSpan) || 1)
+  const gridSpan = Math.max(1, Number(entry.gridSpan ?? metrics.gridSpan) || rowSpan)
   const layoutClass = layoutDemand === 'full' ? ' kds-card--full' : layoutDemand === 'tall' ? ' kds-card--tall' : ''
   const columnCount = metrics.columnCount === 2 ? 2 : 1
   const twoColumns = columnCount === 2
@@ -41,6 +42,7 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
     data-item-count={items.length}
     data-layout-demand={layoutDemand}
     data-row-span={rowSpan}
+    data-grid-span={gridSpan}
     data-column-count={columnCount}
     data-content-overflow-risk={metrics.overflowRisk === true}
   >
