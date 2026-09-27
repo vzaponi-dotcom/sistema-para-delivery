@@ -47,6 +47,8 @@ import TableServiceExternalActions from './app/surfaces/table-service/TableServi
 import ReceivablesSurface from './app/surfaces/finance/ReceivablesSurface.jsx'
 import OrderPaymentDialog from './app/workflows/payments/order/OrderPaymentDialog.jsx'
 import { useOrderPaymentWorkflow } from './app/workflows/payments/order/useOrderPaymentWorkflow.js'
+import ClientOrdersPaymentDialog from './app/workflows/payments/client-orders/ClientOrdersPaymentDialog.jsx'
+import { useClientOrdersPaymentWorkflow } from './app/workflows/payments/client-orders/useClientOrdersPaymentWorkflow.js'
 import { useTableTabPaymentWorkflow } from './app/workflows/payments/table-tab/useTableTabPaymentWorkflow.js'
 import { hasCapability, legacyCapabilities } from './app/access.js'
 import { resolveDestination } from './app/navigation/resolution.js'
@@ -317,6 +319,19 @@ function App({ capabilities } = {}) {
     onSuccess: showSuccessMessage,
     onError: showApiError,
   })
+  const clientOrdersPayment = useClientOrdersPaymentWorkflow({
+    orders,
+    canReceivePayments,
+    writesBlocked,
+    paymentOptions,
+    defaultPaymentMethod,
+    getSyncGuard,
+    applyOfficialEffects,
+    refreshOfficialData: refreshBootstrapSilently,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+  })
   const tableTabPayment = useTableTabPaymentWorkflow({
     writesBlocked,
     selectionGeneration: selectedComandaGeneration,
@@ -359,6 +374,7 @@ function App({ capabilities } = {}) {
   } = useOrderArrivals({ active: activeTab === 'orders', orders, now: kitchenNow, currentTiming, soundEnabled: kitchenSoundEnabled, soundProfile: kitchenSoundProfile, soundVolume: kitchenSoundVolume })
   const resetSyncState = () => {
     orderPayment.close()
+    clientOrdersPayment.close()
     effectiveConfigVersionRef.current = null
   }
   sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState
@@ -604,6 +620,7 @@ function App({ capabilities } = {}) {
         )}
 
         {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
+        {clientOrdersPayment.dialog && <ClientOrdersPaymentDialog dialog={clientOrdersPayment.dialog} currency={currency} />}
 
         <RegisterRefundDialog open={canRefundPayments && Boolean(refund.refundOrder)} order={refund.refundOrder} paymentOptions={paymentOptions} onClose={refund.close} onConfirm={refund.confirm} submitting={refund.submitting} />
       </AppShell>
