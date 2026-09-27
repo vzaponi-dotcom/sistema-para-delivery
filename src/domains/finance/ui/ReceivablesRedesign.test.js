@@ -21,12 +21,24 @@ test('receivables exposes today upcoming overdue summaries and pending filters',
   assert.match(page, /calculateReceivableSummary/)
 })
 
-test('standard receivables render a flat ledger instead of client cards', async () => {
+test('pending receivables default to client grouping while preserving the flat order list mode', async () => {
   const page = await read('./Receivables.jsx')
-  assert.match(page, /receivables-ledger/)
-  assert.match(page, /receivable-ledger-row/)
-  assert.doesNotMatch(page, /receivable-client-card/)
-  assert.doesNotMatch(page, /groupPendingOrders/)
+  const group = await read('./ReceivableClientGroup.jsx')
+  const panel = await read('./ReceivableClientPanel.jsx')
+
+  assert.match(page, /displayMode = 'client'/)
+  assert.match(page, />Por cliente</)
+  assert.match(page, />Lista de pedidos</)
+  assert.match(page, /groupReceivableEntriesByClient/)
+  assert.match(page, /sortReceivableGroups/)
+  assert.match(page, /<ReceivableClientGroup/)
+  assert.match(page, /<ReceivableClientPanel/)
+  assert.match(page, /displayMode === 'orders'[\s\S]*receivables-ledger/)
+  assert.match(group, /className="receivable-client-card"/)
+  assert.match(group, /aria-expanded=\{expanded\}/)
+  assert.match(panel, /Selecionar todos/)
+  assert.match(panel, /Receber selecionados/)
+  assert.match(panel, /selectedOrderIds/)
 })
 
 test('receivables keeps search and exposes urgency recent and value sorting', async () => {
@@ -75,4 +87,31 @@ test('quick payment delegates to the existing App payment flow and excludes tabl
   assert.match(paymentDialog, /<Modal title="Registrar pagamento"[\s\S]*<PaymentCompositionEditor/)
   assert.match(paymentEditor, /<SystemSelect/)
   assert.doesNotMatch(quick, /registerPaymentApi|\/payment/)
+})
+
+
+test('client grouped receivables expose desktop selection totals and optional customer navigation', async () => {
+  const page = await read('./Receivables.jsx')
+  const panel = await read('./ReceivableClientPanel.jsx')
+
+  assert.match(page, /visibleClientGroups/)
+  assert.match(page, /selectedClientGroup/)
+  assert.match(page, /clientSelection\.activateGroup/)
+  assert.match(page, /clientSelection\.reconcile/)
+  assert.match(page, /requestSelectedPayment/)
+  assert.match(panel, /selectedTotal/)
+  assert.match(panel, /onOpenClient/)
+  assert.match(panel, /Ver cliente/)
+  assert.match(panel, /type="checkbox"/)
+  assert.match(panel, /aria-label=.*pedido/i)
+})
+
+test('client grouping search includes phone and mode changes clear incompatible selection state', async () => {
+  const page = await read('./Receivables.jsx')
+
+  assert.match(page, /order\.clientPhone/)
+  assert.match(page, /Buscar cliente, telefone ou pedido/)
+  assert.match(page, /selectDisplayMode/)
+  assert.match(page, /clientSelection\.clear\(\)/)
+  assert.match(page, /selectedEntryKey: null/)
 })
