@@ -4,11 +4,12 @@ import { readFile } from 'node:fs/promises'
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('receivables ledger keeps comfortable touch targets and horizontal filters on mobile', async () => {
+test('receivables ledger keeps comfortable touch targets and wraps mobile filters inside the card', async () => {
   const css = await read('../../../receivables.css')
 
   assert.match(css, /\.receivable-ledger-row\s*\{[^}]*min-height:\s*(?:44px|[4-9]\dpx)/s)
-  assert.match(css, /\.receivables-filter-strip\s*\{[^}]*overflow-x:\s*auto/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-filter-strip\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[^}]*overflow-x:\s*visible/s)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-filter-strip button\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%[^}]*white-space:\s*nowrap/s)
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.receivable-ledger-table-action\s*\{[^}]*min-height:\s*44px/s)
 })
 
