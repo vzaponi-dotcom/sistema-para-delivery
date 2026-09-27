@@ -86,3 +86,26 @@ test('clear resets both active client and selected orders', async () => {
   assert.deepEqual(probe.getLatest().selectedOrderIds, [])
   probe.unmount()
 })
+
+
+test('selection caps manual and select-all choices at 100 orders in visible order', async () => {
+  const probe = await mountSelection()
+  const ids = Array.from({ length: 105 }, (_, index) => 'o' + String(index + 1).padStart(3, '0'))
+
+  await act(async () => probe.getLatest().activateGroup('client:c1', ids))
+  await act(async () => probe.getLatest().selectAllVisible())
+
+  assert.equal(probe.getLatest().selectionLimit, 100)
+  assert.equal(probe.getLatest().selectedOrderIds.length, 100)
+  assert.deepEqual(probe.getLatest().selectedOrderIds, ids.slice(0, 100))
+  assert.equal(probe.getLatest().selectionLimitReached, true)
+
+  await act(async () => assert.equal(probe.getLatest().toggleOrder(ids[100]), false))
+  assert.equal(probe.getLatest().selectedOrderIds.length, 100)
+
+  await act(async () => probe.getLatest().toggleOrder(ids[0]))
+  await act(async () => assert.equal(probe.getLatest().toggleOrder(ids[100]), true))
+  assert.equal(probe.getLatest().selectedOrderIds.length, 100)
+  assert.ok(probe.getLatest().selectedOrderIds.includes(ids[100]))
+  probe.unmount()
+})
