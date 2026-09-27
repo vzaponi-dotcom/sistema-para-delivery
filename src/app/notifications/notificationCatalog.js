@@ -1,5 +1,29 @@
 export const SYSTEM_NOTIFICATIONS = Object.freeze([
   Object.freeze({
+    id: 'release-2026-09-receivables-client-batching',
+    type: 'release',
+    publishedAt: '2026-09-27T20:30:00-03:00',
+    title: 'A Receber por cliente',
+    summary: 'Agora você pode agrupar as pendências do mesmo cliente, selecionar vários pedidos e registrar o recebimento em uma única operação.',
+    items: Object.freeze([
+      Object.freeze({
+        icon: 'clients',
+        title: 'Pendências agrupadas por cliente',
+        description: 'No modo Por cliente, os pedidos em aberto ficam reunidos para você enxergar quantidade e total com mais clareza.',
+      }),
+      Object.freeze({
+        icon: 'orders',
+        title: 'Escolha quais pedidos receber',
+        description: 'Expanda o cliente e selecione somente os pedidos que serão pagos naquele momento.',
+      }),
+      Object.freeze({
+        icon: 'receipt',
+        title: 'Baixe vários pedidos de uma vez',
+        description: 'Registre o recebimento dos pedidos selecionados em um único fluxo, mantendo cada pedido quitado corretamente.',
+      }),
+    ]),
+  }),
+  Object.freeze({
     id: 'release-2026-09-reporting-center',
     type: 'release',
     publishedAt: '2026-09-26T18:30:00-03:00',
