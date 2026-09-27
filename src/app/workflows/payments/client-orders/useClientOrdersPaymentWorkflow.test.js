@@ -303,3 +303,30 @@ test('response A cannot close or replace a newer client payment target B', async
   })
   probe.unmount()
 })
+
+
+test('capability and offline-write blocks prevent opening the batch payment workflow without API calls', async () => {
+  for (const overrides of [
+    { canReceivePayments: false, writesBlocked: false },
+    { canReceivePayments: true, writesBlocked: true },
+  ]) {
+    const calls = []
+    const probe = await mountWorkflow({
+      ...overrides,
+      api: {
+        registerClientOrdersPayment: async (...args) => {
+          calls.push(args)
+          return paidEffects([order('o1'), order('o2')], args[2])
+        },
+      },
+    })
+
+    await act(async () => assert.equal(
+      probe.getLatest().open({ clientId: 'c1', orderIds: ['o1', 'o2'] }),
+      false,
+    ))
+    assert.equal(probe.getLatest().dialog, null)
+    assert.equal(calls.length, 0)
+    probe.unmount()
+  }
+})
