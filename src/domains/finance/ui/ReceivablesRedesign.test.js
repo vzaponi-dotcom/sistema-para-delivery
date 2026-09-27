@@ -115,3 +115,18 @@ test('client grouping search includes phone and mode changes clear incompatible 
   assert.match(page, /clientSelection\.clear\(\)/)
   assert.match(page, /selectedEntryKey: null/)
 })
+
+test('large client groups disclose the 100-order payment limit and preserve readable access without payment capability', async () => {
+  const page = await read('./Receivables.jsx')
+  const group = await read('./ReceivableClientGroup.jsx')
+  const panel = await read('./ReceivableClientPanel.jsx')
+
+  assert.match(page, /selectionLimitReached/)
+  assert.match(group, /Limite de 100 pedidos por recebimento\./)
+  assert.match(group, /Selecionar até 100/)
+  assert.match(panel, /Limite de 100 pedidos por recebimento\./)
+  assert.match(page, /disabled=\{writeDisabled \|\| !canReceivePayments\}/)
+  assert.match(group, /aria-expanded=\{expanded\}/)
+  assert.match(group, /aria-label=.*Selecionar.*no valor de/s)
+  assert.match(panel, /aria-label=.*Selecionar pedido.*no valor de/s)
+})
