@@ -606,6 +606,31 @@
 
 @media (max-width: 820px) {
   .receivables-summary-grid { grid-template-columns: repeat(3, minmax(148px, 1fr)); overflow-x: auto; padding-bottom: 4px; }
+  .receivables-summary-card {
+    grid-template-columns: 32px minmax(0, 1fr);
+    column-gap: 7px;
+    padding: 12px 10px;
+  }
+  .receivables-summary-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .receivables-summary-card > span:not(.receivables-summary-icon),
+  .receivables-summary-card > strong,
+  .receivables-summary-card > small {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .receivables-summary-card strong {
+    max-width: 100%;
+    font-size: clamp(0.88rem, 4vw, 1rem);
+    letter-spacing: -0.025em;
+    white-space: nowrap;
+  }
+  .receivables-summary-card small {
+    overflow-wrap: anywhere;
+  }
   .receivables-filter-strip {
     width: 100%;
     min-width: 0;
