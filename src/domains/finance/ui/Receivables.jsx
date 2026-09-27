@@ -479,7 +479,7 @@ function Receivables({
             <span>{clientSelection.selectedCount} {clientSelection.selectedCount === 1 ? 'pedido selecionado' : 'pedidos selecionados'}</span>
             <strong>{currency(selectedClientTotal)}</strong>
           </div>
-          <Button type="button" onClick={() => receiveSelectedClientOrders(selectedClientGroup)} disabled={writeDisabled}>
+          <Button type="button" className="receivables-client-receive-button" onClick={() => receiveSelectedClientOrders(selectedClientGroup)} disabled={writeDisabled}>
             Receber
           </Button>
         </div>
