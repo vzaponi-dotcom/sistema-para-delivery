@@ -375,6 +375,36 @@
 .receivables-client-panel-footer strong { white-space: nowrap; font-size: 1rem; }
 .receivables-client-panel-footer .button { width: 100%; min-height: 44px; }
 
+:root {
+  --receivables-receive-contrast: var(--primary-contrast);
+}
+
+:root:not([data-visual-theme='mesiva']) {
+  --receivables-receive-contrast: #fff;
+}
+
+.receivables-client-receive-button.button-primary {
+  color: var(--receivables-receive-contrast);
+  font-weight: 850;
+  opacity: 1;
+  text-shadow: none;
+}
+
+.receivables-client-receive-button.button-primary > span {
+  color: inherit;
+  opacity: 1;
+  font-weight: inherit;
+}
+
+.receivables-client-receive-button.button-primary:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary-fill) 82%, var(--text));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.receivables-client-receive-button.button-primary:disabled {
+  opacity: 0.5;
+}
+
 .receivables-client-selection-bar { display: none; }
 
 .receivable-ledger-avatar {
