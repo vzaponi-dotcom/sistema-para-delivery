@@ -362,9 +362,9 @@ Direção aprovada:
 - subdividir verticalmente os perfis em trilhas menores;
 - cards curtos ocupam apenas a altura necessária;
 - cards médios e grandes consomem mais trilhas;
-- em `compact`, a malha usa 16 trilhas verticais;
+- em `compact`, a malha usa 24 trilhas verticais;
 - pedido curto típico usa 3–5 trilhas, enquanto o nano-card de uma linha usa apenas 2;
-- pedidos maiores usam 5, 8, 12 ou 16 trilhas conforme conteúdo;
+- a altura dos demais cards passa a ser proporcional às linhas visuais efetivas do conteúdo;
 - packing preserva prioridade e usa backtracking apenas para encontrar uma disposição válida, sem promover pedidos inferiores;
 - 1–4 pedidos continuam em `focus`;
 - 5–8 passam para `balanced`;
@@ -396,7 +396,7 @@ No perfil `compact`, um pedido pode usar o menor card da grade quando **todas** 
 - não existe observação;
 - o conteúdo não exige duas colunas nem promoção para `tall/full`.
 
-Esse nano-card usa **2 das 16 trilhas verticais** do perfil compacto. Além da maior granularidade, o chrome interno desse card reduz padding e altura mínima do cabeçalho sem reduzir a tipografia de produção.
+Esse nano-card usa **2 das 24 trilhas verticais** do perfil compacto. Além da maior granularidade, o chrome interno desse card reduz padding e altura mínima do cabeçalho sem reduzir a tipografia de produção.
 
 Pedidos de um item **não** viram micro-card quando:
 
@@ -414,9 +414,9 @@ Comportamento esperado:
 - demais cards continuam usando a classificação de altura já aprovada.
 
 
-### Malha final de 16 trilhas
+### Malha final de 24 trilhas
 
-A homologação com filas mistas mostrou que 12 trilhas ainda deixavam alguns cards simples mais altos do que o necessário. O perfil `compact` passa, portanto, a usar **16 trilhas verticais**.
+A homologação com filas mistas mostrou que 12 trilhas ainda deixavam alguns cards simples mais altos do que o necessário. O perfil `compact` passa, portanto, a usar **24 trilhas verticais**.
 
 Direção final:
 
@@ -424,9 +424,25 @@ Direção final:
 - 2 itens curtos → 3 trilhas;
 - 1 item com nota ou nome quebrado → 4 trilhas;
 - conteúdo normal intermediário → 4–5 trilhas;
-- `tall` → 8 trilhas;
-- `full` → 12 ou 16 trilhas;
+- em pedidos de 4+ itens, duas colunas são preferidas mais cedo quando reduzirem a altura;
+- cards médios e grandes usam um span proporcional às linhas visuais efetivas, até o limite da coluna;
 - a fonte dos itens e observações permanece igual à versão já homologada;
 - o nano-card reduz apenas espaço estrutural: padding, margem e min-height do bloco principal;
 - scheduled simples usa a mesma classificação de conteúdo e pode ser nano-card;
 - prioridade, proteção do scheduled e overflow permanecem invariantes.
+
+
+### Compactação proporcional por linhas visuais
+
+A terceira homologação mostrou que buckets de altura ainda deixavam espaço vertical ocioso em pedidos médios e grandes. A grade compacta passa a usar **24 trilhas internas por coluna**, mantendo as mesmas 4 colunas e a mesma tipografia já aprovada.
+
+A altura agora é calculada de forma proporcional ao conteúdo realmente renderizado:
+
+- 1 item simples, uma linha, sem observação → 2 trilhas;
+- 1 item com observação ou nome quebrado → pelo menos 3 trilhas;
+- 4+ itens preferem duas colunas quando isso reduz a altura e ainda cabe no limite de leitura;
+- o span restante deriva das linhas visuais efetivas após escolher 1 ou 2 colunas;
+- pedidos extremos continuam limitados à altura total da coluna;
+- a fonte de itens e observações não é reduzida.
+
+Essa mudança permite usar melhor espaços verticais que antes ficavam presos em categorias coarse como normal/tall/full, sem alterar prioridade operacional nem reordenar a fila.
