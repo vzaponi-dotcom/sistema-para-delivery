@@ -131,3 +131,92 @@ test('header counters describe the complete queue rather than only visible cards
   assert.equal(result.cards.length, 6)
   assert.equal(result.overflow, 4)
 })
+
+
+test('large viewport expands short-order capacity to twelve while small queues remain focus-sized', () => {
+  const ten = buildKitchenDisplayPresentation(
+    Array.from({ length: 10 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1640, viewportHeight: 924 },
+  )
+  assert.equal(ten.profile.id, 'compact')
+  assert.equal(ten.cards.length, 10)
+  assert.equal(ten.overflow, 0)
+
+  const twelve = buildKitchenDisplayPresentation(
+    Array.from({ length: 12 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+  assert.equal(twelve.profile.id, 'compact')
+  assert.equal(twelve.cards.length, 12)
+  assert.equal(twelve.overflow, 0)
+
+  const four = buildKitchenDisplayPresentation(
+    Array.from({ length: 4 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+  assert.equal(four.profile.id, 'focus')
+  assert.equal(four.cards.length, 4)
+})
+
+test('1366x768 protects readability by using the balanced eight-card profile', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 10 }, (_, index) => preparing(index)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1366, viewportHeight: 768 },
+  )
+  assert.equal(result.profile.id, 'balanced')
+  assert.equal(result.cards.length, 8)
+  assert.equal(result.overflow, 2)
+})
+
+test('compact profile protects one scheduled order while using the remaining capacity for preparing work', () => {
+  const orders = [
+    ...Array.from({ length: 11 }, (_, index) => preparing(index)),
+    scheduled(1),
+  ]
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length, 12)
+  assert.equal(result.cards.filter(({ phase }) => phase === 'preparing').length, 11)
+  assert.equal(result.cards.filter(({ phase }) => phase === 'scheduled').length, 1)
+  assert.equal(result.cards.at(-1).order.id, 's-01')
+  assert.equal(result.overflow, 0)
+})
+
+test('compact profile gives complex work extra rows before pushing lower-priority cards to overflow', () => {
+  const orders = [
+    preparing(1, undefined, denseItems('Pedido grande')),
+    ...Array.from({ length: 11 }, (_, index) => preparing(index + 2)),
+  ]
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards[0].rowSpan >= 2, true)
+  assert.equal(result.cards.length < 12, true)
+  assert.equal(result.overflow, orders.length - result.cards.length)
+  assert.equal(result.cards[0].order.id, 'p-01')
+})
