@@ -402,11 +402,11 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   ], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(profile.id, 'compact')
-  assert.equal(profile.gridRows, 12)
-  assert.equal(profile.maxSlots, 48)
+  assert.equal(profile.gridRows, 16)
+  assert.equal(profile.maxSlots, 64)
   assert.equal(short.gridSpan, 2)
-  assert.equal(withNote.gridSpan, 3)
-  assert.equal(wrappedName.gridSpan, 3)
+  assert.equal(withNote.gridSpan, 4)
+  assert.equal(wrappedName.gridSpan, 4)
   assert.equal(medium.gridSpan >= 3, true)
   assert.equal(medium.gridSpan <= 4, true)
 })
@@ -449,4 +449,24 @@ test('compact masonry preserves source priority order when placing mixed card he
   assert.deepEqual(positioned.map((card) => card.order.id), ['p-1', 'p-2', 'p-3', 'p-4', 'p-5'])
   assert.equal(positioned[0].gridPosition.gridColumn, 1)
   assert.equal(positioned[1].gridPosition.gridColumn, 2)
+})
+
+
+test('compact one-line nano cards reclaim structure without reducing text', () => {
+  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 12 })
+  const nano = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const twoItems = getKitchenCardContentMetrics([
+    item('Marmita'),
+    item('Suco'),
+  ], { viewportHeight: 924, boardProfile: profile })
+  const noted = getKitchenCardContentMetrics([
+    item('Marmita', 'Sem cebola'),
+  ], { viewportHeight: 924, boardProfile: profile })
+
+  assert.equal(profile.gridRows, 16)
+  assert.equal(nano.gridSpan, 2)
+  assert.equal(twoItems.gridSpan, 3)
+  assert.equal(noted.gridSpan, 4)
 })
