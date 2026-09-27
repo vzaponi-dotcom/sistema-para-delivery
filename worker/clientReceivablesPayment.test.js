@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { OperationalDb } from './test-support/operationalDb.js'
 import { registerClientOrdersPayment } from './paymentRepository.js'
+import { registerOrderRefund } from './orderCancellation.js'
 
 const BUSINESS = 'amor-e-sabor'
 const OTHER_BUSINESS = 'other-business'
@@ -311,4 +312,39 @@ test('selected-order state race leaves only the concurrent external payment and 
   assert.deepEqual(counts(db), { receipts: 1, allocations: 0, payments: 1, movements: 0 })
   assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM payments WHERE order_id = 'o2'").get().n, 0)
   assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM settings_tx_assertions').get().n, 0)
+})
+
+
+test('refund of one order from a mixed shared receipt stays integral to that order and preserves the original receipt', async () => {
+  const db = new ClientReceivablesDb()
+  const payment = await registerClientOrdersPayment(db, BUSINESS, 'c1', ['o1', 'o2'], split69, NOW)
+  const originalReceipt = db.sqlite.prepare('SELECT id, total_cents FROM payment_receipts WHERE id = ?').get(payment.receipt.id)
+  const originalAllocations = db.sqlite.prepare('SELECT method_code, amount_cents FROM payment_allocations WHERE receipt_id = ? ORDER BY method_code').all(payment.receipt.id)
+
+  db.sqlite.prepare("UPDATE orders SET status = 'Cancelado', cancelled_at = ? WHERE id = 'o1' AND business_id = ?")
+    .run('2026-09-27T01:00:00.000Z', BUSINESS)
+
+  const result = await registerOrderRefund(
+    db,
+    BUSINESS,
+    'o1',
+    { refundMethod: 'Pix' },
+    new Date('2026-09-27T01:05:00.000Z'),
+  )
+
+  assert.equal(result.order.refundState, 'refunded')
+  assert.equal(result.order.paidAmount, 49)
+  assert.equal(result.movement.value, 49)
+  assert.equal(result.movement.paymentMethod, 'Pix')
+  assert.equal(result.movement.paymentId, payment.payments.find((item) => item.orderId === 'o1').id)
+
+  assert.deepEqual(
+    db.sqlite.prepare('SELECT id, total_cents FROM payment_receipts WHERE id = ?').get(payment.receipt.id),
+    originalReceipt,
+  )
+  assert.deepEqual(
+    db.sqlite.prepare('SELECT method_code, amount_cents FROM payment_allocations WHERE receipt_id = ? ORDER BY method_code').all(payment.receipt.id),
+    originalAllocations,
+  )
+  assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM payments WHERE receipt_id = ?').get(payment.receipt.id).n, 2)
 })
