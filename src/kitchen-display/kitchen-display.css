@@ -663,21 +663,21 @@ button { font: inherit; }
 
 
 /* Nano cards: one simple production line keeps full typography and removes empty chrome. */
-.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] {
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] {
   padding: clamp(6px, .55vw, 9px);
 }
-.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__main {
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__main {
   min-height: 24px;
   margin: 2px 0 3px;
   padding-bottom: 3px;
   gap: .35rem;
 }
-.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__items {
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__items {
   gap: 1px;
 }
-.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__meta {
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__meta {
   gap: .24rem;
 }
-.kds-board[data-layout-profile="compact"] .kds-card[data-grid-span="2"] .kds-card__meta .kds-card__type {
+.kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__meta .kds-card__type {
   padding: .14rem .26rem;
 }
