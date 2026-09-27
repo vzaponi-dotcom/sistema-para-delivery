@@ -480,7 +480,7 @@ button { font: inherit; }
 
 .kds-board[data-layout-profile="focus"] .kds-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
 }
 
 .kds-board[data-layout-profile="balanced"] {
@@ -513,18 +513,20 @@ button { font: inherit; }
 }
 .kds-board[data-layout-profile="balanced"] .kds-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: clamp(8px, 1vw, 16px);
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  gap: clamp(6px, .8vw, 12px);
 }
 .kds-board[data-layout-profile="balanced"] .kds-card {
-  --kds-item-size: clamp(.88rem, 1.03vw, 1.12rem);
+  --kds-item-size: clamp(.95rem, 1.08vw, 1.18rem);
+  --kds-note-size: .84em;
   padding: clamp(11px, .95vw, 18px);
 }
 .kds-board[data-layout-profile="balanced"] .kds-card--content-compact {
-  --kds-item-size: clamp(.82rem, .95vw, 1.02rem);
+  --kds-item-size: clamp(.89rem, 1vw, 1.08rem);
 }
 .kds-board[data-layout-profile="balanced"] .kds-card--content-dense {
-  --kds-item-size: clamp(.76rem, .88vw, .94rem);
+  --kds-item-size: clamp(.83rem, .93vw, 1rem);
+  --kds-note-size: .8em;
 }
 .kds-board[data-layout-profile="balanced"] .kds-card__status {
   gap: .55rem;
@@ -593,22 +595,22 @@ button { font: inherit; }
 }
 .kds-board[data-layout-profile="compact"] .kds-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  gap: clamp(7px, .75vw, 12px);
+  grid-template-rows: repeat(12, minmax(0, 1fr));
+  gap: clamp(5px, .55vw, 9px);
 }
 .kds-board[data-layout-profile="compact"] .kds-card {
-  --kds-item-size: clamp(.88rem, 1.02vw, 1.08rem);
-  --kds-note-size: .72em;
+  --kds-item-size: clamp(.95rem, 1.08vw, 1.15rem);
+  --kds-note-size: .8em;
   padding: clamp(9px, .75vw, 13px);
   border-width: 1px;
   border-radius: clamp(8px, .65vw, 11px);
 }
 .kds-board[data-layout-profile="compact"] .kds-card--content-compact {
-  --kds-item-size: clamp(.82rem, .94vw, 1rem);
+  --kds-item-size: clamp(.89rem, 1vw, 1.06rem);
 }
 .kds-board[data-layout-profile="compact"] .kds-card--content-dense {
-  --kds-item-size: clamp(.76rem, .87vw, .92rem);
-  --kds-note-size: .69em;
+  --kds-item-size: clamp(.83rem, .93vw, .98rem);
+  --kds-note-size: .76em;
 }
 .kds-board[data-layout-profile="compact"] .kds-card__status {
   gap: .42rem;
