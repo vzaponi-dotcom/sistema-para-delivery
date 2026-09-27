@@ -2,6 +2,10 @@ import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.
 import Button from '../../../shared/ui/Button.jsx'
 import Icon from '../../../shared/ui/Icon.jsx'
 
+const paymentPromiseLabel = (order, formatOrderDate) => order?.promisedPaymentDate
+  ? `Prometido para ${formatOrderDate(order.promisedPaymentDate)} · Alterar`
+  : 'Definir data prometida'
+
 const timingText = (group, formatOrderDate) => {
   const timing = group?.timing || {}
   if (timing.status === 'overdue') {
@@ -24,6 +28,8 @@ export default function ReceivableClientPanel({
   onDeselectAll,
   onReceive,
   onOpenClient,
+  onEditPaymentPromise,
+  promiseDisabled = false,
   selectionLimit = 100,
   selectionLimitReached = false,
   disabled = false,
@@ -86,22 +92,35 @@ export default function ReceivableClientPanel({
       <div className="receivables-client-panel-orders">
         {group.entries.map((entry) => {
           const order = entry.order
+          const checkboxId = `receivable-panel-order-${order.id}`
           return (
-            <label className="receivable-client-order-select" key={order.id}>
+            <div className="receivable-client-order-select" key={order.id}>
               <input
+                id={checkboxId}
                 type="checkbox"
                 checked={selected.has(order.id)}
                 disabled={disabled}
                 onChange={() => onToggleOrder?.(order.id)}
                 aria-label={`Selecionar pedido ${formatOrderDisplayNumber(order)} no valor de ${currency(entry.total)}`}
               />
-              <span className="receivable-client-order-main">
+              <label className="receivable-client-order-main" htmlFor={checkboxId}>
                 <strong>{formatOrderDisplayNumber(order)}</strong>
                 <span>{getOrderItemsSummary(order)}</span>
                 <small>{formatOrderDate(entry.expectedDate)}</small>
-              </span>
+              </label>
               <strong className="receivable-client-order-amount">{currency(entry.total)}</strong>
-            </label>
+              {onEditPaymentPromise && (
+                <button
+                  type="button"
+                  className="receivable-client-promise-action"
+                  onClick={() => onEditPaymentPromise(order)}
+                  disabled={promiseDisabled}
+                >
+                  <Icon name="calendar" size={15} />
+                  <span>{paymentPromiseLabel(order, formatOrderDate)}</span>
+                </button>
+              )}
+            </div>
           )
         })}
       </div>
