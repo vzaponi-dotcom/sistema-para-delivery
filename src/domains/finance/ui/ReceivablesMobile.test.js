@@ -115,3 +115,14 @@ test('mobile receivables summary currency stays inside narrow cards', async () =
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-summary-icon\s*\{[^}]*width:\s*32px[^}]*height:\s*32px/s)
   assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivables-summary-card strong\s*\{[^}]*max-width:\s*100%[^}]*font-size:\s*clamp\([^}]*white-space:\s*nowrap/s)
 })
+
+
+test('mobile grouped orders keep payment promise action touch-friendly without nesting it inside the checkbox label', async () => {
+  const group = await read('./ReceivableClientGroup.jsx')
+  const css = await read('../../../receivables.css')
+
+  assert.match(group, /className="receivable-client-promise-action"/)
+  assert.match(group, /<div className="receivable-client-order-select"/)
+  assert.doesNotMatch(group, /<label className="receivable-client-order-select"[\s\S]*receivable-client-promise-action/)
+  assert.match(css, /@media\s*\(max-width:\s*820px\)[\s\S]*\.receivable-client-promise-action\s*\{[^}]*min-height:\s*44px/s)
+})
