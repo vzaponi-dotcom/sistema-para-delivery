@@ -93,3 +93,49 @@ test('keeps simple and legacy movements visually unchanged', () => {
 
   assert.deepEqual(groupFinanceMovementsForDisplay([simple, legacy]), [simple, legacy])
 })
+
+
+test('shared client receipt is presented once with its full allocation breakdown', () => {
+  const movements = [
+    {
+      id: 'client-cash',
+      source: 'order-payment',
+      receiptId: 'client-receipt',
+      paymentAllocationId: 'client-allocation-cash',
+      description: 'Recebimento cliente · Fernanda Albuquerque · 2 pedidos',
+      type: 'entrada',
+      category: 'Vendas',
+      categoryLabel: 'Vendas',
+      date: '2026-09-27',
+      paymentMethod: 'Dinheiro',
+      value: 30,
+      orderId: null,
+      paymentId: null,
+    },
+    {
+      id: 'client-pix',
+      source: 'order-payment',
+      receiptId: 'client-receipt',
+      paymentAllocationId: 'client-allocation-pix',
+      description: 'Recebimento cliente · Fernanda Albuquerque · 2 pedidos',
+      type: 'entrada',
+      category: 'Vendas',
+      categoryLabel: 'Vendas',
+      date: '2026-09-27',
+      paymentMethod: 'Pix',
+      value: 39,
+      orderId: null,
+      paymentId: null,
+    },
+  ]
+
+  const rows = groupFinanceMovementsForDisplay(movements)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].id, 'receipt:client-receipt')
+  assert.equal(rows[0].value, 69)
+  assert.equal(rows[0].paymentMethod, null)
+  assert.deepEqual(rows[0].paymentBreakdown, [
+    { movementId: 'client-cash', methodLabel: 'Dinheiro', value: 30 },
+    { movementId: 'client-pix', methodLabel: 'Pix', value: 39 },
+  ])
+})
