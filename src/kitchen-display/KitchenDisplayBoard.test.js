@@ -65,7 +65,7 @@ test('board renders one tall order across both rows and reduces visible orders t
   assert.match(nodeText(renderer.root), /\+ 1 pedido fora da tela/)
   for (const card of cards) {
     assert.equal(Number.isInteger(card.props.style.gridColumn), true)
-    assert.match(String(card.props.style.gridRow), /^(1|4|1 \/ span 6)$/)
+    assert.match(String(card.props.style.gridRow), /^(1 \/ span 6|1 \/ span 3|4 \/ span 3)$/)
   }
 })
 
