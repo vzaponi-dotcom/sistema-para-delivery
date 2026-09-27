@@ -28,6 +28,24 @@ const countVisualLines = (item) => {
   return nameLines + noteLines * NOTE_LINE_WEIGHT
 }
 
+const KITCHEN_BOARD_PROFILES = Object.freeze({
+  focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, maxSlots: 6 }),
+  balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, maxSlots: 8 }),
+  compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, maxSlots: 12 }),
+})
+
+export function resolveKitchenBoardProfile({ viewportWidth, viewportHeight, queueSize = 0 } = {}) {
+  const width = Math.trunc(Number(viewportWidth))
+  const height = Math.trunc(Number(viewportHeight))
+  const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
+  const hasViewport = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+
+  if (!hasViewport || count <= 6) return { ...KITCHEN_BOARD_PROFILES.focus }
+  if (count >= 9 && width >= 1440 && height >= 820) return { ...KITCHEN_BOARD_PROFILES.compact }
+  if (width >= 1100 && height >= 620) return { ...KITCHEN_BOARD_PROFILES.balanced }
+  return { ...KITCHEN_BOARD_PROFILES.focus }
+}
+
 export function resolveKitchenViewportProfile(viewportHeight) {
   const height = Math.trunc(Number(viewportHeight))
   if (!Number.isFinite(height) || height <= 0) return 'standard'
