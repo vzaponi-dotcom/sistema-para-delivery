@@ -384,3 +384,31 @@ Meta revisada para viewport grande:
 - cards complexos reduzem naturalmente essa capacidade.
 
 A meta continua sendo densidade inteligente, não atingir 16 a qualquer custo.
+
+### Micro-card para pedido de uma linha
+
+Refinamento aprovado após a segunda homologação visual:
+
+No perfil `compact`, um pedido pode usar o menor card da grade quando **todas** as condições abaixo forem verdadeiras:
+
+- existe exatamente 1 item;
+- o nome formatado do item cabe em uma única linha visual;
+- não existe observação;
+- o conteúdo não exige duas colunas nem promoção para `tall/full`.
+
+Esse micro-card usa **2 das 12 trilhas verticais** do perfil compacto, em vez das 3 trilhas do card curto comum.
+
+Pedidos de um item **não** viram micro-card quando:
+
+- o nome quebra linha;
+- há observação, como `Sem cebola`;
+- qualquer outra métrica de conteúdo exigir mais altura.
+
+A fonte não deve ser reduzida para produzir o micro-card. O ganho vem exclusivamente da remoção do espaço vazio inferior.
+
+Comportamento esperado:
+
+- 1 item simples, 1 linha, sem nota → 2 trilhas;
+- 1 item com nota → 3 trilhas;
+- 1 item com nome quebrado → 3 trilhas;
+- demais cards continuam usando a classificação de altura já aprovada.
