@@ -9,7 +9,11 @@ const VIEWPORT_LINE_CAPACITY = Object.freeze({
 })
 
 const BOARD_LINE_CAPACITY = Object.freeze({
-  focus: VIEWPORT_LINE_CAPACITY,
+  focus: Object.freeze({
+    spacious: Object.freeze({ normal: 9, tall: 22, full: 36 }),
+    standard: Object.freeze({ normal: 7, tall: 17, full: 30 }),
+    constrained: Object.freeze({ normal: 6, tall: 14, full: 26 }),
+  }),
   roomy: Object.freeze({
     spacious: Object.freeze({ normal: 7, tall: 18, full: 26 }),
     standard: Object.freeze({ normal: 6, tall: 15, full: 22 }),
@@ -135,7 +139,10 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, q
 
   const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
   if (count >= 1 && count <= 3) {
-    const adaptiveFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, count)
+    const adaptiveFocus = {
+      ...withBoardColumns(KITCHEN_BOARD_PROFILES.focus, count),
+      fullHeight: true,
+    }
     return [
       adaptiveFocus,
       ...candidates.filter(({ id, columns }) => id !== adaptiveFocus.id || columns !== adaptiveFocus.columns),
@@ -215,7 +222,7 @@ const resolveFitStrategy = ({
   if (profile.rows >= 2 && canUseTwoColumns && twoColumnVisualLines <= capacity.tall) {
     return { layoutDemand: 'tall', rowSpan: 2, columnCount: 2, fitStrategy: 'tall-two-columns', capacity, profile }
   }
-  if (profile.rows >= 3) {
+  if (profile.rows >= 3 || profile.fullHeight === true) {
     const fullCapacity = capacity.full ?? capacity.tall * 1.65
     if (preferTwoColumns && twoColumnVisualLines <= fullCapacity) {
       return {
