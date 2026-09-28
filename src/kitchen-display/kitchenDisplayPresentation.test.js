@@ -541,3 +541,43 @@ test('four mixed orders keep one full-height large card plus three smaller cards
   assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
   assert.deepEqual(result.cards.slice(1).map(({ order }) => order.id), ['p-02', 'p-03', 'p-04'])
 })
+
+
+test('five mixed orders keep one full-height large card plus four smaller cards without queue-size exceptions', () => {
+  const largeItems = [
+    { quantity: 1, name: '[TESTE] Ovo Frito Un', note: '' },
+    { quantity: 1, name: '[TESTE] Batata Frita P', note: 'Hhhhhh' },
+    { quantity: 1, name: '[TESTE] Mousse de Chocolate Un', note: 'Teste observação' },
+    { quantity: 1, name: '[TESTE] Porção de Arroz Un', note: '' },
+    { quantity: 1, name: '[TESTE] Pudim Un', note: 'Observação' },
+    { quantity: 1, name: 'Prato feito comercial Família', note: 'Sem ovo' },
+    { quantity: 1, name: 'Marmita Churrasco M', note: '' },
+    { quantity: 1, name: '[TESTE] Prato Executivo Un', note: 'Sem cebola' },
+    { quantity: 1, name: '[TESTE] Marmita Frango P', note: '' },
+    { quantity: 1, name: '[TESTE] Calabresa Acebolada G', note: '' },
+    { quantity: 1, name: '[TESTE] Mandioca Frita M', note: '' },
+  ]
+  const orders = [
+    preparing(1, '2026-09-22T14:10:00.000Z', largeItems),
+    preparing(2, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Marmita', note: '' }]),
+    preparing(3, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Refrigerante 2L', note: '' }]),
+    preparing(4, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Pudim', note: '' }]),
+    preparing(5, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Batata', note: '' }]),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 5)
+  assert.equal(result.overflow, 0)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.cards[0]?.gridPosition.rowSpan, result.profile.gridRows)
+  assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+  assert.deepEqual(result.cards.slice(1).map(({ order }) => order.id), ['p-02', 'p-03', 'p-04', 'p-05'])
+})
