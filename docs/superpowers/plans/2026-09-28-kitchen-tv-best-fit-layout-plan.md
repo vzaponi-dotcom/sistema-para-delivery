@@ -49,8 +49,8 @@ Implementar margem vertical de segurança sem reduzir fonte.
 
 Preservar:
 
-- prioridade;
-- backfill seguro: um pedido em preparo que não cabe permanece no overflow, mas não bloqueia pedidos posteriores menores que ainda caibam; a ordem relativa dos exibidos é preservada;
+- prioridade: na escolha entre perfis, preservar primeiro o maior prefixo contínuo da fila `preparing`; só depois maximizar a quantidade total visível;
+- backfill seguro: depois de uma lacuna inevitável, um pedido em preparo que não cabe permanece no overflow, mas não bloqueia pedidos posteriores menores que ainda caibam; a ordem relativa dos exibidos é preservada;
 - prioridade de preparo: pedidos ainda aguardando em `scheduled` só ocupam espaço se toda a fila `preparing` já couber;
 - counters completos;
 - overflow;
