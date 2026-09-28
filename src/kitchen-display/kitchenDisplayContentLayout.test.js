@@ -269,13 +269,13 @@ test('board profile allows compact density on the approved large viewport refere
   assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 10 }).id, 'compact')
 })
 
-test('board profile protects 1366x768 readability instead of forcing three rows', () => {
+test('board profile can use compact density on 1366x768 when the queue needs it', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1366, viewportHeight: 768, queueSize: 10 })
-  assert.equal(profile.id, 'balanced')
+  assert.equal(profile.id, 'compact')
   assert.equal(profile.columns, 4)
-  assert.equal(profile.rows, 2)
-  assert.equal(profile.gridRows, 8)
-  assert.equal(profile.maxSlots, 32)
+  assert.equal(profile.rows, 3)
+  assert.equal(profile.gridRows, 24)
+  assert.equal(profile.maxSlots, 96)
 })
 
 test('board profile uses a safe fallback when viewport dimensions are unavailable', () => {
@@ -538,7 +538,7 @@ test('board candidates expose progressively denser layouts without using queue s
   )
   assert.deepEqual(
     resolveKitchenBoardCandidates({ viewportWidth: 1366, viewportHeight: 768 }).map(({ id, columns }) => [id, columns]),
-    [['focus', 3], ['roomy', 3], ['balanced', 4]],
+    [['focus', 3], ['roomy', 3], ['balanced', 4], ['compact', 4]],
   )
   assert.deepEqual(
     resolveKitchenBoardCandidates({}).map(({ id, columns }) => [id, columns]),
