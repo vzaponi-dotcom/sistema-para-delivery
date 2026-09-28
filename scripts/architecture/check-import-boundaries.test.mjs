@@ -748,3 +748,14 @@ test('client receivables payment writer remains owned only by worker/paymentRepo
   assert.ok(violations.includes('split-payment-repository-owner: worker/repositories.js'))
   assert.equal(violations.includes('split-payment-repository-owner: worker/paymentRepository.js'), false)
 })
+
+
+test('Kitchen TV control surface cannot import Worker internals', async (t) => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/app/surfaces/kitchen-tv-control/Invalid.jsx', "import { loadKitchenTvControl } from '../../../../worker/kitchenTvControlRepository.js'\nexport default loadKitchenTvControl\n")
+  await write('worker/kitchenTvControlRepository.js', 'export const loadKitchenTvControl = () => ({})\n')
+  const violations = await findArchitectureViolations({ rootDir })
+  assert.ok(
+    violations.includes('kitchen-tv-control-worker-import: src/app/surfaces/kitchen-tv-control/Invalid.jsx -> worker/kitchenTvControlRepository.js'),
+  )
+})
