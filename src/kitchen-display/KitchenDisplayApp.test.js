@@ -326,7 +326,7 @@ const controlledState = (count, { revision = 0, requestedPage = 1, prefix = 'pag
     type: 'Entrega',
     status: 'Em preparo',
     createdAt: '2026-09-22T19:50:00.000Z',
-    items: [],
+    items: [{ quantity: 1, name: 'Marmita', note: '' }],
   })),
 })
 
