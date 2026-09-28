@@ -351,3 +351,100 @@
     max-width: 260px;
   }
 }
+
+
+.kitchen-tv-control-order-card.is-pending {
+  opacity: .72;
+  cursor: progress;
+}
+
+.kitchen-tv-control-action-sheet {
+  display: grid;
+  gap: 12px;
+}
+
+.kitchen-tv-control-action-order {
+  display: grid;
+  gap: 3px;
+}
+
+.kitchen-tv-control-action-order strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.kitchen-tv-control-action-order span,
+.kitchen-tv-control-action-explainer,
+.kitchen-tv-control-action-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: .8rem;
+  line-height: 1.4;
+}
+
+.kitchen-tv-control-action-explainer {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.kitchen-tv-control-action-note {
+  color: var(--muted);
+}
+
+.kitchen-tv-control-action-error {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
+.kitchen-tv-control-action-feedback {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.kitchen-tv-control-action-feedback button {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 850;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.kitchen-tv-control-action-feedback button:focus-visible {
+  outline: 3px solid var(--primary-control-ring);
+  outline-offset: 2px;
+}
+
+.kitchen-tv-control-action-buttons {
+  display: grid;
+  gap: 8px;
+}
+
+.kitchen-tv-control-action-buttons .button {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
