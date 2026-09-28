@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { KITCHEN_TV_NEAR_LIMIT_MINUTES, buildKitchenDisplayPresentation } from './kitchenDisplayPresentation.js'
+import {
+  KITCHEN_TV_NEAR_LIMIT_MINUTES,
+  buildKitchenDisplayPages,
+  buildKitchenDisplayPresentation,
+} from './kitchenDisplayPresentation.js'
 
 const now = new Date('2026-09-22T15:00:00.000Z')
 const timing = { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 60 }
@@ -580,4 +584,93 @@ test('five mixed orders keep one full-height large card plus four smaller cards 
   assert.equal(result.cards[0]?.gridPosition.rowSpan, result.profile.gridRows)
   assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
   assert.deepEqual(result.cards.slice(1).map(({ order }) => order.id), ['p-02', 'p-03', 'p-04', 'p-05'])
+})
+
+
+test('multipage builder uses the existing best-fit repeatedly without creating empty pages', () => {
+  const orders = Array.from({ length: 13 }, (_, index) => preparing(index + 1))
+  const result = buildKitchenDisplayPages(orders, timing, now)
+
+  assert.equal(result.totalVisible, 13)
+  assert.deepEqual(result.pages.map(({ cards }) => cards.length), [6, 6, 1])
+  assert.equal(result.pages.every(({ cards }) => cards.length > 0), true)
+  assert.deepEqual(result.unrenderableOrderIds, [])
+
+  const ids = result.pages.flatMap(({ cards }) => cards.map(({ order }) => order.id))
+  assert.equal(new Set(ids).size, 13)
+  assert.deepEqual(ids, orders.map(({ id }) => id))
+  assert.deepEqual(
+    result.pages.map(({ counts }) => counts),
+    Array.from({ length: 3 }, () => ({ preparing: 13, late: 0, scheduled: 0 })),
+  )
+  assert.deepEqual(result.pages.map(({ overflow }) => overflow), [7, 1, 0])
+})
+
+test('multipage builder keeps waiting scheduled work behind preparing overflow, then includes it later', () => {
+  const orders = [
+    ...Array.from({ length: 8 }, (_, index) => preparing(index + 1)),
+    scheduled(1),
+    scheduled(2),
+  ]
+  const result = buildKitchenDisplayPages(orders, timing, now)
+
+  assert.equal(result.pages.length, 2)
+  assert.deepEqual(
+    result.pages[0].cards.map(({ phase }) => phase),
+    Array.from({ length: 6 }, () => 'preparing'),
+  )
+  assert.deepEqual(
+    result.pages[1].cards.map(({ phase }) => phase),
+    ['preparing', 'preparing', 'scheduled', 'scheduled'],
+  )
+  assert.deepEqual(result.pages[1].counts, { preparing: 8, late: 0, scheduled: 2 })
+  assert.equal(result.pages[1].overflow, 0)
+})
+
+test('multipage builder stops safely and reports an order that cannot render even alone', () => {
+  const impossibleItems = Array.from({ length: 80 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto extremamente grande família completa especial ${index + 1}`,
+    note: 'Observação extensa para produção embalagem separada e conferência',
+  }))
+  const orders = [
+    preparing(1, undefined, impossibleItems),
+    preparing(2),
+    preparing(3),
+  ]
+  const result = buildKitchenDisplayPages(orders, timing, now, new Set(), {
+    viewportWidth: 960,
+    viewportHeight: 540,
+  })
+
+  assert.equal(result.pages.length >= 1, true)
+  assert.deepEqual(
+    result.pages.flatMap(({ cards }) => cards.map(({ order }) => order.id)),
+    ['p-02', 'p-03'],
+  )
+  assert.deepEqual(result.unrenderableOrderIds, ['p-01'])
+  assert.equal(result.totalVisible, 3)
+})
+
+test('multipage page one stays compatible with the existing presentation contract', () => {
+  const orders = Array.from({ length: 8 }, (_, index) => preparing(index + 1))
+  const legacy = buildKitchenDisplayPresentation(orders, timing, now)
+  const paged = buildKitchenDisplayPages(orders, timing, now)
+
+  assert.equal(paged.pages.length, 2)
+  assert.equal(paged.pages[0].profile.id, legacy.profile.id)
+  assert.deepEqual(
+    paged.pages[0].cards.map(({ order }) => order.id),
+    legacy.cards.map(({ order }) => order.id),
+  )
+  assert.deepEqual(paged.pages[0].counts, legacy.counts)
+  assert.equal(paged.pages[0].overflow, legacy.overflow)
+})
+
+test('multipage builder returns no empty page for an empty kitchen queue', () => {
+  assert.deepEqual(buildKitchenDisplayPages([], timing, now), {
+    pages: [],
+    totalVisible: 0,
+    unrenderableOrderIds: [],
+  })
 })
