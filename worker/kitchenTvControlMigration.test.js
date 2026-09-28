@@ -16,7 +16,16 @@ const insertOrder = (sqlite, { id, businessId = BUSINESS, status = 'Em preparo',
     subtotal_cents, total_cents, created_at, finished_at, scheduled_for,
     cancelled_at, order_number
   ) VALUES (?, ?, ?, 'Entrega', '2026-09-28', ?, 1000, 1000, ?, ?, NULL, ?, ?)`)
-    .run(id, businessId, `Cliente ${id}`, status, NOW, finishedAt, cancelledAt, id === 'other-order' ? 2 : 1)
+    .run(
+      id,
+      businessId,
+      `Cliente ${id}`,
+      status,
+      NOW,
+      finishedAt,
+      cancelledAt,
+      id === 'other-order' ? 1 : id === 'order-cancel' ? 2 : 1,
+    )
 }
 
 test('0032 installs control and hidden-order tables on a clean database', () => {
