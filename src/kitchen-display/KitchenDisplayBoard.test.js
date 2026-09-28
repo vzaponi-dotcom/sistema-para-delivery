@@ -31,7 +31,7 @@ test('CSS keeps the dark Kitchen TV contract, Inter typography, 720p support and
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /--kds-bg:\s*#[0-9a-f]{6}/i)
   assert.match(css, /font-family:\s*Inter/i)
-  assert.match(css, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(css, /grid-template-columns:\s*repeat\(var\(--kds-columns,\s*3\),\s*minmax\(0,\s*1fr\)\)/)
   assert.match(css, /overflow:\s*hidden/)
   assert.match(css, /@media\s*\([^)]*max-height:\s*720px/)
   assert.doesNotMatch(css, /var\(--(?:color|theme|surface)-/)
@@ -97,9 +97,9 @@ test('board positions multiple tall cards explicitly without exceeding the focus
 test('CSS keeps explicit profile tracks without enabling implicit page growth', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /\.kds-card--tall\s*\{[^}]*grid-row:/s)
-  assert.match(css, /data-layout-profile="focus"[\s\S]*grid-template-rows:\s*repeat\(6,/)
-  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-rows:\s*repeat\(8,/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
+  assert.match(css, /data-layout-profile="focus"[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*6\),/)
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*8\),/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*24\),/)
   assert.doesNotMatch(css, /grid-auto-rows:\s*(?!0)/)
 })
 
@@ -174,9 +174,9 @@ test('board uses compact density at 1366x768 when that keeps all ten orders visi
 test('CSS defines explicit focus, roomy, balanced and compact grid contracts', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /data-layout-profile="focus"[^}]*\.kds-grid|data-layout-profile="focus"/s)
-  assert.match(css, /data-layout-profile="roomy"[\s\S]*grid-template-columns:\s*repeat\(3,[\s\S]*grid-template-rows:\s*repeat\(18,/)
-  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(8,/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(24,/)
+  assert.match(css, /data-layout-profile="roomy"[\s\S]*grid-template-columns:\s*repeat\(var\(--kds-columns,\s*3\),[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*18\),/)
+  assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(var\(--kds-columns,\s*4\),[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*8\),/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(var\(--kds-columns,\s*4\),[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*24\),/)
   assert.match(css, /\.kds-card--full\s*\{[^}]*grid-row:\s*1\s*\/\s*span\s*3/s)
 })
 
@@ -188,14 +188,14 @@ test('four-column density increases item and note typography while reclaiming ve
   assert.match(css, /data-layout-profile="balanced"[\s\S]*--kds-note-size:\s*\.84em/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-note-size:\s*\.8em/)
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*24\),/)
 })
 
 
 test('compact nano cards reduce structural chrome without shrinking production text', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
 
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*24\),/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-nano-card="true"\][\s\S]*padding:/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*\.kds-card\[data-nano-card="true"\][\s\S]*\.kds-card__main[\s\S]*min-height:/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
@@ -205,7 +205,7 @@ test('compact nano cards reduce structural chrome without shrinking production t
 test('compact CSS uses twenty-four vertical tracks for finer card heights without smaller production type', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
 
-  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
+  assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(var\(--kds-grid-rows,\s*24\),/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-note-size:\s*\.8em/)
 })
@@ -239,4 +239,35 @@ test('board renders seven short orders in roomy three-column best-fit mode', asy
   assert.equal(cards.length, 7)
   assert.doesNotMatch(nodeText(renderer.root), /fora da tela/)
   assert.equal(cards.every((card) => Number(card.props['data-grid-span']) >= 6), true)
+})
+
+
+test('board exposes adaptive CSS grid variables for sparse queues', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
+  const orders = Array.from({ length: 2 }, (_, index) => ({
+    id: `adaptive-${index + 1}`,
+    orderNumber: 3301 + index,
+    client: `Cliente ${index + 1}`,
+    type: 'Entrega',
+    status: 'Em preparo',
+    createdAt: '2026-09-22T19:50:00.000Z',
+    items: [{ quantity: 1, name: 'Marmita', note: '' }],
+  }))
+
+  const renderer = await h.render(KitchenDisplayBoard, {
+    orders,
+    timing,
+    now: new Date('2026-09-22T20:00:00.000Z'),
+    highlightedIds: new Set(),
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+  })
+  const board = renderer.root.find((node) => node.props?.className === 'kds-board')
+  const cards = renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card'))
+
+  assert.equal(board.props['data-layout-columns'], 2)
+  assert.equal(board.props.style['--kds-columns'], '2')
+  assert.equal(board.props.style['--kds-grid-rows'], '6')
+  assert.equal(cards.every((card) => String(card.props.style.gridRow) === '1 / span 6'), true)
 })
