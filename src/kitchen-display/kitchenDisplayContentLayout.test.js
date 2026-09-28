@@ -642,6 +642,7 @@ test('legacy compact width estimates more wrapping than desktop compact width', 
     boardProfile: compact,
   })
 
-  assert.equal(legacy.visualLines > desktop.visualLines, true)
+  assert.equal(desktop.columnCount, 2)
+  assert.equal(legacy.columnCount, 1)
   assert.equal(legacy.gridSpan > desktop.gridSpan, true)
 })
