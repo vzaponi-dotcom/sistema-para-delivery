@@ -151,9 +151,17 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, q
 
   if (count === 4) {
     const twoByTwoFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 2)
+    const threeColumnFullHeightFocus = {
+      ...withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 3),
+      fullHeight: true,
+    }
     return [
       twoByTwoFocus,
-      ...candidates.filter(({ id, columns }) => id !== twoByTwoFocus.id || columns !== twoByTwoFocus.columns),
+      threeColumnFullHeightFocus,
+      ...candidates.filter(({ id, columns }) => (
+        id !== twoByTwoFocus.id
+        || columns !== twoByTwoFocus.columns && columns !== threeColumnFullHeightFocus.columns
+      )),
     ]
   }
 
