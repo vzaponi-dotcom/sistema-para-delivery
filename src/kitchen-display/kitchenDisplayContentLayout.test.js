@@ -258,7 +258,7 @@ test('board profile keeps small queues spacious and expands density only when us
     id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 8 }), {
-    id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32,
+    id: 'roomy', columns: 3, rows: 3, gridRows: 18, maxSlots: 54,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 }), {
     id: 'compact', columns: 4, rows: 3, gridRows: 24, maxSlots: 96,
@@ -318,7 +318,7 @@ test('compact packing fits twelve short cards in the granular four-column matrix
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 12)
-  assert.equal(packed.usedSlots, 36)
+  assert.equal(packed.usedSlots, 64)
   assert.equal(packed.overflow, 0)
   assert.equal(positioned.length, 12)
   assert.equal(new Set(positioned.map((card) => `${card.gridPosition.gridColumn}:${card.gridPosition.gridRow}`)).size, 12)
@@ -369,19 +369,20 @@ test('compact positioning spreads nine short cards across all four columns befor
     { column: 4, row: 1 },
   ])
   assert.deepEqual(positions.slice(4, 8), [
-    { column: 1, row: 4 },
-    { column: 2, row: 4 },
-    { column: 3, row: 4 },
-    { column: 4, row: 4 },
+    { column: 1, row: 5 },
+    { column: 2, row: 5 },
+    { column: 3, row: 5 },
+    { column: 4, row: 5 },
   ])
-  assert.deepEqual(positions[8], { column: 1, row: 7 })
+  assert.deepEqual(positions[8], { column: 1, row: 9 })
 })
 
 
-test('five short orders move to the balanced four-column profile while four stay spacious', () => {
+test('queue-size fallback keeps focus through six and uses roomy before four-column density', () => {
   assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 4 }).id, 'focus')
-  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 5 }).id, 'balanced')
-  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 8 }).id, 'balanced')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 6 }).id, 'focus')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 7 }).id, 'roomy')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 9 }).id, 'roomy')
 })
 
 test('compact one-line cards use a two-track micro height while notes and wrapped names keep more room', () => {
@@ -405,11 +406,11 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   assert.equal(profile.id, 'compact')
   assert.equal(profile.gridRows, 24)
   assert.equal(profile.maxSlots, 96)
-  assert.equal(short.gridSpan, 3)
-  assert.equal(withNote.gridSpan, 4)
-  assert.equal(wrappedName.gridSpan, 4)
+  assert.equal(short.gridSpan, 4)
+  assert.equal(withNote.gridSpan, 5)
+  assert.equal(wrappedName.gridSpan, 5)
   assert.equal(medium.gridSpan >= 3, true)
-  assert.equal(medium.gridSpan, 3)
+  assert.equal(medium.gridSpan, 4)
 })
 
 test('compact micro-grid can show sixteen truly short orders with reclaimed vertical room', () => {
@@ -426,8 +427,8 @@ test('compact micro-grid can show sixteen truly short orders with reclaimed vert
   assert.equal(packed.cards.length, 16)
   assert.equal(packed.usedSlots, 48)
   assert.equal(packed.overflow, 0)
-  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 3), true)
-  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 10)
+  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 4), true)
+  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 13)
 })
 
 test('compact masonry preserves source priority order when placing mixed card heights', () => {
@@ -467,9 +468,9 @@ test('compact one-line nano cards reclaim structure without reducing text', () =
   ], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(profile.gridRows, 24)
-  assert.equal(nano.gridSpan, 3)
-  assert.equal(twoItems.gridSpan, 3)
-  assert.equal(noted.gridSpan, 4)
+  assert.equal(nano.gridSpan, 4)
+  assert.equal(twoItems.gridSpan, 4)
+  assert.equal(noted.gridSpan, 5)
 })
 
 
@@ -506,9 +507,9 @@ test('compact height follows effective visual lines instead of coarse normal/tal
     { viewportHeight: 924, boardProfile: profile },
   )
 
-  assert.equal(simple.gridSpan, 3)
+  assert.equal(simple.gridSpan, 4)
   assert.equal(noted.gridSpan, 4)
-  assert.equal(four.gridSpan, 3)
+  assert.equal(four.gridSpan, 4)
   assert.equal(large.gridSpan > four.gridSpan, true)
   assert.equal(large.gridSpan < 12, true)
 })
