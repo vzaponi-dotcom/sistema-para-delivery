@@ -394,7 +394,7 @@ test('adaptive fill splits two short orders into two full-height columns', () =>
   assert.equal(result.cards.every((card) => card.gridPosition.rowSpan === result.profile.gridRows), true)
 })
 
-test('adaptive fill uses four full-height columns for four short orders before multi-row packing', () => {
+test('adaptive fill keeps four short orders in a balanced two-by-two grid', () => {
   const result = buildKitchenDisplayPresentation(
     Array.from({ length: 4 }, (_, index) => preparing(index + 1, undefined, [
       { quantity: 1, name: 'Marmita', note: '' },
@@ -405,9 +405,14 @@ test('adaptive fill uses four full-height columns for four short orders before m
     { viewportWidth: 1920, viewportHeight: 1080 },
   )
 
-  assert.equal(result.profile.columns, 4)
+  assert.equal(result.profile.columns, 2)
   assert.equal(result.cards.length, 4)
-  assert.deepEqual(result.cards.map((card) => card.gridPosition.gridColumn), [1, 2, 3, 4])
-  assert.equal(result.cards.every((card) => card.gridPosition.rowSpan === result.profile.gridRows), true)
+  assert.deepEqual(result.cards.map((card) => card.gridPosition.gridColumn), [1, 2, 1, 2])
+  assert.deepEqual(result.cards.map((card) => card.gridPosition.gridRow), [
+    '1 / span 3',
+    '1 / span 3',
+    '4 / span 3',
+    '4 / span 3',
+  ])
   assert.equal(result.overflow, 0)
 })
