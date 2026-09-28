@@ -580,3 +580,18 @@ test('compact card minimum keeps a real-TV safety margin for chrome and one item
   assert.equal(noted.gridSpan >= 5, true)
   assert.equal(twoItems.gridSpan >= 4, true)
 })
+
+
+test('legacy TV viewport still exposes four-column best-fit candidates', () => {
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 960, viewportHeight: 540 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3], ['roomy', 3], ['balanced', 4], ['compact', 4]],
+  )
+})
+
+test('very small viewport still degrades conservatively', () => {
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 640, viewportHeight: 360 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3]],
+  )
+})
