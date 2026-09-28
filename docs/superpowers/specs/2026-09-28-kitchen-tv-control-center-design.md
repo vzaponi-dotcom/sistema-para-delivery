@@ -3,8 +3,8 @@
 **Data:** 2026-09-28  
 **Branch:** `feature/kitchen-tv-control-center`  
 **Base:** `master@18f37ff68bcad478f9d34800c4378044424cb769`  
-**Status:** proposta de produto/arquitetura para aprovação.  
-**Produção:** não implementar nem publicar antes da aprovação da spec e do plano TDD.
+**Status:** **APROVADA E AUTO-REVISADA** em 2026-09-28; pronta para plano TDD.  
+**Produção:** não implementar em produção nem publicar antes de staging, homologação e autorização explícita separada.
 
 ## 1. Contexto
 
@@ -67,64 +67,106 @@ A rota pertence à área **Pedidos**, não à área Configurações. Configuraç
 
 Motivo: a tela é operacional e será usada repetidamente por alguém trabalhando na cozinha.
 
-### 5.1 Cabeçalho de controle
+### 5.1 Cabeçalho e barra compacta de controle
 
-Exibir:
+O mockup compacto aprovado substitui a primeira proposta mais alta.
 
+Exibir no topo:
+
+- título **Controle da TV**;
 - estado da TV: pareada / não pareada;
 - última telemetria conhecida;
+- chip compacto **TV conectada** quando aplicável.
+
+Logo abaixo, uma barra horizontal compacta deve conter:
+
 - página atual: “Tela 1 de 3”;
-- botões **Anterior**, **Início**, **Próxima**;
-- feedback temporário “Atualizando TV…”.
+- **Anterior**;
+- **Início**;
+- **Próxima**;
+- feedback temporário “Atualizando TV…” sem deslocar o layout.
+
+O controle não deve ocupar um painel vertical alto. A maior parte do viewport mobile pertence à grade de pedidos.
 
 Os comandos são absolutos por página. O celular não tenta manipular DOM da TV.
 
-### 5.2 Acompanhamento dos pedidos
+### 5.2 Resumo compacto + grade densa de pedidos
 
-Abaixo do controle da TV, mostrar grade mobile simples de pedidos **em preparo**.
+Abaixo da navegação da TV, exibir uma faixa compacta com:
 
-Cada bloco deve priorizar leitura rápida:
+- **Em preparo**;
+- **Atrasados**;
+- **Agendados**;
+- **Fora da tela**.
+
+Esses indicadores não podem crescer a ponto de competir com a grade.
+
+A área principal é uma grade mobile simples de pedidos **em preparo**.
+
+#### Contrato visual aprovado
+
+Em viewport mobile representativo, usar **duas colunas** e cards compactos. O alvo de homologação é conseguir visualizar aproximadamente **10 pedidos simultâneos** (5 linhas × 2 colunas) em um telefone comum antes de precisar rolar, sem reduzir alvos de toque abaixo de um nível confortável.
+
+Cada card mostra somente:
 
 - número do pedido;
-- primeiro nome/display name do cliente;
-- tom visual do estado atual (normal/próximo do limite/atrasado);
-- indicador quando estiver retirado da TV.
+- primeiro nome ou display name curto do cliente;
+- estado operacional textual: **EM PREPARO**, **PRÓXIMO DO LIMITE** ou **ATRASADO**;
+- estado de visibilidade TV: **Na TV**, **Fora** ou **Retirado**;
+- affordance discreta de toque.
 
-Não repetir itens, pagamento, endereço ou detalhes extensos nessa grade.
+Não mostrar na grade:
 
-Exemplo:
+- itens;
+- observações;
+- pagamento;
+- endereço;
+- telefone;
+- valores;
+- detalhes de impressão.
 
-```text
-#248
-Fernanda Albuquerque
-ATRASADO
+O card inteiro é o alvo de toque. O conteúdo não deve depender somente de cor.
 
-#253
-Hugo
-EM PREPARO
-```
+A lista pode rolar quando houver mais pedidos do que cabem no viewport. A densidade-alvo não autoriza esconder texto essencial nem criar fonte ilegível.
 
-### 5.3 Ação rápida
+### 5.3 Ações do pedido
 
-Ao tocar num pedido visível na TV:
+Tocar no card **não executa a mutação imediatamente**.
 
-- executar **Retirar da TV**;
-- não abrir confirmação destrutiva;
-- mostrar snackbar/feedback com **Desfazer**;
-- mover o card para estado visual “Retirado da TV”.
+O toque abre um bottom sheet/painel compacto com:
 
-Como a ação é reversível e não altera o pedido oficial, o fluxo deve ser rápido.
+- número e cliente;
+- **Retirar da TV** quando ainda participa do painel;
+- **Voltar para a TV** quando estiver retirado;
+- **Ver na Cozinha** como navegação secundária;
+- texto curto: “Remove apenas do painel da TV. O pedido continua em preparo no sistema.”
 
-Um pedido retirado pode ser restaurado com:
+**Retirar da TV** é reversível, mas continua sendo uma ação deliberada dentro do painel do pedido. Não usar modal destrutivo adicional.
 
-- tocar novamente; ou
-- ação explícita **Voltar para a TV**.
+Depois da ação:
+
+- atualizar o card imediatamente com estado pendente;
+- reconciliar com a resposta oficial;
+- mostrar feedback curto;
+- oferecer **Desfazer** quando tecnicamente seguro.
+
+Um pedido retirado permanece na grade administrativa enquanto continuar oficialmente ativo.
 
 ### 5.4 Pedidos agendados
 
-A central pode mostrar “Agendados” em seção secundária futuramente, mas a V1 operacional deve focar **Em preparo**.
+A central pode mostrar a contagem de agendados no resumo, mas a V1 operacional lista e permite ação somente nos pedidos em fase `preparing`.
 
-A retirada rápida da TV é oferecida somente para pedidos que já estão na fase operacional `preparing`.
+Agendados que ainda aguardam a janela operacional não recebem **Retirar da TV**.
+
+### 5.5 Semântica dos estados de visibilidade
+
+Os três estados do card são mutuamente exclusivos:
+
+- **Na TV** — o ID está no conjunto `visibleOrderIds` reportado pela TV para a página atualmente renderizada;
+- **Fora** — o pedido está elegível para a TV, não foi retirado manualmente, mas não está na página atualmente renderizada;
+- **Retirado** — existe decisão administrativa ativa em `kitchen_tv_hidden_orders`.
+
+Se a telemetria estiver ausente ou vencida, não afirmar “Na TV/Fora” como verdade atual. Mostrar estado neutro **TV sem sinal** até nova telemetria.
 
 ## 6. Paginação da TV
 
@@ -259,11 +301,14 @@ Tabela de visibilidade TV-only:
 - `business_id`;
 - `order_id`;
 - `hidden_at`;
-- PK composta `(business_id, order_id)`.
+- PK composta `(business_id, order_id)`;
+- FK para o pedido com escopo validado no repositório.
 
 Restaurar = remover a linha.
 
 Esses registros não alteram `orders`.
+
+A migration deve instalar limpeza automática para estado terminal, usando trigger ou mecanismo SQL equivalente: quando o pedido ganhar `finished_at`, `cancelled_at` ou status terminal, a decisão de ocultação correspondente é removida. Isso mantém a tabela representando somente estado operacional corrente sem acoplar a UI administrativa às rotas de finalização.
 
 ## 11. Leitura da TV
 
@@ -386,16 +431,19 @@ Não implementar lock de operador.
 - lista oficial mantém o comportamento existente do App;
 - nenhuma ação é enfileirada localmente.
 
-### TV offline
+### TV offline ou telemetria vencida
 
-- celular mostra última telemetria conhecida;
-- comando de página pode ficar persistido no servidor;
-- ao voltar, a TV inicia em página 1 e só aplica revisões novas emitidas após a sessão iniciar.
+- celular mostra a última telemetria conhecida como histórica;
+- botões de página ficam desabilitados;
+- **Retirar da TV** e **Voltar para a TV** ficam desabilitados para não criar estado invisível sem painel operacional ativo;
+- nenhum comando é enfileirado para execução posterior.
+
+Ao reconectar/recarregar, a TV inicia na página 1 e registra a revisão atual como baseline. Um comando antigo não pode deslocá-la automaticamente para página secundária.
 
 ### TV revogada
 
-- controle de navegação fica indisponível;
-- esconder/restaurar pedidos pode ser bloqueado enquanto não houver TV pareada, para evitar estado invisível sem painel ativo.
+- controle de navegação e retirada/restauração ficam indisponíveis;
+- a tela orienta o operador a parear novamente em Configurações → TV da Cozinha.
 
 ## 18. Entrada de navegação
 
@@ -421,18 +469,25 @@ A V1 está aceita quando:
 2. Anterior/Início/Próxima alteram a TV em até o próximo ciclo de polling;
 3. TV nunca precisa de interação direta;
 4. páginas usam o mesmo best-fit homologado;
-5. nova chegada em página secundária volta TV para página 1;
-6. pedido em preparo pode ser retirado da TV;
-7. retirar não altera status, `finished_at`, pagamento, impressão ou histórico;
-8. pedido retirado continua em Pedidos → Cozinha;
-9. pedido retirado pode ser restaurado;
-10. pedido oficialmente finalizado/cancelado some naturalmente de TV e controle;
-11. controller mostra cards simples com número + cliente + estado;
-12. duas sessões de celular não corrompem controle;
-13. sessão TV continua incapaz de executar mutações administrativas/oficiais;
-14. paginação e ocultação são business-scoped;
-15. staging é homologado em celular real + TV real antes de merge;
-16. produção exige autorização separada.
+5. o builder de páginas termina de forma determinística mesmo se existir pedido que não caiba sozinho; nunca entra em loop infinito;
+6. nova chegada em página secundária volta TV para página 1;
+7. pedido em preparo pode ser retirado da TV;
+8. retirar não altera status, `finished_at`, pagamento, impressão ou histórico;
+9. pedido retirado continua em Pedidos → Cozinha;
+10. pedido retirado pode ser restaurado;
+11. pedido oficialmente finalizado/cancelado remove também sua decisão de ocultação TV-only;
+12. controller mostra grade compacta de duas colunas com número + cliente + estado + visibilidade;
+13. em viewport mobile representativo, homologar o alvo de aproximadamente 10 cards simultâneos sem cortar informação essencial;
+14. tocar no card abre as ações; não executa retirada por toque acidental simples;
+15. **Na TV/Fora/Retirado** obedecem a semântica da seção 5.5;
+16. telemetria vencida não é apresentada como estado atual;
+17. duas sessões de celular não corrompem controle;
+18. sessão TV continua incapaz de executar mutações administrativas/oficiais;
+19. paginação e ocultação são business-scoped;
+20. tema claro e escuro do app administrativo permanecem coerentes; a TV mantém seu tema operacional próprio;
+21. alvos principais de toque, contraste, foco, loading, erro, offline e desabilitado são homologados;
+22. staging é homologado em celular real + TV real antes de merge;
+23. produção exige autorização separada.
 
 ## 20. Sequenciamento sugerido
 
@@ -451,13 +506,85 @@ Depois da aprovação desta spec:
 11. staging + homologação TV/celular;
 12. merge separado de produção.
 
-## 21. Decisões de produto a aprovar
+## 21. Decisões de produto aprovadas
 
-Antes de implementar, confirmar explicitamente:
+Aprovadas explicitamente em 2026-09-28:
 
 1. nome da tela: **Controle da TV**;
-2. ação rápida: **Retirar da TV** em vez de “Finalizar”, para não confundir lifecycle oficial;
+2. ação operacional: **Retirar da TV**, nunca “Finalizar”;
 3. rota operacional dentro de **Pedidos**, com atalho em Configurações;
 4. nova capacidade `orders.kitchen.control`;
 5. nova chegada sempre força a TV para a primeira página;
-6. pedidos retirados ficam restauráveis enquanto continuarem oficialmente ativos.
+6. pedidos retirados ficam restauráveis enquanto continuarem oficialmente ativos;
+7. layout mobile compacto aprovado: controle horizontal + resumo compacto + grade de duas colunas, priorizando alta densidade;
+8. tocar no card abre painel de ações em vez de executar mutação imediatamente.
+
+
+## 22. Referência visual aprovada
+
+**Referência visual de produto:** mockup compacto aprovado na conversa de produto em 2026-09-28.
+
+A referência é normativa para:
+
+- hierarquia;
+- densidade;
+- duas colunas;
+- controle horizontal compacto;
+- cards pequenos;
+- status/visibilidade;
+- bottom sheet de ações.
+
+Ela **não é uma especificação literal de pixels, gradientes ou cores**.
+
+Referência visual obrigatória para desenvolvimento:
+
+**Mesiva — Guia oficial de identidade visual e aplicação no produto, v1.0.**  
+Superfícies afetadas: Controle da TV administrativo + Kitchen TV.  
+Estados e temas: claro/escuro no administrativo; tema operacional próprio na TV.  
+Exceção: o mockup foi desenhado em dark mode para validar hierarquia e densidade; a implementação administrativa deve mapear o visual aos tokens existentes e também funcionar no tema claro.
+
+Regras de aplicação:
+
+- manter fonte funcional vigente;
+- usar tokens semânticos existentes para sucesso/erro/alerta/informação/foco;
+- verde-água Mesiva não substitui automaticamente cor de sucesso;
+- amarelo de marca não substitui automaticamente alerta operacional;
+- não criar biblioteca de UI paralela;
+- espaçamentos preferencialmente em múltiplos de 4 px;
+- bordas e sombras discretas;
+- evitar gradiente decorativo atrás de dados na implementação final;
+- priorizar densidade útil e leitura rápida;
+- alvo principal de toque com conforto equivalente a aproximadamente 44×44 CSS px;
+- status nunca depende somente de cor.
+
+Antes da Task visual, versionar a referência aprovada em `docs/superpowers/references/` se houver caminho disponível para subir o PNG binário. Até lá, esta descrição textual é normativa.
+
+## 23. Auto-revisão contra master
+
+Auto-revisão executada em 2026-09-28 contra `master@18f37ff68bcad478f9d34800c4378044424cb769`.
+
+Verificações:
+
+- a branch da PR #81 parte exatamente do master pós-PR #79;
+- `KitchenTvSettings` atual já separa pareamento/revogação sob `orders.settings.manage`; o novo controle não deve reutilizar essa permissão;
+- o catálogo atual já possui `orders.view` e `orders.finalize`; criar `orders.kitchen.control` preserva a separação entre visualização, controle TV-only e finalização oficial;
+- `useOrderCommands.finalizeOrder` hoje persiste `Finalizado` e `finished_at`; a nova ação TV-only não reutiliza essa função;
+- `worker/kitchenTvApi.js` já divide rotas administrativas de rotas autenticadas pela sessão restrita da TV;
+- a sessão TV atual só lê estado e pareamento; a única nova escrita permitida nessa sessão será telemetria própria, nunca controle ou pedido;
+- `worker/kitchenTvReadRepository.js` já fornece allowlist mínima de dados; a filtragem TV-only deve permanecer nesse boundary;
+- a TV já faz polling leve em aproximadamente 2 s; controle remoto pode piggyback no payload sem WebSocket;
+- o repositório já está em migration `0031`; `0032_kitchen_tv_control.sql` é o próximo número disponível na base revisada;
+- o frontend administrativo já possui a coleção oficial de pedidos e `buildKitchenQueueModel`; a nova superfície não deve criar um segundo polling completo de pedidos;
+- a navegação atual já tem rota `settings-kitchen-tv` e área `orders`; a nova rota entra na área Pedidos sem tocar no entry point dedicado `/cozinha-tv`;
+- o projeto já usa triggers SQL em migrations, portanto limpeza de ocultação em transição terminal é compatível com os padrões existentes;
+- o builder de páginas precisa de guard de progresso zero para não entrar em loop se um pedido extremo não couber nem sozinho;
+- telemetria define a verdade de “Na TV”; sem telemetria fresca, a UI deve mostrar estado desconhecido em vez de inferir;
+- comandos offline foram removidos do contrato: controle fica desabilitado sem TV online/fresca, evitando aplicação tardia e inesperada;
+- múltiplos operadores usam last-write-wins para página e mutações idempotentes para ocultar/restaurar;
+- nenhum requisito exige alteração de preço, pagamento, impressão, lifecycle oficial ou histórico.
+
+### 23.1 Gate da auto-revisão
+
+Não foram identificadas decisões de produto obrigatórias pendentes para escrever o plano.
+
+A aprovação desta spec autoriza a escrita do plano TDD e a preparação da implementação. Não autoriza merge nem produção.
