@@ -313,3 +313,95 @@ test('live Kitchen TV recomputes tall-card demand when viewport height changes',
   assert.equal(card.props['data-column-count'], 1)
   assert.match(card.props.className, /kds-card--tall/)
 })
+
+
+const controlledState = (count, { revision = 0, requestedPage = 1, prefix = 'page' } = {}) => ({
+  serverNow: '2026-09-22T20:00:00.000Z',
+  timing: state([]).timing,
+  control: { revision, requestedPage },
+  orders: Array.from({ length: count }, (_, index) => ({
+    id: `${prefix}-${index + 1}`,
+    orderNumber: 5000 + index,
+    client: `Cliente ${index + 1}`,
+    type: 'Entrega',
+    status: 'Em preparo',
+    createdAt: '2026-09-22T19:50:00.000Z',
+    items: [],
+  })),
+})
+
+test('remote paging starts on page one and does not replay the command already present at bootstrap', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const initial = controlledState(7, { revision: 5, requestedPage: 2 })
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: initial }),
+    readState: async () => initial,
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-1' }))
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-7' }).length, 0)
+  assert.doesNotMatch(nodeText(renderer.root), /Anterior|Próxima/)
+})
+
+test('a newer control revision changes the TV page and an out-of-range request clamps to the last page', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const initial = controlledState(7, { revision: 2, requestedPage: 1 })
+  const responses = [
+    controlledState(7, { revision: 3, requestedPage: 2 }),
+    controlledState(7, { revision: 4, requestedPage: 99 }),
+  ]
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: initial }),
+    readState: async () => responses.shift() || responses.at(-1) || initial,
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-7' }))
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-1' }).length, 0)
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-7' }))
+})
+
+test('current page clamps automatically when the queue shrinks and the page disappears', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const initial = controlledState(7, { revision: 1, requestedPage: 1 })
+  const responses = [
+    controlledState(7, { revision: 2, requestedPage: 2 }),
+    controlledState(2, { revision: 2, requestedPage: 2 }),
+  ]
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: initial }),
+    readState: async () => responses.shift() || controlledState(2, { revision: 2, requestedPage: 2 }),
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-7' }))
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-1' }))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-2' }))
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-7' }).length, 0)
+})
