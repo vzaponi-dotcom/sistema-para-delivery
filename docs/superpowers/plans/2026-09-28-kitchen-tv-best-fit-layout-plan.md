@@ -90,3 +90,32 @@ Testar em staging e TV real:
 15. confirmar nenhum clipping.
 
 Parar antes de merge e produção.
+
+
+## Task 8 — correção de clipping em TV real
+
+Evidência: staging em TV Toshiba/Regza mostrou 16 cards, porém vários conteúdos cortados verticalmente.
+
+RED:
+
+- `960×540 + compact + 1 item simples` exige span >= 6;
+- `960×540 + compact + observação` exige span >= 8;
+- card médio em 960×540 não usa duas colunas internas estreitas;
+- largura legacy precisa produzir estratégia/altura mais conservadora que desktop;
+- fila de 16 itens simples continua cabendo quando cada card usa 6/24 trilhas;
+- fila mista pode gerar overflow, mas nenhum card pode ser subdimensionado.
+
+GREEN:
+
+1. propagar `viewportWidth` até `getKitchenCardContentMetrics`;
+2. estimar largura útil por perfil;
+3. limitar duas colunas internas a card com largura estimada >= 340px;
+4. tornar os limites de caracteres por linha conservadores quando a coluna interna estreitar;
+5. aplicar pisos de span por `viewportProfile`:
+   - spacious: comportamento aprovado no desktop;
+   - standard: margem intermediária;
+   - constrained: piso 6 para simples, 8 para simples com nota e fórmula proporcional mais conservadora para os demais;
+6. preservar fonte;
+7. validar novamente em TV real com a mesma fila que reproduziu o clipping.
+
+Stop gate: não mergear até o mesmo aparelho real passar sem corte.

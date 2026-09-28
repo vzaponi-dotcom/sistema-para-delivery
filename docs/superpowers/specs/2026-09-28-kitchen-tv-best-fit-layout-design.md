@@ -121,3 +121,23 @@ O packing deve:
 - áudio/pareamento;
 - impressão;
 - alterações de domínio de pedidos.
+
+
+## 9. Correção após teste em TV real 960×540
+
+O primeiro best-fit ainda falhou em uma TV Toshiba/Regza real: o navegador expôs um viewport CSS de classe aproximadamente 960×540. A primeira correção liberou os perfis densos nesse viewport e passou a mostrar todos os cards, porém revelou um segundo problema: os spans verticais calculados para o perfil `compact` eram pequenos demais para a altura física real de status + cliente/tempo + itens, causando clipping de vários pedidos.
+
+A correção final deve obedecer também aos seguintes contratos:
+
+- viewports de TV a partir de aproximadamente 900×500 recebem todos os candidatos `focus → roomy → balanced → compact`; o CSS responsivo continua responsável pela escala visual;
+- o cálculo de conteúdo recebe **largura e altura** do viewport;
+- duas colunas internas de itens só podem ser usadas quando a largura estimada do card for suficiente (piso atual de 340px por card);
+- em cards estreitos, o cálculo de linhas deve ser mais conservador para refletir quebra real de texto;
+- no perfil `compact` com altura `constrained`, um card simples de 1 item tem piso de **6/24 trilhas**;
+- 1 item com observação tem piso de **8/24 trilhas**;
+- demais cards constrained usam span proporcional mais conservador às linhas efetivas e às observações;
+- em altura `standard`, os pisos também são maiores que no desktop spacious;
+- nenhuma tentativa de mostrar mais pedidos pode aceitar clipping como trade-off;
+- se os 16 pedidos não couberem com segurança por causa do conteúdo real, o comportamento correto é mostrar menos e informar overflow.
+
+O objetivo do best-fit é maximizar **pedidos íntegros e legíveis**, não maximizar a contagem às custas de conteúdo cortado.
