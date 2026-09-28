@@ -75,7 +75,7 @@ async function render(t, {
 
 test('renders the approved compact two-column grid with ten cards and no sensitive/order-detail data', async (t) => {
   const { screen } = await render(t)
-  const cards = screen.root.findAll((node) => node.props.className?.includes('kitchen-tv-control-order-card'))
+  const cards = screen.root.findAll((node) => node.props.className === 'kitchen-tv-control-order-card')
   assert.equal(cards.length, 10)
 
   const text = nodeText(screen.root)
@@ -129,16 +129,20 @@ test('stale telemetry never claims current visibility and disables operational c
   }
 })
 
-test('exposes loading, error and offline states without replacing the official order collection', async (t) => {
+test('exposes loading without replacing the official order collection', async (t) => {
   const pending = new Promise(() => {})
   const loading = await render(t, { apiOverrides: { getKitchenTvControl: () => pending } })
   assert.match(nodeText(loading.screen.root), /Carregando controle da TV/)
+})
 
+test('exposes control read failures', async (t) => {
   const failed = await render(t, {
     apiOverrides: { getKitchenTvControl: async () => { throw new Error('Falha simulada') } },
   })
   assert.match(nodeText(failed.screen.root), /Falha simulada/)
+})
 
+test('exposes offline state without queueing TV commands', async (t) => {
   const offline = await render(t, { isOnline: false })
   assert.match(nodeText(offline.screen.root), /Sem conexão/)
 })
