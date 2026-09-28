@@ -481,9 +481,12 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportWidth,
 
   for (const entry of source) {
     const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportWidth, viewportHeight, boardProfile })
-    if (hasBoardProfile && metrics.overflowRisk) break
+    if (hasBoardProfile && metrics.overflowRisk) continue
     const slotCost = hasBoardProfile ? metrics.gridSpan : metrics.rowSpan
-    if (usedSlots + slotCost > slotCeiling) break
+    if (usedSlots + slotCost > slotCeiling) {
+      if (hasBoardProfile) continue
+      break
+    }
 
     const candidate = {
       ...entry,
@@ -493,7 +496,7 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportWidth,
       gridSpan: metrics.gridSpan,
       slotCost,
     }
-    if (hasBoardProfile && !assignKitchenGrid([...cards, candidate], profile, true)) break
+    if (hasBoardProfile && !assignKitchenGrid([...cards, candidate], profile, true)) continue
 
     cards.push(candidate)
     usedSlots += slotCost
