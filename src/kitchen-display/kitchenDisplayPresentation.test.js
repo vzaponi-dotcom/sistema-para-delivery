@@ -456,9 +456,9 @@ test('presentation keeps scanning preparing work after one oversized card cannot
 
 
 test('best-fit protects the highest-priority preparing prefix before maximizing visible card count', () => {
-  const largePriorityItems = Array.from({ length: 10 }, (_, index) => ({
+  const largePriorityItems = Array.from({ length: 13 }, (_, index) => ({
     quantity: 1,
-    name: `Produto grande operacional ${index + 1}`,
+    name: `Item ${index + 1}`,
     note: '',
   }))
   const orders = [
