@@ -19,7 +19,12 @@ import {
   reconcileKitchenDisplayPaging,
 } from './kitchenDisplayPaging.js'
 import { isKitchenDisplayFullscreen, requestKitchenDisplayFullscreen } from './kitchenDisplayFullscreen.js'
-import { bootstrapKitchenDisplay, pollKitchenDisplayPairing, readStoredKitchenDisplayState } from './kitchenDisplaySession.js'
+import {
+  bootstrapKitchenDisplay,
+  pollKitchenDisplayPairing,
+  readStoredKitchenDisplayState,
+  reportStoredKitchenDisplayState,
+} from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
 
 const isDefinitive = (error) => error?.definitive === true
@@ -45,6 +50,7 @@ export function KitchenDisplayApp({
   bootstrap = bootstrapKitchenDisplay,
   pollPairing = pollKitchenDisplayPairing,
   readState = readStoredKitchenDisplayState,
+  reportState = reportStoredKitchenDisplayState,
   audio: suppliedAudio,
   schedule = globalThis.setTimeout,
   cancelSchedule = globalThis.clearTimeout,
@@ -70,6 +76,7 @@ export function KitchenDisplayApp({
   const previousIds = useRef(undefined)
   const alertedIds = useRef(new Set())
   const highlightTimers = useRef(new Map())
+  const telemetryFingerprint = useRef(null)
 
   const commitPaging = useCallback((nextPaging) => {
     pagingRef.current = nextPaging
@@ -350,6 +357,37 @@ export function KitchenDisplayApp({
       || nextPaging.appliedRevision !== pagingRef.current.appliedRevision
     ) commitPaging(nextPaging)
   }, [commitPaging, pageCount, phase, snapshot?.control])
+
+  useEffect(() => {
+    if (phase !== 'live') return undefined
+    const pageNumber = Math.min(paging.currentPage, pageCount)
+    const payload = {
+      appliedRevision: paging.appliedRevision,
+      currentPage: pageNumber,
+      pageCount,
+      viewportWidth: Number(viewport.width || 0),
+      viewportHeight: Number(boardViewportHeight || 0),
+      visibleOrderIds: (selectedPage?.cards || []).map(({ order }) => String(order.id)),
+    }
+    if (payload.viewportWidth < 1 || payload.viewportHeight < 1) return undefined
+    const fingerprint = JSON.stringify(payload)
+    if (telemetryFingerprint.current === fingerprint) return undefined
+    telemetryFingerprint.current = fingerprint
+    let active = true
+    void Promise.resolve(reportState(payload)).catch(() => {
+      if (active && telemetryFingerprint.current === fingerprint) telemetryFingerprint.current = null
+    })
+    return () => { active = false }
+  }, [
+    boardViewportHeight,
+    pageCount,
+    paging.appliedRevision,
+    paging.currentPage,
+    phase,
+    reportState,
+    selectedPage,
+    viewport.width,
+  ])
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
   if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
