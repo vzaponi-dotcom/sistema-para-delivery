@@ -98,3 +98,51 @@ export function buildKitchenDisplayPresentation(
     overflow: Math.max(0, queue.totalVisible - visible.length),
   }
 }
+
+
+export function buildKitchenDisplayPages(
+  orders = [],
+  timing,
+  now = new Date(),
+  highlightedIds = new Set(),
+  { viewportWidth, viewportHeight } = {},
+) {
+  const queue = buildKitchenQueueModel(orders, now, '', timing)
+  const globalCounts = {
+    preparing: queue.counts.preparing,
+    late: queue.counts.late,
+    scheduled: queue.counts.scheduled,
+  }
+  let remainingOrders = [...queue.preparing, ...queue.scheduled].map(({ order }) => order)
+  const totalVisible = remainingOrders.length
+  const pages = []
+  const unrenderableOrderIds = []
+
+  while (remainingOrders.length) {
+    const presentation = buildKitchenDisplayPresentation(
+      remainingOrders,
+      timing,
+      now,
+      highlightedIds,
+      { viewportWidth, viewportHeight },
+    )
+    const visibleIds = new Set(presentation.cards.map(({ order }) => String(order.id)))
+
+    if (!visibleIds.size) {
+      unrenderableOrderIds.push(...remainingOrders.map(({ id }) => String(id)))
+      break
+    }
+
+    pages.push({
+      ...presentation,
+      counts: { ...globalCounts },
+    })
+    remainingOrders = remainingOrders.filter(({ id }) => !visibleIds.has(String(id)))
+  }
+
+  return {
+    pages,
+    totalVisible,
+    unrenderableOrderIds,
+  }
+}
