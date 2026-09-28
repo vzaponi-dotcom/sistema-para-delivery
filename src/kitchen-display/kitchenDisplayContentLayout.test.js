@@ -351,8 +351,9 @@ test('compact packing reserves granular tracks for complex cards without exceedi
 })
 
 
-test('compact positioning spreads nine short cards across all four columns before starting the third row', () => {
-  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 9 })
+test('explicit compact positioning spreads nine short cards across all four columns before starting the third row', () => {
+  const profile = resolveKitchenBoardCandidates({ viewportWidth: 1640, viewportHeight: 924 })
+    .find(({ id }) => id === 'compact')
   const entries = Array.from({ length: 9 }, (_, index) => normalEntry(`spread-${index + 1}`))
   const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 924 })
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
