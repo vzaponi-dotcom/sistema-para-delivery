@@ -239,3 +239,76 @@ test('compact presentation can expose sixteen one-item orders on a large viewpor
   assert.equal(result.overflow, 0)
   assert.equal(result.cards.every((card) => card.gridSpan === 3), true)
 })
+
+
+test('best-fit keeps seven short orders in three columns instead of jumping directly to four', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 7 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'roomy')
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 7)
+  assert.equal(result.overflow, 0)
+})
+
+test('best-fit keeps nine short orders in three columns when roomy still fits all of them', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 9 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'roomy')
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 9)
+  assert.equal(result.overflow, 0)
+})
+
+test('best-fit uses four columns only when the three-column candidate cannot fit the actual content', () => {
+  const mediumItems = [
+    { quantity: 1, name: 'Arroz', note: '' },
+    { quantity: 1, name: 'Feijão', note: '' },
+    { quantity: 1, name: 'Batata', note: '' },
+    { quantity: 1, name: 'Carne', note: '' },
+  ]
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 8 }, (_, index) => preparing(index + 1, undefined, mediumItems)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'balanced')
+  assert.equal(result.profile.columns, 4)
+  assert.equal(result.cards.length, 8)
+  assert.equal(result.overflow, 0)
+})
+
+test('best-fit chooses the smallest overflow when no available profile can fit the full queue', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 10 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1366, viewportHeight: 768 },
+  )
+
+  assert.equal(result.profile.id, 'roomy')
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 9)
+  assert.equal(result.overflow, 1)
+})
