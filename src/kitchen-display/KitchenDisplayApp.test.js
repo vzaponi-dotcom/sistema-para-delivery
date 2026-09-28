@@ -335,7 +335,7 @@ test('remote paging starts on page one and does not replay the command already p
   h.window.innerWidth = 960
   h.window.innerHeight = 540
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
-  const initial = controlledState(20, { revision: 5, requestedPage: 2 })
+  const initial = controlledState(30, { revision: 5, requestedPage: 2 })
   const renderer = await h.render(KitchenDisplayApp, {
     bootstrap: async () => ({ kind: 'paired', state: initial }),
     readState: async () => initial,
@@ -347,7 +347,7 @@ test('remote paging starts on page one and does not replay the command already p
   await flushEffects()
 
   assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-1' }))
-  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-20' }).length, 0)
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-30' }).length, 0)
   assert.doesNotMatch(nodeText(renderer.root), /Anterior|Próxima/)
 })
 
@@ -356,10 +356,10 @@ test('a newer control revision changes the TV page and an out-of-range request c
   h.window.innerWidth = 960
   h.window.innerHeight = 540
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
-  const initial = controlledState(20, { revision: 2, requestedPage: 1 })
+  const initial = controlledState(30, { revision: 2, requestedPage: 1 })
   const responses = [
-    controlledState(20, { revision: 3, requestedPage: 2 }),
-    controlledState(20, { revision: 4, requestedPage: 99 }),
+    controlledState(30, { revision: 3, requestedPage: 2 }),
+    controlledState(30, { revision: 4, requestedPage: 99 }),
   ]
   const renderer = await h.render(KitchenDisplayApp, {
     bootstrap: async () => ({ kind: 'paired', state: initial }),
@@ -371,11 +371,11 @@ test('a newer control revision changes the TV page and an out-of-range request c
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
 
   await act(async () => h.fireInterval(2000))
-  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-20' }))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-30' }))
   assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-1' }).length, 0)
 
   await act(async () => h.fireInterval(2000))
-  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-20' }))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-30' }))
 })
 
 test('current page clamps automatically when the queue shrinks and the page disappears', async (t) => {
@@ -383,9 +383,9 @@ test('current page clamps automatically when the queue shrinks and the page disa
   h.window.innerWidth = 960
   h.window.innerHeight = 540
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
-  const initial = controlledState(20, { revision: 1, requestedPage: 1 })
+  const initial = controlledState(30, { revision: 1, requestedPage: 1 })
   const responses = [
-    controlledState(20, { revision: 2, requestedPage: 2 }),
+    controlledState(30, { revision: 2, requestedPage: 2 }),
     controlledState(2, { revision: 2, requestedPage: 2 }),
   ]
   const renderer = await h.render(KitchenDisplayApp, {
@@ -398,10 +398,10 @@ test('current page clamps automatically when the queue shrinks and the page disa
   await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
 
   await act(async () => h.fireInterval(2000))
-  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-20' }))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-30' }))
 
   await act(async () => h.fireInterval(2000))
   assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-1' }))
   assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-2' }))
-  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-20' }).length, 0)
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-30' }).length, 0)
 })
