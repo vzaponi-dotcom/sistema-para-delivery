@@ -94,9 +94,12 @@ const loadVisibilityCandidate = async (db, businessId, orderId) => db.prepare(`S
   .bind(businessId, orderId)
   .first()
 
-export async function hideKitchenTvOrder(db, businessId, orderId, now = new Date()) {
+export async function getKitchenTvOrderControlEligibility(db, businessId, orderId, now = new Date()) {
   const order = await loadVisibilityCandidate(db, businessId, orderId)
-  if (!order || order.status !== 'Em preparo' || order.finished_at || order.cancelled_at) return false
+  if (!order) return { exists: false, eligible: false }
+  if (order.status !== 'Em preparo' || order.finished_at || order.cancelled_at) {
+    return { exists: true, eligible: false }
+  }
 
   const operations = await loadOperations(db, businessId)
   const timingOrder = {
@@ -106,7 +109,15 @@ export async function hideKitchenTvOrder(db, businessId, orderId, now = new Date
     createdAt: order.created_at,
     scheduledFor: order.scheduled_for,
   }
-  if (isScheduledWaiting(timingOrder, now, operations.data.timing)) return false
+  return {
+    exists: true,
+    eligible: !isScheduledWaiting(timingOrder, now, operations.data.timing),
+  }
+}
+
+export async function hideKitchenTvOrder(db, businessId, orderId, now = new Date()) {
+  const eligibility = await getKitchenTvOrderControlEligibility(db, businessId, orderId, now)
+  if (!eligibility.eligible) return false
 
   await db.prepare(`INSERT OR IGNORE INTO kitchen_tv_hidden_orders
       (business_id, order_id, hidden_at)
