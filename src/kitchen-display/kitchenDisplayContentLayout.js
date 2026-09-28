@@ -149,23 +149,20 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, q
     ]
   }
 
-  if (count === 4) {
-    const twoByTwoFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 2)
-    const threeColumnFullHeightFocus = {
-      ...withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 3),
-      fullHeight: true,
-    }
-    return [
-      twoByTwoFocus,
-      threeColumnFullHeightFocus,
-      ...candidates.filter(({ id, columns }) => (
-        id !== twoByTwoFocus.id
-        || columns !== twoByTwoFocus.columns && columns !== threeColumnFullHeightFocus.columns
-      )),
-    ]
+  const twoColumnFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 2)
+  const threeColumnFullHeightFocus = {
+    ...withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 3),
+    fullHeight: true,
   }
 
-  return candidates
+  return [
+    twoColumnFocus,
+    threeColumnFullHeightFocus,
+    ...candidates.filter(({ id, columns }) => (
+      id !== twoColumnFocus.id
+      || columns !== twoColumnFocus.columns && columns !== threeColumnFullHeightFocus.columns
+    )),
+  ]
 }
 
 export function resolveKitchenBoardProfile({ viewportWidth, viewportHeight, queueSize = 0 } = {}) {
