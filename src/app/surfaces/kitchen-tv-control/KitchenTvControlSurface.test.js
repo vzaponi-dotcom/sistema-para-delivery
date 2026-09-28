@@ -75,7 +75,7 @@ async function render(t, {
 
 test('renders the approved compact two-column grid with ten cards and no sensitive/order-detail data', async (t) => {
   const { screen } = await render(t)
-  const cards = screen.root.findAll((node) => node.props.className === 'kitchen-tv-control-order-card')
+  const cards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
   assert.equal(cards.length, 10)
 
   const text = nodeText(screen.root)
