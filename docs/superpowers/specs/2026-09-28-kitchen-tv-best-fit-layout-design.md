@@ -104,7 +104,9 @@ O packing deve:
 - [ ] 6 pedidos simples continuam grandes/confortáveis;
 - [ ] 7 pedidos simples em viewport grande permanecem em 3 colunas quando couberem;
 - [ ] 8–9 pedidos simples tentam 3 colunas antes de 4;
-- [ ] 4 colunas só entram quando o candidato de 3 colunas não comportar a fila;
+- [ ] quatro pedidos simples continuam preferindo 2×2;
+- [ ] quatro pedidos mistos tentam 3 colunas com card full-height quando 2×2 não comportar um pedido grande;
+- [ ] 4 colunas só entram quando os candidatos menos densos não comportarem a fila;
 - [ ] quando nenhum perfil comportar tudo, prioridade operacional vence contagem bruta: preservar o maior prefixo contínuo de `preparing`; só depois maximizar quantidade visível;
 - [ ] um pedido grande que não cabe não bloqueia a avaliação dos pedidos posteriores; pedidos menores posteriores podem ocupar espaço restante sem retirar o grande do overflow;
 - [ ] pedidos fora da tela só aparecem quando nenhum candidato consegue acomodá-los;
