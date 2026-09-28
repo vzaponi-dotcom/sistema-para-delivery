@@ -46,8 +46,8 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
-  const [clientId, setClientId] = useState(clients[0]?.id ?? '')
-  const [clientSearch, setClientSearch] = useState(clients[0]?.name ?? '')
+  const [clientId, setClientId] = useState('')
+  const [clientSearch, setClientSearch] = useState('')
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
   const [type, setType] = useState(initialTableId ? 'Local' : initialCommonType)
   const [selectedTableId, setSelectedTableId] = useState(initialTableId)

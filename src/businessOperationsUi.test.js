@@ -40,13 +40,14 @@ test('a policy refresh keeps a still-valid selection instead of reapplying the n
 
 test('an open order keeps an inactive selection, cart and client until explicit review', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
-    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
+  const [{ default: NewOrder }, { default: NewOrderCustomerStep }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderCustomerStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
   ])
   const props = { ...baseNewOrderProps, modalityOptions: modalities('Entrega', 'Retirada'), defaultModality: 'Entrega', modalityRevision: 4 }
   const screen = await h.render(NewOrder, props)
   const types = screen.root.findByProps({ 'aria-label': 'Tipo do pedido' })
   await act(async () => buttonNamed(types, 'Retirada').props.onClick())
+  await act(async () => screen.root.findByType(NewOrderCustomerStep).props.onClientSelect(client))
   await act(async () => buttonNamed(screen.root, 'Continuar →').props.onClick())
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onAdd(product))
 
@@ -81,8 +82,8 @@ test('table context uses Local only while Local is active and otherwise requests
 
 test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', async (t) => {
   const h = await workspaceHarness(t)
-  const [{ default: NewOrder }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
-    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
+  const [{ default: NewOrder }, { default: NewOrderCustomerStep }, { default: NewOrderProductsStep }, { default: NewOrderReviewStep }] = await Promise.all([
+    h.load('/src/domains/orders/ui/NewOrder.jsx'), h.load('/src/domains/orders/ui/components/NewOrderCustomerStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderProductsStep.jsx'), h.load('/src/domains/orders/ui/components/NewOrderReviewStep.jsx'),
   ])
   let refreshes = 0
   const screen = await h.render(NewOrder, {
@@ -91,6 +92,7 @@ test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', as
     async onSubmit() { return { ok: false, code: 'POLICY_CHANGED' } },
     onPolicyChanged() { refreshes += 1 },
   })
+  await act(async () => screen.root.findByType(NewOrderCustomerStep).props.onClientSelect(client))
   await act(async () => buttonNamed(screen.root, 'Continuar →').props.onClick())
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onAdd(product))
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onReview())
