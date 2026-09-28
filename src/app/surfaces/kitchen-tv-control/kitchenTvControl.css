@@ -147,12 +147,12 @@
 
 .kitchen-tv-control-page-button:hover:not(:disabled) {
   border-color: var(--border-strong);
-  background: var(--surface-hover);
+  background: var(--surface-soft);
 }
 
 .kitchen-tv-control-page-button:focus-visible,
 .kitchen-tv-control-order-card:focus-visible {
-  outline: 3px solid var(--focus-ring);
+  outline: 3px solid var(--primary-control-ring);
   outline-offset: 2px;
 }
 
@@ -219,7 +219,7 @@
 
 .kitchen-tv-control-order-card:hover {
   border-color: var(--border-strong);
-  background: var(--surface-hover);
+  background: var(--surface-soft);
 }
 
 .kitchen-tv-control-order-card-heading {
