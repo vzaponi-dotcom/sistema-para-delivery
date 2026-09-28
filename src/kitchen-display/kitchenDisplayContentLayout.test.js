@@ -311,14 +311,14 @@ test('compact profile keeps short orders at one row and promotes complex content
   assert.equal(extreme.layoutDemand, 'full')
 })
 
-test('compact packing fits twelve short cards in the granular four-column matrix', () => {
+test('compact packing fits twelve short cards with the safer four-track minimum', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 12 })
   const entries = Array.from({ length: 12 }, (_, index) => normalEntry(`compact-${index + 1}`))
   const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 12)
-  assert.equal(packed.usedSlots, 64)
+  assert.equal(packed.usedSlots, 48)
   assert.equal(packed.overflow, 0)
   assert.equal(positioned.length, 12)
   assert.equal(new Set(positioned.map((card) => `${card.gridPosition.gridColumn}:${card.gridPosition.gridRow}`)).size, 12)
@@ -425,7 +425,7 @@ test('compact micro-grid can show sixteen truly short orders with reclaimed vert
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 16)
-  assert.equal(packed.usedSlots, 48)
+  assert.equal(packed.usedSlots, 64)
   assert.equal(packed.overflow, 0)
   assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 4), true)
   assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 13)
@@ -486,7 +486,7 @@ test('compact layout prefers two item columns earlier when that saves vertical t
   assert.equal(profile.gridRows, 24)
   assert.equal(fourShortItems.columnCount, 2)
   assert.equal(fourShortItems.fitStrategy, 'normal-two-columns')
-  assert.equal(fourShortItems.gridSpan, 3)
+  assert.equal(fourShortItems.gridSpan, 4)
 })
 
 test('compact height follows effective visual lines instead of coarse normal/tall buckets', () => {
@@ -508,7 +508,7 @@ test('compact height follows effective visual lines instead of coarse normal/tal
   )
 
   assert.equal(simple.gridSpan, 4)
-  assert.equal(noted.gridSpan, 4)
+  assert.equal(noted.gridSpan, 5)
   assert.equal(four.gridSpan, 4)
   assert.equal(large.gridSpan > four.gridSpan, true)
   assert.equal(large.gridSpan < 12, true)
@@ -522,11 +522,11 @@ test('nano metrics expose an explicit nano flag only for one-line no-note compac
   const wrapped = getKitchenCardContentMetrics([item('Marmita executiva completa família especial')], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(nano.isNano, true)
-  assert.equal(nano.gridSpan, 3)
+  assert.equal(nano.gridSpan, 4)
   assert.equal(noted.isNano, false)
-  assert.equal(noted.gridSpan, 4)
+  assert.equal(noted.gridSpan, 5)
   assert.equal(wrapped.isNano, false)
-  assert.equal(wrapped.gridSpan, 4)
+  assert.equal(wrapped.gridSpan, 5)
 })
 
 
