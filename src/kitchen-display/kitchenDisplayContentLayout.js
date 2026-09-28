@@ -47,10 +47,50 @@ export const formatKitchenDisplayItemName = (item) => {
 
 export const normalizeKitchenItemNote = (item) => cleanSpaces(item?.note)
 
-const countVisualLines = (item) => {
-  const nameLines = Math.max(1, Math.ceil(formatKitchenDisplayItemName(item).length / NAME_CHARS_PER_VISUAL_LINE))
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+
+const resolveEstimatedCardWidth = (viewportWidth, profile) => {
+  const width = Number(viewportWidth)
+  if (!Number.isFinite(width) || width <= 0) return undefined
+  return width / Math.max(1, Number(profile?.columns) || 1)
+}
+
+const resolveLineLimits = ({ viewportWidth, profile, columnCount = 1 }) => {
+  const cardWidth = resolveEstimatedCardWidth(viewportWidth, profile)
+  if (!cardWidth) {
+    return {
+      nameChars: NAME_CHARS_PER_VISUAL_LINE,
+      noteChars: NOTE_CHARS_PER_VISUAL_LINE,
+    }
+  }
+
+  const horizontalChrome = profile?.id === 'compact'
+    ? 44
+    : profile?.id === 'balanced'
+      ? 50
+      : profile?.id === 'roomy'
+        ? 54
+        : 58
+  const usableWidth = Math.max(90, cardWidth - horizontalChrome)
+  const itemColumnWidth = columnCount === 2
+    ? Math.max(64, (usableWidth - 12) / 2)
+    : usableWidth
+
+  // The original 22/28-character estimates are intentionally conservative
+  // around a ~180px production-text column. Only shrink them when a TV
+  // viewport makes an item column narrower than that; never make them more
+  // optimistic on larger screens.
+  const widthScale = Math.min(1, itemColumnWidth / 180)
+  return {
+    nameChars: clamp(Math.floor(NAME_CHARS_PER_VISUAL_LINE * widthScale), 7, NAME_CHARS_PER_VISUAL_LINE),
+    noteChars: clamp(Math.floor(NOTE_CHARS_PER_VISUAL_LINE * widthScale), 9, NOTE_CHARS_PER_VISUAL_LINE),
+  }
+}
+
+const countVisualLines = (item, { nameChars = NAME_CHARS_PER_VISUAL_LINE, noteChars = NOTE_CHARS_PER_VISUAL_LINE } = {}) => {
+  const nameLines = Math.max(1, Math.ceil(formatKitchenDisplayItemName(item).length / nameChars))
   const note = normalizeKitchenItemNote(item)
-  const noteLines = note ? Math.max(1, Math.ceil(note.length / NOTE_CHARS_PER_VISUAL_LINE)) : 0
+  const noteLines = note ? Math.max(1, Math.ceil(note.length / noteChars)) : 0
   return nameLines + noteLines * NOTE_LINE_WEIGHT
 }
 
@@ -108,12 +148,19 @@ const countTwoColumnVisualLines = (lineHeights) => {
   return total
 }
 
-const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, itemCount, viewportProfile, boardProfile }) => {
+const resolveFitStrategy = ({
+  visualLines,
+  twoColumnVisualLines,
+  itemCount,
+  viewportProfile,
+  boardProfile,
+  canUseTwoColumns = true,
+}) => {
   const profile = normalizeBoardProfile(boardProfile)
   const profileCapacity = BOARD_LINE_CAPACITY[profile.id] || VIEWPORT_LINE_CAPACITY
   const capacity = profileCapacity[viewportProfile] || profileCapacity.standard || VIEWPORT_LINE_CAPACITY.standard
 
-  const preferTwoColumns = profile.id === 'compact' && itemCount >= 4
+  const preferTwoColumns = canUseTwoColumns && profile.id === 'compact' && itemCount >= 4
 
   if (preferTwoColumns && twoColumnVisualLines <= capacity.normal) {
     return { layoutDemand: 'normal', rowSpan: 1, columnCount: 2, fitStrategy: 'normal-two-columns', capacity, profile }
@@ -121,7 +168,7 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, itemCount, view
   if (visualLines <= capacity.normal) {
     return { layoutDemand: 'normal', rowSpan: 1, columnCount: 1, fitStrategy: 'normal-one-column', capacity, profile }
   }
-  if (twoColumnVisualLines <= capacity.normal) {
+  if (canUseTwoColumns && twoColumnVisualLines <= capacity.normal) {
     return { layoutDemand: 'normal', rowSpan: 1, columnCount: 2, fitStrategy: 'normal-two-columns', capacity, profile }
   }
   if (profile.rows >= 2 && preferTwoColumns && twoColumnVisualLines <= capacity.tall) {
@@ -130,7 +177,7 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, itemCount, view
   if (profile.rows >= 2 && visualLines <= capacity.tall) {
     return { layoutDemand: 'tall', rowSpan: 2, columnCount: 1, fitStrategy: 'tall-one-column', capacity, profile }
   }
-  if (profile.rows >= 2 && twoColumnVisualLines <= capacity.tall) {
+  if (profile.rows >= 2 && canUseTwoColumns && twoColumnVisualLines <= capacity.tall) {
     return { layoutDemand: 'tall', rowSpan: 2, columnCount: 2, fitStrategy: 'tall-two-columns', capacity, profile }
   }
   if (profile.rows >= 3) {
@@ -155,24 +202,46 @@ const resolveFitStrategy = ({ visualLines, twoColumnVisualLines, itemCount, view
         profile,
       }
     }
+    if (canUseTwoColumns) {
+      return {
+        layoutDemand: 'full',
+        rowSpan: 3,
+        columnCount: 2,
+        fitStrategy: 'full-two-columns',
+        capacity: { ...capacity, full: fullCapacity },
+        profile,
+        overflowRisk: twoColumnVisualLines > fullCapacity,
+      }
+    }
     return {
       layoutDemand: 'full',
       rowSpan: 3,
-      columnCount: 2,
-      fitStrategy: 'full-two-columns',
+      columnCount: 1,
+      fitStrategy: 'full-one-column',
       capacity: { ...capacity, full: fullCapacity },
       profile,
-      overflowRisk: twoColumnVisualLines > fullCapacity,
+      overflowRisk: visualLines > fullCapacity,
+    }
+  }
+  if (canUseTwoColumns) {
+    return {
+      layoutDemand: 'tall',
+      rowSpan: 2,
+      columnCount: 2,
+      fitStrategy: 'tall-two-columns',
+      capacity,
+      profile,
+      overflowRisk: twoColumnVisualLines > capacity.tall,
     }
   }
   return {
     layoutDemand: 'tall',
     rowSpan: 2,
-    columnCount: 2,
-    fitStrategy: 'tall-two-columns',
+    columnCount: 1,
+    fitStrategy: 'tall-one-column',
     capacity,
     profile,
-    overflowRisk: twoColumnVisualLines > capacity.tall,
+    overflowRisk: visualLines > capacity.tall,
   }
 }
 
@@ -185,6 +254,7 @@ const resolveGridSpan = ({
   layoutDemand,
   columnCount,
   overflowRisk,
+  viewportProfile,
 }) => {
   if (profile.id === 'focus') return layoutDemand === 'normal' ? 3 : 6
   if (profile.id === 'balanced') return layoutDemand === 'normal' ? 4 : 8
@@ -199,6 +269,32 @@ const resolveGridSpan = ({
     return Math.min(profile.gridRows, roomySpan)
   }
 
+  if (viewportProfile === 'constrained') {
+    if (itemCount === 1) {
+      if (!hasNotes && visualLines === 1) return 6
+      return 8
+    }
+    const constrainedSpan = Math.max(
+      6,
+      4 + Math.ceil(Math.max(1, effectiveVisualLines) * 1.35) + (hasNotes ? 1 : 0),
+    )
+    if (overflowRisk) return profile.gridRows
+    return Math.min(profile.gridRows, constrainedSpan)
+  }
+
+  if (viewportProfile === 'standard') {
+    if (itemCount === 1) {
+      if (!hasNotes && visualLines === 1) return 5
+      return 6
+    }
+    const standardSpan = Math.max(
+      5,
+      3 + Math.ceil(Math.max(1, effectiveVisualLines) * 1.15) + (hasNotes ? 1 : 0),
+    )
+    if (overflowRisk) return profile.gridRows
+    return Math.min(profile.gridRows, standardSpan)
+  }
+
   if (itemCount === 1) {
     if (!hasNotes && visualLines === 1) return 4
     return 5
@@ -209,11 +305,15 @@ const resolveGridSpan = ({
   return Math.min(profile.gridRows, proportionalSpan)
 }
 
-export function getKitchenCardContentMetrics(items = [], { viewportHeight, boardProfile } = {}) {
+export function getKitchenCardContentMetrics(items = [], { viewportWidth, viewportHeight, boardProfile } = {}) {
   const safeItems = Array.isArray(items) ? items : []
-  const itemLineHeights = safeItems.map(countVisualLines)
-  const visualLines = itemLineHeights.reduce((total, lines) => total + lines, 0)
-  const twoColumnVisualLines = countTwoColumnVisualLines(itemLineHeights)
+  const profile = normalizeBoardProfile(boardProfile)
+  const oneColumnLimits = resolveLineLimits({ viewportWidth, profile, columnCount: 1 })
+  const twoColumnLimits = resolveLineLimits({ viewportWidth, profile, columnCount: 2 })
+  const oneColumnLineHeights = safeItems.map((item) => countVisualLines(item, oneColumnLimits))
+  const twoColumnLineHeights = safeItems.map((item) => countVisualLines(item, twoColumnLimits))
+  const visualLines = oneColumnLineHeights.reduce((total, lines) => total + lines, 0)
+  const twoColumnVisualLines = countTwoColumnVisualLines(twoColumnLineHeights)
   const itemCount = safeItems.length
   const hasNotes = safeItems.some((item) => Boolean(normalizeKitchenItemNote(item)))
   const density = visualLines >= 10 || itemCount >= 8
@@ -222,7 +322,16 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
       ? 'compact'
       : 'comfortable'
   const viewportProfile = resolveKitchenViewportProfile(viewportHeight)
-  const fit = resolveFitStrategy({ visualLines, twoColumnVisualLines, itemCount, viewportProfile, boardProfile })
+  const estimatedCardWidth = resolveEstimatedCardWidth(viewportWidth, profile)
+  const canUseTwoColumns = !estimatedCardWidth || estimatedCardWidth >= 340
+  const fit = resolveFitStrategy({
+    visualLines,
+    twoColumnVisualLines,
+    itemCount,
+    viewportProfile,
+    boardProfile,
+    canUseTwoColumns,
+  })
   const isNano = fit.profile.id === 'compact'
     && itemCount === 1
     && !hasNotes
@@ -238,6 +347,7 @@ export function getKitchenCardContentMetrics(items = [], { viewportHeight, board
     layoutDemand: fit.layoutDemand,
     columnCount: fit.columnCount,
     overflowRisk: fit.overflowRisk === true,
+    viewportProfile,
   })
 
   return {
@@ -326,7 +436,7 @@ const assignKitchenGrid = (cards, boardProfile, boardProfileProvided = true) => 
   return visit(0) ? placements : null
 }
 
-export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight, boardProfile } = {}) {
+export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportWidth, viewportHeight, boardProfile } = {}) {
   const source = Array.isArray(entries) ? entries : []
   const profile = normalizeBoardProfile(boardProfile)
   const hasBoardProfile = Boolean(boardProfile)
@@ -335,7 +445,7 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportHeight
   let usedSlots = 0
 
   for (const entry of source) {
-    const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportHeight, boardProfile })
+    const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportWidth, viewportHeight, boardProfile })
     const slotCost = hasBoardProfile ? metrics.gridSpan : metrics.rowSpan
     if (usedSlots + slotCost > slotCeiling) break
 
