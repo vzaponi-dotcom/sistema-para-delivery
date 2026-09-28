@@ -9,7 +9,7 @@ import viteConfig from '../../vite.config.js'
 const productionFiles = [
   'KitchenDisplayRoot.jsx', 'KitchenDisplayApp.jsx', 'KitchenDisplayBoard.jsx', 'KitchenDisplayCard.jsx',
   'kitchenDisplayApi.js', 'kitchenDisplayAudio.js', 'kitchenDisplayPresentation.js', 'kitchenDisplaySession.js',
-  'kitchenDisplayLegacyCompat.js', 'kitchenDisplayFullscreen.js',
+  'kitchenDisplayPaging.js', 'kitchenDisplayLegacyCompat.js', 'kitchenDisplayFullscreen.js',
 ]
 
 test('Kitchen TV production source stays read-only and isolated behind public boundaries', async () => {
@@ -23,7 +23,7 @@ test('Kitchen TV production source stays read-only and isolated behind public bo
 
   const api = sources.find(([file]) => file === 'kitchenDisplayApi.js')[1]
   assert.deepEqual([...api.matchAll(/['"](\/api\/[^'"]+)['"]/g)].map((match) => match[1]).sort(), [
-    '/api/kitchen-tv/pairing-request', '/api/kitchen-tv/pairing-status', '/api/kitchen-tv/state',
+    '/api/kitchen-tv/pairing-request', '/api/kitchen-tv/pairing-status', '/api/kitchen-tv/report', '/api/kitchen-tv/state',
   ])
 })
 
