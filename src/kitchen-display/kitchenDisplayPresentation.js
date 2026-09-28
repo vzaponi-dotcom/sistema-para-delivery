@@ -17,17 +17,18 @@ const presentationState = (entry, now, highlightedIds) => {
   return entry.phase === 'scheduled' ? 'scheduled' : 'preparing'
 }
 
-const packForProfile = (entries, profile, viewportHeight) => packKitchenDisplaySlots(entries, {
+const packForProfile = (entries, profile, viewportWidth, viewportHeight) => packKitchenDisplaySlots(entries, {
   maxSlots: profile.maxSlots,
+  viewportWidth,
   viewportHeight,
   boardProfile: profile,
 })
 
-const allocateForProfile = (queue, profile, viewportHeight) => {
+const allocateForProfile = (queue, profile, viewportWidth, viewportHeight) => {
   if (!queue.scheduled.length) {
     return {
       profile,
-      cards: packForProfile(queue.preparing, profile, viewportHeight).cards,
+      cards: packForProfile(queue.preparing, profile, viewportWidth, viewportHeight).cards,
     }
   }
 
@@ -37,7 +38,7 @@ const allocateForProfile = (queue, profile, viewportHeight) => {
 
   for (const candidate of queue.preparing) {
     const trialEntries = [...preparingCards, candidate, protectedScheduled]
-    const trial = packForProfile(trialEntries, profile, viewportHeight)
+    const trial = packForProfile(trialEntries, profile, viewportWidth, viewportHeight)
     if (trial.cards.length !== trialEntries.length) {
       preparingBlocked = true
       break
@@ -50,7 +51,7 @@ const allocateForProfile = (queue, profile, viewportHeight) => {
   if (!preparingBlocked) {
     for (const candidate of additionalScheduled) {
       const trialEntries = [...selected, candidate]
-      const trial = packForProfile(trialEntries, profile, viewportHeight)
+      const trial = packForProfile(trialEntries, profile, viewportWidth, viewportHeight)
       if (trial.cards.length !== trialEntries.length) break
       selected.push(candidate)
     }
@@ -58,13 +59,13 @@ const allocateForProfile = (queue, profile, viewportHeight) => {
 
   return {
     profile,
-    cards: packForProfile(selected, profile, viewportHeight).cards,
+    cards: packForProfile(selected, profile, viewportWidth, viewportHeight).cards,
   }
 }
 
 const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => {
   const candidates = resolveKitchenBoardCandidates({ viewportWidth, viewportHeight })
-  const allocations = candidates.map((profile) => allocateForProfile(queue, profile, viewportHeight))
+  const allocations = candidates.map((profile) => allocateForProfile(queue, profile, viewportWidth, viewportHeight))
 
   const complete = allocations.find(({ cards }) => cards.length === queue.totalVisible)
   if (complete) return complete
