@@ -64,7 +64,7 @@ const allocateForProfile = (queue, profile, viewportWidth, viewportHeight) => {
 }
 
 const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => {
-  const candidates = resolveKitchenBoardCandidates({ viewportWidth, viewportHeight })
+  const candidates = resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, queueSize: queue.totalVisible })
   const allocations = candidates.map((profile) => allocateForProfile(queue, profile, viewportWidth, viewportHeight))
 
   const complete = allocations.find(({ cards }) => cards.length === queue.totalVisible)
@@ -85,7 +85,7 @@ export function buildKitchenDisplayPresentation(
   const queue = buildKitchenQueueModel(orders, now, '', timing)
   const highlighted = toIdSet(highlightedIds)
   const allocation = allocateVisibleCards(queue, { viewportWidth, viewportHeight })
-  const visible = positionKitchenDisplayGrid(allocation.cards, { boardProfile: allocation.profile })
+  const visible = positionKitchenDisplayGrid(allocation.cards, { boardProfile: allocation.profile, fillAvailable: true })
 
   return {
     profile: allocation.profile,
