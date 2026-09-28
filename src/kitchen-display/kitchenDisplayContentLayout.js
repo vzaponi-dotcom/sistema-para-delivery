@@ -96,10 +96,27 @@ const countVisualLines = (item, { nameChars = NAME_CHARS_PER_VISUAL_LINE, noteCh
 
 const normalizeBoardProfile = (value) => {
   const id = typeof value === 'string' ? value : value?.id
-  return KITCHEN_BOARD_PROFILES[id] || KITCHEN_BOARD_PROFILES.focus
+  const base = KITCHEN_BOARD_PROFILES[id] || KITCHEN_BOARD_PROFILES.focus
+  if (!value || typeof value === 'string') return base
+  return {
+    ...base,
+    ...value,
+    id: base.id,
+    columns: Math.max(1, Math.trunc(Number(value.columns)) || base.columns),
+    gridRows: Math.max(1, Math.trunc(Number(value.gridRows)) || base.gridRows),
+  }
 }
 
-export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight } = {}) {
+const withBoardColumns = (profile, columns) => {
+  const safeColumns = Math.max(1, Math.trunc(Number(columns)) || profile.columns)
+  return {
+    ...profile,
+    columns: safeColumns,
+    maxSlots: safeColumns * profile.gridRows,
+  }
+}
+
+export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, queueSize } = {}) {
   const width = Math.trunc(Number(viewportWidth))
   const height = Math.trunc(Number(viewportHeight))
   const hasViewport = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
@@ -115,6 +132,16 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight } 
   if (legacyTvViewport || width >= 1100 && height >= 680) candidates.push({ ...KITCHEN_BOARD_PROFILES.roomy })
   if (legacyTvViewport || width >= 1100 && height >= 620) candidates.push({ ...KITCHEN_BOARD_PROFILES.balanced })
   if (legacyTvViewport || width >= 1440 && height >= 820) candidates.push({ ...KITCHEN_BOARD_PROFILES.compact })
+
+  const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
+  if (count >= 1 && count <= 4) {
+    const adaptiveFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, count)
+    return [
+      adaptiveFocus,
+      ...candidates.filter(({ id, columns }) => id !== adaptiveFocus.id || columns !== adaptiveFocus.columns),
+    ]
+  }
+
   return candidates
 }
 
@@ -446,6 +473,7 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportWidth,
 
   for (const entry of source) {
     const metrics = getKitchenCardContentMetrics(entry?.order?.items, { viewportWidth, viewportHeight, boardProfile })
+    if (hasBoardProfile && metrics.overflowRisk) break
     const slotCost = hasBoardProfile ? metrics.gridSpan : metrics.rowSpan
     if (usedSlots + slotCost > slotCeiling) break
 
@@ -471,7 +499,7 @@ export function packKitchenDisplaySlots(entries = [], { maxSlots, viewportWidth,
   }
 }
 
-export function positionKitchenDisplayGrid(cards = [], { boardProfile } = {}) {
+export function positionKitchenDisplayGrid(cards = [], { boardProfile, fillAvailable = false } = {}) {
   const source = Array.isArray(cards) ? cards : []
   const profile = normalizeBoardProfile(boardProfile)
   const hasBoardProfile = Boolean(boardProfile)
@@ -482,8 +510,16 @@ export function positionKitchenDisplayGrid(cards = [], { boardProfile } = {}) {
     gridPosition: { gridColumn: 1, gridRow: 1, rowSpan: cardGridSpan(card, profile, hasBoardProfile) },
   }))
 
+  const positioned = fillAvailable && hasBoardProfile && source.length > 0 && source.length <= profile.columns
+    ? placement.map((entry) => ({
+        ...entry,
+        gridRow: `1 / span ${profile.gridRows}`,
+        rowSpan: profile.gridRows,
+      }))
+    : placement
+
   return source.map((card, index) => ({
     ...card,
-    gridPosition: placement[index],
+    gridPosition: positioned[index],
   }))
 }
