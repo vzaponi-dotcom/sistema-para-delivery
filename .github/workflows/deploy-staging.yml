@@ -3,6 +3,7 @@ name: Deploy staging
 on:
   push:
     branches:
+      - feature/new-order-empty-client
       - feature/mesiva-visual-theme
       - feature/operation-identity-settings
       - feature/kitchen-alert-sound-profiles
