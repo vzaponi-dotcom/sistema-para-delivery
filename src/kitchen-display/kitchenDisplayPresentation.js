@@ -52,6 +52,16 @@ const allocateForProfile = (queue, profile, viewportWidth, viewportHeight) => {
   }
 }
 
+const preparingPriorityPrefixLength = (cards, preparing) => {
+  const visibleIds = new Set(cards.map(({ order }) => String(order.id)))
+  let length = 0
+  for (const entry of preparing) {
+    if (!visibleIds.has(String(entry.order.id))) break
+    length += 1
+  }
+  return length
+}
+
 const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => {
   const candidates = resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, queueSize: queue.totalVisible })
   const allocations = candidates.map((profile) => allocateForProfile(queue, profile, viewportWidth, viewportHeight))
@@ -59,9 +69,14 @@ const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => 
   const complete = allocations.find(({ cards }) => cards.length === queue.totalVisible)
   if (complete) return complete
 
-  return allocations.reduce((best, candidate) => (
-    candidate.cards.length > best.cards.length ? candidate : best
-  ), allocations[0])
+  return allocations.reduce((best, candidate) => {
+    const bestPriorityPrefix = preparingPriorityPrefixLength(best.cards, queue.preparing)
+    const candidatePriorityPrefix = preparingPriorityPrefixLength(candidate.cards, queue.preparing)
+    if (candidatePriorityPrefix !== bestPriorityPrefix) {
+      return candidatePriorityPrefix > bestPriorityPrefix ? candidate : best
+    }
+    return candidate.cards.length > best.cards.length ? candidate : best
+  }, allocations[0])
 }
 
 export function buildKitchenDisplayPresentation(
