@@ -7,6 +7,7 @@ import {
   normalizeKitchenItemNote,
   packKitchenDisplaySlots,
   positionKitchenDisplayGrid,
+  resolveKitchenBoardCandidates,
   resolveKitchenBoardProfile,
   resolveKitchenViewportProfile,
 } from './kitchenDisplayContentLayout.js'
@@ -257,7 +258,7 @@ test('board profile keeps small queues spacious and expands density only when us
     id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 8 }), {
-    id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32,
+    id: 'roomy', columns: 3, rows: 3, gridRows: 18, maxSlots: 54,
   })
   assert.deepEqual(resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 10 }), {
     id: 'compact', columns: 4, rows: 3, gridRows: 24, maxSlots: 96,
@@ -268,13 +269,13 @@ test('board profile allows compact density on the approved large viewport refere
   assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 10 }).id, 'compact')
 })
 
-test('board profile protects 1366x768 readability instead of forcing three rows', () => {
+test('board profile can use compact density on 1366x768 when the queue needs it', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1366, viewportHeight: 768, queueSize: 10 })
-  assert.equal(profile.id, 'balanced')
+  assert.equal(profile.id, 'compact')
   assert.equal(profile.columns, 4)
-  assert.equal(profile.rows, 2)
-  assert.equal(profile.gridRows, 8)
-  assert.equal(profile.maxSlots, 32)
+  assert.equal(profile.rows, 3)
+  assert.equal(profile.gridRows, 24)
+  assert.equal(profile.maxSlots, 96)
 })
 
 test('board profile uses a safe fallback when viewport dimensions are unavailable', () => {
@@ -310,14 +311,14 @@ test('compact profile keeps short orders at one row and promotes complex content
   assert.equal(extreme.layoutDemand, 'full')
 })
 
-test('compact packing fits twelve short cards in the granular four-column matrix', () => {
+test('compact packing fits twelve short cards with the safer four-track minimum', () => {
   const profile = resolveKitchenBoardProfile({ viewportWidth: 1920, viewportHeight: 1080, queueSize: 12 })
   const entries = Array.from({ length: 12 }, (_, index) => normalEntry(`compact-${index + 1}`))
   const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 1080 })
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 12)
-  assert.equal(packed.usedSlots, 36)
+  assert.equal(packed.usedSlots, 48)
   assert.equal(packed.overflow, 0)
   assert.equal(positioned.length, 12)
   assert.equal(new Set(positioned.map((card) => `${card.gridPosition.gridColumn}:${card.gridPosition.gridRow}`)).size, 12)
@@ -350,8 +351,9 @@ test('compact packing reserves granular tracks for complex cards without exceedi
 })
 
 
-test('compact positioning spreads nine short cards across all four columns before starting the third row', () => {
-  const profile = resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 9 })
+test('explicit compact positioning spreads nine short cards across all four columns before starting the third row', () => {
+  const profile = resolveKitchenBoardCandidates({ viewportWidth: 1640, viewportHeight: 924 })
+    .find(({ id }) => id === 'compact')
   const entries = Array.from({ length: 9 }, (_, index) => normalEntry(`spread-${index + 1}`))
   const packed = packKitchenDisplaySlots(entries, { boardProfile: profile, viewportHeight: 924 })
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
@@ -368,19 +370,20 @@ test('compact positioning spreads nine short cards across all four columns befor
     { column: 4, row: 1 },
   ])
   assert.deepEqual(positions.slice(4, 8), [
-    { column: 1, row: 4 },
-    { column: 2, row: 4 },
-    { column: 3, row: 4 },
-    { column: 4, row: 4 },
+    { column: 1, row: 5 },
+    { column: 2, row: 5 },
+    { column: 3, row: 5 },
+    { column: 4, row: 5 },
   ])
-  assert.deepEqual(positions[8], { column: 1, row: 7 })
+  assert.deepEqual(positions[8], { column: 1, row: 9 })
 })
 
 
-test('five short orders move to the balanced four-column profile while four stay spacious', () => {
+test('queue-size fallback keeps focus through six and uses roomy before four-column density', () => {
   assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 4 }).id, 'focus')
-  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 5 }).id, 'balanced')
-  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 8 }).id, 'balanced')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 6 }).id, 'focus')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 7 }).id, 'roomy')
+  assert.equal(resolveKitchenBoardProfile({ viewportWidth: 1640, viewportHeight: 924, queueSize: 9 }).id, 'roomy')
 })
 
 test('compact one-line cards use a two-track micro height while notes and wrapped names keep more room', () => {
@@ -404,11 +407,11 @@ test('compact one-line cards use a two-track micro height while notes and wrappe
   assert.equal(profile.id, 'compact')
   assert.equal(profile.gridRows, 24)
   assert.equal(profile.maxSlots, 96)
-  assert.equal(short.gridSpan, 3)
-  assert.equal(withNote.gridSpan, 4)
-  assert.equal(wrappedName.gridSpan, 4)
+  assert.equal(short.gridSpan, 4)
+  assert.equal(withNote.gridSpan, 5)
+  assert.equal(wrappedName.gridSpan, 5)
   assert.equal(medium.gridSpan >= 3, true)
-  assert.equal(medium.gridSpan, 3)
+  assert.equal(medium.gridSpan, 4)
 })
 
 test('compact micro-grid can show sixteen truly short orders with reclaimed vertical room', () => {
@@ -423,10 +426,10 @@ test('compact micro-grid can show sixteen truly short orders with reclaimed vert
   const positioned = positionKitchenDisplayGrid(packed.cards, { boardProfile: profile })
 
   assert.equal(packed.cards.length, 16)
-  assert.equal(packed.usedSlots, 48)
+  assert.equal(packed.usedSlots, 64)
   assert.equal(packed.overflow, 0)
-  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 3), true)
-  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 10)
+  assert.equal(positioned.every((card) => card.gridPosition.rowSpan === 4), true)
+  assert.equal(Math.max(...positioned.map((card) => Number(String(card.gridPosition.gridRow).split(' ')[0]))), 13)
 })
 
 test('compact masonry preserves source priority order when placing mixed card heights', () => {
@@ -466,9 +469,9 @@ test('compact one-line nano cards reclaim structure without reducing text', () =
   ], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(profile.gridRows, 24)
-  assert.equal(nano.gridSpan, 3)
-  assert.equal(twoItems.gridSpan, 3)
-  assert.equal(noted.gridSpan, 4)
+  assert.equal(nano.gridSpan, 4)
+  assert.equal(twoItems.gridSpan, 4)
+  assert.equal(noted.gridSpan, 5)
 })
 
 
@@ -484,7 +487,7 @@ test('compact layout prefers two item columns earlier when that saves vertical t
   assert.equal(profile.gridRows, 24)
   assert.equal(fourShortItems.columnCount, 2)
   assert.equal(fourShortItems.fitStrategy, 'normal-two-columns')
-  assert.equal(fourShortItems.gridSpan, 3)
+  assert.equal(fourShortItems.gridSpan, 4)
 })
 
 test('compact height follows effective visual lines instead of coarse normal/tall buckets', () => {
@@ -505,9 +508,9 @@ test('compact height follows effective visual lines instead of coarse normal/tal
     { viewportHeight: 924, boardProfile: profile },
   )
 
-  assert.equal(simple.gridSpan, 3)
-  assert.equal(noted.gridSpan, 4)
-  assert.equal(four.gridSpan, 3)
+  assert.equal(simple.gridSpan, 4)
+  assert.equal(noted.gridSpan, 5)
+  assert.equal(four.gridSpan, 4)
   assert.equal(large.gridSpan > four.gridSpan, true)
   assert.equal(large.gridSpan < 12, true)
 })
@@ -520,9 +523,162 @@ test('nano metrics expose an explicit nano flag only for one-line no-note compac
   const wrapped = getKitchenCardContentMetrics([item('Marmita executiva completa família especial')], { viewportHeight: 924, boardProfile: profile })
 
   assert.equal(nano.isNano, true)
-  assert.equal(nano.gridSpan, 3)
+  assert.equal(nano.gridSpan, 4)
   assert.equal(noted.isNano, false)
-  assert.equal(noted.gridSpan, 4)
+  assert.equal(noted.gridSpan, 5)
   assert.equal(wrapped.isNano, false)
-  assert.equal(wrapped.gridSpan, 4)
+  assert.equal(wrapped.gridSpan, 5)
+})
+
+
+test('board candidates expose progressively denser layouts without using queue size as the only decision', () => {
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3], ['roomy', 3], ['balanced', 4], ['compact', 4]],
+  )
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 1366, viewportHeight: 768 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3], ['roomy', 3], ['balanced', 4], ['compact', 4]],
+  )
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({}).map(({ id, columns }) => [id, columns]),
+    [['focus', 3]],
+  )
+})
+
+test('roomy keeps three columns with a granular vertical grid for seven-to-nine short orders', () => {
+  const roomy = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'roomy')
+
+  assert.deepEqual(roomy, {
+    id: 'roomy', columns: 3, rows: 3, gridRows: 18, maxSlots: 54,
+  })
+
+  const short = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportHeight: 1080, boardProfile: roomy })
+  assert.equal(short.gridSpan, 6)
+  assert.equal(short.boardProfile, 'roomy')
+})
+
+test('compact card minimum keeps a real-TV safety margin for chrome and one item line', () => {
+  const compact = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'compact')
+
+  const simple = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportHeight: 1080, boardProfile: compact })
+  const noted = getKitchenCardContentMetrics([
+    item('Marmita', 'Sem cebola'),
+  ], { viewportHeight: 1080, boardProfile: compact })
+  const twoItems = getKitchenCardContentMetrics([
+    item('Marmita'),
+    item('Suco'),
+  ], { viewportHeight: 1080, boardProfile: compact })
+
+  assert.equal(simple.gridSpan, 4)
+  assert.equal(noted.gridSpan >= 5, true)
+  assert.equal(twoItems.gridSpan >= 4, true)
+})
+
+
+test('legacy TV viewport still exposes four-column best-fit candidates', () => {
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 960, viewportHeight: 540 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3], ['roomy', 3], ['balanced', 4], ['compact', 4]],
+  )
+})
+
+test('very small viewport still degrades conservatively', () => {
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 640, viewportHeight: 360 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3]],
+  )
+})
+
+
+test('legacy compact cards reserve extra tracks for real TV text rasterization', () => {
+  const compact = resolveKitchenBoardCandidates({ viewportWidth: 960, viewportHeight: 540 })
+    .find(({ id }) => id === 'compact')
+
+  const simple = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportWidth: 960, viewportHeight: 540, boardProfile: compact })
+  const noted = getKitchenCardContentMetrics([
+    item('Marmita', 'Sem cebola'),
+  ], { viewportWidth: 960, viewportHeight: 540, boardProfile: compact })
+  const medium = getKitchenCardContentMetrics([
+    item('Combo Duplo Un'),
+    item('Combo Família Un'),
+    item('Refrigerante Cola 2L'),
+    item('X-Bacon Un'),
+  ], { viewportWidth: 960, viewportHeight: 540, boardProfile: compact })
+
+  assert.equal(simple.viewportProfile, 'constrained')
+  assert.equal(simple.gridSpan >= 6, true)
+  assert.equal(noted.gridSpan >= 8, true)
+  assert.equal(medium.columnCount, 1)
+  assert.equal(medium.gridSpan >= 10, true)
+})
+
+test('legacy compact width estimates more wrapping than desktop compact width', () => {
+  const compact = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'compact')
+  const items = [
+    item('Refrigerante Guaraná 350ml 350 ml'),
+    item('Combo Família Individual Un'),
+    item('Marmita Frango Completa Família'),
+    item('X-Salada Especial Un'),
+  ]
+
+  const desktop = getKitchenCardContentMetrics(items, {
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+    boardProfile: compact,
+  })
+  const legacy = getKitchenCardContentMetrics(items, {
+    viewportWidth: 960,
+    viewportHeight: 540,
+    boardProfile: compact,
+  })
+
+  assert.equal(desktop.columnCount, 2)
+  assert.equal(legacy.columnCount, 1)
+  assert.equal(legacy.gridSpan > desktop.gridSpan, true)
+})
+
+
+test('board-profile packing skips one oversized blocked card and still fills later safe capacity', () => {
+  const profile = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'focus')
+  const entries = [
+    normalEntry('p-1'),
+    normalEntry('p-2'),
+    normalEntry('p-3'),
+    normalEntry('p-4'),
+    normalEntry('p-5'),
+    {
+      order: {
+        id: 'p-6',
+        items: Array.from({ length: 24 }, (_, index) => item(
+          `Produto muito grande família especial completo ${index + 1}`,
+        )),
+      },
+    },
+    normalEntry('p-7'),
+  ]
+
+  const result = packKitchenDisplaySlots(entries, {
+    boardProfile: profile,
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+  })
+
+  assert.deepEqual(result.cards.map((entry) => entry.order.id), [
+    'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-7',
+  ])
+  assert.equal(result.cards.some((entry) => entry.order.id === 'p-6'), false)
+  assert.equal(result.usedSlots, 18)
+  assert.equal(result.remainingSlots, 0)
+  assert.equal(result.overflow, 1)
 })

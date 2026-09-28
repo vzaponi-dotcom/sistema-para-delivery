@@ -19,7 +19,7 @@ test('six-slot allocation covers 0-8 preparing with no scheduled orders', () => 
   }
 })
 
-test('scheduled work reserves one slot and fills every free slot after up to five preparing', () => {
+test('scheduled work only uses space left after every visible preparing order', () => {
   for (let preparingCount = 0; preparingCount <= 8; preparingCount += 1) {
     for (const scheduledCount of [1, 4, 8]) {
       const orders = [
@@ -27,18 +27,20 @@ test('scheduled work reserves one slot and fills every free slot after up to fiv
         ...Array.from({ length: scheduledCount }, (_, index) => scheduled(index)),
       ]
       const result = buildKitchenDisplayPresentation(orders, timing, now)
-      const expectedPreparing = Math.min(5, preparingCount)
-      const expectedScheduled = Math.min(scheduledCount, 6 - expectedPreparing)
+      const expectedPreparing = Math.min(6, preparingCount)
+      const expectedScheduled = preparingCount < 6
+        ? Math.min(scheduledCount, 6 - preparingCount)
+        : 0
       assert.equal(result.cards.filter(({ phase }) => phase === 'preparing').length, expectedPreparing)
       assert.equal(result.cards.filter(({ phase }) => phase === 'scheduled').length, expectedScheduled)
-      assert.equal(result.cards.length, Math.min(6, expectedPreparing + scheduledCount))
+      assert.equal(result.cards.length, expectedPreparing + expectedScheduled)
       assert.equal(result.overflow, preparingCount + scheduledCount - result.cards.length)
       assert.equal(result.cards.at(-1)?.phase, expectedScheduled ? 'scheduled' : 'preparing')
     }
   }
 })
 
-test('a tall preparing card consumes two slots while the first scheduled card remains protected', () => {
+test('a tall preparing card keeps priority over a waiting scheduled card', () => {
   const orders = [
     preparing(1, undefined, denseItems('Grande')),
     preparing(2),
@@ -49,14 +51,14 @@ test('a tall preparing card consumes two slots while the first scheduled card re
   ]
   const result = buildKitchenDisplayPresentation(orders, timing, now)
 
-  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
+  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 'p-05'])
   assert.deepEqual(result.cards.map(({ slotCost }) => slotCost), [6, 3, 3, 3, 3])
   assert.equal(result.cards.find(({ order }) => order.id === 'p-01')?.layoutDemand, 'tall')
-  assert.equal(result.cards.at(-1)?.order.id, 's-01')
+  assert.equal(result.cards.some(({ order }) => order.id === 's-01'), false)
   assert.equal(result.overflow, 1)
 })
 
-test('a tall protected scheduled card displaces the lowest-priority preparing card instead of disappearing', () => {
+test('a large waiting scheduled card never displaces a preparing order', () => {
   const orders = [
     preparing(1),
     preparing(2),
@@ -67,13 +69,12 @@ test('a tall protected scheduled card displaces the lowest-priority preparing ca
   ]
   const result = buildKitchenDisplayPresentation(orders, timing, now)
 
-  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
-  assert.equal(result.cards.at(-1)?.slotCost, 6)
-  assert.equal(result.cards.at(-1)?.layoutDemand, 'tall')
+  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 'p-05'])
+  assert.equal(result.cards.some(({ order }) => order.id === 's-01'), false)
   assert.equal(result.overflow, 1)
 })
 
-test('additional scheduled cards fill free slots only when no higher-priority preparing candidate was blocked', () => {
+test('scheduled cards fill only genuine free capacity after the preparing queue', () => {
   const fillable = buildKitchenDisplayPresentation([
     preparing(1, undefined, denseItems('Grande')),
     scheduled(1),
@@ -96,8 +97,8 @@ test('additional scheduled cards fill free slots only when no higher-priority pr
     scheduled(2),
   ], timing, now)
 
-  assert.deepEqual(blocked.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
-  assert.equal(blocked.cards.some(({ order }) => order.id === 's-02'), false)
+  assert.deepEqual(blocked.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 'p-05'])
+  assert.equal(blocked.cards.some(({ phase }) => phase === 'scheduled'), false)
   assert.equal(blocked.overflow, 2)
 })
 
@@ -167,7 +168,7 @@ test('large viewport expands short-order capacity to twelve while small queues r
   assert.equal(four.cards.length, 4)
 })
 
-test('1366x768 protects readability by using the balanced eight-card profile', () => {
+test('1366x768 uses compact density when it is the first profile that fits the full queue', () => {
   const result = buildKitchenDisplayPresentation(
     Array.from({ length: 10 }, (_, index) => preparing(index)),
     timing,
@@ -175,12 +176,12 @@ test('1366x768 protects readability by using the balanced eight-card profile', (
     new Set(),
     { viewportWidth: 1366, viewportHeight: 768 },
   )
-  assert.equal(result.profile.id, 'balanced')
-  assert.equal(result.cards.length, 8)
-  assert.equal(result.overflow, 2)
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length, 10)
+  assert.equal(result.overflow, 0)
 })
 
-test('compact profile protects one scheduled order while using the remaining capacity for preparing work', () => {
+test('compact profile shows a waiting scheduled order only when all preparing work already fits', () => {
   const orders = [
     ...Array.from({ length: 11 }, (_, index) => preparing(index)),
     scheduled(1),
@@ -237,5 +238,346 @@ test('compact presentation can expose sixteen one-item orders on a large viewpor
   assert.equal(result.profile.id, 'compact')
   assert.equal(result.cards.length, 16)
   assert.equal(result.overflow, 0)
-  assert.equal(result.cards.every((card) => card.gridSpan === 3), true)
+  assert.equal(result.cards.every((card) => card.gridSpan === 4), true)
+})
+
+
+test('best-fit keeps seven short orders in three columns instead of jumping directly to four', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 7 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'roomy')
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 7)
+  assert.equal(result.overflow, 0)
+})
+
+test('best-fit keeps nine short orders in three columns when roomy still fits all of them', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 9 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'roomy')
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 9)
+  assert.equal(result.overflow, 0)
+})
+
+test('best-fit uses four columns only when the three-column candidate cannot fit the actual content', () => {
+  const mediumItems = [
+    { quantity: 1, name: 'Arroz', note: '' },
+    { quantity: 1, name: 'Feijão', note: '' },
+    { quantity: 1, name: 'Batata', note: '' },
+    { quantity: 1, name: 'Carne', note: '' },
+  ]
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 8 }, (_, index) => preparing(index + 1, undefined, mediumItems)),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.id, 'balanced')
+  assert.equal(result.profile.columns, 4)
+  assert.equal(result.cards.length, 8)
+  assert.equal(result.overflow, 0)
+})
+
+test('best-fit chooses the smallest overflow when no available profile can fit the full queue', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 30 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.profile.columns, 4)
+  assert.equal(result.cards.length, 16)
+  assert.equal(result.overflow, 14)
+})
+
+
+test('legacy TV viewport does not get trapped in six-card focus mode', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 16 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.profile.columns, 4)
+  assert.equal(result.cards.length, 16)
+  assert.equal(result.overflow, 0)
+})
+
+test('legacy TV best-fit still chooses the profile that shows most mixed-size orders', () => {
+  const fourItems = [
+    { quantity: 1, name: 'Arroz', note: '' },
+    { quantity: 1, name: 'Feijão', note: '' },
+    { quantity: 1, name: 'Batata', note: '' },
+    { quantity: 1, name: 'Carne', note: '' },
+  ]
+  const orders = [
+    preparing(1, undefined, fourItems),
+    preparing(2, undefined, fourItems),
+    ...Array.from({ length: 14 }, (_, index) => preparing(index + 3, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length > 6, true)
+  assert.equal(result.overflow < 10, true)
+})
+
+
+test('adaptive fill gives one order the full board width and height', () => {
+  const result = buildKitchenDisplayPresentation(
+    [preparing(1, undefined, [{ quantity: 1, name: 'Marmita', note: '' }])],
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.columns, 1)
+  assert.equal(result.cards.length, 1)
+  assert.equal(result.overflow, 0)
+  assert.equal(result.cards[0].gridPosition.gridColumn, 1)
+  assert.equal(result.cards[0].gridPosition.rowSpan, result.profile.gridRows)
+  assert.equal(result.cards[0].gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+})
+
+test('adaptive fill splits two short orders into two full-height columns', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 2 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.columns, 2)
+  assert.equal(result.cards.length, 2)
+  assert.deepEqual(result.cards.map((card) => card.gridPosition.gridColumn), [1, 2])
+  assert.equal(result.cards.every((card) => card.gridPosition.rowSpan === result.profile.gridRows), true)
+})
+
+test('adaptive fill keeps four short orders in a balanced two-by-two grid', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 4 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1920, viewportHeight: 1080 },
+  )
+
+  assert.equal(result.profile.columns, 2)
+  assert.equal(result.cards.length, 4)
+  assert.deepEqual(result.cards.map((card) => card.gridPosition.gridColumn), [1, 2, 1, 2])
+  assert.deepEqual(result.cards.map((card) => card.gridPosition.gridRow), [
+    '1 / span 3',
+    '1 / span 3',
+    '4 / span 3',
+    '4 / span 3',
+  ])
+  assert.equal(result.overflow, 0)
+})
+
+
+test('waiting scheduled work stays off-screen while any preparing order is in overflow', () => {
+  const orders = [
+    ...Array.from({ length: 7 }, (_, index) => preparing(index + 1)),
+    scheduled(1),
+  ]
+  const result = buildKitchenDisplayPresentation(orders, timing, now)
+
+  assert.deepEqual(result.cards.map(({ order }) => order.id), [
+    'p-01', 'p-02', 'p-03', 'p-04', 'p-05', 'p-06',
+  ])
+  assert.equal(result.cards.some(({ phase }) => phase === 'scheduled'), false)
+  assert.equal(result.overflow, 2)
+})
+
+
+test('presentation keeps scanning preparing work after one oversized card cannot fit', () => {
+  const orders = [
+    preparing(1),
+    preparing(2),
+    preparing(3),
+    preparing(4),
+    preparing(5),
+    preparing(6, undefined, denseItems('Muito grande')),
+    preparing(7),
+  ]
+
+  const result = buildKitchenDisplayPresentation(orders, timing, now)
+
+  assert.deepEqual(result.cards.map(({ order }) => order.id), [
+    'p-01', 'p-02', 'p-03', 'p-04', 'p-05', 'p-07',
+  ])
+  assert.equal(result.cards.some(({ order }) => order.id === 'p-06'), false)
+  assert.equal(result.overflow, 1)
+})
+
+
+test('best-fit protects the highest-priority preparing prefix before maximizing visible card count', () => {
+  const largePriorityItems = Array.from({ length: 13 }, (_, index) => ({
+    quantity: 1,
+    name: `Item ${index + 1}`,
+    note: '',
+  }))
+  const orders = [
+    preparing(1, '2026-09-22T14:10:00.000Z', largePriorityItems),
+    ...Array.from({ length: 12 }, (_, index) => preparing(index + 2, '2026-09-22T14:50:00.000Z', [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.cards.some(({ order }) => order.id === 'p-01'), true)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.overflow > 0, true)
+})
+
+
+test('one oversized preparing order still renders alone on the full TV canvas', () => {
+  const hugeItems = Array.from({ length: 11 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto operacional grande ${index + 1}`,
+    note: index % 2 === 0 ? `Observação de produção importante ${index + 1}` : '',
+  }))
+  const result = buildKitchenDisplayPresentation(
+    [preparing(1, '2026-09-22T14:10:00.000Z', hugeItems)],
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.columns, 1)
+  assert.equal(result.cards.length, 1)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+  assert.equal(result.overflow, 0)
+})
+
+
+test('four mixed orders keep one full-height large card plus three smaller cards in three columns', () => {
+  const largeItems = [
+    { quantity: 1, name: '[TESTE] Ovo Frito Un', note: '' },
+    { quantity: 1, name: '[TESTE] Batata Frita P', note: 'Hhhhhh' },
+    { quantity: 1, name: '[TESTE] Mousse de Chocolate Un', note: 'Teste observação' },
+    { quantity: 1, name: '[TESTE] Porção de Arroz Un', note: '' },
+    { quantity: 1, name: '[TESTE] Pudim Un', note: 'Observação' },
+    { quantity: 1, name: 'Prato feito comercial Família', note: 'Sem ovo' },
+    { quantity: 1, name: 'Marmita Churrasco M', note: '' },
+    { quantity: 1, name: '[TESTE] Prato Executivo Un', note: 'Sem cebola' },
+    { quantity: 1, name: '[TESTE] Marmita Frango P', note: '' },
+    { quantity: 1, name: '[TESTE] Calabresa Acebolada G', note: '' },
+    { quantity: 1, name: '[TESTE] Mandioca Frita M', note: '' },
+  ]
+  const orders = [
+    preparing(1, '2026-09-22T14:10:00.000Z', largeItems),
+    preparing(2, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Marmita', note: '' }]),
+    preparing(3, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Refrigerante 2L', note: '' }]),
+    preparing(4, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Pudim', note: '' }]),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 4)
+  assert.equal(result.overflow, 0)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.cards[0]?.gridPosition.rowSpan, result.profile.gridRows)
+  assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+  assert.deepEqual(result.cards.slice(1).map(({ order }) => order.id), ['p-02', 'p-03', 'p-04'])
+})
+
+
+test('five mixed orders keep one full-height large card plus four smaller cards without queue-size exceptions', () => {
+  const largeItems = [
+    { quantity: 1, name: '[TESTE] Ovo Frito Un', note: '' },
+    { quantity: 1, name: '[TESTE] Batata Frita P', note: 'Hhhhhh' },
+    { quantity: 1, name: '[TESTE] Mousse de Chocolate Un', note: 'Teste observação' },
+    { quantity: 1, name: '[TESTE] Porção de Arroz Un', note: '' },
+    { quantity: 1, name: '[TESTE] Pudim Un', note: 'Observação' },
+    { quantity: 1, name: 'Prato feito comercial Família', note: 'Sem ovo' },
+    { quantity: 1, name: 'Marmita Churrasco M', note: '' },
+    { quantity: 1, name: '[TESTE] Prato Executivo Un', note: 'Sem cebola' },
+    { quantity: 1, name: '[TESTE] Marmita Frango P', note: '' },
+    { quantity: 1, name: '[TESTE] Calabresa Acebolada G', note: '' },
+    { quantity: 1, name: '[TESTE] Mandioca Frita M', note: '' },
+  ]
+  const orders = [
+    preparing(1, '2026-09-22T14:10:00.000Z', largeItems),
+    preparing(2, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Marmita', note: '' }]),
+    preparing(3, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Refrigerante 2L', note: '' }]),
+    preparing(4, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Pudim', note: '' }]),
+    preparing(5, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Batata', note: '' }]),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 5)
+  assert.equal(result.overflow, 0)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.cards[0]?.gridPosition.rowSpan, result.profile.gridRows)
+  assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+  assert.deepEqual(result.cards.slice(1).map(({ order }) => order.id), ['p-02', 'p-03', 'p-04', 'p-05'])
 })

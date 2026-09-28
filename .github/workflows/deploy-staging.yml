@@ -9,6 +9,7 @@ on:
       - feature/kitchen-tv-adaptive-card-layout
       - feature/issue-34-reporting-center
       - feature/release-reporting-center
+      - feature/kitchen-tv-best-fit-layout
   workflow_dispatch:
 
 permissions:
