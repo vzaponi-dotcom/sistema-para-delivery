@@ -138,6 +138,8 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, q
   if (legacyTvViewport || width >= 1440 && height >= 820) candidates.push({ ...KITCHEN_BOARD_PROFILES.compact })
 
   const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
+  if (count === 0) return candidates
+
   if (count >= 1 && count <= 3) {
     const adaptiveFocus = {
       ...withBoardColumns(KITCHEN_BOARD_PROFILES.focus, count),
