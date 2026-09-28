@@ -51,7 +51,7 @@ Preservar:
 
 - prioridade: na escolha entre perfis, preservar primeiro o maior prefixo contínuo da fila `preparing`; só depois maximizar a quantidade total visível;
 - backfill seguro: depois de uma lacuna inevitável, um pedido em preparo que não cabe permanece no overflow, mas não bloqueia pedidos posteriores menores que ainda caibam; a ordem relativa dos exibidos é preservada;
-- quatro pedidos mistos: 2×2 permanece preferência para quatro pequenos; se houver card grande que não caiba, tentar 3 colunas com suporte full-height antes de densidade maior;
+- fitting por conteúdo: manter o candidato de 3 colunas com suporte full-height disponível para filas multi-card em geral; não limitar essa geometria a uma contagem exata de pedidos. Composição menos densa continua vencendo quando comportar tudo;
 - prioridade de preparo: pedidos ainda aguardando em `scheduled` só ocupam espaço se toda a fila `preparing` já couber;
 - counters completos;
 - overflow;
