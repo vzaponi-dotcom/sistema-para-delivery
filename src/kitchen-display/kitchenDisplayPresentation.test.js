@@ -312,3 +312,49 @@ test('best-fit chooses the smallest overflow when no available profile can fit t
   assert.equal(result.cards.length, 9)
   assert.equal(result.overflow, 1)
 })
+
+
+test('legacy TV viewport does not get trapped in six-card focus mode', () => {
+  const result = buildKitchenDisplayPresentation(
+    Array.from({ length: 16 }, (_, index) => preparing(index + 1, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.profile.columns, 4)
+  assert.equal(result.cards.length, 16)
+  assert.equal(result.overflow, 0)
+})
+
+test('legacy TV best-fit still chooses the profile that shows most mixed-size orders', () => {
+  const fourItems = [
+    { quantity: 1, name: 'Arroz', note: '' },
+    { quantity: 1, name: 'Feijão', note: '' },
+    { quantity: 1, name: 'Batata', note: '' },
+    { quantity: 1, name: 'Carne', note: '' },
+  ]
+  const orders = [
+    preparing(1, undefined, fourItems),
+    preparing(2, undefined, fourItems),
+    ...Array.from({ length: 14 }, (_, index) => preparing(index + 3, undefined, [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length > 6, true)
+  assert.equal(result.overflow < 10, true)
+})
