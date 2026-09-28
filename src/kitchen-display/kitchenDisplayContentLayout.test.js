@@ -7,6 +7,7 @@ import {
   normalizeKitchenItemNote,
   packKitchenDisplaySlots,
   positionKitchenDisplayGrid,
+  resolveKitchenBoardCandidates,
   resolveKitchenBoardProfile,
   resolveKitchenViewportProfile,
 } from './kitchenDisplayContentLayout.js'
@@ -525,4 +526,55 @@ test('nano metrics expose an explicit nano flag only for one-line no-note compac
   assert.equal(noted.gridSpan, 4)
   assert.equal(wrapped.isNano, false)
   assert.equal(wrapped.gridSpan, 4)
+})
+
+
+test('board candidates expose progressively denser layouts without using queue size as the only decision', () => {
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3], ['roomy', 3], ['balanced', 4], ['compact', 4]],
+  )
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({ viewportWidth: 1366, viewportHeight: 768 }).map(({ id, columns }) => [id, columns]),
+    [['focus', 3], ['roomy', 3], ['balanced', 4]],
+  )
+  assert.deepEqual(
+    resolveKitchenBoardCandidates({}).map(({ id, columns }) => [id, columns]),
+    [['focus', 3]],
+  )
+})
+
+test('roomy keeps three columns with a granular vertical grid for seven-to-nine short orders', () => {
+  const roomy = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'roomy')
+
+  assert.deepEqual(roomy, {
+    id: 'roomy', columns: 3, rows: 3, gridRows: 18, maxSlots: 54,
+  })
+
+  const short = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportHeight: 1080, boardProfile: roomy })
+  assert.equal(short.gridSpan, 6)
+  assert.equal(short.boardProfile, 'roomy')
+})
+
+test('compact card minimum keeps a real-TV safety margin for chrome and one item line', () => {
+  const compact = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'compact')
+
+  const simple = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportHeight: 1080, boardProfile: compact })
+  const noted = getKitchenCardContentMetrics([
+    item('Marmita', 'Sem cebola'),
+  ], { viewportHeight: 1080, boardProfile: compact })
+  const twoItems = getKitchenCardContentMetrics([
+    item('Marmita'),
+    item('Suco'),
+  ], { viewportHeight: 1080, boardProfile: compact })
+
+  assert.equal(simple.gridSpan, 4)
+  assert.equal(noted.gridSpan >= 5, true)
+  assert.equal(twoItems.gridSpan >= 4, true)
 })
