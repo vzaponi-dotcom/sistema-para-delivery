@@ -8,7 +8,18 @@ const Counter = ({ label, value, tone }) => <div className={`kds-counter kds-cou
 
 export function KitchenDisplayBoard({ orders = [], timing, now = new Date(), highlightedIds = new Set(), stale = false, viewportWidth, viewportHeight }) {
   const presentation = buildKitchenDisplayPresentation(orders, timing, now, highlightedIds, { viewportWidth, viewportHeight })
-  return <section className="kds-board" aria-label="Painel da cozinha" data-stale={stale} data-layout-profile={presentation.profile.id}>
+  const boardStyle = {
+    '--kds-columns': String(presentation.profile.columns),
+    '--kds-grid-rows': String(presentation.profile.gridRows),
+  }
+  return <section
+    className="kds-board"
+    aria-label="Painel da cozinha"
+    data-stale={stale}
+    data-layout-profile={presentation.profile.id}
+    data-layout-columns={presentation.profile.columns}
+    style={boardStyle}
+  >
     <header className="kds-header">
       <div className="kds-brand"><span className="kds-brand__icon" data-icon="chef-hat"><Icon name="chef-hat" size={54} /></span><h1>Cozinha</h1><span className="kds-brand__separator" aria-hidden="true" /><p>Boas refeições. Mais histórias.</p></div>
       <div className="kds-summary"><Counter label="Em preparo" value={presentation.counts.preparing} tone="preparing" /><Counter label="Atrasados" value={presentation.counts.late} tone="late" /><Counter label="Agendados" value={presentation.counts.scheduled} tone="scheduled" /></div>
