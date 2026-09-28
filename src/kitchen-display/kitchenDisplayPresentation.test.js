@@ -167,7 +167,7 @@ test('large viewport expands short-order capacity to twelve while small queues r
   assert.equal(four.cards.length, 4)
 })
 
-test('1366x768 protects readability by using the balanced eight-card profile', () => {
+test('1366x768 keeps the three-column roomy profile when it shows more orders than balanced', () => {
   const result = buildKitchenDisplayPresentation(
     Array.from({ length: 10 }, (_, index) => preparing(index)),
     timing,
@@ -175,9 +175,9 @@ test('1366x768 protects readability by using the balanced eight-card profile', (
     new Set(),
     { viewportWidth: 1366, viewportHeight: 768 },
   )
-  assert.equal(result.profile.id, 'balanced')
-  assert.equal(result.cards.length, 8)
-  assert.equal(result.overflow, 2)
+  assert.equal(result.profile.id, 'roomy')
+  assert.equal(result.cards.length, 9)
+  assert.equal(result.overflow, 1)
 })
 
 test('compact profile protects one scheduled order while using the remaining capacity for preparing work', () => {
@@ -237,7 +237,7 @@ test('compact presentation can expose sixteen one-item orders on a large viewpor
   assert.equal(result.profile.id, 'compact')
   assert.equal(result.cards.length, 16)
   assert.equal(result.overflow, 0)
-  assert.equal(result.cards.every((card) => card.gridSpan === 3), true)
+  assert.equal(result.cards.every((card) => card.gridSpan === 4), true)
 })
 
 
