@@ -595,3 +595,53 @@ test('very small viewport still degrades conservatively', () => {
     [['focus', 3]],
   )
 })
+
+
+test('legacy compact cards reserve extra tracks for real TV text rasterization', () => {
+  const compact = resolveKitchenBoardCandidates({ viewportWidth: 960, viewportHeight: 540 })
+    .find(({ id }) => id === 'compact')
+
+  const simple = getKitchenCardContentMetrics([
+    item('Marmita'),
+  ], { viewportWidth: 960, viewportHeight: 540, boardProfile: compact })
+  const noted = getKitchenCardContentMetrics([
+    item('Marmita', 'Sem cebola'),
+  ], { viewportWidth: 960, viewportHeight: 540, boardProfile: compact })
+  const medium = getKitchenCardContentMetrics([
+    item('Combo Duplo Un'),
+    item('Combo Família Un'),
+    item('Refrigerante Cola 2L'),
+    item('X-Bacon Un'),
+  ], { viewportWidth: 960, viewportHeight: 540, boardProfile: compact })
+
+  assert.equal(simple.viewportProfile, 'constrained')
+  assert.equal(simple.gridSpan >= 6, true)
+  assert.equal(noted.gridSpan >= 8, true)
+  assert.equal(medium.columnCount, 1)
+  assert.equal(medium.gridSpan >= 10, true)
+})
+
+test('legacy compact width estimates more wrapping than desktop compact width', () => {
+  const compact = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'compact')
+  const items = [
+    item('Refrigerante Guaraná 350ml 350 ml'),
+    item('Combo Família Individual Un'),
+    item('Marmita Frango Completa Família'),
+    item('X-Salada Especial Un'),
+  ]
+
+  const desktop = getKitchenCardContentMetrics(items, {
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+    boardProfile: compact,
+  })
+  const legacy = getKitchenCardContentMetrics(items, {
+    viewportWidth: 960,
+    viewportHeight: 540,
+    boardProfile: compact,
+  })
+
+  assert.equal(legacy.visualLines > desktop.visualLines, true)
+  assert.equal(legacy.gridSpan > desktop.gridSpan, true)
+})
