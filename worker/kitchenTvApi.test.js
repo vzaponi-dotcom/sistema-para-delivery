@@ -130,3 +130,246 @@ test('settings reports pending activation and revocation invalidates pending app
   const after = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/settings'), env, await reader(), undefined, new Date(+NOW + 2_000))
   assert.equal((await after.json()).waitingPairing, false)
 })
+
+
+const controlReader = () => resolveSettingsAccess(
+  { businessId: BUSINESS, sessionId: 'control-reader' },
+  new Set(['orders.view']),
+)
+const controller = () => resolveSettingsAccess(
+  { businessId: BUSINESS, sessionId: 'controller' },
+  new Set(['orders.view', 'orders.kitchen.control']),
+)
+
+function insertControlOrder(sqlite, {
+  id,
+  number,
+  status = 'Em preparo',
+  scheduledFor = null,
+  finishedAt = null,
+}) {
+  sqlite.prepare(`INSERT INTO orders (
+    id, business_id, client_name_snapshot, type, order_date, status,
+    subtotal_cents, total_cents, created_at, finished_at, scheduled_for,
+    cancelled_at, order_number
+  ) VALUES (?, ?, ?, 'Entrega', '2026-09-22', ?, 1000, 1000, ?, ?, ?, NULL, ?)`)
+    .run(id, BUSINESS, `Cliente ${id}`, status, NOW.toISOString(), finishedAt, scheduledFor, number)
+}
+
+test('control read is available to orders.view while page mutations require orders.kitchen.control', async (t) => {
+  const api = await apiPromise
+  const { db } = setup(t)
+  const env = { DB: db }
+
+  const initial = await api.handleKitchenTvAdminApi(
+    request('/api/kitchen-tv/control'),
+    env,
+    await controlReader(),
+    undefined,
+    NOW,
+  )
+  assert.deepEqual(await initial.json(), {
+    paired: false,
+    control: { revision: 0, requestedPage: 1, updatedAt: null },
+    telemetry: null,
+    hiddenOrderIds: [],
+  })
+
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/page', 'PATCH', { page: 2 }),
+      env,
+      await controlReader(),
+      undefined,
+      NOW,
+    ),
+    { status: 403 },
+  )
+
+  const changed = await api.handleKitchenTvAdminApi(
+    request('/api/kitchen-tv/control/page', 'PATCH', { page: 2 }),
+    env,
+    await controller(),
+    undefined,
+    NOW,
+  )
+  assert.deepEqual((await changed.json()).control, {
+    revision: 1,
+    requestedPage: 2,
+    updatedAt: NOW.toISOString(),
+  })
+
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/page', 'PATCH', { page: 0 }),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 400, code: 'KITCHEN_TV_PAGE_INVALID' },
+  )
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/page', 'PATCH', { page: 3 }, undefined, false),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 403, code: 'ORIGIN_NOT_ALLOWED' },
+  )
+})
+
+test('controller hides and restores only eligible preparing orders, idempotently', async (t) => {
+  const api = await apiPromise
+  const { db, sqlite } = setup(t)
+  const env = { DB: db }
+  insertControlOrder(sqlite, { id: 'active-control', number: 301 })
+  insertControlOrder(sqlite, { id: 'scheduled-control', number: 302, scheduledFor: '2026-09-22T21:00:00.000Z' })
+  insertControlOrder(sqlite, { id: 'finished-control', number: 303, status: 'Finalizado', finishedAt: '2026-09-22T18:10:00.000Z' })
+
+  const hiddenPath = '/api/kitchen-tv/control/orders/active-control/hidden'
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(request(hiddenPath, 'PUT'), env, await controlReader(), undefined, NOW),
+    { status: 403 },
+  )
+
+  for (let index = 0; index < 2; index += 1) {
+    const hidden = await api.handleKitchenTvAdminApi(request(hiddenPath, 'PUT'), env, await controller(), undefined, NOW)
+    assert.deepEqual(await hidden.json(), { orderId: 'active-control', hidden: true })
+  }
+
+  const control = await api.handleKitchenTvAdminApi(request('/api/kitchen-tv/control'), env, await controller(), undefined, NOW)
+  assert.deepEqual((await control.json()).hiddenOrderIds, ['active-control'])
+
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/orders/scheduled-control/hidden', 'PUT'),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 409, code: 'KITCHEN_TV_ORDER_NOT_ELIGIBLE' },
+  )
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/orders/finished-control/hidden', 'PUT'),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 409, code: 'KITCHEN_TV_ORDER_NOT_ELIGIBLE' },
+  )
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/orders/does-not-exist/hidden', 'PUT'),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 404, code: 'ORDER_NOT_FOUND' },
+  )
+
+  for (let index = 0; index < 2; index += 1) {
+    const restored = await api.handleKitchenTvAdminApi(request(hiddenPath, 'DELETE'), env, await controller(), undefined, NOW)
+    assert.deepEqual(await restored.json(), { orderId: 'active-control', hidden: false })
+  }
+})
+
+test('paired TV can report bounded telemetry but cannot use an admin session as its credential', async (t) => {
+  const api = await apiPromise
+  const { db } = setup(t)
+  const env = { DB: db }
+
+  const created = await api.handleKitchenTvPublicApi(request('/api/kitchen-tv/pairing-request', 'POST'), env, undefined, NOW)
+  const pairing = await created.json()
+  const pairingCookie = created.headers.get('set-cookie').split(';')[0]
+  await api.handleKitchenTvAdminApi(
+    request('/api/kitchen-tv/approve', 'POST', { code: pairing.code }),
+    env,
+    await manager(),
+    undefined,
+    new Date(+NOW + 1_000),
+  )
+  const activated = await api.handleKitchenTvPublicApi(
+    request('/api/kitchen-tv/pairing-status', 'GET', undefined, pairingCookie),
+    env,
+    undefined,
+    new Date(+NOW + 2_000),
+  )
+  const token = activated.headers.get('set-cookie').match(/kitchen_tv_session=([^;,]+)/)?.[1]
+  assert.ok(token)
+  const tvCookie = `kitchen_tv_session=${token}`
+
+  await assert.rejects(
+    api.handleKitchenTvPublicApi(
+      request('/api/kitchen-tv/report', 'POST', {
+        appliedRevision: 0,
+        currentPage: 1,
+        pageCount: 1,
+        viewportWidth: 960,
+        viewportHeight: 540,
+        visibleOrderIds: [],
+      }),
+      env,
+      undefined,
+      new Date(+NOW + 3_000),
+    ),
+    { status: 401, code: 'KITCHEN_TV_UNAUTHORIZED' },
+  )
+
+  const report = await api.handleKitchenTvPublicApi(
+    request('/api/kitchen-tv/report', 'POST', {
+      appliedRevision: 0,
+      currentPage: 1,
+      pageCount: 2,
+      viewportWidth: 960,
+      viewportHeight: 540,
+      visibleOrderIds: ['o-1', 'o-2'],
+    }, tvCookie),
+    env,
+    undefined,
+    new Date(+NOW + 4_000),
+  )
+  assert.deepEqual(await report.json(), { reported: true })
+
+  const state = await api.handleKitchenTvAdminApi(
+    request('/api/kitchen-tv/control'),
+    env,
+    await controller(),
+    undefined,
+    new Date(+NOW + 5_000),
+  )
+  const payload = await state.json()
+  assert.equal(payload.paired, true)
+  assert.deepEqual(payload.telemetry, {
+    appliedRevision: 0,
+    currentPage: 1,
+    pageCount: 2,
+    viewportWidth: 960,
+    viewportHeight: 540,
+    visibleOrderIds: ['o-1', 'o-2'],
+    reportedAt: new Date(+NOW + 4_000).toISOString(),
+  })
+
+  await assert.rejects(
+    api.handleKitchenTvPublicApi(
+      request('/api/kitchen-tv/report', 'POST', {
+        appliedRevision: 0,
+        currentPage: 1,
+        pageCount: 1,
+        viewportWidth: 960,
+        viewportHeight: 540,
+        visibleOrderIds: Array.from({ length: 101 }, (_, index) => `o-${index}`),
+      }, tvCookie),
+      env,
+      undefined,
+      new Date(+NOW + 6_000),
+    ),
+    { status: 400, code: 'KITCHEN_TV_REPORT_INVALID' },
+  )
+})
