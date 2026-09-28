@@ -10,6 +10,11 @@ const VIEWPORT_LINE_CAPACITY = Object.freeze({
 
 const BOARD_LINE_CAPACITY = Object.freeze({
   focus: VIEWPORT_LINE_CAPACITY,
+  roomy: Object.freeze({
+    spacious: Object.freeze({ normal: 7, tall: 18, full: 26 }),
+    standard: Object.freeze({ normal: 6, tall: 15, full: 22 }),
+    constrained: Object.freeze({ normal: 5, tall: 12, full: 18 }),
+  }),
   balanced: Object.freeze({
     spacious: Object.freeze({ normal: 7, tall: 18 }),
     standard: Object.freeze({ normal: 6, tall: 15 }),
@@ -24,6 +29,7 @@ const BOARD_LINE_CAPACITY = Object.freeze({
 
 const KITCHEN_BOARD_PROFILES = Object.freeze({
   focus: Object.freeze({ id: 'focus', columns: 3, rows: 2, gridRows: 6, maxSlots: 18 }),
+  roomy: Object.freeze({ id: 'roomy', columns: 3, rows: 3, gridRows: 18, maxSlots: 54 }),
   balanced: Object.freeze({ id: 'balanced', columns: 4, rows: 2, gridRows: 8, maxSlots: 32 }),
   compact: Object.freeze({ id: 'compact', columns: 4, rows: 3, gridRows: 24, maxSlots: 96 }),
 })
@@ -53,16 +59,31 @@ const normalizeBoardProfile = (value) => {
   return KITCHEN_BOARD_PROFILES[id] || KITCHEN_BOARD_PROFILES.focus
 }
 
-export function resolveKitchenBoardProfile({ viewportWidth, viewportHeight, queueSize = 0 } = {}) {
+export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight } = {}) {
   const width = Math.trunc(Number(viewportWidth))
   const height = Math.trunc(Number(viewportHeight))
-  const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
   const hasViewport = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+  if (!hasViewport) return [{ ...KITCHEN_BOARD_PROFILES.focus }]
 
-  if (!hasViewport || count <= 4) return { ...KITCHEN_BOARD_PROFILES.focus }
-  if (count >= 9 && width >= 1440 && height >= 820) return { ...KITCHEN_BOARD_PROFILES.compact }
-  if (width >= 1100 && height >= 620) return { ...KITCHEN_BOARD_PROFILES.balanced }
-  return { ...KITCHEN_BOARD_PROFILES.focus }
+  const candidates = [{ ...KITCHEN_BOARD_PROFILES.focus }]
+  if (width >= 1100 && height >= 680) candidates.push({ ...KITCHEN_BOARD_PROFILES.roomy })
+  if (width >= 1100 && height >= 620) candidates.push({ ...KITCHEN_BOARD_PROFILES.balanced })
+  if (width >= 1440 && height >= 820) candidates.push({ ...KITCHEN_BOARD_PROFILES.compact })
+  return candidates
+}
+
+export function resolveKitchenBoardProfile({ viewportWidth, viewportHeight, queueSize = 0 } = {}) {
+  const candidates = resolveKitchenBoardCandidates({ viewportWidth, viewportHeight })
+  const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
+  if (count <= 6) return candidates[0]
+
+  const roomy = candidates.find(({ id }) => id === 'roomy')
+  if (count <= 9 && roomy) return roomy
+
+  const compact = candidates.find(({ id }) => id === 'compact')
+  if (count >= 10 && compact) return compact
+
+  return candidates.at(-1) || { ...KITCHEN_BOARD_PROFILES.focus }
 }
 
 export function resolveKitchenViewportProfile(viewportHeight) {
@@ -162,13 +183,22 @@ const resolveGridSpan = ({
   if (profile.id === 'focus') return layoutDemand === 'normal' ? 3 : 6
   if (profile.id === 'balanced') return layoutDemand === 'normal' ? 4 : 8
 
-  if (itemCount === 1) {
-    if (!hasNotes && visualLines === 1) return 3
-    return 4
+  const effectiveVisualLines = columnCount === 2 ? twoColumnVisualLines : visualLines
+
+  if (profile.id === 'roomy') {
+    if (itemCount <= 2 && !hasNotes && effectiveVisualLines <= 2) return 6
+    if (itemCount === 1) return 7
+    const roomySpan = Math.max(6, 4 + Math.ceil(Math.max(1, effectiveVisualLines) * 1.15))
+    if (overflowRisk) return profile.gridRows
+    return Math.min(profile.gridRows, roomySpan)
   }
 
-  const effectiveVisualLines = columnCount === 2 ? twoColumnVisualLines : visualLines
-  const proportionalSpan = Math.max(3, 1 + Math.ceil(Math.max(1, effectiveVisualLines)))
+  if (itemCount === 1) {
+    if (!hasNotes && visualLines === 1) return 4
+    return 5
+  }
+
+  const proportionalSpan = Math.max(4, 2 + Math.ceil(Math.max(1, effectiveVisualLines)))
   if (overflowRisk) return profile.gridRows
   return Math.min(profile.gridRows, proportionalSpan)
 }
