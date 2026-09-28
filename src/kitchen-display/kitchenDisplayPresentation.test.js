@@ -505,11 +505,19 @@ test('one oversized preparing order still renders alone on the full TV canvas', 
 
 
 test('four mixed orders keep one full-height large card plus three smaller cards in three columns', () => {
-  const largeItems = Array.from({ length: 11 }, (_, index) => ({
-    quantity: 1,
-    name: `Produto operacional grande ${index + 1}`,
-    note: index % 2 === 0 ? `Observação de produção ${index + 1}` : '',
-  }))
+  const largeItems = [
+    { quantity: 1, name: '[TESTE] Ovo Frito Un', note: '' },
+    { quantity: 1, name: '[TESTE] Batata Frita P', note: 'Hhhhhh' },
+    { quantity: 1, name: '[TESTE] Mousse de Chocolate Un', note: 'Teste observação' },
+    { quantity: 1, name: '[TESTE] Porção de Arroz Un', note: '' },
+    { quantity: 1, name: '[TESTE] Pudim Un', note: 'Observação' },
+    { quantity: 1, name: 'Prato feito comercial Família', note: 'Sem ovo' },
+    { quantity: 1, name: 'Marmita Churrasco M', note: '' },
+    { quantity: 1, name: '[TESTE] Prato Executivo Un', note: 'Sem cebola' },
+    { quantity: 1, name: '[TESTE] Marmita Frango P', note: '' },
+    { quantity: 1, name: '[TESTE] Calabresa Acebolada G', note: '' },
+    { quantity: 1, name: '[TESTE] Mandioca Frita M', note: '' },
+  ]
   const orders = [
     preparing(1, '2026-09-22T14:10:00.000Z', largeItems),
     preparing(2, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Marmita', note: '' }]),
