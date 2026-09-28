@@ -142,9 +142,26 @@ test('exposes control read failures', async (t) => {
   assert.match(nodeText(failed.screen.root), /Falha simulada/)
 })
 
-test('exposes offline state without queueing TV commands', async (t) => {
-  const offline = await render(t, { isOnline: false })
+test('exposes offline state without queueing page or order commands', async (t) => {
+  const mutations = []
+  const offline = await render(t, {
+    isOnline: false,
+    apiOverrides: {
+      setKitchenTvPage: async (page) => { mutations.push(['page', page]) },
+      hideKitchenTvOrder: async (orderId) => { mutations.push(['hide', orderId]) },
+    },
+  })
   assert.match(nodeText(offline.screen.root), /Sem conexão/)
+  const next = buttonNamed(offline.screen.root, 'Próxima')
+  assert.equal(next.props.disabled, true)
+  await act(async () => next.props.onClick())
+
+  const card = offline.screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => card.props.onClick())
+  const action = buttonNamed(offline.screen.root, 'Retirar da TV')
+  assert.equal(action.props.disabled, true)
+  await act(async () => action.props.onClick())
+  assert.deepEqual(mutations, [])
 })
 
 
@@ -246,15 +263,24 @@ test('read-only access keeps order actions visible but disabled', async (t) => {
   assert.equal(buttonNamed(viewer.screen.root, 'Retirar da TV').props.disabled, true)
 })
 
-test('stale TV state keeps order actions visible but disabled', async (t) => {
+test('stale TV state keeps order actions disabled and never queues a hidden mutation', async (t) => {
   const stale = {
     ...freshState,
     telemetry: { ...freshState.telemetry, reportedAt: '2026-09-28T21:09:40.000Z' },
   }
-  const staleScreen = await render(t, { state: stale })
+  const mutations = []
+  const staleScreen = await render(t, {
+    state: stale,
+    apiOverrides: {
+      hideKitchenTvOrder: async (orderId) => { mutations.push(['hide', orderId]) },
+    },
+  })
   const staleCard = staleScreen.screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
   await act(async () => staleCard.props.onClick())
-  assert.equal(buttonNamed(staleScreen.screen.root, 'Retirar da TV').props.disabled, true)
+  const action = buttonNamed(staleScreen.screen.root, 'Retirar da TV')
+  assert.equal(action.props.disabled, true)
+  await act(async () => action.props.onClick())
+  assert.deepEqual(mutations, [])
 })
 
 test('Ver na Cozinha navigates to the official kitchen without mutating the order', async (t) => {
