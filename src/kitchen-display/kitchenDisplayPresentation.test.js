@@ -480,3 +480,25 @@ test('best-fit protects the highest-priority preparing prefix before maximizing 
   assert.equal(result.cards[0]?.order.id, 'p-01')
   assert.equal(result.overflow > 0, true)
 })
+
+
+test('one oversized preparing order still renders alone on the full TV canvas', () => {
+  const hugeItems = Array.from({ length: 11 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto operacional grande ${index + 1}`,
+    note: index % 2 === 0 ? `Observação de produção importante ${index + 1}` : '',
+  }))
+  const result = buildKitchenDisplayPresentation(
+    [preparing(1, '2026-09-22T14:10:00.000Z', hugeItems)],
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.columns, 1)
+  assert.equal(result.cards.length, 1)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+  assert.equal(result.overflow, 0)
+})
