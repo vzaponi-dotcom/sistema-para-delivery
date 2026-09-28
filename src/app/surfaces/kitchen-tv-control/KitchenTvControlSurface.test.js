@@ -146,3 +146,130 @@ test('exposes offline state without queueing TV commands', async (t) => {
   const offline = await render(t, { isOnline: false })
   assert.match(nodeText(offline.screen.root), /Sem conexão/)
 })
+
+
+test('tapping a card opens actions without mutating, then hide can be undone safely', async (t) => {
+  let state = structuredClone(freshState)
+  const mutations = []
+  const { screen } = await render(t, {
+    state,
+    apiOverrides: {
+      getKitchenTvControl: async () => state,
+      hideKitchenTvOrder: async (orderId) => {
+        mutations.push(['hide', orderId])
+        state = { ...state, hiddenOrderIds: [...state.hiddenOrderIds, orderId] }
+        return { orderId, hidden: true }
+      },
+      restoreKitchenTvOrder: async (orderId) => {
+        mutations.push(['restore', orderId])
+        state = { ...state, hiddenOrderIds: state.hiddenOrderIds.filter((id) => id !== orderId) }
+        return { orderId, hidden: false }
+      },
+    },
+  })
+  const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => card.props.onClick())
+  assert.deepEqual(mutations, [])
+
+  const sheet = screen.root.findByProps({ role: 'dialog' })
+  assert.match(nodeText(sheet), /Pedido #501/)
+  assert.match(nodeText(sheet), /Ana/)
+  assert.match(nodeText(sheet), /Remove apenas do painel da TV\. O pedido continua em preparo no sistema\./)
+  assert.ok(buttonNamed(sheet, 'Retirar da TV'))
+  assert.ok(buttonNamed(sheet, 'Ver na Cozinha'))
+
+  await act(async () => buttonNamed(sheet, 'Retirar da TV').props.onClick())
+  assert.deepEqual(mutations, [['hide', 'order-1']])
+  assert.match(nodeText(screen.root), /Retirado/)
+  assert.ok(buttonNamed(screen.root, 'Desfazer'))
+
+  await act(async () => buttonNamed(screen.root, 'Desfazer').props.onClick())
+  assert.deepEqual(mutations, [['hide', 'order-1'], ['restore', 'order-1']])
+  assert.match(nodeText(screen.root), /Na TV/)
+})
+
+test('a hidden preparing order can return to the TV from the action sheet', async (t) => {
+  let state = structuredClone(freshState)
+  const mutations = []
+  const { screen } = await render(t, {
+    state,
+    apiOverrides: {
+      getKitchenTvControl: async () => state,
+      restoreKitchenTvOrder: async (orderId) => {
+        mutations.push(['restore', orderId])
+        state = { ...state, hiddenOrderIds: state.hiddenOrderIds.filter((id) => id !== orderId) }
+        return { orderId, hidden: false }
+      },
+    },
+  })
+  const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #510,'))
+  await act(async () => card.props.onClick())
+  const sheet = screen.root.findByProps({ role: 'dialog' })
+  assert.ok(buttonNamed(sheet, 'Voltar para a TV'))
+
+  await act(async () => buttonNamed(sheet, 'Voltar para a TV').props.onClick())
+  assert.deepEqual(mutations, [['restore', 'order-10']])
+  assert.doesNotMatch(String(card.props['aria-label']), /Retirado/)
+})
+
+test('hide failure rolls the optimistic card back to authoritative visibility and announces the error', async (t) => {
+  let reads = 0
+  const mutations = []
+  const { screen } = await render(t, {
+    apiOverrides: {
+      getKitchenTvControl: async () => {
+        reads += 1
+        return freshState
+      },
+      hideKitchenTvOrder: async (orderId) => {
+        mutations.push(['hide', orderId])
+        throw new Error('Não foi possível retirar agora')
+      },
+    },
+  })
+  const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => card.props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Retirar da TV').props.onClick())
+
+  assert.deepEqual(mutations, [['hide', 'order-1']])
+  assert.ok(reads >= 2)
+  assert.match(nodeText(screen.root), /Não foi possível retirar agora/)
+  const updated = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  assert.match(updated.props['aria-label'], /Na TV/)
+  assert.doesNotMatch(updated.props['aria-label'], /Retirado/)
+})
+
+test('read-only or stale TV state keeps order actions visible but disabled', async (t) => {
+  const viewer = await render(t, { granted: new Set(['orders.view']) })
+  const viewerCard = viewer.screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => viewerCard.props.onClick())
+  assert.equal(buttonNamed(viewer.screen.root, 'Retirar da TV').props.disabled, true)
+
+  const stale = {
+    ...freshState,
+    telemetry: { ...freshState.telemetry, reportedAt: '2026-09-28T21:09:40.000Z' },
+  }
+  const staleScreen = await render(t, { state: stale })
+  const staleCard = staleScreen.screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => staleCard.props.onClick())
+  assert.equal(buttonNamed(staleScreen.screen.root, 'Retirar da TV').props.disabled, true)
+})
+
+test('Ver na Cozinha navigates to the official kitchen without mutating the order', async (t) => {
+  const mutations = []
+  const { screen, calls } = await render(t, {
+    apiOverrides: {
+      hideKitchenTvOrder: async (orderId) => { mutations.push(['hide', orderId]) },
+    },
+  })
+  const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => card.props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Ver na Cozinha').props.onClick())
+  assert.deepEqual(mutations, [])
+  assert.ok(calls.some(([kind, value]) => kind === 'navigate' && value === 'orders'))
+})
+
+test('App wires navigation into the operational TV control surface', async () => {
+  const appSource = await readFile(new URL('../../../App.jsx', import.meta.url), 'utf8')
+  assert.match(appSource, /KitchenTvControlSurface[^\n]*onNavigate=\{requestNavigation\}/)
+})
