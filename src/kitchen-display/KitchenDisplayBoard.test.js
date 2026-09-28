@@ -142,7 +142,7 @@ test('board renders compact 4x3 density with ten short orders on the approved la
   assert.equal(cards.every((card) => Number(card.props['data-row-span']) === 1), true)
 })
 
-test('board keeps roomy three-column density at 1366x768 when it reduces overflow', async (t) => {
+test('board uses compact density at 1366x768 when that keeps all ten orders visible', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
   const orders = Array.from({ length: 10 }, (_, index) => ({
@@ -166,9 +166,9 @@ test('board keeps roomy three-column density at 1366x768 when it reduces overflo
   const board = renderer.root.find((node) => node.props?.className === 'kds-board')
   const cards = renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card'))
 
-  assert.equal(board.props['data-layout-profile'], 'roomy')
-  assert.equal(cards.length, 9)
-  assert.match(nodeText(renderer.root), /\+ 1 pedido fora da tela/)
+  assert.equal(board.props['data-layout-profile'], 'compact')
+  assert.equal(cards.length, 10)
+  assert.doesNotMatch(nodeText(renderer.root), /fora da tela/)
 })
 
 test('CSS defines explicit focus, roomy, balanced and compact grid contracts', async () => {
