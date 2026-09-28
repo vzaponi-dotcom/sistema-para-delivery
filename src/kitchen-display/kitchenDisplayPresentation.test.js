@@ -502,3 +502,34 @@ test('one oversized preparing order still renders alone on the full TV canvas', 
   assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
   assert.equal(result.overflow, 0)
 })
+
+
+test('four mixed orders keep one full-height large card plus three smaller cards in three columns', () => {
+  const largeItems = Array.from({ length: 11 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto operacional grande ${index + 1}`,
+    note: index % 2 === 0 ? `Observação de produção ${index + 1}` : '',
+  }))
+  const orders = [
+    preparing(1, '2026-09-22T14:10:00.000Z', largeItems),
+    preparing(2, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Marmita', note: '' }]),
+    preparing(3, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Refrigerante 2L', note: '' }]),
+    preparing(4, '2026-09-22T14:50:00.000Z', [{ quantity: 1, name: 'Pudim', note: '' }]),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.profile.columns, 3)
+  assert.equal(result.cards.length, 4)
+  assert.equal(result.overflow, 0)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.cards[0]?.gridPosition.rowSpan, result.profile.gridRows)
+  assert.equal(result.cards[0]?.gridPosition.gridRow, `1 / span ${result.profile.gridRows}`)
+  assert.deepEqual(result.cards.slice(1).map(({ order }) => order.id), ['p-02', 'p-03', 'p-04'])
+})
