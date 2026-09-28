@@ -498,6 +498,8 @@ test('telemetry is deduplicated across identical polls and changes when viewport
 
 test('telemetry failure never marks the Kitchen TV stale or stops order polling', async (t) => {
   const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
   const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
   let reads = 0
   let reports = 0
