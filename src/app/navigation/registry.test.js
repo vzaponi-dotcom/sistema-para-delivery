@@ -14,12 +14,12 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
     'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities',
     'settings-payments', 'settings-cancellations', 'settings-finance-categories',
     'settings-kitchen-tv',
-    'orders', 'history', 'new-order', 'comandas', 'print-queue',
+    'orders', 'history', 'kitchen-tv-control', 'new-order', 'comandas', 'print-queue',
     'dashboard', 'reports', 'receivables', 'finance', 'clients', 'products', 'tables',
     'settings-printing', 'settings-device',
   ])
   assert.deepEqual(AREA_DESTINATION_IDS, {
-    orders: ['orders', 'history'],
+    orders: ['orders', 'history', 'kitchen-tv-control'],
     finance: ['dashboard', 'reports', 'receivables', 'finance'],
     settings: [
       'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities',
@@ -32,7 +32,7 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
   assert.deepEqual(MOBILE_DIRECT_ENTRIES.map((item) => item.area || item.id), ['orders', 'comandas', 'finance'])
   assert.deepEqual(MOBILE_MORE_ENTRIES.map((item) => item.area || item.id), ['print-queue', 'clients', 'products', 'tables', 'settings'])
   assert.deepEqual(MOBILE_SECTION_IDS, [
-    'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
+    'orders', 'history', 'kitchen-tv-control', 'comandas', 'dashboard', 'receivables', 'finance',
     'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv',
     'settings-printing', 'settings-device',
   ])
@@ -72,4 +72,20 @@ test('reporting is a Financeiro destination without adding a new mobile bottom e
   )
   assert.deepEqual(MOBILE_DIRECT_ENTRIES.map((item) => item.area || item.id), ['orders', 'comandas', 'finance'])
   assert.equal(MOBILE_MORE_ENTRIES.some((item) => item.id === 'reports'), false)
+})
+
+
+test('kitchen TV control stays inside Pedidos without adding a new global navigation entry', () => {
+  const destination = NAVIGATION_DESTINATIONS.find(({ id }) => id === 'kitchen-tv-control')
+  assert.deepEqual(destination, {
+    id: 'kitchen-tv-control',
+    path: '/pedidos/controle-da-tv',
+    area: 'orders',
+    label: 'Controle da TV',
+    mobileEntry: 'orders',
+    capability: 'orders.view',
+  })
+  assert.deepEqual(AREA_DESTINATION_IDS.orders, ['orders', 'history', 'kitchen-tv-control'])
+  assert.equal(MOBILE_DIRECT_ENTRIES.some((item) => item.id === 'kitchen-tv-control'), false)
+  assert.equal(MOBILE_MORE_ENTRIES.some((item) => item.id === 'kitchen-tv-control'), false)
 })
