@@ -66,9 +66,15 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight } 
   if (!hasViewport) return [{ ...KITCHEN_BOARD_PROFILES.focus }]
 
   const candidates = [{ ...KITCHEN_BOARD_PROFILES.focus }]
-  if (width >= 1100 && height >= 680) candidates.push({ ...KITCHEN_BOARD_PROFILES.roomy })
-  if (width >= 1100 && height >= 620) candidates.push({ ...KITCHEN_BOARD_PROFILES.balanced })
-  if (width >= 1440 && height >= 820) candidates.push({ ...KITCHEN_BOARD_PROFILES.compact })
+  const legacyTvViewport = width >= 900 && height >= 500
+
+  // Older TV browsers commonly expose a 960x540 CSS viewport even on a
+  // physically larger 16:9 panel. The responsive CSS already scales the
+  // Kitchen TV for that viewport, so withholding 4-column profiles here
+  // traps those devices in the six-card focus layout.
+  if (legacyTvViewport || width >= 1100 && height >= 680) candidates.push({ ...KITCHEN_BOARD_PROFILES.roomy })
+  if (legacyTvViewport || width >= 1100 && height >= 620) candidates.push({ ...KITCHEN_BOARD_PROFILES.balanced })
+  if (legacyTvViewport || width >= 1440 && height >= 820) candidates.push({ ...KITCHEN_BOARD_PROFILES.compact })
   return candidates
 }
 
