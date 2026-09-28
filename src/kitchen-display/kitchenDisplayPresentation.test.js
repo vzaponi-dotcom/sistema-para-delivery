@@ -19,7 +19,7 @@ test('six-slot allocation covers 0-8 preparing with no scheduled orders', () => 
   }
 })
 
-test('scheduled work reserves one slot and fills every free slot after up to five preparing', () => {
+test('scheduled work only uses space left after every visible preparing order', () => {
   for (let preparingCount = 0; preparingCount <= 8; preparingCount += 1) {
     for (const scheduledCount of [1, 4, 8]) {
       const orders = [
@@ -27,18 +27,20 @@ test('scheduled work reserves one slot and fills every free slot after up to fiv
         ...Array.from({ length: scheduledCount }, (_, index) => scheduled(index)),
       ]
       const result = buildKitchenDisplayPresentation(orders, timing, now)
-      const expectedPreparing = Math.min(5, preparingCount)
-      const expectedScheduled = Math.min(scheduledCount, 6 - expectedPreparing)
+      const expectedPreparing = Math.min(6, preparingCount)
+      const expectedScheduled = preparingCount < 6
+        ? Math.min(scheduledCount, 6 - preparingCount)
+        : 0
       assert.equal(result.cards.filter(({ phase }) => phase === 'preparing').length, expectedPreparing)
       assert.equal(result.cards.filter(({ phase }) => phase === 'scheduled').length, expectedScheduled)
-      assert.equal(result.cards.length, Math.min(6, expectedPreparing + scheduledCount))
+      assert.equal(result.cards.length, expectedPreparing + expectedScheduled)
       assert.equal(result.overflow, preparingCount + scheduledCount - result.cards.length)
       assert.equal(result.cards.at(-1)?.phase, expectedScheduled ? 'scheduled' : 'preparing')
     }
   }
 })
 
-test('a tall preparing card consumes two slots while the first scheduled card remains protected', () => {
+test('a tall preparing card keeps priority over a waiting scheduled card', () => {
   const orders = [
     preparing(1, undefined, denseItems('Grande')),
     preparing(2),
@@ -49,14 +51,14 @@ test('a tall preparing card consumes two slots while the first scheduled card re
   ]
   const result = buildKitchenDisplayPresentation(orders, timing, now)
 
-  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
+  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 'p-05'])
   assert.deepEqual(result.cards.map(({ slotCost }) => slotCost), [6, 3, 3, 3, 3])
   assert.equal(result.cards.find(({ order }) => order.id === 'p-01')?.layoutDemand, 'tall')
-  assert.equal(result.cards.at(-1)?.order.id, 's-01')
+  assert.equal(result.cards.some(({ order }) => order.id === 's-01'), false)
   assert.equal(result.overflow, 1)
 })
 
-test('a tall protected scheduled card displaces the lowest-priority preparing card instead of disappearing', () => {
+test('a large waiting scheduled card never displaces a preparing order', () => {
   const orders = [
     preparing(1),
     preparing(2),
@@ -67,13 +69,12 @@ test('a tall protected scheduled card displaces the lowest-priority preparing ca
   ]
   const result = buildKitchenDisplayPresentation(orders, timing, now)
 
-  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
-  assert.equal(result.cards.at(-1)?.slotCost, 6)
-  assert.equal(result.cards.at(-1)?.layoutDemand, 'tall')
+  assert.deepEqual(result.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 'p-05'])
+  assert.equal(result.cards.some(({ order }) => order.id === 's-01'), false)
   assert.equal(result.overflow, 1)
 })
 
-test('additional scheduled cards fill free slots only when no higher-priority preparing candidate was blocked', () => {
+test('scheduled cards fill only genuine free capacity after the preparing queue', () => {
   const fillable = buildKitchenDisplayPresentation([
     preparing(1, undefined, denseItems('Grande')),
     scheduled(1),
@@ -96,8 +97,8 @@ test('additional scheduled cards fill free slots only when no higher-priority pr
     scheduled(2),
   ], timing, now)
 
-  assert.deepEqual(blocked.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 's-01'])
-  assert.equal(blocked.cards.some(({ order }) => order.id === 's-02'), false)
+  assert.deepEqual(blocked.cards.map(({ order }) => order.id), ['p-01', 'p-02', 'p-03', 'p-04', 'p-05'])
+  assert.equal(blocked.cards.some(({ phase }) => phase === 'scheduled'), false)
   assert.equal(blocked.overflow, 2)
 })
 
@@ -180,7 +181,7 @@ test('1366x768 uses compact density when it is the first profile that fits the f
   assert.equal(result.overflow, 0)
 })
 
-test('compact profile protects one scheduled order while using the remaining capacity for preparing work', () => {
+test('compact profile shows a waiting scheduled order only when all preparing work already fits', () => {
   const orders = [
     ...Array.from({ length: 11 }, (_, index) => preparing(index)),
     scheduled(1),
@@ -415,4 +416,19 @@ test('adaptive fill keeps four short orders in a balanced two-by-two grid', () =
     '4 / span 3',
   ])
   assert.equal(result.overflow, 0)
+})
+
+
+test('waiting scheduled work stays off-screen while any preparing order is in overflow', () => {
+  const orders = [
+    ...Array.from({ length: 7 }, (_, index) => preparing(index + 1)),
+    scheduled(1),
+  ]
+  const result = buildKitchenDisplayPresentation(orders, timing, now)
+
+  assert.deepEqual(result.cards.map(({ order }) => order.id), [
+    'p-01', 'p-02', 'p-03', 'p-04', 'p-05', 'p-06',
+  ])
+  assert.equal(result.cards.some(({ phase }) => phase === 'scheduled'), false)
+  assert.equal(result.overflow, 2)
 })
