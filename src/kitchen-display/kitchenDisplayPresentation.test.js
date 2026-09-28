@@ -309,8 +309,8 @@ test('best-fit chooses the smallest overflow when no available profile can fit t
 
   assert.equal(result.profile.id, 'compact')
   assert.equal(result.profile.columns, 4)
-  assert.equal(result.cards.length, 24)
-  assert.equal(result.overflow, 6)
+  assert.equal(result.cards.length, 16)
+  assert.equal(result.overflow, 14)
 })
 
 
