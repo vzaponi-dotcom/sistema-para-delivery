@@ -646,3 +646,32 @@ test('legacy compact width estimates more wrapping than desktop compact width', 
   assert.equal(legacy.columnCount, 1)
   assert.equal(legacy.gridSpan > desktop.gridSpan, true)
 })
+
+
+test('board-profile packing skips one oversized blocked card and still fills later safe capacity', () => {
+  const profile = resolveKitchenBoardCandidates({ viewportWidth: 1920, viewportHeight: 1080 })
+    .find(({ id }) => id === 'focus')
+  const entries = [
+    normalEntry('p-1'),
+    normalEntry('p-2'),
+    normalEntry('p-3'),
+    normalEntry('p-4'),
+    normalEntry('p-5'),
+    tallEntry('p-6'),
+    normalEntry('p-7'),
+  ]
+
+  const result = packKitchenDisplaySlots(entries, {
+    boardProfile: profile,
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+  })
+
+  assert.deepEqual(result.cards.map((entry) => entry.order.id), [
+    'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-7',
+  ])
+  assert.equal(result.cards.some((entry) => entry.order.id === 'p-6'), false)
+  assert.equal(result.usedSlots, 18)
+  assert.equal(result.remainingSlots, 0)
+  assert.equal(result.overflow, 1)
+})
