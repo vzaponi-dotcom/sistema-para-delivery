@@ -10,6 +10,7 @@ on:
       - feature/issue-34-reporting-center
       - feature/release-reporting-center
       - feature/kitchen-tv-best-fit-layout
+      - feature/kitchen-tv-control-center
   workflow_dispatch:
 
 permissions:
@@ -158,6 +159,7 @@ jobs:
           const paths = [
             '/pedidos',
             '/pedidos/historico',
+            '/pedidos/controle-da-tv',
             '/comandas',
             '/financeiro/a-receber',
             '/financeiro/movimentacoes',
