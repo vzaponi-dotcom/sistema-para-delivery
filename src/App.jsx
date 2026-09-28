@@ -212,7 +212,7 @@ function App({ capabilities } = {}) {
   } = useOperationalDataRuntime({
     onUnauthorized: handleOperationalUnauthorized,
     globalSyncEnabled: isOnline && authState === 'authenticated',
-    ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated',
+    ordersSyncEnabled: (activeTab === 'orders' || activeTab === 'kitchen-tv-control') && isOnline && authState === 'authenticated',
     effectiveConfigVersion: getEffectiveConfigVersion,
   })
   useRouteGate({
