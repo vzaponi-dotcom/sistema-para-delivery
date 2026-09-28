@@ -405,3 +405,119 @@ test('current page clamps automatically when the queue shrinks and the page disa
   assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-2' }))
   assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-30' }).length, 0)
 })
+
+
+test('new arrival on a secondary page forces page one, alerts once and consumes the current revision', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const reports = []
+  const plays = []
+  const initial = controlledState(30, { revision: 1, requestedPage: 1 })
+  const pageTwo = controlledState(30, { revision: 2, requestedPage: 2 })
+  const arrival = {
+    ...controlledState(30, { revision: 2, requestedPage: 2 }),
+    orders: [
+      ...controlledState(30, { revision: 2, requestedPage: 2 }).orders,
+      {
+        id: 'new-arrival',
+        orderNumber: 5999,
+        client: 'Chegando',
+        type: 'Entrega',
+        status: 'Em preparo',
+        createdAt: '2026-09-22T19:59:59.000Z',
+        items: [{ quantity: 1, name: 'Marmita', note: '' }],
+      },
+    ],
+  }
+  const responses = [pageTwo, arrival, arrival]
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: initial }),
+    readState: async () => responses.shift() || arrival,
+    reportState: async (payload) => { reports.push(payload); return { reported: true } },
+    requestFullscreen: async () => true,
+    audio: {
+      unlock: async () => true,
+      playArrival: async (options) => { plays.push(options); return true },
+    },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-30' }))
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-1' }))
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-30' }).length, 0)
+  assert.equal(plays.length, 1)
+  assert.equal(reports.at(-1)?.currentPage, 1)
+  assert.equal(reports.at(-1)?.appliedRevision, 2)
+
+  await act(async () => h.fireInterval(2000))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'page-1' }))
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'page-30' }).length, 0)
+  assert.equal(plays.length, 1)
+})
+
+test('telemetry is deduplicated across identical polls and changes when viewport rendering changes', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const reports = []
+  const current = controlledState(2, { revision: 3, requestedPage: 1 })
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: current }),
+    readState: async () => current,
+    reportState: async (payload) => { reports.push(payload); return { reported: true } },
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.equal(reports.length, 1)
+  assert.deepEqual(reports[0].visibleOrderIds.sort(), ['page-1', 'page-2'])
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(reports.length, 1)
+
+  h.window.innerWidth = 1280
+  h.window.innerHeight = 720
+  await act(async () => h.window.dispatchEvent(new Event('resize')))
+  await flushEffects()
+  assert.equal(reports.length, 2)
+  assert.equal(reports[1].viewportWidth, 1280)
+  assert.equal(reports[1].viewportHeight, 720)
+})
+
+test('telemetry failure never marks the Kitchen TV stale or stops order polling', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  let reads = 0
+  let reports = 0
+  const current = controlledState(2, { revision: 0, requestedPage: 1 })
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: current }),
+    readState: async () => { reads += 1; return current },
+    reportState: async () => { reports += 1; throw new Error('telemetry offline') },
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.equal(reports, 1)
+  assert.doesNotMatch(nodeText(renderer.root), /Dados temporariamente desatualizados/)
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(reads, 1)
+  assert.doesNotMatch(nodeText(renderer.root), /Dados temporariamente desatualizados/)
+})
