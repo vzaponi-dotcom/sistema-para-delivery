@@ -239,12 +239,14 @@ test('hide failure rolls the optimistic card back to authoritative visibility an
   assert.doesNotMatch(updated.props['aria-label'], /Retirado/)
 })
 
-test('read-only or stale TV state keeps order actions visible but disabled', async (t) => {
+test('read-only access keeps order actions visible but disabled', async (t) => {
   const viewer = await render(t, { granted: new Set(['orders.view']) })
   const viewerCard = viewer.screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
   await act(async () => viewerCard.props.onClick())
   assert.equal(buttonNamed(viewer.screen.root, 'Retirar da TV').props.disabled, true)
+})
 
+test('stale TV state keeps order actions visible but disabled', async (t) => {
   const stale = {
     ...freshState,
     telemetry: { ...freshState.telemetry, reportedAt: '2026-09-28T21:09:40.000Z' },
