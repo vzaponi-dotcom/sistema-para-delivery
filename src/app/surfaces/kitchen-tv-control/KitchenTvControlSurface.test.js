@@ -88,10 +88,17 @@ test('renders the approved compact two-column grid with ten cards and no sensiti
   assert.match(text, /Na TV/)
   assert.match(text, /Fora/)
   assert.match(text, /Retirado/)
+  assert.match(text, /Pedidos/)
+  assert.match(text, /10 visíveis/)
+  assert.match(text, /Toque no pedido para abrir ações/)
   assert.doesNotMatch(text, /Item secreto|R\$|9999|11999999999|Rua que não deve aparecer/)
+  assert.ok(screen.root.findAllByType('svg').length > 0)
 
   const css = await readFile(new URL('./kitchenTvControl.css', import.meta.url), 'utf8')
   assert.match(css, /\.kitchen-tv-control-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*72px/)
+  assert.match(css, /\.kitchen-tv-control-order-card\.status-late[\s\S]*var\(--danger\)/)
+  assert.match(css, /\.kitchen-tv-control-order-card\.status-near-limit[\s\S]*var\(--warning\)/)
 })
 
 test('viewer keeps the surface readable but cannot send page commands', async (t) => {
