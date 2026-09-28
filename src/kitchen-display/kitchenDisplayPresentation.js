@@ -25,36 +25,25 @@ const packForProfile = (entries, profile, viewportWidth, viewportHeight) => pack
 })
 
 const allocateForProfile = (queue, profile, viewportWidth, viewportHeight) => {
-  if (!queue.scheduled.length) {
+  const preparing = packForProfile(queue.preparing, profile, viewportWidth, viewportHeight)
+
+  // Waiting scheduled orders never displace work that is already in preparation.
+  // They can use only genuine leftover capacity after the complete preparing
+  // queue fits. Once a scheduled order reaches its preparation window, the
+  // domain queue promotes it to phase=preparing and it receives normal priority.
+  if (preparing.cards.length !== queue.preparing.length || !queue.scheduled.length) {
     return {
       profile,
-      cards: packForProfile(queue.preparing, profile, viewportWidth, viewportHeight).cards,
+      cards: preparing.cards,
     }
   }
 
-  const [protectedScheduled, ...additionalScheduled] = queue.scheduled
-  const preparingCards = []
-  let preparingBlocked = false
-
-  for (const candidate of queue.preparing) {
-    const trialEntries = [...preparingCards, candidate, protectedScheduled]
+  const selected = [...queue.preparing]
+  for (const candidate of queue.scheduled) {
+    const trialEntries = [...selected, candidate]
     const trial = packForProfile(trialEntries, profile, viewportWidth, viewportHeight)
-    if (trial.cards.length !== trialEntries.length) {
-      preparingBlocked = true
-      break
-    }
-    preparingCards.push(candidate)
-  }
-
-  const selected = [...preparingCards, protectedScheduled]
-
-  if (!preparingBlocked) {
-    for (const candidate of additionalScheduled) {
-      const trialEntries = [...selected, candidate]
-      const trial = packForProfile(trialEntries, profile, viewportWidth, viewportHeight)
-      if (trial.cards.length !== trialEntries.length) break
-      selected.push(candidate)
-    }
+    if (trial.cards.length !== trialEntries.length) break
+    selected.push(candidate)
   }
 
   return {
