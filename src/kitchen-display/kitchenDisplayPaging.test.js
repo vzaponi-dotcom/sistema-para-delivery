@@ -76,3 +76,31 @@ test('new arrival wins over a simultaneous or stale page command and consumes th
     { currentPage: 1, appliedRevision: 9 },
   )
 })
+
+
+test('successive controller revisions always leave the TV on the newest page', async () => {
+  const paging = await pagingPromise
+  const initial = { currentPage: 1, appliedRevision: 0 }
+  const afterA = paging.reconcileKitchenDisplayPaging(initial, {
+    control: { revision: 1, requestedPage: 2 },
+    pageCount: 3,
+    hasArrivals: false,
+  })
+  assert.deepEqual(afterA, { currentPage: 2, appliedRevision: 1 })
+
+  const afterB = paging.reconcileKitchenDisplayPaging(afterA, {
+    control: { revision: 2, requestedPage: 3 },
+    pageCount: 3,
+    hasArrivals: false,
+  })
+  assert.deepEqual(afterB, { currentPage: 3, appliedRevision: 2 })
+
+  assert.deepEqual(
+    paging.reconcileKitchenDisplayPaging(afterB, {
+      control: { revision: 1, requestedPage: 2 },
+      pageCount: 3,
+      hasArrivals: false,
+    }),
+    afterB,
+  )
+})
