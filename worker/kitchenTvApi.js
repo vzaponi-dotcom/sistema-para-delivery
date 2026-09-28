@@ -70,6 +70,13 @@ async function pairingRequestToken(request) {
 }
 
 const paired = (access) => Boolean(access?.sessionTokenHash && !access?.revokedAt)
+const requirePairedKitchenTv = async (db, businessId) => {
+  const access = await loadKitchenTvAccess(db, businessId)
+  if (!paired(access)) {
+    throw apiError(409, 'KITCHEN_TV_NOT_PAIRED', 'A TV da cozinha precisa estar conectada para receber comandos.')
+  }
+  return access
+}
 const controlPayload = (access, control, hiddenOrderIds) => ({
   paired: paired(access),
   control: {
@@ -146,9 +153,10 @@ export async function handleKitchenTvAdminApi(request, env, context, url = new U
     requireCapability(context, 'orders.kitchen.control')
     assertSameOriginMutation(request)
     const page = pageInput(await readJson(request))
+    const access = await requirePairedKitchenTv(env.DB, context.businessId)
     const control = await setKitchenTvRequestedPage(env.DB, context.businessId, page, now)
     return json(controlPayload(
-      await loadKitchenTvAccess(env.DB, context.businessId),
+      access,
       control,
       await listKitchenTvHiddenOrderIds(env.DB, context.businessId),
     ))
@@ -157,6 +165,7 @@ export async function handleKitchenTvAdminApi(request, env, context, url = new U
   if (hiddenMatch && request.method === 'PUT') {
     requireCapability(context, 'orders.kitchen.control')
     assertSameOriginMutation(request)
+    await requirePairedKitchenTv(env.DB, context.businessId)
     const orderId = decodeURIComponent(hiddenMatch[1])
     const eligibility = await getKitchenTvOrderControlEligibility(env.DB, context.businessId, orderId, now)
     if (!eligibility.exists) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
@@ -167,6 +176,7 @@ export async function handleKitchenTvAdminApi(request, env, context, url = new U
   if (hiddenMatch && request.method === 'DELETE') {
     requireCapability(context, 'orders.kitchen.control')
     assertSameOriginMutation(request)
+    await requirePairedKitchenTv(env.DB, context.businessId)
     const orderId = decodeURIComponent(hiddenMatch[1])
     await restoreKitchenTvOrder(env.DB, context.businessId, orderId)
     return json({ orderId, hidden: false })
