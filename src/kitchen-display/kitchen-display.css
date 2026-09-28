@@ -485,6 +485,73 @@ button { font: inherit; }
   row-gap: clamp(8px, .8vw, 14px);
 }
 
+.kds-board[data-layout-profile="roomy"] {
+  padding: clamp(16px, 1.7vw, 30px);
+  gap: clamp(10px, 1.1vw, 18px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-header {
+  min-height: clamp(72px, 7.5vh, 96px);
+  gap: clamp(16px, 1.7vw, 32px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-brand__icon svg {
+  width: clamp(42px, 2.8vw, 50px);
+  height: clamp(42px, 2.8vw, 50px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-brand h1 {
+  font-size: clamp(1.95rem, 2.8vw, 3rem);
+}
+.kds-board[data-layout-profile="roomy"] .kds-counter {
+  min-width: clamp(94px, 7.4vw, 126px);
+  padding-inline: clamp(10px, 1vw, 18px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-counter strong {
+  font-size: clamp(1.85rem, 2.65vw, 2.8rem);
+}
+.kds-board[data-layout-profile="roomy"] .kds-clock {
+  min-width: clamp(106px, 8.4vw, 144px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-clock time {
+  font-size: clamp(1.95rem, 2.75vw, 2.9rem);
+}
+.kds-board[data-layout-profile="roomy"] .kds-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(18, minmax(0, 1fr));
+  column-gap: clamp(10px, 1.1vw, 18px);
+  row-gap: clamp(4px, .45vw, 7px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-card {
+  --kds-item-size: clamp(1rem, 1.14vw, 1.24rem);
+  --kds-note-size: .82em;
+  padding: clamp(12px, 1vw, 18px);
+}
+.kds-board[data-layout-profile="roomy"] .kds-card--content-compact {
+  --kds-item-size: clamp(.94rem, 1.06vw, 1.14rem);
+}
+.kds-board[data-layout-profile="roomy"] .kds-card--content-dense {
+  --kds-item-size: clamp(.88rem, .98vw, 1.04rem);
+  --kds-note-size: .78em;
+}
+.kds-board[data-layout-profile="roomy"] .kds-card__status {
+  gap: .58rem;
+  font-size: clamp(.7rem, .84vw, .92rem);
+}
+.kds-board[data-layout-profile="roomy"] .kds-card__main {
+  min-height: clamp(38px, 4.5vh, 50px);
+  margin: 6px 0;
+  padding-bottom: 6px;
+}
+.kds-board[data-layout-profile="roomy"] .kds-card__customer,
+.kds-board[data-layout-profile="roomy"] .kds-card__timing {
+  font-size: clamp(1.38rem, 1.82vw, 2rem);
+}
+.kds-board[data-layout-profile="roomy"] .kds-card__meta {
+  gap: .42rem;
+}
+.kds-board[data-layout-profile="roomy"] .kds-card__meta .kds-card__type {
+  padding: .3rem .46rem;
+  font-size: clamp(.64rem, .74vw, .8rem);
+}
+
 .kds-board[data-layout-profile="balanced"] {
   padding: clamp(14px, 1.5vw, 26px);
   gap: clamp(10px, 1vw, 16px);
@@ -664,7 +731,8 @@ button { font: inherit; }
 
 /* Nano cards: one simple production line keeps full typography and removes empty chrome. */
 .kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] {
-  padding: clamp(6px, .55vw, 9px);
+  padding: clamp(7px, .6vw, 10px);
+  padding-bottom: clamp(9px, .7vw, 12px);
 }
 .kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__main {
   min-height: 24px;
@@ -674,6 +742,7 @@ button { font: inherit; }
 }
 .kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__items {
   gap: 1px;
+  padding-bottom: 2px;
 }
 .kds-board[data-layout-profile="compact"] .kds-card[data-nano-card="true"] .kds-card__meta {
   gap: .24rem;
