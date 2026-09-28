@@ -13,6 +13,11 @@ import {
 } from '../infrastructure/storage/kitchenSoundPreference.js'
 import { KitchenDisplayHttpError } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
+import { buildKitchenDisplayPages } from './kitchenDisplayPresentation.js'
+import {
+  createKitchenDisplayPagingState,
+  reconcileKitchenDisplayPaging,
+} from './kitchenDisplayPaging.js'
 import { isKitchenDisplayFullscreen, requestKitchenDisplayFullscreen } from './kitchenDisplayFullscreen.js'
 import { bootstrapKitchenDisplay, pollKitchenDisplayPairing, readStoredKitchenDisplayState } from './kitchenDisplaySession.js'
 import { KitchenDisplayBoard } from './KitchenDisplayBoard.jsx'
@@ -60,14 +65,33 @@ export function KitchenDisplayApp({
   const [soundPreferenceError, setSoundPreferenceError] = useState('')
   const [compatibilityError, setCompatibilityError] = useState('')
   const [fullscreenRecoveryNeeded, setFullscreenRecoveryNeeded] = useState(false)
+  const [paging, setPaging] = useState(() => createKitchenDisplayPagingState(null))
+  const pagingRef = useRef(paging)
   const previousIds = useRef(undefined)
   const alertedIds = useRef(new Set())
   const highlightTimers = useRef(new Map())
+
+  const commitPaging = useCallback((nextPaging) => {
+    pagingRef.current = nextPaging
+    setPaging(nextPaging)
+  }, [])
 
   const applySnapshot = useCallback(async (next) => {
     const currentNow = new Date(next.serverNow || Date.now())
     const arrival = detectOperationalArrivals(previousIds.current, next.orders || [], currentNow, alertedIds.current, next.timing)
     previousIds.current = arrival.currentIds
+    const builtPages = buildKitchenDisplayPages(
+      next.orders || [],
+      next.timing,
+      currentNow,
+      new Set(),
+      { viewportWidth: viewport.width, viewportHeight: viewport.height },
+    )
+    commitPaging(reconcileKitchenDisplayPaging(pagingRef.current, {
+      control: next.control,
+      pageCount: Math.max(1, builtPages.pages.length),
+      hasArrivals: arrival.newIds.length > 0,
+    }))
     if (arrival.newIds.length) {
       for (const id of arrival.newIds) {
         alertedIds.current.add(id)
@@ -89,15 +113,16 @@ export function KitchenDisplayApp({
     setSnapshot(next)
     setStale(false)
     setLastUpdatedAt(new Date())
-  }, [audio, cancelSchedule, schedule, soundProfile, soundVolume])
+  }, [audio, cancelSchedule, commitPaging, schedule, soundProfile, soundVolume, viewport.height, viewport.width])
 
   const prepareStartPanel = useCallback((next) => {
+    commitPaging(createKitchenDisplayPagingState(next?.control))
     setSnapshot(next)
     setStale(false)
     setLastUpdatedAt(new Date())
     setCompatibilityError('')
     setPhase('start-required')
-  }, [])
+  }, [commitPaging])
 
   useEffect(() => {
     let active = true
@@ -157,6 +182,7 @@ export function KitchenDisplayApp({
     } catch (error) {
       if (isDefinitive(error)) {
         previousIds.current = undefined
+        commitPaging(createKitchenDisplayPagingState(null))
         setSnapshot(null)
         setStale(false)
         setPhase('unauthorized')
@@ -164,7 +190,7 @@ export function KitchenDisplayApp({
         setStale(true)
       }
     }
-  }, [applySnapshot, readState])
+  }, [applySnapshot, commitPaging, readState])
 
   useEffect(() => {
     if (phase !== 'live') return undefined
@@ -298,6 +324,32 @@ export function KitchenDisplayApp({
   const boardViewportHeight = fullscreenRecoveryNeeded && viewport.height
     ? Math.max(1, viewport.height - FULLSCREEN_RECOVERY_SAFE_AREA_PX)
     : viewport.height
+  const pageSet = useMemo(() => phase === 'live'
+    ? buildKitchenDisplayPages(
+        snapshot?.orders || [],
+        snapshot?.timing,
+        now,
+        highlightedIds,
+        { viewportWidth: viewport.width, viewportHeight: boardViewportHeight },
+      )
+    : { pages: [], totalVisible: 0, unrenderableOrderIds: [] },
+  [boardViewportHeight, highlightedIds, now, phase, snapshot, viewport.width])
+  const pageCount = Math.max(1, pageSet.pages.length)
+  const selectedPage = pageSet.pages[Math.min(paging.currentPage, pageCount) - 1] || null
+  const nextPageCount = pageSet.pages[paging.currentPage]?.cards?.length || 0
+
+  useEffect(() => {
+    if (phase !== 'live') return
+    const nextPaging = reconcileKitchenDisplayPaging(pagingRef.current, {
+      control: snapshot?.control,
+      pageCount,
+      hasArrivals: false,
+    })
+    if (
+      nextPaging.currentPage !== pagingRef.current.currentPage
+      || nextPaging.appliedRevision !== pagingRef.current.appliedRevision
+    ) commitPaging(nextPaging)
+  }, [commitPaging, pageCount, phase, snapshot?.control])
 
   if (phase === 'loading') return <main className="kds-shell"><p>Preparando esta TV…</p></main>
   if (phase === 'pairing-error') return <main className="kds-shell"><section className="kds-pairing-card"><h1>Não foi possível preparar o pareamento</h1><p>Atualize esta página para gerar um novo código.</p></section></main>
@@ -379,6 +431,18 @@ export function KitchenDisplayApp({
       <button className="kds-fullscreen-action" type="button" onClick={enterFullscreen}>Entrar em tela cheia</button>
     </div>}
     {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
-    <KitchenDisplayBoard orders={snapshot?.orders || []} timing={snapshot?.timing} now={now} highlightedIds={highlightedIds} stale={stale} viewportWidth={viewport.width} viewportHeight={boardViewportHeight} />
+    <KitchenDisplayBoard
+      orders={snapshot?.orders || []}
+      timing={snapshot?.timing}
+      now={now}
+      highlightedIds={highlightedIds}
+      stale={stale}
+      viewportWidth={viewport.width}
+      viewportHeight={boardViewportHeight}
+      presentation={selectedPage || undefined}
+      pageNumber={Math.min(paging.currentPage, pageCount)}
+      pageCount={pageCount}
+      nextPageCount={nextPageCount}
+    />
   </main>
 }
