@@ -134,11 +134,19 @@ export function resolveKitchenBoardCandidates({ viewportWidth, viewportHeight, q
   if (legacyTvViewport || width >= 1440 && height >= 820) candidates.push({ ...KITCHEN_BOARD_PROFILES.compact })
 
   const count = Math.max(0, Math.trunc(Number(queueSize)) || 0)
-  if (count >= 1 && count <= 4) {
+  if (count >= 1 && count <= 3) {
     const adaptiveFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, count)
     return [
       adaptiveFocus,
       ...candidates.filter(({ id, columns }) => id !== adaptiveFocus.id || columns !== adaptiveFocus.columns),
+    ]
+  }
+
+  if (count === 4) {
+    const twoByTwoFocus = withBoardColumns(KITCHEN_BOARD_PROFILES.focus, 2)
+    return [
+      twoByTwoFocus,
+      ...candidates.filter(({ id, columns }) => id !== twoByTwoFocus.id || columns !== twoByTwoFocus.columns),
     ]
   }
 
