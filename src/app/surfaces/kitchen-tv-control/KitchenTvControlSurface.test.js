@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { act } from 'react-test-renderer'
-import { buttonNamed, nodeText, workspaceHarness } from '../../../test-support/renderWorkspace.js'
+import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
 const NOW = new Date('2026-09-28T21:10:05.000Z')
 
@@ -58,7 +58,9 @@ async function render(t, {
     ...apiOverrides,
   }
   const { default: KitchenTvControlSurface } = await h.load('/src/app/surfaces/kitchen-tv-control/KitchenTvControlSurface.jsx')
-  const screen = await h.render(KitchenTvControlSurface, {
+  const screen = await renderWithNavigation(h, KitchenTvControlSurface, {
+    activeTab: 'kitchen-tv-control',
+    implemented: new Set(['orders', 'history', 'kitchen-tv-control']),
     orders,
     now: NOW,
     granted,
