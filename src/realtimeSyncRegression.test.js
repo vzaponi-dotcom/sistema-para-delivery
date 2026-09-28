@@ -25,7 +25,7 @@ test('operation indicators use domain selectors without new network or polling l
 test('App delegates official-data synchronization to the operational runtime', () => {
   assert.match(app, /useOperationalDataRuntime/)
   assert.match(app, /globalSyncEnabled: isOnline && authState === 'authenticated'/)
-  assert.match(app, /ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated'/)
+  assert.match(app, /ordersSyncEnabled: \(activeTab === 'orders' \|\| activeTab === 'kitchen-tv-control'\) && isOnline && authState === 'authenticated'/)
   assert.doesNotMatch(app, /createCollectionSyncGuard/)
   assert.doesNotMatch(app, /bootstrapSyncInFlightRef/)
   assert.doesNotMatch(app, /ordersSyncInFlightRef/)
