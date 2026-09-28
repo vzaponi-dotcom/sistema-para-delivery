@@ -167,7 +167,7 @@ test('large viewport expands short-order capacity to twelve while small queues r
   assert.equal(four.cards.length, 4)
 })
 
-test('1366x768 keeps the three-column roomy profile when it shows more orders than balanced', () => {
+test('1366x768 uses compact density when it is the first profile that fits the full queue', () => {
   const result = buildKitchenDisplayPresentation(
     Array.from({ length: 10 }, (_, index) => preparing(index)),
     timing,
@@ -175,9 +175,9 @@ test('1366x768 keeps the three-column roomy profile when it shows more orders th
     new Set(),
     { viewportWidth: 1366, viewportHeight: 768 },
   )
-  assert.equal(result.profile.id, 'roomy')
-  assert.equal(result.cards.length, 9)
-  assert.equal(result.overflow, 1)
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.cards.length, 10)
+  assert.equal(result.overflow, 0)
 })
 
 test('compact profile protects one scheduled order while using the remaining capacity for preparing work', () => {
@@ -298,19 +298,19 @@ test('best-fit uses four columns only when the three-column candidate cannot fit
 
 test('best-fit chooses the smallest overflow when no available profile can fit the full queue', () => {
   const result = buildKitchenDisplayPresentation(
-    Array.from({ length: 10 }, (_, index) => preparing(index + 1, undefined, [
+    Array.from({ length: 30 }, (_, index) => preparing(index + 1, undefined, [
       { quantity: 1, name: 'Marmita', note: '' },
     ])),
     timing,
     now,
     new Set(),
-    { viewportWidth: 1366, viewportHeight: 768 },
+    { viewportWidth: 960, viewportHeight: 540 },
   )
 
-  assert.equal(result.profile.id, 'roomy')
-  assert.equal(result.profile.columns, 3)
-  assert.equal(result.cards.length, 9)
-  assert.equal(result.overflow, 1)
+  assert.equal(result.profile.id, 'compact')
+  assert.equal(result.profile.columns, 4)
+  assert.equal(result.cards.length, 24)
+  assert.equal(result.overflow, 6)
 })
 
 
