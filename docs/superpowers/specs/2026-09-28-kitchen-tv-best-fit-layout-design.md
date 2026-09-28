@@ -65,8 +65,11 @@ Para cada perfil disponível:
 Escolha:
 
 1. se algum perfil comportar a fila inteira, usar o **primeiro / menos denso** que conseguiu;
-2. se nenhum comportar, usar o perfil com **menor overflow**;
-3. em empate de overflow, preferir o perfil menos denso.
+2. se nenhum comportar, preservar primeiro o maior **prefixo contínuo dos pedidos `preparing` mais prioritários** que algum candidato consiga mostrar com segurança;
+3. entre candidatos que preservam o mesmo prefixo prioritário, escolher o que mostra mais cards;
+4. em empate, preferir o perfil menos denso.
+
+Isso evita que vários pedidos pequenos posteriores expulsem da TV um pedido anterior e mais prioritário apenas para aumentar a contagem visível. O safe backfill continua válido depois da primeira lacuna: um card que não cabe em nenhum candidato seguro permanece no overflow e pedidos posteriores menores ainda podem preencher capacidade realmente livre.
 
 Isso faz 7 pedidos permanecerem em 3 colunas quando realmente couberem, sem transformar “7” em um breakpoint rígido.
 
@@ -102,7 +105,7 @@ O packing deve:
 - [ ] 7 pedidos simples em viewport grande permanecem em 3 colunas quando couberem;
 - [ ] 8–9 pedidos simples tentam 3 colunas antes de 4;
 - [ ] 4 colunas só entram quando o candidato de 3 colunas não comportar a fila;
-- [ ] quando nenhum perfil comportar tudo, vence o perfil com menor overflow;
+- [ ] quando nenhum perfil comportar tudo, prioridade operacional vence contagem bruta: preservar o maior prefixo contínuo de `preparing`; só depois maximizar quantidade visível;
 - [ ] um pedido grande que não cabe não bloqueia a avaliação dos pedidos posteriores; pedidos menores posteriores podem ocupar espaço restante sem retirar o grande do overflow;
 - [ ] pedidos fora da tela só aparecem quando nenhum candidato consegue acomodá-los;
 - [ ] 1 item simples não corta texto na TV real;
