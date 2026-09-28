@@ -373,3 +373,77 @@ test('paired TV can report bounded telemetry but cannot use an admin session as 
     { status: 400, code: 'KITCHEN_TV_REPORT_INVALID' },
   )
 })
+
+
+function markKitchenTvPaired(sqlite, { revokedAt = null } = {}) {
+  const pairedAt = NOW.toISOString()
+  sqlite.prepare(`INSERT INTO kitchen_tv_access (
+    business_id, pairing_token_hash, pairing_expires_at, session_token_hash,
+    session_issued_at, paired_at, last_seen_at, revoked_at, created_at, updated_at
+  ) VALUES (?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(business_id) DO UPDATE SET
+    session_token_hash = excluded.session_token_hash,
+    session_issued_at = excluded.session_issued_at,
+    paired_at = excluded.paired_at,
+    last_seen_at = excluded.last_seen_at,
+    revoked_at = excluded.revoked_at,
+    updated_at = excluded.updated_at`)
+    .run(BUSINESS, 'test-session-hash', pairedAt, pairedAt, pairedAt, revokedAt, pairedAt, pairedAt)
+}
+
+test('control mutations reject an unpaired TV instead of queueing commands for later', async (t) => {
+  const api = await apiPromise
+  const { db, sqlite } = setup(t)
+  const env = { DB: db }
+  insertControlOrder(sqlite, { id: 'unpaired-control', number: 401 })
+
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/page', 'PATCH', { page: 2 }),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 409, code: 'KITCHEN_TV_NOT_PAIRED' },
+  )
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/orders/unpaired-control/hidden', 'PUT'),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 409, code: 'KITCHEN_TV_NOT_PAIRED' },
+  )
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/orders/unpaired-control/hidden', 'DELETE'),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 409, code: 'KITCHEN_TV_NOT_PAIRED' },
+  )
+})
+
+test('revoked TV access blocks every administrative control mutation', async (t) => {
+  const api = await apiPromise
+  const { db, sqlite } = setup(t)
+  const env = { DB: db }
+  insertControlOrder(sqlite, { id: 'revoked-control', number: 402 })
+  markKitchenTvPaired(sqlite, { revokedAt: new Date(+NOW + 1_000).toISOString() })
+
+  for (const [path, method, body] of [
+    ['/api/kitchen-tv/control/page', 'PATCH', { page: 2 }],
+    ['/api/kitchen-tv/control/orders/revoked-control/hidden', 'PUT', undefined],
+    ['/api/kitchen-tv/control/orders/revoked-control/hidden', 'DELETE', undefined],
+  ]) {
+    await assert.rejects(
+      api.handleKitchenTvAdminApi(request(path, method, body), env, await controller(), undefined, NOW),
+      { status: 409, code: 'KITCHEN_TV_NOT_PAIRED' },
+    )
+  }
+})
