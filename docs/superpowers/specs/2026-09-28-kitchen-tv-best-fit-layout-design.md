@@ -59,7 +59,7 @@ Para cada perfil disponível:
 
 1. calcular métricas de conteúdo dos pedidos naquele perfil;
 2. executar o mesmo packing que preserva a prioridade operacional;
-3. preservar o primeiro agendado protegido;
+3. priorizar todos os pedidos que já estão em `preparing`; pedidos ainda em `scheduled` só usam capacidade realmente livre depois que toda a fila em preparo couber;
 4. calcular quantos pedidos caberam e o overflow.
 
 Escolha:
@@ -107,7 +107,7 @@ O packing deve:
 - [ ] 1 item simples não corta texto na TV real;
 - [ ] observações e nomes quebrados ganham altura suficiente;
 - [ ] tipografia atual de produção é preservada;
-- [ ] prioridade, scheduled protegido, counters, áudio, pairing, fullscreen e no-scroll não regressam;
+- [ ] prioridade operacional preservada: nenhum pedido ainda aguardando em `scheduled` desloca pedido já em `preparing`; ao entrar na janela de preparo, o agendado passa a `preparing` pela regra de domínio e recebe prioridade normal;
 - [ ] desktop/browser e TV real ficam visualmente coerentes;
 - [ ] staging homologado antes de merge;
 - [ ] produção permanece bloqueada até autorização separada.
