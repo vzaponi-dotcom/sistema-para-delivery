@@ -432,3 +432,24 @@ test('waiting scheduled work stays off-screen while any preparing order is in ov
   assert.equal(result.cards.some(({ phase }) => phase === 'scheduled'), false)
   assert.equal(result.overflow, 2)
 })
+
+
+test('presentation keeps scanning preparing work after one oversized card cannot fit', () => {
+  const orders = [
+    preparing(1),
+    preparing(2),
+    preparing(3),
+    preparing(4),
+    preparing(5),
+    preparing(6, undefined, denseItems('Muito grande')),
+    preparing(7),
+  ]
+
+  const result = buildKitchenDisplayPresentation(orders, timing, now)
+
+  assert.deepEqual(result.cards.map(({ order }) => order.id), [
+    'p-01', 'p-02', 'p-03', 'p-04', 'p-05', 'p-07',
+  ])
+  assert.equal(result.cards.some(({ order }) => order.id === 'p-06'), false)
+  assert.equal(result.overflow, 1)
+})
