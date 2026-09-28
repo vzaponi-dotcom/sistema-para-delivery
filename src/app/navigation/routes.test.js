@@ -14,6 +14,7 @@ const EXPECTED_PATHS = Object.freeze({
   'settings-kitchen-tv': '/configuracoes/tv-da-cozinha',
   orders: '/pedidos',
   history: '/pedidos/historico',
+  'kitchen-tv-control': '/pedidos/controle-da-tv',
   'new-order': '/pedidos/novo',
   comandas: '/comandas',
   'print-queue': '/fila-de-impressao',
