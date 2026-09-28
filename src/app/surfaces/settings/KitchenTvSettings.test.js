@@ -18,7 +18,7 @@ async function render(t, { granted = new Set(['orders.settings.manage']), state 
     ...apiOverrides,
   }
   const { default: KitchenTvSettings } = await h.load('/src/app/surfaces/settings/KitchenTvSettings.jsx')
-  const screen = await h.render(KitchenTvSettings, { granted, api, onNavigateHome() { calls.push(['home']) } })
+  const screen = await h.render(KitchenTvSettings, { granted, api, onNavigateHome() { calls.push(['home']) }, onNavigateControl() { calls.push(['control']) } })
   await act(async () => {})
   return { h, screen, calls }
 }
@@ -75,4 +75,33 @@ test('full TV address wraps instead of being ellipsized on mobile', async () => 
   assert.match(css, /\.kitchen-tv-fixed-address \{[\s\S]*white-space:\s*normal/)
   assert.match(css, /\.kitchen-tv-fixed-address \{[\s\S]*overflow-wrap:\s*anywhere/)
   assert.doesNotMatch(css, /\.kitchen-tv-fixed-address \{[\s\S]*text-overflow:\s*ellipsis/)
+})
+
+
+test('paired TV offers the operational shortcut only to users who can view Orders', async (t) => {
+  const allowed = await render(t, {
+    state: paired,
+    granted: new Set(['orders.settings.view', 'orders.view']),
+  })
+  await act(async () => buttonNamed(allowed.screen.root, 'Abrir controle da TV').props.onClick())
+  assert.deepEqual(allowed.calls, [['control']])
+
+  const settingsOnly = await render(t, {
+    state: paired,
+    granted: new Set(['orders.settings.view']),
+  })
+  assert.equal(buttonNamed(settingsOnly.screen.root, 'Abrir controle da TV'), undefined)
+})
+
+test('unpaired TV does not expose the operational control shortcut', async (t) => {
+  const { screen } = await render(t, {
+    state: empty,
+    granted: new Set(['orders.settings.view', 'orders.view']),
+  })
+  assert.equal(buttonNamed(screen.root, 'Abrir controle da TV'), undefined)
+})
+
+test('SettingsSurface wires the paired TV shortcut to the Pedidos control destination', async () => {
+  const source = await readFile(new URL('./SettingsSurface.jsx', import.meta.url), 'utf8')
+  assert.match(source, /onNavigateControl=\{\(\) => onNavigate\?\.\('kitchen-tv-control'\)\}/)
 })
