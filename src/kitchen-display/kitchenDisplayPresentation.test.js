@@ -453,3 +453,30 @@ test('presentation keeps scanning preparing work after one oversized card cannot
   assert.equal(result.cards.some(({ order }) => order.id === 'p-06'), false)
   assert.equal(result.overflow, 1)
 })
+
+
+test('best-fit protects the highest-priority preparing prefix before maximizing visible card count', () => {
+  const largePriorityItems = Array.from({ length: 10 }, (_, index) => ({
+    quantity: 1,
+    name: `Produto grande operacional ${index + 1}`,
+    note: '',
+  }))
+  const orders = [
+    preparing(1, '2026-09-22T14:10:00.000Z', largePriorityItems),
+    ...Array.from({ length: 12 }, (_, index) => preparing(index + 2, '2026-09-22T14:50:00.000Z', [
+      { quantity: 1, name: 'Marmita', note: '' },
+    ])),
+  ]
+
+  const result = buildKitchenDisplayPresentation(
+    orders,
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 960, viewportHeight: 540 },
+  )
+
+  assert.equal(result.cards.some(({ order }) => order.id === 'p-01'), true)
+  assert.equal(result.cards[0]?.order.id, 'p-01')
+  assert.equal(result.overflow > 0, true)
+})
