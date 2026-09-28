@@ -158,7 +158,7 @@ function insertControlOrder(sqlite, {
 
 test('control read is available to orders.view while page mutations require orders.kitchen.control', async (t) => {
   const api = await apiPromise
-  const { db } = setup(t)
+  const { db, sqlite } = setup(t)
   const env = { DB: db }
 
   const initial = await api.handleKitchenTvAdminApi(
@@ -186,6 +186,7 @@ test('control read is available to orders.view while page mutations require orde
     { status: 403 },
   )
 
+  markKitchenTvPaired(sqlite)
   const changed = await api.handleKitchenTvAdminApi(
     request('/api/kitchen-tv/control/page', 'PATCH', { page: 2 }),
     env,
@@ -225,6 +226,7 @@ test('controller hides and restores only eligible preparing orders, idempotently
   const api = await apiPromise
   const { db, sqlite } = setup(t)
   const env = { DB: db }
+  markKitchenTvPaired(sqlite)
   insertControlOrder(sqlite, { id: 'active-control', number: 301 })
   insertControlOrder(sqlite, { id: 'scheduled-control', number: 302, scheduledFor: '2026-09-22T21:00:00.000Z' })
   insertControlOrder(sqlite, { id: 'finished-control', number: 303, status: 'Finalizado', finishedAt: '2026-09-22T18:10:00.000Z' })
