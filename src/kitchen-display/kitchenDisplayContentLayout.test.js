@@ -167,14 +167,7 @@ test('packing never skips a higher-priority tall card to promote a lower-priorit
     normalEntry('p-3'),
     normalEntry('p-4'),
     normalEntry('p-5'),
-    {
-      order: {
-        id: 'p-6',
-        items: Array.from({ length: 24 }, (_, index) => item(
-          `Produto muito grande família especial completo ${index + 1}`,
-        )),
-      },
-    },
+    tallEntry('p-6'),
     normalEntry('p-7'),
   ]
   const result = packKitchenDisplaySlots(entries)
@@ -664,7 +657,14 @@ test('board-profile packing skips one oversized blocked card and still fills lat
     normalEntry('p-3'),
     normalEntry('p-4'),
     normalEntry('p-5'),
-    tallEntry('p-6'),
+    {
+      order: {
+        id: 'p-6',
+        items: Array.from({ length: 24 }, (_, index) => item(
+          `Produto muito grande família especial completo ${index + 1}`,
+        )),
+      },
+    },
     normalEntry('p-7'),
   ]
 
