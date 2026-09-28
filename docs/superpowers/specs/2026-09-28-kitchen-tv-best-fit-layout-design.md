@@ -91,8 +91,8 @@ Cards continuam ocupando uma coluna por vez e empilhando do topo.
 O packing deve:
 
 - minimizar buracos verticais;
-- não reordenar a fila para promover pedido inferior;
-- não pular pedido prioritário só porque um posterior é menor;
+- preservar a ordem relativa dos pedidos que forem exibidos;
+- se um card não couber com segurança, mantê-lo no overflow e continuar avaliando os pedidos seguintes, permitindo que um posterior menor use capacidade que ficaria vazia;
 - manter posições determinísticas;
 - manter backtracking limitado à disposição física dos cards já selecionados.
 
@@ -103,6 +103,7 @@ O packing deve:
 - [ ] 8–9 pedidos simples tentam 3 colunas antes de 4;
 - [ ] 4 colunas só entram quando o candidato de 3 colunas não comportar a fila;
 - [ ] quando nenhum perfil comportar tudo, vence o perfil com menor overflow;
+- [ ] um pedido grande que não cabe não bloqueia a avaliação dos pedidos posteriores; pedidos menores posteriores podem ocupar espaço restante sem retirar o grande do overflow;
 - [ ] pedidos fora da tela só aparecem quando nenhum candidato consegue acomodá-los;
 - [ ] 1 item simples não corta texto na TV real;
 - [ ] observações e nomes quebrados ganham altura suficiente;
