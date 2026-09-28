@@ -3,6 +3,7 @@ import AreaNavigation from '../../navigation/AreaNavigation.jsx'
 import { buildKitchenQueueModel } from '../../../domains/orders/index.js'
 import Button from '../../../shared/ui/Button.jsx'
 import BottomSheet from '../../../shared/ui/BottomSheet.jsx'
+import Icon from '../../../shared/ui/Icon.jsx'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import * as defaultApi from './kitchenTvControlApi.js'
 import {
@@ -16,11 +17,15 @@ import './kitchenTvControl.css'
 
 const CONTROL_POLL_MS = 2000
 
-const telemetryTime = (telemetry) => {
+const telemetryTime = (telemetry, now = new Date()) => {
   if (!telemetry?.reportedAt) return 'Sem telemetria recente'
   const date = new Date(telemetry.reportedAt)
-  if (Number.isNaN(date.getTime())) return 'Sem telemetria recente'
-  return `Último sinal ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(date)}`
+  const reference = now instanceof Date ? now : new Date(now)
+  if (Number.isNaN(date.getTime()) || Number.isNaN(reference.getTime())) return 'Sem telemetria recente'
+  const ageSeconds = Math.max(0, Math.floor((reference.getTime() - date.getTime()) / 1000))
+  if (ageSeconds < 2) return 'Último sinal agora'
+  if (ageSeconds < 60) return `Último sinal há ${ageSeconds}s`
+  return `Último sinal ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(date)}`
 }
 
 const withHiddenOrder = (state, orderId, hidden) => {
@@ -31,9 +36,16 @@ const withHiddenOrder = (state, orderId, hidden) => {
   return { ...state, hiddenOrderIds: [...ids] }
 }
 
-function SummaryTile({ label, value }) {
-  return <article><span>{label}</span><strong>{value}</strong></article>
+function SummaryTile({ label, value, icon, tone = 'neutral' }) {
+  return <article className={`kitchen-tv-control-summary-tile tone-${tone}`}>
+    <Icon name={icon} size={16} />
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </article>
 }
+
+const statusIcon = (key) => key === 'late' ? 'alert' : key === 'near-limit' ? 'clock' : 'preparation'
+const visibilityIcon = (key) => key === 'visible' ? 'eye' : 'eye-off'
 
 function KitchenTvControlSurface({
   orders = [],
@@ -248,7 +260,7 @@ function KitchenTvControlSurface({
       <div className="kitchen-tv-control-heading">
         <p>Operação</p>
         <h1>Controle da TV</h1>
-        <small>{telemetryTime(controlState?.telemetry)}</small>
+        <small>{controlState?.paired ? `Pareada · ${telemetryTime(controlState?.telemetry, now)}` : telemetryTime(controlState?.telemetry, now)}</small>
       </div>
       <span className={connectionClass}>{connectionLabel}</span>
     </header>
@@ -267,29 +279,37 @@ function KitchenTvControlSurface({
       <button
         type="button"
         className="kitchen-tv-control-page-button"
+        aria-label="Anterior"
         disabled={!operationalControlsEnabled || currentPage <= 1}
         onClick={() => { void requestPage(currentPage - 1) }}
-      >Anterior</button>
+      ><span aria-hidden="true">‹</span><span>Anterior</span></button>
       <button
         type="button"
-        className="kitchen-tv-control-page-button"
+        className="kitchen-tv-control-page-button is-home"
+        aria-label="Início"
         disabled={!operationalControlsEnabled || currentPage <= 1}
         onClick={() => { void requestPage(1) }}
-      >Início</button>
+      ><Icon name="home" size={15} /><span>Início</span></button>
       <button
         type="button"
         className="kitchen-tv-control-page-button"
+        aria-label="Próxima"
         disabled={!operationalControlsEnabled || currentPage >= pageCount}
         onClick={() => { void requestPage(currentPage + 1) }}
-      >Próxima</button>
+      ><span>Próxima</span><span aria-hidden="true">›</span></button>
     </section>
 
     <section className="kitchen-tv-control-summary" aria-label="Resumo do controle da TV">
-      <SummaryTile label="Em preparo" value={queueModel.preparing.length} />
-      <SummaryTile label="Atrasados" value={lateCount} />
-      <SummaryTile label="Agendados" value={queueModel.counts.scheduled} />
-      <SummaryTile label="Fora da tela" value={offscreenCount === null ? '—' : offscreenCount} />
+      <SummaryTile label="Em preparo" value={queueModel.preparing.length} icon="preparation" tone="primary" />
+      <SummaryTile label="Atrasados" value={lateCount} icon="alert" tone={lateCount ? 'danger' : 'neutral'} />
+      <SummaryTile label="Agendados" value={queueModel.counts.scheduled} icon="calendar" />
+      <SummaryTile label="Fora da tela" value={offscreenCount === null ? '—' : offscreenCount} icon="eye-off" />
     </section>
+
+    <div className="kitchen-tv-control-list-heading">
+      <div><Icon name="chef-hat" size={18} /><h2>Pedidos</h2></div>
+      <span>{queueModel.preparing.length} visíveis</span>
+    </div>
 
     <section className="kitchen-tv-control-grid" aria-label="Pedidos em preparo">
       {queueModel.preparing.map((entry) => {
@@ -304,7 +324,7 @@ function KitchenTvControlSurface({
         return <button
           key={entry.order.id}
           type="button"
-          className={`kitchen-tv-control-order-card${isPending ? ' is-pending' : ''}`}
+          className={`kitchen-tv-control-order-card status-${status.key}${isPending ? ' is-pending' : ''}`}
           aria-label={`${formatOrderDisplayNumber(entry.order)}, ${shortKitchenTvClientName(entry.order.client)}, ${status.label}, ${visibility.label}`}
           aria-haspopup="dialog"
           aria-busy={isPending || undefined}
@@ -315,13 +335,19 @@ function KitchenTvControlSurface({
             <span>{shortKitchenTvClientName(entry.order.client)}</span>
           </span>
           <span className="kitchen-tv-control-badges">
-            <span className={`kitchen-tv-control-badge status-${status.key}`}>{status.label}</span>
-            <span className={`kitchen-tv-control-badge visibility-${visibility.key}`}>{visibility.label}</span>
+            <span className={`kitchen-tv-control-badge status-${status.key}`}><Icon name={statusIcon(status.key)} size={11} />{status.label}</span>
+            <span className={`kitchen-tv-control-badge visibility-${visibility.key}`}><Icon name={visibilityIcon(visibility.key)} size={11} />{visibility.label}</span>
           </span>
         </button>
       })}
       {!queueModel.preparing.length && <p className="kitchen-tv-control-empty">Nenhum pedido em preparo agora.</p>}
     </section>
+
+    <div className="kitchen-tv-control-hint">
+      <Icon name="details" size={16} />
+      <span>Toque no pedido para abrir ações</span>
+      <span aria-hidden="true">›</span>
+    </div>
 
     <BottomSheet
       open={Boolean(selectedEntry)}
