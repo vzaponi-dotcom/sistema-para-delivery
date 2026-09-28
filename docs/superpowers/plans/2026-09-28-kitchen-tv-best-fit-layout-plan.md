@@ -50,7 +50,7 @@ Implementar margem vertical de segurança sem reduzir fonte.
 Preservar:
 
 - prioridade;
-- scheduled protegido;
+- prioridade de preparo: pedidos ainda aguardando em `scheduled` só ocupam espaço se toda a fila `preparing` já couber;
 - counters completos;
 - overflow;
 - fullscreen/recovery;
@@ -84,7 +84,7 @@ Testar em staging e TV real:
 9. item com nome longo;
 10. 4+ itens;
 11. pedido grande;
-12. agendado protegido;
+12. agendado aguardando não desloca pedido já em preparo; ao entrar na janela de preparo, passa à prioridade normal;
 13. mistura de atrasados/em preparo/agendados;
 14. fullscreen e fora de fullscreen;
 15. confirmar nenhum clipping.
