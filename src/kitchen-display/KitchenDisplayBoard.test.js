@@ -142,7 +142,7 @@ test('board renders compact 4x3 density with ten short orders on the approved la
   assert.equal(cards.every((card) => Number(card.props['data-row-span']) === 1), true)
 })
 
-test('board renders balanced 4x2 density at 1366x768 and reports overflow beyond eight', async (t) => {
+test('board keeps roomy three-column density at 1366x768 when it reduces overflow', async (t) => {
   const h = await workspaceHarness(t)
   const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
   const orders = Array.from({ length: 10 }, (_, index) => ({
@@ -166,14 +166,15 @@ test('board renders balanced 4x2 density at 1366x768 and reports overflow beyond
   const board = renderer.root.find((node) => node.props?.className === 'kds-board')
   const cards = renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card'))
 
-  assert.equal(board.props['data-layout-profile'], 'balanced')
-  assert.equal(cards.length, 8)
-  assert.match(nodeText(renderer.root), /\+ 2 pedidos fora da tela/)
+  assert.equal(board.props['data-layout-profile'], 'roomy')
+  assert.equal(cards.length, 9)
+  assert.match(nodeText(renderer.root), /\+ 1 pedido fora da tela/)
 })
 
-test('CSS defines explicit focus, balanced and compact grid contracts', async () => {
+test('CSS defines explicit focus, roomy, balanced and compact grid contracts', async () => {
   const css = await readFile(new URL('./kitchen-display.css', import.meta.url), 'utf8')
   assert.match(css, /data-layout-profile="focus"[^}]*\.kds-grid|data-layout-profile="focus"/s)
+  assert.match(css, /data-layout-profile="roomy"[\s\S]*grid-template-columns:\s*repeat\(3,[\s\S]*grid-template-rows:\s*repeat\(18,/)
   assert.match(css, /data-layout-profile="balanced"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(8,/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-columns:\s*repeat\(4,[\s\S]*grid-template-rows:\s*repeat\(24,/)
   assert.match(css, /\.kds-card--full\s*\{[^}]*grid-row:\s*1\s*\/\s*span\s*3/s)
@@ -207,4 +208,35 @@ test('compact CSS uses twenty-four vertical tracks for finer card heights withou
   assert.match(css, /data-layout-profile="compact"[\s\S]*grid-template-rows:\s*repeat\(24,/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-item-size:\s*clamp\(\.95rem,[^;]*1\.15rem\)/)
   assert.match(css, /data-layout-profile="compact"[\s\S]*--kds-note-size:\s*\.8em/)
+})
+
+
+test('board renders seven short orders in roomy three-column best-fit mode', async (t) => {
+  const h = await workspaceHarness(t)
+  const { KitchenDisplayBoard } = await h.load('/src/kitchen-display/KitchenDisplayBoard.jsx')
+  const orders = Array.from({ length: 7 }, (_, index) => ({
+    id: `roomy-${index + 1}`,
+    orderNumber: 3201 + index,
+    client: `Cliente ${index + 1}`,
+    type: 'Entrega',
+    status: 'Em preparo',
+    createdAt: '2026-09-22T19:50:00.000Z',
+    items: [{ quantity: 1, name: 'Marmita', note: '' }],
+  }))
+
+  const renderer = await h.render(KitchenDisplayBoard, {
+    orders,
+    timing,
+    now: new Date('2026-09-22T20:00:00.000Z'),
+    highlightedIds: new Set(),
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+  })
+  const board = renderer.root.find((node) => node.props?.className === 'kds-board')
+  const cards = renderer.root.findAll((node) => String(node.props?.className || '').split(' ').includes('kds-card'))
+
+  assert.equal(board.props['data-layout-profile'], 'roomy')
+  assert.equal(cards.length, 7)
+  assert.doesNotMatch(nodeText(renderer.root), /fora da tela/)
+  assert.equal(cards.every((card) => Number(card.props['data-grid-span']) >= 6), true)
 })
