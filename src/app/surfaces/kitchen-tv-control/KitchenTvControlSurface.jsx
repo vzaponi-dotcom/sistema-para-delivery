@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AreaNavigation from '../../navigation/AreaNavigation.jsx'
-import { buildKitchenQueueModel } from '../../../domains/orders/domain/kitchenQueue.js'
+import { buildKitchenQueueModel } from '../../../domains/orders/index.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import * as defaultApi from './kitchenTvControlApi.js'
 import {
