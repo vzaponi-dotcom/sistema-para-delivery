@@ -16,6 +16,15 @@ test('new order uses one searchable client picker without phone in the selected 
   assert.doesNotMatch(customerStep, /client\.name\}\{client\.phone/)
 })
 
+test('new order starts with no client preselected', () => {
+  const page = source('./NewOrder.jsx')
+
+  assert.match(page, /const \[clientId, setClientId\] = useState\(''\)/)
+  assert.match(page, /const \[clientSearch, setClientSearch\] = useState\(''\)/)
+  assert.doesNotMatch(page, /useState\(clients\[0\]\?\.id/)
+  assert.doesNotMatch(page, /useState\(clients\[0\]\?\.name/)
+})
+
 test('new order from a selected table starts at products without marking the untouched draft dirty', async (t) => {
   const harness = await workspaceHarness(t)
   const dirtyStates = []
