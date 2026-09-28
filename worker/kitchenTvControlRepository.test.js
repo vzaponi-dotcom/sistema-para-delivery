@@ -114,3 +114,31 @@ test('hidden order listing is isolated by business', async (t) => {
   assert.deepEqual(await repository.listKitchenTvHiddenOrderIds(db, BUSINESS), ['active'])
   assert.deepEqual(await repository.listKitchenTvHiddenOrderIds(db, OTHER), ['other-active'])
 })
+
+
+test('two controllers keep a monotonic revision and the latest page is confirmed by telemetry', async (t) => {
+  const repository = await repositoryPromise
+  const { db } = setup(t)
+
+  const controllerA = await repository.setKitchenTvRequestedPage(db, BUSINESS, 2, NOW)
+  assert.equal(controllerA.revision, 1)
+  assert.equal(controllerA.requestedPage, 2)
+
+  const controllerB = await repository.setKitchenTvRequestedPage(db, BUSINESS, 3, new Date(+NOW + 1_000))
+  assert.equal(controllerB.revision, 2)
+  assert.equal(controllerB.requestedPage, 3)
+
+  const confirmed = await repository.reportKitchenTvDisplay(db, BUSINESS, {
+    appliedRevision: controllerB.revision,
+    currentPage: 3,
+    pageCount: 3,
+    viewportWidth: 1920,
+    viewportHeight: 1080,
+    visibleOrderIds: ['active'],
+  }, new Date(+NOW + 2_000))
+
+  assert.equal(confirmed.revision, 2)
+  assert.equal(confirmed.requestedPage, 3)
+  assert.equal(confirmed.telemetry.appliedRevision, 2)
+  assert.equal(confirmed.telemetry.currentPage, 3)
+})
