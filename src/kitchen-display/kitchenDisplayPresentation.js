@@ -2,7 +2,7 @@ import { buildKitchenQueueModel } from '../domains/orders/index.js'
 import {
   packKitchenDisplaySlots,
   positionKitchenDisplayGrid,
-  resolveKitchenBoardProfile,
+  resolveKitchenBoardCandidates,
 } from './kitchenDisplayContentLayout.js'
 
 export const KITCHEN_TV_NEAR_LIMIT_MINUTES = 5
@@ -23,13 +23,7 @@ const packForProfile = (entries, profile, viewportHeight) => packKitchenDisplayS
   boardProfile: profile,
 })
 
-const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => {
-  const profile = resolveKitchenBoardProfile({
-    viewportWidth,
-    viewportHeight,
-    queueSize: queue.totalVisible,
-  })
-
+const allocateForProfile = (queue, profile, viewportHeight) => {
   if (!queue.scheduled.length) {
     return {
       profile,
@@ -66,6 +60,18 @@ const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => 
     profile,
     cards: packForProfile(selected, profile, viewportHeight).cards,
   }
+}
+
+const allocateVisibleCards = (queue, { viewportWidth, viewportHeight } = {}) => {
+  const candidates = resolveKitchenBoardCandidates({ viewportWidth, viewportHeight })
+  const allocations = candidates.map((profile) => allocateForProfile(queue, profile, viewportHeight))
+
+  const complete = allocations.find(({ cards }) => cards.length === queue.totalVisible)
+  if (complete) return complete
+
+  return allocations.reduce((best, candidate) => (
+    candidate.cards.length > best.cards.length ? candidate : best
+  ), allocations[0])
 }
 
 export function buildKitchenDisplayPresentation(
