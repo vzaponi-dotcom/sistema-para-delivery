@@ -78,14 +78,16 @@ test('full TV address wraps instead of being ellipsized on mobile', async () => 
 })
 
 
-test('paired TV offers the operational shortcut only to users who can view Orders', async (t) => {
+test('paired TV offers the operational shortcut to users who can view Orders', async (t) => {
   const allowed = await render(t, {
     state: paired,
     granted: new Set(['orders.settings.view', 'orders.view']),
   })
   await act(async () => buttonNamed(allowed.screen.root, 'Abrir controle da TV').props.onClick())
   assert.deepEqual(allowed.calls, [['control']])
+})
 
+test('paired settings-only access does not expose the operational shortcut', async (t) => {
   const settingsOnly = await render(t, {
     state: paired,
     granted: new Set(['orders.settings.view']),
