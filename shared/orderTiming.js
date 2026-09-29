@@ -4,6 +4,9 @@ import { LEGACY_TIMING } from './businessPolicies.js'
 export const SCHEDULED_PREP_LEAD_MINUTES = 50
 export const SCHEDULED_LATE_GRACE_MINUTES = 15
 export const IMMEDIATE_LATE_AFTER_MINUTES = 30
+export const SCHEDULE_MAX_DAYS = 90
+
+export const validateOrderSchedule = () => ({ ok: false, code: 'SCHEDULE_POLICY_NOT_IMPLEMENTED' })
 
 const TIMING_KEYS = Object.keys(LEGACY_TIMING)
 const TERMINAL_STATUSES = new Set(['Finalizado', 'Cancelado', 'Entregue', 'Despachado'])
