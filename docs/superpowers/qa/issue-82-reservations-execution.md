@@ -969,3 +969,15 @@ The existing matrix remains the authoritative manual result until that retest:
 Production: NOT TOUCHED.
 Merge: NOT EXECUTED.
 PR #83 remains draft.
+
+## Task 21 — reteste pós-correção dos três FAILs (2026-09-29)
+
+- Head de código/documentação antes do reteste: `06227fc21e422ec6611eb0f9f6c36575ec6f1e8f`; [Validate #2703](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36643266384) SUCCESS.
+- [Deploy staging run 36643262726](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36643262726) SUCCESS no mesmo SHA. Steps de migração, deploy, login e deep links SUCCESS.
+- Casos #15, #51 e #55 executados manualmente e promovidos de FAIL para PASS; evidência individual na matriz QA. Total **47 PASS / 0 FAIL / 23 BLOCKED**.
+- #15: conflito de #283 com o mesmo rascunho às 21:30 exibiu mensagem específica; correção para 23:30 preservou item e salvou #285 sem duplicata/comanda.
+- #51: relatório 30/09 Local/Agendado mostrou #283/#285 sob “Data do pedido” 30/09/2026, R$9/R$8; linha imediata #286 mostrou 29/09/2026.
+- #55: viewport 390×844 exibiu data/hora + Reservada no card da Mesa 2 ocupada, sem overflow/corte visível; toque abriu detalhe; desktop coerente.
+- Smokes: Local Agora #286 salvo; reservas válidas salvas; editor abriu e revisão obsoleta em segunda aba não sobrescreveu a revisão 20:00; relatório same-day e card desktop conferidos.
+- #283/#285/#286 cancelados com motivo oficial; fila futura e indicador de impressão zerados. Nenhum código de aplicação alterado no reteste.
+- Task 22 pode começar para tratar gates restantes. 23 BLOCKED preservados, especialmente impressão física; PR #83 draft, sem merge ou produção.
