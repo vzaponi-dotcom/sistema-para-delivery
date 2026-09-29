@@ -5,7 +5,14 @@ export const SCHEDULED_PREP_LEAD_MINUTES = 50
 export const SCHEDULED_LATE_GRACE_MINUTES = 15
 export const IMMEDIATE_LATE_AFTER_MINUTES = 30
 export const SCHEDULE_MAX_DAYS = 90
-export const getScheduleMaxBusinessDate = () => ''
+export const getScheduleMaxBusinessDate = (now = new Date(), maxDays = SCHEDULE_MAX_DAYS) => {
+  const reference = now instanceof Date ? now : new Date(now)
+  if (Number.isNaN(reference.getTime()) || !Number.isInteger(maxDays) || maxDays < 0) return ''
+  const today = getBusinessDate(reference)
+  const dayNumber = businessDayNumber(today)
+  if (dayNumber == null) return ''
+  return new Date((dayNumber + maxDays) * 86_400_000).toISOString().slice(0, 10)
+}
 
 const SCHEDULE_TYPES = new Set(['Entrega', 'Retirada', 'Local'])
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
