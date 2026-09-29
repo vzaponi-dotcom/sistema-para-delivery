@@ -321,6 +321,8 @@ function KitchenTvControlSurface({
           telemetryFresh,
         })
         const isPending = String(pendingOrderId || '') === String(entry.order.id)
+        const displayNumber = formatOrderDisplayNumber(entry.order)
+        const compactDisplayNumber = displayNumber.replace(/^Pedido\s*/i, '')
         return <button
           key={entry.order.id}
           type="button"
@@ -331,7 +333,8 @@ function KitchenTvControlSurface({
           onClick={() => openOrderActions(entry)}
         >
           <span className="kitchen-tv-control-order-card-heading">
-            <strong>{formatOrderDisplayNumber(entry.order)}</strong>
+            <strong className="kitchen-tv-control-order-number-full">{displayNumber}</strong>
+            <strong className="kitchen-tv-control-order-number-compact">{compactDisplayNumber}</strong>
             <span>{shortKitchenTvClientName(entry.order.client)}</span>
           </span>
           <span className="kitchen-tv-control-badges">
