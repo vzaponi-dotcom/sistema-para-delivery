@@ -1,0 +1,2 @@
+-- RED scaffold for Issue #82 table reservation persistence.
+-- Task 1 tests define the required schema and write-boundary invariants.
