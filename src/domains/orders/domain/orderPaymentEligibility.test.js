@@ -56,3 +56,16 @@ test('origem ou capacidades ausentes não ganham concessão implícita', () => {
   assert.equal(canReceiveStandaloneOrder(order, new Set(['orders.view', 'payments.receive']), undefined), false)
   assert.equal(canReceiveStandaloneOrder(order, new Set(['orders.view', 'payments.receive']), 'receivables'), false)
 })
+
+test('reservation identity blocks standalone receiving even if another field is malformed', () => {
+  const granted = new Set(['orders.view', 'payments.receive'])
+  const reservation = pending({
+    type: 'Entrega',
+    customerIdentityType: 'registered_client',
+    tableTabId: null,
+    tableReservationId: 'reservation-guard',
+    tableReservationStatus: 'reserved',
+  })
+
+  assert.equal(canReceiveStandaloneOrder(reservation, granted, 'orders'), false)
+})
