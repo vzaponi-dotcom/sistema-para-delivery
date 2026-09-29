@@ -593,3 +593,167 @@ test('telemetry failure never marks the Kitchen TV stale or stops order polling'
   assert.equal(reads, 1)
   assert.doesNotMatch(nodeText(renderer.root), /Dados temporariamente desatualizados/)
 })
+
+test('future scheduled work stays invisible and silent until its operational window, then alerts once', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 1280
+  h.window.innerHeight = 720
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const plays = []
+  const futureOrder = {
+    id: 'future-window-order',
+    orderNumber: 7101,
+    client: 'Entrega futura',
+    type: 'Entrega',
+    status: 'Em preparo',
+    createdAt: '2026-09-22T12:00:00.000Z',
+    orderDate: '2026-09-23',
+    scheduledFor: '2026-09-23T15:00:00.000Z',
+    items: [{ quantity: 1, name: 'Marmita', note: '' }],
+  }
+  const makeState = (serverNow) => ({
+    serverNow,
+    timing: state([]).timing,
+    control: { revision: 1, requestedPage: 1, requestedModality: 'all' },
+    orders: [futureOrder],
+  })
+  const initial = makeState('2026-09-22T20:00:00.000Z')
+  const beforeWindow = makeState('2026-09-23T14:09:59.000Z')
+  const atWindow = makeState('2026-09-23T14:10:00.000Z')
+  const responses = [beforeWindow, atWindow, atWindow]
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: initial }),
+    readState: async () => responses.shift() || atWindow,
+    requestFullscreen: async () => true,
+    audio: {
+      unlock: async () => true,
+      playArrival: async (options) => { plays.push(options); return true },
+    },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'future-window-order' }).length, 0)
+  assert.equal(plays.length, 0)
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'future-window-order' }).length, 0)
+  assert.equal(plays.length, 0)
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'future-window-order' }))
+  assert.equal(plays.length, 1)
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(plays.length, 1)
+})
+
+test('opening the TV after an order already entered the operational window does not replay historical sound', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 1280
+  h.window.innerHeight = 720
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const plays = []
+  const alreadyOperational = {
+    serverNow: '2026-09-23T14:11:00.000Z',
+    timing: state([]).timing,
+    control: { revision: 1, requestedPage: 1, requestedModality: 'all' },
+    orders: [{
+      id: 'already-operational',
+      orderNumber: 7102,
+      client: 'Já operacional',
+      type: 'Retirada',
+      status: 'Em preparo',
+      createdAt: '2026-09-22T12:00:00.000Z',
+      orderDate: '2026-09-23',
+      scheduledFor: '2026-09-23T15:00:00.000Z',
+      items: [{ quantity: 1, name: 'Pedido', note: '' }],
+    }],
+  }
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: alreadyOperational }),
+    readState: async () => alreadyOperational,
+    requestFullscreen: async () => true,
+    audio: {
+      unlock: async () => true,
+      playArrival: async (options) => { plays.push(options); return true },
+    },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'already-operational' }))
+  assert.equal(plays.length, 0)
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(plays.length, 0)
+})
+
+test('table modality keeps an operational Local reservation visible without exposing future agenda rows', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 1280
+  h.window.innerHeight = 720
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const current = {
+    serverNow: '2026-09-23T14:10:00.000Z',
+    timing: state([]).timing,
+    control: { revision: 4, requestedPage: 1, requestedModality: 'table' },
+    orders: [
+      {
+        id: 'local-operational',
+        orderNumber: 7103,
+        client: 'Mesa 3 · Bia',
+        type: 'Local',
+        status: 'Em preparo',
+        createdAt: '2026-09-22T12:00:00.000Z',
+        orderDate: '2026-09-23',
+        scheduledFor: '2026-09-23T15:00:00.000Z',
+        tableReservationId: 'reservation-7103',
+        tableReservationStatus: 'reserved',
+        items: [{ quantity: 1, name: 'Lanche', note: '' }],
+      },
+      {
+        id: 'delivery-operational',
+        orderNumber: 7104,
+        client: 'Entrega',
+        type: 'Entrega',
+        status: 'Em preparo',
+        createdAt: '2026-09-23T14:00:00.000Z',
+        items: [{ quantity: 1, name: 'Marmita', note: '' }],
+      },
+      {
+        id: 'local-future',
+        orderNumber: 7105,
+        client: 'Mesa 8 · Futuro',
+        type: 'Local',
+        status: 'Em preparo',
+        createdAt: '2026-09-22T12:00:00.000Z',
+        orderDate: '2026-10-23',
+        scheduledFor: '2026-10-23T18:00:00.000Z',
+        tableReservationId: 'reservation-7105',
+        tableReservationStatus: 'reserved',
+        items: [{ quantity: 1, name: 'Reserva futura', note: '' }],
+      },
+    ],
+  }
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: current }),
+    readState: async () => current,
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'local-operational' }))
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'delivery-operational' }).length, 0)
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'local-future' }).length, 0)
+  assert.equal(buttonNamed(renderer.root, 'Próximos dias'), undefined)
+})
