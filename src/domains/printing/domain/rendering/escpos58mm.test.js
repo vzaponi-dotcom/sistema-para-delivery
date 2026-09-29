@@ -297,7 +297,7 @@ test('scheduled and reservation order tickets print the requested service time e
   assert.equal(includesBytes(scheduledBytes, encodeCp860('AGENDADO')), true)
   assert.equal(includesBytes(scheduledBytes, encodeCp860('Agendado: 04/09/2026 - 12:00')), true)
   assert.equal(includesBytes(reservationBytes, encodeCp860('RESERVA')), true)
-  assert.equal(includesBytes(reservationBytes, encodeCp860('Agendado: 04/09/2026 - 20:00')), true)
+  assert.equal(includesBytes(reservationBytes, encodeCp860('Reserva: 04/09/2026 - 20:00')), true)
   assert.equal(includesBytes(reservationBytes, encodeCp860('Mesa 4 · Hugo')), true)
 })
 
