@@ -1,9 +1,9 @@
 # Gestão Delivery — Agendamento multi-dia e reservas de mesa
 
-**Data:** 2026-09-29  
-**Issue:** #82 — Feature: agendamento multi-dia e reservas de mesa  
-**Branch documental:** docs/issue-82-multiday-reservations  
-**Base analisada:** master @ da81fb2be7a754f9296a54d9e44e82372341e20d  
+**Data:** 2026-09-29
+**Issue:** #82 — Feature: agendamento multi-dia e reservas de mesa
+**Branch documental:** docs/issue-82-multiday-reservations
+**Base analisada:** master @ da81fb2be7a754f9296a54d9e44e82372341e20d
 **Status:** APPROVED — aprovado pelo usuário em 2026-09-29; plano de implementação autorizado
 
 ## 1. Objetivo
@@ -1581,43 +1581,43 @@ Não implementar nesta V1:
 
 A revisão desta versão fechou os principais pontos ambíguos da issue:
 
-1. **Reserva não será uma comanda futura.**  
+1. **Reserva não será uma comanda futura.**
    Foi escolhida entidade table_reservations separada.
 
-2. **Reserva não será um novo status de pedido.**  
+2. **Reserva não será um novo status de pedido.**
    Orders mantém lifecycle de cozinha e reserva mantém lifecycle de atendimento.
 
-3. **Local reservado sem table_tab precisa continuar fora de A Receber.**  
+3. **Local reservado sem table_tab precisa continuar fora de A Receber.**
    A exclusão será explícita por contexto de reserva, não somente table_tab_id.
 
-4. **A edição não pode coexistir silenciosamente com preparo já iniciado.**  
+4. **A edição não pode coexistir silenciosamente com preparo já iniciado.**
    Ela bloqueia em operational_start_at.
 
-5. **O mesmo-dia atual não deve regredir.**  
+5. **O mesmo-dia atual não deve regredir.**
    Entrega/Retirada agendadas no mesmo dia continuam com autoimpressão imediata.
 
-6. **Reserva Local precisa permanecer editável.**  
+6. **Reserva Local precisa permanecer editável.**
    Seu job automático espera operational_start_at, inclusive no mesmo dia.
 
-7. **Uma mesa ocupada pode ter reserva futura.**  
+7. **Uma mesa ocupada pode ter reserva futura.**
    Occupancy e reservation são conceitos simultâneos, não estados mutuamente exclusivos.
 
-8. **O sistema não adivinha duração da comanda atual.**  
+8. **O sistema não adivinha duração da comanda atual.**
    Ocupação presente não bloqueia reserva futura; conflito é reserva × reserva e confirmação da chegada valida ocupação real.
 
-9. **Comandas não vira calendário.**  
+9. **Comandas não vira calendário.**
    Mostra a próxima reserva por mesa; a lista completa fica em Pedidos > Próximos dias.
 
-10. **No-show não burla política de cancelamento.**  
+10. **No-show não burla política de cancelamento.**
     Ele usa motivo oficial e preserva a distinção no domínio de reservas.
 
-11. **Preço após edição foi definido.**  
+11. **Preço após edição foi definido.**
     Salvar edição revalida e repricing o snapshot, com revisão visível antes da confirmação.
 
-12. **Rename de mesa com reserva foi bloqueado na V1.**  
+12. **Rename de mesa com reserva foi bloqueado na V1.**
     Evita divergência entre snapshot e documento automático sem criar sincronização adicional.
 
-13. **Não criar nova capability.**  
+13. **Não criar nova capability.**
     A feature reutiliza as capacidades existentes.
 
 Não foram encontrados bloqueios conceituais restantes para escrever o plano, desde que esta spec seja aprovada.
