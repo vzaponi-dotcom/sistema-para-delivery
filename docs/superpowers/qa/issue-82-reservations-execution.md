@@ -772,3 +772,63 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 19.
+
+## Task 19 evidence
+
+### Architecture / transverse regression audit
+
+Permanent issue-specific audit:
+- `9db0f072192b9a5c270294f521faff05025f66b3` — added `src/issue82ReservationArchitecture.test.js` covering:
+  - App consumes Table Service only through its public entry;
+  - reservation HTTP ownership remains in Table Service infrastructure;
+  - Worker index delegates reservation routes to `handleTableReservationApi`;
+  - no reservation capability family was introduced; only existing `orders.create`, `orders.discount` and `orders.cancel` are used;
+  - no global/bootstrap `tableReservations` collection exists;
+  - no SQL exists in React production files;
+  - backend `TABLE_RESERVATION_*` codes do not leak into frontend production source;
+  - migration `0034_table_reservations.sql` is the reservation schema owner;
+  - reservation runtime code does not probe/alter schema as a fallback.
+
+The existing permanent architecture checker remained green and continues to reject Table Service deep imports and Table Service → Orders imports.
+
+### Full regression/gate closure
+
+Validate #2684 / run `36630884500`: SUCCESS.
+
+The final Task 19 run covered:
+- all 8 npm test shards, including checkout, table management, table-tab lifecycle, cancellation/refund, printing, split payments, NewOrder, Comandas, Kitchen queue, Kitchen TV, Receivables, Reporting and the new Issue 82 architecture audit;
+- `npm run test:architecture`: PASS;
+- lint: PASS;
+- build: PASS;
+- Worker production dry-run: PASS;
+- Worker staging dry-run: PASS;
+- local D1 migrations: PASS;
+- Spec B D1 clean-install/upgrade gate: PASS;
+- operation-profile D1 clean-install/upgrade gate: PASS;
+- `worker/tableReservationsMigration.test.js` remains green for the exact pre-0034 → 0034 upgrade and clean install.
+
+### Diff hygiene / scope audit
+
+The PR-wide diff audit initially found Markdown hard-break trailing spaces in the Issue 82 spec/plan/QA documents. They were normalized in documentation-only commits:
+- `9f116a5a5463019fc422d00b6a6303297306e0f2`;
+- `ca4c62236810f796453c0b7c503feb5ceedaae36`;
+- `e0767f7f8d2de67a7549e6199c4a86513a67a2cc`;
+- `622eb05884c45cd717032355c1e5040216b14865`.
+
+A fresh PR diff inspection after normalization found:
+- added lines with trailing whitespace: 0;
+- conflict markers: 0.
+
+Scope review also confirmed:
+- no new capability migration/configuration;
+- no global design-system or navigation redesign;
+- visual changes remain scoped to existing Comandas/Orders surfaces;
+- no staging deploy;
+- no production deploy.
+
+Task 19: COMPLETE / GREEN.
+
+Staging deploy: NOT EXECUTED.
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 20.
