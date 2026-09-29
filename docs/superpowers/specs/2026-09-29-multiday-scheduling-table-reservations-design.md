@@ -4,7 +4,7 @@
 **Issue:** #82 — Feature: agendamento multi-dia e reservas de mesa  
 **Branch documental:** docs/issue-82-multiday-reservations  
 **Base analisada:** master @ da81fb2be7a754f9296a54d9e44e82372341e20d  
-**Status:** auto-revisado; aguardando aprovação explícita antes do plano de implementação
+**Status:** APPROVED — aprovado pelo usuário em 2026-09-29; plano de implementação autorizado
 
 ## 1. Objetivo
 
