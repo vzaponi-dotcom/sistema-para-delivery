@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildKitchenQueueModel } from './kitchenQueue.js'
+import { buildFutureScheduledOrdersModel, buildKitchenQueueModel } from './kitchenQueue.js'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from '../../../test-support/renderWorkspace.js'
 
@@ -169,12 +169,13 @@ test('keeps future-day schedules outside operational queues and counters while p
     scheduledFor: '2026-09-04T18:00:00.000Z',
   }
   const model = buildKitchenQueueModel([futureDelivery, sameDay], reference, '')
+  const futureModel = buildFutureScheduledOrdersModel([futureDelivery, sameDay], reference, '')
 
   assert.deepEqual(ids(model.allActive), ['same-day'])
   assert.deepEqual(ids(model.scheduled), ['same-day'])
   assert.deepEqual(ids(model.preparing), [])
-  assert.deepEqual(ids(model.futureScheduled), ['future-delivery'])
-  assert.equal(model.futureScheduledCount, 1)
+  assert.deepEqual(ids(futureModel.visible), ['future-delivery'])
+  assert.equal(futureModel.totalCount, 1)
   assert.deepEqual(model.counts, { preparing: 0, scheduled: 1, late: 0, finishedToday: 0 })
 
   const crossMidnight = {
@@ -192,8 +193,13 @@ test('keeps future-day schedules outside operational queues and counters while p
     new Date('2026-09-05T02:40:00.000Z'),
     '',
   )
+  const crossMidnightFuture = buildFutureScheduledOrdersModel(
+    [crossMidnight],
+    new Date('2026-09-05T02:40:00.000Z'),
+    '',
+  )
   assert.deepEqual(ids(afterOperationalStart.preparing), ['cross-midnight'])
-  assert.deepEqual(ids(afterOperationalStart.futureScheduled), [])
+  assert.deepEqual(ids(crossMidnightFuture.visible), [])
   assert.equal(afterOperationalStart.counts.preparing, 1)
 })
 
@@ -222,14 +228,16 @@ test('future schedule search stays separate from current operational counters', 
 
   const globalModel = buildKitchenQueueModel(orders, reference, '')
   const searchModel = buildKitchenQueueModel(orders, reference, 'reserva ana')
+  const globalFuture = buildFutureScheduledOrdersModel(orders, reference, '')
+  const searchFuture = buildFutureScheduledOrdersModel(orders, reference, 'reserva ana')
 
   assert.deepEqual(ids(globalModel.preparing), ['today'])
-  assert.deepEqual(ids(globalModel.futureScheduled), ['future-local'])
+  assert.deepEqual(ids(globalFuture.visible), ['future-local'])
   assert.deepEqual(ids(searchModel.preparing), [])
-  assert.deepEqual(ids(searchModel.futureScheduled), ['future-local'])
+  assert.deepEqual(ids(searchFuture.visible), ['future-local'])
   assert.deepEqual(searchModel.counts, globalModel.counts)
   assert.equal(searchModel.totalVisible, 0)
-  assert.equal(searchModel.futureScheduledCount, 1)
+  assert.equal(searchFuture.totalCount, 1)
 })
 
 test('orders page lists Próximos dias with full schedule and reservation-only editing', async (t) => {
