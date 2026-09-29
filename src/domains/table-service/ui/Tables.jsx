@@ -20,7 +20,7 @@ function Tables({ tables, disabled, canOpenComanda = false, canManageTables = tr
   }
 
   const beginRename = (table) => {
-    if (!canManageTables || disabled || table.occupancy === 'occupied') return false
+    if (!canManageTables || disabled || table.occupancy === 'occupied' || table.nextReservation) return false
     setEditingTableId(table.id)
     setEditingName(table.name)
   }
@@ -60,6 +60,7 @@ function Tables({ tables, disabled, canOpenComanda = false, canManageTables = tr
       <section className="table-management-list" aria-label="Lista de mesas">
         {orderedTables.map((table, index) => {
           const occupied = table.occupancy === 'occupied'
+          const hasActiveReservation = Boolean(table.nextReservation)
           const editing = editingTableId === table.id
           return (
             <article className={`table-management-card${occupied ? ' occupied' : ''}${table.isActive ? '' : ' inactive'}`} key={table.id}>
@@ -70,7 +71,7 @@ function Tables({ tables, disabled, canOpenComanda = false, canManageTables = tr
                     <div className="table-inline-actions"><Button type="button" variant="secondary" onClick={() => setEditingTableId(null)} disabled={disabled}>Cancelar</Button><Button type="submit" disabled={disabled || !editingName.trim()}>Salvar</Button></div>
                   </form>
                 ) : (
-                  <><strong>{table.name}</strong><div className="table-statuses"><span className={table.isActive ? 'table-status active' : 'table-status inactive'}>{table.isActive ? 'Ativa' : 'Inativa'}</span><span className={occupied ? 'table-status occupied' : 'table-status free'}>{occupied ? 'Ocupada' : 'Livre'}</span></div></>
+                  <><strong>{table.name}</strong><div className="table-statuses"><span className={table.isActive ? 'table-status active' : 'table-status inactive'}>{table.isActive ? 'Ativa' : 'Inativa'}</span><span className={occupied ? 'table-status occupied' : 'table-status free'}>{occupied ? 'Ocupada' : 'Livre'}</span>{hasActiveReservation && <span className="table-status reserved">Reserva ativa</span>}</div></>
                 )}
               </div>
 
@@ -78,12 +79,13 @@ function Tables({ tables, disabled, canOpenComanda = false, canManageTables = tr
                 <div className="table-occupied-actions"><p className="table-occupied-note">Feche a comanda antes de renomear/desativar.</p>{canOpenComanda && table.openTableTab?.id && <Button type="button" className="table-transfer-primary" onClick={() => onOpenComanda?.({ tableId: table.id, tableTabId: table.openTableTab.id })}>Ver comanda</Button>}</div>
               ) : canManageTables ? (
                 <div className="table-management-actions">
-                  <Button type="button" variant="secondary" icon="edit" onClick={() => beginRename(table)} disabled={disabled}>Renomear</Button>
+                  {hasActiveReservation && <p className="table-reservation-note">Mova ou cancele a reserva antes de renomear/desativar.</p>}
+                  <Button type="button" variant="secondary" icon="edit" onClick={() => beginRename(table)} disabled={disabled || hasActiveReservation}>Renomear</Button>
                   <div className="table-order-actions" aria-label={`Ordenar ${table.name}`}>
                     <button type="button" className="icon-button" aria-label={`Mover ${table.name} para cima`} onClick={() => void moveTable(index, -1)} disabled={disabled || index === 0}><Icon name="arrow-up" size={18} /></button>
                     <button type="button" className="icon-button" aria-label={`Mover ${table.name} para baixo`} onClick={() => void moveTable(index, 1)} disabled={disabled || index === orderedTables.length - 1}><Icon name="arrow-down" size={18} /></button>
                   </div>
-                  {table.isActive ? <Button type="button" className="table-deactivate-action" variant="secondary" onClick={() => setDeactivatingTable(table)} disabled={disabled}>Desativar</Button> : <Button type="button" onClick={() => void onSetActive(table.id, true)} disabled={disabled}>Reativar</Button>}
+                  {table.isActive ? <Button type="button" className="table-deactivate-action" variant="secondary" onClick={() => setDeactivatingTable(table)} disabled={disabled || hasActiveReservation}>Desativar</Button> : <Button type="button" onClick={() => void onSetActive(table.id, true)} disabled={disabled}>Reativar</Button>}
                 </div>
               ) : null}
             </article>
