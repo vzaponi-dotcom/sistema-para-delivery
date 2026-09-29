@@ -1,11 +1,11 @@
 # Issue #82 — Execution Ledger
 
-**Feature:** Agendamento multi-dia e reservas de mesa  
-**Branch:** `feature/issue-82-multiday-reservations`  
-**PR:** #83  
-**Base master:** `da81fb2be7a754f9296a54d9e44e82372341e20d`  
-**Spec approval:** `254b9db8162159663905a93865bd44b05fec7577`  
-**Plan approval:** `773e1e0f9ec0b5f8b9475ad2cb27208a34388b2b`  
+**Feature:** Agendamento multi-dia e reservas de mesa
+**Branch:** `feature/issue-82-multiday-reservations`
+**PR:** #83
+**Base master:** `da81fb2be7a754f9296a54d9e44e82372341e20d`
+**Spec approval:** `254b9db8162159663905a93865bd44b05fec7577`
+**Plan approval:** `773e1e0f9ec0b5f8b9475ad2cb27208a34388b2b`
 **Production:** BLOCKED
 
 ## Preparation
@@ -524,7 +524,7 @@ Delivered:
 - NewOrder route remains the same generic component boundary; no parallel reservation editor was created;
 - create-order navigation/idempotency and authoritative local effects remain preserved.
 
-Staging deploy: NOT EXECUTED.  
+Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 14.
@@ -583,7 +583,7 @@ Delivered:
 - Reservada is textual/semantic and uses `--info` / `--info-soft`, not color alone and not a global redesign;
 - existing Livre/Ocupada behavior and comanda detail/payment/transfer/printing flows remain unchanged.
 
-Staging deploy: NOT EXECUTED.  
+Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 15.
@@ -629,7 +629,7 @@ Delivered:
 - the Kitchen Display public queue contract remains unchanged for Task 16 regression ownership;
 - no calendar page, new capability, global reservation collection or redesign was introduced.
 
-Staging deploy: NOT EXECUTED.  
+Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 16.
@@ -679,7 +679,7 @@ Delivered/proved:
 - paging, overflow and existing TV layout contracts remain unchanged;
 - rendering and arrival detection now share the same authoritative server clock basis.
 
-Staging deploy: NOT EXECUTED.  
+Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 17.
@@ -718,7 +718,7 @@ Delivered/proved:
 - future Entrega/Retirada paid at checkout do not remain pending;
 - no new Finance -> Orders dependency, capability or payment workflow was introduced.
 
-Staging deploy: NOT EXECUTED.  
+Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 18.
@@ -768,7 +768,7 @@ Delivered/proved:
 - type/schedule/date filters continue to select the same future order population coherently;
 - no new reporting KPI, capability or reservation-specific dashboard was introduced.
 
-Staging deploy: NOT EXECUTED.  
+Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 19.
