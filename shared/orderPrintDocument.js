@@ -28,6 +28,8 @@ export const createOrderPrintDocument = (input = {}) => ({
     orderDate: String(input.orderDate ?? ''),
     createdAt: String(input.createdAt ?? ''),
     type: String(input.type ?? ''),
+    scheduledFor: String(input.scheduledFor ?? ''),
+    scheduleLabel: ['AGENDADO', 'RESERVA'].includes(input.scheduleLabel) ? input.scheduleLabel : '',
   },
   customer: {
     name: formatOrderCustomerIdentity({
