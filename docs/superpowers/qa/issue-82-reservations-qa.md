@@ -227,3 +227,22 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Existing paging/overflow/layout characterizations remain green: PASS.
 - Final Task 16 Validate #2661 / run `36625864310`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
 - Manual physical TV/staging verification remains PENDING until the staging/homologation tasks.
+
+## Automated checkpoints after Task 17
+
+- Active Local reservation with tableReservationId and null tableTabId excluded from pending receivables: PASS.
+- Reservation excluded before receivable summary aggregation: PASS.
+- Reservation excluded before receivables forecast aggregation: PASS.
+- Reservation excluded before client/order grouping: PASS.
+- Reservation identity blocks standalone payment even with malformed non-table fields: PASS.
+- Converted reservation/table-tab stays outside A Receber: PASS.
+- Cancelled reservation excluded: PASS.
+- No-show reservation excluded: PASS.
+- Legacy table-shaped order without reservation identity preserves previous behavior: PASS.
+- Future unpaid Entrega remains upcoming by future orderDate: PASS.
+- Future unpaid Retirada remains upcoming by future orderDate: PASS.
+- Future paid-at-checkout Entrega does not remain pending: PASS.
+- Forecast uses future orderDate when no payment promise overrides it: PASS.
+- Existing Finance/Orders dependency boundary remains unchanged: PASS.
+- Final Task 17 Validate #2667 / run `36627016287`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
+- Manual staging finance verification remains PENDING until the staging/homologation tasks.
