@@ -639,7 +639,8 @@ test('future scheduled work stays invisible and silent until its operational win
 
   await act(async () => h.fireInterval(2000))
   await flushEffects()
-  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'future-window-order' }).length, 0)
+  const sameDayWaiting = renderer.root.findByProps({ 'data-order-id': 'future-window-order' })
+  assert.match(sameDayWaiting.props.className, /kds-card--scheduled/)
   assert.equal(plays.length, 0)
 
   await act(async () => h.fireInterval(2000))
