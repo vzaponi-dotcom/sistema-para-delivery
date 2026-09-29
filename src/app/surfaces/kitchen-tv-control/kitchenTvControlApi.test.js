@@ -8,12 +8,14 @@ test('reads control state and sends page/hide/restore commands through same-orig
     getKitchenTvControl,
     getKitchenTvOrderPrintDocument,
     setKitchenTvPage,
+    setKitchenTvModality,
     hideKitchenTvOrder,
     restoreKitchenTvOrder,
   } = await apiPromise
   assert.equal(typeof getKitchenTvControl, 'function')
   assert.equal(typeof getKitchenTvOrderPrintDocument, 'function')
   assert.equal(typeof setKitchenTvPage, 'function')
+  assert.equal(typeof setKitchenTvModality, 'function')
   assert.equal(typeof hideKitchenTvOrder, 'function')
   assert.equal(typeof restoreKitchenTvOrder, 'function')
 
@@ -37,6 +39,7 @@ test('reads control state and sends page/hide/restore commands through same-orig
   await getKitchenTvControl()
   await getKitchenTvOrderPrintDocument('order/1')
   await setKitchenTvPage(3)
+  await setKitchenTvModality('table')
   await hideKitchenTvOrder('order/1')
   await restoreKitchenTvOrder('order/1')
 
@@ -46,6 +49,7 @@ test('reads control state and sends page/hide/restore commands through same-orig
     ['/api/kitchen-tv/control', undefined, 'same-origin', undefined],
     ['/api/orders/order%2F1/print-document', undefined, 'same-origin', undefined],
     ['/api/kitchen-tv/control/page', 'PATCH', 'same-origin', JSON.stringify({ page: 3 })],
+    ['/api/kitchen-tv/control/modality', 'PATCH', 'same-origin', JSON.stringify({ modality: 'table' })],
     ['/api/kitchen-tv/control/orders/order%2F1/hidden', 'PUT', 'same-origin', undefined],
     ['/api/kitchen-tv/control/orders/order%2F1/hidden', 'DELETE', 'same-origin', undefined],
   ])

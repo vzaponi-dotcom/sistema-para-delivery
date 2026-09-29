@@ -315,10 +315,10 @@ test('live Kitchen TV recomputes tall-card demand when viewport height changes',
 })
 
 
-const controlledState = (count, { revision = 0, requestedPage = 1, prefix = 'page' } = {}) => ({
+const controlledState = (count, { revision = 0, requestedPage = 1, requestedModality = 'all', prefix = 'page' } = {}) => ({
   serverNow: '2026-09-22T20:00:00.000Z',
   timing: state([]).timing,
-  control: { revision, requestedPage },
+  control: { revision, requestedPage, requestedModality },
   orders: Array.from({ length: count }, (_, index) => ({
     id: `${prefix}-${index + 1}`,
     orderNumber: 5000 + index,
@@ -328,6 +328,45 @@ const controlledState = (count, { revision = 0, requestedPage = 1, prefix = 'pag
     createdAt: '2026-09-22T19:50:00.000Z',
     items: [{ quantity: 1, name: 'Marmita', note: '' }],
   })),
+})
+
+test('a newer modality revision filters the TV content without rendering filter buttons on the TV', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 1280
+  h.window.innerHeight = 720
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const base = controlledState(3, { revision: 1, requestedModality: 'all' })
+  base.orders = [
+    { ...base.orders[0], id: 'delivery-one', type: 'Entrega' },
+    { ...base.orders[1], id: 'pickup-one', type: 'Retirada' },
+    { ...base.orders[2], id: 'table-one', type: 'Local' },
+  ]
+  const tableOnly = {
+    ...base,
+    control: { revision: 2, requestedPage: 1, requestedModality: 'table' },
+  }
+  const reports = []
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: base }),
+    readState: async () => tableOnly,
+    reportState: async (payload) => { reports.push(payload); return { reported: true } },
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'delivery-one' }))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'pickup-one' }))
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'table-one' }))
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'delivery-one' }).length, 0)
+  assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'pickup-one' }).length, 0)
+  assert.ok(renderer.root.findByProps({ 'data-order-id': 'table-one' }))
+  assert.deepEqual(reports.at(-1)?.visibleOrderIds, ['table-one'])
+  assert.doesNotMatch(nodeText(renderer.root), /Todos|Entrega|Retira|Mesa/)
 })
 
 test('remote paging starts on page one and does not replay the command already present at bootstrap', async (t) => {

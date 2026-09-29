@@ -45,6 +45,7 @@ test('control defaults to page one and page commands increment a monotonic revis
   assert.deepEqual(await repository.loadKitchenTvControl(db, BUSINESS), {
     revision: 0,
     requestedPage: 1,
+    requestedModality: 'all',
     updatedAt: null,
     telemetry: null,
   })
@@ -141,4 +142,22 @@ test('two controllers keep a monotonic revision and the latest page is confirmed
   assert.equal(confirmed.requestedPage, 3)
   assert.equal(confirmed.telemetry.appliedRevision, 2)
   assert.equal(confirmed.telemetry.currentPage, 3)
+})
+
+
+test('modality commands increment revision, reset page one and persist the selected filter', async (t) => {
+  const repository = await repositoryPromise
+  assert.equal(typeof repository.setKitchenTvRequestedModality, 'function')
+  const { db } = setup(t)
+
+  await repository.setKitchenTvRequestedPage(db, BUSINESS, 3, NOW)
+  const filtered = await repository.setKitchenTvRequestedModality(db, BUSINESS, 'table', new Date(+NOW + 1_000))
+  assert.equal(filtered.revision, 2)
+  assert.equal(filtered.requestedPage, 1)
+  assert.equal(filtered.requestedModality, 'table')
+
+  const pageTwo = await repository.setKitchenTvRequestedPage(db, BUSINESS, 2, new Date(+NOW + 2_000))
+  assert.equal(pageTwo.revision, 3)
+  assert.equal(pageTwo.requestedPage, 2)
+  assert.equal(pageTwo.requestedModality, 'table')
 })

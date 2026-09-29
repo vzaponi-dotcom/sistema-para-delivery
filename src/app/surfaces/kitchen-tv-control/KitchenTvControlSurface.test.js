@@ -25,7 +25,7 @@ const orders = Array.from({ length: 10 }, (_, index) => ({
 
 const freshState = {
   paired: true,
-  control: { revision: 4, requestedPage: 2, updatedAt: '2026-09-28T21:10:00.000Z' },
+  control: { revision: 4, requestedPage: 2, requestedModality: 'all', updatedAt: '2026-09-28T21:10:00.000Z' },
   telemetry: {
     appliedRevision: 4,
     currentPage: 2,
@@ -64,6 +64,13 @@ async function render(t, {
       return {
         ...state,
         control: { ...state.control, revision: state.control.revision + 1, requestedPage: page },
+      }
+    },
+    setKitchenTvModality: async (modality) => {
+      calls.push(['modality', modality])
+      return {
+        ...state,
+        control: { ...state.control, revision: state.control.revision + 1, requestedPage: 1, requestedModality: modality },
       }
     },
     ...apiOverrides,
@@ -120,6 +127,49 @@ test('mirrors only the orders reported on the current TV page and keeps customer
   assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-client \{[\s\S]*font-size:\s*\.92rem/)
   assert.match(nodeText(screen.root.findByProps({ 'aria-label': 'Navegação da TV' })), /Tela 2 de 3/)
   assert.match(text, /Fora da tela/)
+})
+
+test('renders approved modality filters with badges and sends Mesa as a TV-wide filter command', async (t) => {
+  const typedOrders = [
+    { ...orders[0], id: 'delivery-1', orderNumber: 601, type: 'Entrega' },
+    { ...orders[1], id: 'delivery-2', orderNumber: 602, type: 'Entrega' },
+    { ...orders[2], id: 'pickup-1', orderNumber: 603, type: 'Retirada' },
+    { ...orders[3], id: 'table-1', orderNumber: 604, type: 'Local', client: 'Mesa 4' },
+    { ...orders[4], id: 'table-2', orderNumber: 605, type: 'Local', client: 'Mesa 8' },
+  ]
+  const state = {
+    ...freshState,
+    control: { ...freshState.control, requestedModality: 'all' },
+    telemetry: {
+      ...freshState.telemetry,
+      currentPage: 1,
+      pageCount: 1,
+      visibleOrderIds: typedOrders.map(({ id }) => id),
+    },
+    hiddenOrderIds: [],
+  }
+  const { screen, calls } = await render(t, { state, orderFixtures: typedOrders })
+  const filters = screen.root.findByProps({ 'aria-label': 'Filtrar pedidos por modalidade' })
+  assert.ok(buttonNamed(filters, 'Todos 5'))
+  assert.ok(buttonNamed(filters, 'Entrega 2'))
+  assert.ok(buttonNamed(filters, 'Retira 1'))
+  assert.ok(buttonNamed(filters, 'Mesa 2'))
+  assert.equal(buttonNamed(filters, 'Todos 5').props['aria-pressed'], true)
+
+  await act(async () => buttonNamed(filters, 'Mesa 2').props.onClick())
+  assert.deepEqual(calls[0], ['modality', 'table'])
+  assert.equal(buttonNamed(filters, 'Mesa 2').props['aria-pressed'], true)
+  assert.match(nodeText(screen.root), /Atualizando TV/)
+})
+
+test('modality filters are read-only without kitchen-control capability', async (t) => {
+  const { screen, calls } = await render(t, { granted: new Set(['orders.view']) })
+  const filters = screen.root.findByProps({ 'aria-label': 'Filtrar pedidos por modalidade' })
+  for (const label of ['Todos 9', 'Entrega 9', 'Retira 0', 'Mesa 0']) {
+    assert.equal(buttonNamed(filters, label).props.disabled, true)
+  }
+  await act(async () => buttonNamed(filters, 'Entrega 9').props.onClick?.())
+  assert.deepEqual(calls, [])
 })
 
 test('viewer keeps the surface readable but cannot send page commands', async (t) => {

@@ -170,7 +170,7 @@ test('control read is available to orders.view while page mutations require orde
   )
   assert.deepEqual(await initial.json(), {
     paired: false,
-    control: { revision: 0, requestedPage: 1, updatedAt: null },
+    control: { revision: 0, requestedPage: 1, requestedModality: 'all', updatedAt: null },
     telemetry: null,
     hiddenOrderIds: [],
   })
@@ -197,6 +197,7 @@ test('control read is available to orders.view while page mutations require orde
   assert.deepEqual((await changed.json()).control, {
     revision: 1,
     requestedPage: 2,
+    requestedModality: 'all',
     updatedAt: NOW.toISOString(),
   })
 
@@ -219,6 +220,31 @@ test('control read is available to orders.view while page mutations require orde
       NOW,
     ),
     { status: 403, code: 'ORIGIN_NOT_ALLOWED' },
+  )
+
+  const filtered = await api.handleKitchenTvAdminApi(
+    request('/api/kitchen-tv/control/modality', 'PATCH', { modality: 'table' }),
+    env,
+    await controller(),
+    undefined,
+    new Date(+NOW + 1_000),
+  )
+  assert.deepEqual((await filtered.json()).control, {
+    revision: 2,
+    requestedPage: 1,
+    requestedModality: 'table',
+    updatedAt: new Date(+NOW + 1_000).toISOString(),
+  })
+
+  await assert.rejects(
+    api.handleKitchenTvAdminApi(
+      request('/api/kitchen-tv/control/modality', 'PATCH', { modality: 'balcao' }),
+      env,
+      await controller(),
+      undefined,
+      NOW,
+    ),
+    { status: 400, code: 'KITCHEN_TV_MODALITY_INVALID' },
   )
 })
 
