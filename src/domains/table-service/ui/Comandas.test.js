@@ -413,7 +413,7 @@ test('Comandas subtitle and free-table reservation card use explicit Reservada s
     tables,
     currency,
     now: new Date('2026-10-10T21:00:00.000Z'),
-    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
     canCreateOrders: true,
     canCancelOrders: true,
   })
@@ -458,22 +458,25 @@ test('occupied table keeps current comanda primary and exposes future reservatio
       onSelectComanda: (identity) => { selections.push(identity); onSelectComanda(identity) },
       currency,
       now: new Date('2026-10-10T21:00:00.000Z'),
-      currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+      currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
       canCreateOrders: true,
       canCancelOrders: true,
     })
   }
   const renderer = await h.render(Workspace)
-  const mesaButtons = list(renderer).findAllByType('button').filter((button) => nodeText(button).includes('Mesa 7'))
-  assert.equal(mesaButtons.length, 2)
-  assert.match(nodeText(mesaButtons[0]), /Mesa 7.*Ocupada.*Comanda 42/)
-  assert.match(nodeText(mesaButtons[1]), /Reservada.*Maria.*21:00/)
+  const mesaButtons = list(renderer).findAllByType('button')
+  const comandaButton = mesaButtons.find((button) => nodeText(button).includes('Mesa 7') && nodeText(button).includes('Comanda 42'))
+  const reservationButton = mesaButtons.find((button) => (button.props.className || '').includes('comanda-reservation-button'))
+  assert.ok(comandaButton)
+  assert.ok(reservationButton)
+  assert.match(nodeText(comandaButton), /Mesa 7.*Ocupada.*Comanda 42/)
+  assert.match(nodeText(reservationButton), /Reservada.*Maria.*21:00/)
 
-  await act(async () => mesaButtons[0].props.onClick())
+  await act(async () => comandaButton.props.onClick())
   assert.deepEqual(selections, [occupiedSelection])
   assert.match(nodeText(detail(renderer)), /Comanda 42/)
 
-  await act(async () => mesaButtons[1].props.onClick())
+  await act(async () => reservationButton.props.onClick())
   assert.match(nodeText(detail(renderer)), /RESERVA.*Mesa 7.*Maria/i)
   assert.doesNotMatch(nodeText(detail(renderer)), /Comanda 42.*Resumo do pedido/)
 })
@@ -494,7 +497,7 @@ test('mobile reservation detail uses the same list/detail split and back restore
     tables,
     currency,
     now: new Date('2026-10-10T21:00:00.000Z'),
-    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
     canCreateOrders: true,
   }, { createNodeMock: (element) => {
     if (element.props['aria-label'] === 'Mesas ativas') return listElement
