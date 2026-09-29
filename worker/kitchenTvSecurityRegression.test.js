@@ -15,7 +15,7 @@ test('real code-pairing flow keeps temporary and final TV cookies outside admini
   const fixture = createSettingsDb()
   t.after(fixture.close)
   const env = { DB: fixture.db, resolveCapabilities: async () => new Set(['orders.settings.manage', 'orders.view']) }
-  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date('2026-09-22T18:00:00.000Z'))
+  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date())
   const adminCookie = sessionCookie(adminToken).split(';')[0]
 
   const requestPair = await handleRequest(mutation('/api/kitchen-tv/pairing-request', ''), env)
@@ -69,7 +69,7 @@ test('TV telemetry and administrative control remain on opposite authentication 
       'orders.settings.manage',
     ]),
   }
-  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date('2026-09-28T20:00:00.000Z'))
+  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date())
   const adminCookie = sessionCookie(adminToken).split(';')[0]
 
   const pair = await handleRequest(mutation('/api/kitchen-tv/pairing-request', ''), env)
@@ -148,7 +148,7 @@ test('kitchen control capability never grants official finalization and terminal
   insertPreparingControlOrder(fixture.sqlite)
   let grants = new Set(['orders.settings.manage', 'orders.view'])
   const env = { DB: fixture.db, resolveCapabilities: async () => grants }
-  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date('2026-09-28T20:00:00.000Z'))
+  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date())
   const adminCookie = sessionCookie(adminToken).split(';')[0]
 
   const pair = await handleRequest(mutation('/api/kitchen-tv/pairing-request', ''), env)
@@ -189,7 +189,7 @@ test('Kitchen TV state payload never exposes administrative or private order fie
   t.after(fixture.close)
   insertPreparingControlOrder(fixture.sqlite, 'privacy-order')
   const env = { DB: fixture.db, resolveCapabilities: async () => new Set(['orders.settings.manage']) }
-  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date('2026-09-28T20:00:00.000Z'))
+  const { token: adminToken } = await createSession(env, 'amor-e-sabor', new Date())
   const adminCookie = sessionCookie(adminToken).split(';')[0]
 
   const pair = await handleRequest(mutation('/api/kitchen-tv/pairing-request', ''), env)
