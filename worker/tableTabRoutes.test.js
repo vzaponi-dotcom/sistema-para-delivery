@@ -141,7 +141,7 @@ test('a local order opens a fresh stable tab and returns its occupied pending su
     .find((table) => table.id === 'table-2')
   assert.deepEqual(initialTable, {
     id: 'table-2', name: 'Mesa 2', sortOrder: 2, isActive: true,
-    occupancy: 'free', openTableTabId: null, openTableTab: null,
+    occupancy: 'free', openTableTabId: null, openTableTab: null, nextReservation: null,
   })
 
   const created = await request(env, cookie, 'POST', '/api/orders', {
