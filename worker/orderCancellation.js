@@ -10,6 +10,7 @@ import { loadOperations } from './operationSettingsRepository.js'
 import { parseOrderTimingPolicySnapshot, serializeOrderTimingPolicySnapshot } from '../shared/orderTiming.js'
 import { nativeCancellationReasons } from '../shared/settingsCatalogs.js'
 import { mapOrderPaymentFields, PAYMENT_ALLOCATIONS_JSON_SELECT } from './orderPaymentReadModel.js'
+import { loadTableReservationByOrderId } from './tableReservationRepository.js'
 
 const DEFAULT_CANCELLATION_REASONS = new Map(nativeCancellationReasons().items.map((item) => [item.id, item]))
 export const CANCEL_REASONS = [...DEFAULT_CANCELLATION_REASONS.keys()]
@@ -125,7 +126,7 @@ const createRefundStatement = (db, businessId, row, refundMethod, now) => {
   }
 }
 
-export const cancelOrder = async (db, businessId, orderId, input = {}, now = new Date()) => {
+export const cancelOrder = async (db, businessId, orderId, input = {}, now = new Date(), options = {}) => {
   const reason = normalizeReason(input.reason)
   const storedPolicy = await readCancellationPolicy(db, businessId, reason)
   const defaultReason = input.expectedRevision === 0 ? DEFAULT_CANCELLATION_REASONS.get(reason) : null
@@ -143,6 +144,22 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
   const note = normalizeNote(policy.requires_note === 1, input.note)
   const existing = await readContext(db, businessId, orderId)
   if (!existing) throw domainError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
+  const reservation = await loadTableReservationByOrderId(db, businessId, orderId)
+  const requireActiveReservation = Boolean(options.requireActiveReservation)
+  const expectedReservationRevision = options.expectedReservationRevision
+  const reservationDisposition = options.reservationDisposition === 'no_show' ? 'no_show' : 'cancelled'
+  if (requireActiveReservation) {
+    if (!reservation) throw domainError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
+    if (reservation.status !== 'reserved') {
+      throw domainError(409, 'TABLE_RESERVATION_ALREADY_CLOSED', 'Esta reserva já foi encerrada.')
+    }
+    if (!Number.isInteger(expectedReservationRevision) || expectedReservationRevision < 1) {
+      throw domainError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
+    }
+    if (reservation.revision !== expectedReservationRevision) {
+      throw domainError(409, 'TABLE_RESERVATION_CHANGED', 'A reserva foi alterada. Atualize os dados e tente novamente.')
+    }
+  }
   if (existing.status === 'Cancelado') throw domainError(409, 'ORDER_ALREADY_CANCELLED', 'Este pedido já foi cancelado.')
   if (!['Em preparo', 'Finalizado'].includes(existing.status)) {
     throw domainError(409, 'ORDER_CANCEL_NOT_ALLOWED', 'Este pedido não pode ser cancelado.')
@@ -172,6 +189,30 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
   const orderGuard = prepareSettingsAssertion(db, txId, 'state',
     "EXISTS (SELECT 1 FROM orders WHERE id = ? AND business_id = ? AND status IN ('Em preparo', 'Finalizado'))",
     [orderId, businessId])
+  const reservationMutation = reservation?.status === 'reserved'
+    ? {
+        id: reservation.id,
+        expectedRevision: requireActiveReservation ? expectedReservationRevision : reservation.revision,
+        disposition: reservationDisposition,
+      }
+    : null
+  const reservationTxId = reservationMutation ? crypto.randomUUID() : null
+  const reservationGuard = reservationMutation
+    ? prepareSettingsAssertion(db, reservationTxId, 'state',
+      "EXISTS (SELECT 1 FROM table_reservations WHERE id = ? AND business_id = ? AND status = 'reserved' AND revision = ?)",
+      [reservationMutation.id, businessId, reservationMutation.expectedRevision])
+    : null
+  const reservationUpdate = reservationMutation
+    ? db.prepare(reservationMutation.disposition === 'no_show'
+      ? `UPDATE table_reservations
+          SET status = 'no_show', no_show_at = ?, updated_at = ?, revision = revision + 1
+          WHERE id = ? AND business_id = ? AND status = 'reserved' AND revision = ?`
+      : `UPDATE table_reservations
+          SET status = 'cancelled', cancelled_at = ?, updated_at = ?, revision = revision + 1
+          WHERE id = ? AND business_id = ? AND status = 'reserved' AND revision = ?`)
+      .bind(cancelledAt, cancelledAt, reservationMutation.id, businessId, reservationMutation.expectedRevision)
+    : null
+  const reservationCleanup = reservationMutation ? clearSettingsAssertions(db, reservationTxId) : null
   const timingTxId = operations ? crypto.randomUUID() : null
   const timingGuards = operations ? [prepareSettingsAssertion(db, timingTxId, 'policy',
     'coalesce((SELECT revision FROM business_operation_settings WHERE business_id = ?), 0) = ?',
@@ -182,6 +223,16 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
       throw domainError(409, 'POLICY_CHANGED', 'As configurações operacionais foram alteradas. Atualize e tente novamente.')
     }
     if (String(error?.message).includes('SETTINGS_INVALID')) {
+      if (reservationMutation) {
+        const refreshedReservation = await loadTableReservationByOrderId(db, businessId, orderId)
+        if (!refreshedReservation) throw domainError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
+        if (refreshedReservation.status !== 'reserved') {
+          throw domainError(409, 'TABLE_RESERVATION_ALREADY_CLOSED', 'Esta reserva já foi encerrada.')
+        }
+        if (refreshedReservation.revision !== reservationMutation.expectedRevision) {
+          throw domainError(409, 'TABLE_RESERVATION_CHANGED', 'A reserva foi alterada. Atualize os dados e tente novamente.')
+        }
+      }
       const refreshed = await readContext(db, businessId, orderId)
       if (refreshed?.status === 'Cancelado') throw domainError(409, 'ORDER_ALREADY_CANCELLED', 'Este pedido já foi cancelado.')
       if (refreshed && !['Em preparo', 'Finalizado'].includes(refreshed.status)) {
@@ -200,15 +251,27 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
     refund = createRefundStatement(db, businessId, existing, refundMethod, now)
     try {
       await db.batch([...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
-        ...timingGuards, ...cancellationPolicyStatements, orderGuard, update, deletePendingAutomaticPrint, refund.statement,
-        clearSettingsAssertions(db, txId), ...timingCleanup, clearSettingsAssertions(db, paymentTxId)])
+        ...timingGuards, ...cancellationPolicyStatements, orderGuard,
+        ...(reservationGuard ? [reservationGuard] : []),
+        update,
+        ...(reservationUpdate ? [reservationUpdate] : []),
+        deletePendingAutomaticPrint, refund.statement,
+        clearSettingsAssertions(db, txId),
+        ...(reservationCleanup ? [reservationCleanup] : []),
+        ...timingCleanup, clearSettingsAssertions(db, paymentTxId)])
     } catch (error) {
       await classifyCommitFailure(error)
     }
   } else {
     try {
-      await db.batch([...timingGuards, ...cancellationPolicyStatements, orderGuard, update, deletePendingAutomaticPrint,
-        clearSettingsAssertions(db, txId), ...timingCleanup])
+      await db.batch([...timingGuards, ...cancellationPolicyStatements, orderGuard,
+        ...(reservationGuard ? [reservationGuard] : []),
+        update,
+        ...(reservationUpdate ? [reservationUpdate] : []),
+        deletePendingAutomaticPrint,
+        clearSettingsAssertions(db, txId),
+        ...(reservationCleanup ? [reservationCleanup] : []),
+        ...timingCleanup])
     } catch (error) {
       await classifyCommitFailure(error)
     }
