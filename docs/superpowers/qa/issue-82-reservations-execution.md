@@ -29,7 +29,7 @@
 | 3 — Reservation read model | COMPLETE / GREEN | RED `900fef8a8956adf6a8750cd5430f336101b17d47` → Validate #2529 / run `36583884743` failed on the intended repository/order/table reservation projections. GREEN `1123243c6588b6d405c793fe3a3212f571c8669d` → Validate #2533 / run `36584823314` SUCCESS; reservation repository, order context and nextReservation table projection green. |
 | 4 — Table guards | COMPLETE / GREEN | RED `c7aca6a0d8c528a91b5e11caae72ab7585ef5690` → Validate #2537 / run `36586270135` failed on the intended backend/UI reservation restrictions. GREEN `738a6049cdb7b1d875236217ef78517369e0f64e` → Validate #2539 / run `36586505823` SUCCESS on rerun attempt 2; attempt 1 had only an unrelated local Wrangler port collision in the Spec B D1 gate. |
 | 5 — Local reservation checkout | COMPLETE / GREEN | RED `9f6f2770e6e380faa16159f9e0934061d7849ae9` → Validate #2542 / run `36587171200` failed exactly on 5 intended reservation-checkout behaviors. GREEN `e7aab7c8d125de30904a6048ffd8f4384e48c202` → Validate #2545 / run `36587697649` SUCCESS; all shards, architecture/lint/build, Worker dry-runs and D1 gates green. |
-| 6 — Printing matrix | NOT STARTED | — |
+| 6 — Printing matrix | COMPLETE / GREEN | RED progression `0a3c227940d52d52c9a66607b625f420bd09d312` → `1818e17da7ac28d709366cfd9762b42f1ed545ba`; Validate #2551 / run `36592153363` and #2554 / run `36592558646` failed on intended availability/document behaviors. GREEN `4e0138ea27f1a617178b39de675d5fbef59df50b` → Validate #2564 / run `36593459366` SUCCESS; all 8 shards and full validation green. |
 | 7 — Reservation read API | NOT STARTED | — |
 | 8 — Cancel / no-show | NOT STARTED | — |
 | 9 — Arrival conversion | NOT STARTED | — |
@@ -229,4 +229,59 @@
 - Staging deploy: NOT EXECUTED.
 - Production deploy: NOT EXECUTED.
 
-Stopped before Task 6.
+
+## Task 6 evidence
+
+### RED
+
+- Availability matrix tests: `0a3c227940d52d52c9a66607b625f420bd09d312`.
+- Canonical scheduled document tests: `f90d75617b14ae23cdceb8256c738b1da3c214b6`.
+- ESC/POS + PDF schedule semantics: `e8b650c26a5242f3bd441d91d61661b975fc32e8` / `55ad358bf80ac382bf9aca345da3c2d8755d1855`.
+- Manual official-document rebuild test: `1818e17da7ac28d709366cfd9762b42f1ed545ba`.
+- Validate #2551 / run `36592153363`: FAILURE as intended, proving:
+  - next-day Entrega/Retirada automatic jobs were still available immediately;
+  - Local reservation automatic jobs were still available immediately;
+  - canonical documents had no scheduled timestamp/semantic label;
+  - ESC/POS/PDF did not expose requested service time.
+- Validate #2554 / run `36592558646` extended the RED to the manual/reprint document reconstruction path.
+- Failures were behavioral; later fixture-only failures were aligned without changing the approved semantics.
+
+### GREEN
+
+Production implementation:
+- `6d4b4d68feac06a4e7152aa937600745aa1458b4` — shared automatic availability resolver.
+- `4c3d065d6dfb3a9dbda887db167cc377edfc6901` — canonical scheduled print metadata.
+- `db0313f5d87133b18a34895a71926fc399ff1b6c` — thermal ticket rendering.
+- `0a3178ad56d9882272bbb3543297781c8011d4dd` — PDF rendering.
+- `247f1990ddcc1f241249088142bbd02dae46354f` — official manual/reprint document reconstruction.
+- `def165e100283c8c1a7a038fd8d4c7573b802aa6` — checkout print matrix integration.
+
+Fixture/contract alignments:
+- `84e44dc015cf4ef6f73c535928ee562c4e6a46b4`;
+- `9412cb64d81f1f5eb3bb4be3b30c5c47d8931fe4`;
+- `67b4419594f1d7e3c4ae69a6d5520d5b64aabc57`;
+- `4e0138ea27f1a617178b39de675d5fbef59df50b`.
+
+Validate #2564 / run `36593459366`: SUCCESS.
+
+Approved matrix now proven:
+1. immediate order → `available_at = created_at`;
+2. same-day Entrega/Retirada scheduled → immediate automatic availability preserved;
+3. another-day Entrega/Retirada → `available_at = operational_start_at`;
+4. Local reservation, including same-day → `available_at = operational_start_at`;
+5. Local reservation without a table-tab still snapshots the table-context copy default;
+6. canonical order document stores `scheduledFor` + `AGENDADO`/`RESERVA`;
+7. ESC/POS and PDF explicitly print the requested service date/time;
+8. manual preview/reprint rebuilds the current official scheduled/reservation document;
+9. a future automatic job remains separate from manual printing and is not made claimable early;
+10. centralized queue semantics remain intact: station readiness/automatic execution does not gate durable job creation.
+
+Additional guarantees:
+- current business timing policy supplies operational-start calculation and remains guarded by the existing policy revision assertion;
+- no migration rewrites historical `print_jobs.available_at`;
+- no changes to QZ physical execution, second-copy lifecycle or station ownership were introduced in this task.
+- Physical printer verification remains for staging QA and is not marked PASS here.
+- Staging deploy: NOT EXECUTED.
+- Production deploy: NOT EXECUTED.
+
+Stopped before Task 7.
