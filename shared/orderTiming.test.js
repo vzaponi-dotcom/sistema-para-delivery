@@ -8,6 +8,7 @@ import {
   getOperationalDurationMinutes,
   getOrderLateAt,
   getOrderMinutesLate,
+  getScheduleMaxBusinessDate,
   isFutureSameDaySchedule,
   SCHEDULE_MAX_DAYS,
   validateOrderSchedule,
@@ -125,4 +126,10 @@ test('schedule policy rejects invalid timestamps and unsupported order type with
   assert.deepEqual(validateOrderSchedule({
     type: 'Outro', orderDate: '2026-09-05', scheduledFor: '2026-09-05T15:00:00.000Z',
   }, now), { ok: false, code: 'SCHEDULE_TYPE_NOT_ALLOWED' })
+})
+
+
+test('schedule date input limit is the 90th Sao Paulo business-calendar day', () => {
+  assert.equal(getScheduleMaxBusinessDate(new Date('2026-09-29T15:00:00.000Z')), '2026-12-28')
+  assert.equal(getScheduleMaxBusinessDate(new Date('2026-09-30T02:30:00.000Z')), '2026-12-28')
 })
