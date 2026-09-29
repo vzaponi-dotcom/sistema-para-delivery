@@ -9,9 +9,9 @@ import * as defaultApi from './kitchenTvControlApi.js'
 import {
   countKitchenTvOffscreen,
   isKitchenTvTelemetryFresh,
+  kitchenTvClientName,
   kitchenTvOperationalStatus,
   kitchenTvVisibility,
-  shortKitchenTvClientName,
 } from './kitchenTvControlPresentation.js'
 import './kitchenTvControl.css'
 
@@ -44,7 +44,7 @@ function SummaryTile({ label, value, icon, tone = 'neutral' }) {
   </article>
 }
 
-const statusIcon = (key) => key === 'late' ? 'alert' : key === 'near-limit' ? 'clock' : 'preparation'
+const statusIcon = (key) => key === 'late' ? 'alert' : key === 'near-limit' ? 'clock' : key === 'scheduled' ? 'calendar' : 'preparation'
 const visibilityIcon = (key) => key === 'visible' ? 'eye' : 'eye-off'
 
 function KitchenTvControlSurface({
@@ -67,6 +67,7 @@ function KitchenTvControlSurface({
   const [actionError, setActionError] = useState('')
   const [actionFeedback, setActionFeedback] = useState('')
   const [undoAction, setUndoAction] = useState(null)
+  const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false)
   const pendingOrderRef = useRef(null)
 
   const canControl = granted instanceof Set && granted.has('orders.kitchen.control')
@@ -74,11 +75,29 @@ function KitchenTvControlSurface({
     () => buildKitchenQueueModel(orders, now, '', currentTiming),
     [currentTiming, now, orders],
   )
+  const entryById = useMemo(
+    () => new Map(queueModel.allActive.map((entry) => [String(entry.order.id), entry])),
+    [queueModel.allActive],
+  )
+  const hiddenIds = useMemo(
+    () => new Set((controlState?.hiddenOrderIds || []).map(String)),
+    [controlState?.hiddenOrderIds],
+  )
+  const pageEntries = useMemo(
+    () => (controlState?.telemetry?.visibleOrderIds || [])
+      .map((id) => entryById.get(String(id)))
+      .filter((entry) => entry && !hiddenIds.has(String(entry.order.id))),
+    [controlState?.telemetry?.visibleOrderIds, entryById, hiddenIds],
+  )
+  const hiddenEntries = useMemo(
+    () => (controlState?.hiddenOrderIds || [])
+      .map((id) => entryById.get(String(id)))
+      .filter(Boolean),
+    [controlState?.hiddenOrderIds, entryById],
+  )
   const selectedEntry = useMemo(
-    () => selectedOrderId
-      ? queueModel.preparing.find(({ order }) => String(order.id) === String(selectedOrderId)) ?? null
-      : null,
-    [queueModel.preparing, selectedOrderId],
+    () => selectedOrderId ? entryById.get(String(selectedOrderId)) ?? null : null,
+    [entryById, selectedOrderId],
   )
 
   const loadControl = useCallback(async (silent = false) => {
@@ -233,8 +252,8 @@ function KitchenTvControlSurface({
     setUndoAction(null)
   }
 
-  const offscreenCount = countKitchenTvOffscreen(queueModel.preparing, controlState, telemetryFresh)
-  const lateCount = queueModel.preparing.filter(({ timingState }) => timingState === 'late' || timingState === 'very-late').length
+  const offscreenCount = countKitchenTvOffscreen(queueModel.allActive, controlState, telemetryFresh)
+  const lateCount = queueModel.counts.late
 
   const connectionLabel = !isOnline
     ? 'Sem conexão'
@@ -251,7 +270,8 @@ function KitchenTvControlSurface({
     selectedEntry
       && (controlState?.hiddenOrderIds || []).some((id) => String(id) === String(selectedEntry.order.id)),
   )
-  const selectedActionDisabled = !operationalControlsEnabled || pendingOrderId !== null
+  const selectedScheduled = selectedEntry?.phase === 'scheduled'
+  const selectedActionDisabled = !operationalControlsEnabled || pendingOrderId !== null || selectedScheduled
 
   return <div className="kitchen-tv-control-page">
     <AreaNavigation area="orders" />
@@ -302,17 +322,20 @@ function KitchenTvControlSurface({
     <section className="kitchen-tv-control-summary" aria-label="Resumo do controle da TV">
       <SummaryTile label="Em preparo" value={queueModel.preparing.length} icon="preparation" tone="primary" />
       <SummaryTile label="Atrasados" value={lateCount} icon="alert" tone={lateCount ? 'danger' : 'neutral'} />
-      <SummaryTile label="Agendados" value={queueModel.counts.scheduled} icon="calendar" />
+      <SummaryTile label="Agendados" value={queueModel.counts.scheduled} icon="calendar" tone={queueModel.counts.scheduled ? 'info' : 'neutral'} />
       <SummaryTile label="Fora da tela" value={offscreenCount === null ? '—' : offscreenCount} icon="eye-off" />
     </section>
 
     <div className="kitchen-tv-control-list-heading">
       <div><Icon name="chef-hat" size={18} /><h2>Pedidos</h2></div>
-      <span>{queueModel.preparing.length} visíveis</span>
+      <div className="kitchen-tv-control-list-meta">
+        <span>{pageEntries.length} {telemetryFresh ? 'na tela' : 'na última tela'}</span>
+        {hiddenEntries.length > 0 && <button type="button" onClick={() => setHiddenSheetOpen(true)}>Retirados {hiddenEntries.length}</button>}
+      </div>
     </div>
 
-    <section className="kitchen-tv-control-grid" aria-label="Pedidos em preparo">
-      {queueModel.preparing.map((entry) => {
+    <section className="kitchen-tv-control-grid" aria-label="Pedidos exibidos na TV">
+      {pageEntries.map((entry) => {
         const status = kitchenTvOperationalStatus(entry, now)
         const visibility = kitchenTvVisibility({
           orderId: entry.order.id,
@@ -323,19 +346,20 @@ function KitchenTvControlSurface({
         const isPending = String(pendingOrderId || '') === String(entry.order.id)
         const displayNumber = formatOrderDisplayNumber(entry.order)
         const compactDisplayNumber = displayNumber.replace(/^Pedido\s*/i, '')
+        const clientName = kitchenTvClientName(entry.order.client)
         return <button
           key={entry.order.id}
           type="button"
           className={`kitchen-tv-control-order-card status-${status.key}${isPending ? ' is-pending' : ''}`}
-          aria-label={`${formatOrderDisplayNumber(entry.order)}, ${shortKitchenTvClientName(entry.order.client)}, ${status.label}, ${visibility.label}`}
+          aria-label={`${formatOrderDisplayNumber(entry.order)}, ${clientName}, ${status.label}, ${visibility.label}`}
           aria-haspopup="dialog"
           aria-busy={isPending || undefined}
           onClick={() => openOrderActions(entry)}
         >
           <span className="kitchen-tv-control-order-card-heading">
-            <strong className="kitchen-tv-control-order-number-full">{displayNumber}</strong>
-            <strong className="kitchen-tv-control-order-number-compact">{compactDisplayNumber}</strong>
-            <span>{shortKitchenTvClientName(entry.order.client)}</span>
+            <strong className="kitchen-tv-control-order-client">{clientName}</strong>
+            <span className="kitchen-tv-control-order-number-full">{displayNumber}</span>
+            <span className="kitchen-tv-control-order-number-compact">{compactDisplayNumber}</span>
           </span>
           <span className="kitchen-tv-control-badges">
             <span className={`kitchen-tv-control-badge status-${status.key}`}><Icon name={statusIcon(status.key)} size={11} />{status.label}</span>
@@ -343,7 +367,7 @@ function KitchenTvControlSurface({
           </span>
         </button>
       })}
-      {!queueModel.preparing.length && <p className="kitchen-tv-control-empty">Nenhum pedido em preparo agora.</p>}
+      {!pageEntries.length && <p className="kitchen-tv-control-empty">{controlState?.telemetry ? 'Nenhum pedido nesta tela da TV.' : 'Aguardando a TV informar os pedidos desta tela.'}</p>}
     </section>
 
     <div className="kitchen-tv-control-hint">
@@ -365,13 +389,14 @@ function KitchenTvControlSurface({
         <p className="kitchen-tv-control-action-explainer">Remove apenas do painel da TV. O pedido continua em preparo no sistema.</p>
         {!canControl && <p className="kitchen-tv-control-action-note">Somente leitura. Você não tem permissão para alterar a TV.</p>}
         {canControl && (!isOnline || !controlState?.paired || !telemetryFresh) && <p className="kitchen-tv-control-action-note">A TV precisa estar conectada e com sinal recente para alterar a visibilidade.</p>}
+        {selectedScheduled && <p className="kitchen-tv-control-action-note">Pedidos agendados aguardando a janela de preparo aparecem na TV, mas não podem ser retirados manualmente.</p>}
         {actionError && <p className="kitchen-tv-control-action-error" role="alert">{actionError}</p>}
         {actionFeedback && <div className="kitchen-tv-control-action-feedback" role="status">
           <span>{actionFeedback}</span>
           {undoAction?.orderId === String(selectedEntry.order.id) && <button type="button" onClick={() => { void undoLastAction() }} disabled={pendingOrderId !== null}>Desfazer</button>}
         </div>}
         <div className="kitchen-tv-control-action-buttons">
-          <Button
+          {!selectedScheduled && <Button
             type="button"
             variant={selectedHidden ? 'secondary' : 'primary'}
             disabled={selectedActionDisabled}
@@ -382,7 +407,7 @@ function KitchenTvControlSurface({
               : selectedHidden
                 ? 'Voltar para a TV'
                 : 'Retirar da TV'}
-          </Button>
+          </Button>}
           <Button
             type="button"
             variant="secondary"
@@ -394,6 +419,28 @@ function KitchenTvControlSurface({
           >Ver na Cozinha</Button>
         </div>
       </div>}
+    </BottomSheet>
+
+    <BottomSheet
+      open={hiddenSheetOpen}
+      title="Retirados da TV"
+      onClose={() => { if (pendingOrderId === null) setHiddenSheetOpen(false) }}
+    >
+      <div className="kitchen-tv-control-hidden-list">
+        {hiddenEntries.map((entry) => <div className="kitchen-tv-control-hidden-row" key={entry.order.id}>
+          <div>
+            <strong>{kitchenTvClientName(entry.order.client)}</strong>
+            <span>{formatOrderDisplayNumber(entry.order)}</span>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!operationalControlsEnabled || pendingOrderId !== null}
+            onClick={() => { void changeOrderVisibility(entry.order.id, false) }}
+          >Voltar para a TV</Button>
+        </div>)}
+        {!hiddenEntries.length && <p className="kitchen-tv-control-action-note">Nenhum pedido retirado da TV.</p>}
+      </div>
     </BottomSheet>
   </div>
 }

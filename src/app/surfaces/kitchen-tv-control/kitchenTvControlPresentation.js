@@ -1,4 +1,5 @@
-export const KITCHEN_TV_TELEMETRY_FRESH_MS = 10_000
+export const KITCHEN_TV_TELEMETRY_FRESH_MS = 15_000
+export const KITCHEN_TV_CLOCK_SKEW_MS = 5_000
 export const KITCHEN_TV_NEAR_LIMIT_MS = 5 * 60_000
 
 const asDate = (value) => {
@@ -15,17 +16,18 @@ export const isKitchenTvTelemetryFresh = (
   const reference = asDate(now)
   if (!reportedAt || !reference) return false
   const age = reference.getTime() - reportedAt.getTime()
-  return age >= 0 && age <= freshnessMs
+  return age >= -KITCHEN_TV_CLOCK_SKEW_MS && age <= freshnessMs
 }
 
-export const shortKitchenTvClientName = (value) => {
+export const kitchenTvClientName = (value) => {
   const normalized = String(value ?? '').trim().replace(/\s+/g, ' ')
-  if (!normalized) return 'Cliente'
-  const [first] = normalized.split(' ')
-  return first.slice(0, 18)
+  return normalized || 'Cliente'
 }
 
 export const kitchenTvOperationalStatus = (entry, now = new Date()) => {
+  if (entry?.phase === 'scheduled') {
+    return { key: 'scheduled', label: 'AGENDADO' }
+  }
   if (entry?.timingState === 'late' || entry?.timingState === 'very-late') {
     return { key: 'late', label: 'ATRASADO' }
   }
