@@ -77,3 +77,36 @@ test('A5 PDF is text-native and contains the same customer-safe ticket semantics
 
   assert.doesNotMatch(text, /CÓPIA\s+\d\/\d/)
 })
+
+
+test('PDF prints scheduled reservation semantics and requested service time', () => {
+  let instance
+  const reservation = createOrderPrintDocument({
+    businessName: 'Amor & Sabor',
+    orderId: 'reservation-order',
+    orderNumber: 200,
+    type: 'Local',
+    createdAt: '2026-09-03T12:00:00.000Z',
+    customerIdentityType: 'table',
+    tableIdentifier: 'Mesa 4',
+    hasOptionalClient: true,
+    customer: { name: 'Hugo' },
+    items: [{ name: 'X-Burger', quantity: 1, unitPriceCents: 2500 }],
+    subtotalCents: 2500,
+    totalCents: 2500,
+    scheduledFor: '2026-09-04T23:00:00.000Z',
+    scheduleLabel: 'RESERVA',
+  })
+
+  renderOrderPdf(reservation, {
+    jsPDFFactory: (options) => {
+      instance = new FakePdf(options)
+      return instance
+    },
+  })
+
+  const text = instance.writes.join('\n')
+  assert.match(text, /RESERVA/)
+  assert.match(text, /Agendado: 04\/09\/2026 - 20:00/)
+  assert.match(text, /Mesa 4 · Hugo/)
+})
