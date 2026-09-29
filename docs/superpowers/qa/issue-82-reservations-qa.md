@@ -266,3 +266,39 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Reporting repository projects authoritative reservation identity without a global reservation collection: PASS.
 - Final Task 18 Validate #2677 / run `36629169321`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
 - Manual staging reporting reconciliation remains PENDING until staging/homologation.
+
+## Automated checkpoints after Task 19
+
+- App → Table Service only through public entry: PASS.
+- Table Service → Orders production import boundary: PASS.
+- Reservation HTTP owner remains Table Service infrastructure: PASS.
+- Worker index delegates reservation API instead of owning routes inline: PASS.
+- No SQL in React production source: PASS.
+- No frontend production handling of raw TABLE_RESERVATION_* backend codes: PASS.
+- No new reservation capability family: PASS.
+- Existing orders.create / orders.discount / orders.cancel capability ownership preserved: PASS.
+- No global/bootstrap tableReservations collection: PASS.
+- No reservation runtime schema fallback/probing: PASS.
+- Migration 0034 remains the exclusive reservation migration: PASS.
+- Exact pre-0034 → 0034 migration upgrade test: PASS.
+- Clean reservation migration install: PASS.
+- Checkout regressions: PASS.
+- Table management regressions: PASS.
+- Table-tab lifecycle regressions: PASS.
+- Cancellation/refund regressions: PASS.
+- Printing regressions: PASS.
+- Split-payment regressions: PASS.
+- NewOrder regressions: PASS.
+- Comandas regressions: PASS.
+- Kitchen queue regressions: PASS.
+- Kitchen TV regressions: PASS.
+- Receivables regressions: PASS.
+- Reporting regressions: PASS.
+- Frontend architecture checker: PASS.
+- PR diff conflict markers: 0.
+- PR diff added-line trailing whitespace after normalization: 0.
+- Final Task 19 Validate #2684 / run `36630884500`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 gates green.
+- Staging deployment: NOT EXECUTED.
+- Production deployment: NOT EXECUTED.
+- Task 19 status: COMPLETE / GREEN.
+- Next step: Task 20 — deploy staging and begin manual homologation.
