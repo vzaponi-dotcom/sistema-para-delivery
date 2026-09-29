@@ -12,9 +12,9 @@ No scenario is marked PASS until it is actually executed against the implementat
 
 | Area | Status | Evidence |
 |---|---|---|
-| Migration clean install | PENDING | — |
-| Migration upgrade | PENDING | — |
-| Reservation overlap concurrency | PENDING | — |
+| Migration clean install | PASS | Task 1 test + Validate #2518 / run `36580925658` |
+| Migration upgrade | PASS | Exact pre-0034 upgrade preserves existing order/table-tab history; Validate #2518 |
+| Reservation overlap concurrency | PARTIAL | SQLite write-boundary overlap triggers PASS for insert/update and half-open intervals; true multi-request race remains for later integration tasks. |
 | Checkout | PENDING | — |
 | Printing | PENDING | — |
 | Arrival conversion | PENDING | — |
