@@ -428,3 +428,74 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Smokes: Local Agora #286 salvou na comanda existente; reserva válida #283/#285 salvou; Editar reserva abriu com data/mesa/item existentes. Em duas abas, a revisão mais recente mudou #283 para 20:00; uma tentativa em aba antiga de gravar 18:00 não sobrescreveu 20:00 e retornou ao formulário atualizado. Relatório do mesmo dia e Comandas desktop conferidos.
 - Limpeza: #283, #285 e #286 cancelados pelo fluxo oficial com motivo Erro no lançamento; Próximos dias 0, #286 saiu da cozinha e badge da fila de impressão zerou.
 - Total: **47 PASS / 0 FAIL / 23 BLOCKED** (12 ambiente, 4 limitação do navegador, 7 físicos). Nenhum BLOCKED foi promovido sem execução. Sem alteração de código de aplicação, merge ou produção neste reteste.
+
+## Task 22 — fechamento técnico
+
+### Consolidação da homologação
+
+Resultado manual preservado, sem promover casos por inferência:
+
+- **47 PASS**
+- **0 FAIL**
+- **12 BLOCKED-ENVIRONMENT**
+- **4 BLOCKED-BROWSER-LIMITATION**
+- **7 BLOCKED-PHYSICAL**
+- **23 BLOCKED no total**
+
+Casos residuais:
+- ambiente: #9, #23, #25, #38, #40, #41, #50, #52, #53, #54, #63, #64;
+- limitação do navegador remoto: #24, #39, #59, #61;
+- físicos/impressão: #26, #27, #28, #29, #30, #31, #33.
+
+Nenhum desses casos foi convertido para PASS por cobertura automatizada. Os registros automatizados continuam evidência complementar, não substituição da homologação manual.
+
+### Gates técnicos
+
+No head pré-fechamento documental `826a9ef9090397f3fee896c6ceadd72de2fa4441`:
+
+- Validate application run `36644763028`: **SUCCESS**;
+- 8/8 shards: PASS;
+- frontend architecture: PASS;
+- lint: PASS;
+- build: PASS;
+- Worker production dry-run: PASS;
+- Worker staging dry-run: PASS;
+- local D1 migrations: PASS;
+- Spec B D1 clean install/upgrade: PASS;
+- operation-profile D1 clean install/upgrade: PASS;
+- os testes da migration `0034_table_reservations.sql`, incluindo clean install e upgrade exato pre-0034 → 0034, permanecem verdes dentro da suíte completa.
+
+Staging:
+- Deploy staging run `36644760409`: **SUCCESS**;
+- testes/architecture/lint/build no workflow: PASS;
+- staging Worker dry-run: PASS;
+- pending migrations check: PASS;
+- Apply staging migrations: PASS;
+- deploy: PASS;
+- login smoke: PASS;
+- deep links/assets: PASS.
+
+PR #83:
+- OPEN;
+- DRAFT;
+- mergeable = true;
+- unresolved review threads = 0;
+- branch comparada com `master`: 206 commits ahead / 0 behind no checkpoint pré-fechamento.
+
+### Interpretação dos BLOCKED
+
+A Task 22 fecha o estado técnico sem falsificar os 23 BLOCKED.
+
+Os **7 BLOCKED-PHYSICAL** de impressão permanecem hard gate para produção, conforme o plano aprovado. Produção não pode ser autorizada enquanto a validação física aplicável não for concluída.
+
+Os demais BLOCKED permanecem explicitamente registrados como lacunas da matriz manual. Eles não foram reclassificados nesta task.
+
+### Gate de release
+
+- FAILs de aplicação: **0**;
+- merge: **NOT EXECUTED**;
+- produção: **NOT TOUCHED**;
+- PR permanece draft;
+- próximo passo após o fechamento documental/final CI: **aguardar autorização explícita do usuário para merge**.
+
+Após merge, deve ser executado Validate pós-merge. Produção continua separada e bloqueada até autorização explícita e conclusão dos gates físicos aplicáveis.
