@@ -163,3 +163,26 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Create-order idempotency/effect reconciliation regressions: PASS.
 - Final Task 13 code Validate #2628 / run `36614217317`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
 - Manual staging UX for the edit flow: PENDING until Task 14 provides the reservation-detail entry point.
+
+
+## Automated checkpoints after Task 14
+
+- Comandas subtitle mentions mesas, comandas e reservas: PASS.
+- Free table without reservation remains Livre/current behavior: PASS.
+- Free table + nextReservation renders textual Reservada state: PASS.
+- Occupied table + nextReservation keeps Ocupada primary and reservation secondary: PASS.
+- Current comanda and reservation are distinct interactive targets: PASS.
+- Reservation detail loads official API state: PASS.
+- Reservation detail exposes mesa/client/date/time/status/items/total: PASS.
+- Edit action requires create capability and pre-operational window: PASS.
+- Confirm arrival blocked before scheduled business day: PASS.
+- Confirm arrival uses authoritative conversion and App selects returned comanda: PASS.
+- Cancel/no-show require orders.cancel: PASS.
+- Cancel/no-show use configured reason/revision inputs: PASS.
+- No independent “Abrir comanda” bypass exists: PASS.
+- Mobile reservation list/detail/back scroll and focus restoration: PASS.
+- Reserved state is text + semantic info tokens, not color-only: PASS.
+- Existing Comanda payment/transfer/printing regressions: PASS.
+- Theme-safe styling uses existing semantic tokens: PASS.
+- Final Task 14 code Validate #2644 / run `36617341007`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
+- Manual desktop/mobile/light/dark staging verification: PENDING until staging task.
