@@ -208,3 +208,22 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Final Task 15 Validate #2655 / run `36623885764`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
 - Kitchen TV/sound/realtime end-to-end characterization remains Task 16.
 - Manual staging verification remains PENDING until the staging task.
+
+## Automated checkpoints after Task 16
+
+- Future operational-date schedule absent from Kitchen TV cards: PASS.
+- Distant Local reservation absent from Kitchen TV: PASS.
+- Future operational-date schedules excluded from TV counters: PASS.
+- Same-day waiting schedule may remain visible as Agendado: PASS / preserved rule.
+- Transition at operationalStartAt promotes order to preparing priority: PASS.
+- Arrival sound occurs once on the operational transition: PASS.
+- Repeated polls do not replay the same arrival sound: PASS.
+- Opening TV after transition does not replay historical sound: PASS.
+- Local reservation renders as Local when operational: PASS.
+- Existing Entrega/Retirada/Mesa TV modality filters preserved: PASS.
+- TV exposes no future agenda / Próximos dias surface: PASS.
+- TV rendering clock now follows authoritative serverNow snapshots: PASS.
+- Local clock advances between polls without reverting to device wall-clock time: PASS.
+- Existing paging/overflow/layout characterizations remain green: PASS.
+- Final Task 16 Validate #2661 / run `36625864310`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
+- Manual physical TV/staging verification remains PENDING until the staging/homologation tasks.
