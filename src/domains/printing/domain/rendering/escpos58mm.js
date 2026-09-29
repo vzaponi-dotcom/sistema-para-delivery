@@ -122,6 +122,15 @@ const renderOrderCopy = (document, copyNumber, copies) => {
   pushRaw(parts, size(0x00), bold(false))
   if (document.order?.createdAt) pushLine(parts, formatDateTime(document.order.createdAt))
   pushLine(parts, document.order?.type || '')
+  if (document.order?.scheduleLabel) {
+    pushRaw(parts, bold(true))
+    pushLine(parts, document.order.scheduleLabel)
+    pushRaw(parts, bold(false))
+  }
+  if (document.order?.scheduledFor) {
+    const schedulePrefix = document.order?.scheduleLabel === 'RESERVA' ? 'Reserva: ' : 'Agendado: '
+    pushLine(parts, `${schedulePrefix}${formatDateTime(document.order.scheduledFor)}`)
+  }
   pushRaw(parts, align(0))
   pushLine(parts, divider)
   pushRaw(parts, size(SECONDARY_TEXT_SIZE))
