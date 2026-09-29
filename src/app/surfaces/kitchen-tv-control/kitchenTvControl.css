@@ -395,60 +395,193 @@
 }
 
 @media (max-width: 420px) {
-  .kitchen-tv-control-page { gap: 10px; }
+  .kitchen-tv-control-page {
+    gap: 7px;
+  }
 
   .kitchen-tv-control-header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .kitchen-tv-control-heading {
+    gap: 1px;
+  }
+
+  .kitchen-tv-control-heading p {
+    display: none;
+  }
+
+  .kitchen-tv-control-heading h1 {
+    font-size: 1.25rem;
+  }
+
+  .kitchen-tv-control-heading small {
+    max-width: 210px;
+    overflow: hidden;
+    font-size: .66rem;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .kitchen-tv-control-connection {
-    align-self: flex-start;
-    min-height: 28px;
-    padding-block: 4px;
+    align-self: auto;
+    min-height: 26px;
+    padding: 4px 8px;
+    font-size: .65rem;
   }
 
-  .kitchen-tv-control-paging {
-    grid-template-columns: minmax(76px, 1fr) repeat(3, minmax(44px, auto));
-    gap: 4px;
-    padding: 6px;
-  }
-
-  .kitchen-tv-control-page-button {
-    padding-inline: 7px;
+  .kitchen-tv-control-readonly {
     font-size: .68rem;
   }
 
-  .kitchen-tv-control-summary { gap: 4px; }
-  .kitchen-tv-control-summary article { padding-inline: 4px; }
-  .kitchen-tv-control-grid { gap: 6px; }
+  .kitchen-tv-control-state {
+    padding: 8px 10px;
+    font-size: .72rem;
+  }
+
+  .kitchen-tv-control-paging {
+    grid-template-columns: minmax(68px, 1fr) repeat(3, minmax(44px, auto));
+    gap: 4px;
+    padding: 5px;
+  }
+
+  .kitchen-tv-control-page-state {
+    gap: 0;
+    padding-inline: 3px;
+  }
+
+  .kitchen-tv-control-page-state strong {
+    font-size: .76rem;
+    white-space: nowrap;
+  }
+
+  .kitchen-tv-control-page-state span {
+    min-height: 0;
+    font-size: .6rem;
+  }
+
+  .kitchen-tv-control-page-button {
+    min-height: 42px;
+    gap: 3px;
+    padding-inline: 6px;
+    font-size: .62rem;
+  }
+
+  .kitchen-tv-control-page-button span {
+    white-space: nowrap;
+  }
+
+  .kitchen-tv-control-summary {
+    gap: 4px;
+  }
+
   .kitchen-tv-control-summary article {
+    min-height: 52px;
+    align-content: center;
     gap: 1px;
-    padding: 7px 4px;
+    padding: 5px 3px;
   }
 
-  .kitchen-tv-control-summary span { font-size: .6rem; }
+  .kitchen-tv-control-summary svg {
+    width: 14px;
+    height: 14px;
+  }
 
-  .kitchen-tv-control-grid { gap: 6px; }
-  .kitchen-tv-control-order-card {
-    min-height: 72px;
+  .kitchen-tv-control-summary span {
+    font-size: .56rem;
+  }
+
+  .kitchen-tv-control-summary strong {
+    font-size: .95rem;
+  }
+
+  .kitchen-tv-control-list-heading {
+    margin-top: 1px;
+  }
+
+  .kitchen-tv-control-list-heading h2 {
+    font-size: .92rem;
+  }
+
+  .kitchen-tv-control-list-heading > span {
+    font-size: .66rem;
+  }
+
+  .kitchen-tv-control-grid {
     gap: 5px;
-    padding: 8px;
-    border-radius: 14px;
   }
 
-  .kitchen-tv-control-order-card-heading strong { font-size: .8rem; }
-  .kitchen-tv-control-order-card-heading span { font-size: .7rem; }
+  .kitchen-tv-control-order-card {
+    min-height: 62px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-content: center;
+    align-items: center;
+    column-gap: 5px;
+    row-gap: 3px;
+    padding: 7px;
+    border-radius: 12px;
+  }
+
+  .kitchen-tv-control-order-card-heading,
+  .kitchen-tv-control-badges {
+    display: contents;
+  }
+
+  .kitchen-tv-control-order-card-heading strong {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: .76rem;
+  }
+
+  .kitchen-tv-control-order-card-heading span {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: .68rem;
+  }
+
   .kitchen-tv-control-badge {
-    min-height: 19px;
+    min-height: 18px;
     padding: 2px 5px;
-    font-size: .55rem;
+    font-size: .51rem;
+    white-space: nowrap;
+  }
+
+  .kitchen-tv-control-badge svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .kitchen-tv-control-badges .status-preparing,
+  .kitchen-tv-control-badges .status-near-limit,
+  .kitchen-tv-control-badges .status-late {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .kitchen-tv-control-badges .visibility-visible,
+  .kitchen-tv-control-badges .visibility-hidden,
+  .kitchen-tv-control-badges .visibility-unknown,
+  .kitchen-tv-control-badges .visibility-offscreen {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
   }
 
   .kitchen-tv-control-hint {
-    min-height: 38px;
-    padding-block: 7px;
+    min-height: 32px;
+    gap: 6px;
+    padding: 5px 9px;
+    font-size: .66rem;
+  }
+
+  .kitchen-tv-control-hint svg {
+    width: 14px;
+    height: 14px;
   }
 }
 

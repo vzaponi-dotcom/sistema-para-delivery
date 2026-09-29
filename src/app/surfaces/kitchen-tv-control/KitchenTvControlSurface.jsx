@@ -273,8 +273,8 @@ function KitchenTvControlSurface({
 
     <section className="kitchen-tv-control-paging" aria-label="Navegação da TV">
       <div className="kitchen-tv-control-page-state">
-        <strong>{telemetryFresh ? `Tela ${currentPage} de ${pageCount}` : 'TV sem sinal'}</strong>
-        <span aria-live="polite">{pendingRevision !== null ? 'Atualizando TV…' : ' '}</span>
+        <strong>{telemetryFresh ? `Tela ${currentPage} de ${pageCount}` : 'Tela — de —'}</strong>
+        {pendingRevision !== null && <span aria-live="polite">Atualizando TV…</span>}
       </div>
       <button
         type="button"

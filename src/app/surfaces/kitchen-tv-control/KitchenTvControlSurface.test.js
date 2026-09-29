@@ -96,7 +96,11 @@ test('renders the approved compact two-column grid with ten cards and no sensiti
 
   const css = await readFile(new URL('./kitchenTvControl.css', import.meta.url), 'utf8')
   assert.match(css, /\.kitchen-tv-control-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*72px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-heading p \{[\s\S]*display:\s*none/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-header \{[\s\S]*flex-direction:\s*row/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*62px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card-heading,[\s\S]*\.kitchen-tv-control-badges \{[\s\S]*display:\s*contents/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-hint \{[\s\S]*min-height:\s*32px/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-late[\s\S]*var\(--danger\)/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-near-limit[\s\S]*var\(--warning\)/)
 })
@@ -129,6 +133,9 @@ test('stale telemetry never claims current visibility and disables operational c
   const { screen } = await render(t, { state: stale })
   const text = nodeText(screen.root)
   assert.match(text, /TV sem sinal/)
+  const pager = screen.root.findByProps({ 'aria-label': 'Navegação da TV' })
+  assert.match(nodeText(pager), /Tela — de —/)
+  assert.doesNotMatch(nodeText(pager), /TV sem sinal/)
   assert.doesNotMatch(text, /Na TV/)
   assert.match(text, /Retirado/)
   for (const label of ['Anterior', 'Início', 'Próxima']) {
