@@ -71,3 +71,53 @@ test('deadline and hour filters make the operational KPI and distributions match
   assert.equal(hour.data.operationalOrdersCount, 1)
   assert.equal(hour.data.outsideDeadlineCount, 1)
 })
+
+test('future Local reservation keeps scheduled/Local classification and measures from operationalStartAt, not early created_at', async () => {
+  const { calculateOperation } = await import('./operationAnalytics.js')
+  const rows = [{
+    id: 'future-local-reservation',
+    order_date: '2026-10-03',
+    status: 'Finalizado',
+    is_backdated: 0,
+    created_at: '2026-09-29T12:00:00.000Z',
+    scheduled_for: '2026-10-03T15:00:00.000Z',
+    finished_at: '2026-10-03T14:30:00.000Z',
+    timing_policy_snapshot_json: null,
+    type: 'Local',
+  }]
+
+  const result = calculateOperation(rows)
+
+  assert.equal(result.data.operationalOrdersCount, 1)
+  assert.equal(result.data.averageDurationMinutes, 20)
+  assert.equal(result.data.medianDurationMinutes, 20)
+  assert.equal(result.data.bySchedule.find((item) => item.schedule === 'scheduled').count, 1)
+  assert.equal(result.data.bySchedule.find((item) => item.schedule === 'immediate').count, 0)
+  assert.equal(result.data.byModality.find((item) => item.type === 'Local').count, 1)
+  assert.equal(result.data.withinDeadlineCount, 1)
+})
+
+test('cancelled scheduled Local reservation is excluded from operational populations', async () => {
+  const { calculateOperation } = await import('./operationAnalytics.js')
+  const result = calculateOperation([{
+    id: 'no-show-local',
+    order_date: '2026-10-03',
+    status: 'Cancelado',
+    is_backdated: 0,
+    created_at: '2026-09-29T12:00:00.000Z',
+    scheduled_for: '2026-10-03T15:00:00.000Z',
+    finished_at: null,
+    timing_policy_snapshot_json: null,
+    type: 'Local',
+  }])
+
+  assert.equal(result.data.operationalOrdersCount, 0)
+  assert.equal(result.data.bySchedule.find((item) => item.schedule === 'scheduled').count, 0)
+  assert.equal(result.data.byModality.find((item) => item.type === 'Local').count, 0)
+  assert.deepEqual(result.quality, {
+    eligibleCount: 0,
+    measuredCount: 0,
+    legacyPolicyCount: 0,
+    invalidCount: 0,
+  })
+})
