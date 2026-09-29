@@ -17,17 +17,17 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Reservation overlap concurrency | PARTIAL | SQLite write-boundary overlap triggers PASS for insert/update and half-open intervals; true multi-request race remains for later integration tasks. |
 | Checkout | PASS (through Task 5 scope) | Validate #2545 / run `36587697649`: Local reservation persists atomically without opening a comanda; overlap rollback/idempotency/HTTP effects pass. Printing timing remains Task 6. |
 | Printing | PASS (automated Task 6 scope) | Validate #2564 / run `36593459366`: availability matrix, copy context, canonical scheduled docs, ESC/POS/PDF and manual document reconstruction PASS. Physical printer checks remain PENDING for staging. |
-| Arrival conversion | PENDING | — |
+| Arrival conversion | PASS (automated Task 9 scope) | Validate #2579 / run `36597090286`: atomic conversion, guards, status preservation, retry idempotency and HTTP effects PASS. |
 | Edit reservation | PENDING | — |
-| Cancel / no-show | PENDING | — |
+| Cancel / no-show | PASS (automated Task 8 scope) | Validate #2575 / run `36596600847`: existing order cancel coupling, reservation cancel/no-show, revision guards and auth/origin PASS. |
 | Kitchen queue | PENDING | — |
 | Kitchen TV | PENDING | — |
 | Receivables | PENDING | — |
 | Reporting | PENDING | — |
-| Architecture | PASS (current HEAD through Task 6) | Validate #2564 / run `36593459366` |
-| Full test suite | PASS (current HEAD through Task 6) | All 8 test shards green in Validate #2564 / run `36593459366` |
-| Lint | PASS (current HEAD through Task 6) | Validate #2564 / run `36593459366` |
-| Build | PASS (current HEAD through Task 6) | Validate #2564 / run `36593459366` |
+| Architecture | PASS (current code HEAD through Task 9) | Validate #2579 / run `36597090286` |
+| Full test suite | PASS (current code HEAD through Task 9) | All 8 test shards green in Validate #2579 / run `36597090286` |
+| Lint | PASS (current code HEAD through Task 9) | Validate #2579 / run `36597090286` |
+| Build | PASS (current code HEAD through Task 9) | Validate #2579 / run `36597090286` |
 
 ## Manual staging blocks
 
@@ -97,3 +97,24 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Manual/reprint official document rebuild preserves schedule/reservation identity: PASS.
 - Manual print lifecycle does not advance future automatic availableAt: PASS by existing printing regressions.
 - Physical MPT-II/QZ verification: PENDING / staging physical QA.
+
+
+## Automated checkpoints after Task 9
+
+- Reservation list API business scope and filters: PASS.
+- Reservation detail returns official order + automatic print metadata: PASS.
+- Read access via existing Orders/Comandas capabilities: PASS.
+- Bootstrap contains no 90-day reservation collection: PASS.
+- Existing order cancellation closes active reservation atomically: PASS.
+- Reservation cancel endpoint: PASS.
+- Reservation no-show endpoint with official cancellation policy: PASS.
+- Stale reservation revision blocks terminal mutation without partial effects: PASS.
+- Pending automatic print removal on cancellation remains atomic: PASS.
+- Confirm arrival opens one comanda and links the reserved order: PASS.
+- Confirm arrival preserves Em preparo/Finalizado order status: PASS.
+- Too-early arrival blocked: PASS.
+- Occupied table arrival blocked: PASS.
+- Cancelled order arrival blocked: PASS.
+- Arrival retry resolves to the same converted comanda: PASS.
+- nextReservation recalculates after conversion: PASS.
+- Manual staging verification for Comandas UI and real multi-device interaction: PENDING (frontend tasks not implemented yet).
