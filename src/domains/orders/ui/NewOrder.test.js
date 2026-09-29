@@ -20,8 +20,9 @@ test('new order uses one searchable client picker without phone in the selected 
 test('new order starts with no client preselected', () => {
   const page = source('./NewOrder.jsx')
 
-  assert.match(page, /const \[clientId, setClientId\] = useState\(''\)/)
-  assert.match(page, /const \[clientSearch, setClientSearch\] = useState\(''\)/)
+  assert.match(page, /const initialClientId = initialDraft\?\.clientId \|\| ''/)
+  assert.match(page, /const \[clientId, setClientId\] = useState\(initialClientId\)/)
+  assert.match(page, /const \[clientSearch, setClientSearch\] = useState\(initialClientName\)/)
   assert.doesNotMatch(page, /useState\(clients\[0\]\?\.id/)
   assert.doesNotMatch(page, /useState\(clients\[0\]\?\.name/)
 })
@@ -181,7 +182,7 @@ test('scheduling uses the shared business timezone source', () => {
   const page = source('./NewOrder.jsx')
   const review = source('./components/NewOrderReviewStep.jsx')
   assert.match(page, /import \{ getBusinessDate \} from '\.\.\/\.\.\/\.\.\/\.\.\/shared\/finance\.js'/)
-  assert.match(page, /useState\(getBusinessDate\(\)\)/)
+  assert.match(page, /useState\(initialDraft\?\.orderDate \|\| getBusinessDate\(\)\)/)
   assert.match(page, /const todayValue = getBusinessDate\(\)/)
   assert.match(page, /todayValue=\{todayValue\}/)
   assert.match(review, /FINANCE_TIME_ZONE/)
@@ -324,7 +325,7 @@ test('edit-reservation wizard starts clean from the official snapshot and does n
 
   assert.match(nodeText(renderer.root), /Editar reserva/)
   assert.match(nodeText(renderer.root), /Mesa 3/)
-  assert.match(nodeText(renderer.root), /Maria/)
+  assert.equal(renderer.root.findByProps({ role: 'combobox' }).props.value, 'Maria')
   assert.equal(buttonNamed(renderer.root, 'Salvar e receber'), undefined)
   assert.deepEqual(dirtyStates, [false])
 })
