@@ -14,12 +14,15 @@ import { useTableReservationDetail } from '../application/useTableReservationDet
 
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const itemSummary = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
-const reservationTime = (value) => new Intl.DateTimeFormat('pt-BR', {
+const reservationDateTime = (value) => new Intl.DateTimeFormat('pt-BR', {
   timeZone: FINANCE_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
-}).format(new Date(value))
+}).format(new Date(value)).replace(',', ' ·')
 
 function SelectedComanda({
   table,
@@ -308,7 +311,7 @@ function Comandas({
                           ? <><span className="comanda-table-tab">Comanda {tab.number}</span><span className="comanda-table-items">{itemSummary(tab.itemCount)}</span></>
                           : <span className="comanda-table-tab">Resumo indisponível</span>)
                       : reservedFree
-                        ? <><span className="comanda-table-tab">{reservation.clientName || 'Reserva'}</span><span className="comanda-table-items">{reservationTime(reservation.scheduledFor)} · {itemSummary(reservation.itemCount)}</span></>
+                        ? <><span className="comanda-table-tab">{reservation.clientName || 'Reserva'}</span><span className="comanda-table-items">{reservationDateTime(reservation.scheduledFor)} · {itemSummary(reservation.itemCount)}</span></>
                         : <span className="comanda-table-hint">Toque para lançar pedido</span>}
                   </span>
                   {occupied && tab && <strong className="comanda-table-total">{currency(tab.totalCents / 100)}</strong>}
@@ -324,7 +327,7 @@ function Comandas({
                   >
                     <span className="comanda-status reserved">Reservada</span>
                     <strong>{reservation.clientName || 'Reserva'}</strong>
-                    <time dateTime={reservation.scheduledFor}>{reservationTime(reservation.scheduledFor)}</time>
+                    <time dateTime={reservation.scheduledFor}>{reservationDateTime(reservation.scheduledFor)}</time>
                   </button>
                 )}
               </div>
