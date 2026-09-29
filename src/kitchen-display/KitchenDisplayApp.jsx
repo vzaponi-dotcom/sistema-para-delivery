@@ -98,6 +98,7 @@ export function KitchenDisplayApp({
 
   const applySnapshot = useCallback(async (next) => {
     const currentNow = new Date(next.serverNow || Date.now())
+    setNow(currentNow)
     const arrival = detectOperationalArrivals(previousIds.current, next.orders || [], currentNow, alertedIds.current, next.timing)
     previousIds.current = arrival.currentIds
     const filteredOrders = filterKitchenTvOrders(next.orders || [], next.control?.requestedModality)
@@ -223,7 +224,7 @@ export function KitchenDisplayApp({
 
   useEffect(() => {
     if (phase !== 'live') return undefined
-    const tick = globalThis.setInterval(() => setNow(new Date()), 1000)
+    const tick = globalThis.setInterval(() => setNow((current) => new Date(current.getTime() + 1000)), 1000)
     const poll = globalThis.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
     }, 2000)
