@@ -79,3 +79,12 @@ export const isNewOrderDraftDirty = (draft, initialSnapshot) => (
 export const shouldConfirmNewOrderExit = ({ activeTab, targetTab, draftDirty }) => (
   activeTab === 'new-order' && targetTab !== 'new-order' && Boolean(draftDirty)
 )
+
+export const getNewOrderScheduleState = () => ({
+  visible: false,
+  valid: false,
+  reservationMode: false,
+  nowAllowed: false,
+  scheduledLabel: 'Agendado',
+  fieldLabel: 'Quando preparar?',
+})
