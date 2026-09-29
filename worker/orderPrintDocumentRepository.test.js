@@ -222,7 +222,7 @@ test('manual print document rebuild preserves scheduled delivery and reservation
     INSERT INTO tables (id, business_id, name)
       VALUES ('table-reserved', 'amor-e-sabor', 'Mesa 8');
     INSERT INTO orders (
-      id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
+      id, business_id, client_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
       customer_identity_type, table_tab_id, order_number, type, order_date, scheduled_for,
       subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_amount_cents,
       adjustment_reason, total_cents, created_at
@@ -230,7 +230,7 @@ test('manual print document rebuild preserves scheduled delivery and reservation
       ('scheduled-delivery', 'amor-e-sabor', 'Ana', '', '', 'registered_client', NULL, 61,
        'Entrega', '2026-09-04', '2026-09-04T15:00:00.000Z',
        2500, 0, 'none', 0, '', 2500, '2026-09-03T12:00:00.000Z'),
-      ('reserved-local', 'amor-e-sabor', 'Hugo', '', '', 'table', NULL, 62,
+      ('reserved-local', 'amor-e-sabor', 'client-hugo', 'Hugo', '', '', 'table', NULL, 62,
        'Local', '2026-09-04', '2026-09-04T23:00:00.000Z',
        3200, 0, 'none', 0, '', 3200, '2026-09-03T12:00:00.000Z');
     INSERT INTO table_reservations (
