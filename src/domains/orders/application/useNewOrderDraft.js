@@ -136,10 +136,19 @@ export function useNewOrderDraft({
           await onConflictRef.current?.(token.context, error)
         } else if (token.context.expectedTableTabId) {
           await onConflictRef.current?.(token.context, error)
+        } else if (error?.code === 'TABLE_RESERVATION_CONFLICT') {
+          controllerRef.current.renewIdempotencyKey(token)
         }
       }
 
       if (controllerRef.current.isCurrent(token) || editMode) onErrorRef.current(error)
+      if (error?.status === 409) {
+        return {
+          ok: false,
+          code: error?.code || 'CONFLICT',
+          message: error?.message || 'Os dados mudaram. Revise e tente novamente.',
+        }
+      }
       return false
     } finally {
       if (controllerRef.current.isCurrent(token)) {
