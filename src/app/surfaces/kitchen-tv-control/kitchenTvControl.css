@@ -742,40 +742,6 @@
   line-height: 1.35;
 }
 
-.kitchen-tv-control-action-feedback {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border));
-  border-radius: var(--radius-md);
-  background: var(--success-soft);
-  color: var(--success);
-  font-size: .78rem;
-  font-weight: 700;
-}
-
-.kitchen-tv-control-action-feedback button {
-  min-width: 44px;
-  min-height: 36px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 850;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.kitchen-tv-control-action-feedback button:focus-visible {
-  outline: 3px solid var(--primary-control-ring);
-  outline-offset: 2px;
-}
-
 .kitchen-tv-control-action-buttons {
   display: grid;
   gap: 8px;

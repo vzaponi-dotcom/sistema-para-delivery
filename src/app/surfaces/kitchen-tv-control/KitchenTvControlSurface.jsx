@@ -65,8 +65,6 @@ function KitchenTvControlSurface({
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [pendingOrderId, setPendingOrderId] = useState(null)
   const [actionError, setActionError] = useState('')
-  const [actionFeedback, setActionFeedback] = useState('')
-  const [undoAction, setUndoAction] = useState(null)
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false)
   const pendingOrderRef = useRef(null)
 
@@ -135,9 +133,7 @@ function KitchenTvControlSurface({
   useEffect(() => {
     if (selectedOrderId && !selectedEntry) {
       setSelectedOrderId(null)
-      setUndoAction(null)
       setActionError('')
-      setActionFeedback('')
     }
   }, [selectedEntry, selectedOrderId])
 
@@ -193,14 +189,13 @@ function KitchenTvControlSurface({
     }
   }
 
-  const changeOrderVisibility = async (orderId, hidden, { offerUndo = true } = {}) => {
+  const changeOrderVisibility = async (orderId, hidden) => {
     if (!operationalControlsEnabled || !orderId) return false
     const normalizedId = String(orderId)
     const previousState = controlState
     pendingOrderRef.current = normalizedId
     setPendingOrderId(normalizedId)
     setActionError('')
-    setActionFeedback('')
     setControlState((current) => withHiddenOrder(current, normalizedId, hidden))
 
     try {
@@ -211,8 +206,7 @@ function KitchenTvControlSurface({
       if (!reconciled) setControlState((current) => withHiddenOrder(current, normalizedId, hidden))
 
       const message = hidden ? 'Pedido retirado da TV.' : 'Pedido voltou para a TV.'
-      setActionFeedback(message)
-      setUndoAction(offerUndo ? { orderId: normalizedId, hidden } : null)
+      if (hidden) setSelectedOrderId(null)
       onFeedback?.(message)
       return true
     } catch (cause) {
@@ -220,7 +214,6 @@ function KitchenTvControlSurface({
       if (!reconciled) setControlState(previousState)
       const message = cause?.message || (hidden ? 'Não foi possível retirar o pedido da TV.' : 'Não foi possível devolver o pedido para a TV.')
       setActionError(message)
-      setUndoAction(null)
       onFeedback?.(message)
       return false
     } finally {
@@ -229,18 +222,9 @@ function KitchenTvControlSurface({
     }
   }
 
-  const undoLastAction = async () => {
-    if (!undoAction || pendingOrderId !== null) return false
-    const action = undoAction
-    setUndoAction(null)
-    return changeOrderVisibility(action.orderId, !action.hidden, { offerUndo: false })
-  }
-
   const openOrderActions = (entry) => {
     setSelectedOrderId(String(entry.order.id))
     setActionError('')
-    setActionFeedback('')
-    setUndoAction(null)
     onSelectOrder?.(entry.order)
   }
 
@@ -248,8 +232,6 @@ function KitchenTvControlSurface({
     if (pendingOrderId !== null) return
     setSelectedOrderId(null)
     setActionError('')
-    setActionFeedback('')
-    setUndoAction(null)
   }
 
   const offscreenCount = countKitchenTvOffscreen(queueModel.allActive, controlState, telemetryFresh)
@@ -395,10 +377,6 @@ function KitchenTvControlSurface({
         {canControl && (!isOnline || !controlState?.paired || !telemetryFresh) && <p className="kitchen-tv-control-action-note">A TV precisa estar conectada e com sinal recente para alterar a visibilidade.</p>}
         {selectedScheduled && <p className="kitchen-tv-control-action-note">Pedidos agendados aguardando a janela de preparo aparecem na TV, mas não podem ser retirados manualmente.</p>}
         {actionError && <p className="kitchen-tv-control-action-error" role="alert">{actionError}</p>}
-        {actionFeedback && <div className="kitchen-tv-control-action-feedback" role="status">
-          <span>{actionFeedback}</span>
-          {undoAction?.orderId === String(selectedEntry.order.id) && <button type="button" onClick={() => { void undoLastAction() }} disabled={pendingOrderId !== null}>Desfazer</button>}
-        </div>}
         <div className="kitchen-tv-control-action-buttons">
           {!selectedScheduled && <Button
             type="button"
