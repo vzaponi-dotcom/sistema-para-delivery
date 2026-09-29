@@ -249,3 +249,62 @@ test('policy change in edit mode returns the same review signal without clearing
   assert.equal(probe.getLatest().context.mode, 'edit-reservation')
   probe.unmount()
 })
+
+test('create reservation conflict keeps the same draft, exposes the server message, and renews idempotency for retry', async () => {
+  const conflict = Object.assign(new Error('Esta mesa já possui uma reserva nesse horário. Escolha outra mesa ou outro horário.'), {
+    status: 409,
+    code: 'TABLE_RESERVATION_CONFLICT',
+  })
+  const keys = []
+  let attempts = 0
+  const errors = []
+  const probe = await mountProbe({
+    submitOrder: async (_payload, key) => {
+      keys.push(key)
+      attempts += 1
+      if (attempts === 1) throw conflict
+      return { order: { id: 'order-ok', status: 'Em preparo' } }
+    },
+    canSubmit: () => true,
+    commitOfficialEffects: () => {},
+    onCommitted: async () => {},
+    onSuccess: () => {},
+    onError: (error) => errors.push(error),
+    onConflict: async () => {},
+  })
+
+  await act(async () => {
+    probe.getLatest().open({ returnDestination: 'orders', tableId: 'table-2' })
+  })
+
+  let first
+  await act(async () => {
+    first = await probe.getLatest().submit({
+      type: 'Local',
+      scheduledFor: '2026-10-10T23:30:00.000Z',
+    })
+  })
+
+  assert.deepEqual(first, {
+    ok: false,
+    code: 'TABLE_RESERVATION_CONFLICT',
+    message: 'Esta mesa já possui uma reserva nesse horário. Escolha outra mesa ou outro horário.',
+  })
+  assert.equal(probe.getLatest().context.tableId, 'table-2')
+  assert.equal(probe.getLatest().checkoutPending, false)
+  assert.equal(errors[0], conflict)
+
+  let second
+  await act(async () => {
+    second = await probe.getLatest().submit({
+      type: 'Local',
+      scheduledFor: '2026-10-11T01:00:00.000Z',
+    })
+  })
+
+  assert.equal(second, true)
+  assert.equal(keys.length, 2)
+  assert.notEqual(keys[0], keys[1], 'retry after a payload-changing conflict needs a fresh idempotency key')
+  assert.equal(probe.getLatest().context, null)
+  probe.unmount()
+})
