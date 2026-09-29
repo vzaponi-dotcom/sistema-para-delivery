@@ -17,6 +17,11 @@ import './kitchenTvControl.css'
 
 const CONTROL_POLL_MS = 2000
 
+const loadDefaultPrintDocument = async (orderId) => {
+  const { getOrderPrintDocument } = await import('../../../domains/printing/index.js')
+  return getOrderPrintDocument(orderId)
+}
+
 const telemetryTime = (telemetry, now = new Date()) => {
   if (!telemetry?.reportedAt) return 'Sem telemetria recente'
   const date = new Date(telemetry.reportedAt)
@@ -46,6 +51,12 @@ function SummaryTile({ label, value, icon, tone = 'neutral' }) {
 
 const statusIcon = (key) => key === 'late' ? 'alert' : key === 'near-limit' ? 'clock' : key === 'scheduled' ? 'calendar' : 'preparation'
 const visibilityIcon = (key) => key === 'visible' ? 'eye' : 'eye-off'
+const printItemLabel = (item = {}) => {
+  const quantity = Math.max(1, Number(item.quantity) || 1)
+  const name = String(item.name ?? '').trim() || 'Item'
+  const presentation = String(item.presentation ?? '').trim()
+  return `${quantity}x ${name}${presentation ? ` ${presentation}` : ''}`
+}
 
 function KitchenTvControlSurface({
   orders = [],
@@ -54,8 +65,8 @@ function KitchenTvControlSurface({
   granted = new Set(),
   isOnline = true,
   api = defaultApi,
+  loadPrintDocument = loadDefaultPrintDocument,
   onSelectOrder,
-  onNavigate,
   onFeedback,
 }) {
   const [controlState, setControlState] = useState(null)
@@ -66,6 +77,9 @@ function KitchenTvControlSurface({
   const [pendingOrderId, setPendingOrderId] = useState(null)
   const [actionError, setActionError] = useState('')
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false)
+  const [printSnapshot, setPrintSnapshot] = useState(null)
+  const [printSnapshotLoading, setPrintSnapshotLoading] = useState(false)
+  const [printSnapshotError, setPrintSnapshotError] = useState('')
   const pendingOrderRef = useRef(null)
 
   const canControl = granted instanceof Set && granted.has('orders.kitchen.control')
@@ -136,6 +150,38 @@ function KitchenTvControlSurface({
       setActionError('')
     }
   }, [selectedEntry, selectedOrderId])
+
+  useEffect(() => {
+    if (!selectedOrderId) {
+      setPrintSnapshot(null)
+      setPrintSnapshotLoading(false)
+      setPrintSnapshotError('')
+      return undefined
+    }
+
+    let active = true
+    setPrintSnapshot(null)
+    setPrintSnapshotLoading(true)
+    setPrintSnapshotError('')
+
+    void Promise.resolve(loadPrintDocument(selectedOrderId))
+      .then((result) => {
+        if (!active) return
+        if (!result?.document) {
+          setPrintSnapshotError('Não foi possível carregar os itens do pedido.')
+          return
+        }
+        setPrintSnapshot(result.document)
+      })
+      .catch(() => {
+        if (active) setPrintSnapshotError('Não foi possível carregar os itens do pedido.')
+      })
+      .finally(() => {
+        if (active) setPrintSnapshotLoading(false)
+      })
+
+    return () => { active = false }
+  }, [loadPrintDocument, selectedOrderId])
 
   const telemetryFresh = Boolean(
     isOnline
@@ -372,6 +418,25 @@ function KitchenTvControlSurface({
           <strong>{selectedEntry.order.client || 'Cliente'}</strong>
           <span>{selectedHidden ? 'Retirado da TV' : 'Pedido ativo no painel'}</span>
         </div>
+        <section className="kitchen-tv-control-print-snapshot" aria-label="Itens do pedido">
+          <header>
+            <div>
+              <strong>Itens do pedido</strong>
+              <span>Snapshot da impressão</span>
+            </div>
+            <Icon name="print" size={18} />
+          </header>
+          {printSnapshotLoading && <p className="kitchen-tv-control-print-state">Carregando itens…</p>}
+          {printSnapshotError && <p className="kitchen-tv-control-print-state is-error" role="alert">{printSnapshotError}</p>}
+          {!printSnapshotLoading && !printSnapshotError && printSnapshot && <div className="kitchen-tv-control-print-items">
+            {(printSnapshot.items || []).map((item, index) => <div className="kitchen-tv-control-print-item" key={`${item.name || 'item'}-${index}`}>
+              <strong>{printItemLabel(item)}</strong>
+              {item.note && <span>Obs: {item.note}</span>}
+            </div>)}
+            {!(printSnapshot.items || []).length && <p className="kitchen-tv-control-print-state">Nenhum item no snapshot de impressão.</p>}
+          </div>}
+        </section>
+
         <p className="kitchen-tv-control-action-explainer">Remove apenas do painel da TV. O pedido continua em preparo no sistema.</p>
         {!canControl && <p className="kitchen-tv-control-action-note">Somente leitura. Você não tem permissão para alterar a TV.</p>}
         {canControl && (!isOnline || !controlState?.paired || !telemetryFresh) && <p className="kitchen-tv-control-action-note">A TV precisa estar conectada e com sinal recente para alterar a visibilidade.</p>}
@@ -390,15 +455,7 @@ function KitchenTvControlSurface({
                 ? 'Voltar para a TV'
                 : 'Retirar da TV'}
           </Button>}
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={pendingOrderId !== null}
-            onClick={() => {
-              setSelectedOrderId(null)
-              onNavigate?.('orders')
-            }}
-          >Ver na Cozinha</Button>
+
         </div>
       </div>}
     </BottomSheet>
