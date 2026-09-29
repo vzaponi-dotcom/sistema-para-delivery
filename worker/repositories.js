@@ -311,6 +311,7 @@ export const deleteProduct = async (db, businessId, id, now = new Date()) => {
 }
 
 const backdatedOperationalTimestamp = (orderDate) => `${orderDate}T15:00:00.000Z`
+const TABLE_RESERVATION_DURATION_MINUTES = 120
 
 export const loadOrderById = async (db, businessId, id) => {
   const row = await db.prepare(`${orderSelect} WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(id, businessId).first()
@@ -356,6 +357,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   let tableTabId = null
   let tableIdentifier = null
   let pendingTableTab = null
+  let pendingReservation = null
   if (customerIdentity.type === 'registered_client') {
     const client = await db.prepare('SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
     if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
@@ -374,31 +376,49 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       clientPhoneSnapshot = formatClientPhone(client.phone)
       clientAddressSnapshot = client.address || ''
     }
-    let tableTab
-    if (input.expectedTableTabId) {
-      tableTab = await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
-    } else {
+    const reservationMode = Boolean(input.scheduledFor)
+    if (reservationMode) {
+      if (input.expectedTableTabId) {
+        throw repositoryError(400, 'RESERVATION_TABLE_TAB_NOT_ALLOWED', 'Reservas não podem ser vinculadas a uma comanda aberta.')
+      }
       const table = await db.prepare(`SELECT id, name, is_active
         FROM tables WHERE id = ? AND business_id = ? LIMIT 1`).bind(customerIdentity.tableId, businessId).first()
-      if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa n\u00e3o encontrada.')
-      if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa est\u00e1 inativa.')
-      const openRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
-        FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open' LIMIT 1`).bind(businessId, table.id).first()
-      if (openRow) {
-        tableTab = mapTableTabRow(openRow)
-      } else {
-        const timestamp = now.toISOString()
-        tableTab = {
-          id: crypto.randomUUID(), tableId: table.id, tableIdentifier: table.name,
-          tabNumber: await reserveNextTableTabNumber(db, businessId, now), status: 'open',
-          openedAt: timestamp, closedAt: null,
-        }
-        pendingTableTab = tableTab
+      if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
+      if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa está inativa.')
+      tableIdentifier = table.name
+      if (!clientSnapshot) clientSnapshot = table.name
+      pendingReservation = {
+        id: crypto.randomUUID(),
+        tableId: table.id,
+        tableName: table.name,
       }
+    } else {
+      let tableTab
+      if (input.expectedTableTabId) {
+        tableTab = await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
+      } else {
+        const table = await db.prepare(`SELECT id, name, is_active
+          FROM tables WHERE id = ? AND business_id = ? LIMIT 1`).bind(customerIdentity.tableId, businessId).first()
+        if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
+        if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa está inativa.')
+        const openRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
+          FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open' LIMIT 1`).bind(businessId, table.id).first()
+        if (openRow) {
+          tableTab = mapTableTabRow(openRow)
+        } else {
+          const timestamp = now.toISOString()
+          tableTab = {
+            id: crypto.randomUUID(), tableId: table.id, tableIdentifier: table.name,
+            tabNumber: await reserveNextTableTabNumber(db, businessId, now), status: 'open',
+            openedAt: timestamp, closedAt: null,
+          }
+          pendingTableTab = tableTab
+        }
+      }
+      if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
+      tableTabId = tableTab.id
+      tableIdentifier = tableTab.tableIdentifier
     }
-    if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
-    tableTabId = tableTab.id
-    tableIdentifier = tableTab.tableIdentifier
   } else {
     throw repositoryError(400, 'INVALID_CUSTOMER_IDENTITY', 'Identificação do pedido inválida.')
   }
@@ -411,10 +431,15 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   }
 
   const today = getBusinessDate(now)
-  if (input.orderDate > today) throw repositoryError(400, 'ORDER_DATE_IN_FUTURE', 'A data do pedido não pode estar no futuro.')
+  const scheduledFor = input.scheduledFor || null
+  if (input.orderDate > today && !scheduledFor) {
+    throw repositoryError(400, 'ORDER_DATE_IN_FUTURE', 'A data do pedido não pode estar no futuro.')
+  }
+  if (input.orderDate < today && scheduledFor) {
+    throw repositoryError(400, 'ORDER_SCHEDULE_INVALID', 'Pedido agendado não pode usar uma data retroativa.')
+  }
 
-  const historical = input.orderDate < today
-  const scheduledFor = historical ? null : (input.scheduledFor || null)
+  const historical = input.orderDate < today && !scheduledFor
   const isBackdated = historical ? 1 : 0
   const createdAt = historical ? backdatedOperationalTimestamp(input.orderDate) : now.toISOString()
   const finishedAt = historical ? createdAt : null
@@ -440,6 +465,15 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     RETURNING last_order_number`).bind(businessId).first()
   const orderNumber = Number(sequenceRow?.last_order_number)
   if (!Number.isInteger(orderNumber) || orderNumber < 1) throw new Error('ORDER_NUMBER_ALLOCATION_FAILED')
+
+  if (pendingReservation) {
+    const scheduledAt = new Date(scheduledFor)
+    if (Number.isNaN(scheduledAt.getTime())) throw repositoryError(400, 'ORDER_SCHEDULE_INVALID', 'Horário agendado inválido.')
+    pendingReservation.scheduledFor = scheduledAt.toISOString()
+    pendingReservation.endsAt = new Date(
+      scheduledAt.getTime() + TABLE_RESERVATION_DURATION_MINUTES * 60_000,
+    ).toISOString()
+  }
 
   const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, order_number, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, scheduled_for, is_backdated, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     orderId,
@@ -477,6 +511,11 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       AND NOT EXISTS (SELECT 1 FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open')`,
     [pendingTableTab.tableId, businessId, businessId, pendingTableTab.tableId])
     : null
+  const reservationTableGuard = pendingReservation
+    ? prepareSettingsAssertion(db, policyTxId, 'reservation-table',
+      'EXISTS (SELECT 1 FROM tables WHERE id = ? AND business_id = ? AND is_active = 1)',
+      [pendingReservation.tableId, businessId])
+    : null
   const tableTabStatement = pendingTableTab
     ? db.prepare(`INSERT INTO table_tabs (
       id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at
@@ -485,11 +524,32 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       pendingTableTab.tabNumber, pendingTableTab.openedAt, pendingTableTab.openedAt, pendingTableTab.openedAt,
     )
     : null
+  const reservationStatement = pendingReservation
+    ? db.prepare(`INSERT INTO table_reservations (
+      id, business_id, order_id, table_id, table_name_snapshot, status,
+      scheduled_for, ends_at, duration_minutes, revision,
+      converted_table_tab_id, converted_at, cancelled_at, no_show_at,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 'reserved', ?, ?, ?, 1, NULL, NULL, NULL, NULL, ?, ?)`).bind(
+      pendingReservation.id,
+      businessId,
+      orderId,
+      pendingReservation.tableId,
+      pendingReservation.tableName,
+      pendingReservation.scheduledFor,
+      pendingReservation.endsAt,
+      TABLE_RESERVATION_DURATION_MINUTES,
+      createdAt,
+      createdAt,
+    )
+    : null
   const statements = [
     ...policyGuards,
+    ...(reservationTableGuard ? [reservationTableGuard] : []),
     ...(tableTabGuard ? [tableTabGuard, tableTabStatement] : []),
     orderStatement,
     contactSnapshotStatement,
+    ...(reservationStatement ? [reservationStatement] : []),
   ]
   for (const item of pricedItems) {
     statements.push(db.prepare(`INSERT INTO order_items (id, business_id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
@@ -593,18 +653,24 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     }))
   }
 
-  if (policyGuards.length || tableTabGuard) statements.push(clearSettingsAssertions(db, policyTxId))
+  if (policyGuards.length || tableTabGuard || reservationTableGuard) statements.push(clearSettingsAssertions(db, policyTxId))
 
   try {
     await db.batch(statements)
   } catch (error) {
     const collided = await db.prepare('SELECT id FROM orders WHERE business_id = ? AND idempotency_key = ? LIMIT 1').bind(businessId, idempotencyKey).first()
     if (collided?.id) return loadOrderById(db, businessId, collided.id)
+    if (String(error?.message || '').includes('TABLE_RESERVATION_CONFLICT')) {
+      throw repositoryError(409, 'TABLE_RESERVATION_CONFLICT', 'Esta mesa já possui uma reserva nesse horário. Escolha outra mesa ou outro horário.')
+    }
     if (/TABLE_TAB_NOT_OPEN/i.test(String(error?.message || ''))) {
       throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
     }
     if (pendingTableTab && String(error?.message || '').includes('SETTINGS_INVALID')) {
       throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
+    }
+    if (pendingReservation && String(error?.message || '').includes('SETTINGS_INVALID')) {
+      throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa está inativa. Atualize os dados e tente novamente.')
     }
     if (String(error?.message || '').includes('POLICY_CHANGED')) {
       rethrowPolicyChange(error)
