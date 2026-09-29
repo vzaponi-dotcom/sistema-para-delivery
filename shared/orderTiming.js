@@ -6,7 +6,21 @@ export const SCHEDULED_LATE_GRACE_MINUTES = 15
 export const IMMEDIATE_LATE_AFTER_MINUTES = 30
 export const SCHEDULE_MAX_DAYS = 90
 
-export const validateOrderSchedule = () => ({ ok: false, code: 'SCHEDULE_POLICY_NOT_IMPLEMENTED' })
+const SCHEDULE_TYPES = new Set(['Entrega', 'Retirada', 'Local'])
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+
+const businessDayNumber = (value) => {
+  const match = ISO_DATE_PATTERN.exec(String(value || ''))
+  if (!match) return null
+  const [, rawYear, rawMonth, rawDay] = match
+  const year = Number(rawYear)
+  const month = Number(rawMonth)
+  const day = Number(rawDay)
+  const timestamp = Date.UTC(year, month - 1, day)
+  const parsed = new Date(timestamp)
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) return null
+  return Math.floor(timestamp / 86_400_000)
+}
 
 const TIMING_KEYS = Object.keys(LEGACY_TIMING)
 const TERMINAL_STATUSES = new Set(['Finalizado', 'Cancelado', 'Entregue', 'Despachado'])
@@ -46,6 +60,28 @@ export const selectOrderTimingPolicy = (order, currentTiming = LEGACY_TIMING) =>
   return parseOrderTimingPolicySnapshot(order.timingPolicySnapshot)
 }
 
+export const validateOrderSchedule = (order = {}, now = new Date(), maxDays = SCHEDULE_MAX_DAYS) => {
+  if (!SCHEDULE_TYPES.has(order?.type)) return { ok: false, code: 'SCHEDULE_TYPE_NOT_ALLOWED' }
+  const scheduled = validDate(order?.scheduledFor)
+  const reference = validDate(now)
+  const orderDay = businessDayNumber(order?.orderDate)
+  if (!scheduled || !reference || orderDay == null || !Number.isInteger(maxDays) || maxDays < 0) {
+    return { ok: false, code: 'SCHEDULE_INVALID' }
+  }
+  if (scheduled <= reference) return { ok: false, code: 'SCHEDULE_IN_PAST' }
+
+  const scheduledBusinessDate = getBusinessDate(scheduled)
+  if (scheduledBusinessDate !== order.orderDate) return { ok: false, code: 'SCHEDULE_DATE_MISMATCH' }
+
+  const todayDay = businessDayNumber(getBusinessDate(reference))
+  if (todayDay == null) return { ok: false, code: 'SCHEDULE_INVALID' }
+  const daysAhead = orderDay - todayDay
+  if (daysAhead < 0) return { ok: false, code: 'SCHEDULE_IN_PAST' }
+  if (daysAhead > maxDays) return { ok: false, code: 'SCHEDULE_OUT_OF_RANGE' }
+
+  return { ok: true, scheduledFor: scheduled.toISOString(), daysAhead }
+}
+
 const validDate = (value) => {
   if (!value) return null
   const date = value instanceof Date ? new Date(value) : new Date(value)
@@ -75,12 +111,8 @@ export const businessDateTimeToIso = (dateValue, timeValue) => {
 
 export const isFutureSameDaySchedule = (order, now = new Date()) => {
   if (!['Entrega', 'Retirada'].includes(order?.type)) return false
-  const scheduled = validDate(order?.scheduledFor)
-  const reference = validDate(now)
-  return Boolean(scheduled && reference
-    && (!order?.orderDate || order.orderDate === getBusinessDate(reference))
-    && getBusinessDate(scheduled) === getBusinessDate(reference)
-    && scheduled > reference)
+  const result = validateOrderSchedule(order, now, 0)
+  return result.ok && result.daysAhead === 0
 }
 
 export const getOperationalStartAt = (order, currentTiming = LEGACY_TIMING) => {
