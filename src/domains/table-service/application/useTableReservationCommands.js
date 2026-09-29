@@ -20,6 +20,7 @@ export function useTableReservationCommands({
   setRequestKey = () => {},
   onSuccess = () => {},
   onError = () => {},
+  onResult = () => {},
 } = {}) {
   const [actionKey, setActionKeyState] = useState(null)
   const actionRef = useRef(null)
@@ -35,12 +36,14 @@ export function useTableReservationCommands({
     allowed,
     call,
     successMessage,
+    action,
   }) => {
     if (!allowed || writesBlocked || actionRef.current) return false
     setActionKey(key)
     try {
       const result = await call()
       applyOfficialEffects(result)
+      onResult(result, action)
       onSuccess(successMessage)
       return true
     } catch (error) {
@@ -50,13 +53,14 @@ export function useTableReservationCommands({
     } finally {
       setActionKey(null)
     }
-  }, [applyOfficialEffects, onError, onSuccess, refreshReservation, setActionKey, writesBlocked])
+  }, [applyOfficialEffects, onError, onResult, onSuccess, refreshReservation, setActionKey, writesBlocked])
 
   const editReservation = useCallback((reservationId, payload) => execute({
     key: `reservation:edit:${reservationId}`,
     allowed: canCreateOrders && (!reservationMutationNeedsDiscount(payload) || canDiscountOrders),
     call: () => api.updateReservation(reservationId, payload),
     successMessage: messages.edit,
+    action: 'edit',
   }), [api, canCreateOrders, canDiscountOrders, execute])
 
   const confirmArrival = useCallback((reservationId, expectedRevision, mutationId) => execute({
@@ -64,6 +68,7 @@ export function useTableReservationCommands({
     allowed: canCreateOrders,
     call: () => api.confirmArrival(reservationId, expectedRevision, mutationId),
     successMessage: messages.arrival,
+    action: 'arrival',
   }), [api, canCreateOrders, execute])
 
   const cancelReservation = useCallback((reservationId, payload) => execute({
@@ -71,6 +76,7 @@ export function useTableReservationCommands({
     allowed: canCancelOrders,
     call: () => api.cancelReservation(reservationId, payload),
     successMessage: messages.cancel,
+    action: 'cancel',
   }), [api, canCancelOrders, execute])
 
   const markNoShow = useCallback((reservationId, payload) => execute({
@@ -78,6 +84,7 @@ export function useTableReservationCommands({
     allowed: canCancelOrders,
     call: () => api.markNoShow(reservationId, payload),
     successMessage: messages.noShow,
+    action: 'no-show',
   }), [api, canCancelOrders, execute])
 
   return {
