@@ -38,6 +38,7 @@ import {
   useComandaSelection,
   useTableServiceCommands,
   getOpenComandaCount,
+  tableReservationApi,
 } from './domains/table-service/index.js'
 import DashboardSurface from './app/surfaces/dashboard/DashboardSurface.jsx'
 import KitchenTvControlSurface from './app/surfaces/kitchen-tv-control/KitchenTvControlSurface.jsx'
@@ -113,12 +114,14 @@ function App({ capabilities } = {}) {
   const orderCommandTargetsRef = useRef({ onError: () => {} })
   const newOrderDraft = useNewOrderDraft({
     submitOrder: ordersApi.createOrder,
-    canSubmit: (payload) => newOrderDraftTargetsRef.current.canSubmit(payload),
+    submitReservationEdit: tableReservationApi.updateReservation,
+    refreshReservation: tableReservationApi.getReservation,
+    canSubmit: (payload, context) => newOrderDraftTargetsRef.current.canSubmit(payload, context),
     commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
     onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
     onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
     onError: (error) => newOrderDraftTargetsRef.current.onError(error),
-    onConflict: (context) => newOrderDraftTargetsRef.current.onConflict(context),
+    onConflict: (context, error) => newOrderDraftTargetsRef.current.onConflict(context, error),
   })
 
   const refreshBootstrapForSession = useCallback(
@@ -415,10 +418,14 @@ function App({ capabilities } = {}) {
           : null
         if (identity) selectComanda(identity, nextTables)
       }
-      if (order?.id) printing.rememberOriginOrder(order.id)
+      if (context.mode === 'create' && order?.id) printing.rememberOriginOrder(order.id)
       completeNavigation(context.returnDestination)
     },
-    onSuccess: (order) => {
+    onSuccess: (order, context) => {
+      if (context?.mode === 'edit-reservation') {
+        showSuccessMessage('Reserva atualizada com sucesso')
+        return
+      }
       showSuccessMessage(order.paymentStatus === 'Pago'
         ? 'Pedido salvo e pagamento recebido'
         : (order.status === 'Finalizado' ? 'Pedido anterior salvo no histórico' : 'Pedido enviado para a fila da cozinha'))
@@ -559,7 +566,7 @@ function App({ capabilities } = {}) {
         {activeTab === 'orders' && <Orders orders={orders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={orderCommands.finalizeOrder} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} printQueueActiveCount={printing.activeJobCount} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'kitchen-tv-control' && <KitchenTvControlSurface orders={orders} now={kitchenNow} currentTiming={currentTiming} granted={granted} isOnline={isOnline} onNavigate={requestNavigation} onFeedback={setToastMessage} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} renderPaymentComposition={(props) => <CheckoutPaymentComposition {...props} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} />} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} mode={newOrderDraft.context?.mode || 'create'} reservationContext={newOrderDraft.context?.reservationContext || null} initialDraft={newOrderDraft.context?.initialDraft || null} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} renderPaymentComposition={(props) => <CheckoutPaymentComposition {...props} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} />} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
         {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canManageClients={canManageClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
         <CatalogWorkspace visible={activeTab === 'products'} products={products} search={query.products.search} queryState={query.products} onSearchChange={(search) => patchQuery('products', { search })} onQueryChange={(patch) => patchQuery('products', patch)} currency={currency} writesBlocked={writesBlocked} canManageProducts={canManageProducts} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canDiscardPrinting={canDiscardPrinting} isOnline={isOnline} />}
