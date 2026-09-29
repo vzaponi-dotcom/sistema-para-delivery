@@ -633,3 +633,53 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 16.
+
+## Task 16 evidence
+
+### RED / characterization
+
+- TV presentation characterization: `23cbadecf95c50f41dd05f30a57e962384af0d12`.
+- Kitchen Display runtime characterization: `9462ae310ea7c5f9c72a8cc02edf5a11c7abcb4d`.
+- Validate #2659 / run `36625456814`: FAILURE on one new runtime scenario as intended.
+
+The RED exposed a real clock-ownership gap in the Kitchen TV:
+- arrival detection correctly used authoritative `serverNow`;
+- the rendered TV board still used the device/browser wall clock;
+- therefore a future order could render too early when the TV clock/date differed from the server snapshot.
+
+The remaining new characterizations already passed:
+- distant Entrega/Retirada schedules do not create TV cards/counters;
+- a Local reservation 30 days away does not appear;
+- Local reservation becomes a normal Local card when operational;
+- opening the TV after the transition does not replay historical sound;
+- Mesa modality continues to filter display and future agenda rows are not rendered.
+
+### GREEN
+
+Production fix:
+- `709b6abf94d4da489d6c95ef90ba8aee588225d8` — Kitchen TV now synchronizes its presentation clock from each authoritative `serverNow` snapshot and advances that clock locally between polls instead of jumping to the device wall clock.
+
+The first GREEN validation (#2660) still failed one assertion in the new characterization. Review showed the assertion was stricter than the approved spec: once the service date becomes the current operational day, a waiting scheduled order may appear as `Agendado` before `operational_start_at`; the sound/operational transition still occurs only when the preparation window starts.
+
+Characterization correction:
+- `98aa8581e34393462ff205b5e1d1a399c08f12dd` — preserves same-day scheduled visibility while requiring silence before the preparation window.
+
+Validate #2661 / run `36625864310`: SUCCESS.
+
+Delivered/proved:
+- tomorrow/distant schedules remain absent from TV while they are future operational dates;
+- future schedules do not affect TV preparing/scheduled/late counters for the current operational day;
+- on the scheduled operational day, waiting work may appear as `Agendado` according to the existing same-day rule;
+- at `operational_start_at`, the order transitions to preparing priority and produces one arrival alert;
+- repeated polls do not replay that alert;
+- opening the TV after the transition seeds the current operational set without historical sound;
+- Local reservations follow the same timing and appear with modality `Local` when operational;
+- existing Entrega/Retirada/Mesa remote modality filters remain intact;
+- TV still has no `Próximos dias`/future-agenda surface;
+- paging, overflow and existing TV layout contracts remain unchanged;
+- rendering and arrival detection now share the same authoritative server clock basis.
+
+Staging deploy: NOT EXECUTED.  
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 17.
