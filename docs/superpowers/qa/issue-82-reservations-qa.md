@@ -15,7 +15,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Migration clean install | PASS | Task 1 test + Validate #2518 / run `36580925658` |
 | Migration upgrade | PASS | Exact pre-0034 upgrade preserves existing order/table-tab history; Validate #2518 |
 | Reservation overlap concurrency | PARTIAL | SQLite write-boundary overlap triggers PASS for insert/update and half-open intervals; true multi-request race remains for later integration tasks. |
-| Checkout | PARTIAL | Task 2 validates schedule input through 90 days and Local eligibility; reservation persistence checkout remains for Task 5. |
+| Checkout | PASS (through Task 5 scope) | Validate #2545 / run `36587697649`: Local reservation persists atomically without opening a comanda; overlap rollback/idempotency/HTTP effects pass. Printing timing remains Task 6. |
 | Printing | PENDING | — |
 | Arrival conversion | PENDING | — |
 | Edit reservation | PENDING | — |
@@ -24,10 +24,10 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Kitchen TV | PENDING | — |
 | Receivables | PENDING | — |
 | Reporting | PENDING | — |
-| Architecture | PASS (current HEAD before Task 4) | Validate #2533 / run `36584823314` |
-| Full test suite | PASS (current HEAD before Task 4) | All 8 test shards green in Validate #2533 / run `36584823314` |
-| Lint | PASS (current HEAD before Task 4) | Validate #2533 / run `36584823314` |
-| Build | PASS (current HEAD before Task 4) | Validate #2533 / run `36584823314` |
+| Architecture | PASS (current HEAD through Task 5) | Validate #2545 / run `36587697649` |
+| Full test suite | PASS (current HEAD through Task 5) | All 8 test shards green in Validate #2545 / run `36587697649` |
+| Lint | PASS (current HEAD through Task 5) | Validate #2545 / run `36587697649` |
+| Build | PASS (current HEAD through Task 5) | Validate #2545 / run `36587697649` |
 
 ## Manual staging blocks
 
@@ -65,3 +65,20 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Order reservation context read model: PASS.
 - Table occupancy remains independent from reservation projection: PASS.
 - No full reservation collection added to bootstrap: PASS by implementation contract; complete API/bootstrap coverage continues in Task 7.
+
+
+## Automated checkpoints after Task 5
+
+- Active reservation blocks table rename: PASS.
+- Active reservation blocks table deactivation: PASS.
+- Table reordering with reservation: PASS.
+- Terminal reservation does not block table management: PASS.
+- Local scheduled checkout opens no table-tab: PASS.
+- Local scheduled checkout keeps occupancy unchanged: PASS.
+- Reservation on currently occupied table remains independent from current tab: PASS.
+- Reservation duration snapshot 120 minutes: PASS.
+- Overlap conflict rollback across order/items/job/reservation: PASS.
+- Reservation checkout idempotency: PASS.
+- Scheduled Local + expectedTableTabId rejected: PASS.
+- POST /api/orders returns reservation + updated nextReservation projection: PASS.
+- Task 4 final workflow required one infrastructure-only rerun due local Wrangler port collision; rerun passed without code change.
