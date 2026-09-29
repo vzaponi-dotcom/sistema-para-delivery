@@ -5,6 +5,7 @@ export const SCHEDULED_PREP_LEAD_MINUTES = 50
 export const SCHEDULED_LATE_GRACE_MINUTES = 15
 export const IMMEDIATE_LATE_AFTER_MINUTES = 30
 export const SCHEDULE_MAX_DAYS = 90
+export const getScheduleMaxBusinessDate = () => ''
 
 const SCHEDULE_TYPES = new Set(['Entrega', 'Retirada', 'Local'])
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
