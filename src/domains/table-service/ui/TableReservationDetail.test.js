@@ -67,7 +67,7 @@ test('reservation detail shows semantic reservation identity, service time, item
   assert.match(text, /10\/10\/2026/)
   assert.match(text, /20:00/)
   assert.match(text, /3 itens/)
-  assert.match(text, /Marmita.*2x.*sem cebola/i)
+  assert.match(text, /2x.*Marmita.*sem cebola/i)
   assert.match(text, /Total previsto.*R\$ 59.00/i)
   assert.ok(buttonNamed(renderer.root, 'Editar reserva'))
   assert.ok(buttonNamed(renderer.root, 'Confirmar chegada'))
