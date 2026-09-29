@@ -296,8 +296,6 @@ export function createReportingRepository(db) {
                 ELSE 0
               END) AS pending_cents
             FROM orders o
-            LEFT JOIN table_reservations tr
-              ON tr.business_id = o.business_id AND tr.order_id = o.id
             WHERE o.business_id = ? AND o.client_id = ?
           `).bind(businessId, row.client_id).first()
 
@@ -312,6 +310,8 @@ export function createReportingRepository(db) {
               (SELECT SUM(pay.amount_cents) FROM payments pay
                 WHERE pay.business_id = o.business_id AND pay.order_id = o.id) AS paid_cents
             FROM orders o
+            LEFT JOIN table_reservations tr
+              ON tr.business_id = o.business_id AND tr.order_id = o.id
             WHERE o.business_id = ? AND o.client_id = ?
             ORDER BY o.order_date DESC, o.created_at DESC, o.order_number DESC, o.id DESC
             LIMIT 100
