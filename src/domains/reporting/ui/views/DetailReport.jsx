@@ -26,7 +26,7 @@ const FILTER_LABELS = {
   search: 'Busca',
 }
 const COLUMNS = [
-  ['order_number', 'Pedido'], ['order_date', 'Data'], ['client_name_snapshot', 'Cliente'],
+  ['order_number', 'Pedido'], ['order_date', 'Data do pedido'], ['client_name_snapshot', 'Cliente'],
   ['type', 'Modalidade'], ['status', 'Status'], ['total_cents', 'Total'],
   ['paidCents', 'Recebido'], ['pendingCents', 'Pendente'], ['payment_label', 'Pagamento'],
   ['durationMinutes', 'Duração'], ['onTime', 'Prazo'],
@@ -51,13 +51,10 @@ const statusClass = (status = '') => status === 'Cancelado'
 const typeIcon = (type) => type === 'Retirada' ? 'pickup' : type === 'Local' ? 'table' : 'delivery'
 const deadlineClass = (onTime) => onTime == null ? 'is-neutral' : onTime ? 'is-success' : 'is-danger'
 
-const formatDateTime = (item) => {
-  if (!item?.created_at) return item?.order_date || '—'
-  const parsed = new Date(item.created_at)
-  if (Number.isNaN(parsed.getTime())) return item.order_date || '—'
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  }).format(parsed).replace(',', '')
+const formatOrderDate = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''))
+  if (!match) return value || '—'
+  return `${match[3]}/${match[2]}/${match[1]}`
 }
 
 const filterValue = (key, value) => {
@@ -95,7 +92,7 @@ const screenColumns = (columns) => {
 function DetailCell({ item, column }) {
   const [key] = column
   if (key === 'order_number') return <strong className="reporting-detail-order-number">{getReportingOrderReference(item).compact}</strong>
-  if (key === 'order_date') return <span className="reporting-detail-date">{formatDateTime(item)}</span>
+  if (key === 'order_date') return <span className="reporting-detail-date">{formatOrderDate(item.order_date)}</span>
   if (key === 'client_name_snapshot') return <span className="reporting-detail-client"><strong>{item.client_name_snapshot || 'Sem cliente'}</strong>{item.client_phone_snapshot ? <small>{item.client_phone_snapshot}</small> : null}</span>
   if (key === 'type') return <span className="reporting-detail-type"><Icon name={typeIcon(item.type)} size={15} />{item.type || '—'}</span>
   if (key === 'status') return <span className={`reporting-detail-status ${statusClass(item.status)}`}>{item.status || '—'}</span>
