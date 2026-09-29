@@ -124,6 +124,8 @@ export function useNewOrderDraft({
       const retryableCreateConflict = error?.status === 409
         && !editMode
         && !token.context.expectedTableTabId
+        && payload?.type === 'Local'
+        && Boolean(payload?.scheduledFor)
 
       if (error?.status === 409) {
         if (editMode && refreshReservationRef.current) {
