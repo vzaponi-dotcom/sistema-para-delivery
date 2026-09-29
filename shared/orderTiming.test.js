@@ -9,6 +9,8 @@ import {
   getOrderLateAt,
   getOrderMinutesLate,
   isFutureSameDaySchedule,
+  SCHEDULE_MAX_DAYS,
+  validateOrderSchedule,
 } from './orderTiming.js'
 
 test('aplica janela 50 e tolerância 15', () => {
@@ -62,4 +64,65 @@ test('rejeita agendamento quando orderDate não é o dia operacional atual', () 
     orderDate: '2026-09-03',
     scheduledFor: '2026-09-04T15:00:00.000Z',
   }, new Date('2026-09-04T13:00:00.000Z')), false)
+})
+
+
+test('multiday schedule policy accepts delivery, pickup and local through the 90th business day', () => {
+  const now = new Date('2026-09-04T13:00:00.000Z')
+  assert.equal(SCHEDULE_MAX_DAYS, 90)
+
+  for (const [type, orderDate, scheduledFor] of [
+    ['Entrega', '2026-09-04', '2026-09-04T15:00:00.000Z'],
+    ['Retirada', '2026-09-05', '2026-09-05T15:00:00.000Z'],
+    ['Local', '2026-12-03', '2026-12-03T15:00:00.000Z'],
+  ]) {
+    assert.deepEqual(validateOrderSchedule({ type, orderDate, scheduledFor }, now), {
+      ok: true,
+      scheduledFor,
+      daysAhead: type === 'Entrega' ? 0 : type === 'Retirada' ? 1 : 90,
+    })
+  }
+})
+
+test('multiday schedule policy rejects past, date mismatch and the 91st business day with stable reasons', () => {
+  const now = new Date('2026-09-04T13:00:00.000Z')
+
+  assert.deepEqual(validateOrderSchedule({
+    type: 'Entrega',
+    orderDate: '2026-09-04',
+    scheduledFor: '2026-09-04T12:59:59.000Z',
+  }, now), { ok: false, code: 'SCHEDULE_IN_PAST' })
+
+  assert.deepEqual(validateOrderSchedule({
+    type: 'Retirada',
+    orderDate: '2026-09-05',
+    scheduledFor: '2026-09-06T15:00:00.000Z',
+  }, now), { ok: false, code: 'SCHEDULE_DATE_MISMATCH' })
+
+  assert.deepEqual(validateOrderSchedule({
+    type: 'Local',
+    orderDate: '2026-12-04',
+    scheduledFor: '2026-12-04T15:00:00.000Z',
+  }, now), { ok: false, code: 'SCHEDULE_OUT_OF_RANGE' })
+})
+
+test('schedule horizon uses Sao Paulo calendar days instead of UTC date boundaries', () => {
+  const now = new Date('2026-09-05T01:30:00.000Z') // 04/09 22:30 in Sao Paulo
+  const scheduledFor = '2026-12-04T02:30:00.000Z' // 03/12 23:30 in Sao Paulo
+
+  assert.deepEqual(validateOrderSchedule({
+    type: 'Entrega',
+    orderDate: '2026-12-03',
+    scheduledFor,
+  }, now), { ok: true, scheduledFor, daysAhead: 90 })
+})
+
+test('schedule policy rejects invalid timestamps and unsupported order type without throwing', () => {
+  const now = new Date('2026-09-04T13:00:00.000Z')
+  assert.deepEqual(validateOrderSchedule({
+    type: 'Entrega', orderDate: '2026-09-04', scheduledFor: 'not-a-date',
+  }, now), { ok: false, code: 'SCHEDULE_INVALID' })
+  assert.deepEqual(validateOrderSchedule({
+    type: 'Outro', orderDate: '2026-09-05', scheduledFor: '2026-09-05T15:00:00.000Z',
+  }, now), { ok: false, code: 'SCHEDULE_TYPE_NOT_ALLOWED' })
 })
