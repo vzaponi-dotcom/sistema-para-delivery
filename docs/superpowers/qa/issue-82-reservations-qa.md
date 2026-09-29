@@ -2,7 +2,7 @@
 
 **Feature:** Agendamento multi-dia e reservas de mesa
 **PR:** #83
-**Status:** PARTIAL — 37 PASS, 3 FAIL, 30 BLOCKED
+**Status:** PARTIAL — 39 PASS, 3 FAIL, 28 BLOCKED
 **Staging SHA (aplicação homologada):** 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08
 **Production:** BLOCKED
 
@@ -309,7 +309,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Aplicação/PR #83: 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08.
 - Deploy staging: [run 36633062484](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36633062484) SUCCESS; migrations, deploy, login e deep links verdes.
 - Navegador IAB autenticado, viewport mobile 390×844, TV emparelhada e ativa.
-- Matriz: **37 PASS / 3 FAIL / 19 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
+- Matriz: **39 PASS / 3 FAIL / 17 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
 
 ### Casos 1–70
 
@@ -380,11 +380,11 @@ No scenario is marked PASS until it is actually executed against the implementat
 | 63 | BLOCKED-ENVIRONMENT | Alvos de toque não foram medidos sistematicamente em dispositivo físico. |
 | 64 | BLOCKED-ENVIRONMENT | Sem medição/screenshot completo de overflow horizontal em todas as telas mobile. |
 | 65 | BLOCKED-ENVIRONMENT | #279 não apareceu na página visível e contadores ficaram iguais; TV não expôs todas as páginas durante a amostra, então ausência integral não comprovada. |
-| 66 | BLOCKED-ENVIRONMENT | Transição da janela operacional de pedido futuro não ocorreu na sessão. |
+| 66 | PASS | Às 19:10, #278 Local saiu de Agendados e entrou em Em preparo na TV; contadores TV 12/1→13/0 e Cozinha 18/1→19/0. |
 | 67 | PASS | TV mostrou cartões Local (#267/#268) e modalidade textual Local. |
 | 68 | PASS | TV manteve Agendados 1 antes/depois da criação de #279 futuro. |
 | 69 | PASS | TV mostrou cartões atrasados primeiro, com tempo e indicação ATRASADO; #279 não entrou na prioridade. |
-| 70 | BLOCKED-ENVIRONMENT | Paginação Tela 1 de 3 foi observada, mas overflow/layout de todas as páginas em tela grande não foi inspecionado. |
+| 70 | PASS | Em viewport desktop 1280×720, a TV mostrou todos os 13 cartões em layout best-fit sem overflow visível, incluindo #278 Local agendado. |
 
 ### Achados que impedem fechamento da QA
 
@@ -397,7 +397,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 - #275: Retirada no 90º dia; cancelada com motivo oficial.
 - #276: reserva em mesa ocupada, editada e cancelada; Mesa 2/Comanda 45 inalteradas.
 - #277: reserva não conflitante, encerrada como Não compareceu; sem comanda.
-- #278: reserva Local de hoje; chegada abriu uma comanda #50, paga por Pix R$9; mesa temporária voltou a Livre e foi desativada. O pedido agendado #278 segue na cozinha até completar seu ciclo operacional.
+- #278: reserva Local de hoje; chegada abriu uma comanda #50, paga por Pix R$9; mesa temporária voltou a Livre e foi desativada. Às 19:10, #278 entrou em Em preparo na Cozinha/TV. Foi finalizado pelo fluxo oficial; seu único job automático passou a Requer atenção pela estação offline e foi descartado, deixando a fila em zero.
 - #279: Retirada futura usada na Cozinha/TV e cancelada; job pendente removido.
 - Estação Cozinha · Windows offline; emissão física e duas vias sem validação. Jobs exibiram 0/2 vias.
 - Sem alteração de código de aplicação, merge ou produção nesta homologação.
@@ -405,3 +405,8 @@ No scenario is marked PASS until it is actually executed against the implementat
 ### Gate de release
 
 **QA manual não aprovada.** Corrigir FAILs, revalidar o novo SHA de aplicação e concluir os BLOCKED relevantes antes de merge/produção. PR permanece draft; produção bloqueada.
+
+### Fechamento do commit documental
+
+- Primeiro commit documental af082b9ab6be6f79bbd7dd17875e2500b72b8482: [Validate #2690](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36637418878) SUCCESS e [Deploy staging](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36637414228) SUCCESS no mesmo SHA. O job de deploy confirmou migrations, login e deep links verdes.
+- Evidência temporal posterior: #278 cruzou operational_start_at às 19:10, entrou na Cozinha/TV como Local, foi finalizado e a fila de impressão de teste foi limpa.
