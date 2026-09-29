@@ -27,6 +27,7 @@ class D1Sqlite {
         table_tab_id TEXT,
         type TEXT NOT NULL,
         order_date TEXT NOT NULL,
+        scheduled_for TEXT,
         subtotal_cents INTEGER NOT NULL,
         delivery_fee_cents INTEGER NOT NULL DEFAULT 0,
         adjustment_type TEXT NOT NULL DEFAULT 'none',
@@ -57,6 +58,19 @@ class D1Sqlite {
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
         table_identifier TEXT NOT NULL
+      );
+      CREATE TABLE tables (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        name TEXT NOT NULL
+      );
+      CREATE TABLE table_reservations (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        order_id TEXT NOT NULL,
+        table_id TEXT NOT NULL,
+        table_name_snapshot TEXT NOT NULL,
+        status TEXT NOT NULL
       );
     `)
   }
@@ -198,4 +212,45 @@ test('newly generated print documents use the current business name while exclud
 
   const serialized = JSON.stringify(afterRename)
   assert.doesNotMatch(serialized, /PROFILE_PHONE_MARKER|PROFILE_ADDRESS_MARKER|PROFILE_LOGO_KEY_MARKER/)
+})
+
+
+test('manual print document rebuild preserves scheduled delivery and reservation service time', async () => {
+  const db = new D1Sqlite()
+  seedOrder(db)
+  db.exec(`
+    INSERT INTO tables (id, business_id, name)
+      VALUES ('table-reserved', 'amor-e-sabor', 'Mesa 8');
+    INSERT INTO orders (
+      id, business_id, client_name_snapshot, client_phone_snapshot, client_address_snapshot,
+      customer_identity_type, table_tab_id, order_number, type, order_date, scheduled_for,
+      subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_amount_cents,
+      adjustment_reason, total_cents, created_at
+    ) VALUES
+      ('scheduled-delivery', 'amor-e-sabor', 'Ana', '', '', 'registered_client', NULL, 61,
+       'Entrega', '2026-09-04', '2026-09-04T15:00:00.000Z',
+       2500, 0, 'none', 0, '', 2500, '2026-09-03T12:00:00.000Z'),
+      ('reserved-local', 'amor-e-sabor', 'Hugo', '', '', 'table', NULL, 62,
+       'Local', '2026-09-04', '2026-09-04T23:00:00.000Z',
+       3200, 0, 'none', 0, '', 3200, '2026-09-03T12:00:00.000Z');
+    INSERT INTO table_reservations (
+      id, business_id, order_id, table_id, table_name_snapshot, status
+    ) VALUES (
+      'reservation-local', 'amor-e-sabor', 'reserved-local', 'table-reserved', 'Mesa 8', 'reserved'
+    );
+    INSERT INTO order_items (
+      id, business_id, order_id, name_snapshot, size_snapshot, quantity, unit_price_cents, note, created_at
+    ) VALUES
+      ('scheduled-item', 'amor-e-sabor', 'scheduled-delivery', 'Prato', '', 1, 2500, '', '2026-09-03T12:00:00.000Z'),
+      ('reserved-item', 'amor-e-sabor', 'reserved-local', 'Marmita', 'G', 1, 3200, '', '2026-09-03T12:00:00.000Z');
+  `)
+
+  const scheduled = await loadOrderPrintDocument(db, 'amor-e-sabor', 'scheduled-delivery')
+  const reservation = await loadOrderPrintDocument(db, 'amor-e-sabor', 'reserved-local')
+
+  assert.equal(scheduled.order.scheduledFor, '2026-09-04T15:00:00.000Z')
+  assert.equal(scheduled.order.scheduleLabel, 'AGENDADO')
+  assert.equal(reservation.order.scheduledFor, '2026-09-04T23:00:00.000Z')
+  assert.equal(reservation.order.scheduleLabel, 'RESERVA')
+  assert.equal(reservation.customer.name, 'Mesa 8 · Hugo')
 })
