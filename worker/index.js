@@ -17,6 +17,7 @@ import { createClient, createOrder, createProduct, deleteClient, deleteProduct, 
 import { registerClientOrdersPayment, registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
 import { validatePaymentAllocations, validateReceivableOrderIds } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
+import { loadTableReservationByOrderId } from './tableReservationRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 import { handleKitchenTvAdminApi, handleKitchenTvPublicApi } from './kitchenTvApi.js'
@@ -188,8 +189,10 @@ const authenticatedApi = async (request, env) => {
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
     const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
+    const reservation = await loadTableReservationByOrderId(env.DB, session.businessId, order.id)
     const response = { order, movements, tableTab, printJob }
-    if (order.tableTabId) response.tables = await listTables(env.DB, session.businessId)
+    if (reservation) response.reservation = reservation
+    if (order.tableTabId || reservation) response.tables = await listTables(env.DB, session.businessId)
     return json(response, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
