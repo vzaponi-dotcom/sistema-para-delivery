@@ -44,7 +44,7 @@
 | 18 — Reporting | NOT STARTED | — |
 | 19 — Full gates | NOT STARTED | — |
 | 20 — Staging | COMPLETE / GREEN | Deploy staging run 36633062484 SUCCESS no SHA 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08; migrations, deploy, login e deep links verdes. |
-| 21 — Manual QA | PARTIAL / FAIL | 70 casos registrados no QA: 39 PASS, 3 FAIL, 28 BLOCKED; gate aberto. |
+| 21 — Manual QA | PARTIAL / FAIL | 70 casos registrados no QA: 44 PASS, 3 FAIL, 23 BLOCKED; gate aberto. |
 | 22 — Technical closure | BLOCKED | Aguarda correção dos FAILs, revalidação, casos bloqueados e autorização separada. |
 
 ## Stop rules
@@ -898,7 +898,7 @@ Scope:
 
 ## Task 21 — execução manual parcial e gate aberto
 
-- [Matriz QA com 70 casos](issue-82-reservations-qa.md#casos-170): 39 PASS, 3 FAIL, 17 BLOCKED-ENVIRONMENT, 4 BLOCKED-BROWSER-LIMITATION, 7 BLOCKED-PHYSICAL.
+- [Matriz QA com 70 casos](issue-82-reservations-qa.md#casos-170): 44 PASS, 3 FAIL, 12 BLOCKED-ENVIRONMENT, 4 BLOCKED-BROWSER-LIMITATION, 7 BLOCKED-PHYSICAL.
 - FAILs: feedback/recuperação após conflito (#15), data ausente no card mobile (#55), coluna de data ambígua no detalhe de Relatórios (#51).
 - TV emparelhada: #279 futuro não alterou contadores; transição temporal de #278 observada às 19:10; futuro de amanhã não cruzou a janela. Estação de impressão offline.
 - Dados temporários #275/#276/#277/#279 cancelados ou no-show; #278 convertida em comanda #50, paga; mesa temporária desativada; #278 entrou em preparo às 19:10, foi finalizado e o job de QA foi descartado após a estação offline exigir atenção.
@@ -908,3 +908,10 @@ Scope:
 
 - Commit documental af082b9ab6be6f79bbd7dd17875e2500b72b8482: Validate #2690 / run 36637418878 SUCCESS; Deploy staging run 36637414228 SUCCESS, incluindo migrations, login e deep links.
 - Às 19:10 de 29/09/2026, #278 mudou de Agendados para Em preparo na Cozinha e na TV, com contadores coerentes. Finalização oficial retornou a fila de cozinha a 18 pedidos ativos; o job automático de teste foi descartado após ficar Requer atenção na estação offline.
+
+### Complemento de QA — bloco A e TV
+
+- #280 Entrega 29/09 21:00 e #281 Retirada 29/09 22:00: criados, visíveis em Agendados para preparo, cancelados com motivo oficial.
+- #282 Entrega 30/09 20:00: criado, visível só em Próximos dias, ausente da TV desktop que exibia toda a fila atual, cancelado.
+- Agendamento para horário passado 18:00 bloqueou avanço; 21:00 válido habilitou.
+- Jobs dos pedidos de teste cancelados saíram da fila; fila final zero. Matriz agora 44 PASS, 3 FAIL, 23 BLOCKED.

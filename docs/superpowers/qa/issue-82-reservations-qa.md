@@ -2,7 +2,7 @@
 
 **Feature:** Agendamento multi-dia e reservas de mesa
 **PR:** #83
-**Status:** PARTIAL — 39 PASS, 3 FAIL, 28 BLOCKED
+**Status:** PARTIAL — 44 PASS, 3 FAIL, 23 BLOCKED
 **Staging SHA (aplicação homologada):** 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08
 **Production:** BLOCKED
 
@@ -309,18 +309,18 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Aplicação/PR #83: 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08.
 - Deploy staging: [run 36633062484](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36633062484) SUCCESS; migrations, deploy, login e deep links verdes.
 - Navegador IAB autenticado, viewport mobile 390×844, TV emparelhada e ativa.
-- Matriz: **39 PASS / 3 FAIL / 17 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
+- Matriz: **44 PASS / 3 FAIL / 12 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
 
 ### Casos 1–70
 
 | Caso | Estado | Evidência / limite observado |
 |---:|---|---|
-| 1 | BLOCKED-ENVIRONMENT | Entrega hoje não criada; cenário operacional não montado. |
-| 2 | BLOCKED-ENVIRONMENT | Retirada hoje não criada; cenário operacional não montado. |
-| 3 | BLOCKED-ENVIRONMENT | Entrega amanhã não criada; Retirada amanhã foi exercitada em #279. |
+| 1 | PASS | Entrega #280 criada para 29/09/2026 21:00; apareceu em Agendados para preparo e foi cancelada. |
+| 2 | PASS | Retirada #281 criada para 29/09/2026 22:00; apareceu em Agendados para preparo e foi cancelada. |
+| 3 | PASS | Entrega #282 criada para 30/09/2026 20:00; apareceu em Próximos dias e foi cancelada. |
 | 4 | PASS | Retirada #275 no 90º dia (28/12/2026, 20:00) foi salva. |
 | 5 | PASS | 91º dia (29/12/2026) manteve Continuar desabilitado. |
-| 6 | BLOCKED-ENVIRONMENT | Horário passado não foi submetido no navegador nesta sessão. |
+| 6 | PASS | Em 29/09 após 19:00, agendamento 18:00 manteve Continuar desabilitado; 21:00 habilitou. |
 | 7 | PASS | #275 e #279 apareceram em Próximos dias com data e hora. |
 | 8 | PASS | #279 ficou fora da cozinha operacional e da TV ativa; contadores não mudaram. |
 | 9 | BLOCKED-ENVIRONMENT | Janela de amanhã não ocorreu durante a sessão. |
@@ -379,7 +379,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 | 62 | PASS | Navegação por teclado/Return operou formulários, detalhe, confirmações e menus sem bloqueio observado. |
 | 63 | BLOCKED-ENVIRONMENT | Alvos de toque não foram medidos sistematicamente em dispositivo físico. |
 | 64 | BLOCKED-ENVIRONMENT | Sem medição/screenshot completo de overflow horizontal em todas as telas mobile. |
-| 65 | BLOCKED-ENVIRONMENT | #279 não apareceu na página visível e contadores ficaram iguais; TV não expôs todas as páginas durante a amostra, então ausência integral não comprovada. |
+| 65 | PASS | Enquanto #282 estava em Próximos dias, a TV desktop mostrou todos os cartões atuais; #282 ausente e contadores estáveis 12/0. |
 | 66 | PASS | Às 19:10, #278 Local saiu de Agendados e entrou em Em preparo na TV; contadores TV 12/1→13/0 e Cozinha 18/1→19/0. |
 | 67 | PASS | TV mostrou cartões Local (#267/#268) e modalidade textual Local. |
 | 68 | PASS | TV manteve Agendados 1 antes/depois da criação de #279 futuro. |
@@ -399,6 +399,8 @@ No scenario is marked PASS until it is actually executed against the implementat
 - #277: reserva não conflitante, encerrada como Não compareceu; sem comanda.
 - #278: reserva Local de hoje; chegada abriu uma comanda #50, paga por Pix R$9; mesa temporária voltou a Livre e foi desativada. Às 19:10, #278 entrou em Em preparo na Cozinha/TV. Foi finalizado pelo fluxo oficial; seu único job automático passou a Requer atenção pela estação offline e foi descartado, deixando a fila em zero.
 - #279: Retirada futura usada na Cozinha/TV e cancelada; job pendente removido.
+- #280/#281: Entrega e Retirada do mesmo dia, salvas e canceladas após exibição em Agendados para preparo.
+- #282: Entrega de amanhã, salva e cancelada após exibição em Próximos dias e ausência na TV completa.
 - Estação Cozinha · Windows offline; emissão física e duas vias sem validação. Jobs exibiram 0/2 vias.
 - Sem alteração de código de aplicação, merge ou produção nesta homologação.
 
@@ -410,3 +412,9 @@ No scenario is marked PASS until it is actually executed against the implementat
 
 - Primeiro commit documental af082b9ab6be6f79bbd7dd17875e2500b72b8482: [Validate #2690](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36637418878) SUCCESS e [Deploy staging](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36637414228) SUCCESS no mesmo SHA. O job de deploy confirmou migrations, login e deep links verdes.
 - Evidência temporal posterior: #278 cruzou operational_start_at às 19:10, entrou na Cozinha/TV como Local, foi finalizado e a fila de impressão de teste foi limpa.
+
+### Complemento do bloco A e TV
+
+- Entrega #280 (hoje 21:00), Retirada #281 (hoje 22:00), Entrega #282 (amanhã 20:00) foram salvas pelo Novo Pedido, observadas em suas respectivas filas e canceladas pelo fluxo oficial com motivo Erro no lançamento. A fila de impressão voltou a zero.
+- Horário 18:00 já passado manteve Continuar desabilitado; 21:00 habilitou.
+- Enquanto #282 existia, a TV desktop exibia todos os cartões operacionais, sem #282; Em preparo 12 / Agendados 0 permaneceu. Este dado fecha o caso 65.
