@@ -64,7 +64,13 @@ export const renderOrderPdf = (document, { jsPDFFactory = (options) => new jsPDF
   write(document.business?.name || 'Estabelecimento', { size: 15, bold: true })
   write(`PEDIDO #${sanitize(document.order?.number)}`, { size: 18, bold: true })
   if (document.order?.createdAt) write(formatDateTime(document.order.createdAt), { size: 9 })
-  write(document.order?.type, { size: 10, gapAfter: 1 })
+  write(document.order?.type, { size: 10 })
+  if (document.order?.scheduleLabel) write(document.order.scheduleLabel, { size: 11, bold: true })
+  if (document.order?.scheduledFor) {
+    const schedulePrefix = document.order?.scheduleLabel === 'RESERVA' ? 'Reserva: ' : 'Agendado: '
+    write(`${schedulePrefix}${formatDateTime(document.order.scheduledFor)}`, { size: 10 })
+  }
+  y += 1
   divider()
 
   write(`Cliente: ${document.customer?.name || ''}`)
