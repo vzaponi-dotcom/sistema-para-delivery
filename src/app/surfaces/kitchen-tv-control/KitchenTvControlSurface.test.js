@@ -100,6 +100,15 @@ test('mirrors only the orders reported on the current TV page and keeps customer
   assert.match(css, /\.kitchen-tv-control-order-card\.status-late[\s\S]*var\(--danger\)/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-near-limit[\s\S]*var\(--warning\)/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-scheduled[\s\S]*var\(--info\)/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-paging \{[\s\S]*grid-template-columns:\s*minmax\(88px,\s*1fr\)[\s\S]*repeat\(3,\s*minmax\(58px,\s*auto\)\)/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-page-button \{[\s\S]*min-height:\s*48px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-page-button\.is-home \{[\s\S]*background:\s*var\(--primary-fill\)/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-summary article \{[\s\S]*min-height:\s*60px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-list-meta button \{[\s\S]*min-height:\s*36px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*84px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-client \{[\s\S]*font-size:\s*\.92rem/)
+  assert.match(nodeText(screen.root.findByProps({ 'aria-label': 'Navegação da TV' })), /Tela 2 de 3/)
+  assert.match(text, /Fora da tela/)
 })
 
 test('viewer keeps the surface readable but cannot send page commands', async (t) => {
