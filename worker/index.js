@@ -23,6 +23,7 @@ import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 import { handleKitchenTvAdminApi, handleKitchenTvPublicApi } from './kitchenTvApi.js'
 import { handleBusinessProfileApi } from './businessProfileApi.js'
 import { handleReportingApi } from './reporting/api.js'
+import { handleTableReservationApi } from './tableReservationApi.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -107,6 +108,9 @@ const authenticatedApi = async (request, env) => {
 
   const reportingResponse = await handleReportingApi(request, env, context, url)
   if (reportingResponse) return reportingResponse
+
+  const tableReservationResponse = await handleTableReservationApi(request, env, context, url)
+  if (tableReservationResponse) return tableReservationResponse
 
   if (url.pathname === '/api/bootstrap' && request.method === 'GET') {
     const effectiveBusinessConfig = await loadEffectiveBusinessConfig(env.DB, session.businessId, context.granted)
