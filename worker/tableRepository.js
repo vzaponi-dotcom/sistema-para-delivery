@@ -1,3 +1,5 @@
+import { listNextTableReservations, loadNextTableReservationForTable } from './tableReservationRepository.js'
+
 const TABLE_NAME_MAX_LENGTH = 60
 
 const domainError = (status, code, message, field) => Object.assign(new Error(message), {
@@ -69,6 +71,7 @@ export const mapTableRow = (row) => row ? ({
   isActive: Boolean(row.is_active),
   occupancy: row.open_table_tab_id ? 'occupied' : 'free',
   openTableTabId: row.open_table_tab_id ?? null,
+  nextReservation: null,
   openTableTab: row.open_table_tab_id ? {
     id: row.open_table_tab_id,
     number: Number(row.open_table_tab_number),
@@ -123,14 +126,22 @@ export const listTables = async (db, businessId) => {
   const result = await db.prepare(`${tableSelect}
     WHERE tables.business_id = ?
     ORDER BY tables.sort_order, tables.name, tables.id`).bind(businessId).all()
-  return (result.results || []).map(mapTableRow)
+  const tables = (result.results || []).map(mapTableRow)
+  const nextReservations = await listNextTableReservations(db, businessId)
+  const reservationByTableId = new Map(nextReservations.map((reservation) => [reservation.tableId, reservation]))
+  return tables.map((table) => ({ ...table, nextReservation: reservationByTableId.get(table.id) ?? null }))
 }
 
 export const loadTableById = async (db, businessId, tableId) => {
   const row = await db.prepare(`${tableSelect}
     WHERE tables.business_id = ? AND tables.id = ?
     LIMIT 1`).bind(businessId, tableId).first()
-  return mapTableRow(row)
+  const table = mapTableRow(row)
+  if (!table) return null
+  return {
+    ...table,
+    nextReservation: await loadNextTableReservationForTable(db, businessId, tableId),
+  }
 }
 
 const mapOpenTableTabRow = (row) => ({
