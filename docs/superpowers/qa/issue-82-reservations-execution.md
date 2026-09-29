@@ -981,3 +981,65 @@ PR #83 remains draft.
 - Smokes: Local Agora #286 salvo; reservas válidas salvas; editor abriu e revisão obsoleta em segunda aba não sobrescreveu a revisão 20:00; relatório same-day e card desktop conferidos.
 - #283/#285/#286 cancelados com motivo oficial; fila futura e indicador de impressão zerados. Nenhum código de aplicação alterado no reteste.
 - Task 22 pode começar para tratar gates restantes. 23 BLOCKED preservados, especialmente impressão física; PR #83 draft, sem merge ou produção.
+
+## Task 22 — fechamento técnico
+
+Task 22 iniciou após o reteste pós-correção fechar os três FAILs da Task 21.
+
+### QA consolidada
+
+Matriz oficial:
+- 47 PASS;
+- 0 FAIL;
+- 12 BLOCKED-ENVIRONMENT;
+- 4 BLOCKED-BROWSER-LIMITATION;
+- 7 BLOCKED-PHYSICAL;
+- 23 BLOCKED totais.
+
+BLOCKED preservados, sem promoção por inferência:
+- ambiente: #9, #23, #25, #38, #40, #41, #50, #52, #53, #54, #63, #64;
+- navegador remoto: #24, #39, #59, #61;
+- físico/impressão: #26, #27, #28, #29, #30, #31, #33.
+
+### Revalidação do candidato
+
+Checkpoint pré-fechamento documental:
+- HEAD: `826a9ef9090397f3fee896c6ceadd72de2fa4441`;
+- Validate application run `36644763028`: SUCCESS;
+- 8/8 shards: PASS;
+- architecture: PASS;
+- lint: PASS;
+- build: PASS;
+- Worker production dry-run: PASS;
+- Worker staging dry-run: PASS;
+- local D1 migration gate: PASS;
+- Spec B clean install/upgrade: PASS;
+- operation-profile clean install/upgrade: PASS;
+- `0034_table_reservations.sql` clean install + upgrade pre-0034 remain covered and green in the full test suite.
+
+Staging on the same documented checkpoint:
+- Deploy staging run `36644760409`: SUCCESS;
+- migration listing/apply: PASS;
+- deploy: PASS;
+- authenticated login smoke: PASS;
+- SPA deep links/assets smoke: PASS.
+
+Repository/PR state at Task 22 pre-close:
+- PR #83: OPEN / DRAFT;
+- mergeable: true;
+- unresolved review threads: 0;
+- feature branch: 206 commits ahead / 0 behind `master`;
+- merge: NOT EXECUTED;
+- production: NOT TOUCHED.
+
+### Release gates carried forward
+
+The 23 manual BLOCKED remain recorded exactly as observed.
+
+The 7 physical printing cases are a **hard production gate**. No production authorization may be treated as complete until the applicable physical station/two-copy behavior is validated.
+
+Task 22 does not convert environment/browser limitations into PASS and does not deploy production.
+
+A documentation-only closure commit follows this section. Its resulting final branch HEAD must finish the automatic Validate + staging deployment before Task 22 is declared fully closed.
+
+**STOP after final CI/staging:** await explicit user authorization for merge.
