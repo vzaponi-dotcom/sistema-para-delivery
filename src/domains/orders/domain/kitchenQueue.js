@@ -26,34 +26,52 @@ const matchesKitchenSearch = (order, normalizedSearch) => {
   ].join(' ').toLocaleLowerCase('pt-BR').includes(normalizedSearch)
 }
 
-export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '', currentTiming) => {
-  const normalizedSearch = normalizeSearch(search)
+const buildActiveEntry = (order, now, currentTiming) => {
+  const phase = isScheduledWaiting(order, now, currentTiming) ? 'scheduled' : 'preparing'
+  const timingState = getOrderTimingState(order, now, currentTiming)
+  return {
+    order,
+    phase,
+    operationalStartAt: getOperationalStartAt(order, currentTiming),
+    lateAt: getOrderLateAt(order, currentTiming),
+    timingState,
+    isLate: timingState !== 'on-time',
+  }
+}
+
+const isFutureWaitingEntry = (entry, currentBusinessDate) => {
+  if (entry.phase !== 'scheduled' || !entry.order?.scheduledFor || !currentBusinessDate) return false
+  const scheduledFor = new Date(entry.order.scheduledFor)
+  if (Number.isNaN(scheduledFor.getTime())) return false
+  return getBusinessDate(scheduledFor) > currentBusinessDate
+}
+
+const buildQueueEntries = (orders, now, currentTiming) => {
   const reference = now instanceof Date ? now : new Date(now)
   const currentBusinessDate = Number.isNaN(reference.getTime()) ? null : getBusinessDate(reference)
-  const mappedActive = orders.filter(isOrderActive).map((order) => {
-    const phase = isScheduledWaiting(order, reference, currentTiming) ? 'scheduled' : 'preparing'
-    const timingState = getOrderTimingState(order, reference, currentTiming)
-    return {
-      order,
-      phase,
-      operationalStartAt: getOperationalStartAt(order, currentTiming),
-      lateAt: getOrderLateAt(order, currentTiming),
-      timingState,
-      isLate: timingState !== 'on-time',
-    }
-  })
-  const isFutureWaiting = ({ order, phase }) => {
-    if (phase !== 'scheduled' || !order?.scheduledFor || !currentBusinessDate) return false
-    const scheduledFor = new Date(order.scheduledFor)
-    if (Number.isNaN(scheduledFor.getTime())) return false
-    return getBusinessDate(scheduledFor) > currentBusinessDate
+  const entries = orders.filter(isOrderActive).map((order) => buildActiveEntry(order, reference, currentTiming))
+  return { reference, currentBusinessDate, entries }
+}
+
+export const buildFutureScheduledOrdersModel = (orders = [], now = new Date(), search = '', currentTiming) => {
+  const normalizedSearch = normalizeSearch(search)
+  const { currentBusinessDate, entries } = buildQueueEntries(orders, now, currentTiming)
+  const all = entries.filter((entry) => isFutureWaitingEntry(entry, currentBusinessDate)).sort(compareScheduledFor)
+  const visible = all.filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
+
+  return {
+    all,
+    visible,
+    totalCount: all.length,
+    visibleCount: visible.length,
   }
-  const futureAll = mappedActive.filter(isFutureWaiting)
-  const allActive = mappedActive.filter((entry) => !isFutureWaiting(entry))
+}
+
+export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '', currentTiming) => {
+  const normalizedSearch = normalizeSearch(search)
+  const { reference, currentBusinessDate, entries } = buildQueueEntries(orders, now, currentTiming)
+  const allActive = entries.filter((entry) => !isFutureWaitingEntry(entry, currentBusinessDate))
   const visible = allActive.filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
-  const futureScheduled = futureAll
-    .filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
-    .sort(compareScheduledFor)
   const preparing = visible.filter(({ phase }) => phase === 'preparing').sort(compareDeadlinePriority)
   const scheduled = visible.filter(({ phase }) => phase === 'scheduled').sort(compareScheduledFor)
 
@@ -61,8 +79,6 @@ export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '
     allActive,
     preparing,
     scheduled,
-    futureScheduled,
-    futureScheduledCount: futureAll.length,
     totalVisible: visible.length,
     counts: {
       preparing: allActive.filter(({ phase }) => phase === 'preparing').length,
