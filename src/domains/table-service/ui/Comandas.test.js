@@ -333,3 +333,186 @@ test('breakpoint changes move focus out of the hidden list/back button and prese
   await act(async () => renderer.unmount())
   assert.equal(getEventListeners(harness.media, 'change').length, 0, 'media subscription must be cleaned up')
 })
+
+
+const reservationSummary = (overrides = {}) => ({
+  id: 'reservation-free',
+  orderId: 'order-free',
+  orderNumber: 91,
+  tableId: 'free',
+  tableName: 'Varanda',
+  status: 'reserved',
+  scheduledFor: '2026-10-10T23:00:00.000Z',
+  endsAt: '2026-10-11T01:00:00.000Z',
+  durationMinutes: 120,
+  revision: 3,
+  convertedTableTabId: null,
+  convertedAt: null,
+  cancelledAt: null,
+  noShowAt: null,
+  createdAt: '2026-09-29T12:00:00.000Z',
+  updatedAt: '2026-09-29T12:00:00.000Z',
+  clientId: 'client-1',
+  clientName: 'João',
+  itemCount: 2,
+  totalCents: 3300,
+  orderStatus: 'Em preparo',
+  ...overrides,
+})
+
+const reservationDetailResponse = (reservation = reservationSummary(), overrides = {}) => ({
+  ok: true,
+  status: 200,
+  json: async () => ({
+    reservation,
+    order: {
+      id: reservation.orderId,
+      orderNumber: reservation.orderNumber,
+      clientId: reservation.clientId,
+      client: reservation.clientName ? `${reservation.tableName} · ${reservation.clientName}` : reservation.tableName,
+      customerIdentityType: 'table',
+      tableTabId: null,
+      tableReservationId: reservation.id,
+      tableReservationStatus: reservation.status,
+      reservationTableId: reservation.tableId,
+      reservationTableName: reservation.tableName,
+      reservationRevision: reservation.revision,
+      type: 'Local',
+      status: 'Em preparo',
+      orderDate: '2026-10-10',
+      scheduledFor: reservation.scheduledFor,
+      createdAt: '2026-10-10T18:00:00.000Z',
+      subtotal: 33,
+      deliveryFee: 0,
+      adjustment: { type: 'none', mode: 'fixed', value: 0, amount: 0, reason: '' },
+      total: 33,
+      items: [
+        { id: 'r-item-1', productId: 'p1', name: 'Marmita', size: 'G', quantity: 1, unitPrice: 25, note: 'sem cebola' },
+        { id: 'r-item-2', productId: 'p2', name: 'Suco', size: 'Un', quantity: 1, unitPrice: 8, note: '' },
+      ],
+    },
+    printJob: { id: 'reservation-job', availableAt: '2026-10-10T22:10:00.000Z' },
+    hasManualPrintHistory: false,
+    ...overrides,
+  }),
+})
+
+test('Comandas subtitle and free-table reservation card use explicit Reservada semantics and open reservation detail', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
+  const reservation = reservationSummary()
+  const tables = workspaceTables.map((table) => table.id === 'free'
+    ? { ...table, nextReservation: reservation }
+    : table)
+  globalThis.fetch = async (path) => {
+    if (path === '/api/table-reservations/reservation-free') return reservationDetailResponse(reservation)
+    if (path === '/api/table-tabs/tab-42') return detailResponse()
+    throw new Error(`Unexpected request: ${path}`)
+  }
+  const renderer = await h.render(Comandas, {
+    tables,
+    currency,
+    now: new Date('2026-10-10T21:00:00.000Z'),
+    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    canCreateOrders: true,
+    canCancelOrders: true,
+  })
+
+  assert.match(nodeText(renderer.root), /Acompanhe mesas, comandas e reservas/)
+  const reservedCard = list(renderer).findAllByType('button').find((button) => nodeText(button).includes('Varanda'))
+  assert.match(nodeText(reservedCard), /Varanda.*Reservada.*João.*20:00/)
+  assert.doesNotMatch(nodeText(reservedCard), /Toque para lançar pedido/)
+
+  await act(async () => reservedCard.props.onClick())
+  assert.match(nodeText(detail(renderer)), /RESERVA.*Varanda.*João.*Marmita.*R\$ 33.00/i)
+  assert.ok(buttonNamed(detail(renderer), 'Editar reserva'))
+  assert.equal(buttonNamed(detail(renderer), 'Abrir comanda'), undefined)
+})
+
+test('occupied table keeps current comanda primary and exposes future reservation as a separate target', async (t) => {
+  const h = await workspaceHarness(t)
+  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
+  const reservation = reservationSummary({
+    id: 'reservation-occupied',
+    orderId: 'order-occupied',
+    orderNumber: 92,
+    tableId: 'occupied',
+    tableName: 'Mesa 7',
+    clientName: 'Maria',
+    scheduledFor: '2026-10-11T00:00:00.000Z',
+  })
+  const tables = workspaceTables.map((table) => table.id === 'occupied'
+    ? { ...table, nextReservation: reservation }
+    : table)
+  const selections = []
+  globalThis.fetch = async (path) => {
+    if (path === '/api/table-tabs/tab-42') return detailResponse()
+    if (path === '/api/table-reservations/reservation-occupied') return reservationDetailResponse(reservation)
+    throw new Error(`Unexpected request: ${path}`)
+  }
+  function Workspace() {
+    const [selection, onSelectComanda] = React.useState(null)
+    return React.createElement(Comandas, {
+      tables,
+      selection,
+      onSelectComanda: (identity) => { selections.push(identity); onSelectComanda(identity) },
+      currency,
+      now: new Date('2026-10-10T21:00:00.000Z'),
+      currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+      canCreateOrders: true,
+      canCancelOrders: true,
+    })
+  }
+  const renderer = await h.render(Workspace)
+  const mesaButtons = list(renderer).findAllByType('button').filter((button) => nodeText(button).includes('Mesa 7'))
+  assert.equal(mesaButtons.length, 2)
+  assert.match(nodeText(mesaButtons[0]), /Mesa 7.*Ocupada.*Comanda 42/)
+  assert.match(nodeText(mesaButtons[1]), /Reservada.*Maria.*21:00/)
+
+  await act(async () => mesaButtons[0].props.onClick())
+  assert.deepEqual(selections, [occupiedSelection])
+  assert.match(nodeText(detail(renderer)), /Comanda 42/)
+
+  await act(async () => mesaButtons[1].props.onClick())
+  assert.match(nodeText(detail(renderer)), /RESERVA.*Mesa 7.*Maria/i)
+  assert.doesNotMatch(nodeText(detail(renderer)), /Comanda 42.*Resumo do pedido/)
+})
+
+test('mobile reservation detail uses the same list/detail split and back restores the selected reservation trigger', async (t) => {
+  const h = await workspaceHarness(t, { mobile: true })
+  const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
+  const reservation = reservationSummary()
+  const tables = workspaceTables.map((table) => table.id === 'free'
+    ? { ...table, nextReservation: reservation }
+    : table)
+  globalThis.fetch = async (path) => path === '/api/table-reservations/reservation-free'
+    ? reservationDetailResponse(reservation)
+    : detailResponse()
+  const listElement = { scrollTop: 0 }
+  let focus = ''
+  const renderer = await h.render(Comandas, {
+    tables,
+    currency,
+    now: new Date('2026-10-10T21:00:00.000Z'),
+    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    canCreateOrders: true,
+  }, { createNodeMock: (element) => {
+    if (element.props['aria-label'] === 'Mesas ativas') return listElement
+    return { focus: () => { focus = element.type } }
+  } })
+
+  listElement.scrollTop = 180
+  await act(async () => list(renderer).props.onScroll({ currentTarget: listElement }))
+  const reservedCard = list(renderer).findAllByType('button').find((button) => nodeText(button).includes('Varanda'))
+  await act(async () => reservedCard.props.onClick())
+  assert.ok(renderer.toJSON().props.className.includes('has-mobile-detail'))
+  assert.match(nodeText(detail(renderer)), /RESERVA.*Varanda/)
+  assert.equal(focus, 'h2')
+
+  listElement.scrollTop = 0
+  await act(async () => buttonNamed(renderer.root, 'Voltar para mesas').props.onClick())
+  assert.ok(!renderer.toJSON().props.className.includes('has-mobile-detail'))
+  assert.equal(listElement.scrollTop, 180)
+  assert.equal(focus, 'button')
+  assert.equal(reservedCard.props['aria-pressed'], true)
+})
