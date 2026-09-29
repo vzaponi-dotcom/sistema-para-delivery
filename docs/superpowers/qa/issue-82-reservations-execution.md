@@ -30,9 +30,9 @@
 | 4 — Table guards | COMPLETE / GREEN | RED `c7aca6a0d8c528a91b5e11caae72ab7585ef5690` → Validate #2537 / run `36586270135` failed on the intended backend/UI reservation restrictions. GREEN `738a6049cdb7b1d875236217ef78517369e0f64e` → Validate #2539 / run `36586505823` SUCCESS on rerun attempt 2; attempt 1 had only an unrelated local Wrangler port collision in the Spec B D1 gate. |
 | 5 — Local reservation checkout | COMPLETE / GREEN | RED `9f6f2770e6e380faa16159f9e0934061d7849ae9` → Validate #2542 / run `36587171200` failed exactly on 5 intended reservation-checkout behaviors. GREEN `e7aab7c8d125de30904a6048ffd8f4384e48c202` → Validate #2545 / run `36587697649` SUCCESS; all shards, architecture/lint/build, Worker dry-runs and D1 gates green. |
 | 6 — Printing matrix | COMPLETE / GREEN | RED progression `0a3c227940d52d52c9a66607b625f420bd09d312` → `1818e17da7ac28d709366cfd9762b42f1ed545ba`; Validate #2551 / run `36592153363` and #2554 / run `36592558646` failed on intended availability/document behaviors. GREEN `4e0138ea27f1a617178b39de675d5fbef59df50b` → Validate #2564 / run `36593459366` SUCCESS; all 8 shards and full validation green. |
-| 7 — Reservation read API | NOT STARTED | — |
-| 8 — Cancel / no-show | NOT STARTED | — |
-| 9 — Arrival conversion | NOT STARTED | — |
+| 7 — Reservation read API | COMPLETE / GREEN | RED `b765f96dc320d45614d9276a28d5a9231b8704f2` → Validate #2568 / run `36595571884` failed on 3 intended read/filter/detail behaviors. GREEN `ddfe5311a8c0dded685e40fbc9f128d12bf9c5af` → Validate #2570 / run `36595908826` SUCCESS. |
+| 8 — Cancel / no-show | COMPLETE / GREEN | RED `57345c069834e3dbf610df8aa5c54a19792693ce` → Validate #2571 / run `36596107150` failed on 5 intended lifecycle behaviors. GREEN `d5b2246d7cd16ae04cdbd26635b7c3768e318f82` → Validate #2575 / run `36596600847` SUCCESS. |
+| 9 — Arrival conversion | COMPLETE / GREEN | RED `c3232731d1d85432ac188bdeae6cf56c152a03d4` → Validate #2577 / run `36596811849` failed on 4 intended conversion/API behaviors. GREEN `94f2cb88435483794b25752a2b2a7db148408897` → Validate #2579 / run `36597090286` SUCCESS. |
 | 10 — Reservation editing backend | NOT STARTED | — |
 | 11 — Frontend reservation boundary | NOT STARTED | — |
 | 12 — New Order reservation mode | NOT STARTED | — |
@@ -284,4 +284,87 @@ Additional guarantees:
 - Staging deploy: NOT EXECUTED.
 - Production deploy: NOT EXECUTED.
 
-Stopped before Task 7.
+
+## Task 7 evidence
+
+### RED
+- Scaffold: `ee3f138a4eacf41a26380b8f3b871ed4bf254eda`.
+- Behavioral RED: `b765f96dc320d45614d9276a28d5a9231b8704f2`.
+- Validate #2568 / run `36595571884`: FAILURE as intended.
+- Exactly 3 new API behaviors failed while the existing bootstrap projection test remained green:
+  - list/filter/capability response absent;
+  - invalid filter validation absent;
+  - detail order/print metadata response absent.
+
+### GREEN
+- API implementation: `bacb1e19bdbd46276d45a2f2e56e73b594015509`.
+- Worker delegation: `ddfe5311a8c0dded685e40fbc9f128d12bf9c5af`.
+- Validate #2570 / run `36595908826`: SUCCESS.
+- Delivered:
+  - business-scoped `GET /api/table-reservations` with status/from/to/table filters;
+  - strict filter validation;
+  - read access through existing `orders.view` or `comandas.view`;
+  - `GET /api/table-reservations/:id` with official reservation, canonical order and automatic print metadata;
+  - cross-business reservation IDs resolve as 404;
+  - bootstrap remains lightweight: no full `tableReservations` collection, only per-table `nextReservation`.
+- Staging/production: NOT EXECUTED.
+
+## Task 8 evidence
+
+### RED
+- Commit: `57345c069834e3dbf610df8aa5c54a19792693ce`.
+- Validate #2571 / run `36596107150`: FAILURE as intended.
+- Five lifecycle failures proved:
+  - order cancellation did not close an active reservation;
+  - reservation cancel endpoint was absent;
+  - no-show endpoint was absent;
+  - stale/terminal reservation revision protection was absent;
+  - mutation capability/origin rules were absent.
+
+### GREEN
+- Atomic cancellation integration: `47aa45c0d37e694732f53e62d71dcd1f43bc5a73`.
+- Reservation terminal API: `37fdfbd3dbf1c7ecdcedc34ccd3eca19a170034f`.
+- Deterministic test clock + row normalization: `981fb036c20a88f3e68cd13e40cc2adedb828c46` / `d5b2246d7cd16ae04cdbd26635b7c3768e318f82`.
+- Validate #2575 / run `36596600847`: SUCCESS.
+- Delivered:
+  - cancelling a reserved order from the existing Orders surface atomically marks reservation `cancelled`;
+  - `POST .../:id/cancel` and `POST .../:id/no-show` reuse the official cancellation reason/policy flow;
+  - no-show records `no_show` without opening a comanda;
+  - pending automatic print job is removed by the existing cancellation transaction;
+  - reservation revision/status guard participates in the same batch as order cancellation;
+  - stale revision returns `TABLE_RESERVATION_CHANGED`;
+  - terminal reservation returns `TABLE_RESERVATION_ALREADY_CLOSED`;
+  - mutation requires existing `orders.cancel` capability and same-origin protection.
+- Staging/production: NOT EXECUTED.
+
+## Task 9 evidence
+
+### RED
+- Scaffold: `03ba8196397e22d741e8b89bc680ef86506c66da`.
+- Behavioral RED: `c3232731d1d85432ac188bdeae6cf56c152a03d4`.
+- Validate #2577 / run `36596811849`: FAILURE as intended.
+- Four new behaviors failed:
+  - no atomic reservation → comanda conversion;
+  - no Finalizado/retry preservation;
+  - no early/stale/cancelled/occupied guards;
+  - no confirm-arrival HTTP workflow.
+
+### GREEN
+- Atomic conversion repository/workflow: `ebfab1e1e3c06db8759c0841ad118a09445b00e5`.
+- HTTP route/effects: `94f2cb88435483794b25752a2b2a7db148408897`.
+- Validate #2579 / run `36597090286`: SUCCESS.
+- Delivered:
+  - `POST /api/table-reservations/:id/confirm-arrival`;
+  - requires `orders.create`, same origin, expected reservation revision and mutation ID;
+  - rejects confirmation before the scheduled business day;
+  - rejects inactive/occupied mesa and cancelled order;
+  - opens exactly one numbered table-tab in the conversion commitment;
+  - links `orders.table_tab_id`;
+  - converts reservation with `converted_table_tab_id`, timestamp and revision increment;
+  - preserves order status (`Em preparo` or `Finalizado`);
+  - retry after a committed conversion resolves to the same comanda instead of creating another;
+  - response returns official reservation/order/tableTab and recalculated tables/nextReservation.
+- Number gaps remain acceptable if a failed race already reserved a counter number; numbers are never reused.
+- Staging/production: NOT EXECUTED.
+
+Stopped before Task 10.
