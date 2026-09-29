@@ -2,8 +2,8 @@
 
 **Feature:** Agendamento multi-dia e reservas de mesa
 **PR:** #83
-**Status:** PARTIAL — 44 PASS, 3 FAIL, 23 BLOCKED
-**Staging SHA (aplicação homologada):** 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08
+**Status:** PARTIAL — 47 PASS, 0 FAIL, 23 BLOCKED (reteste pós-correção em 2026-09-29)
+**Staging SHA (reteste pós-correção):** 06227fc21e422ec6611eb0f9f6c36575ec6f1e8f
 **Production:** BLOCKED
 
 No scenario is marked PASS until it is actually executed against the implementation.
@@ -309,7 +309,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Aplicação/PR #83: 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08.
 - Deploy staging: [run 36633062484](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36633062484) SUCCESS; migrations, deploy, login e deep links verdes.
 - Navegador IAB autenticado, viewport mobile 390×844, TV emparelhada e ativa.
-- Matriz: **44 PASS / 3 FAIL / 12 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
+- Matriz após reteste: **47 PASS / 0 FAIL / 12 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
 
 ### Casos 1–70
 
@@ -329,7 +329,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 | 12 | PASS | Comandas permaneceu com 7 comandas abertas após #276; nova #50 só na chegada de #278. |
 | 13 | PASS | Mesa 1/2 conservaram Ocupada e comandas #46/#45 enquanto reservas existiam. |
 | 14 | PASS | #277 às 18:00 e #276 às 21:00 na Mesa 2 coexistiram; Próximos dias ordenou ambas. |
-| 15 | FAIL | Sobreposição Mesa 2 30/09 21:30 foi bloqueada, porém aviso foi genérico; corrigir o mesmo rascunho para 23:00/18:00 continuou falhando. Novo rascunho às 18:00 criou #277. |
+| 15 | PASS | Reteste no SHA 06227fc: #283 Mesa 2 30/09 21:00; rascunho Mesa 2 21:30 mostrou “Esta mesa já possui uma reserva nesse horário. Escolha outra mesa ou outro horário.” No mesmo wizard, horário alterado para 23:30 preservou Pudim R$8 e criou somente #285; #283/#285 ficaram em Próximos dias, sem nova comanda. |
 | 16 | PASS | QA82 Mesa Livre exibiu badge textual Reservada em Comandas. |
 | 17 | PASS | Mesa 2 exibiu Ocupada/Comanda 45 e reserva secundária, sem trocar o alvo da comanda. |
 | 18 | PASS | #276: Mousse substituído por Pudim no wizard de edição. |
@@ -365,11 +365,11 @@ No scenario is marked PASS until it is actually executed against the implementat
 | 48 | PASS | #278 foi paga pela comanda #50 (Pix R$9); a mesa foi liberada. |
 | 49 | PASS | #275 apareceu em A Receber → Próximos, previsto 28/12/2026, R$8. |
 | 50 | BLOCKED-ENVIRONMENT | Pedido futuro pago antecipadamente não foi cadastrado. |
-| 51 | FAIL | Relatórios filtrados 30/09 Local/Agendado reconciliaram #276+#277 em R$25, mas coluna Data no detalhe mostrou 29/09, data de criação, sem identificar a data de serviço. |
+| 51 | PASS | Reteste no SHA 06227fc: filtro 30/09, Local, Agendado encontrou #283 e #285; coluna “Data do pedido” mostrou 30/09/2026 em ambas, com Local e R$9/R$8. Smoke de hoje: Local Agora #286 mostrou 29/09/2026 e R$8. |
 | 52 | BLOCKED-ENVIRONMENT | Métrica de duração após entrada operacional não pôde ser observada antes da janela. |
 | 53 | BLOCKED-ENVIRONMENT | Reserva em desktop escuro não foi revisada visualmente nesta sessão. |
 | 54 | BLOCKED-ENVIRONMENT | Reserva em desktop claro não foi revisada visualmente nesta sessão. |
-| 55 | FAIL | Viewport 390×844: lista e bottom nav funcionaram, mas card Reservada mostrou apenas 20:00, sem a data 29/09/2026 exigida para reservas futuras. |
+| 55 | PASS | Reteste 390×844: Mesa 2 ocupada exibiu card separado “Reserva 30/09/2026 · 21:00” com badge Reservada, sem corte/overflow visível e bottom nav íntegra; toque abriu detalhe #283 com data, hora e item. Desktop preservou card coerente. |
 | 56 | PASS | Viewport 390×844: detalhe mostrou data/hora, status, item, observação, total e ações. |
 | 57 | PASS | Wizard de edição #276 alterou mesa/cliente/horário/itens antes da janela. |
 | 58 | PASS | No mobile, CTA Confirmar chegada converteu #278 e abriu comanda #50. |
@@ -386,7 +386,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 | 69 | PASS | TV mostrou cartões atrasados primeiro, com tempo e indicação ATRASADO; #279 não entrou na prioridade. |
 | 70 | PASS | Em viewport desktop 1280×720, a TV mostrou todos os 13 cartões em layout best-fit sem overflow visível, incluindo #278 Local agendado. |
 
-### Achados que impedem fechamento da QA
+### Achados da homologação inicial (histórico; retestados abaixo)
 
 1. **Conflito e recuperação do rascunho (caso 15, FAIL).** Com #276 na Mesa 2 em 30/09 às 21:00, nova reserva às 21:30 foi rejeitada com o aviso genérico “Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.”, sem orientar outra mesa/horário. Corrigir o mesmo rascunho para 23:00 e 18:00 continuou falhando; um rascunho novo às 18:00 criou #277. Reproduzir e investigar o 409/estado do rascunho; a causa não foi identificada.
 2. **Card Comandas mobile sem data (caso 55, FAIL).** Em 390×844, QA82 Mesa Livre mostrava “Reservada · Reserva 20:00 · 1 item” sem a data; detalhe #278 mostrou 29/09/2026 20:00. Mesa 2 com reserva de 30/09 também mostrou somente hora no card. Issue #82 exige data e horário no card.
@@ -406,7 +406,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 
 ### Gate de release
 
-**QA manual não aprovada.** Corrigir FAILs, revalidar o novo SHA de aplicação e concluir os BLOCKED relevantes antes de merge/produção. PR permanece draft; produção bloqueada.
+**Reteste dos três FAILs aprovado no SHA pós-correção.** Permanecem 23 BLOCKED, inclusive impressão física; completar os gates aplicáveis antes de merge/produção. PR permanece draft; produção bloqueada.
 
 ### Fechamento do commit documental
 
@@ -418,3 +418,13 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Entrega #280 (hoje 21:00), Retirada #281 (hoje 22:00), Entrega #282 (amanhã 20:00) foram salvas pelo Novo Pedido, observadas em suas respectivas filas e canceladas pelo fluxo oficial com motivo Erro no lançamento. A fila de impressão voltou a zero.
 - Horário 18:00 já passado manteve Continuar desabilitado; 21:00 habilitou.
 - Enquanto #282 existia, a TV desktop exibia todos os cartões operacionais, sem #282; Em preparo 12 / Agendados 0 permaneceu. Este dado fecha o caso 65.
+
+### Reteste pós-correção — 2026-09-29
+
+- Staging: [Deploy staging run 36643262726](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36643262726) SUCCESS no SHA `06227fc21e422ec6611eb0f9f6c36575ec6f1e8f`; migração, deploy, login e deep links SUCCESS. [Validate #2703](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36643266384) SUCCESS no mesmo SHA.
+- #15 PASS: #283 Mesa 2 30/09 21:00; conflito 21:30 exibiu orientação específica. O mesmo rascunho manteve 1× Pudim R$8 e, corrigido para 23:30, criou somente #285. Próximos dias listou apenas #283 e #285, sem comanda nova.
+- #51 PASS: filtro 30/09 Local/Agendado mostrou #283/#285 com coluna “Data do pedido” = 30/09/2026, modalidade Local e totais R$9/R$8. Linha imediata #286 em Hoje mostrou 29/09/2026, Local e R$8. O status tabular dos agendados foi exibido como “Em preparo”; a fila operacional continuou a tratá-los como Reservada/Próximos dias. Este reteste não ampliou o escopo para reconciliar essa semântica.
+- #55 PASS: Comandas 390×844 mostrou data + hora e badge Reservada no card da Mesa 2 ocupada; sem corte/overflow visível, bottom nav presente e toque abriu o detalhe #283. Desktop manteve a apresentação.
+- Smokes: Local Agora #286 salvou na comanda existente; reserva válida #283/#285 salvou; Editar reserva abriu com data/mesa/item existentes. Em duas abas, a revisão mais recente mudou #283 para 20:00; uma tentativa em aba antiga de gravar 18:00 não sobrescreveu 20:00 e retornou ao formulário atualizado. Relatório do mesmo dia e Comandas desktop conferidos.
+- Limpeza: #283, #285 e #286 cancelados pelo fluxo oficial com motivo Erro no lançamento; Próximos dias 0, #286 saiu da cozinha e badge da fila de impressão zerou.
+- Total: **47 PASS / 0 FAIL / 23 BLOCKED** (12 ambiente, 4 limitação do navegador, 7 físicos). Nenhum BLOCKED foi promovido sem execução. Sem alteração de código de aplicação, merge ou produção neste reteste.
