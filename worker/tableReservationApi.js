@@ -4,6 +4,7 @@ import { loadOrderById } from './repositories.js'
 import { cancelOrder } from './orderCancellation.js'
 import { listTables } from './tableRepository.js'
 import { requireCapability } from './settingsAccess.js'
+import { confirmTableReservationArrival } from './tableReservationArrival.js'
 import {
   listTableReservations,
   loadTableReservationById,
@@ -66,6 +67,32 @@ export const handleTableReservationApi = async (request, env, context, url = new
     ])
     if (!order) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
     return json({ reservation, order, printJob })
+  }
+
+  const arrivalMatch = /^\/api\/table-reservations\/([^/]+)\/confirm-arrival$/.exec(url.pathname)
+  if (arrivalMatch && request.method === 'POST') {
+    requireCapability(context, 'orders.create')
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
+      throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
+    }
+    const mutationId = typeof body.mutationId === 'string' ? body.mutationId.trim() : ''
+    if (!mutationId || mutationId.length > 120) {
+      throw apiError(400, 'TABLE_RESERVATION_MUTATION_REQUIRED', 'Identifique a confirmação e tente novamente.')
+    }
+    const now = env.now instanceof Date ? env.now : new Date()
+    const result = await confirmTableReservationArrival(
+      env.DB,
+      context.businessId,
+      decodeURIComponent(arrivalMatch[1]),
+      { expectedRevision: body.expectedRevision, mutationId },
+      now,
+    )
+    return json({
+      ...result,
+      tables: await listTables(env.DB, context.businessId),
+    })
   }
 
   const actionMatch = /^\/api\/table-reservations\/([^/]+)\/(cancel|no-show)$/.exec(url.pathname)
