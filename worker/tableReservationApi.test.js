@@ -129,6 +129,7 @@ test('reservation detail returns official reservation, order and automatic print
   assert.equal(body.order.reservationTableName, 'Mesa 1')
   assert.equal(body.printJob.id, 'print-reservation-1')
   assert.equal(body.printJob.availableAt, '2026-10-10T22:10:00.000Z')
+  assert.equal(body.hasManualPrintHistory, true)
 
   await assert.rejects(
     () => call(db, '/api/table-reservations/foreign-reservation', ['comandas.view']),
