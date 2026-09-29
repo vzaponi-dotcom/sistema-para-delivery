@@ -155,7 +155,7 @@ export const buildOrderPayload = (draft = {}, paymentAllocations) => {
   if (Array.isArray(paymentAllocations) && paymentAllocations.length) {
     payload.paymentAllocations = paymentAllocations.map(({ methodCode, amountCents }) => ({ methodCode, amountCents }))
   }
-  if (draft.expectedTableTabId) payload.expectedTableTabId = draft.expectedTableTabId
+  if (draft.expectedTableTabId && !(draft.type === 'Local' && draft.scheduledFor)) payload.expectedTableTabId = draft.expectedTableTabId
   if (draft.scheduledFor) payload.scheduledFor = draft.scheduledFor
   return payload
 }
