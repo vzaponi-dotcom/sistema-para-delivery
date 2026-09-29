@@ -871,3 +871,17 @@ After the dispatch exists, the run can be monitored from here and Task 20 can co
 
 Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
+
+### Automatic staging trigger enabled
+
+At the user's explicit request, the official staging workflow now includes the exact branch:
+`feature/issue-82-multiday-reservations`
+
+Commit:
+- `2680e72d7a9404dfa7e38fcd608eb0817499c384` — adds only this exact branch to the existing `Deploy staging` push allowlist.
+
+Scope:
+- staging workflow only;
+- no broad `feature/**` trigger;
+- no production workflow change;
+- subsequent pushes on this branch automatically run the existing staging migration/deploy/login/deep-link pipeline.
