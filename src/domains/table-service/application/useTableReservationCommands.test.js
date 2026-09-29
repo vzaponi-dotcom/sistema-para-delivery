@@ -172,3 +172,38 @@ test('reservation command conflict refreshes official detail once and never retr
   assert.deepEqual(errors, [error])
   probe.unmount()
 })
+
+
+test('reservation command result observer receives the official arrival result after effects commit', async () => {
+  const result = {
+    reservation: { id: 'reservation-1', status: 'converted' },
+    order: { id: 'order-1', tableTabId: 'tab-1' },
+    tableTab: { id: 'tab-1', tableId: 'table-1', status: 'open' },
+    tables: [{ id: 'table-1', occupancy: 'occupied', openTableTab: { id: 'tab-1' } }],
+  }
+  const events = []
+  const probe = await mountProbe({
+    api: {
+      updateReservation: async () => ({}),
+      confirmArrival: async () => result,
+      cancelReservation: async () => ({}),
+      markNoShow: async () => ({}),
+    },
+    writesBlocked: false,
+    canCreateOrders: true,
+    canCancelOrders: true,
+    canDiscountOrders: true,
+    applyOfficialEffects: () => events.push('effects'),
+    refreshReservation: async () => {},
+    setRequestKey: () => {},
+    onSuccess: () => events.push('success'),
+    onError: () => {},
+    onResult: (official, action) => events.push([action, official]),
+  })
+
+  await act(async () => {
+    assert.equal(await probe.getLatest().confirmArrival('reservation-1', 3, 'arrival-1'), true)
+  })
+  assert.deepEqual(events, ['effects', ['arrival', result], 'success'])
+  probe.unmount()
+})
