@@ -39,6 +39,7 @@ import {
   useTableServiceCommands,
   getOpenComandaCount,
   tableReservationApi,
+  useTableReservationCommands,
 } from './domains/table-service/index.js'
 import DashboardSurface from './app/surfaces/dashboard/DashboardSurface.jsx'
 import KitchenTvControlSurface from './app/surfaces/kitchen-tv-control/KitchenTvControlSurface.jsx'
@@ -302,6 +303,27 @@ function App({ capabilities } = {}) {
     onError: (error) => orderCommandTargetsRef.current.onError(error),
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
+  const reservationCommands = useTableReservationCommands({
+    writesBlocked,
+    canCreateOrders,
+    canCancelOrders,
+    canDiscountOrders: canAdjustOrders,
+    applyOfficialEffects,
+    refreshReservation: tableReservationApi.getReservation,
+    setRequestKey,
+    onSuccess: showSuccessMessage,
+    onError: showApiError,
+    onResult: (result, action) => {
+      if (action !== 'arrival' || !result?.tableTab?.id || !Array.isArray(result.tables)) return
+      const table = result.tables.find((item) => item.isActive
+        && item.occupancy === 'occupied'
+        && item.openTableTab?.id === result.tableTab.id)
+      const identity = table
+        ? resolveOpenComanda(result.tables, { tableId: table.id, tableTabId: result.tableTab.id })
+        : null
+      if (identity) selectComanda(identity, result.tables)
+    },
+  })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
     writesBlocked,
     canManageClients,
@@ -518,6 +540,13 @@ function App({ capabilities } = {}) {
     newOrderDraft.open({ tableId: currentTableId, expectedTableTabId, returnDestination: returnTab })
     return completeNavigation('new-order')
   }
+  const handleEditReservation = (detail) => {
+    if (!canCreateOrders || writesBlocked) return false
+    const opened = newOrderDraft.openReservationEdit(detail, { returnDestination: 'comandas' })
+    if (!opened) return false
+    return completeNavigation('new-order')
+  }
+
   const handleOpenComanda = (target) => {
     if (!canOpenComanda) return false
     const currentTables = getOfficialTables()
@@ -596,6 +625,16 @@ function App({ capabilities } = {}) {
                 canTransfer={canTransferComanda}
                 onTransfer={tableServiceCommands.transferTableTab}
                 onApiError={showApiError}
+                onEditReservation={handleEditReservation}
+                onConfirmReservationArrival={reservationCommands.confirmArrival}
+                onCancelReservation={reservationCommands.cancelReservation}
+                onMarkReservationNoShow={reservationCommands.markNoShow}
+                reservationActionKey={reservationCommands.actionKey}
+                canCancelOrders={canCancelOrders}
+                cancellationOptions={cancellationOptions}
+                cancellationRevision={cancellationRevision}
+                currentTiming={currentTiming}
+                now={operationalNow}
                 onRequestPayment={requestPayment}
                 onRequestPreview={requestPreview}
                 onRequestPrint={requestPrint}
