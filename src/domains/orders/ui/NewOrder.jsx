@@ -409,6 +409,12 @@ function NewOrder({
       await onPolicyChanged?.()
       return false
     }
+    if (result?.ok === false) {
+      setCheckoutError(result.message || (editReservationMode
+        ? 'Não foi possível salvar as alterações. Seus dados continuam aqui para tentar novamente.'
+        : 'Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.'))
+      return false
+    }
     if (!result) {
       setCheckoutError(editReservationMode
         ? 'Não foi possível salvar as alterações. Seus dados continuam aqui para tentar novamente.'
