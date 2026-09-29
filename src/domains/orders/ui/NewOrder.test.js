@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { act } from 'react-test-renderer'
 import { workspaceHarness, nodeText, buttonNamed } from '../../../test-support/renderWorkspace.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -227,10 +228,10 @@ test('Local customer step exposes Reservar in the existing mobile-friendly layou
   const table = buttonNamed(renderer.root, 'Mesa 3Ocupada') || renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Mesa 3'))
   assert.ok(table)
 
-  await harness.act(async () => table.props.onClick())
+  await act(async () => table.props.onClick())
   assert.match(nodeText(renderer.root), /Comanda aberta/)
 
-  await harness.act(async () => reserve.props.onClick())
+  await act(async () => reserve.props.onClick())
   assert.doesNotMatch(nodeText(renderer.root), /este pedido será adicionado/)
 })
 
@@ -252,6 +253,6 @@ test('open-comanda new order keeps Local locked to Agora and does not expose Res
 
   const back = buttonNamed(renderer.root, '← Voltar para cliente')
     || renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Cliente'))
-  if (back) await harness.act(async () => back.props.onClick())
+  if (back) await act(async () => back.props.onClick())
   assert.equal(buttonNamed(renderer.root, 'Reservar'), undefined)
 })
