@@ -5,6 +5,8 @@ import { cancelOrder } from './orderCancellation.js'
 import { listTables } from './tableRepository.js'
 import { requireCapability } from './settingsAccess.js'
 import { confirmTableReservationArrival } from './tableReservationArrival.js'
+import { validateCheckoutInput } from './orderCheckout.js'
+import { updateTableReservation } from './tableReservationUpdate.js'
 import {
   listTableReservations,
   loadTableReservationById,
@@ -67,6 +69,36 @@ export const handleTableReservationApi = async (request, env, context, url = new
     ])
     if (!order) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
     return json({ reservation, order, printJob })
+  }
+
+  if (detailMatch && request.method === 'PUT') {
+    requireCapability(context, 'orders.create')
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
+      throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
+    }
+    const now = env.now instanceof Date ? env.now : new Date()
+    const validated = validateCheckoutInput(
+      body,
+      `reservation-edit:${decodeURIComponent(detailMatch[1])}:${body.expectedRevision}`,
+      now,
+    )
+    if (validated.type !== 'Local' || validated.customerIdentity.type !== 'table' || !validated.scheduledFor) {
+      throw apiError(400, 'TABLE_RESERVATION_UPDATE_INVALID', 'A edição da reserva precisa manter um pedido Local agendado.')
+    }
+    if (validated.adjustment.type !== 'none') requireCapability(context, 'orders.discount')
+    const result = await updateTableReservation(
+      env.DB,
+      context.businessId,
+      decodeURIComponent(detailMatch[1]),
+      { ...validated, expectedRevision: body.expectedRevision },
+      now,
+    )
+    return json({
+      ...result,
+      tables: await listTables(env.DB, context.businessId),
+    })
   }
 
   const arrivalMatch = /^\/api\/table-reservations\/([^/]+)\/confirm-arrival$/.exec(url.pathname)
