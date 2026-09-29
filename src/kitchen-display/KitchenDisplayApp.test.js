@@ -496,6 +496,36 @@ test('telemetry is deduplicated across identical polls and changes when viewport
   assert.equal(reports[1].viewportHeight, 720)
 })
 
+test('unchanged live render sends a slow telemetry heartbeat without waiting for resize or fullscreen changes', async (t) => {
+  const h = await workspaceHarness(t)
+  h.window.innerWidth = 960
+  h.window.innerHeight = 540
+  const { KitchenDisplayApp } = await h.load('/src/kitchen-display/KitchenDisplayApp.jsx')
+  const reports = []
+  const current = controlledState(2, { revision: 3, requestedPage: 1 })
+  const renderer = await h.render(KitchenDisplayApp, {
+    bootstrap: async () => ({ kind: 'paired', state: current }),
+    readState: async () => current,
+    reportState: async (payload) => { reports.push(payload); return { reported: true } },
+    requestFullscreen: async () => true,
+    audio: { unlock: async () => true, playArrival: async () => true },
+  })
+  await flushEffects()
+  await act(async () => buttonNamed(renderer.root, 'Iniciar painel da cozinha').props.onClick())
+  await flushEffects()
+
+  assert.equal(reports.length, 1)
+
+  await act(async () => h.fireInterval(2000))
+  await flushEffects()
+  assert.equal(reports.length, 1)
+
+  await act(async () => h.fireInterval(5000))
+  await flushEffects()
+  assert.equal(reports.length, 2)
+  assert.deepEqual(reports[1], reports[0])
+})
+
 test('telemetry failure never marks the Kitchen TV stale or stops order polling', async (t) => {
   const h = await workspaceHarness(t)
   h.window.innerWidth = 960

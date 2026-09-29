@@ -77,6 +77,8 @@ test('renders the approved compact two-column grid with ten cards and no sensiti
   const { screen } = await render(t)
   const cards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
   assert.equal(cards.length, 10)
+  const compactNumber = cards[0].findAll((node) => node.props.className === 'kitchen-tv-control-order-number-compact')[0]
+  assert.equal(nodeText(compactNumber), '#501')
 
   const text = nodeText(screen.root)
   assert.match(text, /Controle da TV/)
@@ -98,7 +100,9 @@ test('renders the approved compact two-column grid with ten cards and no sensiti
   assert.match(css, /\.kitchen-tv-control-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
   assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-heading p \{[\s\S]*display:\s*none/)
   assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-header \{[\s\S]*flex-direction:\s*row/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*62px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*68px/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-number-full \{[\s\S]*display:\s*none/)
+  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-number-compact \{[\s\S]*display:\s*block/)
   assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card-heading,[\s\S]*\.kitchen-tv-control-badges \{[\s\S]*display:\s*contents/)
   assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-hint \{[\s\S]*min-height:\s*32px/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-late[\s\S]*var\(--danger\)/)
