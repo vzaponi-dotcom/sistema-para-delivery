@@ -650,28 +650,34 @@
   }
 
   .kitchen-tv-control-modality-filters {
-    gap: 5px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .kitchen-tv-control-modality-filter {
-    min-height: 52px;
+    min-height: 54px;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 5px;
-    padding: 6px 7px;
+    gap: 7px;
+    padding: 7px 10px;
     border-radius: 12px;
-    font-size: .64rem;
+    font-size: .72rem;
   }
 
   .kitchen-tv-control-modality-filter > svg {
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .kitchen-tv-control-modality-filter > span {
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .kitchen-tv-control-modality-count {
-    min-width: 23px;
-    height: 23px;
-    padding-inline: 4px;
-    font-size: .63rem;
+    min-width: 25px;
+    height: 25px;
+    padding-inline: 5px;
+    font-size: .68rem;
   }
 
   .kitchen-tv-control-summary {
