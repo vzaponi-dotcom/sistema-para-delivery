@@ -246,3 +246,23 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Existing Finance/Orders dependency boundary remains unchanged: PASS.
 - Final Task 17 Validate #2667 / run `36627016287`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
 - Manual staging finance verification remains PENDING until the staging/homologation tasks.
+
+## Automated checkpoints after Task 18
+
+- Future scheduled order selected/reported by future order_date rather than early created_at: PASS.
+- Early payment remains on actual paid_at financial business date: PASS.
+- Sales series uses order_date; received series uses paid_at: PASS.
+- Local reservation remains modality Local in operation reporting: PASS.
+- Local reservation remains schedule classification scheduled: PASS.
+- Reservation operational duration starts at operationalStartAt, not advance-created timestamp: PASS.
+- Cancelled/no-show mirror order excluded from operation analytics: PASS.
+- Cancelled/no-show mirror order excluded from commercial sales population: PASS.
+- Active reservation excluded from Overview/Sales receivable metrics: PASS.
+- Active reservation excluded from Detail A receber filter: PASS.
+- Reservation detail pending amount is zero: PASS.
+- Client pending aggregate excludes reservation orders: PASS.
+- Ordinary future unpaid Entrega/Retirada receivable semantics preserved: PASS.
+- Type + scheduled reporting filters reconcile on future Local orders: PASS.
+- Reporting repository projects authoritative reservation identity without a global reservation collection: PASS.
+- Final Task 18 Validate #2677 / run `36629169321`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
+- Manual staging reporting reconciliation remains PENDING until staging/homologation.
