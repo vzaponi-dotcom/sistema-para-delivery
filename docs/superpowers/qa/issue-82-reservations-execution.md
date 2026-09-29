@@ -36,7 +36,7 @@
 | 10 — Reservation editing backend | COMPLETE / GREEN | RED `85730d19e7520b6b3029d496088a934cab5a11bc` → Validate #2583 / run `36598668914` failed on 5 intended edit/API behaviors. GREEN `d6ea8f1e59642d5da6380af62be3759033100d68` → Validate #2585 / run `36599062787` SUCCESS. |
 | 11 — Frontend reservation boundary | COMPLETE / GREEN | RED `969a3c26b0debd3f2855b2e2e5654c39d9d900ac` → Validate #2591 / run `36599673011` failed on intended command/public-boundary behaviors. Implemented through `1b2ccdc5aa73b2836fc5d34503e9f2a881adfaf8` + ownership fix `fcf3a76018c7337cfe96f6cb5d08304aba1596f3`; integrated GREEN proven by Validate #2612 / run `36610498170` SUCCESS. |
 | 12 — New Order reservation mode | COMPLETE / GREEN | RED `0cd3cd102dd931683384a236f2c3347d5967eb24` → Validate #2601 / run `36600441146` failed on the intended multiday/Local-reservation wizard contracts. GREEN implementation through `a0d6cd2aced3e08b7d4184e233a48a0be032714b`, characterization alignment `ad2c640274e966dcc2fa454b60ea11b80c5cd8fc`; Validate #2612 / run `36610498170` SUCCESS on `1cdb4c8cc14600b99ac4c57d9cbab9901d229433`. |
-| 13 — Edit reservation wizard | NOT STARTED | — |
+| 13 — Edit reservation wizard | COMPLETE / GREEN | Valid behavioral RED `931c2b6d4c6d6978669c2375d024ca07c59c82a2` → Validate #2619 / run `36613288332` failed on the intended edit-context/dispatch/wizard behaviors. GREEN `e7ab79229a87cedb957d075bfa96017d962503d0` → Validate #2628 / run `36614217317` SUCCESS; all 8 shards and full validation green. |
 | 14 — Comandas desktop/mobile | NOT STARTED | — |
 | 15 — Orders / future schedules | NOT STARTED | — |
 | 16 — Kitchen TV / realtime | NOT STARTED | — |
@@ -477,4 +477,54 @@ Additional guarantees:
 - Staging deploy: NOT EXECUTED.
 - Production deploy: NOT EXECUTED.
 
-Stopped before Task 13.
+
+## Task 13 evidence
+
+### RED
+
+The first test commit `212182950621c7f945d3b8650d61b34465e8f6b1` initially failed at module-load time because the planned edit-context export did not yet exist. That parser/import-style failure was **not counted as the behavioral RED**.
+
+A minimal executable scaffold was then added at `931c2b6d4c6d6978669c2375d024ca07c59c82a2`.
+
+Validate #2619 / run `36613288332`: FAILURE as intended on behavioral contracts:
+
+- official reservation detail was not converted into a reusable New Order edit snapshot;
+- draft controller did not preserve explicit `mode = 'edit-reservation'` or reservation revision context;
+- edit submission still followed create-order behavior instead of reservation PUT;
+- stale-revision refresh/reopen behavior was absent;
+- policy-change edit behavior was absent;
+- shared New Order UI had no edit initialization/title/manual-print warning.
+
+### GREEN
+
+Implementation:
+
+- `637d01ca64222d45e37df931c0bdd5d5355d8fb1` — explicit create/edit draft model, official snapshot conversion and stale-context replacement;
+- `f38495ede1ade1cb7cda4e4e6c3d41f714a139b2` — edit-aware `useNewOrderDraft` dispatch, stale refresh and policy behavior;
+- `fddfe6576c33d9a134c8e1c59d7251f855c69b1a` — reservation detail exposes manual-print history;
+- `67449eea7f378df2840bebeadd2748e771c7053e` — New Order wizard edit initialization, labels and manual-print confirmation;
+- `44ebbcf2b1cd6d3d812a76553eaf0632cc2308c8` — App composition sends explicit mode/context/snapshot and uses reservation PUT boundary;
+- `1fcfc6c0adfbde578f66b1fabc1fbb8fa48db62c` — manual-print-history fixture coverage;
+- `4dc5632760864e90029375f2b78b7a49fc14e34e`, `e9b6674bcc169c08ab41e6186f14bd3e3152d723`, `e7ab79229a87cedb957d075bfa96017d962503d0` — characterization alignments for preserved create/default behavior.
+
+Validate #2628 / run `36614217317`: SUCCESS.
+
+Delivered:
+
+- one shared wizard contract with explicit `mode: 'create' | 'edit-reservation'`;
+- edit context owns reservation id, original order id/number, expected revision and manual-print-history flag;
+- official reservation/order snapshot pre-fills mesa, optional client, date/time, items, notes, prices and adjustment;
+- edit submission calls `PUT /api/table-reservations/:id`; create mode continues to call `POST /api/orders`;
+- existing order id/number come only from the official backend result and are never recreated by the editor;
+- Cancelar edição only exits/discards the draft through the existing navigation dirty guard; it does not cancel the reservation;
+- stale `409` reloads the official reservation snapshot/revision, keeps the editor open and surfaces the error;
+- `POLICY_CHANGED` keeps the editor open and reuses the existing policy-review feedback path;
+- manual print history is loaded before editing and requires an explicit “Salvar mesmo assim” confirmation before the PUT;
+- edit mode never exposes immediate payment;
+- NewOrder route remains the same generic component boundary; no parallel reservation editor was created;
+- create-order navigation/idempotency and authoritative local effects remain preserved.
+
+Staging deploy: NOT EXECUTED.  
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 14.
