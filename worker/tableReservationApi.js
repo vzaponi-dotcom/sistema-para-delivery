@@ -63,12 +63,21 @@ export const handleTableReservationApi = async (request, env, context, url = new
     requireReservationRead(context)
     const reservation = await loadTableReservationById(env.DB, context.businessId, decodeURIComponent(detailMatch[1]))
     if (!reservation) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
-    const [order, printJob] = await Promise.all([
+    const [order, printJob, manualPrintRow] = await Promise.all([
       loadOrderById(env.DB, context.businessId, reservation.orderId),
       loadAutomaticPrintJobForOrder(env.DB, context.businessId, reservation.orderId),
+      env.DB.prepare(`SELECT COUNT(*) AS count
+        FROM print_jobs
+        WHERE business_id = ? AND order_id = ? AND type = 'order' AND trigger = 'manual'`)
+        .bind(context.businessId, reservation.orderId).first(),
     ])
     if (!order) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
-    return json({ reservation, order, printJob })
+    return json({
+      reservation,
+      order,
+      printJob,
+      hasManualPrintHistory: Number(manualPrintRow?.count || 0) > 0,
+    })
   }
 
   if (detailMatch && request.method === 'PUT') {
