@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { workspaceHarness, nodeText } from '../../../test-support/renderWorkspace.js'
+import { workspaceHarness, nodeText, buttonNamed } from '../../../test-support/renderWorkspace.js'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
@@ -184,4 +184,74 @@ test('scheduling uses the shared business timezone source', () => {
   assert.match(page, /todayValue=\{getBusinessDate\(\)\}/)
   assert.match(review, /FINANCE_TIME_ZONE/)
   assert.doesNotMatch(review, /timeZone:\s*'America\/Sao_Paulo'/)
+})
+
+
+test('new order extends the current wizard with multiday schedule and Local Reservar controls', () => {
+  const page = source('./NewOrder.jsx')
+  const customerStep = source('./components/NewOrderCustomerStep.jsx')
+  const review = source('./components/NewOrderReviewStep.jsx')
+  const tableSelector = source('../../table-service/ui/LocalTableSelector.jsx')
+
+  assert.match(page, /getScheduleMaxBusinessDate/)
+  assert.match(page, /getNewOrderScheduleState/)
+  assert.match(page, /maxDateValue/)
+  assert.match(page, /reservationMode/)
+  assert.match(customerStep, /max=\{maxDateValue\}/)
+  assert.match(customerStep, /scheduleOptionLabel/)
+  assert.match(customerStep, /scheduleNowAllowed/)
+  assert.match(customerStep, /Reservar|scheduleOptionLabel/)
+  assert.match(tableSelector, /reservationMode/)
+  assert.match(tableSelector, /selectedTable\?\.occupancy === 'occupied' && !reservationMode/)
+  assert.match(review, /year:\s*'numeric'/)
+  assert.match(review, /RESERVA|Reserva|draft\?\.type === 'Local'/)
+})
+
+test('Local customer step exposes Reservar in the existing mobile-friendly layout and hides open-tab hint after choosing it', async (t) => {
+  const harness = await workspaceHarness(t, { mobile: true })
+  const { default: NewOrder } = await harness.load('/src/domains/orders/ui/NewOrder.jsx')
+  const renderer = await harness.render(NewOrder, {
+    clients: [],
+    products: [],
+    tables: [{ id: 'table-3', name: 'Mesa 3', isActive: true, occupancy: 'occupied' }],
+    initialType: 'Local',
+    currency: (value) => `R$ ${value}`,
+    disabled: false,
+    onCancel: () => {},
+    onCreateClient: async () => null,
+    onSubmit: async () => false,
+  })
+
+  const reserve = buttonNamed(renderer.root, 'Reservar')
+  assert.ok(reserve)
+  const table = buttonNamed(renderer.root, 'Mesa 3Ocupada') || renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Mesa 3'))
+  assert.ok(table)
+
+  await harness.act(async () => table.props.onClick())
+  assert.match(nodeText(renderer.root), /Comanda aberta/)
+
+  await harness.act(async () => reserve.props.onClick())
+  assert.doesNotMatch(nodeText(renderer.root), /este pedido será adicionado/)
+})
+
+test('open-comanda new order keeps Local locked to Agora and does not expose Reservar', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: NewOrder } = await harness.load('/src/domains/orders/ui/NewOrder.jsx')
+  const renderer = await harness.render(NewOrder, {
+    clients: [],
+    products: [],
+    tables: [{ id: 'table-7', name: 'Mesa 7', isActive: true, occupancy: 'occupied' }],
+    initialTableId: 'table-7',
+    expectedTableTabId: 'tab-7',
+    currency: (value) => `R$ ${value}`,
+    disabled: false,
+    onCancel: () => {},
+    onCreateClient: async () => null,
+    onSubmit: async () => false,
+  })
+
+  const back = buttonNamed(renderer.root, '← Voltar para cliente')
+    || renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Cliente'))
+  if (back) await harness.act(async () => back.props.onClick())
+  assert.equal(buttonNamed(renderer.root, 'Reservar'), undefined)
 })
