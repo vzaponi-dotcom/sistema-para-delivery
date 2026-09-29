@@ -33,9 +33,9 @@
 | 7 — Reservation read API | COMPLETE / GREEN | RED `b765f96dc320d45614d9276a28d5a9231b8704f2` → Validate #2568 / run `36595571884` failed on 3 intended read/filter/detail behaviors. GREEN `ddfe5311a8c0dded685e40fbc9f128d12bf9c5af` → Validate #2570 / run `36595908826` SUCCESS. |
 | 8 — Cancel / no-show | COMPLETE / GREEN | RED `57345c069834e3dbf610df8aa5c54a19792693ce` → Validate #2571 / run `36596107150` failed on 5 intended lifecycle behaviors. GREEN `d5b2246d7cd16ae04cdbd26635b7c3768e318f82` → Validate #2575 / run `36596600847` SUCCESS. |
 | 9 — Arrival conversion | COMPLETE / GREEN | RED `c3232731d1d85432ac188bdeae6cf56c152a03d4` → Validate #2577 / run `36596811849` failed on 4 intended conversion/API behaviors. GREEN `94f2cb88435483794b25752a2b2a7db148408897` → Validate #2579 / run `36597090286` SUCCESS. |
-| 10 — Reservation editing backend | NOT STARTED | — |
-| 11 — Frontend reservation boundary | NOT STARTED | — |
-| 12 — New Order reservation mode | NOT STARTED | — |
+| 10 — Reservation editing backend | COMPLETE / GREEN | RED `85730d19e7520b6b3029d496088a934cab5a11bc` → Validate #2583 / run `36598668914` failed on 5 intended edit/API behaviors. GREEN `d6ea8f1e59642d5da6380af62be3759033100d68` → Validate #2585 / run `36599062787` SUCCESS. |
+| 11 — Frontend reservation boundary | COMPLETE / GREEN | RED `969a3c26b0debd3f2855b2e2e5654c39d9d900ac` → Validate #2591 / run `36599673011` failed on intended command/public-boundary behaviors. Implemented through `1b2ccdc5aa73b2836fc5d34503e9f2a881adfaf8` + ownership fix `fcf3a76018c7337cfe96f6cb5d08304aba1596f3`; integrated GREEN proven by Validate #2612 / run `36610498170` SUCCESS. |
+| 12 — New Order reservation mode | COMPLETE / GREEN | RED `0cd3cd102dd931683384a236f2c3347d5967eb24` → Validate #2601 / run `36600441146` failed on the intended multiday/Local-reservation wizard contracts. GREEN implementation through `a0d6cd2aced3e08b7d4184e233a48a0be032714b`, characterization alignment `ad2c640274e966dcc2fa454b60ea11b80c5cd8fc`; Validate #2612 / run `36610498170` SUCCESS on `1cdb4c8cc14600b99ac4c57d9cbab9901d229433`. |
 | 13 — Edit reservation wizard | NOT STARTED | — |
 | 14 — Comandas desktop/mobile | NOT STARTED | — |
 | 15 — Orders / future schedules | NOT STARTED | — |
@@ -367,4 +367,114 @@ Additional guarantees:
 - Number gaps remain acceptable if a failed race already reserved a counter number; numbers are never reused.
 - Staging/production: NOT EXECUTED.
 
-Stopped before Task 10.
+
+## Task 10 evidence
+
+### RED
+
+- Scaffold: `db21b540c765c81bd6131da17a0fb9c525b6d9f6`.
+- Behavioral RED: `85730d19e7520b6b3029d496088a934cab5a11bc`.
+- Validate #2583 / run `36598668914`: FAILURE as intended.
+- Five edit behaviors proved absent:
+  - atomic repricing/snapshot replacement;
+  - rollback on inactive product/conflict/stale revision;
+  - edit cutoff after operational start / terminal lifecycle;
+  - discarded/missing automatic job preservation;
+  - PUT capability/adjustment authorization path.
+
+### GREEN
+
+- Backend edit workflow: `d7f29cc8a6268562c643ccb1bf530382ef6f6357`.
+- HTTP endpoint and checkout validation reuse: `d6ea8f1e59642d5da6380af62be3759033100d68`.
+- Validate #2585 / run `36599062787`: SUCCESS.
+- Delivered:
+  - `PUT /api/table-reservations/:id`;
+  - only active `reserved` reservations before `operational_start_at` are editable;
+  - expected revision required and optimistic concurrency enforced;
+  - client, mesa, date/time, items, notes and approved adjustment can change;
+  - products are revalidated/repriced from the current catalog;
+  - order id/number remain stable;
+  - order_date/scheduled_for, reservation interval/table snapshot and items change atomically;
+  - pending automatic job keeps its id/copies while document/available_at are updated;
+  - discarded job is never revived and missing automatic job is never backfilled;
+  - manual print history is exposed to the UI workflow;
+  - table conflict/product/policy/revision races fail without partial state;
+  - adjustment edit requires existing `orders.discount` capability.
+- Staging/production: NOT EXECUTED.
+
+## Task 11 evidence
+
+### RED
+
+- Boundary scaffolds:
+  - `21e89a898062616c20d00c75a3909a4a98aa6be1`;
+  - `1d02045aaa04051d8b1f4093cd777e70e3679189`;
+  - `cdb3e36f4754b45ebd8559acc5202be2d21c75ba`;
+  - `b548c8a256d24ed16e4abeaca77aaf1e73bed8cc`.
+- Behavioral tests:
+  - `0f223a1ec2bf134246e7086cee5f54e5583c88a8`;
+  - `6bf717406c671e0c6687f755067b2dbfadf50301`;
+  - `dc976d29e945864929dd19d2e1c6828ea447a683`;
+  - `969a3c26b0debd3f2855b2e2e5654c39d9d900ac`.
+- Validate #2591 / run `36599673011`: FAILURE as intended, proving command ownership/conflict refresh behavior and public contract were not yet implemented.
+
+### GREEN
+
+- Domain helpers: `6e5deafa1b1c42887e9569b57fa590ebb69e1a47` + identity refinement `fcf3a76018c7337cfe96f6cb5d08304aba1596f3`.
+- Dedicated API: `0a9cf822a8e2758fdd0f97485b6bc27ad63bedb3`.
+- Detail owner: `5b5f268055f9c77ec08213e4d5b2fb201d2b5065`.
+- Commands owner: `a602fef772cb25edd45937670d1306578c4b41d4`.
+- Deliberate public contract: `b9f650c53c2748e1263ab5c7ff26364161d3b0f9` + `1b2ccdc5aa73b2836fc5d34503e9f2a881adfaf8`.
+- Integrated Validate #2612 / run `36610498170`: SUCCESS.
+- Delivered:
+  - dedicated frontend API paths for list/detail/edit/arrival/cancel/no-show;
+  - reservation detail owner ignores late responses from retired selections;
+  - commands guard writesBlocked and existing create/cancel/discount capabilities before network;
+  - official mutation responses are applied directly;
+  - 409 conflict refreshes official reservation state once and does not retry mutation;
+  - Table Service exposes a deliberate public reservation boundary;
+  - reservation application/domain code does not deep-import Orders.
+- Staging/production: NOT EXECUTED.
+
+## Task 12 evidence
+
+### RED
+
+- Schedule input-limit scaffold/tests: `ac17c196acdbd6f4850a487846ef94dc99cfcb65` + `3bb74953c628d81690587fb45d8cb5f9c88afbba`.
+- Schedule-state scaffold/tests: `4749fb9de35809d8c3229b5279e4a778d144ccfe` + `8fecbf7bf98d065f173645d74987f6f51af5e1d1`.
+- Payload/UI RED: `db2bd9ad50ab4539cf90e151c734f9264e8db92e` + `0cd3cd102dd931683384a236f2c3347d5967eb24`.
+- Validate #2601 / run `36600441146`: FAILURE as intended.
+- RED proved:
+  - no 90-day date-input helper;
+  - no Local Reservar schedule state;
+  - Local reservation payload still carried open table-tab identity;
+  - wizard did not expose Reservar/multiday controls;
+  - occupied-table reservation hint behavior/full-date review were absent.
+
+### GREEN
+
+- 90-day date max: `930a71f3482807cfeca8e2cd4c37332697da194d`.
+- Shared wizard schedule state: `c6b11e2f4c001e60b070f472675ffa549f42374f`.
+- Reservation payload detaches expected open tab: `12938d88cbdd4ba32e58354e3cc7435eb46c8fb4`.
+- Customer-step controls: `d5ea7545e343b8401069c06c9fed46694d043bc8`.
+- Occupied-table reservation UX: `96f5319ecfdb59aaa4a6859ec1a4f9e841f864d4`.
+- Review full date/time: `e21bb14f13d04c45b6ac6f1811d39e5da01303b6`.
+- Wizard integration: `a0d6cd2aced3e08b7d4184e233a48a0be032714b`.
+- Non-behavioral characterization alignment: `ad2c640274e966dcc2fa454b60ea11b80c5cd8fc`.
+- Validate #2612 / run `36610498170`: SUCCESS.
+- Delivered:
+  - date field accepts today through the 90th business-calendar day;
+  - Entrega/Retirada keep Agora/Agendado semantics;
+  - future date forces scheduled mode (Agora is not valid);
+  - Local exposes Agora/Reservar;
+  - Local Reservar keeps mesa required and can select an occupied-now mesa for a future reservation;
+  - selected occupied table no longer says the order will join the current comanda while in reservation mode;
+  - `expectedTableTabId` prevents reservation mode for “Adicionar pedido” on an existing comanda;
+  - Local reservation checkout payload sends `scheduledFor` and omits open-tab identity;
+  - review shows full service date/time and labels Local as Reserva;
+  - existing dirty-draft tracking already includes orderDate/scheduleMode/scheduledTime and remains active.
+- CI note: the first final run exposed a pre-existing time-dependent Kitchen TV security fixture whose fixed admin-session date had crossed the seven-day auth lifetime. Test-only commit `1cdb4c8cc14600b99ac4c57d9cbab9901d229433` replaced those stale fixed session timestamps with current session creation; all feature shards and full validation then passed. No Kitchen TV production behavior changed.
+- Staging deploy: NOT EXECUTED.
+- Production deploy: NOT EXECUTED.
+
+Stopped before Task 13.
