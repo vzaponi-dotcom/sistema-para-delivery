@@ -11,38 +11,38 @@ Branch: `feature/kitchen-tv-control-center`
   - Git blob SHA: `c7b6294402b3a1f83513096326ce8c2adf13face`
 - Approved plan: `docs/superpowers/plans/2026-09-28-kitchen-tv-control-center-plan.md`
   - Git blob SHA: `2b4b81db50698f7ba75665f362f6c5551108cb63`
-- Migration: `migrations/0032_kitchen_tv_control.sql`
-  - Git blob SHA: `68b4e65da5c03dbd9d27f15e651d2fcbc9fa05bb`
-- Exact product candidate: `c426a1d765559ef1d9508d2df4df7482e1d29b1d`
+- Migrations:
+  - `migrations/0032_kitchen_tv_control.sql`
+  - `migrations/0033_kitchen_tv_modality_filter.sql`
+- Exact product candidate: `6df1d30533ea7ce972e47b122d794127e3b4f601`
 
-The exact product candidate above is the homologated application state. This document is a documentation-only successor and does not replace candidate evidence.
+The exact product candidate above is the homologated application state, including the approved modality-filter enhancement and mobile 2 × 2 readability polish. This document update is documentation-only and does not replace candidate evidence.
 
 ## 2. Automated gates
 
-Exact product candidate `c426a1d765559ef1d9508d2df4df7482e1d29b1d`:
+Exact product candidate `6df1d30533ea7ce972e47b122d794127e3b4f601`:
 
-- Validate application: **#2504 / run 36509035540 — SUCCESS**
-- All 8 test shards: PASS
+- Validate application: **#2510 / run 36515299832 — SUCCESS**
+- All test shards: PASS
 - Frontend architecture: PASS
 - Lint: PASS
 - Build: PASS
 - Production Worker dry-run: PASS
 - Staging Worker dry-run: PASS
 - Local D1 migrations: PASS
-- Spec B D1 clean install/upgrade gate: PASS
-- Operation-profile D1 clean install/upgrade gate: PASS
+- Repository migration gates: PASS
 
 Staging:
 
-- Deploy staging: **#561 / run 36509032327 — SUCCESS**
-- Test aggregate: **2,647 total / 2,646 pass / 0 fail / 1 skipped**
+- Deploy staging: **#567 / run 36515296709 — SUCCESS**
+- Test aggregate: **2,652 total / 2,651 pass / 0 fail / 1 skipped**
 - Remote migrations: **No migrations to apply**
 - Staging login: **HTTP 200**
 - Direct deep link `/pedidos/controle-da-tv`: **HTTP 200 / SPA shell + assets OK**
-- Staging Worker Version ID: `76333391-a276-4e7d-b2b5-82e75d4911b1`
+- Staging Worker Version ID: `7ba79a7f-0339-42cf-a374-79cfaa36104a`
 - Staging URL: `https://sistema-para-delivery-staging.vzaponi.workers.dev`
 
-Migration 0032 was previously applied successfully in staging and subsequent exact-candidate staging runs reported no pending migrations.
+Migration `0032_kitchen_tv_control.sql` was already applied successfully in staging. Migration `0033_kitchen_tv_modality_filter.sql` was applied successfully by Deploy staging **#565 / run 36514297177**, and the exact-candidate deploy #567 confirmed there were no pending migrations.
 
 ## 3. TDD evidence
 
@@ -74,6 +74,16 @@ The implementation followed RED → GREEN checkpoints throughout the plan. Key f
   - RED: `c7913a32a55381762eb7feed17969f8f30c0eaf8`
   - first GREEN: `e1cfe1f35c5491daa9822f94705fc74b281ed0f8`
   - final boundary/alignment fix: `c426a1d765559ef1d9508d2df4df7482e1d29b1d`
+- Post-closure modality filter:
+  - RED: `55f4e3b004e597ad983f28b4f4c8397083a4ec12`
+  - GREEN: `318ef3ccedef9468900ea5e44992af4e464892aa`
+  - final alignment: `5e3099e80bd1a6be9ea2b5d44fc523b991a33a35`
+  - Validate **#2508 / run 36514301415 — SUCCESS**
+- Mobile filter readability polish:
+  - RED: `6b39f88dabe3b32fe83e6180ac50e39abdebdfff`
+  - GREEN / exact product candidate: `6df1d30533ea7ce972e47b122d794127e3b4f601`
+  - Validate **#2510 / run 36515299832 — SUCCESS**
+  - Deploy staging **#567 / run 36515296709 — SUCCESS**
 
 ## 4. Mobile QA — PASS
 
@@ -153,7 +163,21 @@ Manual smoke was reported **PASS** for:
 
 Automated security regressions also cover revocation, capability separation, terminal cleanup, stale/offline fail-closed behavior and architecture boundaries.
 
-## 8. Known limitations / approved product decisions
+## 8. Post-closure modality-filter QA — PASS
+
+Manual QA was executed against staging after the modality-filter enhancement and the mobile readability polish. Reported **PASS** for:
+
+1. **Todos / Entrega / Retira / Mesa** selection and count badges.
+2. Each modality filter changes the real TV projection and returns the requested page to **Tela 1**.
+3. Filter controls remain exclusive to the **Controle da TV** surface and do not appear on the physical TV.
+4. With 2+ pages, **Na TV**, **Fora da tela**, pagination and controller cards follow the selected modality.
+5. **Retirados** remains a separate manual-TV-removal state, and restore continues to work.
+6. Narrow mobile layout renders the four modality filters as a **2 × 2 grid**, without truncated labels.
+7. F5/reopening the controller preserves authoritative synchronization between controller and TV.
+
+The manual modality-filter QA found no blocking regression.
+
+## 9. Known limitations / approved product decisions
 
 - Mobile “fullscreen” is an immersive in-app surface, not the browser/OS Fullscreen API. This avoids browser permission differences while hiding the global top and bottom navigation on the control screen.
 - The control grid mirrors the TV's reported current page. Hidden orders are intentionally managed in the separate **Retirados N** panel.
@@ -163,22 +187,24 @@ Automated security regressions also cover revocation, capability separation, ter
 
 No blocking, high or medium finding remains open for this scope.
 
-## 9. PR closure state
+## 10. PR closure state
 
 - Tasks 1–11: **COMPLETE / GREEN**
-- Exact product candidate: `c426a1d765559ef1d9508d2df4df7482e1d29b1d`
-- Exact candidate Validate: **#2504 / run 36509035540 — SUCCESS**
-- Exact candidate staging deploy: **#561 / run 36509032327 — SUCCESS**
+- Post-closure modality-filter enhancement: **COMPLETE / GREEN / MANUAL QA PASS**
+- Exact product candidate: `6df1d30533ea7ce972e47b122d794127e3b4f601`
+- Exact candidate Validate: **#2510 / run 36515299832 — SUCCESS**
+- Exact candidate staging deploy: **#567 / run 36515296709 — SUCCESS**
 - Mobile QA: **PASS**
 - Real TV + phone QA: **PASS**
 - Concurrency QA: **PASS**
 - Privacy/security smoke: **PASS**
-- Unresolved review threads before QA-document commit: **0**
+- Modality-filter QA: **PASS**
+- Unresolved review threads: **0**
 - Merge: **NOT EXECUTED**
 - Production: **NO DEPLOY**
 
-## 10. Release gate
+## 11. Release gate
 
-The Kitchen TV Control Center implementation is homologated in staging and ready for explicit merge authorization.
+The Kitchen TV Control Center implementation, including the modality-filter enhancement, is homologated in staging and ready for explicit merge authorization.
 
 Production remains a separate authorization step and has not been deployed by this work.
