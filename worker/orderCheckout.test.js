@@ -99,13 +99,29 @@ test('checkout accepts a valid future same-day scheduledFor and normalizes it', 
   assert.equal(input.scheduledFor, '2026-09-04T15:00:00.000Z')
 })
 
-test('checkout rejects scheduledFor for Local orders', () => {
-  assert.throws(() => validateCheckoutInput({
+test('checkout accepts Local reservations and multiday schedules through the 90th business day', () => {
+  const local = validateCheckoutInput({
     ...scheduledBase,
     type: 'Local',
     customerIdentity: { type: 'table', tableId: 'table-123' },
     scheduledFor: '2026-09-04T15:00:00Z',
-  }, 'scheduled-local', scheduledNow), /agendamento.*Local/i)
+  }, 'scheduled-local', scheduledNow)
+  assert.equal(local.scheduledFor, '2026-09-04T15:00:00.000Z')
+
+  const tomorrow = validateCheckoutInput({
+    ...scheduledBase,
+    type: 'Retirada',
+    orderDate: '2026-09-05',
+    scheduledFor: '2026-09-05T15:00:00Z',
+  }, 'scheduled-tomorrow', scheduledNow)
+  assert.equal(tomorrow.scheduledFor, '2026-09-05T15:00:00.000Z')
+
+  const day90 = validateCheckoutInput({
+    ...scheduledBase,
+    orderDate: '2026-12-03',
+    scheduledFor: '2026-12-03T15:00:00Z',
+  }, 'scheduled-day-90', scheduledNow)
+  assert.equal(day90.scheduledFor, '2026-12-03T15:00:00.000Z')
 })
 
 test('checkout rejects scheduledFor at or before checkout time', () => {
@@ -120,4 +136,19 @@ test('checkout rejects scheduledFor on retroactive orderDate', () => {
     orderDate: '2026-09-03',
     scheduledFor: '2026-09-04T15:00:00Z',
   }, 'scheduled-retroactive', scheduledNow), /retroativ|data.*pedido/i)
+})
+
+
+test('checkout rejects the 91st day and mismatched scheduled business date', () => {
+  assert.throws(() => validateCheckoutInput({
+    ...scheduledBase,
+    orderDate: '2026-12-04',
+    scheduledFor: '2026-12-04T15:00:00Z',
+  }, 'scheduled-day-91', scheduledNow), /90 dias/i)
+
+  assert.throws(() => validateCheckoutInput({
+    ...scheduledBase,
+    orderDate: '2026-09-05',
+    scheduledFor: '2026-09-06T15:00:00Z',
+  }, 'scheduled-mismatch', scheduledNow), /data do pedido.*horário agendado/i)
 })
