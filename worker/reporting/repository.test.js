@@ -272,3 +272,61 @@ test('reporting sources expose reservation identity so receivable analytics can 
   assert.equal(overview.orders[0].table_reservation_id, 'reservation-report-1')
   assert.equal(sales.orders[0].table_reservation_id, 'reservation-report-1')
 })
+
+test('detail receivable filter and pending amount exclude active reservation orders', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  const at = '2026-09-29T12:00:00Z'
+
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at)
+    VALUES ('detail-reservation','detail-reservation','Detail reservation','${at}','${at}');
+
+    INSERT INTO tables (id,business_id,name,name_key,sort_order,is_active,created_at,updated_at)
+    VALUES ('detail-table','detail-reservation','Mesa 1','mesa 1',1,1,'${at}','${at}');
+
+    INSERT INTO orders (
+      id,business_id,order_number,client_name_snapshot,customer_identity_type,
+      order_date,type,status,scheduled_for,is_backdated,
+      subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,
+      adjustment_value,adjustment_amount_cents,total_cents,created_at,finished_at
+    ) VALUES
+      ('detail-reservation-order','detail-reservation',1,'Mesa 1','table',
+        '2026-10-03','Local','Finalizado','2026-10-03T15:00:00Z',0,
+        5000,0,'none','fixed',0,0,5000,'${at}','2026-10-03T14:30:00Z'),
+      ('detail-delivery-order','detail-reservation',2,'Ana','registered_client',
+        '2026-10-03','Entrega','Finalizado','2026-10-03T16:00:00Z',0,
+        4000,0,'none','fixed',0,0,4000,'${at}','2026-10-03T15:30:00Z');
+
+    INSERT INTO table_reservations (
+      id,business_id,order_id,table_id,table_name_snapshot,status,
+      scheduled_for,ends_at,duration_minutes,revision,created_at,updated_at
+    ) VALUES (
+      'detail-reservation-1','detail-reservation','detail-reservation-order','detail-table','Mesa 1','reserved',
+      '2026-10-03T15:00:00Z','2026-10-03T17:00:00Z',120,1,'${at}','${at}'
+    );
+  `)
+
+  const repository = createReportingRepository(db)
+  const all = await repository.listDetail('detail-reservation', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    page: 1,
+    pageSize: 25,
+    sort: 'date-desc',
+  })
+  const unpaid = await repository.listDetail('detail-reservation', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    receivable: 'unpaid',
+    page: 1,
+    pageSize: 25,
+    sort: 'date-desc',
+  })
+
+  const reservation = all.items.find(({ id }) => id === 'detail-reservation-order')
+  assert.equal(reservation.table_reservation_id, 'detail-reservation-1')
+  assert.equal(reservation.pendingCents, 0)
+  assert.deepEqual(unpaid.items.map(({ id }) => id), ['detail-delivery-order'])
+})
