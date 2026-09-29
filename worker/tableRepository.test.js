@@ -57,10 +57,32 @@ class D1Sqlite {
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
         business_id TEXT NOT NULL,
+        order_number INTEGER,
+        client_id TEXT,
+        client_name_snapshot TEXT NOT NULL DEFAULT '',
         table_tab_id TEXT REFERENCES table_tabs(id),
         status TEXT NOT NULL,
         total_cents INTEGER NOT NULL,
+        scheduled_for TEXT,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE table_reservations (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        order_id TEXT NOT NULL,
+        table_id TEXT NOT NULL,
+        table_name_snapshot TEXT NOT NULL,
+        status TEXT NOT NULL,
+        scheduled_for TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        revision INTEGER NOT NULL,
+        converted_table_tab_id TEXT,
+        converted_at TEXT,
+        cancelled_at TEXT,
+        no_show_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
       CREATE TABLE payments (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL);
       CREATE TABLE order_items (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, quantity INTEGER NOT NULL);
@@ -174,9 +196,72 @@ test('listTables returns the official pending summary for an occupied table tab'
     {
       id: 'first', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1',
       openTableTab: { id: 'tab-1', number: 1042, openedAt: now.toISOString(), orderCount: 2, itemCount: 6, totalCents: 8600 },
+      nextReservation: null,
     },
-    { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: false, occupancy: 'free', openTableTabId: null, openTableTab: null },
+    { id: 'second', name: 'Mesa 2', sortOrder: 2, isActive: false, occupancy: 'free', openTableTabId: null, openTableTab: null, nextReservation: null },
   ])
+})
+
+test('listTables exposes the next reservation without changing current occupancy', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'free', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'occupied', name: 'Mesa 2', sortOrder: 2 })
+  insertOpenTableTab(db, { id: 'tab-occupied', tableId: 'occupied', tableIdentifier: 'Mesa 2', tabNumber: 50 })
+
+  db.exec(`INSERT INTO orders (
+    id, business_id, order_number, client_id, client_name_snapshot, table_tab_id, status, total_cents, scheduled_for, created_at
+  ) VALUES
+    ('reserve-free', 'biz-a', 100, 'client-free', 'João', NULL, 'Em preparo', 3300, '2026-09-10T23:00:00.000Z', '${now.toISOString()}'),
+    ('reserve-later', 'biz-a', 101, NULL, 'Mesa 1', NULL, 'Em preparo', 1800, '2026-09-11T23:00:00.000Z', '${now.toISOString()}'),
+    ('reserve-occupied', 'biz-a', 102, NULL, 'Mesa 2', NULL, 'Em preparo', 2500, '2026-09-10T22:00:00.000Z', '${now.toISOString()}');
+  INSERT INTO order_items (id, business_id, order_id, quantity) VALUES
+    ('reserve-free-item', 'biz-a', 'reserve-free', 3),
+    ('reserve-later-item', 'biz-a', 'reserve-later', 1),
+    ('reserve-occupied-item', 'biz-a', 'reserve-occupied', 2);
+  INSERT INTO table_reservations (
+    id, business_id, order_id, table_id, table_name_snapshot, status, scheduled_for, ends_at,
+    duration_minutes, revision, created_at, updated_at
+  ) VALUES
+    ('reservation-free', 'biz-a', 'reserve-free', 'free', 'Mesa 1', 'reserved',
+      '2026-09-10T23:00:00.000Z', '2026-09-11T01:00:00.000Z', 120, 2, '${now.toISOString()}', '${now.toISOString()}'),
+    ('reservation-later', 'biz-a', 'reserve-later', 'free', 'Mesa 1', 'reserved',
+      '2026-09-11T23:00:00.000Z', '2026-09-12T01:00:00.000Z', 120, 1, '${now.toISOString()}', '${now.toISOString()}'),
+    ('reservation-occupied', 'biz-a', 'reserve-occupied', 'occupied', 'Mesa 2', 'reserved',
+      '2026-09-10T22:00:00.000Z', '2026-09-11T00:00:00.000Z', 120, 1, '${now.toISOString()}', '${now.toISOString()}')`)
+
+  const tables = await listTables(db, 'biz-a')
+  const free = tables.find((table) => table.id === 'free')
+  const occupied = tables.find((table) => table.id === 'occupied')
+
+  assert.equal(free.occupancy, 'free')
+  assert.deepEqual(free.nextReservation, {
+    id: 'reservation-free',
+    orderId: 'reserve-free',
+    orderNumber: 100,
+    tableId: 'free',
+    tableName: 'Mesa 1',
+    status: 'reserved',
+    scheduledFor: '2026-09-10T23:00:00.000Z',
+    endsAt: '2026-09-11T01:00:00.000Z',
+    durationMinutes: 120,
+    revision: 2,
+    convertedTableTabId: null,
+    convertedAt: null,
+    cancelledAt: null,
+    noShowAt: null,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    clientId: 'client-free',
+    clientName: 'João',
+    itemCount: 3,
+    totalCents: 3300,
+    orderStatus: 'Em preparo',
+  })
+
+  assert.equal(occupied.occupancy, 'occupied')
+  assert.equal(occupied.openTableTab.id, 'tab-occupied')
+  assert.equal(occupied.nextReservation.id, 'reservation-occupied')
+  assert.equal(occupied.nextReservation.itemCount, 2)
 })
 
 test('createTable normalizes the name and appends after the current business order', async () => {
