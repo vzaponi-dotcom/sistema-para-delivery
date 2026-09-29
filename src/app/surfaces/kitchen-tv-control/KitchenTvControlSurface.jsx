@@ -103,6 +103,7 @@ function KitchenTvControlSurface({
     () => new Set((controlState?.hiddenOrderIds || []).map(String)),
     [controlState?.hiddenOrderIds],
   )
+  const activeModality = normalizeKitchenTvModality(controlState?.control?.requestedModality)
   const pageEntries = useMemo(
     () => (controlState?.telemetry?.visibleOrderIds || [])
       .map((id) => entryById.get(String(id)))
@@ -117,7 +118,6 @@ function KitchenTvControlSurface({
       .filter(Boolean),
     [controlState?.hiddenOrderIds, entryById],
   )
-  const activeModality = normalizeKitchenTvModality(controlState?.control?.requestedModality)
   const tvEligibleEntries = useMemo(
     () => queueModel.allActive.filter(({ order }) => !hiddenIds.has(String(order.id))),
     [hiddenIds, queueModel.allActive],
@@ -404,6 +404,7 @@ function KitchenTvControlSurface({
           key={filter.id}
           type="button"
           className={`kitchen-tv-control-modality-filter${selected ? ' is-active' : ''}`}
+          aria-label={`${filter.label} ${count}`}
           aria-pressed={selected}
           disabled={!operationalControlsEnabled}
           onClick={() => { void requestModality(filter.id) }}

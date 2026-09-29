@@ -55,7 +55,7 @@ test('returns only active kitchen-safe fields, future scheduled orders and curre
     immediateLateAfterMinutes: 21,
     immediateVeryLateAfterMinutes: 44,
   })
-  assert.deepEqual(state.control, { revision: 0, requestedPage: 1 })
+  assert.deepEqual(state.control, { revision: 0, requestedPage: 1, requestedModality: 'all' })
   assert.deepEqual(state.orders, [
     {
       id: 'active-now', orderNumber: 1042, client: 'Ana Souza', type: 'Entrega', status: 'Em preparo',
@@ -115,7 +115,7 @@ test('Kitchen TV state exposes only revision and requested page, never administr
     .run(BUSINESS, '2026-09-22T18:00:00.000Z', '2026-09-22T18:00:01.000Z')
 
   const state = await repository.loadKitchenTvState(db, BUSINESS)
-  assert.deepEqual(state.control, { revision: 7, requestedPage: 3 })
+  assert.deepEqual(state.control, { revision: 7, requestedPage: 3, requestedModality: 'all' })
   assert.equal(Object.hasOwn(state.control, 'telemetry'), false)
   assert.equal(JSON.stringify(state).includes('visibleOrderIds'), false)
 })

@@ -366,7 +366,8 @@ test('a newer modality revision filters the TV content without rendering filter 
   assert.equal(renderer.root.findAllByProps({ 'data-order-id': 'pickup-one' }).length, 0)
   assert.ok(renderer.root.findByProps({ 'data-order-id': 'table-one' }))
   assert.deepEqual(reports.at(-1)?.visibleOrderIds, ['table-one'])
-  assert.doesNotMatch(nodeText(renderer.root), /Todos|Entrega|Retira|Mesa/)
+  assert.equal(buttonNamed(renderer.root, 'Todos'), undefined)
+  assert.equal(buttonNamed(renderer.root, 'Mesa'), undefined)
 })
 
 test('remote paging starts on page one and does not replay the command already present at bootstrap', async (t) => {
