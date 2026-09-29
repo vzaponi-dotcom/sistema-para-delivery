@@ -25,12 +25,13 @@ import {
   canNavigateToNewOrderStep,
   createNewOrderDirtySnapshot,
   getFurthestReachedStep,
+  getNewOrderScheduleState,
   getNewOrderStepAccess,
   getOrderItemCount,
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
 } from '../domain/newOrderStepFlow.js'
-import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../../../shared/orderTiming.js'
+import { businessDateTimeToIso, getScheduleMaxBusinessDate } from '../../../../shared/orderTiming.js'
 import { ORDER_TYPE_OPTIONS } from '../domain/orderTypeOptions.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
@@ -128,6 +129,28 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     ? [...activeModalityOptions, selectedModalityOption]
     : activeModalityOptions
   const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
+  const todayValue = getBusinessDate()
+  const maxDateValue = getScheduleMaxBusinessDate(new Date())
+  const scheduledFor = scheduleMode === 'scheduled'
+    ? businessDateTimeToIso(orderDate, scheduledTime)
+    : null
+  const scheduleState = getNewOrderScheduleState({
+    type,
+    orderDate,
+    today: todayValue,
+    scheduleMode,
+    scheduledFor,
+    expectedTableTabId,
+    now: new Date(),
+  })
+  const {
+    visible: scheduleVisible,
+    valid: scheduleValid,
+    reservationMode,
+    nowAllowed: scheduleNowAllowed,
+    scheduledLabel: scheduleOptionLabel,
+    fieldLabel: scheduleFieldLabel,
+  } = scheduleState
 
   const draft = {
     clientId: activeClientId,
@@ -137,8 +160,8 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     items,
     deliveryFee: type === 'Entrega' ? deliveryFee : formatBRLCurrencyValue(0),
     adjustment,
-    scheduledFor: scheduleMode === 'scheduled' ? businessDateTimeToIso(orderDate, scheduledTime) : null,
-    expectedTableTabId,
+    scheduledFor,
+    expectedTableTabId: reservationMode ? '' : expectedTableTabId,
   }
   const numericDraft = {
     ...draft,
@@ -152,9 +175,6 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   }
   const preview = calculateOrderPreview(numericDraft)
   const itemCount = getOrderItemCount(items)
-  const scheduledFor = draft.scheduledFor
-  const scheduleVisible = type !== 'Local' && orderDate === getBusinessDate()
-  const scheduleValid = scheduleMode === 'now' || (scheduleVisible && isFutureSameDaySchedule({ type, orderDate, scheduledFor, now: new Date() }))
   const itemsSubtotal = getOrderItemsSubtotal(items)
   const selectedClient = clients.find((client) => client.id === clientId) ?? null
   const selectedLocalClient = clients.find((client) => client.id === localClientId) ?? null
@@ -192,13 +212,31 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     setCheckoutError('')
     setPolicyReviewError('')
     closeQuickClient()
-    if (nextType === 'Local') { setScheduleMode('now'); setScheduledTime('') }
+    if (expectedTableTabId && nextType === 'Local') {
+      setScheduleMode('now')
+      setScheduledTime('')
+    } else if (orderDate > todayValue) {
+      setScheduleMode('scheduled')
+    } else if (orderDate < todayValue) {
+      setScheduleMode('now')
+      setScheduledTime('')
+    }
     if (nextType !== 'Entrega') setDeliveryFee(formatBRLCurrencyValue(0))
   }
 
   const changeOrderDate = (value) => {
     setOrderDate(value)
-    if (value !== getBusinessDate()) { setScheduleMode('now'); setScheduledTime('') }
+    if (expectedTableTabId) {
+      setScheduleMode('now')
+      setScheduledTime('')
+      return
+    }
+    if (value > todayValue) {
+      setScheduleMode('scheduled')
+    } else if (value < todayValue) {
+      setScheduleMode('now')
+      setScheduledTime('')
+    }
   }
 
   const selectTable = (tableId) => {
@@ -363,11 +401,16 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             type={type}
             orderTypeOptions={visibleModalityOptions}
             orderDate={orderDate}
-            todayValue={getBusinessDate()}
+            todayValue={todayValue}
+            maxDateValue={maxDateValue}
             scheduleMode={scheduleMode}
             scheduledTime={scheduledTime}
             scheduleVisible={scheduleVisible}
             scheduleValid={scheduleValid}
+            reservationMode={reservationMode}
+            scheduleNowAllowed={scheduleNowAllowed}
+            scheduleOptionLabel={scheduleOptionLabel}
+            scheduleFieldLabel={scheduleFieldLabel}
             quickClient={quickClient}
             quickClientError={quickClientError}
             disabled={disabled}
@@ -375,7 +418,10 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             canContinue={canContinueCustomer}
             onTypeChange={changeType}
             onOrderDateChange={changeOrderDate}
-            onScheduleModeChange={setScheduleMode}
+            onScheduleModeChange={(mode) => {
+              if (mode === 'now' && !scheduleNowAllowed) return
+              setScheduleMode(mode)
+            }}
             onScheduledTimeChange={setScheduledTime}
             onTableSelect={selectTable}
             onClientSearchChange={handleClientSearchChange}
