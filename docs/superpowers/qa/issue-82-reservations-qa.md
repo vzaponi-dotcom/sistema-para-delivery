@@ -15,7 +15,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Migration clean install | PASS | Task 1 test + Validate #2518 / run `36580925658` |
 | Migration upgrade | PASS | Exact pre-0034 upgrade preserves existing order/table-tab history; Validate #2518 |
 | Reservation overlap concurrency | PARTIAL | SQLite write-boundary overlap triggers PASS for insert/update and half-open intervals; true multi-request race remains for later integration tasks. |
-| Checkout | PENDING | — |
+| Checkout | PARTIAL | Task 2 validates schedule input through 90 days and Local eligibility; reservation persistence checkout remains for Task 5. |
 | Printing | PENDING | — |
 | Arrival conversion | PENDING | — |
 | Edit reservation | PENDING | — |
@@ -24,10 +24,10 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Kitchen TV | PENDING | — |
 | Receivables | PENDING | — |
 | Reporting | PENDING | — |
-| Architecture | PENDING | — |
-| Full test suite | PENDING | — |
-| Lint | PENDING | — |
-| Build | PENDING | — |
+| Architecture | PASS (current HEAD before Task 4) | Validate #2533 / run `36584823314` |
+| Full test suite | PASS (current HEAD before Task 4) | All 8 test shards green in Validate #2533 / run `36584823314` |
+| Lint | PASS (current HEAD before Task 4) | Validate #2533 / run `36584823314` |
+| Build | PASS (current HEAD before Task 4) | Validate #2533 / run `36584823314` |
 
 ## Manual staging blocks
 
@@ -52,3 +52,16 @@ No scenario is marked PASS until it is actually executed against the implementat
 - [ ] No unresolved review threads.
 - [ ] Merge explicitly authorized.
 - [ ] Production explicitly authorized separately.
+
+
+## Automated checkpoints after Task 3
+
+- 90-day schedule policy: PASS.
+- Local schedule eligibility at validation boundary: PASS.
+- São Paulo calendar-day horizon: PASS.
+- Reservation repository business scope: PASS.
+- Reservation list filters: PASS.
+- Next reservation per table: PASS.
+- Order reservation context read model: PASS.
+- Table occupancy remains independent from reservation projection: PASS.
+- No full reservation collection added to bootstrap: PASS by implementation contract; complete API/bootstrap coverage continues in Task 7.
