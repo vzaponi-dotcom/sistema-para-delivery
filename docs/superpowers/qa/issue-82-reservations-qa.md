@@ -16,7 +16,7 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Migration upgrade | PASS | Exact pre-0034 upgrade preserves existing order/table-tab history; Validate #2518 |
 | Reservation overlap concurrency | PARTIAL | SQLite write-boundary overlap triggers PASS for insert/update and half-open intervals; true multi-request race remains for later integration tasks. |
 | Checkout | PASS (through Task 5 scope) | Validate #2545 / run `36587697649`: Local reservation persists atomically without opening a comanda; overlap rollback/idempotency/HTTP effects pass. Printing timing remains Task 6. |
-| Printing | PENDING | — |
+| Printing | PASS (automated Task 6 scope) | Validate #2564 / run `36593459366`: availability matrix, copy context, canonical scheduled docs, ESC/POS/PDF and manual document reconstruction PASS. Physical printer checks remain PENDING for staging. |
 | Arrival conversion | PENDING | — |
 | Edit reservation | PENDING | — |
 | Cancel / no-show | PENDING | — |
@@ -24,10 +24,10 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Kitchen TV | PENDING | — |
 | Receivables | PENDING | — |
 | Reporting | PENDING | — |
-| Architecture | PASS (current HEAD through Task 5) | Validate #2545 / run `36587697649` |
-| Full test suite | PASS (current HEAD through Task 5) | All 8 test shards green in Validate #2545 / run `36587697649` |
-| Lint | PASS (current HEAD through Task 5) | Validate #2545 / run `36587697649` |
-| Build | PASS (current HEAD through Task 5) | Validate #2545 / run `36587697649` |
+| Architecture | PASS (current HEAD through Task 6) | Validate #2564 / run `36593459366` |
+| Full test suite | PASS (current HEAD through Task 6) | All 8 test shards green in Validate #2564 / run `36593459366` |
+| Lint | PASS (current HEAD through Task 6) | Validate #2564 / run `36593459366` |
+| Build | PASS (current HEAD through Task 6) | Validate #2564 / run `36593459366` |
 
 ## Manual staging blocks
 
@@ -82,3 +82,18 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Scheduled Local + expectedTableTabId rejected: PASS.
 - POST /api/orders returns reservation + updated nextReservation projection: PASS.
 - Task 4 final workflow required one infrastructure-only rerun due local Wrangler port collision; rerun passed without code change.
+
+
+## Automated checkpoints after Task 6
+
+- Immediate automatic print availability: PASS.
+- Same-day scheduled Entrega/Retirada stays immediately available: PASS.
+- Other-day Entrega/Retirada waits for operationalStartAt: PASS.
+- Same-day/future Local reservation waits for operationalStartAt: PASS.
+- Reservation without table-tab uses table-context copy policy: PASS.
+- Scheduled/reservation semantic metadata in canonical document: PASS.
+- ESC/POS prints AGENDADO/RESERVA and requested service time: PASS.
+- PDF prints AGENDADO/RESERVA and requested service time: PASS.
+- Manual/reprint official document rebuild preserves schedule/reservation identity: PASS.
+- Manual print lifecycle does not advance future automatic availableAt: PASS by existing printing regressions.
+- Physical MPT-II/QZ verification: PENDING / staging physical QA.
