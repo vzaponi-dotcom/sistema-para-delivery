@@ -2,15 +2,15 @@
 
 > **Execution mode:** executar task por task, sempre RED → GREEN, com evidência por SHA exato. Nenhuma implementação começa antes da aprovação explícita deste plano.
 
-**Status:** APPROVED FOR EXECUTION — aprovado pelo usuário em 2026-09-29; execução autorizada task por task, sem produção  
-**Feature:** Issue #82 — Agendamento multi-dia e reservas de mesa  
-**Spec aprovada:** `docs/superpowers/specs/2026-09-29-multiday-scheduling-table-reservations-design.md`  
-**Branch documental:** `docs/issue-82-multiday-reservations`  
-**Implementation branch planejada:** `feature/issue-82-multiday-reservations`  
-**Master baseline confirmado:** `da81fb2be7a754f9296a54d9e44e82372341e20d`  
-**Spec checkpoint aprovado:** `254b9db8162159663905a93865bd44b05fec7577`  
-**Migrations atuais confirmadas:** até `0033_kitchen_tv_modality_filter.sql`  
-**Nova migration planejada:** `0034_table_reservations.sql`  
+**Status:** APPROVED FOR EXECUTION — aprovado pelo usuário em 2026-09-29; execução autorizada task por task, sem produção
+**Feature:** Issue #82 — Agendamento multi-dia e reservas de mesa
+**Spec aprovada:** `docs/superpowers/specs/2026-09-29-multiday-scheduling-table-reservations-design.md`
+**Branch documental:** `docs/issue-82-multiday-reservations`
+**Implementation branch planejada:** `feature/issue-82-multiday-reservations`
+**Master baseline confirmado:** `da81fb2be7a754f9296a54d9e44e82372341e20d`
+**Spec checkpoint aprovado:** `254b9db8162159663905a93865bd44b05fec7577`
+**Migrations atuais confirmadas:** até `0033_kitchen_tv_modality_filter.sql`
+**Nova migration planejada:** `0034_table_reservations.sql`
 **Produção:** proibida durante implementação/homologação sem autorização separada
 
 ---
@@ -432,7 +432,7 @@ Não mexer no runner, segunda via ou QZ além do necessário para o documento.
 
 ## Verify
 
-`node --test worker/orderAutomaticPrintJob.test.js worker/printContextPolicy.test.js shared/orderPrintDocument.test.js`  
+`node --test worker/orderAutomaticPrintJob.test.js worker/printContextPolicy.test.js shared/orderPrintDocument.test.js`
 (adaptar ao nome real da suíte existente)
 
 ## Commit
@@ -1036,7 +1036,7 @@ Mínimo necessário.
 
 ## Commit
 
-`test: cover future schedules in reporting`  
+`test: cover future schedules in reporting`
 ou `fix: preserve reporting semantics for reservations` se houver alteração real.
 
 ---
