@@ -138,6 +138,11 @@ export const createNewOrderDraftController = ({ randomUUID = () => crypto.random
       })
     },
     isCurrent(token) { return Boolean(current && token?.generation === current.generation) },
+    renewIdempotencyKey(token) {
+      if (!current || token?.generation !== current.generation || current.context.mode !== 'create') return false
+      current.idempotencyKey = randomUUID()
+      return true
+    },
     replaceCurrent(token, context) {
       if (!current || token?.generation !== current.generation) return null
       generation += 1
