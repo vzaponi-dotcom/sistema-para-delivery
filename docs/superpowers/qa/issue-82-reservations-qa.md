@@ -186,3 +186,25 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Theme-safe styling uses existing semantic tokens: PASS.
 - Final Task 14 code Validate #2644 / run `36617341007`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
 - Manual desktop/mobile/light/dark staging verification: PENDING until staging task.
+
+## Automated checkpoints after Task 15
+
+- Tomorrow/future-day schedule excluded from today's operational `scheduled` queue: PASS.
+- Future waiting schedules excluded from current Kitchen counts: PASS.
+- Future waiting schedules excluded from current late count: PASS.
+- Same-day scheduled order remains in Agendados: PASS.
+- Cross-midnight operational window enters Em preparo at `operational_start_at`: PASS.
+- Local reservation follows the same operational/future split: PASS.
+- Dedicated `Próximos dias` projection orders by `scheduledFor ASC`: PASS.
+- `Próximos dias` shows full service date and time: PASS.
+- Future order detail reuses the existing official OrderDetail flow: PASS.
+- Future cancellation reuses the existing cancellation flow: PASS.
+- Active Local reservation exposes Editar reserva through official reservation detail: PASS.
+- Entrega/Retirada future schedules do not expose generic editing: PASS.
+- Future-list search does not alter current Kitchen counters: PASS.
+- Kitchen Display public queue return shape remains unchanged: PASS.
+- Existing Comandas reservation-edit composition remains unchanged: PASS.
+- Future-list styling uses current semantic/theme tokens without redesign: PASS.
+- Final Task 15 Validate #2655 / run `36623885764`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
+- Kitchen TV/sound/realtime end-to-end characterization remains Task 16.
+- Manual staging verification remains PENDING until the staging task.
