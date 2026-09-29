@@ -42,6 +42,7 @@ async function render(t, {
   granted = new Set(['orders.view', 'orders.kitchen.control']),
   isOnline = true,
   state = freshState,
+  orderFixtures = orders,
   apiOverrides = {},
 } = {}) {
   const h = await workspaceHarness(t, { mobile: true })
@@ -61,7 +62,7 @@ async function render(t, {
   const screen = await renderWithNavigation(h, KitchenTvControlSurface, {
     activeTab: 'kitchen-tv-control',
     implemented: new Set(['orders', 'history', 'kitchen-tv-control']),
-    orders,
+    orders: orderFixtures,
     now: NOW,
     granted,
     isOnline,
@@ -73,40 +74,32 @@ async function render(t, {
   return { h, screen, calls }
 }
 
-test('renders the approved compact two-column grid with ten cards and no sensitive/order-detail data', async (t) => {
+test('mirrors only the orders reported on the current TV page and keeps customer as the primary card label', async (t) => {
   const { screen } = await render(t)
   const cards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
-  assert.equal(cards.length, 10)
-  const compactNumber = cards[0].findAll((node) => node.props.className === 'kitchen-tv-control-order-number-compact')[0]
-  assert.equal(nodeText(compactNumber), '#501')
+  assert.equal(cards.length, 4)
+
+  const first = cards[0]
+  assert.match(nodeText(first), /Ana Carolina/)
+  assert.match(nodeText(first), /Pedido #501/)
+  assert.doesNotMatch(nodeText(screen.root), /Cliente 5|Cliente 6|Cliente 7|Cliente 8|Cliente 9|Cliente 10/)
 
   const text = nodeText(screen.root)
   assert.match(text, /Controle da TV/)
   assert.match(text, /Tela 2 de 3/)
-  assert.match(text, /Pedido #501/)
-  assert.match(text, /Ana/)
-  assert.match(text, /ATRASADO/)
-  assert.match(text, /PRÓXIMO DO LIMITE/)
+  assert.match(text, /4 na tela/)
   assert.match(text, /Na TV/)
-  assert.match(text, /Fora/)
-  assert.match(text, /Retirado/)
-  assert.match(text, /Pedidos/)
-  assert.match(text, /10 visíveis/)
   assert.match(text, /Toque no pedido para abrir ações/)
   assert.doesNotMatch(text, /Item secreto|R\$|9999|11999999999|Rua que não deve aparecer/)
   assert.ok(screen.root.findAllByType('svg').length > 0)
 
   const css = await readFile(new URL('./kitchenTvControl.css', import.meta.url), 'utf8')
   assert.match(css, /\.kitchen-tv-control-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-heading p \{[\s\S]*display:\s*none/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-header \{[\s\S]*flex-direction:\s*row/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card \{[\s\S]*min-height:\s*68px/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-number-full \{[\s\S]*display:\s*none/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-number-compact \{[\s\S]*display:\s*block/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-order-card-heading,[\s\S]*\.kitchen-tv-control-badges \{[\s\S]*display:\s*contents/)
-  assert.match(css, /@media \(max-width: 420px\)[\s\S]*\.kitchen-tv-control-hint \{[\s\S]*min-height:\s*32px/)
+  assert.match(css, /\.kitchen-tv-control-order-client[\s\S]*color:\s*var\(--info\)/)
+  assert.match(css, /\.kitchen-tv-control-order-card\.status-preparing[\s\S]*var\(--info\)/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-late[\s\S]*var\(--danger\)/)
   assert.match(css, /\.kitchen-tv-control-order-card\.status-near-limit[\s\S]*var\(--warning\)/)
+  assert.match(css, /\.kitchen-tv-control-order-card\.status-scheduled[\s\S]*var\(--info\)/)
 })
 
 test('viewer keeps the surface readable but cannot send page commands', async (t) => {
@@ -117,6 +110,78 @@ test('viewer keeps the surface readable but cannot send page commands', async (t
   }
   await act(async () => buttonNamed(screen.root, 'Próxima').props.onClick?.())
   assert.deepEqual(calls, [])
+})
+
+test('changing TV page replaces the admin grid with the newly reported visible IDs', async (t) => {
+  let current = {
+    ...freshState,
+    telemetry: { ...freshState.telemetry, currentPage: 1, visibleOrderIds: ['order-1', 'order-2'] },
+  }
+  const { h, screen } = await render(t, {
+    state: current,
+    apiOverrides: {
+      getKitchenTvControl: async () => current,
+      setKitchenTvPage: async (page) => {
+        current = {
+          ...current,
+          control: { ...current.control, revision: current.control.revision + 1, requestedPage: page },
+        }
+        return current
+      },
+    },
+  })
+
+  let cards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
+  assert.deepEqual(cards.map((card) => card.props['aria-label'].split(',')[0]), ['Pedido #501', 'Pedido #502'])
+
+  await act(async () => buttonNamed(screen.root, 'Próxima').props.onClick())
+  current = {
+    ...current,
+    telemetry: {
+      ...current.telemetry,
+      appliedRevision: current.control.revision,
+      currentPage: 2,
+      visibleOrderIds: ['order-3', 'order-4', 'order-5'],
+      reportedAt: '2026-09-28T21:10:04.000Z',
+    },
+  }
+  await act(async () => h.fireInterval(2000))
+  await act(async () => {})
+
+  cards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
+  assert.deepEqual(cards.map((card) => card.props['aria-label'].split(',')[0]), ['Pedido #503', 'Pedido #504', 'Pedido #505'])
+  assert.match(nodeText(screen.root), /Tela 2 de 3/)
+  assert.match(nodeText(screen.root), /3 na tela/)
+})
+
+test('scheduled order reported by the TV appears in the mirrored page with scheduled styling', async (t) => {
+  const scheduled = {
+    id: 'scheduled-1',
+    orderNumber: 700,
+    status: 'Em preparo',
+    client: 'Marina Souza',
+    type: 'Entrega',
+    createdAt: '2026-09-28T20:00:00.000Z',
+    scheduledFor: '2026-09-28T23:30:00.000Z',
+    items: [{ name: 'Agendado secreto' }],
+  }
+  const state = {
+    ...freshState,
+    telemetry: {
+      ...freshState.telemetry,
+      currentPage: 1,
+      pageCount: 1,
+      visibleOrderIds: ['scheduled-1'],
+    },
+    hiddenOrderIds: [],
+  }
+  const { screen } = await render(t, { state, orderFixtures: [...orders, scheduled] })
+  const cards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
+  assert.equal(cards.length, 1)
+  assert.match(nodeText(cards[0]), /Marina Souza/)
+  assert.match(nodeText(cards[0]), /AGENDADO/)
+  assert.match(cards[0].props.className, /status-scheduled/)
+  assert.equal(buttonNamed(screen.root, 'Retirar da TV'), undefined)
 })
 
 test('fresh telemetry enables bounded page controls for a controller', async (t) => {
@@ -223,7 +288,7 @@ test('tapping a card opens actions without mutating, then hide can be undone saf
   assert.match(nodeText(screen.root), /Na TV/)
 })
 
-test('a hidden preparing order can return to the TV from the action sheet', async (t) => {
+test('hidden active orders stay restorable from a separate Retirados panel without inflating the mirrored page', async (t) => {
   let state = structuredClone(freshState)
   const mutations = []
   const { screen } = await render(t, {
@@ -237,14 +302,15 @@ test('a hidden preparing order can return to the TV from the action sheet', asyn
       },
     },
   })
-  const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #510,'))
-  await act(async () => card.props.onClick())
-  const sheet = screen.root.findByProps({ role: 'dialog' })
-  assert.ok(buttonNamed(sheet, 'Voltar para a TV'))
+  const pageCards = screen.root.findAll((node) => String(node.props.className || '').split(/\s+/).includes('kitchen-tv-control-order-card'))
+  assert.equal(pageCards.length, 4)
+  assert.ok(buttonNamed(screen.root, 'Retirados 1'))
 
+  await act(async () => buttonNamed(screen.root, 'Retirados 1').props.onClick())
+  const sheet = screen.root.findByProps({ role: 'dialog' })
+  assert.match(nodeText(sheet), /Cliente 10/)
   await act(async () => buttonNamed(sheet, 'Voltar para a TV').props.onClick())
   assert.deepEqual(mutations, [['restore', 'order-10']])
-  assert.doesNotMatch(String(card.props['aria-label']), /Retirado/)
 })
 
 test('hide failure rolls the optimistic card back to authoritative visibility and announces the error', async (t) => {
