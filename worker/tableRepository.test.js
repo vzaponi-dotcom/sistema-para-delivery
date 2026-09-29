@@ -308,6 +308,70 @@ test('occupied tables cannot be renamed or deactivated', async () => {
   )
 })
 
+test('active reservations block rename and deactivation but never block reordering', async () => {
+  const db = new D1Sqlite()
+  insertTable(db, { id: 'reserved', name: 'Mesa 1', sortOrder: 1 })
+  insertTable(db, { id: 'other', name: 'Mesa 2', sortOrder: 2 })
+  db.exec(`INSERT INTO orders (
+    id, business_id, order_number, client_name_snapshot, table_tab_id, status, total_cents, scheduled_for, created_at
+  ) VALUES ('reserved-order', 'biz-a', 201, 'João', NULL, 'Em preparo', 2500, '2026-09-10T23:00:00.000Z', '${now.toISOString()}');
+  INSERT INTO table_reservations (
+    id, business_id, order_id, table_id, table_name_snapshot, status,
+    scheduled_for, ends_at, duration_minutes, revision,
+    converted_table_tab_id, converted_at, cancelled_at, no_show_at,
+    created_at, updated_at
+  ) VALUES (
+    'active-reservation', 'biz-a', 'reserved-order', 'reserved', 'Mesa 1', 'reserved',
+    '2026-09-10T23:00:00.000Z', '2026-09-11T01:00:00.000Z', 120, 1,
+    NULL, NULL, NULL, NULL, '${now.toISOString()}', '${now.toISOString()}'
+  )`)
+
+  await assert.rejects(
+    () => renameTable(db, 'biz-a', 'reserved', 'Novo nome', now),
+    (error) => error.status === 409 && error.code === 'TABLE_HAS_ACTIVE_RESERVATION',
+  )
+  await assert.rejects(
+    () => setTableActive(db, 'biz-a', 'reserved', false, now),
+    (error) => error.status === 409 && error.code === 'TABLE_HAS_ACTIVE_RESERVATION',
+  )
+
+  assert.deepEqual((await reorderTables(db, 'biz-a', ['other', 'reserved'], now)).map((table) => table.id), ['other', 'reserved'])
+})
+
+test('terminal reservations do not block rename or deactivation', async () => {
+  for (const [status, terminalField] of [
+    ['cancelled', 'cancelled_at'],
+    ['no_show', 'no_show_at'],
+  ]) {
+    const db = new D1Sqlite()
+    insertTable(db, { id: `table-${status}`, name: `Mesa ${status}`, sortOrder: 1 })
+    db.exec(`INSERT INTO orders (
+      id, business_id, order_number, client_name_snapshot, table_tab_id, status, total_cents, scheduled_for, created_at
+    ) VALUES ('order-${status}', 'biz-a', 210, 'Cliente', NULL, 'Cancelado', 2500, '2026-09-10T23:00:00.000Z', '${now.toISOString()}')`)
+    db.sqlite.prepare(`INSERT INTO table_reservations (
+      id, business_id, order_id, table_id, table_name_snapshot, status,
+      scheduled_for, ends_at, duration_minutes, revision,
+      converted_table_tab_id, converted_at, cancelled_at, no_show_at,
+      created_at, updated_at
+    ) VALUES (?, 'biz-a', ?, ?, ?, ?, ?, ?, 120, 1, NULL, NULL, ?, ?, ?, ?)`).run(
+      `reservation-${status}`,
+      `order-${status}`,
+      `table-${status}`,
+      `Mesa ${status}`,
+      status,
+      '2026-09-10T23:00:00.000Z',
+      '2026-09-11T01:00:00.000Z',
+      terminalField === 'cancelled_at' ? now.toISOString() : null,
+      terminalField === 'no_show_at' ? now.toISOString() : null,
+      now.toISOString(),
+      now.toISOString(),
+    )
+
+    assert.equal((await renameTable(db, 'biz-a', `table-${status}`, `Livre ${status}`, now)).name, `Livre ${status}`)
+    assert.equal((await setTableActive(db, 'biz-a', `table-${status}`, false, now)).isActive, false)
+  }
+})
+
 test('a free table can be deactivated and later reactivated', async () => {
   const db = new D1Sqlite()
   insertTable(db, { id: 'free', name: 'Mesa 1', sortOrder: 1 })
