@@ -832,3 +832,42 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 20.
+
+## Task 20 preflight — staging deploy
+
+Candidate:
+- branch: `feature/issue-82-multiday-reservations`;
+- exact HEAD: `830ab96d7a61f688ca783d4b49d0ea19a5ca40d2`;
+- final branch Validate #2686 / run `36631321076`: SUCCESS;
+- PR #83: OPEN / DRAFT / mergeable.
+
+The official `.github/workflows/deploy-staging.yml` was re-audited before dispatch:
+- deploy is manual through `workflow_dispatch` for this branch;
+- environment is `staging`;
+- full npm test suite, architecture, lint and build run again;
+- local D1 migrations and staging Worker dry-run run before deployment;
+- remote staging migrations are listed and applied with `npm run d1:migrate:staging`;
+- staging PIN is configured only in staging;
+- deploy target is the staging Worker;
+- automated real login smoke is required;
+- SPA deep links/assets are verified for Pedidos, Histórico, Controle da TV, Comandas, A Receber, Movimentações, Relatórios, Configurações and Cozinha TV;
+- no production deployment step exists in the staging workflow.
+
+### Dispatch blocker
+
+The currently available GitHub connector can inspect and monitor workflow runs/jobs/logs, but it does not expose a `workflow_dispatch` action. There are also no repository/Cloudflare credentials available in the execution shell that would authorize dispatching the workflow by another approved route.
+
+Per the approved release process, the workflow triggers were **not modified** and no automatic/deployment bypass was introduced.
+
+Task 20 status: **BLOCKED-PENDING-MANUAL-DISPATCH**.
+
+Required manual action:
+1. GitHub → Actions → **Deploy staging**;
+2. **Run workflow**;
+3. select branch `feature/issue-82-multiday-reservations`;
+4. run it once.
+
+After the dispatch exists, the run can be monitored from here and Task 20 can continue with SHA verification, migration/deploy evidence, login/deep-link smoke and QA documentation.
+
+Staging deploy: NOT EXECUTED.
+Production deploy: NOT EXECUTED.
