@@ -1,5 +1,6 @@
 import { getOperationalStartAt, getOrderLateAt, isScheduledWaiting } from '../../../../shared/orderTiming.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import { getBusinessDate } from '../../../../shared/finance.js'
 import { getOrderItemsSearchText } from './orderCartRead.js'
 import { isOrderActive } from './orderLifecycle.js'
 import { getOrderTimingState, isFinishedToday } from './orderWorkflow.js'
@@ -27,9 +28,11 @@ const matchesKitchenSearch = (order, normalizedSearch) => {
 
 export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '', currentTiming) => {
   const normalizedSearch = normalizeSearch(search)
-  const allActive = orders.filter(isOrderActive).map((order) => {
-    const phase = isScheduledWaiting(order, now, currentTiming) ? 'scheduled' : 'preparing'
-    const timingState = getOrderTimingState(order, now, currentTiming)
+  const reference = now instanceof Date ? now : new Date(now)
+  const currentBusinessDate = Number.isNaN(reference.getTime()) ? null : getBusinessDate(reference)
+  const mappedActive = orders.filter(isOrderActive).map((order) => {
+    const phase = isScheduledWaiting(order, reference, currentTiming) ? 'scheduled' : 'preparing'
+    const timingState = getOrderTimingState(order, reference, currentTiming)
     return {
       order,
       phase,
@@ -39,7 +42,18 @@ export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '
       isLate: timingState !== 'on-time',
     }
   })
+  const isFutureWaiting = ({ order, phase }) => {
+    if (phase !== 'scheduled' || !order?.scheduledFor || !currentBusinessDate) return false
+    const scheduledFor = new Date(order.scheduledFor)
+    if (Number.isNaN(scheduledFor.getTime())) return false
+    return getBusinessDate(scheduledFor) > currentBusinessDate
+  }
+  const futureAll = mappedActive.filter(isFutureWaiting)
+  const allActive = mappedActive.filter((entry) => !isFutureWaiting(entry))
   const visible = allActive.filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
+  const futureScheduled = futureAll
+    .filter(({ order }) => matchesKitchenSearch(order, normalizedSearch))
+    .sort(compareScheduledFor)
   const preparing = visible.filter(({ phase }) => phase === 'preparing').sort(compareDeadlinePriority)
   const scheduled = visible.filter(({ phase }) => phase === 'scheduled').sort(compareScheduledFor)
 
@@ -47,12 +61,14 @@ export const buildKitchenQueueModel = (orders = [], now = new Date(), search = '
     allActive,
     preparing,
     scheduled,
+    futureScheduled,
+    futureScheduledCount: futureAll.length,
     totalVisible: visible.length,
     counts: {
       preparing: allActive.filter(({ phase }) => phase === 'preparing').length,
       scheduled: allActive.filter(({ phase }) => phase === 'scheduled').length,
       late: allActive.filter(({ isLate }) => isLate).length,
-      finishedToday: orders.filter((order) => order.status === 'Finalizado' && isFinishedToday(order, now)).length,
+      finishedToday: orders.filter((order) => order.status === 'Finalizado' && isFinishedToday(order, reference)).length,
     },
   }
 }
