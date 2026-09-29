@@ -519,3 +519,30 @@ test('mobile reservation detail uses the same list/detail split and back restore
   assert.equal(focus, 'button')
   assert.equal(reservedCard.props['aria-pressed'], true)
 })
+
+test('reservation cards show service date and time in mobile and desktop summaries', async (t) => {
+  for (const mobile of [false, true]) {
+    const h = await workspaceHarness(t, { mobile })
+    const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
+    const reservation = reservationSummary({
+      scheduledFor: '2026-10-10T23:00:00.000Z',
+      clientName: 'QA82 Cliente',
+    })
+    const tables = workspaceTables.map((table) => table.id === 'free'
+      ? { ...table, nextReservation: reservation }
+      : table)
+
+    globalThis.fetch = async () => reservationDetailResponse(reservation)
+    const renderer = await h.render(Comandas, {
+      tables,
+      selection: null,
+      currency,
+    })
+
+    const card = list(renderer).findAllByType('button').find((button) => nodeText(button).includes('QA82 Cliente'))
+    assert.ok(card)
+    assert.match(nodeText(card), /10\/10\/2026/)
+    assert.match(nodeText(card), /20:00/)
+    await act(async () => renderer.unmount())
+  }
+})
