@@ -1,7 +1,7 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
-import { resolvePrintCopies } from '../shared/printContextPolicy.js'
+import { resolveAutomaticOrderPrintAvailableAt, resolvePrintCopies } from '../shared/printContextPolicy.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
@@ -440,6 +440,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   }
 
   const historical = input.orderDate < today && !scheduledFor
+  const scheduledOperations = scheduledFor ? await loadOperations(db, businessId) : null
   const isBackdated = historical ? 1 : 0
   const createdAt = historical ? backdatedOperationalTimestamp(input.orderDate) : now.toISOString()
   const finishedAt = historical ? createdAt : null
@@ -616,6 +617,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       orderDate: input.orderDate,
       createdAt,
       type: input.type,
+      scheduledFor: scheduledFor || '',
+      scheduleLabel: scheduledFor ? (pendingReservation ? 'RESERVA' : 'AGENDADO') : '',
       customerIdentityType: customerIdentity.type,
       tableIdentifier,
       hasOptionalClient: Boolean(clientId),
@@ -644,12 +647,19 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
         method: paymentAllocations?.length === 1 ? paymentLabels.get(paymentAllocations[0].methodCode) : '',
       },
     })
+    const automaticAvailableAt = resolveAutomaticOrderPrintAvailableAt({
+      type: input.type,
+      customerIdentityType: customerIdentity.type,
+      orderDate: input.orderDate,
+      createdAt,
+      scheduledFor,
+    }, scheduledOperations?.data?.timing)
     statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
       orderId,
       copies: automaticCopies,
       document: printDocument,
       createdAt,
-      availableAt: createdAt,
+      availableAt: automaticAvailableAt,
     }))
   }
 
