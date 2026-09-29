@@ -329,3 +329,52 @@ test('edit-reservation wizard starts clean from the official snapshot and does n
   assert.equal(buttonNamed(renderer.root, 'Salvar e receber'), undefined)
   assert.deepEqual(dirtyStates, [false])
 })
+
+test('reservation conflict renders the specific server guidance instead of a generic checkout error', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: NewOrder } = await harness.load('/src/domains/orders/ui/NewOrder.jsx')
+  const renderer = await harness.render(NewOrder, {
+    initialType: 'Local',
+    initialDraft: {
+      type: 'Local',
+      selectedTableId: 'table-2',
+      localClientId: '',
+      orderDate: '2026-10-10',
+      scheduleMode: 'scheduled',
+      scheduledTime: '20:30',
+      items: [{
+        lineId: 'reservation:item:0',
+        productId: 'p1',
+        name: 'Mousse',
+        category: 'Sobremesas',
+        size: 'Un',
+        unitPrice: 9,
+        quantity: 1,
+        note: '',
+      }],
+      deliveryFee: 0,
+      adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    },
+    clients: [],
+    products: [{ id: 'p1', name: 'Mousse', category: 'Sobremesas', size: 'Un', price: 9, active: true }],
+    tables: [{ id: 'table-2', name: 'Mesa 2', isActive: true, occupancy: 'free' }],
+    currency: (value) => `R$ ${value}`,
+    disabled: false,
+    onCancel: () => {},
+    onCreateClient: async () => null,
+    onSubmit: async () => ({
+      ok: false,
+      code: 'TABLE_RESERVATION_CONFLICT',
+      message: 'Esta mesa já possui uma reserva nesse horário. Escolha outra mesa ou outro horário.',
+    }),
+  })
+
+  await act(async () => buttonNamed(renderer.root, 'Continuar →').props.onClick())
+  await act(async () => renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Ver carrinho')).props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
+
+  const text = nodeText(renderer.root)
+  assert.match(text, /Esta mesa já possui uma reserva nesse horário/)
+  assert.match(text, /Escolha outra mesa ou outro horário/)
+  assert.doesNotMatch(text, /Não foi possível salvar a venda/)
+})
