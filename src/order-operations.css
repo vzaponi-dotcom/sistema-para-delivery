@@ -486,6 +486,25 @@
   font-size: 0.7rem;
 }
 
+.future-scheduled-orders {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--kitchen-ticket) 9%, transparent);
+  border-radius: 15px;
+  background: var(--kitchen-panel);
+}
+
+.future-scheduled-ticket {
+  border-left-color: var(--kitchen-scheduled);
+}
+
+.future-scheduled-ticket .kitchen-ticket-timing {
+  color: var(--kitchen-scheduled);
+}
+
 .order-ops-stats {
   margin-bottom: 22px;
 }
