@@ -3,3 +3,8 @@ export { getOpenComandaCount } from './domain/comandaActivity.js'
 export { useComandaSelection } from './application/useComandaSelection.js'
 export { useTableServiceCommands } from './application/useTableServiceCommands.js'
 export { Comandas, LocalTableSelector, Tables } from './ui/tableServiceSurfaces.js'
+
+export { reservationOwnerKey, matchesReservationDetail, reservationMutationNeedsDiscount } from './domain/tableReservation.js'
+export { tableReservationApi, createTableReservationApi } from './infrastructure/tableReservationApi.js'
+export { useTableReservationDetail } from './application/useTableReservationDetail.js'
+export { useTableReservationCommands } from './application/useTableReservationCommands.js'
