@@ -37,7 +37,7 @@
 | 11 — Frontend reservation boundary | COMPLETE / GREEN | RED `969a3c26b0debd3f2855b2e2e5654c39d9d900ac` → Validate #2591 / run `36599673011` failed on intended command/public-boundary behaviors. Implemented through `1b2ccdc5aa73b2836fc5d34503e9f2a881adfaf8` + ownership fix `fcf3a76018c7337cfe96f6cb5d08304aba1596f3`; integrated GREEN proven by Validate #2612 / run `36610498170` SUCCESS. |
 | 12 — New Order reservation mode | COMPLETE / GREEN | RED `0cd3cd102dd931683384a236f2c3347d5967eb24` → Validate #2601 / run `36600441146` failed on the intended multiday/Local-reservation wizard contracts. GREEN implementation through `a0d6cd2aced3e08b7d4184e233a48a0be032714b`, characterization alignment `ad2c640274e966dcc2fa454b60ea11b80c5cd8fc`; Validate #2612 / run `36610498170` SUCCESS on `1cdb4c8cc14600b99ac4c57d9cbab9901d229433`. |
 | 13 — Edit reservation wizard | COMPLETE / GREEN | Valid behavioral RED `931c2b6d4c6d6978669c2375d024ca07c59c82a2` → Validate #2619 / run `36613288332` failed on the intended edit-context/dispatch/wizard behaviors. GREEN `e7ab79229a87cedb957d075bfa96017d962503d0` → Validate #2628 / run `36614217317` SUCCESS; all 8 shards and full validation green. |
-| 14 — Comandas desktop/mobile | NOT STARTED | — |
+| 14 — Comandas desktop/mobile | COMPLETE / GREEN | Behavioral RED `13c31af47f305a57f44ea12b7e1e88cfd1706b06` → Validate #2633 / run `36616275615` failed on the intended reservation list/detail/mobile behaviors. GREEN `884961305d20f31c6d59c903d4c07f88187233dc` → Validate #2644 / run `36617341007` SUCCESS; all 8 shards and full validation green. |
 | 15 — Orders / future schedules | NOT STARTED | — |
 | 16 — Kitchen TV / realtime | NOT STARTED | — |
 | 17 — Finance / receivables | NOT STARTED | — |
@@ -528,3 +528,62 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 14.
+
+
+## Task 14 evidence
+
+### RED
+
+- Reservation-detail scaffold: `2c787dd7bc7f8d2b02b8da2386662c4c8166db3f`.
+- Detail behavior tests: `282b5ebd1e24c006dc8ec3c65c03fb0fcf3897f7`.
+- Comandas list/mobile reservation tests: `13c31af47f305a57f44ea12b7e1e88cfd1706b06`.
+- Validate #2633 / run `36616275615`: FAILURE as intended.
+- Behavioral RED proved:
+  - the existing Comandas subtitle/list knew only Livre/Ocupada;
+  - free + reservation did not expose Reservada;
+  - occupied + future reservation had no separate reservation target;
+  - reservation detail/actions were absent;
+  - mobile reservation list/detail flow did not exist.
+
+Additional composition RED:
+- `7cc3a31132ab4c66fabd80d4b466be1ebcd3b6ce` required official reservation command results to reach App composition;
+- `cdd6722fc048537815b230ab2588ba31beb5075a` required App to wire edit/arrival/cancel/no-show into Comandas and select the authoritative converted comanda.
+
+### GREEN
+
+Implementation:
+- `fd0f325fd7e37924d91d1f35e9a2991357fcc507` — reservation detail, actions and explicit arrival/cancel/no-show confirmation;
+- `6addd0faeda9aadd99fde4bc314e85b51453195a` — Comandas reservation list/detail integration;
+- `51035a861d52d5bcb50273e2db7eeef3f858f17c` — reservation visual state using existing semantic tokens;
+- `7882054a522eb7394beed795bd0a38918fbb55b2` — shared SystemSelect compliance in reservation closure flow;
+- `847e606f6f15bf404ae02e330e90597c33d88b4a` — reservation command result observer;
+- `d4570f539f10df835e248d668e4776a4f7b687fb` — App composition for edit/arrival/cancel/no-show and authoritative post-arrival comanda selection.
+
+Test/characterization alignments:
+- `4b951d0c9650404101edaf167d5a3acfc171041d`;
+- `f7165e073d92e2df71eee1c411364a33bed8f527`;
+- `884961305d20f31c6d59c903d4c07f88187233dc`.
+
+Validate #2644 / run `36617341007`: SUCCESS.
+
+Delivered:
+- subtitle now states “mesas, comandas e reservas”;
+- free table without reservation remains Livre and keeps the current quick-order behavior;
+- free table with `nextReservation` shows explicit `Reservada`, client/time/item summary and opens reservation detail;
+- occupied table remains primarily `Ocupada`/current comanda while a future reservation appears as a separate secondary target;
+- tapping current comanda still opens the existing comanda detail;
+- tapping a reservation opens official reservation detail from `GET /api/table-reservations/:id`;
+- detail shows mesa, optional client, full service date/time, Reservada state, items and total previsto;
+- Editar reserva is available only before `operational_start_at` and only with order-create capability;
+- Confirmar chegada is available only from the reservation business day onward and always uses the authoritative conversion endpoint;
+- successful arrival applies official effects and selects the exact newly-opened comanda returned by the backend;
+- Cancelar reserva and Não compareceu are exposed only with `orders.cancel`, use configured cancellation reasons/revision and never bypass the lifecycle API;
+- there is no standalone “Abrir comanda” action;
+- mobile preserves the current list/detail split, back action, scroll restoration and focus restoration for reservation selection;
+- Reservada is textual/semantic and uses `--info` / `--info-soft`, not color alone and not a global redesign;
+- existing Livre/Ocupada behavior and comanda detail/payment/transfer/printing flows remain unchanged.
+
+Staging deploy: NOT EXECUTED.  
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 15.
