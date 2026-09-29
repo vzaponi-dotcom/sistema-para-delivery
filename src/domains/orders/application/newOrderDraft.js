@@ -1,3 +1,5 @@
+export const createReservationEditDraftContext = () => ({})
+
 const normalizeContext = ({ returnDestination = 'orders', tableId = '', expectedTableTabId = '' } = {}) => ({
   returnDestination,
   tableId,
