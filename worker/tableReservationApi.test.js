@@ -67,11 +67,17 @@ const seed = () => {
     INSERT INTO print_jobs (
       id, business_id, order_id, type, trigger, status, copies_requested, copies_printed,
       station_id, snapshot_json, created_at, available_at
-    ) VALUES (
-      'print-reservation-1', '${BUSINESS}', 'order-1', 'order', 'automatic', 'pending', 1, 0,
-      NULL, '{"version":1,"type":"order","order":{"id":"order-1","number":"1001"}}',
-      '${CREATED}', '2026-10-10T22:10:00.000Z'
-    );
+    ) VALUES
+      (
+        'print-reservation-1', '${BUSINESS}', 'order-1', 'order', 'automatic', 'pending', 1, 0,
+        NULL, '{"version":1,"type":"order","order":{"id":"order-1","number":"1001"}}',
+        '${CREATED}', '2026-10-10T22:10:00.000Z'
+      ),
+      (
+        'manual-reservation-1', '${BUSINESS}', 'order-1', 'order', 'manual', 'printed', 1, 1,
+        NULL, '{"version":1,"type":"order","order":{"id":"order-1","number":"1001"}}',
+        '${CREATED}', '${CREATED}'
+      );
   `)
   return db
 }
