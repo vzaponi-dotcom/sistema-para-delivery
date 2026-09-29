@@ -2,8 +2,8 @@
 
 **Feature:** Agendamento multi-dia e reservas de mesa
 **PR:** #83
-**Status:** NOT STARTED
-**Staging SHA:** —
+**Status:** PARTIAL — 37 PASS, 3 FAIL, 30 BLOCKED
+**Staging SHA (aplicação homologada):** 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08
 **Production:** BLOCKED
 
 No scenario is marked PASS until it is actually executed against the implementation.
@@ -302,3 +302,106 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Production deployment: NOT EXECUTED.
 - Task 19 status: COMPLETE / GREEN.
 - Next step: Task 20 — deploy staging and begin manual homologation.
+
+
+## Homologação manual em staging — 2026-09-29
+
+- Aplicação/PR #83: 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08.
+- Deploy staging: [run 36633062484](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36633062484) SUCCESS; migrations, deploy, login e deep links verdes.
+- Navegador IAB autenticado, viewport mobile 390×844, TV emparelhada e ativa.
+- Matriz: **37 PASS / 3 FAIL / 19 BLOCKED-ENVIRONMENT / 4 BLOCKED-BROWSER-LIMITATION / 7 BLOCKED-PHYSICAL**. Cada BLOCKED é uma verificação não concluída; nenhum conta como PASS.
+
+### Casos 1–70
+
+| Caso | Estado | Evidência / limite observado |
+|---:|---|---|
+| 1 | BLOCKED-ENVIRONMENT | Entrega hoje não criada; cenário operacional não montado. |
+| 2 | BLOCKED-ENVIRONMENT | Retirada hoje não criada; cenário operacional não montado. |
+| 3 | BLOCKED-ENVIRONMENT | Entrega amanhã não criada; Retirada amanhã foi exercitada em #279. |
+| 4 | PASS | Retirada #275 no 90º dia (28/12/2026, 20:00) foi salva. |
+| 5 | PASS | 91º dia (29/12/2026) manteve Continuar desabilitado. |
+| 6 | BLOCKED-ENVIRONMENT | Horário passado não foi submetido no navegador nesta sessão. |
+| 7 | PASS | #275 e #279 apareceram em Próximos dias com data e hora. |
+| 8 | PASS | #279 ficou fora da cozinha operacional e da TV ativa; contadores não mudaram. |
+| 9 | BLOCKED-ENVIRONMENT | Janela de amanhã não ocorreu durante a sessão. |
+| 10 | PASS | Reserva #278 em QA82 Mesa Livre, então Livre, criada sem comanda. |
+| 11 | PASS | Reserva #276 criada na Mesa 1 ocupada e editada para Mesa 2 ocupada. |
+| 12 | PASS | Comandas permaneceu com 7 comandas abertas após #276; nova #50 só na chegada de #278. |
+| 13 | PASS | Mesa 1/2 conservaram Ocupada e comandas #46/#45 enquanto reservas existiam. |
+| 14 | PASS | #277 às 18:00 e #276 às 21:00 na Mesa 2 coexistiram; Próximos dias ordenou ambas. |
+| 15 | FAIL | Sobreposição Mesa 2 30/09 21:30 foi bloqueada, porém aviso foi genérico; corrigir o mesmo rascunho para 23:00/18:00 continuou falhando. Novo rascunho às 18:00 criou #277. |
+| 16 | PASS | QA82 Mesa Livre exibiu badge textual Reservada em Comandas. |
+| 17 | PASS | Mesa 2 exibiu Ocupada/Comanda 45 e reserva secundária, sem trocar o alvo da comanda. |
+| 18 | PASS | #276: Mousse substituído por Pudim no wizard de edição. |
+| 19 | PASS | #276: quantidade alterada de 1 para 2; total R$9→R$16. |
+| 20 | PASS | #276: cliente Victor selecionado. |
+| 21 | PASS | #276: Mesa 1→Mesa 2, com número do pedido preservado. |
+| 22 | PASS | #276: 20:00→21:00, detalhe atualizado. |
+| 23 | BLOCKED-ENVIRONMENT | Conflito exercitado na criação (#15), não durante edição. |
+| 24 | BLOCKED-BROWSER-LIMITATION | Dois contextos isolados com revisão concorrente não estavam disponíveis; IAB compartilha sessão. |
+| 25 | BLOCKED-ENVIRONMENT | Edição após operational_start_at não foi observada; a janela ainda não havia chegado. |
+| 26 | BLOCKED-PHYSICAL | Estação Cozinha · Windows offline; timing de execução real de Entrega/Retirada hoje não aferido. |
+| 27 | BLOCKED-PHYSICAL | #279 gerou job automático 0/2 na fila, mas disponibilidade/execução ao chegar na janela não pôde ser aferida com estação offline. |
+| 28 | BLOCKED-PHYSICAL | #276/#278 geraram job automático, mas disponibilidade/execução real na janela não pôde ser aferida. |
+| 29 | BLOCKED-PHYSICAL | Impressão manual antecipada não executada sem estação disponível. |
+| 30 | BLOCKED-PHYSICAL | Sem histórico de impressão manual física para acionar o aviso de edição. |
+| 31 | BLOCKED-PHYSICAL | Fila mostra jobs, mas identidade e documento do auto job após edição não foram aferidos na estação. |
+| 32 | PASS | Cancelamento #275/#276/#279 e no-show #277 removeram respectivos jobs pendentes da fila. |
+| 33 | BLOCKED-PHYSICAL | Jobs exibiram Vias 0/2, mas emissão física de duas vias não ocorreu. |
+| 34 | PASS | Confirmar chegada #278 executado no detalhe mobile da reserva. |
+| 35 | PASS | Mesa QA82 Mesa Livre tornou-se Ocupada após chegada e Livre após pagamento. |
+| 36 | PASS | Uma comanda #50 foi aberta; contador 7→8 e depois 7. |
+| 37 | PASS | Comanda #50 preservou Mousse, observação e R$9. |
+| 38 | BLOCKED-ENVIRONMENT | Pedido Finalizado antes da chegada não foi montado. |
+| 39 | BLOCKED-BROWSER-LIMITATION | Duplo clique/retry de rede não foi reproduzido por este controle de navegador. |
+| 40 | BLOCKED-ENVIRONMENT | Mesa ocupada exatamente no momento da chegada não foi montada. |
+| 41 | BLOCKED-ENVIRONMENT | #276 foi movida de mesa, mas cancelada antes da chegada; combinação completa não executada. |
+| 42 | PASS | #276 cancelada pelo detalhe de reserva com motivo Erro no lançamento. |
+| 43 | PASS | #279 cancelado pelo pedido; #275 também cancelado pela lista futura. |
+| 44 | PASS | #277 encerrada como Não compareceu com motivo Cliente desistiu. |
+| 45 | PASS | Após no-show #277, próxima reserva da Mesa 2 passou a #276; após cancelamento #276, card sumiu. |
+| 46 | PASS | No-show #277/cancelamento #276 não elevaram contagem de comandas. |
+| 47 | PASS | #276 não apareceu em A Receber; busca retornou zero pendências. |
+| 48 | PASS | #278 foi paga pela comanda #50 (Pix R$9); a mesa foi liberada. |
+| 49 | PASS | #275 apareceu em A Receber → Próximos, previsto 28/12/2026, R$8. |
+| 50 | BLOCKED-ENVIRONMENT | Pedido futuro pago antecipadamente não foi cadastrado. |
+| 51 | FAIL | Relatórios filtrados 30/09 Local/Agendado reconciliaram #276+#277 em R$25, mas coluna Data no detalhe mostrou 29/09, data de criação, sem identificar a data de serviço. |
+| 52 | BLOCKED-ENVIRONMENT | Métrica de duração após entrada operacional não pôde ser observada antes da janela. |
+| 53 | BLOCKED-ENVIRONMENT | Reserva em desktop escuro não foi revisada visualmente nesta sessão. |
+| 54 | BLOCKED-ENVIRONMENT | Reserva em desktop claro não foi revisada visualmente nesta sessão. |
+| 55 | FAIL | Viewport 390×844: lista e bottom nav funcionaram, mas card Reservada mostrou apenas 20:00, sem a data 29/09/2026 exigida para reservas futuras. |
+| 56 | PASS | Viewport 390×844: detalhe mostrou data/hora, status, item, observação, total e ações. |
+| 57 | PASS | Wizard de edição #276 alterou mesa/cliente/horário/itens antes da janela. |
+| 58 | PASS | No mobile, CTA Confirmar chegada converteu #278 e abriu comanda #50. |
+| 59 | BLOCKED-BROWSER-LIMITATION | F5/reload do detalhe em rota interna não foi executado pelo controle IAB desta sessão. |
+| 60 | PASS | Workflow Deploy staging verificou deep links; /cozinha-tv e /comandas abriram diretamente em abas IAB. |
+| 61 | BLOCKED-BROWSER-LIMITATION | Chrome/Edge isolados indisponíveis; somente abas IAB com cookies compartilhados. |
+| 62 | PASS | Navegação por teclado/Return operou formulários, detalhe, confirmações e menus sem bloqueio observado. |
+| 63 | BLOCKED-ENVIRONMENT | Alvos de toque não foram medidos sistematicamente em dispositivo físico. |
+| 64 | BLOCKED-ENVIRONMENT | Sem medição/screenshot completo de overflow horizontal em todas as telas mobile. |
+| 65 | BLOCKED-ENVIRONMENT | #279 não apareceu na página visível e contadores ficaram iguais; TV não expôs todas as páginas durante a amostra, então ausência integral não comprovada. |
+| 66 | BLOCKED-ENVIRONMENT | Transição da janela operacional de pedido futuro não ocorreu na sessão. |
+| 67 | PASS | TV mostrou cartões Local (#267/#268) e modalidade textual Local. |
+| 68 | PASS | TV manteve Agendados 1 antes/depois da criação de #279 futuro. |
+| 69 | PASS | TV mostrou cartões atrasados primeiro, com tempo e indicação ATRASADO; #279 não entrou na prioridade. |
+| 70 | BLOCKED-ENVIRONMENT | Paginação Tela 1 de 3 foi observada, mas overflow/layout de todas as páginas em tela grande não foi inspecionado. |
+
+### Achados que impedem fechamento da QA
+
+1. **Conflito e recuperação do rascunho (caso 15, FAIL).** Com #276 na Mesa 2 em 30/09 às 21:00, nova reserva às 21:30 foi rejeitada com o aviso genérico “Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.”, sem orientar outra mesa/horário. Corrigir o mesmo rascunho para 23:00 e 18:00 continuou falhando; um rascunho novo às 18:00 criou #277. Reproduzir e investigar o 409/estado do rascunho; a causa não foi identificada.
+2. **Card Comandas mobile sem data (caso 55, FAIL).** Em 390×844, QA82 Mesa Livre mostrava “Reservada · Reserva 20:00 · 1 item” sem a data; detalhe #278 mostrou 29/09/2026 20:00. Mesa 2 com reserva de 30/09 também mostrou somente hora no card. Issue #82 exige data e horário no card.
+3. **Data ambígua em Relatórios (caso 51, FAIL).** Filtro 30/09/2026, Local, Agendado listou #276 e #277 somando R$25, porém coluna “Data” nas linhas mostrou 29/09 (cadastro), sem data de serviço 30/09. Verificar contrato pretendido e corrigir apresentação/rotulagem mantendo filtro por order_date.
+
+### Evidência operacional e limpeza
+
+- #275: Retirada no 90º dia; cancelada com motivo oficial.
+- #276: reserva em mesa ocupada, editada e cancelada; Mesa 2/Comanda 45 inalteradas.
+- #277: reserva não conflitante, encerrada como Não compareceu; sem comanda.
+- #278: reserva Local de hoje; chegada abriu uma comanda #50, paga por Pix R$9; mesa temporária voltou a Livre e foi desativada. O pedido agendado #278 segue na cozinha até completar seu ciclo operacional.
+- #279: Retirada futura usada na Cozinha/TV e cancelada; job pendente removido.
+- Estação Cozinha · Windows offline; emissão física e duas vias sem validação. Jobs exibiram 0/2 vias.
+- Sem alteração de código de aplicação, merge ou produção nesta homologação.
+
+### Gate de release
+
+**QA manual não aprovada.** Corrigir FAILs, revalidar o novo SHA de aplicação e concluir os BLOCKED relevantes antes de merge/produção. PR permanece draft; produção bloqueada.

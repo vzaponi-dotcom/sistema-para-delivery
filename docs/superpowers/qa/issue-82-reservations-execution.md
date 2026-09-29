@@ -43,9 +43,9 @@
 | 17 — Finance / receivables | NOT STARTED | — |
 | 18 — Reporting | NOT STARTED | — |
 | 19 — Full gates | NOT STARTED | — |
-| 20 — Staging | NOT STARTED | — |
-| 21 — Manual QA | NOT STARTED | — |
-| 22 — Technical closure | NOT STARTED | — |
+| 20 — Staging | COMPLETE / GREEN | Deploy staging run 36633062484 SUCCESS no SHA 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08; migrations, deploy, login e deep links verdes. |
+| 21 — Manual QA | PARTIAL / FAIL | 70 casos registrados no QA: 37 PASS, 3 FAIL, 30 BLOCKED; gate aberto. |
+| 22 — Technical closure | BLOCKED | Aguarda correção dos FAILs, revalidação, casos bloqueados e autorização separada. |
 
 ## Stop rules
 
@@ -885,3 +885,21 @@ Scope:
 - no broad `feature/**` trigger;
 - no production workflow change;
 - subsequent pushes on this branch automatically run the existing staging migration/deploy/login/deep-link pipeline.
+
+
+## Task 20 — confirmação efetiva de staging (2026-09-29)
+
+- PR #83 OPEN / DRAFT, head 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08 durante a homologação; base da PR master da81fb2be7a754f9296a54d9e44e82372341e20d.
+- Validate application #2689: SUCCESS no branch antes do deploy.
+- [Deploy staging run 36633062484](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36633062484): SUCCESS no mesmo SHA 2712f64aa70aa891c7d7a6d41a9262f7a5a78c08.
+- Job 109628189788: Show pending staging migrations, Apply staging migrations, Deploy staging, Verify staging login, Verify staging deep links e Summarize staging URL concluíram SUCCESS.
+- Smoke autenticado em Pedidos, Comandas, Mesas, Financeiro, Relatórios e Cozinha TV.
+- Nenhum deploy de produção ou merge executado.
+
+## Task 21 — execução manual parcial e gate aberto
+
+- [Matriz QA com 70 casos](issue-82-reservations-qa.md#casos-170): 37 PASS, 3 FAIL, 19 BLOCKED-ENVIRONMENT, 4 BLOCKED-BROWSER-LIMITATION, 7 BLOCKED-PHYSICAL.
+- FAILs: feedback/recuperação após conflito (#15), data ausente no card mobile (#55), coluna de data ambígua no detalhe de Relatórios (#51).
+- TV emparelhada: #279 futuro não alterou contadores; todas as páginas e transição temporal não aferidas. Estação de impressão offline.
+- Dados temporários #275/#276/#277/#279 cancelados ou no-show; #278 convertida em comanda #50, paga; mesa temporária desativada.
+- Task 22 não iniciada: aguarda correções, revalidação e gates manuais. PR segue draft e produção bloqueada.
