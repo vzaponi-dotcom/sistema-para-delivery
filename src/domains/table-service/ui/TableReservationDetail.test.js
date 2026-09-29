@@ -54,7 +54,7 @@ test('reservation detail shows semantic reservation identity, service time, item
     detail,
     currency,
     now: new Date('2026-10-10T21:00:00.000Z'),
-    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
     canCreateOrders: true,
     canCancelOrders: true,
     cancellationOptions: [{ value: 'client_changed_mind', label: 'Cliente desistiu', requiresNote: false }],
@@ -84,7 +84,7 @@ test('reservation actions obey edit window, scheduled day and capabilities', asy
     detail,
     currency,
     now: new Date('2026-10-09T21:00:00.000Z'),
-    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
     canCreateOrders: true,
     canCancelOrders: false,
   })
@@ -97,7 +97,7 @@ test('reservation actions obey edit window, scheduled day and capabilities', asy
     detail,
     currency,
     now: new Date('2026-10-10T22:11:00.000Z'),
-    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
     canCreateOrders: true,
     canCancelOrders: true,
   })
@@ -115,7 +115,7 @@ test('arrival confirmation is explicit and cancel/no-show require an active conf
     detail,
     currency,
     now: new Date('2026-10-10T21:00:00.000Z'),
-    currentTiming: { scheduledLeadMinutes: 50, scheduledLateAfterMinutes: 15, immediateLateAfterMinutes: 30 },
+    currentTiming: { scheduledPrepLeadMinutes: 50, scheduledLateGraceMinutes: 15, immediateLateAfterMinutes: 30, immediateVeryLateAfterMinutes: 40 },
     canCreateOrders: true,
     canCancelOrders: true,
     cancellationOptions: [
@@ -136,8 +136,10 @@ test('arrival confirmation is explicit and cancel/no-show require an active conf
   await act(async () => buttonNamed(renderer.root, 'Cancelar reserva').props.onClick())
   const cancelDialog = renderer.root.findByProps({ role: 'dialog' })
   assert.match(nodeText(cancelDialog), /Cancelar reserva/)
-  const select = cancelDialog.findByType('select')
-  await act(async () => select.props.onChange({ target: { value: 'client_changed_mind' } }))
+  const cancelSelect = cancelDialog.findByProps({ role: 'combobox', 'aria-label': 'Motivo' })
+  await act(async () => cancelSelect.props.onClick())
+  const cancelOption = cancelDialog.findAllByProps({ role: 'option' }).find((option) => nodeText(option).includes('Cliente desistiu'))
+  await act(async () => cancelOption.props.onClick())
   await act(async () => buttonNamed(cancelDialog, 'Confirmar cancelamento').props.onClick())
   assert.deepEqual(cancellations, [['reservation-1', {
     expectedRevision: 7,
@@ -149,8 +151,10 @@ test('arrival confirmation is explicit and cancel/no-show require an active conf
 
   await act(async () => buttonNamed(renderer.root, 'Não compareceu').props.onClick())
   const noShowDialog = renderer.root.findByProps({ role: 'dialog' })
-  const noShowSelect = noShowDialog.findByType('select')
-  await act(async () => noShowSelect.props.onChange({ target: { value: 'client_changed_mind' } }))
+  const noShowSelect = noShowDialog.findByProps({ role: 'combobox', 'aria-label': 'Motivo' })
+  await act(async () => noShowSelect.props.onClick())
+  const noShowOption = noShowDialog.findAllByProps({ role: 'option' }).find((option) => nodeText(option).includes('Cliente desistiu'))
+  await act(async () => noShowOption.props.onClick())
   await act(async () => buttonNamed(noShowDialog, 'Registrar não comparecimento').props.onClick())
   assert.deepEqual(noShows, [['reservation-1', {
     expectedRevision: 7,
