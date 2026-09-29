@@ -20,6 +20,12 @@ const tableOccupiedError = () => domainError(
   'A mesa está ocupada e não pode ser alterada.',
 )
 
+const tableHasActiveReservationError = () => domainError(
+  409,
+  'TABLE_HAS_ACTIVE_RESERVATION',
+  'Esta mesa possui uma reserva ativa. Mova ou cancele a reserva antes de alterar a mesa.',
+)
+
 const tableDestinationOccupiedError = () => domainError(
   409,
   'TABLE_DESTINATION_OCCUPIED',
@@ -375,6 +381,7 @@ export const renameTable = async (db, businessId, tableId, value, now = new Date
   const current = await loadTableById(db, businessId, tableId)
   if (!current) return null
   if (current.occupancy === 'occupied') throw tableOccupiedError()
+  if (current.nextReservation) throw tableHasActiveReservationError()
 
   const { name, nameKey } = normalizeTableName(value)
   await runWithTableNameCollision(() => db.prepare(`UPDATE tables
@@ -398,6 +405,7 @@ export const setTableActive = async (db, businessId, tableId, isActive, now = ne
   const current = await loadTableById(db, businessId, tableId)
   if (!current) return null
   if (!isActive && current.occupancy === 'occupied') throw tableOccupiedError()
+  if (!isActive && current.nextReservation) throw tableHasActiveReservationError()
 
   await db.prepare(`UPDATE tables
     SET is_active = ?, updated_at = ?
