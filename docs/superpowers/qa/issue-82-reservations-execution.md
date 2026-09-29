@@ -27,8 +27,8 @@
 | 1 — Migration / invariants | COMPLETE / GREEN | RED `94a6684abce6e30d740ff7bd932835a1bbe2c07d` → Validate #2517 / run `36580535314` failed only on 4 intended reservation-migration tests. GREEN `ed7f5b7de4955dd457b482fb48a83c03a310872e` → Validate #2518 / run `36580925658` SUCCESS; 0034 clean/upgrade + overlap guards passed; architecture/lint/build/Worker dry-runs/D1 gates green. |
 | 2 — 90-day scheduling domain | COMPLETE / GREEN | RED `3936aae5020c6458a29dc272df26a559f8f121ab` → Validate #2523 / run `36582671155` failed on the intended 90-day/Local scheduling behaviors. GREEN `93f13367a071bd190dd963ae6ab68e8d5e48d45c` → Validate #2525 / run `36582977746` SUCCESS; all test shards and full validation green. |
 | 3 — Reservation read model | COMPLETE / GREEN | RED `900fef8a8956adf6a8750cd5430f336101b17d47` → Validate #2529 / run `36583884743` failed on the intended repository/order/table reservation projections. GREEN `1123243c6588b6d405c793fe3a3212f571c8669d` → Validate #2533 / run `36584823314` SUCCESS; reservation repository, order context and nextReservation table projection green. |
-| 4 — Table guards | NOT STARTED | — |
-| 5 — Local reservation checkout | NOT STARTED | — |
+| 4 — Table guards | COMPLETE / GREEN | RED `c7aca6a0d8c528a91b5e11caae72ab7585ef5690` → Validate #2537 / run `36586270135` failed on the intended backend/UI reservation restrictions. GREEN `738a6049cdb7b1d875236217ef78517369e0f64e` → Validate #2539 / run `36586505823` SUCCESS on rerun attempt 2; attempt 1 had only an unrelated local Wrangler port collision in the Spec B D1 gate. |
+| 5 — Local reservation checkout | COMPLETE / GREEN | RED `9f6f2770e6e380faa16159f9e0934061d7849ae9` → Validate #2542 / run `36587171200` failed exactly on 5 intended reservation-checkout behaviors. GREEN `e7aab7c8d125de30904a6048ffd8f4384e48c202` → Validate #2545 / run `36587697649` SUCCESS; all shards, architecture/lint/build, Worker dry-runs and D1 gates green. |
 | 6 — Printing matrix | NOT STARTED | — |
 | 7 — Reservation read API | NOT STARTED | — |
 | 8 — Cancel / no-show | NOT STARTED | — |
@@ -151,4 +151,82 @@
 - Staging deploy: NOT EXECUTED.
 - Production deploy: NOT EXECUTED.
 
-Stopped before Task 4.
+
+## Task 4 evidence
+
+### RED
+
+- Backend test commit: `e4eb7e492adffa42fd055251860181f3afc93844`.
+- UI contract test commit: `c7aca6a0d8c528a91b5e11caae72ab7585ef5690`.
+- Validate: #2537 / run `36586270135`.
+- Result: FAILURE as intended.
+- Behavioral failures proved:
+  - active reservation did not yet block rename/deactivation;
+  - Tables UI did not yet explain or disable those actions.
+- Reordering and terminal-reservation behavior were already characterized separately.
+
+### GREEN
+
+- Backend guard commit: `c0f234809b7601accf70f225176eee3940c54594`.
+- UI commit: `738a6049cdb7b1d875236217ef78517369e0f64e`.
+- Validate: #2539 / run `36586505823`.
+- Attempt 1:
+  - all test shards, architecture, lint, build, Worker bundles and local migration application passed;
+  - Spec B D1 probe failed only because Wrangler could not bind local port `127.0.0.1:39001`.
+- Failed jobs were rerun without code change.
+- Attempt 2: SUCCESS.
+- Active `reserved` reservation now blocks:
+  - rename;
+  - deactivation.
+- Stable error: `TABLE_HAS_ACTIVE_RESERVATION`.
+- Message directs operator to move/cancel the reservation.
+- Reordering remains allowed.
+- `cancelled` and `no_show` reservations do not block table management.
+- Tables UI preserves Livre/Ocupada and adds an explicit `Reserva ativa` restriction.
+- Staging deploy: NOT EXECUTED.
+- Production deploy: NOT EXECUTED.
+
+## Task 5 evidence
+
+### RED
+
+- Validation RED: `190221f81e108390b6b7cc9a8ea1acbac65c22eb`.
+- Repository RED: `a37eaaf91b23dc64b3f4a9b53564a0e1113085f1`.
+- Final HTTP RED: `9f6f2770e6e380faa16159f9e0934061d7849ae9`.
+- Validate: #2542 / run `36587171200`.
+- Result: FAILURE as intended.
+- Exactly 5 new behaviors failed:
+  - Local reservation still rejected future `orderDate` at repository boundary;
+  - occupied-now table still could not create the intended independent future reservation;
+  - overlap/idempotent reservation checkout contract was absent;
+  - scheduled table checkout still accepted `expectedTableTabId`;
+  - HTTP checkout did not return a reservation/table projection.
+
+### GREEN
+
+- Checkout validation: `ecdf4940848258ea943cd985097d2f97d7c3c8f3`.
+- Atomic repository implementation: `ec7d4a64a2a7913ca05547a2cc47ff7f16e41a69`.
+- HTTP official effects: `e7aab7c8d125de30904a6048ffd8f4384e48c202`.
+- Validate: #2545 / run `36587697649`.
+- Result: SUCCESS.
+- Local + `scheduledFor` now:
+  - validates active table;
+  - never opens/reuses a table-tab;
+  - persists order with `table_tab_id = NULL`;
+  - persists one `table_reservations` row in the same batch;
+  - snapshots table name;
+  - persists 120-minute conflict duration and `ends_at`;
+  - allows optional same-business client;
+  - remains in customer identity context `table`;
+  - returns reservation + updated table projection from POST /api/orders.
+- A table occupied now can receive a future reservation without joining its current comanda.
+- `expectedTableTabId` is rejected for scheduled Local checkout.
+- Reservation overlap translates to `409 TABLE_RESERVATION_CONFLICT`.
+- Overlap failure rolls back order/items/automatic print job/reservation together.
+- Idempotent replay returns the same order/reservation and does not duplicate jobs or reservations.
+- Scheduled future `orderDate` is now allowed when a valid `scheduledFor` is present; future immediate order dates remain rejected.
+- Automatic printing timing/document semantics are intentionally unchanged here and remain owned by Task 6.
+- Staging deploy: NOT EXECUTED.
+- Production deploy: NOT EXECUTED.
+
+Stopped before Task 6.
