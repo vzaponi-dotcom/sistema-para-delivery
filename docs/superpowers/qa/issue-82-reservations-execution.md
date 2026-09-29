@@ -683,3 +683,42 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 17.
+
+## Task 17 evidence
+
+### RED
+
+- Receivables behavior tests: `451dc0594ed059b5fec29f32d6d222f05398d3ad`.
+- Standalone payment guard test: `342fbf023512af9b7db758e9d49fc67d41878a6d`.
+- Validate #2665 / run `36626886305`: FAILURE as intended.
+
+The RED proved:
+- a Local reservation with `tableReservationId` and no `tableTabId` still entered the pending receivables population;
+- the reservation could consequently reach summary/forecast/group projections;
+- reservation identity itself did not protect standalone payment eligibility if other table-shaped fields were malformed;
+- converted reservation orders were not explicitly excluded at the receivables source boundary.
+
+### GREEN
+
+Production fixes:
+- `b44ca18ee84abf72e7adf99d344f3289b4c83bca` — Finance now has an explicit reservation-order predicate based on `tableReservationId`; pending and paid receivable source populations exclude reservation orders before summary/forecast/grouping.
+- `5751e8ef52a71d4e38cec969c8e499fd2313d539` — Orders standalone payment eligibility treats reservation identity as a table relationship guard in addition to the existing Local/table-tab/table identity protections.
+
+Validate #2667 / run `36627016287`: SUCCESS.
+
+Delivered/proved:
+- active Local reservation with `tableTabId = NULL` never appears in A Receber;
+- active reservation never contributes to today/upcoming/overdue summary or forecast totals;
+- active reservation never becomes a standalone receivable group;
+- standalone payment remains blocked for reservation identity even if another field is inconsistent;
+- converted reservation remains outside A Receber/comanda payment stays authoritative;
+- cancelled and no-show reservation orders remain excluded;
+- legacy table-shaped orders without reservation identity keep their previous behavior, avoiding a broad `type === 'Local'` inference inside Finance;
+- future Entrega/Retirada unpaid orders remain receivables and use future `orderDate` as forecast date;
+- future Entrega/Retirada paid at checkout do not remain pending;
+- no new Finance -> Orders dependency, capability or payment workflow was introduced.
+
+Staging deploy: NOT EXECUTED.  
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 18.
