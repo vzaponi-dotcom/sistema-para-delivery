@@ -257,3 +257,74 @@ test('open-comanda new order keeps Local locked to Agora and does not expose Res
   if (back) await act(async () => back.props.onClick())
   assert.equal(buttonNamed(renderer.root, 'Reservar'), undefined)
 })
+
+
+test('shared new-order wizard owns edit-reservation initialization, labels and manual-print warning', () => {
+  const page = source('./NewOrder.jsx')
+
+  assert.match(page, /mode = 'create'/)
+  assert.match(page, /reservationContext = null/)
+  assert.match(page, /initialDraft = null/)
+  assert.match(page, /mode === 'edit-reservation'/)
+  assert.match(page, /initialDraft\?\.selectedTableId/)
+  assert.match(page, /initialDraft\?\.localClientId/)
+  assert.match(page, /initialDraft\?\.orderDate/)
+  assert.match(page, /initialDraft\?\.scheduleMode/)
+  assert.match(page, /initialDraft\?\.scheduledTime/)
+  assert.match(page, /initialDraft\?\.items/)
+  assert.match(page, /Editar reserva/)
+  assert.match(page, /Cancelar edição/)
+  assert.match(page, /já foi impressa manualmente/i)
+  assert.match(page, /Salvar mesmo assim/)
+})
+
+test('edit-reservation wizard starts clean from the official snapshot and does not expose immediate payment', async (t) => {
+  const harness = await workspaceHarness(t)
+  const dirtyStates = []
+  const { default: NewOrder } = await harness.load('/src/domains/orders/ui/NewOrder.jsx')
+  const renderer = await harness.render(NewOrder, {
+    mode: 'edit-reservation',
+    reservationContext: {
+      id: 'reservation-1',
+      orderId: 'order-1',
+      orderNumber: 81,
+      expectedRevision: 7,
+      hasManualPrintHistory: true,
+    },
+    initialDraft: {
+      type: 'Local',
+      selectedTableId: 'table-3',
+      localClientId: 'client-2',
+      orderDate: '2026-10-10',
+      scheduleMode: 'scheduled',
+      scheduledTime: '20:30',
+      items: [{
+        lineId: 'reservation:item:0',
+        productId: 'p1',
+        name: 'Marmita',
+        category: 'Refeições',
+        size: 'G',
+        unitPrice: 32,
+        quantity: 2,
+        note: 'sem cebola',
+      }],
+      deliveryFee: 0,
+      adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    },
+    clients: [{ id: 'client-2', name: 'Maria', phone: '', address: '' }],
+    products: [{ id: 'p1', name: 'Marmita', category: 'Refeições', size: 'G', price: 32, active: true }],
+    tables: [{ id: 'table-3', name: 'Mesa 3', isActive: true, occupancy: 'free' }],
+    currency: (value) => `R$ ${value}`,
+    disabled: false,
+    onCancel: () => {},
+    onCreateClient: async () => null,
+    onSubmit: async () => false,
+    onDraftDirtyChange: (dirty) => dirtyStates.push(dirty),
+  })
+
+  assert.match(nodeText(renderer.root), /Editar reserva/)
+  assert.match(nodeText(renderer.root), /Mesa 3/)
+  assert.match(nodeText(renderer.root), /Maria/)
+  assert.equal(buttonNamed(renderer.root, 'Salvar e receber'), undefined)
+  assert.deepEqual(dirtyStates, [false])
+})
