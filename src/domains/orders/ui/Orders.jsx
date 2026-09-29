@@ -11,7 +11,7 @@ import PageHeader from '../../../shared/ui/PageHeader'
 import StatCard from '../../../shared/ui/StatCard'
 import StatusBadge from '../../../shared/ui/StatusBadge'
 import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
-import { buildKitchenQueueModel } from '../domain/kitchenQueue.js'
+import { buildFutureScheduledOrdersModel, buildKitchenQueueModel } from '../domain/kitchenQueue.js'
 import { buildKitchenItemSummary } from '../domain/kitchenTicket.js'
 import { canReceiveStandaloneOrder } from '../domain/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
@@ -101,6 +101,7 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
   const actionsDisabled = writeDisabled || pendingAction !== null
   const activePrintJobs = Math.max(0, Math.floor(Number(printQueueActiveCount) || 0))
   const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search, currentTiming), [currentTiming, orders, now, search])
+  const futureScheduleModel = useMemo(() => buildFutureScheduledOrdersModel(orders, now, search, currentTiming), [currentTiming, orders, now, search])
   const detailOrder = detailOrderId ? officialOrders.find((order) => order.id === detailOrderId) ?? null : null
   const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
 
@@ -232,11 +233,11 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
 
       <section className="future-scheduled-orders" aria-labelledby="future-scheduled-heading">
         <div className="kitchen-queue-heading">
-          <div><Icon name="clock" size={18} /><h2 id="future-scheduled-heading">Próximos dias <span>({queueModel.futureScheduled.length})</span></h2></div>
+          <div><Icon name="clock" size={18} /><h2 id="future-scheduled-heading">Próximos dias <span>({futureScheduleModel.visible.length})</span></h2></div>
           <span className="kitchen-queue-help">Fora dos contadores de hoje</span>
         </div>
         <div className="kitchen-ticket-list">
-          {queueModel.futureScheduled.map((entry) => (
+          {futureScheduleModel.visible.map((entry) => (
             <FutureScheduledOrderCard
               key={entry.order.id}
               entry={entry}
@@ -249,11 +250,11 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
               onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
             />
           ))}
-          {!queueModel.futureScheduled.length && (
+          {!futureScheduleModel.visible.length && (
             <div className="kitchen-queue-empty">
               <Icon name="clock" size={24} />
-              <strong>{queueModel.futureScheduledCount && search ? 'Nenhum próximo pedido corresponde à busca atual.' : 'Nenhum pedido agendado para os próximos dias.'}</strong>
-              <span>{queueModel.futureScheduledCount ? 'Limpe ou altere a busca para ver os próximos agendamentos.' : 'Agendamentos de outras datas aparecem aqui sem afetar a operação de hoje.'}</span>
+              <strong>{futureScheduleModel.totalCount && search ? 'Nenhum próximo pedido corresponde à busca atual.' : 'Nenhum pedido agendado para os próximos dias.'}</strong>
+              <span>{futureScheduleModel.totalCount ? 'Limpe ou altere a busca para ver os próximos agendamentos.' : 'Agendamentos de outras datas aparecem aqui sem afetar a operação de hoje.'}</span>
             </div>
           )}
         </div>
