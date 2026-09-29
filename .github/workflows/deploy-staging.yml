@@ -11,6 +11,7 @@ on:
       - feature/release-reporting-center
       - feature/kitchen-tv-best-fit-layout
       - feature/kitchen-tv-control-center
+      - feature/issue-82-multiday-reservations
   workflow_dispatch:
 
 permissions:
