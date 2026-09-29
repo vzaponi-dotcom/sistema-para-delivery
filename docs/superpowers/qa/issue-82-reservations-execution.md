@@ -23,8 +23,8 @@
 
 | Task | Status | Evidence |
 |---|---|---|
-| Preparation | IN PROGRESS | Feature branch + PR created; branch Validate baseline pending |
-| 1 — Migration / invariants | NOT STARTED | — |
+| Preparation | COMPLETE / GREEN | PR #83; branch baseline Validate #2515 / run `36579735603` SUCCESS on `161cb5bce66bc66663e8c916d1521ea4f17d6e1a` |
+| 1 — Migration / invariants | COMPLETE / GREEN | RED `94a6684abce6e30d740ff7bd932835a1bbe2c07d` → Validate #2517 / run `36580535314` failed only on 4 intended reservation-migration tests. GREEN `ed7f5b7de4955dd457b482fb48a83c03a310872e` → Validate #2518 / run `36580925658` SUCCESS; 0034 clean/upgrade + overlap guards passed; architecture/lint/build/Worker dry-runs/D1 gates green. |
 | 2 — 90-day scheduling domain | NOT STARTED | — |
 | 3 — Reservation read model | NOT STARTED | — |
 | 4 — Table guards | NOT STARTED | — |
@@ -53,3 +53,33 @@
 - Do not count parser/import/fixture failures as behavioral RED.
 - Do not merge with FAIL/BLOCKED technical gates.
 - Do not deploy production without separate explicit authorization.
+
+
+## Task 1 evidence
+
+### RED
+
+- Commit: `94a6684abce6e30d740ff7bd932835a1bbe2c07d`
+- Validate: #2517 / run `36580535314`
+- Result: FAILURE as intended.
+- Failing tests: exactly 4 new `0034` reservation persistence tests.
+- Failure reason: `table_reservations` schema/guards did not exist yet.
+- Existing shards remained green.
+
+### GREEN
+
+- Commit: `ed7f5b7de4955dd457b482fb48a83c03a310872e`
+- Validate: #2518 / run `36580925658`
+- Result: SUCCESS.
+- New migration: `0034_table_reservations.sql`.
+- Focused shard: 452/452 pass, including all 4 new tests.
+- Architecture: PASS.
+- Lint: PASS.
+- Build: PASS.
+- Production Worker dry-run: PASS.
+- Staging Worker dry-run: PASS.
+- Local D1 migration gate: PASS.
+- Spec B D1 clean install/upgrade: PASS.
+- Operation profile D1 clean install/upgrade: PASS.
+- Staging deploy: NOT EXECUTED.
+- Production deploy: NOT EXECUTED.
