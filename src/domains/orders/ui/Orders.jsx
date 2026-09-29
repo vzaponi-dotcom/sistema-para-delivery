@@ -9,13 +9,90 @@ import KitchenTicket from './components/KitchenTicket'
 import OrderDetail from './components/OrderDetail'
 import PageHeader from '../../../shared/ui/PageHeader'
 import StatCard from '../../../shared/ui/StatCard'
+import StatusBadge from '../../../shared/ui/StatusBadge'
 import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
 import { buildKitchenQueueModel } from '../domain/kitchenQueue.js'
+import { buildKitchenItemSummary } from '../domain/kitchenTicket.js'
 import { canReceiveStandaloneOrder } from '../domain/orderPaymentEligibility.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import { FINANCE_TIME_ZONE } from '../../../../shared/finance.js'
 
 
-function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
+const futureDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: FINANCE_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
+
+const futureTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: FINANCE_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+
+const futureAttendanceIcons = { Entrega: 'delivery', Retirada: 'pickup', Local: 'local' }
+
+const formatFutureSchedule = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return { date: 'Data indisponível', time: '—' }
+  return {
+    date: futureDateFormatter.format(date),
+    time: futureTimeFormatter.format(date),
+  }
+}
+
+function FutureScheduledOrderCard({
+  entry,
+  now,
+  disabled,
+  canCreateOrders,
+  canCancelOrders,
+  onDetails,
+  onEditReservation,
+  onCancel,
+}) {
+  const order = entry.order
+  const schedule = formatFutureSchedule(order.scheduledFor)
+  const activeReservation = order.type === 'Local'
+    && Boolean(order.tableReservationId)
+    && order.tableReservationStatus === 'reserved'
+  const reference = now instanceof Date ? now : new Date(now)
+  const editableReservation = activeReservation
+    && canCreateOrders
+    && entry.operationalStartAt instanceof Date
+    && !Number.isNaN(reference.getTime())
+    && reference < entry.operationalStartAt
+
+  return (
+    <article className="kitchen-ticket future-scheduled-ticket" aria-label={formatOrderDisplayNumber(order)}>
+      <header className="kitchen-ticket-header">
+        <strong className="kitchen-ticket-customer-name">{order.client || 'Cliente não identificado'}</strong>
+        <StatusBadge status="Agendado" label={activeReservation ? 'Reservada' : 'Agendado'} />
+      </header>
+      <div className="kitchen-ticket-customer">
+        <span><Icon name={futureAttendanceIcons[order.type] || 'local'} size={16} />{order.type}</span>
+        <span className="kitchen-ticket-id">{formatOrderDisplayNumber(order)}</span>
+      </div>
+      <p className="kitchen-ticket-items">{buildKitchenItemSummary(order)}</p>
+      <div className="kitchen-ticket-timing">
+        <strong>{schedule.date}</strong>
+        <span>{schedule.time}</span>
+      </div>
+      <footer className="kitchen-ticket-actions">
+        <Button type="button" variant="secondary" icon="note" onClick={() => onDetails?.(order)} disabled={disabled}>Exibir detalhes</Button>
+        {editableReservation && (
+          <Button type="button" variant="secondary" icon="edit" onClick={() => onEditReservation?.(order)} disabled={disabled}>Editar reserva</Button>
+        )}
+        {canCancelOrders && <Button type="button" variant="secondary" onClick={() => onCancel?.(order)} disabled={disabled}>Cancelar</Button>}
+      </footer>
+    </article>
+  )
+}
+
+
+function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onEditReservation, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -151,6 +228,35 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
             {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado aguardando preparo.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
           </div>
         </section>
+      </section>
+
+      <section className="future-scheduled-orders" aria-labelledby="future-scheduled-heading">
+        <div className="kitchen-queue-heading">
+          <div><Icon name="clock" size={18} /><h2 id="future-scheduled-heading">Próximos dias <span>({queueModel.futureScheduled.length})</span></h2></div>
+          <span className="kitchen-queue-help">Fora dos contadores de hoje</span>
+        </div>
+        <div className="kitchen-ticket-list">
+          {queueModel.futureScheduled.map((entry) => (
+            <FutureScheduledOrderCard
+              key={entry.order.id}
+              entry={entry}
+              now={now}
+              disabled={actionsDisabled}
+              canCreateOrders={canCreateOrders}
+              canCancelOrders={canCancelOrders}
+              onDetails={(order) => setDetailOrderId(order.id)}
+              onEditReservation={(order) => runAction(`edit-reservation:${order.id}`, () => onEditReservation?.(order))}
+              onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
+            />
+          ))}
+          {!queueModel.futureScheduled.length && (
+            <div className="kitchen-queue-empty">
+              <Icon name="clock" size={24} />
+              <strong>{queueModel.futureScheduledCount && search ? 'Nenhum próximo pedido corresponde à busca atual.' : 'Nenhum pedido agendado para os próximos dias.'}</strong>
+              <span>{queueModel.futureScheduledCount ? 'Limpe ou altere a busca para ver os próximos agendamentos.' : 'Agendamentos de outras datas aparecem aqui sem afetar a operação de hoje.'}</span>
+            </div>
+          )}
+        </div>
       </section>
 
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'orders')} registerPaymentDisabled={paymentDisabled || actionsDisabled} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
