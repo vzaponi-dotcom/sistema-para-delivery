@@ -722,3 +722,53 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 18.
+
+## Task 18 evidence
+
+### RED / characterization
+
+Reporting timing/date characterizations:
+- `b0ef5551b271f75da2208d92c3476a6665e00571` — future Local scheduled operation uses canonical operational timing and cancelled scheduled Local stays out of operation analytics;
+- `e9831f2af411a253b0848cea4f42df518a5e490c` — future sale date vs early receipt date plus reservation receivable semantics;
+- `909ca15cc5ecb8314d8005f786d9b38cf098f91b` — repository order_date/payment-date/filter characterization;
+- `0b10b498741fb1369cbe7b8d0b79650953a21159` — detail `A receber` filter/pending amount reconciliation.
+
+Validate #2672 / run `36628793496`: FAILURE as intended.
+Validate #2673 / run `36628971813`: FAILURE as intended after the detail-filter characterization was added.
+
+The RED proved one real reporting gap while the core time semantics were already correct:
+- future orders were already selected by `order_date`, not early `created_at`;
+- financial receipts were already selected/grouped by real `paid_at`;
+- Local scheduled orders already classified as `scheduled` and `Local`;
+- operational duration already started at canonical `operational_start_at`;
+- cancelled/no-show mirror orders (`status = Cancelado`) were already excluded from commercial/operation populations;
+- however reporting receivable metrics/detail still lacked reservation identity, so an active Local reservation with no table tab could be counted/displayed as standalone `A receber`.
+
+### GREEN
+
+Production fixes:
+- `bd0b8c7938e7cbc0514f6f379632e6dbf1d504d9` — reporting receivable analytics explicitly exclude orders carrying reservation identity;
+- `a33a5201ca395ad727c51257c63da0b27c390b2a` — reporting `receivable=unpaid` filter excludes reservation orders via authoritative reservation relation;
+- `f7f3de31889c8b746244343c92b84b1e7954c9e6` — reporting repository projects reservation identity into overview/sales/detail/order-detail reads and client pending calculations;
+- `12eb02bbb04e59e6315b2a879482675db414a6c3` — completes reservation context join for client detail rows.
+
+Validate #2677 / run `36629169321`: SUCCESS.
+
+Delivered/proved:
+- future scheduled sale belongs to its future `order_date`, even when created days earlier;
+- early payment remains on its actual financial `paid_at` business date and does not move the sale to that day;
+- Local reservation remains modality `Local` and schedule classification `scheduled`;
+- operational duration for a reservation prepared later uses `operational_start_at`, never the advance-created timestamp;
+- cancelled/no-show mirror orders remain excluded anywhere cancelled orders are excluded;
+- active reservation remains a commercial scheduled order for sales/product semantics but is not a standalone receivable;
+- Overview/Sales receivable metrics no longer count active reservation orders;
+- Detail `A receber` filter excludes reservation orders;
+- detail/client pending amount for reservation orders is zero;
+- ordinary future unpaid Entrega/Retirada receivables remain unchanged;
+- type/schedule/date filters continue to select the same future order population coherently;
+- no new reporting KPI, capability or reservation-specific dashboard was introduced.
+
+Staging deploy: NOT EXECUTED.  
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 19.
