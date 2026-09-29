@@ -144,3 +144,22 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Review exposes full reservation/scheduled date and time: PASS.
 - Desktop/mobile staging visual verification remains PENDING; Task 14 owns the final Comandas reservation UI.
 - Kitchen TV auth test fixture was stabilized after its hard-coded session timestamp crossed the real seven-day auth lifetime; no production TV code changed.
+
+
+## Automated checkpoints after Task 13
+
+- Explicit create/edit-reservation draft mode: PASS.
+- Official reservation snapshot → shared New Order wizard initialization: PASS.
+- Reservation edit uses PUT boundary, never POST /api/orders: PASS.
+- Reservation order id/number preserved by official backend response: PASS.
+- Cancel/discard edit does not invoke reservation cancellation: PASS by draft/navigation ownership.
+- Existing dirty-navigation guard remains active for edit mode: PASS.
+- Stale edit revision refreshes official reservation context and keeps editor open: PASS.
+- Policy-change edit retains existing review/feedback flow: PASS.
+- Manual print history is available before edit save: PASS.
+- Manual-print warning requires explicit “Salvar mesmo assim” before mutation: PASS.
+- Edit mode does not expose immediate payment: PASS.
+- Shared wizard remains the single creation/edit composition: PASS.
+- Create-order idempotency/effect reconciliation regressions: PASS.
+- Final Task 13 code Validate #2628 / run `36614217317`: SUCCESS with all 8 test shards, architecture, lint, build, Worker production/staging dry-runs and D1 clean/upgrade gates green.
+- Manual staging UX for the edit flow: PENDING until Task 14 provides the reservation-detail entry point.
