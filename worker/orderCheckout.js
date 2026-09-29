@@ -1,5 +1,5 @@
 import { validateCustomerIdentity } from '../shared/orderCustomerIdentity.js'
-import { getBusinessDate } from '../shared/finance.js'
+import { SCHEDULE_MAX_DAYS, validateOrderSchedule } from '../shared/orderTiming.js'
 import { validatePaymentAllocations } from './paymentValidation.js'
 import {
   moneyToCents,
@@ -64,18 +64,22 @@ export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date(
   let scheduledFor = null
   if (body.scheduledFor !== undefined && body.scheduledFor !== null && body.scheduledFor !== '') {
     if (typeof body.scheduledFor !== 'string') throw checkoutError('scheduledFor', 'Informe um horário agendado válido.')
-    const scheduledDate = new Date(body.scheduledFor)
-    const nowDate = now instanceof Date ? now : new Date(now)
-    if (Number.isNaN(scheduledDate.getTime()) || Number.isNaN(nowDate.getTime())) {
-      throw checkoutError('scheduledFor', 'Informe um horário agendado válido.')
+    const schedule = validateOrderSchedule({
+      type,
+      orderDate,
+      scheduledFor: body.scheduledFor,
+    }, now, SCHEDULE_MAX_DAYS)
+    if (!schedule.ok) {
+      const message = {
+        SCHEDULE_IN_PAST: 'O horário agendado deve ser no futuro.',
+        SCHEDULE_DATE_MISMATCH: 'A data do pedido deve corresponder à data do horário agendado.',
+        SCHEDULE_OUT_OF_RANGE: `O agendamento pode ser feito em até ${SCHEDULE_MAX_DAYS} dias.`,
+        SCHEDULE_TYPE_NOT_ALLOWED: 'Agendamento não é permitido para esta modalidade.',
+        SCHEDULE_INVALID: 'Informe um horário agendado válido.',
+      }[schedule.code] || 'Informe um horário agendado válido.'
+      throw checkoutError('scheduledFor', message)
     }
-    if (type === 'Local') throw checkoutError('scheduledFor', 'Agendamento não é permitido para pedidos Local.')
-    const today = getBusinessDate(nowDate)
-    if (orderDate !== today || getBusinessDate(scheduledDate) !== today) {
-      throw checkoutError('scheduledFor', 'Agendamento deve ser no mesmo dia e não pode ser retroativo.')
-    }
-    if (scheduledDate <= nowDate) throw checkoutError('scheduledFor', 'O horário agendado deve ser no futuro.')
-    scheduledFor = scheduledDate.toISOString()
+    scheduledFor = schedule.scheduledFor
   }
 
   if (!Array.isArray(body.items) || body.items.length === 0) {
